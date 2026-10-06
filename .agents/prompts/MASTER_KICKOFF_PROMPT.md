@@ -29,7 +29,8 @@ This directive is universal and permanently valid (today, 10 days, 100 days, or 
      - **কাজের হার্টবিট ও ব্রাঞ্চ কমেন্ট:**  
        `gh issue comment <id> --body "🤖 **[Work Claimed]** Agent: <AgentName> | Branch: feat/issue-<id>-<slug> | Started: <Timestamp>"`
      - ডেডিকেটেড ব্রাঞ্চ তৈরি করুন: `feat/issue-<id>-<slug>`. কোনো দুই এজেন্ট একই ইস্যুতে বা ব্রাঞ্চে কাজ করবে না।
-3. **Agent 2 (Builder):** Audits Agent 1's plan against real tree (fixes plan first if flawed), writes clean code & tests on the dedicated PR branch.
+3. **Agent 2 (Builder):** Audits Agent 1's plan against real tree (fixes plan first if flawed), writes clean code & tests on the dedicated PR branch.  
+   - **Defect Class Analysis & Root-Cause Elimination (পুনরাবৃত্তিমূলক সমস্যা বিশ্লেষণ ও স্থায়ী প্রতিরোধ):** যেকোনো বাগ বা ব্যর্থতা সমাধানের পূর্বে বিশ্লেষণ করুন এটি বিচ্ছিন্ন (isolated) কোনো সমস্যা নাকি পুনরাবৃত্তিমূলক কোনো সাধারণ সমস্যা (common/systemic class)। সমস্যাটি যদি ভবিষ্যতে আবারও ঘটার সম্ভাবনা থাকে, তবে কখনো উপসর্গ-ভিত্তিক জোড়াতালি (`|| echo`, সাইলেন্ট ট্রাই-ক্যাচ, অ্যাড-হক বাইপাস) দেওয়া যাবে না; সমস্যাটি গোড়া থেকে এমনভাবে নির্মূল করুন যাতে ভবিষ্যতে তা আর কখনোই দ্বিতীয়বার না ঘটতে পারে (Poka-yoke / Machine Guards / SSOT / Compile & Schema Checks)।
 4. **Agent 3 (Reviewer & Truth Judge — Review, Auto-Merge & Auto-Close):**
    - Reviews PR: ensures PR description contains `Fixes #<id>`.
    - Update issue status to review:  

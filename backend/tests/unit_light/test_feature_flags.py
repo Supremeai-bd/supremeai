@@ -38,13 +38,12 @@ def test_mem0_enabled_reads_env(monkeypatch):
 
 def test_all_flag_accessors(monkeypatch):
     monkeypatch.delenv("SUPREMEAI_GRAPHITI_ENABLED", raising=False)
-    monkeypatch.delenv("SUPREMEAI_BROWSER_USE_ENABLED", raising=False)
     monkeypatch.delenv("SUPREMEAI_E2B_ENABLED", raising=False)
-    monkeypatch.delenv("SUPREMEAI_OPENHANDS_ENABLED", raising=False)
     assert feature_flags.graphiti_enabled() is False
-    assert feature_flags.browser_use_enabled() is False
+    # (#4068) retired flags — absence is the contract
+    assert not hasattr(feature_flags, "browser_use_enabled")
     assert feature_flags.e2b_enabled() is False
-    assert feature_flags.openhands_enabled() is False
+    assert not hasattr(feature_flags, "openhands_enabled")
 
 
 def test_cache_is_used(monkeypatch):
@@ -91,9 +90,7 @@ def test_status_structure():
     assert set(status) == {
         "mem0",
         "graphiti",
-        "browser_use",
         "e2b",
-        "openhands",
         "advanced_rollout",
     }
 

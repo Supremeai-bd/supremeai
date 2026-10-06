@@ -5,6 +5,7 @@ Synchronizes features between different stores and data sources.
 Priority: 🟢 Low
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -119,7 +120,8 @@ class FeatureStoreSync:
         try:
             import redis.asyncio as redis
             client = redis.Redis(
-                host=self.source_config.get('host', 'localhost'),
+                # বাংলা (#3775): env-driven host — not hardcoded localhost
+                host=self.source_config.get('host') or os.getenv('REDIS_HOST', 'localhost'),
                 port=self.source_config.get('port', 6379),
                 db=self.source_config.get('db', 0)
             )
@@ -224,7 +226,8 @@ class FeatureStoreSync:
         try:
             import redis.asyncio as redis
             client = redis.Redis(
-                host=self.destination_config.get('host', 'localhost'),
+                # বাংলা (#3775): env-driven host — not hardcoded localhost
+                host=self.destination_config.get('host') or os.getenv('REDIS_HOST', 'localhost'),
                 port=self.destination_config.get('port', 6379),
                 db=self.destination_config.get('db', 0)
             )

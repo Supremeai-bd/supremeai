@@ -94,9 +94,9 @@ def _resolve_default_api_base_url() -> str:
         if getattr(settings, "auto_backend_url", None):
             return settings.auto_backend_url.rstrip("/")
         if hasattr(settings, "is_local") and settings.is_local():
-            return "http://localhost:8000"
+            return os.getenv("LOCAL_API_URL", "http://127.0.0.1:8000")  # #3775: env-driven
     if os.getenv("ENV") in ("local", "dev", "development") or os.getenv("CI"):
-        return "http://localhost:8000"
+        return os.getenv("LOCAL_API_URL", "http://127.0.0.1:8000")  # #3775: env-driven
     raise ValueError("API base URL must be configured via settings or API_BASE_URL environment variable.")
 
 API_BASE_URL = _resolve_default_api_base_url()

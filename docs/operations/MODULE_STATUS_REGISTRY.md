@@ -16,7 +16,7 @@
 | `backend/services/diagram_parser_service.py` | WIRED-ON-MAIN (issue claim stale) | `ALL_ROUTERS` entry `backend/api/routers.py:400-406` | none — verify endpoints in prod | resolved by merged PR #581 |
 | `backend/services/video_to_code_pipeline.py` | WIRED-ON-MAIN (issue claim stale) | `ALL_ROUTERS` entry `backend/api/routers.py:417-422` | none — optional ffmpeg availability check | resolved by merged PR #581 |
 | `backend/integrations/e2b_adapter.py` | ORPHANED-VERIFIED | Class has zero consumers repo-wide; dep not in `backend/pyproject.toml` | archive or extract to separate repo | DECISION REQUIRED (owner) |
-| `backend/integrations/openhands_adapter.py` | ORPHANED-VERIFIED | same | archive or extract to separate repo | DECISION REQUIRED (owner) |
+| `backend/integrations/openhands_adapter.py` | **RETIRED + DELETED 2026-10-06** (audit #4045 → execution #4068) | deleted | MCP-server path retained (headless_agent_registry + mcp_allowlist + brain/mcp_client) | ✅ DECIDED |
 | `backend/integrations/browser_use_adapter.py` | ORPHANED-VERIFIED | same | archive or extract to separate repo | DECISION REQUIRED (owner) |
 | `backend/integrations/mem0_adapter.py` | ORPHANED-VERIFIED | same | archive or extract to separate repo | DECISION REQUIRED (owner) |
 | `backend/integrations/graphiti_adapter.py` | ORPHANED-VERIFIED | same | archive or extract to separate repo | DECISION REQUIRED (owner) |

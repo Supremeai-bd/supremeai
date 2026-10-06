@@ -48,9 +48,10 @@ def test_all_integration_flags_default_false_without_db():
         with patch.object(ff, "_db_flag", return_value=None):
             assert f.mem0_enabled() is False
             assert f.graphiti_enabled() is False
-            assert f.browser_use_enabled() is False
+            # (#4068) browser_use + openhands flags retired — absence is the contract
+            assert not hasattr(f, "browser_use_enabled")
             assert f.e2b_enabled() is False
-            assert f.openhands_enabled() is False
+            assert not hasattr(f, "openhands_enabled")
 
 
 def test_is_enabled_full_rollout():
@@ -74,5 +75,5 @@ def test_is_enabled_percentage_deterministic():
 def test_status_returns_expected_keys():
     f = ff.FeatureFlags()
     status = f.status()
-    expected = {"mem0", "graphiti", "browser_use", "e2b", "openhands", "advanced_rollout"}
+    expected = {"mem0", "graphiti", "e2b", "advanced_rollout"}
     assert expected.issubset(set(status.keys()))
