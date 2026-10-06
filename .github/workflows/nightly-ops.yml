@@ -23,7 +23,7 @@
 #   constitution-governance.yml validate (weekly)     -> constitution      (17 3 * * 1)
 #   audit-release.yml self-audit (weekly arm)         -> self-audit        (0 3 * * 0)
 #   audit-release.yml silent-error-scan (weekly)      -> silent-error      (17 3 * * 1)
-#   deploy-doctor.yml */5 cron (D1 dissolution)       -> deploy-doctor-fallback (0 * * * *, 90m
+#   deploy-doctor.yml */5 cron (D1 dissolution)       -> deploy-doctor-fallback (0 */4 * * *, 90m
 #     window; event-driven if:failure() arm lands in ci.yml via #1855; manual arm = ops-console)
 #
 # Dedup ledger (#1854): pip-audit exactly ONE copy (deep-audit Auto Vulnerability Scanner
@@ -195,12 +195,12 @@ jobs:
       issues: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@v5 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -256,7 +256,7 @@ jobs:
           python scripts/ci/rls_rbac_auditor.py || echo "[WARN] RLS/RBAC gaps found"
 
       - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@v5 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -314,7 +314,7 @@ jobs:
       # auto-খুলে/আপডেট করি। Blocking step-এর failure job status-এও দৃশ্যমান থাকে।
       - name: Open/update maintenance issue on failure
         if: ${{ always() && github.event.inputs.skip_issue != 'true' && (steps.duplicate_detector.outcome == 'failure' || steps.vuln_scanner.outcome == 'failure' || steps.mutation_testing.outcome == 'failure' || steps.perf_benchmark.outcome == 'failure' || steps.full_audit.outcome == 'failure' || steps.parity_sentinel.outcome == 'failure') }}
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@v7 # v9.0.0
         with:
           script: |
             const title = "🔧 Scheduled Deep Audit found issues";
@@ -361,7 +361,7 @@ jobs:
 
       - name: Auto-close maintenance issue if everything passed
         if: ${{ always() && steps.duplicate_detector.outcome != 'failure' && steps.vuln_scanner.outcome != 'failure' && steps.mutation_testing.outcome != 'failure' && steps.perf_benchmark.outcome != 'failure' && steps.full_audit.outcome != 'failure' && steps.parity_sentinel.outcome != 'failure' }}
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@v7 # v9.0.0
         with:
           script: |
             const title = "🔧 Scheduled Deep Audit found issues";
@@ -401,12 +401,12 @@ jobs:
       contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@v5 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -455,7 +455,7 @@ jobs:
     # তাই service container বাদ + স্পষ্ট sqlite URL — gate এখন সৎভাবে চলবে।
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
         with:
           persist-credentials: false
 
@@ -500,7 +500,7 @@ jobs:
 
       - name: Open/update reliability issue on gate failure
         if: ${{ failure() && github.event.inputs.skip_issue != 'true' }}
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@v7 # v9.0.0
         with:
           script: |
             const title = "🎯 Mission Reliability Gate failed (pass^k < 0.8)";
@@ -540,7 +540,7 @@ jobs:
 
       - name: Auto-close reliability issue on gate pass
         if: ${{ success() }}
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@v7 # v9.0.0
         with:
           script: |
             const title = "🎯 Mission Reliability Gate failed (pass^k < 0.8)";
@@ -587,10 +587,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
 
       - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@v5 # v7.0.0
         with:
           python-version: "3.11"
 
@@ -634,10 +634,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
 
       - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@v5 # v7.0.0
         with:
           python-version: "3.11"
 
@@ -963,7 +963,7 @@ jobs:
           export-type: "env"
 
       - name: Checkout (canonical resolver lives in-repo)
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
 
       # বাংলা (#1132): resolution চেইন এখন scripts/ci/resolve_production_targets.py —
       # একটাই canonical চুক্তি, qa-live-smoke + 09-post-deploy-smoke + release
@@ -1360,7 +1360,7 @@ jobs:
       QA_ADMIN_TOTP_SECRET: ${{ secrets.QA_ADMIN_TOTP_SECRET }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
 
       - name: Setup Node & PNPM
         uses: ./.github/actions/setup-frontend
@@ -1431,7 +1431,7 @@ jobs:
 
   deploy-doctor-fallback:
     name: 🔍 Deploy Doctor (hourly fallback, 90m window)
-    if: github.event_name == 'schedule' && github.event.schedule == '0 * * * *'
+    if: github.event_name == 'schedule' && github.event.schedule == '0 */4 * * *' # #4085: gate re-canonicalized to match schedule cron (cron-triple coupling rule)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -1448,9 +1448,9 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
       - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@v5 # v7.0.0
         with:
           python-version: '3.11'
       - name: Run Deploy Doctor (fallback window 90m)
@@ -1549,9 +1549,9 @@ jobs:
     name: 🤫 Silent Error Scan
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+    - uses: actions/checkout@v5
     - name: Setup Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     - name: Run silent error detector (regression gate)
@@ -1590,7 +1590,7 @@ jobs:
           echo "::error::Refusing to scan without an explicit environment."
           exit 1
 
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v5 # v7.0.1
 
       - name: ZAP Full scan (baseline)
         uses: zaproxy/action-full-scan@4f7523a09110bc63d6b349713de6aa697ec7fbe9
@@ -1638,9 +1638,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
       - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@v5 # v7.0.0
         with:
           python-version: '3.11'
       - name: Install parser
@@ -1659,9 +1659,9 @@ jobs:
     name: 🔍 Weekly Self-Audit Scan
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+    - uses: actions/checkout@v5
     - name: Setup Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     - name: Run offline self-audit scan
@@ -1683,10 +1683,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@v5 # v7.0.0
         with:
           python-version: "3.11"
 

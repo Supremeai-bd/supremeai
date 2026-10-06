@@ -13,8 +13,10 @@ SCRIPT = ROOT / "scripts/deploy/render_rollback.py"
 
 
 def _load():
-    # বাংলা মন্তব্য: render_client import sys.path-ট্রিকের উপর দাঁড়িয়েছে —
-    # টেস্টেও সেই পাথ দরকার; বাকি পক্ষে module import ব্যর্থ হবে।
+    # বাংলা মন্তব্য: render_rollback.py scripts/lib এবং scripts/deploy-এর
+    # sibling modules ব্যবহার করে। fresh clone/CI-তেও একই module resolution
+    # নিশ্চিত করতে উভয় canonical script paths test loader-এ যোগ করা হয়।
+    sys.path.insert(0, str(ROOT / "scripts" / "deploy"))
     sys.path.insert(0, str(ROOT / "scripts"))
     spec = importlib.util.spec_from_file_location("render_rollback_under_test", SCRIPT)
     mod = importlib.util.module_from_spec(spec)

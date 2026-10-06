@@ -374,6 +374,149 @@ class LoopScopedSpawnTests(unittest.TestCase):
         self.assertEqual(captured["env"]["GH_TOKEN"], "ambient-tok")
 
 
+# ───────────────────── vault-extras delivery (#4134) ─────────────────────
+
+class VaultExtrasDeliveryTests(unittest.TestCase):
+    """#4134: MCP Tower + AI keys ride the SAME vault fetch into scoped spawns.
+
+    Contract: fetch_credentials already holds the full vault response — surface
+    a curated extras set (MCP_API_KEY, MCP_TOWER_URL canonicalized, AI keys)
+    instead of a second network call. Allowlist still gates what reaches the
+    child; INFISICAL_*/GITHUB_APP_* never leave the orchestrator.
+    """
+
+    def setUp(self):
+        self.SECRETS = {
+            "AGENT_CODER_1_APP_ID": "111",
+            "AGENT_CODER_1_INSTALLATION_ID": "222",
+            "AGENT_CODER_1_PRIVATE_KEY": "-----BEGIN FAKE KEY-----",
+            "MCP_API_KEY": "tower-key-123",
+            "MCP_URL": "https://tower.example/sse",  # vault stores the alt name
+            "GROQ_API_KEY": "groq-key-xyz",
+        }
+
+    def test_fetch_credentials_surfaces_vault_extras(self):
+        transport = FakeTransport(self.SECRETS)
+        creds = cm.fetch_credentials("agent-3", {"INFISICAL_CLIENT_ID": "c"}, transport)
+        extras = creds["vault_extras"]
+        self.assertEqual(extras["MCP_API_KEY"], "tower-key-123")
+        # canonicalization: vault's MCP_URL becomes the child's MCP_TOWER_URL
+        self.assertEqual(extras["MCP_TOWER_URL"], "https://tower.example/sse")
+        self.assertEqual(extras["GROQ_API_KEY"], "groq-key-xyz")
+
+    def test_vault_extras_empty_when_keys_absent(self):
+        transport = FakeTransport({
+            "AGENT_CODER_1_APP_ID": "1",
+            "AGENT_CODER_1_INSTALLATION_ID": "2",
+            "AGENT_CODER_1_PRIVATE_KEY": "k",
+        })
+        creds = cm.fetch_credentials("agent-3", {}, transport)
+        self.assertEqual(creds["vault_extras"], {})
+
+    def test_vault_extras_never_contain_master_creds(self):
+        secrets = dict(self.SECRETS)
+        secrets.update({
+            "INFISICAL_CLIENT_SECRET": "master", "GITHUB_APP_PRIVATE_KEY": "pem",
+        })
+        extras = cm._vault_extras_from(secrets)
+        for forbidden in ("INFISICAL_CLIENT_SECRET", "GITHUB_APP_PRIVATE_KEY",
+                          "INFISICAL_CLIENT_ID", "GITHUB_APP_ID"):
+            self.assertNotIn(forbidden, extras)
+
+    def test_resolve_and_mint_end_to_end_includes_extras(self):
+        transport = FakeTransport(self.SECRETS, token="ghs_e2e_tok_777")
+        with mock.patch.object(cm, "load_vault_env", return_value={"INFISICAL_CLIENT_ID": "c"}), \
+             mock.patch.dict(sys.modules, {"jwt": fake_jwt_module()}):
+            result = cm.resolve_and_mint_for_slot("agent-3", transport=transport)
+        self.assertEqual(result["vault_extras"]["MCP_API_KEY"], "tower-key-123")
+        self.assertEqual(result["vault_extras"]["MCP_TOWER_URL"], "https://tower.example/sse")
+
+    def test_scoped_env_passes_mcp_keys_through_base_env_for_coder(self):
+        env = cm.build_scoped_env(
+            "coder", token="tok",
+            base_env={
+                "MCP_API_KEY": "tower-key-123", "MCP_TOWER_URL": "https://tower",
+                "INFISICAL_CLIENT_SECRET": "master", "GITHUB_APP_PRIVATE_KEY": "pem",
+            })
+        self.assertEqual(env["MCP_API_KEY"], "tower-key-123")
+        self.assertEqual(env["MCP_TOWER_URL"], "https://tower")
+        self.assertNotIn("INFISICAL_CLIENT_SECRET", env)
+        self.assertNotIn("GITHUB_APP_PRIVATE_KEY", env)
+
+    def test_rules_breaker_still_zero_key_even_with_mcp_in_base_env(self):
+        env = cm.build_scoped_env(
+            "rules_breaker", token="x",
+            base_env={"MCP_API_KEY": "tower-key-123", "MCP_TOWER_URL": "https://tower"})
+        self.assertNotIn("MCP_API_KEY", env)
+        self.assertNotIn("MCP_TOWER_URL", env)
+        self.assertNotIn("GH_TOKEN", env)
+
+    def test_run_work_command_gap_fills_vault_extras_ambient_wins(self):
+        from scripts.agents import continuous_agent_loop as loop
+
+        captured = {}
+
+        class FakeCM:
+            CredentialError = cm.CredentialError
+
+            @staticmethod
+            def resolve_and_mint_for_slot(slot, **kw):
+                return {
+                    "token": "ghs_jit_tok", "expires_at": 999,
+                    "vault_extras": {
+                        "MCP_API_KEY": "vault-key", "MCP_TOWER_URL": "https://tower",
+                    },
+                }
+
+            @staticmethod
+            def build_scoped_env(role, token="", agent_name="", slot="",
+                                 base_env=None, **kw):
+                captured["base_env"] = base_env
+                return {"GH_TOKEN": token}
+
+            @staticmethod
+            def run(cmd, env):
+                return 0
+
+        with mock.patch.dict(sys.modules, {"scripts.agents.credential_manager": FakeCM}), \
+             mock.patch.dict("os.environ", {"MCP_API_KEY": "ambient-key"}, clear=True):
+            rc = loop.run_work_command(["x"], "coder", "coder-1", slot="agent-3")
+        self.assertEqual(rc, 0)
+        # ambient value wins; vault fills only the gap
+        self.assertEqual(captured["base_env"]["MCP_API_KEY"], "ambient-key")
+        self.assertEqual(captured["base_env"]["MCP_TOWER_URL"], "https://tower")
+
+    def test_run_work_command_fallback_passes_ambient_base_env(self):
+        from scripts.agents import continuous_agent_loop as loop
+
+        captured = {}
+
+        class FakeCM:
+            CredentialError = cm.CredentialError
+
+            @staticmethod
+            def resolve_and_mint_for_slot(slot, **kw):
+                raise cm.CredentialError("vault down")
+
+            @staticmethod
+            def build_scoped_env(role, token="", agent_name="", slot="",
+                                 base_env=None, **kw):
+                captured["base_env"] = base_env
+                return {"GH_TOKEN": token}
+
+            @staticmethod
+            def run(cmd, env):
+                return 0
+
+        with mock.patch.dict(sys.modules, {"scripts.agents.credential_manager": FakeCM}), \
+             mock.patch.dict("os.environ",
+                             {"GH_TOKEN": "ambient-tok", "MCP_API_KEY": "amb-k"},
+                             clear=True):
+            rc = loop.run_work_command(["x"], "coder", "coder-1", slot="agent-3")
+        self.assertEqual(rc, 0)
+        self.assertEqual(captured["base_env"].get("MCP_API_KEY"), "amb-k")
+
+
 class TestPushAsAgentAdapter(unittest.TestCase):
     """# বাংলা (#2644): push_as_agent.fetch_creds আর্গুমেন্ট অর্ডার রিগ্রেশন টেস্ট।"""
 

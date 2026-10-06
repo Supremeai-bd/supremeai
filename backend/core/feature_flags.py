@@ -11,8 +11,13 @@
    SupabaseClient.is_feature_enabled() ক্যাল করে। per-user rollout ও
    allowed_users চেক করে।
 
-নকশা: Premium features (mem0, Graphiti, browser-use, E2B) ডিফল্ট OFF।
-ফ্ল্যাগ OFF হলে সরাসরাই zero-cost free fallback এগুলোতে রুট করে।
+নকশা-ইতিহাস (#4097 reconciliation): এই ফ্ল্যাগগুলো একসময় premium
+integrations (mem0, Graphiti, browser-use, E2B) নিয়ন্ত্রণ করত — সেই সব
+adapter অবসর নিয়েছে (browser_use/openhands: #4044/#4045 → execution
+#4068; mem0/e2b/graphiti: #4057 → execution PR #4103; বিস্তারিত
+docs/architecture/retired_adapters.md)। ফ্ল্যাগ-কনস্ট্যান্ট ও DB-টিয়ার
+ম্যাপিং (admin-UI feature_names চুক্তি, #1818) compatibility-র জন্য বহাল
+আছে — কোনো live adapter-path এখন এগুলোর উপর নির্ভর করে না।
 """
 
 from __future__ import annotations

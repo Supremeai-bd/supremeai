@@ -16,6 +16,16 @@
 # replaced by a LABEL-based pre-check + LOCK (status:in-progress label,
 # the canonical lock per AGENTS.md §3).
 #
+# SESSION MARKER (Roadmap v2.0 Phase 0.2 — shared-slot identity isolation):
+#   AGENT_SESSION_ID env (optional) — set হলে claim comment-এ
+#   `- **Session:**` লাইন যায় এবং Rule #13 active-claim report বলে দেয়
+#   কোন session claim ধরে আছে (same-session vs parallel-session vs
+#   no-marker)। এক vault slot = এক bot identity ভাগ করে এমন parallel
+#   session-গুলো আর অন্ধভাবে একে অপরের claim-এ --force খায় না — blocked
+#   agent জানবে কেন ব্লক হলো (Phase 0 DoD: "agent knows why it was
+#   blocked")। Deterministic block semantics অপরিবর্তিত — এটা কোনো
+#   bypass নয় (Principle 5: Deterministic Safety Wins)।
+#
 # GROUP BRANCHING (#2378 — Flexible Group Branching Protocol):
 #   1. BRANCH_NAME="group/<name>" গ্রহণযোগ্য — issue number থাকা বাধ্যতামূলক নয়,
 #      গ্রুপ ব্রাঞ্চ নামকরণ `^group/<name>$` হলেই হবে।
@@ -61,6 +71,8 @@ FORCE=false
 STATUS_LABEL="status:in-progress"
 FILES_DECLARATION=""
 RECORD_COOLDOWN_GROUP=""
+# Roadmap v2.0 Phase 0.2: claim-এ session marker (AGENT_SESSION_ID env)।
+SESSION_ID="${AGENT_SESSION_ID:-}"
 POSITIONAL=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -184,13 +196,19 @@ fi
 
 # GAP-DUPLICATE-01 FIX: Also check if any open PR references this issue
 # (fallback for issues where 'has-pr' label wasn't set by a prior agent)
-OPEN_PR_FOR_ISSUE=$(gh pr list --state open --search "#$ISSUE_NUMBER" --json number,title --limit 5 2>/dev/null | "$PYTHON_BIN" -c "
+# Roadmap v2.0 Phase 0.5 (#4141): REST universe — Search API is eventually
+# consistent (fresh PRs invisible → duplicate-PR guard missed them, seq114/115
+# live evidence). Mirrors issue_queue_manager.py normalization (#4115).
+OPEN_PR_FOR_ISSUE=$(gh api --paginate --slurp "repos/$GH_REPO/pulls?state=open&per_page=100" 2>/dev/null | "$PYTHON_BIN" -c "
 import json, sys
 try:
-    prs = json.load(sys.stdin)
-    refs = [str(p['number']) for p in prs if str($ISSUE_NUMBER) in (p.get('body') or p.get('title') or '')]
+    pages = json.load(sys.stdin)
+    items = [i for page in pages for i in (page if isinstance(page, list) else [page])]
+    n = str($ISSUE_NUMBER)
+    refs = [str(p['number']) for p in items
+            if n in (p.get('title') or '') or n in (p.get('body') or '')]
     print(' '.join(refs))
-except:
+except Exception:
     print('')
 " 2>/dev/null || echo "")
 if [ -n "$OPEN_PR_FOR_ISSUE" ]; then
@@ -225,19 +243,55 @@ fi
 
 # ─── Sequential Integrity Check (Rule #26: GSPQ Contiguous Order) ───────
 echo "🚂 Checking sequential integrity for issue #$ISSUE_NUMBER..."
-if "$PYTHON_BIN" scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>/dev/null; then
+# #4110: stderr was discarded here (2>/dev/null) — a fail-closed gate error
+# (e.g. lag window hiding a LIVE issue → "not found or closed") surfaced as a
+# false "sequence violation", sending agents to misdiagnose GSPQ ordering or
+# burn --force. Now: capture stderr, surface the REAL gate reason, and give a
+# not-found verdict one lag-window retry (verify-claim's REST single-issue
+# fallback is the authoritative re-check) before failing.
+SEQ_GATE_ERR=$(mktemp)
+if "$PYTHON_BIN" scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>"$SEQ_GATE_ERR"; then
   echo "✅ Sequential constraint verified."
 else
-  echo "❌ Sequential constraint violation! You cannot claim out of sequence."
-  echo "Prior issue in group sequence must be claimed or completed first."
-  exit 1
+  SEQ_GATE_MSG=$(cat "$SEQ_GATE_ERR")
+  rm -f "$SEQ_GATE_ERR"
+  if printf '%s' "$SEQ_GATE_MSG" | grep -q "not found or closed"; then
+    echo "⏳ #4110: queue fetch could not see issue #$ISSUE_NUMBER (lag window) — one retry after 5s..."
+    sleep 5
+    if "$PYTHON_BIN" scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>/dev/null; then
+      echo "✅ Sequential constraint verified (post-retry, #4110)."
+    else
+      echo "❌ Sequential gate: issue #$ISSUE_NUMBER invisible to the queue fetch even after retry (REST-confirmed not-open)."
+      echo "Prior issue in group sequence must be claimed or completed first."
+      exit 1
+    fi
+  else
+    echo "❌ Sequential constraint violation! You cannot claim out of sequence."
+    printf '   gate reason: %s\n' "$SEQ_GATE_MSG"
+    echo "Prior issue in group sequence must be claimed or completed first."
+    exit 1
+  fi
 fi
 
 
 # AUDIT-FIX (#2008): Rule #13 "ONE ACTIVE CLAIM PER AGENT" — check if this
 # agent already has another issue with status:in-progress before claiming.
 # Uses label-based check (works for bots that can't be assigned via API).
-ACTIVE_CLAIMS=$(gh issue list --label "$STATUS_LABEL" --state open --json number,title --limit 50 2>/dev/null || echo "[]")
+# Roadmap v2.0 Phase 0.5 (#4141): REST list — a fresh in-progress claim must
+# be visible to the mutex (Search-API lag = shared-identity collision class).
+# Output shape unchanged: JSON array of {number, title}; PRs excluded
+# (in-progress labels only sit on issues; pull_request key = PR discriminator).
+_ACTIVE_LABEL_ENC=$(printf '%s' "$STATUS_LABEL" | sed 's/:/%3A/g')
+ACTIVE_CLAIMS=$(gh api --paginate --slurp "repos/$GH_REPO/issues?labels=$_ACTIVE_LABEL_ENC&state=open&per_page=100" 2>/dev/null | "$PYTHON_BIN" -c "
+import json, sys
+try:
+    pages = json.load(sys.stdin)
+    items = [i for page in pages for i in (page if isinstance(page, list) else [page])]
+    issues = [i for i in items if i.get('pull_request') is None]
+    print(json.dumps([{'number': i.get('number'), 'title': i.get('title', '')} for i in issues]))
+except Exception:
+    print('[]')
+" 2>/dev/null || echo "[]")
 ACTIVE_COUNT=$(echo "$ACTIVE_CLAIMS" | "$PYTHON_BIN" -c "
 import json, sys
 try:
@@ -261,6 +315,7 @@ me = '$AGENT_NAME'
 # Canonical claim marker: '**Agent:** \`<name>\`' — atomic_claim.sh-এর format
 # (#2644 audit trail; gates.py extract_claim_agents-ও এই regex ব্যবহার করে)।
 pattern = re.compile(r'\*\*Agent:\*\*\s*\`' + re.escape(me) + r'\`')
+session_re = re.compile(r'\*\*Session:\*\*\s*\`([^\`]*)\`')
 my_issues = []
 for issue in issues:
     num = issue.get('number')
@@ -268,7 +323,13 @@ for issue in issues:
         comments = subprocess.run(['gh', 'issue', 'view', str(num), '--json', 'comments', '-q', '.comments[].body'],
             capture_output=True, text=True, timeout=10)
         if pattern.search(comments.stdout):
-            my_issues.append(f'#{num}: {issue.get(\"title\",\"\")[:60]}')
+            # Roadmap v2.0 Phase 0.2: report WHICH session holds each active
+            # claim — blocked agent on a shared slot identity can tell
+            # same-session from parallel-session (pre-marker claims print
+            # 'no-session-marker').
+            m = session_re.search(comments.stdout)
+            sess = m.group(1) if m else 'no-session-marker'
+            my_issues.append(f'#{num} [session: {sess}]: {issue.get(\"title\",\"\")[:60]}')
     except:
         pass
 if my_issues:
@@ -281,8 +342,16 @@ else:
     echo "⚠️  WARNING: You already have $STATUS_LABEL on these issues (Rule #13: ONE ACTIVE CLAIM PER AGENT):"
     echo "$MY_ACTIVE" | sed 's/^/    /'
     echo ""
-    echo "Complete or release the current claim before claiming another."
-    echo "Use --force to override (with caution)."
+    # Roadmap v2.0 Phase 0.2: explain WHY the block fired — same session
+    # (real duplicate) vs another session of this shared slot identity.
+    if [ -n "$SESSION_ID" ] && echo "$MY_ACTIVE" | grep -qF "[session: ${SESSION_ID}]"; then
+      echo "This is a SAME-SESSION active claim (session: $SESSION_ID) —"
+      echo "complete or release it before claiming another."
+    else
+      echo "Active claim(s) held by ANOTHER session of this shared identity"
+      echo "(or a pre-marker claim). Coordinate with the parallel session,"
+      echo "or use --force with a justification comment if boundaries are disjoint."
+    fi
     # (--force is parsed in the Args loop above — "$@" is consumed by then)
     if [ "$FORCE" != "true" ]; then
       echo "❌ Claim blocked by Rule #13. Use --force to override."
@@ -477,6 +546,7 @@ CLAIM_COMMENT="### 🔒 Atomic Claim Established (GAP-01)
 - **Agent:** \`$AGENT_NAME\`
 - **Issue:** #$ISSUE_NUMBER
 - **Claimed at:** $CLAIM_TIME
+- **Session:** \`${SESSION_ID:-unspecified}\`
 - **Branch:** \`${BRANCH_NAME:-not-yet-created}\`
 # বাংলা মন্তব্য (#2597, #2644): এই কমেন্ট block-টি double-quoted string —
 # ভেতরের প্রতিটি literal backtick \` দিয়ে escape করতে হয়, নাহলে bash সেগুলো
@@ -512,7 +582,19 @@ if [ -n "${BRANCH_NAME:-}" ] && [[ "$BRANCH_NAME" == group/* ]]; then
   GROUP_LABEL=$(gh issue view "$ISSUE_NUMBER" --json labels -q '.labels[].name' 2>/dev/null | grep -E '^group:' | head -1 || true)
   if [ -n "$GROUP_LABEL" ]; then
     echo "🌿 Group lease detected ($GROUP_LABEL on $BRANCH_NAME) — checking sibling file boundaries (#2378)..."
-    SIBLINGS_JSON=$(gh issue list --label "$GROUP_LABEL" --label "$STATUS_LABEL" --state open --json number,title --limit 50 2>/dev/null || echo "[]")
+    # Roadmap v2.0 Phase 0.5 (#4141): REST list (Search-API lag = stale sibling
+    # boundaries → false overlap passes); same normalization as Rule #13 scan.
+    _GROUP_LABEL_ENC=$(printf '%s' "$GROUP_LABEL" | sed 's/:/%3A/g')
+    SIBLINGS_JSON=$(gh api --paginate --slurp "repos/$GH_REPO/issues?labels=$_GROUP_LABEL_ENC,$_ACTIVE_LABEL_ENC&state=open&per_page=100" 2>/dev/null | "$PYTHON_BIN" -c "
+import json, sys
+try:
+    pages = json.load(sys.stdin)
+    items = [i for page in pages for i in (page if isinstance(page, list) else [page])]
+    issues = [i for i in items if i.get('pull_request') is None]
+    print(json.dumps([{'number': i.get('number'), 'title': i.get('title', '')} for i in issues]))
+except Exception:
+    print('[]')
+" 2>/dev/null || echo "[]")
     RC=0
     OVERLAP=$(GROUP_NAME="${GROUP_LABEL#group:}" \
               MY_ISSUE="$ISSUE_NUMBER" \

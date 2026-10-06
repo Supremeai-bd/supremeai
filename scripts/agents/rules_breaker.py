@@ -247,32 +247,44 @@ _RENDER_SERVICE_ID_RE = re.compile(r"srv-[a-z0-9]{12,}")
 _SERVICE_ID_ALLOWED_PREFIXES = ("scripts/agents/rules_breaker.py", "tests/")
 
 
-def scan_render_service_ids(limit: int) -> list[dict]:
+def scan_render_service_ids(limit: int, root: Path | None = None) -> list[dict]:
     """Detect hardcoded Render service IDs in public deploy tooling (#3774).
 
     Service IDs are identifiers, not credentials (Render API still needs
     RENDER_API_KEY) — কিন্তু public repo-তে এরা production topology প্রকাশ করে
     (roadmap §8: private-plane material)। সব ID env থেকে আসবে:
     RENDER_SERVICE_ID / RENDER_IMAGE_SERVICE_ID — fallback hardcoded নিষিদ্ধ।
-    Scope: scripts/deploy/** + root Dockerfile (topology-bearing surfaces)।
+    Scope (#4091 — detector scope এখন পুরো ক্লাস-সারফেস): scripts/deploy/** +
+    .github/scripts/** + infrastructure/** + root Dockerfile। #3774-পরবর্তী
+    লাইভ-প্রমাণ: ৮টি hardcoded srv- ID গেট-স্কোপের বাইরে .github/scripts ও
+    mcp-control-plane TS-এ টিকে ছিল — scope < surface ক্লাস-ত্রুটি।
     কমেন্ট-লাইনও ফ্ল্যাগ হয় — comment-এ লাইভ ID থাকলেও topology লিক হয়
     (Dockerfile কেস, #3774)।
     """
     findings = []
+    scan_root = root if root is not None else ROOT_DIR
     targets: list[Path] = []
-    deploy_dir = ROOT_DIR / "scripts" / "deploy"
-    if deploy_dir.is_dir():
-        for f in sorted(deploy_dir.rglob("*")):
-            if f.is_file() and f.suffix.lower() in {
-                ".py", ".ts", ".js", ".json", ".sh", ".yml", ".yaml", ".toml",
-            }:
-                targets.append(f)
-    dockerfile = ROOT_DIR / "Dockerfile"
+    scanned_suffixes = {
+        ".py", ".ts", ".js", ".json", ".sh", ".yml", ".yaml", ".toml",
+    }
+    # (#4091) topology-bearing ডিরেক্ট্রি-সারফেস — প্রতিটি recursive:
+    for rel_dir in ("scripts/deploy", ".github/scripts", "infrastructure"):
+        base = scan_root / rel_dir
+        if not base.is_dir():
+            continue
+        for f in sorted(base.rglob("*")):
+            if not f.is_file() or f.suffix.lower() not in scanned_suffixes:
+                continue
+            # node_modules/ বাদ — vendored ট্রি এই গেটের সারফেস নয় (mcp-control-plane কেস)
+            if "node_modules" in f.parts:
+                continue
+            targets.append(f)
+    dockerfile = scan_root / "Dockerfile"
     if dockerfile.is_file():
         targets.append(dockerfile)
 
     for fpath in targets:
-        rel = str(fpath.relative_to(ROOT_DIR)).replace(os.sep, "/")
+        rel = str(fpath.relative_to(scan_root)).replace(os.sep, "/")
         if any(rel == a or rel.startswith(a) for a in _SERVICE_ID_ALLOWED_PREFIXES):
             continue
         try:

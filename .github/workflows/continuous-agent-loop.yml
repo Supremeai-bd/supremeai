@@ -102,10 +102,10 @@ jobs:
             echo "::warning::SELF_HEAL_PAT returned HTTP $STATUS — falling back to github.token"
           fi
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -147,10 +147,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -184,10 +184,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -227,10 +227,10 @@ jobs:
     timeout-minutes: 8
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -252,10 +252,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -263,6 +263,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
           GH_REPO: ${{ github.repository }}
+          # #4134: Infisical bootstrap creds — GitHub Secrets hold ONLY these
+          # master keys; every runtime credential (per-slot GitHub App tokens,
+          # MCP_API_KEY/MCP_TOWER_URL, AI keys) is fetched from the Infisical
+          # vault at mint time and delivered scoped to child agents.
+          # Without this the loop silently degrades to SELF_HEAL_PAT and
+          # children spawn without tower auth (viewer mode).
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
         run: |
           set -euo pipefail
           ROLE="${{ github.event.inputs.role || 'coder' }}"

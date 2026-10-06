@@ -6,7 +6,7 @@
   "assumptions": [
     "resolved path = ALL_ROUTERS include-time prefix + file's APIRouter(prefix) + decorator path",
     "package routers (admin_dashboard/, browser/, commandcenter/) take their prefix from the package __init__.py",
-    "routes in backend/api/routes/ not present in ALL_ROUTERS are marked mounted=false (unregistered files: 10)",
+    "routes in backend/api/routes/ not present in ALL_ROUTERS are marked mounted=false (unregistered files: 11)",
     "websocket routes are out of scope (no HTTP method, no openapi entry)",
     "frontend consumers are literal /api/... strings in frontend/src/**.{ts,tsx}; ${...} template params normalize to :param",
     "matching: exact \u2192 param-normalized \u2192 frontend base-path reference; /api/v1/x and /api/x are aliases",
@@ -14,20 +14,20 @@
     "classification priority: deprecated > admin-only > internal > user-facing > api-only > orphaned"
   ],
   "totals": {
-    "backend_routes": 849,
-    "frontend_unique_refs": 144,
-    "routes_with_frontend_consumer": 294,
-    "unmounted_routes": 0,
+    "backend_routes": 858,
+    "frontend_unique_refs": 158,
+    "routes_with_frontend_consumer": 311,
+    "unmounted_routes": 7,
     "orphan_routes": 0,
     "orphan_families": 0,
-    "api_only_routes": 292,
-    "api_only_families": 157,
+    "api_only_routes": 285,
+    "api_only_families": 156,
     "by_classification": {
-      "user-facing": 169,
-      "admin-only": 343,
+      "user-facing": 183,
+      "admin-only": 345,
       "internal": 41,
       "deprecated": 4,
-      "api-only": 292,
+      "api-only": 285,
       "orphaned": 0
     }
   },
@@ -59,17 +59,13 @@
     "/api/byoc/status": 1,
     "/api/chat/capabilities": 1,
     "/api/chat/completion": 1,
-    "/api/chat/export": 2,
     "/api/chat/get_completion": 1,
     "/api/chat/learning": 1,
-    "/api/chat/prompt-action": 1,
     "/api/chat/search": 1,
-    "/api/chat/stream": 2,
     "/api/chat/stream_chat": 1,
     "/api/chat/tasks": 1,
     "/api/ci/cache": 1,
     "/api/ci/history": 1,
-    "/api/ci/latest-summary": 1,
     "/api/ci/stats": 1,
     "/api/ci/summary": 1,
     "/api/ci/trends": 1,
@@ -99,7 +95,7 @@
     "/api/mobile/bff": 1,
     "/api/reasoning/think": 2,
     "/api/research/:param": 1,
-    "/api/research/deep": 2,
+    "/api/research/deep": 1,
     "/api/session/:param": 2,
     "/api/simulator/devices": 1,
     "/api/simulator/install": 2,
@@ -130,11 +126,10 @@
     "/api/v1/deep": 1,
     "/api/v1/ecosystem": 14,
     "/api/v1/engine": 1,
-    "/api/v1/graph": 2,
+    "/api/v1/graph": 1,
     "/api/v1/healing": 1,
     "/api/v1/kaggle": 4,
     "/api/v1/keys": 2,
-    "/api/v1/live": 1,
     "/api/v1/localization": 3,
     "/api/v1/maintenance": 1,
     "/api/v1/markdown": 7,
@@ -142,17 +137,15 @@
     "/api/v1/mesh": 10,
     "/api/v1/missions": 11,
     "/api/v1/onboarding": 5,
-    "/api/v1/plugins": 4,
+    "/api/v1/plugins": 1,
     "/api/v1/pr-review": 1,
     "/api/v1/rag": 2,
-    "/api/v1/ready": 1,
     "/api/v1/recipe": 1,
     "/api/v1/router": 1,
     "/api/v1/runs": 9,
     "/api/v1/sandbox": 4,
     "/api/v1/scrape": 1,
     "/api/v1/stream": 1,
-    "/api/v1/swarm": 1,
     "/api/v1/syncguard": 1,
     "/api/v1/tools-registry": 4,
     "/api/v1/zero-cost": 1,
@@ -188,6 +181,12 @@
     "/tools/image-to-palette": 1,
     "/tools/image-to-tree": 1,
     "/unified-memory/long-term": 2,
+    "/v1/chat": 1,
+    "/v1/models": 1,
+    "/v1/orchestrator": 1,
+    "/v1/pool": 2,
+    "/v1/prompt": 1,
+    "/v1/tasks": 1,
     "/video-to-code/process": 1,
     "/voice/process-audio": 1
   },
@@ -1774,7 +1773,7 @@
       "is_admin": true,
       "operation": "assign_ai",
       "frontend_consumers": [
-        "frontend/src/components/admin/AISurfaceAssignment.tsx"
+        "frontend/src/utils/api.ts"
       ],
       "classification": "admin-only"
     },
@@ -1806,7 +1805,7 @@
       "is_admin": true,
       "operation": "get_overview",
       "frontend_consumers": [
-        "frontend/src/components/admin/AISurfaceAssignment.tsx"
+        "frontend/src/utils/api.ts"
       ],
       "classification": "admin-only"
     },
@@ -1854,7 +1853,7 @@
       "is_admin": true,
       "operation": "test_provider",
       "frontend_consumers": [
-        "frontend/src/components/admin/AISurfaceAssignment.tsx"
+        "frontend/src/utils/api.ts"
       ],
       "classification": "admin-only"
     },
@@ -2045,6 +2044,38 @@
       "mounted": true,
       "is_admin": true,
       "operation": "refresh_system_configs",
+      "frontend_consumers": [
+        "frontend/src/utils/api.ts"
+      ],
+      "classification": "admin-only"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/decisions",
+      "declared": "/api/admin/decisions",
+      "deprecated": false,
+      "router_file": "backend/api/routes/admin_decisions.py",
+      "module": "api.routes.admin_decisions",
+      "registry_prefix": "",
+      "mounted": true,
+      "is_admin": true,
+      "operation": "list_decisions",
+      "frontend_consumers": [
+        "frontend/src/utils/api.ts"
+      ],
+      "classification": "admin-only"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/decisions/:param",
+      "declared": "/api/admin/decisions/{decision_id}",
+      "deprecated": false,
+      "router_file": "backend/api/routes/admin_decisions.py",
+      "module": "api.routes.admin_decisions",
+      "registry_prefix": "",
+      "mounted": true,
+      "is_admin": true,
+      "operation": "get_one_decision",
       "frontend_consumers": [
         "frontend/src/utils/api.ts"
       ],
@@ -2402,7 +2433,8 @@
       "is_admin": true,
       "operation": "process_skill_action",
       "frontend_consumers": [
-        "frontend/src/components/admin/EnhancedSkillMarketplace.tsx"
+        "frontend/src/components/admin/EnhancedSkillMarketplace.tsx",
+        "frontend/src/components/admin/LibrarianQueue.tsx"
       ],
       "classification": "admin-only"
     },
@@ -2418,7 +2450,7 @@
       "is_admin": true,
       "operation": "get_quarantine_queue",
       "frontend_consumers": [
-        "frontend/src/utils/api.ts"
+        "frontend/src/components/admin/LibrarianQueue.tsx"
       ],
       "classification": "admin-only"
     },
@@ -2868,7 +2900,7 @@
       "is_admin": true,
       "operation": "verify_otp",
       "frontend_consumers": [
-        "frontend/src/components/dashboard/HumanInTheLoopProtocol.tsx"
+        "frontend/src/utils/api.ts"
       ],
       "classification": "admin-only"
     },
@@ -4541,8 +4573,10 @@
       "mounted": true,
       "is_admin": false,
       "operation": "export_conversation",
-      "frontend_consumers": [],
-      "classification": "api-only"
+      "frontend_consumers": [
+        "frontend/src/components/export/ExportMenu.tsx"
+      ],
+      "classification": "user-facing"
     },
     {
       "method": "GET",
@@ -4555,8 +4589,10 @@
       "mounted": true,
       "is_admin": false,
       "operation": "list_export_formats",
-      "frontend_consumers": [],
-      "classification": "api-only"
+      "frontend_consumers": [
+        "frontend/src/components/export/ExportMenu.tsx"
+      ],
+      "classification": "user-facing"
     },
     {
       "method": "POST",
@@ -4613,8 +4649,11 @@
       "mounted": true,
       "is_admin": false,
       "operation": "prompt_action",
-      "frontend_consumers": [],
-      "classification": "api-only"
+      "frontend_consumers": [
+        "frontend/src/components/admin/InteractiveChatTab.tsx",
+        "frontend/src/services/chatService.ts"
+      ],
+      "classification": "user-facing"
     },
     {
       "method": "GET",
@@ -4641,8 +4680,11 @@
       "mounted": true,
       "is_admin": false,
       "operation": "stream_chat_post",
-      "frontend_consumers": [],
-      "classification": "api-only"
+      "frontend_consumers": [
+        "frontend/src/components/admin/InteractiveChatTab.tsx",
+        "frontend/src/pages/admin/AdminShell.tsx"
+      ],
+      "classification": "user-facing"
     },
     {
       "method": "POST",
@@ -4655,8 +4697,11 @@
       "mounted": true,
       "is_admin": false,
       "operation": "stream_chat",
-      "frontend_consumers": [],
-      "classification": "api-only"
+      "frontend_consumers": [
+        "frontend/src/components/admin/InteractiveChatTab.tsx",
+        "frontend/src/pages/admin/AdminShell.tsx"
+      ],
+      "classification": "user-facing"
     },
     {
       "method": "POST",
@@ -4807,8 +4852,10 @@
       "mounted": true,
       "is_admin": false,
       "operation": "get_latest_summary",
-      "frontend_consumers": [],
-      "classification": "api-only"
+      "frontend_consumers": [
+        "frontend/src/components/admin/ci/CIDashboard.tsx"
+      ],
+      "classification": "user-facing"
     },
     {
       "method": "GET",
@@ -5138,6 +5185,7 @@
       "is_admin": false,
       "operation": "health_aggregation_contract",
       "frontend_consumers": [
+        "frontend/src/components/auth/ServiceHealthBar.tsx",
         "frontend/src/utils/apiInterceptor.ts"
       ],
       "classification": "admin-only"
@@ -5863,8 +5911,10 @@
       "mounted": true,
       "is_admin": false,
       "operation": "deep_research_stream",
-      "frontend_consumers": [],
-      "classification": "api-only"
+      "frontend_consumers": [
+        "frontend/src/components/research/DeepResearchPanel.tsx"
+      ],
+      "classification": "user-facing"
     },
     {
       "method": "GET",
@@ -6363,7 +6413,8 @@
       "is_admin": false,
       "operation": "stream_chat",
       "frontend_consumers": [
-        "frontend/src/pages/PublicPages.tsx"
+        "frontend/src/pages/PublicPages.tsx",
+        "frontend/src/services/chatService.ts"
       ],
       "classification": "user-facing"
     },
@@ -8677,7 +8728,9 @@
       "mounted": true,
       "is_admin": true,
       "operation": "get_swarm_graph",
-      "frontend_consumers": [],
+      "frontend_consumers": [
+        "frontend/src/hooks/useSwarmGraph.ts"
+      ],
       "classification": "admin-only"
     },
     {
@@ -8835,8 +8888,10 @@
       "mounted": true,
       "is_admin": false,
       "operation": "get_skill_graph",
-      "frontend_consumers": [],
-      "classification": "api-only"
+      "frontend_consumers": [
+        "frontend/src/components/graph/SkillGraph.tsx"
+      ],
+      "classification": "user-facing"
     },
     {
       "method": "GET",
@@ -8864,7 +8919,10 @@
       "is_admin": false,
       "operation": "deep_health_check",
       "frontend_consumers": [
-        "frontend/src/pages/PublicPages.tsx"
+        "frontend/src/components/auth/ServiceHealthBar.tsx",
+        "frontend/src/hooks/useServerStream.ts",
+        "frontend/src/pages/PublicPages.tsx",
+        "frontend/src/pages/auth/LoginPage.tsx"
       ],
       "classification": "internal"
     },
@@ -8880,7 +8938,10 @@
       "is_admin": false,
       "operation": "health_check",
       "frontend_consumers": [
-        "frontend/src/pages/PublicPages.tsx"
+        "frontend/src/components/auth/ServiceHealthBar.tsx",
+        "frontend/src/hooks/useServerStream.ts",
+        "frontend/src/pages/PublicPages.tsx",
+        "frontend/src/pages/auth/LoginPage.tsx"
       ],
       "classification": "internal"
     },
@@ -8896,7 +8957,7 @@
       "is_admin": false,
       "operation": "agents_health_check",
       "frontend_consumers": [
-        "frontend/src/pages/PublicPages.tsx"
+        "frontend/src/hooks/useSwarmGraph.ts"
       ],
       "classification": "internal"
     },
@@ -8912,7 +8973,7 @@
       "is_admin": false,
       "operation": "agents_health_check",
       "frontend_consumers": [
-        "frontend/src/pages/PublicPages.tsx"
+        "frontend/src/hooks/useSwarmGraph.ts"
       ],
       "classification": "internal"
     },
@@ -8928,7 +8989,10 @@
       "is_admin": false,
       "operation": "get_predictions",
       "frontend_consumers": [
-        "frontend/src/pages/PublicPages.tsx"
+        "frontend/src/components/auth/ServiceHealthBar.tsx",
+        "frontend/src/hooks/useServerStream.ts",
+        "frontend/src/pages/PublicPages.tsx",
+        "frontend/src/pages/auth/LoginPage.tsx"
       ],
       "classification": "internal"
     },
@@ -9248,8 +9312,12 @@
       "mounted": true,
       "is_admin": false,
       "operation": "liveness_check",
-      "frontend_consumers": [],
-      "classification": "api-only"
+      "frontend_consumers": [
+        "frontend/src/services/heartbeat.test.ts",
+        "frontend/src/services/heartbeat.ts",
+        "frontend/src/services/skillsService.ts"
+      ],
+      "classification": "user-facing"
     },
     {
       "method": "POST",
@@ -9613,7 +9681,8 @@
       "is_admin": false,
       "operation": "get_upload_url",
       "frontend_consumers": [
-        "frontend/src/services/storageApi.test.ts"
+        "frontend/src/services/storageApi.test.ts",
+        "frontend/src/services/storageApi.ts"
       ],
       "classification": "user-facing"
     },
@@ -10035,7 +10104,8 @@
       "is_admin": false,
       "operation": "list_active_nodes",
       "frontend_consumers": [
-        "frontend/src/components/admin/MeshAgentsPanel.test.tsx"
+        "frontend/src/components/admin/MeshAgentsPanel.test.tsx",
+        "frontend/src/components/admin/MeshAgentsPanel.tsx"
       ],
       "classification": "user-facing"
     },
@@ -10051,7 +10121,7 @@
       "is_admin": false,
       "operation": "get_node_detail",
       "frontend_consumers": [
-        "frontend/src/components/admin/MeshAgentsPanel.test.tsx"
+        "frontend/src/components/admin/MeshAgentsPanel.tsx"
       ],
       "classification": "user-facing"
     },
@@ -10067,7 +10137,7 @@
       "is_admin": false,
       "operation": "patch_node_role",
       "frontend_consumers": [
-        "frontend/src/components/admin/MeshAgentsPanel.test.tsx"
+        "frontend/src/components/admin/MeshAgentsPanel.tsx"
       ],
       "classification": "user-facing"
     },
@@ -10083,7 +10153,7 @@
       "is_admin": false,
       "operation": "post_node_heartbeat",
       "frontend_consumers": [
-        "frontend/src/components/admin/MeshAgentsPanel.test.tsx"
+        "frontend/src/components/admin/MeshAgentsPanel.tsx"
       ],
       "classification": "user-facing"
     },
@@ -10183,7 +10253,8 @@
       "is_admin": false,
       "operation": "install_plugin",
       "frontend_consumers": [
-        "frontend/src/hooks/usePlugins.test.ts"
+        "frontend/src/hooks/usePlugins.test.ts",
+        "frontend/src/hooks/usePlugins.ts"
       ],
       "classification": "user-facing"
     },
@@ -10198,8 +10269,10 @@
       "mounted": true,
       "is_admin": false,
       "operation": "list_installed_plugins",
-      "frontend_consumers": [],
-      "classification": "api-only"
+      "frontend_consumers": [
+        "frontend/src/hooks/usePlugins.ts"
+      ],
+      "classification": "user-facing"
     },
     {
       "method": "GET",
@@ -10212,8 +10285,10 @@
       "mounted": true,
       "is_admin": false,
       "operation": "list_marketplace_plugins",
-      "frontend_consumers": [],
-      "classification": "api-only"
+      "frontend_consumers": [
+        "frontend/src/hooks/usePlugins.ts"
+      ],
+      "classification": "user-facing"
     },
     {
       "method": "DELETE",
@@ -10226,8 +10301,10 @@
       "mounted": true,
       "is_admin": false,
       "operation": "uninstall_plugin",
-      "frontend_consumers": [],
-      "classification": "api-only"
+      "frontend_consumers": [
+        "frontend/src/hooks/usePlugins.ts"
+      ],
+      "classification": "user-facing"
     },
     {
       "method": "GET",
@@ -10362,8 +10439,10 @@
       "mounted": true,
       "is_admin": false,
       "operation": "readiness_check",
-      "frontend_consumers": [],
-      "classification": "api-only"
+      "frontend_consumers": [
+        "frontend/src/services/skillsService.ts"
+      ],
+      "classification": "user-facing"
     },
     {
       "method": "POST",
@@ -10697,7 +10776,8 @@
       "is_admin": false,
       "operation": "stream_chat_sse",
       "frontend_consumers": [
-        "frontend/src/pages/PublicPages.tsx"
+        "frontend/src/pages/PublicPages.tsx",
+        "frontend/src/services/chatService.ts"
       ],
       "classification": "user-facing"
     },
@@ -10713,7 +10793,8 @@
       "is_admin": false,
       "operation": "stream_chat_post",
       "frontend_consumers": [
-        "frontend/src/pages/PublicPages.tsx"
+        "frontend/src/pages/PublicPages.tsx",
+        "frontend/src/services/chatService.ts"
       ],
       "classification": "user-facing"
     },
@@ -10742,8 +10823,10 @@
       "mounted": true,
       "is_admin": false,
       "operation": "swarm_stream",
-      "frontend_consumers": [],
-      "classification": "api-only"
+      "frontend_consumers": [
+        "frontend/src/pages/user/EvolutionForge/EvolutionForge.tsx"
+      ],
+      "classification": "user-facing"
     },
     {
       "method": "POST",
@@ -12687,6 +12770,104 @@
       "mounted": true,
       "is_admin": false,
       "operation": "store_long_term_memory_endpoint",
+      "frontend_consumers": [],
+      "classification": "api-only"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "declared": "/v1/chat/completions",
+      "deprecated": false,
+      "router_file": "backend/api/routes/web_ai_proxy.py",
+      "module": "api.routes.web_ai_proxy",
+      "registry_prefix": "",
+      "mounted": false,
+      "is_admin": false,
+      "operation": "chat_completions",
+      "frontend_consumers": [],
+      "classification": "api-only"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/models",
+      "declared": "/v1/models",
+      "deprecated": false,
+      "router_file": "backend/api/routes/web_ai_proxy.py",
+      "module": "api.routes.web_ai_proxy",
+      "registry_prefix": "",
+      "mounted": false,
+      "is_admin": false,
+      "operation": "list_models",
+      "frontend_consumers": [],
+      "classification": "api-only"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/orchestrator/parse-and-plan",
+      "declared": "/v1/orchestrator/parse-and-plan",
+      "deprecated": false,
+      "router_file": "backend/api/routes/web_ai_proxy.py",
+      "module": "api.routes.web_ai_proxy",
+      "registry_prefix": "",
+      "mounted": false,
+      "is_admin": false,
+      "operation": "parse_orchestration_plan",
+      "frontend_consumers": [],
+      "classification": "api-only"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pool/accounts",
+      "declared": "/v1/pool/accounts",
+      "deprecated": false,
+      "router_file": "backend/api/routes/web_ai_proxy.py",
+      "module": "api.routes.web_ai_proxy",
+      "registry_prefix": "",
+      "mounted": false,
+      "is_admin": false,
+      "operation": "register_pool_account",
+      "frontend_consumers": [],
+      "classification": "api-only"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pool/status",
+      "declared": "/v1/pool/status",
+      "deprecated": false,
+      "router_file": "backend/api/routes/web_ai_proxy.py",
+      "module": "api.routes.web_ai_proxy",
+      "registry_prefix": "",
+      "mounted": false,
+      "is_admin": false,
+      "operation": "pool_status",
+      "frontend_consumers": [],
+      "classification": "api-only"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/prompt/enhance",
+      "declared": "/v1/prompt/enhance",
+      "deprecated": false,
+      "router_file": "backend/api/routes/web_ai_proxy.py",
+      "module": "api.routes.web_ai_proxy",
+      "registry_prefix": "",
+      "mounted": false,
+      "is_admin": false,
+      "operation": "enhance_prompt_endpoint",
+      "frontend_consumers": [],
+      "classification": "api-only"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/tasks/parallel",
+      "declared": "/v1/tasks/parallel",
+      "deprecated": false,
+      "router_file": "backend/api/routes/web_ai_proxy.py",
+      "module": "api.routes.web_ai_proxy",
+      "registry_prefix": "",
+      "mounted": false,
+      "is_admin": false,
+      "operation": "parallel_chat_completions",
       "frontend_consumers": [],
       "classification": "api-only"
     },

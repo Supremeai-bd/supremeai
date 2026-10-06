@@ -1247,11 +1247,65 @@ def run_claim_gate(
 
 # ─────────────────────────────── CLI ───────────────────────────────
 
+
+# ─────────────────── Constitution Guard (Roadmap v2.0 Phase 9, #4145) ───────────────────
+# Governed self-improvement boundary: AI can optimize the system but cannot
+# silently rewrite its constitution, security boundary, or governance core.
+# Deterministic — labels-only decision, no AI consensus involved.
+
+CONSTITUTION_BOUNDARY_PATHS = (
+    "AGENTS.md",
+    "AGENT_RULES.md",
+    ".github/constitution/",
+    "backend/governance/",
+)
+ADMIN_APPROVAL_LABEL = "approved-by:admin"
+
+
+def _is_boundary_path(filename: str) -> bool:
+    return any(
+        filename == p or filename.startswith(p)
+        for p in CONSTITUTION_BOUNDARY_PATHS
+    )
+
+
+def run_constitution_guard_gate(pr_number) -> int:
+    """BLOCK boundary-file edits unless the PR carries approved-by:admin."""
+    if not pr_number:
+        return gate_result("Constitution Guard", True, "no PR context — nothing to guard")
+    try:
+        files = gh_api(f"repos/{_repo()}/pulls/{pr_number}/files?per_page=100") or []
+        pr = gh_api(f"repos/{_repo()}/pulls/{pr_number}") or {}
+    except Exception as err:
+        return gate_result(
+            "Constitution Guard", False,
+            f"could not fetch PR data ({err}) — fail-closed; re-run when the API recovers",
+        )
+    boundary = sorted({
+        f.get("filename", "") for f in files if _is_boundary_path(f.get("filename", ""))
+    } - {""})
+    if not boundary:
+        return gate_result("Constitution Guard", True, "no constitution/boundary files touched")
+    labels = {l.get("name", "") for l in (pr.get("labels") or [])}
+    if ADMIN_APPROVAL_LABEL in labels:
+        return gate_result(
+            "Constitution Guard", True,
+            f"admin-approved boundary edit: {', '.join(boundary)}",
+        )
+    return gate_result(
+        "Constitution Guard", False,
+        f"constitution/boundary files touched WITHOUT admin approval: {', '.join(boundary)}. "
+        f"Fix: request an admin to add the '{ADMIN_APPROVAL_LABEL}' label "
+        "(Roadmap Phase 9: AI cannot silently rewrite its constitution), "
+        "or revert the boundary-file changes from this PR.",
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="SupremeAI Automated System Gates")
     parser.add_argument(
         "gate",
-        choices=["verification", "scope", "lease", "self_merge", "test_guard", "predecessor", "claim", "discovery", "docs_garbage", "admin_approval", "all"],
+        choices=["verification", "scope", "lease", "self_merge", "test_guard", "predecessor", "claim", "discovery", "docs_garbage", "admin_approval", "constitution_guard", "all"],
     )
     parser.add_argument("--pr", type=int, default=0, help="PR number (for scope gate)")
     parser.add_argument("--title", default="", help="PR title (else fetched via API)")
@@ -1337,6 +1391,13 @@ def main() -> int:
         )
         if rc:
             failures.append("admin_approval")
+
+    if args.gate in ("constitution_guard", "all"):
+        # Roadmap v2.0 Phase 9 (#4145): governed self-improvement boundary —
+        # constitution/security/governance paths require admin approval.
+        rc = run_constitution_guard_gate(args.pr)
+        if rc:
+            failures.append("constitution_guard")
 
     if failures:
         print(f"[FAILED] System gates failed: {', '.join(failures)}")

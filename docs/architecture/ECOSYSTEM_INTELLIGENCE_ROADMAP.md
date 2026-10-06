@@ -40,17 +40,17 @@ This is the **core decision algorithm** for ecosystem intelligence. No repo ente
 | **Memory** | MemoryRepository + pgvector | ✅ Active | `backend/core/ai_memory/repository.py` |
 | **Memory** | Adaptive Engine (experience DB) | ✅ Active | `backend/adaptive_engine/experience_db.py` |
 | **Memory** | Episodic / Long-term / Consolidator | ✅ Active | `backend/memory/episodic_memory.py`, `long_term_memory.py`, `backend/evolution/memory_consolidator.py` |
-| **Browser** | BrowserUse Adapter | ⚠️ Orphaned | `backend/integrations/browser_use_adapter.py` |
-| **Coding Agent** | OpenHands Adapter | ⚠️ Orphaned | `backend/integrations/openhands_adapter.py` |
+| **Browser** | Native Playwright stack | ✅ Active (adapter retired #4044 → #4068) | `backend/core/playwright_manager.py` + 15 files (see `docs/architecture/retired_adapters.md`) |
+| **Coding Agent** | Native coder fleet + MCP bridge | ✅ Active (adapter retired #4045 → #4068) | `scripts/agents/continuous_agent_loop.py`, `backend/external_agents/`, `backend/brain/mcp_client.py` |
 | **MCP** | MCP Client + Gateway | ✅ Active | `backend/brain/mcp_client.py`, `backend/tools/mcp/` |
 | **Scanner** | Rules Breaker (Team Leader pattern) | ✅ Active | `scripts/agents/rules_breaker.py` |
 | **Learning** | Learning Pipeline + Experience | ✅ Active | `backend/evolution/learning_pipeline.py`, `backend/learning/experience.py` |
 | **Deploy** | Render + Vercel + Deploy Train | ✅ Active | `scripts/deploy/` |
 | **Mission Control** | Admin dashboard | ✅ Active | `apps/mission-control/` |
-| **Integrations (orphaned)** | mem0, e2b, graphiti | ❌ Orphaned | `backend/integrations/` |
+| **Integrations (retired)** | ~~mem0, e2b, graphiti~~ | ⛔ Retired + Deleted (#4057 → PR #4103) | native replacements (see `docs/architecture/retired_adapters.md`) |
 
-### Key Gap Identified
-Three adapters are marked **orphaned**. Before adding ANY new external repo, these must be **audited → decided → revived or retired** (not blindly revived).
+### Key Gap Identified — Resolved (Phase 1.2 executed)
+All five orphaned adapters have been **audited → decided → retired + deleted** (browser_use #4044 / openhands #4045 → executed #4068/PR #4069; mem0/e2b/graphiti #4057 → executed PR #4103). The pre-adoption gate stands: before adding ANY new external repo, the Capability Inventory must be checked and any revival requires a fresh audit (Rule 4 — Evidence Before Adoption).
 
 ---
 
@@ -74,10 +74,9 @@ Three adapters are marked **orphaned**. Before adding ANY new external repo, the
    Internal         Governed           Research
    Capability       Provider           Source
        │                │                 │
-   Native Agent     OpenHands          Agent-Reach
-   Native Memory    Browser Use        OpenViking
-   Native Router    Cerebras           agentmemory
-       │            Strata/Colibrì        │
+   Native Agent     Cerebras           Agent-Reach
+   Native Memory    Groq/Gemini        OpenViking
+   Native Router    Strata/Colibrì     agentmemory
        │            DuckDB               │
        └────────────────┼─────────────────┘
                         ↓
@@ -148,11 +147,11 @@ Revive / Replace / Retire
 
 | Adapter | Action | Rationale |
 |---|---|---|
-| `browser_use_adapter.py` | **Audit** → likely Revive | Browser Use is mature (117k+ stars), but must verify API compatibility + security first |
-| `openhands_adapter.py` | ✅ **Audit done → RETIRED** (#4045, executed #4068) | Evidence overrode hypothesis: dead sessions-API (conversations-migration), zero callers, native fleet superior. MCP-server path retained as live governed bridge |
-| `mem0_adapter.py` | **Retire** | SupremeAI already has canonical MemoryRepository + pgvector; mem0 is redundant |
-| `e2b_adapter.py` | **Retire** unless sandbox execution is needed | SupremeAI has its own sandbox; e2b is redundant |
-| `graphiti_adapter.py` | **Retire** | SupremeAI's episodic + long-term memory covers this |
+| ~~`browser_use_adapter.py`~~ | ✅ **Audit done → RETIRED + DELETED** (#4044, executed #4068/PR #4069) | Evidence overrode hypothesis: upstream dep never declared (probe always `False`), adapter only ever ran its zero-cost fallback; native Playwright stack supersedes. Full audit: `docs/architecture/audits/browser_use_audit.md` |
+| ~~`openhands_adapter.py`~~ | ✅ **Audit done → RETIRED + DELETED** (#4045, executed #4068/PR #4069) | Evidence overrode hypothesis: dead sessions-API (conversations-migration), zero callers, native fleet superior. MCP-server path retained as live governed bridge |
+| ~~`mem0_adapter.py`~~ | ✅ **Retired + Deleted** (#4057, executed PR #4103) | SupremeAI already has canonical MemoryRepository + pgvector; mem0 was redundant |
+| ~~`e2b_adapter.py`~~ | ✅ **Retired + Deleted** (#4057, executed PR #4103) | SupremeAI's own `sandbox/docker_sandbox.py` covers sandbox execution; e2b was redundant |
+| ~~`graphiti_adapter.py`~~ | ✅ **Retired + Deleted** (#4057, executed PR #4103) | SupremeAI's episodic + long-term memory covers this |
 
 #### 1.3 Provider Health Dashboard
 Wire all active providers into the existing `service_topology.py` health check with proper `CONFIGURED` / `REACHABLE` / `HEALTHY` states (leveraging #3226 fix).
@@ -181,8 +180,8 @@ Only then new provider
 
 | # | Repo | Category | Action | Priority |
 |---|---|---|---|---|
-| 1 | **Browser Use** | 🟢 Governed Provider | Audit → Revive as governed browser provider. Escalation: HTTP → Playwright → Browser Use | P1 |
-| 2 | **OpenHands** | 🟡 Governed Provider | Audit → Revive as coding execution provider. SupremeAI = orchestrator, OpenHands = executor | P1 |
+| 1 | **Browser Use** | ⛔ Rejected | Audit executed → **RETIRED + DELETED** (#4044 → #4068/PR #4069): upstream dep never declared; native Playwright stack supersedes (`docs/architecture/retired_adapters.md`) | ✅ Done |
+| 2 | **OpenHands** | ⛔ Rejected | Audit executed → **RETIRED + DELETED** (#4045 → #4068/PR #4069): dead sessions-API, zero callers; native coder fleet + MCP-server bridge retained | ✅ Done |
 | 3 | **OpenViking** | 🟢 Adapt concepts | Adopt hierarchical context tiers + memory/knowledge/skill unification | P1 |
 | 4 | **Agent-Reach** | 🟢 Prototype | Build as Ecosystem Scout data acquisition layer | P1 |
 | 5 | **Cerebras** | 🟢 Governed Provider | Add as speed-optimized LLM provider | P2 |
@@ -216,7 +215,7 @@ Policy Engine (who/what/cost/security)
  ↓
 Router (which provider?)
  ↓
-Governed Provider (Browser Use / OpenHands / Cerebras / ...)
+Governed Provider (Cerebras / LLM providers / routers)
  ↓
 Evaluation Engine (correctness + latency + cost)
  ↓
@@ -444,7 +443,7 @@ Before adopting ANY external repo:
 
 | Priority | Task | Source | Effort |
 |---|---|---|---|
-| 🥇 P1 | Audit orphaned adapters (Browser Use + OpenHands) → decide revive/retire | Internal | Medium |
+| 🥇 P1 | ~~Audit orphaned adapters (Browser Use + OpenHands) → decide revive/retire~~ ✅ **Done** — RETIRED + DELETED (#4044/#4045 → #4068/PR #4069) | Internal | Medium |
 | 🥇 P1 | Adopt hierarchical context tiers (L0 governance / L1 task / L2 experience) | OpenViking | Medium |
 | 🥇 P1 | Prototype Agent-Reach as Scout data layer | Agent-Reach | Medium |
 | 🥇 P1 | **Build Capability Evaluation Engine** (correctness + latency + cost + security scoring) | Internal (NEW) | Large |
@@ -452,7 +451,7 @@ Before adopting ANY external repo:
 | 🥈 P2 | Adopt decision metadata model (with `verification` + `policy_context` + `supersedes`) | agentmemory | Medium |
 | 🥈 P2 | Build Policy Engine layer (who/what/cost/security gate) | Internal (NEW) | Medium |
 | 🥉 P3 | Memory governance (policy-driven TTL, conflict detection, provenance) | Memanto | Medium |
-| 🥉 P3 | Retire orphaned adapters (mem0, e2b, graphiti) | Internal | Small |
+| 🥉 P3 | ~~Retire orphaned adapters (mem0, e2b, graphiti)~~ ✅ **Done** — executed PR #4103 (#4057) | Internal | Small |
 | 🥉 P3 | DuckDB analytics (workload-driven — only when Postgres analytics insufficient) | DuckDB | Medium |
 | 🥉 P3 | Security sandbox research | Metatron | Large |
 | 🥉 P3 | Mission Control visualization | Excalidraw | Medium |

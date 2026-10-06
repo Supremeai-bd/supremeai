@@ -395,3 +395,253 @@ class TestCmdAllocateGuards:
         with pytest.raises(SystemExit) as exc:
             qm.cmd_allocate(args)
         assert exc.value.code == 1
+
+
+class TestVerifyClaimRestFallback:
+    """#4110 (defect class: eventually-consistent search where correctness
+    requires REST): verify-claim must not fail closed when the universe fetch
+    misses a LIVE issue inside the index-lag window — the single-issue REST
+    fallback is the authoritative re-check."""
+
+    def test_not_in_universe_but_rest_open_passes(self, capsys, monkeypatch):
+        # Universe fetch (stubbed) omits the issue entirely — lag window.
+        monkeypatch.setattr(qm, "get_open_issues", lambda: [])
+        # REST single-issue endpoint confirms it is open & unconstrained.
+        monkeypatch.setattr(qm, "_fetch_single_issue_meta", lambda n: meta(4088, group=None))
+        args = type("A", (), {"issue": 4088})()
+        with pytest.raises(SystemExit) as exc:  # PASS path exits 0
+            qm.cmd_verify_claim(args)
+        assert exc.value.code == 0
+        assert "PASS" in capsys.readouterr().out
+
+    def test_not_found_anywhere_fails_closed(self, monkeypatch, capsys):
+        # REST-confirmed closed/missing → fail closed with the TRUE reason.
+        monkeypatch.setattr(qm, "get_open_issues", lambda: [])
+        monkeypatch.setattr(qm, "_fetch_single_issue_meta", lambda n: None)
+        # Phase 0.1 (#4123): the PR-aware re-check also comes up empty (the
+        # number is neither an open issue nor an open PR) — hermetic stub.
+        monkeypatch.setattr(qm, "_fetch_single_pr_meta", lambda n: None)
+        args = type("A", (), {"issue": 4088})()
+        with pytest.raises(SystemExit) as exc:
+            qm.cmd_verify_claim(args)
+        assert exc.value.code == 1
+        assert "not found or closed" in capsys.readouterr().err
+
+    def test_universe_hit_keeps_precedence_no_rest_call(self, capsys, monkeypatch):
+        # When the universe fetch DOES see the issue, REST fallback is not consulted.
+        calls = {"rest": 0}
+
+        def _spy(n):
+            calls["rest"] += 1
+            return None
+
+        raw = {"number": 7, "title": "x", "createdAt": "", "labels": [
+            {"name": "P2-medium"}]}  # universe holds RAW issues (parse shape)
+        monkeypatch.setattr(qm, "get_open_issues", lambda: [raw])
+        monkeypatch.setattr(qm, "_fetch_single_issue_meta", _spy)
+        args = type("A", (), {"issue": 7})()
+        with pytest.raises(SystemExit) as exc:  # PASS path exits 0
+            qm.cmd_verify_claim(args)
+        assert exc.value.code == 0
+        assert calls["rest"] == 0
+        assert "PASS" in capsys.readouterr().out
+
+    def test_single_fetch_accepts_graphql_case_state(self, monkeypatch):
+        # #4110 regression: gh issue view reports state "OPEN" (GraphQL case);
+        # the lowercase-only check returned None for EVERY live issue.
+        monkeypatch.setattr(qm, "run_cmd", lambda cmd: (
+            0, '{"number":4088,"title":"t","state":"OPEN","createdAt":"",'
+               '"labels":[{"name":"P1-high"},{"name":"group:pipeline"}]}', ""))
+        assert qm._fetch_single_issue_meta(4088) is not None
+        monkeypatch.setattr(qm, "run_cmd", lambda cmd: (
+            0, '{"number":4088,"title":"t","state":"CLOSED","createdAt":"",'
+               '"labels":[]}', ""))
+        assert qm._fetch_single_issue_meta(4088) is None
+
+
+class TestUnifiedWorkUniverse:
+    """Roadmap v2.0 Phase 0.1 (#4123): unified issue+PR work-item universe.
+
+    Defect-PRs (#4088/#4093/#4102/#4107) were invisible to issue-queue
+    tooling and nearly caused a duplicate-work incident. The universe that
+    prevention-oriented consumers see must flag PRs (is_pr) instead of
+    dropping them, and verify-claim must REJECT an open-PR number with an
+    actionable message instead of a misleading 'not found or closed'.
+    """
+
+    def test_work_items_flags_prs_and_keeps_issues(self, monkeypatch):
+        issues = [
+            {"number": 10, "title": "issue a", "createdAt": "", "labels": []},
+            {"number": 20, "title": "issue b", "createdAt": "", "labels": []},
+        ]
+        prs = [
+            {"number": 30, "title": "pr c", "headRefName": "fix-10-x"},
+            {"number": 40, "title": "pr d", "headRefName": "fix-20-y"},
+        ]
+        monkeypatch.setattr(qm, "get_open_issues", lambda: issues)
+        monkeypatch.setattr(qm, "get_open_prs", lambda: prs)
+        items = qm.get_open_work_items()
+        assert [i["number"] for i in items] == [10, 20, 30, 40]
+        assert [i.get("is_pr", False) for i in items] == [False, False, True, True]
+
+    def test_parse_metadata_is_pr_sources(self):
+        # PR object from the unified universe (injected is_pr key).
+        m = parse_metadata({"number": 30, "title": "pr", "labels": [], "is_pr": True})
+        assert m["is_pr"] is True
+        # PR-shaped payload from the REST issues listing (pull_request key).
+        m = parse_metadata({"number": 31, "title": "pr", "labels": [],
+                            "pull_request": {"url": "x"}})
+        assert m["is_pr"] is True
+        # Plain issue stays False (regression guard).
+        m = parse_metadata({"number": 10, "title": "issue", "labels": []})
+        assert m["is_pr"] is False
+
+    def test_verify_claim_rejects_open_pr_with_action(self, monkeypatch, capsys):
+        monkeypatch.setattr(qm, "get_open_issues", lambda: [])
+        monkeypatch.setattr(qm, "_fetch_single_issue_meta", lambda n: None)
+        monkeypatch.setattr(qm, "_fetch_single_pr_meta", lambda n: {
+            "number": n, "title": "fix: render rollback import", "is_pr": True,
+            "group": None, "seq": None})
+        args = type("A", (), {"issue": 4088})()
+        with pytest.raises(SystemExit) as exc:
+            qm.cmd_verify_claim(args)
+        assert exc.value.code == 1
+        err = capsys.readouterr().err
+        assert "PULL REQUEST" in err
+        assert "do NOT claim" in err
+        assert "gh pr view 4088" in err
+
+    def test_verify_claim_issue_hit_skips_pr_check(self, monkeypatch, capsys):
+        # When the universe already holds the ISSUE, the PR endpoint must not
+        # even be consulted (issue path keeps precedence, no latency added).
+        calls = {"pr": 0}
+
+        def _spy(n):
+            calls["pr"] += 1
+            return None
+
+        raw = {"number": 7, "title": "x", "createdAt": "", "labels": []}
+        monkeypatch.setattr(qm, "get_open_issues", lambda: [raw])
+        monkeypatch.setattr(qm, "_fetch_single_issue_meta", lambda n: None)
+        monkeypatch.setattr(qm, "_fetch_single_pr_meta", _spy)
+        args = type("A", (), {"issue": 7})()
+        with pytest.raises(SystemExit) as exc:
+            qm.cmd_verify_claim(args)
+        assert exc.value.code == 0
+        assert calls["pr"] == 0
+        assert "PASS" in capsys.readouterr().out
+
+    def test_single_pr_meta_rejects_non_open(self, monkeypatch):
+        # Closed/missing PR → None (fail-closed honesty).
+        monkeypatch.setattr(qm, "run_cmd", lambda cmd: (
+            0, '{"number": 4088, "title": "t", "state": "closed"}', ""))
+        assert qm._fetch_single_pr_meta(4088) is None
+        monkeypatch.setattr(qm, "run_cmd", lambda cmd: (1, "", "Not Found"))
+        assert qm._fetch_single_pr_meta(4088) is None
+
+    def test_audit_lists_open_prs_no_hidden_pr(self, monkeypatch, capsys):
+        issues = [
+            {"number": 10, "title": "parent work", "createdAt": "",
+             "labels": [{"name": "status:in-progress"}]},
+        ]
+        prs = [
+            {"number": 4088, "title": "fix: #4088 render rollback", "headRefName": "fix/4088-render-rollback-test-import"},
+            {"number": 4099, "title": "unlinked change", "headRefName": "chore-x"},
+        ]
+        monkeypatch.setattr(qm, "get_open_issues", lambda: issues)
+        monkeypatch.setattr(qm, "get_open_prs", lambda: prs)
+        args = type("A", (), {"verbose": False})()
+        qm.cmd_audit(args)
+        out = capsys.readouterr().out
+        assert "Open Pull Requests: 2" in out
+        assert "PR #4088" in out
+        assert "links issue #4088" in out  # branch regex -(\d+)- hit
+        assert "unlinked change" in out    # PR without a link still listed
+
+
+class TestAtomicClaimSessionMarker:
+    """Roadmap v2.0 Phase 0.2 (#4123): session-aware claims.
+
+    Source-contract tests for atomic_claim.sh — the claim comment must carry
+    a **Session:** marker (AGENT_SESSION_ID) and the Rule #13 report must
+    distinguish same-session from parallel-session claims. Live behavior is
+    proven by the #4123 claim itself (boot smoke, issue comment evidence).
+    """
+
+    SCRIPT = None  # resolved lazily below
+
+    @staticmethod
+    def _script_path():
+        from pathlib import Path
+        return Path(__file__).resolve().parents[1] / "scripts" / "ci" / "atomic_claim.sh"
+
+    def test_bash_syntax_ok(self):
+        import subprocess
+        r = subprocess.run(["bash", "-n", str(self._script_path())],
+                           capture_output=True, text=True, check=False)
+        assert r.returncode == 0, r.stderr
+
+    def test_claim_comment_carries_session_marker(self):
+        src = self._script_path().read_text(encoding="utf-8")
+        assert "**Session:**" in src
+        assert "AGENT_SESSION_ID" in src
+        # Marker line must sit inside the canonical claim comment block
+        # (search AFTER the Agent line — the file header also mentions the
+        # marker text in its documentation).
+        agent_pos = src.index("- **Agent:**")
+        marker_pos = src.index("- **Session:**", agent_pos)
+        branch_pos = src.index("- **Branch:**", agent_pos)
+        assert marker_pos < branch_pos
+
+    def test_rule13_report_shows_session_of_blocker(self):
+        src = self._script_path().read_text(encoding="utf-8")
+        # The python Rule #13 block extracts the Session marker...
+        assert "session_re" in src
+        # ...and the bash report names the two block causes explicitly.
+        assert "SAME-SESSION active claim" in src
+        assert "ANOTHER session of this shared identity" in src
+
+
+class TestSingleIssueFetchPrDetection:
+    """#4123 Phase 0.1 regression (live-caught): `gh issue view` returns PR
+    objects too, so an open PR used to masquerade as a claimable issue
+    ('no group/sequence constraint' PASS). The single-issue fetch now walks
+    the REST issues endpoint, whose payload carries the `pull_request` key
+    that parse_metadata maps to is_pr=True."""
+
+    def test_rest_issue_fetch_marks_pr(self, monkeypatch):
+        payload = ('{"number": 4124, "title": "pr", "state": "open",'
+                   '"created_at": "2026-10-06T15:00:00Z", "labels": [],'
+                   '"pull_request": {"url": "https://api.github.com/pulls/4124"}}')
+        monkeypatch.setattr(qm, "run_cmd", lambda cmd: (0, payload, ""))
+        m = qm._fetch_single_issue_meta(4124)
+        assert m is not None and m["is_pr"] is True
+
+    def test_rest_issue_fetch_plain_issue_not_pr(self, monkeypatch):
+        payload = ('{"number": 4123, "title": "issue", "state": "open",'
+                   '"created_at": "2026-10-06T15:00:00Z", "labels": []}')
+        monkeypatch.setattr(qm, "run_cmd", lambda cmd: (0, payload, ""))
+        m = qm._fetch_single_issue_meta(4123)
+        assert m is not None and m["is_pr"] is False
+
+    def test_allocate_pr_is_noop(self, monkeypatch, capsys):
+        monkeypatch.setattr(qm, "_fetch_single_issue_meta", lambda n: {
+            "number": n, "title": "pr", "is_pr": True, "group": None,
+            "seq": None})
+        args = type("A", (), {"issue": 4124})()
+        qm.cmd_allocate(args)
+        assert "PULL REQUEST" in capsys.readouterr().out
+
+    def test_verify_claim_rejects_pr_via_single_issue_fetch(self, monkeypatch, capsys):
+        # End-to-end guard: universe empty, single-ISSUE REST fetch reveals a
+        # PR → verify-claim must REJECT with the actionable PR message (the
+        # exact seq113 failure shape: PR numbers passed verify-claim silently).
+        monkeypatch.setattr(qm, "get_open_issues", lambda: [])
+        monkeypatch.setattr(qm, "_fetch_single_issue_meta", lambda n: {
+            "number": n, "title": "pr", "is_pr": True, "group": None,
+            "seq": None})
+        args = type("A", (), {"issue": 4124})()
+        with pytest.raises(SystemExit) as exc:
+            qm.cmd_verify_claim(args)
+        assert exc.value.code == 1
+        assert "PULL REQUEST" in capsys.readouterr().err
