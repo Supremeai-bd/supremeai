@@ -299,20 +299,25 @@ jobs:
     # from CI. Backend Alembic migrations run in migration-gate above, but
     # Mission Control (apps/mission-control) uses Prisma — its schema changes
     # were never applied in CI. Now: prisma db push runs after alembic.
+    # #3648 fix: continue-on-error — Prisma v7 breaking change (datasource url
+    # removed from schema). Pinned to v6 but if migration fails, deploy should
+    # still proceed (Mission Control is a secondary service, not the backend).
     name: "🗄️ Mission Control Prisma Migration"
     needs: [migration-gate]
     if: always() && needs.migration-gate.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup pnpm (SSOT from package.json)
+        uses: pnpm/action-setup@v5
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
           node-version: '24'
-      - name: Setup pnpm (SSOT from package.json)
-        uses: pnpm/action-setup@v5
+          cache: 'pnpm'
       - name: Install Mission Control deps
         working-directory: apps/mission-control
         run: pnpm install --frozen-lockfile

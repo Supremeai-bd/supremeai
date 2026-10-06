@@ -29,7 +29,7 @@ if not _CORE_API_URL_RAW:
     if env == "local":
         # Local development fallback — production must set CORE_API_URL explicitly.
         # বাংলা মন্তব্য: localhost fallback কেবল ENV=local-এ বৈধ (#2482)।
-        _CORE_API_URL_RAW = "http://localhost:8000"
+        _CORE_API_URL_RAW = "http://localhost:8000"  # noscan: dev fallback, env-overridable
     else:
         # বাংলা মন্তব্য (#2482): প্রোডাকশনে অনুপস্থিত CORE_API_URL = জোম্বি-ওয়ার্কার নয় —
         # fail-fast exit (ফাইলের redis-প্যাকেজ fail-fast প্যাটার্নের সাথে সামঞ্জস্যপূর্ণ)।
