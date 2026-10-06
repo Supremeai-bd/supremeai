@@ -1,76 +1,49 @@
 name: 🩺 Dependency Health Check
-
-on:
-  # শুধুমাত্র dependency ফাইল পরিবর্তন হলেই এই workflow চলবে
+true:
   push:
     branches:
-      - main
-      - develop
+    - main
+    - develop
     paths:
-      - '**/pnpm-lock.yaml'
-      - '**/package.json'
-      - '**/pyproject.toml'
-      - '**/poetry.lock'
+    - '**/pnpm-lock.yaml'
+    - '**/package.json'
+    - '**/pyproject.toml'
+    - '**/poetry.lock'
   pull_request:
     branches:
-      - main
-      - develop
+    - main
+    - develop
     paths:
-      - '**/pnpm-lock.yaml'
-      - '**/package.json'
-      - '**/pyproject.toml'
-      - '**/poetry.lock'
-  # ম্যানুয়ালি চালানোর জন্য
-  workflow_dispatch:
-
-# QUEUE STORM FIX: cancel any in-flight run for the same PR / ref when a newer
-# push arrives. Per-PR grouping ensures different PRs are NOT cancelled by each
-# other — only superseded runs on the same PR/ref are cancelled.
+    - '**/pnpm-lock.yaml'
+    - '**/package.json'
+    - '**/pyproject.toml'
+    - '**/poetry.lock'
+  workflow_dispatch: null
 concurrency:
   group: dependency-health-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
 jobs:
   dependency-scan:
     name: 🩺 Dependency Health Scan
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # --- Node.js/pnpm এনভায়রনমেন্ট সেটআপ ---
-      # #3265: `version:` ইনপুট সরানো হয়েছে — pnpm/action-setup এখন root
-      # package.json-এর `packageManager` (SSOT) থেকে সংস্করণ পড়ে। আগে
-      # hardcoded `version: 9.0.0` × `packageManager: pnpm@10.15.0` সংঘর্ষে
-      # ERR_PNPM_BAD_PM_VERSION → main CI RED হয়েছিল।
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24' # package.json থেকে পাওয়া
-          cache: 'pnpm'
-
-      - name: Install Node.js dependencies
-        run: pnpm install --frozen-lockfile
-
-      # --- Python/Poetry এনভায়রনমেন্ট সেটআপ ---
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.11'
-
-      # #3679: runner-image-এ `poetry` binary নেই — setup-python শুধু interpreter
-      # দেয়। check_dependencies.py `poetry check` (backend/) চালায় → তাই আগে
-      # poetry-ইনস্টল বাধ্যতামূলক; নাহলে ৩+ দিনের মতো false-RED
-      # (`/bin/sh: 1: poetry: not found`)।
-      - name: Install Poetry
-        run: pipx install poetry
-
-      # --- হেলথ চেক স্ক্রিপ্ট চালানো ---
-      # বাংলা (#3165): path ঠিক করা হয়েছে — scripts/quality/ → scripts/security/
-      # (script বাস্তবে scripts/security/check_dependencies.py-তে আছে)।
-      - name: Run Dependency Health Checker
-        run: python scripts/security/check_dependencies.py
+    - name: Checkout repository
+      uses: actions/checkout@v5
+    - name: Set up pnpm
+      uses: pnpm/action-setup@v4
+    - name: Set up Node.js
+      uses: actions/setup-node@v5
+      with:
+        node-version: '24'
+        cache: pnpm
+    - name: Install Node.js dependencies
+      run: pnpm install --frozen-lockfile
+    - name: Set up Python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      with:
+        python-version: '3.11'
+    - name: Install Poetry
+      run: pipx install poetry
+    - name: Run Dependency Health Checker
+      run: python scripts/security/check_dependencies.py
+    timeout-minutes: 10
