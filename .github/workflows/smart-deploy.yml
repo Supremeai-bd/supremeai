@@ -141,7 +141,6 @@ jobs:
 
   # ─── Render deploys (only if backend changed) ────────────────────────────
   deploy-render:
-    timeout-minutes: 30  # #3699: prevent stuck deploys
     name: "🚀 Render Deploy (if backend changed)"
     needs: detect-and-deploy
     if: needs.detect-and-deploy.outputs.deploy-needed == 'true'

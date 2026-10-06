@@ -214,7 +214,6 @@ jobs:
   # 4. Production Deploy Train (Automated Rollout via Pipeline 3)
   # ---------------------------------------------------------------------------
   deploy-train:
-    timeout-minutes: 30  # #3699: prevent stuck deploys
     name: "🚀 Auto Deploy Train"
     needs: [verify, artifact-regen]
     # বাংলা মন্তব্য: vars.AUTO_DEPLOY_ENABLED == 'true' হলে main-এ মার্জ হওয়ার পর
