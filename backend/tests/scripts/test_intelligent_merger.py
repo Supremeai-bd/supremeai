@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Any
 
 MERGER_PATH = Path(__file__).resolve().parents[3] / "scripts" / "ci" / "smart_priority_merger.py"
-ROLLUP_PATH = Path(__file__).resolve().parents[3] / "scripts" / "ci" / "merge_train_rollup.py"
 
 
 def _load_module(path: Path, name: str) -> Any:
@@ -30,7 +29,10 @@ def _load_module(path: Path, name: str) -> Any:
 
 
 mod = _load_module(MERGER_PATH, "smart_priority_merger_under_test_2645")
-rollup = _load_module(ROLLUP_PATH, "merge_train_rollup_under_test_2645")
+# বাংলা মন্তব্য (#3206): merge_train_rollup.py dead-code হিসেবে অপসারিত হয়েছে
+# (merge-train retirement — PR #3138 audit + #3206 Phase 1); তাই ROLLUP_PATH/
+# rollup লোড ও TestRollupIntelligence ক্লাসও সরানো হয়েছে — বাকি ক্লাসগুলো
+# smart_priority_merger.py (জীবিত মডিউল) রিগ্রেশন-টেস্ট করে।
 
 
 # ── ফিক্সচার হেল্পার ────────────────────────────────────────────────────────────
@@ -53,10 +55,6 @@ def _pr(
         "deletions": deletions,
         "files": [{"path": p, "patch": (patches or {}).get(p, "")} for p in files],
     }
-
-
-def _queued(number: int, title: str, files: list[str]) -> Any:
-    return rollup.QueuedPR(number=number, title=title, head_branch=f"b{number}", files=files)
 
 
 # ═══ ১. SemanticRiskClassifier ═══
@@ -363,56 +361,7 @@ class TestFlakyTriageEngine:
 
 
 # ═══ ৬. Rollup Batching + Auto-Revert Watchdog + Release Notes ═══
-class TestRollupIntelligence:
-    def test_touches_excluded_dir(self):
-        assert rollup.touches_excluded_dir(["backend/auth/login.py"]) is True
-        assert rollup.touches_excluded_dir([".github/workflows/pr.yml"]) is True
-        assert rollup.touches_excluded_dir(["docs/guide.md"]) is False
+# বাংলা মন্তব্য (#3206): TestRollupIntelligence অংশটি মুছে ফেলা হয়েছে — এটি
+# merge_train_rollup.py টেস্ট করত, যা merge-train retirement-এ dead-code
+# হিসেবে অপসারিত (ফাইলের উপরের মন্তব্য দেখুন)।
 
-    def test_rollup_eligibility_requires_benign_title(self):
-        benign = _queued(1, "docs: fix typo in readme", ["docs/a.md"])
-        core = _queued(2, "feat(auth): rotate keys", ["backend/auth/x.py"])
-        assert rollup.is_rollup_eligible(benign) is True
-        assert rollup.is_rollup_eligible(core) is False
-
-    def test_rollup_eligibility_respects_diff_budget(self):
-        benign = _queued(3, "chore: cleanup", ["scripts/cleanup.py"])
-        assert rollup.is_rollup_eligible(benign, diff_lines=50) is True
-        assert rollup.is_rollup_eligible(benign, diff_lines=500) is False
-
-    def test_plan_batches_benign_and_isolates_core(self):
-        doc1 = _queued(10, "docs: typo fix", ["docs/a.md"])
-        doc2 = _queued(11, "docs: another typo", ["docs/b.md"])
-        doc3 = _queued(12, "chore: cleanup notes", ["docs/c.md"])
-        doc4 = _queued(13, "docs: more fixes", ["docs/d.md"])
-        doc5 = _queued(14, "docs: extra", ["docs/e.md"])
-        core = _queued(20, "feat(db): migration", ["backend/alembic_migrations/x.py"])
-        plan = rollup.plan_single_flight_vs_rollup(
-            [doc1, doc2, doc3, doc4, doc5, core], max_batch=4
-        )
-        # বাংলা মন্তব্য: ব্যাচে সর্বোচ্চ max_batch সদস্য, কোর সবসময় single-flight
-        assert len(plan["rollup_batch"]) == 4
-        assert core.number in plan["single_flight"]
-        assert doc5.number in plan["deferred"]
-
-    def test_overlapping_benign_prs_deferred(self):
-        a = _queued(30, "docs: fix", ["docs/shared.md"])
-        b = _queued(31, "docs: fix2", ["docs/shared.md"])
-        plan = rollup.plan_single_flight_vs_rollup([a, b])
-        assert plan["rollup_batch"] == [30]
-        assert 31 in plan["deferred"]
-
-    def test_bengali_release_note_lists_prs(self):
-        note = rollup.build_bengali_release_note(
-            [_queued(40, "docs: fix typo", []), _queued(41, "chore: cleanup", [])]
-        )
-        assert "#40" in note and "#41" in note
-        assert "রিলিজ নোট" in note
-        assert rollup.build_bengali_release_note([]) == "📭 এই ব্যাচে কোনো মার্জ হয়নি।"
-
-    def test_auto_revert_kill_switch(self, monkeypatch):
-        monkeypatch.setenv("MERGE_TRAIN_AUTO_REVERT", "off")
-        engine = rollup.RollupEngine()
-        result = engine.create_auto_revert_pr("deadbeefcafe", "smoke failed")
-        assert result["success"] is False
-        assert "kill-switch" in result["error"]

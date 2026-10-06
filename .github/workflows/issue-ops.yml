@@ -41,10 +41,21 @@ on:
     # priority-queue.yml, epic #1850 Phase F / #1858).
     # বাংলা মন্তব্য (#2425): এখানে সব টাইপ রাখা হয় (গঠনগতভাবে filter করা যায় না),
     # আসল ফিল্টার refresh-ledger job-এর if: কন্ডিশনে — নিচে দেখো।
-    types: [opened, closed, reopened, labeled, unlabeled, edited]
+    #
+    # COST OPTIMIZATION: removed "edited" — refresh-ledger-এর if: condition-এ
+    # "edited" কখনো ছিল না, তাই প্রতিটি issue edit-এ শুধু rate-limit-gate job
+    # চলত (1 min/run) এবং refresh-ledger skip হতো — দরকারহীন খরচ। 4,573 runs-এর
+    # বেশিরভাগই edited ইভেন্ট থেকে। প্রত্যাশিত সাশ্রয়: ~40% = 1,940 min/month।
+    # opened/closed/reopened + labeled/unlabeled (priority+status labels only
+    # — ফিল্টার refresh-ledger if-এ আছে) queue-relevant coverage অক্ষত রাখে।
+    types: [opened, closed, reopened, labeled, unlabeled]
   schedule:
-    # 6-hourly drift sweep (verbatim from priority-queue.yml)
-    - cron: "23 */6 * * *"
+    # COST OPTIMIZATION: 6-hourly → daily drift sweep (was 4/day → now 1/day)
+    # বাংলা: ৬-ঘন্টা অন্তর drift sweep প্রতি দিন ৪টি schedule run তৈরি করত। issue events
+    # এখনো real-time re-rank করে — drift sweep শুধু "agent crashed mid-claim" recovery।
+    # দৈনিক ১টি sweep যথেষ্ট (orphan release TTL = ৩০min, agent loop hourly check করে)।
+    # সাশ্রয়: ৩ runs/day × ১৪.৬ min = ৪৪ min/day = ১,৩২০ min/month।
+    - cron: "23 3 * * *"
   workflow_dispatch:
     inputs:
       action:
@@ -175,7 +186,7 @@ jobs:
     # #2557 fixed-window gate: skip if a successful event-driven run completed
     # within the cooldown window (output `allow` == 'false').
     needs: rate-limit-gate
-    if: github.event_name == 'issues' && contains(fromJSON('["opened", "reopened", "edited"]'), github.event.action) && needs.rate-limit-gate.outputs.allow == 'true'
+    if: github.event_name == 'issues' && contains(fromJSON('["opened", "reopened"]'), github.event.action) && needs.rate-limit-gate.outputs.allow == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -327,3 +338,45 @@ jobs:
               default:
                 core.setFailed(`Unknown action: ${action}`);
             }
+
+  # ===========================================================================
+  # Template Validation (merged from issue-template-guard.yml — COST OPTIMIZATION)
+  # ===========================================================================
+  # Founder directive: "sob kajer jonno fixed template kore daowa"
+  # বাংলা: এই job আগে issue-template-guard.yml এ আলাদা workflow ছিল — প্রতিটি issue
+  # event-এ ২টি workflow spawn হতো (issue-ops + issue-template-guard)। এখন একটি
+  # workflow-এই দুটি কাজ করবে — ৫০% workflow spawn কম।
+  # সাশ্রয়: ~৪ runs/day × ১১.৫ min = ৪৬ min/day = ১,৩৮০ min/month।
+  template-validate:
+    name: "📋 Validate Issue Template"
+    if: >-
+      github.event_name == 'issues' && (
+        github.event.action == 'opened' ||
+        github.event.action == 'reopened'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    # Job-level concurrency: আলাদা group যাতে workflow-level cancel-in-progress
+    # এই job-কে cancel না করে। কারণ: opened event এলে template-validate চলে শুরু করে,
+    # কিন্তু যদি labeled event পরে আসে, workflow-level concurrency পুরো workflow cancel
+    # করবে। এই job-level group সেটি প্রতিরোধ করে — template-validate নিজের গ্রুপে চলে।
+    concurrency:
+      group: template-validate-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout (rules.yml + template_gate.py)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Validate issue template conformance
+        env:
+          GITHUB_TOKEN: \${{ github.token }}
+          GITHUB_REPOSITORY: \${{ github.repository }}
+        run: python .github/scripts/constitution/template_gate.py --issue \${{ github.event.issue.number }}

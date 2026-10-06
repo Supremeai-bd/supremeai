@@ -23,10 +23,11 @@ jobs:
   dead-code-detection:
     name: 🦅 Find Dead Code
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -48,3 +49,39 @@ jobs:
           echo "## 🚨 Dead Code Detected" >> $GITHUB_STEP_SUMMARY
           echo "The 'Find Dead Code' job failed, indicating that potential unused code was found." >> $GITHUB_STEP_SUMMARY
           echo "Please review the logs from the 'Run Dead Code Detector script' step for details." >> $GITHUB_STEP_SUMMARY
+
+  capability-inventory-lint:
+    # বাংলা (#4043): Capability Inventory CI Guard — Roadmap v2 Phase 1.1।
+    # backend/integrations/ বা backend/core/llm/providers/-এ নতুন adapter/provider
+    # যোগ হলে docs/architecture/inventory.yaml-এ entry বাধ্যতামূলক। এটি Rule 4
+    # (Evidence Before Adoption) enforce করে — কোনো capability silently adopt হতে পারবে না।
+    name: 📋 Capability Inventory Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Run inventory lint
+        id: inventory_lint
+        run: python scripts/agents/inventory_lint.py --strict
+
+      - name: Summarize findings
+        if: failure() && steps.inventory_lint.outcome == 'failure'
+        run: |
+          echo "## 📋 Capability Inventory Drift Detected" >> $GITHUB_STEP_SUMMARY
+          echo "A new integration adapter or LLM provider was added without a corresponding entry in \`docs/architecture/inventory.yaml\`." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Why this matters:** Roadmap v2 Rule 4 (Evidence Before Adoption) requires every capability to be tracked. The Scout pipeline (#4055), Evaluation Engine (#4047), and Policy Engine (#4049) cross-reference this inventory." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Fix:** Add an entry under \`integrations:\` or \`llm_providers:\` in \`docs/architecture/inventory.yaml\`." >> $GITHUB_STEP_SUMMARY
+          echo "See: \`docs/architecture/CAPABILITY_INVENTORY.md\` §11 (Maintenance Protocol)" >> $GITHUB_STEP_SUMMARY

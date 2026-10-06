@@ -23,8 +23,12 @@
 name: "📋 Issue Template Guard"
 
 on:
-  issues:
-    types: [opened, edited, reopened]
+  # DISABLED: merged into issue-ops.yml as `template-validate` job.
+  # This file is kept for reference + easy revert. The issues trigger
+  # has been REMOVED so it will NEVER fire.
+  # বাংলা: এই workflow-টি issue-ops.yml এর template-validate job-এ merge হয়েছে।
+  # issues trigger সম্পূর্ণ সরানো হয়েছে — এই workflow আর কখনো চলবে না।
+  workflow_dispatch: {}  # manual trigger only (for testing/revert)
 
 permissions:
   issues: write        # label + self-heal কমেন্ট

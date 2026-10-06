@@ -90,31 +90,33 @@ def main():
             "role": "primary",
             "email": secrets.get("CLOUDFLARE_EMAIL", "paykaribazaronline@gmail.com"),
             "key": secrets.get("CLOUDFLARE_GLOBAL_API_KEY") or secrets.get("CLOUDFLARE_API_KEY"),
-            "account_id": secrets.get("CLOUDFLARE_ACCOUNT_ID", "9d13b8641979b09a7b9bc0195aefea42"),
+            "account_id": secrets.get("CLOUDFLARE_ACCOUNT_ID"),  # #3322 fix: no hardcoded default
         },
         {
             "role": "secondary",
             "email": secrets.get("CLOUDFLARE_SECONDARY_EMAIL", "niloyjoy7@gmail.com"),
             "key": secrets.get("CLOUDFLARE_SECONDARY_GLOBAL_API_KEY"),
-            "account_id": secrets.get("CLOUDFLARE_SECONDARY_ACCOUNT_ID", "f8642291583d73b0a7aa5fa9917d23f3"),
+            "account_id": secrets.get("CLOUDFLARE_SECONDARY_ACCOUNT_ID"),  # #3322 fix: no hardcoded default
         },
         {
             "role": "tertiary",
             "email": secrets.get("CLOUDFLARE_TERTIARY_EMAIL", "ziaulhaquezia01@gmail.com"),
             "key": secrets.get("CLOUDFLARE_TERTIARY_GLOBAL_API_KEY"),
-            "account_id": secrets.get("CLOUDFLARE_TERTIARY_ACCOUNT_ID", "029a3e00b3e54beeaebff34d6beeaef7"),
+            "account_id": secrets.get("CLOUDFLARE_TERTIARY_ACCOUNT_ID"),  # #3322 fix: no hardcoded default
         },
         {
             "role": "quaternary",
             "email": secrets.get("CLOUDFLARE_QUATERNARY_EMAIL", "njelmedia@gmail.com"),
             "key": secrets.get("CLOUDFLARE_QUATERNARY_GLOBAL_API_KEY"),
-            "account_id": secrets.get("CLOUDFLARE_QUATERNARY_ACCOUNT_ID", "b5012cbdcd57c2c8f654b0fa288c3a17"),
+            "account_id": secrets.get("CLOUDFLARE_QUATERNARY_ACCOUNT_ID"),  # #3322 fix: no hardcoded default
         },
         {
             "role": "quinary",
             "email": secrets.get("CLOUDFLARE_QUINARY_EMAIL", "itnjel@gmail.com"),
             "key": secrets.get("CLOUDFLARE_QUINARY_GLOBAL_API_KEY"),
-            "account_id": secrets.get("CLOUDFLARE_QUINARY_ACCOUNT_ID", "40f6e78a632e92cbbdcf3a8f906e0018"),
+            # #3322 fix: hardcoded account_id moved to env-var-only (no default fallback).
+            # This was a real-looking hex string that the scanner flagged as a secret.
+            "account_id": secrets.get("CLOUDFLARE_QUINARY_ACCOUNT_ID"),
         },
     ]
 

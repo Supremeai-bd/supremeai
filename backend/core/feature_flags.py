@@ -25,17 +25,13 @@ from core.logging_config import logger
 # ── Flag name constants ──────────────────────────────────────────────────────
 MEM0_FLAG = "SUPREMEAI_MEM0_ENABLED"
 GRAPHITI_FLAG = "SUPREMEAI_GRAPHITI_ENABLED"
-BROWSER_USE_FLAG = "SUPREMEAI_BROWSER_USE_ENABLED"
 E2B_FLAG = "SUPREMEAI_E2B_ENABLED"
-OPENHANDS_FLAG = "SUPREMEAI_OPENHANDS_ENABLED"
 
 # Supabase DB feature_flags টেবিলের feature_name কলামের জন্য ম্যাপিং
 _DB_FLAG_NAMES: dict[str, str] = {
     MEM0_FLAG: "mem0_enabled",
     GRAPHITI_FLAG: "graphiti_enabled",
-    BROWSER_USE_FLAG: "browser_use_enabled",
     E2B_FLAG: "e2b_enabled",
-    OPENHANDS_FLAG: "openhands_enabled",
 }
 
 _TRUTHY: frozenset[str] = frozenset({"1", "true", "yes", "on"})
@@ -107,17 +103,9 @@ class FeatureFlags:
         """True when the premium Graphiti knowledge-graph memory should be used."""
         return self._check(GRAPHITI_FLAG, user_id)
 
-    def browser_use_enabled(self, user_id: str | None = None) -> bool:
-        """True when the premium browser-use agent should be used."""
-        return self._check(BROWSER_USE_FLAG, user_id)
-
     def e2b_enabled(self, user_id: str | None = None) -> bool:
         """True when the premium E2B sandbox should be used."""
         return self._check(E2B_FLAG, user_id)
-
-    def openhands_enabled(self, user_id: str | None = None) -> bool:
-        """True when the premium OpenHands agent should be used."""
-        return self._check(OPENHANDS_FLAG, user_id)
 
     def _check(self, flag_name: str, user_id: str | None = None) -> bool:
         """Two-tier check: env-var → DB, cache result."""
@@ -172,9 +160,7 @@ class FeatureFlags:
         return {
             "mem0": self.mem0_enabled(),
             "graphiti": self.graphiti_enabled(),
-            "browser_use": self.browser_use_enabled(),
             "e2b": self.e2b_enabled(),
-            "openhands": self.openhands_enabled(),
             "advanced_rollout": {k: v["pct"] for k, v in self.ADV_FLAGS.items() if v["enabled"]},
         }
 
@@ -183,12 +169,10 @@ class FeatureFlags:
 feature_flags = FeatureFlags()
 
 __all__ = [
-    "BROWSER_USE_FLAG",
     "RUNTIME_FLAG_NAMES",
     "E2B_FLAG",
     "GRAPHITI_FLAG",
     "MEM0_FLAG",
-    "OPENHANDS_FLAG",
     "FeatureFlags",
     "feature_flags",
 ]

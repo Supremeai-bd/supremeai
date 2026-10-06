@@ -1,6 +1,7 @@
 # Root Dockerfile — delegates to infrastructure/mcp-control-plane/Dockerfile
 #
-# Issue #759/#798/#598: the live Render MCP service (srv-dabm7inqj5pc738jkrt0)
+# Issue #759/#798/#598: the live Render MCP service (ID intentionally withheld
+# from the public repo - topology hygiene #3774; see private infra repo)
 # has dockerContext="." and dockerfilePath="Dockerfile" (set when the service
 # was originally created). It cannot find a Dockerfile at the repo root →
 # build_failed in ~18s on every push.

@@ -61,9 +61,9 @@ class SecretType(str, Enum):
     STRIPE_WEBHOOK_SECRET = "stripe_webhook_secret"
     RESEND_API_KEY = "resend_api_key"
     DISCORD_WEBHOOK = "discord_webhook_url"
-    SUPABASE_SERVICE_KEY = "supabase_service_key"
-    REDIS_PASSWORD = "redis_password"
-    OPENAI_API_KEY = "openai_api_key"
+    SUPABASE_SERVICE_KEY = "supabase_service_key"  # noscan: env var name, not secret value
+    REDIS_PASSWORD = "redis_password"  # noscan: env var name, not secret value
+    OPENAI_API_KEY = "openai_api_key"  # noscan: env var name, not secret value
     ADMIN_API_KEY = "admin_api_key"
     ENCRYPTION_KEY = "encryption_key"
 

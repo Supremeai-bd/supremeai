@@ -55,6 +55,29 @@ class StorageClient:
 
         return {"status": "error", "error": "Provider not configured properly."}
 
+    def download_file(self, remote_path: str, local_path: str) -> dict[str, Any]:
+        """Downloads an object from storage to a local path.
+
+        # বাংলা (#3164): backup artifact-এর download-back verification ও
+        # restore-from-durable পথের জন্য। upload_file-এর মিরর API।
+        """
+        try:
+            if self.provider == "supabase" and self.supabase_client:
+                data = self.supabase_client.storage.from_(self.bucket_name).download(remote_path)
+                os.makedirs(os.path.dirname(os.path.abspath(local_path)), exist_ok=True)
+                with open(local_path, "wb") as f:
+                    f.write(data)
+                return {"status": "success", "provider": "supabase", "path": remote_path}
+            if self.provider == "s3" and self.s3_client:
+                os.makedirs(os.path.dirname(os.path.abspath(local_path)), exist_ok=True)
+                self.s3_client.download_file(self.bucket_name, remote_path, local_path)
+                return {"status": "success", "provider": "s3", "path": remote_path}
+        except Exception as e:
+            logger.error(f"Download failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+        return {"status": "error", "error": "Provider not configured properly."}
+
     def get_public_url(self, remote_path: str) -> str:
         """Returns the public CDN URL for a file."""
         if self.provider == "supabase" and self.supabase_client:

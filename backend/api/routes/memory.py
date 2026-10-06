@@ -36,6 +36,17 @@ def _owned_checkpoint_key(user: dict, task_id: str) -> str:
     return f"{_checkpoint_prefix(user)}{task_id}"
 
 
+def _owned_window_session(user: dict, session_id: str) -> str:
+    """Owner-namespaced sliding-window session key (#3155, AUD-5.1 প্যাটার্ন)।
+
+    বাংলা: sliding-window store-এ user কলাম নেই — তাই route-layer-এ
+    checkpoint-এর মতোই `u:<sub>:<session_id>` নেমস্পেস। এতে এক authenticated
+    user অন্যজনের session_id জানলেও তার window পড়তে/মুছতে পারে না
+    (cross-tenant IDOR, #3155 রিগ্রেশন টেস্টে লক)।
+    """
+    return f"{_checkpoint_prefix(user)}{session_id}"
+
+
 def get_checkpoint() -> CheckpointResume:
     global _checkpoint
     if _checkpoint is None:
@@ -155,15 +166,20 @@ def build_context(payload: ContextRequest):
 
 
 @router.get("/recall", response_model=list[dict[str, Any]])
-def recall_memory(session_id: str = "default", limit: int = 20):
+def recall_memory(
+    session_id: str = "default", limit: int = 20, user: dict = Depends(get_current_user_token)
+):
+    # #3155 (AUD-5.1 প্যাটার্ন): user-scoped session key — আগে bare session_id
+    # দিয়ে query হতো; একই session_id-তে অন্য user-এর window পড়া যেত (IDOR)।
     memory = get_window()
-    return memory.recall(session_id, limit=limit)
+    return memory.recall(_owned_window_session(user, session_id), limit=limit)
 
 
 @router.delete("/recall")
-def clear_memory(session_id: str = "default"):
+def clear_memory(session_id: str = "default", user: dict = Depends(get_current_user_token)):
+    # #3155: clear-ও একই নেমস্পেসে — অন্য user-এর window মুছে ফেলা যাবে না।
     memory = get_window()
-    ok = memory.clear(session_id)
+    ok = memory.clear(_owned_window_session(user, session_id))
     if not ok:
         raise HTTPException(status_code=500, detail="Failed to clear memory")
     return {"status": "ok", "session_id": session_id}

@@ -34,10 +34,11 @@ jobs:
   dependency-scan:
     name: 🩺 Dependency Health Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # --- Node.js/pnpm এনভায়রনমেন্ট সেটআপ ---
       # #3265: `version:` ইনপুট সরানো হয়েছে — pnpm/action-setup এখন root
@@ -48,7 +49,7 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24' # package.json থেকে পাওয়া
           cache: 'pnpm'
@@ -61,6 +62,13 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.11'
+
+      # #3679: runner-image-এ `poetry` binary নেই — setup-python শুধু interpreter
+      # দেয়। check_dependencies.py `poetry check` (backend/) চালায় → তাই আগে
+      # poetry-ইনস্টল বাধ্যতামূলক; নাহলে ৩+ দিনের মতো false-RED
+      # (`/bin/sh: 1: poetry: not found`)।
+      - name: Install Poetry
+        run: pipx install poetry
 
       # --- হেলথ চেক স্ক্রিপ্ট চালানো ---
       # বাংলা (#3165): path ঠিক করা হয়েছে — scripts/quality/ → scripts/security/

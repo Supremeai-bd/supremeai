@@ -1,9 +1,32 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from brain.parallel_cloud_router import ParallelCloudRouter
 from core.app import app
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_multicloud(monkeypatch):
+    """#3685 — DNS-নির্ভর flaky pass/fail নির্মূল।
+
+    বাংলা: ParallelCloudRouter.__init__ (এবং routing-পথ) আসল network I/O
+    করে — provider HTTP probes + redis://mocked-redis-url-এ Redis write/read
+    (conftest-ডিফল্ট)। DNS fast-fail হলে error caught→logged→টেস্ট পাস;
+    DNS hang করলে socket.getaddrinfo ব্লক → pytest-timeout → FAIL।
+
+    নিরাময় (টেস্ট-লজিক অপরিবর্তিত):
+    ১. redis.from_url → None = "unconfigured" পথ — ঠিক যেমন আসল
+       deployment-এ redis না থাকলে আচরণ করে (সব guard-চেক স্কিপ)।
+    ২. _health_check_all → no-op — health সাইড-এফেক্ট কোনো assertion-এ
+       অবদান রাখে না; বরং empty-URL পথে _set_status-এর Redis write-ই
+       ডাকত।
+    """
+    monkeypatch.setattr("redis.from_url", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        ParallelCloudRouter, "_health_check_all", lambda self, force=False: None
+    )
 
 
 def test_parallel_cloud_router_initialization():

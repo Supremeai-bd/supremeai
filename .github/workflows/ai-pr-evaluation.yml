@@ -26,8 +26,12 @@ name: "AI PR Evaluator (2-Criteria Auto-Merge)"
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-  schedule:
-    - cron: "*/20 * * * *"  # পুনঃমূল্যায়ন — main-গতি/gate-অবস্থা বদলালে রায় বদলায়
+  # COST OPTIMIZATION: schedule trigger REMOVED entirely.
+  # বাংলা: hourly cron প্রতি দিন ২৪টি schedule run তৈরি করত — বেশিরভাগ PR ইতিমধ্যে
+  # evaluated থাকত। PR state change = synchronize event real-time trigger করে।
+  # Stuck PR recovery: ops-console.yml এর "reevaluate" action দিয়ে manual trigger
+  # করা যায়। সাশ্রয়: ২৪ runs/day × ১৬ min = ৩৮৪ min/day = ১১,৫২০ min/month।
+  # (founder directive: stuck PR ২৪ ঘন্টা পরে nightlie audit এ ধরা পড়ে)
   workflow_dispatch:
     inputs:
       pr_number:
@@ -62,6 +66,18 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.11"
+
+      # #3478 fix: Fetch AI provider keys from Infisical vault.
+      # বাংলা: repo-secrets-এ AI keys কখনো set হয়নি — শুধু Infisical vault-এ আছে।
+      # এই step vault-থেকে keys fetch করে GITHUB_ENV-এ inject করে।
+      # Fail-open: vault unreachable হলে evaluator deterministic-এ fallback করে।
+      - name: Fetch AI keys from Infisical vault (#3478)
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+        run: |
+          python scripts/security/fetch_ai_keys.py >> $GITHUB_ENV || true
 
       - name: Evaluate PR(s) — verdict + hold-issue (reasons included)
         env:

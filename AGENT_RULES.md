@@ -71,6 +71,9 @@ Current state → next valuable state → verify → next improvement
 
 External platforms may inspire ideas, but agents must not turn ecosystem scouting into an immediate attempt to reproduce the scale or architecture of a much larger platform.
 
+## P6 — Defect Class Prevention over Symptom Patching
+When fixing any bug, failure or regression, first analyze whether the defect is an isolated one-off occurrence or part of a systemic/recurring class. Never apply a superficial symptom patch (e.g., swallow echoes, per-call ad-hoc bypass, single-line error masking) that leaves the underlying condition open to repeat. If a problem can recur, eliminate the entire class at the root cause — preferably via machine-enforced guards, SSOT definitions, compile/schema checks, or permanent regression tests.
+
 ---
 
 # 3. Role Policy Contracts
@@ -85,6 +88,12 @@ Use external patterns only as evidence/inspiration. Evaluate fit, complexity, co
 
 ## Coder
 Validate the issue before coding. Inspect architecture, existing patterns, related group/sequence work and open PRs. Choose the smallest safe change. Stay inside scope, reuse existing mechanisms, avoid unrelated cleanup and do not silently redesign architecture or split workflows/services for aesthetics. Report architectural observations separately.
+
+**Defect Class Analysis & Permanent Root-Cause Prevention (পুনরাবৃত্তিমূলক বনাম বিচ্ছিন্ন সমস্যা বিশ্লেষণ ও স্থায়ী সমাধান):**
+Whenever encountering any error, bug, or failure, the Coder must perform defect classification before writing code:
+1. **Isolated vs. Recurring Analysis:** Analyze whether the issue is a unique, isolated one-time glitch or part of a systemic, common failure class that could repeat (e.g. branch naming mismatches, stale lockfiles, hardcoded config/version drift, unhandled error swallows, missing preflight guards).
+2. **Ban Superficial Symptom Patching:** If the problem has the potential to recur, never apply a superficial symptom-only patch (e.g., swallow echoes, per-call ad-hoc bypass, single-line error masking) that leaves the underlying condition open to repeat.
+3. **Poka-Yoke (Mistake-Proofing at Root Cause):** Solve the problem so that the entire class of defect cannot happen again. Enforce prevention at the earliest possible stage—via machine-enforced creation/preflight guards, Single Source of Truth (SSOT) consolidation, schema/type constraints, fail-honest boundary assertions, and permanent regression tests.
 
 ## CI Fixer
 Verify the actual failing run and current commit. Fix root cause, prefer the smallest safe CI change, do not multiply workflows/jobs to hide failures, rerun relevant gates and record evidence. Route architecture/policy changes to Admin Decision.

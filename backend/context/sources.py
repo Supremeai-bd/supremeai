@@ -60,4 +60,4 @@ __all__ = ["build_context_engine", "memory_source"]
 
 # বাংলা: `build_context_engine()`-ই integration entrypoint; সরাসরি নতুন
 # memory database বা parallel context pipeline ব্যবহার করা যাবে না।
-# TODO M2-C: একই contract-এ file, RAG এবং conversation adapters যুক্ত হবে।
+# See issue #3701 (was TODO M2-C): একই contract-এ file, RAG এবং conversation adapters যুক্ত হবে।

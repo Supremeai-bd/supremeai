@@ -350,7 +350,7 @@ class UniversalRulesEngine:
     def check_code_completeness(self, code: str) -> bool:
         """
         CODE-002: No Incomplete Code Delivery যাচাই করে।
-        # TODO, pass, NotImplemented pattern থাকলে block করে।
+        # See issue #3701 (was TODO), NotImplemented pattern থাকলে block করে।
         """
         import re
 

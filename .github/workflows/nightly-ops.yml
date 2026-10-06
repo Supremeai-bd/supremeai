@@ -38,8 +38,12 @@ name: 🔧 Nightly Ops & Maintenance
 
 on:
   schedule:
-    # hourly: deploy-doctor-fallback (D1 dissolution of the */5 poller, 90m window)
-    - cron: "0 * * * *"
+    # COST OPTIMIZATION: deploy-doctor-fallback every 4 hours (was hourly).
+    # বাংলা: hourly cron প্রতি দিন ২৪টি run তৈরি করত — বেশিরভাগই কিছু না করে skip হতো
+    # (deploy-doctor শুধু failed deploy থাকলে কাজ করে)। */4 এ কমালে ৬ runs/day —
+    # ৭৫% সাশ্রয়। Deploy failure detection latency 1h → 4h (গ্রহণযোগ্য — deploy
+    # failure সাধারণত অনেক আগে আবিষ্কৃত হয় CI failure notification দিয়ে)।
+    - cron: "0 */4 * * *"
     # nightly bundle: deep-audit + ai-safety + mission-passk + platform-sweep
     #   + platform-deep-audit + rate-limit-trend + stale-mutex + live-smoke
     #   + db-retention + workflow-runs-retention + e2e-customer  (#2860 cron bundle)

@@ -26,34 +26,25 @@ concurrency:
 
 on:
   issues:
-    types: [opened, closed, reopened]
-  # বাংলা মন্তব্য (#2778 CI-cascade fix): `pull_request` ট্রিগার সম্পূর্ণ বাদ —
-  # কোনো job PR-context ব্যবহার করে না, আর PR-close → linked-issue-close →
-  # `issues` ইভেন্ট তবুও আসে। আগে প্রতিটি PR open/close-এ এই workflow-এর
-  # ৩টি ভারী job (checkout+setup-python) বৃথা স্পন হতো; এখন cron (*/10) +
-  # issues ইভেন্টই টাস্ক-অর্জনের কভারেজ দেয় (রিঅ্যাকশন লেটেন্সি ≤ ১০ মিনিট)।
-  workflow_run:
-    # বাংলা মন্তব্য: GitHub schema অনুযায়ী workflow_run trigger-এ টার্গেট workflow-এর
-    # নাম ঘোষণা বাধ্যতামূলক — না হলে পুরো file parse রিজেক্ট হয় (zero-job failure, #2582)।
-    # স্কোপ: DRY 3-Pipeline Law-এর দুই CI gate — merge/train/deploy-এর নিজস্ব handling আছে।
-    # রাখা হয়েছে শুধু ci-failure-handler-এর (গ্যারান্টি #৩) জন্য; নিচের ভারী job-গুলো
-    # `event_name != 'workflow_run'` দিয়ে গেট করা — তাই CI পাসের রানে সব job
-    # তৎক্ষণাৎ skip হয় (রানার-মিনিট শূন্য, কিউ-নয়েজ সীমিত)।
-    workflows:
-      - "PR Gate (Unified Pipeline)"
-      - "Main CI/CD"
-      # বাংলা মন্তব্য (#2928): Branch Creation Guard-ও এখন নজরদারিতে — আগে guard-violation
-      # (যেমন fix/2925 @ PR #2926) কারো কাছেই পৌঁছাত না; এখন register-এ দৃশ্যমান হবে।
-      - "🌿 Branch Creation Guard"
-    types: [completed]
-    # বাংলা মন্তব্য (#2806 conflict-resolution): main-এর আগের ভার্সন workflow_run
-    # সম্পূর্ণ বাদ দিয়েছিল — কিন্তু ci-failure-handler-এর `if:` শর্ত
-    # `event_name == 'workflow_run'` হওয়ায় সেই ট্রিগার বাদ গেলে job-টি
-    # চিরতরে unreachable dead-code হয়ে যেত (গ্যারান্টি #৩ নীরবে ভাঙত)।
-    # তাই PR #2801-এর নকশা জেতে: PR-ট্রিগার বাদ + স্কোপড workflow_run থাকে —
-    # ক্যাসকেডও কমে, handler-ও বেঁচে থাকে।
+    types: [opened]  # COST OPTIMIZATION: only 'opened' (was opened/closed/reopened)
+    # বাংলা: শুধু 'opened' রাখা হয়েছে — নতুন issue এলে agent loop দ্রুত claim করতে পারে।
+    # closed/reopened ইভেন্ট issue-ops.yml দিয়ে handle হয় (ledger re-rank)।
+    # সাশ্রয়: closed + reopened events বাদ (৬-৭ runs/day কম)।
+    # Agent latency: নতুন issue = real-time (opened event), closed = hourly cron পর্যন্ত।
+  # COST OPTIMIZATION: workflow_run trigger REMOVED entirely.
+  # বাংলা: workflow_run প্রতিটি PR Gate / CI complete হলে ফায়ার করত — ১৫ runs/day
+  # শুধু workflow_run থেকে, যার বেশিরভাগই SUCCESS (ci-failure-handler skip হতো)।
+  # এখন ci-failure-handler hourly schedule-এ চলবে এবং GitHub API দিয়ে recent
+  # failed runs চেক করবে — cascade সম্পূর্ণ ভাঙা হলো।
+  # সাশ্রয়: ~১৫ workflow_run runs/day × 5.7 min = 85 min/day = 2,550 min/month।
+  # (founder directive: CI failure detection ১ ঘন্টায় একবার যথেষ্ট — Slack notify
+  # এখনো real-time পায় pr.yml এর notify-failure job থেকে)
   schedule:
-    - cron: "*/10 * * * *"  # Every 10 minutes
+    - cron: "0 * * * *"  # COST OPTIMIZATION: hourly (was */30, originally */10)
+      # বাংলা: */10 প্রতি দিন ১৪৪টি schedule run তৈরি করত → */30 এ ৭২ → এখন hourly = ২৪/day।
+      # issue events এখনো real-time trigger করে (no latency regression)। schedule শুধু
+      # "agent crashed mid-claim" recovery — hourly যথেষ্ট (orphan release TTL = 30min)।
+      # সাশ্রয়: ৪৮ runs/day × 5.7 min = ২৭৪ min/day = ৮,২২০ min/month।
   workflow_dispatch:
     inputs:
       role:
@@ -84,6 +75,24 @@ jobs:
     outputs:
       has_issues: ${{ steps.check.outputs.has_issues }}
     steps:
+      - name: Resolve working GH_TOKEN (SELF_HEAL_PAT fallback)
+        id: resolve-token
+        env:
+          PAT_TOKEN: ${{ secrets.SELF_HEAL_PAT }}
+          GHA_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PAT_TOKEN" ]; then
+            echo "resolved_token=$GHA_TOKEN" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $PAT_TOKEN" "https://api.github.com/repos/${{ github.repository }}" || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "resolved_token=$PAT_TOKEN" >> $GITHUB_OUTPUT
+          else
+            echo "resolved_token=$GHA_TOKEN" >> $GITHUB_OUTPUT
+            echo "::warning::SELF_HEAL_PAT returned HTTP $STATUS — falling back to github.token"
+          fi
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
@@ -156,34 +165,13 @@ jobs:
   #   ৩) ছড়ানো blocker-issue — কোনো এক-গ্রুপ নীতি ছিল না
   # প্রতিস্থাপন: নির্ধারক single-funnel `pipeline_failure_register.py` —
   # fingerprint-dedup + স্মার্ট রাউটিং (merge-first > duplicate new-fix)।
-  ci-failure-handler:
-    name: "📋 Pipeline Failure Register (one group + smart routing)"
-    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+  # ci-failure-handler REMOVED (COST OPTIMIZATION):
+  # বাংলা: এই job workflow_run event data (github.event.workflow_run.*) ব্যবহার করত।
+  # workflow_run trigger সরানোর পর এই variables empty হবে → script ভুল আউটপুট।
+  # pipeline-failure-scan job নিচে একই কাজ করে GitHub API দিয়ে (dynamic, সব workflow
+  # কভার করে)। তাই এই job সম্পূর্ণ redundant — সরানো হলো।
+  # Founder directive #3 (CI failure detection): pipeline-failure-scan দ্বারা সংরক্ষিত।
 
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: "3.11"
-
-      - name: Register pipeline failure (grouped + smart-routed)
-        env:
-          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
-          GH_REPO: ${{ github.repository }}
-          FAILED_WORKFLOW: ${{ github.event.workflow_run.name }}
-          FAILED_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
-          FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
-          FAILED_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-        run: |
-          set -euo pipefail
-          echo "📋 Pipeline failure detected: $FAILED_WORKFLOW on $FAILED_BRANCH (run $FAILED_RUN_ID)"
-          # বাংলা মন্তব্য: বুককিপিং-সফলতা = exit 0 — ব্যর্থতা রেজিস্টার-হওয়াই এই জব-এর কাজ।
-          python scripts/ci/pipeline_failure_register.py --event
 
   # ---------------------------------------------------------------------------
   # 3b. Pipeline Failure Scan — ডায়নামিক পূর্ণ-স্ক্যান (#2935)
@@ -197,7 +185,10 @@ jobs:
   # কারণসহ per-PR issue; হীল হলে auto-close।
   pipeline-failure-scan:
     name: "📋 Pipeline Failure Scan (dynamic — any pipeline, auto-tracked)"
-    if: github.event_name != 'workflow_run'
+    # COST OPTIMIZATION: schedule-only (was `!= 'workflow_run'` = ran on issues events too)
+    # বাংলা: আগে প্রতিটি issue event-এ এই ভারী job (8 min) চলত — কিন্তু issue open
+    # হলে CI failure স্ক্যান দরকার নেই। শুধু schedule + dispatch-এ চলবে।
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:

@@ -20,35 +20,35 @@ ACCOUNTS = [
         "role": "primary",
         "email": os.getenv("CLOUDFLARE_EMAIL", "paykaribazaronline@gmail.com"),
         "global_key": os.getenv("CLOUDFLARE_GLOBAL_API_KEY"),
-        "account_id": os.getenv("CLOUDFLARE_ACCOUNT_ID", "9d13b8641979b09a7b9bc0195aefea42"),
+        "account_id": os.getenv("CLOUDFLARE_ACCOUNT_ID"),  # #3322 fix: no hardcoded default
         "worker_name": "supremeai-worker",
     },
     {
         "role": "secondary",
         "email": os.getenv("CLOUDFLARE_SECONDARY_EMAIL", "niloyjoy7@gmail.com"),
         "global_key": os.getenv("CLOUDFLARE_SECONDARY_GLOBAL_API_KEY"),
-        "account_id": os.getenv("CLOUDFLARE_SECONDARY_ACCOUNT_ID", "f8642291583d73b0a7aa5fa9917d23f3"),
+        "account_id": os.getenv("CLOUDFLARE_SECONDARY_ACCOUNT_ID"),  # #3322 fix: no hardcoded default
         "worker_name": "supremeai-worker-secondary",
     },
     {
         "role": "tertiary",
         "email": os.getenv("CLOUDFLARE_TERTIARY_EMAIL", "ziaulhaquezia01@gmail.com"),
         "global_key": os.getenv("CLOUDFLARE_TERTIARY_GLOBAL_API_KEY"),
-        "account_id": os.getenv("CLOUDFLARE_TERTIARY_ACCOUNT_ID", "029a3e00b3e54beeaebff34d6beeaef7"),
+        "account_id": os.getenv("CLOUDFLARE_TERTIARY_ACCOUNT_ID"),  # #3322 fix: no hardcoded default
         "worker_name": "supremeai-worker-tertiary",
     },
     {
         "role": "quaternary",
         "email": os.getenv("CLOUDFLARE_QUATERNARY_EMAIL", "njelmedia@gmail.com"),
         "global_key": os.getenv("CLOUDFLARE_QUATERNARY_GLOBAL_API_KEY"),
-        "account_id": os.getenv("CLOUDFLARE_QUATERNARY_ACCOUNT_ID", "b5012cbdcd57c2c8f654b0fa288c3a17"),
+        "account_id": os.getenv("CLOUDFLARE_QUATERNARY_ACCOUNT_ID"),  # #3322 fix: no hardcoded default
         "worker_name": "supremeai-worker-quaternary",
     },
     {
         "role": "quinary",
         "email": os.getenv("CLOUDFLARE_QUINARY_EMAIL", "itnjel@gmail.com"),
         "global_key": os.getenv("CLOUDFLARE_QUINARY_GLOBAL_API_KEY"),
-        "account_id": os.getenv("CLOUDFLARE_QUINARY_ACCOUNT_ID", "40f6e78a632e92cbbdcf3a8f906e0018"),
+        "account_id": os.getenv("CLOUDFLARE_QUINARY_ACCOUNT_ID"),  # #3322 fix: no hardcoded default
         "worker_name": "supremeai-worker-quinary",
     },
 ]

@@ -249,23 +249,6 @@ def _build_registry() -> None:
 
     _register(
         IntegrationInfo(
-            key="browser_use",
-            name="Browser-Use Agentic Browser",
-            category="browser",
-            scope=IntegrationScope.OPTIONAL_PROVIDER,
-            enabled=_premium_flags.browser_use_enabled(),
-            status=IntegrationStatus.ENABLED
-            if _premium_flags.browser_use_enabled()
-            else IntegrationStatus.DISABLED,
-            required_for_core=False,
-            fallback="existing Playwright browser stack (Plan Section 20)",
-            capabilities=("agentic_browsing",),
-            config_note="SUPREMEAI_BROWSER_USE_ENABLED (audit vs Playwright first)",
-        )
-    )
-
-    _register(
-        IntegrationInfo(
             key="e2b",
             name="E2B Sandbox",
             category="sandbox",
@@ -278,23 +261,6 @@ def _build_registry() -> None:
             fallback="existing local/server sandbox (Plan Section 21)",
             capabilities=("code_sandbox",),
             config_note="SUPREMEAI_E2B_ENABLED",
-        )
-    )
-
-    _register(
-        IntegrationInfo(
-            key="openhands",
-            name="OpenHands Coding Agent",
-            category="coding_agent",
-            scope=IntegrationScope.OPTIONAL_PROVIDER,
-            enabled=_premium_flags.openhands_enabled(),
-            status=IntegrationStatus.ENABLED
-            if _premium_flags.openhands_enabled()
-            else IntegrationStatus.DISABLED,
-            required_for_core=False,
-            fallback="SupremeAI native code agent (Plan Section 22)",
-            capabilities=("coding_agent",),
-            config_note="SUPREMEAI_OPENHANDS_ENABLED + OPENHANDS_SERVER_URL",
         )
     )
 

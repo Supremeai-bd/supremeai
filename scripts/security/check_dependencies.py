@@ -54,9 +54,12 @@ def main():
     # --- Node.js / pnpm Dependency Scan ---
     print("\n" + "="*60)
     print("🟢 Node.js (pnpm) ecosystem স্ক্যান করা হচ্ছে...")
-    # `pnpm audit` কমান্ডটি পরিচিত দুর্বলতা খুঁজে বের করে।
-    # যদি কোনো দুর্বলতা পাওয়া যায়, এটি একটি non-zero exit code রিটার্ন করবে।
-    if not run_command("pnpm audit", PROJECT_ROOT):
+    # `pnpm audit --prod` কমান্ডটি পরিচিত দুর্বলতা খুঁজে বের করে।
+    # বাংলা (#3704): --prod = ডিপ্লয়্ড attack-surface অডিট — CI-gate-এর
+    # সিগনাল এটাই। dev-tree-র কিছু advisory-র কোনো patched version নেই
+    # (braces/http-cache-semantics/node-forge <0.0.0) — সেগুলো আলাদা
+    # ট্র্যাকিংয়ে (issue #3704), false-RED CI-signal নয়।
+    if not run_command("pnpm audit --prod", PROJECT_ROOT):
         print("\n🚨 Node.js ইকোসিস্টেমে নিরাপত্তা ঝুঁকি পাওয়া গেছে!")
         overall_success = False
 

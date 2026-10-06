@@ -10,16 +10,12 @@
 - এখানে সব এন্ট্রি বাংলা মন্তব্যে রাখা হয়েছে; কোনো 3rd-party ব্র্যান্ড এক্সপোজ করা হয় না।
 """
 
-from .browser_use_adapter import BrowserUseAdapter
 from .e2b_adapter import E2BAdapter
 from .graphiti_adapter import GraphitiMemoryAdapter
 from .mem0_adapter import Mem0MemoryAdapter
-from .openhands_adapter import OpenHandsAdapter
 
 __all__ = [
-    "BrowserUseAdapter",
     "E2BAdapter",
     "GraphitiMemoryAdapter",
     "Mem0MemoryAdapter",
-    "OpenHandsAdapter",
 ]

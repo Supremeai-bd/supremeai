@@ -1,0 +1,62 @@
+# বাংলা মন্তব্য: fork-কে upstream (SaifulHaqueNiloy/supremeai) main-এর সাথে স্বয়ংক্রিয়ভাবে sync রাখার workflow।
+# প্রতি 6 ঘণ্টায় GitHub merge-upstream API কল করে — divergence হলে merge commit, conflict হলে issue খোলে।
+# স্বয়ং-নিরাময় (auto-healing) চক্রের অংশ: conflict-এ মানুষ/এজেন্ট জানতে পারবে, চুপচাপ ব্যর্থ হবে না।
+name: Auto-Sync Fork with Upstream
+
+on:
+  schedule:
+    - cron: '17 */6 * * *' # প্রতি 6 ঘণ্টায় (UTC 00:17/06:17/12:17/18:17)
+  workflow_dispatch: {} # ম্যানুয়াল ট্রিগার — এজেন্ট/মানুষ যেকোনো সময় চালাতে পারবে
+
+permissions:
+  contents: write # merge-upstream API কলের জন্য প্রয়োজন
+  issues: write # conflict হলে ট্র্যাকিং issue খোলার জন্য
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge upstream main into fork main (REST API)
+        id: sync
+        run: |
+          # বাংলা: merge-upstream API — behind হলে fast-forward, diverged হলে merge commit
+          # SYNC_PAT (workflows permission সহ fine-grained PAT) ব্যবহৃত — GITHUB_TOKEN নিয়মতঃ workflow-ফাইল-যুক্ত merge করতে পারে না (422)
+          HTTP=$(curl -s -o /tmp/sync_resp.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${{ secrets.SYNC_PAT }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/merge-upstream" \
+            -d '{"branch":"main"}')
+
+          echo "http_code=$HTTP" >> "$GITHUB_OUTPUT"
+          echo "::notice::merge-upstream HTTP $HTTP"
+          cat /tmp/sync_resp.json || true
+
+          # বাংলা: 200=sync হয়েছে বা already up-to-date; 409=conflict (ম্যানুয়াল দরকার); 422=branch not found
+          if [ "$HTTP" = "409" ]; then
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+            echo "::error::Upstream merge conflict — ম্যানুয়াল সমাধান প্রয়োজন"
+          elif [ "$HTTP" != "200" ]; then
+            echo "::error::Unexpected HTTP $HTTP"
+            exit 1
+          fi
+
+      - name: Open tracking issue on conflict (self-healing signal)
+        if: steps.sync.outputs.conflict == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+        run: |
+          # বাংলা: conflict হলে ডুপ্লিকেট এড়িয়ে ট্র্যাকিং issue খুলি
+          EXISTING=$(gh issue list --label auto-sync-conflict --state open --json number --jq 'length' 2>/dev/null || echo 0)
+          if [ "${EXISTING:-0}" -gt 0 ]; then
+            echo "Conflict issue already open — skipping"
+            exit 0
+          fi
+          gh issue create \
+            --title "auto-sync: upstream merge conflict — manual resolution required" \
+            --label "auto-sync-conflict" \
+            --body "Auto-Sync workflow upstream main merge করতে গিয়ে **conflict**-এ আটকেছে। ম্যানুয়াল সমাধান দরকার: git fetch upstream && git merge upstream/main চালিয়ে resolve করে push করুন। Failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "Tracking issue created"
+
+      - name: Report already-up-to-date
+        if: steps.sync.outputs.conflict != 'true'
+        run: echo "✅ Fork main is in sync with upstream main (or fast-forwarded successfully)"
