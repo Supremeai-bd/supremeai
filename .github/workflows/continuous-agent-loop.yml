@@ -263,6 +263,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
           GH_REPO: ${{ github.repository }}
+          # #4134: Infisical bootstrap creds — GitHub Secrets hold ONLY these
+          # master keys; every runtime credential (per-slot GitHub App tokens,
+          # MCP_API_KEY/MCP_TOWER_URL, AI keys) is fetched from the Infisical
+          # vault at mint time and delivered scoped to child agents.
+          # Without this the loop silently degrades to SELF_HEAL_PAT and
+          # children spawn without tower auth (viewer mode).
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
         run: |
           set -euo pipefail
           ROLE="${{ github.event.inputs.role || 'coder' }}"

@@ -113,14 +113,21 @@ _AI_PROVIDER_KEYS = {
 
 _BASE_SCOPED_KEYS = {"GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME"}
 
+# #4134: MCP Tower operational keys — the coordination plane every tower-
+# coordinated role needs (heartbeat, role updates). NOT master vault creds
+# (INFISICAL_*/GITHUB_APP_* stay orchestrator-only in FORBIDDEN_ENV_KEYS).
+# mcp_tower_client reads MCP_TOWER_URL (→MCP_SERVER_URL fallback) + MCP_API_KEY;
+# without them children silently degrade to viewer mode (read-only).
+_MCP_TOWER_KEYS = {"MCP_API_KEY", "MCP_TOWER_URL"}
+
 TASK_SCOPED_ENV_KEYS = {
-    "planner": _BASE_SCOPED_KEYS,
-    "coder": _BASE_SCOPED_KEYS | _AI_PROVIDER_KEYS,
-    "pr-helper": _BASE_SCOPED_KEYS,
-    "ci": _BASE_SCOPED_KEYS | _AI_PROVIDER_KEYS,
+    "planner": _BASE_SCOPED_KEYS | _MCP_TOWER_KEYS,
+    "coder": _BASE_SCOPED_KEYS | _AI_PROVIDER_KEYS | _MCP_TOWER_KEYS,
+    "pr-helper": _BASE_SCOPED_KEYS | _MCP_TOWER_KEYS,
+    "ci": _BASE_SCOPED_KEYS | _AI_PROVIDER_KEYS | _MCP_TOWER_KEYS,
     "platform": _BASE_SCOPED_KEYS,
     "browser": _BASE_SCOPED_KEYS,
-    "auditor": _BASE_SCOPED_KEYS | _AI_PROVIDER_KEYS,
+    "auditor": _BASE_SCOPED_KEYS | _AI_PROVIDER_KEYS | _MCP_TOWER_KEYS,
     # Rules Breaker / red-team (#2644 §4): ZERO-KEY sandbox — negative testing
     # proves no key is needed to be refused; the agent gets NOTHING here.
     "rules_breaker": set(),
@@ -167,6 +174,34 @@ def load_vault_env(path: Path | None = None) -> dict:
     return env
 
 
+def _vault_extras_from(secrets: dict) -> dict:
+    """Curated non-secret-credential delivery set from an already-fetched vault
+    response (#4134): MCP Tower operational keys + AI provider keys.
+
+    # বাংলা: fetch_credentials যেই secrets dict এর মধ্যে থাকে সেখান থেকেই scoped
+    # spawn-এর জন্য দরকারি operational keys বের করে দেয় — কোনো অতিরিক্ত network
+    # call নেই, কোনো নতুন ফ্রেমওয়ার্ক নেই (Rule A)। খালি ভ্যালু কখনো যায় না।
+    """
+    extras = {
+        k: str(secrets[k]) for k in sorted(_AI_PROVIDER_KEYS)
+        if str(secrets.get(k, "")).strip()
+    }
+    api_key = str(secrets.get("MCP_API_KEY", "")).strip()
+    if api_key:
+        extras["MCP_API_KEY"] = api_key
+    # mcp_tower_client resolution order: MCP_TOWER_URL → MCP_SERVER_URL (→ mcp.json).
+    # Vault stores the tower URL under whichever name ops chose; canonicalize to
+    # MCP_TOWER_URL so children always speak the client's primary env name.
+    tower_url = next(
+        (str(secrets[k]).strip() for k in ("MCP_TOWER_URL", "MCP_SERVER_URL", "MCP_URL")
+         if str(secrets.get(k, "")).strip()),
+        "",
+    )
+    if tower_url:
+        extras["MCP_TOWER_URL"] = tower_url
+    return extras
+
+
 def fetch_credentials(slot: str, vault: dict, transport=None) -> dict:
     """Resolve app credentials for a slot from Infisical (universal-auth).
 
@@ -203,6 +238,9 @@ def fetch_credentials(slot: str, vault: dict, transport=None) -> dict:
         "app_id": app_id,
         "installation_id": inst_id,
         "private_key": pem,
+        # #4134: same-fetch delivery extras (MCP Tower + AI keys) for the scoped
+        # child env — orchestrator passes them through build_scoped_env(base_env).
+        "vault_extras": _vault_extras_from(secrets),
     }
 
 
@@ -492,6 +530,9 @@ def resolve_and_mint_for_slot(slot: str, vault_path: Path | None = None,
         "scopes": creds["scopes"],
         "token": minted["token"],
         "expires_at": minted["expires_at"],
+        # #4134: MCP Tower + AI keys fetched in the same vault round-trip —
+        # the loop gap-fills these into the child's base_env (ambient wins).
+        "vault_extras": creds["vault_extras"],
     }
 
 
