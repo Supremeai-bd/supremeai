@@ -638,7 +638,7 @@ async def demo():
 
     test_logs = [
         "2024-01-15 10:30:45,123 [INFO] uvicorn: Application startup complete",
-        "2024-01-15 10:31:02,456 [ERROR] database: Connection refused to postgres://localhost:5432/supremeai",
+        "2024-01-15 10:31:02,456 [ERROR] database: Connection refused to postgres://DB_HOST:5432/supremeai",
         "2024-01-15 10:31:15,789 [WARNING] api: Rate limit exceeded for client 192.168.1.100",
         "2024-01-15 10:32:01,234 [CRITICAL] memory: Out of memory error: cannot allocate 2048 bytes",
         "2024-01-15 10:32:45,567 [ERROR] auth: Authentication failed for user 'admin' — invalid JWT token",

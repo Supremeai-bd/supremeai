@@ -1,40 +1,87 @@
 name: 📈 Code Quality Checks
-true:
+
+on:
+  # প্রতি রবিবার ভোর ৪টায় স্বয়ংক্রিয়ভাবে চালানোর জন্য
   schedule:
-  - cron: 0 4 * * 0
+    - cron: '0 4 * * 0'
+  # Pull Request ট্রিগার - শুধুমাত্র backend বা scripts ফোল্ডারে পরিবর্তন হলে
   pull_request:
     paths:
-    - backend/**
-    - scripts/**
-  workflow_dispatch: null
+      - 'backend/**'
+      - 'scripts/**'
+  # ম্যানুয়ালি চালানোর জন্য
+  workflow_dispatch:
+
+# QUEUE STORM FIX: cancel any in-flight run for the same PR / ref when a newer
+# push arrives. Per-PR grouping ensures different PRs are NOT cancelled by each
+# other — only superseded runs on the same PR/ref are cancelled.
 concurrency:
   group: code-quality-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
 jobs:
   dead-code-detection:
     name: 🦅 Find Dead Code
     runs-on: ubuntu-latest
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
-    - name: Set up Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-      with:
-        python-version: '3.11'
-    - name: Install Vulture
-      run: pip install vulture
-    - name: Run Dead Code Detector script
-      id: dead_code_check
-      run: python scripts/security/find_dead_code.py
-    - name: Summarize findings
-      if: failure() && steps.dead_code_check.outcome == 'failure'
-      run: 'echo "## 🚨 Dead Code Detected" >> $GITHUB_STEP_SUMMARY
-
-        echo "The ''Find Dead Code'' job failed, indicating that potential unused
-        code was found." >> $GITHUB_STEP_SUMMARY
-
-        echo "Please review the logs from the ''Run Dead Code Detector script'' step
-        for details." >> $GITHUB_STEP_SUMMARY
-
-        '
     timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Install Vulture
+        run: pip install vulture
+
+      - name: Run Dead Code Detector script
+        # বাংলা (#3165): path ঠিক করা হয়েছে — scripts/quality/ → scripts/security/
+        # (script বাস্তবে scripts/security/find_dead_code.py-তে আছে)।
+        id: dead_code_check
+        run: python scripts/security/find_dead_code.py
+
+      - name: Summarize findings
+        if: failure() && steps.dead_code_check.outcome == 'failure'
+        run: |
+          echo "## 🚨 Dead Code Detected" >> $GITHUB_STEP_SUMMARY
+          echo "The 'Find Dead Code' job failed, indicating that potential unused code was found." >> $GITHUB_STEP_SUMMARY
+          echo "Please review the logs from the 'Run Dead Code Detector script' step for details." >> $GITHUB_STEP_SUMMARY
+
+  capability-inventory-lint:
+    # বাংলা (#4043): Capability Inventory CI Guard — Roadmap v2 Phase 1.1।
+    # backend/integrations/ বা backend/core/llm/providers/-এ নতুন adapter/provider
+    # যোগ হলে docs/architecture/inventory.yaml-এ entry বাধ্যতামূলক। এটি Rule 4
+    # (Evidence Before Adoption) enforce করে — কোনো capability silently adopt হতে পারবে না।
+    name: 📋 Capability Inventory Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Run inventory lint
+        id: inventory_lint
+        run: python scripts/agents/inventory_lint.py --strict
+
+      - name: Summarize findings
+        if: failure() && steps.inventory_lint.outcome == 'failure'
+        run: |
+          echo "## 📋 Capability Inventory Drift Detected" >> $GITHUB_STEP_SUMMARY
+          echo "A new integration adapter or LLM provider was added without a corresponding entry in \`docs/architecture/inventory.yaml\`." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Why this matters:** Roadmap v2 Rule 4 (Evidence Before Adoption) requires every capability to be tracked. The Scout pipeline (#4055), Evaluation Engine (#4047), and Policy Engine (#4049) cross-reference this inventory." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Fix:** Add an entry under \`integrations:\` or \`llm_providers:\` in \`docs/architecture/inventory.yaml\`." >> $GITHUB_STEP_SUMMARY
+          echo "See: \`docs/architecture/CAPABILITY_INVENTORY.md\` §11 (Maintenance Protocol)" >> $GITHUB_STEP_SUMMARY

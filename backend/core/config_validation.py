@@ -255,9 +255,6 @@ class SettingsValidationMixin:
             raise ValueError(
                 "❌ Appwrite is enabled but APPWRITE_ENDPOINT or APPWRITE_PROJECT_ID is missing."
             )
-        if self.openhands_enabled and not getattr(self, "openhands_server_url", None):
-            raise ValueError("❌ OpenHands is enabled but OPENHANDS_SERVER_URL is missing.")
-
         if self.env in {"production", "staging"}:
             critical_infrastructure = []
             if not getattr(self, "supabase_url", None):
