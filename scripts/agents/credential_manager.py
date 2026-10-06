@@ -182,7 +182,19 @@ def fetch_credentials(slot: str, vault: dict, transport=None) -> dict:
     )
     pem = secrets.get(f"{prefix}_PRIVATE_KEY") or secrets.get("GITHUB_APP_PRIVATE_KEY")
     if not all([app_id, inst_id, pem]):
-        raise CredentialError(f"Missing GitHub App creds for slot '{slot}' (prefix {prefix})")
+        # #4081: actionable error — explain what's missing + how to fix
+        prefix_vars = [f"{prefix}_APP_ID", f"{prefix}_INSTALLATION_ID", f"{prefix}_PRIVATE_KEY"]
+        fallback_vars = ["GITHUB_APP_ID", "GITHUB_APP_INSTALLATION_ID", "GITHUB_APP_PRIVATE_KEY"]
+        raise CredentialError(
+            f"Missing GitHub App creds for slot '{slot}' (prefix {prefix}).\n"
+            f"Expected Infisical secrets (one of):\n"
+            f"  Slot-specific: {prefix_vars}\n"
+            f"  Fallback: {fallback_vars}\n"
+            f"Check Infisical dashboard → prod environment → secretPath '/' → "
+            f"ensure these secrets exist for slot '{slot}'.\n"
+            f"Verify vault.env: python scripts/agents/credential_bootstrap.py --verify\n"
+            f"See: docs/agents/credentials.md"
+        )
     return {
         "slot": slot,
         "bot_name": cfg["bot_name"],
@@ -196,7 +208,11 @@ def fetch_credentials(slot: str, vault: dict, transport=None) -> dict:
 
 def _infisical_fetch_secrets(vault: dict, transport=None) -> dict:
     """Universal-auth login + raw secrets fetch. transport(requests-like) is
-    injectable for offline tests."""
+    injectable for offline tests.
+
+    # বাংলা (#4081): Infisical login/secrets fetch-এ যেকোনো network/JSON error
+    # হলে actionable CredentialError দেয় — silent KeyError নয়।
+    """
     if transport is None:
         try:
             import requests as transport  # type: ignore[no-redef]
@@ -205,29 +221,68 @@ def _infisical_fetch_secrets(vault: dict, transport=None) -> dict:
                 "network transport unavailable (pip install requests) "
                 "and no test transport injected"
             ) from err
-    login = transport.post(
-        INFISICAL_AUTH_URL,
-        data={
-            "clientId": vault.get("INFISICAL_CLIENT_ID", ""),
-            "clientSecret": vault.get("INFISICAL_CLIENT_SECRET", ""),
-        },
-        timeout=30,
-    )
-    access_token = login.json()["accessToken"]
-    resp = transport.get(
-        INFISICAL_SECRETS_URL,
-        params={
-            "workspaceId": vault.get("INFISICAL_PROJECT_ID", ""),
-            "environment": "prod",
-            "secretPath": "/",
-            "include_imports": "true",
-        },
-        headers={"Authorization": f"Bearer {access_token}"},
-        timeout=30,
-    )
+    try:
+        login = transport.post(
+            INFISICAL_AUTH_URL,
+            data={
+                "clientId": vault.get("INFISICAL_CLIENT_ID", ""),
+                "clientSecret": vault.get("INFISICAL_CLIENT_SECRET", ""),
+            },
+            timeout=30,
+        )
+    except Exception as err:
+        raise CredentialError(
+            f"Infisical login request failed (network error): {err}. "
+            f"Check network connectivity to {INFISICAL_AUTH_URL}."
+        ) from err
+    try:
+        login_json = login.json()
+    except Exception as err:
+        raise CredentialError(
+            f"Infisical login returned non-JSON response (HTTP {login.status_code}). "
+            f"Possible server error or wrong auth URL."
+        ) from err
+    access_token = login_json.get("accessToken")
+    if not access_token:
+        # #4081: actionable error — Infisical login failed (wrong creds)
+        raise CredentialError(
+            f"Infisical login failed — no accessToken in response. "
+            f"Check INFISICAL_CLIENT_ID / INFISICAL_CLIENT_SECRET in vault.env. "
+            f"Verify: python scripts/agents/credential_bootstrap.py --verify\n"
+            f"See: docs/agents/credentials.md"
+        )
+    try:
+        resp = transport.get(
+            INFISICAL_SECRETS_URL,
+            params={
+                "workspaceId": vault.get("INFISICAL_PROJECT_ID", ""),
+                "environment": "prod",
+                "secretPath": "/",
+                "include_imports": "true",
+            },
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=30,
+        )
+    except Exception as err:
+        raise CredentialError(
+            f"Infisical secrets fetch request failed (network error): {err}."
+        ) from err
+    try:
+        secrets_payload = resp.json()
+    except Exception as err:
+        raise CredentialError(
+            f"Infisical secrets fetch returned non-JSON (HTTP {resp.status_code}). "
+            f"Possible token expiry or wrong INFISICAL_PROJECT_ID."
+        ) from err
+    if "secrets" not in secrets_payload:
+        raise CredentialError(
+            f"Infisical returned no 'secrets' key in response. "
+            f"Check INFISICAL_PROJECT_ID in vault.env. "
+            f"Verify: python scripts/agents/credential_bootstrap.py --verify"
+        )
     return {
         s["secretKey"]: s.get("secretValue", "") or ""
-        for s in resp.json()["secrets"]
+        for s in secrets_payload["secrets"]
     }
 
 
@@ -404,11 +459,26 @@ def audit_secret_presence(required_keys, source_env=None, label="env") -> dict:
 
 def resolve_and_mint_for_slot(slot: str, vault_path: Path | None = None,
                               transport=None) -> dict:
-    """Convenience: fetch creds + mint JIT token for a slot (one call)."""
+    """Convenience: fetch creds + mint JIT token for a slot (one call).
+
+    # বাংলা (#4081): vault.env না থাকলে বা INFISICAL_* env না থাকলে actionable
+    # error দেয় — "Missing GitHub App creds" এর বদলে bootstrap command দেখায়।
+    """
     vault = load_vault_env(vault_path)
     if not vault:
         # fall back to process env (CI may inject INFISICAL_* directly)
         vault = {k: v for k, v in os.environ.items() if k.startswith("INFISICAL_")}
+    if not vault:
+        # #4081: actionable error — point to bootstrap script
+        raise CredentialError(
+            f"No Infisical credentials found for slot '{slot}'. "
+            f"Either:\n"
+            f"  1. Create vault.env: python scripts/agents/credential_bootstrap.py\n"
+            f"  2. Set INFISICAL_* env vars (CI mode): "
+            f"INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET, INFISICAL_PROJECT_ID\n"
+            f"  3. Verify: python scripts/agents/credential_bootstrap.py --verify\n"
+            f"See: docs/agents/credentials.md"
+        )
     creds = fetch_credentials(slot, vault, transport=transport)
     minted = mint_installation_token(
         creds["app_id"], creds["installation_id"], creds["private_key"],
