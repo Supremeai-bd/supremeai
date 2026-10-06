@@ -1,5 +1,6 @@
 from .chat_attachment import ChatAttachment
 from .crawler import CrawlHistoryModel, CrawlPolicyModel, DomainRuleModel
+from .decision_metadata import DecisionMetadata
 from .dynamic_agent import DynamicAgent
 from .execution_log import ExecutionLog
 from .integration import Integration
@@ -21,6 +22,7 @@ __all__ = [
     "CrawlHistoryModel",
     "CrawlPolicyModel",
     "ChatAttachment",
+    "DecisionMetadata",
     "DomainRuleModel",
     "DynamicAgent",
     "DynamicCapability",

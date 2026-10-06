@@ -1,21 +1,14 @@
 """SupremeAI Open-Source Integrations Layer.
 
-এই প্যাকেজটি প্রমাণিত open-source AI পরিকাঠামো (mem0, Graphiti, browser-use, E2B)
-নিয়ে SupremeAI-এর নিজস্ব আর্কিটেকচারে ব্রিজ/এডাপ্টার সরবরাহ করে।
-
-নকশা-মূলনীতি (প্রজেক্ট কনভেনশন অনুসারে):
-- প্রতিটি এডাপ্টার **feature-flag guarded** (env var) ও **optional-dependency** (importlib
-  find_spec) — অর্থাৎ dependency ইনস্টল না থাকলে বা flag off থাকলে পুরো সিস্টেম স্বাভাবিক
-  চলে এবং একটি zero-cost fallback পাথ ব্যবহার হয়।
-- এখানে সব এন্ট্রি বাংলা মন্তব্যে রাখা হয়েছে; কোনো 3rd-party ব্র্যান্ড এক্সপোজ করা হয় না।
+# বাংলা (#4057): mem0, E2B, Graphiti, Browser Use, OpenHands adapter-সমূহ
+# অবসর নিয়েছে (RETIRE + DELETE) — সবই zero live caller ছিল এবং native
+# capability দ্বারা প্রতিস্থাপিত। বিস্তারিত: docs/architecture/retired_adapters.md
+#
+# নকশা-মূলনীতি (ঐতিহাসিক রেফারেন্স):
+- প্রতিটি পূর্ব-adapter feature-flag guarded + optional-dependency ছিল —
+- dependency ইনস্টল না থাকলে বা flag off থাকলে zero-cost fallback পাথ ব্যবহার হতো।
+- এখন সব adapter অবসর নিয়েছে — এই প্যাকেজ খালি (নতুন integration যোগ হলে
+- এখানে import যোগ করতে হবে)।
 """
 
-from .e2b_adapter import E2BAdapter
-from .graphiti_adapter import GraphitiMemoryAdapter
-from .mem0_adapter import Mem0MemoryAdapter
-
-__all__ = [
-    "E2BAdapter",
-    "GraphitiMemoryAdapter",
-    "Mem0MemoryAdapter",
-]
+__all__: list[str] = []
