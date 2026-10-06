@@ -49,13 +49,13 @@ replace_in_file(r'.github/workflows/ci.yml', old_ci_inputs, new_ci_inputs)
 
 old_tests_step = '''      - name: Run tests with coverage
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
+          DATABASE_URL: postgresql://test_user:test_password@${DB_HOST:-localhost}:5432/supremeai_test  # test-only
           ENV: test
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
           SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
           ALLOW_TEST_AUTH_BYPASS: "true"
-          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
-          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
+          USER_CORS_ORIGINS: http://${LOCAL_HOST:-localhost}:3000,http://${LOCAL_HOST:-localhost}:5173  # test-only is_local()
+          ADMIN_CORS_ORIGINS: http://${LOCAL_HOST:-localhost}:3000,http://${LOCAL_HOST:-localhost}:5173  # test-only is_local()
         run: |
             poetry run pytest tests/ \\
             --cov=core \\
@@ -73,13 +73,13 @@ old_tests_step = '''      - name: Run tests with coverage
 
 new_tests_step = '''      - name: Run Critical backend tests
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
+          DATABASE_URL: postgresql://test_user:test_password@${DB_HOST:-localhost}:5432/supremeai_test  # test-only
           ENV: test
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
           SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
           ALLOW_TEST_AUTH_BYPASS: "true"
-          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
-          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
+          USER_CORS_ORIGINS: http://${LOCAL_HOST:-localhost}:3000,http://${LOCAL_HOST:-localhost}:5173  # test-only is_local()
+          ADMIN_CORS_ORIGINS: http://${LOCAL_HOST:-localhost}:3000,http://${LOCAL_HOST:-localhost}:5173  # test-only is_local()
         run: |
           poetry run pytest tests/ \\
             --cov=core --cov=api --cov=services --cov=tools \\
@@ -93,13 +93,13 @@ new_tests_step = '''      - name: Run Critical backend tests
 
       - name: Run Important backend tests
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
+          DATABASE_URL: postgresql://test_user:test_password@${DB_HOST:-localhost}:5432/supremeai_test  # test-only
           ENV: test
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
           SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
           ALLOW_TEST_AUTH_BYPASS: "true"
-          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
-          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
+          USER_CORS_ORIGINS: http://${LOCAL_HOST:-localhost}:3000,http://${LOCAL_HOST:-localhost}:5173  # test-only is_local()
+          ADMIN_CORS_ORIGINS: http://${LOCAL_HOST:-localhost}:3000,http://${LOCAL_HOST:-localhost}:5173  # test-only is_local()
         run: |
           poetry run pytest tests/ \\
             --cov=core --cov=api --cov=services --cov=tools \\
@@ -115,13 +115,13 @@ new_tests_step = '''      - name: Run Critical backend tests
       - name: Run Overall backend tests
         if: ${{ github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true' }}
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
+          DATABASE_URL: postgresql://test_user:test_password@${DB_HOST:-localhost}:5432/supremeai_test  # test-only
           ENV: test
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
           SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
           ALLOW_TEST_AUTH_BYPASS: "true"
-          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
-          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
+          USER_CORS_ORIGINS: http://${LOCAL_HOST:-localhost}:3000,http://${LOCAL_HOST:-localhost}:5173  # test-only is_local()
+          ADMIN_CORS_ORIGINS: http://${LOCAL_HOST:-localhost}:3000,http://${LOCAL_HOST:-localhost}:5173  # test-only is_local()
         run: |
           poetry run pytest tests/ \\
             --cov=core --cov=api --cov=services --cov=tools \\
