@@ -353,6 +353,8 @@ ALL_ROUTERS = [
     # বাংলা (#4047): Capability Evaluation Engine — admin endpoint for provider scores.
     # Router + Policy Engine এই scores ব্যবহার করে evidence-based routing decisions নেয়।
     {"path": "api.routes.admin_evaluation", "prefix": "", "is_admin": True, "is_critical": False},
+    # বাংলা (#4050): 3-Tier Auto-Routing boundary — governance overlay on Router.
+    {"path": "api.routes.admin_routing", "prefix": "", "is_admin": True, "is_critical": False},
     # Canonical browser-facing broker for service discovery and health.
     {"path": "api.routes.control_plane", "prefix": "", "is_admin": False, "is_critical": True},
     {
