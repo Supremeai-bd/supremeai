@@ -179,12 +179,7 @@ class SettingsFieldsMixin:
     # flag false বা dependency absent থাকলে সিস্টেম zero-cost fallback দিয়ে চলে।
     mem0_enabled: bool = Field(default=False, validation_alias="SUPREMEAI_MEM0_ENABLED")
     graphiti_enabled: bool = Field(default=False, validation_alias="SUPREMEAI_GRAPHITI_ENABLED")
-    browser_use_enabled: bool = Field(
-        default=False, validation_alias="SUPREMEAI_BROWSER_USE_ENABLED"
-    )
     e2b_enabled: bool = Field(default=False, validation_alias="SUPREMEAI_E2B_ENABLED")
-    openhands_enabled: bool = Field(default=False, validation_alias="SUPREMEAI_OPENHANDS_ENABLED")
-    openhands_server_url: str = Field(default="", validation_alias="OPENHANDS_SERVER_URL")
 
     # বাংলা মন্তব্য: JIT OTP over-saturation protection — প্রতি admin প্রতি এই সেকেন্ডে সর্বোচ্চ ১টি OTP।
     otp_cooldown_seconds: int = Field(default=60, validation_alias="OTP_COOLDOWN_SECONDS")

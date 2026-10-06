@@ -149,7 +149,7 @@ Revive / Replace / Retire
 | Adapter | Action | Rationale |
 |---|---|---|
 | `browser_use_adapter.py` | **Audit** → likely Revive | Browser Use is mature (117k+ stars), but must verify API compatibility + security first |
-| `openhands_adapter.py` | **Audit** → likely Revive | OpenHands is the best autonomous coding engine, but must verify API + SupremeAI use-case first |
+| `openhands_adapter.py` | ✅ **Audit done → RETIRED** (#4045, executed #4068) | Evidence overrode hypothesis: dead sessions-API (conversations-migration), zero callers, native fleet superior. MCP-server path retained as live governed bridge |
 | `mem0_adapter.py` | **Retire** | SupremeAI already has canonical MemoryRepository + pgvector; mem0 is redundant |
 | `e2b_adapter.py` | **Retire** unless sandbox execution is needed | SupremeAI has its own sandbox; e2b is redundant |
 | `graphiti_adapter.py` | **Retire** | SupremeAI's episodic + long-term memory covers this |
