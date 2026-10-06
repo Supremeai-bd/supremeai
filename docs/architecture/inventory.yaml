@@ -392,18 +392,22 @@ external_repos:
   notes: verification + policy_context + supersedes fields.
 - name: duckdb
   category: analytics_engine
-  tier: research_source
+  tier: rejected
   action: workload_driven_adoption
   priority: P3
   owner_issue: 4056
   notes: Only when Postgres analytics insufficient (p95 > 5s).
+  status: rejected
+  research_report: docs/architecture/research/duckdb_analytics_design.md
 - name: memanto
   category: memory_governance
-  tier: research_source
-  action: adapt_policy_driven_ttl
+  tier: rejected
+  action: adapt_concepts
   priority: P3
   owner_issue: 4053
   notes: Policy-driven TTL + conflict detection + provenance.
+  status: rejected
+  research_report: docs/architecture/research/memory_governance_design.md
 - name: strata
   category: local_inference
   tier: rejected
