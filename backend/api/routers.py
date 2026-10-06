@@ -357,6 +357,8 @@ ALL_ROUTERS = [
     {"path": "api.routes.admin_routing", "prefix": "", "is_admin": True, "is_critical": False},
     # বাংলা (#4049): Policy Engine layer — who/what/cost/security gate.
     {"path": "api.routes.admin_policies", "prefix": "", "is_admin": True, "is_critical": False},
+    # বাংলা (#4054): Learning Loop — decision → verify → learn → inject.
+    {"path": "api.routes.admin_learning", "prefix": "", "is_admin": True, "is_critical": False},
     # Canonical browser-facing broker for service discovery and health.
     {"path": "api.routes.control_plane", "prefix": "", "is_admin": False, "is_critical": True},
     {
