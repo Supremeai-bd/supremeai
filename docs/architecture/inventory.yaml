@@ -28,31 +28,10 @@ ci_guard: "scripts/agents/inventory_lint.py"
 # 1. Integration Adapters (backend/integrations/)
 # ─────────────────────────────────────────────────────────────────────────────
 integrations:
-  - name: browser_use
-    file: backend/integrations/browser_use_adapter.py
-    class: BrowserUseAdapter
-    tier: retired
-    status: retire_confirmed
-    flag: SUPREMEAI_BROWSER_USE_ENABLED
-    health_check: null
-    fallback_chain: ["jina_reader", "firecrawl", "web_scraper"]
-    owner_issue: 4044
-    audit_report: docs/architecture/audits/browser_use_audit.md
-    audit_decision: "RETIRE (deferred) — 2026-10-06. Native Playwright stack (15+ files) supersedes. Upstream browser_use dep not declared; import_available=False. Adapter runs zero-cost fallback only. File kept for fallback path + package API compat; upstream revive would duplicate + add heavy dep for zero gain."
-    notes: "Retired per audit #4044. Fallback (Jina/Firecrawl/WebScraper) still useful for scrape-only tasks."
-
-  - name: openhands
-    file: backend/integrations/openhands_adapter.py
-    class: OpenHandsAdapter
-    tier: retired
-    status: retire_confirmed
-    flag: SUPREMEAI_OPENHANDS_ENABLED
-    health_check: null
-    fallback_chain: ["skipped_planner", "normal_chat_route", "continuous_agent_loop.py (native coder)"]
-    owner_issue: 4045
-    audit_report: docs/architecture/audits/openhands_audit.md
-    audit_decision: "RETIRE (deferred) — 2026-10-06. Native SupremeAI coder (20+ files: continuous_agent_loop.py + task_runner_agent.py + external_agents/) supersedes. Requires separate OpenHands agent-server (OPENHANDS_SERVER_URL) never deployed; flag never true. Adapter returns 'skipped + planner' fallback only. File kept for fallback + package API compat; revive would duplicate + add external service dep + governance boundary violation."
-    notes: "Retired per audit #4045. Fallback (skipped+planner) still useful when flag off. REST integration plausibly compatible but unverified — future revive requires new audit."
+  # (#4068) browser_use + openhands adapters — RETIRED + DELETED 2026-10-06
+  # (audits: docs/architecture/audits/browser_use_audit.md + openhands_audit.md).
+  # OpenHands MCP-server path RETAINED (tools/headless_agent_registry.py +
+  # core/mcp_allowlist.py, consumer brain/mcp_client.py, OPENHANDS_API_KEY-gated).
 
   - name: mem0
     file: backend/integrations/mem0_adapter.py
@@ -437,19 +416,21 @@ external_services:
 external_repos:
   - name: browser_use
     category: browser_automation
-    tier: orphaned
-    action: audit_revive_or_retire
+    tier: rejected
+    action: retired_deleted_2026_10_06
     priority: P1
     owner_issue: 4044
-    notes: "Mature (117k+ stars). Audit API compat + security first."
+    audit_report: docs/architecture/audits/browser_use_audit.md
+    notes: "Audit #4044 → executed #4068: RETIRED + file deleted. Zero callers, async-API incompatibility, Jina fallback dead (401). Upstream healthy (117k stars, 0.13.10). Revival trigger: benchmarked NL-agentic-browsing need beyond HTTP+Playwright; then Phase 2.3 governed-provider pattern."
 
   - name: openhands
     category: coding_agent
-    tier: orphaned
-    action: audit_revive_or_retire
+    tier: rejected
+    action: adapter_retired_deleted_2026_10_06_mcp_path_retained
     priority: P1
     owner_issue: 4045
-    notes: "Best autonomous coding engine. Verify SupremeAI use-case."
+    audit_report: docs/architecture/audits/openhands_audit.md
+    notes: "Audit #4045 → executed #4068: adapter RETIRED + deleted (dead sessions-API, zero callers, native fleet 24-PR/day). MCP-server path RETAINED as live governed bridge (OPENHANDS_API_KEY + allowlisted tools). Revival trigger: slot-saturation metrics + fair benchmark."
 
   - name: openviking
     category: hierarchical_context
