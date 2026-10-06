@@ -58,7 +58,7 @@ INTEGRATIONS_EXEMPT = {
 # Valid tier values
 VALID_TIERS = {"internal", "governed_provider", "research_source", "rejected", "orphaned", "retired"}
 VALID_STATUSES = {
-    "active", "active_local", "audit_pending", "retire_planned", "retire_confirmed",
+    "active", "active_local", "audit_pending", "retire_planned", "retire_confirmed", "retire_executed",
     "rejected", "research_only", "future", "peripheral",
     "no_action", "do_not_add", "read_only", "reference_only",
     "audit_revive_or_retire", "adapt_l0_l1_l2_tier_concepts",
@@ -117,13 +117,17 @@ def _lint_integration_entries(inventory: dict[str, Any]) -> list[str]:
             errors.append(f"{prefix}: entry must be a mapping")
             continue
 
-        # Required fields
-        for req in ("name", "file", "tier", "status"):
+        # Required fields (file optional for retire_executed — file deleted)
+        tier = entry.get("tier", "")
+        status = entry.get("status", "")
+        file_is_deleted = (tier == "retired" and status == "retire_executed")
+        for req in ("name", "tier", "status"):
             if req not in entry or not entry[req]:
                 errors.append(f"{prefix}: missing required field '{req}'")
+        if not file_is_deleted and ("file" not in entry or not entry["file"]):
+            errors.append(f"{prefix}: missing required field 'file' (or set tier=retired + status=retire_executed if deleted)")
 
         # Tier validation
-        tier = entry.get("tier")
         if tier and tier not in VALID_TIERS:
             errors.append(f"{prefix}: invalid tier '{tier}' (allowed: {sorted(VALID_TIERS)})")
 
