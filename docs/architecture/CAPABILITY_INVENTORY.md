@@ -30,9 +30,9 @@
 |---|---|---|---|---|---|---|---|
 | ~~Browser Use~~ | ~~`browser_use_adapter.py`~~ | ⛔ **Retired + Deleted** | **EXECUTED #4068** (2026-10-06): file + all references removed | `SUPREMEAI_BROWSER_USE_ENABLED` | None (upstream not installed) | Jina Reader → Firecrawl → WebScraper (zero-cost chain) | #4044 |
 | OpenHands | `openhands_adapter.py` | ⛔ Retired (audit #4045) | Retire-confirmed — fallback kept | `SUPREMEAI_OPENHANDS_ENABLED` | None (server never deployed) | "skipped + planner" → normal chat route → `continuous_agent_loop.py` (native coder) | #4045 |
-| mem0 | `mem0_adapter.py` | 🟠 Orphaned | Retire-planned (#4057) | (none — importlib probe) | None | keyword-cosine + consolidation (zero-cost) | #4057 |
-| E2B | `e2b_adapter.py` | 🟠 Orphaned | Retire-planned (#4057) | (none) | None | `sandbox/docker_sandbox.py` (native) | #4057 |
-| Graphiti | `graphiti_adapter.py` | 🟠 Orphaned | Retire-planned (#4057) | `SUPREMEAI_GRAPHITI_ENABLED` | None | timestamped episode triples + recency/keyword ranking | #4057 |
+| mem0 | ~~`mem0_adapter.py`~~ | ⛔ Deleted (#4057) | Retire-executed | ~~(none — importlib probe)~~ | N/A — deleted | N/A → use `backend/core/ai_memory/repository.py` | #4057 |
+| E2B | ~~`e2b_adapter.py`~~ | ⛔ Deleted (#4057) | Retire-executed | ~~(none)~~ | N/A — deleted | N/A → use `sandbox/docker_sandbox.py` (native) | #4057 |
+| Graphiti | ~~`graphiti_adapter.py`~~ | ⛔ Deleted (#4057) | Retire-executed | ~~`SUPREMEAI_GRAPHITI_ENABLED`~~ | N/A — deleted | N/A → use `backend/memory/episodic_memory.py` + `long_term_memory.py` | #4057 |
 | Telegram Bot | `telegram_bot.py` | 🟢 Internal | Active (MESH-4, #942) | (env-driven) | `service_topology.py` (if registered) | N/A — native | #942 |
 | Telegram Handlers | `telegram_handlers.py` | 🟢 Internal | Active (MESH-4, #942) | (env-driven) | N/A (pure logic layer) | N/A — native | #942 |
 | Telegram Config | `telegram_config.py` + `telegram_config.yaml` | 🟢 Internal | Active (MESH-4, #942) | (env-driven) | N/A | N/A — native | #942 |
@@ -41,11 +41,11 @@
 ### Orphaned Adapter Audit Status (Phase 1.2)
 - **Browser Use** (#4044): ✅ **Audit complete — RETIRE**; **execution completed by #4068** (file + references deleted). Audit report: `docs/architecture/audits/browser_use_audit.md`. Decision: native Playwright stack (15+ files) supersedes; upstream `browser_use` not declared in deps (`import_available=False`); adapter runs zero-cost fallback only. File kept for fallback path + package API compat; upstream revive would duplicate + add heavy dep for zero gain.
 - **OpenHands** (#4045): ✅ **Audit complete — RETIRE (deferred)**. Audit report: `docs/architecture/audits/openhands_audit.md`. Decision: native SupremeAI coder (20+ files: `continuous_agent_loop.py` + `task_runner_agent.py` + `external_agents/`) supersedes; requires separate OpenHands agent-server (`OPENHANDS_SERVER_URL`) never deployed; adapter returns "skipped + planner" fallback only. File kept for fallback + package API compat; revive would duplicate + add external service dep + governance boundary violation.
-- **mem0 / E2B / Graphiti** (#4057): Retire planned — redundant with native MemoryRepository + pgvector + sandbox + episodic memory. Awaiting #4043 completion to confirm no live caller.
+- **mem0 / E2B / Graphiti** (#4057): ✅ **Audit complete — RETIRE + DELETE**. Files deleted, `__init__.py` imports removed, inventory updated. Zero live callers confirmed via grep. Replacement paths documented in `docs/architecture/retired_adapters.md`.
 
 ### Shared Integration Helpers
 - `backend/integrations/_flags.py` — `flag(name)` + `import_available(module)` helpers (feature-flag + optional-import pattern, matches `services/memory_service.py` convention).
-- `backend/integrations/__init__.py` — exports the 3 remaining orphaned adapter classes (#4068: browser_use + openhands retired & deleted).
+- `backend/integrations/__init__.py` — all orphaned adapter imports removed (#4044/#4045 retired by #4068, mem0/e2b/graphiti deleted by #4057). Package now exports nothing; add new integrations here.
 
 ---
 
