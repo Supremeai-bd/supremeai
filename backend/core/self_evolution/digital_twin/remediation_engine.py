@@ -22,28 +22,31 @@ from core.logging_config import logger
 from .simulator import SimulationResult, get_impact_simulator
 from .topology import get_topology_mapper
 
-try:
-    from core.monitoring.health_checker import HealthChecker
-except ImportError:
-
-    class HealthChecker:
-        def check_health(self) -> bool:
-            return True
-
-        async def run_checks(self) -> dict:
-            return {"status": "healthy"}
+# (#4094 fail-honest): অস্তিত্বহীন `core.monitoring.health_checker` /
+# `core.backup.backup_manager` try-import আর তাদের "healthy" ফেরত-দেওয়া
+# স্টাব মুছে ফেলা হয়েছে — remediation যেন fabricated healthy state বিশ্বাস
+# করতে না পারে। বাস্তব মডিউল যুক্ত হলে এখানে সরাসরি import করে নিতে হবে;
+# না থাকলে নিচের guard স্পষ্ট ত্রুটি দেবে (নীরব সবুজ নয়)।
+_HAS_HEALTH_CHECKER = False
+_HAS_BACKUP_MANAGER = False
 
 
-try:
-    from core.backup.backup_manager import BackupManager
-except ImportError:
+class HealthChecker:  # fail-honest placeholder — use করলেই স্পষ্ট ব্যর্থতা
+    def __init__(self, *args, **kwargs):
+        if not _HAS_HEALTH_CHECKER:
+            raise RuntimeError(
+                "HealthChecker is not wired (core.monitoring.health_checker does not "
+                "exist) — remediation must NOT trust fabricated health state (#4094)"
+            )
 
-    class BackupManager:
-        def create_backup(self) -> str:
-            return "mock-backup-id"
 
-        def restore_backup(self, backup_id: str) -> bool:
-            return True
+class BackupManager:  # fail-honest placeholder — use করলেই স্পষ্ট ব্যর্থতা
+    def __init__(self, *args, **kwargs):
+        if not _HAS_BACKUP_MANAGER:
+            raise RuntimeError(
+                "BackupManager is not wired (core.backup.backup_manager does not "
+                "exist) — remediation must NOT fabricate backup ids (#4094)"
+            )
 
 
 class RemediationAction(Enum):

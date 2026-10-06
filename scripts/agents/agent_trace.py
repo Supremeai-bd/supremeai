@@ -28,6 +28,8 @@
 
 from __future__ import annotations
 
+from typing import Any  # #4099 fix: missing import for Any type hints
+
 import argparse
 import hashlib
 import json

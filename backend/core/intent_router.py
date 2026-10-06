@@ -9,7 +9,7 @@ compatibility with any code that still imports from core.intent_router.
 Consolidation" রিফ্যাক্টর (commit 4c5bae29ed) এই ফাইলের IntentRouter ক্লাস থেকে
 আসল sync `route()` keyword-matching এলগরিদম (ACTION_PATTERNS scoring,
 language/filename detection, _extract_operations, _extract_setting_changes)
-সম্পূর্ণ মুছে ফেলে শুধু একটা নতুন async `route_by_intent()` (UnifiedRouter-এ
+সম্পূর্ণ মুছে ফেলে শুধু একটা নতুন async delegation মেথড (নন-এক্সিস্টেন্ট
 delegate করা) দিয়ে বদলে দিয়েছিল -- backward-compatible facade না রেখেই।
 tests/core/test_core_language_router.py-এর TestIntentRouter ক্লাস তখনো পুরোনো
 sync API (`route`, `_extract_operations`, `_extract_setting_changes`) এক্সপেক্ট
@@ -17,56 +17,35 @@ sync API (`route`, `_extract_operations`, `_extract_setting_changes`) এক্�
 `IntentRouter().route()` ব্যবহার করে না (repo-wide grep-এ শুধু PromptAction
 ইম্পোর্ট পাওয়া গেছে) -- তাই এটা runtime bug না, কিন্তু পুরোনো এলগরিদমটা
 হারিয়ে যাওয়া উচিত না (ইউজারের consolidation নীতি: delete না করে merge/facade
-রাখা)। এখানে পুরোনো sync এলগরিদম হুবহু পুনরুদ্ধার করা হলো, নতুন async
-route_by_intent()-এর পাশাপাশি -- দুটোই এখন একসাথে থাকে।
+রাখা)। এখানে পুরোনো sync এলগরিদম হুবহু পুনরুদ্ধার করা হলো (#4094 পরবর্তী
+অবস্থা: কখনো-land-না-করা "unified router"-এ delegate করা মৃত async facade
+মুছে ফেলা হয়েছে -- sync `route()`-ই এখন একমাত্র সক্রিয় API)।
 """
 
 import re
-import warnings
 from typing import Any
 
 # Re-export PromptAction and ACTION_PATTERNS from the canonical v2 location
 # so legacy imports like `from core.intent_router import PromptAction` keep working.
 from core.intent_router_v2 import ACTION_PATTERNS, PromptAction  # noqa: F401
 
-# UnifiedRouter (new canonical async router) is optional at import time so this
-# module still loads even if unified_router isn't wired up yet.
-try:
-    from core.unified_router import RoutingCriteria, RoutingStrategy, get_unified_router
-
-    _UNIFIED_ROUTER_AVAILABLE = True
-except ImportError:
-    _UNIFIED_ROUTER_AVAILABLE = False
+# (#4094): "unified router" মডিউলটি কখনোই land করেনি (repo-wide 0 hit) —
+# মৃত try-import + availability flag + async delegation facade
+# সম্পূর্ণ মুছে ফেলা হয়েছে। Legacy sync `route()` এখানেই একমাত্র সক্রিয় API;
+# ভবিষ্যতে নতুন canonical router এলে নতুন করে wire করা হবে (মৃত-ব্রাঞ্চ নয়)।
 
 
 class IntentRouter:
     """
     Legacy synchronous keyword-based intent router (restored, see module
-    docstring), plus an async `route_by_intent()` facade delegating to the
-    new UnifiedRouter when available.
+    docstring) — the only active API here (#4094: dead UnifiedRouter facade
+    removed; it referenced a module that never landed).
     """
 
     def __init__(self):
-        self._real = get_unified_router() if _UNIFIED_ROUTER_AVAILABLE else None
-        if self._real is not None:
-            warnings.warn(
-                "IntentRouter.route_by_intent() is deprecated, use UnifiedRouter directly. "
-                "IntentRouter.route() (sync, keyword-based) remains supported.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-    # ------------------------------------------------------------------
-    # New API — delegates to UnifiedRouter
-    # ------------------------------------------------------------------
-    async def route_by_intent(self, user_intent, **kwargs):
-        if self._real is None:
-            raise RuntimeError("UnifiedRouter is not available in this environment")
-        decision = await self._real.route(
-            RoutingCriteria(prompt=user_intent, **kwargs),
-            strategy=RoutingStrategy.INTENT_BASED,
-        )
-        return decision.to_dict()
+        # (#4094): dead UnifiedRouter delegation branch removed —
+        # legacy sync keyword-based routing is the only active API here.
+        pass
 
     # ------------------------------------------------------------------
     # Legacy API — restored sync keyword-based routing

@@ -93,7 +93,12 @@ def test_detect_collisions_direct_overlap(mock_fetch_prs):
 
     report = detect_collisions(
         target_branch="agent-3-coder-1",
-        target_pr_num=100,
+        # (#4089) Seniority Precedence (cross_pr_collision_detector.py:189):
+        # target_pr_num < pr_num → skip — পুরনো (senior) PR-কে নতুন PR ব্লক
+        # করতে পারে না। ফিক্সচার আগে target=100 vs #200 রাখত → detector স্কিপ
+        # করত → has_direct_collision False। নতুন সেমান্টিক্স পিন করতে target=300
+        # (নতুন/junior) vs #200 (পুরনো/senior) — collision ধরা পড়বে।
+        target_pr_num=300,
         target_files=["backend/api/routes/healing_stats.py", "backend/config.py"],
     )
     assert report.has_direct_collision

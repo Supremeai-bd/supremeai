@@ -350,6 +350,15 @@ ALL_ROUTERS = [
     # Router enforces get_current_admin on routes and authenticate_websocket on
     # the WS endpoint; admin routing flag additionally applies the token dependency.
     {"path": "api.routes.service_topology", "prefix": "", "is_admin": True, "is_critical": False},
+    # বাংলা (#4047): Capability Evaluation Engine — admin endpoint for provider scores.
+    # Router + Policy Engine এই scores ব্যবহার করে evidence-based routing decisions নেয়।
+    {"path": "api.routes.admin_evaluation", "prefix": "", "is_admin": True, "is_critical": False},
+    # বাংলা (#4050): 3-Tier Auto-Routing boundary — governance overlay on Router.
+    {"path": "api.routes.admin_routing", "prefix": "", "is_admin": True, "is_critical": False},
+    # বাংলা (#4049): Policy Engine layer — who/what/cost/security gate.
+    {"path": "api.routes.admin_policies", "prefix": "", "is_admin": True, "is_critical": False},
+    # বাংলা (#4054): Learning Loop — decision → verify → learn → inject.
+    {"path": "api.routes.admin_learning", "prefix": "", "is_admin": True, "is_critical": False},
     # Canonical browser-facing broker for service discovery and health.
     {"path": "api.routes.control_plane", "prefix": "", "is_admin": False, "is_critical": True},
     {

@@ -313,7 +313,10 @@ async def evolution_status(
 
     stats = ai_integrator.auto_evolution.get_statistics()
     return EvolutionStatusResponse(
-        is_running=stats.get("is_running", True),
+        # (#4094 fail-honest): missing key এখন False রিপোর্ট করবে — আগের
+        # `or True` fail-open default সবসময় fabricated "running" দেখাত।
+        # controller নিজেই আসল is_running emit করে (auto_evolution_controller)।
+        is_running=stats.get("is_running", False),
         total_cycles=stats.get("total_cycles", 0),
         successful_cycles=stats.get("successful_cycles", 0),
         recent_cycles=stats.get("recent_cycles", []),

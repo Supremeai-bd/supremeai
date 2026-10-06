@@ -59,34 +59,84 @@ def run_cmd(cmd):
     return res.returncode, res.stdout.strip(), res.stderr.strip()
 
 def get_open_issues():
-    """Fetch all open issues from GitHub."""
+    """Fetch all open issues from GitHub.
+
+    #4110 (defect class: eventually-consistent search used where correctness
+    requires REST): `gh issue list` walks the Search API, which is eventually
+    consistent — issues created/edited/reopened inside the index-lag window
+    silently vanish from the universe and every downstream consumer
+    (verify-claim, reconcile, allocate, cascade-hold) fails closed on a LIVE
+    issue. The REST list endpoint is strongly consistent, so the queue
+    universe is fetched from there instead. REST mixes PRs into the issues
+    payload (filtered via `pull_request`) and uses snake_case `created_at`
+    (normalized to the gh-CLI camelCase contract here).
+    """
     cmd = [
-        "gh", "issue", "list",
-        "--repo", REPO,
-        "--state", "open",
-        "--limit", "300",
-        "--json", "number,title,labels,state,createdAt"
+        "gh", "api", "--paginate", "--slurp",
+        f"repos/{REPO}/issues?state=open&per_page=100",
     ]
     rc, out, err = run_cmd(cmd)
     if rc != 0:
         print(f"Error fetching issues: {err}", file=sys.stderr)
         return []
-    return json.loads(out) if out else []
+    # gh 2.x: --slurp cannot be combined with --jq, so flatten + normalize in
+    # python (PRs filtered, snake_case created_at → gh-CLI camelCase contract).
+    pages = json.loads(out) if out else []
+    items: list[dict] = []
+    for page in pages if isinstance(pages, list) else [pages]:
+        if isinstance(page, list):
+            items.extend(page)
+        elif isinstance(page, dict):
+            items.append(page)
+    return [
+        {**it, "createdAt": it.get("created_at", it.get("createdAt", ""))}
+        for it in items
+        if it.get("pull_request") is None
+    ]
 
 def get_open_prs():
-    """Fetch all open PRs from GitHub."""
+    """Fetch all open PRs from GitHub (#4110: REST, strongly consistent —
+    `gh pr list` is Search-backed and hides freshly opened/edited PRs).
+    REST /pulls exposes the branch as `head.ref`; normalized to the gh-CLI
+    `headRefName` contract that cmd_cascade_hold / cmd_auto_merge consume.
+    """
     cmd = [
-        "gh", "pr", "list",
-        "--repo", REPO,
-        "--state", "open",
-        "--limit", "100",
-        "--json", "number,title,labels,headRefName,state"
+        "gh", "api", "--paginate", "--slurp",
+        f"repos/{REPO}/pulls?state=open&per_page=100",
     ]
     rc, out, err = run_cmd(cmd)
     if rc != 0:
         print(f"Error fetching PRs: {err}", file=sys.stderr)
         return []
-    return json.loads(out) if out else []
+    # gh 2.x: --slurp cannot be combined with --jq — flatten + normalize in
+    # python (REST head.ref → gh-CLI headRefName contract for cascade-hold /
+    # auto-merge consumers).
+    pages = json.loads(out) if out else []
+    items: list[dict] = []
+    for page in pages if isinstance(pages, list) else [pages]:
+        if isinstance(page, list):
+            items.extend(page)
+        elif isinstance(page, dict):
+            items.append(page)
+    return [
+        {**it, "headRefName": (it.get("head") or {}).get("ref", "")}
+        for it in items
+    ]
+
+def get_open_work_items():
+    """Unified issue+PR work-item universe (Roadmap v2.0 Phase 0.1 — #4123).
+
+    The REST issues listing mixes PR objects into its payload and
+    get_open_issues() filters them out — which made defect-PRs (#4088,
+    #4093, #4102, #4107) invisible to queue tooling and nearly caused a
+    duplicate-work incident (a redundant fix was implemented and only
+    discarded after the PR was discovered). Consumers that must see ALL
+    open work (audit visibility, duplicate-claim prevention) use this
+    universe, where PRs are flagged with is_pr=True instead of dropped.
+    """
+    issues = get_open_issues()
+    prs = get_open_prs()
+    return issues + [{**pr, "is_pr": True} for pr in prs]
 
 def parse_metadata(issue):
     """Extract group, seq, priority, and status from issue labels."""
@@ -110,6 +160,11 @@ def parse_metadata(issue):
     is_claimed = "status:in-progress" in lbl_names
     has_pr = "has-pr" in lbl_names
     is_blocked = "blocked" in lbl_names
+    # Roadmap v2.0 Phase 0.1 (#4123): work-item type flag. True when the item
+    # is a pull request — either a PR object from the unified universe
+    # (is_pr key injected by get_open_work_items/_fetch_single_pr_meta) or a
+    # PR-shaped payload from the REST issues listing (pull_request key).
+    is_pr = issue.get("pull_request") is not None or bool(issue.get("is_pr"))
     # #3218: canonical queue-state extensions (labels stay the projection; the
     # reconciliation core computes the authoritative ordering from these).
     admin_gated = "gate:admin-approval" in lbl_names
@@ -132,6 +187,7 @@ def parse_metadata(issue):
         "is_complete": is_complete,
         "auto_promoted": auto_promoted,
         "is_ledger": is_ledger,
+        "is_pr": is_pr,
         "created_at": issue.get("createdAt", ""),
         "labels": lbl_names
     }
@@ -394,6 +450,33 @@ def cmd_audit(args):
     else:
         print("   (Use --verbose to view all ungrouped issues)")
 
+    # Roadmap v2.0 Phase 0.1 (#4123): "no hidden PR" — defect-PRs (#4088,
+    # #4093, #4102, #4107) were invisible to issue-queue tooling and nearly
+    # caused a duplicate-work incident. Audit now lists open PRs with their
+    # linked issue status so an agent can see work that already has a PR.
+    prs = get_open_prs()
+    issue_numbers = {i["number"] for i in issues}
+    print(f"\n📁 Open Pull Requests: {len(prs)} (unified work universe, is_pr flag)")
+    for pr in prs:
+        linked = None
+        m = (re.search(r"#(\d+)", pr.get("title") or "")
+             or re.search(r"-(\d+)-", pr.get("headRefName") or ""))
+        if m:
+            linked = int(m.group(1))
+        note = ""
+        if linked is not None:
+            if linked in issue_numbers:
+                linked_meta = next(
+                    (parse_metadata(i) for i in issues if i["number"] == linked),
+                    None,
+                )
+                state = ("claimed" if linked_meta["is_claimed"]
+                         else ("has-pr" if linked_meta["has_pr"] else "open"))
+                note = f" -> links issue #{linked} ({state})"
+            else:
+                note = f" -> links issue #{linked} (not open — merged/closed?)"
+        print(f"   PR #{pr['number']:<5} {(pr.get('title') or '')[:60]}{note}")
+
 def cmd_insert(args):
     """
     Insert an issue at (group, seq), automatically shifting existing items >= seq by +1.
@@ -450,9 +533,37 @@ def cmd_verify_claim(args):
         if iss["number"] == issue_num:
             target = parse_metadata(iss)
             break
-            
+
+    # #4110: even the REST universe fetch can race a freshly edited issue on
+    # a stale edge; before the fail-closed verdict, re-check the target via
+    # the strongly-consistent single-issue REST endpoint. If REST shows it
+    # open, proceed with REST-derived metadata instead of rejecting.
+    if target is None:
+        rest_meta = _fetch_single_issue_meta(issue_num)
+        if rest_meta is not None:
+            target = rest_meta
+
+    if target is None:
+        # Roadmap v2.0 Phase 0.1 (#4123): the number may be an open PULL
+        # REQUEST — that must produce an actionable verdict, not a misleading
+        # "not found or closed" (defect-PRs #4088/#4093/#4102/#4107 were
+        # invisible here and nearly caused a duplicate-work incident).
+        pr_meta = _fetch_single_pr_meta(issue_num)
+        if pr_meta is not None:
+            target = pr_meta
+
     if not target:
-        print(f"Error: Issue #{issue_num} not found or closed.", file=sys.stderr)
+        print(f"Error: Issue #{issue_num} not found or closed (REST-confirmed).", file=sys.stderr)
+        sys.exit(1)
+
+    if target.get("is_pr"):
+        pr_title = (target.get("title") or "")[:60]
+        print(
+            f"REJECTED: #{issue_num} is an open PULL REQUEST (\"{pr_title}\"), "
+            f"not an issue — do NOT claim it in the queue or re-implement its "
+            f"work. Review/coordinate on the PR instead: gh pr view {issue_num}.",
+            file=sys.stderr,
+        )
         sys.exit(1)
         
     grp = target["group"]
@@ -482,9 +593,13 @@ def cmd_verify_claim(args):
             break
             
     if not found_prev:
-        # If prev_seq is closed (e.g. already merged), check if issue was closed
-        rc, out, _ = run_cmd(["gh", "issue", "list", "--repo", REPO, "--state", "closed", "--label", f"group:{grp}", "--label", f"seq:{prev_seq}", "--json", "number"])
-        if rc == 0 and out and out != "[]":
+        # If prev_seq is closed (e.g. already merged), check via REST (#4110:
+        # the search-backed closed listing hid freshly-closed predecessors).
+        rc, out, _ = run_cmd([
+            "gh", "api",
+            f"repos/{REPO}/issues?state=closed&labels=group:{grp},seq:{prev_seq}&per_page=1"
+        ])
+        if rc == 0 and out and out not in ("[]", ""):
             prev_ready = True
             
     if prev_ready:
@@ -686,18 +801,57 @@ def cmd_auto_merge(args):
 
 # ── GSPQ Reconcile / Allocate CLI (#3218) — thin wrappers over the pure core ──
 
-def _fetch_single_issue_meta(issue_num):
-    """Fetch one open issue and parse it into queue metadata (or None)."""
-    rc, out, _ = run_cmd([
-        "gh", "issue", "view", str(issue_num), "--repo", REPO,
-        "--json", "number,title,labels,state,createdAt"
-    ])
+def _fetch_single_pr_meta(number):
+    """Fetch one open PR via the strongly-consistent single-PR REST endpoint
+    (Roadmap v2.0 Phase 0.1 — #4123). Returns parsed queue metadata with
+    is_pr=True, or None when the number is not an open PR. Tooling/transport
+    failures (gh missing, offline) return None too — the gate then falls
+    through to the fail-closed verdict instead of crashing."""
+    try:
+        rc, out, _ = run_cmd(["gh", "api", f"repos/{REPO}/pulls/{number}"])
+    except OSError:
+        return None
     if rc != 0 or not out:
         return None
-    data = json.loads(out)
-    if data.get("state") != "open":
+    try:
+        data = json.loads(out)
+    except (json.JSONDecodeError, ValueError):
         return None
-    return parse_metadata(data)
+    if str(data.get("state", "")).lower() != "open":
+        return None
+    return parse_metadata({**data, "is_pr": True})
+
+
+def _fetch_single_issue_meta(issue_num):
+    """Fetch one open issue and parse it into queue metadata (or None).
+
+    #4110: `gh issue view --json state` reports GraphQL-case state ("OPEN")
+    while this check compared lowercase ("open") — the mismatch made the
+    single-issue REST fallback return None for EVERY live issue, silently
+    disabling cmd_allocate's fetch and #4110's verify-claim fallback. Compare
+    case-insensitively (gh CLI state casing is version-dependent).
+
+    #4123 (Roadmap v2.0 Phase 0.1): fetch via the REST single-ISSUE endpoint
+    instead of `gh issue view` — the issues API view returns PR objects too
+    (seq114 evidence: PR bodies/numbers flow through the issues API), which
+    let an open PR masquerade as a claimable issue with no group constraint.
+    The REST payload carries the `pull_request` key for PRs, which
+    parse_metadata maps to is_pr=True so callers can reject them explicitly.
+    """
+    try:
+        rc, out, _ = run_cmd(["gh", "api", f"repos/{REPO}/issues/{issue_num}"])
+    except OSError:
+        return None
+    if rc != 0 or not out:
+        return None
+    try:
+        data = json.loads(out)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    if str(data.get("state", "")).lower() != "open":
+        return None
+    # REST snake_case → gh-CLI camelCase contract (parse_metadata contract).
+    return parse_metadata({**data, "createdAt": data.get("created_at", data.get("createdAt", ""))})
 
 
 def _priority_label_edit(issue_num, change):
@@ -838,6 +992,12 @@ def cmd_allocate(args):
         print(f"Issue #{args.issue} not found or not open — nothing to allocate.",
               file=sys.stderr)
         sys.exit(1)
+    if meta.get("is_pr"):
+        # #4123 (Phase 0.1): PRs are work items but never GSPQ sequence
+        # members — the queue sequences ISSUES; a PR allocation is a no-op.
+        print(f"#{args.issue} is a PULL REQUEST, not an issue — nothing to "
+              f"allocate (GSPQ sequences issues only).")
+        return
     if not meta["group"]:
         print(f"Issue #{args.issue} has no group:* label — no sequence to allocate.")
         return

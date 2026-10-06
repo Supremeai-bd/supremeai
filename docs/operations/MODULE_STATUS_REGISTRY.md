@@ -6,6 +6,8 @@
 
 **This registry is the owner's decision sheet. Every row is DECISION REQUIRED (owner). Nothing has been deleted, wired, or un-wired by this branch — only status markers were added.**
 
+> **Scope update (#4097):** the sentence above is the *historical* scope statement of the original #449 decision-support branch. Since then, adapter retirements **have** been executed on main — all five integration-adapter rows (§6–10) are now `RETIRED + DELETED` (browser_use/openhands: audits #4044/#4045 → execution #4068, PR #4069; mem0/e2b/graphiti: audit #4057 → execution PR #4103). Replacement paths: `docs/architecture/retired_adapters.md`. Non-adapter rows below remain genuinely pending owner decision.
+
 ## Verdict summary
 
 | Module | Status | Evidence of (non-)use | Recommendation | Decision |
@@ -15,11 +17,11 @@
 | `backend/services/rider_tracker.py` | ORPHANED-VERIFIED | Pure re-export shim; no production importer | archive-after-owner-confirmation (with `delivery_fleet_tracker.py`) | DECISION REQUIRED (owner) |
 | `backend/services/diagram_parser_service.py` | WIRED-ON-MAIN (issue claim stale) | `ALL_ROUTERS` entry `backend/api/routers.py:400-406` | none — verify endpoints in prod | resolved by merged PR #581 |
 | `backend/services/video_to_code_pipeline.py` | WIRED-ON-MAIN (issue claim stale) | `ALL_ROUTERS` entry `backend/api/routers.py:417-422` | none — optional ffmpeg availability check | resolved by merged PR #581 |
-| `backend/integrations/e2b_adapter.py` | ORPHANED-VERIFIED | Class has zero consumers repo-wide; dep not in `backend/pyproject.toml` | archive or extract to separate repo | DECISION REQUIRED (owner) |
-| `backend/integrations/openhands_adapter.py` | **RETIRED + DELETED 2026-10-06** (audit #4045 → execution #4068) | deleted | MCP-server path retained (headless_agent_registry + mcp_allowlist + brain/mcp_client) | ✅ DECIDED |
-| `backend/integrations/browser_use_adapter.py` | ORPHANED-VERIFIED | same | archive or extract to separate repo | DECISION REQUIRED (owner) |
-| `backend/integrations/mem0_adapter.py` | ORPHANED-VERIFIED | same | archive or extract to separate repo | DECISION REQUIRED (owner) |
-| `backend/integrations/graphiti_adapter.py` | ORPHANED-VERIFIED | same | archive or extract to separate repo | DECISION REQUIRED (owner) |
+| ~~`backend/integrations/e2b_adapter.py`~~ | **RETIRED + DELETED 2026-10-06** (audit #4057 → execution PR #4103) | deleted | native `sandbox/docker_sandbox.py` retained | ✅ DECIDED |
+| ~~`backend/integrations/openhands_adapter.py`~~ | **RETIRED + DELETED 2026-10-06** (audit #4045 → execution #4068, PR #4069) | deleted | MCP-server path retained (headless_agent_registry + mcp_allowlist + brain/mcp_client) | ✅ DECIDED |
+| ~~`backend/integrations/browser_use_adapter.py`~~ | **RETIRED + DELETED 2026-10-06** (audit #4044 → execution #4068, PR #4069) | deleted | native Playwright stack (15+ files) | ✅ DECIDED |
+| ~~`backend/integrations/mem0_adapter.py`~~ | **RETIRED + DELETED 2026-10-06** (audit #4057 → execution PR #4103) | deleted | canonical `backend/core/ai_memory/repository.py` + pgvector retained | ✅ DECIDED |
+| ~~`backend/integrations/graphiti_adapter.py`~~ | **RETIRED + DELETED 2026-10-06** (audit #4057 → execution PR #4103) | deleted | native `backend/memory/episodic_memory.py` + `long_term_memory.py` retained | ✅ DECIDED |
 | `backend/external_agents/` (23 files, ~2.9k LOC) | NEAR-READY-UNWIRED (verified 2026-09-27, see §11) | Zero production importers; 75 acceptance tests (issue #1572) exist and pass; ACTIVE plan `PLAN-EAOL-003` implements→this module | **wire-next** per `PLAN-EAOL-003` — do NOT archive/delete (simplification-audit B12 refuted) | DECISION REQUIRED (owner) |
 
 ## Per-module detail
@@ -51,12 +53,13 @@
 * **Recommendation:** none; if frame extraction underperforms in prod, check the ffmpeg binary in the deploy image.
 * ~~DECISION REQUIRED (owner)~~ — resolved; listed for traceability.
 
-### 6–10. `backend/integrations/{e2b,openhands,browser_use,mem0,graphiti}_adapter.py` — ORPHANED-VERIFIED
-* **Evidence:** each adapter class is re-exported by `backend/integrations/__init__.py:13-17` and referenced **nowhere else in the repo** (zero hits for `E2BAdapter` / `OpenHandsAdapter` / `BrowserUseAdapter` / `Mem0MemoryAdapter` / `GraphitiMemoryAdapter` outside `backend/integrations/` — including tests). No `ALL_ROUTERS` entry; no factory in `core/services.py`.
-* **External deps:** none of `e2b`, `openhands`, `browser_use`, `mem0`, `graphiti_core` appear in `backend/pyproject.toml` (or any requirements file) — adapters import them only through `integrations/_flags.import_available` probes.
-* **Runtime posture:** zero-cost and inert today — each adapter is double-gated (env flag + dependency probe): `SUPREMEAI_E2B_ENABLED`+`e2b` (`e2b_adapter.py:22,34`), `SUPREMEAI_OPENHANDS_ENABLED`+server URL (`openhands_adapter.py:25,37`), `SUPREMEAI_BROWSER_USE_ENABLED`+`browser_use` (`browser_use_adapter.py:37,241`), `SUPREMEAI_MEM0_ENABLED`+`mem0` (`mem0_adapter.py:21,44`), `SUPREMEAI_GRAPHITI_ENABLED`+`graphiti_core`+URI (`graphiti_adapter.py:25,64`). The modules are only *imported* transitively when the `integrations` package loads (e.g. `api/routes/capabilities.py:105` imports `integrations._flags`); the classes are never constructed or called.
-* **Recommendation:** **archive or extract to a separate repo** — external deps not in requirements, zero consumers, and each vendor integration would need its own dependency/flag/cost review before wiring. Alternative (wire-next) only makes sense if the owner wants that specific vendor path; keeping them costs nothing at runtime but does cost review noise (this registry + the silent-errors baseline entries for `e2b_adapter.py` / `graphiti_adapter.py`).
-* **DECISION REQUIRED (owner) per adapter.**
+### 6–10. `backend/integrations/{e2b,openhands,browser_use,mem0,graphiti}_adapter.py` — RETIRED + DELETED (all five, 2026-10-06)
+
+* **Current status:** none of the five adapter files exist on disk (`ls backend/integrations/` → only `__init__.py`, `_flags.py`, `github_webhook.py`, `telegram_bot.py`, `telegram_config.py`, `telegram_config.yaml`, `telegram_handlers.py`). Rows are retained above for decision traceability only.
+* **Execution trail:** browser_use (#4044) + openhands (#4045) audits decided RETIRE → executed via #4068 (PR #4069); mem0/e2b/graphiti (#4057) decided RETIRE + DELETE → executed via PR #4103. `backend/integrations/__init__.py` no longer exports any adapter class.
+* **Native replacements + fallback paths:** documented in `docs/architecture/retired_adapters.md` — Playwright stack (browser_use), native coder fleet + MCP-server bridge (openhands), `ai_memory/repository.py` + pgvector (mem0), `sandbox/docker_sandbox.py` (e2b), episodic + long-term memory (graphiti).
+* **Historical pre-deletion evidence** (kept for the record): each adapter was double-gated (env flag + dependency probe), zero-cost inert, with zero repo-wide consumers outside `backend/integrations/`; none of `e2b`, `openhands`, `browser_use`, `mem0`, `graphiti_core` were ever declared in `backend/pyproject.toml`.
+* ~~DECISION REQUIRED (owner) per adapter~~ — ✅ **DECIDED for all five** (see verdict-summary rows above; reopening requires a fresh audit per Rule 4 — Evidence Before Adoption).
 
 ### 11. `backend/external_agents/` — NEAR-READY-UNWIRED (addendum 2026-09-27)
 
@@ -81,4 +84,4 @@
 
 ## Marker convention
 
-Each verified-orphaned file carries a module-docstring line: `STATUS: orphaned — see docs/operations/MODULE_STATUS_REGISTRY.md (#449).` (added docstring-only; zero runtime change). Wired files (#4, #5) intentionally carry **no** marker. Near-ready packages (§11 `backend/external_agents/`) carry: `STATUS: near-ready (unwired) — see docs/operations/MODULE_STATUS_REGISTRY.md §11; plan PLAN-EAOL-003.`
+Each verified-orphaned file carries a module-docstring line: `STATUS: orphaned — see docs/operations/MODULE_STATUS_REGISTRY.md (#449).` (added docstring-only; zero runtime change). Wired files (#4, #5) intentionally carry **no** marker. Near-ready packages (§11 `backend/external_agents/`) carry: `STATUS: near-ready (unwired) — see docs/operations/MODULE_STATUS_REGISTRY.md §11; plan PLAN-EAOL-003.` The five retired integration adapters (§6–10) no longer exist on disk — their markers were deleted together with the files.

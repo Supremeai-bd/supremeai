@@ -134,7 +134,7 @@ jobs:
       deploy-cloudflare: ${{ steps.detect.outputs.deploy-cloudflare }}
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
         with:
           fetch-depth: 0
       - name: Resolve changed-path deploy targets
@@ -162,7 +162,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v5 # v7.0.1
       - name: Setup Node & PNPM
         uses: ./.github/actions/setup-frontend
         with:
@@ -221,7 +221,7 @@ jobs:
       live_migration: ${{ steps.decide.outputs.live }}
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
 
       - name: Import SUPABASE_DATABASE_URL_WRITER from Infisical (gate)
         uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
@@ -319,7 +319,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
       - name: Setup pnpm (SSOT from package.json)
         uses: pnpm/action-setup@v5
       - name: Setup Node
@@ -360,10 +360,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
 
       - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@v5 # v7.0.0
         with:
           python-version: '3.11'
 
@@ -393,7 +393,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
 
       - name: Import RENDER_API_KEY from Infisical
         uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
@@ -475,7 +475,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
 
       - name: Import RENDER_API_KEY from Infisical
         uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
@@ -556,7 +556,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
       # বাংলা মন্তব্য (#2901): scraper অ্যাকাউন্টেও কোটা প্রিফ্লাইট (আগে শুধু সাসপেনশন গার্ড ছিল)।
       - name: Render free-tier quota preflight (pre-light check, self-skips when unconfigured)
         env:
@@ -596,7 +596,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
       # বাংলা মন্তব্য (#2901): mcp অ্যাকাউন্টেও কোটা প্রিফ্লাইট (আগে শুধু সাসপেনশন গার্ড ছিল)।
       - name: Render free-tier quota preflight (pre-light check, self-skips when unconfigured)
         env:
@@ -634,9 +634,9 @@ jobs:
       name: production
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
       - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@v5 # v7.0.0
         with:
           node-version: '24'
       - name: Install Wrangler
@@ -665,7 +665,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v5 # v7.0.1
 
       - name: Import RENDER_CORE_URL from Infisical (best-effort)
         continue-on-error: true
@@ -772,9 +772,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@v5 # v7.0.0
         with:
           python-version: "3.11"
       - name: Rollback to previous stable deploy
@@ -799,7 +799,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
         with:
           fetch-depth: 0
       - name: Tag release version

@@ -253,6 +253,138 @@ COMPLETE_SERVICE_REGISTRY: list[ServiceConfig] = [
         timeout=6.0,
         check_type="api",
     ),
+
+    # ─── LLM PROVIDERS (#4046 — Roadmap v2 Phase 1.3) ───────────────────────
+    # বাংলা: প্রতিটি LLM provider service_topology-তে যুক্ত। tri-state:
+    #   CONFIGURED (env set) → REACHABLE (TCP+auth ok) → HEALTHY (semantic probe ok)
+    # API key না থাকলে SKIPPED (false-UNHEALTHY নয় — #3226 honest-state)।
+    # Health endpoint = /v1/models (OpenAI-compatible standard) — returns 200
+    # if key valid + service reachable।
+    # বাংলা মন্তব্য: provider list `_MODEL_KEY_MAP` থেকে derive করা হয়েছে —
+    # single source of truth (backend/core/llm/llm_gateway/registry.py)।
+    ServiceConfig(
+        name="llm_openai",
+        display_name="OpenAI API",
+        category="llm_provider",
+        url=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/"),
+        health_endpoint="/models",
+        critical=False,
+        timeout=8.0,
+        headers={"Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY', '')}"},
+        check_type="api",
+    ),
+    ServiceConfig(
+        name="llm_anthropic",
+        display_name="Anthropic API",
+        category="llm_provider",
+        url=os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com").rstrip("/"),
+        health_endpoint="/v1/models",
+        critical=False,
+        timeout=8.0,
+        headers={
+            "x-api-key": os.environ.get("ANTHROPIC_API_KEY", ""),
+            "anthropic-version": "2023-06-01",
+        },
+        check_type="api",
+    ),
+    ServiceConfig(
+        name="llm_groq",
+        display_name="Groq API",
+        category="llm_provider",
+        url=os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/"),
+        health_endpoint="/models",
+        critical=False,
+        timeout=8.0,
+        headers={"Authorization": f"Bearer {os.environ.get('GROQ_API_KEY', '')}"},
+        check_type="api",
+    ),
+    ServiceConfig(
+        name="llm_deepseek",
+        display_name="DeepSeek API",
+        category="llm_provider",
+        url=os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1").rstrip("/"),
+        health_endpoint="/models",
+        critical=False,
+        timeout=8.0,
+        headers={"Authorization": f"Bearer {os.environ.get('DEEPSEEK_API_KEY', '')}"},
+        check_type="api",
+    ),
+    ServiceConfig(
+        name="llm_gemini",
+        display_name="Google Gemini API",
+        category="llm_provider",
+        url="https://generativelanguage.googleapis.com",
+        health_endpoint=f"/v1beta/models?key={os.environ.get('GEMINI_API_KEY', '')}",
+        critical=False,
+        timeout=8.0,
+        check_type="api",
+    ),
+    ServiceConfig(
+        name="llm_openrouter",
+        display_name="OpenRouter API",
+        category="llm_provider",
+        url="https://openrouter.ai/api/v1",
+        health_endpoint="/models",
+        critical=False,
+        timeout=8.0,
+        headers={"Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY', '')}"},
+        check_type="api",
+    ),
+    ServiceConfig(
+        name="llm_mistral",
+        display_name="Mistral API",
+        category="llm_provider",
+        url="https://api.mistral.ai/v1",
+        health_endpoint="/models",
+        critical=False,
+        timeout=8.0,
+        headers={"Authorization": f"Bearer {os.environ.get('MISTRAL_API_KEY', '')}"},
+        check_type="api",
+    ),
+    ServiceConfig(
+        name="llm_huggingface",
+        display_name="Hugging Face API",
+        category="llm_provider",
+        url="https://api-inference.huggingface.co",
+        health_endpoint="/models",
+        critical=False,
+        timeout=8.0,
+        headers={"Authorization": f"Bearer {os.environ.get('HF_API_KEY', '')}"},
+        check_type="api",
+    ),
+    ServiceConfig(
+        name="llm_nvidia",
+        display_name="NVIDIA API",
+        category="llm_provider",
+        url="https://integrate.api.nvidia.com/v1",
+        health_endpoint="/models",
+        critical=False,
+        timeout=8.0,
+        headers={"Authorization": f"Bearer {os.environ.get('NVIDIA_API_KEY', '')}"},
+        check_type="api",
+    ),
+    ServiceConfig(
+        name="llm_ollama",
+        display_name="Ollama (local)",
+        category="llm_provider",
+        url=os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
+        health_endpoint="/api/tags",
+        critical=False,
+        timeout=5.0,
+        check_type="api",
+    ),
+    # বাংলা (#4048): Cerebras — speed-optimized governed provider (Roadmap v2 Phase 2.2).
+    ServiceConfig(
+        name="llm_cerebras",
+        display_name="Cerebras API (speed-optimized)",
+        category="llm_provider",
+        url=os.environ.get("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1").rstrip("/"),
+        health_endpoint="/models",
+        critical=False,
+        timeout=8.0,
+        headers={"Authorization": f"Bearer {os.environ.get('CEREBRAS_API_KEY', '')}"},
+        check_type="api",
+    ),
 ]
 
 
@@ -282,6 +414,35 @@ async def probe_service(service: ServiceConfig) -> ServiceHealthResult:
             error="service not configured — placeholder URL/endpoint unresolved (#3226)",
             critical=service.critical,
         )
+
+    # বাংলা (#4046): LLM provider tri-state — API key absent → SKIPPED (not UNHEALTHY).
+    # LLM providers need valid credentials to probe; absent key = not configured, not broken.
+    # This is the honest-state pattern from #3226 extended to LLM auth.
+    if service.category == "llm_provider":
+        has_valid_auth = False
+        for k, v in service.headers.items():
+            if k.lower() in ("authorization", "x-api-key"):
+                if v and len(v.strip()) > 10:  # "Bearer " = 7 chars + key
+                    has_valid_auth = True
+                    break
+        # Gemini uses query param auth (?key=...) — check if key is non-empty after "key="
+        if not has_valid_auth and "key=" in service.health_endpoint:
+            if len(service.health_endpoint) > len("key=") + 10:
+                has_valid_auth = True
+        # Ollama is local — no auth needed
+        if not has_valid_auth and service.name == "llm_ollama":
+            has_valid_auth = True
+        if not has_valid_auth:
+            return ServiceHealthResult(
+                name=service.name,
+                display_name=service.display_name,
+                category=service.category,
+                status=ServiceStatus.SKIPPED,
+                response_time_ms=0.0,
+                url=service.url,
+                error="LLM provider API key not configured — SKIPPED (not UNHEALTHY, per #4046/#3226)",
+                critical=service.critical,
+            )
 
     full_url = f"{service.url}{service.health_endpoint}"
 

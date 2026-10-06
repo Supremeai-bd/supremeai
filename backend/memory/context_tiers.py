@@ -32,6 +32,7 @@ from typing import Any
 
 from core.llm.token_budget import estimate_tokens, truncate_to_token_limit
 from core.logging_config import logger
+from learning.skill_template_writer import read_regression_guards, read_skill_templates
 
 __all__ = [
     "TierLevel",
@@ -517,6 +518,9 @@ class ComposedContext:
     l1_tokens: int = 0
     l2_tokens: int = 0
     truncated: dict[str, bool] = field(default_factory=dict)
+    # Roadmap v2.0 Phase 3 step-4 (#4145): learned knowledge injected from
+    # knowledge/skills + regression_guards (#4054 templates — finally READ).
+    learned_skills: list[dict[str, Any]] = field(default_factory=list)
 
     def to_log_dict(self) -> dict[str, Any]:
         """PII-safe composition summary — কনটেন্ট নয়, শুধু counts (acceptance #8)।"""
@@ -600,6 +604,31 @@ async def compose_agent_context(
             l1_tokens = l1.token_count
         remaining -= l1_tokens
 
+    # ── Learned-knowledge injection (#4054 step-4 / Roadmap Phase 3, #4145) ──
+    # task assign হলে similar skill templates + regression guards compose-এ
+    # যোগ হয় — budget-aware (L0/L1 আগে; learned বরাদ্দ L2 retrieval-এর আগেই
+    # কাটা হয় যেন retrieval বাজেট ছাপিয়ে না যায়)।
+    learned: list[dict[str, Any]] = []
+    learned_tokens = 0
+    if task_contract:
+        _tt = str(
+            task_contract.get("task_type")
+            or (task_contract.get("task") or {}).get("type")
+            or ""
+        )
+        learned = read_skill_templates(_tt, repo_root=repo_root) + \
+            read_regression_guards(_tt, repo_root=repo_root)
+        learned_tokens = sum(len(str(s)) // 4 for s in learned)
+        if learned_tokens > remaining:
+            logger.warning(
+                f"[context_tiers] learned knowledge ({learned_tokens} tok) "
+                f"exceeds remaining budget ({remaining}) — dropped (fail-honest)"
+            )
+            learned = []
+            learned_tokens = 0
+        else:
+            remaining -= learned_tokens
+
     # ── L2: on-demand retrieval, অবশিষ্ট বাজেট পায় ─────────────────────
     l2: L2Context | None = None
     l2_tokens = 0
@@ -625,11 +654,12 @@ async def compose_agent_context(
         l1=l1,
         l2=l2,
         budget=total_budget,
-        total_tokens=l0_tokens + l1_tokens + l2_tokens,
+        total_tokens=l0_tokens + l1_tokens + l2_tokens + learned_tokens,
         l0_tokens=l0_tokens,
         l1_tokens=l1_tokens,
-        l2_tokens=l2_tokens,
+        l2_tokens=l2_tokens + learned_tokens,
         truncated={"L0": l0_truncated, "L1": l1_truncated, "L2": l2_truncated},
+        learned_skills=learned,
     )
 
     # Acceptance #8: composition logged (which tiers loaded, token count per tier)।

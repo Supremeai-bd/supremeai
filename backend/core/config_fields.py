@@ -174,9 +174,11 @@ class SettingsFieldsMixin:
     # DB pool sizing (database/session.py) এই মানের উপর ভিত্তি করে User vs Admin instance-এ আলাদা limit প্রয়োগ করে।
     service_role: str = Field(default="user", validation_alias="SERVICE_ROLE")
 
-    # ── Open-Source Integrations Flags (backend/integrations/) ─────────────────
-    # প্রতিটি upstream (mem0, Graphiti, browser-use, E2B) optional dependency;
-    # flag false বা dependency absent থাকলে সিস্টেম zero-cost fallback দিয়ে চলে।
+    # ── Legacy Integration Flags (compat only — adapters retired) ──────────────
+    # বাংলা মন্তব্য (#4097): mem0/Graphiti/E2B adapter-সমূহ অবসর নিয়েছে (#4057 →
+    # execution PR #4103; browser-use/openhands: #4044/#4045 → #4068)। এই config-field
+    # গুলো settings-চুক্তি ও admin-UI/DB-টিয়ার compatibility-র জন্য বহাল — কোনো live
+    # adapter-path এগুলো পড়ে না। বিস্তারিত: docs/architecture/retired_adapters.md
     mem0_enabled: bool = Field(default=False, validation_alias="SUPREMEAI_MEM0_ENABLED")
     graphiti_enabled: bool = Field(default=False, validation_alias="SUPREMEAI_GRAPHITI_ENABLED")
     e2b_enabled: bool = Field(default=False, validation_alias="SUPREMEAI_E2B_ENABLED")

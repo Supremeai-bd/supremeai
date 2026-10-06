@@ -34,6 +34,9 @@ _MODEL_KEY_MAP: dict[str, str] = {
     # বাংলা মন্তব্য (#3076): "v0" সরানো হয়েছে — api.v0.dev/v1 মৃত রুট (লাইভ প্রোব 2026-10-03 → HTTP 404);
     # v0.dev-এর কোনো পাবলিক OpenAI-compatible API নেই, fallback-walk শুধু সময় নষ্ট করত।
     "mistral": "mistral_api_key",
+    # বাংলা মন্তব্য (#4048): Cerebras — speed-optimized LLM provider (Roadmap v2 Phase 2.2).
+    # Governed Provider: flag-gated, health-checked, Policy Engine gate, fallback path documented.
+    "cerebras": "cerebras_api_key",
 }
 
 # Provider → OpenAI-compatible base URL. When a model's provider appears here,
@@ -42,6 +45,9 @@ _MODEL_KEY_MAP: dict[str, str] = {
 _PROVIDER_API_BASES: dict[str, str] = {
     "bynara": "https://router.bynara.id/v1",
     "bai": "https://api.b.ai/v1",
+    # বাংলা মন্তব্য (#4048): Cerebras — OpenAI-compatible base URL.
+    # Docs: https://inference-docs.cerebras.ai/support/api-reference
+    "cerebras": "https://api.cerebras.ai/v1",
     # বাংলা মন্তব্য (#3076): "v0" base_url সরানো — মৃত endpoint (404), নিচে কোনো রেফারেন্স নেই।
 }
 
