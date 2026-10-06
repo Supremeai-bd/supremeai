@@ -21,7 +21,7 @@ from core.logging_config import logger
 # Conditional imports to avoid circular dependency issues
 # These are used inside methods but defined here for cleaner structure
 try:
-    from core.database.supabase_client import db
+    from database.supabase_client import db  # #4094 fix: correct module path
 except ImportError:
     db = None  # type: ignore[assignment]
 

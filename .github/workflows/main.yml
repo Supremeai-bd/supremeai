@@ -43,7 +43,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout main
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
         with:
           fetch-depth: 1
 
@@ -93,7 +93,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout main
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
         with:
           ref: main
           fetch-depth: 0
@@ -101,7 +101,7 @@ jobs:
           persist-credentials: true
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@v5 # v7.0.0
         with:
           python-version: "3.11"
 
@@ -112,11 +112,9 @@ jobs:
 
       - name: Regenerate Architecture Artifacts
         run: |
-          if [ -f scripts/dev/build_import_graph.py ]; then
-            python scripts/dev/build_import_graph.py || true
+          python scripts/ci/build_import_graph.py || true  # #4096 fix: moved from scripts/dev/ (pruned)
           fi
-          if [ -f scripts/dev/update_module_capability_matrix.py ]; then
-            python scripts/dev/update_module_capability_matrix.py || true
+          python scripts/ci/update_module_capability_matrix.py || true  # #4096 fix: moved from scripts/dev/ (pruned)
           fi
 
       - name: Commit regenerated artifacts if drifted
