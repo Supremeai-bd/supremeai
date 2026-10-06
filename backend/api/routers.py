@@ -355,6 +355,8 @@ ALL_ROUTERS = [
     {"path": "api.routes.admin_evaluation", "prefix": "", "is_admin": True, "is_critical": False},
     # বাংলা (#4050): 3-Tier Auto-Routing boundary — governance overlay on Router.
     {"path": "api.routes.admin_routing", "prefix": "", "is_admin": True, "is_critical": False},
+    # বাংলা (#4049): Policy Engine layer — who/what/cost/security gate.
+    {"path": "api.routes.admin_policies", "prefix": "", "is_admin": True, "is_critical": False},
     # Canonical browser-facing broker for service discovery and health.
     {"path": "api.routes.control_plane", "prefix": "", "is_admin": False, "is_critical": True},
     {
