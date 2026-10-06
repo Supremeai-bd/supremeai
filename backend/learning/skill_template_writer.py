@@ -5,8 +5,11 @@ skill templates L1 context-এ inject হয় যাতে next agent শি�
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from .pattern_miner import DecisionPattern
 
@@ -115,3 +118,56 @@ block_rule: "warn_on_match"
 
     filepath.write_text(template, encoding="utf-8")
     return str(filepath)
+
+
+# ─────────────── readers (Roadmap v2.0 Phase 3 step-4 / #4145) ───────────────
+# #4054 wrote templates; nothing READ them (verified: zero readers). These
+# readers are the injection source for compose_agent_context() — fail-honest
+# (missing dir / malformed YAML → skipped, never a crash), never a new SSOT:
+# the YAML files remain the single storage, writer and reader share the schema.
+
+_INJECT_RULE = "on_task_assignment_if_similar"
+
+
+def _read_template_dir(directory: str | Path, task_type: str | None,
+                       match_key: str) -> list[dict[str, Any]]:
+    import yaml  # backend dep — lazy import keeps CLI scripts light
+
+    d = Path(directory)
+    if not d.exists():
+        return []
+    out: list[dict[str, Any]] = []
+    for f in sorted(d.glob("*.yaml")):
+        try:
+            data = yaml.safe_load(f.read_text(encoding="utf-8"))
+        except Exception:
+            # malformed template: skip honestly, never break composition —
+            # but never SILENTLY (#1743 invariant): log the skip with reason.
+            logger.debug("malformed template skipped: %s", f, exc_info=True)
+            continue
+        if not isinstance(data, dict):
+            continue
+        if task_type is not None:
+            if str(data.get("inject_rule", "")) != _INJECT_RULE:
+                continue
+            tt = str(data.get(match_key, "")).lower()
+            q = task_type.lower()
+            if q not in tt and tt not in q:
+                continue
+        data["_source_file"] = f.name
+        out.append(data)
+    return out
+
+
+def read_skill_templates(task_type: str | None = None,
+                         repo_root: str | Path | None = None) -> list[dict[str, Any]]:
+    """Read injectable skill templates (optionally filtered by task match)."""
+    root = Path(repo_root) if repo_root else Path.cwd()
+    return _read_template_dir(root / "knowledge" / "skills", task_type, "task_type")
+
+
+def read_regression_guards(task_type: str | None = None,
+                           repo_root: str | Path | None = None) -> list[dict[str, Any]]:
+    """Read injectable regression guards (optionally filtered by task match)."""
+    root = Path(repo_root) if repo_root else Path.cwd()
+    return _read_template_dir(root / "knowledge" / "regression_guards", task_type, "task_type")
