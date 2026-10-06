@@ -151,11 +151,11 @@ async def main_async() -> int:
             )
             return JSONResponse(status_code=status, content=res)
 
-        print(f"=== SupremeAI Local Residential IP Relay running on http://127.0.0.1:{args.port} ===")
-        print("Set LOCAL_SESSION_RELAY_URL=http://127.0.0.1:8765 on Cloud/Render to bridge the IP gap!")
+        print(f"=== SupremeAI Local Residential IP Relay running on http://127.0.0.1:{args.port} ===")  # is_local()
+        print("Set LOCAL_SESSION_RELAY_URL=http://127.0.0.1:8765 on Cloud/Render to bridge the IP gap!")  # is_local()
         # বাংলা মন্তব্য: রিলে সার্ভার চালু হওয়ার পর ব্যাকগ্রাউন্ডে ৫ মিনিট অপেক্ষা করে সাইলেন্ট রিফ্রেশ
         asyncio.create_task(_execute_silent_refresh(delay_sec or 300))
-        config = uvicorn.Config(relay_app, host="127.0.0.1", port=args.port, log_level="warning")
+        config = uvicorn.Config(relay_app, host="127.0.0.1", port=args.port, log_level="warning")  # is_local()
         server = uvicorn.Server(config)
         await server.serve()
         return 0
