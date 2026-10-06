@@ -151,6 +151,11 @@ jobs:
             echo "✅ Branch '$BRANCH' matches constitutional pattern."
           else
             echo "❌ Branch '$BRANCH' does not match naming convention."
+            # Roadmap v2.0 Phase 0.4 (#4139): actionable BLOCK — pattern + example
+            # travel WITH the error (agent knows exactly what to fix).
+            echo "   Required pattern: $VALID_PATTERN"
+            echo "   Valid examples:   coder-1-4139-gate-order-first | fix/4136-alembic-heads | agent-3-coder-1"
+            echo "   Fix: rename the branch to '<role>-<issue>-<slug>' (or a documented lane pattern) and push again."
             exit 1
           fi
 
@@ -189,16 +194,20 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           set -euo pipefail
+          # Roadmap v2.0 Phase 0.3 (#4139): Template Gate FIRST — cheapest static
+          # check runs before the expensive gate chain so template-contract
+          # defects surface in fix-round 1 (live evidence: #4109/#4135 each
+          # burned full fix rounds before this gate ran last). Order-only
+          # change; no gate weakened.
+          python .github/scripts/constitution/template_gate.py --pr "$PR_NUMBER"
           python -m constitution.gates all --pr "$PR_NUMBER"
           # #2935 Freshness Gate — root-level old-code-push prevention: PR-head
           # অবশ্যই সর্বশেষ main ধারণ করবে (stale-base merge = নতুন main-কোড
           # চুপচাপ মুছে যাওয়া)। অ্যাডমিন-ডকট্রিন: "new main er sathe mil thakle
           # e push hobe"। behind হলে BLOCK + self-heal নির্দেশনা।
           python .github/scripts/constitution/freshness_gate.py --pr "$PR_NUMBER"
-          # #2912: Template Conformance Gate — fixed template (issue + PR) সব
-          # agent-এর জন্য বাধ্যতামূলক (Summary + Linked Issue + Rollback সেকশন;
-          # linked issue-ও compliant হতে হবে — চেইন-ডকট্রিন)।
-          python .github/scripts/constitution/template_gate.py --pr "$PR_NUMBER"
+          # #2912: Template Conformance Gate — now runs FIRST (Phase 0.3, above);
+          # this invocation point was moved up — comment kept for provenance.
           # #2492: Bengali mandate check (advisory — WARNING, not BLOCK)
           python .github/scripts/constitution/bengali_check.py "${PR_BODY:-}" || true
           python scripts/ci/generate_agents_md.py --check
@@ -483,12 +492,24 @@ jobs:
           # 'failure' হলে cross-tier gate ব্লক করবে — stale assertion লাল main-এ যাবে না।
           if [[ ! "$FULL_SUITE_RESULT" =~ ^(success|skipped)$ ]]; then
             echo "❌ PR Gate Decision: BLOCK — full backend suite (cross-tier gate #2893) failed."
+            # Roadmap v2.0 Phase 0.4 (#4139): name the failing job + where to look.
+            echo "   Fix: open the 'Full Backend Suite (cross-tier gate #2893)' check log;"
+            echo "   its failure lines carry the failing test/module. Re-run after fixing."
             exit 1
           fi
           if [[ "$GATES_RESULT" == "success" && "$TESTS_RESULT" == "success" ]]; then
             echo "✅ PR Gate Decision: PASS — all constitutional gates & tests green."
           else
             echo "❌ PR Gate Decision: BLOCK — one or more gates/tests failed."
+            # Roadmap v2.0 Phase 0.4 (#4139): per-job actionable pointers.
+            if [[ "$GATES_RESULT" != "success" ]]; then
+              echo "   - Constitutional System Gates: $GATES_RESULT -> open its log; every gate"
+              echo "     prints its own 'BLOCK + fix' line (template gate now reports FIRST)."
+            fi
+            if [[ "$TESTS_RESULT" != "success" ]]; then
+              echo "   - Test & Build Verification: $TESTS_RESULT -> open its log; fix the failing"
+              echo "     build/test step, then push an empty commit to re-run."
+            fi
             exit 1
           fi
 
