@@ -259,8 +259,8 @@ def main() -> None:
     # ── Environment variables ─────────────────────────────────
     render_key_primary  = os.environ.get("RENDER_API_KEY", "")
     render_key_backup   = os.environ.get("RENDER_API_KEY_BACKUP", "") or render_key_primary
-    primary_svc_id      = os.environ.get("PRIMARY_SVC_ID", "srv-da07ogmgekts739amqa0")
-    backup_svc_id       = os.environ.get("BACKUP_SVC_ID",  "srv-da35gg2bkg8c73fp1mu0")
+    primary_svc_id      = os.environ["PRIMARY_SVC_ID"]    # no fallback: topology hygiene (#3774/#4091)
+    backup_svc_id       = os.environ["BACKUP_SVC_ID"]     # no fallback: topology hygiene (#3774/#4091)
     primary_svc_url     = os.environ.get("RENDER_PRIMARY_URL", "https://supremeai-backend-docker.onrender.com")
     backup_svc_url      = os.environ.get("RENDER_BACKUP_URL",  "https://supremeai-backend.onrender.com")
     vercel_token        = os.environ.get("VERCEL_TOKEN", "")

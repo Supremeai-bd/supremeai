@@ -22,14 +22,18 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
-# Fallback Services Dictionary
-SERVICES = {
-    "srv-da07ogmgekts739amqa0": {
-        "name": "Backend",
-        "service_id": "srv-da07ogmgekts739amqa0",
-        "url": "https://supremeai-backend-docker.onrender.com"
+# Service registry is env-driven — no hardcoded fallback (#3774/#4091 topology
+# hygiene)। ops-console সবসময় --service-id পাস করে; arg না থাকলে
+# RENDER_SERVICE_ID env-ই registry গড়ে দেয়। কোনোটাই না থাকলে main() সৎভাবে
+# fail-fast করবে — পুরনো হার্ডকোডেড ডিক্ট ছিল নীরব topology লিক।
+_service_id_env = os.environ.get("RENDER_SERVICE_ID", "").strip()
+SERVICES: dict = {}
+if _service_id_env:
+    SERVICES[_service_id_env] = {
+        "name": os.environ.get("RENDER_SERVICE_NAME", "Backend"),
+        "service_id": _service_id_env,
+        "url": os.environ.get("RENDER_PRIMARY_URL", "https://supremeai-backend-docker.onrender.com"),
     }
-}
 
 # Timing: poll every 10s; timeout env-overridable (default 360s = 6 min).
 # বাংলা মন্তব্য: Render free-tier-এ ভারী backend build+deploy সহজেই ২-৬ মিনিট (বা তার বেশি) নেয়।
@@ -218,8 +222,16 @@ def main():
             "url": "https://supremeai-backend-docker.onrender.com"
         })
         targets = [svc]
-    else:
+    elif SERVICES:
         targets = list(SERVICES.values())
+    else:
+        # (#4091) fail-fast honest: কোনো service নির্ধারিত নেই — পুরনো
+        # hardcoded fallback নীরবে ভুল সার্ভিস যাচাই করত; এখন স্পষ্ট ত্রুটি।
+        parser.error(
+            "no service specified: pass --service-id or set RENDER_SERVICE_ID "
+            "(hardcoded fallback removed, #4091 topology hygiene)"
+        )
+        return
 
     results = {}
     for svc in targets:
