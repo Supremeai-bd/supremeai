@@ -34,37 +34,40 @@ integrations:
   # core/mcp_allowlist.py, consumer brain/mcp_client.py, OPENHANDS_API_KEY-gated).
 
   - name: mem0
-    file: backend/integrations/mem0_adapter.py
-    class: Mem0MemoryAdapter
-    tier: orphaned
-    status: retire_planned
-    flag: null  # importlib probe
-    health_check: null
-    fallback_chain: ["keyword_cosine", "consolidation"]
-    owner_issue: 4057
-    notes: "Redundant with canonical MemoryRepository + pgvector."
-
-  - name: e2b
-    file: backend/integrations/e2b_adapter.py
-    class: E2BAdapter
-    tier: orphaned
-    status: retire_planned
+    file: null  # DELETED in #4057
+    class: null  # Mem0MemoryAdapter — deleted
+    tier: retired
+    status: retire_executed
     flag: null
     health_check: null
-    fallback_chain: ["sandbox/docker_sandbox.py"]
+    fallback_chain: ["backend/core/ai_memory/repository.py (canonical pgvector memory)"]
     owner_issue: 4057
-    notes: "Redundant with native sandbox."
+    audit_decision: "RETIRE + DELETE — 2026-10-06. Zero live callers. Redundant with canonical MemoryRepository + pgvector (Rule 5: Consolidation Over Expansion)."
+    notes: "Deleted per #4057. Replacement: backend/core/ai_memory/repository.py"
+
+  - name: e2b
+    file: null  # DELETED in #4057
+    class: null  # E2BAdapter — deleted
+    tier: retired
+    status: retire_executed
+    flag: null
+    health_check: null
+    fallback_chain: ["sandbox/docker_sandbox.py (native sandbox)"]
+    owner_issue: 4057
+    audit_decision: "RETIRE + DELETE — 2026-10-06. Zero live callers. Redundant with native sandbox/docker_sandbox.py."
+    notes: "Deleted per #4057. Replacement: sandbox/docker_sandbox.py"
 
   - name: graphiti
-    file: backend/integrations/graphiti_adapter.py
-    class: GraphitiMemoryAdapter
-    tier: orphaned
-    status: retire_planned
+    file: null  # DELETED in #4057
+    class: null  # GraphitiMemoryAdapter — deleted
+    tier: retired
+    status: retire_executed
     flag: SUPREMEAI_GRAPHITI_ENABLED
     health_check: null
-    fallback_chain: ["timestamped_episode_triples", "recency_keyword_ranking"]
+    fallback_chain: ["backend/memory/episodic_memory.py + backend/memory/long_term_memory.py (native)"]
     owner_issue: 4057
-    notes: "Redundant with episodic + long-term memory."
+    audit_decision: "RETIRE + DELETE — 2026-10-06. Zero live callers. Redundant with native episodic + long-term memory."
+    notes: "Deleted per #4057. Replacement: backend/memory/episodic_memory.py + long_term_memory.py"
 
   - name: telegram_bot
     file: backend/integrations/telegram_bot.py
