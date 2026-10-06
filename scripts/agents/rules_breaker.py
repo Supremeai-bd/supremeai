@@ -142,18 +142,69 @@ def scan_secret_hardcoding(limit: int) -> list[dict]:
     return findings
 
 
+# (P6, #3823) Line-level binding patterns (SSOT — scanner loop ও pure verdict
+# helper একই tuple ব্যবহার করে, drift হয় না)।
+_BINDING_PATTERNS = (
+    (r'(?i)(localhost|127\.0\.0\.1|0\.0\.0\.0)', "Localhost/IP binding"),
+    (r'(?i)(C:\\\\|D:\\\\|E:\\\\|/mnt/c/)', "Windows path binding"),
+)
+
+# (P6, #3823) Negation-context patterns: এই আকারের লাইনে localhost-token থাকে কিন্তু
+# কোডটি আসলে localhost আপসাইন করে না — বরং localhost-কে EXCLUDE করে (যেমন CORS
+# origin filter-এ `"localhost" not in o`)। সাবস্ট্রিং-ম্যাচিং এগুলোকে FP বানায় —
+# #3727 (২০ FP) ও #3823-ফ্লাড (৬২ FP) এই একই ক্লাসের পুনরাবৃত্তি।
+_NEGATION_CONTEXT_RE = re.compile(
+    r"""(?ix)
+    ['"](?:localhost|127\.0\.0\.1|0\.0\.0\.0)['"]\s*(?:not\s+in\b|is\s+not\b|!=)   # "localhost" not in x
+    | (?:not\s+in\b|!=)\s*['"][^'"]*(?:localhost|127\.0\.0\.1|0\.0\.0\.0)['"]       # not in "...localhost..."
+    | \bNO\s+(?:localhost|127\.0\.0\.1|0\.0\.0\.0)\b                                  # doc: "NO localhost/placeholder"
+    """
+)
+
+# (P6, #3823) shell env-default idiom — `${DB_HOST:-localhost}` = env-driven host,
+# hardcode নয় (apply_tier_patch.py docker-compose ENV ব্লক)।
+_SHELL_DEFAULT_RE = re.compile(r"\$\{[^}]*:-(?:localhost|127\.0\.0\.1|0\.0\.0\.0)", re.I)
+
+# (P6, #3823) scanner self-exclusion — detector নিজের সোর্স (pattern/docstring/usage
+# text-এ localhost-স্ট্রিং থাকে) কখনো ফ্ল্যাগ করবে না।
+_SELF_FILE = "rules_breaker.py"
+
+
+def _line_is_localhost_binding(line: str) -> bool:
+    """Line-level localhost/Windows-binding verdict (pure; regression-tested).
+
+    True = real binding-shaped hit; False = comment/negation/self/tooling FP.
+    """
+    if line.strip().startswith("#"):
+        return False
+    if "is_local()" in line:  # fleet marker; `# is_local()` এবং `# test-only is_local()` দুটোই valid
+        return False
+    if any(kw in line for kw in ["getenv(", "os.environ.get(", "os.getenv(",
+                                 "setdefault(", "help=", "default=",
+                                 '"pattern"', "'pattern'", 'severity',
+                                 're.compile', 'LOCALHOST_URL_RE']):
+        return False
+    if _NEGATION_CONTEXT_RE.search(line):
+        return False
+    if _SHELL_DEFAULT_RE.search(line):
+        return False
+    return any(re.search(pattern, line) for pattern, _ in _BINDING_PATTERNS)
+
+
 def scan_localhost_binding(limit: int) -> list[dict]:
-    """Detect localhost/127.0.0.1/Windows-path binding outside tests."""
+    """Detect actual localhost/127.0.0.1/Windows-path binding outside tests.
+
+    #3823 (P6): negation-context + self-file + load-tooling exclusions added —
+    the naive substring match was flagging localhost-EXCLUDING filters and the
+    scanner's own source, spawning the 62-issue FP flood.
+    """
     findings = []
-    patterns = [
-        (r'(?i)(localhost|127\.0\.0\.1|0\.0\.0\.0)', "Localhost/IP binding"),
-        (r'(?i)(C:\\\\|D:\\\\|E:\\\\|/mnt/c/)', "Windows path binding"),
-    ]
     exts = {".py", ".ts", ".js", ".json"}
     exclude_dirs = {".venv", "node_modules", "__pycache__", ".git", "tests", "test",
-                    "archives", "archive", "fixtures", "test_fixtures"}
+                    "archives", "archive", "fixtures", "test_fixtures",
+                    "k6", "loadtest", "benchmarks"}
     test_file_patterns = ("_test.py", "test_", "smoke_test", "production_smoke",
-                          "conftest.py", "fixtures.py")
+                          "conftest.py", "fixtures.py", "load_test", "benchmark")
 
     for root, dirs, files in os.walk(ROOT_DIR):
         dirs[:] = [d for d in dirs if d not in exclude_dirs]
@@ -164,33 +215,82 @@ def scan_localhost_binding(limit: int) -> list[dict]:
             fname_lower = fname.lower()
             if any(pat in fname_lower for pat in test_file_patterns):
                 continue
+            if fname_lower == _SELF_FILE:
+                continue
             try:
                 text = fpath.read_text(encoding="utf-8", errors="ignore")
             except Exception:
                 continue
             lines = text.splitlines()
             for i, line in enumerate(lines, start=1):
-                if line.strip().startswith("#"):
+                if not _line_is_localhost_binding(line):
                     continue
-                if "# is_local()" in line:
-                    continue
-                if any(kw in line for kw in ["getenv(", "os.environ.get(", "os.getenv(",
-                                              "setdefault(", "help=", "default=",
-                                              '"pattern"', "'pattern'", 'severity',
-                                              're.compile', 'LOCALHOST_URL_RE']):
-                    continue
-                for pattern, desc in patterns:
-                    if re.search(pattern, line):
-                        findings.append({
-                            "file": str(fpath.relative_to(ROOT_DIR)),
-                            "line": i,
-                            "snippet": line.strip()[:120],
-                            "rule": "architecture.rule_001",
-                            "severity": "BLOCK",
-                            "description": f"[Localhost/Windows Binding] {desc} in production code",
-                        })
-                        if len(findings) >= limit:
-                            return findings
+                desc = next(d for p, d in _BINDING_PATTERNS if re.search(p, line))
+                findings.append({
+                    "file": str(fpath.relative_to(ROOT_DIR)),
+                    "line": i,
+                    "snippet": line.strip()[:120],
+                    "rule": "architecture.rule_001",
+                    "severity": "BLOCK",
+                    "description": f"[Localhost/Windows Binding] {desc} in production code",
+                })
+                if len(findings) >= limit:
+                    return findings
+    return findings
+
+
+# (P6, #3774) Render service-ID regex (SSOT — scan + test একই আকৃতি ব্যবহার করে)।
+# Render ID আকৃতি: srv- + 20 lowercase alphanumeric (যেমন srv-da666f8u01pc739bm3t0)।
+_RENDER_SERVICE_ID_RE = re.compile(r"srv-[a-z0-9]{12,}")
+
+# এই ফাইলগুলোতে ID-প্যাটার্ন থাকা বৈধ (scanner নিজের সোর্স + regression tests)।
+_SERVICE_ID_ALLOWED_PREFIXES = ("scripts/agents/rules_breaker.py", "tests/")
+
+
+def scan_render_service_ids(limit: int) -> list[dict]:
+    """Detect hardcoded Render service IDs in public deploy tooling (#3774).
+
+    Service IDs are identifiers, not credentials (Render API still needs
+    RENDER_API_KEY) — কিন্তু public repo-তে এরা production topology প্রকাশ করে
+    (roadmap §8: private-plane material)। সব ID env থেকে আসবে:
+    RENDER_SERVICE_ID / RENDER_IMAGE_SERVICE_ID — fallback hardcoded নিষিদ্ধ।
+    Scope: scripts/deploy/** + root Dockerfile (topology-bearing surfaces)।
+    কমেন্ট-লাইনও ফ্ল্যাগ হয় — comment-এ লাইভ ID থাকলেও topology লিক হয়
+    (Dockerfile কেস, #3774)।
+    """
+    findings = []
+    targets: list[Path] = []
+    deploy_dir = ROOT_DIR / "scripts" / "deploy"
+    if deploy_dir.is_dir():
+        for f in sorted(deploy_dir.rglob("*")):
+            if f.is_file() and f.suffix.lower() in {
+                ".py", ".ts", ".js", ".json", ".sh", ".yml", ".yaml", ".toml",
+            }:
+                targets.append(f)
+    dockerfile = ROOT_DIR / "Dockerfile"
+    if dockerfile.is_file():
+        targets.append(dockerfile)
+
+    for fpath in targets:
+        rel = str(fpath.relative_to(ROOT_DIR)).replace(os.sep, "/")
+        if any(rel == a or rel.startswith(a) for a in _SERVICE_ID_ALLOWED_PREFIXES):
+            continue
+        try:
+            text = fpath.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            continue
+        for i, line in enumerate(text.splitlines(), start=1):
+            if _RENDER_SERVICE_ID_RE.search(line):
+                findings.append({
+                    "file": rel,
+                    "line": i,
+                    "snippet": line.strip()[:120],
+                    "rule": "security.rule_001",
+                    "severity": "WARN",
+                    "description": "[Topology Disclosure] Hardcoded Render service ID — move to env (RENDER_SERVICE_ID) per #3774",
+                })
+                if len(findings) >= limit:
+                    return findings
     return findings
 
 
@@ -746,14 +846,77 @@ _Auto-generated by `rules_breaker.py` — Red Team Pentest Agent (#3278 funnel-r
 
 
 def create_issue_for_finding(f: dict, scan_type: str, agent_name: str) -> None:
+    """বাংলা (#3863): Team Leader pattern — scanner no longer creates issues directly.
+
+    এই ফাংশন এখন একটা delegation report তৈরি করে — সরাসরি gh issue create
+    call করে না। Scanner শুধু findings collect করে এবং একটা consolidated
+    audit directive JSON-এ লেখে। Auditor agent সেই directive থেকে validated
+    issues তৈরি করবে।
+    """
     title, body, labels = build_finding_issue(f, scan_type, agent_name)
-    gh_issue_create(title, body, labels)
+    # বাংলা (#3863): direct gh_issue_create disabled — Team Leader pattern.
+    # Instead: collect into report, let auditor agent verify + create.
+    _findings_report.append({
+        "scan_type": scan_type,
+        "agent_name": agent_name,
+        "title": title,
+        "body": body,
+        "labels": labels,
+        "file": f.get("file", ""),
+        "line": f.get("line", 0),
+        "snippet": f.get("snippet", ""),
+    })
+
+
+# বাংলা (#3863): global findings report — scanner collects here, doesn't create issues.
+_findings_report: list[dict] = []
+
+
+def get_findings_report() -> list[dict]:
+    """Return collected findings (Team Leader pattern — no direct issue creation)."""
+    return _findings_report
+
+
+def clear_findings_report() -> None:
+    """Clear the findings report (for next scan run)."""
+    _findings_report.clear()
+
+
+def write_findings_report(path: str = "/tmp/rules_breaker_findings.json") -> int:
+    """Write findings to JSON file for auditor agent to consume.
+
+    বাংলা (#3863): Scanner = Team Leader. সে নিজে issue create করে না।
+    সে শুধু findings report লেখে → auditor agent সেটা read করে →
+    validate করে → প্রয়োজনে issue create করে।
+    """
+    import json as _json
+    import os
+    if not _findings_report:
+        return 0
+    report = {
+        "scan_time": _json.dumps({"ts": str(__import__("datetime").datetime.utcnow())}),
+        "total_findings": len(_findings_report),
+        "findings": _findings_report,
+        "directive": (
+            "Scanner completed audit. Auditor agent: please review each finding, "
+            "filter false-positives (scanner's own regex patterns, test fixtures, "
+            "offline configs), and create a single consolidated issue per real "
+            "finding — not per raw regex match."
+        ),
+    }
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w") as fh:
+        _json.dump(report, fh, indent=2, ensure_ascii=False)
+    print(f"📋 Findings report written: {path} ({len(_findings_report)} findings)")
+    print(f"   Directive: auditor agent should review + create issues.")
+    return len(_findings_report)
 
 
 def run_scans(limit: int, agent_name: str) -> None:
     scanners = [
         ("secret-hardcoding", scan_secret_hardcoding),
         ("localhost-binding", scan_localhost_binding),
+        ("render-service-id", scan_render_service_ids),
         ("silent-failures", scan_silent_failures),
         ("test-manipulation", scan_test_manipulation),
         ("docs-garbage", scan_docs_garbage),
@@ -787,7 +950,9 @@ def run_scans(limit: int, agent_name: str) -> None:
                 print(f"\n🛑 Reached limit of {limit} issues. Stopping.")
                 return
 
-    print(f"\n✅ Scan complete. Total issues created: {total_findings}")
+    print(f"\n✅ Scan complete. Total findings collected: {total_findings}")
+    # বাংলা (#3863): write findings report — auditor agent will review + create issues.
+    write_findings_report()
 
 
 def main() -> int:
