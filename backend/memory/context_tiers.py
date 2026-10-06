@@ -40,6 +40,8 @@ __all__ = [
     "L0Context",
     "L1Context",
     "L2Context",
+    "RetrievalSourceTrace",
+    "RetrievalTrace",
     "ComposedContext",
     "compose_agent_context",
 ]
@@ -251,6 +253,72 @@ class L1Context:
 
 
 @dataclass
+class RetrievalSourceTrace:
+    """একটি store-এর retrieval trajectory — কনটেন্ট-মুক্ত (#4080)।
+
+    বাংলা: error_class শুধু ক্লাস-শনাক্তকারী (timeout/connect/unknown ইত্যাদি
+    exception TYPE-এর নাম), বার্তা নয় — exception-এর ভেতরের কনটেন্ট কখনো
+    trace-এ যায় না (privacy contract, verification #4)।
+    """
+
+    origin: str
+    available: bool = True
+    candidate_count: int = 0
+    error_class: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "origin": self.origin,
+            "available": self.available,
+            "candidate_count": self.candidate_count,
+            "error_class": self.error_class,
+        }
+
+
+@dataclass
+class RetrievalTrace:
+    """L2 retrieval provenance — কেন এই entries এই agent পেল (#4080)।
+
+    বাংলা: OpenViking-এর retrieval-trajectory নীতি — ভুল memory এলে অপারেটর
+    বলতে পারবেন সমস্যাটা retrieval-quality-র নাকি merge/dedup-এর নাকি budget-এর।
+
+    Privacy contract (issue §Governance):
+      * raw query নয় — শুধু sha256 prefix;
+      * raw memory body/prompt/secret কখনো নয় — শুধু rank/score/counts;
+      * tenant_id নয় — শুধু scope decision (allowed / fail_closed);
+      * degraded/error অবস্থা দৃশ্যমান, কিন্তু exception বার্তা নয়।
+    """
+
+    query_hash: str = ""  # sha256(query)[:16]
+    tenant_scope: str = "unknown"  # allowed | fail_closed_no_tenant | skipped_empty_query
+    sources: list[RetrievalSourceTrace] = field(default_factory=list)
+    candidates_before_merge: int = 0
+    dedup_removed: int = 0
+    selected: list[dict[str, Any]] = field(default_factory=list)  # {rank, origin, similarity}
+    pre_budget_tokens: int = 0
+    post_budget_tokens: int = 0
+    truncated: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "query_hash": self.query_hash,
+            "tenant_scope": self.tenant_scope,
+            "sources": [s.to_dict() for s in self.sources],
+            "candidates_before_merge": self.candidates_before_merge,
+            "dedup_removed": self.dedup_removed,
+            "selected": list(self.selected),
+            "pre_budget_tokens": self.pre_budget_tokens,
+            "post_budget_tokens": self.post_budget_tokens,
+            "truncated": self.truncated,
+        }
+
+
+def _error_class(exc: Exception) -> str:
+    """Exception TYPE নাম — বার্তা নয় (PII-safe provenance, #4080)।"""
+    return type(exc).__name__
+
+
+@dataclass
 class L2Context:
     """Retrieved experience tier — on-demand, similarity-ranked, tenant-scoped।
 
@@ -267,6 +335,8 @@ class L2Context:
     tenant_id: str | None = None
     degraded: bool = False
     skip_reason: str = ""
+    # বাংলা (#4080): provenance — কোন store থেকে কী এল, কে বাদ/নির্বাচিত।
+    trace: RetrievalTrace = field(default_factory=RetrievalTrace)
 
     @classmethod
     async def retrieve(
@@ -287,15 +357,30 @@ class L2Context:
         """
         # Policy Engine scope (acceptance #7): tenant ছাড়া L2 নেই।
         if not tenant_id:
-            return cls(tenant_id=None, skip_reason="no_tenant_scope")
+            trace = RetrievalTrace(
+                query_hash=hashlib.sha256(query.encode("utf-8")).hexdigest()[:16] if query else "",
+                tenant_scope="fail_closed_no_tenant",
+            )
+            return cls(tenant_id=None, skip_reason="no_tenant_scope", trace=trace)
 
         if not query or not query.strip():
-            return cls(tenant_id=tenant_id, skip_reason="empty_query")
+            return cls(
+                tenant_id=tenant_id,
+                skip_reason="empty_query",
+                trace=RetrievalTrace(query_hash="", tenant_scope="skipped_empty_query"),
+            )
+
+        # বাংলা (#4080): provenance trace — কনটেন্ট-মুক্ত, শুধু সিদ্ধান্ত-মেটাডেটা।
+        trace = RetrievalTrace(
+            query_hash=hashlib.sha256(query.encode("utf-8")).hexdigest()[:16],
+            tenant_scope="allowed",
+        )
 
         merged: list[dict[str, Any]] = []
         degraded = False
 
         # ── Experience DB (adaptive_engine) ─────────────────────────────
+        exp_source = RetrievalSourceTrace(origin="experience_db")
         if experience_db is None:
             try:
                 from adaptive_engine.experience_db import ExperienceDatabase
@@ -305,6 +390,8 @@ class L2Context:
                 logger.warning(f"[context_tiers] L2 experience_db unavailable: {exc}")
                 experience_db = None
                 degraded = True
+                exp_source.available = False
+                exp_source.error_class = _error_class(exc)
 
         if experience_db is not None:
             try:
@@ -316,11 +403,18 @@ class L2Context:
                     entry.setdefault("similarity", float(h.get("similarity", 0.0) or 0.0))
                     entry["origin"] = "experience_db"
                     merged.append(entry)
+                exp_source.candidate_count = len(hits or [])
             except Exception as exc:
                 degraded = True
-                logger.warning(f"[context_tiers] L2 experience_db query failed: {exc}")
+                exp_source.available = False
+                exp_source.error_class = _error_class(exc)
+                logger.warning(
+                    f"[context_tiers] L2 experience_db query failed: {_error_class(exc)}"
+                )
+        trace.sources.append(exp_source)
 
         # ── AI memory repository (core.ai_memory) ───────────────────────
+        mem_source = RetrievalSourceTrace(origin="ai_memory")
         if memory_repo is None:
             try:
                 from core.ai_memory.repository import get_memory_repository
@@ -330,6 +424,8 @@ class L2Context:
                 logger.warning(f"[context_tiers] L2 memory_repo unavailable: {exc}")
                 memory_repo = None
                 degraded = True
+                mem_source.available = False
+                mem_source.error_class = _error_class(exc)
 
         if memory_repo is not None:
             try:
@@ -343,9 +439,14 @@ class L2Context:
                     entry.setdefault("similarity", float(h.get("similarity", 0.0) or 0.0))
                     entry["origin"] = "ai_memory"
                     merged.append(entry)
+                mem_source.candidate_count = len(mem_hits or [])
             except Exception as exc:
                 degraded = True
-                logger.warning(f"[context_tiers] L2 memory_repo query failed: {exc}")
+                mem_source.available = False
+                mem_source.error_class = _error_class(exc)
+                logger.warning(f"[context_tiers] L2 memory_repo query failed: {_error_class(exc)}")
+        trace.sources.append(mem_source)
+        trace.candidates_before_merge = len(merged)
 
         # similarity-desc rank + dedup (content fingerprint)
         merged.sort(key=lambda e: e.get("similarity", 0.0), reverse=True)
@@ -354,16 +455,28 @@ class L2Context:
         for e in merged:
             key = str(e.get("id") or e.get("memory_id") or e.get("content", "")[:128])
             if key in seen:
+                trace.dedup_removed += 1
                 continue
             seen.add(key)
             deduped.append(e)
         deduped = deduped[:top_k]
+
+        # বাংলা (#4080): selection provenance — rank/origin/similarity, কনটেন্ট নয়।
+        for rank, e in enumerate(deduped, start=1):
+            trace.selected.append(
+                {
+                    "rank": rank,
+                    "origin": e.get("origin", "experience"),
+                    "similarity": round(float(e.get("similarity", 0.0) or 0.0), 4),
+                }
+            )
 
         return cls(
             entries=deduped,
             token_count=cls._entries_tokens(deduped),
             tenant_id=tenant_id,
             degraded=degraded,
+            trace=trace,
         )
 
     @staticmethod
@@ -407,7 +520,7 @@ class ComposedContext:
 
     def to_log_dict(self) -> dict[str, Any]:
         """PII-safe composition summary — কনটেন্ট নয়, শুধু counts (acceptance #8)।"""
-        return {
+        out: dict[str, Any] = {
             "event": "context_composition",
             "budget": self.budget,
             "total_tokens": self.total_tokens,
@@ -420,6 +533,11 @@ class ComposedContext:
             "l2_degraded": self.l2.degraded if self.l2 else False,
             "truncated": self.truncated,
         }
+        # বাংলা (#4080): retrieval provenance-ও composition log-এ যায় —
+        # একই PII-safe চুক্তি (hash/scope/counts, কোনো কনটেন্ট নয়)।
+        if self.l2 is not None:
+            out["l2_trace"] = self.l2.trace.to_dict()
+        return out
 
     def render(self) -> str:
         """সম্পূর্ণ tiered context — L0 → L1 → L2 ক্রমে।"""
@@ -493,9 +611,14 @@ async def compose_agent_context(
             experience_db=experience_db,
             memory_repo=memory_repo,
         )
+        # বাংলা (#4080): budget-এর আগে/পরে token সংখ্যা trace-এ সংরক্ষিত —
+        # "memory কাটা পড়ল" বনাম "retrieval-ই খারাপ" আলাদা করা যায়।
+        l2.trace.pre_budget_tokens = l2.token_count
         l2_tokens = min(l2.token_count, remaining)
         if l2.token_count > remaining:
             l2_truncated = True
+            l2.trace.truncated = True
+        l2.trace.post_budget_tokens = l2_tokens
 
     composed = ComposedContext(
         l0=l0,
