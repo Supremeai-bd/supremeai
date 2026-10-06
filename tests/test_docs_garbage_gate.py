@@ -68,8 +68,12 @@ def test_gate_allows_allowlisted_and_modified_files() -> None:
 
 def test_archive_and_index_artifacts_exist() -> None:
     # বাংলা মন্তব্য: prune-এর দুই প্রধান আর্টিফ্যাক্ট — আর্কাইভ ও একক ইনডেক্স।
-    archive = ROOT / "archives/legacy-docs-2026-09-28.tar.gz"
-    assert archive.exists() and archive.stat().st_size > 100_000, "লিগ্যাসি আর্কাইভ অনুপস্থিত"
+    # (#4089) আগে gitignore-হওয়া মেশিন-লোকাল -2026-09-28 আর্টিফ্যাক্ট পিন করত —
+    # fresh clone/CI-তে ফাইলই থাকত না → টেস্ট অচল। এখন ট্র্যাকড -2026-09-29
+    # টারবল (51,305 bytes @ HEAD) পিন + 40KB ফ্লোর — ট্র্যাকড আর্টিফ্যাক্টের
+    # নন-ট্রিভিয়াল অস্তিত্বই চুক্তি।
+    archive = ROOT / "archives/legacy-docs-2026-09-29.tar.gz"
+    assert archive.exists() and archive.stat().st_size > 40_000, "লিগ্যাসি আর্কাইভ অনুপস্থিত"
     index = ROOT / "docs/INDEX.md"
     assert index.exists(), "docs/INDEX.md অনুপস্থিত"
     canon = ROOT / "docs/plans/ARCH-LIVING-PIPELINE-01-IMPL.md"
