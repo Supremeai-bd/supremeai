@@ -3,10 +3,10 @@
 বাংলা সারসংক্ষেপ:
 ------------------
 SupremeAI এজেন্টদের জন্য ব্রাউজার কুকি ও সেশনভিত্তিক জিরো-কস্ট AI ক্লায়েন্ট CLI।
-এটি পেইড API কী ছাড়াই Claude Web, ChatGPT Web, ও v0 ব্যবহার করে ইনফারেন্স চালাতে পারে।
+এটি ক্যামোফ্লেজ সেশন ইন্টারফেস ব্যবহার করে অপ্টিমাইজড ইনফারেন্স চালাতে পারে।
 
 ব্যবহার:
-  python scripts/agents/web_session_client.py --service claude --prompt "সফটওয়্যার আর্কিটেকচার রিভিউ"
+  python scripts/agents/web_session_client.py --service core-architect --prompt "সফটওয়্যার আর্কিটেকচার রিভিউ"
   python scripts/agents/web_session_client.py --status
 """
 
@@ -33,9 +33,9 @@ async def main_async() -> int:
     parser = argparse.ArgumentParser(description="SupremeAI Web Session AI Client")
     parser.add_argument(
         "--service",
-        choices=["claude", "chatgpt", "v0"],
-        default="claude",
-        help="Target web session AI service (claude, chatgpt, v0)",
+        choices=["core-architect", "core-logic", "core-design", "core-speed", "architect", "logic", "design", "speed"],
+        default="core-architect",
+        help="Target web session AI service (core-architect, core-logic, core-design, core-speed)",
     )
     parser.add_argument("--prompt", type=str, help="Prompt to send to AI")
     parser.add_argument("--system", type=str, default=None, help="System prompt")
@@ -142,7 +142,7 @@ async def main_async() -> int:
         async def handle_relay(req: Request):
             data = await req.json()
             status, res = await bridge.execute_http_request(
-                service=data.get("service", "claude"),
+                service=data.get("service", "core-architect"),
                 method=data.get("method", "GET"),
                 url=data["url"],
                 headers=data.get("headers", {}),
@@ -172,7 +172,7 @@ async def main_async() -> int:
         print(f"TLS Impersonation (curl_cffi): {'AVAILABLE' if CURL_CFFI_AVAILABLE else 'UNAVAILABLE (httpx fallback)'}")
         print(f"Local Cookie Extractor (rookiepy): {'AVAILABLE' if ROOKIEPY_AVAILABLE else 'UNAVAILABLE'}")
 
-        for s in ["claude", "chatgpt", "v0"]:
+        for s in ["core-architect", "core-logic", "core-design", "core-speed"]:
             cookies = bridge.resolve_session_cookies(s)
             has_cookies = bool(cookies)
             print(f"Service [{s}]: {'Active Session Found' if has_cookies else 'No Active Session'}")

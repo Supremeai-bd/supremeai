@@ -725,3 +725,8 @@ supabase-ca.crt
 vault.env
 docs/master_docs/AGENT_HEARTBEAT_REGISTRY.json
 docs/master_docs/role_locks/
+
+# Local browser agent state (profiles, site config, task IPC)
+.browser_profile/
+.browser_tasks/
+

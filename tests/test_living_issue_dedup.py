@@ -113,7 +113,8 @@ class TestForceMultiplierTier:
         older_leaf = {"title": "fix(ui): padding", "labels": [{"name": "P1-high"}], "createdAt": "2026-01-01T00:00:00Z"}
         newer_weapon = {"title": "fix(ci): claim gate", "labels": [{"name": "P1-high"}], "createdAt": "2026-06-01T00:00:00Z"}
         queue = pq.build_queue([older_leaf, newer_weapon])
-        assert queue[0][2]["title"].startswith("fix(ci)")
+        # ৪-tuple contract (worker-engine merge): (rank, seq, createdAt, issue) → issue = row[3]
+        assert queue[0][3]["title"].startswith("fix(ci)")
 
 
 # --- AC-5 semantic: distinct signatures on same file are distinct fingerprints
