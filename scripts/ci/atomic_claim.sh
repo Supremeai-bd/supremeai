@@ -225,12 +225,34 @@ fi
 
 # ─── Sequential Integrity Check (Rule #26: GSPQ Contiguous Order) ───────
 echo "🚂 Checking sequential integrity for issue #$ISSUE_NUMBER..."
-if "$PYTHON_BIN" scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>/dev/null; then
+# #4110: stderr was discarded here (2>/dev/null) — a fail-closed gate error
+# (e.g. lag window hiding a LIVE issue → "not found or closed") surfaced as a
+# false "sequence violation", sending agents to misdiagnose GSPQ ordering or
+# burn --force. Now: capture stderr, surface the REAL gate reason, and give a
+# not-found verdict one lag-window retry (verify-claim's REST single-issue
+# fallback is the authoritative re-check) before failing.
+SEQ_GATE_ERR=$(mktemp)
+if "$PYTHON_BIN" scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>"$SEQ_GATE_ERR"; then
   echo "✅ Sequential constraint verified."
 else
-  echo "❌ Sequential constraint violation! You cannot claim out of sequence."
-  echo "Prior issue in group sequence must be claimed or completed first."
-  exit 1
+  SEQ_GATE_MSG=$(cat "$SEQ_GATE_ERR")
+  rm -f "$SEQ_GATE_ERR"
+  if printf '%s' "$SEQ_GATE_MSG" | grep -q "not found or closed"; then
+    echo "⏳ #4110: queue fetch could not see issue #$ISSUE_NUMBER (lag window) — one retry after 5s..."
+    sleep 5
+    if "$PYTHON_BIN" scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>/dev/null; then
+      echo "✅ Sequential constraint verified (post-retry, #4110)."
+    else
+      echo "❌ Sequential gate: issue #$ISSUE_NUMBER invisible to the queue fetch even after retry (REST-confirmed not-open)."
+      echo "Prior issue in group sequence must be claimed or completed first."
+      exit 1
+    fi
+  else
+    echo "❌ Sequential constraint violation! You cannot claim out of sequence."
+    printf '   gate reason: %s\n' "$SEQ_GATE_MSG"
+    echo "Prior issue in group sequence must be claimed or completed first."
+    exit 1
+  fi
 fi
 
 
