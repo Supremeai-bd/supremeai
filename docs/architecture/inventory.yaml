@@ -31,13 +31,15 @@ integrations:
   - name: browser_use
     file: backend/integrations/browser_use_adapter.py
     class: BrowserUseAdapter
-    tier: orphaned
-    status: audit_pending
+    tier: retired
+    status: retire_confirmed
     flag: SUPREMEAI_BROWSER_USE_ENABLED
     health_check: null
     fallback_chain: ["jina_reader", "firecrawl", "web_scraper"]
     owner_issue: 4044
-    notes: "Hypothesis: revive as governed browser provider. Escalation HTTP→Playwright→Browser Use."
+    audit_report: docs/architecture/audits/browser_use_audit.md
+    audit_decision: "RETIRE (deferred) — 2026-10-06. Native Playwright stack (15+ files) supersedes. Upstream browser_use dep not declared; import_available=False. Adapter runs zero-cost fallback only. File kept for fallback path + package API compat; upstream revive would duplicate + add heavy dep for zero gain."
+    notes: "Retired per audit #4044. Fallback (Jina/Firecrawl/WebScraper) still useful for scrape-only tasks."
 
   - name: openhands
     file: backend/integrations/openhands_adapter.py
