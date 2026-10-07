@@ -187,27 +187,40 @@ class TestCleanupSafety(unittest.TestCase):
         self.assertIsNone(extract_issue_number("develop"))
 
     @patch("scripts.ci.cleanup_stale_branches.get_issue_labels")
-    def test_safe_to_delete_when_no_preserve_labels(self, mock_labels):
-        """Branch is safe to delete when issue has no preserve labels."""
+    @patch("scripts.ci.cleanup_stale_branches.get_pr_merge_state")
+    def test_safe_to_delete_needs_labels_and_merge_proof(self, mock_pr, mock_labels):
+        """#4204 corrected contract: no preserve labels is NOT enough —
+        deletion additionally requires merged/completed proof."""
         mock_labels.return_value = {"P1-high", "status:in-progress"}
+        # proof unavailable (PR API fails) → fail-closed, preserve
+        mock_pr.return_value = None
+        self.assertFalse(is_branch_safe_to_delete("agent/4200-test", "fake-token"))
+        # merged PR proof present → safe
+        mock_pr.return_value = "merged"
         self.assertTrue(is_branch_safe_to_delete("agent/4200-test", "fake-token"))
 
     @patch("scripts.ci.cleanup_stale_branches.get_issue_labels")
-    def test_not_safe_to_delete_when_active(self, mock_labels):
+    @patch("scripts.ci.cleanup_stale_branches.get_pr_merge_state")
+    def test_not_safe_to_delete_when_active(self, mock_pr, mock_labels):
         """Branch is NOT safe to delete when issue has branch:active."""
         mock_labels.return_value = {"P1-high", "branch:active"}
+        mock_pr.return_value = "merged"
         self.assertFalse(is_branch_safe_to_delete("agent/4200-test", "fake-token"))
 
     @patch("scripts.ci.cleanup_stale_branches.get_issue_labels")
-    def test_not_safe_to_delete_when_paused(self, mock_labels):
+    @patch("scripts.ci.cleanup_stale_branches.get_pr_merge_state")
+    def test_not_safe_to_delete_when_paused(self, mock_pr, mock_labels):
         """Branch is NOT safe to delete when issue has branch:paused."""
         mock_labels.return_value = {"branch:paused"}
+        mock_pr.return_value = "merged"
         self.assertFalse(is_branch_safe_to_delete("coder-1-4200-test", "fake-token"))
 
     @patch("scripts.ci.cleanup_stale_branches.get_issue_labels")
-    def test_not_safe_to_delete_when_orphaned(self, mock_labels):
+    @patch("scripts.ci.cleanup_stale_branches.get_pr_merge_state")
+    def test_not_safe_to_delete_when_orphaned(self, mock_pr, mock_labels):
         """Branch is NOT safe to delete when issue has branch:orphaned."""
         mock_labels.return_value = {"branch:orphaned"}
+        mock_pr.return_value = "merged"
         self.assertFalse(is_branch_safe_to_delete("agent/4200-test", "fake-token"))
 
 
