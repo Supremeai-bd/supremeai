@@ -32,9 +32,9 @@
 
 **F3 — rules.yml-এর stale allowlist entry।** `docs_garbage_policy.allowed_patterns`-এ `docs/DOCUMENTATION_MASTER_INDEX.md` আছে — ফাইলটা অস্তিত্বহীন। গভর্নেন্স-কনফিগেই মৃত reference। → #4173
 
-**F4 — FRONTEND plan V1+V2 পাশাপাশি।** দুটোই ২০২৬-১০-০৬-এ #4149 (`9559081`) দিয়ে একসঙ্গে ঢুকেছে (V1: ৯৪৩ লাইন, V2: ১২৩২ লাইন)। V2-ই সক্রিয় execution-উৎস (theme-system v2 ফেজগুলো #4138/#4148); V1 সঙ্গে-সঙ্গে superseded। Conflict টাটকা অবস্থায় মেটানো সবচেয়ে সস্তা। → #4175
+**F4 — FRONTEND plan V1+V2 পাশাপাশি।** দুটোই ২০২৬-১০-০৬-এ main-এ ঢুকেছে (V1: ৯৪৩ লাইন, V2: ১২৩২ লাইন) — **কিন্তু কোনো PR-দিয়ে নয়**: সরাসরি main-push `9e4d9df` (১৬:০৯:২০Z, V1) আর `889da16` (১৬:৩১:৫৯Z, V2), committer `Vibe Nuage Agent / mistral-vibe` — bot-fleet-এর বাইরে, সব gate-এর বাইরে (GitHub API commits?path= প্রমাণ; #4140/#4149-এর CI log-এ gate সঠিকভাবেই "0 new docs" দেখেছে, কারণ docs তখন base-এ ছিল)। V2-ই সক্রিয় execution-উৎস (theme-system v2 ফেজগুলো #4138/#4148); V1 সঙ্গে-সঙ্গে superseded। Conflict টাটকা অবস্থায় মেটানো সবচেয়ে সস্তা। → #4175, #4176
 
-**F5 — docs_garbage gate নতুন non-allowlisted root docs আটকায়নি।** allowlist-এ না থেকেও F4-এর দুটি ফাইল gate পার হয়ে গেছে — ফাঁক (gap) নাকি অনুমোদিত ব্যতিক্রম, কিছুই রেকর্ডে নেই। Phase 4 (প্রতিরোধ)-এর ভিত্তি এই প্রশ্নের উত্তরের ওপর দাঁড়াবে। → #4176
+**F5 — main-এ direct-push হলে কোনো gate-ই চলে না (gate নিজে ঠিক ছিল)।** প্রাথমিক অনুমান ছিল "docs_garbage gate ফাঁক দিয়ে গেছে" — CI-log ফরেনসিক বলছে ভিন্ন কথা: gate wired আছে (`constitution.gates all`, pr.yml) এবং #4140/#4149-এর run-এ সঠিকভাবেই `[PASSED] Docs Garbage Guard: 0 new docs/*.md` বলেছে (docs তখন base-এ ছিল)। আসল ফাঁক: **বর্তমান সুরক্ষা-মডেল PR-path-only — main-এ সরাসরি push (যেমন F4-এর দুটি commit) কোনো gate-ই দেখে না।** Phase 4-এর ভিত্তি: tree-level sweep + branch-protection + disclosure-প্রোটোকল। → #4176
 
 **F6 — "Similar-problem sweep" নিয়মের অনুপস্থিতি।** `AGENT_RULES.md`-এ U1–U8 + P1–P6 আছে; P6 বলে ঠিক-করার সময় root-cause-class বন্ধ করতে, কিন্তু কেউ বাধ্য করে না আগে **class-টা আবিষ্কার** করতে। সাম্প্রতিক প্রমাণ: `ecosystem_scout/dedup.py`-র exact duplicate অলক্ষিত শিপ হয়েছিল (#4157)। → #4174
 
@@ -61,7 +61,7 @@
 
 | # | দলিল | Status | ব্যবস্থা (archive-only) |
 |---|-------|--------|------------------------|
-| 1 | `docs/FRONTEND_DASHBOARD_MASTER_PLAN.md` (V1) | 🟠 Superseded | unique অংশ (budget/deliverables) V2-তে extract → `docs/archive/`-এ সরানো + `superseded_by: V2` হেডার। #4149-এর লেখক/প্রশাসকের সঙ্গে অভিপ্রায় নিশ্চিত করা বাধ্যতামূলক। |
+| 1 | `docs/FRONTEND_DASHBOARD_MASTER_PLAN.md` (V1) | 🟠 Superseded | unique অংশ (budget/deliverables) V2-তে আছেই (যাচাইকৃত: V2 L1103/L1126) → `docs/archive/`-এ সরানো + `superseded_by: V2` হেডার। Provenance: direct-push `9e4d9df`, committer `Vibe Nuage Agent / mistral-vibe` — অভিপ্রায়-নিশ্চিতকরণ #4175-এ নোটেড। |
 | 2 | `docs/FRONTEND_DASHBOARD_MASTER_PLAN_V2.md` | 🟢 Active | রাখা — executed source। প্রশাসক-সিদ্ধান্ত: docs-root না `master_docs/FRONTEND-01`-এর পাশে। |
 | 3 | `docs/ROADMAP.md` | 🟢 Active | রাখা — live priority roadmap, INDEX-এ টুলিং-সংযুক্ত। |
 | 4 | `docs/plans/architecture/SUPREMEAI_REPOSITORY_SEPARATION_AND_EVOLUTION_ROADMAP.md` | 🟢 Active-aligned | INDEX-এ register + metadata header + ARCH-05-এর সঙ্গে সম্পর্ক। |
@@ -100,7 +100,7 @@
 
 ## ৮. ঝুঁকি ও সতর্কতা
 
-1. **V1/V2 টাটকা** — গতকালই ঢুকেছে; হয়তো ইচ্ছাকৃত। তাই V1 archive-এর আগে #4149-এর অভিপ্রায় comment-এ জেনে নিতে হবে।
+1. **V1/V2 টাটকা ও PR-বহির্ভূত** — গতকাল সরাসরি main-এ এসেছে (committer `Vibe Nuage Agent / mistral-vibe`); হয়তো প্রশাসক-অনুমোদিত টুলিং। Archive-only নীতিতে কিছু হারায় না; তবে direct-push চ্যানেল নিজেই একটি governance-ঝুঁকি (#4176)।
 2. **rules.yml স্পর্শ** — governance-সংবেদনশীল; শুধু stale লাইন; scope-gate-এ shared-identity হলে disjoint-boundary justification।
 3. **ROADMAP v1.2-এর Feature-vs-Refactor lock** — doc-cleanup architecture-branch নয়, নিরাপদ; তবু Phase-3 চলাকালীন নতুন planning-branch না খোলাই ভালো।
 4. **বট-access অবস্থা** — এই রাউন্ডে দেখা গেছে পুরনো slots-এর অনেকগুলোর repo-permission নেই (probe দিয়ে নিশ্চিত); loop-নির্ভর automation আসলে কোন slot দিয়ে চলছে সেটা প্রশাসকের দৃষ্টিতে রাখা উচিত।
