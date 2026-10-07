@@ -21,7 +21,7 @@ Every agent runs the same 8-step cycle (Roadmap v2.0 Phase 1, #4143). The dispat
 | 5. Work | Smallest safe change inside declared scope | role contract from `role_registry.get_role_contract()` |
 | 6. Verify | 3-tier: reflection → boot smoke → tests | issue's Verification Contract |
 | 7. Record | PR with full template + Test Evidence (+ meaningful decision note) | REST PR create |
-| 8. Return | Report outcome, release claim, loop back | `continue_loop.py` |
+| 8. Return | Report outcome **with fresh-board re-check** (#4177), release claim, loop back | `continue_loop.py` + `gh pr list`/`next_claimable.sh` re-poll |
 
 Hard boundaries during the loop: gates outrank agent preference (§1.4) · scoped credentials only (`credential_manager` — master vault keys never reach children) · single-vs-multi execution follows Rule B (`role_registry.plan_task_execution()` — advisory).
 
@@ -47,11 +47,14 @@ READ ENTRYPOINT
   → VERIFY (tests + gates + evidence)
   → RECORD EVIDENCE + DECISION LEDGER
   → PR / HANDOFF (only AFTER claim is posted)
+  → BOARD-FRESHNESS RE-CHECK (#4177 — re-poll open PRs + queue before declaring done)
   → CLEAN EXIT (release locks, stop heartbeat, trim worklog)
   → RERUN continue_loop.py (next task immediately — no sleep, per Rule 5)
 ```
 
 Never invent a parallel workflow. The task contract is the common envelope for every model and role.
+
+**Board-freshness rule (#4177):** the snapshot taken at task-start is not the whole mission. Work often takes long enough for new PRs/issues to arrive mid-flight — a completion declaration made against the start-time snapshot silently drops them. Before declaring any task, batch or founder-directed mission "done", re-poll the board and report the fresh snapshot; handle new arrivals or explicitly list them as outstanding (per [`AGENT_RULES.md`](./AGENT_RULES.md) U5/U7/U8).
 
 **Critical ordering:** `atomic_claim.sh` must run **BEFORE** `gh pr create`. A PR opened without a prior claim will be auto-closed by the Claim Gate (#2644, #2892). The claim comment on the issue is the evidence the gate checks — it must exist before CI runs.
 
