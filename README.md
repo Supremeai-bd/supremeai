@@ -229,7 +229,7 @@ To adhere to SupremeAI's **Free-Tier First (Zero-Cost)** invariant while maximiz
 
 | Continuous Tool | Purpose & Integration Point | Real-World SupremeAI Usage |
 |---|---|---|
-| **⏳ [Git History](https://github.githistory.xyz/SaifulHaqueNiloy/supremeai/blob/main/AGENTS.md)** | **Interactive Time-Machine** · Visualizes git file evolution and commit playback | Inspect how our [Universal Constitution (AGENTS.md)](https://github.githistory.xyz/SaifulHaqueNiloy/supremeai/blob/main/AGENTS.md) and [Master Plan](https://github.githistory.xyz/SaifulHaqueNiloy/supremeai/blob/main/docs/plans/architecture/SUPREMEAI_MASTER_PLAN_CANONICAL.md) evolved over time. |
+| **⏳ [Git History](https://github.githistory.xyz/SaifulHaqueNiloy/supremeai/blob/main/AGENTS.md)** | **Interactive Time-Machine** · Visualizes git file evolution and commit playback | Inspect how our [Universal Constitution (AGENTS.md)](https://github.githistory.xyz/SaifulHaqueNiloy/supremeai/blob/main/AGENTS.md) and [Master Roadmap (docs/ROADMAP.md)](https://github.githistory.xyz/SaifulHaqueNiloy/supremeai/blob/main/docs/ROADMAP.md) evolved over time. |
 | **⚡ [Raw.Githack](https://raw.githack.com/)** | **Zero-Cost HTML CDN** · Serves static web pages directly from git with correct MIME headers | Exposes Pytest HTML coverage (`htmlcov/index.html`) and regression test suites directly to PR reviewers without standing web servers. |
 | **🌐 [jsDelivr](https://www.jsdelivr.com/)** | **Enterprise Multi-CDN** · Global edge caching for release-tagged repository assets | High-speed, permanent delivery of documentation diagrams, badges, and zero-cost client-side AI widget script distributions. |
 
@@ -237,7 +237,7 @@ To adhere to SupremeAI's **Free-Tier First (Zero-Cost)** invariant while maximiz
 
 # The Road to Production — One-Man-Army Master Plan
 
-The full strategy lives in [`docs/plans/architecture/SUPREMEAI_MASTER_PLAN_CANONICAL.md`](docs/plans/architecture/SUPREMEAI_MASTER_PLAN_CANONICAL.md). Its shape in one table:
+The full strategy lives in [`docs/ROADMAP.md`](docs/ROADMAP.md) (live priority roadmap, evidence-gated phases) and [`docs/master_docs/ARCH-05-MASTER_ROADMAP_AND_DECISIONS.md`](docs/master_docs/ARCH-05-MASTER_ROADMAP_AND_DECISIONS.md) (decision-history log). Its shape in one table:
 
 > **A frontier model shipped as a bare API loses to a governed system on any field where the SYSTEM is the product.** SupremeAI competes where machinery — not parameter count — decides the winner.
 
@@ -729,13 +729,14 @@ They are **architectural intent** and, where implementation already exists, evid
 
 Important examples include:
 
-- `docs/plans/UNIFIED_NEXT_ROADMAP_2026-09-15.md` — the active operational execution roadmap (M0–M9).
-- `docs/plans/UNIFIED_ECOSYSTEM_ARCHITECTURE_PLAN.md` — archived; canonical baseline is now `docs/plans/architecture/SUPREMEAI_MASTER_PLAN_CANONICAL.md`.
-- `MASTER_PLAN.md` — the one-man-army master plan from current stage to production (vision, battlefields, phase gates).
+- `docs/ROADMAP.md` — the live priority roadmap (Execution Contract: Evidence → Verification Gate → DoD → Rollback per phase).
+- `docs/master_docs/ARCH-05-MASTER_ROADMAP_AND_DECISIONS.md` — the architecture decision-history log.
+- `docs/plans/ARCH-LIVING-PIPELINE-01-IMPL.md` — AGENTS.md §12 canon-spec implementation roadmap.
+- `docs/plans/architecture/SUPREMEAI_REPOSITORY_SEPARATION_AND_EVOLUTION_ROADMAP.md` — repository separation, privacy & self-evolution roadmap.
+- `docs/FRONTEND_DASHBOARD_MASTER_PLAN_V2.md` — active frontend/dashboard master plan (v2.0).
 - `specs/001-dynamic-production-configuration/` — deployment-agnostic configuration specification (spec-kit workflow).
 - `specs/002-policy-driven-web-crawler/` — governed, policy-driven web crawler specification.
-- `docs/plans/UNIVERSAL_ZERO_COMPLEXITY_INTERFACE_PLAN.md` — the one-URL connect / universal manage model.
-- `docs/architecture/HUMAN_BEHAVIOR_ALIGNMENT_AND_CONTINUOUS_LEARNING.md` — behavioral intelligence and own-model training strategy.
+- `docs/archive/` + `archives/legacy-docs-2026-09-28.tar.gz` — historical plans (superseded; recover via `tar -xzf` or `git log --follow`).
 - `AGENTS.md` — universal operating & governance constitution (consolidated single source of truth).
 
 > বাংলা নোট: রোডম্যাপ ও সাম্প্রতিক সিদ্ধান্তের সারসংক্ষেপ `docs/plans/ROADMAP_ECOSYSTEM_ARCHITECTURE_BN.md`-এ সংরক্ষিত আছে।
