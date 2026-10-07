@@ -569,6 +569,7 @@ docs_garbage_policy:
     - "docs/SECRETS_OPERATIONS.md"
     - "docs/SKIPPED_TESTS.md"
     - "docs/CAPABILITY_INVENTORY.md"
+    - "docs/PRODUCTION_CERTIFICATION.md"   # #4167 — production certification runbook (coder-lane)
 
 predecessor_policy:
   group_dependencies:
