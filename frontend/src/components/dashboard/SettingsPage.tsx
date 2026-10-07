@@ -11,6 +11,8 @@ import {
 } from '../../types/contracts/execution-mode';
 // বাংলা মন্তব্য: বাহিরের মডেল নামের বদলে SupremeAI ব্র্যান্ডেড নাম + ক্যানোনিক্যাল মডেল লিস্ট
 import { getSupremeModelLabel, SUPREME_AVAILABLE_MODELS } from '../../lib/modelBranding';
+// (#4138 Phase 1): Theme-টাইপ SSOT থেকে — props-এ হার্ডকোড 4-union আর নয়।
+import type { Theme } from '../../contexts/ThemeConstants';
 
 interface Preferences {
   theme: string;
@@ -33,8 +35,10 @@ const MODELS = SUPREME_AVAILABLE_MODELS;
 interface SettingsPageProps {
   /* RESTORE-AND-WIRE (2026-09-14): widened to the app's full Theme union
      (contexts/ThemeConstants.ts) so the page can be routed from App.tsx; the
-     dark/light toggles below still key off 'dark' exactly as before. */
-  theme: 'dark' | 'light' | 'sunset' | 'matrix';
+     dark/light toggles below still key off 'dark' exactly as before.
+     (#4138 Phase 1): union আর হার্ডকোড 4-টি নয় — Theme (8) SSOT থেকে; নতুন
+     থিম যোগ হলে এই পেজ নীরবে ভাঙবে না। */
+  theme: Theme;
   toggleTheme: () => void;
 }
 

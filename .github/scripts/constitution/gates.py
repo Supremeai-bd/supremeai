@@ -129,7 +129,6 @@ DEFAULT_DOCS_GARBAGE_POLICY = {
         "docs/governance/**",
         "docs/INDEX.md",
         "docs/ROADMAP.md",
-        "docs/DOCUMENTATION_MASTER_INDEX.md",
         "docs/SECRETS_OPERATIONS.md",
         "docs/SKIPPED_TESTS.md",
         "docs/CAPABILITY_INVENTORY.md",

@@ -45,7 +45,9 @@ def _get_redis_client():
         url = settings.redis_url
         if not url:
             raise RuntimeError("REDIS_URL is not set in settings. Fail-Fast!")
-        return aioredis.from_url(str(url), decode_responses=True)
+        # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+        from core.cache.redis_manager import redis_manager
+        return redis_manager.get_managed_client_sync()
     except ImportError as e:
         raise RuntimeError("redis.asyncio is required but not installed.") from e
 

@@ -83,7 +83,9 @@ class OptimizedRedisClient:
                         socket_timeout=float(os.getenv("REDIS_SOCKET_TIMEOUT", "5")),
                         health_check_interval=30,
                     )
-                    self.client = aioredis.Redis(connection_pool=self.pool)
+                    # বাংলা (#4169): direct Redis() নিষিদ্ধ — SecureRedisManager দিয়ে
+                    from core.cache.redis_manager import redis_manager
+                    self.client = redis_manager.get_managed_client_sync()
                     # Ping to verify
                     await self.client.ping()
                     self.circuit_breaker.record_success()

@@ -73,15 +73,18 @@ def test_initialize_redis_no_url(monkeypatch):
 
 
 def test_initialize_redis_success(monkeypatch, redis_client):
-    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")  # is_local()
-    with patch("redis.from_url", return_value=redis_client):
+    # বাংলা (#4169): intelligent_cache now uses redis_manager.get_managed_client_sync()
+    # instead of redis.from_url(). Mock redis_manager instead.
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    with patch("core.cache.redis_manager.redis_manager.get_managed_client_sync", return_value=redis_client):
         cache = IntelligentCache(config=CacheConfig(enabled=True))
         assert cache._redis_client is redis_client
 
 
 def test_initialize_redis_failure(monkeypatch):
-    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")  # is_local()
-    with patch("redis.from_url", side_effect=ConnectionError("boom")):
+    # বাংলা (#4169): when redis_manager returns None, cache falls back to None
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    with patch("core.cache.redis_manager.redis_manager.get_managed_client_sync", return_value=None):
         cache = IntelligentCache(config=CacheConfig(enabled=True))
     assert cache._redis_client is None
 

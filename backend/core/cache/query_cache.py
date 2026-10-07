@@ -84,16 +84,17 @@ class QueryCache:
         """Get or create Redis connection with lazy initialization."""
         if not self._redis:
             try:
-                self._redis = aioredis.from_url(
-                    self.redis_url,
-                    decode_responses=True,
-                    socket_timeout=2,
-                    socket_connect_timeout=2,
-                    retry_on_timeout=False,
-                )
+                # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+                from core.cache.redis_manager import redis_manager
+                self._redis = redis_manager.get_managed_client_sync()
                 # Test connection
-                await self._redis.ping()
-                logger.info("✅ Redis cache connected successfully")
+                if self._redis:
+                    await self._redis.ping()
+                    logger.info("✅ Redis cache connected successfully")
+                else:
+                    # বাংলা (#4169): redis_manager returned None (quota breaker open)
+                    logger.warning("⚠️ Redis manager returned None — caching disabled")
+                    self.enabled = False
             except (RedisError, OSError) as e:
                 logger.warning(f"⚠️ Redis unavailable, caching disabled: {e}")
                 self._redis = None

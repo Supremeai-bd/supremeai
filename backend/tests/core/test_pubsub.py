@@ -99,11 +99,10 @@ async def test_pubsub_lazy_initialization():
     # _redis should be None initially (lazy init)
     assert pubsub._redis is None
 
-    # Only when accessing redis property should connection be attempted
+    # বাংলা (#4169): swarm_pubsub now uses redis_manager.get_managed_client_sync()
+    # instead of aioredis.from_url(). Mock redis_manager instead.
     mock_redis = AsyncMock()
-    with patch("core.swarm_pubsub.aioredis.from_url", return_value=mock_redis):
-        with patch("core.config.settings") as mock_settings:
-            mock_settings.redis_url = "redis://<your-redis-url>"
-            pubsub._redis = None
-            _ = pubsub._get_redis()
-            assert pubsub._redis is mock_redis
+    with patch("core.cache.redis_manager.redis_manager.get_managed_client_sync", return_value=mock_redis):
+        pubsub._redis = None
+        _ = pubsub._get_redis()
+        assert pubsub._redis is mock_redis

@@ -10,6 +10,7 @@ import { UnifiedAppShell } from '../shell/UnifiedAppShell';
 import { CommandBar } from './CommandBar';
 import { MobilePreviewPanel } from '../common/MobilePreviewPanel';
 import { useMobilePreview, setupMobilePreviewKeyboard } from '../../hooks/useMobilePreview';
+import { LiveBackground } from '../visual/LiveBackground';
 
 /**
  * Keep the default viewer shell boring and predictable. Feature-specific docks,
@@ -28,7 +29,10 @@ export function WorkspaceLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <UnifiedAppShell context="user">
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      {/* (#4138 Phase 1): কর্মক্ষেত্রের পেছনে ফিকে জীবন্ত স্তর — workspace-ভ্যারিয়েন্ট
+          (শুধু দুটি ধীর অরব, কণা নেই) যাতে ঘন ড্যাশবোর্ডের পাঠযোগ্যতা অটুট থাকে। */}
+      <LiveBackground variant="workspace" />
+      <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
         {children}
       </main>
       {/* RESTORE-AND-WIRE (2026-09-14): universal Ctrl+K command palette restored.

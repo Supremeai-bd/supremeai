@@ -151,7 +151,9 @@ class SelfEvolutionAgent:
                 redis_url = os.environ.get("REDIS_URL", None)
             if not redis_url or "<your-redis-url>" in str(redis_url):
                 raise RuntimeError("Redis URL not configured — self-evolution lock UNAVAILABLE")
-            self._redis = aioredis.from_url(redis_url, decode_responses=True)
+            # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+            from core.cache.redis_manager import redis_manager
+            self._redis = redis_manager.get_managed_client_sync()
         return self._redis
 
     async def _acquire_lock(self) -> bool:

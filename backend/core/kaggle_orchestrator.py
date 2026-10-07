@@ -327,7 +327,9 @@ class KaggleOrchestrator:
             logger.warning("KaggleOrchestrator initialized without Redis URL. Queue will not work.")
             self.redis_client = None
         else:
-            self.redis_client = redis.from_url(redis_url, decode_responses=True)
+            # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+            from core.cache.redis_manager import redis_manager
+            self.redis_client = redis_manager.get_managed_client_sync()
 
         self.accounts = {acc.account_id: acc for acc in accounts}
         timeout_val = float(os.getenv("KAGGLE_TASK_TIMEOUT", "300.0"))

@@ -31,7 +31,7 @@
 |---|---|
 | `docs/agents/` | শুধু `heartbeat-integration.md` — `check_slot_registry_drift.py`-এর মেশিন-সংযুক্ত SSOT টেবিল (রুল-ডকগুলো #2841-তে অবসর নিয়েছে) |
 | `docs/architecture/` | `ARCH-LIVING-PIPELINE-01.md` — AGENTS.md §12-এর canon spec |
-| `docs/plans/` | শুধু `ARCH-LIVING-PIPELINE-01-IMPL.md` (AGENTS.md §12 roadmap) + `lint_plans.py`-এর live target |
+| `docs/plans/` | `ARCH-LIVING-PIPELINE-01-IMPL.md` (AGENTS.md §12 roadmap) + `architecture/SUPREMEAI_REPOSITORY_SEPARATION_AND_EVOLUTION_ROADMAP.md` (separation/evolution) + `lint_plans.py`-এর live target |
 | `docs/governance/` | গভর্নেন্স টুলিং-সংযুক্ত |
 | `docs/audit_reports/`, `docs/audits/` | `sync_modules_list.py`, `audit_module_wiring.py`, `sync_operational_truth.py`-এর write-target — পরবর্তী per-file ref-audit স্লাইসে prune হবে |
 | `docs/reference/`, `docs/security/`, `docs/operations/`, ... | per-file ref-audit বাকি — ধাপে ধাপে মিনিমাইজ হবে |
@@ -44,6 +44,7 @@
 | `ROADMAP.md` | লাইভ প্রায়োরিটি রোডম্যাপ |
 | `SKIPPED_TESTS.md` | টেস্ট স্কিপ রেজিস্ট্রি (Test Guard-এর সঙ্গী) |
 | `CAPABILITY_INVENTORY.md` | সক্ষমতা ইনভেন্টরি |
+| `master_docs/PRODUCTION_CERTIFICATION.md` | Production certification gate রানবুক — GO/CONDITIONAL/NO-GO শর্ত (#4167) |
 | `governance/DOCUMENTATION_MIGRATION_PLAN.md` | মাস্টার ডকুমেন্টেশন অডিট, এক্সটার্নাল মাইগ্রেশন ও রিটেনশন প্ল্যান |
 
 ## ৪. Archive & Recovery

@@ -1743,6 +1743,13 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         description="Auto-classified by CI drift remediation (P5) — heuristic default, needs manual review.",
     ),
     ConfigSpec(
+        "REDIS_DAILY_LIMIT",
+        frozenset({ConfigClass.PUBLIC, ConfigClass.CONDITIONAL}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description="Redis daily command budget — Upstash free tier quota guard (#4156). Default: 9000/day = 270000/month (within 500k limit). Set 0 to disable.",
+    ),
+    ConfigSpec(
         "REDIS_TOKEN",
         frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
         frozenset({ConfigSource.VAULT, ConfigSource.ENV}),
