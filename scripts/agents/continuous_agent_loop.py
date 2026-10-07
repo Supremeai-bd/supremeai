@@ -1154,12 +1154,13 @@ PERSISTENT_BRANCH_PREFIX = "agent/"
 
 
 def persistent_branch_enabled() -> bool:
-    """#4200 wiring flag — default OFF (legacy flow)।
+    """#4200 wiring flag — default ON (#4200 adoption per admin decision)।
 
-    বাংলা: flag-বিহীন চলা মানে পুরনো ধারা; flag ON মানে persistent-branch
-    লাইফসাইকেল (#4200)। ফ্লিপ-সিদ্ধান্ত admin-এর (issue rollback path)।
+    বাংলা: flag-বিহীন চলা মানে persistent-branch লাইফসাইকেল (#4200);
+    SUPREMEAI_PERSISTENT_BRANCH=0 দিলে legacy flow-তে চলবে (revert-safe)।
     """
-    return os.environ.get(PERSISTENT_BRANCH_ENV, "").strip().lower() in ("1", "true", "yes", "on")
+    val = os.environ.get(PERSISTENT_BRANCH_ENV, "1").strip().lower()
+    return val not in ("0", "false", "no", "off")
 
 
 def _issue_slug(title: str, max_len: int = 40) -> str:
