@@ -197,51 +197,44 @@ customer_ux:
 
 constitution:
   name: "SupremeAI — AGENTS.md (Universal Operating Constitution & Agent Bootstrap — Unified v3.1)"
-  rules_version: "3.1"
+  rules_version: "3.2"
   model: "kite-and-spool"
   philosophy_quote: "যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।"
   philosophy_line: "Agent-কে ঘুড়ির মতো স্বাধীনভাবে উড়তে দাও; কিন্তু নাটাই সবসময় SupremeAI Admin / Control Plane-এর হাতে থাকবে।"
 
 living_protocols:
-  shared_group_branch:
-    title: "1. Shared Group Branch & Sequential Agent Collaboration (শেয়ার্ড গ্রুপ ব্রাঞ্চ ও সিকোয়েনশিয়াল এজেন্ট কোলাবোরেশন)"
-    rule: "একই গ্রুপের (`group:<name>`) একাধিক ইস্যুতে ক্রমানুসারে একাধিক এজেন্ট কাজ করতে পারবে। তবে কঠোর নিয়ম: ১ম ইস্যুর কাজ সম্পূর্ণ শেষ হওয়ার পর ২য় ইস্যুর কাজ শুরু হবে। ১ম এজেন্ট কাজ শেষ করে সরাসরি শেয়ার্ড গ্রুপ ব্রাঞ্চে (`group/<name>`) পুশ করবে (মাঝপথে কোনো পৃথক PR তৈরি করবে না)। ২য় এজেন্ট পূর্ববর্তী এজেন্টের কাজ শেষ হওয়া সেই একই গ্রুপ ব্রাঞ্চটি পুল করে পরবর্তী ইস্যুর কাজ চালিয়ে যাবে। সম্পূর্ণ গ্রুপের সব ইস্যুর কাজ শেষ হলেই কেবল ১টি সমন্বিত একক PR তৈরি হবে।"
+  # ── #4205 (admin-approved 2026-10-08): legacy group-branch lifecycle retired —
+  # shared_group_branch / group_single_pr / group_closeout_harvest / mandatory_pr_push
+  # (as branch-lifecycle law) / control_tower_heartbeat (as branch-ownership) REMOVED;
+  # canonical #4200 persistent-branch lifecycle encoded below (persistent_branch_lifecycle).
   atomic_claim:
-    title: "2. Atomic Claim Lock & File Declaration"
+    title: "1. Atomic Claim Lock & File Declaration"
     rule: "গ্রুপ সিকোয়েন্সের (GSPQ) প্রথম আনক্লেইমড ইস্যুটি ক্লেইম করো (`atomic_claim.sh`)। ক্লেইম কমেন্টে 'Touching files: file1, file2' ঘোষণা করো। নো ক্লেইম, নো কোড।"
   verify_first:
-    title: "3. Verify First (3-Tier Verification)"
+    title: "2. Verify First (3-Tier Verification)"
     rule: "অনুমানে ফাইল ডিলিট বা এডিট নিষিদ্ধ। পরিবর্তনের আগে ও পরে ৩ স্তর যাচাই আবশ্যক: (১) Reflection check (grep), (২) Boot smoke test (python -c 'import main'), (৩) Pytest। টেস্ট ম্যানিপুলেশন (delete/skip/fake assertion) কঠোরভাবে নিষিদ্ধ।"
-  group_single_pr:
-    title: "4. Full Group Unified PR & Scope (সম্পূর্ণ গ্রুপের একক PR ও সমন্বিত স্কোপ)"
-    rule: "প্রতিটি ইস্যুতে সর্বোচ্চ ১–২ ফাইলের কৃত্রিম বাধ্যবাধকতা রহিত করা হলো। সম্পূর্ণ গ্রুপের সমস্ত সিকোয়েনশিয়াল ইস্যু মিলে কেবল ১টি সমন্বিত গ্রুপ PR (Full Group = 1 PR) তৈরি হবে। গ্রুপের প্রতিটি এজেন্ট ক্লেইমের সময় নিজের ইস্যুর ফাইল ঘোষণা করবে এবং গ্রুপ শেষে সম্পূর্ণ গ্রুপ স্কোপ একত্রিতভাবে অডিট ও ভেরিফাই হবে। অঘোষিত স্কোপের বাইরে ড্রাইভ-বাই রিফ্যাক্টরিং নিষিদ্ধ থাকবে, তবে গ্রুপের বৈধ কাজের প্রয়োজনে ফাইলের সংখ্যা সীমিত রাখা হবে না।"
   has_pr_mandate:
-    title: "5. Mandatory 'has-pr' Label"
+    title: "3. Mandatory 'has-pr' Label"
     rule: "PR খোলার সাথে সাথেই gh issue edit <id> --add-label 'has-pr' চালাতে হবে। এটি ডুপ্লিকেট PR তৈরি হওয়া রুট থেকে বন্ধ করে।"
   automated_guard_and_solver:
-    title: "6. Automated CI Guard & Pure Solver Lane"
+    title: "4. Automated CI Guard & Pure Solver Lane"
     rule: "কোডারদের ম্যানুয়াল PR রিভিউ লেখার কোনো প্রয়োজন নেই — PR নিরাপত্তা, টেস্ট ও রিগ্রেশন স্বয়ংক্রিয় CI Gates (Lease, Verification, Scope, Collision) এবং PR Helper পরিচালনা করে। কোডার এজেন্টের ১০০% ফোকাস থাকবে ইস্যু সমাধান, ৩-স্তর যাচাই ও পরমাণু PR তৈরিতে।"
-  control_tower_heartbeat:
-    title: "7. Control Plane Heartbeat (MCP Fleet Presence)"
-    rule: "সেশনে কাজ শুরুর আগে এজেন্ট Control Tower-এ (mcp.json) হার্টবিট পাঠাবে (`python scripts/agents/mcp_tower_client.py heartbeat --slot agent-<N> --name <id>` বা MCP `agent_heartbeat` টুল)। এটি সেন্ট্রাল মেশে এজেন্টের উপস্থিতি ও লিজ সক্রিয় রাখে।"
-  group_closeout_harvest:
-    title: "8. Group Closeout Harvest & Benefit Gate (Zero Loss Invariant)"
-    rule: "সম্পূর্ণ গ্রুপের কাজ শেষ হলেই কেবল আসল চিত্র পরিষ্কার বোঝা যায়। তাই যেকোনো গ্রুপ সিকোয়েন্সের (GSPQ) সব কাজ শেষ হওয়ার পর শেষ ফেজটি হবে 'Capability Harvest & Benefit Audit'। দায়িত্বপ্রাপ্ত এক্সিকিউটর: Planner Agent / SuperAgent (Admin বা SupremeAI) অথবা PR Helper। পুরো গ্রুপের সমস্ত diff একসাথে অডিট করো: কাজের কোনো দরকারি লজিক বা ক্ষমতা কি হারিয়ে গেছে? যদি হ্যাঁ, তবে ক্যানোনিকাল মডিউলে তা রিকভার করো। জিরো ক্যাপাবিলিটি লস ও ১০১% বাস্তব লাভ নিশ্চিত হলে তবেই গ্রুপ PR মার্জ হবে এবং পরবর্তী গ্রুপ শুরু হবে।"
   group_issue_template_standard:
-    title: "9. Standard Group Issue Creation Protocol (পরবর্তী ইস্যু তৈরির নিয়ম)"
+    title: "5. Standard Group Issue Creation Protocol (পরবর্তী ইস্যু তৈরির নিয়ম)"
     rule: "ভবিষ্যতে যখনই নতুন গ্রুপ বা সিকোয়েন্স ইস্যু তৈরি করা হবে, তা অবশ্যই স্ট্যান্ডার্ড টেমপ্লেট (`scripts/ci/create_group_issue.py` বা GitHub issue form) অনুযায়ী তৈরি করতে হবে। প্রতিটি ইস্যুতে স্পষ্টভাবে থাকতে হবে: (১) Group ও Sequence ট্যাগ (`group:step-X`, `seq:Y`), (২) Predecessor নির্ভরতা, (৩) 'Touching files' ও পরমাণু ব্লাস্ট রেডিয়াস ঘোষণা, (৪) ৩-স্তর ভেরিফিকেশন নির্দেশাবলী, (৫) বাধ্যতামূলক বাংলা/বাংলিশ কোড কমেন্টস (`# বাংলা মন্তব্য:`), এবং (৬) স্পষ্ট স্ট্রেজিং নোটিশ: 'গ্রুপ সম্পূর্ণ শেষ হওয়ার পর ১টি একক PR হবে — মাঝপথে কোনো বিচ্ছিন্ন PR নয়'।"
   docs_issue_and_teledrive_backup:
-    title: "10. Issues as Live Operational Truth & TelDrive Backup (ডকুমেন্টেশন Issues-এ সংরক্ষণ ও TelDrive ব্যাকআপ নীতি)"
+    title: "6. Issues as Live Operational Truth & TelDrive Backup (ডকুমেন্টেশন Issues-এ সংরক্ষণ ও TelDrive ব্যাকআপ নীতি)"
     rule: "রিপোজিটরির ভেতরে নতুন কোনো বিচ্ছিন্ন .md ফাইল তৈরি করে ফাইল স্প্রল বা সাইজ বাড়ানো নিষিদ্ধ। এজেন্টের সমস্ত নতুন আর্কিটেকচারাল সিদ্ধান্ত, গাইড, প্ল্যান ও অপারেশনাল ট্রুথ সরাসরি সংশ্লিষ্ট GitHub Issue-তে কমেন্ট বা বডিতে যুক্ত করতে হবে (GitHub Issues as Live Operational Truth)। আর বিদ্যমান কোনো দীর্ঘ ডক্স বা রেফারেন্স ফাইল কোডবেসে না জমিয়ে সরাসরি TelDrive (টেলিগ্রাম ব্যাকআপ ক্লাউড)-এ সংরক্ষণ ও ব্যাকআপ করতে হবে। এর ফলে রিপোর সাইজ হালকা থাকবে এবং সমস্ত সিদ্ধান্ত ট্র্যাকেবল থাকবে।"
-  mandatory_pr_push:
-    title: "11. Mandatory Agent Push-as-PR Protocol (বাধ্যতামূলক PR পুশ)"
-    rule: "এজেন্ট কোনো কাজ শুধু লোকাল ব্রাঞ্চে ফেলে রাখতে পারবে না। কাজ শেষ হওয়ার সাথে সাথে: (১) রিমোট গ্রুপ ব্রাঞ্চে পুশ করতে হবে (`git push origin <group-branch>`), (২) স্বাধীন কাজের ক্ষেত্রে অবিলম্বে PR খুলবে এবং গ্রুপ কাজের ক্ষেত্রে সম্পূর্ণ গ্রুপ শেষ হলে একক সমন্বিত PR খোলা হবে, (৩) সাথে সাথে সংশ্লিষ্ট ইস্যুতে `gh issue edit <id> --add-label 'has-pr'` দিতে হবে। প্রতিটি কাজের অগ্রগতি GitHub-এ দৃশ্যমান ও অডিটেবল হতে হবে।"
+  # ── #4200/#4205 ক্যানোনিকাল লাইফসাইকেল (admin-approved 2026-10-08) ──
+  persistent_branch_lifecycle:
+    title: "7. Persistent Branch Lifecycle (পারসিস্টেন্ট ব্রাঞ্চ লাইফসাইকেল — #4200 ক্যানোনিকাল মডেল)"
+    rule: "ক্যানোনিকাল এজেন্ট-লাইফসাইকেল: Issue → Atomic Claim → Persistent Issue Branch (agent/<issue>-slug) → Checkpoint Commit/Push → এজেন্ট সেশন শেষ হলেও ব্রাঞ্চ টেকে → পরবর্তী এজেন্ট discover/resume করে → latest main-এর বিপরীতে verify → READY → PR → PR Gate → Merge Gate → Main Pipeline। ব্রাঞ্চ হলো টেকসই ওয়ার্কস্পেস, এজেন্ট হলো বদলে যাওয়া কর্মী, PR হলো integration artifact — lifecycle checkpoint নয়। চেকপয়েন্ট push বৈধ এবং PR ছাড়াই হবে; PR তৈরি হবে কেবল branch:ready ট্রানজিশনে। ব্রাঞ্চ state labels (branch:active/paused/orphaned/ready) সমন্বয়-সংকেত মাত্র — source of truth নয়; git branch existence, commit history ও issue linkage-ই কর্তৃত্বপূর্ণ। ব্রাঞ্চ cleanup/ডিলিশন কেবল fail-closed merged/completed-proof পথেই (scripts/ci/cleanup_stale_branches.py) করা যাবে।"
   unified_three_pipeline:
-    title: "12. Architecture Preservation & DRY 3-Pipeline Law (একক ৩-পাইপলাইন ও রিইউজিবিলিটি নীতি)"
+    title: "8. Architecture Preservation & DRY 3-Pipeline Law (একক ৩-পাইপলাইন ও রিইউজিবিলিটি নীতি)"
     rule: "সিস্টেমের বিদ্যমান আর্কিটেকচার যেমন আছে হুবহু তেমন অক্ষত ও অপরিবর্তিত থাকবে যদি না পরিবর্তন একান্তই অপরিহার্য (Preserve architecture intact until it is must)। সিআই/সিডি ফ্র্যাগমেন্টেশন ও ফাইল স্প্রল বন্ধ করে DRY (Don't Repeat Yourself) ও Reusable কাঠামোর ৩টি একক পাইপলাইন বলবৎ থাকবে: (১) PR-এ থাকবে ১টি গেট (PR Gate — স্কোপ, লিজ, ভেরিফিকেশন ও পলিসি গার্ড), (২) Merge Train-এ থাকবে ১টি (Train Gate — ব্যাচ রোলআপ, সিকোয়েন্স ও ডিপেন্ডেন্সি হোল্ড), এবং (৩) Main-এ মার্জের পর থাকবে ১টি (Main CI/CD — টেস্ট, বিল্ড, পোস্ট-মার্জ রিলিজ ও জানিটর)। ডুপ্লিকেট রান বা বিক্ষিপ্ত ট্রিগার সম্পূর্ণ নিষিদ্ধ।"
   strict_sequential_priority:
-    title: "13. Strict Sequential Priority Resolution (অগ্রাধিকার অনুযায়ী একক-PR ফিক্স ও মার্জ নীতি — সম্পূর্ণ বাস্তবভিত্তিক)"
-    rule: "গ্রুপ বা স্বাধীন যেকোনো কাজের ক্ষেত্রে সমান্তরাল একাধিক PR নিয়ে টানাটানি এবং মাঝপথে `queue:hold`-এ PR জমিয়ে রাখা সম্পূর্ণ নিষিদ্ধ। একই গ্রুপের সব ইস্যু একই গ্রুপ ব্রাঞ্চে ক্রমানুসারে একের পর এক এজেন্ট সম্পন্ন করে গ্রুপ শেষে মাত্র ১টি একক PR তৈরি করবে। আর কিউতে থাকা সমস্ত ওপেন PR সর্বদা সর্বোচ্চ প্রায়োরিটি (Rank 1 / P0) অনুযায়ী এক-একটি করে মূল্যায়ন করা হবে: লোকাল ও CI টেস্ট ১০০% গ্রিন নিশ্চিত করে সরাসরি `main`-এ মার্জ সম্পন্ন করতে হবে এবং তারপরই কেবল পরবর্তী অধস্তন PR-এ হাত দেওয়া যাবে (Strict Sequential Priority Resolution)। এটি সিআই জ্যাম, ব্রাঞ্চ ড্রিফট, ডেডলক ও ক্রস-PR কনফ্লিক্ট চিরতরে নির্মূল করে সর্বোচ্চ গতি ও কার্যকারিতা নিশ্চিত করে।"
+    title: "9. Strict Sequential Priority Resolution (অগ্রাধিকার অনুযায়ী একক-PR ফিক্স ও মার্জ নীতি — সম্পূর্ণ বাস্তবভিত্তিক)"
+    rule: "গ্রুপ বা স্বাধীন যেকোনো কাজের ক্ষেত্রে সমান্তরাল একাধিক PR নিয়ে টানাটানি এবং মাঝপথে `queue:hold`-এ PR জমিয়ে রাখা সম্পূর্ণ নিষিদ্ধ। একই গ্রুপের সব ইস্যু persistent issue branch-এ ক্রমানুসারে একের পর এক এজেন্ট সম্পন্ন করবে; PR তৈরি হবে কেবল READY ট্রানজিশনে (integration boundary — Persistent Branch Lifecycle দ্রষ্টব্য)। আর কিউতে থাকা সমস্ত ওপেন PR সর্বদা সর্বোচ্চ প্রায়োরিটি (Rank 1 / P0) অনুযায়ী এক-একটি করে মূল্যায়ন করা হবে: লোকাল ও CI টেস্ট ১০০% গ্রিন নিশ্চিত করে সরাসরি `main`-এ মার্জ সম্পন্ন করতে হবে এবং তারপরই কেবল পরবর্তী অধস্তন PR-এ হাত দেওয়া যাবে (Strict Sequential Priority Resolution)। এটি সিআই জ্যাম, ব্রাঞ্চ ড্রিফট, ডেডলক ও ক্রস-PR কনফ্লিক্ট চিরতরে নির্মূল করে সর্বোচ্চ গতি ও কার্যকারিতা নিশ্চিত করে।"
 
 bootstrap:
   - step: "git fetch origin --prune && cat AGENTS.md"
@@ -428,6 +421,38 @@ branch_creation_policy:
   claim_source_blocked_markers: ["<!-- SUPREMEAI_PRIORITY_QUEUE_LEDGER"]  # body-শুরু মার্কার (startswith) — উদ্ধৃতি false-block নয়
   # #2912 V3-chain: claim-উৎস issue-র inline template-যাচাই (label-মুছে bypass-প্রতিরোধ)
   require_template_compliant_issue: true
+
+# ── Persistent Branch Workflow (#4200) — admin-approved reconciliation (#4205, 2026-10-08) ──
+# বাংলা: branch state labels হলো সমন্বয়-সংকেত (coordination hints), source of truth নয়।
+# কর্তৃত্ব: git branch existence + commit history + issue linkage (mark_branch_state.py)।
+branch_state_labels:
+  enabled: true
+  source_of_truth: "git branch existence + commit history + issue linkage"
+  labels_are: "coordination hints, NOT source of truth"
+  manager_script: "scripts/ci/mark_branch_state.py"
+  states:
+    active: "branch:active"
+    paused: "branch:paused"
+    orphaned: "branch:orphaned"
+    ready: "branch:ready"
+  transitions:
+    - "(none) → active     [claim: agent starts work]"
+    - "active → paused     [graceful exit: session ends, work resumable]"
+    - "active → orphaned   [stale detect: session lost unexpectedly]"
+    - "paused → active     [resume: replacement agent takes over]"
+    - "orphaned → active   [resume: replacement agent takes over]"
+    - "active → ready      [work complete + verified — PR next]"
+    - "ready → PR          [PR created; branch enters integration phase]"
+
+# ── Issue-deterministic persistent branch discovery/reuse (#4200 §3, #4205) ──
+# বাংলা: নতুন branch তৈরির আগে discover_branch() দিয়ে বিদ্যমান agent/<issue>-*
+# branch খোঁজো — reuse-before-create। এজেন্ট বদলালেও কাজ হারায় না।
+issue_branch_patterns:
+  enabled: true
+  persistent_branch_glob: "agent/<issue>-*"
+  discovery: "git ls-remote --heads origin agent/<issue>-* (discover_branch)"
+  reuse_before_create: true
+  pr_integration_patterns: ["agent/*"]
 
 # Template Enforcement Policy (#2912 — founder directive: fixed template for all agents)।
 # বাংলা: "sob kajer jonno fixed template… issue ki korom hobe… sob agents same
@@ -783,7 +808,7 @@ agent_rules:
       - "resilience.rule_001"
       - "resilience.rule_002"
       - "free_tier_constraint"
-      - "control_tower_heartbeat"
+      - "living_protocols.persistent_branch_lifecycle"
       - "gates.claim_gate"
     prohibited_actions:
       - "claim ছাড়া PR খোলা (claim-before-work, #2644) — Claim Gate BLOCK"
