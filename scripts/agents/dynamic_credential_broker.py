@@ -24,7 +24,9 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
+ROOT_DIR = Path(__file__).resolve().parents[2]
 REPO = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
 
 # Role -> vault keys that role is allowed to access
@@ -152,17 +154,16 @@ class DynamicCredentialBroker:
             try:
                 # Use infisical_bootstrap pattern to fetch missing keys
                 # #3478 fix: call fetch_ai_keys.py to get keys from Infisical vault
-                import subprocess
-                result = subprocess.run(
-                    ["python", str(ROOT_DIR / "scripts" / "security" / "fetch_ai_keys.py")],
-                    capture_output=True, text=True, env=env, timeout=15
+                proc = subprocess.run(
+                    [sys.executable, str(ROOT_DIR / "scripts" / "security" / "fetch_ai_keys.py")],
+                    capture_output=True, text=True, env=os.environ, timeout=15
                 )
-                if result.returncode == 0:
-                    for line in result.stdout.strip().splitlines():
+                if proc.returncode == 0:
+                    for line in proc.stdout.strip().splitlines():
                         if "=" in line and not line.startswith("#"):
                             k, _, v = line.partition("=")
-                            if k in allowed_keys:
-                                scoped[k] = v
+                            if k in key_names and k not in FORBIDDEN_KEYS:
+                                result[k] = v.strip()
             except Exception:
                 pass
 
