@@ -7,8 +7,8 @@ canonical: true
 owner: coder-lane
 last_verified: 2026-10-07
 related_docs:
-  - "[docs/INDEX.md](./INDEX.md)"
-  - "[AGENT_RULES.md](../AGENT_RULES.md)"
+  - "[docs/INDEX.md](../INDEX.md)"
+  - "[AGENT_RULES.md](../../AGENT_RULES.md)"
 supersedes: []
 superseded_by: []
 source_issue: "#4167"
@@ -79,6 +79,6 @@ SHA mismatch, successful certification + FAIL/non-critical-UNKNOWN ladder।
 
 ## Related Documents
 
-- [docs/INDEX.md](./INDEX.md) — ব্রড ডকুমেন্টেশন ইনডেক্স
-- [AGENT_RULES.md](../AGENT_RULES.md) — verification চুক্তি (§9)
-- [scripts/_INDEX.md](../scripts/_INDEX.md) — script SSOT
+- [docs/INDEX.md](../INDEX.md) — ব্রড ডকুমেন্টেশন ইনডেক্স
+- [AGENT_RULES.md](../../AGENT_RULES.md) — verification চুক্তি (§9)
+- [scripts/_INDEX.md](../../scripts/_INDEX.md) — script SSOT
