@@ -44,6 +44,7 @@
 | `ROADMAP.md` | লাইভ প্রায়োরিটি রোডম্যাপ |
 | `SKIPPED_TESTS.md` | টেস্ট স্কিপ রেজিস্ট্রি (Test Guard-এর সঙ্গী) |
 | `CAPABILITY_INVENTORY.md` | সক্ষমতা ইনভেন্টরি |
+| `PRODUCTION_CERTIFICATION.md` | Production certification gate রানবুক — GO/CONDITIONAL/NO-GO শর্ত (#4167) |
 | `governance/DOCUMENTATION_MIGRATION_PLAN.md` | মাস্টার ডকুমেন্টেশন অডিট, এক্সটার্নাল মাইগ্রেশন ও রিটেনশন প্ল্যান |
 
 ## ৪. Archive & Recovery
