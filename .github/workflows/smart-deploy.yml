@@ -22,8 +22,8 @@ name: 🧠 Smart Deploy Scheduler
 
 on:
   schedule:
-    # Every 4 hours at :00
-    - cron: "0 */4 * * *"
+    # Every 4 hours at :20 (#4208 — deconflicted from the :00 slot)
+    - cron: "20 */4 * * *" # #4208: offset to :20 — the :00 slot belongs to nightly-ops (collision + cron-triple coupling avoided)
   workflow_dispatch:
     inputs:
       force_deploy:
