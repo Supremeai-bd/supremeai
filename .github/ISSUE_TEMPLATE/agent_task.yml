@@ -116,6 +116,8 @@ body:
           required: true
         - label: "🛡️ Source Legitimacy & Peer Veto: ব্যবহৃত প্রতিটি এক্সটার্নাল সোর্স শতভাগ লেজিট (বিশ্বস্ত অর্গানাইজেশন, পারমিসিভ লাইসেন্স, গ্রিন সিআই) এবং কোনো এজেন্টের এতে নিরাপত্তা আপত্তি নেই।"
           required: true
+        - label: "🔍 U9 Similar-Problem Sweep: একই defect/pattern-এর ভাইবোন-occurrence সুইপ করা হয়েছে (রিপোর্ট: similar found / fixed / follow-up)।"
+          required: false
 
   - type: checkboxes
     id: pre_coding_reflection
