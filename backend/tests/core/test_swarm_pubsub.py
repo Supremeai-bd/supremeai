@@ -49,14 +49,12 @@ class TestSwarmPubSubInit:
 
     def test_creates_redis_connection(self):
         """বাংলা মন্তব্য: Redis connection create হয়।"""
+        # বাংলা (#4169): swarm_pubsub now uses redis_manager.get_managed_client_sync()
         mock_redis = AsyncMock()
-        with patch("core.swarm_pubsub.aioredis.from_url", return_value=mock_redis) as mock_from_url:
-            with patch("core.config.settings") as mock_settings:
-                mock_settings.redis_url = "redis://<your-redis-url>"
-                pubsub = SwarmPubSub()
-                r = pubsub.redis
-                assert r is not None
-                mock_from_url.assert_called_once_with("redis://<your-redis-url>")
+        with patch("core.cache.redis_manager.redis_manager.get_managed_client_sync", return_value=mock_redis):
+            pubsub = SwarmPubSub()
+            r = pubsub.redis
+            assert r is not None
 
 
 # -------------------- Tests: subscribe --------------------
@@ -297,12 +295,11 @@ class TestGlobalInstance:
         """বাংলা মন্তব্য: Global instance-এ Redis connection আছে।"""
         from core.swarm_pubsub import swarm_streamer
 
-        with patch("core.config.settings") as mock_settings:
-            mock_settings.redis_url = "redis://<your-redis-url>"
-            with patch("redis.asyncio.from_url") as mock_from_url:
-                mock_redis = AsyncMock()
-                mock_from_url.return_value = mock_redis
-                assert swarm_streamer.redis is not None
+        # বাংলা (#4169): swarm_pubsub now uses redis_manager.get_managed_client_sync()
+        mock_redis = AsyncMock()
+        with patch("core.cache.redis_manager.redis_manager.get_managed_client_sync", return_value=mock_redis):
+            swarm_streamer._redis = None  # force re-init
+            assert swarm_streamer.redis is not None
 
 
 # -------------------- Tests: Integration --------------------

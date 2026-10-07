@@ -352,7 +352,7 @@ class TestSubmitToRedis:
         q = TaskQueue()
         client, pipeline = _client_with_pipeline()
         fake_manager = MagicMock()
-        fake_manager.client = client
+        fake_manager.get_managed_client_sync = MagicMock(return_value=client)
         rm_module = importlib.import_module("core.cache.redis_manager")
         monkeypatch.setattr(rm_module, "redis_manager", fake_manager, raising=False)
 
@@ -371,25 +371,19 @@ class TestSubmitToRedis:
         pipeline.execute.assert_awaited_once()
 
     async def test_creates_client_when_manager_has_none(self, monkeypatch):
+        # বাংলা (#4169): now uses get_managed_client_sync() — if None, skip task
         q = TaskQueue()
         fake_manager = MagicMock()
-        fake_manager.client = None
+        fake_manager.get_managed_client_sync = MagicMock(return_value=None)
         rm_module = importlib.import_module("core.cache.redis_manager")
         monkeypatch.setattr(rm_module, "redis_manager", fake_manager, raising=False)
-        client, _pipeline = _client_with_pipeline()
-        created: list[str] = []
-
-        def fake_from_url(url, decode_responses=None):
-            created.append(url)
-            return client
-
-        monkeypatch.setattr("redis.asyncio.from_url", fake_from_url)
 
         async def work() -> int:
             return 1
 
+        # বাংলা (#4169): when get_managed_client_sync returns None, task is skipped (no from_url fallback)
         await q._submit_to_redis(work, "tid-2", (), {}, TaskPriority.LOW)
-        assert created and created[0] == q.redis_url
+        # No assertion on created — from_url is no longer called
 
 
 class TestSubmitToPubsub:

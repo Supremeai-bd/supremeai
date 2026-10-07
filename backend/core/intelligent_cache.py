@@ -150,17 +150,13 @@ class IntelligentCache:
             return
 
         try:
-            self._redis_client = redis.from_url(
-                redis_url,
-                decode_responses=True,
-                socket_connect_timeout=5,
-                socket_timeout=5,
-                retry_on_timeout=True,
-                max_connections=10,
-            )
+            # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+            from core.cache.redis_manager import redis_manager
+            self._redis_client = redis_manager.get_managed_client_sync()
 
             # Test connection
-            self._redis_client.ping()
+            if self._redis_client:
+                self._redis_client.ping()
             logger.success("✅ Redis cache connected successfully")
 
         except Exception as e:

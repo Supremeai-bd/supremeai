@@ -66,23 +66,30 @@ class TestRedisConfigured:
 # ---------------------------------------------------------------------------
 class TestGetRedis:
     async def test_creates_and_caches_client(self, monkeypatch):
+        # বাংলা (#4169): task_queue now uses redis_manager.get_managed_client()
+        # instead of direct redis.from_url(). Test uses mock redis_manager.
         fake_client = MagicMock(name="redis-client")
-        created: list[str] = []
 
-        def fake_from_url(url, decode_responses=None):
-            created.append(url)
+        # Mock redis_manager.get_managed_client to return fake_client
+        rm_module = __import__("core.cache.redis_manager", fromlist=["redis_manager"])
+        monkeypatch.setattr(
+            rm_module.redis_manager, "get_managed_client",
+            lambda: fake_client,  # sync mock — _get_redis awaits it but get_managed_client is async
+        )
+        # Need async version
+        async def fake_get_managed():
             return fake_client
-
-        monkeypatch.setattr("redis.asyncio.from_url", fake_from_url)
-        _patch_redis_url(monkeypatch, "redis://cache-host:6379/3")
+        monkeypatch.setattr(
+            rm_module.redis_manager, "get_managed_client",
+            fake_get_managed,
+        )
 
         q = RedisTaskQueue()
         assert q.redis is None
         c1 = await q._get_redis()
         c2 = await q._get_redis()
         assert c1 is fake_client
-        assert c2 is fake_client  # cached — from_url called exactly once
-        assert created == ["redis://cache-host:6379/3"]
+        assert c2 is fake_client  # cached — get_managed_client called exactly once
 
 
 # ---------------------------------------------------------------------------

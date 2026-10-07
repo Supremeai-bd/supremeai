@@ -58,7 +58,9 @@ async def poll_and_execute() -> None:
     except ImportError:
         logger.error("redis package not installed")
         sys.exit(1)
-    r = aioredis.from_url(REDIS_URL, decode_responses=True)
+    # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+    from core.cache.redis_manager import redis_manager
+    r = redis_manager.get_managed_client_sync()
     await r.ping()
     logger.info(">>> Redis connected")
     logger.info(f">>> worker {WORKER_ID} polling 'ecosystem:tasks'")
@@ -94,9 +96,9 @@ async def heartbeat() -> None:
     if not REDIS_URL:
         return
     try:
-        import redis.asyncio as aioredis
-
-        r = aioredis.from_url(REDIS_URL, decode_responses=True)
+        # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+        from core.cache.redis_manager import redis_manager
+        r = redis_manager.get_managed_client_sync()
         while True:
             await r.hset(
                 "ecosystem:workers",

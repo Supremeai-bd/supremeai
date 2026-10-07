@@ -431,11 +431,10 @@ class TaskQueue:
         """বাংলা মন্তব্য: Redis sorted set-এ task push। Lazy import।"""
         from core.cache.redis_manager import redis_manager
 
-        client = redis_manager.client
+        # বাংলা (#4169): direct redis.from_url() নিষিদ্ধ — get_managed_client দিয়ে।
+        client = redis_manager.get_managed_client_sync()
         if not client:
-            import redis.asyncio as aioredis
-
-            client = aioredis.from_url(self.redis_url, decode_responses=True)
+            return  # quota breaker open
 
         task_data = {
             "task_id": task_id,

@@ -56,7 +56,9 @@ class DailyQuotaLimiter:
 
     async def get_redis(self):
         if not self._redis:
-            self._redis = aioredis.from_url(self.redis_url, decode_responses=True)
+            # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+            from core.cache.redis_manager import redis_manager
+            self._redis = redis_manager.get_managed_client_sync()
         return self._redis
 
     async def check_daily_quota(self, user_id: str, tier: str) -> bool:

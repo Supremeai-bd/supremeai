@@ -40,7 +40,9 @@ async def test_disabled_cache_short_circuits():
 
 
 async def test_get_redis_connection_failure_disables():
-    with patch("redis.asyncio.from_url", side_effect=RedisError("down")):
+    # বাংলা (#4169): query_cache now uses redis_manager.get_managed_client_sync()
+    # When it returns None, cache should be disabled.
+    with patch("core.cache.redis_manager.redis_manager.get_managed_client_sync", return_value=None):
         cache = QueryCache(redis_url="redis://bad")
         r = await cache._get_redis()
         assert r is None

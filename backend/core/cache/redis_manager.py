@@ -546,6 +546,44 @@ class SecureRedisManager:
                 return 0.0
         return 0.0
 
+    # ─── #4169: Centralized Redis gateway ────────────────────────────────────
+    # বাংলা: সব Redis access এই method দিয়ে যাবে। কোনো direct redis.from_url() নয়।
+    # Returns _BudgetTrackingClient (tracks commands + respects budget + breaker)
+    # or None (quota breaker open / budget exhausted → consumer uses in-memory fallback)।
+
+    async def get_managed_client(self) -> Any:
+        """Centralized Redis client accessor — ALL Redis consumers must use this.
+
+        বাংলা (#4169): এটাই একমাত্র সঠিক উপায় Redis client পাওয়ার। কোনো
+        ``redis.from_url()`` বা ``aioredis.from_url()`` direct ব্যবহার নিষিদ্ধ।
+        এই method federation + budget guard + quota breaker সব handle করে।
+
+        Returns:
+            _BudgetTrackingClient if Redis available + budget/breaker OK
+            None if quota breaker open or budget exhausted → use in-memory fallback
+
+        Usage:
+            from core.cache.redis_manager import redis_manager
+            client = await redis_manager.get_managed_client()
+            if client:
+                await client.set("key", "value", ex=60)
+            else:
+                # in-memory fallback
+        """
+        return await self.get_client_async()
+
+    def get_managed_client_sync(self) -> Any:
+        """Sync version — returns client without async init. May return None.
+
+        বাংলা: sync context-এ ব্যবহারের জন্য (initialization নিশ্চিত না হলে None)।
+        Prefer ``get_managed_client()`` (async) for guaranteed initialization.
+        """
+        if self._client is None:
+            return None
+        if self.quota_breaker_open or self.budget_breaker_open:
+            return None
+        return _BudgetTrackingClient(self._client, self)
+
 
 redis_manager = SecureRedisManager()
 
