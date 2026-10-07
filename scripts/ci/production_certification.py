@@ -38,7 +38,7 @@ REPO = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
 # ---------------------------------------------------------------------------
 
 # Fail-closed critical dimensions — এগুলোর evidence মিসিং/stale হলেই NO-GO
-# (docs/PRODUCTION_CERTIFICATION.md — GO-র জন্য যা যা লাগে তার SSOT)।
+# (docs/master_docs/PRODUCTION_CERTIFICATION.md — GO-র জন্য যা যা লাগে তার SSOT)।
 CRITICAL_ITEMS = (
     "sha_alignment",       # deploy HEAD == candidate SHA
     "deploy_freshness",    # production deploy recent (≤ max age)
