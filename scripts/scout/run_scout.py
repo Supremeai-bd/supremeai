@@ -40,16 +40,33 @@ def run_scout(
     বাংলা: সম্পূর্ণ scout pipeline চালায় → list of recommendation dicts।
     """
     from backend.ecosystem_scout.sources.github_trending import fetch_github_trending
-    from backend.ecosystem_scout.dedup import dedup_findings
     from backend.ecosystem_scout.gap_analyzer import analyze_gaps_batch
     from backend.ecosystem_scout.recommender import filter_recommendations, score_findings_batch
+    from backend.scout.dedup import ContentDeduplicator
 
     # Step 1: Fetch
     findings = fetch_github_trending(limit=limit, use_mock=use_mock)
     print(f"📦 Step 1: Fetched {len(findings)} findings from GitHub trending", file=sys.stderr)
 
     # Step 2: Dedup (in this run — no known_fingerprints for prototype)
-    unique, duplicates = dedup_findings(findings)
+    # বাংলা (#4157): কোনো আলাদা dedup মডিউল নেই — pre-existing canonical ইঞ্জিন
+    # backend.scout.dedup.ContentDeduplicator রিইউজ করা হয়েছে। প্রথম লাইন ডিফেন্স
+    # হলো ScoutFinding.fingerprint (SSOT: models.make_finding-এ sha256), দ্বিতীয়
+    # লাইন ডিফেন্স হলো description-এর near-duplicate (Jaccard, 0.80 threshold)।
+    dedup = ContentDeduplicator()
+    seen_fingerprints: set[str] = set()
+    unique: list = []
+    duplicates: list = []
+    for f in findings:
+        if f.fingerprint and f.fingerprint in seen_fingerprints:
+            duplicates.append(f)
+            continue
+        if f.description and dedup.record_content(f.description)[1]:
+            duplicates.append(f)
+            continue
+        if f.fingerprint:
+            seen_fingerprints.add(f.fingerprint)
+        unique.append(f)
     print(f"🔍 Step 2: Deduped {len(duplicates)} duplicates → {len(unique)} unique", file=sys.stderr)
 
     # Step 3: Gap analysis
