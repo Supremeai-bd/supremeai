@@ -29,11 +29,13 @@ Before claiming or creating work, inspect the relevant group, active issues, ope
 ## U5 — Freshness & Ownership
 Claim state before work. Verify current `main`/PR state before push. Do not work on `state:seq-hold` or work blocked by upstream. Never push stale work.
 
+**Board-freshness at completion (#4177):** the snapshot taken at task-start is NOT the whole mission. Before declaring any task, batch or founder-directed mission complete, re-poll the board (open PRs, claim queue, new issues). A completion declaration is valid only against a board snapshot taken **at declaration time**. If new actionable items arrived during the work, handle them or explicitly report them as outstanding — never silently drop them from scope.
+
 ## U6 — Safety & Permissions
 Never bypass protected branches/paths, credential policy, security gates, scope gates, Admin gates or merge gates. Destructive/irreversible actions require the appropriate authority.
 
 ## U7 — Verification
-A task is complete only when required tests, gates, evidence and acceptance conditions pass.
+A task is complete only when required tests, gates, evidence and acceptance conditions pass **and the board has been re-checked for new arrivals since task start** (#4177).
 
 ## U8 — Handoff, Clean Exit & Continuous Rerun
 Finish with structured status/evidence/decision ledger and return control to the orchestrator.
@@ -43,6 +45,8 @@ Finish with structured status/evidence/decision ledger and return control to the
 ```
 
 After clean exit (locks released, heartbeat stopped), the agent loop must **rerun `continuous_agent_loop.py` immediately** for the next task — no sleep, no manual restart. This is the continuous execution contract per AGENTS.md Section 2.
+
+**Real-time board maintenance (#4177):** before the clean exit itself, the exit report MUST contain a fresh-board statement — e.g. `board re-checked at HH:MMZ: N open PRs, M actionable issues — no new arrivals` or `new arrivals handled: #N, #M` / `outstanding (outside scope, reported): #K`. An exit report without a board-recheck statement is an incomplete handoff, not a completed task.
 
 **Critical ordering reminder:** `atomic_claim.sh` → code changes → `gh pr create`. A PR opened before the claim comment exists will be auto-closed by the Claim Gate (#2644, #2892).
 
