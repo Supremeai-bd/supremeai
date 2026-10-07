@@ -147,7 +147,9 @@ def _build_payload() -> str:
 async def _ping_tcp(tcp_url: str, payload: str) -> str:
     import redis.asyncio as aioredis
 
-    client = aioredis.from_url(tcp_url, decode_responses=True)
+    # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+    from core.cache.redis_manager import redis_manager
+    client = redis_manager.get_managed_client_sync()
     try:
         await client.set(f"{KEY_PREFIX}{SLOT}", payload, ex=TTL_SECONDS)
     finally:

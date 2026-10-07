@@ -51,15 +51,15 @@ class RedisTaskQueue:
         self._worker_task: asyncio.Task | None = None
 
     async def _get_redis(self):
+        # বাংলা (#4169): direct redis.from_url() নিষিদ্ধ — SecureRedisManager দিয়ে যাবে।
+        # federation + budget guard + quota breaker সব এখানে থাকে।
         if not self.redis:
-            import redis.asyncio as aioredis
+            from core.cache.redis_manager import redis_manager
 
-            from core.config import settings
-
-            redis_url = getattr(settings, "redis_url", None) or os.environ.get(
-                "REDIS_URL", "redis://<your-redis-url>"
-            )
-            self.redis = aioredis.from_url(redis_url, decode_responses=True)
+            client = await redis_manager.get_managed_client()
+            if client is None:
+                return None
+            self.redis = client
         return self.redis
 
     def ensure_worker_started(self) -> None:

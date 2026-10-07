@@ -44,7 +44,9 @@ class CollaborativeEditor:
             return self.redis
         if not self._redis_url:
             raise RuntimeError("REDIS_URL not configured — cannot use CollaborativeEditor")
-        self.redis = redis.from_url(self._redis_url, decode_responses=True)
+        # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+        from core.cache.redis_manager import redis_manager
+        self.redis = redis_manager.get_managed_client_sync()
         return self.redis
 
     async def get_session_state(self, session_id: str) -> dict:

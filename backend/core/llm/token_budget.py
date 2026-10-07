@@ -271,7 +271,9 @@ class TokenBudgetManager:
                 raise RuntimeError(
                     "Redis URL not configured — per-user token budget check is UNAVAILABLE"
                 )
-            self._redis = aioredis.from_url(redis_url, decode_responses=True)
+            # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+            from core.cache.redis_manager import redis_manager
+            self._redis = redis_manager.get_managed_client_sync()
         return self._redis
 
     async def check_user_budget(self, user_id: str, daily_limit: int = 100000) -> bool:

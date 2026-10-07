@@ -54,7 +54,9 @@ class SwarmPubSub:
         url = str(settings.redis_url)
         if not url:
             raise RuntimeError("REDIS_URL is not configured in settings. Fail-Fast!")
-        self._redis = aioredis.from_url(url)
+        # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+        from core.cache.redis_manager import redis_manager
+        self._redis = redis_manager.get_managed_client_sync()
         return self._redis
 
     async def subscribe(self) -> AsyncGenerator[str, None]:

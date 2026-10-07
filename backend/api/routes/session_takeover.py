@@ -296,7 +296,9 @@ async def _redis_client():
         )
         if not redis_url:
             return None
-        return aioredis.from_url(redis_url, decode_responses=True)
+        # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+        from core.cache.redis_manager import redis_manager
+        return redis_manager.get_managed_client_sync()
     except Exception as exc:
         logger.debug(
             f"Redis unavailable for takeover-token consumption, falling back to base check only: {exc}"

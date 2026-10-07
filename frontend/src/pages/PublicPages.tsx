@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUp, BrainCircuit, Check, ChevronDown, Clock, Database, Download, FileCode2, FileText, GitBranch, History, Image as ImageIcon, LayoutTemplate, Menu, Paperclip, Plus, Search, Share2, Sparkles, Telescope, Terminal, WandSparkles, Wrench, X, Zap } from 'lucide-react';
+import { LiveBackground } from '../components/visual/LiveBackground';
 
 const publicLinks = [
   { to: '/', label: 'Chat' },
@@ -71,7 +72,12 @@ export function PublicHeader() {
   </header>;
 }
 
-export function PublicLayout({ children }: { children: React.ReactNode }) { return <div className="min-h-screen bg-[#0d0f12] text-slate-100">{children}</div>; }
+export function PublicLayout({ children }: { children: React.ReactNode }) {
+  // (#4138 Phase 1): প্রতিটি পাবলিক পৃষ্ঠার নিচে থিম-সচেতন জীবন্ত স্তর —
+  // অরব/কণার রঙ CSS vars অনুসরণ করে, তাই টগল করলেই ৮ থিমে রঙ বদলায়।
+  // LiveBackground fixed+pointer-events-none — কনটেন্ট-ইন্টার‍্যাকশনে বাধা নেই।
+  return <div className="relative min-h-screen bg-[#0d0f12] text-slate-100"><LiveBackground variant="public" />{children}</div>;
+}
 
 type Message = { role: 'user' | 'assistant'; text: string };
 function responseFor(input: string) { const text = input.toLowerCase(); if (text.includes('plan') || text.includes('build')) return 'I can help turn that idea into a practical plan. Start with the outcome, then add the context and constraints that matter.'; if (text.includes('research')) return 'I can help structure the research, compare the important signals, and turn the findings into a clear next step.'; if (text.includes('file') || text.includes('document')) return 'That is a great use for SupremeAI. Sign in when you want to bring files into the conversation and keep source context attached.'; return 'I can help you think that through. Ask me to plan, explain, summarize, research, or turn an idea into your next action.'; }

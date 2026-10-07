@@ -358,11 +358,11 @@ class IntegrationTestRunner:
         try:
             import redis.asyncio as aioredis
 
-            client = aioredis.from_url(
-                redis_url,
-                socket_connect_timeout=5,
-                socket_timeout=5,
-            )
+            # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+            from core.cache.redis_manager import redis_manager
+            client = redis_manager.get_managed_client_sync()
+            if not client:
+                return False
             try:
                 return bool(await client.ping())
             finally:

@@ -56,7 +56,9 @@ class ParallelCloudRouter:
             try:
                 import redis
 
-                self.redis_client = redis.from_url(redis_url, decode_responses=True)
+                # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
+                from core.cache.redis_manager import redis_manager
+                self.redis_client = redis_manager.get_managed_client_sync()
                 logger.info("Connected to Redis for ParallelCloudRouter state tracking.")
             except Exception as e:
                 logger.error(f"Failed to connect to Redis: {e}")

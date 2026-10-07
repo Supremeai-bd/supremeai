@@ -29,11 +29,13 @@ Before claiming or creating work, inspect the relevant group, active issues, ope
 ## U5 — Freshness & Ownership
 Claim state before work. Verify current `main`/PR state before push. Do not work on `state:seq-hold` or work blocked by upstream. Never push stale work.
 
+**Board-freshness at completion (#4177):** the snapshot taken at task-start is NOT the whole mission. Before declaring any task, batch or founder-directed mission complete, re-poll the board (open PRs, claim queue, new issues). A completion declaration is valid only against a board snapshot taken **at declaration time**. If new actionable items arrived during the work, handle them or explicitly report them as outstanding — never silently drop them from scope.
+
 ## U6 — Safety & Permissions
 Never bypass protected branches/paths, credential policy, security gates, scope gates, Admin gates or merge gates. Destructive/irreversible actions require the appropriate authority.
 
 ## U7 — Verification
-A task is complete only when required tests, gates, evidence and acceptance conditions pass.
+A task is complete only when required tests, gates, evidence and acceptance conditions pass **and the board has been re-checked for new arrivals since task start** (#4177).
 
 ## U8 — Handoff, Clean Exit & Continuous Rerun
 Finish with structured status/evidence/decision ledger and return control to the orchestrator.
@@ -44,7 +46,14 @@ Finish with structured status/evidence/decision ledger and return control to the
 
 After clean exit (locks released, heartbeat stopped), the agent loop must **rerun `continuous_agent_loop.py` immediately** for the next task — no sleep, no manual restart. This is the continuous execution contract per AGENTS.md Section 2.
 
+**Real-time board maintenance (#4177):** before the clean exit itself, the exit report MUST contain a fresh-board statement — e.g. `board re-checked at HH:MMZ: N open PRs, M actionable issues — no new arrivals` or `new arrivals handled: #N, #M` / `outstanding (outside scope, reported): #K`. An exit report without a board-recheck statement is an incomplete handoff, not a completed task.
+
 **Critical ordering reminder:** `atomic_claim.sh` → code changes → `gh pr create`. A PR opened before the claim comment exists will be auto-closed by the Claim Gate (#2644, #2892).
+
+## U9 — Similar-Problem Sweep / Pattern-Aware Resolution
+When any defect, antipattern, stale reference, or policy gap is found, the agent MUST NOT treat it as isolated by default. First classify: isolated one-off, or member of a defect/problem class? Perform a targeted sweep for sibling occurrences — same pattern, same file family, same reference-set, same CI/checker surface. If siblings share the same root cause AND the same scope, address them within the same task (or an explicitly linked task series) before closing the original. If they fall outside scope or risk, file linked follow-up issue(s) instead of silently expanding. Report format: `similar found: N | fixed in-task: M | filed follow-up: K`.
+
+**Similar ≠ blindly fix everything.** Evidence decides class membership; scope and safety decide the fix boundary. Scope-expanding mass changes without a sweep report are a contract violation.
 
 ---
 
@@ -81,7 +90,7 @@ When fixing any bug, failure or regression, first analyze whether the defect is 
 ## Auditor
 Audit for duplicate/redundant code, logic, workflows and configuration; unnecessary abstractions/layers; over-engineering; architecture drift; excessive workflow/job count; maintainability problems; repeated/manual work; dead/overlapping paths; missing guards/tests; and real reliability/security risks.
 
-Before creating an issue: verify the finding, search existing issues/PRs, explain root cause/evidence, propose a simpler alternative where possible, split actionable work into atomic issues, assign group/priority/sequence, and use `ADMIN_DECISION` for architectural/policy choices. Never manufacture issues just to keep the queue non-empty.
+Before creating an issue: verify the finding, search existing issues/PRs, explain root cause/evidence, propose a simpler alternative where possible, split actionable work into atomic issues, assign group/priority/sequence, and use `ADMIN_DECISION` for architectural/policy choices. Never manufacture issues just to keep the queue non-empty. Perform the U9 sweep across the problem domain before filing duplicate or isolated issues.
 
 ## Ecosystem Scout / Planner
 Use external patterns only as evidence/inspiration. Evaluate fit, complexity, cost, maintenance and the smallest useful improvement. Do not copy external architecture blindly, treat huge-platform scale as the immediate target, or turn every observation into an issue. Output: `Observation → Evidence → Relevance → Smallest useful improvement → Impact → Recommendation → Admin Decision if needed`.
@@ -94,6 +103,7 @@ Whenever encountering any error, bug, or failure, the Coder must perform defect 
 1. **Isolated vs. Recurring Analysis:** Analyze whether the issue is a unique, isolated one-time glitch or part of a systemic, common failure class that could repeat (e.g. branch naming mismatches, stale lockfiles, hardcoded config/version drift, unhandled error swallows, missing preflight guards).
 2. **Ban Superficial Symptom Patching:** If the problem has the potential to recur, never apply a superficial symptom-only patch (e.g., swallow echoes, per-call ad-hoc bypass, single-line error masking) that leaves the underlying condition open to repeat.
 3. **Poka-Yoke (Mistake-Proofing at Root Cause):** Solve the problem so that the entire class of defect cannot happen again. Enforce prevention at the earliest possible stage—via machine-enforced creation/preflight guards, Single Source of Truth (SSOT) consolidation, schema/type constraints, fail-honest boundary assertions, and permanent regression tests.
+4. **U9 Sweep Mandate:** Run the U9 sweep before declaring any defect fix complete; include the sweep report in the handoff.
 
 ## CI Fixer
 Verify the actual failing run and current commit. Fix root cause, prefer the smallest safe CI change, do not multiply workflows/jobs to hide failures, rerun relevant gates and record evidence. Route architecture/policy changes to Admin Decision.
@@ -124,6 +134,7 @@ Identify Group
  → validate finding
  → determine priority
  → determine sequence/dependencies
+ → check similar occurrences swept? (report counts)
  → Admin gate if required
  → create/update existing issue
 ```

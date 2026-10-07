@@ -3,6 +3,7 @@ import { ThemeSyncContext } from './ThemeSyncContext';
 import { getApiBaseUrl } from '../utils/api';
 import { getRawToken, AUTH_CHANGED_EVENT } from '../services/apiClient';
 import { eventBus, Events } from '../lib/componentEventBus';
+import { isDarkTheme } from '../contexts/ThemeConstants';
 
 
 import { createSecureEventSource } from '../lib/secureSse';
@@ -29,9 +30,10 @@ export const ThemeSyncProvider: React.FC<{ children: React.ReactNode; userId?: s
             const data = JSON.parse(event.data);
             // fetchEventSource passes event.type via event.type property now if we matched it, or we check data.event
             if ((event.type === 'theme_changed' || data.event === 'theme_changed') && data.theme) {
+              // (#4138): isDark-সিদ্ধান্ত THEME_META-র কাছে — 8-থিমে সঠিক।
               eventBus.emit(Events.THEME_CHANGED, {
                 theme: data.theme,
-                isDark: data.theme === 'dark' || data.theme === 'matrix',
+                isDark: isDarkTheme(data.theme),
                 timestamp: Date.now(),
                 source: 'theme_sync_sse',
               });
@@ -71,9 +73,10 @@ export const ThemeSyncProvider: React.FC<{ children: React.ReactNode; userId?: s
   // ThemeProvider is the only owner of theme state and DOM classes.
   // This provider only bridges remote SSE changes and preserves the legacy API.
   const setTheme = async (newTheme: string) => {
+    // (#4138): এখানেও isDark THEME_META-থেকে।
     eventBus.emit(Events.THEME_CHANGED, {
       theme: newTheme,
-      isDark: newTheme === 'dark' || newTheme === 'matrix',
+      isDark: isDarkTheme(newTheme),
       timestamp: Date.now(),
       source: 'theme_sync_bridge',
     });
