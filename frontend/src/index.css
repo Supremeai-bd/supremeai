@@ -248,6 +248,190 @@ body.matrix {
 }
 
 /* ═══════════════════════════════════════════════════════
+   THEME 5: SYNTHWAVE (#4138 Phase 1 — 8-থিম সম্প্রসারণ)
+   বাংলা মন্তব্য: 80-এর দশকের নিয়ন-সন্ধ্যা — গভীর বেগুনি আকাশ, সায়ান-হাইলাইট।
+   প্যালেট (MASTER_PLAN_V2): bg #0D0221 · text #F9F9F9 · primary #00F3FF · secondary #A855F7
+   ═══════════════════════════════════════════════════════ */
+:root[data-theme="synthwave"],
+html.synthwave,
+.synthwave,
+body.synthwave {
+  --background: #0D0221;
+  --foreground: #F9F9F9;
+  --neon-blue: #00F3FF;
+  --neon-purple: #A855F7;
+  --cyber-gray: #64748B;
+  --success: #22C55E;
+  --danger: #F43F5E;
+  --warning: #F59E0B;
+  --info: #38BDF8;
+  --card-bg: #170538;
+  --card-border: rgba(168, 85, 247, 0.15);
+  --sidebar-bg: #12042C;
+  --tabbar-bg: #1E0745;
+  --border-color: rgba(168, 85, 247, 0.15);
+  --card-text: #C4B5FD;
+  --card-title-text: #F9F9F9;
+  --alert-bg: rgba(168, 85, 247, 0.04);
+  --input-bg: #12042C;
+  --input-border: rgba(0, 243, 255, 0.25);
+  --panel-bg: #170538;
+
+  --bg-main: #0D0221;
+  --text-main: #F9F9F9;
+  --text-secondary: #A78BFA;
+  --bg-panel: #170538;
+  --bg-cell: #1E0745;
+  --border-accent: rgba(0, 243, 255, 0.2);
+  --accent-primary: #00F3FF;
+  --accent-secondary: #A855F7;
+  --node-bg: #170538;
+  --node-text: #F9F9F9;
+  --node-border: rgba(168, 85, 247, 0.3);
+  --chat-bg: #170538;
+  --chat-input-bg: #12042C;
+  --waveform-bg: #1E0745;
+}
+
+/* ═══════════════════════════════════════════════════════
+   THEME 6: CYBERPUNK (#4138 Phase 1)
+   বাংলা মন্তব্য: রাতের শহর — কালো ক্যানভাসে সায়ান-অ্যাম্বার নিয়ন।
+   প্যালেট (MASTER_PLAN_V2): bg #060606 · text #E5E7EB · primary #06B6D4 · secondary #F59E0B
+   ═══════════════════════════════════════════════════════ */
+:root[data-theme="cyberpunk"],
+html.cyberpunk,
+.cyberpunk,
+body.cyberpunk {
+  --background: #060606;
+  --foreground: #E5E7EB;
+  --neon-blue: #06B6D4;
+  --neon-purple: #F59E0B;
+  --cyber-gray: #6B7280;
+  --success: #22C55E;
+  --danger: #EF4444;
+  --warning: #F59E0B;
+  --info: #06B6D4;
+  --card-bg: #0F0F10;
+  --card-border: rgba(6, 182, 212, 0.15);
+  --sidebar-bg: #0A0A0B;
+  --tabbar-bg: #141416;
+  --border-color: rgba(6, 182, 212, 0.12);
+  --card-text: #9CA3AF;
+  --card-title-text: #E5E7EB;
+  --alert-bg: rgba(6, 182, 212, 0.03);
+  --input-bg: #0A0A0B;
+  --input-border: rgba(6, 182, 212, 0.3);
+  --panel-bg: #0F0F10;
+
+  --bg-main: #060606;
+  --text-main: #E5E7EB;
+  --text-secondary: #67E8F9;
+  --bg-panel: #0F0F10;
+  --bg-cell: #141416;
+  --border-accent: rgba(245, 158, 11, 0.2);
+  --accent-primary: #06B6D4;
+  --accent-secondary: #F59E0B;
+  --node-bg: #0F0F10;
+  --node-text: #E5E7EB;
+  --node-border: rgba(6, 182, 212, 0.35);
+  --chat-bg: #0F0F10;
+  --chat-input-bg: #060606;
+  --waveform-bg: #141416;
+}
+
+/* ═══════════════════════════════════════════════════════
+   THEME 7: MINIMAL (#4138 Phase 1)
+   বাংলা মন্তব্য: শান্ত সাদা কাগজ — লাইট-পরিবার, ইন্ডিগো-ভায়োলেট অ্যাকসেন্ট।
+   প্যালেট (MASTER_PLAN_V2): bg #F9FAFB · text #111827 · primary #6366F1 · secondary #8B5CF6
+   ═══════════════════════════════════════════════════════ */
+:root[data-theme="minimal"],
+html.minimal,
+.minimal,
+body.minimal {
+  --background: #F9FAFB;
+  --foreground: #111827;
+  --neon-blue: #6366F1;
+  --neon-purple: #8B5CF6;
+  --cyber-gray: #6B7280;
+  --success: #16A34A;
+  --danger: #DC2626;
+  --warning: #D97706;
+  --info: #6366F1;
+  --card-bg: #FFFFFF;
+  --card-border: #E5E7EB;
+  --sidebar-bg: #FFFFFF;
+  --tabbar-bg: #F3F4F6;
+  --border-color: #E5E7EB;
+  --card-text: #4B5563;
+  --card-title-text: #111827;
+  --alert-bg: rgba(0, 0, 0, 0.02);
+  --input-bg: #FFFFFF;
+  --input-border: #D1D5DB;
+  --panel-bg: #FFFFFF;
+
+  --bg-main: #F9FAFB;
+  --text-main: #111827;
+  --text-secondary: #6B7280;
+  --bg-panel: #FFFFFF;
+  --bg-cell: #F3F4F6;
+  --border-accent: #E5E7EB;
+  --accent-primary: #6366F1;
+  --accent-secondary: #8B5CF6;
+  --node-bg: #FFFFFF;
+  --node-text: #111827;
+  --node-border: #D1D5DB;
+  --chat-bg: #FFFFFF;
+  --chat-input-bg: #F9FAFB;
+  --waveform-bg: #F3F4F6;
+}
+
+/* ═══════════════════════════════════════════════════════
+   THEME 8: EMERALD DEEP (#4138 Phase 1)
+   বাংলা মন্তব্য: মূল্যবান পান্না — ম্যাট্রিক্সের চেয়ে উজ্জ্বল, জেম-টোন সবুজ।
+   প্যালেট (MASTER_PLAN_V2): bg #010802 · text #ECFDF5 · primary #10B981 · secondary #34D399
+   ═══════════════════════════════════════════════════════ */
+:root[data-theme="emerald"],
+html.emerald,
+.emerald,
+body.emerald {
+  --background: #010802;
+  --foreground: #ECFDF5;
+  --neon-blue: #10B981;
+  --neon-purple: #34D399;
+  --cyber-gray: rgba(52, 211, 153, 0.03);
+  --success: #34D399;
+  --danger: #EF4444;
+  --warning: #FBBF24;
+  --info: #10B981;
+  --card-bg: rgba(6, 25, 15, 0.6);
+  --card-border: rgba(52, 211, 153, 0.14);
+  --sidebar-bg: rgba(1, 16, 8, 0.95);
+  --tabbar-bg: #062B18;
+  --border-color: rgba(52, 211, 153, 0.08);
+  --card-text: #A7F3D0;
+  --card-title-text: #ECFDF5;
+  --alert-bg: rgba(52, 211, 153, 0.015);
+  --input-bg: #03140A;
+  --input-border: #065F46;
+  --panel-bg: #04170E;
+
+  --bg-main: #010802;
+  --text-main: #ECFDF5;
+  --text-secondary: #6EE7B7;
+  --bg-panel: rgba(4, 23, 14, 0.5);
+  --bg-cell: rgba(6, 25, 15, 0.75);
+  --border-accent: rgba(52, 211, 153, 0.2);
+  --accent-primary: #10B981;
+  --accent-secondary: #34D399;
+  --node-bg: rgba(4, 23, 14, 0.9);
+  --node-text: #A7F3D0;
+  --node-border: rgba(52, 211, 153, 0.35);
+  --chat-bg: rgba(4, 23, 14, 0.85);
+  --chat-input-bg: #010802;
+  --waveform-bg: rgba(2, 16, 8, 0.9);
+}
+
+/* ═══════════════════════════════════════════════════════
    BODY STYLES (সব থিমের জন্য)
    ═══════════════════════════════════════════════════════ */
 body {
@@ -288,6 +472,76 @@ body.matrix {
   background-image:
     radial-gradient(circle at 30% 30%, rgba(16, 185, 129, 0.08) 0%, transparent 40%),
     radial-gradient(circle at 70% 70%, rgba(5, 150, 105, 0.06) 0%, transparent 40%);
+}
+
+/* Synthwave (#4138) — নিয়ন-সন্ধ্যার আভা */
+body.synthwave {
+  background-image:
+    radial-gradient(circle at 15% 25%, rgba(0, 243, 255, 0.07) 0%, transparent 45%),
+    radial-gradient(circle at 85% 75%, rgba(168, 85, 247, 0.07) 0%, transparent 45%);
+}
+
+/* Cyberpunk (#4138) — সায়ান-অ্যাম্বার নিয়ন-শহর */
+body.cyberpunk {
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(6, 182, 212, 0.08) 0%, transparent 42%),
+    radial-gradient(circle at 88% 82%, rgba(245, 158, 11, 0.06) 0%, transparent 42%);
+}
+
+/* Minimal (#4138) — ইচ্ছাকৃত শূন্য: নিউট্রাল কাগজ, কোনো ক্যানভাস-নয়ন নয়। */
+body.minimal {
+  background-image: none;
+}
+
+/* Emerald (#4138) — পান্নার গভীরতা */
+body.emerald {
+  background-image:
+    radial-gradient(circle at 25% 30%, rgba(16, 185, 129, 0.08) 0%, transparent 42%),
+    radial-gradient(circle at 75% 70%, rgba(52, 211, 153, 0.06) 0%, transparent 42%);
+}
+
+/* ═══════════════════════════════════════════════════════
+   LIVE BACKGROUND (#4138 Phase 1) — থিম-সচেতন জীবন্ত স্তর
+   বাংলা মন্তব্য: framer-motion (existing dep — Rule #1) + CSS vars।
+   স্তরটি fixed/pointer-events-none — কনটেন্টের নিচে, ইন্টার‍্যাকশনে বাধা দেয় না।
+   ═══════════════════════════════════════════════════════ */
+.live-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.live-bg-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(72px);
+  opacity: 0.5;
+  will-change: transform;
+}
+
+/* অরব-রঙ থিম-CSS-vars থেকে — ৮ থিমেই স্বয়ংক্রিয় অনুসরণ করে (কোনো হার্ডকোড নয়)। */
+.live-bg-orb-primary { background: radial-gradient(circle, var(--neon-blue) 0%, transparent 70%); }
+.live-bg-orb-secondary { background: radial-gradient(circle, var(--neon-purple) 0%, transparent 70%); }
+
+.live-bg-mote {
+  position: absolute;
+  border-radius: 9999px;
+  background: var(--neon-blue);
+  opacity: 0.35;
+  will-change: transform, opacity;
+}
+
+/* অ্যাকসেসিবিলিটি (WCAG — issue success-criteria): যাঁরা reduced motion চান,
+   তাঁদের জন্য সম্পূর্ণ স্তর স্থির — framer-motion-ও useReducedMotion() দিয়ে
+   লুপ বন্ধ করে; এই CSS-নিয়ম ব্যাকস্টপ। */
+@media (prefers-reduced-motion: reduce) {
+  .live-bg-orb,
+  .live-bg-mote {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 @keyframes clouds-drift {

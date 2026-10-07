@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { adminTokenStore } from '../services/adminTokenStore';
-import { THEME_ORDER } from './ThemeConstants';
+import { THEME_ORDER, isDarkTheme } from './ThemeConstants';
 import { ThemeContext } from './ThemeContext';
 import type { Theme } from './ThemeConstants';
 import { apiClient } from '../services/apiClient';
@@ -53,9 +53,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     // বাংলা মন্তব্য: HTML root ও body এলিমেন্টে থিম ক্লাস অ্যাড করা হচ্ছে
+    // (#4138): ক্লাস-তালিকা আর হার্ডকোড নয় — THEME_ORDER-ই SSOT (8 থিম)।
     const root = window.document.documentElement;
     const body = window.document.body;
-    const classes = ['light', 'dark', 'sunset', 'matrix'];
+    const classes = THEME_ORDER;
     root.classList.remove(...classes);
     root.classList.add(theme);
     root.setAttribute('data-theme', theme);
@@ -85,9 +86,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     apiClient.post('/api/preferences/', { theme: newTheme })
       .catch(err => console.error('Failed to sync theme to DB:', err));
 
+    // (#4138): isDark এখন THEME_META থেকে — নতুন থিম যোগ হলে এখানে আর
+    // ভুল হার্ডকোড থাকবে না (Config > Hardcoded)।
     eventBus.emit(Events.THEME_CHANGED, {
       theme: newTheme,
-      isDark: newTheme === 'dark' || newTheme === 'matrix',
+      isDark: isDarkTheme(newTheme),
       timestamp: Date.now(),
       source: 'theme_provider',
     });
