@@ -9,10 +9,13 @@ Handles GitHub PR/issue comment threads:
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Request, status
 from pydantic import BaseModel
 
 from core.config import settings
@@ -391,20 +394,42 @@ async def detect_stale(owner: str, repo: str, days: int = 7):
     return await _comment_ai.detect_stale_prs(f"{owner}/{repo}", days)
 
 
+def _verify_signature(raw_body: bytes, signature_header: str | None, secret: str) -> None:
+    # বাংলা মন্তব্য: HMAC-SHA256 যাচাই — fail-closed security mechanism (অজানা বা অপর্যাপ্ত সিগনেচার সরাসরি বাতিল)
+    if not secret:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GitHub webhook secret not configured — ingest disabled (fail-closed)",
+        )
+    if not signature_header:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing X-Hub-Signature-256 header",
+        )
+    expected = "sha256=" + hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, signature_header.strip()):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid webhook signature",
+        )
+
+
 @router.post("/webhook")
-async def github_webhook(request: Request, x_github_event: str = Header(default="ping")):
-    """GitHub webhook receiver for PR comment events."""
+async def github_webhook(
+    request: Request,
+    x_github_event: str = Header(default="ping"),
+    x_hub_signature_256: str | None = Header(default=None, alias="X-Hub-Signature-256"),
+):
+    """GitHub webhook receiver for PR comment events with fail-closed HMAC verification."""
+    raw_body = await request.body()
+    secret = str(getattr(settings, "github_webhook_secret", "") or "")
+    _verify_signature(raw_body, x_hub_signature_256, secret)
+
     if x_github_event == "ping":
         return {"status": "pong"}
     try:
-        payload = await request.json()
+        payload = json.loads(raw_body) if raw_body else {}
     except Exception as e:
-        try:
-            import loguru
-
-            loguru.logger.error(f"Tool execution error: {e}")
-        except Exception as e:
-            logger.warning(f"Exception suppressed: {e}")
         raise HTTPException(status_code=400, detail="Invalid JSON payload") from e
 
     if x_github_event not in ("pull_request_review_comment", "issue_comment"):
