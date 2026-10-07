@@ -970,3 +970,212 @@ class TestPrLifecycleGuardWiring3516:
         _, cmd = guard_calls[0]
         assert any("pr_lifecycle_guard.py" in str(part) for part in cmd), "সঠিক স্ক্রিপ্ট-পথ"
         assert "--all" in cmd, "--all মোডে চলবে (heal + guard)"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# #4206 — Persistent Branch Workflow wiring contract tests (#4200)।
+# বাংলা: continuous_agent_loop-এ #4200-র persistent-branch লাইফসাইকেলের wiring
+# চুক্তি — flag default OFF (legacy flow অক্ষত), resume-existing-branch,
+# state transitions (claim=active, graceful=paused, crash=orphaned),
+# no-PR-on-checkpoint, PR-on-ready-only।
+# ─────────────────────────────────────────────────────────────────────────────
+
+from scripts.agents import continuous_agent_loop as loop  # noqa: E402
+from scripts.agents.continuous_agent_loop import (  # noqa: E402
+    PERSISTENT_BRANCH_ENV,
+    PERSISTENT_BRANCH_PREFIX,
+    _issue_slug,
+    branch_fresh_vs_main,
+    checkpoint_push,
+    discover_or_create_branch,
+    mark_issue_branch_state,
+    persistent_branch_enabled,
+)
+
+
+@pytest.fixture(autouse=True)
+def _clean_flag_env(monkeypatch):
+    """বাংলা: প্রতিটি টেস্টে flag-env পরিষ্কার — টেস্টগুলো নিজেরাই flag সেট করবে।"""
+    monkeypatch.delenv(PERSISTENT_BRANCH_ENV, raising=False)
+
+
+class TestPersistentBranchFlag4206:
+    """Flag contract: default OFF = legacy flow; env মানেই ON (revert-safe wiring)।"""
+
+    def test_default_is_off(self, monkeypatch):
+        monkeypatch.delenv(PERSISTENT_BRANCH_ENV, raising=False)
+        assert persistent_branch_enabled() is False
+
+    def test_truthy_values_enable(self, monkeypatch):
+        for val in ("1", "true", "YES", "on", "On"):
+            monkeypatch.setenv(PERSISTENT_BRANCH_ENV, val)
+            assert persistent_branch_enabled() is True, val
+
+    def test_falsy_values_disable(self, monkeypatch):
+        for val in ("", "0", "false", "no", "off", "junk"):
+            monkeypatch.setenv(PERSISTENT_BRANCH_ENV, val)
+            assert persistent_branch_enabled() is False, val
+
+    def test_env_name_stable(self):
+        assert PERSISTENT_BRANCH_ENV == "SUPREMEAI_PERSISTENT_BRANCH"
+
+
+class TestIssueSlug4206:
+    """বাংলা: একই issue সবসময় একই slug — deterministic naming চুক্তি (#4200 §3)।"""
+
+    def test_ascii_title_slug(self):
+        assert _issue_slug("Fix the Login Bug") == "fix-the-login-bug"
+
+    def test_bengali_title_falls_back_to_work(self):
+        # non-ascii সরে যায় — খালি হলে deterministic 'work'
+        assert _issue_slug("বাংলা টাইটেল") == "work"
+
+    def test_mixed_title_keeps_ascii_part(self):
+        assert _issue_slug("fix #4200: Persistent Branch!") == "fix-4200-persistent-branch"
+
+    def test_deterministic_and_length_capped(self):
+        long = "a" * 100 + " trailing"
+        s1, s2 = _issue_slug(long), _issue_slug(long)
+        assert s1 == s2 and len(s1) <= 40
+
+    def test_empty_title_is_work(self):
+        assert _issue_slug("") == "work"
+        assert _issue_slug(None) == "work"
+
+
+class TestDiscoverOrCreateBranch4206:
+    """Reuse-before-create (#4200 §3): existing agent/<issue>-* → resume; নাহলে create।"""
+
+    def test_resumes_existing_discovered_branch(self):
+        with patch("scripts.ci.mark_branch_state.discover_branch", return_value="agent/4200-old-work") as m:
+            name, resumed = discover_or_create_branch(4200, "any title")
+        assert m.called
+        assert name == "agent/4200-old-work" and resumed is True
+
+    def test_creates_deterministic_name_when_none(self):
+        with patch("scripts.ci.mark_branch_state.discover_branch", return_value=None):
+            name, resumed = discover_or_create_branch(4206, "Wire the Loop LifeCycle")
+        assert name == f"{PERSISTENT_BRANCH_PREFIX}4206-wire-the-loop-lifecycle"
+        assert resumed is False
+
+    def test_discovery_failure_is_fail_soft_create_path(self):
+        with patch("scripts.ci.mark_branch_state.discover_branch", side_effect=RuntimeError("net down")):
+            name, resumed = discover_or_create_branch(77, "some task")
+        assert name == f"{PERSISTENT_BRANCH_PREFIX}77-some-task" and resumed is False
+
+
+class TestMarkIssueBranchState4206:
+    """বাংলা: state transition = coordination hint — flag OFF-এ API কলই নেই,
+    ব্যর্থতায় কাজ থামে না (fail-soft, hint-only)।"""
+
+    def test_flag_off_means_no_api_call(self):
+        with patch("scripts.ci.mark_branch_state.mark_branch_state") as m:
+            ok = mark_issue_branch_state(4206, "active", "agent/4206-x")
+        assert ok is False
+        m.assert_not_called()
+
+    def test_flag_on_transitions_and_returns_true(self, monkeypatch):
+        monkeypatch.setenv(PERSISTENT_BRANCH_ENV, "1")
+        with patch("scripts.ci.mark_branch_state.mark_branch_state", return_value=True) as m:
+            ok = mark_issue_branch_state(4206, "active", "agent/4206-x")
+        assert ok is True
+        assert m.call_args[0][0] == 4206 and m.call_args[0][1] == "active"
+
+    def test_exception_is_fail_soft_false(self, monkeypatch):
+        monkeypatch.setenv(PERSISTENT_BRANCH_ENV, "1")
+        with patch("scripts.ci.mark_branch_state.mark_branch_state", side_effect=RuntimeError("403")):
+            assert mark_issue_branch_state(4206, "paused") is False
+
+    def test_empty_branch_name_passes_none(self, monkeypatch):
+        monkeypatch.setenv(PERSISTENT_BRANCH_ENV, "1")
+        with patch("scripts.ci.mark_branch_state.mark_branch_state", return_value=True) as m:
+            mark_issue_branch_state(99, "orphaned", "")
+        assert m.call_args[0][2] is None
+
+
+class TestCheckpointPush4206:
+    """#4200 §5: checkpoint push WITHOUT PR — শেয়ার্ড ওয়ার্কস্পেসে force নয়।"""
+
+    def test_pushes_without_force_and_succeeds(self):
+        with patch.object(loop, "run", return_value=MagicMock(returncode=0, stderr="")) as r:
+            assert checkpoint_push("agent/4206-x") is True
+        cmd = r.call_args[0][0]
+        assert cmd[:3] == ["git", "push", "origin"]
+        assert "--force" not in cmd, "persistent branch শেয়ার্ড — force-push নিষিদ্ধ"
+
+    def test_push_failure_returns_false(self):
+        with patch.object(loop, "run", return_value=MagicMock(returncode=1, stderr="rejected")):
+            assert checkpoint_push("agent/4206-x") is False
+
+
+class TestBranchFreshVsMain4206:
+    """বাংলা: reuse-before-create — freshness logic MutationLease.check_freshness-এই;
+    এখানে শুধু reuse + fail-soft চুক্তি যাচাই।"""
+
+    def test_reuses_mutation_lease_check_freshness(self):
+        with patch("scripts.ci.mutation_lease.MutationLease") as M:
+            M.return_value.check_freshness.return_value = True
+            assert branch_fresh_vs_main("agent/4206-x") is True
+            M.assert_called_once_with(branch="agent/4206-x")
+
+    def test_exception_is_fail_soft_false(self):
+        with patch("scripts.ci.mutation_lease.MutationLease", side_effect=RuntimeError("boom")):
+            assert branch_fresh_vs_main("agent/4206-x") is False
+
+
+class TestCheckoutPersistentBranch4206:
+    """বাংলা: resume = remote fetch + checkout; create = origin/main থেকে -B।"""
+
+    def test_resume_path_fetches_then_checks_out(self):
+        ok = MagicMock(returncode=0)
+        with patch.object(loop, "run", return_value=ok) as r:
+            assert loop.checkout_persistent_branch("agent/4206-x", resumed=True) is True
+        cmds = [c[0][0] for c in r.call_args_list]
+        assert any(c[:2] == ["git", "fetch"] for c in cmds)
+        assert any(c[:2] == ["git", "checkout"] and "-B" not in c for c in cmds)
+
+    def test_resume_fallback_when_local_checkout_fails(self):
+        fail = MagicMock(returncode=1)
+        ok = MagicMock(returncode=0)
+        with patch.object(loop, "run", side_effect=[ok, fail, ok]) as r:
+            assert loop.checkout_persistent_branch("agent/4206-x", resumed=True) is True
+        last_cmd = r.call_args_list[-1][0][0]
+        assert "-B" in last_cmd and "origin/agent/4206-x" in last_cmd
+
+    def test_create_path_uses_origin_main(self):
+        ok = MagicMock(returncode=0)
+        with patch.object(loop, "run", return_value=ok) as r:
+            assert loop.checkout_persistent_branch("agent/77-new", resumed=False) is True
+        cmd = r.call_args_list[0][0][0]
+        assert "checkout" in cmd and "-B" in cmd and cmd[-1] == "origin/main"
+
+
+class TestOrphanReleaseMarksOrphaned4206:
+    """বাংলা: crash-detector (release_orphan_claims) → orphaned state transition
+    — state-machine-এর orphaned পায়ের wiring চুক্তি।"""
+
+    def _stale_issue_payload(self):
+        return [{
+            "number": 4206, "title": "wire loop", "assignees": [],
+            "updatedAt": "2026-10-07T00:00:00Z", "comments": [{
+                "body": "### 🔒 Atomic Claim Established (GAP-01)\n- **Agent:** `supremeai-coder-1`\n- **Claimed at:** 2020-01-01T00:00:00Z",
+            }],
+        }]
+
+    def test_orphaned_transition_fires_when_flag_on(self, monkeypatch):
+        monkeypatch.setenv(PERSISTENT_BRANCH_ENV, "1")
+        list_res = MagicMock(returncode=0, stdout=json.dumps(self._stale_issue_payload()))
+        with patch.object(loop, "run", return_value=list_res), \
+             patch.object(loop, "persistent_branch_enabled", return_value=True), \
+             patch("scripts.ci.mark_branch_state.mark_branch_state", return_value=True) as m:
+            loop.release_orphan_claims("supremeai-coder-1", timeout_minutes=30)
+        states = [c.args[1] for c in m.call_args_list]
+        assert "orphaned" in states
+
+    def test_no_transition_when_flag_off(self):
+        list_res = MagicMock(returncode=0, stdout=json.dumps(self._stale_issue_payload()))
+        with patch.object(loop, "run", return_value=list_res), \
+             patch("scripts.ci.mark_branch_state.mark_branch_state") as m:
+            loop.release_orphan_claims("supremeai-coder-1", timeout_minutes=30)
+        m.assert_not_called()
+

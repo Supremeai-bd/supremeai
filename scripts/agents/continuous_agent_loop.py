@@ -1141,6 +1141,124 @@ def claim_with_backoff(issue_number: int, agent_slot: str, files: str = "", max_
     return False
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# #4206: Persistent Branch Workflow wiring (#4200) — flag-gated (default OFF)।
+# বাংলা: SUPREMEAI_PERSISTENT_BRANCH=1 হলে loop টি #4200-র ক্যানোনিকাল
+# লাইফসাইকেল মেনে চলে — claim=active, graceful-exit/অসম্পূর্ণ-কাজ=paused,
+# crash-recovery=orphaned, কাজ-সফল=ready (তারপরই PR), আর চেকপয়েন্ট push
+# PR ছাড়াই বৈধ (#4205 reconciliation-এর পরে)। Flag default OFF → legacy
+# PR-centric flow অপরিবর্তিত (revert-safe wiring — issue rollback path)।
+# ─────────────────────────────────────────────────────────────────────────────
+PERSISTENT_BRANCH_ENV = "SUPREMEAI_PERSISTENT_BRANCH"
+PERSISTENT_BRANCH_PREFIX = "agent/"
+
+
+def persistent_branch_enabled() -> bool:
+    """#4200 wiring flag — default OFF (legacy flow)।
+
+    বাংলা: flag-বিহীন চলা মানে পুরনো ধারা; flag ON মানে persistent-branch
+    লাইফসাইকেল (#4200)। ফ্লিপ-সিদ্ধান্ত admin-এর (issue rollback path)।
+    """
+    return os.environ.get(PERSISTENT_BRANCH_ENV, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _issue_slug(title: str, max_len: int = 40) -> str:
+    """Deterministic slug from issue title (#4200 §3 issue-deterministic naming)।
+
+    বাংলা: একই issue সবসময় একই ব্রাঞ্চ-নাম পাবে — slug টাইটেল থেকে
+    deterministic ভাবে তৈরি (unicode-safe: non-ascii সরিয়ে)।
+    """
+    ascii_title = (title or "").encode("ascii", "ignore").decode("ascii").lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_title).strip("-")
+    return (slug[:max_len].rstrip("-")) or "work"
+
+
+def discover_or_create_branch(issue_number: int, title: str) -> tuple[str, bool]:
+    """#4200 §3: deterministic issue-branch reuse-before-create।
+
+    বাংলা: আগে discover_branch() (git ls-remote origin agent/<issue>-*) —
+    বিদ্যমান persistent branch থাকলে সেটিই resume (resumed=True); না থাকলে
+    issue-deterministic নতুন নাম। Discovery-ব্যর্থতা fail-soft → create-পথ।
+    Returns (branch_name, resumed)।
+    """
+    try:
+        from scripts.ci.mark_branch_state import discover_branch
+        existing = discover_branch(int(issue_number))
+        if existing:
+            return existing, True
+    except Exception as err:
+        print(f"⚠️ branch discovery failed (fail-soft → create path): {err}")
+    return f"{PERSISTENT_BRANCH_PREFIX}{int(issue_number)}-{_issue_slug(title)}", False
+
+
+def mark_issue_branch_state(issue_number: int, state: str, branch_name: str = "") -> bool:
+    """#4200 §2 label transition — coordination hint only, never blocks work।
+
+    বাংলা: branch:* label হলো সমন্বয়-সংকেত, source of truth নয়; ব্যর্থতায়
+    কাজ থামে না (fail-soft)। Flag OFF হলে কোনো API কলই হয় না (legacy flow)।
+    """
+    if not persistent_branch_enabled():
+        return False
+    try:
+        from scripts.ci.mark_branch_state import mark_branch_state
+        ok = bool(mark_branch_state(int(issue_number), state, branch_name or None))
+        if ok:
+            print(f"🏷️ Branch state → {state} (issue #{issue_number})")
+        return ok
+    except Exception as err:
+        print(f"⚠️ branch-state transition failed (hint-only, non-blocking): {err}")
+        return False
+
+
+def checkout_persistent_branch(branch_name: str, resumed: bool) -> bool:
+    """Checkout (বা তৈরি) the persistent issue branch in the workspace।
+
+    বাংলা: resumed হলে remote branch fetch করে সেখানে স্যুইচ — আগের এজেন্টের
+    কমিট ওখানেই টেকে; না হলে origin/main থেকে নতুন persistent branch।
+    """
+    try:
+        if resumed:
+            run(["git", "fetch", "origin", branch_name], check=True, timeout=60)
+            res = run(["git", "checkout", branch_name], timeout=30)
+            if res.returncode != 0:
+                res = run(["git", "checkout", "-B", branch_name, f"origin/{branch_name}"], timeout=30)
+            return res.returncode == 0
+        res = run(["git", "checkout", "-B", branch_name, "origin/main"], timeout=30)
+        return res.returncode == 0
+    except Exception as err:
+        print(f"⚠️ persistent checkout failed ({branch_name}): {err}")
+        return False
+
+
+def branch_fresh_vs_main(branch_name: str) -> bool:
+    """#4200 §7 resume/verify step — reuse MutationLease.check_freshness।
+
+    বাংলা: reuse-before-create (§14) — freshness লজিক mutation_lease-এ
+    ইতিমধ্যে আছে, নতুন করে লিখব না। ব্যর্থতা = fresh নয় (সৎ-সংকেত)।
+    """
+    try:
+        from scripts.ci.mutation_lease import MutationLease
+        return bool(MutationLease(branch=branch_name).check_freshness())
+    except Exception as err:
+        print(f"⚠️ freshness check failed ({branch_name}): {err}")
+        return False
+
+
+def checkpoint_push(branch_name: str) -> bool:
+    """#4200 §5: checkpoint push WITHOUT opening a PR (legal post-#4205)।
+
+    বাংলা: কাজ-অসম্পূর্ণ হলেও চেকপয়েন্ট push হয় (PR ছাড়াই) — পরের এজেন্ট
+    resume করতে পারে; PR তৈরি হবে কেবল ready-তে। Persistent branch শেয়ার্ড
+    ওয়ার্কস্পেস — তাই force-push নয় (remote এগিয়ে থাকলে push fail-soft)।
+    """
+    res = run(["git", "push", "origin", branch_name], check=False, timeout=120)
+    if res.returncode != 0:
+        print(f"⚠️ checkpoint push failed for {branch_name}: {res.stderr[:200]}")
+        return False
+    print(f"📦 Checkpoint pushed (no PR — persistent-branch mode): {branch_name}")
+    return True
+
+
 def release_orphan_claims(agent_name: str, timeout_minutes: int = 30) -> None:
     """Release claims held by this agent beyond timeout (crash recovery).
 
@@ -1206,6 +1324,11 @@ def release_orphan_claims(agent_name: str, timeout_minutes: int = 30) -> None:
                 "--remove-label", "status:in-progress",
                 "--add-label", "status:unclaimed"
             ])
+            # #4206: persistent-branch mode — released orphan claim → branch orphaned।
+            # বাংলা: claim ছাড়া দাঁড়িয়ে থাকা persistent branch এখন orphaned —
+            # পরবর্তী এজেন্ট orphaned → active resume-ট্রানজিশনে নিতে পারবে।
+            if persistent_branch_enabled():
+                mark_issue_branch_state(int(num), "orphaned")
 
 
 def get_ci_failure_count(issue_number: int) -> int:
@@ -1567,6 +1690,27 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
 
             if claim_with_backoff(issue_number, str(agent_slot), files=declared_files):
                 print(f"👉 Agent {agent_name} is now working on issue #{issue_number}")
+
+                # #4206: persistent-branch mode — deterministic issue-branch reuse (#4200 §3)।
+                # বাংলা: flag ON হলে slot-branch-এর আগে discover_branch() — বিদ্যমান
+                # agent/<issue>-* branch থাকলে সেটিই resume (আগের এজেন্টের কমিট রক্ষা),
+                # না থাকলে নতুন persistent branch। resume-এ main-এর বিপরীতে freshness
+                # যাচাই (#4200 §7) + state → active। Legacy flow অপরিবর্তিত (flag OFF)।
+                persistent_checkout_ok = False
+                if persistent_branch_enabled() and issue_number.isdigit():
+                    _p_branch, _resumed = discover_or_create_branch(int(issue_number), task.get("title", ""))
+                    if checkout_persistent_branch(_p_branch, _resumed):
+                        branch_name = _p_branch
+                        persistent_checkout_ok = True
+                        if _resumed:
+                            if branch_fresh_vs_main(branch_name):
+                                print(f"✅ Resumed persistent branch is fresh vs main: {branch_name}")
+                            else:
+                                print(f"⚠️ Resumed branch is stale vs main — sync before READY: {branch_name}")
+                        mark_issue_branch_state(int(issue_number), "active", branch_name)
+                    else:
+                        print(f"⚠️ persistent checkout failed — falling back to slot branch {branch_name}")
+
                 print(f"   Branch: {branch_name}")
                 print(f"   Role: {task.get('role')}")
                 print(f"   Workflow: {task.get('workflow')}")
@@ -1575,7 +1719,8 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
                 # বাংলা মন্তব্য: acquire_role_slot এ --defer-checkout দিয়েছিল, তাই
                 # branch checkout এখন claim সফলের পরেই হবে — আগে নয়। যদি claim
                 # ব্যর্থ হতো, এই কোডে ঢুকতো না, branch dirty হতো না।
-                if task.get("checkout_deferred") and branch_name:
+                # #4206: persistent checkout সফল হলে slot-branch checkout দরকার নেই।
+                if task.get("checkout_deferred") and branch_name and not persistent_checkout_ok:
                     from scripts.agents.acquire_role_slot import (
                         checkout_group_branch, checkout_slot_branch, GROUP_BRANCH_PREFIX
                     )
@@ -1616,10 +1761,19 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
                 # কমান্ড ছাডাই খালি PR জন্মাত (ghost-PR জেনারেটর)। সঠিক চুক্তি:
                 # কাজ-কমান্ড চলেছে (exec_cmd আছে) এবং rc == 0 — তবেই push+PR।
                 work_ran_ok = _work_ran_ok(exec_cmd, rc)
+                persistent_mode = persistent_branch_enabled() and bool(issue_number.isdigit())
                 if branch_name and work_ran_ok:
                     print(f"📦 Pushing branch '{branch_name}' to origin...")
-                    push_res = run(["git", "push", "origin", branch_name, "--force"], check=False)
+                    # #4206: persistent branch = শেয়ার্ড ওয়ার্কস্পেস — force-push নয়
+                    # (#4200 §6 controlled mutation); legacy slot-branch flow --force রাখে।
+                    push_args = ["git", "push", "origin", branch_name]
+                    if not persistent_mode:
+                        push_args.append("--force")
+                    push_res = run(push_args, check=False)
                     if push_res.returncode == 0:
+                        # #4206/#4200: PR তৈরি হবে কেবল ready-ট্রানজিশনে (§4)।
+                        if persistent_mode:
+                            mark_issue_branch_state(int(issue_number), "ready", branch_name)
                         print(f"✅ Branch pushed. Creating PR for issue #{issue_number}...")
                         pr_title = f"fix(#{issue_number}): {task.get('title', 'auto-fix')[:60]}"
                         pr_body = (
@@ -1652,7 +1806,20 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
                     else:
                         print(f"⚠️ Branch push failed: {push_res.stderr[:200]}")
                 elif branch_name:
-                    print(f"ℹ️ No exec_cmd or work failed — skipping push+PR for #{issue_number}")
+                    if persistent_mode:
+                        # #4206/#4200 §5: কাজ-অসম্পূর্ণ — চেকপয়েন্ট push PR ছাড়াই,
+                        # state → paused (কাজ resumable)। Legacy পথ কিছুই push করত না।
+                        print(f"📦 Work incomplete — checkpoint push WITHOUT PR (persistent mode)...")
+                        if checkpoint_push(branch_name):
+                            mark_issue_branch_state(int(issue_number), "paused", branch_name)
+                    else:
+                        print(f"ℹ️ No exec_cmd or work failed — skipping push+PR for #{issue_number}")
+
+                # #4206: এই iteration-এর সিদ্ধান্ত টার্মিনাল — current-issue holder মুছো;
+                # ব্যতিক্রমে finally paused-মার্কিং জানবে কাজ অসম্পূর্ণ ছিল কি না।
+                if persistent_mode:
+                    _current_issue_holder["issue"] = None
+                    _current_issue_holder["branch"] = ""
 
                 # #3292: Rule-5 (U8) continuous rerun — সত্যিকার-বাস্তবায়ন। আগে
                 # finally-ব্লকে ফাঁপা ছিল (while-লুপ বন্ধ হওয়ার পরে শুধু মেসেজ)।
@@ -1673,6 +1840,16 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
         if role_lock_acquired:
             release_role_lock(active_role, agent_name)
             print(f"🔓 Role lock released: {active_role}")
+        # #4206: graceful exit with unfinished persistent-branch work → paused।
+        # বাংলা: holder-এ issue থাকা মানে এই iteration টার্মিনাল-সিদ্ধান্তে পৌঁছায়নি
+        # (ব্যতিক্রম/break) — কাজ resumable; প্রকৃত crash-এ পরবর্তী সেশনের
+        # release_orphan_claims এটিকে orphaned করবে (state-machine সম্পূর্ণ)।
+        try:
+            _held = _current_issue_holder.get("issue")
+            if persistent_branch_enabled() and _held:
+                mark_issue_branch_state(int(_held), "paused", _current_issue_holder.get("branch", ""))
+        except Exception:
+            pass
         # #2950-followup: stop heartbeat thread + mark exited
         heartbeat_stop.set()
         try:
