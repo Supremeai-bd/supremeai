@@ -94,6 +94,11 @@ on:
         required: false
         default: false
         type: boolean
+      run_docs_garbage_sweep:
+        description: 'Run docs garbage tree-sweep arm (#4176 — main-tree Zero-Garbage monitoring)'
+        required: false
+        default: false
+        type: boolean
       platform_deep_audit_dry_run:
         description: '[platform-deep-audit] Dry-run (probe + report only, no GitHub issue writes) — recommended for the first validation run (#2712)'
         required: false
@@ -832,6 +837,50 @@ jobs:
           echo "Run at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_STEP_SUMMARY
           echo "Severity: ${{ steps.check.outputs.severity }}" >> $GITHUB_STEP_SUMMARY
           echo "Remaining: ${{ steps.check.outputs.remaining }}" >> $GITHUB_STEP_SUMMARY
+
+  docs-garbage-sweep:
+    # ── #4176 Step 3: PR-independent main-tree Zero-Garbage monitoring ──────
+    # PR-path gate (pr.yml → constitution.gates docs_garbage) শুধু PR-এর
+    # changed-files দেখে — main-এ direct push হলে কোনো gate চলে না (প্রমাণ:
+    # 9e4d9df/889da16, 2026-10-06)। এই job পুরো docs/ tree দিনে একবার sweep
+    # করে — baseline-বাইরে নতুন non-allowlisted docs/*.md = লাল (fail-closed)।
+    name: 🧹 Docs Garbage Tree Sweep (daily, #4176)
+    if: >-
+        (github.event_name == 'workflow_dispatch' && inputs.run_docs_garbage_sweep == true) ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+    concurrency:
+      group: docs-garbage-sweep
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout main tree
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Tree sweep (fail-closed on new offenders)
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/docs_garbage_tree_sweep.py
+
+      - name: Sweep summary (offender inventory on failure)
+        if: failure()
+        run: |
+          echo "## 🧹 Docs Garbage Tree Sweep — NEW OFFENDERS (#4176)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/ci/docs_garbage_tree_sweep.py --list >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Remediation:** ফাইলটি \`docs/archive/\`-এ সরাও, অথবা rules.yml \`docs_garbage_policy.allowed_patterns\`-এ (approved PR-এ) যোগ করো, অথবা liability-audit-এ সিদ্ধান্ত নাও।" >> "$GITHUB_STEP_SUMMARY"
 
   stale-mutex:
     if: >-

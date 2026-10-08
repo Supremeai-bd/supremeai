@@ -1,3 +1,6 @@
+> 📦 **ARCHIVED (#4176)** — Superseded by [`FRONTEND_DASHBOARD_MASTER_PLAN_V2.md`](../FRONTEND_DASHBOARD_MASTER_PLAN_V2.md).
+> Original direct-push provenance: `9e4d9df` (2026-10-06, Vibe Nuage Agent / mistral-vibe) — liability-audit remediation moved this doc to `docs/archive/` (Zero-Deletion policy). Historical reference only.
+
 # SupremeAI Frontend & Admin Dashboard - Master Plan
 
 ## Document Overview

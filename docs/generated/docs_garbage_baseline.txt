@@ -1,4 +1,3 @@
-docs/FRONTEND_DASHBOARD_MASTER_PLAN.md
 docs/FRONTEND_DASHBOARD_MASTER_PLAN_V2.md
 docs/audit_reports/route_client_inventory.md
 docs/database/AI_MEMORY_RETENTION_POLICY.md
