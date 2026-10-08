@@ -78,9 +78,11 @@ services:
   firebase:
     platform: firebase
     deploy_key: firebase
+    # বাংলা (#4269): পুরনো watch_paths অবাস্তব রুট-লেভেল পাথ ছিল (firestore.rules/
+    # storage.rules রুটে নেই) — rules-পরিবর্তনে deploy-firebase কখনো ট্রিগারই হতো
+    # না (নীরব স্টেল)। SSOT এখন firebase/ ডিরেক্টরিতে স্থানান্তরিত (config/ টপোলজি-
+    # noise-prefix — detector watch-match এড়িয়ে যায়)।
     watch_paths:
-      - "firestore.rules"
-      - "storage.rules"
-      - "firebase.json"
-      - ".firebaserc"
       - "firebase/**"
+      - "firebase.template.json"
+      - ".firebaserc"

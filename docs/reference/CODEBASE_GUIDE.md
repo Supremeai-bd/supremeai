@@ -1093,7 +1093,7 @@
 ### `firebase.template.json`
 **Purpose:** Firebase config template — Firestore rules + indexes, Hosting targets (`user` + `admin` both serving `frontend/dist`), SPA rewrites, cache headers, CSP.
 **Created for:** Idempotent Firebase Hosting deploys via `scripts/deploy/generate_firebase_config.py`.
-**Key files:** `firebase.template.json`, `scripts/deploy/generate_firebase_config.py`, `config/firestore.rules`
+**Key files:** `firebase.template.json`, `scripts/deploy/generate_firebase_config.py`, `firebase/firestore.rules`
 **Check if working:** `firebase deploy --only hosting --dry-run` validates; deployed URL returns CSP + cache headers.
 
 ### `mkdocs.yml`

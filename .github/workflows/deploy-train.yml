@@ -667,6 +667,11 @@ jobs:
         uses: actions/setup-node@v5 # v7.0.0
         with:
           node-version: '24'
+          # বাংলা (#4269): এই স্টেশন npm/wrangler-ভিত্তিক, কিন্তু root package.json-এর
+          # packageManager=pnpm setup-node@v5-এর default package-manager-cache-কে
+          # pnpm খোঁজায় — pnpm নেই বলে হার্ড-এরর (run 37723328233)। pnpm এখানে
+          # দরকার নেই — cache বন্ধ।
+          package-manager-cache: false
       - name: Install Wrangler
         run: npm install -g wrangler@4.135.0
       - name: Deploy Worker
@@ -703,12 +708,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5 # v7.0.1
+      # বাংলা (#4269): setup-node@v5-এর default `package-manager-cache: true` root
+      # package.json-এর packageManager দেখে pnpm ক্যাশ করতে যায় — pnpm ইনস্টলের
+      # আগে হলে "Unable to locate executable file: pnpm" হার্ড-এরর (run 37723328233
+      # প্রমাণ)। সঠিক ক্রম = pnpm আগে, node পরে (mission-control job-এর বিদ্যমান
+      # প্যাটার্ন L350-356 অনুযায়ী)।
+      - name: Setup pnpm (SSOT from package.json)
+        uses: pnpm/action-setup@v5 # reads packageManager from package.json
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
           node-version: '24'
-      - name: Setup pnpm (SSOT from package.json)
-        uses: pnpm/action-setup@v5 # reads packageManager from package.json
+          cache: 'pnpm'
       - name: Build frontend workspace
         run: pnpm install --frozen-lockfile && pnpm --filter supremeai-studio-client... build
       - name: Deploy to Vercel (fail-closed — no swallow, Rule 10)
@@ -743,7 +754,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5 # v7.0.1
+      # বাংলা (#4269): firebase CLI-এর প্রজেক্ট-কনফিগ SSOT এখন config/firebase.json —
+      # রিপোর রুটে firebase.json কখনোই ছিল না, তাই CLI "Not in a Firebase app
+      # directory" দিয়ে লাল (run 37723328233 প্রমাণ)। cwd=config + relative পাথ —
+      # rules/indexes ফাইল দুটি একই ডিরেক্টরিতে (firebase/) সহাবস্থান করে — config/ noise-prefix-এ থাকায় detector watch-match পেত না।
       - name: Deploy Firebase rules (fail-closed — no swallow, Rule 10)
+        working-directory: firebase
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
@@ -755,7 +771,11 @@ jobs:
             exit 0
           fi
           npm install -g firebase-tools@13
-          firebase deploy --only firestore:rules,storage:rules \
+          # বাংলা (#4269): storage:rules বাদ — রিপোতে storage.rules ফাইল নেই
+          # (অস্তিত্বহীন টার্গেট deploy করা মিথ্যা-সবুজের পথ); বাস্তব টার্গেট =
+          # firestore rules + indexes দুটোই config/ SSOT-এ আছে।
+          firebase deploy --only firestore:rules,firestore:indexes \
+            --config firebase.json \
             --project="$FIREBASE_PROJECT_ID" \
             --token="$FIREBASE_TOKEN"
 
