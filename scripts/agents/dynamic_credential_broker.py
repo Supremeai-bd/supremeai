@@ -116,7 +116,7 @@ class DynamicCredentialBroker:
     def __init__(self, repo: str = REPO, tower_url: str = ""):
         self.repo = repo
         self.tower_url = tower_url or os.environ.get(
-            "MCP_TOWER_URL", "https://supremeai-mcp-tower.onrender.com"
+            "MCP_TOWER_URL", os.environ.get("MCP_SERVER_URL", "")
         )
         self.mcp_api_key = os.environ.get("MCP_API_KEY", "")
         self.gh_token = os.environ.get("GITHUB_TOKEN", os.environ.get("GH_TOKEN", ""))
