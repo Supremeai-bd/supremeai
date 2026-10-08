@@ -8,14 +8,14 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Command, LogOut, Moon, Sun, Bell, ChevronDown, Wifi, WifiOff } from 'lucide-react';
+import { Command, LogOut, Bell, ChevronDown, Wifi, WifiOff } from 'lucide-react';
 import { useAuthStore, AuthStatus } from '../../store/authStore';
 import { useStore } from '../../store/useStore';
-import { useTheme } from '../../contexts/useTheme';
 import { useWorkspaceSettings } from '../../hooks/useWorkspaceSettings';
 import { useMobileNav } from '../../hooks/useMobileNav';
 import { canAccessAdminContext, resolveLandingPath } from '../../auth/identity';
 import { PANEL_OPEN_EVENT } from './shellEvents';
+import { ThemePicker } from './ThemePicker';
 
 export interface HeaderNotification {
   id: string;
@@ -44,7 +44,6 @@ const HeaderAvatar: React.FC<{ label: string; className?: string }> = ({ label, 
 export function GlobalHeader({ context, onLogout, notifications = [], actions }: GlobalHeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, toggleTheme } = useTheme();
   const user = useAuthStore((s) => s.user);
   const isServerOnline = useStore((s) => s.isServerOnline);
   // #972 UX contract: honest "CHECKING…" label while the first health probe
@@ -240,15 +239,9 @@ export function GlobalHeader({ context, onLogout, notifications = [], actions }:
         )}
       </div>
 
-      {/* Theme toggle — cycles the shared ThemeProvider (dark → light → sunset → matrix) */}
-      <button
-        type="button"
-        onClick={toggleTheme}
-        aria-label={`Current theme: ${theme}. Change theme`}
-        className="h-9 w-9 rounded-lg hover:surface-2 text-secondary hover:text-text flex items-center justify-center transition-colors"
-      >
-        {theme === 'light' ? <Sun size={17} /> : <Moon size={17} />}
-      </button>
+      {/* Theme picker — (#4138 Phase 1 follow-up) একক cycle-toggle-এর বদলে
+          ৮-থিমের dropdown: সরাসরি যেকোনো থিম, নামের SSOT = THEME_META। */}
+      <ThemePicker />
 
       {/* Profile / identity */}
       <div className="relative">

@@ -55,14 +55,26 @@ export const useMobilePreview = create<MobilePreviewState>((set) => ({
 /**
  * Keyboard shortcut handler — Ctrl+M toggles mobile preview.
  * বাংলা: Ctrl+M চাপলে মোবাইল প্রিভিউ toggle হয়।
+ *
+ * বাগ-ফিক্স: আগে anonymous listener add হতো কিন্তু কখনো remove হতো না —
+ * React StrictMode-এর double-effect ও hot-reload প্রতিবার নতুন listener জমাত
+ * (Ctrl+M একবার চাপলেই একাধিক toggle)। এখন named handler + cleanup ফেরত দেয়,
+ * তাই caller (WorkspaceLayout) useEffect-এর return-এ এটিই remove করবে।
+ *
+ * @returns cleanup ফাংশন — effect-এর return-এ কল করতে হবে।
  */
-export function setupMobilePreviewKeyboard() {
-  if (typeof window === 'undefined') return;
+export function setupMobilePreviewKeyboard(): () => void {
+  if (typeof window === 'undefined') return () => {};
 
-  window.addEventListener('keydown', (e) => {
+  const handler = (e: KeyboardEvent) => {
+    // বাংলা: চেপে ধরে রাখলে (auto-repeat) প্যানেল দ্রুত এদিক-ওদিক করত — সেটা বন্ধ।
+    if (e.repeat) return;
     if ((e.ctrlKey || e.metaKey) && e.key === 'm' && !e.shiftKey && !e.altKey) {
       e.preventDefault();
       useMobilePreview.getState().toggle();
     }
-  });
+  };
+
+  window.addEventListener('keydown', handler);
+  return () => window.removeEventListener('keydown', handler);
 }

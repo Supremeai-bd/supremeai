@@ -23,9 +23,9 @@ export function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const { isOpen, toggle } = useMobilePreview();
 
   // Setup keyboard shortcut (Ctrl+M)
-  useEffect(() => {
-    setupMobilePreviewKeyboard();
-  }, []);
+  // বাগ-ফিক্স: setupMobilePreviewKeyboard এখন cleanup ফেরত দেয় — না দিলে
+  // StrictMode double-mount-এ প্রতিবার একটা করে listener জমত (Ctrl+M ভেঙে যেত)।
+  useEffect(() => setupMobilePreviewKeyboard(), []);
 
   return (
     <UnifiedAppShell context="user">

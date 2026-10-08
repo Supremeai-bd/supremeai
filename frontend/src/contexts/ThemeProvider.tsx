@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { adminTokenStore } from '../services/adminTokenStore';
 import { THEME_ORDER, isDarkTheme } from './ThemeConstants';
 import { ThemeContext } from './ThemeContext';
@@ -9,7 +9,9 @@ import { eventBus, Events } from '../lib/componentEventBus';
 // বাংলা মন্তব্য: ThemeContext একে অপর ফাইল থেকে ইম্পোর্ট করা হয়েছে, যাতে react-refresh সতর্কতা দূর হয়
 // useTheme hook একে অপর ফাইলে সরানো হয়েছে (useTheme.ts)
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>('dark'); // ডিফল্ট Deep Space (dark)
+  // বাংলা: setThemeState = React-এর raw setter; context-এর setTheme আলাদা
+  // (applyTheme-ভিত্তিক) — নাম-সংঘর্ষ এড়াতে রিনেম করা হয়েছে।
+  const [theme, setThemeState] = useState<Theme>('dark'); // ডিফল্ট Deep Space (dark)
 
   useEffect(() => {
     // বাংলা মন্তব্য: Race Condition এড়াতে AbortController ব্যবহার করা হয়েছে
@@ -20,7 +22,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const legacy = localStorage.getItem('supremeai_theme');
     const localTheme = stored ? JSON.parse(stored)?.state?.theme : legacy;
     if (localTheme && THEME_ORDER.includes(localTheme as Theme)) {
-      setTheme(localTheme as Theme);
+      setThemeState(localTheme as Theme);
       localStorage.removeItem('supremeai_theme');
     }
 
@@ -30,7 +32,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const response = await apiClient.get<{ theme?: string; data?: { theme?: string } }>('/api/preferences/', { signal: controller.signal });
         const remoteTheme = response.data?.theme || response.theme;
         if (remoteTheme && THEME_ORDER.includes(remoteTheme as Theme)) {
-          setTheme(remoteTheme as Theme);
+          setThemeState(remoteTheme as Theme);
         }
       } catch (err: unknown) {
         const error = err as { name?: string };
@@ -42,7 +44,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const unsub = eventBus.subscribe(Events.THEME_CHANGED, (data: unknown) => {
       const payload = data as { theme?: string } | undefined;
-      if (payload?.theme && THEME_ORDER.includes(payload.theme as Theme)) setTheme(payload.theme as Theme);
+      if (payload?.theme && THEME_ORDER.includes(payload.theme as Theme)) setThemeState(payload.theme as Theme);
     });
 
     return () => {
@@ -67,14 +69,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [theme]);
 
-  const toggleTheme = () => {
-    // বাংলা মন্তব্য: পরবর্তী থিমে সাইকেল করা হচ্ছে (dark → light → sunset → matrix → dark)
-    const currentIndex = THEME_ORDER.indexOf(theme);
-    const nextIndex = (currentIndex + 1) % THEME_ORDER.length;
-    const newTheme = THEME_ORDER[nextIndex];
-
+  // বাংলা (#4138 Phase 1 follow-up): একটাই applyTheme — toggleTheme ও setTheme
+  // দুজনেই এটাই ব্যবহার করে, তাই persist + backend-sync + eventBus emit-এর
+  // প্রতিটি পথে একই আচরণ নিশ্চিত (আগে শুধু toggle-পথে ছিল)।
+  const applyTheme = useCallback((newTheme: Theme) => {
     // Optimistic UI Update
-    setTheme(newTheme);
+    setThemeState(newTheme);
     localStorage.setItem('supremeai-theme-storage', JSON.stringify({ state: { theme: newTheme }, version: 0 }));
     localStorage.removeItem('supremeai_theme');
 
@@ -94,10 +94,24 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       timestamp: Date.now(),
       source: 'theme_provider',
     });
-  };
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    // বাংলা মন্তব্য: পরবর্তী থিমে সাইকেল — THEME_ORDER (dark → light → synthwave →
+    // cyberpunk → minimal → sunset → matrix → emerald → dark), ৮ থিম।
+    const currentIndex = THEME_ORDER.indexOf(theme);
+    const nextIndex = (currentIndex + 1) % THEME_ORDER.length;
+    applyTheme(THEME_ORDER[nextIndex]);
+  }, [theme, applyTheme]);
+
+  const setTheme = useCallback((next: Theme) => {
+    // বাংলা: অজানা মান এলে নীরবে উপেক্ষা — fail-safe (THEME_ORDER-ই SSOT)।
+    if (!THEME_ORDER.includes(next)) return;
+    applyTheme(next);
+  }, [applyTheme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );
