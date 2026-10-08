@@ -99,17 +99,22 @@ jobs:
         if: steps.classify.outputs.severity == 'patch' || steps.classify.outputs.severity == 'minor'
         run: |
           set -euo pipefail
+          # Merge Gate Convergence — fail-closed smoke (Rule 10: Skipped ≠ passed,
+          # Missing evidence ≠ healthy). পুরনো `| tail -N || true` টাইপচেক/ইনস্টলের
+          # exit-code গিলে ফেত → typecheck লাল হলেও smoke_passed=true → auto-merge
+          # false-green-এ merge করত। এখন কোনো ব্যর্থতাই step-কে লাল করবে —
+          # আউটপাট অসেট (≠ 'true') থেকে যাবে → auto-merge job skip = fail-closed।
           case "${{ steps.classify.outputs.ecosystem }}" in
             npm)
               corepack enable 2>/dev/null || true
               pnpm install --frozen-lockfile --prefer-offline
-              pnpm turbo run typecheck --filter=...${{ github.event.repository.name }}... 2>&1 | tail -20 || true
+              pnpm turbo run typecheck --filter=...${{ github.event.repository.name }}... 2>&1 | tail -20
               ;;
             pip)
               cd backend
               if [ -f poetry.lock ]; then
                 pip install poetry --quiet
-                poetry install --no-interaction --no-root --quiet 2>&1 | tail -5 || true
+                poetry install --no-interaction --no-root --quiet 2>&1 | tail -5
               fi
               ;;
           esac
