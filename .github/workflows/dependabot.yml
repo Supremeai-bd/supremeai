@@ -11,10 +11,19 @@
 #      - ডিপেন্ডাবট মেটাডেটা ও PR টাইটেল থেকে severity (major/minor/patch) ও ecosystem নির্ধারণ।
 #      - Low-risk (patch/minor) পরিবর্তনের ক্ষেত্রে ইনস্টলেশন ও টাইপচেক স্মোক টেস্ট।
 #      - রেজাল্ট অনুযায়ী লেবেল ('risk:low', 'risk:high', 'needs-verification', 'verified-auto') ও কমেন্ট।
-#   ২. auto-merge:
-#      - শুধুমাত্র যদি classify-and-verify-তে স্মোক টেস্ট সফল হয় এবং কোনো ব্রেকিং (Major) পরিবর্তন না থাকে,
-#        তবেই PR স্বয়ংক্রিয়ভাবে Approve হবে এবং Squash Auto-Merge এনেবল হবে।
-#      - রিকোয়ার্ড সিআই গেট ও টেস্ট পাস করলে গিটহাব নিজে থেকেই PR মেইনে ল্যান্ড করাবে।
+#   ২. approve (landing = Merge Gate):
+#      - শুধুমাত্র যদি classify-and-verify-তে স্মোক টেস্ট সফল হয় এবং কোনো ব্রেকিং (Major) পরিবর্তন না থাকে,
+#        তবেই PR স্বয়ংক্রিয়ভাবে Approve হবে।
+#      - #4253 Phase 0 (RULE 6 — single landing path): এই workflow আর নিজে merge
+#        enable করে না (পুরনো `gh pr merge --auto` = GitHub-native auto-merge —
+#        Merge Gate-কে বাইপাস করা দ্বিতীয় landing authority)। ল্যান্ডিং এখন
+#        একমাত্র merge-gate.yml (Sequential Landing Controller) করে — PR Gate
+#        success-এ স্বয়ংক্রিয়ভাবে ট্রিগার হয়, evaluator-এর AUTO_MERGE রায়
+#        consume করে (dependabot[bot] evaluator exempt_authors-এ আছে)।
+#
+# মেটাডাটা: টেস্ট চুক্তি — tests/test_merge_gate.py::TestWorkflowContracts::
+# test_sole_merge_executor_is_merge_gate (কোনো workflow-এ executable
+# `gh pr merge` থাকবে না — Merge Gate ছাড়া)।
 # =============================================================================
 
 name: 🤖 Dependabot Pipeline (Verify & Safe Auto-Merge)
@@ -171,9 +180,10 @@ jobs:
             core.info(`Verification comment posted. Labels: ${labels.join(', ')}`);
 
   auto-merge:
-    name: "🚀 Auto-Approve & Auto-Merge Low-Risk Bumps"
+    name: "🚀 Auto-Approve Low-Risk Bumps (landing via Merge Gate)"
     needs: [classify-and-verify]
-    # Only run auto-merge if verification smoke passed cleanly and it is not a major bump
+    # (#4253 RULE 6): landing decision belongs to merge-gate.yml alone — this job
+    # is the dependency-lane EVIDENCE producer (smoke-verify + approve), never the executor.
     if: >-
       needs.classify-and-verify.outputs.smoke_passed == 'true' &&
       needs.classify-and-verify.outputs.severity != 'major' &&
@@ -181,13 +191,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Auto-Approve and enable auto-merge for verified patch/minor
+      - name: Auto-Approve verified patch/minor (landing via Merge Gate)
         run: |
           set -euo pipefail
           echo "✅ Detected verified low-risk bump (${{ needs.classify-and-verify.outputs.severity }})"
-          echo "🤖 Enabling auto-approve and squash auto-merge..."
-          gh pr review "$PR_URL" --approve --body "🤖 **SupremeAI Safe Auto-Merge Gate:** Low-risk (\`${{ needs.classify-and-verify.outputs.severity }}\`) dependency bump smoke-verified & approved. Merge will execute automatically once all required CI gates pass."
-          gh pr merge "$PR_URL" --auto --squash
+          echo "🤖 Approving (landing decided by the Merge Gate — single landing path, #4253)..."
+          gh pr review "$PR_URL" --approve --body "🤖 **SupremeAI Safe Auto-Merge Gate:** Low-risk (\`${{ needs.classify-and-verify.outputs.severity }}\`) dependency bump smoke-verified & approved. Landing will be executed by the Merge Gate (Sequential Landing Controller) once all required CI gates pass — single automatic merge authority (#4253 Phase 0)."
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
