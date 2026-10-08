@@ -181,11 +181,6 @@ on:
         required: false
         default: '30'
         type: string
-      dast_base_url:
-        description: '[dast] Staging base URL (defaults to repo var STAGING_BASE_URL)'
-        required: false
-        default: ''
-        type: string
 
 # Least privilege: workflow-wide read-only; jobs carry their own overrides
 # (issues:write for issue-opening arms, contents:write for branch retention,
@@ -869,6 +864,11 @@ jobs:
       - name: Tree sweep (fail-closed on new offenders)
         run: |
           set -euo pipefail
+          # #4279: setup-python হলেও PyYAML থাকে না — sweep স্ক্রিপ্টর lazy
+          # `import yaml`-এ ModuleNotFoundError ছিল (প্রথম run-এই ধরা পড়েছিল,
+          # এতদিন nightly parse-ভাঙা থাকায় অদৃশ্য ছিল)। runner FS-এ একবার
+          # install করলে পরের summary step-ও লাভ করে (same runner FS)।
+          python3 -m pip install --quiet --disable-pip-version-check pyyaml
           python3 scripts/ci/docs_garbage_tree_sweep.py
 
       - name: Sweep summary (offender inventory on failure)
@@ -1940,7 +1940,11 @@ jobs:
     name: 🔎 OWASP ZAP API + Full scan (blocking)
     runs-on: ubuntu-latest
     env:
-      ZAP_TARGET: ${{ inputs.dast_base_url || vars.STAGING_BASE_URL }}
+      # (#4276) dast_base_url dispatch-input বাদ — 25-input ক্যাপ ভাঙছিল (পুরো
+      # workflow invalid → সব nightly arm 0-jobs failure)। ZAP টার্গেট এখন সরাসরি
+      # SSOT repo var STAGING_BASE_URL থেকে (আগেও default fallback এটাই ছিল;
+      # custom override দরকার হলে vars.STAGING_BASE_URL এডিট করা হবে)।
+      ZAP_TARGET: ${{ vars.STAGING_BASE_URL }}
     timeout-minutes: 45
     steps:
       - name: Require scan target
