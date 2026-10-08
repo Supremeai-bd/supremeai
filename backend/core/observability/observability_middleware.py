@@ -164,9 +164,12 @@ class ObservabilityMiddleware:
                                     "error": error_type,
                                 }
                                 await redis_manager.client.lpush(minute_key, json.dumps(payload))
-                                await redis_manager.client.expire(
-                                    minute_key, 86400
-                                )  # 24 hours retention
+                                # Quota/hygiene fix (#fleet-redis-quota): the dashboard
+                                # window reads only the last 30 minutes — 24h retention
+                                # kept ~1440 live keys per account (SCAN-verified: 868
+                                # traffic:* keys parked on the failover account).
+                                # 2100s = 35min ≥ 30min window + write-margin.
+                                await redis_manager.client.expire(minute_key, 2100)
                             except Exception as redis_err:
                                 self._redis_metric_fail_count += 1
                                 if (
