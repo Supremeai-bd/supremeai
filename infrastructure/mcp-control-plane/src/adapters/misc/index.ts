@@ -55,28 +55,45 @@ export async function checkVercel(): Promise<unknown> {
   };
 }
 
+let firecrawlPoolInstance: AIKeyPool | undefined;
+function firecrawlPool(): AIKeyPool {
+  const keys = env.firecrawl.apiKeys;
+  if (!firecrawlPoolInstance || (firecrawlPoolInstance.length === 0 && keys.length > 0)) {
+    firecrawlPoolInstance = new AIKeyPool(keys);
+  }
+  return firecrawlPoolInstance;
+}
+
 export async function checkFirecrawl(): Promise<unknown> {
-  const { apiKeys } = env.firecrawl;
-  if (apiKeys.length === 0) throw new Error("FIRECRAWL_API_KEY is not configured.");
+  const pool = firecrawlPool();
+  if (pool.length === 0) throw new Error("FIRECRAWL_API_KEY is not configured.");
 
   const start = Date.now();
-  // We can just ping their API or scrape a simple dummy URL to verify.
-  // Assuming a health endpoint or just checking the scrape endpoint with a malformed request to see if it's 401.
-  // A generic request to /v0/scrape to test Auth.
-  try {
-    await httpRequest("https://api.firecrawl.dev/v0/scrape", {
-      method: "POST",
-      headers: bearerAuth(apiKeys[0]),
-      body: { url: "https://example.com" }
-    });
-  } catch (e: any) {
-    if (e.message && e.message.includes("401")) {
-      throw new Error("Firecrawl API Error: Unauthorized");
+  await pool.execute(
+    async (key: string) => {
+      const res = await httpRequest("https://api.firecrawl.dev/v1/scrape", {
+        method: "POST",
+        headers: bearerAuth(key),
+        body: { url: "https://example.com" }
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error("Firecrawl API Error: Unauthorized");
+        }
+        throw new Error(`Firecrawl API Error (${res.status}): ${JSON.stringify(res.data)}`);
+      }
+      return res;
+    },
+    (err: any) => {
+      const msg = (err?.message || "").toLowerCase();
+      return msg.includes("429") || msg.includes("402") || msg.includes("credit") || msg.includes("quota") || msg.includes("rate limit");
     }
-  }
+  );
 
   return {
     status: "healthy",
+    poolSize: pool.length,
     latencyMs: Date.now() - start
   };
 }
@@ -104,9 +121,13 @@ export async function checkKaggle(): Promise<unknown> {
     async (token) => {
       const isBearer = token.startsWith("KGAT_");
       const authHeader = isBearer ? `Bearer ${token}` : `Basic ${Buffer.from(token).toString('base64')}`;
-      return await httpRequest("https://www.kaggle.com/api/v1/competitions/list", {
+      const res = await httpRequest("https://www.kaggle.com/api/v1/competitions/list", {
         headers: { Authorization: authHeader }
       });
+      if (!res.ok) {
+        throw new Error(`Kaggle API error (${res.status}): ${JSON.stringify(res.data)}`);
+      }
+      return res;
     },
     (err: any) => {
       const msg = err?.message || "";
