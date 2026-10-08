@@ -864,6 +864,11 @@ jobs:
       - name: Tree sweep (fail-closed on new offenders)
         run: |
           set -euo pipefail
+          # #4279: setup-python হলেও PyYAML থাকে না — sweep স্ক্রিপ্টর lazy
+          # `import yaml`-এ ModuleNotFoundError ছিল (প্রথম run-এই ধরা পড়েছিল,
+          # এতদিন nightly parse-ভাঙা থাকায় অদৃশ্য ছিল)। runner FS-এ একবার
+          # install করলে পরের summary step-ও লাভ করে (same runner FS)।
+          python3 -m pip install --quiet --disable-pip-version-check pyyaml
           python3 scripts/ci/docs_garbage_tree_sweep.py
 
       - name: Sweep summary (offender inventory on failure)
