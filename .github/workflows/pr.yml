@@ -470,11 +470,58 @@ jobs:
             --baseline full-suite-baseline.json
 
   # ---------------------------------------------------------------------------
+  # 4b. ৩-স্তর টেস্টিং প্ল্যান Phase 4 — frontend vitest job
+  # ---------------------------------------------------------------------------
+  # বাংলা মন্তব্য (3-tier plan Phase 4): frontend/-এর ~১২০টি vitest ফাইল আগে
+  # কোনো CI-তেই চলত না (docs/master_docs/OPS-01 এর 'frontend-tests' দাবি stale
+  # ছিল) — সাইলেন্ট রিগ্রেশন ঝুঁকি। এই job path-gated: frontend/ পরিবর্তনে চলে।
+  frontend-tests:
+    name: "🧪 Frontend Unit Tests (vitest)"
+    needs: [context, system-gates]
+    if: needs.context.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # merge-base path detection — tests job-এর একই প্যাটার্ন (docs-only PR দ্রুত)
+      - name: Detect changed paths (merge-base diff)
+        id: paths
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet || true
+          BASE="$(git merge-base origin/main HEAD)"
+          CHANGED="$(git diff --name-only "$BASE"...HEAD || git diff --name-only "$BASE")"
+          frontend=false
+          if echo "$CHANGED" | grep -qE '^frontend/'; then frontend=true; fi
+          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
+          echo "✅ changed-path verdict: frontend=$frontend"
+
+      - name: Setup Frontend (node + pnpm, cached)
+        if: steps.paths.outputs.frontend == 'true'
+        uses: ./.github/actions/setup-frontend
+        with:
+          working-directory: ./frontend
+
+      - name: Run vitest suite
+        if: steps.paths.outputs.frontend == 'true'
+        working-directory: ./frontend
+        run: |
+          set -euo pipefail
+          # 'pnpm test' → 'vitest run' (frontend/package.json SSOT)
+          pnpm test -- --reporter=dot 2>&1 | tee /tmp/vitest_output.txt
+          # সারসংক্ষেপ প্রমাণ PR-evidence-তে ব্যবহারযোগ্য
+          echo "vitest summary:" && tail -n 15 /tmp/vitest_output.txt
+
+  # ---------------------------------------------------------------------------
   # 5. Unified PR Decision Contract
   # ---------------------------------------------------------------------------
   contract:
     name: "🚦 Unified PR Gate (Security, Scope & Policy Orchestrator)"
-    needs: [context, system-gates, tests, full-backend-suite]
+    needs: [context, system-gates, tests, full-backend-suite, frontend-tests]
     if: always() && needs.context.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -484,10 +531,12 @@ jobs:
           GATES_RESULT: ${{ needs.system-gates.result }}
           TESTS_RESULT: ${{ needs.tests.result }}
           FULL_SUITE_RESULT: ${{ needs.full-backend-suite.result }}
+          FRONTEND_TESTS_RESULT: ${{ needs.frontend-tests.result }}
         run: |
           echo "System Gates Result: $GATES_RESULT"
           echo "Tests Result: $TESTS_RESULT"
           echo "Full Backend Suite Result: $FULL_SUITE_RESULT"
+          echo "Frontend Tests Result: $FRONTEND_TESTS_RESULT"
           # বাংলা মন্তব্য (#2893): full suite 'skipped' বৈধ (docs/infra-only PR);
           # 'failure' হলে cross-tier gate ব্লক করবে — stale assertion লাল main-এ যাবে না।
           if [[ ! "$FULL_SUITE_RESULT" =~ ^(success|skipped)$ ]]; then
@@ -495,6 +544,14 @@ jobs:
             # Roadmap v2.0 Phase 0.4 (#4139): name the failing job + where to look.
             echo "   Fix: open the 'Full Backend Suite (cross-tier gate #2893)' check log;"
             echo "   its failure lines carry the failing test/module. Re-run after fixing."
+            exit 1
+          fi
+          # বাংলা মন্তব্য (3-tier plan Phase 4): vitest 'skipped' বৈধ (frontend-only-নয় PR);
+          # failure হলে ব্লক — সাইলেন্ট ফ্রন্টএন্ড রিগ্রেশন আর অদৃশ্য থাকবে না।
+          if [[ ! "$FRONTEND_TESTS_RESULT" =~ ^(success|skipped)$ ]]; then
+            echo "❌ PR Gate Decision: BLOCK — frontend vitest suite failed."
+            echo "   Fix: open the 'Frontend Unit Tests (vitest)' check log; run 'pnpm test'"
+            echo "   locally in frontend/ to reproduce, then push the fix."
             exit 1
           fi
           if [[ "$GATES_RESULT" == "success" && "$TESTS_RESULT" == "success" ]]; then
