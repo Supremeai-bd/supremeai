@@ -93,8 +93,17 @@ class DetectorTopologyBehaviorTests(unittest.TestCase):
         self.assertFalse(r["deploy_core"])
 
     def test_firebase_rules_trigger_firebase_station(self):
-        r = classify_paths(["firestore.rules"], self.topo)
+        # বাংলা (#4269): বাস্তব rules/indexes SSOT = firebase/ (config/ টপোলজি-noise-
+        # prefix, সেখানকার পাথ detector watch-match-এ পৌঁছায় না); রুট-লেভেল
+        # firestore.rules ছিল টপোলজি-ড্রিফট (ফাইল রুটে নেই)।
+        r = classify_paths(["firebase/firestore.rules"], self.topo)
         self.assertTrue(r["deploy_firebase"])
+        r2 = classify_paths(["firebase/firebase.json", "firebase/firestore.indexes.json"], self.topo)
+        self.assertTrue(r2["deploy_firebase"])
+        # নয়েজ-চুক্তি অটুট: config/-অন্যান্য ফাইল এখনো কোনো স্টেশন ট্রিগার করে না।
+        r3 = classify_paths(["config/agent_rules.json"], self.topo)
+        self.assertFalse(r3["deploy_firebase"])
+        self.assertTrue(r3["deploy_needed"] is False or r3["noise_files"] + r3["unknown_files"] >= 1)
 
     def test_backend_change_deploys_core_worker_as_before(self):
         r = classify_paths(["backend/api/x.py"], self.topo)
