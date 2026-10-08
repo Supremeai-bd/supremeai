@@ -928,3 +928,40 @@ class TestSectionExtractionGateAlignment:
     def test_missing_section_empty(self):
         assert _extract_touching_files("## Mission\nx\n") == set()
         assert _extract_evidence_text("") == ""
+
+
+# ── #4250: টাইটেল-গ্যাপ একক-সংগ্রহ + #3207-চুক্তিতে exempt-অব্যাহতি ─────────────
+class TestTitleGapContract:
+    """#4250: টাইটেল-কনভেনশন গ্যাপ এখন শুধু exempt-guard-এর ভেতরে একবার।
+
+    বাংলা: আগে guard-বাইরেও একটি append-site ছিল — non-exempt লেখকের
+    খারাপ টাইটেলে একই এন্ট্রি দুইবার যেত, আর exempt/bot লেখকের
+    (Dependabot-টাইটেল conventional হয়ই না) ভুয়া metadata-gap → ভুয়া HOLD।
+    """
+
+    def test_nonexempt_bad_title_gap_appended_once(self):
+        # বাংলা: খারাপ টাইটেল → গ্যাপ ঠিকই থাকবে, কিন্তু ঠিক ১ বার
+        api = FakeApi(issues={500: CLAIMED_ISSUE},
+                      compares={"fix/2925-x": {"behind_by": 0, "status": "ahead"}})
+        result = evaluate_pr(_pr_detail(title="Bump foo from 1 to 2"), api=api)
+        all_reasons = result["value_reasons"] + result["safety_reasons"]
+        count = sum(1 for r in all_reasons if "টাইটেল কনভেনশনাল" in r)
+        assert count == 1
+
+    def test_exempt_author_no_title_gap(self):
+        # বাংলা: Dependabot-টাইটেল conventional হয় না — #3207-চুক্তিতে
+        # exempt-লেখক টেমপ্লেট-গ্যাপ থেকে অব্যাহত; ভুয়া HOLD আর নয়
+        api = FakeApi(issues={500: CLAIMED_ISSUE},
+                      compares={"fix/2925-x": {"behind_by": 0, "status": "ahead"}})
+        result = evaluate_pr(_pr_detail(title="Bump foo from 1 to 2",
+                                        author="dependabot[bot]"), api=api)
+        all_reasons = result["value_reasons"] + result["safety_reasons"]
+        assert not any("টাইটেল কনভেনশনাল" in r for r in all_reasons)
+
+    def test_good_title_no_gap(self):
+        # বাংলা: সংশোধন non-exempt ভালো-টাইটেল প্রত্যাশাও ভাঙে না
+        api = FakeApi(issues={500: CLAIMED_ISSUE},
+                      compares={"fix/2925-x": {"behind_by": 0, "status": "ahead"}})
+        result = evaluate_pr(_pr_detail(), api=api)
+        all_reasons = result["value_reasons"] + result["safety_reasons"]
+        assert not any("টাইটেল কনভেনশনাল" in r for r in all_reasons)
