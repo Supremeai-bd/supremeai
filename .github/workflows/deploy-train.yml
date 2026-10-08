@@ -736,6 +736,40 @@ jobs:
         env:
           VITE_API_URL: ${{ env.RENDER_CORE_URL }}
         run: pnpm install --frozen-lockfile && pnpm --filter supremeai-studio-client... build
+      # বাংলা (#4273): Deploy-to-Vercel স্টেপ blind exit-1 দেয় — CI-লগ App-token দিয়ে
+      # পড়া যায় না (HTTP 401), check-run annotations ফাঁকা (run 37821728355 প্রমাণ)।
+      # Preflight = একটি API call: token+org+project linkage আগেই যাচাই হয়; ব্যর্থ
+      # হলে fingerprinted actionable এরর (sha256-fp মাত্র — সিক্রেট ভ্যালু নয়,
+      # zero-trust কনভেনশন)। Empty token = visible-skip (#1852 কনভেনশন সংরক্ষণ);
+      # 200 না হলে fail-closed — ডিপ্লয় ধাপে পৌঁছানোই নেই।
+      - name: Vercel preflight (token+linkage validation, fingerprinted — #4273)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::warning::VERCEL_TOKEN not set — preflight SKIPPED (visible-skip per #1852)"
+            exit 0
+          fi
+          TOKEN_FP=$(printf %s "$VERCEL_TOKEN" | sha256sum | cut -c1-10)
+          echo "VERCEL_TOKEN sha256-fp: $TOKEN_FP"
+          CODE=$(curl -s -o /tmp/vercel_preflight.json -w '%{http_code}' \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}?teamId=${VERCEL_ORG_ID}") || CODE="000"
+          if [ "$CODE" != "200" ]; then
+            echo "::error::Vercel preflight FAILED (HTTP $CODE) — deploy leg not reached"
+            case "$CODE" in
+              000) echo "::error::network error reaching api.vercel.com" ;;
+              401) echo "::error::VERCEL_TOKEN invalid/revoked — set repo secret VERCEL_TOKEN from Infisical prod (expected sha256-fp a0db8e118a, user niloyjoy7-3266) — see #4273" ;;
+              403) echo "::error::VERCEL_TOKEN valid but lacks org access — token user must belong to the VERCEL_ORG_ID team" ;;
+              404) echo "::error::VERCEL_PROJECT_ID/VERCEL_ORG_ID mismatch — expected project 'supremeai-frontend' in team 'supremeai1' (vault prod trio) — see #4273" ;;
+              *) head -c 300 /tmp/vercel_preflight.json 2>/dev/null || true ;;
+            esac
+            exit 1
+          fi
+          echo "Vercel preflight OK — project reachable with token fp $TOKEN_FP"
       - name: Deploy to Vercel (fail-closed — no swallow, Rule 10)
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
