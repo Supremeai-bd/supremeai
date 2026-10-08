@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { env } from "../lib/env.js";
 import type { UserRole } from "./auth.context.js";
+import { isValidToolProfile, type ToolProfile } from "./tool-visibility.js";
 import { createClientRegistryStore, type PersistedClientRecord } from "./client-registry.store.js";
 
 export type ClientRole = UserRole;
@@ -16,6 +17,11 @@ export interface ExternalClient {
   protocol: ClientProtocol;
   role: ClientRole;
   scopes: string[];
+  /**
+   * Tool Exposure Policy: curated discovery surface for this client.
+   * Undefined = full RBAC surface (no profile-based list filtering).
+   */
+  toolProfile?: ToolProfile;
   createdAt: string;
   updatedAt: string;
   expiresAt?: string;
@@ -74,6 +80,7 @@ export async function initClientRegistry(): Promise<{ backend: string; loaded: n
           protocol: (typeof seed.protocol === "string" ? seed.protocol : "streamable-http") as ClientProtocol,
           role,
           scopes: Array.isArray(seed.scopes) ? (seed.scopes as string[]) : defaultClientScopes(role),
+          toolProfile: isValidToolProfile(seed.toolProfile) ? seed.toolProfile : undefined,
           createdAt: now,
           updatedAt: now,
           expiresAt: typeof seed.expiresAt === "string" ? seed.expiresAt : undefined,
@@ -118,8 +125,12 @@ export function registerClient(
   provider = "generic",
   protocol: ClientProtocol = "streamable-http",
   tenantId = "tenant_default",
-  customId?: string
+  customId?: string,
+  toolProfile?: ToolProfile
 ) {
+  if (toolProfile !== undefined && !isValidToolProfile(toolProfile)) {
+    throw new Error("toolProfile must be 'chatgpt' or 'readonly'");
+  }
   const token = `mcp_${randomBytes(32).toString("base64url")}`;
   const now = new Date().toISOString();
   let id = customId?.trim();
@@ -130,7 +141,7 @@ export function registerClient(
   } else {
     id = `client_${randomBytes(10).toString("hex")}`;
   }
-  const client: StoredClient = { id, tenantId, name, provider, protocol, role, scopes, createdAt: now, updatedAt: now, expiresAt, status: "pending", tokenHash: digest(token) };
+  const client: StoredClient = { id, tenantId, name, provider, protocol, role, scopes, toolProfile, createdAt: now, updatedAt: now, expiresAt, status: "pending", tokenHash: digest(token) };
   clients.set(client.id, client);
   persist();
   return { client: sanitize(client), token };
@@ -207,6 +218,23 @@ export function changeClientProvider(id: string, provider: string, tenantId?: st
   return sanitize(client);
 }
 
+/**
+ * Tool Exposure Policy: set (or clear with `null`) a client's curated
+ * discovery profile. Visibility-only — the call path stays RBAC-gated.
+ */
+export function changeClientProfile(id: string, toolProfile: ToolProfile | null, tenantId?: string) {
+  if (toolProfile !== null && !isValidToolProfile(toolProfile)) {
+    throw new Error("toolProfile must be 'chatgpt', 'readonly', or null");
+  }
+  const client = clients.get(id);
+  assertTenantScope(client, tenantId);
+  if (!client || client.status === "revoked" || client.status === "expired") return undefined;
+  client.toolProfile = toolProfile ?? undefined;
+  client.updatedAt = new Date().toISOString();
+  persist();
+  return sanitize(client);
+}
+
 export function revokeClient(id: string, tenantId?: string) {
   const client = clients.get(id);
   assertTenantScope(client, tenantId);
@@ -264,7 +292,8 @@ export function getOrCreateGuestClient(
   name: string,
   provider = "generic",
   protocol: ClientProtocol = "sse",
-  tenantId = "tenant_default"
+  tenantId = "tenant_default",
+  toolProfile?: ToolProfile
 ): ExternalClient {
   // AUDIT-FIX (#1787 Gap 3): name-based duplicate check.
   // প্রথমে preferredId দিয়ে দেখি (fast path)। না থাকলে name দিয়ে দেখি —
@@ -281,6 +310,9 @@ export function getOrCreateGuestClient(
     // of staying frozen at the first one.
     if (existingById.protocol !== protocol) existingById.protocol = protocol;
     if (provider !== "generic" && existingById.provider !== provider) existingById.provider = provider;
+    // Tool Exposure Policy: derive the default profile once, never clobber an
+    // explicit admin-set profile on reconnects.
+    if (toolProfile && !existingById.toolProfile) existingById.toolProfile = toolProfile;
     persist();
     return sanitize(existingById);
   }
@@ -298,6 +330,8 @@ export function getOrCreateGuestClient(
     // #2588: keep protocol/provider current on the name-reuse path too.
     if (existingByName.protocol !== protocol) existingByName.protocol = protocol;
     if (provider !== "generic" && existingByName.provider !== provider) existingByName.provider = provider;
+    // Tool Exposure Policy: same derive-once rule on the name-reuse path.
+    if (toolProfile && !existingByName.toolProfile) existingByName.toolProfile = toolProfile;
     persist();
     return sanitize(existingByName);
   }
@@ -321,6 +355,7 @@ export function getOrCreateGuestClient(
     protocol,
     role: "viewer",
     scopes: defaultClientScopes("viewer"),
+    toolProfile, // Tool Exposure Policy: provider-derived default (chatgpt → curated surface)
     createdAt: now,
     updatedAt: now,
     status: "active",

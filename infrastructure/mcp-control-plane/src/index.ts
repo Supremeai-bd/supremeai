@@ -15,12 +15,13 @@ import { registerAllTools } from "./tools/index.js";
 import { RequestContextStore } from "./policy/auth.context.js";
 import { getServiceDescriptors } from "./service-circles.js";
 import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.js";
-import { approveClient, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, getClient, initClientRegistry, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
+import { approveClient, changeClientProfile, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, getClient, initClientRegistry, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
 import { extractClientInfoName, recordPresence, listWorkforce, registerIoredis } from "./registry/mcp_presence.js";
 import { createBuiltinManifest } from "./registry/mcp.contracts.js";
 import { autoRegisterGuestClient, clientIpFor } from "./policy/auto-register.js";
 import { executeGeminiFunctionCall, geminiAdapterInfo, listGeminiTools } from "./adapters/gemini/gemini.adapter.js";
 import { accessModeFor, publicAccessManifest, isPublicSafeResource, toolAccessError } from "./policy/mcp-access.js";
+import { attachDiscoveryFilter, isValidToolProfile } from "./policy/tool-visibility.js";
 import { verifyApprovalLink } from "./policy/approvals/signing.js";
 import { pullSecretsIntoProcessEnv } from "./adapters/infisical/index.js";
 import { MemorySubAdapter } from "./adapters/memory/index.js";
@@ -343,6 +344,13 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
   };
 
   await registerAllTools(server, memoryAdapter);
+
+  // Tool Exposure Policy: one discovery choke point for ALL pillars. Wraps
+  // the SDK's tools/list handler so every caller sees only the tools their
+  // RBAC role AND client toolProfile allow (list ⊆ call). Reads the
+  // RequestContextStore per request — /sse, /messages, /mcp and /gemini are
+  // all covered by this single installation.
+  attachDiscoveryFilter(server);
 
   server.resource(
     MCP_MANIFEST_URI,
@@ -894,7 +902,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           const targetTenant = isGlobalAdmin
             ? (typeof input.tenantId === "string" && input.tenantId ? input.tenantId : "tenant_default")
             : tenantId;
-          const result = registerClient(input.name.trim(), input.role, input.scopes ?? defaultClientScopes(input.role), input.expiresAt, provider, protocol, targetTenant);
+          const toolProfile = isValidToolProfile(input.toolProfile) ? input.toolProfile : undefined;
+          const result = registerClient(input.name.trim(), input.role, input.scopes ?? defaultClientScopes(input.role), input.expiresAt, provider, protocol, targetTenant, undefined, toolProfile);
           res.writeHead(201, { "Content-Type": "application/json", "Cache-Control": "no-store" });
           res.end(JSON.stringify(withTimestamp({ ...result, tenantId: targetTenant })));
         } catch (error: any) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: error.message })); }
@@ -925,8 +934,14 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
             client = changeClientRole(id, input.role, scope);
           } else if (input.provider) {
             client = changeClientProvider(id, String(input.provider), scope);
+          } else if ("toolProfile" in input) {
+            // Tool Exposure Policy: set ('chatgpt' | 'readonly') or clear (null).
+            if (input.toolProfile !== null && !isValidToolProfile(input.toolProfile)) {
+              throw new Error("toolProfile must be 'chatgpt', 'readonly', or null");
+            }
+            client = changeClientProfile(id, input.toolProfile ?? null, scope);
           } else {
-            throw new Error("Provide 'role' or 'provider' to update");
+            throw new Error("Provide 'role', 'provider' or 'toolProfile' to update");
           }
           if (!client) throw new Error("Client not found or inactive");
           res.writeHead(200, { "Content-Type": "application/json" });
@@ -1250,7 +1265,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       res.once("close", dropSession);
       sseTransport.onclose = dropSession;
       try {
-        await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(effectiveClient?.id), clientId: effectiveClient?.id, scopes, isGlobalAdmin, tenantId }, async () => {
+        await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(effectiveClient?.id), clientId: effectiveClient?.id, scopes, toolProfile: effectiveClient?.toolProfile, isGlobalAdmin, tenantId }, async () => {
           await sseServer.connect(sseTransport);
         });
       } catch (err) {
@@ -1281,7 +1296,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       const authenticated = Boolean(refreshedClient || role !== null);
       const accessMode = accessModeFor(activeRole, authenticated);
       const scopes = refreshedClient?.scopes ?? defaultClientScopes(activeRole);
-      await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(refreshedClient?.id), clientId: refreshedClient?.id, scopes, isGlobalAdmin, tenantId }, async () => {
+      await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(refreshedClient?.id), clientId: refreshedClient?.id, scopes, toolProfile: refreshedClient?.toolProfile, isGlobalAdmin, tenantId }, async () => {
         await sseTransport.handlePostMessage(req, res);
       });
       return;
@@ -1367,7 +1382,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           const sessionAuthenticated = Boolean(refreshedClient || role !== null);
           const sessionAccessMode = accessModeFor(sessionRole, sessionAuthenticated);
           const sessionScopes = refreshedClient?.scopes ?? defaultClientScopes(sessionRole);
-          await RequestContextStore.run({ role: sessionRole, accessMode: sessionAccessMode, authenticated: sessionAuthenticated, tenantBound: Boolean(refreshedClient?.id), clientId: refreshedClient?.id, scopes: sessionScopes, isGlobalAdmin, tenantId }, async () => {
+          await RequestContextStore.run({ role: sessionRole, accessMode: sessionAccessMode, authenticated: sessionAuthenticated, tenantBound: Boolean(refreshedClient?.id), clientId: refreshedClient?.id, scopes: sessionScopes, toolProfile: refreshedClient?.toolProfile, isGlobalAdmin, tenantId }, async () => {
             await entry.transport.handleRequest(req, res, parsedBody);
           });
           return;
@@ -1441,7 +1456,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           try { writeJson(res, 503, { jsonrpc: "2.0", error: { code: -32000, message: "MCP session could not be established" }, id: null }); } catch {}
           return;
         }
-        await RequestContextStore.run({ role: initRole, accessMode: initAccessMode, authenticated: initAuthenticated, tenantBound: Boolean(effectiveClient?.id), clientId: effectiveClient?.id, scopes: initScopes, isGlobalAdmin, tenantId }, async () => {
+        await RequestContextStore.run({ role: initRole, accessMode: initAccessMode, authenticated: initAuthenticated, tenantBound: Boolean(effectiveClient?.id), clientId: effectiveClient?.id, scopes: initScopes, toolProfile: effectiveClient?.toolProfile, isGlobalAdmin, tenantId }, async () => {
           await httpTransport.handleRequest(req, res, parsedBody);
         });
         // The SDK assigns the session id DURING the initialize handshake; only
@@ -1482,7 +1497,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       const geminiAuthenticated = Boolean(geminiClient || role !== null);
       const geminiAccessMode = accessModeFor(geminiRole, geminiAuthenticated);
       const geminiScopes = geminiClient?.scopes ?? defaultClientScopes(geminiRole);
-      const geminiRequestContext = { role: geminiRole, accessMode: geminiAccessMode, authenticated: geminiAuthenticated, tenantBound: Boolean(geminiClient?.id), clientId: geminiClient?.id, scopes: geminiScopes, isGlobalAdmin, tenantId };
+      const geminiRequestContext = { role: geminiRole, accessMode: geminiAccessMode, authenticated: geminiAuthenticated, tenantBound: Boolean(geminiClient?.id), clientId: geminiClient?.id, scopes: geminiScopes, toolProfile: geminiClient?.toolProfile, isGlobalAdmin, tenantId };
       const geminiAdapterContext = { serverName: SERVER_NAME, serverVersion: SERVER_VERSION, serverFactory };
 
       // ── GET /gemini — adapter info manifest ──
