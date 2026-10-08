@@ -29,8 +29,8 @@ function multiKey(name: string): string[] {
         .filter(Boolean)
     : [];
 
-  // Also discover numbered env vars ${NAME}_2, ${NAME}_3, ... (e.g. GEMINI_API_KEY_2, GROQ_API_KEY_2)
-  for (let idx = 2; idx <= 20; idx++) {
+  // Also discover numbered env vars ${NAME}_1, ${NAME}_2, ... (e.g. GEMINI_API_KEY_1, FIRECRAWL_API_KEY_1)
+  for (let idx = 1; idx <= 20; idx++) {
     const nextVal = optional(`${name}_${idx}`);
     if (nextVal && !keys.includes(nextVal)) {
       keys.push(nextVal);

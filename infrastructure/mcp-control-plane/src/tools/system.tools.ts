@@ -208,8 +208,10 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
     const url = "https://www.kaggle.com/api/v1/competitions/list";
     const tokens = env.kaggle.tokens;
     if (tokens.length === 0) return { ...base, url, status: "unconfigured", httpStatus: null, latencyMs: null, error: "KAGGLE_API_TOKENS missing in tower env" };
-    const auth = Buffer.from(tokens[0]).toString("base64");
-    const out = await probeHttp(url, { Authorization: `Basic ${auth}` });
+    const firstToken = tokens[0];
+    const isBearer = firstToken.startsWith("KGAT_");
+    const authHeader = isBearer ? `Bearer ${firstToken}` : `Basic ${Buffer.from(firstToken).toString("base64")}`;
+    const out = await probeHttp(url, { Authorization: authHeader });
     if (out === "unreachable") return { ...base, url, status: "unreachable", httpStatus: null, latencyMs: null, error: "connection failed" };
     if (out === "degraded") return { ...base, url, status: "degraded", httpStatus: null, latencyMs: null, error: "first pool token rejected or non-2xx" };
     return { ...base, url, status: "healthy", httpStatus: out.status, latencyMs: out.latencyMs };
