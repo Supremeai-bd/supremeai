@@ -12,8 +12,8 @@
  * - Extends devicePresets.ts (8 devices + custom, not 12)
  */
 
-import { useEffect, useRef } from 'react';
-import { Smartphone, X, RotateCcw, Camera, Monitor } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Smartphone, X, RotateCcw, ExternalLink, Monitor } from 'lucide-react';
 import { useMobilePreview } from '../../hooks/useMobilePreview';
 import { DEVICE_PRESETS, getPresetById } from '../../lib/devicePresets';
 
@@ -26,34 +26,68 @@ export function MobilePreviewPanel({ url }: { url: string }) {
     customHeight,
     toggle,
     setDevice,
+    setOrientation,
     toggleOrientation,
     setCustomDimensions,
   } = useMobilePreview();
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  // বাগ-ফিক্স: আগে ResizeObserver শুধু observe করত, callback ফাঁকা — ছোট ভিউপোর্টে
+  // ডিভাইস-ফ্রেম কেটে যেত (overflow-hidden, scale নেই)। এখন আসল auto-scale:
+  // ফ্রেম+বর্ডার যেন স্টেজের ভেতরে পুরো ফিট কে, সেই অনুযায়ী transform scale।
+  const [scale, setScale] = useState(1);
+  // বাগ-ফিক্স: স্ট্যাটাস-বারের ঘড়ি রেন্ডার-মুহূর্তের সময় দেখাত আর আর আপডেট হত না।
+  // প্যানেল খোলা থাকা অবস্থায় ৩০ সেকেন্ড পরপর রিফ্রেশ (unmount-এ cleanup)।
+  const [clock, setClock] = useState(() =>
+    new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  );
 
-  // Auto-scale to fit container
   useEffect(() => {
-    if (!isOpen || !containerRef.current) return;
-
-    const resizeObserver = new ResizeObserver(() => {
-      // Scale logic will be handled by CSS transform
-    });
-
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
-    }
-
-    return () => resizeObserver.disconnect();
+    if (!isOpen) return;
+    const timer = window.setInterval(() => {
+      setClock(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+    }, 30_000);
+    return () => window.clearInterval(timer);
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
+  // বাংলা: ডিভাইস-নির্ভর মাপগুলো pure কম্পিউটেশন — hooks-এর পরেই, early-return-এর
+  // আগে হিসাব করা হয়, কারণ নিচের auto-scale effect এগুলোর উপর নির্ভরশীল।
   const currentDevice = getPresetById(deviceId) || DEVICE_PRESETS[0];
   const baseWidth = deviceId === 'custom' ? customWidth : currentDevice.width;
   const baseHeight = deviceId === 'custom' ? customHeight : currentDevice.height;
   const displayWidth = orientation === 'landscape' ? baseHeight : baseWidth;
   const displayHeight = orientation === 'landscape' ? baseWidth : baseHeight;
+  // ফ্রেমের বাইরের মাপ = কনটেন্ট + বর্ডার (phone: 16px×2, tablet: 8px×2)
+  const frameBorder = currentDevice.deviceType === 'tablet' ? 8 : 16;
+  const outerWidth = displayWidth + frameBorder * 2;
+  const outerHeight = displayHeight + frameBorder * 2;
+
+  // বাংলা: স্টেজ (উপলব্ধ এলাকা) বনাম ফ্রেম — যেকোনো একটা ছোট হলে স্কেল < 1।
+  // খোলা/ডিভাইস-পরিবর্তনের পর প্রথম পেইন্টেও সঠিক স্কেল দিতে rAF-এ মাপা হয়।
+  // লক্ষ্য: Rules of Hooks — সব effect early-return-এর আগেই।
+  useEffect(() => {
+    if (!isOpen) return;
+    const measure = () => {
+      const stage = stageRef.current;
+      if (!stage) return;
+      const availW = stage.clientWidth - 16; // p-4 padding মাইনাস
+      const availH = stage.clientHeight - 16;
+      if (availW <= 0 || availH <= 0) return;
+      const next = Math.min(1, availW / outerWidth, availH / outerHeight);
+      setScale(Number(next.toFixed(3)));
+    };
+    measure();
+    const raf = requestAnimationFrame(measure);
+    const observer = new ResizeObserver(measure);
+    if (stageRef.current) observer.observe(stageRef.current);
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+    };
+  }, [isOpen, outerWidth, outerHeight]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm">
@@ -101,12 +135,16 @@ export function MobilePreviewPanel({ url }: { url: string }) {
             <RotateCcw className="h-4 w-4" />
           </button>
 
-          {/* Screenshot (uses existing Playwright backend for external; html2canvas for same-origin) */}
+          {/* বাগ-ফিক্স: আগে এখানে একটা নীরব (dead) Screenshot বাটন ছিল — onClick নেই,
+              backend-এ কোনো production screenshot API নেই (browser_action_registry.py
+              mock ছাড়া ৪০৪), html2canvas-ও dep নয়। মিথ্যা UI-এর বদলে বাস্তব কাজের
+              বাটন: প্রিভিউ URL নতুন ট্যাবে খোলা (dependency-free, noopener-safe)। */}
           <button
-            title="Capture Screenshot"
+            onClick={() => window.open(url, '_blank', 'noopener')}
+            title="Open preview URL in new tab"
             className="rounded border border-slate-600 bg-slate-800 p-2 text-slate-300 transition-colors hover:bg-slate-700"
           >
-            <Camera className="h-4 w-4" />
+            <ExternalLink className="h-4 w-4" />
           </button>
 
           {/* Close */}
@@ -147,7 +185,15 @@ export function MobilePreviewPanel({ url }: { url: string }) {
       )}
 
       {/* Device frame with iframe */}
-      <div className="flex flex-1 items-center justify-center overflow-hidden bg-slate-100 p-4 dark:bg-slate-900">
+      <div ref={stageRef} className="flex flex-1 items-center justify-center overflow-hidden bg-slate-100 p-4 dark:bg-slate-900">
+        {/* বাংলা: wrapper-এ scale — ছোট ভিউপোর্টেও পুরো ডিভাইস-ফ্রেম দেখা যায়
+            (কাটা পড়ে না)। scale ১ হলে আগের মতোই ১০০% সাইজ। */}
+        <div
+          style={{
+            transform: `scale(${scale})`,
+            transformOrigin: 'center center',
+          }}
+        >
         <div
           ref={containerRef}
           className="relative overflow-hidden bg-black shadow-2xl"
@@ -165,7 +211,7 @@ export function MobilePreviewPanel({ url }: { url: string }) {
               className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between bg-black px-4 text-xs text-white"
               style={{ height: `${currentDevice.statusBarHeight}px` }}
             >
-              <span>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span>{clock}</span>
               <div className="flex gap-1">
                 <div className="h-2 w-4 rounded-sm bg-white" />
                 <div className="h-2 w-1 rounded-sm bg-white opacity-50" />
@@ -191,6 +237,7 @@ export function MobilePreviewPanel({ url }: { url: string }) {
             title="Mobile Preview"
           />
         </div>
+        </div>
       </div>
 
       {/* Footer with info */}
@@ -204,16 +251,24 @@ export function MobilePreviewPanel({ url }: { url: string }) {
           <span>to toggle</span>
         </div>
         <div className="flex gap-2">
-          <span
-            className={`rounded px-2 py-1 text-xs ${orientation === 'portrait' ? 'bg-cyan-600 text-white' : 'bg-slate-700'}`}
+          {/* বাগ-ফিক্স: এই badge দুটি আগে span ছিল (শুধু দেখার, ক্লিক করা যেত না) —
+              এখন বাটন; সরাসরি orientation সেট করে, আইকন-টগলের বদলাও। */}
+          <button
+            type="button"
+            onClick={() => setOrientation('portrait')}
+            aria-pressed={orientation === 'portrait'}
+            className={`rounded px-2 py-1 text-xs transition-colors ${orientation === 'portrait' ? 'bg-cyan-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
           >
             Portrait
-          </span>
-          <span
-            className={`rounded px-2 py-1 text-xs ${orientation === 'landscape' ? 'bg-green-600 text-white' : 'bg-slate-700'}`}
+          </button>
+          <button
+            type="button"
+            onClick={() => setOrientation('landscape')}
+            aria-pressed={orientation === 'landscape'}
+            className={`rounded px-2 py-1 text-xs transition-colors ${orientation === 'landscape' ? 'bg-green-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
           >
             Landscape
-          </span>
+          </button>
         </div>
       </div>
     </div>

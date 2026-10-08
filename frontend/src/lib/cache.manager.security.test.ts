@@ -65,11 +65,19 @@ describe('#2510 runtime contract — honest degradation, no fake cache', () => {
     expect(getCacheStats().errors).toBeGreaterThan(0); // the Redis attempt is honestly tracked
   });
 
-  it('batchGet rejects with the explanatory #2510 error', async () => {
-    await expect(batchGet(['a', 'b'])).rejects.toThrow(/#2510/);
+  // বাংলা (#3162 কন্ট্রাক্ট-আপডেট): browser-side Redis ইচ্ছাকৃতভাবে নিষ্ক্রিয় —
+  // batchGet এখন reject নয়, all-nulls graceful fallback দেয় (cache.manager.ts:219-223
+  // কমেন্ট: "return করে (throw নয়), callers এখন graceful fallback পায়")।
+  // পুরনো #2510 reject-কন্ট্রাক্ট ছিল — #3162 ডিজাইন-সিদ্ধান্তে বদলে গেছে; এই টেস্ট
+  // সেই নতুন কন্ট্রাক্ট যাচাই করে (সোর্স-স্ক্যান গার্ড উপরে অক্ষত আছে)।
+  it('batchGet degrades gracefully — all-nulls result, no fake cache (#3162 contract)', async () => {
+    // বাংলা: no-op পথ getRedis-কে স্পর্শই করে না (cache.manager.ts:221-224) —
+    // তাই error-stat বাড়ে না; চুক্তি হলো নীরব all-nulls graceful fallback।
+    const result = await batchGet(['a', 'b']);
+    expect(result).toEqual([null, null]);
   });
 
-  it('invalidatePattern rejects with the explanatory #2510 error', async () => {
-    await expect(invalidatePattern('user:*')).rejects.toThrow(/#2510/);
+  it('invalidatePattern degrades gracefully — resolves as no-op, never fakes success (#3162 contract)', async () => {
+    await expect(invalidatePattern('user:*')).resolves.toBeUndefined();
   });
 });

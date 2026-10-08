@@ -5,6 +5,12 @@ import type { Theme} from './ThemeConstants';
 interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
+  /**
+   * বাংলা (#4138 Phase 1 follow-up): নির্দিষ্ট থিমে সরাসরি যাওয়া — ThemePicker
+   * dropdown থেকে ৮টি থিমের যেকোনো একটিতে সাইকেল ছাড়াই জাম্প করা যায়।
+   * toggleTheme-এর মতোই persist + backend-sync + eventBus emit করে।
+   */
+  setTheme: (theme: Theme) => void;
 }
 
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);

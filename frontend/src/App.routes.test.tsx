@@ -31,7 +31,7 @@ vi.mock('./services/chatService', () => ({
 }));
 
 vi.mock('./contexts/useTheme', () => ({
-  useTheme: () => ({ theme: 'light', toggleTheme: vi.fn() }),
+  useTheme: () => ({ theme: 'light', toggleTheme: vi.fn(), setTheme: vi.fn() }),
 }));
 
 vi.mock('./utils/api', () => ({

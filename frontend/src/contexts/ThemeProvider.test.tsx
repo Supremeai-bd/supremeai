@@ -6,12 +6,15 @@ import { useTheme } from './useTheme';
 
 // Test consumer component
 const TestThemeConsumer: React.FC = () => {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, setTheme } = useTheme();
   return (
     <div>
       <span data-testid="current-theme">{theme}</span>
       <button data-testid="toggle-btn" onClick={toggleTheme}>
         Toggle
+      </button>
+      <button data-testid="set-btn" onClick={() => setTheme('emerald')}>
+        Set Emerald
       </button>
     </div>
   );
@@ -88,5 +91,52 @@ describe('ThemeProvider (Issue #494)', () => {
     const stored = localStorage.getItem('supremeai-theme-storage');
     expect(stored).toBeTruthy();
     expect(JSON.parse(stored!).state.theme).toBe('light');
+  });
+
+  it('(#4138 follow-up) setTheme jumps directly to a theme, persists and syncs the DB', async () => {
+    render(
+      <ThemeProvider>
+        <TestThemeConsumer />
+      </ThemeProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('set-btn'));
+    });
+
+    // বাংলা: সাইকেল ছাড়াই সরাসরি emerald — dark → light → … (৭ চাপ) লাগে না।
+    expect(screen.getByTestId('current-theme')).toHaveTextContent('emerald');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('emerald');
+    expect(document.body.classList.contains('emerald')).toBe(true);
+
+    const stored = localStorage.getItem('supremeai-theme-storage');
+    expect(stored).toBeTruthy();
+    expect(JSON.parse(stored!).state.theme).toBe('emerald');
+  });
+
+  it('(#4138 follow-up) setTheme ignores unknown theme names (fail-safe)', async () => {
+    // বাংলা: অজানা মান (যেমন legacy/ভাঙা localStorage থেকে) এলে থিম অপরিবর্তিত থাকে।
+    const InvalidSetter: React.FC = () => {
+      const { setTheme } = useTheme();
+      return (
+        <button data-testid="invalid-btn" onClick={() => setTheme('not-a-theme' as never)}>
+          Set Invalid
+        </button>
+      );
+    };
+
+    render(
+      <ThemeProvider>
+        <TestThemeConsumer />
+        <InvalidSetter />
+      </ThemeProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('invalid-btn'));
+    });
+
+    expect(screen.getByTestId('current-theme')).toHaveTextContent('dark');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
   });
 });

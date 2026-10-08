@@ -164,7 +164,7 @@ vi.mock('./utils/api', () => ({
 // single-frontend migration: UnifiedAppShell renders GlobalHeader which consumes
 // the shared ThemeProvider — mock the hook (no provider in this test tree).
 vi.mock('./contexts/useTheme', () => ({
-  useTheme: () => ({ theme: 'dark', toggleTheme: vi.fn() }),
+  useTheme: () => ({ theme: 'dark', toggleTheme: vi.fn(), setTheme: vi.fn() }),
 }));
 
 // Mock useDashboardStore used by InteractiveChatTab
