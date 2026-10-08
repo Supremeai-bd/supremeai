@@ -95,6 +95,26 @@ VIOLATING_LABEL = "template:violating"
 TITLE_RE = re.compile(r"^(feat|fix|chore|docs|refactor|test|perf|audit|ops|task)\([^)]+\): .+")
 REFS_RE = re.compile(r"(?:\bRefs\s*#(\d+)|\(#(\d+)\)\s*$)", re.IGNORECASE)
 
+# #4222: PR-টেমপ্লেট সেকশন-শনাক্তের SSOT হলো .github/scripts/constitution/template_gate.py
+# (HEADING_RE: যেকোনো #{1,6} হেডিং + case-insensitive substring)। নিচের হেল্পারগুলো
+# সেই গেটের _headings/_has_section-চুক্তির হুবহু প্রতিলিপি — আগের কঠোর
+# `^##\s*Summary\b` রেগেক্স ক্যানোনিক্যাল গেট COMPLIANT দেওয়া body-কেও ভুল gap-বলত
+# (`## Mission & Summary`, `### Summary` ইত্যাদি) → ভুয়া Safety ❌ → ghost
+# pipeline-issue (#4219-শ্রেণি)। tests/test_ai_pr_evaluator.py-র contract-test দুই
+# পাশ বাঁধে — ভবিষ্যতে drift হলে টেস্ট লাল হবে, প্রোডাকশনে নয় (P6 poka-yoke)।
+PR_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s*(.+?)\s*#*\s*$", re.MULTILINE)
+
+
+def _pr_headings(body: str) -> list[str]:
+    """template_gate._headings()-প্রতিলিপি — সব হেডিং-টেক্সট casefold করে।"""
+    return [m.group(1).casefold() for m in PR_HEADING_RE.finditer(body or "")]
+
+
+def _has_summary_section(body: str) -> bool:
+    """template_gate._has_section(body, "Summary")-প্রতিলিপি — SSOT-সংগত শনাক্ত।"""
+    return any("summary" in h for h in _pr_headings(body))
+
+
 # #3207: diff-risk বিশ্লেষণের সিগন্যাল-টেবিল — নাম-ই রিপোর্ট হয়, মান কখনো নয়
 SECRET_PATTERNS: tuple[tuple[str, str], ...] = (
     ("aws-access-key", r"AKIA[0-9A-Z]{16}"),
@@ -282,15 +302,35 @@ SECURITY_DIFF_PATTERNS: list[tuple[str, "re.Pattern[str]"]] = [
 ]
 
 
+def _find_issue_section(body: str, keyword: str) -> str:
+    r"""#4222 U9-sweep: gate-চুক্তি-সংগত সেকশন-বের করা (যেকোনো #{1,6} লেভেল +
+    case-insensitive substring) — template_gate._has_section-এর একই অর্থ।
+
+    বাংলা: আগের কঠোর `^##\s*<Keyword>\b` শুধু লেভেল-২-এক্যাক্ট-স্টার্ট ধরত —
+    গেট COMPLIANT দেওয়া issue (`### Touching Files` ইত্যাদি) evaluator-এর
+    value-signal-এ অদৃশ্য হয়ে যেত (সেইম drift-শ্রেণি)। section-body =
+    নির্বাচিত হেডিং থেকে পরবর্তী যেকোনো-লেভেল হেডিং পর্যন্ত।
+    """
+    if not body:
+        return ""
+    needle = keyword.casefold()
+    for m in PR_HEADING_RE.finditer(body):
+        if needle in m.group(1).casefold():
+            rest = body[m.end():]
+            nxt = re.search(r"^\s{0,3}#{1,6}\s", rest, re.MULTILINE)
+            return rest[: nxt.start()] if nxt else rest
+    return ""
+
+
 def _extract_touching_files(issue_body: str) -> set[str]:
-    """linked issue-র `## Touching Files` সেকশন থেকে declared paths (#3191)।"""
-    if not issue_body:
+    """linked issue-র `## Touching Files` সেকশন থেকে declared paths (#3191)।
+
+    #4222: হেডিং-শনাক্ত এখন template_gate-চুক্তি অনুযায়ী (যেকোনো লেভেল,
+    substring) — `### Touching Files`-জাতীয় বৈচিত্র্যও ধরা পড়ে।
+    """
+    section = _find_issue_section(issue_body, "Touching Files")
+    if not section:
         return set()
-    m = re.search(r"^##\s*Touching Files\b[^\n]*\n(.+?)(?=\n##\s|\Z)",
-                  issue_body, re.MULTILINE | re.DOTALL)
-    if not m:
-        return set()
-    section = m.group(1)
     paths: set[str] = set()
     # backtick-quoted paths: `path/to/file.py` (canonical — atomic_claim.sh format)
     for pm in re.finditer(r"`([^`]+\.[a-zA-Z]\w*)`", section):
@@ -302,12 +342,11 @@ def _extract_touching_files(issue_body: str) -> set[str]:
 
 
 def _extract_evidence_text(issue_body: str) -> str:
-    """linked issue-র `## Evidence` সেকশনের টেক্সট — keyword-anchor সোর্স (#3191)।"""
-    if not issue_body:
-        return ""
-    m = re.search(r"^##\s*Evidence\b[^\n]*\n(.+?)(?=\n##\s|\Z)",
-                  issue_body, re.MULTILINE | re.DOTALL)
-    return m.group(1) if m else ""
+    """linked issue-র `## Evidence` সেকশনের টেক্সট — keyword-anchor সোর্স (#3191)।
+
+    #4222: হেডিং-শনাক্ত gate-চুক্তিতে একাত্ম (যেকোনো লেভেল + substring)।
+    """
+    return _find_issue_section(issue_body, "Evidence")
 
 
 def _diff_value_signals(files: list, issues_data: list,
@@ -455,7 +494,9 @@ def evaluate_pr(pr: dict, api: Api = real_api, pol: dict | None = None) -> dict[
         elif primary_issue and primary_issue.get("state") != "open":
             metadata_gaps.append(f"linked issue #{linked} বন্ধ — সম্ভবত আগের আংশিক ফিক্সে বন্ধ; diff-alignment চেক করা হচ্ছে (#3191)")
 
-        if not re.search(r"^##\s*Summary\b", body, re.MULTILINE) or "Refs #" not in body:
+        # #4222: Summary-শনাক্ত এখন template_gate-চুক্তি অনুযায়ী (যেকোনো হেডিং-লেভেল,
+        # substring-match) — আর Refs #N পার্সার-চুক্তির (parse_linked_issues) সাথেই সংগত।
+        if not _has_summary_section(body) or "Refs #" not in body:
             metadata_gaps.append("PR-টেমপ্লেট v2 অসম্পূর্ণ (## Summary + Refs #N লাগবে) — ইচ্ছার ঘোষণা যাচাই-যোগ্য নয়")
 
         if not TITLE_RE.match(title):
