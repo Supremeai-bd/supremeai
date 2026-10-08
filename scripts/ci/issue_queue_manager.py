@@ -784,8 +784,13 @@ def cmd_auto_merge(args):
             break
             
         # Attempt squash merge
+        # (#4253 Phase 0 — RULE 6 single landing path): `--admin` বাদ। এই repo-র
+        # main protection-এ enforce_admins=false, তাই --admin মানেই সব required-check
+        # bypass (merge-gate.yml/merge_gate.py-এর বাইপাস)। এই cmd_auto_merge পাথ
+        # dormant (কোনো workflow ডাকে না — manual CLI only), তবে ব্যবহৃত হলেও
+        # branch protection respect করবে; canonical landing একমাত্র merge_gate.py।
         print(f"   🚀 Merging PR #{pr_num} (seq:{seq}) into main...")
-        rc, m_out, m_err = run_cmd(["gh", "pr", "merge", str(pr_num), "--squash", "--admin"])
+        rc, m_out, m_err = run_cmd(["gh", "pr", "merge", str(pr_num), "--squash"])
         if rc == 0:
             print(f"   ✅ PR #{pr_num} merged successfully!")
             run_cmd(["gh", "issue", "close", str(iss_num), "--comment", f"Closed via GSPQ sequential merge of PR #{pr_num}."])

@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import type { ToolProfile } from "./tool-visibility.js";
 
 export type UserRole = "admin" | "agent" | "viewer";
 export type AccessMode = "public_viewer" | UserRole;
@@ -17,6 +18,12 @@ export interface RequestContext {
   isGlobalAdmin?: boolean;
   /** Tenant type (admin vs customer). */
   tenantType?: "admin" | "customer";
+  /**
+   * Tool Exposure Policy: the client's curated tool-surface profile. Absent
+   * or undefined = full RBAC surface (no discovery filtering beyond RBAC).
+   * Derived from the registry client record at every transport entry point.
+   */
+  toolProfile?: ToolProfile;
 }
 
 const asyncLocalStorage = new AsyncLocalStorage<RequestContext>();

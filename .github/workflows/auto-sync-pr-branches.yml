@@ -14,12 +14,25 @@
 #      করে ঠিক ১ বার auto-retry।
 #   ৩. False-green মৃত্যু (#3227 honest-fail): আগে সব sync fail করলেও
 #      exit 0 → run "success"। এখন কোনো sync conflict/error হলে run-ই লাল।
+#
+# =============================================================================
+# ⚠️  DEPRECATED — soft-retired (Merge Gate Convergence) ⚠️
+# =============================================================================
+# push:main trigger বাদ। দুটো কারণ:
+#   ১) Persistent Branch Lifecycle (#4200, flag default-ON #4227): agent
+#      branch = durable workspace — merge-এর পর প্রতিটি open workspace-কে
+#      পেছন-থেকে mutate করা lifecycle-চুক্তির সাথে সাংঘর্ষিক। Gap কভার করে:
+#      freshness gate (#2935 self-heal নির্দেশনা) + agent resume-freshness
+#      (#4206 wiring) + dependabot-এর নিজস্ব rebase (exempt-actor)।
+#   ২) Merge Gate (merge-gate.yml) TOCTOU race: gate যে head-SHA verify করে,
+#      auto-sync ঠিক তার পরেই branch mutate করে → verified-SHA ≠ merged-SHA।
+#      Sequential landing-এর জন্য branch mutation অবশ্যই gate-এর বাইরে থাকবে।
+# workflow_dispatch রাখা হলো জরুরি manual sync-এর জন্য (revertible soft-retire)।
+# =============================================================================
 
-name: 🔄 Auto-Sync Open PR Branches
+name: 🔄 Auto-Sync Open PR Branches (deprecated — manual only)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:

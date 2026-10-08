@@ -1,5 +1,6 @@
 import type { IncomingMessage } from "node:http";
 import { getOrCreateGuestClient, type ClientProtocol, type ExternalClient } from "./client-registry.js";
+import { profileForProvider } from "./tool-visibility.js";
 
 /**
  * Vendor-agnostic auto-registration for no-auth AI clients (#2588).
@@ -80,5 +81,9 @@ export function autoRegisterGuestClient(
   const clientIp = clientIpFor(req).replace(/[^a-zA-Z0-9]/g, "_");
   const guestId = `guest_${provider}_${clientIp.slice(0, 12)}`;
   const guestName = `${label} Client (${clientIp})`;
-  return getOrCreateGuestClient(guestId, guestName, provider, protocol, tenantId);
+  // Tool Exposure Policy: chatgpt guests get the curated discovery surface by
+  // default (derive-once — admin-set profiles are never clobbered, see
+  // getOrCreateGuestClient). Every other provider keeps the full surface.
+  const toolProfile = profileForProvider(provider);
+  return getOrCreateGuestClient(guestId, guestName, provider, protocol, tenantId, toolProfile);
 }

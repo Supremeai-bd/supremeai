@@ -650,6 +650,9 @@ render_temp/*.exe
 # Generated at deploy time from firebase.template.json (scripts/deploy/generate_firebase_config.py).
 # Never commit real backend URLs here directly -- edit firebase.template.json instead.
 firebase.json
+# বাংলা (#4269): নেগেশন — URL-মুক্ত rules-only SSOT firebase/firebase.json কমিট-অন্তর্ভুক্ত।
+# উপরের নিয়ম generated root-artifact-কে (বাস্তব backend-URL-বাহী) টার্গেট করে — সেটি এখনো কমিট-নিষিদ্ধ।
+!firebase/firebase.json
 
 scripts/deploy_results.json
 

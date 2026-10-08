@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
   approveClient,
+  changeClientProfile,
   changeClientProvider,
   changeClientRole,
   defaultClientScopes,
@@ -52,6 +53,7 @@ export async function registerClientTools(server: McpServer): Promise<void> {
       provider: z.string().optional().describe("AI provider: claude, cursor, gemini, chatgpt, vscode, custom, generic"),
       protocol: z.enum(["streamable-http", "sse", "stdio", "custom"]).optional().describe("Connection protocol"),
       role: z.enum(["viewer", "agent", "admin"]).optional().describe("Initial role (default: viewer)"),
+      toolProfile: z.enum(["chatgpt", "readonly"]).optional().describe("Tool Exposure Policy: curated discovery surface ('chatgpt' read-mostly curated, 'readonly' strict no-write). Omit for the full RBAC surface."),
       expiresInDays: z.number().int().min(1).max(365).optional().describe("Token expiry in days"),
       tenantId: z.string().optional().describe("Your tenant ID (required when using tenant admin token)"),
       adminToken: z.string().optional().describe("Your tenant admin token (required for non-global-admin callers)"),
@@ -72,7 +74,8 @@ export async function registerClientTools(server: McpServer): Promise<void> {
           args.provider ?? "generic",
           args.protocol ?? "streamable-http",
           tenantId,
-          args.clientId
+          args.clientId,
+          args.toolProfile
         );
         return {
           content: [{
@@ -157,6 +160,38 @@ export async function registerClientTools(server: McpServer): Promise<void> {
               message: `Role changed to ${role}`,
               client,
               newScopes: defaultClientScopes(role),
+            }, null, 2),
+          }],
+        };
+      } catch (err) {
+        return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
+      }
+    }
+  );
+
+  server.tool(
+    "client.set_profile",
+    "Set a client's TOOL-SURFACE profile (Tool Exposure Policy). 'chatgpt' = curated read-mostly surface, 'readonly' = strict no-write subset. Profiles curate what the client SEES in tools/list; the RBAC call gate remains the security boundary. Pass 'clear' to restore the full surface.",
+    {
+      clientId: z.string().describe("Client ID"),
+      toolProfile: z.enum(["chatgpt", "readonly", "clear"]).describe("Profile to apply ('clear' removes the profile and restores the full RBAC surface)"),
+      tenantId: z.string().optional().describe("Your tenant ID"),
+      adminToken: z.string().optional().describe("Your tenant admin token"),
+    },
+    async ({ clientId, toolProfile, tenantId, adminToken }) => {
+      const { scope, error } = requireScope({ tenantId, adminToken });
+      if (error) return { isError: true, content: [{ type: "text", text: error }] };
+      try {
+        const client = changeClientProfile(clientId, toolProfile === "clear" ? null : toolProfile, scope);
+        if (!client) return { isError: true, content: [{ type: "text", text: `Client not found or inactive: ${clientId}` }] };
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              message: toolProfile === "clear"
+                ? "Tool profile cleared — client sees the full RBAC surface again."
+                : `Tool profile set to '${toolProfile}' — the client's tools/list is now filtered to the '${toolProfile}' surface (RBAC still enforces every call).`,
+              client,
             }, null, 2),
           }],
         };
