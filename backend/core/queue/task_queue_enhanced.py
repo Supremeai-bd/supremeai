@@ -38,6 +38,33 @@ def _default_local_queue_maxsize() -> int:
         return 100
 
 
+def _default_memory_hold_threshold() -> int:
+    """বাংলা মন্তব্য (৩-স্তর টেস্টিং প্ল্যান Tier-2/3): memory-pressure hold
+    থ্রেশহোল্ড (শতাংশ) — env-overridable, default 95।"""
+    try:
+        return int(os.getenv("TASK_QUEUE_MEMORY_HOLD_PCT", "95"))
+    except (TypeError, ValueError):
+        return 95
+
+
+def _system_memory_pressure(threshold_pct: int) -> bool:
+    """বাংলা মন্তব্য (Tier-2/3): psutil-ভিত্তিক RAM চাপ পরীক্ষা।
+
+    threshold_pct-এর সমান বা বেশি ব্যবহৃত হলে True। psutil অনুপস্থিত বা
+    যেকোনো ত্রুটিতে fail-open (False) — অর্থাৎ hold করা হবে না; সেক্ষেত্রে
+    queue-এর নিজস্ব bounded-capacity guard-ই একমাত্র backpressure।
+    """
+    if threshold_pct >= 100:
+        return False
+    try:
+        import psutil
+
+        return psutil.virtual_memory().percent >= threshold_pct
+    except Exception as exc:  # pragma: no cover — psutil নেই বা /proc নেই
+        logger.warning(f"[TaskQueue] memory-pressure check unavailable ({exc}) — fail-open")
+        return False
+
+
 # ── Data Models ────────────────────────────────────────────────────────────────
 class QueueBackend(StrEnum):
     CELERY = "celery"
@@ -135,6 +162,9 @@ class TaskQueue:
                 else _default_local_queue_maxsize()
             )
         )
+        # বাংলা মন্তব্য (Tier-2/3): memory-pressure hold থ্রেশহোল্ড — সিস্টেম RAM
+        # চাপে থাকলে নতুন task গ্রহণ বন্ধ (caller 429 backpressure ম্যাপ করবে)।
+        self._memory_hold_threshold = _default_memory_hold_threshold()
         self._worker_task: asyncio.Task | None = None
         self._shutdown_event = asyncio.Event()
 
@@ -197,6 +227,15 @@ class TaskQueue:
         বাংলা মন্তব্য: Task submit করুন। asyncio.Event তৈরি হবে।
         get_result() এই event-এর জন্য wait করবে।
         """
+        # বাংলা মন্তব্য (Tier-2/3): memory-pressure hold — সিস্টেম RAM চাপে থাকলে
+        # নতুন task গ্রহণ করা হবে না; caller এটিকে HTTP 429 backpressure-এ ম্যাপ
+        # করবে (TaskQueueOverflowError কনভেনশন)। OOM হওয়ার আগেই hold।
+        if _system_memory_pressure(self._memory_hold_threshold):
+            raise TaskQueueOverflowError(
+                f"task queue held: system memory pressure >= "
+                f"{self._memory_hold_threshold}% — try again later"
+            )
+
         async with self._lock:
             await self._evict_oldest_if_needed()
 

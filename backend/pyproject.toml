@@ -172,6 +172,12 @@ pytest-cov = ">=5,<8"
 pytest-mock = "^3.14.0"
 pytest-timeout = "^2.3.0"
 pytest-xdist = "^3.6.1"
+# বাংলা মন্তব্য (৩-স্তর টেস্টিং প্ল্যান Phase 0/4): locust ইচ্ছাকৃতভাবে dev-dep
+# নয় — locust import করলেই gevent monkey.patch_all() সক্রিয় হয়, যা পুরো
+# pytest প্রসেসের threading আচরণ বদলে দেয় (লোকালে প্রমাণিত: vector-store
+# কনকারেন্সি টেস্টে ডেডলক)। তাই locust শুধু nightly-ops.yml-এর load-locust
+# job-এ সেই isolated runner-এ pip-install হয় (`poetry run pip install locust`)
+# — টেস্ট স্যুইটের প্রসেস কখনোই gevent-patched হয় না।
 respx = ">=0.21.1,<0.24.0"
 # বাংলা মন্তব্য (M0-A / AUDIT F2): tests/models/test_ai_memory_schema_contract.py
 # sqlglot ব্যবহার করে (SQL পার্স/ভ্যালিডেশন), কিন্তু dev-dependency হিসেবে ঘোষণা

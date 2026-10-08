@@ -190,6 +190,12 @@ def test_group_test_dirs_cover_known_backend_test_dirs() -> None:
         "hitl",
         "models",
         "__pycache__",
+        # FIX(#4217): browser/chaos are marker-gated heavyweight suites
+        # (e2e-marked RSS-guard/vision-cascade; chaos-marked resilience) —
+        # same fail-safe-to-FULL class as e2e/load above, NOT scoped group
+        # owners. Their runner contracts live in nightly-ops arms.
+        "browser",
+        "chaos",
     }
     unmapped_files_ok = {"cloud_db_load_test.py", "conftest.py"}
     for entry in tests_root.iterdir():
