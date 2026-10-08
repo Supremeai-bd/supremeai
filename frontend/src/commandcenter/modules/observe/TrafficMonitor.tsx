@@ -2,7 +2,11 @@ import { useTraffic } from '../../data/hooks';
 import { Sparkline, EmptyState } from '../../kit';
 
 export function TrafficMonitor() {
-  const { data: traffic, isLoading } = useTraffic(5_000);
+  // Quota contract (#fleet-redis-quota): 5s polling × 30-key window read was
+  // the fleet's #1 Upstash command burner (~518k commands/day). The backend
+  // read is now a single EVAL (1 command/poll) and the cadence matches
+  // LiveMetrics (30s) — ops dashboards don't need 5s resolution.
+  const { data: traffic, isLoading } = useTraffic(30_000);
 
   if (!traffic && isLoading) {
     return <EmptyState title="ট্রাফিক লোড হচ্ছে..." message="লাইভ ট্রাফিক ডেটা ফেচ করা হচ্ছে..." loading />;
