@@ -508,8 +508,11 @@ def evaluate_pr(pr: dict, api: Api = real_api, pol: dict | None = None) -> dict[
     if changed == 0 or (additions == 0 and deletions > 0):
         metadata_gaps.append(f"অর্থবহ diff নেই (files={changed}, +{additions}/-{deletions}) — revert-only/খালি PR")
 
-    if not TITLE_RE.match(title):
-        metadata_gaps.append(f"টাইটেল কনভেনশনাল-ফরম্যাটে নয়: `type(scope): description` — পাওয়া গেছে: {title[:60]!r}")
+    # বাংলা (#4250): টাইটেল-গ্যাপ এখন শুধু guard-এর ভেতরে একবার সংগ্রহ হয় —
+    # (১) non-exempt লেখকের খারাপ টাইটেলে আগে একই এন্ট্রি দুইবার append হতো
+    # (gap_summary-তে কসমেটিক ডুপ্লিকেট); (২) exempt/bot লেখকের টাইটেল
+    # conventional হয়ই না (#3207: dependency-bump নিজেই ভ্যালু-চুক্তি) —
+    # guard-বাইরের append-site তাদের ভুয়া metadata-gap → ভুয়া HOLD দিত।
 
     # ── #3191: diff-aware value signals — smart scoring ──
     files = pr.get("files") or []
