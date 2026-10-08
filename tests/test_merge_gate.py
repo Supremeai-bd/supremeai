@@ -405,6 +405,83 @@ class TestWorkflowContracts(unittest.TestCase):
             if '"gh"' in line or "'gh'" in line or "gh(" in line or '"pr", "merge"' in line:
                 self.assertNotIn("--admin", line)
 
+    # ── RULE 6 sole-executor contract (#4253 Phase 0) ────────────────────────
+    # "Exactly one automatic merge authority" — শুধু merge_gate.py কোড-লেভেলে
+    # merge করতে পারে। Allowlist-এ থাকা প্রতিটি ফাইলের অবস্থা audit-এ ডকুমেন্টেড
+    # (#4253 Phase 0.3) — নতুন কোনো merge call-site এই তালিকার বাইরে গেলেই CI লাল।
+    ALLOWED_MERGE_CODE_FILES: frozenset[str] = frozenset({
+        # canonical executor — Sequential Landing Controller (merge-gate.yml এটিই ডাকে)
+        "merge_gate.py",
+        # retired legacy engine — ZERO active callers (কোনো workflow invoke করে না);
+        # historical test-suite রক্ষার জন্য ফাইল আছে, authority নেই
+        "smart_priority_merger.py",
+        # dormant CLI subcommand (cmd_auto_merge — কোনো workflow ডাকে না);
+        # --admin বাদ (#4253) — ব্যবহৃত হলেও branch protection respect করবে
+        "issue_queue_manager.py",
+    })
+
+    @staticmethod
+    def _executable_text(text: str) -> str:
+        """comment-line বাদ + backtick-ডকুমেন্টেশন বাদ — heredoc-নিরাপদ।
+
+        nightly-ops.yml-এর মতো heredoc markdown-এ `` `gh pr merge` `` লেখা থাকতে
+        পারে (ডকুমেন্টেশন) — সেগুলো executable নয়, তাই backtick-সেগমেন্ট সরিয়ে
+        যাচাই করা হয় (false-positive নিষিদ্ধ)।
+        """
+        kept = []
+        for ln in text.splitlines():
+            stripped = ln.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            kept.append(re.sub(r"`[^`]*`", "", ln))
+        return "\n".join(kept)
+
+    def test_sole_merge_executor_is_merge_gate(self):
+        # (a) কোনো workflow-এর executable লাইনে `gh pr merge` নেই —
+        #     merge-gate.yml নিজেও merge_gate.py ডাকে, direct merge করে না।
+        for wf in self.WF.glob("*.yml"):
+            text = self._executable_text(wf.read_text(encoding="utf-8"))
+            self.assertNotIn(
+                "gh pr merge", text,
+                f"{wf.name} — second automatic merge authority outside Merge Gate (RULE 6, #4253)",
+            )
+        # (b) scripts-এ executable merge call শুধু allowlist-এ।
+        ci_dir = REPO_ROOT / "scripts" / "ci"
+        for py in ci_dir.glob("*.py"):
+            text = self._executable_text(py.read_text(encoding="utf-8"))
+            has_merge_call = ('"pr", "merge"' in text) or ("'pr', 'merge'" in text) or ("gh pr merge" in text)
+            if py.name in self.ALLOWED_MERGE_CODE_FILES:
+                continue
+            self.assertFalse(
+                has_merge_call,
+                f"scripts/ci/{py.name} — merge call-site outside the sole-executor allowlist (RULE 6, #4253)",
+            )
+        # (c) এবং allowlist-এর বাইরে কোনো নতুন scripts ডিরেক্টরি merge করতে পারবে না
+        #     (agents-লেন প্রমাণ উৎপাদক — executor নয়)।
+        agents_dir = REPO_ROOT / "scripts" / "agents"
+        for py in agents_dir.glob("*.py"):
+            text = self._executable_text(py.read_text(encoding="utf-8"))
+            has_merge_call = ('"pr", "merge"' in text) or ("'pr', 'merge'" in text) or ("gh pr merge" in text)
+            self.assertFalse(
+                has_merge_call,
+                f"scripts/agents/{py.name} — agent-lane merge authority নিষিদ্ধ (RULE 6, #4253)",
+            )
+
+    def test_admin_bypass_removed_from_all_scripts(self):
+        # #4253 Phase 0.4: scripts-এও --admin নিষিদ্ধ (আগে শুধু workflows স্ক্যান হতো —
+        # issue_queue_manager.py:788-এর মতো script-level bypass ধরা পড়ত না)।
+        for base in (REPO_ROOT / "scripts" / "ci", REPO_ROOT / "scripts" / "agents"):
+            for py in base.glob("*.py"):
+                text = self._executable_text(py.read_text(encoding="utf-8"))
+                if "pr merge" not in text and '"pr", "merge"' not in text:
+                    continue
+                for line in text.splitlines():
+                    if "pr merge" in line or '"pr", "merge"' in line:
+                        self.assertNotIn(
+                            "--admin", line,
+                            f"{base.name}/{py.name} — --admin bypass (enforce_admins=false ⇒ সব protection bypass)",
+                        )
+
 
 if __name__ == "__main__":
     unittest.main()
