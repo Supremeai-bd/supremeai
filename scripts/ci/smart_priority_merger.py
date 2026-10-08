@@ -1635,6 +1635,22 @@ def main() -> None:
     parser.add_argument("--no-flaky-rerun", action="store_true", help="ফ্ল্যাকি ট্রায়াজ রিরান নিষ্ক্রিয় রাখুন")
     args = parser.parse_args()
 
+    # বাংলা মন্তব্য: #4265 — Pipeline Constitution RULE 6 / #4253 Phase-A: merge-gate.yml
+    # একমাত্র landing authority। এই স্ক্রিপ্টের --execute পাথ হুবহু একটি দ্বিতীয়
+    # merge authority — replacement (merge-gate.yml #4243) প্রমাণিত হওয়ায় Phase-A
+    # অনুমোদিত "disabled" বিকল্প এখানে প্রয়োগ করা হলো। Guard রাখা হয়েছে সব
+    # network/APP-token/fetch-সাইড-এফেক্টের আগে — fail-closed, শূন্য পার্শ্বপ্রভাব।
+    # Read-only planning (--plan / --audit-evidence / --dry-run) অটুট থাকবে।
+    if args.execute:
+        logger.error(
+            "⛔ [MERGE-AUTHORITY-DISABLED] smart_priority_merger --execute নিষ্ক্রিয় (#4265)। "
+            "PR landing এখন একচেতনাভাবে .github/workflows/merge-gate.yml (#4243; RULE 6, "
+            "#4253 Phase-A) দ্বারা পরিচালিত — সেখানে priority, freshness, required-checks "
+            "ও predecessor প্রমাণসহ যাচাই হয়। প্ল্যানিং/অডিটের জন্য --plan / "
+            "--audit-evidence / --dry-run ব্যবহার করুন।"
+        )
+        sys.exit(2)
+
     # বাংলা মন্তব্য: CLI কিল-সুইচ env কিল-সুইচের সাথে সংযুক্ত — একটাই অফ-সুইচ যথেষ্ট
     if args.no_sentinel:
         os.environ["MERGE_TRAIN_SENTINEL"] = "off"
