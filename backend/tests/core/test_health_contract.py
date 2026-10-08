@@ -99,6 +99,24 @@ def test_legacy_alias_full_equivalent(client):
     assert legacy.status_code == canonical.status_code
 
 
+def test_legacy_alias_root_equivalent(client):
+    # বাংলা (#4223): bare alias-ও চুক্তির অংশ — deploy-train/cloudflare-জাতীয়
+    # consumer আগে bare /api/v1/health প্রোব করত; এই টেস্ট ছাড়া bare-alias
+    # equivalence লক ছিল না (শুধু /live /ready /full ছিল) — drift-শ্রেণির ফাঁক।
+    # aggregate /health-এর cache_hit/cache_age_seconds রানটাইম-অবস্থা (দ্বিতীয়
+    # কলে cache-hit) — timestamp-রেস-শ্রেণির মতোই চুক্তি-ফিল্ড নয়, বাদ যায়।
+    def _strip_volatile(body: dict) -> dict:
+        volatile = ("timestamp", "cache_age_seconds", "cache_hit")
+        return {k: v for k, v in body.items() if k not in volatile}
+
+    canonical = client.get("/health")
+    legacy = client.get("/api/v1/health")
+    assert legacy.status_code == canonical.status_code
+    assert _strip_volatile(legacy.json()) == _strip_volatile(canonical.json())
+    assert "timestamp" in legacy.json()
+    assert "cache_hit" in legacy.json()  # চুক্তি-আকৃতিতে ক্যাশ-ফিল্ডও থাকে
+
+
 # ---------------------------------------------------------------------------
 # Root metadata must advertise the canonical path
 # ---------------------------------------------------------------------------
