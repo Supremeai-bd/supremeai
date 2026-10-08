@@ -720,7 +720,21 @@ jobs:
         with:
           node-version: '24'
           cache: 'pnpm'
-      - name: Build frontend workspace
+      # বাংলা (#4269): vite build-contract gate (#4149) fail-closed — প্রোডাকশন বান্ডলে
+      # ব্যাকএন্ড-URL বেক বাধ্যতামূলক। ক্যানোনিকাল রেজলভার (#1132)-এর RENDER_CORE_URL
+      # VITE_API_URL-এ ম্যাপ (SPA API-origin-কে সরাসরি CORS-এ কল করে — CODEBASE doctrine)।
+      - name: Import RENDER_CORE_URL from Infisical (canonical prod API origin, #1132)
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          export-type: "env"
+      - name: "Build frontend workspace (build-contract gate — VITE_API_URL from RENDER_CORE_URL)"
+        env:
+          VITE_API_URL: ${{ env.RENDER_CORE_URL }}
         run: pnpm install --frozen-lockfile && pnpm --filter supremeai-studio-client... build
       - name: Deploy to Vercel (fail-closed — no swallow, Rule 10)
         env:
@@ -735,7 +749,12 @@ jobs:
             exit 0
           fi
           npm install -g vercel
-          vercel deploy --prod --token "$VERCEL_TOKEN" --yes
+          # বাংলা (#4269): prebuilt ফ্লো — `vercel build` vercel.json-এর buildCommand লোকালি
+          # চালিয়ে .vercel/output বানায় (process-env-এর VITE_API_URL গ্রহণ করে), তারপর
+          # `--prebuilt` দিয়ে সেই আর্টিফ্যাক্ট-ই আপলোড — dashboard-env-নির্ভরতা শূন্য,
+          # যা বিল্ড হলো ঠিক সেটাই প্রোডে যায় (deterministic)।
+          vercel build --prod --token "$VERCEL_TOKEN" --yes
+          vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" --yes
 
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # Station: Firebase Rules Deploy (#4246)
