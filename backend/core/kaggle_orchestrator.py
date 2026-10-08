@@ -301,6 +301,11 @@ class KaggleOrchestrator:
     ACCOUNT_STATUS_KEY = f"{REDIS_KEY_PREFIX}account:{{account_id}}"
     CALLBACK_URL = f"{settings.auto_backend_url.rstrip('/')}/api/v1/kaggle/callback"
 
+    # Warm worker pool tracking constants (#4283)
+    WARM_WORKER_TTL: int = 90  # seconds until unrefreshed worker is marked dead/offline
+    WARM_WORKERS_SET_KEY: str = f"{REDIS_KEY_PREFIX}warm_workers"
+    WORKER_HEARTBEAT_PREFIX: str = f"{REDIS_KEY_PREFIX}worker:"
+
     _instance = None
 
     @classmethod
@@ -329,6 +334,7 @@ class KaggleOrchestrator:
         else:
             # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
             from core.cache.redis_manager import redis_manager
+
             self.redis_client = redis_manager.get_managed_client_sync()
 
         self.accounts = {acc.account_id: acc for acc in accounts}
@@ -381,6 +387,117 @@ class KaggleOrchestrator:
 
         logger.info(f"📤 Job submitted: {job_id} ({task_type.value}, priority={priority})")
         return job_id
+
+    async def record_worker_heartbeat(
+        self, worker_id: str, status: str = "idle", account_id: str | None = None
+    ) -> bool:
+        """Records a heartbeat from a running Kaggle kernel keep-alive session (#4283)."""
+        if not self.redis_client:
+            return False
+        now_ts = datetime.utcnow().isoformat()
+        heartbeat_key = f"{self.WORKER_HEARTBEAT_PREFIX}{worker_id}:heartbeat"
+        await self.redis_client.hset(
+            heartbeat_key,
+            mapping={
+                "worker_id": worker_id,
+                "status": status,
+                "account_id": account_id or "",
+                "last_heartbeat": now_ts,
+            },
+        )
+        await self.redis_client.expire(heartbeat_key, self.WARM_WORKER_TTL)
+        await self.redis_client.sadd(self.WARM_WORKERS_SET_KEY, worker_id)
+        return True
+
+    async def get_warm_workers(self) -> list[dict[str, Any]]:
+        """Returns list of active warm Kaggle workers, pruning expired entries."""
+        if not self.redis_client:
+            return []
+        worker_ids = await self.redis_client.smembers(self.WARM_WORKERS_SET_KEY)
+        warm = []
+        for w_id in list(worker_ids or []):
+            heartbeat_key = f"{self.WORKER_HEARTBEAT_PREFIX}{w_id}:heartbeat"
+            data = await self.redis_client.hgetall(heartbeat_key)
+            if not data:
+                await self.redis_client.srem(self.WARM_WORKERS_SET_KEY, w_id)
+            else:
+                warm.append(data)
+        return warm
+
+    async def has_warm_worker(self) -> bool:
+        """Checks if at least one Kaggle worker is warm and ready for instant dispatch."""
+        workers = await self.get_warm_workers()
+        return any(w.get("status") == "idle" for w in workers)
+
+    def generate_speculative_thinking(
+        self, task_type: KaggleTaskType, payload: dict[str, Any]
+    ) -> list[dict[str, str]]:
+        """Generates progressive thinking trace for zero-perceived-latency cold boots (#4283)."""
+        if task_type in (KaggleTaskType.MODEL_FINE_TUNING, KaggleTaskType.TRAINING_RUN):
+            base_model = payload.get("base_model", "default-llm")
+            return [
+                {
+                    "stage": "schema_validation",
+                    "detail": f"Analyzing training dataset schema and formatting for {base_model}",
+                },
+                {
+                    "stage": "parameter_planning",
+                    "detail": "Configuring LoRA hyper-parameters (rank=16, alpha=32, target_modules=['q_proj','v_proj'])",
+                },
+                {
+                    "stage": "resource_routing",
+                    "detail": "GPU allocation initiated across Kaggle worker cluster",
+                },
+                {
+                    "stage": "execution_handoff",
+                    "detail": "Offloading compute graph and training loop to active Kaggle kernel station",
+                },
+            ]
+        elif task_type == KaggleTaskType.BATCH_INFERENCE:
+            return [
+                {
+                    "stage": "batch_chunking",
+                    "detail": "Chunking prompt payloads into optimized inference batches",
+                },
+                {
+                    "stage": "kv_cache_plan",
+                    "detail": "Calculating KV-cache allocation and sequence lengths",
+                },
+                {
+                    "stage": "execution_handoff",
+                    "detail": "Routing inference queue to Kaggle parallel compute node",
+                },
+            ]
+        else:
+            return [
+                {
+                    "stage": "data_profiling",
+                    "detail": "Parsing dataset URL and verifying columnar integrity",
+                },
+                {
+                    "stage": "execution_handoff",
+                    "detail": "Dispatching compute graph to Kaggle execution node",
+                },
+            ]
+
+    async def submit_job_speculative(
+        self,
+        task_type: KaggleTaskType,
+        payload: dict[str, Any],
+        priority: int = 5,
+        estimated_hours: float = 2.0,
+    ) -> dict[str, Any]:
+        """Submits job with warm-worker check and progressive thinking trace (#4283)."""
+        job_id = await self.submit_job(task_type, payload, priority, estimated_hours)
+        is_warm = await self.has_warm_worker()
+        thinking_trace = [] if is_warm else self.generate_speculative_thinking(task_type, payload)
+        return {
+            "job_id": job_id,
+            "status": "queued",
+            "worker_state": "warm" if is_warm else "cold_booting",
+            "speculative_thinking": not is_warm,
+            "thinking_trace": thinking_trace,
+        }
 
     async def get_callback_token(self, job_id: str) -> str | None:
         if not self.redis_client:
@@ -456,10 +573,16 @@ class KaggleOrchestrator:
                 "language": "python",
             }
 
+            headers = (
+                {"Authorization": f"Bearer {account.api_key}"}
+                if account.api_key.startswith("KGAT_")
+                else {"Kaggle-Username": account.username, "Kaggle-Key": account.api_key}
+            )
+
             response = await self.http_client.post(
                 "https://www.kaggle.com/api/v1/kernels/push",
                 json=kernel_payload,
-                headers={"Kaggle-Username": account.username, "Kaggle-Key": account.api_key},
+                headers=headers,
             )
 
             if response.status_code in (200, 201):
