@@ -102,9 +102,10 @@ export async function checkKaggle(): Promise<unknown> {
   const start = Date.now();
   await kagglePool().execute(
     async (token) => {
-      const auth = Buffer.from(token).toString('base64');
+      const isBearer = token.startsWith("KGAT_");
+      const authHeader = isBearer ? `Bearer ${token}` : `Basic ${Buffer.from(token).toString('base64')}`;
       return await httpRequest("https://www.kaggle.com/api/v1/competitions/list", {
-        headers: { Authorization: `Basic ${auth}` }
+        headers: { Authorization: authHeader }
       });
     },
     (err: any) => {
