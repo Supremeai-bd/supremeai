@@ -61,7 +61,7 @@
 
 | # | দলিল | Status | ব্যবস্থা (archive-only) |
 |---|-------|--------|------------------------|
-| 1 | `docs/FRONTEND_DASHBOARD_MASTER_PLAN.md` (V1) | 🟠 Superseded | unique অংশ (budget/deliverables) V2-তে আছেই (যাচাইকৃত: V2 L1103/L1126) → `docs/archive/`-এ সরানো + `superseded_by: V2` হেডার। Provenance: direct-push `9e4d9df`, committer `Vibe Nuage Agent / mistral-vibe` — অভিপ্রায়-নিশ্চিতকরণ #4175-এ নোটেড। |
+| 1 | `docs/archive/FRONTEND_DASHBOARD_MASTER_PLAN_V1.md` (V1 — #4176-তে `docs/FRONTEND_DASHBOARD_MASTER_PLAN.md` থেকে স্থানান্তরিত) | 🟠 Superseded | unique অংশ (budget/deliverables) V2-তে আছেই (যাচাইকৃত: V2 L1103/L1126) → `docs/archive/`-এ সরানো হয়েছে + `superseded_by: V2` হেডার যোগ হয়েছে। Provenance: direct-push `9e4d9df`, committer `Vibe Nuage Agent / mistral-vibe` — অভিপ্রায়-নিশ্চিতকরণ #4175-এ নোটেড। |
 | 2 | `docs/FRONTEND_DASHBOARD_MASTER_PLAN_V2.md` | 🟢 Active | রাখা — executed source। প্রশাসক-সিদ্ধান্ত: docs-root না `master_docs/FRONTEND-01`-এর পাশে। |
 | 3 | `docs/ROADMAP.md` | 🟢 Active | রাখা — live priority roadmap, INDEX-এ টুলিং-সংযুক্ত। |
 | 4 | `docs/plans/architecture/SUPREMEAI_REPOSITORY_SEPARATION_AND_EVOLUTION_ROADMAP.md` | 🟢 Active-aligned | INDEX-এ register + metadata header + ARCH-05-এর সঙ্গে সম্পর্ক। |

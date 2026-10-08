@@ -10,6 +10,8 @@ export interface PersistedClientRecord {
   protocol: string;
   role: string;
   scopes: string[];
+  /** Tool Exposure Policy: curated discovery surface (chatgpt | readonly). */
+  toolProfile?: string;
   createdAt: string;
   updatedAt: string;
   expiresAt?: string;

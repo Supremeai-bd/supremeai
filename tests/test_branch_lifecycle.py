@@ -113,7 +113,7 @@ class TestMutationLease(unittest.TestCase):
         """Acquire succeeds when no existing lease."""
         with patch.object(MutationLease, "_load_leases", return_value={}):
             with patch.object(MutationLease, "_save_leases") as mock_save:
-                lease = MutationLease("agent/4200-test", "coder-1")
+                lease = MutationLease("agent/4200-test", "coder-1", backend="local")
                 self.assertTrue(lease.acquire())
                 self.assertTrue(lease.acquired)
                 mock_save.assert_called_once()
@@ -128,7 +128,7 @@ class TestMutationLease(unittest.TestCase):
                 "state": "MUTATING",
             }
         }):
-            lease = MutationLease("agent/4200-test", "coder-1")
+            lease = MutationLease("agent/4200-test", "coder-1", backend="local")
             self.assertFalse(lease.acquire())
 
     def test_acquire_steals_stale_lease(self):
@@ -141,14 +141,14 @@ class TestMutationLease(unittest.TestCase):
             }
         }):
             with patch.object(MutationLease, "_save_leases"):
-                lease = MutationLease("agent/4200-test", "coder-1", timeout=1)
+                lease = MutationLease("agent/4200-test", "coder-1", timeout=1, backend="local")
                 self.assertTrue(lease.acquire())
 
     def test_release_clears_lease(self):
         """Release clears the lease."""
         with patch.object(MutationLease, "_load_leases", return_value={}):
             with patch.object(MutationLease, "_save_leases"):
-                lease = MutationLease("agent/4200-test", "coder-1")
+                lease = MutationLease("agent/4200-test", "coder-1", backend="local")
                 lease.acquire()
                 lease.release()
                 self.assertFalse(lease.acquired)
@@ -157,7 +157,7 @@ class TestMutationLease(unittest.TestCase):
         """Context manager acquires and releases."""
         with patch.object(MutationLease, "_load_leases", return_value={}):
             with patch.object(MutationLease, "_save_leases"):
-                with MutationLease("agent/4200-test", "coder-1") as lease:
+                with MutationLease("agent/4200-test", "coder-1", backend="local") as lease:
                     self.assertTrue(lease.acquired)
                 self.assertFalse(lease.acquired)
 
@@ -245,6 +245,262 @@ class TestBranchDiscovery(unittest.TestCase):
 
         result = discover_branch(4200, "fake-token")
         self.assertIsNone(result)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# #4207 — distributed MutationLease contract tests
+# বাংলা: lease state আগে machine-local ফাইলে ছিল (runner-1-এর এজেন্ট runner-2-কে
+# দেখত না)। এখন default backend = git-ref CAS (refs/leases/<branch>)। নিচের
+# FakeLeaseGit একটি shared মেমরি-রিমোট সিমুলেট করে (প্রতি-ref CAS semantics
+# সহ) — দুটি আলাদা store instance (দুই runner-এর অনুকরণ) একই ref-এ CAS করে।
+# ═════════════════════════════════════════════════════════════════════════════
+
+import json as _json
+import subprocess as _sp
+import time as _time
+
+from scripts.ci.mutation_lease import (
+    DEFAULT_TIMEOUT,
+    GIT_BACKEND,
+    LOCAL_BACKEND,
+    LEASE_REF_PREFIX,
+    LeaseRefStore,
+    LeaseUnavailable,
+    MutationLease,
+    resolve_backend,
+)
+
+FAKE_EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+
+class FakeLeaseGit:
+    """Shared in-memory git remote — প্রতি-ref CAS semantics সহ।
+
+    বাংলা: non-force create of an EXISTING ref → reject (rc=1) — এটিই
+    git-receive-pack-এর আসল আচরণ; commit-tree সময়েই sha→payload মনে রাখে,
+    তাই show পথে আসল payload-ই ফেরত যায়।
+    """
+
+    def __init__(self):
+        self.refs: dict[str, tuple[str, str]] = {}      # ref -> (sha, payload)
+        self.commit_msg: dict[str, str] = {}            # sha -> payload
+        self.calls: list[list[str]] = []
+
+    def __call__(self, *args, **kwargs):
+        # বাংলা: production LeaseRefStore._git(*git-args, timeout=..) — varargs;
+        # timeout ইত্যাদি kwargs সিমুলেশনে অপ্রাসঙ্গিক। args list-এ normalize —
+        # tuple-slice vs list তুলনা-ফাঁদ এড়াতে।
+        args = list(args)
+        self.calls.append(args)
+
+        if args[:2] == ["commit-tree", FAKE_EMPTY_TREE]:
+            payload = args[args.index("-m") + 1]
+            sha = f"leasesha{len(self.commit_msg):04d}"
+            self.commit_msg[sha] = payload
+            return _sp.CompletedProcess(["git", *args], 0, stdout=sha + "\n", stderr="")
+
+        if args[:1] == ["ls-remote"]:
+            ref = args[2]
+            if ref in self.refs:
+                return _sp.CompletedProcess(["git", *args], 0, stdout=f"{self.refs[ref][0]}\t{ref}\n", stderr="")
+            return _sp.CompletedProcess(["git", *args], 0, stdout="", stderr="")
+
+        if args[:1] == ["fetch"]:
+            spec = next(a for a in args if a.startswith("+"))
+            remote_ref, local_ref = spec[1:].split(":", 1)
+            if remote_ref in self.refs:
+                self.refs[local_ref] = self.refs[remote_ref]
+                return _sp.CompletedProcess(["git", *args], 0, stdout="", stderr="")
+            return _sp.CompletedProcess(["git", *args], 1, stdout="", stderr="error: not found")
+
+        if args[:1] == ["show"]:
+            ref = args[-1]
+            if ref in self.refs:
+                sha, payload = self.refs[ref]
+                return _sp.CompletedProcess(["git", *args], 0, stdout=f"1700000000\n{payload}\n", stderr="")
+            return _sp.CompletedProcess(["git", *args], 1, stdout="", stderr="bad object")
+
+        if args[:1] == ["push"]:
+            force = "--force" in args
+            spec = next(a for a in args if ":" in a and not a.startswith("--"))
+            src, dst = spec.split(":", 1)
+            if src == "" and dst in self.refs:  # ref delete
+                del self.refs[dst]
+                return _sp.CompletedProcess(["git", *args], 0, stdout="", stderr="")
+            if dst in self.refs and not force:  # CAS: non-force create on existing → reject
+                return _sp.CompletedProcess(["git", *args], 1, stdout="", stderr="! [rejected] (already exists)")
+            self.refs[dst] = (src, self.commit_msg.get(src, "{}"))
+            return _sp.CompletedProcess(["git", *args], 0, stdout="", stderr="")
+
+        return _sp.CompletedProcess(["git", *args], 0, stdout="", stderr="")
+
+
+class TestDistributedMutationLease4207(unittest.TestCase):
+    """#4207: two simulated agents (separate store instances) cannot both acquire।"""
+
+    BRANCH = "agent/4200-persistent"
+    REF = LEASE_REF_PREFIX + "agent/4200-persistent"
+
+    def _wire(self) -> tuple[FakeLeaseGit, LeaseRefStore, LeaseRefStore]:
+        """দুটি store instance (দুই runner) — shared fake remote-এ।"""
+        fake = FakeLeaseGit()
+        stores = []
+        for _ in range(2):
+            store = LeaseRefStore(self.BRANCH)
+            store._git = fake
+            stores.append(store)
+        return fake, stores[0], stores[1]
+
+    def _payload(self, fake: FakeLeaseGit) -> dict:
+        return _json.loads(fake.refs[self.REF][1])
+
+    # ── the core #4207 acceptance criterion ──
+
+    def test_two_agents_cannot_both_acquire(self):
+        """বাংলা: দুই runner, একই branch — CAS-এ একজন-ই জেতে, দুজনে নয়।"""
+        fake, a, b = self._wire()
+        ok_a, _ = a.acquire("agent-A", timeout=DEFAULT_TIMEOUT)
+        ok_b, holder = b.acquire("agent-B", timeout=DEFAULT_TIMEOUT)
+        self.assertTrue(ok_a, "প্রথম এজেন্ট free store-এ acquire করে")
+        self.assertFalse(ok_b, "দ্বিতীয় এজেন্ট একই ref-এ CAS হারায়")
+        self.assertEqual(holder.get("agent_id"), "agent-A")
+
+    def test_race_window_still_single_winner(self):
+        """বাংলা: race window — B-এর read খালি দেখেও non-force push reject খায়।
+
+        সিমুলেশন: B-এর ls-remote আগেই চলে গিয়ে খালি দেখলেও (A-এর push তখনো
+        হয়নি ধরে নিয়ে) B-এর create-push A-এর push-এর পরে এলে reject হয়।
+        FakeLeaseGit-এ create-অর্ডারই বিচারক — দুই create-এ দ্বিতীয়টি reject।
+        """
+        fake = FakeLeaseGit()
+        a, b = LeaseRefStore(self.BRANCH), LeaseRefStore(self.BRANCH)
+        a._git = b._git = fake
+        # B আগে read করে (খালি দেখে), কিন্তু create-push পরে যায়:
+        self.assertIsNone(b.read_lease())
+        ok_a, _ = a.acquire("agent-A")
+        ok_b, holder = b.acquire("agent-B")
+        self.assertTrue(ok_a and not ok_b)
+        self.assertEqual((holder or {}).get("agent_id"), "agent-A")
+
+    def test_sequential_agents_see_each_other(self):
+        fake, a, b = self._wire()
+        a.acquire("agent-A")
+        ok_b, holder = b.acquire("agent-B")
+        self.assertFalse(ok_b)
+        self.assertEqual(holder.get("agent_id"), "agent-A")
+
+    def test_reentrant_acquire_by_same_agent(self):
+        fake, a, _b = self._wire()
+        ok1, _ = a.acquire("agent-A")
+        ok2, again = a.acquire("agent-A")
+        self.assertTrue(ok1 and ok2, "একই এজেন্টের re-acquire = idempotent True")
+        self.assertEqual(again.get("agent_id"), "agent-A")
+
+    def test_stale_foreign_lease_is_stolen(self):
+        fake, a, b = self._wire()
+        a.acquire("agent-A")
+        # payload-এ acquired_at প্রাচীন করে দাও (epoch-ঘেঁষা = stale)
+        stale = _json.dumps({"agent_id": "agent-A", "branch": self.BRANCH,
+                             "acquired_at": 1, "state": "RESERVED"}, sort_keys=True)
+        fake.refs[self.REF] = (fake.refs[self.REF][0], stale)
+        ok_b, _ = b.acquire("agent-B", timeout=300)
+        self.assertTrue(ok_b, "stale lease (>timeout) force-steal করা যায়")
+        self.assertEqual(b.read_lease().get("agent_id"), "agent-B")
+
+    def test_fresh_foreign_lease_not_stolen_before_timeout(self):
+        fake, a, b = self._wire()
+        a.acquire("agent-A")
+        ok_b, _ = b.acquire("agent-B", timeout=3600)
+        self.assertFalse(ok_b, "সতেজ lease timeout-এর আগে steal নয়")
+
+    def test_release_is_holder_only_and_idempotent(self):
+        fake, a, b = self._wire()
+        a.acquire("agent-A")
+        self.assertFalse(b.release("agent-B"), "হোল্ডার নয় — release refuse")
+        self.assertTrue(a.release("agent-A"), "হোল্ডারের release True")
+        self.assertTrue(a.release("agent-A"), "already-free release = idempotent True")
+        self.assertIsNone(a.read_lease())
+
+    def test_state_transition_holder_only(self):
+        fake, a, b = self._wire()
+        a.acquire("agent-A")
+        original_at = self._payload(fake)["acquired_at"]
+        self.assertTrue(a.update_state("agent-A", "MUTATING"))
+        self.assertFalse(b.update_state("agent-B", "MUTATING"), "অ-হোল্ডার state বদলাতে পারে না")
+        payload = self._payload(fake)
+        self.assertEqual(payload["state"], "MUTATING")
+        self.assertEqual(payload["acquired_at"], original_at,
+                         "state-update stale-clock রিসেট করে না")
+
+    # ── fail-closed contract (#4207 মূল বাগ-শ্রেণির বিরুদ্ধে) ──
+
+    def test_network_failure_is_fail_closed_deny(self):
+        fake, a, _b = self._wire()
+        def dead_git(*args, **kwargs):
+            return _sp.CompletedProcess(["git", *args], 1, stdout="", stderr="Could not resolve host")
+        a._git = dead_git
+        lease = MutationLease(self.BRANCH, "agent-A")  # default backend = git
+        lease._ref_store = a
+        self.assertFalse(lease.acquire(), "distributed store অপ্রাপ্য = acquire deny (fail-closed)")
+
+    def test_read_lease_raises_on_network_failure(self):
+        fake, a, _b = self._wire()
+        def dead_git(*args, **kwargs):
+            return _sp.CompletedProcess(["git", *args], 1, stdout="", stderr="offline")
+        a._git = dead_git
+        with self.assertRaises(LeaseUnavailable):
+            a.read_lease()
+
+    def test_no_silent_local_fallback_on_git_backend(self):
+        """বাংলা: git backend ব্যর্থ হলে /tmp store-এ লেখা হয় না — সেটিই প্রমাণ।"""
+        fake, a, _b = self._wire()
+        def dead_git(*args, **kwargs):
+            return _sp.CompletedProcess(["git", *args], 1, stdout="", stderr="offline")
+        a._git = dead_git
+        lease = MutationLease(self.BRANCH, "agent-A")
+        lease._ref_store = a
+        with patch.object(MutationLease, "_save_leases") as save_mock:
+            lease.acquire()
+        save_mock.assert_not_called()
+
+
+class TestMutationLeaseBackendSelection4207(unittest.TestCase):
+    """বাংলা: backend নির্বাচন চুক্তি — git default, local explicit, unknown ব্যর্থ।"""
+
+    def setUp(self):
+        os.environ.pop("SUPREMEAI_LEASE_BACKEND", None)
+
+    def tearDown(self):
+        os.environ.pop("SUPREMEAI_LEASE_BACKEND", None)
+
+    def test_default_backend_is_distributed_git(self):
+        self.assertEqual(resolve_backend(), GIT_BACKEND)
+        lease = MutationLease("agent/4200-x", "a1")
+        self.assertEqual(lease.backend, GIT_BACKEND)
+
+    def test_local_is_explicit_opt_in(self):
+        os.environ["SUPREMEAI_LEASE_BACKEND"] = "local"
+        self.assertEqual(resolve_backend(), LOCAL_BACKEND)
+        lease = MutationLease("agent/4200-x", "a1")
+        self.assertEqual(lease.backend, LOCAL_BACKEND)
+
+    def test_unknown_backend_fails_loud(self):
+        os.environ["SUPREMEAI_LEASE_BACKEND"] = "redis"
+        with self.assertRaises(ValueError):
+            resolve_backend()
+
+    def test_invalid_branch_name_rejected(self):
+        with self.assertRaises(ValueError):
+            LeaseRefStore("bad..branch-name")
+        with self.assertRaises(ValueError):
+            LeaseRefStore("/leading-slash")
+
+    def test_two_local_store_instances_same_machine_mutex(self):
+        """বাংলা: local backend — একই ফাইলে দুই instance = একই-মেশিন mutex (আগের চুক্তি)।"""
+        with patch.object(MutationLease, "_load_leases", return_value={
+            "agent/4200-x": {"agent_id": "A", "acquired_at": _time.time(), "state": "RESERVED"}}):
+            b = MutationLease("agent/4200-x", "B", backend="local")
+            self.assertFalse(b.acquire())
 
 
 if __name__ == "__main__":

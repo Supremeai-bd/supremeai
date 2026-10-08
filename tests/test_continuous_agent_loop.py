@@ -1000,11 +1000,11 @@ def _clean_flag_env(monkeypatch):
 
 
 class TestPersistentBranchFlag4206:
-    """Flag contract: default OFF = legacy flow; env মানেই ON (revert-safe wiring)।"""
+    """Flag contract: default ON = #4200 persistent flow; env can disable (revert-safe)।"""
 
-    def test_default_is_off(self, monkeypatch):
+    def test_default_is_on(self, monkeypatch):
         monkeypatch.delenv(PERSISTENT_BRANCH_ENV, raising=False)
-        assert persistent_branch_enabled() is False
+        assert persistent_branch_enabled() is True
 
     def test_truthy_values_enable(self, monkeypatch):
         for val in ("1", "true", "YES", "on", "On"):
@@ -1012,7 +1012,7 @@ class TestPersistentBranchFlag4206:
             assert persistent_branch_enabled() is True, val
 
     def test_falsy_values_disable(self, monkeypatch):
-        for val in ("", "0", "false", "no", "off", "junk"):
+        for val in ("0", "false", "no", "off", "FALSE", "Off"):
             monkeypatch.setenv(PERSISTENT_BRANCH_ENV, val)
             assert persistent_branch_enabled() is False, val
 
@@ -1068,7 +1068,8 @@ class TestMarkIssueBranchState4206:
     """বাংলা: state transition = coordination hint — flag OFF-এ API কলই নেই,
     ব্যর্থতায় কাজ থামে না (fail-soft, hint-only)।"""
 
-    def test_flag_off_means_no_api_call(self):
+    def test_flag_off_means_no_api_call(self, monkeypatch):
+        monkeypatch.setenv(PERSISTENT_BRANCH_ENV, "0")
         with patch("scripts.ci.mark_branch_state.mark_branch_state") as m:
             ok = mark_issue_branch_state(4206, "active", "agent/4206-x")
         assert ok is False
@@ -1172,7 +1173,8 @@ class TestOrphanReleaseMarksOrphaned4206:
         states = [c.args[1] for c in m.call_args_list]
         assert "orphaned" in states
 
-    def test_no_transition_when_flag_off(self):
+    def test_no_transition_when_flag_off(self, monkeypatch):
+        monkeypatch.setenv(PERSISTENT_BRANCH_ENV, "0")
         list_res = MagicMock(returncode=0, stdout=json.dumps(self._stale_issue_payload()))
         with patch.object(loop, "run", return_value=list_res), \
              patch("scripts.ci.mark_branch_state.mark_branch_state") as m:

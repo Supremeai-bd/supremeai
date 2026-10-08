@@ -4,8 +4,8 @@
 সংবিধান-চুক্তি (issue #2860 body):
 1. schedule ব্লকে ঠিক ৪টি ক্যানোনিকাল cron (4-hourly/daily/weekly-Mon/weekly-Sun —
    #4085: hourly → 4-hourly re-canonicalized, cost-optimization decision অনুযায়ী)।
-2. ১৭টি job-এর প্রতিটির `if:`-শর্তে সঠিক `github.event.schedule` গার্ড (issue-র
-   job→schedule পূর্ণ-ম্যাপ অনুযায়ী)।
+2. ২২টি job-এর প্রতিটির `if:`-শর্তে সঠিক `github.event.schedule` গার্ড (issue-র
+   job→schedule পূর্ণ-ম্যাপ অনুযায়ী; #4267: #4228/#4261-যোগ ৫ job অন্তর্ভুক্ত)।
 3. পুরনো cron-স্ট্রিং ফাইলে আর কোথাও নেই (grep-শূন্য)।
 4. সব workflow_dispatch ইনপুট অক্ষত — ম্যানুয়াল আর্ম প্রতিটি job-এ এখনও চালু।
 """
@@ -20,7 +20,8 @@ WF = REPO / ".github" / "workflows" / "nightly-ops.yml"
 
 CANONICAL = ["0 */4 * * *", "0 3 * * *", "17 3 * * 1", "0 3 * * 0"]
 
-# issue #2860-র পূর্ণ job→schedule ম্যাপ (১৭ job)
+# issue #2860-র পূর্ণ job→schedule ম্যাপ (২২ job — #4267: +docs-garbage-sweep (#4261),
+# +load-locust/chaos-suite/browser-e2e/db-pool-health (#4228); সবার গার্ড daily 0 3 * * *)
 EXPECTED_MAP = {
     "deep-audit": "0 3 * * *",
     "ai-safety": "0 3 * * *",
@@ -39,6 +40,15 @@ EXPECTED_MAP = {
     "constitution": "17 3 * * 1",
     "self-audit": "0 3 * * 0",
     "deploy-doctor-fallback": "0 */4 * * *",
+    # বাংলা মন্তব্য (#4267): rapid-landing drift — নিচের ৫টি job আসলে #4228/#4261-এ
+    # nightly-ops-এ যোগ হয়েছিল কিন্তু এই চুক্তি-ম্যাপে এন্ট্রি ছিল না (লোকাল ফুল-স্যুটে
+    # ধরা পড়েছিল — PR-gate targeted-lane এই drift দেখে না)। প্রতিটির লাইভ guard
+    # যাচাই-পূর্বক '0 3 * * *' (daily) — এখানে প্রতিষ্ঠিত।
+    "docs-garbage-sweep": "0 3 * * *",
+    "load-locust": "0 3 * * *",
+    "chaos-suite": "0 3 * * *",
+    "browser-e2e": "0 3 * * *",
+    "db-pool-health": "0 3 * * *",
 }
 
 LEGACY_CRONS = [

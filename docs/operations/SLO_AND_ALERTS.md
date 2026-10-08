@@ -29,10 +29,10 @@
 | # | SLO | Target | How measured | Suggested alert |
 |---|---|---|---|---|
 | 1 | **Availability** (core API) | **99.5%** monthly, measured on `/health/live` + real user requests (free-tier infra; excludes deliberate maintenance windows) | External probe of `/health/live` (keep-alive workflow / uptime service) + Render HTTP metrics; `superai_uptime_seconds` for restarts | Page when 2 consecutive probes fail (probe every 5–10 min); warning at 99.5% month-to-date, page at < 99.0% |
-| 2 | **API latency** (non-LLM) | **p95 < 1500 ms** | `superai_response_time_ms{p95}` on `/metrics` (5-min window); cross-check QueryTimingMiddleware percentiles and Sentry traces | Warning at p95 > 1500 ms for 15 min; page at p95 > 3000 ms for 15 min |
+| 2 | **API latency** (non-LLM) | **p95 < 1500 ms**, p99 ceiling **< 2000 ms** | `superai_response_time_ms{p95}` on `/metrics` (5-min window); p99 registry `api_latency_p99` in `scripts/monitoring/sla_tracker.py`; cross-check QueryTimingMiddleware percentiles and Sentry traces | Warning at p95 > 1500 ms for 15 min; page at p95 > 3000 ms for 15 min |
 | 3 | **LLM streaming first token** | **p95 < 30 s** (time-to-first-chunk) | Not on `/metrics` — derive from Sentry traces / app logs around `core/llm/llm_gateway/streaming.py`; add a dedicated metric later | Warning when p95 > 30 s over 1 h; page at p95 > 60 s (user-visible stall) |
 | 4 | **LLM request success rate** | **≥ 95%** of completed LLM requests (excluding client-aborted streams) | LLM telemetry counters + `superai_error_rate`; per-provider breakdown via `backend/core/llm/telemetry.py` | Warning < 95% over 1 h for any provider; page < 90% over 1 h (router failover failing too) |
-| 5 | **5xx error rate** | **< 1%** of all requests (rolling 1 h) | `superai_error_rate` on `/metrics`; Render HTTP 5xx count; Sentry issue rate | Warning > 1% over 10 min; page > 5% over 10 min or any 5-minute window with 0 successful requests |
+| 5 | **5xx error rate** | Steady-state target **< 0.1%**; alert warning > 1%, page > 5% (rolling 1 h) | `superai_error_rate` on `/metrics`; registry `api_error_rate` target 0.1% in `scripts/monitoring/sla_tracker.py`; Render HTTP 5xx count; Sentry issue rate | Warning > 1% over 10 min; page > 5% over 10 min or any 5-minute window with 0 successful requests |
 | 6 | **WebSocket/SSE connection failures** | **< 5%** of connection attempts failing per hour | WS handshake errors in logs (`backend/ws/`, `backend/core/security/ws_auth.py`) + Sentry; no dedicated counter yet — add `superai_ws_connections_{total,failed}` when tuning | Page when > 5 failures in 15 min from production traffic, or failure rate > 5%/h |
 | 7 | **DB query latency** | **p95 < 500 ms** | QueryTimingMiddleware percentiles (filter DB-heavy paths), Supabase dashboard query performance, `supabase-pgbouncer` stats if enabled | Warning p95 > 500 ms for 15 min; page p95 > 1 s for 15 min (check pooler saturation / connection limits first) |
 | 8 | **Redis failure handling** | Rate limiting & cache **degrade, never outage**: fallback limiter absorbs load, core stays available | Watch logs for `"Rate limiter failed to get redis client"` / `"falling back to in-memory"` (`core/rate_limit.py`); Upstash dashboard for evictions/latency | Warning on > 10 fallback log lines in 1 h (Redis unreachable); Redis loss is NOT an availability incident while the fallback is active — but it removes multi-instance limiting, so escalate if it lasts > 1 h |
@@ -41,6 +41,23 @@ Note on SLO 1 vs SLO 5: availability is measured from **outside** (can the clien
 working service?), the 5xx rate from **inside** (is the service healthy while reachable?).
 Both are needed because Render free-tier spin-ups produce reachability failures that are
 not app errors.
+
+### Machine-readable registry alignment (SLO ladder)
+
+> Task: 3-tier testing plan Phase 0, 2026-10-04.
+>
+> `scripts/monitoring/sla_tracker.py::SLO_REGISTRY` হলো machine-readable SSOT। এই ডকের
+> starter-টার্গেট আর রেজিস্ট্রির মান আগে পরস্পরবিরোধী দেখাচ্ছিল (p95 1500 ms vs p99
+> 2000 ms; 5xx 1% vs 0.1%; availability 99.5% vs 99.9%)। সমাধান: দুই-স্তরের ল্যাডার —
+> **target** (রেজিস্ট্রির মান, স্টেডি-স্টেট লক্ষ্য) এবং **alert/page threshold**
+> (এই ডকের মান, কবে মানুষ জাগবে)। দুটোই একসাথে সত্য।
+
+| Metric | Target (sla_tracker registry) | Warning | Page |
+|---|---|---|---|
+| API availability | 99.9% (stretch; free-tier floor 99.5%) | 99.5% MTD | < 99.0% |
+| API latency | p99 < 2000 ms (p95 < 1500 ms working target) | p95 > 1500 ms / 15 min | p95 > 3000 ms / 15 min |
+| API error rate | < 0.1% | > 1% / 10 min | > 5% / 10 min |
+| DB query latency | p99 < 100 ms registry (p95 < 500 ms working target) | p95 > 500 ms / 15 min | p95 > 1 s / 15 min |
 
 ## Monthly error budget
 
@@ -74,3 +91,4 @@ Formula: `error budget = (1 − SLO) × minutes in month`.
 | Date | Change | Author |
 |---|---|---|
 | 2026-09-14 | Initial starter SLOs defined (pre-traffic baselines) | Task 2-e |
+| 2026-10-04 | Reconciled doc targets with `sla_tracker.py` SLO_REGISTRY via two-tier target/alert ladder (p99 2000 ms + 5xx 0.1% targets now explicit) | 3-tier testing plan Phase 0 |

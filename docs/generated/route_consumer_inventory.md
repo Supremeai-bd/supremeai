@@ -4,7 +4,7 @@
 
 | metric | value |
 |---|---|
-| backend routes | 858 |
+| backend routes | 871 |
 | routes with frontend consumer | 311 |
 | unique frontend `/api/...` refs | 158 |
 | unmounted routes (not in ALL_ROUTERS) | 7 |
@@ -18,7 +18,7 @@
 | classification | count | meaning |
 |---|---|---|
 | `user-facing` | 183 | frontend consumer matched |
-| `admin-only` | 345 | /admin path, admin router file or ALL_ROUTERS is_admin |
+| `admin-only` | 358 | /admin path, admin router file or ALL_ROUTERS is_admin |
 | `internal` | 41 | internal namespace (internal/ops/health/metrics/webhook/cdc/kernel/system) |
 | `deprecated` | 4 | marked deprecated (docstring/decorator/name/path) |
 | `api-only` | 285 | family allowlisted in `scripts/audit/api_only_routes.txt` — owner to prune as wiring lands (#480 steps 3-4) |
@@ -225,6 +225,9 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | GET | `/admin-api/deploy-gate` | `backend/api/routes/admin_dashboard/endpoints_command.py` | admin-only | NONE |
 | POST | `/admin-api/deploy-gate` | `backend/api/routes/admin_dashboard/endpoints_command.py` | admin-only | NONE |
 | POST | `/admin-api/emergency-deploy` | `backend/api/routes/admin_dashboard/endpoints_backups.py` | admin-only | NONE |
+| GET | `/admin-api/evaluation/dimensions` | `backend/api/routes/admin_evaluation.py` | admin-only | NONE |
+| POST | `/admin-api/evaluation/scores` | `backend/api/routes/admin_evaluation.py` | admin-only | NONE |
+| GET | `/admin-api/evaluation/weights/:param` | `backend/api/routes/admin_evaluation.py` | admin-only | NONE |
 | GET | `/admin-api/events` | `backend/api/routes/admin_dashboard/endpoints_events.py` | admin-only | NONE |
 | GET | `/admin-api/feature-flags` | `backend/api/routes/admin_dashboard/endpoints_flags.py` | admin-only | NONE |
 | POST | `/admin-api/feature-flags` | `backend/api/routes/admin_dashboard/endpoints_flags.py` | admin-only | NONE |
@@ -239,6 +242,8 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | POST | `/admin-api/intelligence/memory/consolidate` | `backend/api/routes/intelligence_insights.py` | admin-only | NONE |
 | POST | `/admin-api/intelligence/risk-proposals` | `backend/api/routes/intelligence_insights.py` | admin-only | NONE |
 | GET | `/admin-api/knowledge` | `backend/api/routes/admin_dashboard/endpoints_command.py` | admin-only | NONE |
+| POST | `/admin-api/learning/run` | `backend/api/routes/admin_learning.py` | admin-only | NONE |
+| GET | `/admin-api/learning/status` | `backend/api/routes/admin_learning.py` | admin-only | NONE |
 | GET | `/admin-api/logs/stream` | `backend/api/routes/admin_dashboard/__init__.py` | admin-only | NONE |
 | GET | `/admin-api/memory` | `backend/api/routes/admin_dashboard/endpoints_command.py` | admin-only | NONE |
 | GET | `/admin-api/metrics` | `backend/api/routes/admin_dashboard/endpoints_metrics.py` | admin-only | NONE |
@@ -248,11 +253,19 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | GET | `/admin-api/permissions` | `backend/api/routes/admin_dashboard/endpoints_crud.py` | admin-only | NONE |
 | GET | `/admin-api/ping-all` | `backend/api/routes/service_topology.py` | admin-only | NONE |
 | GET | `/admin-api/ping-service` | `backend/api/routes/service_topology.py` | admin-only | NONE |
+| POST | `/admin-api/policies/enforce` | `backend/api/routes/admin_policies.py` | admin-only | NONE |
+| POST | `/admin-api/policies/evaluate` | `backend/api/routes/admin_policies.py` | admin-only | NONE |
+| GET | `/admin-api/policies/rules` | `backend/api/routes/admin_policies.py` | admin-only | NONE |
+| GET | `/admin-api/policies/rules/active` | `backend/api/routes/admin_policies.py` | admin-only | NONE |
 | GET | `/admin-api/provider-readiness` | `backend/api/routes/health_aggregation.py` | admin-only | NONE |
 | GET | `/admin-api/providers` | `backend/api/routes/admin_dashboard/endpoints_metrics.py` | admin-only | NONE |
 | GET | `/admin-api/rate-limits` | `backend/api/routes/admin_dashboard/endpoints_command.py` | admin-only | NONE |
 | GET | `/admin-api/reports` | `backend/api/routes/admin_dashboard/endpoints_events.py` | admin-only | NONE |
 | GET | `/admin-api/roles` | `backend/api/routes/admin_dashboard/endpoints_crud.py` | admin-only | NONE |
+| GET | `/admin-api/routing/classify/:param` | `backend/api/routes/admin_routing.py` | admin-only | NONE |
+| POST | `/admin-api/routing/enforce` | `backend/api/routes/admin_routing.py` | admin-only | NONE |
+| POST | `/admin-api/routing/evaluate` | `backend/api/routes/admin_routing.py` | admin-only | NONE |
+| GET | `/admin-api/routing/tiers` | `backend/api/routes/admin_routing.py` | admin-only | NONE |
 | GET | `/admin-api/rules` | `backend/api/routes/admin_dashboard/endpoints_command.py` | admin-only | NONE |
 | POST | `/admin-api/rules` | `backend/api/routes/admin_dashboard/endpoints_command.py` | admin-only | NONE |
 | GET | `/admin-api/secrets-health` | `backend/api/routes/admin_dashboard/endpoints_secrets_health.py` | admin-only | NONE |

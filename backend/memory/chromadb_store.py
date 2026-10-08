@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import threading
 import uuid
 from typing import Any
 
@@ -36,6 +37,12 @@ class ChromaDBStore:
         self.db_path = db_path
         self.collection_name = collection_name
         self._fallback_docs: dict[str, dict[str, Any]] = {}
+        # বাংলা মন্তব্য (৩-স্তর টেস্টিং প্ল্যান Tier-1): fallback স্টোরের সমান্তরাল
+        # অ্যাক্সেস-রেস গার্ড — query() যখন _fallback_docs iterate করে, তখন অন্য
+        # thread-এর add/delete একই dict mutate করলে "dictionary changed size
+        # during iteration" ক্র্যাশ হতো। RLock কারণ কল-চেইন (add_documents →
+        # _save_fallback) নিজেই re-enter করে।
+        self._fallback_lock = threading.RLock()
         self._client = None
         self._collection = None
         self._init_chroma()
@@ -130,12 +137,16 @@ class ChromaDBStore:
             doc_id = doc.get("id") or str(uuid.uuid4())
             text = doc.get("text") or doc.get("content") or ""
             metadata = doc.get("metadata") or {}
-            self._fallback_docs[doc_id] = {
-                "text": text,
-                "metadata": metadata,
-                "vector": self._get_vector(text),
-            }
-        self._save_fallback()
+            # বাংলা মন্তব্য (Tier-1): fallback রাইট-পাথও লক-এর ভেতরে —
+            # read-পাথের (query) সাথে রেস রোধ।
+            with self._fallback_lock:
+                self._fallback_docs[doc_id] = {
+                    "text": text,
+                    "metadata": metadata,
+                    "vector": self._get_vector(text),
+                }
+        with self._fallback_lock:
+            self._save_fallback()
 
     def add_document_incremental(
         self, doc_id: str, text: str, metadata: dict[str, Any] | None = None
@@ -190,7 +201,11 @@ class ChromaDBStore:
                 logger.warning(f"ChromaDB query failed, falling back to TF-IDF: {e}")
         query_vector = self._get_vector(query_text)
         scored = []
-        for doc_id, doc_data in self._fallback_docs.items():
+        # বাংলা মন্তব্য (Tier-1): iterate-এর সময় snapshot — লক ধরে কপি করে বাইরে
+        # স্কোর করা হয়, যাতে লক দীর্ঘ সময় ধরে না থাকে।
+        with self._fallback_lock:
+            docs_snapshot = list(self._fallback_docs.items())
+        for doc_id, doc_data in docs_snapshot:
             score = self._cosine_similarity(query_vector, doc_data["vector"])
             scored.append((doc_id, score, doc_data))
         scored.sort(key=lambda x: x[1], reverse=True)
@@ -203,8 +218,9 @@ class ChromaDBStore:
                 return
             except Exception as e:
                 logger.warning(f"ChromaDB delete failed, falling back to local: {e}")
-        self._fallback_docs.pop(doc_id, None)
-        self._save_fallback()
+        with self._fallback_lock:
+            self._fallback_docs.pop(doc_id, None)
+            self._save_fallback()
 
     def count(self) -> int:
         if self._collection is not None:

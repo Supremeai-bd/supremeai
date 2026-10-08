@@ -42,7 +42,11 @@ class PredictiveMetricsTracker:
             self.ewma_latency = (self.alpha * latency_ms) + ((1 - self.alpha) * self.ewma_latency)
 
         # Consecutive errors পর্যবেক্ষণ করা
-        if 500 <= status_code < 600:
+        # বাংলা মন্তব্য (৩-স্তর টেস্টিং প্ল্যান Tier-2): 429 (provider rate-limit) এখন
+        # এরর হিসেবে গোনা হয় — আগে শুধু 5xx গোনা হতো, ফলে বাস্তব 429-storm-এ
+        # (LLM provider রেট-লিমিট) predictive breaker কখনোই খুলত না, অথচ ওটিই
+        # fallback provider-এ যাওয়ার প্রধান বাস্তব ট্রিগার।
+        if 500 <= status_code < 600 or status_code == 429:
             self.consecutive_errors += 1
         else:
             self.consecutive_errors = 0
@@ -81,7 +85,13 @@ class PredictiveMetricsTracker:
         """
         if not self.status_codes:
             return 0.0
-        error_count = sum(1 for _, code in self.status_codes if 500 <= code < 600)
+        error_count = sum(
+            1
+            for _, code in self.status_codes
+            # বাংলা মন্তব্য (Tier-2): 429-ও এরর-রেটে গোনা হয় — record_request-এর
+            # সাথে সঙ্গতিপূর্ণ (উপরের নোট দেখুন)।
+            if 500 <= code < 600 or code == 429
+        )
         return (error_count / len(self.status_codes)) * 100.0
 
     def is_anomaly_detected(self) -> bool:

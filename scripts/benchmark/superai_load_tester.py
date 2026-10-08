@@ -92,7 +92,10 @@ class RequestResult:
 @dataclass
 class LoadTestConfig:
     """Configuration for load test."""
-    url: str = "http://localhost:8000/api/v1/chat/completions"  # is_local()
+    # বাংলা মন্তব্য: আগের ডিফল্ট `/api/v1/chat/completions` রুটটি আর নেই
+    # (openapi.json অনুযায়ী) — ক্যানোনিকাল কমপ্লিশন এন্ডপয়েন্ট হলো
+    # POST /api/chat/completion (CompletionRequest: prefix/suffix/filePath/language)।
+    url: str = "http://localhost:8000/api/chat/completion"  # is_local()
     method: str = "POST"
     concurrent_users: int = 10
     total_requests: int = 100
@@ -280,19 +283,29 @@ class SuperAILoadTester:
             config.headers['Content-Type'] = 'application/json'
 
         # Add auth header if available
-        api_key = os.environ.get('OPENAI_API_KEY') or os.environ.get('API_KEY')
+        # বাংলা মন্তব্য: locustfile-এর সাথে সঙ্গতি রেখে LOAD_TEST_TOKEN-ও
+        # ফলব্যাক হিসেবে ব্যবহার করা হচ্ছে (backend AuthMiddleware Bearer স্কিম)।
+        api_key = (
+            os.environ.get('OPENAI_API_KEY')
+            or os.environ.get('API_KEY')
+            or os.environ.get('LOAD_TEST_TOKEN')
+        )
         if api_key and 'Authorization' not in config.headers:
             config.headers['Authorization'] = f'Bearer {api_key}'
 
     def _generate_llm_payload(self) -> dict:
-        """Generate LLM-compatible request payload."""
+        """Generate SupremeAI CompletionRequest-compatible payload.
+
+        বাংলা মন্তব্য: ডিফল্ট টার্গেট POST /api/chat/completion এর বডি স্কিমা
+        (openapi.json → CompletionRequest) হলো prefix/suffix/filePath/language —
+        সবগুলোই required। পুরনো OpenAI chat-format পেলোড 422 এরর দিত।
+        llm_model/max_tokens কনফিগ ফিল্ড রিপোর্টিং-উদ্দেশ্যে অক্ষত রাখা হয়েছে।
+        """
         return {
-            "model": self.config.llm_model,
-            "messages": [
-                {"role": "user", "content": self.config.llm_prompt}
-            ],
-            "max_tokens": self.config.max_tokens,
-            "temperature": 0.7
+            "prefix": "def load_test_probe():\n    # ",
+            "suffix": "\n    return 'ok'\n",
+            "filePath": "load_test_probe.py",
+            "language": "python",
         }
 
     def _make_request(self, request_id: int) -> RequestResult:
@@ -832,7 +845,7 @@ Examples:
         """
     )
 
-    parser.add_argument('--url', '-u', default='http://localhost:8000/api/v1/chat/completions',  # is_local()
+    parser.add_argument('--url', '-u', default='http://localhost:8000/api/chat/completion',  # is_local()
                         help='Target URL')
     parser.add_argument('--method', '-m', default='POST',
                         choices=['GET', 'POST', 'PUT', 'DELETE'],

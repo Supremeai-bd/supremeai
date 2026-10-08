@@ -94,6 +94,11 @@ on:
         required: false
         default: false
         type: boolean
+      run_docs_garbage_sweep:
+        description: 'Run docs garbage tree-sweep arm (#4176 — main-tree Zero-Garbage monitoring)'
+        required: false
+        default: false
+        type: boolean
       platform_deep_audit_dry_run:
         description: '[platform-deep-audit] Dry-run (probe + report only, no GitHub issue writes) — recommended for the first validation run (#2712)'
         required: false
@@ -131,6 +136,27 @@ on:
         type: boolean
       run_workflow_runs_retention:
         description: 'Run workflow runs retention & stale log purge arm'
+        required: false
+        default: false
+        type: boolean
+      # ── ৩-স্তর টেস্টিং প্ল্যান (Phase 4): নতুন টেস্টিং আর্মগুলোর ডিসপ্যাচ ইনপুট ──
+      run_load_locust:
+        description: 'Run Locust load-test arm (Tier-1, 100 VU × 15m vs staging)'
+        required: false
+        default: false
+        type: boolean
+      run_chaos_suite:
+        description: 'Run chaos resilience suite arm (Tier-2, -m chaos)'
+        required: false
+        default: false
+        type: boolean
+      run_browser_e2e:
+        description: 'Run real-browser E2E arm (Tier-3, tests/browser -m e2e)'
+        required: false
+        default: false
+        type: boolean
+      run_db_pool_health:
+        description: 'Run DB/pool health probe arm (pgBouncer/quota report)'
         required: false
         default: false
         type: boolean
@@ -244,6 +270,19 @@ jobs:
         id: perf_benchmark
         continue-on-error: true
         run: python scripts/testing/performance_benchmark.py --target api
+
+      # বাংলা মন্তব্য (৩-স্তর টেস্টিং প্ল্যান Phase 4): বেঞ্চমার্ক ফলাফল step-summary-তে
+      # স্পষ্টভাবে প্রকাশ করা হলো। continue-on-error ইচ্ছাকৃত — বেসলাইন সংগ্রহের পরেই
+      # র্যাচেট-গেট হবে (পরিকল্পনা-নথিত ডকুমেন্টেড); আপাতত 'সবুজ CI কিন্তু মেট্রিক অদৃশ্য'
+      # সমস্যাটি দূর হলো।
+      - name: Performance Benchmark → Step Summary
+        if: always() && steps.perf_benchmark.outcome != 'skipped'
+        run: |
+          echo "### ⚡ Nightly Performance Benchmark (advisory)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Outcome: \`${{ steps.perf_benchmark.outcome }}\` (continue-on-error — advisory until baseline ratchet lands)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- SLO ladder (docs/operations/SLO_AND_ALERTS.md): target p95 < 1500 ms / p99 < 2000 ms, 5xx < 0.1% steady-state" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Gate plan: collect ≥ 14 nights of baselines → ratchet thresholds → remove continue-on-error" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Advisory security detectors
         id: advisory_security_detectors
@@ -798,6 +837,50 @@ jobs:
           echo "Run at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_STEP_SUMMARY
           echo "Severity: ${{ steps.check.outputs.severity }}" >> $GITHUB_STEP_SUMMARY
           echo "Remaining: ${{ steps.check.outputs.remaining }}" >> $GITHUB_STEP_SUMMARY
+
+  docs-garbage-sweep:
+    # ── #4176 Step 3: PR-independent main-tree Zero-Garbage monitoring ──────
+    # PR-path gate (pr.yml → constitution.gates docs_garbage) শুধু PR-এর
+    # changed-files দেখে — main-এ direct push হলে কোনো gate চলে না (প্রমাণ:
+    # 9e4d9df/889da16, 2026-10-06)। এই job পুরো docs/ tree দিনে একবার sweep
+    # করে — baseline-বাইরে নতুন non-allowlisted docs/*.md = লাল (fail-closed)।
+    name: 🧹 Docs Garbage Tree Sweep (daily, #4176)
+    if: >-
+        (github.event_name == 'workflow_dispatch' && inputs.run_docs_garbage_sweep == true) ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+    concurrency:
+      group: docs-garbage-sweep
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout main tree
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Tree sweep (fail-closed on new offenders)
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/docs_garbage_tree_sweep.py
+
+      - name: Sweep summary (offender inventory on failure)
+        if: failure()
+        run: |
+          echo "## 🧹 Docs Garbage Tree Sweep — NEW OFFENDERS (#4176)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/ci/docs_garbage_tree_sweep.py --list >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Remediation:** ফাইলটি \`docs/archive/\`-এ সরাও, অথবা rules.yml \`docs_garbage_policy.allowed_patterns\`-এ (approved PR-এ) যোগ করো, অথবা liability-audit-এ সিদ্ধান্ত নাও।" >> "$GITHUB_STEP_SUMMARY"
 
   stale-mutex:
     if: >-
@@ -1428,6 +1511,283 @@ jobs:
             qa/results/report.md
             qa/results/html/
           retention-days: 7
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # ৩-স্তর টেস্টিং প্ল্যান (Phase 4) — নতুন টেস্টিং আর্মগুলো
+  # (Tier-1 load / Tier-2 chaos / Tier-3 browser-e2e / DB-pool health)
+  # ────────────────────────────────────────────────────────────────────────────
+  load-locust:
+    if: >-
+        (github.event_name == 'workflow_dispatch' && inputs.run_load_locust == true) ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+    concurrency:
+      group: nightly-ops-load-locust
+      cancel-in-progress: false
+    name: 📈 Locust Load Test (Tier-1, 100 VU × 15m)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      STAGING_TARGET: ${{ secrets.STAGING_URL }}
+      LOAD_TEST_TOKEN: ${{ secrets.LOAD_TEST_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify staging target is configured (honest-skip doctrine)
+        id: target
+        run: |
+          if [ -z "$STAGING_TARGET" ]; then
+            echo "::warning::STAGING_URL is not configured — load test honestly SKIPPED (no fabricated numbers, cf. cloud_db_load_test doctrine)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Backend Environment
+        if: steps.target.outputs.skip != 'true'
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
+          mode: prepare
+
+      # বাংলা মন্তব্য (Tier-1): locust dev-dep নয় — এই isolated job-এই ইনস্টল
+      # হয় (gevent monkey-patching টেস্ট-স্যুইট প্রসেস থেকে দূরে থাকে; বিস্তারিত
+      # backend/pyproject.toml-এর locust-কমেন্টে)।
+      - name: Install Locust (isolated to this runner)
+        if: steps.target.outputs.skip != 'true'
+        working-directory: ./backend
+        run: poetry run pip install --disable-pip-version-check "locust>=2.29,<3.0"
+
+      - name: Run Locust (100 users, 15 minutes)
+        if: steps.target.outputs.skip != 'true'
+        working-directory: ./backend
+        run: |
+          set -euo pipefail
+          poetry run locust -f tests/load/locustfile.py \
+            --headless --host "$STAGING_TARGET" \
+            -u 100 -r 10 -t 15m \
+            --csv /tmp/locust_stats --html /tmp/locust-report.html \
+            --only-summary
+
+      - name: SLO verdict from Locust CSV (p95 + failure ratio)
+        if: steps.target.outputs.skip != 'true'
+        working-directory: ./backend
+        run: |
+          set -euo pipefail
+          poetry run python - <<'PY'
+          import csv, os, sys
+
+          path = "/tmp/locust_stats_stats.csv"
+          if not os.path.isfile(path):
+              path = "/tmp/locust_stats.csv"
+          agg = None
+          with open(path, newline="", encoding="utf-8") as fh:
+              for row in csv.DictReader(fh):
+                  if row.get("Name") == "Aggregated":
+                      agg = row
+                      break
+          if agg is None:
+              print("::error::Locust Aggregated row not found — gate cannot verify SLOs")
+              sys.exit(1)
+
+          reqs = int(float(agg["Request Count"]))
+          fails = int(float(agg["Failure Count"]))
+          p95 = float(agg.get("95%") or 0.0)
+          fail_ratio = (fails / reqs) if reqs else 1.0
+
+          lines = [
+              "### 📈 Nightly Load Test (Tier-1)",
+              "",
+              f"- Requests: {reqs}, Failures: {fails} ({fail_ratio:.3%})",
+              f"- p95: {p95:.0f} ms (gate < 2000 ms; steady-state target p95 < 1500 ms)",
+              f"- Verdict: {'PASS' if (p95 < 2000 and fail_ratio < 0.01 and reqs > 0) else 'FAIL'}",
+          ]
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a", encoding="utf-8") as handle:
+                  handle.write("\n".join(lines) + "\n")
+          print("\n".join(lines))
+          if reqs == 0 or p95 >= 2000 or fail_ratio >= 0.01:
+              sys.exit(1)
+          PY
+
+      - name: Upload Locust report
+        if: always() && steps.target.outputs.skip != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: locust-load-report
+          path: |
+            /tmp/locust_stats*.csv
+            /tmp/locust-report.html
+          retention-days: 7
+
+  chaos-suite:
+    if: >-
+        (github.event_name == 'workflow_dispatch' && inputs.run_chaos_suite == true) ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+    concurrency:
+      group: nightly-ops-chaos-suite
+      cancel-in-progress: false
+    name: 💉 Chaos Resilience Suite (Tier-2, -m chaos)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
+          mode: prepare
+
+      # বাংলা মন্তব্য (Tier-2): `chaos` marker PR-CI-তে deselect করা — এই রাতের
+      # job-ই একমাত্র জায়গা যেখানে কেওস-চিহ্নিত ড্রিল (429-storm breaker,
+      # memory-pressure hold) চলে। সব লোকাল/mocked — নেটওয়ার্ক নেই।
+      - name: Run chaos-marked tests
+        working-directory: ./backend
+        run: |
+          set -euo pipefail
+          poetry run pytest tests/chaos -m chaos --no-cov -q --timeout=60 -p no:cacheprovider 2>&1 | tee /tmp/chaos_output.txt
+          echo "### 💉 Chaos Resilience Suite (Tier-2)" >> "$GITHUB_STEP_SUMMARY"
+          tail -n 5 /tmp/chaos_output.txt >> "$GITHUB_STEP_SUMMARY"
+
+  browser-e2e:
+    if: >-
+        (github.event_name == 'workflow_dispatch' && inputs.run_browser_e2e == true) ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+    concurrency:
+      group: nightly-ops-browser-e2e
+      cancel-in-progress: false
+    name: 🥁 Real-Browser E2E (Tier-3, tests/browser)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # বাংলা মন্তব্য (Tier-3): install-browser-deps=true → poetry-র optional
+      # browser group (Python Playwright) + সিস্টেম লাইব্রেরি ইনস্টল হয়।
+      - name: Setup Backend Environment (with browser group)
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "true"
+          mode: prepare
+
+      - name: Install Chromium binary
+        working-directory: ./backend
+        run: poetry run playwright install chromium --with-deps
+
+      # বাংলা মন্তব্য (Tier-3): e2e-চিহ্নিত আসল-ব্রাউজার টেস্ট — সেশন-সমান্তরালতা,
+      # RSS/orphan-প্রসেস গার্ড, vision-grounding ক্যাসকেড। PR-CI deselect করে।
+      - name: Run real-browser e2e suite
+        working-directory: ./backend
+        run: |
+          set -euo pipefail
+          poetry run pytest tests/browser -m e2e --no-cov -q --timeout=120 -p no:cacheprovider 2>&1 | tee /tmp/browser_e2e_output.txt
+          echo "### 🥁 Real-Browser E2E (Tier-3)" >> "$GITHUB_STEP_SUMMARY"
+          tail -n 5 /tmp/browser_e2e_output.txt >> "$GITHUB_STEP_SUMMARY"
+
+  db-pool-health:
+    if: >-
+        (github.event_name == 'workflow_dispatch' && inputs.run_db_pool_health == true) ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+    concurrency:
+      group: nightly-ops-db-pool-health
+      cancel-in-progress: false
+    name: 🗄️ DB & Pool Health Probe (pgBouncer/quota report)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      STAGING_TARGET: ${{ secrets.STAGING_URL }}
+      LOAD_TEST_TOKEN: ${{ secrets.LOAD_TEST_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v5 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # বাংলা মন্তব্য (Tier-1/plan): আগে pgBouncer হেলথ CI-তে ছিল না — শুধু
+      # SLO ডকে 'Supabase dashboard দেখো' লেখা ছিল। এখন /health/ready +
+      # /health/full প্রোব করে DB কম্পোনেন্টের অবস্থা রিপোর্ট হয়; degraded
+      # হলে job ব্যর্থ। টার্গেট/টোকেন না থাকলে সৎ স্কিপ।
+      - name: Probe /health/ready + /health/full (DB components)
+        run: |
+          python - <<'PY'
+          import json, os, sys, urllib.request
+
+          base = os.environ.get("STAGING_TARGET", "").rstrip("/")
+          token = os.environ.get("LOAD_TEST_TOKEN", "")
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+
+          if not base:
+              print("::warning::STAGING_URL not configured — DB pool health honestly SKIPPED.")
+              if summary:
+                  with open(summary, "a", encoding="utf-8") as h:
+                      h.write("### 🗄️ DB & Pool Health\n\n_SKIPPED — STAGING_URL not configured_\n")
+              sys.exit(0)
+
+          def probe(path, with_auth):
+              req = urllib.request.Request(base + path)
+              if with_auth and token:
+                  req.add_header("Authorization", f"Bearer {token}")
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      return resp.status, json.loads(resp.read().decode("utf-8") or "{}")
+              except Exception as exc:
+                  return 0, {"error": str(exc)}
+
+          ready_code, ready = probe("/health/ready", False)
+          full_code, full = probe("/health/full", True)
+
+          lines = ["### 🗄️ DB & Pool Health", "", f"- /health/ready: HTTP {ready_code}", f"- /health/full: HTTP {full_code}"]
+          db_status = "unknown"
+          components = full.get("components") or full.get("checks") or {}
+          if isinstance(components, dict):
+              db_comp = components.get("database") or components.get("db") or {}
+              if isinstance(db_comp, dict):
+                  db_status = str(db_comp.get("status", "unknown"))
+                  lines.append(f"- database component: **{db_status}**")
+              for key in ("memory", "redis"):
+                  comp = components.get(key)
+                  if isinstance(comp, dict):
+                      lines.append(f"- {key} component: {comp.get('status', 'unknown')}")
+          overall = full.get("status", "unknown")
+          lines.append(f"- overall: **{overall}**")
+          print("\n".join(lines))
+          if summary:
+              with open(summary, "a", encoding="utf-8") as h:
+                  h.write("\n".join(lines) + "\n")
+
+          if ready_code != 200:
+              print(f"::error::/health/ready returned {ready_code}")
+              sys.exit(1)
+          if str(db_status).lower() in ("down", "unhealthy", "error") or str(overall).lower() in ("unhealthy", "down"):
+              print("::error::DB component degraded — see summary")
+              sys.exit(1)
+          PY
 
   deploy-doctor-fallback:
     name: 🔍 Deploy Doctor (hourly fallback, 90m window)

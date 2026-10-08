@@ -180,6 +180,11 @@ GROUP_TEST_DIRS: dict[str, set[str]] = {
         # dir is "integrations" (plural) — distinct from the intentionally
         # unmapped "integration" runtime-integration suite in unmapped_ok.
         "integrations",
+        # FIX(#4217): backend/tests/evaluation (guardian capability-evaluator
+        # unit tests) came in with the 3-tier testing plan without an owner —
+        # same drift-guard class as "ci"/#1097 and "mcp"/#1753 above.
+        # Pure unit-test class (no markers) -> services group scoped runs.
+        "evaluation",
     },
 }
 

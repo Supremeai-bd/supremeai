@@ -29,6 +29,16 @@ on:
         required: false
         type: boolean
         default: false
+      deploy-frontend:
+        description: 'Vercel (Frontend)-ও deploy হবে (#4246)'
+        required: false
+        type: boolean
+        default: false
+      deploy-firebase:
+        description: 'Firebase rules-ও deploy হবে (#4246)'
+        required: false
+        type: boolean
+        default: false
       rollback_on_canary_fail:
         description: 'ক্যানারি ব্যর্থ হলে স্বয়ংক্রিয় রোলব্যাক?'
         required: false
@@ -48,6 +58,16 @@ on:
         default: false
       deploy-cloudflare:
         description: 'Cloudflare Worker-ও deploy হবে (infra পরিবর্তিত হলে)'
+        required: false
+        type: boolean
+        default: false
+      deploy-frontend:
+        description: 'Vercel (Frontend)-ও deploy হবে (#4246)'
+        required: false
+        type: boolean
+        default: false
+      deploy-firebase:
+        description: 'Firebase rules-ও deploy হবে (#4246)'
         required: false
         type: boolean
         default: false
@@ -89,6 +109,8 @@ jobs:
       deploy-scraper: ${{ steps.resolve.outputs.scraper }}
       deploy-mcp: ${{ steps.resolve.outputs.mcp }}
       deploy-cloudflare: ${{ steps.resolve.outputs.cloudflare }}
+      deploy-frontend: ${{ steps.resolve.outputs.frontend }}
+      deploy-firebase: ${{ steps.resolve.outputs.firebase }}
       rollback: ${{ steps.resolve.outputs.rollback }}
     steps:
       - name: Resolve raw input visibility → normalized flags
@@ -110,6 +132,8 @@ jobs:
           echo "scraper=$(pick "${{ inputs.deploy-scraper }}" "${{ github.event.inputs.deploy-scraper }}")" >> "$GITHUB_OUTPUT"
           echo "mcp=$(pick "${{ inputs.deploy-mcp }}" "${{ github.event.inputs.deploy-mcp }}")" >> "$GITHUB_OUTPUT"
           echo "cloudflare=$(pick "${{ inputs.deploy-cloudflare }}" "${{ github.event.inputs.deploy-cloudflare }}")" >> "$GITHUB_OUTPUT"
+          echo "frontend=$(pick "${{ inputs.deploy-frontend }}" "${{ github.event.inputs.deploy-frontend }}")" >> "$GITHUB_OUTPUT"
+          echo "firebase=$(pick "${{ inputs.deploy-firebase }}" "${{ github.event.inputs.deploy-firebase }}")" >> "$GITHUB_OUTPUT"
           # rollback flag: disable-semantics — স্পষ্ট false হলেই বন্ধ, ডিফল্ট চালু
           rv="${{ inputs.rollback_on_canary_fail }}"
           if [ -z "$rv" ]; then rv="${{ github.event.inputs.rollback_on_canary_fail }}"; fi
@@ -132,6 +156,8 @@ jobs:
       deploy-scraper: ${{ steps.detect.outputs.deploy-scraper }}
       deploy-mcp: ${{ steps.detect.outputs.deploy-mcp }}
       deploy-cloudflare: ${{ steps.detect.outputs.deploy-cloudflare }}
+      deploy-frontend: ${{ steps.detect.outputs.deploy-frontend }}
+      deploy-firebase: ${{ steps.detect.outputs.deploy-firebase }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5 # v7.0.1
@@ -144,7 +170,9 @@ jobs:
             python3 scripts/ci/detect_deploy_targets.py --mode manual \
               --scraper "${{ needs.dispatch-inputs-resolve.outputs.deploy-scraper }}" \
               --mcp "${{ needs.dispatch-inputs-resolve.outputs.deploy-mcp }}" \
-              --cloudflare "${{ needs.dispatch-inputs-resolve.outputs.deploy-cloudflare }}"
+              --cloudflare "${{ needs.dispatch-inputs-resolve.outputs.deploy-cloudflare }}" \
+              --frontend "${{ needs.dispatch-inputs-resolve.outputs.deploy-frontend }}" \
+              --firebase "${{ needs.dispatch-inputs-resolve.outputs.deploy-firebase }}"
           else
             BASE="${{ github.event.before }}"
             if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
@@ -639,6 +667,11 @@ jobs:
         uses: actions/setup-node@v5 # v7.0.0
         with:
           node-version: '24'
+          # বাংলা (#4269): এই স্টেশন npm/wrangler-ভিত্তিক, কিন্তু root package.json-এর
+          # packageManager=pnpm setup-node@v5-এর default package-manager-cache-কে
+          # pnpm খোঁজায় — pnpm নেই বলে হার্ড-এরর (run 37723328233)। pnpm এখানে
+          # দরকার নেই — cache বন্ধ।
+          package-manager-cache: false
       - name: Install Wrangler
         run: npm install -g wrangler@4.135.0
       - name: Deploy Worker
@@ -651,6 +684,119 @@ jobs:
             if [ -f "package.json" ]; then npm ci; fi
             wrangler deploy
           fi
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Station: Vercel (Frontend) Deploy (#4246)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # বাংলা (#4246): smart-deploy-র স্কেডিউল-ভিত্তিক vercel deploy এখানে স্থানান্তরিত
+  # — SHA-ভিত্তিক diff-ডিটেকশন (event.before...HEAD) প্রতি main-push-এ নির্ধারিত,
+  # `4 hours ago` টাইম-উইন্ডো অনির্ণেয়তা নয়। Rule 10 (Missing evidence ≠
+  # healthy): `|| true` ফাঁদ-সবুজ নিষিদ্ধ — deploy ব্যর্থ হলে স্টেশন লাল।
+  # টোকেন-অনুপস্থিতি = #1852 কনভেনশন (skip-if-missing + ::warning:: — দৃশ্যমান
+  # বাদ, নীরব নয়)।
+  deploy-vercel:
+    name: "🌐 Deploy Frontend (Vercel)"
+    needs: [detect-changes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: always() && needs.detect-changes.outputs.deploy-frontend == 'true'
+    environment:
+      name: production
+    concurrency:
+      group: vercel-frontend
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5 # v7.0.1
+      # বাংলা (#4269): setup-node@v5-এর default `package-manager-cache: true` root
+      # package.json-এর packageManager দেখে pnpm ক্যাশ করতে যায় — pnpm ইনস্টলের
+      # আগে হলে "Unable to locate executable file: pnpm" হার্ড-এরর (run 37723328233
+      # প্রমাণ)। সঠিক ক্রম = pnpm আগে, node পরে (mission-control job-এর বিদ্যমান
+      # প্যাটার্ন L350-356 অনুযায়ী)।
+      - name: Setup pnpm (SSOT from package.json)
+        uses: pnpm/action-setup@v5 # reads packageManager from package.json
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      # বাংলা (#4269): vite build-contract gate (#4149) fail-closed — প্রোডাকশন বান্ডলে
+      # ব্যাকএন্ড-URL বেক বাধ্যতামূলক। ক্যানোনিকাল রেজলভার (#1132)-এর RENDER_CORE_URL
+      # VITE_API_URL-এ ম্যাপ (SPA API-origin-কে সরাসরি CORS-এ কল করে — CODEBASE doctrine)।
+      - name: Import RENDER_CORE_URL from Infisical (canonical prod API origin, #1132)
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          export-type: "env"
+      - name: "Build frontend workspace (build-contract gate — VITE_API_URL from RENDER_CORE_URL)"
+        env:
+          VITE_API_URL: ${{ env.RENDER_CORE_URL }}
+        run: pnpm install --frozen-lockfile && pnpm --filter supremeai-studio-client... build
+      - name: Deploy to Vercel (fail-closed — no swallow, Rule 10)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::warning::VERCEL_TOKEN not set — Vercel deploy SKIPPED (visible-skip per #1852 convention; Missing evidence ≠ healthy — configure the secret to close this gap)"
+            echo "| Vercel | ⏭️ SKIPPED (no token) |" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          npm install -g vercel
+          # বাংলা (#4269): prebuilt ফ্লো — `vercel build` vercel.json-এর buildCommand লোকালি
+          # চালিয়ে .vercel/output বানায় (process-env-এর VITE_API_URL গ্রহণ করে), তারপর
+          # `--prebuilt` দিয়ে সেই আর্টিফ্যাক্ট-ই আপলোড — dashboard-env-নির্ভরতা শূন্য,
+          # যা বিল্ড হলো ঠিক সেটাই প্রোডে যায় (deterministic)।
+          vercel build --prod --token "$VERCEL_TOKEN" --yes
+          vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" --yes
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Station: Firebase Rules Deploy (#4246)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  deploy-firebase:
+    name: "🔥 Deploy Firebase Rules"
+    needs: [detect-changes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: always() && needs.detect-changes.outputs.deploy-firebase == 'true'
+    environment:
+      name: production
+    concurrency:
+      group: firebase-rules
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5 # v7.0.1
+      # বাংলা (#4269): firebase CLI-এর প্রজেক্ট-কনফিগ SSOT এখন config/firebase.json —
+      # রিপোর রুটে firebase.json কখনোই ছিল না, তাই CLI "Not in a Firebase app
+      # directory" দিয়ে লাল (run 37723328233 প্রমাণ)। cwd=config + relative পাথ —
+      # rules/indexes ফাইল দুটি একই ডিরেক্টরিতে (firebase/) সহাবস্থান করে — config/ noise-prefix-এ থাকায় detector watch-match পেত না।
+      - name: Deploy Firebase rules (fail-closed — no swallow, Rule 10)
+        working-directory: firebase
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "::warning::FIREBASE_TOKEN not set — Firebase rules deploy SKIPPED (visible-skip per #1852 convention)"
+            echo "| Firebase | ⏭️ SKIPPED (no token) |" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          npm install -g firebase-tools@13
+          # বাংলা (#4269): storage:rules বাদ — রিপোতে storage.rules ফাইল নেই
+          # (অস্তিত্বহীন টার্গেট deploy করা মিথ্যা-সবুজের পথ); বাস্তব টার্গেট =
+          # firestore rules + indexes দুটোই config/ SSOT-এ আছে।
+          firebase deploy --only firestore:rules,firestore:indexes \
+            --config firebase.json \
+            --project="$FIREBASE_PROJECT_ID" \
+            --token="$FIREBASE_TOKEN"
 
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # Station 3: Post-Deploy Smoke Canary (Inlined from 09-post-deploy-smoke.yml)
@@ -707,10 +853,10 @@ jobs:
       - name: Backend live health probe (canonical API origin, retried)
         if: ${{ env.BACKEND_HEALTH_URL != '' }}
         run: |
-          echo "Probing backend health at $BACKEND_HEALTH_URL/api/v1/health (5 tries x 30s)"
+          echo "Probing backend health at $BACKEND_HEALTH_URL/health (canonical, 5 tries x 30s)"
           body=""
           for i in 1 2 3 4 5; do
-            code=$(curl -sS --max-time 30 -o /tmp/health_body.json -w '%{http_code}' "$BACKEND_HEALTH_URL/api/v1/health" 2>/tmp/health_err.txt || true)
+            code=$(curl -sS --max-time 30 -o /tmp/health_body.json -w '%{http_code}' "$BACKEND_HEALTH_URL/health" 2>/tmp/health_err.txt || true)
             if [ "$code" = "200" ]; then
               body=$(cat /tmp/health_body.json)
               echo "try $i/5: HTTP 200"
@@ -718,6 +864,9 @@ jobs:
             fi
             echo "try $i/5: HTTP ${code:-none} — $(cat /tmp/health_err.txt | head -1)"
             # সাসপেন্ডেড সার্ভিস retry-তে সুস্থ হয় না — সুনির্দিষ্ট নির্দেশনা দিয়ে বন্ধ
+            # বাংলা (#4223): legacy /api/v1/health নয় — canonical /health (SSOT:
+            # docs/deployment/HEALTH_CONTRACT.md)। হুবহু একই body/semantics
+            # (200 + "status":"healthy"), কিন্তু অপারেশনাল source-of-truth পাথে।
             if grep -qi "Service Suspended" /tmp/health_body.json 2>/dev/null; then
               echo "::error::Render সার্ভিস SUSPENDED (ফ্রি-টিয়ার কোটা শেষ / অ্যাডমিন-সাসপেন্ড) — unsuspend/কোটা রিসেট ছাড়া canary পাস অসম্ভব; অ্যাডমিন সিদ্ধান্ত প্রয়োজন।"
               exit 1
