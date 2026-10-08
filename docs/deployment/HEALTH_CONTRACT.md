@@ -31,6 +31,9 @@ and older docs/links do not break; it is not the operational source of truth.
 | `docker-compose.yml` scraper    | `/health`              | canonical ✔     |
 | `docker-compose.yml` browser    | `/health` (node http)  | canonical ✔     |
 | Render dashboard (per service)  | set to `/health/ready` | verify in dashboard |
+| `deploy-train.yml` Station 1 probe | `/health` (fallback `/api/v1/health`) | canonical-first ✔ (#4223) |
+| `deploy-train.yml` Station 3 canary | `/health`           | canonical ✔ (#4223) |
+| `cloudflare_worker.js` keepalive (primary/worker/scraper/mcp) | `/health` | canonical ✔ (#4223) |
 | Monitoring / alerting           | `/health/ready`        | canonical ✔     |
 | Docs / runbooks                 | `/health/*`            | canonical ✔     |
 

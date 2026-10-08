@@ -814,10 +814,10 @@ jobs:
       - name: Backend live health probe (canonical API origin, retried)
         if: ${{ env.BACKEND_HEALTH_URL != '' }}
         run: |
-          echo "Probing backend health at $BACKEND_HEALTH_URL/api/v1/health (5 tries x 30s)"
+          echo "Probing backend health at $BACKEND_HEALTH_URL/health (canonical, 5 tries x 30s)"
           body=""
           for i in 1 2 3 4 5; do
-            code=$(curl -sS --max-time 30 -o /tmp/health_body.json -w '%{http_code}' "$BACKEND_HEALTH_URL/api/v1/health" 2>/tmp/health_err.txt || true)
+            code=$(curl -sS --max-time 30 -o /tmp/health_body.json -w '%{http_code}' "$BACKEND_HEALTH_URL/health" 2>/tmp/health_err.txt || true)
             if [ "$code" = "200" ]; then
               body=$(cat /tmp/health_body.json)
               echo "try $i/5: HTTP 200"
@@ -825,6 +825,9 @@ jobs:
             fi
             echo "try $i/5: HTTP ${code:-none} — $(cat /tmp/health_err.txt | head -1)"
             # সাসপেন্ডেড সার্ভিস retry-তে সুস্থ হয় না — সুনির্দিষ্ট নির্দেশনা দিয়ে বন্ধ
+            # বাংলা (#4223): legacy /api/v1/health নয় — canonical /health (SSOT:
+            # docs/deployment/HEALTH_CONTRACT.md)। হুবহু একই body/semantics
+            # (200 + "status":"healthy"), কিন্তু অপারেশনাল source-of-truth পাথে।
             if grep -qi "Service Suspended" /tmp/health_body.json 2>/dev/null; then
               echo "::error::Render সার্ভিস SUSPENDED (ফ্রি-টিয়ার কোটা শেষ / অ্যাডমিন-সাসপেন্ড) — unsuspend/কোটা রিসেট ছাড়া canary পাস অসম্ভব; অ্যাডমিন সিদ্ধান্ত প্রয়োজন।"
               exit 1
