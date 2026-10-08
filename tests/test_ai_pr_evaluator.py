@@ -821,3 +821,110 @@ class TestRenderPendingAndSummary:
         assert "groq/llama" in text
         assert "watch migration" in text
         assert "auth/config.py" in text
+
+
+# ── #4222: template_gate-সংগত contract (SSOT drift-প্রতিরোধ) ────────────────────
+class TestTemplateGateSummaryAlignment:
+    """#4222: evaluator-এর Summary-শনাক্ত ক্যানোনিক্যাল গেটের সাথে একমত কিনা।
+
+    বাংলা: .github/scripts/constitution/template_gate.py COMPLIANT দেওয়া body
+    evaluator-এর কঠোর `^##\\s*Summary\\b` রেগেক্সে ভুয়া metadata-gap খেলে
+    ভুয়া Safety ❌ → ghost pipeline-issue (#4219-শ্রেণি)। এই contract-test
+    representative body-গুলোতে দুই বাস্তবায়নকে বাঁধে — ভবিষ্যৎ drift এখন
+    টেস্ট-ফেইল, প্রোডাকশন-অঘটনা নয় (P6 poka-yoke)।
+    """
+
+    @staticmethod
+    def _gate_has_summary(body: str) -> bool:
+        import sys as _sys
+        from pathlib import Path as _Path
+        const_dir = _Path(__file__).resolve().parents[1] / ".github" / "scripts" / "constitution"
+        if str(const_dir) not in _sys.path:
+            _sys.path.insert(0, str(const_dir))
+        import template_gate
+        return template_gate._has_section(body, "Summary")
+
+    @pytest.mark.parametrize("body", [
+        "## Summary\nসারমর্ম\n",
+        "## Mission & Summary (মিশন ও সারসংক্ষেপ)\n...\n",
+        "### Summary\n...\n",
+        "# Summary\n...\n",
+        "## Summary (সারসংক্ষেপ)\n...\n",
+        "## linked summary of work\n...\n",  # case-insensitive substring
+        "### Mission & Summary — রোলআপ\n...\n",
+        "prerequisite: ## Summary কথায় নয়, হেডিংয়ে\n\n## Summary\nok\n",
+    ])
+    def test_positive_bodies_agree_with_gate(self, body):
+        assert ape._has_summary_section(body) is True
+        assert self._gate_has_summary(body) is True
+
+    @pytest.mark.parametrize("body", [
+        "",
+        "প্লেইন টেক্সট — কোনো হেডিং নেই\n",
+        "## Mission\n## Verification\n",
+        "## summery (বানান-ভুল)\n",
+        "Summary হেডিংয়ে নয়, সাধারণ লাইনে\n",
+    ])
+    def test_negative_bodies_agree_with_gate(self, body):
+        assert ape._has_summary_section(body) is False
+        assert self._gate_has_summary(body) is False
+
+    def test_mission_summary_heading_no_false_metadata_gap(self):
+        # বাংলা: ক্যানোনিক্যাল টেমপ্লেট-বৈচিত্র্য আর ভুয়া gap/Safety ❌ খাবে না —
+        # গেট COMPLIANT হলে evaluator-ও একই রায় দেবে (#4222-মূল-অঘটনা)।
+        body = (
+            "## Mission & Summary (মিশন ও সারসংক্ষেপ)\nফিক্সের সারমর্ম।\n\n"
+            "## Linked Issue / Claim\nRefs #500\n\n"
+            "## Touching Files (Scope Boundary)\n- `scripts/a.py`\n\n"
+            "## Rollback Path\n- [ ] `git revert`-নিরাপদ\n"
+        )
+        api = FakeApi(issues={500: CLAIMED_ISSUE},
+                      compares={"fix/2925-x": {"behind_by": 0, "status": "ahead"}})
+        result = evaluate_pr(_pr_detail(body=body), api=api)
+        assert result["verdict"] == "AUTO_MERGE"
+        assert result["criterion_2_safe"] is True
+        assert not any("টেমপ্লেট v2" in r for r in
+                       result["safety_reasons"] + result["value_reasons"])
+
+    def test_missing_summary_still_flagged(self):
+        # বাংলা: আলগা হলেও গেট সৎ — Summary সত্যিই না থাকলে gap ধরা পড়বেই।
+        body = (
+            "## Mission\nসারমর্ম নেই।\n\n"
+            "## Linked Issue / Claim\nRefs #500\n\n"
+            "## Rollback Path\n- [ ] ok\n"
+        )
+        api = FakeApi(issues={500: CLAIMED_ISSUE},
+                      compares={"fix/2925-x": {"behind_by": 0, "status": "ahead"}})
+        result = evaluate_pr(_pr_detail(body=body), api=api)
+        reasons = " ".join(result["safety_reasons"] + result["value_reasons"])
+        assert "টেমপ্লেট v2" in reasons
+
+
+class TestSectionExtractionGateAlignment:
+    """#4222 U9-sweep: একই কঠোর-হেডিং drift-শ্রেণির sibling-ফাংশন দুটির চুক্তি।
+
+    বাংলা: `_extract_touching_files`/`_extract_evidence_text` আগে কঠোর
+    `^##\\s*<Keyword>\\b` ব্যবহার করত — গেট COMPLIANT issue-র
+    `### Touching Files`/`### Evidence` ধরতে পারত না (value-signal হারাত)।
+    """
+
+    def test_touching_files_any_heading_level(self):
+        body = ("## Mission\nমিশন\n\n### Touching Files\n- `backend/worker.py`\n\n"
+                "## Verification\npytest পাস\n")
+        assert _extract_touching_files(body) == {"backend/worker.py"}
+
+    def test_touching_files_bare_bullet_paths(self):
+        body = "## Touching Files (Scope Boundary)\n- scripts/ci/eval.py\n- `tests/x.py`\n"
+        assert _extract_touching_files(body) == {"scripts/ci/eval.py", "tests/x.py"}
+
+    def test_evidence_any_heading_level(self):
+        body = "### Evidence\nrun #391 green\n\n## Verification\nok\n"
+        assert "run #391 green" in _extract_evidence_text(body)
+
+    def test_section_stops_at_any_level_heading(self):
+        body = "## Touching Files\n- `a.py`\n\n### Note\n- `b.py`\n"
+        assert _extract_touching_files(body) == {"a.py"}
+
+    def test_missing_section_empty(self):
+        assert _extract_touching_files("## Mission\nx\n") == set()
+        assert _extract_evidence_text("") == ""
