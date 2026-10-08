@@ -9,7 +9,15 @@ export function getAccountConfig(accountId: string): { apiKey: string; baseUrl: 
   if (!account) throw new Error(`GitHub account not found: ${accountId}`);
   if (!account.available) throw new Error(`GitHub account is not configured/available: ${accountId}`);
 
-  const apiKey = process.env[account.apiKeyRef] || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
+  // বাংলা (Task 35): vault-থেকে-লোড-হওয়া PAT-ও ফলব্যাক-চেইনে রাখা হলো —
+  // যাতে paykaribazaronline-এর প্রতিটি রিপো-অ্যাকাউন্ট GITHUB_PAT_PAYKARIBAZARONLINE
+  // দিয়েই সক্রিয় হয় (Infisical pullSecretsIntoProcessEnv() রানটাইমে এটি ভরে)।
+  const apiKey =
+    process.env[account.apiKeyRef] ||
+    process.env.GITHUB_PAT_PAYKARIBAZARONLINE ||
+    process.env.GITHUB_TOKEN ||
+    process.env.GH_TOKEN ||
+    "";
   if (!apiKey) throw new Error(`Missing GitHub Token in env for: ${account.apiKeyRef}`);
   return { apiKey, baseUrl: account.url || DEFAULT_BASE_URL };
 }
