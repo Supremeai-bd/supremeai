@@ -1,0 +1,55 @@
+# =============================================================================
+# ⏰ Schedule Watchdog — visibility-flip cron self-heal (#58, Plan-B of #52)
+# =============================================================================
+# ROOT CAUSE (2026-10-09): public→private flip (~11:02Z) এর পর GitHub পুরো repo-র
+# scheduled workflows বন্ধ করে দেয়; disable→enable API toggle অপর্যাপ্ত (16:43 +
+# 17:13 স্লট silent)। Settings-banner ক্লিক মানুষের হাতে — fleet অপেক্ষা করতে পারে না।
+#
+# এই watchdog schedule-INDEPENDENT: বেঁচে থাকা ইভেন্টে (Main CI/CD completed,
+# issues opened/closed/reopened, dispatch) ভ্রমণ করে এবং প্রতিটি cron-যুক্ত
+# workflow-এর জন্য — cron-গণনা করে বাসি স্লট ধরলে disable→enable re-arm +
+# (প্রয়োজনে) workflow_dispatch compensation চালায়। নিজেকে কখনো ধরে না (loop-guard)।
+# =============================================================================
+name: ⏰ Schedule Watchdog (cron self-heal)
+
+on:
+  workflow_run:
+    workflows: ["Main CI/CD"]  # প্রতিটি main push = সবচেয়ে নির্ভরযোগ্য জীবন্ত ইভেন্ট
+    types: [completed]
+  issues:
+    types: [opened, closed, reopened]
+  schedule:
+    # Belt-and-suspenders: schedule একবার জীবিত হলে (manual banner-click বা re-arm
+    # সফল হলে) watchdog নিজেও নিয়মিত চলবে। schedule মরা থাকলে অন্য ট্রিগার বহন করে।
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write   # disable/enable re-arm + compensation dispatch
+  contents: read   # workflow YAML পড়া
+
+concurrency:
+  group: schedule-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watchdog:
+    if: >-
+      github.event_name == 'issues' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pyyaml
+        run: pip install pyyaml
+      - name: Watchdog sweep (re-arm dead cron + compensate missed slots)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: python scripts/ci/schedule_watchdog.py
