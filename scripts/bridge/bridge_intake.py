@@ -262,18 +262,23 @@ def clone(repo: str, token: str, dest: Path, depth: int = 50) -> str:
     return str(dest)
 
 
-def fetch_patch_branch(public_dir: str, branch: str, token: str) -> str:
-    """Return unified diff of branch vs origin/main in the public clone।"""
-    run(["git", "fetch", "--quiet", "origin", branch], cwd=public_dir, check=False)
-    probe = run(["git", "cat-file", "-e", f"origin/{branch}"], cwd=public_dir, check=False)
-    if probe.returncode != 0:
+def fetch_patch(public_dir: str, branch: str, token: str) -> tuple[str, list[str]]:
+    """Branch প্রমাণ (ls-remote) → explicit refspec fetch → (diff, files)।
+
+    বাংলা: `git fetch origin <branch>` FETCH_HEAD-এ রাখে, remote-tracking ref তৈরি করে না —
+    তাই explicit refspec বাধ্যতামূলক (E2E-তে প্রমাণিত বাগ)।
+    """
+    ls = run(["git", "ls-remote", "origin", f"refs/heads/{branch}"], cwd=public_dir, check=False)
+    if ls.returncode != 0 or not ls.stdout.strip():
         raise BridgeError(f"patch branch '{branch}' not found on {OPEN_REPO}")
-    return run(["git", "diff", f"origin/main...origin/{branch}"], cwd=public_dir).stdout
-
-
-def list_diff_files(public_dir: str, branch: str) -> list[str]:
-    out = run(["git", "diff", "--name-only", f"origin/main...origin/{branch}"], cwd=public_dir).stdout
-    return [line.strip() for line in out.splitlines() if line.strip()]
+    run(
+        ["git", "fetch", "--quiet", "origin", f"refs/heads/{branch}:refs/remotes/origin/{branch}"],
+        cwd=public_dir,
+    )
+    diff = run(["git", "diff", f"origin/main...origin/{branch}"], cwd=public_dir).stdout
+    files_out = run(["git", "diff", "--name-only", f"origin/main...origin/{branch}"], cwd=public_dir).stdout
+    files = [line.strip() for line in files_out.splitlines() if line.strip()]
+    return diff, files
 
 
 # ---------------------------------------------------------------------------
@@ -343,8 +348,7 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
     public_dir = str(work / f"open-{num}")
     clone(OPEN_REPO, token, Path(public_dir))
     try:
-        diff = fetch_patch_branch(public_dir, branch, token)
-        files = list_diff_files(public_dir, branch)
+        diff, files = fetch_patch(public_dir, branch, token)
     except BridgeError as exc:
         reject(str(exc)[:300])
         return
