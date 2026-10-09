@@ -12,9 +12,19 @@
 # =============================================================================
 name: ⏰ Schedule Watchdog (cron self-heal)
 
-# Workflow Diet (#67, 2026-10-09): trigger removed per issue spec — on-demand workflow_dispatch only.
+# Workflow Diet (#67, 2026-10-09): */15 cron (96 runs/day) remains retired.
+# 2026-10-10 ROOT-FIX (flip-class failure — #58 Plan-B restore): repo visibility
+# flip (public→private, 2026-10-09 ~11:02Z) suspended ALL repo crons and the Diet
+# left this immune system dispatch-only → dead crons could never self-heal
+# (E2E-প্রমাণিত: bridge-intake cron ২৫+ স্লট নীরব, queue stuck at bridge:queued)।
+# Restore rides the two most reliable fleet heartbeats — ZERO new schedule surface:
+#   - Main CI/CD (every push to main)
+#   - Bridge Intake (self-sustaining pair once its cron revives)
 on:
-  workflow_dispatch: # Workflow Diet #67 (Category E): */15 cron (96 runs/day, #1 minute waster) + workflow_run/issues listeners removed. Manual emergency re-arm only.
+  workflow_dispatch: # Manual emergency re-arm (kept by Diet #67)
+  workflow_run:
+    workflows: ["Main CI/CD", "Bridge Intake (public work orders → private gates)"]
+    types: [completed]
 permissions:
   actions: write   # disable/enable re-arm + compensation dispatch
   contents: read   # workflow YAML পড়া
