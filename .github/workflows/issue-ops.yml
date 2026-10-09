@@ -46,9 +46,17 @@ on:
     # "edited" কখনো ছিল না, তাই প্রতিটি issue edit-এ শুধু rate-limit-gate job
     # চলত (1 min/run) এবং refresh-ledger skip হতো — দরকারহীন খরচ। 4,573 runs-এর
     # বেশিরভাগই edited ইভেন্ট থেকে। প্রত্যাশিত সাশ্রয়: ~40% = 1,940 min/month।
-    # opened/closed/reopened + labeled/unlabeled (priority+status labels only
-    # — ফিল্টার refresh-ledger if-এ আছে) queue-relevant coverage অক্ষত রাখে।
-    types: [opened, closed, reopened, labeled, unlabeled]
+    #
+    # STORM DIET v3 (#54, 2026-10-09): removed "labeled"/"unlabeled" — agent-fleet
+    # claim-flip war (status:in-progress ↔ status:unclaimed pairs on queue issues
+    # #32/#36) spawned 20+ runs per 2-min burst; every gated run still burned
+    # ~1 runner-minute even when refresh-ledger short-circuited (#2557 gate).
+    # Ledger freshness contract unchanged — re-rank still fires on:
+    #   (১) opened/closed/reopened events (founder directive #1997 promotion);
+    #   (২) daily 03:23 drift sweep (schedule);
+    #   (৩) continuous-agent-loop.yml's internal priority_queue_ledger.py call;
+    #   (৪) manual workflow_dispatch.
+    types: [opened, closed, reopened]
   schedule:
     # COST OPTIMIZATION: 6-hourly → daily drift sweep (was 4/day → now 1/day)
     # বাংলা: ৬-ঘন্টা অন্তর drift sweep প্রতি দিন ৪টি schedule run তৈরি করত। issue events
@@ -212,13 +220,7 @@ jobs:
     if: >-
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.action == 'refresh-ledger') ||
-      (github.event_name == 'issues' && needs.rate-limit-gate.outputs.allow == 'true' && (
-        github.event.action == 'opened' ||
-        github.event.action == 'closed' ||
-        github.event.action == 'reopened' ||
-        (github.event.action == 'labeled' && contains(fromJSON('["P0-critical","P1-high","P2-medium","P3-low","status:unclaimed","status:in-progress","status:planned"]'), github.event.label.name)) ||
-        (github.event.action == 'unlabeled' && contains(fromJSON('["P0-critical","P1-high","P2-medium","P3-low","status:unclaimed","status:in-progress","status:planned"]'), github.event.label.name))
-      ))
+      (github.event_name == 'issues' && needs.rate-limit-gate.outputs.allow == 'true' && contains(fromJSON('["opened", "closed", "reopened"]'), github.event.action))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
