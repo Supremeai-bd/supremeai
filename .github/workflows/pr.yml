@@ -36,6 +36,10 @@ concurrency:
 permissions:
   contents: read
   pull-requests: read
+  # #4291 parity (SHN PR #4291, validated): repo PRIVATE হওয়ায় runner token issue-read
+  # ছাড়া 403 পায় → Admin-Approval/Scope/Template gates fail-closed BLOCK (E2E bridge
+  # PR #38-তে প্রমাণিত 2026-10-09)। issues: READ — least-privilege restore।
+  issues: read
 
 jobs:
   # ---------------------------------------------------------------------------
