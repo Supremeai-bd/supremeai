@@ -427,8 +427,8 @@ jobs:
             }
 
   ai-safety:
-    if: >-
-        github.event_name == 'workflow_dispatch' && inputs.run_ai_safety == true # #67 Tier 3: dispatch-only (AI safety evaluations on demand)
+    # #67 Tier 3: dispatch-only (AI safety evaluations on demand)
+    if: github.event_name == 'workflow_dispatch' && inputs.run_ai_safety == true
     concurrency:
       group: nightly-ops-ai-safety
       cancel-in-progress: false
@@ -471,8 +471,8 @@ jobs:
         run: python scripts/advanced_analysis/agent_loop_limiter_check.py
 
   mission-passk:
-    if: >-
-        github.event_name == 'workflow_dispatch' && inputs.run_passk == true # #67 Tier 3: dispatch-only (PassK benchmarks on demand)
+    # #67 Tier 3: dispatch-only (PassK benchmarks on demand)
+    if: github.event_name == 'workflow_dispatch' && inputs.run_passk == true
     concurrency:
       group: nightly-ops-mission-passk
       cancel-in-progress: false
@@ -611,8 +611,8 @@ jobs:
           if-no-files-found: ignore
 
   platform-sweep:
-    if: >-
-        github.event_name == 'workflow_dispatch' && inputs.run_platform_sweep == true # #67 Tier 3: dispatch-only (deep platform sweeps on demand)
+    # #67 Tier 3: dispatch-only (deep platform sweeps on demand)
+    if: github.event_name == 'workflow_dispatch' && inputs.run_platform_sweep == true
     concurrency:
       group: platform-agent-sweep
       cancel-in-progress: false
