@@ -18,8 +18,8 @@ permissions:
   contents: read # script নিজে BRIDGE_TOKEN দিয়ে push/PR করে — github.token লেখার অধিকার লাগে না
 
 concurrency:
-  group: bridge-intake
-  cancel-in-progress: false
+  group: bridge-intake-v2
+  cancel-in-progress: true
 
 jobs:
   bridge:
