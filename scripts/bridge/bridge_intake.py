@@ -469,19 +469,22 @@ def cmd_sync(token: str) -> int:
     landed = [p for p in pulls if (p.get("head") or {}).get("ref", "").startswith("bridge-land/") and p.get("merged")]
     rejected = [p for p in pulls if (p.get("head") or {}).get("ref", "").startswith("bridge-land/") and not p.get("merged")]
 
-    status, in_gates = gh("GET", f"/repos/{OPEN_REPO}/issues?labels={LABEL_INGATES}&state=open&per_page=50", token)
+    status, open_issues = gh("GET", f"/repos/{OPEN_REPO}/issues?state=open&per_page=60", token)
     if status != 200:
-        raise BridgeError(f"in-gates fetch failed: HTTP {status}")
-    in_gates = [i for i in in_gates if "pull_request" not in i]
+        raise BridgeError(f"open issues fetch failed: HTTP {status}")
+    open_issues = [i for i in open_issues if "pull_request" not in i]
 
     def find_issue(task_id: str) -> dict | None:
         # বাংলা: EXACT Task-ID match — substring-ম্যাচ v1/v2-prefix কনফিউশন তৈরি করে
         # (E2E-তে প্রমাণিত: "bridge-...-smoke" "bridge-...-smoke-v2"-র ভেতরে ম্যাচ করেছিল)।
-        for issue in in_gates:
+        for issue in open_issues:
             wo_i = parse_work_order(issue.get("body"))
             if (wo_i.get("Task ID") or "").strip() == task_id:
                 return issue
         return None
+
+    def issue_labels(issue: dict) -> list[str]:
+        return [l.get("name", "") for l in (issue.get("labels") or [])]
 
     for pr in landed:
         task_id = pr["head"]["ref"].replace("bridge-land/", "", 1)
@@ -514,6 +517,20 @@ def cmd_sync(token: str) -> int:
         comment_issue(OPEN_REPO, token, issue["number"], body)
         set_labels(OPEN_REPO, token, issue["number"], [LABEL_REJECTED])
         results.append(f"{task_id} → rejected (PR #{pr['number']})")
+
+    # Reconciliation: OPEN bridge PR → public issue অবশ্যই bridge:in-gates হবে
+    # (stale লেবেল শুদ্ধ করে — E2E-তে প্রমাণিত কেস: ভুল rejected লেবেল আটকে ছিল)।
+    status, open_pulls = gh("GET", f"/repos/{PRIVATE_REPO}/pulls?state=open&per_page=40", token)
+    if status == 200:
+        for pr in open_pulls:
+            ref = (pr.get("head") or {}).get("ref", "")
+            if not ref.startswith("bridge-land/"):
+                continue
+            task_id = ref.replace("bridge-land/", "", 1)
+            issue = find_issue(task_id)
+            if issue and LABEL_INGATES not in issue_labels(issue):
+                set_labels(OPEN_REPO, token, issue["number"], [LABEL_INGATES])
+                results.append(f"{task_id} → reconciled to in-gates (PR #{pr['number']} open)")
 
     print("== bridge sync ==")
     for line in results or ["nothing to sync"]:
