@@ -1658,6 +1658,10 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
             if not issue_number:
                 print("ℹ️ No issue number in task. Waiting...")
                 break
+            # বাংলা মন্তব্য: কিউ-সোর্স অনুযায়ী issue_number int বা str হতে পারে;
+            # পরবর্তী সব ব্যবহার (L1701/L1765 `.isdigit()` সহ) str-প্রত্যাশী — এখানেই
+            # এক-বিন্দুতে normalize (bug: 'int' object has no attribute 'isdigit')।
+            issue_number = str(issue_number)
 
             # Issue #2682 (mandate 1): topological gate — lower layer first
             allowed, gate_reason = topological_task_claim_check(int(issue_number))
