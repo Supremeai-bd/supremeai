@@ -44,6 +44,11 @@ permissions:
   issues: write
   pull-requests: write
   actions: read
+  # #4291: repo went PRIVATE — SELF_HEAL_PAT (fine-grained) lacks checks:read →
+  # GraphQL statusCheckRollup 403'd → evaluator crash → merge gate held ALL PRs.
+  # Evaluator now degrades to REST check-runs via github.token; that fallback
+  # needs checks: read (least-privilege, read-only).
+  checks: read
 
 concurrency:
   group: ai-pr-eval-${{ github.event.pull_request.number || inputs.pr_number || 'scan' }}
@@ -82,6 +87,9 @@ jobs:
       - name: Evaluate PR(s) — verdict + hold-issue (reasons included)
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          # #4291: REST check-runs fallback token — github.token HAS checks:read
+          # (permissions block above); used only when the PAT 403s on rollup.
+          GH_FALLBACK_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           EVENT_PR: ${{ github.event.pull_request.number }}
           INPUT_PR: ${{ inputs.pr_number }}
