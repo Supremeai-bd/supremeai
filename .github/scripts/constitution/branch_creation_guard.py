@@ -71,6 +71,10 @@ DEFAULT_BRANCH_CREATION_POLICY: dict = {
     "pr_gated_branch_patterns": [
         "group/*",  # গ্রুপ-গভর্নেন্স lease-gate-এ আলাদা (#2378)
         "docs/*",  # lease-parity: docs_branch_prefix docs/ sanctioned
+        # ── Bridge v1 (scripts/bridge/README.md): external-agent land-branch —
+        # intake fail-closed validate করার পরেই bridge_intake.py জন্ম দেয়;
+        # birth allowed, PR-টাইম gate chain অনিবার্য (group/*-এর মতোই lane-শৃঙ্খলা)।
+        "bridge-land/*",
     ],
     # ── #2960: #2950-প্রোটোকল CAS-branch — identity/lock, কাজ-branch নয় ──
     # agent_identity.py git-push-as-CAS দিয়ে `agent/<name>` (persistent identity)

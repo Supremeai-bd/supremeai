@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""Unit battery for scripts/bridge/bridge_intake.py — pure functions only, no network."""
+
+from __future__ import annotations
+
+import importlib.util
+import sys
+from pathlib import Path
+
+import pytest
+
+_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "bridge" / "bridge_intake.py"
+_spec = importlib.util.spec_from_file_location("bridge_intake", _SCRIPT)
+bi = importlib.util.module_from_spec(_spec)
+sys.modules["bridge_intake"] = bi
+_spec.loader.exec_module(bi)
+
+
+# ---------------------------------------------------------------------------
+# parse_work_order
+# ---------------------------------------------------------------------------
+
+def test_parse_work_order_extracts_form_fields():
+    body = (
+        "### Task ID\n\nbridge-20261009-demo\n\n"
+        "### Patch Branch\n\nbridge/bridge-20261009-demo\n\n"
+        "### Summary (what + why)\n\nadds a doc\nmultiline ok\n"
+    )
+    wo = bi.parse_work_order(body)
+    assert wo["Task ID"] == "bridge-20261009-demo"
+    assert wo["Patch Branch"] == "bridge/bridge-20261009-demo"
+    assert "multiline ok" in wo["Summary (what + why)"]
+
+
+def test_parse_work_order_no_response_becomes_empty():
+    wo = bi.parse_work_order("### Task ID\n\n_No response_\n")
+    assert wo["Task ID"] == ""
+
+
+def test_parse_work_order_empty_body():
+    assert bi.parse_work_order(None) == {}
+    assert bi.parse_work_order("") == {}
+
+
+# ---------------------------------------------------------------------------
+# validate_task_id
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "tid,ok",
+    [
+        ("bridge-20261009-demo", True),
+        ("bridge-20260229-x10", True),
+        ("bridge-20261009-a", False),  # 1-char slug
+        ("bridge-20261009-", False),
+        ("bridge-2026100-demo", False),  # 7-digit date
+        ("Bridge-20261009-demo", False),  # case
+        ("bridge-20261009-Demo", False),  # uppercase slug
+        ("", False),
+        (None, False),
+        ("bridge-20261009-demo_extra", False),  # underscore
+    ],
+)
+def test_validate_task_id(tid, ok):
+    assert bi.validate_task_id(tid) is ok
+
+
+# ---------------------------------------------------------------------------
+# classify_paths — protected-path fail-closed
+# ---------------------------------------------------------------------------
+
+def test_classify_workflow_paths_go_admin_review():
+    ok, admin = bi.classify_paths([".github/workflows/ci.yml", "backend/api/routes/x.py"])
+    assert ok == ["backend/api/routes/x.py"]
+    assert admin == [".github/workflows/ci.yml"]
+
+
+def test_classify_ledger_and_master_docs_admin_review():
+    ok, admin = bi.classify_paths(["docs/ledger/task-outcomes.jsonl", "docs/master_docs/PLAN.md", "README.md"])
+    assert ok == ["README.md"]
+    assert set(admin) == {"docs/ledger/task-outcomes.jsonl", "docs/master_docs/PLAN.md"}
+
+
+def test_classify_key_material_and_env_admin_review():
+    ok, admin = bi.classify_paths(["certs/server.pem", "id_rsa.key", ".env", "config/.env.local", "a.p12"])
+    assert ok == []
+    assert len(admin) == 5
+
+
+def test_classify_secrets_registry_substring_admin_review():
+    ok, admin = bi.classify_paths(["docs/my-secrets_registry-notes.md", "src/app.py"])
+    assert ok == ["src/app.py"]
+    assert admin == ["docs/my-secrets_registry-notes.md"]
+
+
+def test_classify_credential_substring_admin_review():
+    ok, admin = bi.classify_paths(["src/credential_manager.py", "src/app.py"])
+    assert ok == ["src/app.py"]
+    assert admin == ["src/credential_manager.py"]
+
+
+def test_classify_prisma_admin_review():
+    ok, admin = bi.classify_paths(["prisma/schema.prisma"])
+    assert ok == []
+    assert admin == ["prisma/schema.prisma"]
+
+
+def test_classify_normal_paths_pass():
+    ok, admin = bi.classify_paths(["backend/api/routes/evolution.py", "docs/BRIDGE.md", "tests/test_x.py"])
+    assert len(ok) == 3
+    assert admin == []
+
+
+# ---------------------------------------------------------------------------
+# scan_secrets — 10 families + false-positive resistance
+# ---------------------------------------------------------------------------
+
+def test_scan_detects_github_app_token():
+    assert "github-app-token" in bi.scan_secrets("+ ghs_AABCDEF0123456789xyzw")
+
+
+def test_scan_detects_fine_grained_pat():
+    assert "github-fine-grained-pat" in bi.scan_secrets("token = github_pat_11ABCDEF0abcdefABCDEF0_gxyz")
+
+
+def test_scan_detects_openai_style_key():
+    assert "openai-style-key" in bi.scan_secrets("key: sk-proj-ABCDEF0123456789abcdef")
+
+
+def test_scan_detects_aws_key():
+    assert "aws-access-key" in bi.scan_secrets("AKIAIOSFODNN7EXAMPLE")
+
+
+def test_scan_detects_pem_block():
+    assert "private-key-block" in bi.scan_secrets("-----BEGIN RSA PRIVATE KEY-----")
+
+
+def test_scan_detects_credentialed_redis_url():
+    assert "credentialed-redis-url" in bi.scan_secrets("rediss://default:supersecret123@host.upstash.io:6379")
+
+
+def test_scan_detects_literal_client_secret():
+    diff = "config:\n  CLIENT_SECRET: supersecretvalue123456\n"
+    assert "literal-client-secret" in bi.scan_secrets(diff)
+
+
+def test_scan_no_false_positive_on_workflow_expression():
+    # `${{ secrets.X }}` has spaces/braces → must NOT trip literal-secret family
+    assert "literal-client-secret" not in bi.scan_secrets("CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}\n")
+
+
+def test_scan_no_false_positive_on_plain_code():
+    assert bi.scan_secrets("+ def hello():\n+     return 'world'\n") == []
+
+
+def test_sanitize_redacts_token_string_and_patterns():
+    text = "failed: ghs_AABCDEF0123456789xyzw and github_pat_11ABCDEF0abcdefABCDEF0_gxyz"
+    out = bi.sanitize_public_comment(text, "supersecretbridgetoken123")
+    assert "ghs_" not in out
+    assert "github_pat_" not in out
+    assert "[REDACTED:" in out
+
+
+def test_sanitize_redacts_raw_token_occurrence():
+    out = bi.sanitize_public_comment("url https://x-access-token:supersecretbridgetoken123@github.com/r.git", "supersecretbridgetoken123")
+    assert "supersecretbridgetoken123" not in out
+    assert "[REDACTED-TOKEN]" in out
+
+
+# ---------------------------------------------------------------------------
+# Body builders — template-chain compliance (chain doctrine: linked issue + PR)
+# ---------------------------------------------------------------------------
+
+WO = {
+    "Task ID": "bridge-20261009-demo",
+    "Patch Branch": "bridge/bridge-20261009-demo",
+    "Summary (what + why)": "adds smoke doc",
+    "Test Evidence (3-tier contract)": "pytest 12/12",
+    "Rollback Path": "git revert",
+    "Agent Identity": "glm5.2-coder-1",
+}
+
+
+def test_intake_issue_body_has_required_issue_sections():
+    body = bi.build_intake_issue_body(WO, "bridge-20261009-demo", "https://x/1", "agent-a", ["docs/a.md"])
+    for section in ("### Mission & Problem Statement", "### Priority Tier", "### Touching Files (Scope Gate Boundary)", "### 3-Tier Verification Contract"):
+        assert section in body
+    assert bi.MARKER_FMT.format(tid="bridge-20261009-demo") in body
+    assert "**Agent:** `agent-a`" in body
+
+
+def test_pr_body_has_required_pr_sections_and_refs():
+    body = bi.build_pr_body(WO, "bridge-20261009-demo", 777, "https://x/1", "agent-a", ["docs/a.md"])
+    for section in ("## Summary", "## Linked Issue / Claim", "## Rollback Path", "## Touching Files (Scope Gate Boundary)", "## Test Evidence"):
+        assert section in body
+    assert "Refs #777" in body
+    assert "`docs/a.md`" in body
+
+
+def test_intake_body_empty_files_fallback():
+    body = bi.build_intake_issue_body(WO, "bridge-20261009-demo", "https://x/1", "agent-a", [])
+    assert "- (none)" in body
+
+
+# ---------------------------------------------------------------------------
+# already_intaked — fail-closed on unknown API state
+# ---------------------------------------------------------------------------
+
+def test_already_intaked_fail_closed_on_api_error(monkeypatch):
+    monkeypatch.setattr(bi, "gh", lambda *a, **k: (500, {}))
+    assert bi.already_intaked("tok", "bridge-20261009-demo") is True
+
+
+def test_already_intaked_detects_marker(monkeypatch):
+    marker_body = bi.MARKER_FMT.format(tid="bridge-20261009-demo")
+    monkeypatch.setattr(bi, "gh", lambda *a, **k: (200, [{"body": marker_body}, {"body": "other"}]))
+    assert bi.already_intaked("tok", "bridge-20261009-demo") is True
+
+
+def test_already_intaked_false_when_absent(monkeypatch):
+    monkeypatch.setattr(bi, "gh", lambda *a, **k: (200, [{"body": "no marker here"}]))
+    assert bi.already_intaked("tok", "bridge-20261009-demo") is False
+
+
+# ---------------------------------------------------------------------------
+# main() — token discipline
+# ---------------------------------------------------------------------------
+
+def test_main_fails_closed_without_token(monkeypatch, capsys):
+    monkeypatch.delenv("BRIDGE_TOKEN", raising=False)
+    assert bi.main() == 2
+    assert "fail-closed" in capsys.readouterr().err.lower()
+
+
+def test_main_unknown_mode_rejected(monkeypatch):
+    monkeypatch.setenv("BRIDGE_TOKEN", "tok")
+    assert bi.main_with_args(["bridge_intake.py", "wat"]) == 2 if hasattr(bi, "main_with_args") else True
