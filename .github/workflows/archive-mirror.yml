@@ -8,7 +8,7 @@ name: Archive Mirror (live main → cold archive)
 
 on:
   schedule:
-    - cron: "23 */6 * * *" # বাংলা: ৬-ঘণ্টা ছন্দ (UTC 23-মিনিট অফসেট)
+    - cron: "0 4 * * 0" # Workflow Diet #67 (Category E): 6-hourly → weekly Sunday 04:00 UTC off-peak (staggered after nightly-ops 03:00)
   workflow_dispatch:
     inputs:
       verify_only:

@@ -28,10 +28,9 @@
 
 name: 🤖 Dependabot Pipeline (Verify & Safe Auto-Merge)
 
+# Workflow Diet (#67, 2026-10-09): trigger removed per issue spec — on-demand workflow_dispatch only.
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened]
-
+  workflow_dispatch: # Workflow Diet #67 (Category E): continuous pull_request_target runs disabled — run on-demand. Jobs require dependabot-PR context; use dispatch with an explicit PR ref.
 permissions:
   contents: write
   pull-requests: write

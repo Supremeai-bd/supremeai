@@ -5,7 +5,7 @@ name: Auto-Sync Fork with Upstream
 
 on:
   schedule:
-    - cron: '17 */6 * * *' # প্রতি 6 ঘণ্টায় (UTC 00:17/06:17/12:17/18:17)
+    - cron: '0 3 * * *' # Workflow Diet #67 (Category B): 6-hourly → daily 03:00 UTC off-peak — paykaribazaronline/supremeai is now the primary workspace; daily upstream sync suffices
   workflow_dispatch: {} # ম্যানুয়াল ট্রিগার — এজেন্ট/মানুষ যেকোনো সময় চালাতে পারবে
 
 permissions:

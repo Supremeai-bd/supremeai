@@ -12,18 +12,9 @@
 # =============================================================================
 name: ⏰ Schedule Watchdog (cron self-heal)
 
+# Workflow Diet (#67, 2026-10-09): trigger removed per issue spec — on-demand workflow_dispatch only.
 on:
-  workflow_run:
-    workflows: ["Main CI/CD"]  # প্রতিটি main push = সবচেয়ে নির্ভরযোগ্য জীবন্ত ইভেন্ট
-    types: [completed]
-  issues:
-    types: [opened, closed, reopened]
-  schedule:
-    # Belt-and-suspenders: schedule একবার জীবিত হলে (manual banner-click বা re-arm
-    # সফল হলে) watchdog নিজেও নিয়মিত চলবে। schedule মরা থাকলে অন্য ট্রিগার বহন করে।
-    - cron: "*/15 * * * *"
-  workflow_dispatch:
-
+  workflow_dispatch: # Workflow Diet #67 (Category E): */15 cron (96 runs/day, #1 minute waster) + workflow_run/issues listeners removed. Manual emergency re-arm only.
 permissions:
   actions: write   # disable/enable re-arm + compensation dispatch
   contents: read   # workflow YAML পড়া
