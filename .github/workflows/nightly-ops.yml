@@ -206,9 +206,10 @@ env:
 
 jobs:
   deep-audit:
+    # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_deep_audit == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was daily)
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
     concurrency:
       group: nightly-ops-deep-audit
       cancel-in-progress: false
@@ -656,9 +657,10 @@ jobs:
   # dedup (fingerprint + platform/title) before opening any issue.
   platform-deep-audit:
     name: 🧠 Platform Deep-Audit (vault-driven discovery + auto-issue)
+    # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_platform_deep_audit == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was daily)
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
     concurrency:
       group: platform-deep-audit
       cancel-in-progress: false
@@ -841,9 +843,10 @@ jobs:
     # 9e4d9df/889da16, 2026-10-06)। এই job পুরো docs/ tree দিনে একবার sweep
     # করে — baseline-বাইরে নতুন non-allowlisted docs/*.md = লাল (fail-closed)।
     name: 🧹 Docs Garbage Tree Sweep (daily, #4176)
+    # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_docs_garbage_sweep == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was daily)
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
     concurrency:
       group: docs-garbage-sweep
       cancel-in-progress: false
@@ -1518,9 +1521,10 @@ jobs:
   # (Tier-1 load / Tier-2 chaos / Tier-3 browser-e2e / DB-pool health)
   # ────────────────────────────────────────────────────────────────────────────
   load-locust:
+    # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_load_locust == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was daily)
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
     concurrency:
       group: nightly-ops-load-locust
       cancel-in-progress: false
@@ -1628,9 +1632,10 @@ jobs:
           retention-days: 7
 
   chaos-suite:
+    # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_chaos_suite == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was daily)
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
     concurrency:
       group: nightly-ops-chaos-suite
       cancel-in-progress: false
@@ -1664,9 +1669,10 @@ jobs:
           tail -n 5 /tmp/chaos_output.txt >> "$GITHUB_STEP_SUMMARY"
 
   browser-e2e:
+    # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_browser_e2e == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was daily)
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
     concurrency:
       group: nightly-ops-browser-e2e
       cancel-in-progress: false
@@ -1839,9 +1845,10 @@ jobs:
           echo "Open issues: [deploy-doctor label](https://github.com/${{ github.repository }}/issues?q=label%3Adeploy-doctor)" >> $GITHUB_STEP_SUMMARY
 
   branch-retention:
+    # #67 Tier 1: daily storage tidy (was Mon weekly)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_branch_retention == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') # #67 Tier 1: daily storage tidy (was Mon weekly)
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
     concurrency:
       group: branch-retention-cleanup
       cancel-in-progress: false
@@ -1904,9 +1911,10 @@ jobs:
           echo "Summary: deleted=${deleted} skipped=${skipped}"
 
   silent-error:
+    # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_silent_error == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was Mon)
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
     name: 🤫 Silent Error Scan
     runs-on: ubuntu-latest
     steps:
@@ -1932,9 +1940,10 @@ jobs:
     timeout-minutes: 30
 
   dast:
+    # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_dast == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was Mon)
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
     concurrency:
       group: dast-zap-${{ github.ref }}
       cancel-in-progress: true
@@ -1989,9 +1998,10 @@ jobs:
           echo "- Post-scan IDOR/business-logic rules: tracked in SECURITY_AUDIT_MATRIX.md P8"
 
   constitution:
+    # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_constitution == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was Mon)
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
     concurrency:
       group: nightly-ops-constitution
       cancel-in-progress: true
