@@ -733,3 +733,9 @@ docs/master_docs/role_locks/
 .browser_profile/
 .browser_tasks/
 
+
+# ── Local secret vaults (sec-hygiene #70, FULL_PROJECT_AUDIT_2026-10-10) ─────
+# Root-anchored: only the repo-root vault dirs are ignored. Template/example
+# files under infrastructure/monitoring/prometheus/secrets/ stay trackable.
+/.secrets/
+/secrets/
