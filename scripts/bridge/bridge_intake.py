@@ -475,8 +475,11 @@ def cmd_sync(token: str) -> int:
     in_gates = [i for i in in_gates if "pull_request" not in i]
 
     def find_issue(task_id: str) -> dict | None:
+        # বাংলা: EXACT Task-ID match — substring-ম্যাচ v1/v2-prefix কনফিউশন তৈরি করে
+        # (E2E-তে প্রমাণিত: "bridge-...-smoke" "bridge-...-smoke-v2"-র ভেতরে ম্যাচ করেছিল)।
         for issue in in_gates:
-            if task_id in (issue.get("body") or ""):
+            wo_i = parse_work_order(issue.get("body"))
+            if (wo_i.get("Task ID") or "").strip() == task_id:
                 return issue
         return None
 
