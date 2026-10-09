@@ -1,62 +1,41 @@
-# বাংলা মন্তব্য: fork-কে upstream (SaifulHaqueNiloy/supremeai) main-এর সাথে স্বয়ংক্রিয়ভাবে sync রাখার workflow।
-# প্রতি 6 ঘণ্টায় GitHub merge-upstream API কল করে — divergence হলে merge commit, conflict হলে issue খোলে।
-# স্বয়ং-নিরাময় (auto-healing) চক্রের অংশ: conflict-এ মানুষ/এজেন্ট জানতে পারবে, চুপচাপ ব্যর্থ হবে না।
-name: Auto-Sync Fork with Upstream
+# বাংলা: এই workflow-টি fork-যুগের অবশেষ — এখন অচল (#68-প্রমাণিত)।
+# Root cause (2026-10-09, #68):
+#   ১. `paykaribazaronline/supremeai` আর fork নয় (`fork: false` — parent private হওয়ায়
+#      GitHub detach করেছে) → `POST /merge-upstream` স্থায়ীভাবে **422 Validation Failed**
+#      (endpoint শুধু fork-এ বৈধ)।
+#   ২. দুই রিপোর ইতিহাস **সম্পূর্ণ অসম্পর্কিত** (no merge-base) — `git merge`ও অসম্ভব
+#      (--allow-unrelated-histories ছাড়া, যা দুটি স্বাধীন-বিবর্তিত codebase-এর
+#      বিপজ্জনক content-merge করত)।
+#   ৩. Parent (SaifulHaqueNiloy/supremeai) নিজেই এখন origin — তার কোনো auto-sync নেই।
+# Workflow Diet #68 সিদ্ধান্ত: schedule বন্ধ (প্রতিদিন লাল রান = শুধু noise), dispatch-only
+# রাখা হলো manual ফরেনসিকের জন্য। দুই-রিপো content-unification = ADMIN_DECISION
+# (topology unification issue-তে ট্র্যাকড) — সিদ্ধান্ত হলে এই ফাইল rewrite/retire হবে।
+name: Auto-Sync Fork with Upstream (OBSOLETE — see #68)
 
 on:
-  schedule:
-    - cron: '0 3 * * *' # Workflow Diet #67 (Category B): 6-hourly → daily 03:00 UTC off-peak — paykaribazaronline/supremeai is now the primary workspace; daily upstream sync suffices
-  workflow_dispatch: {} # ম্যানুয়াল ট্রিগার — এজেন্ট/মানুষ যেকোনো সময় চালাতে পারবে
+  workflow_dispatch: # #68: schedule retired — merge-upstream API is invalid on a detached non-fork repo (422 forever); dispatch-only for forensics
+    inputs:
+      reason:
+        description: "কেন manual চালানো হচ্ছে (লগে প্রমাণ থাকবে)"
+        required: false
+        default: "forensic-run"
 
 permissions:
-  contents: write # merge-upstream API কলের জন্য প্রয়োজন
-  issues: write # conflict হলে ট্র্যাকিং issue খোলার জন্য
+  contents: read # কোনো write অপারেশন বাকি নেই — read-only forensic
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Merge upstream main into fork main (REST API)
-        id: sync
+      - name: Report obsolete state (no-op, evidence-only)
         run: |
-          # বাংলা: merge-upstream API — behind হলে fast-forward, diverged হলে merge commit
-          # SYNC_PAT (workflows permission সহ fine-grained PAT) ব্যবহৃত — GITHUB_TOKEN নিয়মতঃ workflow-ফাইল-যুক্ত merge করতে পারে না (422)
-          HTTP=$(curl -s -o /tmp/sync_resp.json -w "%{http_code}" -X POST \
-            -H "Authorization: Bearer ${{ secrets.SYNC_PAT }}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/merge-upstream" \
-            -d '{"branch":"main"}')
-
-          echo "http_code=$HTTP" >> "$GITHUB_OUTPUT"
-          echo "::notice::merge-upstream HTTP $HTTP"
-          cat /tmp/sync_resp.json || true
-
-          # বাংলা: 200=sync হয়েছে বা already up-to-date; 409=conflict (ম্যানুয়াল দরকার); 422=branch not found
-          if [ "$HTTP" = "409" ]; then
-            echo "conflict=true" >> "$GITHUB_OUTPUT"
-            echo "::error::Upstream merge conflict — ম্যানুয়াল সমাধান প্রয়োজন"
-          elif [ "$HTTP" != "200" ]; then
-            echo "::error::Unexpected HTTP $HTTP"
-            exit 1
-          fi
-
-      - name: Open tracking issue on conflict (self-healing signal)
-        if: steps.sync.outputs.conflict == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.SYNC_PAT }}
-        run: |
-          # বাংলা: conflict হলে ডুপ্লিকেট এড়িয়ে ট্র্যাকিং issue খুলি
-          EXISTING=$(gh issue list --label auto-sync-conflict --state open --json number --jq 'length' 2>/dev/null || echo 0)
-          if [ "${EXISTING:-0}" -gt 0 ]; then
-            echo "Conflict issue already open — skipping"
-            exit 0
-          fi
-          gh issue create \
-            --title "auto-sync: upstream merge conflict — manual resolution required" \
-            --label "auto-sync-conflict" \
-            --body "Auto-Sync workflow upstream main merge করতে গিয়ে **conflict**-এ আটকেছে। ম্যানুয়াল সমাধান দরকার: git fetch upstream && git merge upstream/main চালিয়ে resolve করে push করুন। Failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          echo "Tracking issue created"
-
-      - name: Report already-up-to-date
-        if: steps.sync.outputs.conflict != 'true'
-        run: echo "✅ Fork main is in sync with upstream main (or fast-forwarded successfully)"
+          echo "## Auto-Sync Fork with Upstream — OBSOLETE (#68)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "This workflow can no longer perform its function:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "1. \`paykaribazaronline/supremeai\` is \`fork: false\` (detached) — \`POST /merge-upstream\` returns 422 permanently." >> "$GITHUB_STEP_SUMMARY"
+          echo "2. Histories of the two repos are unrelated (no merge-base) — a git merge is not mechanically possible." >> "$GITHUB_STEP_SUMMARY"
+          echo "3. Content unification requires an ADMIN_DECISION on topology (see the tracking issue)." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Dispatch reason: \${{ github.event.inputs.reason }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::No-op forensic run — workflow is retired pending topology decision (#68)"
