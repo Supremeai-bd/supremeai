@@ -644,6 +644,36 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
         run: python .github/scripts/platform_agent_check.py
 
+  vault-synth-check:
+    # Issue #72: check_infisical_vault_synth.py was dormant (merged but never wired
+    # to any trigger). Synthetic early-warning guard for the Infisical RAW v3 vault
+    # contract (#434): vault reachable via universal-auth, prod secret count sane
+    # (>=100), probe keys present — catches vendor blind-index / silent API
+    # failures before they crash-loop production consumers.
+    # Workflow Diet #67/#69 constraint: nightly-ops is at the GitHub 25-dispatch-input
+    # hard cap, so this arm has NO dispatch toggle — Tier-1 daily schedule only
+    # (lightweight API probe, 5-min timeout).
+    name: 🧪 Infisical RAW Vault Synthetic Check (#72)
+    if: github.event_name == 'schedule' && github.event.schedule == '0 3 * * *' # #67 Tier 1 daily
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Run RAW vault contract check
+        env:
+          INFISICAL_HOST: https://app.infisical.com
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+        run: python scripts/maintenance/check_infisical_vault_synth.py
+
   # Issue #2712: platform_deep_audit.py (PR #2460) was merged but never wired
   # to any trigger — the vault-driven discovery + classification + auto-issue
   # engine only ran on manual local invocation. This job gives it a nightly
