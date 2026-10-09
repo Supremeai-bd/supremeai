@@ -1,31 +1,8 @@
 name: 🩺 Dependency Health Check
 
+# Workflow Diet (#67, 2026-10-09): trigger removed per issue spec — on-demand workflow_dispatch only.
 on:
-  # শুধুমাত্র dependency ফাইল পরিবর্তন হলেই এই workflow চলবে
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - '**/pnpm-lock.yaml'
-      - '**/package.json'
-      - '**/pyproject.toml'
-      - '**/poetry.lock'
-  pull_request:
-    branches:
-      - main
-      - develop
-    paths:
-      - '**/pnpm-lock.yaml'
-      - '**/package.json'
-      - '**/pyproject.toml'
-      - '**/poetry.lock'
-  # ম্যানুয়ালি চালানোর জন্য
-  workflow_dispatch:
-
-# QUEUE STORM FIX: cancel any in-flight run for the same PR / ref when a newer
-# push arrives. Per-PR grouping ensures different PRs are NOT cancelled by each
-# other — only superseded runs on the same PR/ref are cancelled.
+  workflow_dispatch: # Workflow Diet #67 (Category E): push/PR auto-runs disabled — monthly or on-demand per spec; on-demand chosen (dependency drift is also caught by monthly deep-audit pip-audit).
 concurrency:
   group: dependency-health-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

@@ -6,25 +6,25 @@
 # groups preserve each source workflow's isolation semantics verbatim.
 #
 # Migration map (old file → job here, all job bodies verbatim):
-#   scheduled-deep-audit.yml deep-audit              -> deep-audit        (0 3 * * *)
+#   scheduled-deep-audit.yml deep-audit              -> deep-audit        (0 3 * * 0, #67 Tier 2 weekly)
 #   scheduled-deep-audit.yml nightly-ai-safety-audit -> ai-safety         (0 3 * * *)
 #   scheduled-deep-audit.yml mission-reliability-gate + passk-gate        (MERGED — one suite
 #     run, gate ≥0.8 + always-published scoreboard artifact; was 2 jobs / 6 suite executions)
-#                                                       -> mission-passk   (0 3 * * *)
+#                                                       -> mission-passk   (dispatch-only, #67 Tier 3)
 #   qa-live-smoke.yml live-smoke                      -> live-smoke        (0 3 * * *)
 #   db-retention.yml prune                            -> db-retention      (0 3 * * *)
-#   platform-agent-check.yml sweep (was */3)          -> platform-sweep    (0 3 * * *)
+#   platform-agent-check.yml sweep (was */3)          -> platform-sweep    (dispatch-only, #67 Tier 3)
 #   rate-limit-monitor.yml check-rate-limit (hourly)  -> rate-limit-trend  (0 3 * * *)
 #   stale-mutex-cleanup.yml release-stale-mutexes     -> stale-mutex       (0 3 * * *)
 #   e2e-suites.yml customer suite (schedule arm; PR/dispatch arms stay in e2e-suites.yml
-#     until Phase E #1857)                            -> e2e-customer      (0 3 * * *)
-#   branch-retention-cleanup.yml cleanup              -> branch-retention  (17 3 * * 1)
-#   dast-zap.yml dast-gate                            -> dast              (17 3 * * 1)
-#   constitution-governance.yml validate (weekly)     -> constitution      (17 3 * * 1)
+#     until Phase E #1857)                            -> e2e-customer      (0 3 * * 0, #67 Tier 2 weekly)
+#   branch-retention-cleanup.yml cleanup              -> branch-retention  (0 3 * * *, #67 Tier 1 daily)
+#   dast-zap.yml dast-gate                            -> dast              (0 3 * * 0, #67 Tier 2 weekly)
+#   constitution-governance.yml validate (weekly)     -> constitution      (0 3 * * 0, #67 Tier 2 weekly)
 #   audit-release.yml self-audit (weekly arm)         -> self-audit        (0 3 * * 0)
-#   audit-release.yml silent-error-scan (weekly)      -> silent-error      (17 3 * * 1)
-#   deploy-doctor.yml */5 cron (D1 dissolution)       -> deploy-doctor-fallback (0 */4 * * *, 90m
-#     window; event-driven if:failure() arm lands in ci.yml via #1855; manual arm = ops-console)
+#   audit-release.yml silent-error-scan (weekly)      -> silent-error      (0 3 * * 0, #67 Tier 2 weekly)
+#   deploy-doctor.yml */5 cron (D1 dissolution)       -> deploy-doctor-fallback (dispatch-only via run_deploy_doctor,
+#     #67 Tier 3; event-driven if:failure() arm lands in ci.yml via #1855; manual arm = ops-console)
 #
 # Dedup ledger (#1854): pip-audit exactly ONE copy (deep-audit Auto Vulnerability Scanner
 # --scan-deps; audit-release pip-audit-nightly deleted). pass^k exactly 3 suite
@@ -44,9 +44,12 @@ on:
     #   + platform-deep-audit + rate-limit-trend + stale-mutex + live-smoke
     #   + db-retention + workflow-runs-retention + e2e-customer  (#2860 cron bundle)
     - cron: "0 3 * * *"
-    # weekly bundle (Mon): branch-retention + silent-error + dast + constitution
-    - cron: "17 3 * * 1"
-    # weekly (Sun): self-audit
+    # Workflow Diet #67 (Tier 1 daily essentials): workflow-runs-retention + db-retention
+    #   + live-smoke + stale-mutex + rate-limit-trend + db-pool-health + branch-retention
+    # weekly bundle (Sun 03:00 off-peak, Tier 2 heavy): deep-audit + platform-deep-audit
+    #   + docs-garbage-sweep + e2e-customer + load-locust + chaos-suite + browser-e2e
+    #   + silent-error + dast + constitution + self-audit
+    # (Mon 17 3 * * 1 cron retired by #67 — its arms moved to Sunday Tier 2 / daily Tier 1)
     - cron: "0 3 * * 0"
   workflow_dispatch:
     inputs:
@@ -136,6 +139,11 @@ on:
         default: false
         type: boolean
       # ── ৩-স্তর টেস্টিং প্ল্যান (Phase 4): নতুন টেস্টিং আর্মগুলোর ডিসপ্যাচ ইনপুট ──
+      run_deploy_doctor:
+        description: 'Run deploy-doctor fallback arm (on-demand, #67 Workflow Diet)'
+        required: false
+        default: false
+        type: boolean
       run_load_locust:
         description: 'Run Locust load-test arm (Tier-1, 100 VU × 15m vs staging)'
         required: false
@@ -200,7 +208,7 @@ jobs:
   deep-audit:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_deep_audit == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was daily)
     concurrency:
       group: nightly-ops-deep-audit
       cancel-in-progress: false
@@ -419,8 +427,7 @@ jobs:
 
   ai-safety:
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_ai_safety == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        github.event_name == 'workflow_dispatch' && inputs.run_ai_safety == true # #67 Tier 3: dispatch-only (AI safety evaluations on demand)
     concurrency:
       group: nightly-ops-ai-safety
       cancel-in-progress: false
@@ -464,8 +471,7 @@ jobs:
 
   mission-passk:
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_passk == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        github.event_name == 'workflow_dispatch' && inputs.run_passk == true # #67 Tier 3: dispatch-only (PassK benchmarks on demand)
     concurrency:
       group: nightly-ops-mission-passk
       cancel-in-progress: false
@@ -605,8 +611,7 @@ jobs:
 
   platform-sweep:
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_platform_sweep == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        github.event_name == 'workflow_dispatch' && inputs.run_platform_sweep == true # #67 Tier 3: dispatch-only (deep platform sweeps on demand)
     concurrency:
       group: platform-agent-sweep
       cancel-in-progress: false
@@ -653,7 +658,7 @@ jobs:
     name: 🧠 Platform Deep-Audit (vault-driven discovery + auto-issue)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_platform_deep_audit == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was daily)
     concurrency:
       group: platform-deep-audit
       cancel-in-progress: false
@@ -838,7 +843,7 @@ jobs:
     name: 🧹 Docs Garbage Tree Sweep (daily, #4176)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_docs_garbage_sweep == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was daily)
     concurrency:
       group: docs-garbage-sweep
       cancel-in-progress: false
@@ -1424,7 +1429,7 @@ jobs:
           PY
 
   e2e-customer:
-    if: github.event_name == 'schedule' && github.event.schedule == '0 3 * * *'
+    if: github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0' # #67 Tier 2: weekly Sun off-peak (was daily)
     concurrency:
       group: nightly-ops-e2e-customer
       cancel-in-progress: true
@@ -1515,7 +1520,7 @@ jobs:
   load-locust:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_load_locust == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was daily)
     concurrency:
       group: nightly-ops-load-locust
       cancel-in-progress: false
@@ -1625,7 +1630,7 @@ jobs:
   chaos-suite:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_chaos_suite == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was daily)
     concurrency:
       group: nightly-ops-chaos-suite
       cancel-in-progress: false
@@ -1661,7 +1666,7 @@ jobs:
   browser-e2e:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_browser_e2e == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was daily)
     concurrency:
       group: nightly-ops-browser-e2e
       cancel-in-progress: false
@@ -1787,7 +1792,7 @@ jobs:
 
   deploy-doctor-fallback:
     name: 🔍 Deploy Doctor (hourly fallback, 90m window)
-    if: github.event_name == 'schedule' && github.event.schedule == '0 */4 * * *' # #4085: gate re-canonicalized to match schedule cron (cron-triple coupling rule)
+    if: github.event_name == 'workflow_dispatch' && inputs.run_deploy_doctor == true # #67 Tier 3: cron '0 */4' absent from triggers (unreachable since SCHEDULE DIET v4); on-demand dispatch restores reachability
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -1836,7 +1841,7 @@ jobs:
   branch-retention:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_branch_retention == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '17 3 * * 1')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') # #67 Tier 1: daily storage tidy (was Mon weekly)
     concurrency:
       group: branch-retention-cleanup
       cancel-in-progress: false
@@ -1901,7 +1906,7 @@ jobs:
   silent-error:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_silent_error == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '17 3 * * 1')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was Mon)
     name: 🤫 Silent Error Scan
     runs-on: ubuntu-latest
     steps:
@@ -1929,7 +1934,7 @@ jobs:
   dast:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_dast == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '17 3 * * 1')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was Mon)
     concurrency:
       group: dast-zap-${{ github.ref }}
       cancel-in-progress: true
@@ -1986,7 +1991,7 @@ jobs:
   constitution:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_constitution == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '17 3 * * 1')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') # #67 Tier 2: weekly Sun off-peak (was Mon)
     concurrency:
       group: nightly-ops-constitution
       cancel-in-progress: true
