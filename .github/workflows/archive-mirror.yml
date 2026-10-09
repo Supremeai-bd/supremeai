@@ -1,0 +1,98 @@
+# বাংলা মন্তব্য: ADR-005 Phase B / ADR-007 Phase E — লাইভ main (এই fork) → parent cold-archive মিরর।
+# parent (SaifulHaqueNiloy/supremeai) এখন private receive-only আর্কাইভ — শুধু এই workflow লিখবে।
+# ক্রেডেনশিয়াল: vault AGENT_PLATFORM_* → App-JWT → SaifulHaqueNiloy installation-token (contents:write প্রমাণিত)।
+# মান কখনো প্রিন্ট/লগ হয় না (শূন্য-প্রিন্ট শৃঙ্খলা)।
+name: Archive Mirror (live main → cold archive)
+
+on:
+  schedule:
+    - cron: "23 */6 * * *" # বাংলা: পুরনো auto-sync-এর মতো ৬-ঘণ্টা ছন্দ (UTC 23-মিনিট অফসেট)
+  workflow_dispatch:
+    inputs:
+      verify_only:
+        description: "true হলে শুধু ff-check করবে, push করবে না"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archive-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout live main (পূর্ণ ইতিহাস — push-এর জন্য)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: App-installation token self-mint (vault AGENT_PLATFORM_*)
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+        run: |
+          python3 - <<'PY'
+          # বাংলা: vault→App-JWT→installation-token (parent-মালিক SaifulHaqueNiloy installation)
+          import json, os, time, urllib.request, jwt as pyjwt
+          def api(url, payload=None, tok=None, method=None):
+              data = json.dumps(payload).encode() if payload is not None else None
+              h = {"Content-Type": "application/json", "Accept": "application/vnd.github+json", "User-Agent": "archive-mirror"}
+              if tok: h["Authorization"] = f"Bearer {tok}"
+              req = urllib.request.Request(url, data=data, headers=h, method=method or ("POST" if data else "GET"))
+              with urllib.request.urlopen(req, timeout=45) as r: return json.load(r)
+          env_file = os.environ.get("GITHUB_ENV")
+          res = api("https://app.infisical.com/api/v1/auth/universal-auth/login",
+                    {"clientId": os.environ["INFISICAL_CLIENT_ID"], "clientSecret": os.environ["INFISICAL_CLIENT_SECRET"]})
+          secs = api(f"https://app.infisical.com/api/v3/secrets/raw?workspaceId={os.environ['INFISICAL_PROJECT_ID']}&environment=prod&recursive=true",
+                     tok=res["accessToken"])
+          kv = {s["secretKey"].upper(): s.get("secretValue") or "" for s in secs.get("secrets", [])}
+          app_id, pem = kv["AGENT_PLATFORM_APP_ID"], kv["AGENT_PLATFORM_PRIVATE_KEY"]
+          now = int(time.time())
+          jwt_tok = pyjwt.encode({"iat": now-60, "exp": now+540, "iss": str(app_id)}, pem, algorithm="RS256")
+          insts = api("https://api.github.com/app/installations", tok=jwt_tok)
+          il = insts["installations"] if isinstance(insts, dict) else insts
+          inst = next(i for i in il if i["account"]["login"] == "SaifulHaqueNiloy")
+          itok = api(f"https://api.github.com/app/installations/{inst['id']}/access_tokens", tok=jwt_tok, payload={})
+          with open(env_file, "a") as f: f.write(f"MIRROR_TOKEN<<EOF\n{itok['token']}\nEOF\n")
+          print("[ok] installation token minted (SaifulHaqueNiloy) — মান প্রিন্ট হয়নি")
+          PY
+
+      - name: Fast-forward যাচাই (parent কখনো এগিয়ে থাকলে ব্যর্থ-তির্যক)
+        id: ff
+        env:
+          MIRROR_TOKEN: ${{ env.MIRROR_TOKEN }}
+        run: |
+          git remote add archive "https://x-access-token:${MIRROR_TOKEN}@github.com/SaifulHaqueNiloy/supremeai.git"
+          git fetch -q archive main
+          # বাংলা: parent main অবশ্যই fork main-এর পূর্বপুরুষ হতে হবে (receive-only নীতি)
+          if git merge-base --is-ancestor archive/main main; then
+            AHEAD=$(git rev-list --count archive/main..main)
+            echo "ff_ok=true" >> "$GITHUB_OUTPUT"
+            echo "ahead=$AHEAD" >> "$GITHUB_OUTPUT"
+            echo "[ok] fast-forward সম্ভব — parent archive/main এ $AHEAD commit পিছিয়ে"
+          else
+            echo "ff_ok=false" >> "$GITHUB_OUTPUT"
+            echo "::error::parent main fork main-এর পূর্বপুরুষ নয় — receive-only চুক্তি ভাঙা হয়েছে; স্বয়ংক্রিয় push বাতিল"
+          fi
+
+      - name: Mirror push (শুধু fast-forward)
+        if: steps.ff.outputs.ff_ok == 'true' && github.event.inputs.verify_only != 'true'
+        run: |
+          # বাংলা: Phase C-তে parent Actions সম্পূর্ণ বন্ধ — ততক্ষণ ff-push-এ parent-এর push-triggered CI
+          # HEAD-commit-এর [skip ci] মানবে (বর্তমান HEAD-এ মার্কার আছে); ভবিষ্যৎ HEAD-এ মার্কার না থাকলেও
+          # Phase C-র পরে কোনো run হবে না।
+          git push archive main:main
+          echo "[ok] archive-mirror push সম্পন্ন — parent main এখন $(git rev-parse --short main)"
+
+      - name: ফলাফল-সারাংশ
+        run: |
+          echo "mirror_mode=fast-forward-only"
+          echo "verify_only=${{ github.event.inputs.verify_only }}"
+          echo "ff_ok=${{ steps.ff.outputs.ff_ok }}"
+          echo "pending_commits=${{ steps.ff.outputs.ahead }}"
