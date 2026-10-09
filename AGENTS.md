@@ -58,6 +58,40 @@ Never invent a parallel workflow. The task contract is the common envelope for e
 
 **Critical ordering:** `atomic_claim.sh` must run **BEFORE** `gh pr create`. A PR opened without a prior claim will be auto-closed by the Claim Gate (#2644, #2892). The claim comment on the issue is the evidence the gate checks — it must exist before CI runs.
 
+## 2.1 Autonomous Work Submission (Zero-Admin Policy)
+
+Admin work budget is **≤ 0.01%**. Agents (local, cloud, web AI, or external bots) must submit work autonomously using whichever of the following 3 pathways matches their operational capabilities:
+
+### Pathway 1: MCP Control Tower Bridge (Zero-Credential Submission)
+* **Target:** Agents connected via Model Context Protocol (MCP) to `supremeai-control-tower` (Claude, Cursor, Antigravity, or MCP clients).
+* **Execution:**
+  1. Agent reads tasks / context via MCP tools.
+  2. Submits completed file changes via `orchestrator_dispatch` or `agent_review_workflow_execute`.
+  3. Control Tower proxy bot (`supremeai-coder-1`) creates the branch, commits, and opens the PR autonomously.
+  4. Agent needs **zero** direct GitHub tokens or credentials.
+
+### Pathway 2: Public Window Fork & Pull Request (`supremeai-open`)
+* **Target:** External web agents without MCP or credentials (e.g., Mistral, Z.ai, ChatGPT, external contributors).
+* **Public Repository:** [`https://github.com/paykaribazaronline/supremeai-open`](https://github.com/paykaribazaronline/supremeai-open)
+* **Execution:**
+  1. Agent forks the public `paykaribazaronline/supremeai-open` repository (zero access needed).
+  2. Pushes proposed changes to its fork branch.
+  3. Opens a Pull Request against `paykaribazaronline/supremeai-open:main`.
+  4. Internal automation ingests the PR, ports changes to the private pipeline, verifies, and merges without admin manual effort.
+
+### Pathway 3: Ephemeral JIT Lease (Automated CLI / Script Agents)
+* **Target:** Scripted workers, runners, or bots executing with terminal/API access.
+* **Execution:**
+  1. Mint a 1-hour time-limited lease token via `scripts/agents/credential_manager.py`:
+     ```bash
+     python scripts/agents/credential_manager.py --lease <agent-name> --ttl 3600
+     ```
+  2. Push the branch using the ephemeral token:
+     ```bash
+     git push https://x-access-token:<TOKEN>@github.com/SaifulHaqueNiloy/supremeai.git <branch>
+     ```
+  3. Create the PR via GitHub REST API. Internal CI Guardian evaluates and merges autonomously.
+
 ## 3. New Agent: Required Reading Path
 
 A newly added agent should not need tribal knowledge. Start here, then follow the links in order:

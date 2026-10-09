@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-08 20:50 UTC
+- **Date:** 2026-10-09 12:22 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/kaggle_orchestrator.py`
-  - `backend/api/routes/kaggle.py`
-  - `tests/test_kaggle_warm_orchestrator.py`
-  - `infrastructure/mcp-control-plane/src/lib/env.ts`
-  - `scripts/agents/dynamic_credential_broker.py`
-  - `infrastructure/mcp-control-plane/src/adapters/misc/index.ts`
-  - `infrastructure/mcp-control-plane/src/tools/system.tools.ts`
+  - `scripts/agents/credential_bootstrap.py`
+  - `.github/workflows/continuous-agent-loop.yml`
+  - `scripts/agents/credential_manager.py`
   - `docs/archive/lessons_2026-10.md`
-  - `infrastructure/mcp-control-plane/src/adapters/firecrawl/actions.ts`
+  - `scripts/devops/check_render_status.py`
+  - `.github/workflows/nightly-ops.yml`
+  - `AGENTS.md`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
