@@ -5,6 +5,7 @@ GET/POST /admin-api/backups, POST /admin-api/backups/{backup_id}/restore)."""
 import json
 import os
 import shutil
+from pathlib import Path
 
 from fastapi import HTTPException
 
@@ -101,7 +102,10 @@ def create_backup():
 @router.post("/backups/{backup_id}/restore")
 def restore_backup(backup_id: str):
     """Trigger a restore from a backup."""
-    backup_dir = f"backups/{backup_id}"
-    if not os.path.exists(backup_dir):
+    # বাংলা: পাথ ট্র্যাভার্সাল বিভ্রাট রোধে সংবেদনশীল ID স্যানিটাইজেশন এবং রেসোলভড বেস পাথ ভ্যালিডেশন
+    safe_id = os.path.basename(backup_id)
+    base_dir = Path("backups").resolve()
+    target_dir = (base_dir / safe_id).resolve()
+    if not target_dir.is_relative_to(base_dir) or not target_dir.exists():
         raise HTTPException(status_code=404, detail=f"Backup '{backup_id}' not found")
-    return {"status": "success", "message": f"Restore from '{backup_id}' queued"}
+    return {"status": "success", "message": f"Restore from '{safe_id}' queued"}
