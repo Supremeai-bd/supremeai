@@ -520,15 +520,16 @@ def main() -> int:
         print("BRIDGE_TOKEN missing — fail-closed (no work done)", file=sys.stderr)
         return 2
     mode = sys.argv[1] if len(sys.argv) > 1 else "both"
-    try:
-        if mode in ("intake", "both"):
-            rc = cmd_intake(token)
-            if rc:
-                return rc
-        if mode in ("sync", "both"):
-            return cmd_sync(token)
+    if mode not in ("intake", "sync", "both"):
         print(f"unknown mode: {mode}", file=sys.stderr)
         return 2
+    try:
+        rc = 0
+        if mode in ("intake", "both"):
+            rc = cmd_intake(token)
+        if rc == 0 and mode in ("sync", "both"):
+            rc = cmd_sync(token)
+        return rc
     except BridgeError as exc:
         print(f"BRIDGE FAIL-HONEST: {exc}", file=sys.stderr)
         return 1
