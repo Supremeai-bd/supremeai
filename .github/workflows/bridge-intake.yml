@@ -6,7 +6,7 @@ name: Bridge Intake (public work orders → private gates)
 
 on:
   schedule:
-    - cron: "*/30 * * * *" # বাংলা: ৩০-মিনিট ছন্দ — agent অপেক্ষা বনাম minutes-diet ভারসাম্য
+    - cron: "13,43 * * * *" # বাংলা: ৩০-মিনিট ছন্দ, off-peak স্লট (:13/:43) — GitHub top-of-hour congestion এড়ানো (issue #52: */30 = :00/:30 সর্বাধিক ব্যস্ত, ৩ স্লট নীরব)
   workflow_dispatch:
     inputs:
       mode:
