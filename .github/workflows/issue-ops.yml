@@ -34,57 +34,9 @@
 
 name: Issue Ops (Queue Ledger & Labeler)
 
+# Workflow Diet (#67, 2026-10-09): trigger removed per issue spec — on-demand workflow_dispatch only.
 on:
-  issues:
-    # Founder directive #1997: "1st close howar por 2nd auto 1st hoa jabe" — every
-    # queue-relevant issue event re-ranks the live ledger (FLIP: absorbed from
-    # priority-queue.yml, epic #1850 Phase F / #1858).
-    # বাংলা মন্তব্য (#2425): এখানে সব টাইপ রাখা হয় (গঠনগতভাবে filter করা যায় না),
-    # আসল ফিল্টার refresh-ledger job-এর if: কন্ডিশনে — নিচে দেখো।
-    #
-    # COST OPTIMIZATION: removed "edited" — refresh-ledger-এর if: condition-এ
-    # "edited" কখনো ছিল না, তাই প্রতিটি issue edit-এ শুধু rate-limit-gate job
-    # চলত (1 min/run) এবং refresh-ledger skip হতো — দরকারহীন খরচ। 4,573 runs-এর
-    # বেশিরভাগই edited ইভেন্ট থেকে। প্রত্যাশিত সাশ্রয়: ~40% = 1,940 min/month।
-    #
-    # STORM DIET v3 (#54, 2026-10-09): removed "labeled"/"unlabeled" — agent-fleet
-    # claim-flip war (status:in-progress ↔ status:unclaimed pairs on queue issues
-    # #32/#36) spawned 20+ runs per 2-min burst; every gated run still burned
-    # ~1 runner-minute even when refresh-ledger short-circuited (#2557 gate).
-    # Ledger freshness contract unchanged — re-rank still fires on:
-    #   (১) opened/closed/reopened events (founder directive #1997 promotion);
-    #   (২) daily 03:23 drift sweep (schedule);
-    #   (৩) continuous-agent-loop.yml's internal priority_queue_ledger.py call;
-    #   (৪) manual workflow_dispatch.
-    types: [opened, closed, reopened]
-  schedule:
-    # COST OPTIMIZATION: 6-hourly → daily drift sweep (was 4/day → now 1/day)
-    # বাংলা: ৬-ঘন্টা অন্তর drift sweep প্রতি দিন ৪টি schedule run তৈরি করত। issue events
-    # এখনো real-time re-rank করে — drift sweep শুধু "agent crashed mid-claim" recovery।
-    # দৈনিক ১টি sweep যথেষ্ট (orphan release TTL = ৩০min, agent loop hourly check করে)।
-    # সাশ্রয়: ৩ runs/day × ১৪.৬ min = ৪৪ min/day = ১,৩২০ min/month।
-    - cron: "23 3 * * *"
-  workflow_dispatch:
-    inputs:
-      action:
-        description: 'refresh-ledger | labeler'
-        required: true
-        default: 'refresh-ledger'
-        type: string
-      # ── labeler passthrough (action=labeler) ──
-      labeler_issue_number:
-        description: '[labeler] issue number to act on'
-        required: false
-        type: string
-      labeler_operation:
-        description: '[labeler] one of: label | comment | close | reopen'
-        required: false
-        type: string
-      labeler_value:
-        description: '[labeler] labels (comma-separated) for label op, or comment body for comment/close'
-        required: false
-        type: string
-
+  workflow_dispatch: # Workflow Diet #67 (Category C): queue bookkeeping handled by scripts (issue_queue_manager.py / priority_queue_ledger.py); per-event Actions runs wasted ~1 runner-minute each on label churn.
 permissions:
   issues: write
   contents: read

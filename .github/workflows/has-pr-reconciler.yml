@@ -17,10 +17,9 @@
 
 name: has-pr Reconciler (#2589)
 
+# Workflow Diet (#67, 2026-10-09): trigger removed per issue spec — on-demand workflow_dispatch only.
 on:
-  pull_request_target:
-    types: [closed]
-
+  workflow_dispatch: # Workflow Diet #67 (Category E): redundant event loop disabled — has-pr labels are set by the PR pipeline itself; reconcile on demand.
 permissions:
   issues: write
   pull-requests: read

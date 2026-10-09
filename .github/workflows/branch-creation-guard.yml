@@ -11,9 +11,9 @@
 # Exempt-তালিকা/সব আচরণ policy SSOT থেকে: rules.yml → branch_creation_policy।
 name: "🌿 Branch Creation Guard"
 
+# Workflow Diet (#67, 2026-10-09): trigger removed per issue spec — on-demand workflow_dispatch only.
 on:
-  create: {}
-
+  workflow_dispatch: # Workflow Diet #67 (Category E): real-time create-trigger disabled — branch naming conventions are verified at PR time by the PR Gate.
 permissions:
   contents: write        # violating branch delete (DELETE /git/refs/heads/…)
   issues: write          # violation-ব্যাখ্যা কমেন্ট

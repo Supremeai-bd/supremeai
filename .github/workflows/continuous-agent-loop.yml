@@ -24,43 +24,9 @@ concurrency:
   group: pipeline-failure-register
   cancel-in-progress: false
 
+# Workflow Diet (#67, 2026-10-09): trigger removed per issue spec — on-demand workflow_dispatch only.
 on:
-  issues:
-    types: [opened]  # COST OPTIMIZATION: only 'opened' (was opened/closed/reopened)
-    # বাংলা: শুধু 'opened' রাখা হয়েছে — নতুন issue এলে agent loop দ্রুত claim করতে পারে।
-    # closed/reopened ইভেন্ট issue-ops.yml দিয়ে handle হয় (ledger re-rank)।
-    # সাশ্রয়: closed + reopened events বাদ (৬-৭ runs/day কম)।
-    # Agent latency: নতুন issue = real-time (opened event), closed = hourly cron পর্যন্ত।
-  # RESTORED (SCOPED) — #4086: 9e8597b5 (#3517) পুরো workflow_run ট্রিগার বাদ দিয়েছিল,
-  # যার ফলে দুটি wired behavior নীরবে মরে গিয়েছিল: (১) single-funnel
-  # pipeline_failure_register.py --event কল, (২) Branch Creation Guard-এর নজরদারি
-  # (#2928-এর গ্যারান্টি — guard-violation আর register-এ দৃশ্যমান হতো না)।
-  # কোস্ট অপটিমাইজেশনের মূল লাভ অটুট রেখে স্কোপ পুনরুদ্ধার: PR Gate / Main CI/CD
-  # (আসল ১৫ runs/day cascade-এর উৎস) এখনো unwatched — সেগুলোর ব্যর্থতা hourly
-  # pipeline-failure-scan (--scan) ধরে। শুধু Branch Creation Guard নজরে — সেটি
-  # branch-creation ইভেন্টেই চলে, তাই cascade-খরচ ~শূন্য, অথচ সেকেন্ড-লেটেন্সি
-  # ইভেন্ট-পথ (গ্যারান্টি #৩) guard-এর জন্য ফিরে এলো।
-  workflow_run:
-    # বাংলা মন্তব্য: GitHub schema অনুযায়ী workflow_run trigger-এ টার্গেট workflow-এর
-    # নাম ঘোষণা বাধ্যতামূলক — না হলে পুরো file parse রিজেক্ট হয় (zero-job failure, #2582)।
-    workflows:
-      # বাংলা মন্তব্য (#2928): guard-violation কারো কাছেই পৌঁছাত না; register-এ দৃশ্যমান হবে।
-      - "🌿 Branch Creation Guard"
-    types: [completed]
-  schedule:
-    # SCHEDULE DIET (v4 Private): 4 runs/day (was 24/day hourly) — saves ~3,400 mins/month
-    - cron: "0 2,8,14,20 * * *"
-  workflow_dispatch:
-    inputs:
-      role:
-        description: "Agent role (coder, planner, ci, platform)"
-        required: true
-        default: "coder"
-      agent_name:
-        description: "Agent identifier (e.g. coder-1)"
-        required: true
-        default: "coder-1"
-
+  workflow_dispatch: # Workflow Diet #67 (Category C): agent loop runs locally/persistent workers via scripts/agents/continuous_agent_loop.py — Actions auto-triggers (issues/workflow_run/schedule 4x daily) burned quota with zero queue progress.
 permissions:
   issues: write
   pull-requests: write
