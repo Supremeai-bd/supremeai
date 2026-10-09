@@ -35,6 +35,19 @@ OPEN_REPO = "paykaribazaronline/supremeai-open"
 PRIVATE_REPO = "paykaribazaronline/supremeai"
 PRIVATE_MAIN = "main"
 
+# পাবলিক mirror path → (target repo, canonical path) — byte-mirror SSOT routing (v2)।
+# বাংলা: mirror ত্রয়ীর আসল বাসা মূল monorepo-তে নেই — supremeai-api স্যাটেলাইটে।
+# রাউটিং ছাড়া apply "No such file or directory" দেয় (E2E-প্রমাণিত 2026-10-09:
+# অর্ডার #5/#10/#11/#12/#13 সব এই কারণে reject হয়েছিল)। বাইট-প্যারিটি যাচাইকৃত
+# (cmp -s IDENTICAL ×3), তাই path-রিরাইটের পরে hunk নির্ভুলভাবে apply হয়।
+MIRROR_ROUTING: dict[str, tuple[str, str]] = {
+    "api-schemas/gateway.openapi.yaml": ("paykaribazaronline/supremeai-api", "contracts/openapi.yaml"),
+    "examples/gateway_client.py": ("paykaribazaronline/supremeai-api", "scripts/clients/gateway_client.py"),
+    "docs/CONSUMERS.md": ("paykaribazaronline/supremeai-api", "docs/CONSUMERS.md"),
+}
+# bridge-land PR হতে পারে এমন সব repo — sync স্ক্যান + already-intaked dedup স্কোপ
+BRIDGE_TARGET_REPOS = ("paykaribazaronline/supremeai", "paykaribazaronline/supremeai-api")
+
 LABEL_QUEUED = "bridge:queued"
 LABEL_INGATES = "bridge:in-gates"
 LABEL_LANDED = "bridge:landed"
@@ -300,12 +313,57 @@ def comment_issue(repo: str, token: str, issue: int, body: str) -> None:
 
 
 def already_intaked(token: str, task_id: str) -> bool:
-    """Private repo-তে marker-carrying intake issue আগেই আছে কি না (list API — fresh, search-lag মুক্ত)।"""
-    status, issues = gh("GET", f"/repos/{PRIVATE_REPO}/issues?labels={LABEL_PRIVATE_BRIDGE}&state=all&per_page=100", token)
-    if status != 200:
-        return True  # fail-closed: state unknown → duplicate-ঝুঁকির চেয়ে না-apply ভালো
+    """Marker-carrying intake issue আগেই আছে কি না — সব bridge-target repo-তে স্ক্যান (v2 routing)।"""
     marker = MARKER_FMT.format(tid=task_id)
-    return any(marker in (i.get("body") or "") for i in issues)
+    for repo in BRIDGE_TARGET_REPOS:
+        status, issues = gh("GET", f"/repos/{repo}/issues?labels={LABEL_PRIVATE_BRIDGE}&state=all&per_page=100", token)
+        if status != 200:
+            return True  # fail-closed: state unknown → duplicate-ঝুঁকির চেয়ে না-apply ভালো
+        if any(marker in (i.get("body") or "") for i in issues):
+            return True
+    return False
+
+
+def route_files(files: list[str]) -> tuple[str | None, dict[str, str]]:
+    """প্রতিটি পাবলিক path → (target repo, canonical path)।
+
+    রিটার্ন: (target_repo | None, path_map)। মিশ্র-target অর্ডার → None (fail-closed;
+    v2 rule: এক অর্ডার = এক টার্গেট repo — split করে আলাদা অর্ডার জমা দিতে হবে)।
+    """
+    targets: set[str] = set()
+    path_map: dict[str, str] = {}
+    for f in files:
+        repo, canon = MIRROR_ROUTING.get(f, (PRIVATE_REPO, f))
+        targets.add(repo)
+        path_map[f] = canon
+    if len(targets) != 1:
+        return None, path_map
+    return targets.pop(), path_map
+
+
+def rewrite_patch_paths(diff: str, path_map: dict[str, str]) -> str:
+    """diff header-র a/ b/ path-গুলো canonical-এ রিরাইট — hunk বডি অপরিবর্তিত।
+
+    বাংলা: byte-mirror ফাইল line-identical (cmp -s যাচাইকৃত), তাই শুধু header
+    রিরাইটেই git apply নির্ভুল হয়। /dev/null ও hunk (@@) লাইন অপরিবর্তিত থাকে।
+    """
+    if not path_map:
+        return diff
+    out: list[str] = []
+    for ln in diff.splitlines(keepends=True):
+        stripped = ln.rstrip("\r\n")
+        eol = ln[len(stripped):]
+        m = re.match(r"^diff --git a/(.+?) b/(.+?)$", stripped)
+        if m:
+            canon = path_map.get(m.group(2), path_map.get(m.group(1), m.group(1)))
+            out.append(f"diff --git a/{canon} b/{canon}{eol}")
+            continue
+        m = re.match(r"^(---|\+\+\+) ([ab]/)(.+?)$", stripped)
+        if m and m.group(3) in path_map:
+            out.append(f"{m.group(1)} {m.group(2)}{path_map[m.group(3)]}{eol}")
+            continue
+        out.append(ln)
+    return "".join(out)
 
 
 # ---------------------------------------------------------------------------
@@ -380,18 +438,23 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
         reject("secret-pattern scan hit: " + ", ".join(families) + " — remove secrets and resubmit")
         return
 
-    # Apply inside the private repo
+    # Apply — routed target repo (v2: mirror ত্রয়ী supremeai-api স্যাটেলাইটে জমে, বাকি মূল repo-তে)
+    target_repo, path_map = route_files(files)
+    if target_repo is None:
+        reject("order spans multiple target repos — one order per target (bridge v2 routing rule)")
+        return
+    diff_routed = rewrite_patch_paths(diff, path_map)
     private_dir = str(work / f"priv-{num}")
-    clone(PRIVATE_REPO, token, Path(private_dir))
+    clone(target_repo, token, Path(private_dir))
     run(["git", "config", "user.name", "supremeai-bridge"], cwd=private_dir)
     run(["git", "config", "user.email", "bridge@supremeai.local"], cwd=private_dir)
     run(["git", "checkout", "--quiet", "-b", f"bridge-land/{task_id}", f"origin/{PRIVATE_MAIN}"], cwd=private_dir)
     patch_file = work / f"patch-{num}.diff"
-    patch_file.write_text(diff, encoding="utf-8")
+    patch_file.write_text(diff_routed, encoding="utf-8")
     applied = run(["git", "apply", "--whitespace=nowarn", str(patch_file)], cwd=private_dir, check=False)
     if applied.returncode != 0:
         reason = (applied.stderr or "patch does not apply to current main")[-250:]
-        reject(f"patch failed to apply on current {PRIVATE_MAIN}: {reason}")
+        reject(f"patch failed to apply on {target_repo}@{PRIVATE_MAIN}: {reason}")
         return
     run(["git", "add", "-A"], cwd=private_dir)
     run(
@@ -404,19 +467,19 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
     )
     push = run(["git", "push", "--quiet", "origin", f"bridge-land/{task_id}"], cwd=private_dir, check=False)
     if push.returncode != 0:
-        reject(f"private push rejected: {(push.stderr or 'unknown')[-200:]}")
+        reject(f"push to {target_repo} rejected: {(push.stderr or 'unknown')[-200:]}")
         return
     head_sha = run(["git", "rev-parse", "HEAD"], cwd=private_dir).stdout.strip()
 
-    # Private audit-trail issue + gated PR
-    ensure_label(PRIVATE_REPO, token, LABEL_PRIVATE_BRIDGE, "5319E7", "bridge-intake external work order")
+    # Audit-trail issue + gated PR — routed target repo-তে
+    ensure_label(target_repo, token, LABEL_PRIVATE_BRIDGE, "5319E7", "bridge-intake external work order")
     intake_body = build_intake_issue_body(wo, task_id, public_url, agent, files)
     intake = gh_ok(
-        "POST", f"/repos/{PRIVATE_REPO}/issues", token,
+        "POST", f"/repos/{target_repo}/issues", token,
         {"title": f"feat(bridge): {task_id}", "body": intake_body, "labels": [LABEL_PRIVATE_BRIDGE]},
     )
     pr = gh_ok(
-        "POST", f"/repos/{PRIVATE_REPO}/pulls", token,
+        "POST", f"/repos/{target_repo}/pulls", token,
         {
             "title": f"feat(bridge): {task_id} — external work order #{num}",
             "head": f"bridge-land/{task_id}",
@@ -427,7 +490,8 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
     report = sanitize_public_comment(
         "## 🌉 Bridge Intake — **APPLIED** (in gates now)\n\n"
         f"- task: `{task_id}`\n"
-        f"- private PR: **#{pr['number']}** — full constitutional gate chain decides landing\n"
+        f"- landed repo: `{target_repo}`\n"
+        f"- PR: **#{pr['number']}** — full constitutional gate chain decides landing\n"
         f"- head: `{head_sha[:10]}`\n"
         f"- files: {len(files)}\n\n"
         "এরপর label-চেইন ফলো করুন: `bridge:in-gates → bridge:landed`।",
@@ -435,7 +499,7 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
     )
     comment_issue(OPEN_REPO, token, num, report)
     set_labels(OPEN_REPO, token, num, [LABEL_INGATES])
-    results.append(f"#{num} → applied, private PR #{pr['number']} ({task_id})")
+    results.append(f"#{num} → applied, {target_repo} PR #{pr['number']} ({task_id})")
 
 
 def cmd_intake(token: str) -> int:
@@ -461,16 +525,22 @@ def cmd_intake(token: str) -> int:
 
 
 def cmd_sync(token: str) -> int:
-    """PR lifecycle → public issue reporting (landed / rejected)।"""
+    """PR lifecycle → public issue reporting (landed / rejected) — সব target repo স্ক্যান (v2)।"""
     results: list[str] = []
-    status, pulls = gh("GET", f"/repos/{PRIVATE_REPO}/pulls?state=closed&sort=updated&per_page=40", token)
-    if status != 200:
-        raise BridgeError(f"PR fetch failed: HTTP {status}")
     # বাংলা (#65): list-pulls response-এ boolean "merged" ফিল্ড থাকে না (শুধু
     # single-GET-এ) — থাকে "merged_at"। p.get("merged") সবসময় None → merged PR-ও
     # rejected হত (লাইভ-প্রমাণিত: PR #40 landed হয়েও bridge:rejected পেয়েছিল)।
-    landed = [p for p in pulls if (p.get("head") or {}).get("ref", "").startswith("bridge-land/") and p.get("merged_at")]
-    rejected = [p for p in pulls if (p.get("head") or {}).get("ref", "").startswith("bridge-land/") and not p.get("merged_at")]
+    landed: list[dict] = []
+    rejected: list[dict] = []
+    for repo in BRIDGE_TARGET_REPOS:
+        status, pulls = gh("GET", f"/repos/{repo}/pulls?state=closed&sort=updated&per_page=40", token)
+        if status != 200:
+            raise BridgeError(f"PR fetch failed: HTTP {status} ({repo})")
+        for p in pulls:
+            if not (p.get("head") or {}).get("ref", "").startswith("bridge-land/"):
+                continue
+            p["_repo"] = repo
+            (landed if p.get("merged_at") else rejected).append(p)
 
     status, open_issues = gh("GET", f"/repos/{OPEN_REPO}/issues?state=open&per_page=60", token)
     if status != 200:
@@ -497,8 +567,8 @@ def cmd_sync(token: str) -> int:
         body = sanitize_public_comment(
             "## ✅ Bridge — **LANDED**\n\n"
             f"- task: `{task_id}`\n"
-            f"- merged private PR: **#{pr['number']}** @ `{(pr.get('merge_commit_sha') or '')[:10]}`\n\n"
-            "কাজটি private codebase-এ merge হয়েছে (gates সব সবুজ)।",
+            f"- merged PR: **#{pr['number']}** @ `{pr.get('_repo', PRIVATE_REPO)}` @ `{(pr.get('merge_commit_sha') or '')[:10]}`\n\n"
+            "কাজটি target repo-তে merge হয়েছে (gates সব সবুজ)।",
             token,
         )
         comment_issue(OPEN_REPO, token, issue["number"], body)
@@ -514,7 +584,7 @@ def cmd_sync(token: str) -> int:
         body = sanitize_public_comment(
             "## ❌ Bridge — **REJECTED**\n\n"
             f"- task: `{task_id}`\n"
-            f"- private PR **#{pr['number']}** merged হয়নি (gates/owner সিদ্ধান্ত)।",
+            f"- PR **#{pr['number']}** @ `{pr.get('_repo', PRIVATE_REPO)}` merged হয়নি (gates/owner সিদ্ধান্ত)।",
             token,
         )
         comment_issue(OPEN_REPO, token, issue["number"], body)
@@ -523,17 +593,18 @@ def cmd_sync(token: str) -> int:
 
     # Reconciliation: OPEN bridge PR → public issue অবশ্যই bridge:in-gates হবে
     # (stale লেবেল শুদ্ধ করে — E2E-তে প্রমাণিত কেস: ভুল rejected লেবেল আটকে ছিল)।
-    status, open_pulls = gh("GET", f"/repos/{PRIVATE_REPO}/pulls?state=open&per_page=40", token)
-    if status == 200:
-        for pr in open_pulls:
-            ref = (pr.get("head") or {}).get("ref", "")
-            if not ref.startswith("bridge-land/"):
-                continue
-            task_id = ref.replace("bridge-land/", "", 1)
-            issue = find_issue(task_id)
-            if issue and LABEL_INGATES not in issue_labels(issue):
-                set_labels(OPEN_REPO, token, issue["number"], [LABEL_INGATES])
-                results.append(f"{task_id} → reconciled to in-gates (PR #{pr['number']} open)")
+    for repo in BRIDGE_TARGET_REPOS:
+        status, open_pulls = gh("GET", f"/repos/{repo}/pulls?state=open&per_page=40", token)
+        if status == 200:
+            for pr in open_pulls:
+                ref = (pr.get("head") or {}).get("ref", "")
+                if not ref.startswith("bridge-land/"):
+                    continue
+                task_id = ref.replace("bridge-land/", "", 1)
+                issue = find_issue(task_id)
+                if issue and LABEL_INGATES not in issue_labels(issue):
+                    set_labels(OPEN_REPO, token, issue["number"], [LABEL_INGATES])
+                    results.append(f"{task_id} → reconciled to in-gates ({repo} PR #{pr['number']} open)")
 
     print("== bridge sync ==")
     for line in results or ["nothing to sync"]:

@@ -235,3 +235,65 @@ def test_main_fails_closed_without_token(monkeypatch, capsys):
 def test_main_unknown_mode_rejected(monkeypatch):
     monkeypatch.setenv("BRIDGE_TOKEN", "tok")
     assert bi.main_with_args(["bridge_intake.py", "wat"]) == 2 if hasattr(bi, "main_with_args") else True
+
+
+# ---------------------------------------------------------------------------
+# v2 mirror routing (route_files + rewrite_patch_paths)
+# ---------------------------------------------------------------------------
+
+def test_route_files_mirror_trio_goes_to_satellite_with_canonical_map():
+    files = ["api-schemas/gateway.openapi.yaml", "examples/gateway_client.py"]
+    target, path_map = bi.route_files(files)
+    assert target == "paykaribazaronline/supremeai-api"
+    assert path_map["api-schemas/gateway.openapi.yaml"] == "contracts/openapi.yaml"
+    assert path_map["examples/gateway_client.py"] == "scripts/clients/gateway_client.py"
+
+
+def test_route_files_unmapped_path_defaults_to_main_identity():
+    target, path_map = bi.route_files(["AGENTS.md"])
+    assert target == bi.PRIVATE_REPO
+    assert path_map["AGENTS.md"] == "AGENTS.md"
+
+
+def test_route_files_mixed_targets_fail_closed():
+    target, _ = bi.route_files(["AGENTS.md", "docs/CONSUMERS.md"])
+    assert target is None  # one order = one target repo (v2 rule)
+
+
+def test_rewrite_patch_paths_rewrites_headers_only():
+    diff = (
+        "diff --git a/examples/gateway_client.py b/examples/gateway_client.py\n"
+        "index fc575b0..26c6688 100644\n"
+        "--- a/examples/gateway_client.py\n"
+        "+++ b/examples/gateway_client.py\n"
+        "@@ -7,6 +7,7 @@\n"
+        "-old line\n"
+        "+new line\n"
+    )
+    out = bi.rewrite_patch_paths(diff, {"examples/gateway_client.py": "scripts/clients/gateway_client.py"})
+    assert "diff --git a/scripts/clients/gateway_client.py b/scripts/clients/gateway_client.py" in out
+    assert "--- a/scripts/clients/gateway_client.py" in out
+    assert "+++ b/scripts/clients/gateway_client.py" in out
+    assert "@@ -7,6 +7,7 @@" in out  # hunk line untouched
+    assert "-old line" in out and "+new line" in out  # body untouched
+
+
+def test_rewrite_patch_paths_devnull_and_identity_untouched():
+    diff = (
+        "diff --git a/AGENTS.md b/AGENTS.md\n"
+        "--- a/AGENTS.md\n"
+        "+++ b/AGENTS.md\n"
+        "@@ -1 +1 @@\n"
+        "+x\n"
+        "diff --git a/new_file.py b/new_file.py\n"
+        "--- /dev/null\n"
+        "+++ b/new_file.py\n"
+    )
+    out = bi.rewrite_patch_paths(diff, {"AGENTS.md": "AGENTS.md"})
+    assert "--- /dev/null" in out  # devnull never rewritten
+    assert out == diff  # identity map is a no-op
+
+
+def test_rewrite_patch_paths_empty_map_noop():
+    diff = "diff --git a/x b/x\n"
+    assert bi.rewrite_patch_paths(diff, {}) == diff
