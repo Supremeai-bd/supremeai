@@ -36,6 +36,12 @@ concurrency:
 permissions:
   contents: read
   pull-requests: read
+  # #4271 Phase 0 fix (PR #4291 evidence): repo flipped PRIVATE mid-project —
+  # the runner token now gets HTTP 403 on issue reads (Scope Gate claim
+  # comments, Admin-Approval Gate #4271 lookup, Claim Gate evidence) → gates
+  # that are fail-closed on fetch-failure BLOCK legitimately-good PRs.
+  # issues: READ only — least-privilege restore of pre-privacy behavior.
+  issues: read
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -236,6 +242,24 @@ jobs:
           # but zero workflows called it). Now wired as a blocking gate so new env vars
           # added to code without .env.example documentation fail CI.
           python scripts/ci/generate_env_example.py --check
+
+      # ---------------------------------------------------------------------------
+      # #4271 Phase 0 (roadmap 7.6→9.0): Task Outcome Ledger Gate — append-only
+      # প্রমাণ-চেইন (issue→agent→commit→tests→PR→deploy→runtime→verifier→outcome)।
+      # Path-guarded: শুধুমাত্র ledger ফাইল বদলালে চলে; চললে fail-closed — schema,
+      # enum, SHA/URL format, verifier-independence (স্ব-যাচাই নিষিদ্ধ), এবং
+      # historical line delete/modify = block (প্রমাণ পুনর্লিখন = fabrication)।
+      # ---------------------------------------------------------------------------
+      - name: 📒 Task Outcome Ledger Gate (#4271 Phase 0)
+        run: |
+          set -euo pipefail
+          BASE="origin/${{ github.base_ref || 'main' }}"  # base_ref খালি (dispatch run) হলে main
+          if git diff --quiet "$BASE...HEAD" -- docs/ledger/task-outcomes.jsonl 2>/dev/null; then
+            echo "ledger unchanged in this PR — gate skipped"
+          else
+            echo "ledger changed — enforcing schema + append-only vs $BASE"
+            python scripts/ci/ledger_check.py --base "$BASE" --stats
+          fi
 
       - name: 💥 Cross-PR File Collision Check
         env:

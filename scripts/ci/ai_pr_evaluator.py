@@ -184,21 +184,76 @@ def real_gh(*args: str) -> str:
     return res.stdout
 
 
+def _check_runs_rest(repo: str, sha: str, token: str) -> list[dict]:
+    """#4291 fallback: REST check-runs → statusCheckRollup-shape (GraphQL parity).
+
+    conclusion mapping: completed+conclusion → UPPER (OK_CONCLUSIONS parity);
+    in-progress/queued → conclusion=None (checks_pending() চুক্তি: falsy=চলছে)।
+    """
+    req = urllib.request.Request(  # noqa: S310
+        f"https://api.github.com/repos/{repo}/commits/{sha}/check-runs?per_page=100",
+        headers={
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+        data = json.loads(resp.read().decode())
+    out: list[dict] = []
+    for c in data.get("check_runs", []):
+        completed = c.get("status") == "completed"
+        concl = (c.get("conclusion") or "").upper() or None
+        out.append({
+            "name": c.get("name", "?"),
+            "status": c.get("status"),
+            "conclusion": concl if completed else None,
+        })
+    return out
+
+
 Api = Callable[..., Any]
 Gh = Callable[..., str]
 
 
 # ── সংকেত-সংগ্রহ (সবই ডায়নামিক — কোনো workflow-নাম হার্ডকোড নেই) ─────────────
 
-def fetch_pr(gh: Gh, pr_number: int) -> dict:
+def fetch_pr(gh: Gh, pr_number: int, api: Api | None = None,
+             fallback_token: str | None = None) -> dict:
     # বাংলা মন্তব্য (#3191): `files` ফিল্ড যোগ — patch-text সহ প্রতিটি পরিবর্তিত
     # ফাইলের path/additions/deletions একই কলে আসে। এতে diff-aware value-scoring
     # (security close-protection + file-alignment + keyword-anchors) চালানো যায়
     # কোনো অতিরিক্ত API-call ছাড়াই।
-    out = gh("pr", "view", str(pr_number), "--repo", REPO, "--json",
-             "number,title,body,author,headRefName,baseRefName,isDraft,mergeable,"
-             "statusCheckRollup,additions,deletions,changedFiles,files")
-    return json.loads(out or "{}")
+    fields = ("number,title,body,author,headRefName,baseRefName,isDraft,mergeable,"
+              "statusCheckRollup,additions,deletions,changedFiles,files")
+    try:
+        out = gh("pr", "view", str(pr_number), "--repo", REPO, "--json", fields)
+        return json.loads(out or "{}")
+    except RuntimeError as exc:
+        # #4291 (repo went PRIVATE mid-project): ফাইন-গ্রেইনড PAT
+        # (SELF_HEAL_PAT)-এ checks:read নেই → GraphQL statusCheckRollup 403 →
+        # পুরো fetch মরে যায় → evaluator ক্র্যাশ → merge gate সব PR HOLD।
+        # Degradation চুক্তি (fail-honest, কোনো verdict-মিথ্যা নয়):
+        #   1. statusCheckRollup বাদে পুনরায় fetch (contents read এখনো চলে)
+        #   2. checks = REST check-runs (GH_FALLBACK_TOKEN = github.token)
+        #   3. REST-ও ব্যর্থ হলে raise (fail-closed — কখনো মিথ্যা সবুজ নয়)
+        # যেকোনো gh-ব্যর্থতা (permission/expired-PAT/rate-limit) fallback-ই নেয়;
+        # api ইনজেক্ট না করা হলে production-default real_api (tests যারা
+        # fetch_pr-কে প্যাচ করে তারা এই পথে ঢুকবেই না; FakeGh ব্যর্থ হয় না)।
+        api = api or real_api
+        base_fields = ("number,title,body,author,headRefName,baseRefName,isDraft,"
+                       "mergeable,headRefOid,additions,deletions,changedFiles,files")
+        out = gh("pr", "view", str(pr_number), "--repo", REPO, "--json", base_fields)
+        pr = json.loads(out or "{}")
+        sha = pr.get("headRefOid") or ""
+        if not sha:
+            raise RuntimeError("evaluator fallback: no headRefOid — cannot fetch checks") from exc
+        token = (fallback_token or os.environ.get("GH_FALLBACK_TOKEN") or "").strip() \
+            or (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
+        if not token:
+            raise RuntimeError("evaluator fallback: no token available for REST checks") from exc
+        pr["statusCheckRollup"] = _check_runs_rest(REPO, sha, token)
+        return pr
 
 
 def fetch_freshness(api: Api, head_ref: str, base_ref: str = "main") -> dict:
@@ -1026,7 +1081,7 @@ def scan(api: Api = real_api, gh: Gh = real_gh, pol: dict | None = None,
             skipped.append({"pr": number, "why": f"exempt author {author}"})
             continue
         try:
-            detail = fetch_pr(gh, number)
+            detail = fetch_pr(gh, number)  # fallback internally (#4291)
             result = evaluate_enrichment(evaluate_pr(detail, api=api, pol=pol), detail)
             if apply:
                 result["actions"] = apply_verdict(api, result, pol)
@@ -1067,7 +1122,7 @@ def main() -> int:
         return 0
 
     if args.pr:
-        detail = fetch_pr(real_gh, args.pr)
+        detail = fetch_pr(real_gh, args.pr)  # fallback internally (#4291)
         result = evaluate_enrichment(evaluate_pr(detail, pol=pol), detail)
         if args.apply:
             result["actions"] = apply_verdict(real_api, result, pol)
