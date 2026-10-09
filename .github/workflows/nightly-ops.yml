@@ -23,8 +23,8 @@
 #   constitution-governance.yml validate (weekly)     -> constitution      (0 3 * * 0, #67 Tier 2 weekly)
 #   audit-release.yml self-audit (weekly arm)         -> self-audit        (0 3 * * 0)
 #   audit-release.yml silent-error-scan (weekly)      -> silent-error      (0 3 * * 0, #67 Tier 2 weekly)
-#   deploy-doctor.yml */5 cron (D1 dissolution)       -> deploy-doctor-fallback (dispatch-only via run_deploy_doctor,
-#     #67 Tier 3; event-driven if:failure() arm lands in ci.yml via #1855; manual arm = ops-console)
+#   deploy-doctor.yml */5 cron (D1 dissolution)       -> deploy-doctor-fallback (dormant arm, unchanged by #67;
+#     event-driven if:failure() arm lands in ci.yml via #1855; manual arm = ops-console)
 #
 # Dedup ledger (#1854): pip-audit exactly ONE copy (deep-audit Auto Vulnerability Scanner
 # --scan-deps; audit-release pip-audit-nightly deleted). pass^k exactly 3 suite
@@ -139,11 +139,6 @@ on:
         default: false
         type: boolean
       # ── ৩-স্তর টেস্টিং প্ল্যান (Phase 4): নতুন টেস্টিং আর্মগুলোর ডিসপ্যাচ ইনপুট ──
-      run_deploy_doctor:
-        description: 'Run deploy-doctor fallback arm (on-demand, #67 Workflow Diet)'
-        required: false
-        default: false
-        type: boolean
       run_load_locust:
         description: 'Run Locust load-test arm (Tier-1, 100 VU × 15m vs staging)'
         required: false
@@ -1798,7 +1793,7 @@ jobs:
 
   deploy-doctor-fallback:
     name: 🔍 Deploy Doctor (hourly fallback, 90m window)
-    if: github.event_name == 'workflow_dispatch' && inputs.run_deploy_doctor == true # #67 Tier 3: cron '0 */4' absent from triggers (unreachable since SCHEDULE DIET v4); on-demand dispatch restores reachability
+    if: github.event_name == 'schedule' && github.event.schedule == '0 */4 * * *' # #4085: gate re-canonicalized to match schedule cron (cron-triple coupling rule). #67 note: dormant by design — cron absent from triggers since SCHEDULE DIET v4; 26th dispatch input would exceed GitHub's 25-input limit, so on-demand wiring deferred
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
