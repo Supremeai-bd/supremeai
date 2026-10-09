@@ -466,8 +466,11 @@ def cmd_sync(token: str) -> int:
     status, pulls = gh("GET", f"/repos/{PRIVATE_REPO}/pulls?state=closed&sort=updated&per_page=40", token)
     if status != 200:
         raise BridgeError(f"PR fetch failed: HTTP {status}")
-    landed = [p for p in pulls if (p.get("head") or {}).get("ref", "").startswith("bridge-land/") and p.get("merged")]
-    rejected = [p for p in pulls if (p.get("head") or {}).get("ref", "").startswith("bridge-land/") and not p.get("merged")]
+    # বাংলা (#65): list-pulls response-এ boolean "merged" ফিল্ড থাকে না (শুধু
+    # single-GET-এ) — থাকে "merged_at"। p.get("merged") সবসময় None → merged PR-ও
+    # rejected হত (লাইভ-প্রমাণিত: PR #40 landed হয়েও bridge:rejected পেয়েছিল)।
+    landed = [p for p in pulls if (p.get("head") or {}).get("ref", "").startswith("bridge-land/") and p.get("merged_at")]
+    rejected = [p for p in pulls if (p.get("head") or {}).get("ref", "").startswith("bridge-land/") and not p.get("merged_at")]
 
     status, open_issues = gh("GET", f"/repos/{OPEN_REPO}/issues?state=open&per_page=60", token)
     if status != 200:
