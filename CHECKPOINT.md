@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-09 19:49 UTC
+- **Date:** 2026-10-09 20:10 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,45 +10,24 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/ledger/task-outcomes.jsonl`
-  - `tests/test_bridge_intake.py`
-  - `docs/archive/AIBRAIN-01-MASTER_AGENT_SPECIFICATION.md`
-  - `.github/workflows/archive-mirror.yml`
-  - `scripts/bridge/bridge_intake.py`
-  - `archives/external-docs-export-2026-09-29.tar.gz`
-  - `docs/archive/AIBRAIN-02-AGENT-SYSTEM-2.0-MASTER-PLAN.md`
-  - `secrets_registry.yaml`
-  - `.github/scripts/constitution/branch_creation_guard.py`
-  - `docs/architecture/MISSION_CONTROL_HYBRID_BOUNDARY_PROBE.md`
-  - `docs/architecture/PHASE67_PREANALYSIS_BOUNDARY_PROBE.md`
-  - `scripts/ci/ledger_check.py`
-  - `docs/archive/OPS-09-POST-GROUP-JANITOR-AND-HYGIENE-PROTOCOL.md`
-  - `docs/archive/README.md`
-  - `.github/workflows/pr.yml`
-  - `.github/scripts/constitution/tests/test_template_gate.py`
-  - `docs/archive/FRONTEND_DASHBOARD_MASTER_PLAN_V1.md`
-  - `docs/archive/MULTI_PLATFORM_WORKSPACE_IMPLEMENTATION_ROADMAP.md`
-  - `scripts/agents/continuous_agent_loop.py`
-  - `docs/archive/GOVERNED_MULTI_AGENT_DECISION_ARCHITECTURE.md`
-  - `scripts/bridge/README.md`
-  - `archives/legacy-docs-phase2-2026-09-29.tar.gz`
-  - `docs/agents/BRIDGE_E2E_SMOKE.md`
   - `docs/archive/lessons_2026-10.md`
-  - `scripts/ci/schedule_watchdog.py`
-  - `scripts/_INDEX.md`
-  - `.github/constitution/rules.yml`
-  - `docs/archive/RISK_TIERED_AUTONOMOUS_SAFETY_PIPELINE.md`
+  - `.github/workflows/archive-mirror.yml`
+  - `.github/scripts/constitution/tests/test_branch_creation_guard.py`
   - `infrastructure/mcp-control-plane/src/registry/account.registry.ts`
-  - `docs/archive/ARCH-10-UNIVERSAL-ENGINE-MASTER-PLAN-GROUP-STAGING-RULE-ENGINE-BATCH-TRAIN-RED-TEAM.md`
   - `.github/workflows/auto-sync-upstream.yml`
-  - `docs/plans/architecture/SUPREMEAI_REPOSITORY_SEPARATION_AND_EVOLUTION_ROADMAP.md`
-  - `.github/workflows/schedule-watchdog.yml`
-  - `docs/archive/ISSUE_PRIORITY_POLICY.md`
-  - `.github/workflows/bridge-intake.yml`
-  - `CHECKPOINT.md`
-  - `docs/architecture/PHASE0_BOUNDARY_CLASSIFICATION.md`
+  - `.gitignore`
+  - `.github/workflows/dependency-health-check.yml`
+  - `scripts/agents/claim_thresholds.py`
   - `.github/workflows/issue-ops.yml`
-  - `docs/archive/MULTI_PLATFORM_AGENT_WORKSPACE_PLAN.md`
+  - `.github/workflows/continuous-agent-loop.yml`
+  - `.github/workflows/nightly-ops.yml`
+  - `scripts/_INDEX.md`
+  - `.github/workflows/branch-creation-guard.yml`
+  - `.github/workflows/schedule-watchdog.yml`
+  - `.github/workflows/code-quality.yml`
+  - `scripts/agents/continuous_agent_loop.py`
+  - `.github/workflows/dependabot.yml`
+  - `.github/workflows/has-pr-reconciler.yml`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
