@@ -159,7 +159,10 @@ jobs:
           # rule ৭ + branch_discovery.persistent_branch_glob "agent/<issue>-*" +
           # pr_integration_patterns ["agent/*"] (#4205 reconciliation, admin-approved)।
           # গার্ড এতদিন স্টেল ছিল — PR #4229-এর live FAILURE-এ প্রমাণিত।
-          VALID_PATTERN='^((planner|coder|pr-helper|ci|platform|browser|super|plan)-[0-9]+(-[a-zA-Z0-9_-]+)?|agent-[a-zA-Z0-9_-]+/issue-[0-9]+-.+|agent-[0-9]+(-[a-zA-Z0-9_-]+)?|agent/[0-9]+-[a-z0-9-]+|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|group/[a-z0-9][a-z0-9._-]*|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+|develop|main)$'
+          # বাংলা (Bridge v1): bridge-land/* লেন rules.yml branch_creation_policy-তেও
+          # sanctioned (scripts/bridge/README.md চুক্তি) — fail-closed intake জন্ম দেয়,
+          # PR-টাইম gate chain অনিবার্য থাকে।
+          VALID_PATTERN='^((planner|coder|pr-helper|ci|platform|browser|super|plan)-[0-9]+(-[a-zA-Z0-9_-]+)?|agent-[a-zA-Z0-9_-]+/issue-[0-9]+-.+|agent-[0-9]+(-[a-zA-Z0-9_-]+)?|agent/[0-9]+-[a-z0-9-]+|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|group/[a-z0-9][a-z0-9._-]*|bridge-land/.+|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+|develop|main)$'
           if [[ "$BRANCH" =~ $VALID_PATTERN ]]; then
             echo "✅ Branch '$BRANCH' matches constitutional pattern."
           else
@@ -248,7 +251,6 @@ jobs:
       # প্রমাণ-চেইন (issue→agent→commit→tests→PR→deploy→runtime→verifier→outcome)।
       # Path-guarded: শুধুমাত্র ledger ফাইল বদলালে চলে; চললে fail-closed — schema,
       # enum, SHA/URL format, verifier-independence (স্ব-যাচাই নিষিদ্ধ), এবং
-      # historical line delete/modify = block (প্রমাণ পুনর্লিখন = fabrication)।
       # ---------------------------------------------------------------------------
       - name: 📒 Task Outcome Ledger Gate (#4271 Phase 0)
         run: |

@@ -1334,36 +1334,40 @@ The system then becomes:
 
 # 41. Recommended Execution Order
 
+> **Status annotation (2026-10-07):** প্রতিটি আইটেমের বাস্তব-অবস্থা প্রমাণ-পয়েন্টারসহ লিপিবদ্ধ —
+> আনুমানিক টিক নয়; প্রতিটি `[x]` একটি merged-PR/রেপো/CI-রান দ্বারা বাঁধা। মুলতবি-গুলি
+> প্রমাণ-সমর্থিত বিরতি (probe-রায়), অসম্পূর্ণতা নয়।
+
 ### Immediate
 
-- [ ] Adopt value-based classification.
-- [ ] Freeze current architecture before major split.
-- [ ] Build module/dependency inventory.
-- [ ] Define SDK/contracts.
-- [ ] Define repository permission matrix.
+- [x] Adopt value-based classification. <!-- PHASE0_BOUNDARY_CLASSIFICATION.md (PR #16) -->
+- [x] Freeze current architecture before major split. <!-- Phase 5 Core-freeze অটুট; monolith zero-touch -->
+- [x] Build module/dependency inventory. <!-- PHASE67_PREANALYSIS_BOUNDARY_PROBE.md (PR #16, §9 convergence) -->
+- [x] Define SDK/contracts. <!-- supremeai-sdk (openapi+types) + supremeai-api contracts + §21 federation parity CI -->
+- [x] Define repository permission matrix. <!-- claim-chain + constitutional gates + evaluator (fork; PR #2/#16-প্রমাণ) -->
 
 ### Next
 
-- [ ] Extract Studio.
-- [ ] Extract MCP Control Plane.
-- [ ] Extract Infrastructure.
-- [ ] Establish cross-repository integration CI.
+- [x] Extract Studio. <!-- supremeai-studio: 565 code-files, Vercel-নিবন্ধিত -->
+- [x] Extract MCP Control Plane. <!-- supremeai-mcp-control-plane: 133 code-files, render.yaml সহ -->
+- [x] Extract Infrastructure. <!-- supremeai-infrastructure: SECRETS_MODEL + FEDERATION_WIRING + deploy-অস্ত্রাগার (PR #1) -->
+- [x] Establish cross-repository integration CI. <!-- infrastructure/federation-integration.yml — 5-check parity CI, daily cron (PR #3/#5/#7) -->
 
 ### Then
 
-- [ ] Extract Core.
-- [ ] Extract Evolution.
-- [ ] Extract Memory.
-- [ ] Publish Open foundation.
-- [ ] Stabilize Mission Control hybrid boundary.
+- [ ] Extract Core. <!-- মুলতবি (probe-রায়): প্রথম পদক্ষেপ logging-ডিকাপলিং (৩৬→১৩) — Core-freeze অটুট -->
+- [ ] Extract Evolution. <!-- মুলতবি (probe-রায়): core-কাপলিং + ফ্রিজ -->
+- [ ] Extract Memory. <!-- মুলতবি (probe-রায়): repository-interface seed SDK-তে ভবিষ্যৎ-প্রার্থী -->
+- [x] Publish Open foundation. <!-- supremeai-open (public): gateway-স্পেক + client-kit মিরর, §21 byte-parity CI-রক্ষিত -->
+- [x] Stabilize Mission Control hybrid boundary. <!-- MISSION_CONTROL_HYBRID_BOUNDARY_PROBE.md (PR #28): §9-স্থাপত্য কোডে-প্রমাণিত; extraction-বিরতি -->
 
 ### Finally
 
-- [ ] Activate full self-evolution loop.
-- [ ] Activate daily internal audit + Ecosystem Scout.
-- [ ] Activate evidence-backed automatic healing.
-- [ ] Introduce canary-based autonomous optimization.
-- [ ] Continuously re-evaluate public/private classification.
+- [ ] Activate full self-evolution loop. <!-- আংশিক: self-heal ✓ (fleet #3774, fork self-heal-chain), evolution-loop ✗ -->
+- [ ] Activate daily internal audit + Ecosystem Scout. <!-- আংশিক: Scheduled Deep Audit চলছে (fork+upstream); Scout = monolith-অভ্যন্তরীণ -->
+- [x] Activate evidence-backed automatic healing. <!-- fleet-merge প্রমাণ (#3774-fix 203246e9) + fork evaluator self-heal চক্র (PR #16) -->
+- [ ] Introduce canary-based autonomous optimization. <!-- অ-শুরু — সচেতন বিরতি (স্ক্রিপ্ট canary_deploy.py অস্ত্রাগারে আছে) -->
+- [ ] Continuously re-evaluate public/private classification. <!-- চলমান: upstream-convergence §9 নোট (#4053/#4056) + §21 CI দৈনিক রায় -->
 
 ---
 

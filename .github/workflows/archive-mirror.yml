@@ -1,0 +1,98 @@
+# বাংলা মন্তব্য: ADR-005 Phase B / ADR-007 Phase E — লাইভ main (এই fork) → parent cold-archive মিরর।
+# parent (SaifulHaqueNiloy/supremeai) এখন private receive-only আর্কাইভ।
+# টার্গেট ব্রাঞ্চ = archive/main (parent-এর main protected — মিরর ব্রাঞ্চে ff-push; ২০২৬-১০-০৯ প্রথম push প্রমাণিত 3e29a443)।
+# ক্রেডেনশিয়াল: vault GITHUB_TOKEN (parent-মালিক SaifulHaqueNiloy) — INFISICAL_* দিয়ে রানটাইমে ফেচ,
+# কখনো repo-secret/লগে থাকে না (শূন্য-প্রিন্ট শৃঙ্খলা)। App-token ব্যবহারযোগ্য নয়:
+# App-এ workflows permission নেই → workflow-ফাইল-বহুল commit push-এ remote-rejected (প্রমাণিত)।
+name: Archive Mirror (live main → cold archive)
+
+on:
+  schedule:
+    - cron: "23 */6 * * *" # বাংলা: ৬-ঘণ্টা ছন্দ (UTC 23-মিনিট অফসেট)
+  workflow_dispatch:
+    inputs:
+      verify_only:
+        description: "true হলে শুধু ff-check করবে, push করবে না"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archive-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout live main (পূর্ণ ইতিহাস — push-এর জন্য)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Vault থেকে mirror-token ফেচ (GITHUB_TOKEN, মান প্রিন্ট নিষিদ্ধ)
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+        run: |
+          python3 - <<'PY'
+          # বাংলা: Infisical universal-auth login → prod secrets → GITHUB_TOKEN → GITHUB_ENV
+          import json, os, urllib.request
+          def api(url, payload=None, tok=None):
+              data = json.dumps(payload).encode() if payload is not None else None
+              h = {"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "archive-mirror"}
+              if tok: h["Authorization"] = f"Bearer {tok}"
+              req = urllib.request.Request(url, data=data, headers=h)
+              with urllib.request.urlopen(req, timeout=45) as r: return json.load(r)
+          res = api("https://app.infisical.com/api/v1/auth/universal-auth/login",
+                    {"clientId": os.environ["INFISICAL_CLIENT_ID"], "clientSecret": os.environ["INFISICAL_CLIENT_SECRET"]})
+          secs = api(f"https://app.infisical.com/api/v3/secrets/raw?workspaceId={os.environ['INFISICAL_PROJECT_ID']}&environment=prod&recursive=true",
+                     tok=res["accessToken"])
+          kv = {s["secretKey"].upper(): s.get("secretValue") or "" for s in secs.get("secrets", [])}
+          tok = kv.get("GITHUB_TOKEN", "")
+          if not tok:
+              raise SystemExit("vault-এ GITHUB_TOKEN শূন্য — mirror অসম্ভব")
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write(f"MIRROR_TOKEN<<EOF\n{tok}\nEOF\n")
+          print("[ok] vault থেকে mirror-token লোড (লেন ১৩-char মাস্কড, মান প্রিন্ট হয়নি)")
+          PY
+
+      - name: Fast-forward যাচাই (receive-only চুক্তি, fail-closed)
+        id: ff
+        env:
+          MIRROR_TOKEN: ${{ env.MIRROR_TOKEN }}
+        run: |
+          git remote add archive "https://x-access-token:${MIRROR_TOKEN}@github.com/SaifulHaqueNiloy/supremeai.git"
+          git fetch -q archive main archive/main || true
+          if git cat-file -e archive/main 2>/dev/null; then
+            # বাংলা: বিদ্যমান মিরর-ব্রাঞ্চ — অবশ্যই fork main-এর পূর্বপুরুষ হতে হবে
+            if git merge-base --is-ancestor archive/main main; then
+              AHEAD=$(git rev-list --count archive/main..main)
+              echo "ff_ok=true" >> "$GITHUB_OUTPUT"; echo "ahead=$AHEAD" >> "$GITHUB_OUTPUT"
+              echo "[ok] fast-forward সম্ভব — মিরর $AHEAD commit পিছিয়ে"
+            else
+              echo "ff_ok=false" >> "$GITHUB_OUTPUT"
+              echo "::error::archive/main fork main-এর পূর্বপুরুষ নয় — receive-only চুক্তি ভাঙা; push বাতিল"
+            fi
+          else
+            echo "ff_ok=true" >> "$GITHUB_OUTPUT"; echo "ahead=$(git rev-list --count main)" >> "$GITHUB_OUTPUT"
+            echo "[ok] প্রথম মিরর — নতুন archive/main তৈরি হবে"
+          fi
+
+      - name: Mirror push (শুধু fast-forward, main → archive/main)
+        if: steps.ff.outputs.ff_ok == 'true' && github.event.inputs.verify_only != 'true'
+        run: |
+          git push archive main:archive/main
+          echo "[ok] archive-mirror push সম্পন্ন — parent archive/main এখন $(git rev-parse --short main)"
+
+      - name: ফলাফল-সারাংশ
+        run: |
+          echo "mirror_mode=fast-forward-only"
+          echo "target=SaifulHaqueNiloy/supremeai@archive/main"
+          echo "verify_only=${{ github.event.inputs.verify_only }}"
+          echo "ff_ok=${{ steps.ff.outputs.ff_ok }}"
+          echo "pending_commits=${{ steps.ff.outputs.ahead }}"
