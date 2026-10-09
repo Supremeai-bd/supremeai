@@ -214,12 +214,14 @@ def main() -> int:
             line += " | (dry-run: re-arm+compensate হত)"
         elif dead:
             # ১) re-arm: disable → enable (cron re-registration)
-            c1, _ = api("PATCH", f"/repos/{repo}/actions/workflows/{wf['id']}/disable", token)
-            c2, _ = api("PATCH", f"/repos/{repo}/actions/workflows/{wf['id']}/enable", token)
+            # বাংলা (#58 follow-up): এই এন্ডপয়েন্ট PUT নেয় — PATCH দিলে GitHub
+            # 404-মাস্ক করে (2026-10-09 লাইভ-প্রমাণিত: PATCH=404, PUT=204)।
+            c1, _ = api("PUT", f"/repos/{repo}/actions/workflows/{wf['id']}/disable", token)
+            c2, _ = api("PUT", f"/repos/{repo}/actions/workflows/{wf['id']}/enable", token)
             armed = c1 == 204 and c2 == 204
             if armed:
                 re_armed += 1
-            line += f" | re-arm={armed}"
+            line += f" | re-arm={armed}({c1}/{c2})"
             # ২) compensation: শেষ যেকোনো রানও বাসি হলে dispatch (dispatch-সক্ষম হলে)
             can_dispatch = isinstance(trig or {}, dict) and "workflow_dispatch" in (trig or {})
             # আমরা এখানে `if dead`-এর ভেতরে — তাই compensation-এর শর্ত: শেষ যেকোনো-ইভেন্ট
