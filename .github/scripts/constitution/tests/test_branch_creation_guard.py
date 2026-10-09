@@ -809,7 +809,11 @@ class WorkflowWiringTests(unittest.TestCase):
         return self.wf.get("on") or self.wf.get(True) or {}
 
     def test_triggers_on_create_only(self):
-        self.assertIn("create", self._triggers())
+        # Workflow Diet (#67, 2026-10-09): real-time `create:` trigger retired —
+        # branch naming is verified at PR time by the PR Gate (Branch Naming
+        # Guard). The guard file is retained workflow_dispatch-only for manual
+        # forensics/re-arm; pull_request must stay absent.
+        self.assertEqual(set(self._triggers()), {"workflow_dispatch"})
         self.assertNotIn("pull_request", self._triggers())
 
     def test_branch_only_job_filter(self):
