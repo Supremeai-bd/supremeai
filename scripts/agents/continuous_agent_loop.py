@@ -653,6 +653,12 @@ from scripts.agents.agent_identity import (  # noqa: E402
     HEARTBEAT_INTERVAL,
 )
 
+from scripts.agents.claim_thresholds import (  # noqa: E402
+    MIN_CLAIM_AGE_BEFORE_RELEASE_MINUTES,
+    ORPHAN_RELEASE_MINUTES,
+    claim_age_minutes,
+)
+
 AUDITOR_SLEEP_SECONDS = 600  # 10 minutes — auditor already running → wait + retry
 
 # ── #3088 §6: auditor-triggered continuous loop — canonical invariant ──────
@@ -1260,7 +1266,9 @@ def checkpoint_push(branch_name: str) -> bool:
     return True
 
 
-def release_orphan_claims(agent_name: str, timeout_minutes: int = 30) -> None:
+def release_orphan_claims(
+    agent_name: str, timeout_minutes: int = ORPHAN_RELEASE_MINUTES
+) -> None:
     """Release claims held by this agent beyond timeout (crash recovery).
 
     #3042 root-cause fix: bot-mode claims (--skip-assign) have empty assignees
@@ -1287,15 +1295,19 @@ def release_orphan_claims(agent_name: str, timeout_minutes: int = 30) -> None:
         comments = issue.get("comments", [])
         claim_found = False
         claim_time_str = ""
-        for c in comments:
+        # #57 root-cause fix: scan NEWEST-first. The old oldest-first scan let a
+        # re-claim by the same identity inherit the superseded claim's timestamp
+        # → fresh claim measured "stale >30m" → instantly released → the ~60s
+        # claim/release flip-flop war on queue issues (evidence in #57).
+        for c in reversed(comments):
             body = c.get("body", "") if isinstance(c, dict) else str(c)
             if "Atomic Claim" in body and f"`{agent_name}`" in body:
                 claim_found = True
-                # Parse "Claimed at:" timestamp from claim comment
+                # Parse "Claimed at:" timestamp from the LATEST claim comment
                 m = CLAIM_TS_RE.search(body)
                 if m:
                     claim_time_str = m.group(1)
-                    break
+                break
         # Old behavior: skip if agent_name not in assignees AND no claim comment
         if agent_name not in assignees and not claim_found:
             continue
@@ -1314,7 +1326,16 @@ def release_orphan_claims(agent_name: str, timeout_minutes: int = 30) -> None:
                 claim_ts = time.mktime(time.strptime(timestamp_str[:19], "%Y-%m-%dT%H:%M:%S"))
         except (ValueError, TypeError):
             continue
-        elapsed_minutes = (now - claim_ts) / 60
+        elapsed_minutes = claim_age_minutes(claim_ts, now)
+        # #57 idempotency guard: a freshly-claimed issue is NEVER orphan-released,
+        # regardless of timestamp-parse outcomes — ≥5 min protection window
+        # (threshold SSOT: scripts/agents/claim_thresholds.py).
+        if elapsed_minutes < MIN_CLAIM_AGE_BEFORE_RELEASE_MINUTES:
+            print(
+                f"🛡️ Fresh-claim guard: #{issue.get('number')} claimed "
+                f"{elapsed_minutes:.1f}m ago (< {MIN_CLAIM_AGE_BEFORE_RELEASE_MINUTES}m) — not releasable"
+            )
+            continue
         if elapsed_minutes > timeout_minutes:
             num = issue.get("number")
             print(f"⚠️ Releasing orphan claim on issue #{num} (stale {elapsed_minutes:.0f}m)")
