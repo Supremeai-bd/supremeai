@@ -48,6 +48,9 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  # #4291: merge gate runs the evaluator fresh — its REST check-runs fallback
+  # (github.token) needs checks: read now that the repo is PRIVATE.
+  checks: read
 
 jobs:
   land:
@@ -75,6 +78,8 @@ jobs:
       - name: Merge Gate decision (+ landing if MERGE)
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          # #4291: evaluator REST fallback token (see ai-pr-evaluation.yml).
+          GH_FALLBACK_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           INPUT_PR: ${{ inputs.pr_number }}
           # workflow_run payload-এ same-repo PR-এর number থাকে (fork = খালি → scan)।

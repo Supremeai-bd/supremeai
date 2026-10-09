@@ -244,6 +244,25 @@ jobs:
           # added to code without .env.example documentation fail CI.
           python scripts/ci/generate_env_example.py --check
 
+      # ---------------------------------------------------------------------------
+      # #4271 Phase 0 (roadmap 7.6→9.0): Task Outcome Ledger Gate — append-only
+      # প্রমাণ-চেইন (issue→agent→commit→tests→PR→deploy→runtime→verifier→outcome)।
+      # Path-guarded: শুধুমাত্র ledger ফাইল বদলালে চলে; চললে fail-closed — schema,
+      # enum, SHA/URL format, verifier-independence (স্ব-যাচাই নিষিদ্ধ), এবং
+      # historical line delete/modify = block (প্রমাণ পুনর্লিখন = fabrication)।
+      # Port of SHN #4291 — URL slug adapted to paykaribazaronline/supremeai.
+      # ---------------------------------------------------------------------------
+      - name: 📒 Task Outcome Ledger Gate (#4271 Phase 0)
+        run: |
+          set -euo pipefail
+          BASE="origin/${{ github.base_ref || 'main' }}"  # base_ref খালি (dispatch run) হলে main
+          if git diff --quiet "$BASE...HEAD" -- docs/ledger/task-outcomes.jsonl 2>/dev/null; then
+            echo "ledger unchanged in this PR — gate skipped"
+          else
+            echo "ledger changed — enforcing schema + append-only vs $BASE"
+            python scripts/ci/ledger_check.py --base "$BASE" --stats
+          fi
+
       - name: 💥 Cross-PR File Collision Check
         env:
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
