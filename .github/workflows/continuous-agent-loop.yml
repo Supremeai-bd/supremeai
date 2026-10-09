@@ -48,11 +48,8 @@ on:
       - "🌿 Branch Creation Guard"
     types: [completed]
   schedule:
-    - cron: "0 * * * *"  # COST OPTIMIZATION: hourly (was */30, originally */10)
-      # বাংলা: */10 প্রতি দিন ১৪৪টি schedule run তৈরি করত → */30 এ ৭২ → এখন hourly = ২৪/day।
-      # issue events এখনো real-time trigger করে (no latency regression)। schedule শুধু
-      # "agent crashed mid-claim" recovery — hourly যথেষ্ট (orphan release TTL = 30min)।
-      # সাশ্রয়: ৪৮ runs/day × 5.7 min = ২৭৪ min/day = ৮,২২০ min/month।
+    # SCHEDULE DIET (v4 Private): 4 runs/day (was 24/day hourly) — saves ~3,400 mins/month
+    - cron: "0 2,8,14,20 * * *"
   workflow_dispatch:
     inputs:
       role:
