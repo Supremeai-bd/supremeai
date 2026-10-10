@@ -117,6 +117,7 @@ def authorized(monkeypatch: pytest.MonkeyPatch):
 
 def _install(monkeypatch: pytest.MonkeyPatch, client: FakeAsyncClient) -> None:
     """FakeAsyncClient কে httpx.AsyncClient হিসেবে inject করে।"""
+    monkeypatch.setattr(gh, "GITHUB_REPO", "SaifulHaqueNiloy/supremeai")
 
     def _factory(timeout: float = 30.0, **kwargs: Any) -> FakeAsyncClient:
         return client
