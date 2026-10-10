@@ -45,7 +45,6 @@ def is_protected(path: str) -> bool:
 def is_safe_summary_change(path: str) -> bool:
     """Allow purely presentational or summary changes to have lower risk in preflight."""
     return path in {
-        ".github/scripts/ci_summary_v2.py",
         ".github/scripts/surface_advanced_audit_summary.py",
         "scripts/generate_api_health_report.py",
     }

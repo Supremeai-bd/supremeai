@@ -68,7 +68,7 @@ same day — both are snapshots of a live vault.)
 | Artifact | Role |
 | --- | --- |
 | `scripts/maintenance/check_infisical_vault_synth.py` | read-only guard: universal-auth login, raw list ≥ 100 prod secrets, raw get-by-key for boot-critical keys; reports standard-API status **informationally** |
-| `.github/workflows/maintenance.yml` → job `infisical-vault-synthetic-check` | runs the script on the workflow schedule (daily 02:00 UTC cron + Monday 02:30 UTC cron, plus manual dispatch); fails red when the raw contract breaks — the early warning that pre-empts a Sep-14-style crash loop |
+| `.github/workflows/nightly-ops.yml` → job `vault-synthetic` | runs the script on the weekly schedule (cron `0 3 * * 0`, Tier 2); fails red when the raw contract breaks — the early warning that pre-empts a Sep-14-style crash loop. Re-wired 2026-10-10 (audit C4): `maintenance.yml` was deleted in the #1858 consolidation and this guard silently stopped running; the arm has no dispatch input because nightly-ops is at GitHub's 25-input hard limit — run the script directly for on-demand checks |
 
 If the job goes red: check the raw path first (auth → list → boot keys); a red **raw** check means
 production boot is at risk. A changed **standard-path** INFO line means the vendor may have fixed

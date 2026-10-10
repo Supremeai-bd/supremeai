@@ -114,19 +114,16 @@ jobs:
         run: |
           # #4132 (P0, #4096-অনুসরণ): #4126-এর এডিটে if-লাইন মুছে ঝুলন্ত `fi`
           # রয়ে গিয়েছিল → bash syntax error → Main CI/CD লাল (রান 37490062137)।
-          # এখন সঠিক existence-guard: regen টুলিং (scripts/ci/build_import_graph.py,
-          # update_module_capability_matrix.py) বর্তমানে নেই (scripts/dev pruned) —
-          # ভবিষ্যতে যোগ হলে এই guard নিজে থেকেই কাজ শুরু করবে (#4096 self-heal
-          # চুক্তি অক্ষত), না থাকলে সৎ skip — নীরব fabricated regen নয়।
+          # audit 2026-10-10: guard আগে scripts/ci/- থেকে দুটি মুছে-যাওয়া টুলের
+          # নাম দেখাত (build_import_graph.py, update_module_capability_matrix.py) —
+          # capability matrix-এর আসল জেনারেটর scripts/ci/generate_module_capability_matrix.py,
+          # ওটিকে wired করা হলো; import-graph টুলিং pruned, সৎ skip থাকে (ভবিষ্যতে
+          # যোগ হলে guard নিজে থেকেই কাজ শুরু করবে — #4096 self-heal চুক্তি অক্ষত)।
+          python scripts/ci/generate_module_capability_matrix.py
           if [ -f scripts/ci/build_import_graph.py ]; then
-            python scripts/ci/build_import_graph.py || true
+            python scripts/ci/build_import_graph.py
           else
             echo "ℹ️ build_import_graph.py not present — import-graph regen skipped (tooling pruned)"
-          fi
-          if [ -f scripts/ci/update_module_capability_matrix.py ]; then
-            python scripts/ci/update_module_capability_matrix.py || true
-          else
-            echo "ℹ️ update_module_capability_matrix.py not present — capability-matrix regen skipped (tooling pruned)"
           fi
 
       - name: Commit regenerated artifacts if drifted

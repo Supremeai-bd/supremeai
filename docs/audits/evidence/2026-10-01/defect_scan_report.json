@@ -1,0 +1,2038 @@
+{
+  "generated_at": "2026-10-01T17:14:34.750788+00:00",
+  "root": "F:\\supremeai",
+  "python_files_scanned": 2705,
+  "ts_files_scanned": 833,
+  "counts": {
+    "syntax_errors": 0,
+    "silent_failure": 73,
+    "bare_except": 1,
+    "not_implemented": 18,
+    "todo_markers": 74,
+    "hardcoded_secret_candidates": 1,
+    "ts_escape_hatches": 220
+  },
+  "findings": {
+    "syntax_errors": [],
+    "silent_failure": [
+      {
+        "file": ".github\\scripts\\constitution\\gates.py",
+        "line": 221,
+        "kind": "pass_only",
+        "handler": "(FileNotFoundError, subprocess.CalledProcessError, json.JSONDecodeError)"
+      },
+      {
+        "file": ".github\\scripts\\constitution\\rules\\base.py",
+        "line": 50,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": ".github\\scripts\\constitution\\rules\\base.py",
+        "line": 67,
+        "kind": "pass_only",
+        "handler": "SyntaxError"
+      },
+      {
+        "file": ".github\\scripts\\constitution\\rules\\base.py",
+        "line": 70,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": ".github\\scripts\\constitution\\rules\\base.py",
+        "line": 91,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": ".github\\scripts\\constitution\\rules\\rel001_no_silent_failure.py",
+        "line": 94,
+        "kind": "pass_only",
+        "handler": "SyntaxError"
+      },
+      {
+        "file": ".github\\scripts\\constitution\\rules\\rel001_no_silent_failure.py",
+        "line": 96,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": ".github\\scripts\\constitution\\rules\\sec002_no_secret_hardcoding.py",
+        "line": 85,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": ".github\\scripts\\pr_helper\\ai_fix_generator.py",
+        "line": 437,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "backend\\browser\\session_manager.py",
+        "line": 321,
+        "kind": "pass_only",
+        "handler": "asyncio.CancelledError"
+      },
+      {
+        "file": "backend\\core\\sandbox\\local_dev_provider.py",
+        "line": 103,
+        "kind": "pass_only",
+        "handler": "ProcessLookupError"
+      },
+      {
+        "file": "backend\\external_agents\\control\\job_api.py",
+        "line": 107,
+        "kind": "pass_only",
+        "handler": "asyncio.CancelledError"
+      },
+      {
+        "file": "backend\\tests\\core\\test_degraded_mode_and_failover_contract.py",
+        "line": 495,
+        "kind": "pass_only",
+        "handler": "(CircuitBreakerOpenError, ConnectionError)"
+      },
+      {
+        "file": "backend\\tests\\core\\test_task_queue.py",
+        "line": 235,
+        "kind": "pass_only",
+        "handler": "(asyncio.CancelledError, TimeoutError)"
+      },
+      {
+        "file": "client\\supreme-node\\tests\\test_daemon.py",
+        "line": 484,
+        "kind": "pass_only",
+        "handler": "asyncio.CancelledError"
+      },
+      {
+        "file": "scripts\\advanced_analysis\\secret_rotation_reminder.py",
+        "line": 280,
+        "kind": "pass_only",
+        "handler": "(subprocess.TimeoutExpired, FileNotFoundError, OSError)"
+      },
+      {
+        "file": "scripts\\agents\\acquire_role_slot.py",
+        "line": 54,
+        "kind": "pass_only",
+        "handler": "(AttributeError, ValueError, OSError)"
+      },
+      {
+        "file": "scripts\\agents\\acquire_role_slot.py",
+        "line": 278,
+        "kind": "pass_only",
+        "handler": "(OSError, subprocess.SubprocessError)"
+      },
+      {
+        "file": "scripts\\agents\\acquire_role_slot.py",
+        "line": 295,
+        "kind": "pass_only",
+        "handler": "(OSError, subprocess.SubprocessError)"
+      },
+      {
+        "file": "scripts\\agents\\acquire_role_slot.py",
+        "line": 314,
+        "kind": "pass_only",
+        "handler": "(OSError, subprocess.SubprocessError)"
+      },
+      {
+        "file": "scripts\\agents\\acquire_role_slot.py",
+        "line": 667,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\agents\\acquire_role_slot.py",
+        "line": 861,
+        "kind": "pass_only",
+        "handler": "(OSError, subprocess.SubprocessError)"
+      },
+      {
+        "file": "scripts\\agents\\acquire_role_slot.py",
+        "line": 199,
+        "kind": "pass_only",
+        "handler": "OSError"
+      },
+      {
+        "file": "scripts\\agents\\acquire_role_slot.py",
+        "line": 384,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\agents\\agent_solution_memory.py",
+        "line": 128,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\agents\\agent_solution_memory.py",
+        "line": 290,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\agents\\agent_solution_memory.py",
+        "line": 376,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\agents\\continuous_agent_loop.py",
+        "line": 116,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\agents\\continuous_agent_loop.py",
+        "line": 131,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\agents\\continuous_agent_loop.py",
+        "line": 288,
+        "kind": "pass_only",
+        "handler": "(json.JSONDecodeError, TypeError)"
+      },
+      {
+        "file": "scripts\\agents\\create_blocker_issue.py",
+        "line": 45,
+        "kind": "pass_only",
+        "handler": "(AttributeError, ValueError, OSError)"
+      },
+      {
+        "file": "scripts\\agents\\create_blocker_issue.py",
+        "line": 187,
+        "kind": "pass_only",
+        "handler": "(subprocess.SubprocessError, OSError)"
+      },
+      {
+        "file": "scripts\\agents\\mcp_tower_client.py",
+        "line": 58,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\agents\\mcp_tower_client.py",
+        "line": 84,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\agents\\mcp_tower_client.py",
+        "line": 635,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\agents\\mcp_tower_client.py",
+        "line": 742,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\agents\\priority_queue_ledger.py",
+        "line": 52,
+        "kind": "pass_only",
+        "handler": "(AttributeError, ValueError, OSError)"
+      },
+      {
+        "file": "scripts\\agents\\priority_queue_ledger.py",
+        "line": 235,
+        "kind": "pass_only",
+        "handler": "json.JSONDecodeError"
+      },
+      {
+        "file": "scripts\\ci\\auto_escalate_priority.py",
+        "line": 58,
+        "kind": "pass_only",
+        "handler": "json.JSONDecodeError"
+      },
+      {
+        "file": "scripts\\ci\\check_self_heal_token_usage.py",
+        "line": 79,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\ci\\cleanup_group_branches.py",
+        "line": 60,
+        "kind": "pass_only",
+        "handler": "json.JSONDecodeError"
+      },
+      {
+        "file": "scripts\\ci\\cleanup_group_branches.py",
+        "line": 70,
+        "kind": "pass_only",
+        "handler": "json.JSONDecodeError"
+      },
+      {
+        "file": "scripts\\ci\\cleanup_group_branches.py",
+        "line": 81,
+        "kind": "pass_only",
+        "handler": "json.JSONDecodeError"
+      },
+      {
+        "file": "scripts\\ci\\create_group_issue.py",
+        "line": 37,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\ci\\generate_changelog.py",
+        "line": 102,
+        "kind": "pass_only",
+        "handler": "OSError"
+      },
+      {
+        "file": "scripts\\ci\\generate_env_example.py",
+        "line": 50,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\ci\\generate_status_proof.py",
+        "line": 24,
+        "kind": "pass_only",
+        "handler": "(AttributeError, ValueError, OSError)"
+      },
+      {
+        "file": "scripts\\ci\\group_closeout_janitor.py",
+        "line": 237,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\ci\\group_closeout_janitor.py",
+        "line": 247,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\ci\\issue_queue_manager.py",
+        "line": 32,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\ci\\issue_queue_manager.py",
+        "line": 92,
+        "kind": "pass_only",
+        "handler": "ValueError"
+      },
+      {
+        "file": "scripts\\ci\\purge_stale_workflow_runs.py",
+        "line": 34,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\ci\\smart_priority_merger.py",
+        "line": 144,
+        "kind": "pass_only",
+        "handler": "(OSError, ValueError)"
+      },
+      {
+        "file": "scripts\\ci\\smart_priority_merger.py",
+        "line": 471,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\ci\\sprawl_guard.py",
+        "line": 23,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\ci\\sprawl_guard.py",
+        "line": 28,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\ci\\task_dashboard.py",
+        "line": 119,
+        "kind": "pass_only",
+        "handler": "ValueError"
+      },
+      {
+        "file": "scripts\\ci\\task_dashboard.py",
+        "line": 125,
+        "kind": "pass_only",
+        "handler": "ValueError"
+      },
+      {
+        "file": "scripts\\ci\\task_dashboard.py",
+        "line": 130,
+        "kind": "pass_only",
+        "handler": "ValueError"
+      },
+      {
+        "file": "scripts\\git\\auto_sync_main.py",
+        "line": 32,
+        "kind": "pass_only",
+        "handler": "(AttributeError, ValueError, OSError)"
+      },
+      {
+        "file": "scripts\\git\\cross_pr_collision_detector.py",
+        "line": 96,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\git\\cross_pr_collision_detector.py",
+        "line": 126,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\git\\cross_pr_collision_detector.py",
+        "line": 148,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\maintenance\\reindex_ai_memory_embeddings.py",
+        "line": 39,
+        "kind": "pass_only",
+        "handler": "ImportError"
+      },
+      {
+        "file": "scripts\\pre_merge_guard.py",
+        "line": 707,
+        "kind": "pass_only",
+        "handler": "json.JSONDecodeError"
+      },
+      {
+        "file": "scripts\\pre_push_hook.py",
+        "line": 26,
+        "kind": "pass_only",
+        "handler": "(AttributeError, ValueError, OSError)"
+      },
+      {
+        "file": "scripts\\pre_push_hook.py",
+        "line": 71,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\pre_push_hook.py",
+        "line": 102,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\supremeai_toolkit\\cli.py",
+        "line": 16,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\supremeai_toolkit\\cli.py",
+        "line": 21,
+        "kind": "pass_only",
+        "handler": "Exception"
+      },
+      {
+        "file": "scripts\\supremeai_toolkit\\reusability_audit.py",
+        "line": 197,
+        "kind": "pass_only",
+        "handler": "OSError"
+      },
+      {
+        "file": "tests\\test_feature_parity_sentinel_unicode.py",
+        "line": 45,
+        "kind": "pass_only",
+        "handler": "AttributeError"
+      },
+      {
+        "file": "tools\\agent_heartbeat\\heartbeat.py",
+        "line": 163,
+        "kind": "pass_only",
+        "handler": "KeyboardInterrupt"
+      }
+    ],
+    "bare_except": [
+      {
+        "file": "backend\\examples\\sample_buggy.py",
+        "line": 106
+      }
+    ],
+    "not_implemented": [
+      {
+        "file": "backend\\adaptive_engine\\resource_registry.py",
+        "line": 123,
+        "symbol": "restart"
+      },
+      {
+        "file": "backend\\adaptive_engine\\resource_registry.py",
+        "line": 126,
+        "symbol": "deploy"
+      },
+      {
+        "file": "backend\\adaptive_engine\\resource_registry.py",
+        "line": 129,
+        "symbol": "rollback"
+      },
+      {
+        "file": "backend\\core\\deployment\\production_deploy.py",
+        "line": 383,
+        "symbol": "_deploy_to_production"
+      },
+      {
+        "file": "backend\\core\\deployment\\production_deploy.py",
+        "line": 394,
+        "symbol": "_deploy_to_staging"
+      },
+      {
+        "file": "backend\\core\\deployment\\production_deploy.py",
+        "line": 407,
+        "symbol": "_deploy_to_development"
+      },
+      {
+        "file": "backend\\core\\deployment\\production_deploy.py",
+        "line": 418,
+        "symbol": "_deploy_to_generic"
+      },
+      {
+        "file": "backend\\core\\deployment\\production_deploy.py",
+        "line": 466,
+        "symbol": "rollback_deployment"
+      },
+      {
+        "file": "backend\\core\\orchestration\\cloud_sandbox_orchestrator.py",
+        "line": 281,
+        "symbol": "_get_endpoint"
+      },
+      {
+        "file": "backend\\core\\orchestration\\cloud_sandbox_orchestrator.py",
+        "line": 286,
+        "symbol": "_prepare_creation_payload"
+      },
+      {
+        "file": "backend\\core\\plugins\\experimental\\gmail_plugin.py",
+        "line": 24,
+        "symbol": "execute_tool"
+      },
+      {
+        "file": "backend\\core\\plugins\\experimental\\google_drive_plugin.py",
+        "line": 24,
+        "symbol": "execute_tool"
+      },
+      {
+        "file": "backend\\core\\plugins\\experimental\\notion_plugin.py",
+        "line": 24,
+        "symbol": "execute_tool"
+      },
+      {
+        "file": "backend\\core\\plugins\\experimental\\slack_plugin.py",
+        "line": 24,
+        "symbol": "execute_tool"
+      },
+      {
+        "file": "backend\\core\\plugins\\experimental\\telegram_plugin.py",
+        "line": 24,
+        "symbol": "execute_tool"
+      },
+      {
+        "file": "backend\\core\\plugins\\official\\github_plugin.py",
+        "line": 23,
+        "symbol": "execute_tool"
+      },
+      {
+        "file": "backend\\services\\dynamic_ai\\orchestrator.py",
+        "line": 54,
+        "symbol": "process"
+      },
+      {
+        "file": "backend\\tools\\social\\email_agent.py",
+        "line": 57,
+        "symbol": "connect_gmail_oauth"
+      }
+    ],
+    "todo_markers": [
+      {
+        "file": ".github\\scripts\\pr_helper\\auto_fix_engine.py",
+        "line": 21,
+        "text": "fix_branch = pr-helper/auto-fix-pr-XXX (if any fixes)"
+      },
+      {
+        "file": "backend\\agents\\ide\\trio_adapters.py",
+        "line": 313,
+        "text": "if stripped.upper().startswith((\"TODO\", \"FIXME\")):"
+      },
+      {
+        "file": "backend\\agents\\ide\\trio_adapters.py",
+        "line": 317,
+        "text": "\"message\": f\"TODO/FIXME on line {i}\","
+      },
+      {
+        "file": "backend\\context\\sources.py",
+        "line": 63,
+        "text": "# TODO M2-C: একই contract-এ file, RAG এবং conversation adapters যুক্ত হবে।"
+      },
+      {
+        "file": "backend\\core\\orchestration\\conversation_orchestrator.py",
+        "line": 86,
+        "text": "# Durable truth record bridge (Board TODO: \"Persist ExecutionRecord"
+      },
+      {
+        "file": "backend\\core\\security\\input_sanitizer.py",
+        "line": 32,
+        "text": "# বাংলা: US SSN — XXX-XX-XXXX ফরম্যাট।"
+      },
+      {
+        "file": "backend\\core\\universal_rules.py",
+        "line": 353,
+        "text": "# TODO, pass, NotImplemented pattern থাকলে block করে।"
+      },
+      {
+        "file": "backend\\core\\universal_rules.py",
+        "line": 358,
+        "text": "r\"#\\s*TODO\","
+      },
+      {
+        "file": "backend\\core\\universal_rules.py",
+        "line": 359,
+        "text": "r\"#\\s*FIXME\","
+      },
+      {
+        "file": "backend\\examples\\sample_buggy.py",
+        "line": 106,
+        "text": "except:  # TODO(final-test-7a): intentionally kept bare — this file is the pyerrorfix E722 detector fixture; narrowing it would defeat the demo"
+      },
+      {
+        "file": "backend\\models\\automation_execution.py",
+        "line": 40,
+        "text": "# Orchestrator ExecutionRecord bridge (Plan Section 7 / Board TODO:"
+      },
+      {
+        "file": "backend\\scripts\\auto_find_blindspots.py",
+        "line": 44,
+        "text": "\"২. এএসটি এবং টেক্সট স্ক্যানিংয়ের মাধ্যমে TODO/FIXME এবং সিকিউরিটি অ্যান্টি-প্যাটার্ন খোঁজা।\""
+      },
+      {
+        "file": "backend\\scripts\\auto_find_blindspots.py",
+        "line": 53,
+        "text": "if any(debt in line for debt in [\"TODO:\", \"FIXME:\", \"HACK:\", \"XXX:\"]):"
+      },
+      {
+        "file": "backend\\scripts\\devops\\bug_prophet.py",
+        "line": 374,
+        "text": "# BP011: TODO/FIXME with high severity keywords"
+      },
+      {
+        "file": "backend\\services\\ide_trio\\kilo_reviewer.py",
+        "line": 111,
+        "text": "# Check for TODO/FIXME comments"
+      },
+      {
+        "file": "backend\\services\\ide_trio\\kilo_reviewer.py",
+        "line": 112,
+        "text": "if \"TODO\" in line or \"FIXME\" in line or \"HACK\" in line:"
+      },
+      {
+        "file": "backend\\tests\\core\\test_core_universal_rules.py",
+        "line": 58,
+        "text": "assert engine.check_code_completeness(\"def f():\\n    # TODO implement\\n    pass\") is False"
+      },
+      {
+        "file": "backend\\tests\\core\\test_core_universal_rules.py",
+        "line": 108,
+        "text": "ctx = {\"generated_code\": \"def f():\\n    # TODO\\n    pass\"}"
+      },
+      {
+        "file": "backend\\tests\\core\\test_mcp_servers_integration.py",
+        "line": 966,
+        "text": "# #1409: was silent `pass` (TODO(#1011)) — an env without symlink"
+      },
+      {
+        "file": "backend\\tests\\core\\test_universal_rules_extended.py",
+        "line": 223,
+        "text": "\"\"\"Test TODO comments flagged as incomplete.\"\"\""
+      },
+      {
+        "file": "backend\\tests\\core\\test_universal_rules_extended.py",
+        "line": 226,
+        "text": "code = \"def hello():  # TODO: implement this\""
+      },
+      {
+        "file": "backend\\tests\\core\\test_universal_rules_extended.py",
+        "line": 233,
+        "text": "\"\"\"Test FIXME comments flagged as incomplete.\"\"\""
+      },
+      {
+        "file": "backend\\tests\\core\\test_universal_rules_extended.py",
+        "line": 236,
+        "text": "code = \"# FIXME: fix this later\""
+      },
+      {
+        "file": "backend\\tests\\core\\test_universal_rules_extended.py",
+        "line": 355,
+        "text": "context = {\"generated_code\": \"# TODO: implement\"}"
+      },
+      {
+        "file": "backend\\tests\\test_ide_trio_smoke.py",
+        "line": 65,
+        "text": "\"    # TODO fix\\n\""
+      },
+      {
+        "file": "backend\\tools\\code\\pr_reviewer.py",
+        "line": 88,
+        "text": "if not found_security_issue and \"TODO\" in line:"
+      },
+      {
+        "file": "backend\\tools\\code\\pr_reviewer.py",
+        "line": 94,
+        "text": "\"body\": \"Found a 'TODO' comment. Please add a ticket reference.\","
+      },
+      {
+        "file": "scripts\\agents\\rules_breaker.py",
+        "line": 208,
+        "text": "(r'#\\s*TODO.*test', \"Skipped test TODO\"),"
+      },
+      {
+        "file": "scripts\\audit\\system_deep_scan.py",
+        "line": 257,
+        "text": "(\"todo_fixme\", re.compile(r\"\\b(TODO|FIXME|HACK|XXX)\\b\"), \"MEDIUM\"),"
+      },
+      {
+        "file": "scripts\\audit\\system_deep_scan.py",
+        "line": 270,
+        "text": "(\"todo_fixme\", re.compile(r\"\\b(TODO|FIXME|HACK)\\b\"), \"MEDIUM\"),"
+      },
+      {
+        "file": "scripts\\audit\\system_defect_scan.py",
+        "line": 11,
+        "text": "* ``NotImplementedError`` / TODO-FIXME-HACK-XXX markers"
+      },
+      {
+        "file": "scripts\\audit\\system_defect_scan.py",
+        "line": 62,
+        "text": "TODO_RX = re.compile(r\"\\b(TODO|FIXME|HACK|XXX)\\b\")"
+      },
+      {
+        "file": "scripts\\ci\\build_quality_evidence.py",
+        "line": 31,
+        "text": "\"todo_fixme_count\": count_matches(frontend, (\".ts\", \".tsx\"), \"TODO\") + count_matches(frontend, (\".ts\", \".tsx\"), \"FIXME\"),"
+      },
+      {
+        "file": "scripts\\devops\\generate_modular_audits.py",
+        "line": 585,
+        "text": "- [ ] Flag any `# TODO`, `pass`, or `NotImplemented` left in production paths"
+      },
+      {
+        "file": "scripts\\devops\\generate_modular_audits.py",
+        "line": 753,
+        "text": "- [ ] No new `# TODO` or `pass` introduced in production paths"
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 3,
+        "text": "TODO/FIXME Management System — Scans, categorizes, tracks, and reports technical debt."
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 5,
+        "text": "বাংলা: কোডবেসে TODO, FIXME, HACK, XXX এবং অন্যান্য টেকনিক্যাল ডেট ট্যাগ স্ক্যান করে,"
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 9,
+        "text": "- Scans entire codebase recursively for TODO/FIXME/HACK/XXX/NOTE tags"
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 13,
+        "text": "- Age tracking: calculates how long each TODO has existed"
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 40,
+        "text": "\"FIXME\": \"CRITICAL\","
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 42,
+        "text": "\"HACK\": \"HIGH\","
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 43,
+        "text": "\"XXX\": \"HIGH\","
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 44,
+        "text": "\"TODO\": \"MEDIUM\","
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 71,
+        "text": "\"\"\"Represents a single TODO/FIXME/HACK item found in the codebase.\"\"\""
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 94,
+        "text": "\"\"\"Manages TODO/FIXME/HACK scanning and reporting.\"\"\""
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 99,
+        "text": "r\"#?\\s*\\b(TODO|FIXME|HACK|XXX|BUG|OPTIMIZE|NOTE)\\b(?::|\\s)?\\s*(.*)\","
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 162,
+        "text": "\"📋 SupremeAI Technical Debt & TODO Summary\","
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 181,
+        "text": "\"# 📋 Technical Debt & TODO Report\","
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 205,
+        "text": "parser = argparse.ArgumentParser(description=\"SupremeAI TODO & Technical Debt Manager\")"
+      },
+      {
+        "file": "scripts\\devops\\todo_manager.py",
+        "line": 208,
+        "text": "scan_parser = subparsers.add_parser(\"scan\", help=\"Scan codebase for TODO/FIXME tags\")"
+      },
+      {
+        "file": "scripts\\find_stub_data.py",
+        "line": 47,
+        "text": "(\"todo_replace_mock\", r'TODO.*(replace|remove).*mock', \"MEDIUM\"),"
+      },
+      {
+        "file": "scripts\\find_stub_data.py",
+        "line": 69,
+        "text": "# (stub markers like \"# Task execution logic would go here\", TODO-mock notes)."
+      },
+      {
+        "file": "scripts\\quality\\docs_drift_check.py",
+        "line": 12,
+        "text": "- \"ALL PHASES/TASKS COMPLETED\"-জাতীয় claim vs repo-তে এখনো TODO/FIXME থাকা কিনা"
+      },
+      {
+        "file": "scripts\\quality\\docs_drift_check.py",
+        "line": 29,
+        "text": "\"STATUS.md\", \"TODO.md\", \"CHECKPOINT.md\", \"task_progress.md\","
+      },
+      {
+        "file": "scripts\\quality\\docs_drift_check.py",
+        "line": 59,
+        "text": "count += len(re.findall(r\"\\b(TODO|FIXME|XXX)\\b\", text))"
+      },
+      {
+        "file": "scripts\\quality\\docs_drift_check.py",
+        "line": 81,
+        "text": "f\"{name}: claims 'ALL PHASES/TASKS COMPLETED' but {real_todos} TODO/FIXME/XXX \""
+      },
+      {
+        "file": "scripts\\quality\\self_audit_scan.py",
+        "line": 18,
+        "text": "9. TODO / FIXME / HACK / XXX ট্র্যাকিং"
+      },
+      {
+        "file": "scripts\\quality\\self_audit_scan.py",
+        "line": 81,
+        "text": "if any(x in line for x in (\"TODO\", \"FIXME\", \"XXX\", \"HACK\")):"
+      },
+      {
+        "file": "scripts\\quality\\self_audit_scan.py",
+        "line": 194,
+        "text": "print(f\"TODO/FIXME/HACK comments:   {len(report['todo_fixmes'])}\")"
+      },
+      {
+        "file": "scripts\\security\\auto_vulnerability_scanner.py",
+        "line": 532,
+        "text": "if \"YOUR_\" in line_content or \"XXX\" in line_content or \"***\" in line_content:"
+      },
+      {
+        "file": "scripts\\testing\\auto_test_generator.py",
+        "line": 256,
+        "text": "\"    # TODO: Implement actual test logic\","
+      },
+      {
+        "file": "tests\\test_find_stub_data.py",
+        "line": 56,
+        "text": "name=\"api.py\", content=\"def call():\\n    # TODO: replace this mock with the real client\\n    return None\\n\""
+      },
+      {
+        "file": "tools\\autonomy\\tests\\smoke_test.py",
+        "line": 14,
+        "text": "p=Path(td); (p/'app.py').write_text('TODO fix\\n')"
+      },
+      {
+        "file": "tools\\autonomy\\tools\\maintenance_watchdog.py",
+        "line": 20,
+        "text": "if re.search(r'\\b(TODO|FIXME|XXX|HACK)\\b',line,re.IGNORECASE): todos.append({'file':rel(root,p),'line':i,'marker':line.strip()[:160]})"
+      },
+      {
+        "file": "tools\\autonomy\\tools\\maintenance_watchdog.py",
+        "line": 21,
+        "text": "result={'large_files':sorted(rows,key=lambda x:-x['bytes'])[:100],'debt_markers':todos[:300],'recommendations':['split high-churn large files','turn important T"
+      },
+      {
+        "file": "tools\\gap_finder\\config.py",
+        "line": 79,
+        "text": "(\"TODO\", re.compile(r\"\\bTODO\\b\", re.IGNORECASE), \"debt\"),"
+      },
+      {
+        "file": "tools\\gap_finder\\config.py",
+        "line": 80,
+        "text": "(\"FIXME\", re.compile(r\"\\bFIXME\\b\", re.IGNORECASE), \"debt\"),"
+      },
+      {
+        "file": "tools\\gap_finder\\config.py",
+        "line": 81,
+        "text": "(\"HACK\", re.compile(r\"\\bHACK\\b\", re.IGNORECASE), \"debt\"),"
+      },
+      {
+        "file": "tools\\gap_finder\\config.py",
+        "line": 82,
+        "text": "(\"XXX\", re.compile(r\"\\bXXX\\b\", re.IGNORECASE), \"debt\"),"
+      },
+      {
+        "file": "tools\\gap_finder\\config.py",
+        "line": 83,
+        "text": "(\"NOT_IMPLEMENTED\", re.compile(r\"NotImplementedError|TODO.*implement\", re.IGNORECASE), \"incomplete\"),"
+      },
+      {
+        "file": "tools\\gap_finder\\scanner.py",
+        "line": 194,
+        "text": "# TODO/FIXME/HACK/stubs"
+      },
+      {
+        "file": "tools\\gap_miner\\tools\\gap_miner.py",
+        "line": 21,
+        "text": "TODO_RE = re.compile(r\"\\\\b(TODO|FIXME|HACK|XXX|BUG|TEMP)\\\\b\", re.IGNORECASE)"
+      },
+      {
+        "file": "tools\\gap_miner\\tools\\gap_miner.py",
+        "line": 156,
+        "text": "self.add(\"code\", \"medium\", \"High concentration of TODO/FIXME/HACK markers\", path, f\"{count} markers\", \"Known unfinished work can hide operational or correctness"
+      },
+      {
+        "file": "tools\\knowledge\\card_builder.py",
+        "line": 1357,
+        "text": "\"(2) Technical debt markers: TODO, FIXME, XXX, HACK across all code files. \""
+      }
+    ],
+    "hardcoded_secret_candidates": [
+      {
+        "file": "scripts\\security\\verify_token_rotation.py",
+        "line": 165,
+        "kind": "secret",
+        "sample": "ghp_***"
+      }
+    ],
+    "ts_escape_hatches": [
+      {
+        "file": "frontend\\src\\components\\admin\\CommandCenter.tsx",
+        "line": 93,
+        "text": "const handleAethelSpeak = (e: any) => {"
+      },
+      {
+        "file": "frontend\\src\\components\\admin\\CommandCenter.tsx",
+        "line": 165,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "frontend\\src\\components\\admin\\EnhancedSkillMarketplace.tsx",
+        "line": 28,
+        "text": "const filtered = (Array.isArray(skills) ? skills : [])?.filter((s: any) => {"
+      },
+      {
+        "file": "frontend\\src\\components\\admin\\EnhancedSkillMarketplace.tsx",
+        "line": 69,
+        "text": "{filtered.map((skill: any) => ("
+      },
+      {
+        "file": "frontend\\src\\components\\admin\\HealthMap.tsx",
+        "line": 3,
+        "text": "healthMap: any;"
+      },
+      {
+        "file": "frontend\\src\\components\\admin\\InteractiveChatTab.tsx",
+        "line": 27,
+        "text": "messages?: any[];"
+      },
+      {
+        "file": "frontend\\src\\components\\admin\\InteractiveChatTab.tsx",
+        "line": 161,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\components\\admin\\RenderPreflightWidget.tsx",
+        "line": 63,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\components\\admin\\RenderPreflightWidget.tsx",
+        "line": 81,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\components\\admin\\RenderPreflightWidget.tsx",
+        "line": 200,
+        "text": "onChange={(e) => setOverrideStatus(e.target.value as any)}"
+      },
+      {
+        "file": "frontend\\src\\components\\admin\\infra\\DeploymentModal.tsx",
+        "line": 46,
+        "text": "refetchInterval: (query: any) => query.state.error ? false : 15000,"
+      },
+      {
+        "file": "frontend\\src\\components\\admin\\shared\\AdminSubTabContent.tsx",
+        "line": 80,
+        "text": "[key: string]: any;"
+      },
+      {
+        "file": "frontend\\src\\components\\dashboard\\SiteActionsPage.tsx",
+        "line": 147,
+        "text": "const setField = (field: keyof DraftAction, value: any) =>"
+      },
+      {
+        "file": "frontend\\src\\components\\editor\\FileExplorer.tsx",
+        "line": 25,
+        "text": "const buildTree = async (entries: any[], currentPath: string): Promise<FileNode[]> => {"
+      },
+      {
+        "file": "frontend\\src\\contexts\\ToastContext.ts",
+        "line": 27,
+        "text": "(window as any).showGlobalToast = (type: ToastType, message: string) => {"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useAdminApi.ts",
+        "line": 67,
+        "text": "refetchInterval: (query: any) => query.state.error ? false : 60000,"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useAdminApi.ts",
+        "line": 112,
+        "text": "refetchInterval: (query: any) => query.state.error ? false : 45000,"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useAdminApi.ts",
+        "line": 173,
+        "text": "refetchInterval: (query: any) => query.state.error ? false : 45000,"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useAdminApi.ts",
+        "line": 183,
+        "text": "refetchInterval: (query: any) => query.state.error ? false : 45000,"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useAdminApi.ts",
+        "line": 194,
+        "text": "refetchInterval: (query: any) => query.state.error ? false : 30000,"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useAuth.ts",
+        "line": 85,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useAuth.ts",
+        "line": 113,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useAuth.ts",
+        "line": 140,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useAuth.ts",
+        "line": 161,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useBudgetCheck.ts",
+        "line": 19,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useChat.ts",
+        "line": 155,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useChat.ts",
+        "line": 182,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useErrorHandler.ts",
+        "line": 17,
+        "text": "fallbackData?: any;"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useErrorHandler.ts",
+        "line": 23,
+        "text": "(error: any, context?: string, options?: ErrorHandlerOptions): void => {"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useErrorHandler.ts",
+        "line": 40,
+        "text": "if (options?.showToast !== false && (window as any).showGlobalToast) {"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useErrorHandler.ts",
+        "line": 51,
+        "text": "(window as any).showGlobalToast('error', toastMessage);"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useWebSocket.ts",
+        "line": 12,
+        "text": "onMessage?: (data: any) => void;"
+      },
+      {
+        "file": "frontend\\src\\hooks\\useWebSocket.ts",
+        "line": 21,
+        "text": "data: any | null;"
+      },
+      {
+        "file": "frontend\\src\\pages\\auth\\LoginPage.tsx",
+        "line": 42,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\pages\\auth\\RegisterPage.tsx",
+        "line": 30,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\pages\\user\\EvolutionForge\\ForgeSidebar.tsx",
+        "line": 16,
+        "text": "const onDragStart = (event: React.DragEvent, nodeData: any) => {"
+      },
+      {
+        "file": "frontend\\src\\pages\\user\\SystemHealthDashboard.tsx",
+        "line": 19,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\services\\chatService.ts",
+        "line": 106,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\services\\sandbox.ts",
+        "line": 99,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\store\\adminStore.ts",
+        "line": 26,
+        "text": "} catch (e: any) {"
+      },
+      {
+        "file": "frontend\\src\\store\\adminStore.ts",
+        "line": 167,
+        "text": "} catch (authErr: any) {"
+      },
+      {
+        "file": "frontend\\src\\store\\adminStore.ts",
+        "line": 200,
+        "text": "} catch (setupErr: any) {"
+      },
+      {
+        "file": "frontend\\src\\store\\adminStore.ts",
+        "line": 248,
+        "text": "} catch (verifyErr: any) {"
+      },
+      {
+        "file": "frontend\\src\\store\\adminStore.ts",
+        "line": 254,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\store\\adminStore.ts",
+        "line": 307,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\store\\authStore.ts",
+        "line": 351,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "frontend\\src\\store\\sessionCockpitStore.ts",
+        "line": 22,
+        "text": "payload: any;"
+      },
+      {
+        "file": "frontend\\src\\store\\sessionCockpitStore.ts",
+        "line": 46,
+        "text": "fileTreeData: any;"
+      },
+      {
+        "file": "frontend\\src\\store\\useStore.ts",
+        "line": 142,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "frontend\\src\\store\\useStore.ts",
+        "line": 170,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\actions\\executor.ts",
+        "line": 99,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\actions\\executor.ts",
+        "line": 108,
+        "text": "} catch (rollbackErr: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\actions\\plan.ts",
+        "line": 6,
+        "text": "parameters: any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\ai\\analyze.ts",
+        "line": 18,
+        "text": "parseContent: (data: any) => string;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\ai\\analyze.ts",
+        "line": 90,
+        "text": "function isTransient(err: any): boolean {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\ai\\index.ts",
+        "line": 49,
+        "text": "function isRateLimit(err: any): boolean {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\ai\\index.ts",
+        "line": 64,
+        "text": "let res: any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\ai\\key-pool.ts",
+        "line": 31,
+        "text": "isRateLimitError: (error: any) => boolean"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\ai\\key-pool.ts",
+        "line": 39,
+        "text": "let lastError: any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\cloudflare\\index.ts",
+        "line": 39,
+        "text": "const data = res.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\cloudflare\\index.ts",
+        "line": 43,
+        "text": "workersDeployed: data.result ? data.result.map((w: any) => w.id) : [],"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\firecrawl\\actions.ts",
+        "line": 33,
+        "text": "const data = res.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 58,
+        "text": "const data = res.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 78,
+        "text": "const data = res.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 87,
+        "text": "const data = res.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 91,
+        "text": ".filter((item: any) => item.type === \"blob\")"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 92,
+        "text": ".map((item: any) => ({"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 97,
+        "text": ".filter((f: any) => f.decision.shouldScrape)"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 98,
+        "text": ".sort((a: any, b: any) => b.decision.priority - a.decision.priority)"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 108,
+        "text": "totalFilesInTree: (data.tree || []).filter((i: any) => i.type === \"blob\").length,"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 110,
+        "text": "files: files.map((f: any) => ({ path: f.path, size: f.size, priority: f.decision.priority })),"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 128,
+        "text": "const data = res.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 139,
+        "text": "return { path, isDirectory: true, entries: data.map((e: any) => ({ name: e.name, path: e.path, type: e.type })) };"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 167,
+        "text": "const data = res.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 168,
+        "text": "const blobItems = (data.tree || []).filter((i: any) => i.type === \"blob\");"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 170,
+        "text": ".map((item: any) => ({ path: item.path, size: item.size ?? 0, decision: decideFile(item.path, item.size ?? 0) }))"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 171,
+        "text": ".filter((f: any) => f.decision.shouldScrape)"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 172,
+        "text": ".sort((a: any, b: any) => b.decision.priority - a.decision.priority)"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\external.ts",
+        "line": 180,
+        "text": "const fileData = fileRes as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\index.ts",
+        "line": 41,
+        "text": "const jobs = (jobsRes.data as any).jobs || [];"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\index.ts",
+        "line": 42,
+        "text": "const failedJobs = jobs.filter((j: any) => j.conclusion === \"failure\");"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\index.ts",
+        "line": 50,
+        "text": "failedJobs.map(async (job: any) => {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\index.ts",
+        "line": 87,
+        "text": "const data = res.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\index.ts",
+        "line": 105,
+        "text": "const prs = res.data as any[];"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\github\\index.ts",
+        "line": 106,
+        "text": "return prs.map((pr: any) => ({"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\infisical\\index.ts",
+        "line": 20,
+        "text": "const data = res.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\infisical\\index.ts",
+        "line": 50,
+        "text": "const data = (settled.value as any)?.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\infisical\\index.ts",
+        "line": 111,
+        "text": "const raw = (rawSettled.value as any)?.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\infisical\\index.ts",
+        "line": 113,
+        "text": "const rawList = rawSecrets.map((s: any) => ({"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\infisical\\index.ts",
+        "line": 189,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\memory\\jsonSchemaToZod.ts",
+        "line": 89,
+        "text": "field = (field as any).default(def);"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\misc\\index.ts",
+        "line": 17,
+        "text": "accountId: (res.data as any).id,"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\misc\\index.ts",
+        "line": 49,
+        "text": "const data = res.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\misc\\index.ts",
+        "line": 72,
+        "text": "} catch (e: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\misc\\index.ts",
+        "line": 110,
+        "text": "(err: any) => {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\notify\\actions.ts",
+        "line": 31,
+        "text": "const data = res.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\notify\\index.ts",
+        "line": 14,
+        "text": "const data = res.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\notify\\index.ts",
+        "line": 36,
+        "text": "const data = res.data as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\redis\\index.ts",
+        "line": 53,
+        "text": "// @ts-ignore"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\redis\\index.ts",
+        "line": 64,
+        "text": "const redisClient = new (Redis as any)(account.tcpUrl, {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\render\\index.ts",
+        "line": 38,
+        "text": "const deploys = deploysRes.data as any[];"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\render\\index.ts",
+        "line": 59,
+        "text": "const deploys = deploysRes.data as any[];"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\render\\index.ts",
+        "line": 83,
+        "text": "const items = res.data as any[];"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\render\\index.ts",
+        "line": 84,
+        "text": "return items.map((item: any) => ({"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\supabase\\index.ts",
+        "line": 33,
+        "text": "version: (res.data as any).version || \"unknown\","
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\adapters\\supabase\\index.ts",
+        "line": 45,
+        "text": "const users = (res.data as any).users || [];"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\audit\\audit.ts",
+        "line": 7,
+        "text": "details: any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\events\\normalizer.ts",
+        "line": 6,
+        "text": "payload: any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\events\\normalizer.ts",
+        "line": 14,
+        "text": "public normalizeGitHubEvent(eventName: string, payload: any): NormalizedEvent {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\events\\normalizer.ts",
+        "line": 40,
+        "text": "public normalizeCloudflareEvent(payload: any): NormalizedEvent {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\guardian\\github-api.ts",
+        "line": 104,
+        "text": "labels: Array.isArray(pr.labels) ? pr.labels.map((l: any) => l?.name ?? \"\") : [],"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\guardian\\github-api.ts",
+        "line": 127,
+        "text": "labels: Array.isArray(pr.labels) ? pr.labels.map((l: any) => l?.name ?? \"\") : [],"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\guardian\\github-api.ts",
+        "line": 150,
+        "text": "return runs.map((r: any) => ({"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\guardian\\signals.ts",
+        "line": 70,
+        "text": "pattern: /(@ts-ignore|@ts-nocheck|#\\s*type:\\s*ignore|#\\s*noqa\\b|eslint-disable)/,"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\health\\engine.ts",
+        "line": 54,
+        "text": "const status = data && typeof data === \"object\" && [\"degraded\", \"down\", \"unknown\"].includes(String((data as any).status))"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\health\\engine.ts",
+        "line": 55,
+        "text": "? (String((data as any).status) as HealthSnapshot[\"status\"]) : \"healthy\";"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\health\\engine.ts",
+        "line": 62,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\health\\engine.ts",
+        "line": 102,
+        "text": "const aiProviders = listProviders() as any[];"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\health\\history.ts",
+        "line": 88,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\health\\incident.ts",
+        "line": 116,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\index.ts",
+        "line": 266,
+        "text": "(server as any).tool = (name: string, ...args: any[]) => {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\index.ts",
+        "line": 341,
+        "text": "return (originalTool as any)(sanitizedName, ...args);"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\index.ts",
+        "line": 881,
+        "text": "} catch (error: any) { res.writeHead(400, { \"Content-Type\": \"application/json\" }); res.end(JSON.stringify({ error: error.message })); }"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\index.ts",
+        "line": 915,
+        "text": "} catch (error: any) { res.writeHead(400, { \"Content-Type\": \"application/json\" }); res.end(JSON.stringify({ error: error.message })); }"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\index.ts",
+        "line": 971,
+        "text": "} catch (error: any) { res.writeHead(400, { \"Content-Type\": \"application/json\" }); res.end(JSON.stringify({ error: error.message })); }"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\index.ts",
+        "line": 1016,
+        "text": "} catch (error: any) { res.writeHead(400, { \"Content-Type\": \"application/json\" }); res.end(JSON.stringify({ error: error.message })); }"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\index.ts",
+        "line": 1302,
+        "text": "// poking `(transport as any)._webStandardTransport._initialized` on"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\index.ts",
+        "line": 1311,
+        "text": "let parsedBody: any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\index.ts",
+        "line": 1530,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\index.ts",
+        "line": 1568,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\index.ts",
+        "line": 1603,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\index.ts",
+        "line": 1623,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\policy\\approvals\\hitl.ts",
+        "line": 47,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\policy\\approvals\\lifecycle.ts",
+        "line": 12,
+        "text": "metadata?: any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\policy\\approvals\\lifecycle.ts",
+        "line": 24,
+        "text": "public createRequest(context: ActionContext, metadata?: any): ApprovalRequest {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\tools\\action.tools.ts",
+        "line": 22,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\tools\\action.tools.ts",
+        "line": 40,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\src\\tools\\action.tools.ts",
+        "line": 57,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\test_adapters.ts",
+        "line": 19,
+        "text": "const services = await listServices(renderPrimaryId) as any[];"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\test_adapters.ts",
+        "line": 33,
+        "text": "const runs = await getWorkflowRuns(githubId, 1) as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\test_adapters.ts",
+        "line": 35,
+        "text": "const secrets = await listSecrets(githubId) as any;"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\test_adapters.ts",
+        "line": 71,
+        "text": "console.log(`[Infisical] Audited Secrets length:`, (secrets as any[]).length);"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\test_adapters.ts",
+        "line": 87,
+        "text": "const providers = listProviders() as any[];"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\test_infisical.ts",
+        "line": 22,
+        "text": "console.log(\"Login v3 failed:\", (e as any).message);"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\test_memory_fallback.ts",
+        "line": 25,
+        "text": "// @ts-expect-error - introspect registered tools"
+      },
+      {
+        "file": "infrastructure\\mcp-control-plane\\test_timestamps.ts",
+        "line": 21,
+        "text": "const request = manager.createRequest({ provider: \"test\", action: \"read\", riskLevel: \"low\" } as any);"
+      },
+      {
+        "file": "packages\\shared-services\\src\\services\\SelfHealingService.ts",
+        "line": 87,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "packages\\shared-services\\src\\services\\SupremeAIService.ts",
+        "line": 100,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "packages\\shared-services\\src\\services\\SupremeAIService.ts",
+        "line": 113,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "packages\\shared-services\\src\\services\\SupremeAIService.ts",
+        "line": 129,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "packages\\shared-services\\src\\services\\SupremeAIService.ts",
+        "line": 138,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "packages\\shared-services\\src\\services\\SupremeAIService.ts",
+        "line": 156,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "packages\\shared-services\\src\\services\\SupremeAIService.ts",
+        "line": 189,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "packages\\shared-services\\src\\services\\SupremeAIService.ts",
+        "line": 231,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "packages\\shared-services\\src\\services\\SupremeAIService.ts",
+        "line": 242,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "packages\\shared-services\\src\\services\\SupremeAIService.ts",
+        "line": 253,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "packages\\shared-services\\src\\services\\SupremeAIService.ts",
+        "line": 266,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "packages\\shared-services\\src\\services\\SupremeAIService.ts",
+        "line": 277,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "packages\\shared-services\\src\\services\\SupremeAIService.ts",
+        "line": 288,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "packages\\shared-services\\src\\types\\index.ts",
+        "line": 47,
+        "text": "originalPosition?: any;"
+      },
+      {
+        "file": "packages\\shared-types\\src\\typescript\\SkillManifest.d.ts",
+        "line": 18,
+        "text": "governance?: any;"
+      },
+      {
+        "file": "packages\\shared-types\\src\\typescript\\SkillManifest.d.ts",
+        "line": 21,
+        "text": "lastUsedAt?: any;"
+      },
+      {
+        "file": "packages\\shared-types\\src\\typescript\\SkillManifest.d.ts",
+        "line": 23,
+        "text": "expiresAt?: any;"
+      },
+      {
+        "file": "qa\\scripts\\generate-report.ts",
+        "line": 12,
+        "text": "* Gate   : any failed P0/P1  -> verdict \"STOP RELEASE\",               exit 1"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\ai\\AIService.ts",
+        "line": 62,
+        "text": "let parsed: any;"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\ai\\AIService.ts",
+        "line": 134,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\ai\\CodeReviewService.ts",
+        "line": 63,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\ai\\EnhancedAIService.ts",
+        "line": 48,
+        "text": "private parseComplexityMetrics(response: string): any {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\extension.ts",
+        "line": 95,
+        "text": "} as any);"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\extension.ts",
+        "line": 404,
+        "text": "const issuesHtml = issues.map((i: any) => `<li><strong>${i.severity.toUpperCase()}:</strong> ${escapeHtml(i.description)}</li>`).join('');"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\CodeEditHandler.ts",
+        "line": 89,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\CodeFlowHandler.ts",
+        "line": 124,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\CodeFlowHandler.ts",
+        "line": 180,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\CodeFlowHandler.ts",
+        "line": 299,
+        "text": "} catch (fileErr: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\CodeFlowHandler.ts",
+        "line": 306,
+        "text": "} catch (err: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\CodeFlowHandler.ts",
+        "line": 361,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\CodeFlowHandler.ts",
+        "line": 380,
+        "text": "private async storeAnalysisResults(data: any): Promise<void> {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\CodeFlowHandler.ts",
+        "line": 409,
+        "text": "private displayAnalysisResults(data: any): void {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\CodeFlowHandler.ts",
+        "line": 430,
+        "text": "private displayErrorResolution(response: any): void {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\CodeFlowHandler.ts",
+        "line": 575,
+        "text": "private getDashboardHtml(analysis: any): string {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\CodeFlowHandler.ts",
+        "line": 635,
+        "text": "${analysis.securityIssues.slice(0, 5).map((issue: any) => `"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\CodeFlowHandler.ts",
+        "line": 648,
+        "text": "${analysis.patterns.slice(0, 5).map((pattern: any) => `"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\CodeFlowHandler.ts",
+        "line": 666,
+        "text": "private getErrorResolutionHtml(response: any): string {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\CodeFlowHandler.ts",
+        "line": 700,
+        "text": "${response.suggestedFixes.map((fix: any) => `"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\ErrorHandler.ts",
+        "line": 76,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\ErrorHandler.ts",
+        "line": 98,
+        "text": "const code = typeof diagnostic.code === 'object' && 'value' in diagnostic.code ? String((diagnostic.code as any).value) : String(diagnostic.code);"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\handlers\\FeedbackHandler.ts",
+        "line": 161,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\performance\\PerformanceMonitor.ts",
+        "line": 27,
+        "text": "const performanceInsights: any[] = [];"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\performance\\PerformanceMonitor.ts",
+        "line": 49,
+        "text": "private parsePerformanceInsights(response: string): any {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\CodeFlowPanel.ts",
+        "line": 47,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\CodeFlowPanel.ts",
+        "line": 90,
+        "text": "private getHTML(data: { files: { path: string; query: string }[]; graph: any; summary: Record<string, unknown> }): string {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\DependencyGraphProvider.ts",
+        "line": 49,
+        "text": "private generateDependencyData(): any {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\SupremeAIActionProvider.ts",
+        "line": 9,
+        "text": "public provideCodeActions(document: vscode.TextDocument, range: vscode.Range | vscode.Selection, context: vscode.CodeActionContext, token: vscode.CancellationTo"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\SupremeAIAdminDashboardProvider.ts",
+        "line": 135,
+        "text": "stats: any,"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\SupremeAIAdminDashboardProvider.ts",
+        "line": 136,
+        "text": "systemInfo: any,"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\SupremeAIChatProvider.ts",
+        "line": 84,
+        "text": "private async handleSendMessage(message: string, context?: any): Promise<void> {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\SupremeAIChatProvider.ts",
+        "line": 145,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\SupremeAIChatProvider.ts",
+        "line": 163,
+        "text": "const request: any = {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\SupremeAIChatProvider.ts",
+        "line": 173,
+        "text": "const response = await (service as any).sendChatMessage(request);"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\SupremeAIChatProvider.ts",
+        "line": 308,
+        "text": "public getState(): any {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\SupremeAICustomerDashboardProvider.ts",
+        "line": 138,
+        "text": "stats: any,"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\SupremeAICustomerDashboardProvider.ts",
+        "line": 143,
+        "text": "workspaceInfo: any"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\SupremeAISidebarProvider.ts",
+        "line": 268,
+        "text": "private getHTMLContent(stats: any): string {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\SupremeAISidebarProvider.ts",
+        "line": 455,
+        "text": "private renderActivity(stats: any): string {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\providers\\SupremeAISidebarProvider.ts",
+        "line": 461,
+        "text": ".map((activity: any) => {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\services\\AuthService.ts",
+        "line": 9,
+        "text": "private user: any | null = null;"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\services\\AuthService.ts",
+        "line": 35,
+        "text": "AuthService.instance = null as any;"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\services\\AuthService.ts",
+        "line": 103,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\services\\AuthService.ts",
+        "line": 123,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\services\\AuthService.ts",
+        "line": 165,
+        "text": "public getUser(): any | null {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\services\\AuthService.ts",
+        "line": 227,
+        "text": "const data = (await response.json()) as any;"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\services\\AuthService.ts",
+        "line": 234,
+        "text": "} catch (error: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\services\\AuthService.ts",
+        "line": 247,
+        "text": "public setUser(user: any): void {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\utils\\logger.ts",
+        "line": 12,
+        "text": "[key: string]: any;"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\utils\\logger.ts",
+        "line": 64,
+        "text": "public error(module: string, message: string, error?: any, context?: LogContext) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\utils\\logger.ts",
+        "line": 105,
+        "text": "private sendToTelemetry(module: string, message: string, error?: any) {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\utils\\logger.ts",
+        "line": 118,
+        "text": "private redactObject(obj: any): any {"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\utils\\logger.ts",
+        "line": 122,
+        "text": "const safeObj: any = {};"
+      },
+      {
+        "file": "tools\\vscode-extension\\src\\utils\\logger.ts",
+        "line": 146,
+        "text": "error: (message: string, error?: any, context?: LogContext) => logger.error(moduleName, message, error, context)"
+      },
+      {
+        "file": "tools\\vscode-extension\\vitest.config.ts",
+        "line": 22,
+        "text": "} as any;"
+      }
+    ]
+  }
+}

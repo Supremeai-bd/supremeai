@@ -2519,7 +2519,7 @@ This guide walks you through upgrading your **SupremeAI** CI/CD pipeline from ba
 
 ## What's New in v2.0
 
-### Quality Improvements Over v1 (`ci_smart_summary.py`)
+### Quality Improvements Over v1 (`ci_smart_summary.py` — historical artifact, file removed 2026-10-10 by full-status audit; the class was an orphan with zero workflow callers. Section kept as design reference for the v2.0 summary UX.)
 
 | Feature | v1 (Old) | v2 (New) | Improvement |
 |---------|----------|----------|-------------|

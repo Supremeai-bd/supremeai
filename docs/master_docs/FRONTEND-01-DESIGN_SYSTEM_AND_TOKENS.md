@@ -1964,6 +1964,8 @@ The CI gate (`scripts/ci/check_single_frontend.py`) already blocks reintroductio
 <!-- ============================================================ -->
 
 # Module 198: `frontend/src/store/chatStore.test.ts`
+> **⚠️ historical (audit 2026-10-10):** this file no longer exists on disk — it was deleted during the store consolidation. Entry kept for provenance; the live state surface is `frontend/src/store/unifiedStore.ts` and `sessionCockpitStore.ts`.
+
 
 - **Category:** Frontend State Store
 - **Relative Path:** `frontend/src/store/chatStore.test.ts`
@@ -1994,6 +1996,8 @@ The CI gate (`scripts/ci/check_single_frontend.py`) already blocks reintroductio
 <!-- ============================================================ -->
 
 # Module 199: `frontend/src/store/chatStore.ts`
+> **⚠️ historical (audit 2026-10-10):** this file no longer exists on disk — it was deleted during the store consolidation. Entry kept for provenance; the live state surface is `frontend/src/store/unifiedStore.ts` and `sessionCockpitStore.ts`.
+
 
 - **Category:** Frontend State Store
 - **Relative Path:** `frontend/src/store/chatStore.ts`
@@ -2342,6 +2346,8 @@ The CI gate (`scripts/ci/check_single_frontend.py`) already blocks reintroductio
 <!-- ============================================================ -->
 
 # Module 210: `frontend/src/store/themeStore.test.ts`
+> **⚠️ historical (audit 2026-10-10):** this file no longer exists on disk — it was deleted during the store consolidation. Entry kept for provenance; the live state surface is `frontend/src/store/unifiedStore.ts` and `sessionCockpitStore.ts`.
+
 
 - **Category:** Frontend State Store
 - **Relative Path:** `frontend/src/store/themeStore.test.ts`
@@ -2372,6 +2378,8 @@ The CI gate (`scripts/ci/check_single_frontend.py`) already blocks reintroductio
 <!-- ============================================================ -->
 
 # Module 211: `frontend/src/store/themeStore.ts`
+> **⚠️ historical (audit 2026-10-10):** this file no longer exists on disk — it was deleted during the store consolidation. Entry kept for provenance; the live state surface is `frontend/src/store/unifiedStore.ts` and `sessionCockpitStore.ts`.
+
 
 - **Category:** Frontend State Store
 - **Relative Path:** `frontend/src/store/themeStore.ts`
@@ -2562,6 +2570,8 @@ The CI gate (`scripts/ci/check_single_frontend.py`) already blocks reintroductio
 <!-- ============================================================ -->
 
 # Module 217: `frontend/src/store/useSupremeStore.test.ts`
+> **⚠️ historical (audit 2026-10-10):** this file no longer exists on disk — it was deleted during the store consolidation. Entry kept for provenance; the live state surface is `frontend/src/store/unifiedStore.ts` and `sessionCockpitStore.ts`.
+
 
 - **Category:** Frontend State Store
 - **Relative Path:** `frontend/src/store/useSupremeStore.test.ts`
@@ -2592,6 +2602,8 @@ The CI gate (`scripts/ci/check_single_frontend.py`) already blocks reintroductio
 <!-- ============================================================ -->
 
 # Module 218: `frontend/src/store/useSupremeStore.ts`
+> **⚠️ historical (audit 2026-10-10):** this file no longer exists on disk — it was deleted during the store consolidation. Entry kept for provenance; the live state surface is `frontend/src/store/unifiedStore.ts` and `sessionCockpitStore.ts`.
+
 
 - **Category:** Frontend State Store
 - **Relative Path:** `frontend/src/store/useSupremeStore.ts`
