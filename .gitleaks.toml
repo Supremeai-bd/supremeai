@@ -26,7 +26,7 @@ title = "SupremeAI Gitleaks Config"
 [allowlist]
   description = "SupremeAI test/mock/fixture allowlist"
   regexes = [
-    # CI/CD mock values (ci.yml-এর টেস্ট ইনভায়রনমেন্ট)
+    # CI/CD mock values (ci.yml-ের টেস্ট ইনভায়রর্নমেন্ট)
     '''test_user:test_password''',
     '''mock-encryption-key-padded-len''',
     '''supreme_test_db''',
@@ -35,6 +35,10 @@ title = "SupremeAI Gitleaks Config"
     # security_guard.py-এর নিজস্ব regex pattern (প্রকৃত সিক্রেট নয়)
     '''SECRET_PATTERNS''',
     '''token_hash''',
+    # verify_token_rotation.py-র inactive-test fixture (audit 2026-10-10:
+    # deliberately non-live GitHub token; without this the secret-scan CI
+    # flags an obvious false positive)
+    '''ghp_SUPERSECRET1234567890''',
   ]
   paths = [
     # Only scanner configuration/metadata is excluded. Tests, docs, examples,

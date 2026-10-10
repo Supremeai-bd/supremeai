@@ -113,7 +113,6 @@ BANNED_REGEX = re.compile("|".join(BANNED_PATTERNS), re.IGNORECASE)
 #  ("frontend/src/api.ts", r"// Legacy endpoint: .*\.onrender\.com") entry —
 #  that file no longer exists, so today it would warn-and-skip.)
 EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
-    (".github/scripts/ci_summary_v2.py", r"\.onrender\.com", None),
     # Zero-hardcode ALLOWED_HOSTS derivation (#298): the ONLY sanctioned
     # .onrender.com usage — building the REAL per-service hostname
     # "{RENDER_SERVICE_NAME}.onrender.com". The bare-apex fallback this policy

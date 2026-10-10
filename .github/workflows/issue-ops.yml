@@ -294,7 +294,8 @@ jobs:
             }
 
   # ===========================================================================
-  # Template Validation (merged from issue-template-guard.yml — COST OPTIMIZATION)
+  # Template Validation (issue-template-guard.yml's job merged here; the dead
+  # dispatch-only file removed 2026-10-10 by full-status audit — COST OPTIMIZATION)
   # ===========================================================================
   # Founder directive: "sob kajer jonno fixed template kore daowa"
   # বাংলা: এই job আগে issue-template-guard.yml এ আলাদা workflow ছিল — প্রতিটি issue

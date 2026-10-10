@@ -46,8 +46,9 @@ We are committed to providing a welcoming and inspiring community for all. Pleas
 
 Before contributing, ensure you have:
 
-- **Python 3.11+** with pip
-- **Node.js 18+** with npm
+- **Python 3.11+** with pip (backend package management uses **Poetry** — see `backend/pyproject.toml`)
+- **Node.js 24+** (matches `engines.node` in the root `package.json` and `.nvmrc`; the repo no longer supports Node 18)
+- **pnpm 10.15+** (declared in `packageManager` — npm is not the workspace client)
 - **Git** version control
 - **Docker** (optional, for local database)
 - A code editor (VS Code recommended)
@@ -65,20 +66,18 @@ cd supremeai
 # 3. Add upstream remote
 git remote add upstream https://github.com/SaifulHaqueNiloy/supremeai.git
 
-# 4. Backend setup
+# 4. Backend setup (Poetry-managed — there is no requirements.txt)
 cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\\Scripts\\activate
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
-cp .env.example .env
+poetry install
+poetry env use 3.11   # if Poetry did not pick the right interpreter
+cp ../.env.example .env   # template lives at the repo root
 # Edit .env with your settings
 
-# 5. Frontend setup (new terminal)
+# 5. Frontend setup (new terminal — pnpm workspace, installed at the repo root)
+cd ..
+pnpm install
 cd frontend
-npm install
-cp .env.example .env.local
-npm run dev
+pnpm dev
 ```
 
 ### Recommended VS Code Extensions
@@ -150,21 +149,21 @@ pytest --cov=app tests/
 
 **Frontend:**
 ```bash
-# Start dev server
-cd frontend
-npm run dev
+# Start dev server (run from the repo root — pnpm workspace)
+pnpm --filter frontend dev
+# or: cd frontend && pnpm dev
 
 # Run linting
-npm run lint
+pnpm --filter frontend lint
 
 # Run type checking
-npm run type-check
+pnpm --filter frontend typecheck
 
 # Run tests
-npm run test
+pnpm --filter frontend test
 
 # Run tests in watch mode
-npm run test:watch
+pnpm --filter frontend test:watch
 ```
 
 ### 4. Commit Your Changes
@@ -583,16 +582,16 @@ describe('MessageList', () => {
 
 ```bash
 # Run all tests
-npm run test
+pnpm --filter frontend test
 
 # Run in watch mode
-npm run test:watch
+pnpm --filter frontend test:watch
 
 # Run with coverage
-npm run test:coverage
+cd frontend && pnpm exec vitest run --coverage   # no test:coverage script in frontend
 
 # Run specific test file
-npm run test -- MessageList.test.tsx
+pnpm --filter frontend test -- MessageList.test.tsx
 ```
 
 ### Coverage Requirements
