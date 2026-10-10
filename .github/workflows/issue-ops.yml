@@ -37,6 +37,26 @@ name: Issue Ops (Queue Ledger & Labeler)
 # Workflow Diet (#67, 2026-10-09): trigger removed per issue spec — on-demand workflow_dispatch only.
 on:
   workflow_dispatch: # Workflow Diet #67 (Category C): queue bookkeeping handled by scripts (issue_queue_manager.py / priority_queue_ledger.py); per-event Actions runs wasted ~1 runner-minute each on label churn.
+    # (#95) dispatch-console inputs — আগে কোনোটাই ঘোষিত ছিল না: input-ছাড়া dispatch-এ
+    # validate-action "Unknown action ''" ফেল করত, input-সহ dispatch GitHub API 422 দিত।
+    inputs:
+      action:
+        description: "Console action: refresh-ledger | labeler"
+        required: false
+        type: string
+        default: refresh-ledger
+      labeler_issue_number:
+        description: "labeler: target issue number (action=labeler only)"
+        required: false
+        type: string
+      labeler_operation:
+        description: "labeler: operation (open|close|label|unlabel|comment|reopen)"
+        required: false
+        type: string
+      labeler_value:
+        description: "labeler: operation value (label name / comment text)"
+        required: false
+        type: string
 permissions:
   issues: write
   contents: read
