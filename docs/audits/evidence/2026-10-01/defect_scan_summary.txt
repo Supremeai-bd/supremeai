@@ -1,0 +1,183 @@
+# SupremeAI defect scan — 2026-10-01
+# python files: 2705  |  ts/tsx files: 833
+
+== syntax_errors (0)
+
+== silent_failure (73)
+   {"file": ".github\\scripts\\constitution\\gates.py", "line": 221, "kind": "pass_only", "handler": "(FileNotFoundError, subprocess.CalledProcessError, json.JSONDecodeError)"}
+   {"file": ".github\\scripts\\constitution\\rules\\base.py", "line": 50, "kind": "pass_only", "handler": "Exception"}
+   {"file": ".github\\scripts\\constitution\\rules\\base.py", "line": 67, "kind": "pass_only", "handler": "SyntaxError"}
+   {"file": ".github\\scripts\\constitution\\rules\\base.py", "line": 70, "kind": "pass_only", "handler": "Exception"}
+   {"file": ".github\\scripts\\constitution\\rules\\base.py", "line": 91, "kind": "pass_only", "handler": "Exception"}
+   {"file": ".github\\scripts\\constitution\\rules\\rel001_no_silent_failure.py", "line": 94, "kind": "pass_only", "handler": "SyntaxError"}
+   {"file": ".github\\scripts\\constitution\\rules\\rel001_no_silent_failure.py", "line": 96, "kind": "pass_only", "handler": "Exception"}
+   {"file": ".github\\scripts\\constitution\\rules\\sec002_no_secret_hardcoding.py", "line": 85, "kind": "pass_only", "handler": "Exception"}
+   {"file": ".github\\scripts\\pr_helper\\ai_fix_generator.py", "line": 437, "kind": "pass_only", "handler": "Exception"}
+   {"file": "backend\\browser\\session_manager.py", "line": 321, "kind": "pass_only", "handler": "asyncio.CancelledError"}
+   {"file": "backend\\core\\sandbox\\local_dev_provider.py", "line": 103, "kind": "pass_only", "handler": "ProcessLookupError"}
+   {"file": "backend\\external_agents\\control\\job_api.py", "line": 107, "kind": "pass_only", "handler": "asyncio.CancelledError"}
+   {"file": "backend\\tests\\core\\test_degraded_mode_and_failover_contract.py", "line": 495, "kind": "pass_only", "handler": "(CircuitBreakerOpenError, ConnectionError)"}
+   {"file": "backend\\tests\\core\\test_task_queue.py", "line": 235, "kind": "pass_only", "handler": "(asyncio.CancelledError, TimeoutError)"}
+   {"file": "client\\supreme-node\\tests\\test_daemon.py", "line": 484, "kind": "pass_only", "handler": "asyncio.CancelledError"}
+   {"file": "scripts\\advanced_analysis\\secret_rotation_reminder.py", "line": 280, "kind": "pass_only", "handler": "(subprocess.TimeoutExpired, FileNotFoundError, OSError)"}
+   {"file": "scripts\\agents\\acquire_role_slot.py", "line": 54, "kind": "pass_only", "handler": "(AttributeError, ValueError, OSError)"}
+   {"file": "scripts\\agents\\acquire_role_slot.py", "line": 278, "kind": "pass_only", "handler": "(OSError, subprocess.SubprocessError)"}
+   {"file": "scripts\\agents\\acquire_role_slot.py", "line": 295, "kind": "pass_only", "handler": "(OSError, subprocess.SubprocessError)"}
+   {"file": "scripts\\agents\\acquire_role_slot.py", "line": 314, "kind": "pass_only", "handler": "(OSError, subprocess.SubprocessError)"}
+   {"file": "scripts\\agents\\acquire_role_slot.py", "line": 667, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\agents\\acquire_role_slot.py", "line": 861, "kind": "pass_only", "handler": "(OSError, subprocess.SubprocessError)"}
+   {"file": "scripts\\agents\\acquire_role_slot.py", "line": 199, "kind": "pass_only", "handler": "OSError"}
+   {"file": "scripts\\agents\\acquire_role_slot.py", "line": 384, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\agents\\agent_solution_memory.py", "line": 128, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\agents\\agent_solution_memory.py", "line": 290, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\agents\\agent_solution_memory.py", "line": 376, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\agents\\continuous_agent_loop.py", "line": 116, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\agents\\continuous_agent_loop.py", "line": 131, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\agents\\continuous_agent_loop.py", "line": 288, "kind": "pass_only", "handler": "(json.JSONDecodeError, TypeError)"}
+   {"file": "scripts\\agents\\create_blocker_issue.py", "line": 45, "kind": "pass_only", "handler": "(AttributeError, ValueError, OSError)"}
+   {"file": "scripts\\agents\\create_blocker_issue.py", "line": 187, "kind": "pass_only", "handler": "(subprocess.SubprocessError, OSError)"}
+   {"file": "scripts\\agents\\mcp_tower_client.py", "line": 58, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\agents\\mcp_tower_client.py", "line": 84, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\agents\\mcp_tower_client.py", "line": 635, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\agents\\mcp_tower_client.py", "line": 742, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\agents\\priority_queue_ledger.py", "line": 52, "kind": "pass_only", "handler": "(AttributeError, ValueError, OSError)"}
+   {"file": "scripts\\agents\\priority_queue_ledger.py", "line": 235, "kind": "pass_only", "handler": "json.JSONDecodeError"}
+   {"file": "scripts\\ci\\auto_escalate_priority.py", "line": 58, "kind": "pass_only", "handler": "json.JSONDecodeError"}
+   {"file": "scripts\\ci\\check_self_heal_token_usage.py", "line": 79, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\ci\\cleanup_group_branches.py", "line": 60, "kind": "pass_only", "handler": "json.JSONDecodeError"}
+   {"file": "scripts\\ci\\cleanup_group_branches.py", "line": 70, "kind": "pass_only", "handler": "json.JSONDecodeError"}
+   {"file": "scripts\\ci\\cleanup_group_branches.py", "line": 81, "kind": "pass_only", "handler": "json.JSONDecodeError"}
+   {"file": "scripts\\ci\\create_group_issue.py", "line": 37, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\ci\\generate_changelog.py", "line": 102, "kind": "pass_only", "handler": "OSError"}
+   {"file": "scripts\\ci\\generate_env_example.py", "line": 50, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\ci\\generate_status_proof.py", "line": 24, "kind": "pass_only", "handler": "(AttributeError, ValueError, OSError)"}
+   {"file": "scripts\\ci\\group_closeout_janitor.py", "line": 237, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\ci\\group_closeout_janitor.py", "line": 247, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\ci\\issue_queue_manager.py", "line": 32, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\ci\\issue_queue_manager.py", "line": 92, "kind": "pass_only", "handler": "ValueError"}
+   {"file": "scripts\\ci\\purge_stale_workflow_runs.py", "line": 34, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\ci\\smart_priority_merger.py", "line": 144, "kind": "pass_only", "handler": "(OSError, ValueError)"}
+   {"file": "scripts\\ci\\smart_priority_merger.py", "line": 471, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\ci\\sprawl_guard.py", "line": 23, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\ci\\sprawl_guard.py", "line": 28, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\ci\\task_dashboard.py", "line": 119, "kind": "pass_only", "handler": "ValueError"}
+   {"file": "scripts\\ci\\task_dashboard.py", "line": 125, "kind": "pass_only", "handler": "ValueError"}
+   {"file": "scripts\\ci\\task_dashboard.py", "line": 130, "kind": "pass_only", "handler": "ValueError"}
+   {"file": "scripts\\git\\auto_sync_main.py", "line": 32, "kind": "pass_only", "handler": "(AttributeError, ValueError, OSError)"}
+   {"file": "scripts\\git\\cross_pr_collision_detector.py", "line": 96, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\git\\cross_pr_collision_detector.py", "line": 126, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\git\\cross_pr_collision_detector.py", "line": 148, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\maintenance\\reindex_ai_memory_embeddings.py", "line": 39, "kind": "pass_only", "handler": "ImportError"}
+   {"file": "scripts\\pre_merge_guard.py", "line": 707, "kind": "pass_only", "handler": "json.JSONDecodeError"}
+   {"file": "scripts\\pre_push_hook.py", "line": 26, "kind": "pass_only", "handler": "(AttributeError, ValueError, OSError)"}
+   {"file": "scripts\\pre_push_hook.py", "line": 71, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\pre_push_hook.py", "line": 102, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\supremeai_toolkit\\cli.py", "line": 16, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\supremeai_toolkit\\cli.py", "line": 21, "kind": "pass_only", "handler": "Exception"}
+   {"file": "scripts\\supremeai_toolkit\\reusability_audit.py", "line": 197, "kind": "pass_only", "handler": "OSError"}
+   {"file": "tests\\test_feature_parity_sentinel_unicode.py", "line": 45, "kind": "pass_only", "handler": "AttributeError"}
+   {"file": "tools\\agent_heartbeat\\heartbeat.py", "line": 163, "kind": "pass_only", "handler": "KeyboardInterrupt"}
+
+== bare_except (1)
+   {"file": "backend\\examples\\sample_buggy.py", "line": 106}
+
+== not_implemented (18)
+   {"file": "backend\\adaptive_engine\\resource_registry.py", "line": 123, "symbol": "restart"}
+   {"file": "backend\\adaptive_engine\\resource_registry.py", "line": 126, "symbol": "deploy"}
+   {"file": "backend\\adaptive_engine\\resource_registry.py", "line": 129, "symbol": "rollback"}
+   {"file": "backend\\core\\deployment\\production_deploy.py", "line": 383, "symbol": "_deploy_to_production"}
+   {"file": "backend\\core\\deployment\\production_deploy.py", "line": 394, "symbol": "_deploy_to_staging"}
+   {"file": "backend\\core\\deployment\\production_deploy.py", "line": 407, "symbol": "_deploy_to_development"}
+   {"file": "backend\\core\\deployment\\production_deploy.py", "line": 418, "symbol": "_deploy_to_generic"}
+   {"file": "backend\\core\\deployment\\production_deploy.py", "line": 466, "symbol": "rollback_deployment"}
+   {"file": "backend\\core\\orchestration\\cloud_sandbox_orchestrator.py", "line": 281, "symbol": "_get_endpoint"}
+   {"file": "backend\\core\\orchestration\\cloud_sandbox_orchestrator.py", "line": 286, "symbol": "_prepare_creation_payload"}
+   {"file": "backend\\core\\plugins\\experimental\\gmail_plugin.py", "line": 24, "symbol": "execute_tool"}
+   {"file": "backend\\core\\plugins\\experimental\\google_drive_plugin.py", "line": 24, "symbol": "execute_tool"}
+   {"file": "backend\\core\\plugins\\experimental\\notion_plugin.py", "line": 24, "symbol": "execute_tool"}
+   {"file": "backend\\core\\plugins\\experimental\\slack_plugin.py", "line": 24, "symbol": "execute_tool"}
+   {"file": "backend\\core\\plugins\\experimental\\telegram_plugin.py", "line": 24, "symbol": "execute_tool"}
+   {"file": "backend\\core\\plugins\\official\\github_plugin.py", "line": 23, "symbol": "execute_tool"}
+   {"file": "backend\\services\\dynamic_ai\\orchestrator.py", "line": 54, "symbol": "process"}
+   {"file": "backend\\tools\\social\\email_agent.py", "line": 57, "symbol": "connect_gmail_oauth"}
+
+== hardcoded_secret_candidates (1)
+   {"file": "scripts\\security\\verify_token_rotation.py", "line": 165, "kind": "secret", "sample": "ghp_***"}
+
+== todo_markers (74 hits, top 60 files)
+     15  scripts\devops\todo_manager.py
+      5  backend\tests\core\test_universal_rules_extended.py
+      5  tools\gap_finder\config.py
+      4  scripts\quality\docs_drift_check.py
+      3  backend\core\universal_rules.py
+      3  scripts\quality\self_audit_scan.py
+      2  backend\agents\ide\trio_adapters.py
+      2  backend\scripts\auto_find_blindspots.py
+      2  backend\services\ide_trio\kilo_reviewer.py
+      2  backend\tests\core\test_core_universal_rules.py
+      2  backend\tools\code\pr_reviewer.py
+      2  scripts\audit\system_deep_scan.py
+      2  scripts\audit\system_defect_scan.py
+      2  scripts\devops\generate_modular_audits.py
+      2  scripts\find_stub_data.py
+      2  tools\autonomy\tools\maintenance_watchdog.py
+      2  tools\gap_miner\tools\gap_miner.py
+      1  .github\scripts\pr_helper\auto_fix_engine.py
+      1  backend\context\sources.py
+      1  backend\core\orchestration\conversation_orchestrator.py
+      1  backend\core\security\input_sanitizer.py
+      1  backend\examples\sample_buggy.py
+      1  backend\models\automation_execution.py
+      1  backend\scripts\devops\bug_prophet.py
+      1  backend\tests\core\test_mcp_servers_integration.py
+      1  backend\tests\test_ide_trio_smoke.py
+      1  scripts\agents\rules_breaker.py
+      1  scripts\ci\build_quality_evidence.py
+      1  scripts\security\auto_vulnerability_scanner.py
+      1  scripts\testing\auto_test_generator.py
+      1  tests\test_find_stub_data.py
+      1  tools\autonomy\tests\smoke_test.py
+      1  tools\gap_finder\scanner.py
+      1  tools\knowledge\card_builder.py
+
+== ts_escape_hatches (220 hits, top 40 files)
+     17  infrastructure\mcp-control-plane\src\adapters\github\external.ts
+     13  tools\vscode-extension\src\handlers\CodeFlowHandler.ts
+     12  infrastructure\mcp-control-plane\src\index.ts
+     12  packages\shared-services\src\services\SupremeAIService.ts
+      8  tools\vscode-extension\src\services\AuthService.ts
+      6  frontend\src\store\adminStore.ts
+      6  infrastructure\mcp-control-plane\src\adapters\github\index.ts
+      6  tools\vscode-extension\src\utils\logger.ts
+      5  frontend\src\hooks\useAdminApi.ts
+      5  infrastructure\mcp-control-plane\src\adapters\infisical\index.ts
+      5  infrastructure\mcp-control-plane\test_adapters.ts
+      5  tools\vscode-extension\src\providers\SupremeAIChatProvider.ts
+      4  frontend\src\hooks\useAuth.ts
+      4  frontend\src\hooks\useErrorHandler.ts
+      4  infrastructure\mcp-control-plane\src\adapters\misc\index.ts
+      4  infrastructure\mcp-control-plane\src\adapters\render\index.ts
+      4  infrastructure\mcp-control-plane\src\health\engine.ts
+      3  frontend\src\components\admin\RenderPreflightWidget.tsx
+      3  infrastructure\mcp-control-plane\src\events\normalizer.ts
+      3  infrastructure\mcp-control-plane\src\guardian\github-api.ts
+      3  infrastructure\mcp-control-plane\src\tools\action.tools.ts
+      3  packages\shared-types\src\typescript\SkillManifest.d.ts
+      3  tools\vscode-extension\src\providers\SupremeAISidebarProvider.ts
+      2  frontend\src\components\admin\CommandCenter.tsx
+      2  frontend\src\components\admin\EnhancedSkillMarketplace.tsx
+      2  frontend\src\components\admin\InteractiveChatTab.tsx
+      2  frontend\src\hooks\useChat.ts
+      2  frontend\src\hooks\useWebSocket.ts
+      2  frontend\src\store\sessionCockpitStore.ts
+      2  frontend\src\store\useStore.ts
+      2  infrastructure\mcp-control-plane\src\actions\executor.ts
+      2  infrastructure\mcp-control-plane\src\adapters\ai\analyze.ts
+      2  infrastructure\mcp-control-plane\src\adapters\ai\index.ts
+      2  infrastructure\mcp-control-plane\src\adapters\ai\key-pool.ts
+      2  infrastructure\mcp-control-plane\src\adapters\cloudflare\index.ts
+      2  infrastructure\mcp-control-plane\src\adapters\notify\index.ts
+      2  infrastructure\mcp-control-plane\src\adapters\redis\index.ts
+      2  infrastructure\mcp-control-plane\src\adapters\supabase\index.ts
+      2  infrastructure\mcp-control-plane\src\policy\approvals\lifecycle.ts
+      2  tools\vscode-extension\src\ai\AIService.ts

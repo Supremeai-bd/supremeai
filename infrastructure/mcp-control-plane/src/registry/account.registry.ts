@@ -109,7 +109,7 @@ export function buildAccountRegistry(): ProviderAccount[] {
       capabilities: ["health", "logs", "metrics"],
       apiKeyRef: "GH_TOKEN",
       url: "https://api.github.com/repos/paykaribazaronline/supremeai",
-      available: isAvailable("GH_TOKEN") || isAvailable("GITHUB_TOKEN"),
+      available: isAvailable("GH_TOKEN") || isAvailable("GITHUB_TOKEN") || isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE"),
     },
 
     // ── GitHub — paykaribazaronline supremeai-federation (সম্পূর্ণ-কভারেজ, Task 35) ──
@@ -118,6 +118,17 @@ export function buildAccountRegistry(): ProviderAccount[] {
     // pullSecretsIntoProcessEnv() process.env-এ ভরে; মান কোডে/কমিটে কখনো নেই)।
     // প্রতিটি entry = টাওয়ারের github.* টুলে আলাদা accountId → প্রতি-রিপো
     // workflow-run / secret / PR / ফাইল পর্যবেক্ষণ।
+    {
+      id: "github-pay-supremeai",
+      provider: "github",
+      displayName: "GitHub Repo (paykaribazaronline/supremeai)",
+      role: "source-control",
+      environment: "production",
+      capabilities: ["health", "logs", "metrics"],
+      apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
+      url: "https://api.github.com/repos/paykaribazaronline/supremeai",
+      available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
+    },
     {
       id: "github-pay-supremeai-api",
       provider: "github",

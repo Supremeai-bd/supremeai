@@ -34,6 +34,12 @@ gcp-key.json
 *.pfx
 firebase-service-account.json
 *.secret
+# 🛑 Secrets directories (audit 2026-10-10): live key material lives here
+# (.secrets/github_app.pem, .secrets/jwt_secret.key, secrets/*.private-key.pem).
+# The *.pem/*.key file rules above miss non-key files (e.g. backup dumps) —
+# ignore the whole directories so nothing there can ever be committed.
+/.secrets/
+/secrets/
 # 🛑 Secrets rotation artifacts (never commit — contains rotated secret VALUES)
 rotated_secrets.json
 fix_secrets_step*.py
@@ -103,7 +109,8 @@ temp_*.ps1
 temp.ps1
 *.mp3
 scripts/tools/
-docs/audits/
+docs/audits/*
+!docs/audits/evidence/
 
 # Firebase and Playwright caches
 .firebase/
@@ -200,6 +207,7 @@ coverage.toml
 docs/reports/test-output*.txt
 docs/reports/*_diff.txt
 docs/reports/workflow_diff.txt
+backend/ci-reports/
 
 # Compiled function output
 infrastructure/firebase_functions/**/lib/
@@ -296,7 +304,9 @@ New folder/
 .blackboxrules
 
 # Temporary and Root Script Files
-f
+# Root-level scratch file named "f" (anchored on audit 2026-10-10: the bare
+# pattern "f" matched any "f" file or directory at any depth)
+/f
 fix_bare_yields.py
 sphere.html
 fix_flutter_deps.ps1
@@ -305,102 +315,12 @@ blackbox_mcp_settings.example.json
 
 # Auto-Generated Firebase DataConnect SDKs
 dataconnect-generated/
-# VS Code and IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Tauri dev
-run-tauri-dev.ps1
-
-# TypeScript build info
-*.tsbuildinfo
-tsconfig.app.tsbuildinfo
-
-# Misc
-.ollama/
-.cache/
-
-# Local scripts with credentials
-*_env.py
-
-# ============================================
-# CRITICAL FIXES (Repository Optimization)
-# ============================================
-
-# Rust target (ALL locations)
-**/target/
-**/Cargo.lock
-
-# AI Context Exports
-context_export/
-
-# Scraped data
-scripts/resource_scraping/**/*.json
-
-# CI Logs
-logs/ci/
-logs/*.json
-logs/*.md
-
-# Embeddings / Vector data
-data/frontier/search_embeddings.json
-data/**/*.db
-
 # Lock files (Using pnpm consistently)
 **/package-lock.json
 # Exception: MCP control plane uses npm (not pnpm) — its lockfile must be committed
 # so that `npm ci` in CI can reproduce the exact dependency tree.
 # NOTE: This negation must appear AFTER the wildcard rule (last-match-wins).
 !infrastructure/mcp-control-plane/package-lock.json
-
-# Local dev artifacts
-.supreme/
-.scratch/
-scratch/
-.firebase/
-
-# বাংলা মন্তব্য: গিটহাবে অ্যাকশন চেকআউট সাবমডিউল এরর এড়াতে এমবেডেড সুপ্রিমএআই ফোল্ডার ইগনোর
-supremeai/
-codebase.md
-
-# Local database & test lock files
-supreme_memory.db
-chroma.sqlite3
-backend-tests.log
-.coverage.DESKTOP-*
-backend/.coverage.DESKTOP-*
-
-# Auto-generated docs may contain secrets
-docs/autogen/
-.kilo/
-
-# Playwright test results
-test-results/
-playwright-report/
-
-# ============================================
-# REPO CLEANUP - Auto-generated artifacts
-# ============================================
-
-# Auto-generated docs / snapshots
-docs/codebase/
-docs/changes/commit_*.md
-
-# Test & coverage artifacts
-coverage.xml
-coverage.json
-coverage.toml
-**/coverage.xml
-**/coverage.json
-**/ruff_errors.txt
-**/tests_all_tests.txt
-**/trigger_ci.txt
-**/*-report.json
-docs/reports/test-output*.txt
-docs/reports/*_diff.txt
-docs/reports/workflow_diff.txt
 
 # Compiled function output
 infrastructure/firebase_functions/**/lib/
@@ -425,116 +345,17 @@ check_ci.py
 run.json
 render.env
 render_env.json
-docs/codebase_dump.md
-scripts/observability_report.json
-backend/coverage.json
-test_db_path
-
-scratch/
-
-# Coverage directories
-coverage/
-**/coverage/
-
-# Old archives
-apps/_archive_web-chat/
-dist-admin/
-dist-user/
-apps/studio-client/dist-user/
-*.env
-.git_backup/
-
-blackbox_mcp_settings.json
-full_codebase_export.md
-
-# ============================================
-# EXPLICIT SENSITIVE HOTFIX IGNORES
-# ============================================
-render.env
-.env*
 !.env.example
 !.env.production.example
 !.env.grafana.example
-*.log
-firebase-debug.log
-blackbox_mcp_settings.json
-__pycache__/
-.venv/
-
-# ============================================
-# AGENT CACHES & REPORTS
-# ============================================
-.scribe_cache.json
-.bug_prophet_cache.json
-.refactor_wiz_cache.json
-bug_prophet_report.md
-refactor_wiz_report.md
-.cloudwatch_history.json
-**/.*_history.json
-**/.*_cache.json
-**/.*_state.json
-**/.*_db.json
-**/.*_budget.json
-
-# Database backups
-backend/backup/
-
-# Backup files
-*.backup
-
-# Generated artifacts & logs (Codebase Improvement Plan)
-*.coverage_report.json
-pytest_full_run_results.txt
-*_report.json
-error.txt
-trace.txt
-dist-user/
-apps/studio-client/dist-user/
-backend/requirements.txt
-
-# Docusaurus build artifacts, coverage_new, and archive directories
-apps/docs/.docusaurus/
-backend/coverage_new.json
 /archive/
 !docs/archive/
 
 # Temporary test logs & scratch files
 *.txt
-!requirements.txt
-!**/requirements.txt
-!**/requirements*.txt
-# Audit evidence artifacts MUST be committable: AGENTS.md requires that
-# consequential findings keep their evidence. Scoped so it cannot be used to
-# commit unrelated scratch text files.
-!docs/audits/evidence/**
-!docs/audits/evidence/**/*.txt
-# Issue #480 api-only route allowlist MUST be committable — it is the
-# classification baseline for the CI orphan gate
-# (tests/test_route_consumer_contract.py). Scoped to this single file.
-!scripts/audit/api_only_routes.txt
-*.ini
-*.bak
-backend/tmp_test_learning_data/
-New folder/
-
-# IDE and Agent Extensions
-.continue/
-.actrc
-.blackboxrules
-
-# Temporary and Root Script Files
-f
-fix_bare_yields.py
-sphere.html
-fix_flutter_deps.ps1
-fix_flutter_deps.sh
-blackbox_mcp_settings.example.json
-
-# Auto-Generated Firebase DataConnect SDKs
-dataconnect-generated/
 dataconnect_generated/
 dataconnect-admin-generated/
-s c r a t c h _ * . p y  
+scratch_*.py
  
 # Environment folders
 envs/
@@ -625,10 +446,10 @@ generated_scripts/
 .local/
 scripts/kaggle/artifacts/
 _archive/
-# backend/_archive is versioned quarantine (MAINTAINABILITY_PLAN §2, #1340/#1345):
-# archived modules + MANIFEST.md stay tracked; other _archive dirs stay ignored.
-!backend/_archive/
-!backend/_archive/**
+# backend/_archive was a versioned quarantine (MAINTAINABILITY_PLAN §2, #1340/#1345).
+# Its 1-sprint deletion rule expired — the 57 shim modules + MANIFEST were removed
+# from git on 2026-10-10 (full-status audit). The negations are gone so a future
+# quarantine defaults to ignored; re-add them only with a tracked MANIFEST.
 sa_admin.json
 sa_*.json
 get_totp_secret.py
@@ -679,6 +500,20 @@ test_output.txt
 ci_log.txt
 failed_log.txt
 full_log.txt
+# Committable-exception negations (must sit AFTER the root /*.txt catch-all above,
+# otherwise last-match-wins re-ignores them — audit 2026-10-10):
+!requirements.txt
+!**/requirements.txt
+!**/requirements*.txt
+# Audit evidence artifacts MUST be committable: AGENTS.md requires that
+# consequential findings keep their evidence. Scoped so it cannot be used to
+# commit unrelated scratch text files.
+!docs/audits/evidence/**
+!docs/audits/evidence/**/*.txt
+# Issue #480 api-only route allowlist MUST be committable — it is the
+# classification baseline for the CI orphan gate
+# (tests/test_route_consumer_contract.py). Scoped to this single file.
+!scripts/audit/api_only_routes.txt
 *.diff
 *.patch
 
@@ -733,9 +568,3 @@ docs/master_docs/role_locks/
 .browser_profile/
 .browser_tasks/
 
-
-# ── Local secret vaults (sec-hygiene #70, FULL_PROJECT_AUDIT_2026-10-10) ─────
-# Root-anchored: only the repo-root vault dirs are ignored. Template/example
-# files under infrastructure/monitoring/prometheus/secrets/ stay trackable.
-/.secrets/
-/secrets/

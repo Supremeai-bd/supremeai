@@ -24,7 +24,9 @@ Found a vulnerability? **Do not open a public issue** — report it privately vi
 Every command below is the real one used by devs and CI — no shortcuts, no fake flags.
 
 ```bash
-# 1) Environment — copy the 546-line template, fill in what your features need
+# 1) Environment — copy the template (657 lines as of 2026-10-10; regenerate with
+#    scripts/ci/generate_env_example.py, which also wires the --check CI gate),
+#    fill in what your features need
 cp .env.example .env
 
 # 2) Backend — FastAPI behind Uvicorn (entry: backend/main.py, env-driven boot,

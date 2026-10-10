@@ -967,12 +967,14 @@
 **Created for:** "Silent red" gap — scheduled workflow failures were invisible before.
 **Key files:** `ci-doctor.yml`, `.github/scripts/ci_smart_summary.py`
 **Check if working:** Trigger a red run → CI Doctor opens an issue; fix the failure → CI Doctor auto-closes.
+> ⚠️ **historical card (audit 2026-10-10):** this workflow file and `.github/scripts/ci_smart_summary.py` no longer exist — both were deleted (CI Doctor arms consolidated into `main.yml` / `nightly-ops.yml` during the #1858 consolidation; the summary script was an orphan with zero workflow callers). Card kept for provenance only.
 
 ### `.github/workflows/maintenance.yml`
 **Purpose:** Daily 02:00 + Mon 02:30 hygiene — smart CI failure summary, health check, DB schema check, auto-lint-fix PR, auto-dependency-upgrade PR.
 **Created for:** Task 14-b honesty fix — `cancel-in-progress: false` (was true, so weekly cancelled nightly).
 **Key files:** `maintenance.yml`, `.github/scripts/ci_smart_summary.py`
 **Check if working:** `gh run list --workflow=maintenance.yml` shows daily runs.
+> ⚠️ **historical card (audit 2026-10-10):** this workflow file was deleted in the #1858 consolidation — its arms now live in `nightly-ops.yml` (deep-audit / ai-safety / mission-passk / retention tiers). The Infisical vault synthetic guard was re-wired to `nightly-ops.yml → vault-synthetic` (weekly). Card kept for provenance only.
 
 ### `.github/workflows/scheduled-deep-audit.yml`
 **Purpose:** Daily 03:00 UTC heavy audit — dependency+SBOM scan, mutation testing, performance benchmark, duplicate-logic detector, `ci-full-audit.sh` (actionlint + trufflehog + gitleaks).

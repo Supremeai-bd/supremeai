@@ -21,7 +21,7 @@ Authorization: Bearer <universal-auth accessToken>
 
 | guard | where | behavior |
 |---|---|---|
-| Weekly synthetic check | `.github/workflows/maintenance.yml` → `infisical-vault-synthetic-check` | fails when raw listing drops below 100 secrets or a boot-critical key stops being served |
+| Weekly synthetic check | `.github/workflows/nightly-ops.yml` → job `vault-synthetic` (weekly cron `0 3 * * 0`) | fails when raw listing drops below 100 secrets or a boot-critical key stops being served |
 | Script | `scripts/maintenance/check_infisical_vault_synth.py` | asserts login + raw list ≥ 100 + boot-key get-by-key; reports v1 status informationally |
 
 Last verified live (2026-09-19): raw listing returned **177 prod secrets**; `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` served via raw get-by-key.
