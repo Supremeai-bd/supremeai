@@ -84,6 +84,7 @@ def authorized(monkeypatch: pytest.MonkeyPatch):
 
 
 def _install(monkeypatch: pytest.MonkeyPatch, client: FakeAsyncClient) -> None:
+    monkeypatch.setattr(gh, "GITHUB_REPO", "SaifulHaqueNiloy/supremeai")
     monkeypatch.setattr(gh.httpx, "AsyncClient", lambda timeout=30.0: client)
 
 
