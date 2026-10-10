@@ -207,19 +207,128 @@ def test_intake_body_empty_files_fallback():
 # ---------------------------------------------------------------------------
 
 def test_already_intaked_fail_closed_on_api_error(monkeypatch):
-    monkeypatch.setattr(bi, "gh", lambda *a, **k: (500, {}))
+    def boom(*a, **k):
+        raise bi.BridgeError("github GET → HTTP 500")
+    monkeypatch.setattr(bi, "gh_paged", boom)
     assert bi.already_intaked("tok", "bridge-20261009-demo") is True
 
 
 def test_already_intaked_detects_marker(monkeypatch):
     marker_body = bi.MARKER_FMT.format(tid="bridge-20261009-demo")
-    monkeypatch.setattr(bi, "gh", lambda *a, **k: (200, [{"body": marker_body}, {"body": "other"}]))
+    monkeypatch.setattr(bi, "gh_paged", lambda *a, **k: [{"body": marker_body}, {"body": "other"}])
     assert bi.already_intaked("tok", "bridge-20261009-demo") is True
 
 
 def test_already_intaked_false_when_absent(monkeypatch):
-    monkeypatch.setattr(bi, "gh", lambda *a, **k: (200, [{"body": "no marker here"}]))
+    monkeypatch.setattr(bi, "gh_paged", lambda *a, **k: [{"body": "no marker here"}])
     assert bi.already_intaked("tok", "bridge-20261009-demo") is False
+
+
+def test_intake_marker_state_three_valued(monkeypatch):
+    """E8: fail-closed skip আর সত্যিকারের duplicate আলাদা করা যায় —
+    নahirলে public issue নীরবভাবে in-gates label পেত।"""
+    marker_body = bi.MARKER_FMT.format(tid="bridge-20261009-demo")
+    monkeypatch.setattr(bi, "gh_paged", lambda *a, **k: [{"body": marker_body}])
+    assert bi.intake_marker_state("tok", "bridge-20261009-demo") == "found"
+    monkeypatch.setattr(bi, "gh_paged", lambda *a, **k: [{"body": "other"}])
+    assert bi.intake_marker_state("tok", "bridge-20261009-demo") == "absent"
+
+    def boom(*a, **k):
+        raise bi.BridgeError("github GET → HTTP 500")
+    monkeypatch.setattr(bi, "gh_paged", boom)
+    assert bi.intake_marker_state("tok", "bridge-20261009-demo") == "unknown"
+
+
+# ---------------------------------------------------------------------------
+# gh_paged — Link-rel=next pagination (E5) + honest cap
+# ---------------------------------------------------------------------------
+
+def test_next_link_parses_rel_next_only():
+    header = (
+        '<https://api.github.com/x?page=2>; rel="next", '
+        '<https://api.github.com/x?page=9>; rel="last"'
+    )
+    assert bi._next_link(header) == "https://api.github.com/x?page=2"
+    assert bi._next_link('<https://api.github.com/x?page=9>; rel="last"') is None
+    assert bi._next_link("") is None
+    assert bi._next_link(None) is None
+
+
+def test_gh_paged_follows_rel_next(monkeypatch):
+    pages = [
+        [{"number": 1}, {"number": 2}],
+        [{"number": 3}],
+    ]
+    calls = {"n": 0}
+
+    class _Resp:
+        status = 200
+
+        def __init__(self, body, link):
+            self._body = body
+            self.headers = {"Link": link} if link else {}
+
+        def read(self):
+            import json as _json
+            return _json.dumps(self._body).encode()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake_urlopen(req, timeout=None):
+        idx = calls["n"]
+        calls["n"] += 1
+        link = '<https://api.github.com/x?page=2>; rel="next"' if idx == 0 else ""
+        return _Resp(pages[idx], link)
+
+    monkeypatch.setattr(bi.urllib.request, "urlopen", fake_urlopen)
+    items = bi.gh_paged("/repos/x/pulls?per_page=100", "tok")
+    assert [i["number"] for i in items] == [1, 2, 3]
+    assert calls["n"] == 2
+
+
+def test_gh_paged_raises_at_cap_instead_of_silent_truncation(monkeypatch):
+    """E5: window-এর বাইরে পড়ে যাওয়া আগের landed PR নীরবে বাদ যাওয়া যাবে না।"""
+
+    class _Resp:
+        status = 200
+        headers = {"Link": '<https://api.github.com/x?page=2>; rel="next"'}
+
+        def read(self):
+            return b"[]"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(bi.urllib.request, "urlopen", lambda *a, **k: _Resp())
+    with pytest.raises(bi.BridgeError):
+        bi.gh_paged("/repos/x/pulls?per_page=100", "tok", max_pages=1)
+
+
+# ---------------------------------------------------------------------------
+# ensure_public_labels — E6: public repo label bootstrap
+# ---------------------------------------------------------------------------
+
+def test_ensure_public_labels_covers_every_public_state(monkeypatch):
+    created: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        bi,
+        "ensure_label",
+        lambda repo, tok, name, color, desc: created.append((repo, name)),
+    )
+    bi.ensure_public_labels("tok")
+    names = [n for _, n in created]
+    for required in (bi.LABEL_QUEUED, bi.LABEL_INGATES, bi.LABEL_LANDED,
+                     bi.LABEL_REJECTED, bi.LABEL_ADMIN):
+        assert required in names, f"public label {required} never ensured → set_labels 422 → queue আটকে যায়"
+    assert all(repo == bi.OPEN_REPO for repo, _ in created)
+    assert len(names) == len(set(names)), "duplicate label bootstrap"
 
 
 # ---------------------------------------------------------------------------

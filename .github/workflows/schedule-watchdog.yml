@@ -23,6 +23,11 @@ name: ⏰ Schedule Watchdog (cron self-heal)
 on:
   workflow_dispatch: # Manual emergency re-arm (kept by Diet #67)
   workflow_run:
+    # নাম-কাপলিং (E10): GitHub `workflow_run` শুধু workflow-র **নাম** দেখে —
+    # file-path বা id দিয়ে match করার উপায় নেই। তাই যে workflow-গুলো এখানে
+    # তালিকাভুক্ত, তাদের `name:` বদলালে এই trigger নীরবে বন্ধ হয়ে যায় (dead cron
+    # আর self-heal হয় না)। coupling machine-guard:
+    # .github/scripts/constitution/tests/test_bridge_automation_contract.py
     workflows: ["Main CI/CD", "Bridge Intake (public work orders → private gates)"]
     types: [completed]
 permissions:

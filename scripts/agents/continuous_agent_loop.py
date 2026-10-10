@@ -50,7 +50,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-REPO = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
+REPO = os.environ.get("GH_REPO", "paykaribazaronline/supremeai")
 RULES_PATH = ROOT_DIR / ".github" / "constitution" / "rules.yml"
 # বাংলা মন্তব্য: #2841 PR-4 — নিয়মের একক-উৎস `AGENT_RULES.md` (সংবিধান-স্লিম সিরিজ)।
 # rules.yml এখন শুধু fallback — PR-1 মার্জের আগে ফাইল না থাকলেও লুপ ভাঙবে না।

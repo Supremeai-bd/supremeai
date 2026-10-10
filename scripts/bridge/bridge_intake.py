@@ -57,6 +57,20 @@ LABEL_PRIVATE_BRIDGE = "bridge"  # private intake issues carry this label
 
 MARKER_FMT = "<!-- bridge-task: {tid} -->"
 
+# Public (supremeai-open) label bootstrap (E6) — আগে শুধু private target repo-র
+# `bridge` label ensure হতো। public repo-তে `bridge:queued`/`bridge:in-gates`/
+# `bridge:landed`/`bridge:rejected`/`bridge:admin-review` না থাকলে `set_labels`
+# HTTP 422 দেয় → `reject()` কমেন্ট দেওয়ার *পরে* ব্যর্থ → UNEXPECTED → issue
+# `bridge:queued`-এ থেকে যায় ও প্রতি ৩০ মিনিটে আবার কমেন্ট/প্রসেস হয় (label-spam +
+# queue আটকে)।
+PUBLIC_LABELS: tuple[tuple[str, str, str], ...] = (
+    (LABEL_QUEUED, "0E8A16", "public work-order — bridge intake queue"),
+    (LABEL_INGATES, "1D76DB", "bridge order imported — constitutional gates running"),
+    (LABEL_ADMIN, "C2E000", "bridge order held for owner review (protected paths)"),
+    (LABEL_LANDED, "5319E7", "bridge order landed in private repo (gates green)"),
+    (LABEL_REJECTED, "D93F0B", "bridge order rejected (fail-closed intake or gates)"),
+)
+
 TASK_ID_RE = re.compile(r"^bridge-\d{8}-[a-z0-9][a-z0-9-]{2,60}$")
 MAX_PATCH_BYTES = 200_000
 MAX_FILES = 30
@@ -124,6 +138,49 @@ def gh_ok(method: str, path: str, token: str, payload: dict | None = None) -> di
     if status >= 300:
         raise BridgeError(f"github {method} {path} → HTTP {status}: {str(body.get('message', body))[:200]}")
     return body
+
+
+def _next_link(link_header: str) -> str | None:
+    """GitHub `Link:` header → rel="next" URL (না থাকলে None)।"""
+    m = re.search(r'<([^>]+)>\s*;\s*rel="next"', link_header or "")
+    return m.group(1) if m else None
+
+
+def gh_paged(path: str, token: str, max_pages: int = 10) -> list[dict]:
+    """GitHub list REST → `Link: rel="next"` অনুসরণ করে সব পেজ (E5)।
+
+    বাংলা: `per_page=40` window-এর বাইরের closed/landed PR আর কখনো report হত না —
+    নীরভ cron-slot-এর ইতিহাসে (schedule-watchdog.yml #58) পুরনো landed PR যে-ই
+    হোক, public issue চিরকাল `bridge:in-gates`-এ আটকে থাকত। Link-header ফলো করে
+    পুরো ইতিহাস স্ক্যান হয়; cap ছেড়ে চুপচাপ কাটা নয় — cap-এ পৌঁছালে BridgeError
+    (সৎ-ব্যর্থতা), নাহলে পেজিনেশন নীরবে অসম্পূর্ণ ফল দিত।
+    """
+    items: list[dict] = []
+    url: str | None = path if path.startswith("http") else f"https://api.github.com{path}"
+    pages = 0
+    while url:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "supremeai-bridge-intake",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                body = json.loads(resp.read().decode() or "[]")
+                items.extend(body if isinstance(body, list) else [])
+                url = _next_link(resp.headers.get("Link", ""))
+        except urllib.error.HTTPError as exc:
+            raise BridgeError(f"github GET {url} → HTTP {exc.code}: {exc.read().decode()[:200]}")
+        pages += 1
+        if url and pages >= max_pages:
+            raise BridgeError(
+                f"pagination cap reached ({max_pages} pages) at {path} — "
+                "বাকি পেজ স্ক্যান হয়নি (fail-honest; silent truncation নয়)"
+            )
+    return items
 
 
 # ---------------------------------------------------------------------------
@@ -304,6 +361,12 @@ def ensure_label(repo: str, token: str, name: str, color: str, description: str)
         raise BridgeError(f"label create {name} → HTTP {status}")
 
 
+def ensure_public_labels(token: str) -> None:
+    """public repo-র bridge label-গুলি ensure করে (E6) — intake/sync-এর পূর্বশর্ত।"""
+    for name, color, description in PUBLIC_LABELS:
+        ensure_label(OPEN_REPO, token, name, color, description)
+
+
 def set_labels(repo: str, token: str, issue: int, labels: list[str]) -> None:
     gh_ok("PUT", f"/repos/{repo}/issues/{issue}/labels", token, {"labels": labels})
 
@@ -312,16 +375,32 @@ def comment_issue(repo: str, token: str, issue: int, body: str) -> None:
     gh_ok("POST", f"/repos/{repo}/issues/{issue}/comments", token, {"body": body})
 
 
-def already_intaked(token: str, task_id: str) -> bool:
-    """Marker-carrying intake issue আগেই আছে কি না — সব bridge-target repo-তে স্ক্যান (v2 routing)।"""
+def intake_marker_state(token: str, task_id: str) -> str:
+    """Marker-carrying intake issue-এর অবস্থা: 'found' | 'absent' | 'unknown' (E8)।
+
+    বাংলা: fail-closed (private issue-list fetch ব্যর্থ) ও সত্যিকারের duplicate
+    আগে একটাই `True` ফেরত যেত — কাজেই public issue নীরবে `bridge:in-gates`
+    label পেত, কোনও কারণ-কমেন্ট ছাড়া; agent জেনে-বুঝে না-যোগ্য অবস্থায় পড়ে
+    থাকত। তিন-অবস্থায় আলাদা করে sanitized কারণ কমেন্ট দেওয়া যায়।
+    """
     marker = MARKER_FMT.format(tid=task_id)
     for repo in BRIDGE_TARGET_REPOS:
-        status, issues = gh("GET", f"/repos/{repo}/issues?labels={LABEL_PRIVATE_BRIDGE}&state=all&per_page=100", token)
-        if status != 200:
-            return True  # fail-closed: state unknown → duplicate-ঝুঁকির চেয়ে না-apply ভালো
+        try:
+            issues = gh_paged(
+                f"/repos/{repo}/issues?labels={LABEL_PRIVATE_BRIDGE}&state=all&per_page=100",
+                token,
+                max_pages=5,
+            )
+        except BridgeError:
+            return "unknown"  # fail-closed: duplicate-ঝুঁকির চেয়ে না-apply ভালো
         if any(marker in (i.get("body") or "") for i in issues):
-            return True
-    return False
+            return "found"
+    return "absent"
+
+
+def already_intaked(token: str, task_id: str) -> bool:
+    """Dedup stay-status (bool contract — unit-tested) — 'unknown' fail-closed True।"""
+    return intake_marker_state(token, task_id) != "absent"
 
 
 def route_files(files: list[str]) -> tuple[str | None, dict[str, str]]:
@@ -397,9 +476,29 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
         reject("missing Patch Branch field")
         return
 
-    if already_intaked(token, task_id):
+    dedup = intake_marker_state(token, task_id)
+    if dedup != "absent":
+        # E8: skip-এর কারণ sanitized কমেন্টে — fail-closed ('unknown') আর
+        # সত্যিকারের duplicate ('found') আলাদা করে, নীরব label-flip নয়।
+        reason = (
+            f"already intaked — `{MARKER_FMT.format(tid=task_id)}` marker-অনুসারী intake issue আগেই আছে"
+            if dedup == "found"
+            else "dedup-state unknown (private repo issue-list fetch ব্যর্থ) — fail-closed skip, পরে আবার চেষ্টা হবে"
+        )
+        comment_issue(
+            OPEN_REPO,
+            token,
+            num,
+            sanitize_public_comment(
+                "## 🌉 Bridge Intake — **IN-GATES** (skip)\n\n"
+                f"- task: `{task_id}`\n"
+                f"- reason: {reason}\n\n"
+                "একই task দুইবার apply হয় না — intake issue-কে ফলো করুন।",
+                token,
+            ),
+        )
         set_labels(OPEN_REPO, token, num, [LABEL_INGATES])
-        results.append(f"#{num} → skip (already intaked: {task_id})")
+        results.append(f"#{num} → skip ({dedup}: {task_id})")
         return
 
     # Patch fetch + structural validation
@@ -448,24 +547,55 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
     clone(target_repo, token, Path(private_dir))
     run(["git", "config", "user.name", "supremeai-bridge"], cwd=private_dir)
     run(["git", "config", "user.email", "bridge@supremeai.local"], cwd=private_dir)
-    run(["git", "checkout", "--quiet", "-b", f"bridge-land/{task_id}", f"origin/{PRIVATE_MAIN}"], cwd=private_dir)
+    land_branch = f"bridge-land/{task_id}"
+    # E4: আগের রান push করেছে কিন্তু intake issue (dedup marker) তৈরি হওয়ার আগেই
+    # মৃত্যু/রদ হয়েছে (concurrency cancel, timeout, API ৫xx) — সেই orphan
+    # branch-কে base হিসেবে নিয়ে fast-forward retry। force-push কখনো নয়; branch
+    # না থাকলে as usual `origin/main` থেকে নতুন shuru। এই কারণেই workflow-এ
+    # `cancel-in-progress: false` (bridge-intake.yml)।
+    probe = run(["git", "ls-remote", "origin", f"refs/heads/{land_branch}"], cwd=private_dir, check=False)
+    if probe.returncode != 0:
+        raise BridgeError(f"remote branch probe failed for {land_branch}: {(probe.stderr or '')[-120:]}")
+    resumed = bool(probe.stdout.strip())
+    if resumed:
+        run(
+            ["git", "fetch", "--quiet", "origin",
+             f"refs/heads/{land_branch}:refs/remotes/origin/{land_branch}"],
+            cwd=private_dir,
+        )
+        run(["git", "checkout", "--quiet", "-b", land_branch, f"origin/{land_branch}"], cwd=private_dir)
+    else:
+        run(["git", "checkout", "--quiet", "-b", land_branch, f"origin/{PRIVATE_MAIN}"], cwd=private_dir)
     patch_file = work / f"patch-{num}.diff"
     patch_file.write_text(diff_routed, encoding="utf-8")
     applied = run(["git", "apply", "--whitespace=nowarn", str(patch_file)], cwd=private_dir, check=False)
+    already_applied = False
     if applied.returncode != 0:
-        reason = (applied.stderr or "patch does not apply to current main")[-250:]
-        reject(f"patch failed to apply on {target_repo}@{PRIVATE_MAIN}: {reason}")
-        return
+        # E4: retry হলে patch আগেই branch-তে বসতে পারে — reverse-check সত্যি
+        # "already applied" প্রমাণ করে (শুধু push-ই বাকি), ওই অবস্থায় commit নয়।
+        reverse_ok = resumed and run(
+            ["git", "apply", "--reverse", "--check", str(patch_file)], cwd=private_dir, check=False
+        ).returncode == 0
+        if reverse_ok:
+            already_applied = True
+        else:
+            base = f"{target_repo}@{land_branch} (retry)" if resumed else f"{target_repo}@{PRIVATE_MAIN}"
+            reason = (applied.stderr or "patch does not apply")[-250:]
+            reject(f"patch failed to apply on {base}: {reason}")
+            return
     run(["git", "add", "-A"], cwd=private_dir)
-    run(
-        [
-            "git", "commit", "--quiet", "-m",
-            f"bridge({task_id}): external work order #{num}",
-            "-m", f"Agent: {agent}\nBridge-Source: {public_url}\nApplied-by: bridge_intake.py v1 (fail-closed intake)",
-        ],
-        cwd=private_dir,
-    )
-    push = run(["git", "push", "--quiet", "origin", f"bridge-land/{task_id}"], cwd=private_dir, check=False)
+    # already-applied retry-এ staged পরিবর্তন নেই → খালি commit নয়, বিদ্যমান HEAD।
+    has_staged = run(["git", "diff", "--cached", "--quiet"], cwd=private_dir, check=False).returncode == 1
+    if has_staged:
+        run(
+            [
+                "git", "commit", "--quiet", "-m",
+                f"bridge({task_id}): external work order #{num}",
+                "-m", f"Agent: {agent}\nBridge-Source: {public_url}\nApplied-by: bridge_intake.py v1 (fail-closed intake)",
+            ],
+            cwd=private_dir,
+        )
+    push = run(["git", "push", "--quiet", "origin", land_branch], cwd=private_dir, check=False)
     if push.returncode != 0:
         reject(f"push to {target_repo} rejected: {(push.stderr or 'unknown')[-200:]}")
         return
@@ -482,7 +612,7 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
         "POST", f"/repos/{target_repo}/pulls", token,
         {
             "title": f"feat(bridge): {task_id} — external work order #{num}",
-            "head": f"bridge-land/{task_id}",
+            "head": land_branch,
             "base": PRIVATE_MAIN,
             "body": build_pr_body(wo, task_id, intake["number"], public_url, agent, files),
         },
@@ -499,13 +629,17 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
     )
     comment_issue(OPEN_REPO, token, num, report)
     set_labels(OPEN_REPO, token, num, [LABEL_INGATES])
-    results.append(f"#{num} → applied, {target_repo} PR #{pr['number']} ({task_id})")
+    retry_note = " [retry: patch already on branch]" if already_applied else (" [resumed orphan branch]" if resumed else "")
+    results.append(f"#{num} → applied, {target_repo} PR #{pr['number']} ({task_id}){retry_note}")
 
 
 def cmd_intake(token: str) -> int:
-    status, issues = gh("GET", f"/repos/{OPEN_REPO}/issues?labels={LABEL_QUEUED}&state=open&per_page=30", token)
-    if status != 200:
-        raise BridgeError(f"queue fetch failed: HTTP {status}")
+    ensure_public_labels(token)  # E6: set_labels 422 → reject-পথ ব্যর্থ → queue আটকে যাওয়া প্রতিরোধ
+    # E5: per_page=40 → টানা পেজ (Link rel=next); cap-এ পৌঁছালে সৎ-ব্যর্থতা, কাটা নয়।
+    try:
+        issues = gh_paged(f"/repos/{OPEN_REPO}/issues?labels={LABEL_QUEUED}&state=open&per_page=100", token, max_pages=3)
+    except BridgeError as exc:
+        raise BridgeError(f"queue fetch failed: {exc}")
     workorders = [i for i in issues if "pull_request" not in i]
     results: list[str] = []
     with tempfile.TemporaryDirectory(prefix="bridge-") as tmp:
@@ -526,6 +660,7 @@ def cmd_intake(token: str) -> int:
 
 def cmd_sync(token: str) -> int:
     """PR lifecycle → public issue reporting (landed / rejected) — সব target repo স্ক্যান (v2)।"""
+    ensure_public_labels(token)  # E6: sync-ও public repo-তে label বসায়
     results: list[str] = []
     # বাংলা (#65): list-pulls response-এ boolean "merged" ফিল্ড থাকে না (শুধু
     # single-GET-এ) — থাকে "merged_at"। p.get("merged") সবসময় None → merged PR-ও
@@ -533,18 +668,23 @@ def cmd_sync(token: str) -> int:
     landed: list[dict] = []
     rejected: list[dict] = []
     for repo in BRIDGE_TARGET_REPOS:
-        status, pulls = gh("GET", f"/repos/{repo}/pulls?state=closed&sort=updated&per_page=40", token)
-        if status != 200:
-            raise BridgeError(f"PR fetch failed: HTTP {status} ({repo})")
+        # E5: ৪০-এর window বাদ, পুরো closed-PR ইতিহাস (Link rel=next) — নীরভ
+        # cron-slot-এর পর পুরনো landed PR-ও report হতে হবে, নাহলে public issue
+        # চিরকাল in-gates/queued-এ আটকে থাকে।
+        try:
+            pulls = gh_paged(f"/repos/{repo}/pulls?state=closed&sort=updated&per_page=100", token, max_pages=5)
+        except BridgeError as exc:
+            raise BridgeError(f"PR fetch failed: {exc} ({repo})")
         for p in pulls:
             if not (p.get("head") or {}).get("ref", "").startswith("bridge-land/"):
                 continue
             p["_repo"] = repo
             (landed if p.get("merged_at") else rejected).append(p)
 
-    status, open_issues = gh("GET", f"/repos/{OPEN_REPO}/issues?state=open&per_page=60", token)
-    if status != 200:
-        raise BridgeError(f"open issues fetch failed: HTTP {status}")
+    try:
+        open_issues = gh_paged(f"/repos/{OPEN_REPO}/issues?state=open&per_page=100", token, max_pages=3)
+    except BridgeError as exc:
+        raise BridgeError(f"open issues fetch failed: {exc}")
     open_issues = [i for i in open_issues if "pull_request" not in i]
 
     def find_issue(task_id: str) -> dict | None:
@@ -559,8 +699,10 @@ def cmd_sync(token: str) -> int:
     def issue_labels(issue: dict) -> list[str]:
         return [l.get("name", "") for l in (issue.get("labels") or [])]
 
+    landed_ids: set[str] = set()
     for pr in landed:
         task_id = pr["head"]["ref"].replace("bridge-land/", "", 1)
+        landed_ids.add(task_id)
         issue = find_issue(task_id)
         if not issue:
             continue
@@ -576,8 +718,14 @@ def cmd_sync(token: str) -> int:
         gh("PATCH", f"/repos/{OPEN_REPO}/issues/{issue['number']}", token, {"state": "closed", "state_reason": "completed"})
         results.append(f"{task_id} → landed (PR #{pr['number']})")
 
-    for pr in rejected[-10:]:
+    for pr in rejected:
         task_id = pr["head"]["ref"].replace("bridge-land/", "", 1)
+        # E5: একই task-এর landed + rejected PR দুটোই থাকলে শেষ verdict জেতে —
+        # নাহলে একই public issue-এ "LANDED" তারপর "REJECTED" কমেন্ট (বিরোধী
+        # report); শেষ resubmit-এর PR-ই সম্ভাব্য rejected, তাই landed-কেই SSOT ধরি।
+        if task_id in landed_ids:
+            results.append(f"{task_id} → rejected verdict skipped (landed wins, PR #{pr['number']})")
+            continue
         issue = find_issue(task_id)
         if not issue:
             continue
@@ -594,17 +742,19 @@ def cmd_sync(token: str) -> int:
     # Reconciliation: OPEN bridge PR → public issue অবশ্যই bridge:in-gates হবে
     # (stale লেবেল শুদ্ধ করে — E2E-তে প্রমাণিত কেস: ভুল rejected লেবেল আটকে ছিল)।
     for repo in BRIDGE_TARGET_REPOS:
-        status, open_pulls = gh("GET", f"/repos/{repo}/pulls?state=open&per_page=40", token)
-        if status == 200:
-            for pr in open_pulls:
-                ref = (pr.get("head") or {}).get("ref", "")
-                if not ref.startswith("bridge-land/"):
-                    continue
-                task_id = ref.replace("bridge-land/", "", 1)
-                issue = find_issue(task_id)
-                if issue and LABEL_INGATES not in issue_labels(issue):
-                    set_labels(OPEN_REPO, token, issue["number"], [LABEL_INGATES])
-                    results.append(f"{task_id} → reconciled to in-gates ({repo} PR #{pr['number']} open)")
+        try:
+            open_pulls = gh_paged(f"/repos/{repo}/pulls?state=open&per_page=100", token, max_pages=3)
+        except BridgeError as exc:
+            raise BridgeError(f"open PR fetch failed: {exc} ({repo})")
+        for pr in open_pulls:
+            ref = (pr.get("head") or {}).get("ref", "")
+            if not ref.startswith("bridge-land/"):
+                continue
+            task_id = ref.replace("bridge-land/", "", 1)
+            issue = find_issue(task_id)
+            if issue and LABEL_INGATES not in issue_labels(issue):
+                set_labels(OPEN_REPO, token, issue["number"], [LABEL_INGATES])
+                results.append(f"{task_id} → reconciled to in-gates ({repo} PR #{pr['number']} open)")
 
     print("== bridge sync ==")
     for line in results or ["nothing to sync"]:

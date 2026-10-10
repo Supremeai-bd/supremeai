@@ -25,6 +25,10 @@ import sys
 import time
 import urllib.request
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 API = "https://app.infisical.com"
 RAW_API = f"{API}/api/v3/secrets/raw"
 MIN_EXPECTED_SECRETS = 100
@@ -59,10 +63,25 @@ def _get_json(url: str, token: str) -> tuple[int, dict]:
     raise RuntimeError(f"GET {url} failed after retries: {last_exc}")
 
 
+from pathlib import Path
+
+
 def main() -> int:
     cid = os.environ.get("INFISICAL_CLIENT_ID", "")
     csec = os.environ.get("INFISICAL_CLIENT_SECRET", "")
     wid = os.environ.get("INFISICAL_PROJECT_ID", "")
+    if not (cid and csec and wid):
+        for candidate in ("vault.env", ".env"):
+            vpath = Path(__file__).resolve().parents[2] / candidate
+            if vpath.exists():
+                for line in vpath.read_text(encoding="utf-8").splitlines():
+                    if "=" in line and not line.strip().startswith("#"):
+                        k, _, v = line.partition("=")
+                        os.environ.setdefault(k.strip(), v.strip().strip("\"'"))
+        cid = os.environ.get("INFISICAL_CLIENT_ID", "")
+        csec = os.environ.get("INFISICAL_CLIENT_SECRET", "")
+        wid = os.environ.get("INFISICAL_PROJECT_ID", "")
+
     if not (cid and csec and wid):
         print("SKIP: INFISICAL_CLIENT_ID/CLIENT_SECRET/PROJECT_ID not all set")
         return 0
