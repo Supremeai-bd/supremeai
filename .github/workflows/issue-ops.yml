@@ -332,6 +332,6 @@ jobs:
 
       - name: Validate issue template conformance
         env:
-          GITHUB_TOKEN: \${{ github.token }}
-          GITHUB_REPOSITORY: \${{ github.repository }}
-        run: python .github/scripts/constitution/template_gate.py --issue \${{ github.event.issue.number }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python .github/scripts/constitution/template_gate.py --issue ${{ github.event.issue.number }}
