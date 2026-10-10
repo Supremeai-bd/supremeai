@@ -493,6 +493,13 @@ test_guard_policy:
   # merge-train retirement (#3206 Phase 1, from PR #3138 audit) মুছে ফেলেছে।
   allow_deleted_paths:
     - tests/test_merge_train_rollup.py
+    # বাংলা মন্তব্য (#88): backend/_archive/ = quarantined dead modules (constitution
+    # engine + test_no_silent_exception_swallow + check_gateway_bypass সবাই _archive
+    # exclusion-list-এ রাখে)। তিনটিই archive-এর ভেতরের মৃত টেস্ট-কপি — issue #71-এর
+    # acceptance criteria (backend/_archive/** সম্পূর্ণ অপসারণ) issue-mandate; PR #87।
+    - backend/_archive/batch-2/backend/core/test_retry_handler.py
+    - backend/_archive/batch-7/test_resource_manager.py
+    - backend/_archive/batch-7/test_secure_tunnel.py
 
 # Pipeline Failure Register v2 policy (#2928+#2935 — ডায়নামিক ট্র্যাকিং + এক-গ্রুপ-
 # প্রতি-ব্যর্থতা-ইস্যু)। বাংলা: (১) অ্যাডমিন-নির্দেশ "any new pipeline added we
