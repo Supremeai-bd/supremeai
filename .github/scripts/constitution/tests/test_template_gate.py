@@ -16,7 +16,10 @@ import template_gate as tg  # noqa: E402
 REPO = "SaifulHaqueNiloy/supremeai"
 REPO_ROOT = Path(__file__).resolve().parents[4]  # …/supremeai-repo
 RULES = REPO_ROOT / ".github" / "constitution" / "rules.yml"  # policy SSOT
-WORKFLOW = REPO_ROOT / ".github" / "workflows" / "issue-template-guard.yml"
+# 2026-10-10: issue-template-guard.yml retired (owner purge 07ee5bb8; the job was
+# already consolidated into issue-ops.yml by #3517/#3645) — wiring tests now point
+# at the surviving consolidated workflow.
+WORKFLOW = REPO_ROOT / ".github" / "workflows" / "issue-ops.yml"
 PR_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "pr.yml"
 
 AFTER = "2026-10-01T20:30:00Z"  # enforce_from (20:00Z)-এর পরের সময়
@@ -445,6 +448,10 @@ class PolicySsotTests(unittest.TestCase):
 
 
 class WorkflowWiringTests(unittest.TestCase):
+    # 2026-10-10 (#92): WORKFLOW == issue-ops.yml — issue-side template validation is
+    # the consolidated `template-validate` job there (#3517/#3645; retired file deleted
+    # in owner purge 07ee5bb8). pr.yml-side blocking gate assertions are unchanged.
+
     def setUp(self):
         import yaml
 
@@ -455,22 +462,16 @@ class WorkflowWiringTests(unittest.TestCase):
         return wf.get("on") or wf.get(True) or {}
 
     def test_issue_workflow_triggers(self):
-        # #3517/#3645 fix: issue-template-guard.yml disabled (merged into issue-ops.yml).
-        # Template validation now runs as template-validate job in issue-ops.yml.
-        # This test verifies issue-ops.yml has the template-validate job instead.
+        # issue-ops.yml owns the issue-event hot path; template-validate runs on
+        # opened/reopened. If an issues trigger exists, "edited" must stay removed
+        # (cost contract #3517). Dispatch-only is equally valid.
         trg = self._triggers(self.wf)
-        # issue-template-guard may have no issues trigger (disabled) OR have [opened, reopened]
-        # Both are valid — the template validation is handled by issue-ops.yml
         issues_types = trg.get("issues", {}).get("types")
         if issues_types is not None:
-            # If trigger exists, it should NOT contain "edited" (removed for cost optimization)
             self.assertNotIn("edited", issues_types,
-                            "issue-template-guard should not have 'edited' trigger (#3517)")
-        # Verify template-validate job exists in issue-ops.yml
-        import yaml as _yaml
-        with open(".github/workflows/issue-ops.yml", encoding="utf-8") as _f:
-            issue_ops = _yaml.safe_load(_f)
-        job_names = list(issue_ops.get("jobs", {}).keys())
+                            "issue-ops should not have 'edited' trigger (#3517)")
+        # Consolidation contract: template-validate job exists in issue-ops.yml
+        job_names = list(self.wf.get("jobs", {}).keys())
         self.assertIn("template-validate", job_names,
                       "issue-ops.yml must have template-validate job (#3517 consolidation)")
 
@@ -480,8 +481,16 @@ class WorkflowWiringTests(unittest.TestCase):
         self.assertEqual(perms.get("contents"), "read")
 
     def test_issue_workflow_invokes_gate(self):
-        run = self.wf["jobs"]["validate"]["steps"][-1]["run"]
+        job = self.wf["jobs"]["template-validate"]
+        run = job["steps"][-1]["run"]
         self.assertIn("template_gate.py --issue", run)
+        # #92: expression escaping bug — run/env values must not carry a literal
+        # backslash before an Actions expression (corrupts token/args at runtime).
+        self.assertNotIn("\\${{", run, "run line must not escape ${{ }} with a backslash")
+        for step in job["steps"]:
+            for value in (step.get("env") or {}).values():
+                self.assertNotIn("\\${{", value,
+                                 "env values must not escape ${{ }} with a backslash")
 
     def test_pr_wiring_has_blocking_template_gate(self):
         # pr.yml → system-gates → Constitutional Gates Execution স্টেপে blocking কল
