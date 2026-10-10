@@ -187,8 +187,8 @@ async def register_pool_account(body: AccountRegisterRequest):
         raise HTTPException(
             status_code=422,
             detail="Pool account tokens must be provisioned via vault/env, not request body. "
-                   "POST /pool/accounts with service+account_id only — the pool will resolve "
-                   "the token from the secret vault.",
+            "POST /pool/accounts with service+account_id only — the pool will resolve "
+            "the token from the secret vault.",
         )
     # Token-less registration: pool will resolve from vault at first use
     acc = global_session_pool.register_account(

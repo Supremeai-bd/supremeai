@@ -170,12 +170,15 @@ class DisasterRecoveryAgent:
             return None
         for scheme in DURABLE_SCHEMES:
             if dest.startswith(scheme):
-                rest = dest[len(scheme):]
+                rest = dest[len(scheme) :]
                 bucket, _, prefix = rest.partition("/")
                 if not bucket:
                     return None
-                return {"scheme": scheme.rstrip(":/"), "bucket": bucket,
-                        "prefix": prefix.strip("/")}
+                return {
+                    "scheme": scheme.rstrip(":/"),
+                    "bucket": bucket,
+                    "prefix": prefix.strip("/"),
+                }
         return None
 
     def is_backup_destination_durable(self) -> bool:
@@ -192,6 +195,7 @@ class DisasterRecoveryAgent:
         if not key:
             return None
         from cryptography.fernet import Fernet  # local import — optional dep path
+
         return key.encode()
 
     async def _upload_to_durable(self, local_path: str, backup_id: str) -> str:
@@ -217,6 +221,7 @@ class DisasterRecoveryAgent:
         key = self._encryption_key()
         if key:
             from cryptography.fernet import Fernet
+
             cipher = Fernet(key)
             encrypted_path = local_path + ".enc"
             with open(local_path, "rb") as src:
@@ -247,12 +252,14 @@ class DisasterRecoveryAgent:
             os.unlink(upload_path)
         os.unlink(local_path)
 
-        logger.info(f"backup {backup_id} verified+uploaded to {dest['scheme']}://{dest['bucket']}/{remote_path}")
+        logger.info(
+            f"backup {backup_id} verified+uploaded to {dest['scheme']}://{dest['bucket']}/{remote_path}"
+        )
         return f"{dest['scheme']}://{dest['bucket']}/{remote_path}"
 
-    async def _materialize_durable_artifact(self, remote_location: str,
-                                            expected_hash: str | None,
-                                            backup_id: str) -> str:
+    async def _materialize_durable_artifact(
+        self, remote_location: str, expected_hash: str | None, backup_id: str
+    ) -> str:
         """Durable artifact স্থানীয়ভাবে আনা + checksum verify + decrypt।
 
         # বাংলা: restore rehearsal (#3164 verification) — durable destination
@@ -265,9 +272,10 @@ class DisasterRecoveryAgent:
         prefix = f"{dest['scheme']}://{dest['bucket']}/"
         if not remote_location.startswith(prefix):
             raise ValueError(f"backup location is not a durable artifact: {remote_location}")
-        remote_path = remote_location[len(prefix):]
+        remote_path = remote_location[len(prefix) :]
 
         from database.storage_client import StorageClient
+
         provider = "supabase" if dest["scheme"] == "supabase-storage" else "s3"
         client = StorageClient(provider=provider)
         client.bucket_name = dest["bucket"]
@@ -282,6 +290,7 @@ class DisasterRecoveryAgent:
         key = self._encryption_key()
         if key:
             from cryptography.fernet import Fernet
+
             cipher = Fernet(key)
             with open(target, "rb") as src:
                 token = src.read()
@@ -305,8 +314,11 @@ class DisasterRecoveryAgent:
         # বাংলা: remote retention bucket-lifecycle policy দিয়ে চালানোর নীতি
         # docs-এ documented; এখানে staged local residue-র retention।
         """
-        days = retention_days if retention_days is not None else int(
-            os.getenv("DR_BACKUP_RETENTION_DAYS", "30"))
+        days = (
+            retention_days
+            if retention_days is not None
+            else int(os.getenv("DR_BACKUP_RETENTION_DAYS", "30"))
+        )
         cutoff = time.time() - days * 86400
         removed = 0
         if os.path.isdir(DR_STAGING_DIR):
@@ -408,7 +420,8 @@ class DisasterRecoveryAgent:
                 backup_path = os.path.join(DR_STAGING_DIR, f"{backup_id}.zip")
             else:
                 backup_location = location_override or getattr(
-                    settings, "BACKUP_LOCATION", "/backups/")
+                    settings, "BACKUP_LOCATION", "/backups/"
+                )
                 backup_path = os.path.join(backup_location, f"{backup_id}.zip")
 
             # Create backup archive
@@ -521,7 +534,8 @@ class DisasterRecoveryAgent:
             # verify + decrypt; মিল না হলে restore পুরোপুরি বন্ধ (fail-closed)।
             local_artifact = None
             if self.durable_destination and str(backup_info.get("location", "")).startswith(
-                    DURABLE_SCHEMES):
+                DURABLE_SCHEMES
+            ):
                 local_artifact = await self._materialize_durable_artifact(
                     backup_info["location"],
                     backup_info.get("verification_hash"),

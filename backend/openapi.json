@@ -11103,7 +11103,7 @@
           "CI Dashboard"
         ],
         "summary": "Receive Ci Webhook",
-        "description": "Receive CI summary from GitHub Actions workflow.\n\nCalled by ci_summary_v2.py after generating summary.\nExpects X-CI-Webhook-Secret header for verification.",
+        "description": "Receive CI summary from GitHub Actions workflow.\n\nExpects X-CI-Webhook-Secret header for verification.\n\nAudit note (2026-10-10): the historical caller (ci_summary_v2.py) was an orphan script and was removed; this endpoint stays available for any configured CI summary poster.",
         "operationId": "receive_ci_webhook_api_ci_webhook_post",
         "requestBody": {
           "content": {

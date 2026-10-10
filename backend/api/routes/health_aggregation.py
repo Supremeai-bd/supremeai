@@ -143,8 +143,10 @@ async def check_single_service(config: dict) -> ServiceHealth:
     try:
         client = get_shared_async_client()
         response = await client.get(
-            config["url"], 
-            headers={"User-Agent": "SupremeAI-HealthChecker/2.0"}, timeout=config["timeout"])
+            config["url"],
+            headers={"User-Agent": "SupremeAI-HealthChecker/2.0"},
+            timeout=config["timeout"],
+        )
 
         response_time = (datetime.now() - start_time).total_seconds() * 1000
 
@@ -581,8 +583,8 @@ async def test_specific_service(service_url: str = Query(...)):
     try:
         client = get_shared_async_client()
         response = await client.get(
-            service_url, 
-            headers={"User-Agent": "SupremeAI-Admin-Test/1.0"}, timeout=10.0)
+            service_url, headers={"User-Agent": "SupremeAI-Admin-Test/1.0"}, timeout=10.0
+        )
 
         return {
             "success": True,

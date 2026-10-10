@@ -72,10 +72,18 @@ def test_module_boundary_strictly_enforced():
     # → 190 -> 189; 2026-09-29: catalog truth-sync #2 (#2555) — row #150
     # frontend/src/pages/WorkspaceModulePage.tsx (zero-importer dead component,
     # deletion queued in #2503/#2554's root-audit batch) removed → 189 -> 188;
+    # 2026-10-10: full-status audit truth-sync #3 — removed rows for
+    # infrastructure/kubernetes, tools/firebase_functions_v1, and
+    # backend/tools/parallel_agent_executor.py (all verified-missing paths), and
+    # re-pathed backend/tools/social/telegram_bot.py → telegram_bot/ (package)
+    # → 188 -> 185; then truth-sync #4 (post-audit) removed the retired
+    # backend/services/llm row (LLM Gateway Consolidation #2249 — the package
+    # was empty/stale; routing lives in core/llm_router.py) → 185 -> 184;
+    # 🔴-Broken count is now 0.
     # 224 stays as the historical full-boundary tolerance so a future sanctioned
     # restore is not a lie either.
-    assert len(modules) in (188, 224), (
-        f"Expected cataloged modules to be 188 (current production boundary) or 224 (historical full boundary), got {len(modules)}"
+    assert len(modules) in (184, 224), (
+        f"Expected cataloged modules to be 184 (current production boundary) or 224 (historical full boundary), got {len(modules)}"
     )
 
 

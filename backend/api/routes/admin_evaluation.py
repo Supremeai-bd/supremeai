@@ -3,6 +3,7 @@
 বাংলা: admin endpoint-গুলো evaluation scores query করার জন্য। Router +
 Policy Engine এই scores ব্যবহার করে routing decisions নেয়।
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -19,10 +20,18 @@ router = APIRouter(prefix="/admin-api/evaluation", tags=["capability-evaluation"
 
 class EvaluationRequest(BaseModel):
     """Request body for evaluating a provider."""
+
     provider: str = Field(..., description="Provider name (e.g., groq, openai, cerebras)")
-    task_type: str = Field("default", description="Task type (ci_fix, code_review, research, browser_automation, default)")
-    measurements: dict[str, Any] = Field(default_factory=dict, description="Measurement values for each scorer")
-    benchmark_run_id: str | None = Field(None, description="Optional run ID (auto-generated if None)")
+    task_type: str = Field(
+        "default",
+        description="Task type (ci_fix, code_review, research, browser_automation, default)",
+    )
+    measurements: dict[str, Any] = Field(
+        default_factory=dict, description="Measurement values for each scorer"
+    )
+    benchmark_run_id: str | None = Field(
+        None, description="Optional run ID (auto-generated if None)"
+    )
     previous_run_id: str = Field("", description="Previous run ID for regression comparison")
 
 
@@ -65,6 +74,7 @@ async def get_weights_endpoint(
     (future: Policy Engine will manage weight overrides)।
     """
     from evaluation.models import DEFAULT_TASK_WEIGHTS, get_weights
+
     weights = get_weights(task_type)
     return {
         "task_type": task_type,
@@ -83,6 +93,7 @@ async def list_dimensions_endpoint(
     reliability, security, tool_use, regression।
     """
     from evaluation.models import ScoreDimension
+
     descriptions = {
         "correctness": "Does output solve the task? (LLM-judge + test-suite pass rate)",
         "latency": "Response time p50/p95/p99 (lower = better)",

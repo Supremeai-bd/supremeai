@@ -58,9 +58,7 @@ class TestBrowserShutdownMemoryGuard:
         for _ in range(3):
             context = await browser.new_context(viewport={"width": 1280, "height": 800})
             page = await context.new_page()
-            await page.set_content(
-                "<button id='b'>ok</button><p>" + "x" * 5000 + "</p>"
-            )
+            await page.set_content("<button id='b'>ok</button><p>" + "x" * 5000 + "</p>")
             contexts.append(context)
 
         assert _chromium_descendants(), "chromium প্রসেসই চালু হয়নি — পরীক্ষার পূর্বশর্ত ভাঙছে"
@@ -76,9 +74,7 @@ class TestBrowserShutdownMemoryGuard:
             if not _chromium_descendants():
                 break
             await asyncio.sleep(0.5)
-        assert not _chromium_descendants(), (
-            "shutdown-এর পরেও chromium প্রসেস বেঁচে আছে — মেমরি লিক!"
-        )
+        assert not _chromium_descendants(), "shutdown-এর পরেও chromium প্রসেস বেঁচে আছে — মেমরি লিক!"
 
         # (খ) RSS ফেরত — slack সহ (allocator ক্যাশে পুরোপুরি ছাড়ে না)
         import gc

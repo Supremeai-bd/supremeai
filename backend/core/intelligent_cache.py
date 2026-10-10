@@ -152,6 +152,7 @@ class IntelligentCache:
         try:
             # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
             from core.cache.redis_manager import redis_manager
+
             self._redis_client = redis_manager.get_managed_client_sync()
 
             # Test connection

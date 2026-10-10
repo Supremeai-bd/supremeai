@@ -27,7 +27,12 @@ _PII_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     # Bearer tokens
     ("bearer", re.compile(r"\bBearer\s+[a-zA-Z0-9_.\-]{20,}", re.I)),
     # API keys (common formats: sk-..., ghp_..., ghs_..., etc.)
-    ("api_key", re.compile(r"\b(sk-[a-zA-Z0-9]{20,}|gh[pst]_[a-zA-Z0-9]{20,}|gho_[a-zA-Z0-9]{20,}|AKIA[A-Z0-9]{12,})\b")),
+    (
+        "api_key",
+        re.compile(
+            r"\b(sk-[a-zA-Z0-9]{20,}|gh[pst]_[a-zA-Z0-9]{20,}|gho_[a-zA-Z0-9]{20,}|AKIA[A-Z0-9]{12,})\b"
+        ),
+    ),
     # Email addresses
     ("email", re.compile(r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b")),
     # Phone numbers (international + local formats)
@@ -35,9 +40,15 @@ _PII_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     # Credit card numbers (13-19 digit groups)
     ("credit_card", re.compile(r"\b(?:\d{4}[-\s]?){3}\d{1,4}\b")),
     # Authorization headers in serialized strings
-    ("auth_header", re.compile(r"(authorization|auth)\s*[:=]\s*[\"']?[a-zA-Z0-9_.\-]{20,}[\"']?", re.I)),
+    (
+        "auth_header",
+        re.compile(r"(authorization|auth)\s*[:=]\s*[\"']?[a-zA-Z0-9_.\-]{20,}[\"']?", re.I),
+    ),
     # Cookie values
-    ("cookie", re.compile(r"\b(cookie|set-cookie)\s*[:=]\s*[\"']?[a-zA-Z0-9_+/=.\-]{20,}[\"']?", re.I)),
+    (
+        "cookie",
+        re.compile(r"\b(cookie|set-cookie)\s*[:=]\s*[\"']?[a-zA-Z0-9_+/=.\-]{20,}[\"']?", re.I),
+    ),
 ]
 
 

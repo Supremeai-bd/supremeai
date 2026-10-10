@@ -14,6 +14,7 @@ Router একা যথেষ্ট নয় — Policy Engine বাধ্য�
 Policy rules are data-driven (YAML/DB), not hardcoded। #4050 3-Tier Routing-এর
 stub এখানে preserved — backward compatible।
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -30,6 +31,7 @@ from governance.routing_tiers import (
 )
 
 # ─── #4050 stub (preserved for backward compat) ─────────────────────────────
+
 
 def evaluate_routing(
     action: str,
@@ -91,6 +93,7 @@ def enforce_routing(decision: RoutingDecision) -> bool:
 
 
 # ─── #4049 full Policy Engine ───────────────────────────────────────────────
+
 
 def evaluate_policies(
     agent_role: str,

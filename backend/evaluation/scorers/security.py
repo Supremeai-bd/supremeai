@@ -2,6 +2,7 @@
 
 বাংলা: security score = inverse of data exposure risk। higher score = safer।
 """
+
 from __future__ import annotations
 
 from ..models import DimensionScore, ScoreDimension

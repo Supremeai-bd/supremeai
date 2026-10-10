@@ -57,13 +57,15 @@ async def _verify_sslcommerz_transaction(val_id: str) -> dict | None:
         return None
     client = get_shared_async_client()
     resp = await client.get(
-        SSLCOMMERZ_VALIDATION_URL, 
+        SSLCOMMERZ_VALIDATION_URL,
         params={
-            "val_id": val_id, 
-            "store_id": SSLCOMMERZ_STORE_ID, 
-            "store_passwd": SSLCOMMERZ_STORE_PASSWORD, 
-            "format": "json", 
-        }, timeout=10.0)
+            "val_id": val_id,
+            "store_id": SSLCOMMERZ_STORE_ID,
+            "store_passwd": SSLCOMMERZ_STORE_PASSWORD,
+            "format": "json",
+        },
+        timeout=10.0,
+    )
     resp.raise_for_status()
     data = resp.json()
     return data if data.get("status") in ("VALID", "VALIDATED") else None

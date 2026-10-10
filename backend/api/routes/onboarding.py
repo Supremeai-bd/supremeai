@@ -54,7 +54,7 @@ async def _validate_api_key(provider: str, api_key: str) -> bool:
     headers = {"Authorization": f"Bearer {api_key}"}
     try:
         client = get_shared_async_client()
-        resp = await client.get(url,  headers=headers, timeout=8.0)
+        resp = await client.get(url, headers=headers, timeout=8.0)
         return resp.status_code in (200, 206)
     except Exception as exc:
         logger.debug(f"API key validation request failed: {exc}")

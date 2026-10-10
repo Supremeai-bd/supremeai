@@ -124,9 +124,7 @@ class CloudDBLoadTester:
             print(f"⚠️ health_check failed: {e}")
             return HealthCheckResult(connection_ok=False, latency_ms=0.0)
 
-    async def _one_user_burst(
-        self, user_id: int, ops_per_user: int
-    ) -> list[LatencyMeasurement]:
+    async def _one_user_burst(self, user_id: int, ops_per_user: int) -> list[LatencyMeasurement]:
         """একজন ভার্চুয়াল ইউজারের পরপর insert+select বার্স্ট — আসল কল।"""
         results: list[LatencyMeasurement] = []
         assert self.client is not None  # initialize() আগে সফল হয়েছে

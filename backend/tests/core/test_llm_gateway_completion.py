@@ -750,9 +750,7 @@ async def test_no_adapter_raise_publishes_failure_and_followup_unblocked():
     with pytest.raises(RuntimeError, match="Ollama is not healthy"):
         await gw.acompletion(prompt="dedup-noadapter-probe")
     elapsed = time.monotonic() - t0
-    assert elapsed < 5.0, (
-        f"identical follow-up blocked {elapsed:.1f}s — stale leader entry (#2840)"
-    )
+    assert elapsed < 5.0, f"identical follow-up blocked {elapsed:.1f}s — stale leader entry (#2840)"
 
 
 @pytest.mark.asyncio

@@ -73,14 +73,18 @@ class TestGetRedis:
         # Mock redis_manager.get_managed_client to return fake_client
         rm_module = __import__("core.cache.redis_manager", fromlist=["redis_manager"])
         monkeypatch.setattr(
-            rm_module.redis_manager, "get_managed_client",
+            rm_module.redis_manager,
+            "get_managed_client",
             lambda: fake_client,  # sync mock — _get_redis awaits it but get_managed_client is async
         )
+
         # Need async version
         async def fake_get_managed():
             return fake_client
+
         monkeypatch.setattr(
-            rm_module.redis_manager, "get_managed_client",
+            rm_module.redis_manager,
+            "get_managed_client",
             fake_get_managed,
         )
 

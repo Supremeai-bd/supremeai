@@ -2,6 +2,7 @@
 
 বাংলা: learning loop চালানোর জন্য admin endpoint।
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -17,10 +18,15 @@ router = APIRouter(prefix="/admin-api/learning", tags=["learning-loop"])
 
 class LearningLoopRequest(BaseModel):
     """Request body for running the learning loop."""
-    decisions: list[dict[str, Any]] = Field(..., description="List of DecisionMetadata dicts (from #4052)")
+
+    decisions: list[dict[str, Any]] = Field(
+        ..., description="List of DecisionMetadata dicts (from #4052)"
+    )
     min_occurrences: int = Field(3, description="Minimum count to be considered a pattern")
     skills_dir: str = Field("knowledge/skills", description="Output dir for skill templates")
-    guards_dir: str = Field("knowledge/regression_guards", description="Output dir for regression guards")
+    guards_dir: str = Field(
+        "knowledge/regression_guards", description="Output dir for regression guards"
+    )
 
 
 @router.post("/run")
@@ -58,8 +64,14 @@ async def learning_status_endpoint(
     """
     from pathlib import Path
 
-    skills = list(Path("knowledge/skills").glob("*.yaml")) if Path("knowledge/skills").exists() else []
-    guards = list(Path("knowledge/regression_guards").glob("*.yaml")) if Path("knowledge/regression_guards").exists() else []
+    skills = (
+        list(Path("knowledge/skills").glob("*.yaml")) if Path("knowledge/skills").exists() else []
+    )
+    guards = (
+        list(Path("knowledge/regression_guards").glob("*.yaml"))
+        if Path("knowledge/regression_guards").exists()
+        else []
+    )
 
     return {
         "skill_templates": len(skills),

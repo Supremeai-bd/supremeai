@@ -2,6 +2,7 @@
 
 বাংলা: cost score = inverse of $ per call (lower cost = higher score)।
 """
+
 from __future__ import annotations
 
 from ..models import DimensionScore, ScoreDimension

@@ -32,7 +32,7 @@ async def get_commandcenter_approvals_mcp():
         if admin_key:
             headers["Authorization"] = f"Bearer {admin_key}"
         client = get_shared_async_client()
-        resp = await client.get(f"{mcp_url.rstrip('/')}/approvals",  headers=headers, timeout=4.0)
+        resp = await client.get(f"{mcp_url.rstrip('/')}/approvals", headers=headers, timeout=4.0)
         if resp.status_code == 200:
             return resp.json()
     except Exception as e:
@@ -61,15 +61,13 @@ async def resolve_commandcenter_approval_mcp(payload: ApprovalActionPayload):
             headers["Authorization"] = f"Bearer {admin_key}"
         url = f"{mcp_url.rstrip('/')}/approve?id={payload.id}&decision={decision}"
         client = get_shared_async_client()
-        resp = await client.get(url,  headers=headers, timeout=5.0)
+        resp = await client.get(url, headers=headers, timeout=5.0)
         if resp.status_code in (200, 302):
             return {
                 "status": "success",
                 "message": f"Request {payload.id} marked as {decision}",
             }
-        raise HTTPException(
-            status_code=resp.status_code, detail="Control tower rejected approval"
-        )
+        raise HTTPException(status_code=resp.status_code, detail="Control tower rejected approval")
     except HTTPException:
         raise
     except Exception as e:

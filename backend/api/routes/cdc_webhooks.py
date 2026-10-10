@@ -63,10 +63,12 @@ async def _delete_from_vector_db(user_id: str, doc_id: str | None = None) -> Non
 
         client = get_shared_async_client()
         await client.request(
-            "DELETE", 
-            f"https://{PINECONE_HOST}/vectors/delete", 
-            headers={"Api-Key": PINECONE_API_KEY}, 
-            json={"ids": [vector_id]}, timeout=10.0)
+            "DELETE",
+            f"https://{PINECONE_HOST}/vectors/delete",
+            headers={"Api-Key": PINECONE_API_KEY},
+            json={"ids": [vector_id]},
+            timeout=10.0,
+        )
         logger.info(f"CDC: Deleted vector {vector_id} from Pinecone")
     except Exception as e:
         logger.error(f"CDC vector deletion failed: {e}")

@@ -24,9 +24,7 @@ from memory.sliding_window import SlidingWindowMemory
 pytestmark = [pytest.mark.memory, pytest.mark.performance]
 
 # ডিস্টিলেশন ট্রিগার করতে ৪০০+ ক্যারেক্টার কনটেন্ট (MEMORY_DISTILL_MIN_CONTENT_CHARS)
-_LONG_CONTENT = (
-    "SupremeAI concurrent memory write probe. " * 12
-)  # ~47*12 = 564 chars
+_LONG_CONTENT = "SupremeAI concurrent memory write probe. " * 12  # ~47*12 = 564 chars
 
 
 class _ThreadSafeFakeLongTermMemory:

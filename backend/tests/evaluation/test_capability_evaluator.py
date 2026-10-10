@@ -97,9 +97,7 @@ class TestEvaluateProvider:
         )
         slow_measurements = dict(_HEALTHY_MEASUREMENTS)
         slow_measurements.update({"p50_ms": 3000.0, "p95_ms": 8000.0, "p99_ms": 12000.0})
-        slow = evaluate_provider(
-            provider="p", task_type="ci_fix", measurements=slow_measurements
-        )
+        slow = evaluate_provider(provider="p", task_type="ci_fix", measurements=slow_measurements)
         assert slow.weighted_aggregate < fast.weighted_aggregate, (
             f"লেটেন্সি খারাপ হলেও স্কোর কমেনি: {slow.weighted_aggregate} vs {fast.weighted_aggregate}"
         )
@@ -150,11 +148,11 @@ class TestRegressionScorerBands:
     @pytest.mark.parametrize(
         ("current, previous, expected_score, expect_alert"),
         [
-            (0.9, 0.7, 1.0, False),   # বড় improvement (> +0.05)
+            (0.9, 0.7, 1.0, False),  # বড় improvement (> +0.05)
             (0.81, 0.80, 0.9, False),  # ছোট improvement
             (0.80, 0.80, 0.8, False),  # অপরিবর্তিত
             (0.78, 0.80, 0.5, False),  # ছোট degradation (< 10%)
-            (0.50, 0.80, 0.0, True),   # বড় degradation (> 10%) + alert
+            (0.50, 0.80, 0.0, True),  # বড় degradation (> 10%) + alert
         ],
         ids=["big-improve", "small-improve", "no-change", "small-degrade", "big-degrade"],
     )
@@ -223,8 +221,10 @@ class TestLatencyScorer:
         """
         result = score_latency(p50_ms=100.0, p95_ms=1000.0, p99_ms=1500.0, benchmark_run_id="r1")
         assert result.evidence.get("p95_ms") == 1000.0
-        assert "LATENCY_P95_BEST_MS" in result.evidence or "best_ms" in result.evidence or bool(
-            result.evidence
+        assert (
+            "LATENCY_P95_BEST_MS" in result.evidence
+            or "best_ms" in result.evidence
+            or bool(result.evidence)
         ), "evidence ফাঁকা — অব্যাখ্যাযোগ্য স্কোর"
 
     def test_dimension_score_is_frozen_dataclass(self):

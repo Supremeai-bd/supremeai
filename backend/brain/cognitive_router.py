@@ -65,9 +65,7 @@ def classify_task_complexity(prompt: str) -> dict[str, Any]:
     words = lowered.split()
     word_count = len(words)
 
-    matched_keywords = sorted(
-        {kw for kw in _REACT_SIGNAL_KEYWORDS if kw in lowered}
-    )
+    matched_keywords = sorted({kw for kw in _REACT_SIGNAL_KEYWORDS if kw in lowered})
     chaining_hits = sum(1 for c in _CHAINING_CONNECTORS if c in lowered)
     sentence_count = sum(1 for s in ("?", "!", ". ") if s in lowered) or (1 if text else 0)
 
@@ -85,8 +83,12 @@ def classify_task_complexity(prompt: str) -> dict[str, Any]:
         return {
             "complexity": "simple",
             "score": score,
-            "signals": {"keywords": matched_keywords, "chaining": chaining_hits,
-                        "words": word_count, "sentences": sentence_count},
+            "signals": {
+                "keywords": matched_keywords,
+                "chaining": chaining_hits,
+                "words": word_count,
+                "sentences": sentence_count,
+            },
             "reason": "Simple Q&A intent — direct path",
         }
 
@@ -94,8 +96,12 @@ def classify_task_complexity(prompt: str) -> dict[str, Any]:
         return {
             "complexity": "complex",
             "score": score,
-            "signals": {"keywords": matched_keywords, "chaining": chaining_hits,
-                        "words": word_count, "sentences": sentence_count},
+            "signals": {
+                "keywords": matched_keywords,
+                "chaining": chaining_hits,
+                "words": word_count,
+                "sentences": sentence_count,
+            },
             "reason": (
                 f"Multi-step reasoning signals detected "
                 f"(keywords={matched_keywords}, chaining={chaining_hits}, words={word_count})"
@@ -105,8 +111,12 @@ def classify_task_complexity(prompt: str) -> dict[str, Any]:
     return {
         "complexity": "medium",
         "score": score,
-        "signals": {"keywords": matched_keywords, "chaining": chaining_hits,
-                    "words": word_count, "sentences": sentence_count},
+        "signals": {
+            "keywords": matched_keywords,
+            "chaining": chaining_hits,
+            "words": word_count,
+            "sentences": sentence_count,
+        },
         "reason": "Default task routing — direct path",
     }
 

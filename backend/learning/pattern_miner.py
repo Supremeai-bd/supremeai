@@ -4,6 +4,7 @@
 (≥3 occurrences + outcome=success) → skill template candidates। failed patterns
 (≥2 occurrences + outcome=failure) → regression guard candidates।
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -14,6 +15,7 @@ from typing import Any
 @dataclass(frozen=True)
 class DecisionPattern:
     """A cluster of decisions with the same (task_type, decision_type, outcome)."""
+
     task_type: str
     decision_type: str  # "provider_choice", "tool_use", "task_approach"
     outcome: str  # "success", "failure", "ambiguous"
@@ -77,15 +79,17 @@ def mine_patterns(
         count = len(records)
         confidence = min(1.0, count / (count + 2.0))
 
-        patterns.append(DecisionPattern(
-            task_type=task_type,
-            decision_type=decision_type,
-            outcome=outcome,
-            count=count,
-            sample_decision_ids=decision_ids,
-            common_evidence=list(evidence_set),
-            confidence=confidence,
-        ))
+        patterns.append(
+            DecisionPattern(
+                task_type=task_type,
+                decision_type=decision_type,
+                outcome=outcome,
+                count=count,
+                sample_decision_ids=decision_ids,
+                common_evidence=list(evidence_set),
+                confidence=confidence,
+            )
+        )
 
     # Sort by count descending
     return sorted(patterns, key=lambda p: p.count, reverse=True)

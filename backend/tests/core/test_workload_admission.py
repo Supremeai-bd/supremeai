@@ -169,8 +169,10 @@ class TestConfigurableLimits:
     def test_env_override_agent_limit(self):
         # বাংলা: env var সেট করে reload করলে limit বদলায় — env-driven config।
         import importlib
+
         os.environ["WORKLOAD_MAX_AGENTS"] = "1"
         import core.security.workload_admission as mod
+
         importlib.reload(mod)
         assert mod.MAX_AGENTS_PER_USER == 1, "env override should set max to 1"
         req = mod.AdmissionRequest(user_id="u1", agent_count=2)

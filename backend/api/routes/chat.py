@@ -33,17 +33,41 @@ def _derive_task_type(prompt: str) -> str:
     model chain বাছাই করতে পারে। Hardcoded 'chat' এর বদলে dynamic classification।"""
     p = (prompt or "").lower()
     # Hard: reasoning + math + code patterns
-    hard_keywords = ("reasoning", "math", "code", "coding", "algorithm", "design",
-                     "architect", "implement", "debug", "refactor", "optimize",
-                     "analyze", "synthesize", "compare", "evaluate", "step by step")
+    hard_keywords = (
+        "reasoning",
+        "math",
+        "code",
+        "coding",
+        "algorithm",
+        "design",
+        "architect",
+        "implement",
+        "debug",
+        "refactor",
+        "optimize",
+        "analyze",
+        "synthesize",
+        "compare",
+        "evaluate",
+        "step by step",
+    )
     if any(kw in p for kw in hard_keywords):
         return "reasoning"
     # Medium: agent + analysis patterns
-    medium_keywords = ("agent", "analysis", "summarize", "explain", "describe",
-                       "research", "investigate", "review")
+    medium_keywords = (
+        "agent",
+        "analysis",
+        "summarize",
+        "explain",
+        "describe",
+        "research",
+        "investigate",
+        "review",
+    )
     if any(kw in p for kw in medium_keywords):
         return "analysis"
     return "chat"
+
 
 # Global circuit breaker instance
 main_llm_circuit = RedisCircuitBreaker(
@@ -85,13 +109,36 @@ _SYSTEM_PERSONAS = {
 def _derive_task_type(prompt: str) -> str:
     """ROOT-CAUSE FIX (#2726 + #2728): derive task_type from prompt keywords."""
     p = (prompt or "").lower()
-    hard_kw = ("reasoning", "math", "code", "coding", "algorithm", "design",
-               "architect", "implement", "debug", "refactor", "optimize",
-               "analyze", "synthesize", "compare", "evaluate", "step by step")
+    hard_kw = (
+        "reasoning",
+        "math",
+        "code",
+        "coding",
+        "algorithm",
+        "design",
+        "architect",
+        "implement",
+        "debug",
+        "refactor",
+        "optimize",
+        "analyze",
+        "synthesize",
+        "compare",
+        "evaluate",
+        "step by step",
+    )
     if any(kw in p for kw in hard_kw):
         return "reasoning"
-    medium_kw = ("agent", "analysis", "summarize", "explain", "describe",
-                 "research", "investigate", "review")
+    medium_kw = (
+        "agent",
+        "analysis",
+        "summarize",
+        "explain",
+        "describe",
+        "research",
+        "investigate",
+        "review",
+    )
     if any(kw in p for kw in medium_kw):
         return "analysis"
     return "chat"
@@ -108,7 +155,9 @@ class ChatPayload(BaseModel):
     # ROOT-CAUSE FIX (#2725): conversation history — previously missing from
     # ChatPayload, so the non-streaming /api/chat endpoint also had single-turn
     # amnesia. Frontend now sends history tail (last 20 messages).
-    messages: list[dict] | None = Field(default=None, description="Conversation history for multi-turn context")
+    messages: list[dict] | None = Field(
+        default=None, description="Conversation history for multi-turn context"
+    )
 
 
 class OrchestratedChatPayload(BaseModel):
@@ -225,8 +274,13 @@ async def get_completion(request: Request, payload: ChatPayload, db=Depends(get_
         # Now: a task_type-based persona is injected as the FIRST SYSTEM block.
         _derived_task = _derive_task_type(payload.prompt)
         context_blocks: list[ContextBlock] = [
-            ContextBlock(section=Section.SYSTEM, text=_get_system_persona(_derived_task), priority=0, block_id="system-persona"),  # #2728
-            ContextBlock(section=Section.USER, text=payload.prompt, priority=0, block_id="user")
+            ContextBlock(
+                section=Section.SYSTEM,
+                text=_get_system_persona(_derived_task),
+                priority=0,
+                block_id="system-persona",
+            ),  # #2728
+            ContextBlock(section=Section.USER, text=payload.prompt, priority=0, block_id="user"),
         ]
 
         # (#1834) মৃত LTM no-op block মুছে ফেলা হয়েছে (instance-local facts কখনো persist হতো না)
@@ -519,10 +573,14 @@ async def stream_chat(payload: ChatPayload, db=Depends(get_tenant_db)):
                         # non-streaming-এর সাথে একই attribution parity।
                         # ROOT-CAUSE FIX (#2726): task_type derived from prompt complexity
                         # + honor user's model_name override (same as non-streaming path).
-                        model=payload.model_name if payload.model_name != "gemini-2.5-pro" else None,
+                        model=payload.model_name
+                        if payload.model_name != "gemini-2.5-pro"
+                        else None,
                         context=InferenceContext(
                             tenant_id=str(db.tenant_id) if db.tenant_id else "anonymous",
-                            task_type=_derive_task_type(payload.prompt),  # #2726: derived not hardcoded
+                            task_type=_derive_task_type(
+                                payload.prompt
+                            ),  # #2726: derived not hardcoded
                             stream=True,
                         ),
                     )

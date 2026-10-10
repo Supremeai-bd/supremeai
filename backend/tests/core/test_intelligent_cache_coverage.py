@@ -76,7 +76,9 @@ def test_initialize_redis_success(monkeypatch, redis_client):
     # বাংলা (#4169): intelligent_cache now uses redis_manager.get_managed_client_sync()
     # instead of redis.from_url(). Mock redis_manager instead.
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
-    with patch("core.cache.redis_manager.redis_manager.get_managed_client_sync", return_value=redis_client):
+    with patch(
+        "core.cache.redis_manager.redis_manager.get_managed_client_sync", return_value=redis_client
+    ):
         cache = IntelligentCache(config=CacheConfig(enabled=True))
         assert cache._redis_client is redis_client
 

@@ -45,7 +45,9 @@ def _migration_v001_upgrade(ops: Operations) -> None:
         sa.Column("id", sa.String(64), primary_key=True),
         sa.Column("title", sa.String(200), nullable=False),
         sa.Column("status", sa.String(20), nullable=False, server_default="pending"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
     )
     ops.create_index("ix_tasks_status", "tasks", ["status"])
 
@@ -73,7 +75,9 @@ def _migration_v003_upgrade(ops: Operations) -> None:
         sa.Column("id", sa.String(64), primary_key=True),
         sa.Column("task_id", sa.String(64), sa.ForeignKey("tasks.id"), nullable=False),
         sa.Column("event", sa.String(64), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
     )
     ops.create_index("ix_audit_events_task_id", "audit_events", ["task_id"])
 
@@ -99,6 +103,7 @@ MIGRATION_CHAIN: list[tuple[str, Any, Any]] = [
 
 class Base(DeclarativeBase):
     """Shared DeclarativeBase — mirrors models/base.py contract।"""
+
     pass
 
 
@@ -547,7 +552,9 @@ class TestDataPreservationAcrossMigration:
         _apply_migration(sqlite_engine, _migration_v001_upgrade)
         with sqlite_engine.connect() as conn:
             conn.execute(
-                sa.text("INSERT INTO tasks (id, title, status) VALUES ('t1', 'task one', 'pending')")
+                sa.text(
+                    "INSERT INTO tasks (id, title, status) VALUES ('t1', 'task one', 'pending')"
+                )
             )
             conn.execute(
                 sa.text("INSERT INTO tasks (id, title, status) VALUES ('t2', 'task two', 'done')")
@@ -573,8 +580,10 @@ class TestDataPreservationAcrossMigration:
         _apply_migration(sqlite_engine, _migration_v002_upgrade)
         with sqlite_engine.connect() as conn:
             conn.execute(
-                sa.text("INSERT INTO tasks (id, title, status, priority) "
-                        "VALUES ('r1', 'round-trip', 'pending', 'high')")
+                sa.text(
+                    "INSERT INTO tasks (id, title, status, priority) "
+                    "VALUES ('r1', 'round-trip', 'pending', 'high')"
+                )
             )
             conn.commit()
         # When: downgrade v002 (priority column dropped)

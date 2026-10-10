@@ -20,7 +20,9 @@ from typing import Any
 
 import pytest
 
-AGENT_PATH = Path(__file__).resolve().parents[2] / "agents" / "infrastructure" / "disaster_recovery_agent.py"
+AGENT_PATH = (
+    Path(__file__).resolve().parents[2] / "agents" / "infrastructure" / "disaster_recovery_agent.py"
+)
 
 
 def _load_module() -> Any:
@@ -146,6 +148,7 @@ async def test_durable_upload_verifies_checksum_and_removes_local_copy(
 
     fake = _FakeStorage()
     import types
+
     storage_module = types.ModuleType("database.storage_client")
     storage_module.StorageClient = lambda provider="supabase": fake
     monkeypatch.setitem(sys.modules, "database.storage_client", storage_module)
@@ -169,6 +172,7 @@ async def test_durable_upload_fails_closed_on_corruption(agent, monkeypatch, tmp
     agent.durable_destination = agent._parse_durable_destination()
 
     import types
+
     storage_module = types.ModuleType("database.storage_client")
     storage_module.StorageClient = lambda provider="supabase": _FakeStorage(corrupt=True)
     monkeypatch.setitem(sys.modules, "database.storage_client", storage_module)
@@ -184,6 +188,7 @@ async def test_durable_upload_fails_closed_on_corruption(agent, monkeypatch, tmp
 # ---------------------------------------------------------------------------
 def test_encryption_key_from_env(agent, monkeypatch):
     from cryptography.fernet import Fernet
+
     key = Fernet.generate_key().decode()
     monkeypatch.setenv("DR_BACKUP_ENCRYPTION_KEY", key)
     assert agent._encryption_key() == key.encode()
@@ -196,6 +201,7 @@ async def test_encrypted_upload_roundtrip(agent, monkeypatch, tmp_path):
     """বাংলা: এনক্রিপশন চালু থাকলে remote-এ ciphertext থাকবে; download+decrypt
     করলেই মূল zip ফেরত পাওয়া যায় — restore rehearsal চুক্তি।"""
     from cryptography.fernet import Fernet
+
     key = Fernet.generate_key()
     monkeypatch.setenv("DR_BACKUP_ENCRYPTION_KEY", key.decode())
     monkeypatch.setenv("DR_BACKUP_DESTINATION", "supabase-storage://bk/dr")
@@ -203,6 +209,7 @@ async def test_encrypted_upload_roundtrip(agent, monkeypatch, tmp_path):
 
     fake = _FakeStorage()
     import types
+
     storage_module = types.ModuleType("database.storage_client")
     storage_module.StorageClient = lambda provider="supabase": fake
     monkeypatch.setitem(sys.modules, "database.storage_client", storage_module)
@@ -227,6 +234,7 @@ async def test_materialize_refuses_checksum_mismatch(agent, monkeypatch, tmp_pat
     agent.durable_destination = agent._parse_durable_destination()
 
     import types
+
     fake = _FakeStorage()
     storage_module = types.ModuleType("database.storage_client")
     storage_module.StorageClient = lambda provider="supabase": fake
@@ -254,6 +262,7 @@ async def test_materialize_rejects_non_durable_location(agent, monkeypatch):
 # ---------------------------------------------------------------------------
 def test_local_retention_prunes_old_files(agent, tmp_path, monkeypatch):
     import time
+
     staging = tmp_path / "staging"
     staging.mkdir(parents=True)
     old_file = staging / "old.zip"

@@ -93,9 +93,7 @@ class TestSessionSlotSaturation:
             await asyncio.sleep(hold)
             await manager.close(session.id, owner)
 
-        await asyncio.gather(
-            *(_create_and_hold(f"owner-{i}", 0.05) for i in range(5))
-        )
+        await asyncio.gather(*(_create_and_hold(f"owner-{i}", 0.05) for i in range(5)))
 
         assert factory.max_observed_contexts <= 2, (
             f"সেশন-স্লট সীমা ভাঙা হয়েছে: {factory.max_observed_contexts} > 2"

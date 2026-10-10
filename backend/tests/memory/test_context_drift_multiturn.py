@@ -129,9 +129,7 @@ class TestTwelveTurnNoDrift:
         session_id = "drift-plumbing"
         all_turns = [CORE_TASK] + _filler_turns(11)
         for i, turn in enumerate(all_turns):
-            facade.store_long_term_memory(
-                session_id, "drift_test", "conversation", turn
-            )
+            facade.store_long_term_memory(session_id, "drift_test", "conversation", turn)
         result = facade.query_long_term_memory("dhaka flight", top_k=5, session_id=session_id)
 
         assert len(fake.store_calls) == 12

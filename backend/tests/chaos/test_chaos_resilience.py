@@ -112,9 +112,7 @@ class TestMiddleware429StormClientExperience:
         storm_mw = ChaosInjectorMiddleware(app=_dummy_asgi_app)
 
         for _ in range(3):
-            response = await storm_mw.dispatch(
-                _fake_request(), AsyncMock(return_value=None)
-            )
+            response = await storm_mw.dispatch(_fake_request(), AsyncMock(return_value=None))
             assert response.status_code == 429
             assert response.headers.get("retry-after") == "60"
 

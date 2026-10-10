@@ -612,12 +612,11 @@ async def compose_agent_context(
     learned_tokens = 0
     if task_contract:
         _tt = str(
-            task_contract.get("task_type")
-            or (task_contract.get("task") or {}).get("type")
-            or ""
+            task_contract.get("task_type") or (task_contract.get("task") or {}).get("type") or ""
         )
-        learned = read_skill_templates(_tt, repo_root=repo_root) + \
-            read_regression_guards(_tt, repo_root=repo_root)
+        learned = read_skill_templates(_tt, repo_root=repo_root) + read_regression_guards(
+            _tt, repo_root=repo_root
+        )
         learned_tokens = sum(len(str(s)) // 4 for s in learned)
         if learned_tokens > remaining:
             logger.warning(

@@ -86,6 +86,7 @@ class SyncGuardAgent:
                 if redis_url:
                     # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
                     from core.cache.redis_manager import redis_manager
+
                     redis_client = redis_manager.get_managed_client_sync()
                     await redis_client.publish(
                         "supremeai:alerts:syncguard", json.dumps(audit_report)

@@ -288,7 +288,9 @@ class TestCloudMetadataIPBlocked:
         # Then: বাংলা: কোনো কারণেই accept নয় — হয় "private" বা "link-local"
         assert result.is_safe is False
         reason_lower = result.reason.lower()
-        assert "private" in reason_lower or "link-local" in reason_lower or "metadata" in reason_lower
+        assert (
+            "private" in reason_lower or "link-local" in reason_lower or "metadata" in reason_lower
+        )
 
 
 # ============================================================

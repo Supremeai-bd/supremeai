@@ -168,11 +168,7 @@ class MasterCognitiveOrchestrator:
         listed = 0
         try:
             with open(index_path, encoding="utf-8", errors="replace") as fh:
-                listed = sum(
-                    1
-                    for line in fh
-                    if re.match(r"^\s*[-*]\s+`?scripts/", line)
-                )
+                listed = sum(1 for line in fh if re.match(r"^\s*[-*]\s+`?scripts/", line))
         except OSError as exc:
             logger.debug(f"Script index read failed: {exc}")
 
@@ -357,9 +353,7 @@ class MasterCognitiveOrchestrator:
                     for c in candidates_raw
                 ]
                 playground = PlaygroundRunner(per_candidate_timeout=10.0)
-                playground_result = await playground.generate_test_select(
-                    candidates, task=query
-                )
+                playground_result = await playground.generate_test_select(candidates, task=query)
                 verified_in_sandbox = bool(playground_result.get("verified_in_sandbox"))
                 playground_summary = {
                     "status": "executed",

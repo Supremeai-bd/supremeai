@@ -3,6 +3,7 @@
 বাংলা: policy rules data-driven — YAML/DB থেকে load হয়, hardcoded নয়।
 নতুন rule যোগ করতে হলে YAML file-এ যোগ করুন, code change লাগে না।
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -79,6 +80,7 @@ def load_policy_rules(config_path: str | Path | None = None) -> list[PolicyRule]
 
     try:
         import yaml
+
         data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
     except Exception:
         return DEFAULT_POLICY_RULES.copy()
@@ -86,22 +88,24 @@ def load_policy_rules(config_path: str | Path | None = None) -> list[PolicyRule]
     rules: list[PolicyRule] = []
     for entry in data.get("rules", []) or []:
         try:
-            rules.append(PolicyRule(
-                rule_id=entry.get("rule_id", ""),
-                name=entry.get("name", ""),
-                description=entry.get("description", ""),
-                scope=PolicyScope(entry.get("scope", "global")),
-                action=PolicyAction(entry.get("action", "allow")),
-                agent_roles=entry.get("agent_roles", []) or [],
-                task_types=entry.get("task_types", []) or [],
-                providers=entry.get("providers", []) or [],
-                max_cost_per_call_usd=entry.get("max_cost_per_call_usd"),
-                max_cost_per_task_usd=entry.get("max_cost_per_task_usd"),
-                require_health_status=entry.get("require_health_status", []) or [],
-                require_security_clearance=entry.get("require_security_clearance", ""),
-                priority=entry.get("priority", 100),
-                enabled=entry.get("enabled", True),
-            ))
+            rules.append(
+                PolicyRule(
+                    rule_id=entry.get("rule_id", ""),
+                    name=entry.get("name", ""),
+                    description=entry.get("description", ""),
+                    scope=PolicyScope(entry.get("scope", "global")),
+                    action=PolicyAction(entry.get("action", "allow")),
+                    agent_roles=entry.get("agent_roles", []) or [],
+                    task_types=entry.get("task_types", []) or [],
+                    providers=entry.get("providers", []) or [],
+                    max_cost_per_call_usd=entry.get("max_cost_per_call_usd"),
+                    max_cost_per_task_usd=entry.get("max_cost_per_task_usd"),
+                    require_health_status=entry.get("require_health_status", []) or [],
+                    require_security_clearance=entry.get("require_security_clearance", ""),
+                    priority=entry.get("priority", 100),
+                    enabled=entry.get("enabled", True),
+                )
+            )
         except (ValueError, TypeError):
             continue  # skip invalid entries
 

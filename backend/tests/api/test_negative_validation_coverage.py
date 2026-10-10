@@ -12,6 +12,7 @@ from fastapi import FastAPI, status
 
 # ── Missing required fields tests ────────────────────────────────────────────
 
+
 class TestMissingRequiredFields:
     """#3270: requests missing required fields → 422 (not 500)।"""
 
@@ -20,36 +21,51 @@ class TestMissingRequiredFields:
         from fastapi.testclient import TestClient
 
         from core.app_builder import create_app
+
         app = create_app()
         client = TestClient(app, raise_server_exceptions=False)
         # Find a POST endpoint that requires a body
-        post_routes = [r for r in app.routes if hasattr(r, 'path') and hasattr(r, 'methods') and 'POST' in r.methods]
+        post_routes = [
+            r
+            for r in app.routes
+            if hasattr(r, "path") and hasattr(r, "methods") and "POST" in r.methods
+        ]
         for route in post_routes[:5]:  # test first 5 POST routes
-            if '/webhook' in route.path or '/health' in route.path:
+            if "/webhook" in route.path or "/health" in route.path:
                 continue  # skip webhooks/health (different contract)
             response = client.post(route.path, json={})
-            assert response.status_code in (status.HTTP_422_UNPROCESSABLE_ENTITY,
-                                           status.HTTP_400_BAD_REQUEST,
-                                           status.HTTP_401_UNAUTHORIZED,
-                                           status.HTTP_403_FORBIDDEN), \
+            assert response.status_code in (
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status.HTTP_400_BAD_REQUEST,
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+            ), (
                 f"POST {route.path} with empty body should return 422/400/401/403, got {response.status_code}"
+            )
 
     def test_missing_content_type_on_post(self):
         from fastapi.testclient import TestClient
 
         from core.app_builder import create_app
+
         app = create_app()
         client = TestClient(app, raise_server_exceptions=False)
-        post_routes = [r for r in app.routes if hasattr(r, 'path') and hasattr(r, 'methods') and 'POST' in r.methods]
+        post_routes = [
+            r
+            for r in app.routes
+            if hasattr(r, "path") and hasattr(r, "methods") and "POST" in r.methods
+        ]
         for route in post_routes[:3]:
-            if '/webhook' in route.path or '/health' in route.path:
+            if "/webhook" in route.path or "/health" in route.path:
                 continue
-            response = client.post(route.path, content=b'')
-            assert response.status_code != status.HTTP_500_INTERNAL_SERVER_ERROR, \
+            response = client.post(route.path, content=b"")
+            assert response.status_code != status.HTTP_500_INTERNAL_SERVER_ERROR, (
                 f"POST {route.path} without content-type should not 500"
+            )
 
 
 # ── Malformed auth header tests ─────────────────────────────────────────────
+
 
 class TestMalformedAuthHeaders:
     """#3270: malformed Authorization headers → 401/403 (not 500)।"""
@@ -58,61 +74,78 @@ class TestMalformedAuthHeaders:
         from fastapi.testclient import TestClient
 
         from core.app_builder import create_app
+
         app = create_app()
         client = TestClient(app, raise_server_exceptions=False)
         protected_routes = [
-            r for r in app.routes
-            if hasattr(r, 'path') and hasattr(r, 'methods')
-            and 'GET' in r.methods
-            and '/health' not in r.path
-            and '/docs' not in r.path
-            and '/redoc' not in r.path
-            and '/openapi' not in r.path
-            and r.path != '/'
+            r
+            for r in app.routes
+            if hasattr(r, "path")
+            and hasattr(r, "methods")
+            and "GET" in r.methods
+            and "/health" not in r.path
+            and "/docs" not in r.path
+            and "/redoc" not in r.path
+            and "/openapi" not in r.path
+            and r.path != "/"
         ]
         for route in protected_routes[:5]:
-            response = client.get(route.path, headers={"Authorization": "Bearer not-a-real-jwt-token"})
-            assert response.status_code in (status.HTTP_401_UNAUTHORIZED,
-                                           status.HTTP_403_FORBIDDEN,
-                                           status.HTTP_422_UNPROCESSABLE_ENTITY), \
+            response = client.get(
+                route.path, headers={"Authorization": "Bearer not-a-real-jwt-token"}
+            )
+            assert response.status_code in (
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+            ), (
                 f"GET {route.path} with bad Bearer should return 401/403/422, got {response.status_code}"
+            )
 
     def test_non_bearer_auth_scheme(self):
         from fastapi.testclient import TestClient
 
         from core.app_builder import create_app
+
         app = create_app()
         client = TestClient(app, raise_server_exceptions=False)
         protected_routes = [
-            r for r in app.routes
-            if hasattr(r, 'path') and hasattr(r, 'methods')
-            and 'GET' in r.methods
-            and '/health' not in r.path
+            r
+            for r in app.routes
+            if hasattr(r, "path")
+            and hasattr(r, "methods")
+            and "GET" in r.methods
+            and "/health" not in r.path
         ]
         for route in protected_routes[:3]:
             response = client.get(route.path, headers={"Authorization": "Basic dXNlcjpwYXNz"})
-            assert response.status_code != status.HTTP_500_INTERNAL_SERVER_ERROR, \
+            assert response.status_code != status.HTTP_500_INTERNAL_SERVER_ERROR, (
                 f"GET {route.path} with Basic auth should not 500"
+            )
 
     def test_empty_authorization_header(self):
         from fastapi.testclient import TestClient
 
         from core.app_builder import create_app
+
         app = create_app()
         client = TestClient(app, raise_server_exceptions=False)
         protected_routes = [
-            r for r in app.routes
-            if hasattr(r, 'path') and hasattr(r, 'methods')
-            and 'GET' in r.methods
-            and '/health' not in r.path
+            r
+            for r in app.routes
+            if hasattr(r, "path")
+            and hasattr(r, "methods")
+            and "GET" in r.methods
+            and "/health" not in r.path
         ]
         for route in protected_routes[:3]:
             response = client.get(route.path, headers={"Authorization": ""})
-            assert response.status_code != status.HTTP_500_INTERNAL_SERVER_ERROR, \
+            assert response.status_code != status.HTTP_500_INTERNAL_SERVER_ERROR, (
                 f"GET {route.path} with empty Authorization should not 500"
+            )
 
 
 # ── Invalid payload type tests ──────────────────────────────────────────────
+
 
 class TestInvalidPayloadTypes:
     """#3270: wrong-type payload fields → 422 (not 500)।"""
@@ -157,6 +190,7 @@ class TestInvalidPayloadTypes:
 
 # ── Oversized payload tests ────────────────────────────────────────────────
 
+
 class TestOversizedPayloads:
     """#3270: oversized payloads → 413 or 422 (not 500 or OOM)।"""
 
@@ -182,6 +216,7 @@ class TestOversizedPayloads:
 
 
 # ── SQL injection pattern tests ────────────────────────────────────────────
+
 
 class TestSQLInjectionPatterns:
     """#3270: SQL injection patterns in string fields → rejected (not 500)।"""
@@ -219,6 +254,7 @@ class TestSQLInjectionPatterns:
 
 
 # ── Path traversal pattern tests ────────────────────────────────────────────
+
 
 class TestPathTraversalPatterns:
     """#3270: path traversal patterns in string fields → rejected by ResourceGuard।"""

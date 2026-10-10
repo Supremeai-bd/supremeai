@@ -253,7 +253,6 @@ COMPLETE_SERVICE_REGISTRY: list[ServiceConfig] = [
         timeout=6.0,
         check_type="api",
     ),
-
     # ─── LLM PROVIDERS (#4046 — Roadmap v2 Phase 1.3) ───────────────────────
     # বাংলা: প্রতিটি LLM provider service_topology-তে যুক্ত। tri-state:
     #   CONFIGURED (env set) → REACHABLE (TCP+auth ok) → HEALTHY (semantic probe ok)
@@ -669,7 +668,14 @@ async def get_service_topology(_admin: dict = Depends(get_current_admin)):
     topology = calculate_topology_data(services)
 
     # Calculate summary — বাংলা (#3226): `skipped` কাউন্ট যোগ (configured-নয় সার্ভিস)
-    summary = {"healthy": 0, "degraded": 0, "unhealthy": 0, "unknown": 0, "maintenance": 0, "skipped": 0}
+    summary = {
+        "healthy": 0,
+        "degraded": 0,
+        "unhealthy": 0,
+        "unknown": 0,
+        "maintenance": 0,
+        "skipped": 0,
+    }
     for svc in services:
         summary[svc.status.value] = summary.get(svc.status.value, 0) + 1
 

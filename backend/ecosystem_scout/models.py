@@ -3,6 +3,7 @@
 বাংলা: ScoutFinding = একটি discovered repo/technology। Recommendation = filtered
 + scored finding ready for auditor review।
 """
+
 from __future__ import annotations
 
 import datetime as _dt
@@ -15,6 +16,7 @@ from typing import Any
 
 class FindingSource(StrEnum):
     """Where the finding was discovered."""
+
     GITHUB_TRENDING = "github_trending"
     X_POST = "x_post"
     REDDIT = "reddit"
@@ -25,6 +27,7 @@ class FindingSource(StrEnum):
 
 class FindingStatus(StrEnum):
     """Status of a finding in the pipeline."""
+
     NEW = "new"
     DEDUPED = "deduped"
     GAP_ANALYZED = "gap_analyzed"
@@ -38,6 +41,7 @@ class FindingStatus(StrEnum):
 @dataclass(frozen=True)
 class ScoutFinding:
     """A single discovered repo/technology."""
+
     finding_id: str
     source: FindingSource
     repo_name: str
@@ -75,6 +79,7 @@ class ScoutFinding:
 @dataclass(frozen=True)
 class Recommendation:
     """A scored recommendation ready for auditor review."""
+
     finding: ScoutFinding
     score: float
     relevance: float

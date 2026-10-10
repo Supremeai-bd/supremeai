@@ -3,6 +3,7 @@
 বাংলা: Policy Engine-এর typed schema। প্রতিটি policy rule একটি PolicyRule
 dataclass — condition + action + scope।
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -12,6 +13,7 @@ from typing import Any
 
 class PolicyAction(StrEnum):
     """What the policy does when triggered."""
+
     ALLOW = "allow"
     DENY = "deny"
     REQUIRE_APPROVAL = "require_approval"  # Tier-3
@@ -21,6 +23,7 @@ class PolicyAction(StrEnum):
 
 class PolicyScope(StrEnum):
     """What the policy applies to."""
+
     AGENT = "agent"  # per-agent policy
     TASK_TYPE = "task_type"  # per-task-type policy
     PROVIDER = "provider"  # per-provider policy
@@ -31,6 +34,7 @@ class PolicyScope(StrEnum):
 @dataclass(frozen=True)
 class PolicyRule:
     """A single policy rule — condition + action + scope."""
+
     rule_id: str
     name: str
     description: str
@@ -75,6 +79,7 @@ class PolicyRule:
 @dataclass(frozen=True)
 class PolicyEvaluation:
     """Result of evaluating a request against all policies."""
+
     allowed: bool
     matched_rules: list[PolicyRule]
     denial_reason: str = ""

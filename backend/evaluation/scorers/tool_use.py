@@ -2,6 +2,7 @@
 
 বাংলা: tool_use score = success rate of tool calls (MCP tools, browser, etc.)।
 """
+
 from __future__ import annotations
 
 from ..models import DimensionScore, ScoreDimension
@@ -41,7 +42,9 @@ def score_tool_use(
         evidence={
             "tool_calls_total": tool_calls_total,
             "tool_calls_succeeded": tool_calls_succeeded,
-            "success_rate": tool_calls_succeeded / tool_calls_total if tool_calls_total > 0 else 0.0,
+            "success_rate": tool_calls_succeeded / tool_calls_total
+            if tool_calls_total > 0
+            else 0.0,
             "benchmark_run_id": benchmark_run_id,
         },
     )

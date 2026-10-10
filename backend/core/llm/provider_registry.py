@@ -123,19 +123,14 @@ class ProviderRegistry:
         providers = {d.provider for d in self._models.values()}
         unknown = providers - set(_MODEL_KEY_MAP)
         if unknown:
-            raise ValueError(
-                f"models reference providers without credentials: {sorted(unknown)}"
-            )
+            raise ValueError(f"models reference providers without credentials: {sorted(unknown)}")
         self._providers: dict[str, ProviderDescriptor] = {
             name: ProviderDescriptor(
                 name=name,
-                credential=(
-                    provider_overrides or {}).get(name)
+                credential=(provider_overrides or {}).get(name)
                 or CredentialDescriptor(provider=name, settings_attr=_MODEL_KEY_MAP[name]),
                 api_base=_PROVIDER_API_BASES.get(name),
-                models=tuple(
-                    d for d in self._models.values() if d.provider == name
-                ),
+                models=tuple(d for d in self._models.values() if d.provider == name),
             )
             for name in sorted(providers)
         }
@@ -196,9 +191,7 @@ class ProviderRegistry:
 
     def health_snapshot(self) -> dict[str, str]:
         """প্রতি provider অবস্থা + retired model — raw key ছাড়া (AC-5/6)।"""
-        out: dict[str, str] = {
-            name: health.value for name, health in self._health.items()
-        }
+        out: dict[str, str] = {name: health.value for name, health in self._health.items()}
         for model in self._models.values():
             if model.retired:
                 out[f"model:{model.model}"] = "retired"

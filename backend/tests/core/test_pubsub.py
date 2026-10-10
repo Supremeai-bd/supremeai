@@ -102,7 +102,9 @@ async def test_pubsub_lazy_initialization():
     # বাংলা (#4169): swarm_pubsub now uses redis_manager.get_managed_client_sync()
     # instead of aioredis.from_url(). Mock redis_manager instead.
     mock_redis = AsyncMock()
-    with patch("core.cache.redis_manager.redis_manager.get_managed_client_sync", return_value=mock_redis):
+    with patch(
+        "core.cache.redis_manager.redis_manager.get_managed_client_sync", return_value=mock_redis
+    ):
         pubsub._redis = None
         _ = pubsub._get_redis()
         assert pubsub._redis is mock_redis

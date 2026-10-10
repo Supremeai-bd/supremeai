@@ -24,9 +24,7 @@ def _hermetic_multicloud(monkeypatch):
        ডাকত।
     """
     monkeypatch.setattr("redis.from_url", lambda *args, **kwargs: None)
-    monkeypatch.setattr(
-        ParallelCloudRouter, "_health_check_all", lambda self, force=False: None
-    )
+    monkeypatch.setattr(ParallelCloudRouter, "_health_check_all", lambda self, force=False: None)
 
 
 def test_parallel_cloud_router_initialization():

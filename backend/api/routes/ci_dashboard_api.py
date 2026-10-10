@@ -274,8 +274,12 @@ async def receive_ci_webhook(payload: WebhookPayload):
     """
     Receive CI summary from GitHub Actions workflow.
 
-    Called by ci_summary_v2.py after generating summary.
     Expects X-CI-Webhook-Secret header for verification.
+
+    বাংলা মন্তব্য (audit 2026-10-10): আগের ডকস্ট্রিং বলত "Called by
+    ci_summary_v2.py" — ওই স্ক্রিপ্ট .github/scripts/ থেকে orphan হয়ে মুছে ফেলা
+    হয়েছে (কোনো workflow ওই কল করত না)। endpoint-টি টিকে আছে যখন কোনো CI summary
+    generator secret-header সহ POST করবে; caller রেগেনারেট না হওয়া পর্যন্ত.
     """
     # বাংলা মন্তব্য (Wave-1 security fix): তিনটি দুর্বলতা ঠিক করা হলো —
     # (১) আগে secret unset থাকলে fail-open হতো (যেকোনো কলার CI ডেটা ঢোকাতে পারত),

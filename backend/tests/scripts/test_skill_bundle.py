@@ -85,11 +85,15 @@ def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Path]:
     agents_md.write_text(AGENTS_MD_FIXTURE, encoding="utf-8")
     db = tmp_path / "policy.db"
 
-    monkeypatch.setattr(mod, "CANONICAL_FILES", {
-        "agents_md": agents_md,
-        "agent_rules_md": rules_md,
-        "constitution_rules_yml": rules_yml,
-    })
+    monkeypatch.setattr(
+        mod,
+        "CANONICAL_FILES",
+        {
+            "agents_md": agents_md,
+            "agent_rules_md": rules_md,
+            "constitution_rules_yml": rules_yml,
+        },
+    )
     return {"db": db, "agents_md": agents_md, "tmp": tmp_path}
 
 
@@ -105,9 +109,7 @@ def _rules(env: dict[str, Path]) -> dict[str, dict]:
     """DB-র সব latest rule পড়া — assertion সহায়ক।"""
     conn = sqlite3.connect(str(env["db"]))
     conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        "SELECT rule_id, version, scope, mandatory FROM policy_rules"
-    ).fetchall()
+    rows = conn.execute("SELECT rule_id, version, scope, mandatory FROM policy_rules").fetchall()
     conn.close()
     return {r["rule_id"]: dict(r) for r in rows}
 
@@ -184,8 +186,8 @@ def test_bundle_metadata_versions_and_hash_present(env):
         assert bundle["policy_versions"][rule["rule_id"]] == rule["version"]
     # AGENTS.md entry-contract pin
     import hashlib
-    assert bundle["agents_md_sha256"] == hashlib.sha256(
-        env["agents_md"].read_bytes()).hexdigest()
+
+    assert bundle["agents_md_sha256"] == hashlib.sha256(env["agents_md"].read_bytes()).hexdigest()
 
 
 # ---------------------------------------------------------------------------
@@ -207,8 +209,7 @@ def test_augment_decision_stamps_bundle_hash(env):
     bpath.write_text(json.dumps(bundle), encoding="utf-8")
     dpath.write_text(json.dumps(decision), encoding="utf-8")
     assert mod.main(["stamp", "--bundle", str(bpath), "--decision", str(dpath)]) == 0
-    assert json.loads(dpath.read_text())["skill_bundle"]["content_hash"] == \
-        bundle["content_hash"]
+    assert json.loads(dpath.read_text())["skill_bundle"]["content_hash"] == bundle["content_hash"]
 
 
 # ---------------------------------------------------------------------------
@@ -219,12 +220,24 @@ def test_db_rule_version_bump_changes_bundle_without_touching_files(env):
     before = mod.generate_bundle("coder", "3194", db_path=env["db"])
 
     # admin policy write — rule-upsert CLI (guard সহ)
-    rc = mod.main([
-        "rule-upsert", "--rule-id", "U1", "--scope", "universal",
-        "--category", "universal", "--title", "Scope",
-        "--body", "Scope narrowed by admin (v2).", "--mandatory",
-        "--confirm-policy-write", *_db_arg(env),
-    ])
+    rc = mod.main(
+        [
+            "rule-upsert",
+            "--rule-id",
+            "U1",
+            "--scope",
+            "universal",
+            "--category",
+            "universal",
+            "--title",
+            "Scope",
+            "--body",
+            "Scope narrowed by admin (v2).",
+            "--mandatory",
+            "--confirm-policy-write",
+            *_db_arg(env),
+        ]
+    )
     assert rc == 0
 
     after = mod.generate_bundle("coder", "3194", db_path=env["db"])
@@ -244,10 +257,18 @@ def test_db_rule_version_bump_changes_bundle_without_touching_files(env):
 
 def test_policy_write_guard_refuses_without_confirm(env):
     _seed(env)
-    rc = mod.main([
-        "rule-upsert", "--rule-id", "UX", "--title", "t", "--body", "b",
-        *_db_arg(env),
-    ])
+    rc = mod.main(
+        [
+            "rule-upsert",
+            "--rule-id",
+            "UX",
+            "--title",
+            "t",
+            "--body",
+            "b",
+            *_db_arg(env),
+        ]
+    )
     assert rc == 2  # refused — agent নিজে থেকে policy বদলাতে পারে না
 
 
@@ -263,9 +284,10 @@ def test_seed_is_idempotent_and_force_creates_new_version(env):
 
     # canonical fixture বদলে force re-seed → নতুন version
     rules_md = env["tmp"] / "AGENT_RULES.md"
-    rules_md.write_text(AGENT_RULES_FIXTURE.replace("Stay in scope. (fixture)",
-                                                    "Scope tightened. (v2)"),
-                        encoding="utf-8")
+    rules_md.write_text(
+        AGENT_RULES_FIXTURE.replace("Stay in scope. (fixture)", "Scope tightened. (v2)"),
+        encoding="utf-8",
+    )
     forced = mod.seed_from_canonical(db_path=env["db"], force=True)
     assert forced["updated"] >= 1
     rules = _rules(env)
@@ -304,8 +326,20 @@ def test_module_has_no_orchestration_machinery():
 def test_cli_generate_outputs_valid_bundle(env, tmp_path, capsys):
     _seed(env)
     out = tmp_path / "bundles" / "b.json"
-    rc = mod.main(["generate", "--role", "coder", "--task-id", "3194",
-                   "--task-type", "coding", "--out", str(out), *_db_arg(env)])
+    rc = mod.main(
+        [
+            "generate",
+            "--role",
+            "coder",
+            "--task-id",
+            "3194",
+            "--task-type",
+            "coding",
+            "--out",
+            str(out),
+            *_db_arg(env),
+        ]
+    )
     assert rc == 0
     bundle = json.loads(out.read_text(encoding="utf-8"))
     assert bundle["role"] == "coder"

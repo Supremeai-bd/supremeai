@@ -764,6 +764,7 @@ class TestCircuitBreakerStateInfo:
 def _async_return(value: Any):
     async def _fn():
         return value
+
     return _fn
 
 
@@ -771,6 +772,7 @@ def _async_return(value: Any):
 def _async_raise(exc: BaseException):
     async def _fn():
         raise exc
+
     return _fn
 
 

@@ -51,7 +51,10 @@ class TestSwarmPubSubInit:
         """বাংলা মন্তব্য: Redis connection create হয়।"""
         # বাংলা (#4169): swarm_pubsub now uses redis_manager.get_managed_client_sync()
         mock_redis = AsyncMock()
-        with patch("core.cache.redis_manager.redis_manager.get_managed_client_sync", return_value=mock_redis):
+        with patch(
+            "core.cache.redis_manager.redis_manager.get_managed_client_sync",
+            return_value=mock_redis,
+        ):
             pubsub = SwarmPubSub()
             r = pubsub.redis
             assert r is not None
@@ -297,7 +300,10 @@ class TestGlobalInstance:
 
         # বাংলা (#4169): swarm_pubsub now uses redis_manager.get_managed_client_sync()
         mock_redis = AsyncMock()
-        with patch("core.cache.redis_manager.redis_manager.get_managed_client_sync", return_value=mock_redis):
+        with patch(
+            "core.cache.redis_manager.redis_manager.get_managed_client_sync",
+            return_value=mock_redis,
+        ):
             swarm_streamer._redis = None  # force re-init
             assert swarm_streamer.redis is not None
 

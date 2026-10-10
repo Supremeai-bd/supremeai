@@ -89,7 +89,12 @@ class TestCorpusShape:
         When: ক্যাটাগরি পরীক্ষা করলে।
         Then: শুধুমাত্র আক্রমণ-ক্যাটাগরি blocked প্রত্যাশা বহন করে।
         """
-        attack_categories = {"jailbreak", "prompt_injection", "sensitive_extraction", "malicious_code"}
+        attack_categories = {
+            "jailbreak",
+            "prompt_injection",
+            "sensitive_extraction",
+            "malicious_code",
+        }
         for case in cases_by_expect("blocked"):
             assert case.category in attack_categories, (
                 f"[{case.case_id}] আক্রমণ-ক্যাটাগরি ছাড়া blocked-প্রত্যাশা সন্দেহজনক"
@@ -102,6 +107,4 @@ class TestCorpusShape:
         """
         for case in cases_by_expect("blocked"):
             result = await pre_flight_scan(case.content)
-            assert result["allowed"] is False, (
-                f"[{case.case_id}] লোকাল fail-fast পথ ধরেনি: {result}"
-            )
+            assert result["allowed"] is False, f"[{case.case_id}] লোকাল fail-fast পথ ধরেনি: {result}"

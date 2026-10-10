@@ -650,9 +650,7 @@ class TestKeyRevocation:
         # বাংলা: rate limiter allow করবে।
         monkeypatch.setattr(mw.limiter, "acquire", AsyncMock(return_value=True))
         # বাংলা: usage recording কোনো DB কল না করুক।
-        monkeypatch.setattr(
-            mw_mod, "record_api_key_usage", AsyncMock(return_value=None)
-        )
+        monkeypatch.setattr(mw_mod, "record_api_key_usage", AsyncMock(return_value=None))
 
         raw_key = generate_api_key()
         scope = {

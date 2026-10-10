@@ -86,8 +86,13 @@ def _seed_window(cur_minute: int) -> dict[str, list[str]]:
             status = 500 if (i == 0 and offset == 0) else 200
             rows.append(
                 json.dumps(
-                    {"method": "GET", "path": "/x", "status": status,
-                     "duration": 0.1 * (i + 1), "error": None}
+                    {
+                        "method": "GET",
+                        "path": "/x",
+                        "status": status,
+                        "duration": 0.1 * (i + 1),
+                        "error": None,
+                    }
                 )
             )
         data[key] = rows
@@ -107,8 +112,11 @@ def test_traffic_live_single_eval_command():
     assert resp.status_code == 200
     body = resp.json()
     assert set(body) == {
-        "current_rps", "window_30min", "distribution",
-        "error_rate_percent", "p95_latency_ms",
+        "current_rps",
+        "window_30min",
+        "distribution",
+        "error_rate_percent",
+        "p95_latency_ms",
     }
     assert len(fake.eval_calls) == 1, "window must be read in ONE command"
     script, numkeys, keys = fake.eval_calls[0]
@@ -174,7 +182,12 @@ def test_frontend_polling_cadence_source_contract():
     """TrafficMonitor must poll at 30s — 5s cadence was the quota burner."""
     tsx = (
         BACKEND_ROOT.parent
-        / "frontend" / "src" / "commandcenter" / "modules" / "observe" / "TrafficMonitor.tsx"
+        / "frontend"
+        / "src"
+        / "commandcenter"
+        / "modules"
+        / "observe"
+        / "TrafficMonitor.tsx"
     ).read_text(encoding="utf-8")
     assert "useTraffic(30_000)" in tsx
     assert "useTraffic(5_000)" not in tsx

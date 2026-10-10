@@ -2,6 +2,7 @@
 
 বাংলা: admin endpoint-গুলো routing decisions + approvals manage করার জন্য।
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -24,7 +25,11 @@ router = APIRouter(prefix="/admin-api/routing", tags=["routing-governance"])
 
 class RoutingRequest(BaseModel):
     """Request body for evaluating a routing decision."""
-    action: str = Field(..., description="Routing action (e.g., latency_weight_adjustment, provider_preference, constitutional_change)")
+
+    action: str = Field(
+        ...,
+        description="Routing action (e.g., latency_weight_adjustment, provider_preference, constitutional_change)",
+    )
     provider: str = Field(..., description="Provider name (e.g., groq, openai, cerebras)")
     task_type: str = Field("default", description="Task type")
     agent_id: str = Field(..., description="Agent requesting the routing")
@@ -99,6 +104,7 @@ async def list_tiers_endpoint(
     বাংলা: ৩টি routing tier-এর তালিকা + প্রতিটি tier-এর actions।
     """
     from governance.routing_tiers import TIER1_ACTIONS, TIER2_ACTIONS, TIER3_ACTIONS
+
     return {
         "tiers": [
             {

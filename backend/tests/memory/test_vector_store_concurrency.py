@@ -50,9 +50,7 @@ class TestFallbackConcurrentAccess:
         for t in threads:
             t.join(timeout=10)
 
-        assert fallback_store.count() == 20, (
-            f"রাইট হারিয়েছে: ২০টির বদলে {fallback_store.count()}টি"
-        )
+        assert fallback_store.count() == 20, f"রাইট হারিয়েছে: ২০টির বদলে {fallback_store.count()}টি"
 
     def test_query_during_concurrent_adds_never_crashes(self, fallback_store: ChromaDBStore):
         """Given: এক থ্রেড টানা query করছে, আর ১৫টি থ্রেড টানা doc যোগ করছে।
@@ -98,9 +96,7 @@ class TestFallbackConcurrentAccess:
         Then: কোনো exception নেই — delete-ও লক-সুরক্ষিত।
         """
         for i in range(30):
-            fallback_store.add_document(
-                doc_id=f"del-{i:02d}", text=f"deletable doc {i} gamma{i}"
-            )
+            fallback_store.add_document(doc_id=f"del-{i:02d}", text=f"deletable doc {i} gamma{i}")
         errors: list[Exception] = []
 
         def _deleter() -> None:
@@ -134,9 +130,7 @@ class TestFallbackConcurrentAccess:
         When: query করলে।
         Then: ফলাফল এখনও অর্থবহ — সবচেয়ে মিলযুক্ত doc শীর্ষে থাকে।
         """
-        fallback_store.add_document(
-            doc_id="target", text="kubernetes pod eviction policy details"
-        )
+        fallback_store.add_document(doc_id="target", text="kubernetes pod eviction policy details")
         fallback_store.add_document(doc_id="noise", text="cooking pasta recipes olive oil")
 
         def _add_noise(i: int) -> None:
