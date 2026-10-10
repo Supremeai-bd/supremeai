@@ -13,17 +13,32 @@ on:
         description: "intake | sync | both"
         required: false
         default: "both"
+        # E2: choice-টাইপ বাধ্যতামূলক — free-text input সরাসরি `run:`-এর shell-এ
+        # গিয়ে command injection বানাত (BRIDGE_TOKEN PAT ওই shell-এ থাকে)।
+        type: choice
+        options:
+          - both
+          - intake
+          - sync
 
 permissions:
   contents: read # script নিজে BRIDGE_TOKEN দিয়ে push/PR করে — github.token লেখার অধিকার লাগে না
 
 concurrency:
   group: bridge-intake-v2
-  cancel-in-progress: true
+  # E4: cancel-in-progress:false — intake প্রতি অর্ডারে (clone→apply→push→
+  # intake issue→PR) চলে; মাঝপথে cancel হলে `bridge-land/<task-id>` branch push
+  # হয়ে যায় কিন্তু dedup-marker issue তৈরি হয় না → পরের run-এ push
+  # non-fast-forward → ভ্যালিড অর্ডার ভুলভাবে `bridge:rejected` (E4)।
+  # পুরনো রান শেষ হউক, নতুন রান queue-তে অপেক্ষা করুক।
+  cancel-in-progress: false
 
 jobs:
   bridge:
     runs-on: ubuntu-latest
+    # E9: run-এর সময়-সীমা — ৩০টা queued work order × (clone+apply) দীর্ঘ হতে পারে;
+    # timeout ছাড়া একটি আটকে-থাকা রান concurrency queue চিরকাল আটকে রাখত।
+    timeout-minutes: 45
     steps:
       - name: Checkout (শুধু script পড়তে — persist-credentials নিষিদ্ধ)
         uses: actions/checkout@v4
@@ -66,12 +81,17 @@ jobs:
       - name: Bridge intake + sync (fail-honest exit codes)
         env:
           BRIDGE_TOKEN: ${{ env.BRIDGE_TOKEN }}
+          # E2/E3: mode `env:` দিয়ে পাস — `${{ }}` কখনো সরাসরি shell-এ বসে না;
+          # মান-ভ্যালিডেশন স্ক্রিপ্টের কাজ (unknown mode → rc 2)।
+          MODE: ${{ github.event.inputs.mode || 'both' }}
         run: |
-          set -uo pipefail
-          MODE="${{ github.event.inputs.mode || 'both' }}"
-          if [ "$MODE" = "intake" ] || [ "$MODE" = "both" ]; then
-            python scripts/bridge/bridge_intake.py intake
-          fi
-          if [ "$MODE" = "sync" ] || [ "$MODE" = "both" ]; then
-            python scripts/bridge/bridge_intake.py sync
-          fi
+          # E1: `set -e` ছাড়া step-এর exit-status = শেষ command-এর। আগের দুই-আলাদা
+          # `python … intake` / `python … sync` কলেই intake ব্যর্থ (rc 2) হলেও
+          # sync সফল হলে রান সবুজ হয়ে যেত — আর `both` হল ডিফল্ট মোড, অর্থাৎ
+          # সবসময়ই intake-এর সৎ লাল চাপা পড়ত।
+          set -euo pipefail
+          MODE="${MODE:-both}"
+          echo "[bridge] mode=$MODE"
+          # E1/E3: একটি invocation — bridge_intake.py main() নিজে intake→sync
+          # চেইন করে ও rc প্রোপাগেট করে, mode-ভ্যালিডেশনও নিজেই করে (shell if নয়)।
+          python scripts/bridge/bridge_intake.py "$MODE"

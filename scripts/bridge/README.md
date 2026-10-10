@@ -31,13 +31,23 @@ PR merged / closed  ──────────────▶     sync: brid
 | Dedup | private intake issue marker `<!-- bridge-task: <id> -->` (fail-closed on unknown state) |
 | Landing | শুধুমাত্র constitutional gates — bridge কখনো merge করে না |
 | Reporting | public issue-তে sanitized কমেন্ট (token/secret কখনো যায় না) |
+| Retry | আগের রান push করা `bridge-land/<task-id>` branch থাকলে সেটিকেই base করে fast-forward retry — force-push নয়, একই patch দুইবার commit নয় (E4) |
+| Pagination | sync/list সব GitHub list-call `Link: rel="next"` ফলো করে; cap-এ পৌঁছালে fail-honest, নীরব truncation নয় (E5) |
 
 ## Components
 
 - `scripts/bridge/bridge_intake.py` — intake (validate+apply) + sync (lifecycle report)
-- `.github/workflows/bridge-intake.yml` — schedule `*/30` + dispatch; token = vault
-  `GITHUB_PAT_PAYKARIBAZARONLINE` runtime-fetched via `INFISICAL_*` (শূন্য repo-secret,
-  archive-mirror.yml-এর প্রমাণিত pattern)
+- `.github/workflows/bridge-intake.yml` — schedule `13,43 * * * *` (৩০ মিনিটের ছন্দ,
+  off-peak :13/:43 স্লট — issue #52) + `workflow_dispatch` (`mode`: `both` | `intake`
+  | `sync`, `type: choice`); token = vault `GITHUB_PAT_PAYKARIBAZARONLINE`
+  runtime-fetched via `INFISICAL_*` (শূন্য repo-secret, archive-mirror.yml-এর প্রমাণিত
+  pattern)। Run fail-fast (`set -euo pipefail`) + একটাই invocation —
+  `python scripts/bridge/bridge_intake.py "$MODE"` (স্ক্রিপ্টই mode ভ্যালিডেট করে ও
+  intake→sync rc প্রোপাগেট করে); `cancel-in-progress: false` (মাঝপথে cancel হলে
+  orphan branch তৈরি হয়ে retry বান হয়ে যায় — তাই run শেষ হোক), job
+  `timeout-minutes: 45`।
+- `.github/scripts/constitution/tests/test_bridge_automation_contract.py` — workflow
+  hardening + watchdog name-coupling guard (E-series)
 - `tests/test_bridge_intake.py` — pure-function unit battery
 
 ## Design invariants (কেন এভাবে)
