@@ -51,10 +51,10 @@ TASK_ID_RE = re.compile(r"^T-\d{4}$")
 SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 GITHUB_ISSUE_RE = re.compile(
-    r"^https://github\.com/paykaribazaronline/supremeai/issues/\d+$"
+    r"^https://github\.com/(SaifulHaqueNiloy|paykaribazaronline)/supremeai/issues/\d+$"
 )
 GITHUB_PULL_RE = re.compile(
-    r"^https://github\.com/paykaribazaronline/supremeai/pull/\d+$"
+    r"^https://github\.com/(SaifulHaqueNiloy|paykaribazaronline)/supremeai/pull/\d+$"
 )
 
 REQUIRED_STR_FIELDS = (

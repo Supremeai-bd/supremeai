@@ -468,7 +468,7 @@ class WorkflowWiringTests(unittest.TestCase):
                             "issue-template-guard should not have 'edited' trigger (#3517)")
         # Verify template-validate job exists in issue-ops.yml
         import yaml as _yaml
-        with open(".github/workflows/issue-ops.yml") as _f:
+        with open(".github/workflows/issue-ops.yml", encoding="utf-8") as _f:
             issue_ops = _yaml.safe_load(_f)
         job_names = list(issue_ops.get("jobs", {}).keys())
         self.assertIn("template-validate", job_names,

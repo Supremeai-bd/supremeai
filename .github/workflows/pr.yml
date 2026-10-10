@@ -36,9 +36,11 @@ concurrency:
 permissions:
   contents: read
   pull-requests: read
-  # #4291 parity (SHN PR #4291, validated): repo PRIVATE হওয়ায় runner token issue-read
-  # ছাড়া 403 পায় → Admin-Approval/Scope/Template gates fail-closed BLOCK (E2E bridge
-  # PR #38-তে প্রমাণিত 2026-10-09)। issues: READ — least-privilege restore।
+  # #4271 Phase 0 fix (PR #4291 evidence): repo flipped PRIVATE mid-project —
+  # the runner token now gets HTTP 403 on issue reads (Scope Gate claim
+  # comments, Admin-Approval Gate #4271 lookup, Claim Gate evidence) → gates
+  # that are fail-closed on fetch-failure BLOCK legitimately-good PRs.
+  # issues: READ only — least-privilege restore of pre-privacy behavior.
   issues: read
 
 jobs:
@@ -249,8 +251,6 @@ jobs:
       # প্রমাণ-চেইন (issue→agent→commit→tests→PR→deploy→runtime→verifier→outcome)।
       # Path-guarded: শুধুমাত্র ledger ফাইল বদলালে চলে; চললে fail-closed — schema,
       # enum, SHA/URL format, verifier-independence (স্ব-যাচাই নিষিদ্ধ), এবং
-      # historical line delete/modify = block (প্রমাণ পুনর্লিখন = fabrication)।
-      # Port of SHN #4291 — URL slug adapted to paykaribazaronline/supremeai.
       # ---------------------------------------------------------------------------
       - name: 📒 Task Outcome Ledger Gate (#4271 Phase 0)
         run: |
