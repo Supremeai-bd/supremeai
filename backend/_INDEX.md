@@ -34,7 +34,8 @@
 | `core/security/` | JWT, auth, RBAC |
 | `core/cost_guard.py` | $0 cost enforcement, budget tracking |
 | `services/memory_service.py` | AI memory read/write (19KB) |
-| `services/llm/` | LLM abstraction layer |
+
+> Note (audit 2026-10-10): `services/llm/` was retired by the LLM Gateway Consolidation (#2249) — routing now lives in `core/llm_router.py` / `core/router.py` and the LLM gateway package. The empty package plus stale bytecode was removed.
 
 ## Tests
 ```bash

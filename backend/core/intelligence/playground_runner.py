@@ -178,7 +178,11 @@ class PlaygroundRunner:
         # বাংলা মন্তব্য: winner = আসল স্কোর-সর্বোচ্চ; tie হলে প্রথম (stable)।
         winner_result: PlaygroundResult | None = None
         for res in resolved:
-            if res.executed and res.ok and (winner_result is None or res.score > winner_result.score):
+            if (
+                res.executed
+                and res.ok
+                and (winner_result is None or res.score > winner_result.score)
+            ):
                 winner_result = res
 
         winner_label = winner_result.label if winner_result else None
@@ -188,9 +192,7 @@ class PlaygroundRunner:
             "verified_in_sandbox": winner_result is not None,
             "winner_score": winner_result.score if winner_result else 0.0,
             "results": [r.to_dict() for r in resolved],
-            "reason": (
-                "ok" if winner_result else _unavailable_reason(resolved)
-            ),
+            "reason": ("ok" if winner_result else _unavailable_reason(resolved)),
         }
 
 

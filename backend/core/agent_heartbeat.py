@@ -149,6 +149,7 @@ async def _ping_tcp(tcp_url: str, payload: str) -> str:
 
     # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
     from core.cache.redis_manager import redis_manager
+
     client = redis_manager.get_managed_client_sync()
     try:
         await client.set(f"{KEY_PREFIX}{SLOT}", payload, ex=TTL_SECONDS)

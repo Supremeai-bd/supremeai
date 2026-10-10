@@ -3,6 +3,7 @@
 বাংলা: ProviderScore হলো একটি provider-এর জন্য ৭-dimension evaluation result।
 weights হলো task-type অনুযায়ী dimension weights (admin-configurable)।
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -12,6 +13,7 @@ from typing import Any
 
 class ScoreDimension(StrEnum):
     """৭টি evaluation dimension (Roadmap v2 §5.1)।"""
+
     CORRECTNESS = "correctness"
     LATENCY = "latency"
     COST = "cost"
@@ -24,6 +26,7 @@ class ScoreDimension(StrEnum):
 @dataclass(frozen=True)
 class DimensionScore:
     """Single dimension score (0.0-1.0 normalized, higher = better)."""
+
     dimension: ScoreDimension
     score: float  # 0.0-1.0 normalized (higher = better)
     raw_value: float  # original measurement (ms, $, %, etc.)
@@ -38,6 +41,7 @@ class DimensionScore:
 @dataclass(frozen=True)
 class ProviderScore:
     """Complete evaluation score for a provider × task-type pair."""
+
     provider: str
     task_type: str  # "ci_fix", "code_review", "research", "browser_automation", etc.
     dimensions: tuple[DimensionScore, ...]

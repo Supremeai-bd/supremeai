@@ -54,9 +54,7 @@ async def test_recall_memories_offloads_blocking_embedding(monkeypatch):
 
     monkeypatch.setattr(ms, "get_embedding", blocking_embed)
 
-    task = asyncio.create_task(
-        ms.recall_memories(task_description="loop-liveness probe", limit=1)
-    )
+    task = asyncio.create_task(ms.recall_memories(task_description="loop-liveness probe", limit=1))
     await gate.wait_started()
 
     # বাংলা মন্তব্য: embedding এখনো worker-thread-এ আটকে আছে — লুপ জীবিত হলেই

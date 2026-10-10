@@ -3,6 +3,7 @@
 বাংলা: successful DecisionPattern থেকে skill template YAML তৈরি করে।
 skill templates L1 context-এ inject হয় যাতে next agent শিখতে পারে।
 """
+
 from __future__ import annotations
 
 import logging
@@ -129,8 +130,9 @@ block_rule: "warn_on_match"
 _INJECT_RULE = "on_task_assignment_if_similar"
 
 
-def _read_template_dir(directory: str | Path, task_type: str | None,
-                       match_key: str) -> list[dict[str, Any]]:
+def _read_template_dir(
+    directory: str | Path, task_type: str | None, match_key: str
+) -> list[dict[str, Any]]:
     import yaml  # backend dep — lazy import keeps CLI scripts light
 
     d = Path(directory)
@@ -159,15 +161,17 @@ def _read_template_dir(directory: str | Path, task_type: str | None,
     return out
 
 
-def read_skill_templates(task_type: str | None = None,
-                         repo_root: str | Path | None = None) -> list[dict[str, Any]]:
+def read_skill_templates(
+    task_type: str | None = None, repo_root: str | Path | None = None
+) -> list[dict[str, Any]]:
     """Read injectable skill templates (optionally filtered by task match)."""
     root = Path(repo_root) if repo_root else Path.cwd()
     return _read_template_dir(root / "knowledge" / "skills", task_type, "task_type")
 
 
-def read_regression_guards(task_type: str | None = None,
-                           repo_root: str | Path | None = None) -> list[dict[str, Any]]:
+def read_regression_guards(
+    task_type: str | None = None, repo_root: str | Path | None = None
+) -> list[dict[str, Any]]:
     """Read injectable regression guards (optionally filtered by task match)."""
     root = Path(repo_root) if repo_root else Path.cwd()
     return _read_template_dir(root / "knowledge" / "regression_guards", task_type, "task_type")

@@ -56,6 +56,7 @@ class AdmissionResult:
 
 # ── Configurable limits (env-driven, zero-hardcode) ──────────────────────────
 
+
 def _env_int(key: str, default: int) -> int:
     try:
         return int(os.getenv(key, str(default)))
@@ -124,8 +125,7 @@ class WorkloadAdmissionController:
         # 2. Parallelism check
         if req.parallelism > MAX_PARALLELISM:
             reason = (
-                f"parallelism={req.parallelism} exceeds max={MAX_PARALLELISM} "
-                f"(user={req.user_id})"
+                f"parallelism={req.parallelism} exceeds max={MAX_PARALLELISM} (user={req.user_id})"
             )
             logger.warning(f"[WorkloadAdmission] REJECT: {reason}")
             return AdmissionResult(

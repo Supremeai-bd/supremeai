@@ -3,6 +3,7 @@
 বাংলা: regression score = quality delta vs previous benchmark। degradation > threshold
 triggers alert। higher score = less regression / more improvement।
 """
+
 from __future__ import annotations
 
 from ..models import DimensionScore, ScoreDimension

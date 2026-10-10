@@ -205,11 +205,7 @@ class SupabaseStore(SQLiteMemoryStore):
         # হবে — cross-tenant session-id enumeration এর মাধ্যমে read block।
         if self._provider == "supabase":
             client = self._get_supabase_client()
-            q = (
-                client.table("conversations")
-                .select("messages")
-                .eq("session_id", session_id)
-            )
+            q = client.table("conversations").select("messages").eq("session_id", session_id)
             # বাংলা (#3222): tenant_id filter — cross-tenant access block
             if tenant_id:
                 q = q.eq("tenant_id", str(tenant_id))

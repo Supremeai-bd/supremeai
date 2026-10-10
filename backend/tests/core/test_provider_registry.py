@@ -99,9 +99,7 @@ def test_ac4_alternate_provider_selected_when_primary_down() -> None:
 def test_ac5_retired_model_excluded_and_visible(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        "core.llm.provider_registry._RETIRED_MODELS", {"openai/test-b"}
-    )
+    monkeypatch.setattr("core.llm.provider_registry._RETIRED_MODELS", {"openai/test-b"})
     reg = ProviderRegistry(_models())
     with pytest.raises(NoCompatibleProviderError) as err:
         reg.select(Capability.EMBEDDING)

@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]   # repo root (tests/core/ → tests → backend → root)
+REPO = Path(__file__).resolve().parents[3]  # repo root (tests/core/ → tests → backend → root)
 BACKEND = Path(__file__).resolve().parents[2]  # backend/
 sys.path.insert(0, str(BACKEND))
 
@@ -48,9 +48,9 @@ def test_remediation_stubs_fail_loud_on_use():
 
 def test_remediation_module_text_has_no_fabricated_healthy():
     """স্টাবের `check_health → True` / `mock-backup-id` আর ফাইলে নেই (greppable guard)।"""
-    src = (BACKEND / "core" / "self_evolution" / "digital_twin" / "remediation_engine.py").read_text(
-        encoding="utf-8"
-    )
+    src = (
+        BACKEND / "core" / "self_evolution" / "digital_twin" / "remediation_engine.py"
+    ).read_text(encoding="utf-8")
     assert "mock-backup-id" not in src
     assert 'return {"status": "healthy"}' not in src
 

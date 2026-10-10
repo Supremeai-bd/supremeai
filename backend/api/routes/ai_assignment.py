@@ -273,7 +273,7 @@ async def test_provider(
 
         headers = {"Authorization": f"Bearer {key}"} if provider_id != "gemini" else {}
         client = get_shared_async_client()
-        resp = await client.get(url,  headers=headers, timeout=10)
+        resp = await client.get(url, headers=headers, timeout=10)
 
         if resp.status_code == 200:
             return {"provider": provider_id, "status": "✅ working", "working": True, "code": 200}

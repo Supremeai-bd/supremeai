@@ -219,11 +219,7 @@ class MemoryRepository:
             try:
 
                 def _fetch():
-                    q = (
-                        client.table(self.TABLE_NAME)
-                        .select("*")
-                        .eq("id", rec_id)
-                    )
+                    q = client.table(self.TABLE_NAME).select("*").eq("id", rec_id)
                     # বাংলা (#3222): user_id filter — cross-user access block
                     if user_id:
                         q = q.eq("user_id", str(user_id))
@@ -263,8 +259,9 @@ class MemoryRepository:
             return True
         return False
 
-    async def get_session_memories(self, session_id: str, limit: int = 50,
-                                  user_id: str | None = None) -> list[dict[str, Any]]:
+    async def get_session_memories(
+        self, session_id: str, limit: int = 50, user_id: str | None = None
+    ) -> list[dict[str, Any]]:
         """Get all memories for a session ordered by creation.
 
         বাংলা (#3222): user_id দিলে শুধু সেই user-এর session memories return হবে —
@@ -275,11 +272,7 @@ class MemoryRepository:
             try:
 
                 def _fetch_session():
-                    q = (
-                        client.table(self.TABLE_NAME)
-                        .select("*")
-                        .eq("session_id", str(session_id))
-                    )
+                    q = client.table(self.TABLE_NAME).select("*").eq("session_id", str(session_id))
                     # বাংলা (#3222): user_id filter — cross-user block
                     if user_id:
                         q = q.eq("user_id", str(user_id))
@@ -292,9 +285,11 @@ class MemoryRepository:
                 logger.debug(f"[MemoryRepository] get_session_memories error: {exc}")
 
         # বাংলা (#3222): in-memory fallback-এও user_id filter
-        matched = [r for r in self._in_memory_store.values()
-                   if r.get("session_id") == session_id
-                   and (not user_id or r.get("user_id") == user_id)]
+        matched = [
+            r
+            for r in self._in_memory_store.values()
+            if r.get("session_id") == session_id and (not user_id or r.get("user_id") == user_id)
+        ]
         matched.sort(key=lambda x: x.get("created_at", ""))
         return matched[:limit]
 

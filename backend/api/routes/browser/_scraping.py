@@ -55,7 +55,7 @@ async def _proxy_to_scraper(endpoint: str, payload: dict) -> dict:
         return await agent.navigate_and_interact(**payload)
     try:
         client = get_shared_async_client()
-        resp = await client.post(f"{_SCRAPER_URL}/{endpoint}",  json=payload, timeout=60.0)
+        resp = await client.post(f"{_SCRAPER_URL}/{endpoint}", json=payload, timeout=60.0)
         return resp.json()
     except (httpx.RequestError, httpx.HTTPStatusError) as e:
         logger.error(f"Scraper service proxy failed: {e}")

@@ -79,6 +79,7 @@ class TaskRecord:
 def _now_iso(now_ms: int) -> str:
     """ISO-8601 timestamp helper (mirrors nowIso in TS source)."""
     import datetime as _dt
+
     return _dt.datetime.fromtimestamp(now_ms / 1000, tz=_dt.UTC).isoformat()
 
 
@@ -155,16 +156,18 @@ class TaskRegistry:
             self._release_expired_leases(now_ms or int(time.time() * 1000))
             return list(self._registry.values())
 
-    def claim_task(
-        self, issue: int, slot: str, now_ms: int | None = None
-    ) -> dict:
+    def claim_task(self, issue: int, slot: str, now_ms: int | None = None) -> dict:
         """Atomic claim — returns ClaimResult dict (mirrors TS ClaimResult)।"""
         now = now_ms if now_ms is not None else int(time.time() * 1000)
         with self._lock:
             self._release_expired_leases(now)
             # বাংলা: issue validation
             if not isinstance(issue, int) or issue <= 0:
-                return {"ok": False, "reason": "not-found", "error": "issue must be positive integer"}
+                return {
+                    "ok": False,
+                    "reason": "not-found",
+                    "error": "issue must be positive integer",
+                }
             slot_err = validate_slot(slot)
             if slot_err:
                 return {"ok": False, "reason": "not-found", "error": f"invalid slot: {slot_err}"}
@@ -172,24 +175,40 @@ class TaskRegistry:
             if task is None:
                 return {"ok": False, "reason": "not-found", "error": f"task #{issue} not in queue"}
             if task.state == "COMPLETED":
-                return {"ok": False, "reason": "completed", "error": f"task #{issue} already completed"}
+                return {
+                    "ok": False,
+                    "reason": "completed",
+                    "error": f"task #{issue} already completed",
+                }
             if is_github_locked(task):
-                return {"ok": False, "reason": "github-locked",
-                        "error": f"task #{issue} carries status:in-progress/has-pr label"}
+                return {
+                    "ok": False,
+                    "reason": "github-locked",
+                    "error": f"task #{issue} carries status:in-progress/has-pr label",
+                }
             if task.state == "LEASED":
                 if task.claimed_by == slot:
                     # বাংলা: idempotent re-claim — একই slot, একই token, মেয়াদ রিনিউ।
                     task.lease_expires_at_ms = now + LEASE_TTL_MS
                     task.updated_at_ms = now
                     task.updated_at = _now_iso(now)
-                    return {"ok": True, "task": task, "claim_token": task.claim_token,
-                            "lease_expires_at_ms": task.lease_expires_at_ms,
-                            "idempotent_reclaim": True}
-                return {"ok": False, "reason": "lease-held",
-                        "held_by": {"slot": task.claimed_by,
-                                    "claimed_at": task.claimed_at,
-                                    "lease_expires_at_ms": task.lease_expires_at_ms},
-                        "error": f"task #{issue} leased by {task.claimed_by}"}
+                    return {
+                        "ok": True,
+                        "task": task,
+                        "claim_token": task.claim_token,
+                        "lease_expires_at_ms": task.lease_expires_at_ms,
+                        "idempotent_reclaim": True,
+                    }
+                return {
+                    "ok": False,
+                    "reason": "lease-held",
+                    "held_by": {
+                        "slot": task.claimed_by,
+                        "claimed_at": task.claimed_at,
+                        "lease_expires_at_ms": task.lease_expires_at_ms,
+                    },
+                    "error": f"task #{issue} leased by {task.claimed_by}",
+                }
             # বাংলা: UNCLAIMED → LEASED transition
             token = uuid.uuid4().hex
             task.state = "LEASED"
@@ -201,9 +220,13 @@ class TaskRegistry:
             task.lease_expires_at_ms = now + LEASE_TTL_MS
             task.updated_at_ms = now
             task.updated_at = _now_iso(now)
-            return {"ok": True, "task": task, "claim_token": token,
-                    "lease_expires_at_ms": task.lease_expires_at_ms,
-                    "idempotent_reclaim": False}
+            return {
+                "ok": True,
+                "task": task,
+                "claim_token": token,
+                "lease_expires_at_ms": task.lease_expires_at_ms,
+                "idempotent_reclaim": False,
+            }
 
     def heartbeat_task(
         self, issue: int, slot: str, claim_token: str, now_ms: int | None = None
@@ -214,30 +237,44 @@ class TaskRegistry:
             self._release_expired_leases(now)
             task = self._registry.get(issue)
             if task is None:
-                return {"ok": False, "reason": "not-found",
-                        "error": f"task #{issue} not in queue"}
+                return {"ok": False, "reason": "not-found", "error": f"task #{issue} not in queue"}
             if task.state == "COMPLETED":
-                return {"ok": False, "reason": "not-leased",
-                        "error": f"task #{issue} already completed"}
+                return {
+                    "ok": False,
+                    "reason": "not-leased",
+                    "error": f"task #{issue} already completed",
+                }
             if task.state != "LEASED":
-                return {"ok": False, "reason": "not-leased",
-                        "error": f"task #{issue} has no active lease"}
+                return {
+                    "ok": False,
+                    "reason": "not-leased",
+                    "error": f"task #{issue} has no active lease",
+                }
             if task.claimed_by != slot:
-                return {"ok": False, "reason": "slot-mismatch",
-                        "error": f"lease owned by {task.claimed_by}, not {slot}"}
+                return {
+                    "ok": False,
+                    "reason": "slot-mismatch",
+                    "error": f"lease owned by {task.claimed_by}, not {slot}",
+                }
             if task.claim_token != claim_token:
-                return {"ok": False, "reason": "token-mismatch",
-                        "error": "claimToken mismatch (lease may have been reclaimed)"}
+                return {
+                    "ok": False,
+                    "reason": "token-mismatch",
+                    "error": "claimToken mismatch (lease may have been reclaimed)",
+                }
             task.last_heartbeat_at = _now_iso(now)
             task.lease_expires_at_ms = now + LEASE_TTL_MS
             task.updated_at_ms = now
             task.updated_at = _now_iso(now)
-            return {"ok": True, "task": task,
-                    "lease_expires_at_ms": task.lease_expires_at_ms}
+            return {"ok": True, "task": task, "lease_expires_at_ms": task.lease_expires_at_ms}
 
     def complete_task(
-        self, issue: int, slot: str, claim_token: str,
-        knowledge: TaskKnowledge | None = None, now_ms: int | None = None
+        self,
+        issue: int,
+        slot: str,
+        claim_token: str,
+        knowledge: TaskKnowledge | None = None,
+        now_ms: int | None = None,
     ) -> dict:
         """Mark LEASED task COMPLETED + record knowledge transaction।"""
         now = now_ms if now_ms is not None else int(time.time() * 1000)
@@ -245,17 +282,21 @@ class TaskRegistry:
             self._release_expired_leases(now)
             task = self._registry.get(issue)
             if task is None:
-                return {"ok": False, "reason": "not-found",
-                        "error": f"task #{issue} not in queue"}
+                return {"ok": False, "reason": "not-found", "error": f"task #{issue} not in queue"}
             if task.state == "COMPLETED":
-                return {"ok": False, "reason": "already-completed",
-                        "error": f"task #{issue} already completed"}
+                return {
+                    "ok": False,
+                    "reason": "already-completed",
+                    "error": f"task #{issue} already completed",
+                }
             if task.claimed_by != slot:
-                return {"ok": False, "reason": "slot-mismatch",
-                        "error": f"lease owned by {task.claimed_by}, not {slot}"}
+                return {
+                    "ok": False,
+                    "reason": "slot-mismatch",
+                    "error": f"lease owned by {task.claimed_by}, not {slot}",
+                }
             if task.claim_token != claim_token:
-                return {"ok": False, "reason": "token-mismatch",
-                        "error": "claimToken mismatch"}
+                return {"ok": False, "reason": "token-mismatch", "error": "claimToken mismatch"}
             task.state = "COMPLETED"
             task.completed_at = _now_iso(now)
             task.completed_by = slot
@@ -263,9 +304,7 @@ class TaskRegistry:
             if knowledge:
                 task.knowledge = TaskKnowledge(
                     why=str(knowledge.why),
-                    alternatives_rejected=[
-                        str(a) for a in knowledge.alternatives_rejected
-                    ],
+                    alternatives_rejected=[str(a) for a in knowledge.alternatives_rejected],
                 )
             task.updated_at_ms = now
             task.updated_at = _now_iso(now)
@@ -280,14 +319,15 @@ class TaskRegistry:
             self._release_expired_leases(now)
             task = self._registry.get(issue)
             if task is None:
-                return {"ok": False, "reason": "not-found",
-                        "error": f"task #{issue} not in queue"}
+                return {"ok": False, "reason": "not-found", "error": f"task #{issue} not in queue"}
             if task.state == "COMPLETED":
-                return {"ok": False, "reason": "already-completed",
-                        "error": f"task #{issue} already completed"}
+                return {
+                    "ok": False,
+                    "reason": "already-completed",
+                    "error": f"task #{issue} already completed",
+                }
             if task.claimed_by != slot or task.claim_token != claim_token:
-                return {"ok": False, "reason": "token-mismatch",
-                        "error": "claimToken mismatch"}
+                return {"ok": False, "reason": "token-mismatch", "error": "claimToken mismatch"}
             task.state = "UNCLAIMED"
             task.claimed_by = None
             task.claim_token = None
@@ -506,9 +546,13 @@ class TestStateTransitionValidation:
         github-locked error — legacy claim active।"""
         # Given
         task = TaskRecord(
-            issue=200, title="legacy", priority="P2-medium",
+            issue=200,
+            title="legacy",
+            priority="P2-medium",
             labels=["P2-medium", "status:in-progress"],
-            state="UNCLAIMED", updated_at_ms=1000, updated_at=_now_iso(1000),
+            state="UNCLAIMED",
+            updated_at_ms=1000,
+            updated_at=_now_iso(1000),
         )
         registry.upsert(task)
         # When
@@ -521,9 +565,13 @@ class TestStateTransitionValidation:
         """Given task with has-pr label, When claim called, Then github-locked।
         Boundary: both legacy labels trigger lock।"""
         task = TaskRecord(
-            issue=201, title="pr-ready", priority="P3-low",
+            issue=201,
+            title="pr-ready",
+            priority="P3-low",
             labels=["P3-low", "has-pr"],
-            state="UNCLAIMED", updated_at_ms=1000, updated_at=_now_iso(1000),
+            state="UNCLAIMED",
+            updated_at_ms=1000,
+            updated_at=_now_iso(1000),
         )
         registry.upsert(task)
         result = registry.claim_task(201, "agent-1", now_ms=2000)
@@ -693,11 +741,17 @@ class TestConcurrentClaimSafety:
         concurrently, Then both win — no false conflict।"""
         # Given: two tasks
         for issue in (101, 102):
-            registry.upsert(TaskRecord(
-                issue=issue, title=f"task-{issue}", priority="P2-medium",
-                labels=["P2-medium"], state="UNCLAIMED",
-                updated_at_ms=1000, updated_at=_now_iso(1000),
-            ))
+            registry.upsert(
+                TaskRecord(
+                    issue=issue,
+                    title=f"task-{issue}",
+                    priority="P2-medium",
+                    labels=["P2-medium"],
+                    state="UNCLAIMED",
+                    updated_at_ms=1000,
+                    updated_at=_now_iso(1000),
+                )
+            )
         # When: concurrent claims on different tasks
         results: list[bool] = []
         barrier = threading.Barrier(2)
@@ -762,24 +816,33 @@ class TestPureHelpers:
         """Given task with status:in-progress label, When is_github_locked,
         Then True।"""
         task = TaskRecord(
-            issue=1, title="x", priority="P2-medium",
-            labels=["P2-medium", "status:in-progress"], state="UNCLAIMED",
+            issue=1,
+            title="x",
+            priority="P2-medium",
+            labels=["P2-medium", "status:in-progress"],
+            state="UNCLAIMED",
         )
         assert is_github_locked(task) is True
 
     def test_is_github_locked_has_pr(self):
         """Given task with has-pr label, When is_github_locked, Then True।"""
         task = TaskRecord(
-            issue=1, title="x", priority="P3-low",
-            labels=["P3-low", "has-pr"], state="UNCLAIMED",
+            issue=1,
+            title="x",
+            priority="P3-low",
+            labels=["P3-low", "has-pr"],
+            state="UNCLAIMED",
         )
         assert is_github_locked(task) is True
 
     def test_is_github_locked_clean_task(self):
         """Given task without legacy labels, When is_github_locked, Then False।"""
         task = TaskRecord(
-            issue=1, title="x", priority="P1-high",
-            labels=["P1-high"], state="UNCLAIMED",
+            issue=1,
+            title="x",
+            priority="P1-high",
+            labels=["P1-high"],
+            state="UNCLAIMED",
         )
         assert is_github_locked(task) is False
 
@@ -821,8 +884,12 @@ class TestConstantsAndShape:
         """Given TaskRecord instance, When fields inspected, Then all required
         fields present (issue, title, priority, state)।"""
         task = TaskRecord(
-            issue=1, title="t", priority="P3-low", state="UNCLAIMED",
-            updated_at_ms=1000, updated_at=_now_iso(1000),
+            issue=1,
+            title="t",
+            priority="P3-low",
+            state="UNCLAIMED",
+            updated_at_ms=1000,
+            updated_at=_now_iso(1000),
         )
         assert task.issue == 1
         assert task.title == "t"
@@ -837,22 +904,38 @@ class TestConstantsAndShape:
         """Given registry with UNCLAIMED+LEASED+COMPLETED tasks, When
         list_tasks called, Then all 3 returned (snapshot, no filter)।"""
         # Given
-        registry.upsert(TaskRecord(
-            issue=1, title="a", priority="P3-low", state="UNCLAIMED",
-            updated_at_ms=1000, updated_at=_now_iso(1000),
-        ))
+        registry.upsert(
+            TaskRecord(
+                issue=1,
+                title="a",
+                priority="P3-low",
+                state="UNCLAIMED",
+                updated_at_ms=1000,
+                updated_at=_now_iso(1000),
+            )
+        )
         leased = TaskRecord(
-            issue=2, title="b", priority="P2-medium", state="LEASED",
-            updated_at_ms=1000, updated_at=_now_iso(1000),
+            issue=2,
+            title="b",
+            priority="P2-medium",
+            state="LEASED",
+            updated_at_ms=1000,
+            updated_at=_now_iso(1000),
         )
         leased.claimed_by = "agent-1"
         leased.claim_token = "tok"
         leased.lease_expires_at_ms = 1000 + LEASE_TTL_MS + 10000  # not expired
         registry.upsert(leased)
-        registry.upsert(TaskRecord(
-            issue=3, title="c", priority="P1-high", state="COMPLETED",
-            updated_at_ms=1000, updated_at=_now_iso(1000),
-        ))
+        registry.upsert(
+            TaskRecord(
+                issue=3,
+                title="c",
+                priority="P1-high",
+                state="COMPLETED",
+                updated_at_ms=1000,
+                updated_at=_now_iso(1000),
+            )
+        )
         # When
         tasks = registry.list_tasks(now_ms=2000)
         # Then

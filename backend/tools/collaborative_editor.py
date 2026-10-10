@@ -46,6 +46,7 @@ class CollaborativeEditor:
             raise RuntimeError("REDIS_URL not configured — cannot use CollaborativeEditor")
         # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
         from core.cache.redis_manager import redis_manager
+
         self.redis = redis_manager.get_managed_client_sync()
         return self.redis
 

@@ -134,11 +134,11 @@ class SupabaseVectorBackend:
             client = self.supabase_db.client
             # Use the match_experiences RPC (defined in migration 16_add_match_experiences_rpc.sql)
             rpc_params: dict[str, Any] = {
-                    "query_embedding": query_embedding,
-                    "match_count": limit,
-                    "match_threshold": threshold,
-                    "filter_collection": self.COLLECTION_NAME,
-                }
+                "query_embedding": query_embedding,
+                "match_count": limit,
+                "match_threshold": threshold,
+                "filter_collection": self.COLLECTION_NAME,
+            }
             # বাংলা (#3222): user_id filter যোগ — match_experiences RPC-তে
             # p_user_id parameter (migration-এ যদি defined থাকে)। না থাকলেও
             # no-op (RPC উপেক্ষা করবে অজানা param)।

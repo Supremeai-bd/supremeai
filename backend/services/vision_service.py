@@ -140,10 +140,12 @@ class VisionService:
         started = time.monotonic()
         client = get_shared_async_client()
         response = await client.post(
-            url, 
-            params={"key": api_key}, 
-            json=payload, 
-            headers={"Content-Type": "application/json"}, timeout=60.0)
+            url,
+            params={"key": api_key},
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=60.0,
+        )
 
         latency_ms = int((time.monotonic() - started) * 1000)
         if response.status_code != 200:

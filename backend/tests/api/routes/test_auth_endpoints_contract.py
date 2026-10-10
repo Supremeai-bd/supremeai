@@ -37,9 +37,10 @@ def auth_app(monkeypatch):
 
     # বাংলা: is_token_revoked / revoke_token patch — Redis-নির্ভরশীল ভ্যালিডেশন
     # এড়িয়ে deterministic টেস্ট হয়।
-    with patch("api.routes.auth.is_token_revoked", new=AsyncMock(return_value=False)) as _rev, patch(
-        "api.routes.auth.revoke_token", new=AsyncMock(return_value=True)
-    ) as _revoke:
+    with (
+        patch("api.routes.auth.is_token_revoked", new=AsyncMock(return_value=False)) as _rev,
+        patch("api.routes.auth.revoke_token", new=AsyncMock(return_value=True)) as _revoke,
+    ):
         app = FastAPI()
         app.include_router(auth_router)
         tc = TestClient(app)
@@ -324,7 +325,6 @@ class TestPasswordHashingAndLogin:
     ঘটে, আমরা verify করি যে backend সঠিকভাবে admin_emails রোল ম্যাপ করে এবং
     ব্যর্থতায় 401 দেয়।"""
 
-
     @pytest.fixture()
     def mock_db(self, monkeypatch):
         """বাংলা: auth মডিউলের db reference-কে MagicMock দিয়ে replace করা হলো।
@@ -341,9 +341,7 @@ class TestPasswordHashingAndLogin:
         monkeypatch.setattr("api.routes.auth.db", mock_db)
         return mock_db
 
-    def test_login_success_returns_tokens_and_sets_cookie(
-        self, auth_app, patched_secret, mock_db
-    ):
+    def test_login_success_returns_tokens_and_sets_cookie(self, auth_app, patched_secret, mock_db):
         """Given: একটি বৈধ (email, password) যা Supabase verify করে (mock)।
         When: /auth/login-এ POST।
         Then: 200, access_token + refresh_token ফেরত আসে, httpOnly cookie সেট হয় (happy)।
@@ -370,9 +368,7 @@ class TestPasswordHashingAndLogin:
         assert "supreme_access_token=" in set_cookie
         assert "httponly" in set_cookie.lower()
 
-    def test_login_invalid_credentials_returns_401(
-        self, auth_app, patched_secret, mock_db
-    ):
+    def test_login_invalid_credentials_returns_401(self, auth_app, patched_secret, mock_db):
         """Given: Supabase ইউজার ফেরত দেয় না (ভুল পাসওয়ার্ড)।
         When: /auth/login-এ POST।
         Then: 401 Invalid credentials — internal detail লিক হয় না (sad path)।
@@ -516,9 +512,7 @@ class TestBruteForceRateLimiting:
         assert limiter.is_allowed("ip:B", limit=5) is True
 
     @pytest.mark.asyncio
-    async def test_async_rate_limiter_falls_back_to_in_memory_when_redis_down(
-        self, monkeypatch
-    ):
+    async def test_async_rate_limiter_falls_back_to_in_memory_when_redis_down(self, monkeypatch):
         """Given: AsyncRateLimiter যেখানে Redis unavailable কিন্তু rate_limit enabled।
         When: acquire কল করা হয় limit=3 দিয়ে 4 বার।
         Then: প্রথম 3 True, 4র্থ False — in-memory fallback brute-force prevention কাজ করে।

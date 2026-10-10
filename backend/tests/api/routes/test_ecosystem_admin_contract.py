@@ -119,8 +119,10 @@ class TestAdminAccessHappyPath:
     def test_admin_get_model_branding_returns_200(self, admin_client):
         """Given admin user, When GET /api/admin/model-branding, Then 200 + branding।"""
         # Given
-        with patch.object(admin_module, "MODEL_DISPLAY", {"gpt-4": {"label": "GPT-4"}}), \
-             patch.object(admin_module, "PROVIDER_DISPLAY", {"openai": "OpenAI"}):
+        with (
+            patch.object(admin_module, "MODEL_DISPLAY", {"gpt-4": {"label": "GPT-4"}}),
+            patch.object(admin_module, "PROVIDER_DISPLAY", {"openai": "OpenAI"}),
+        ):
             # When
             res = admin_client.get("/api/admin/model-branding")
             # Then
@@ -541,6 +543,4 @@ class TestAdminRouterModuleShape:
         assert ("/api/admin/rules", ("GET",)) in paths or any(
             path == "/api/admin/rules" and "GET" in methods for path, methods in paths
         )
-        assert any(
-            path == "/api/admin/rules" and "POST" in methods for path, methods in paths
-        )
+        assert any(path == "/api/admin/rules" and "POST" in methods for path, methods in paths)

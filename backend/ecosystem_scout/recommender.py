@@ -3,6 +3,7 @@
 বাংলা: প্রতিটি finding-এর recommendation score compute করে। score > threshold
 হলে auditor review-এ যায়।
 """
+
 from __future__ import annotations
 
 from dataclasses import replace
@@ -14,15 +15,36 @@ RECOMMENDATION_THRESHOLD = 0.4
 
 # Keywords that increase relevance to SupremeAI
 RELEVANCE_KEYWORDS = {
-    "ai", "llm", "agent", "automation", "coding", "memory", "context",
-    "inference", "provider", "router", "governance", "security", "sandbox",
-    "mcp", "tool", "browser", "scraping", "analytics",
+    "ai",
+    "llm",
+    "agent",
+    "automation",
+    "coding",
+    "memory",
+    "context",
+    "inference",
+    "provider",
+    "router",
+    "governance",
+    "security",
+    "sandbox",
+    "mcp",
+    "tool",
+    "browser",
+    "scraping",
+    "analytics",
 }
 
 # Keywords that indicate architectural significance (→ Tier-3 admin gate)
 ARCHITECTURAL_KEYWORDS = {
-    "architecture", "constitutional", "core", "foundation", "breaking",
-    "migration", "rewrite", "deprecated",
+    "architecture",
+    "constitutional",
+    "core",
+    "foundation",
+    "breaking",
+    "migration",
+    "rewrite",
+    "deprecated",
 }
 
 

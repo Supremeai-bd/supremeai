@@ -33,9 +33,9 @@ def make_record(**overrides) -> dict:
     rec = {
         "task_id": "T-0042",
         "date": "2026-10-09",
-        "issue_url": "https://github.com/paykaribazaronline/supremeai/issues/4271",
+        "issue_url": "https://github.com/SaifulHaqueNiloy/supremeai/issues/4271",
         "agent": "supremeai-coder-1-bot",
-        "pr_url": "https://github.com/paykaribazaronline/supremeai/pull/4290",
+        "pr_url": "https://github.com/SaifulHaqueNiloy/supremeai/pull/4290",
         "merge_sha": "a" * 40,
         "test_evidence": "pytest tests/test_ledger_check.py 9/9 green",
         "deployment": None,
@@ -97,7 +97,7 @@ class TestRequiredFieldsAndFormats(unittest.TestCase):
 
     def test_bad_pr_url_fails(self):
         self.assertTrue(
-            any("pr_url" in m for m in validate(make_record(pr_url="https://github.com/paykaribazaronline/supremeai/issues/9")))
+            any("pr_url" in m for m in validate(make_record(pr_url="https://github.com/SaifulHaqueNiloy/supremeai/issues/9")))
         )
 
     def test_bad_date_fails(self):

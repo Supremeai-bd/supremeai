@@ -84,9 +84,7 @@ class LightUser(_BaseSupremeAIUser):
     @task(1)
     def health_probe(self):
         # /health পাবলিক পাথ — auth হেডার লাগে না
-        with self.client.get(
-            "/health", timeout=(5, 10), catch_response=True
-        ) as response:
+        with self.client.get("/health", timeout=(5, 10), catch_response=True) as response:
             if response.status_code == 200:
                 response.success()
             else:
@@ -174,9 +172,7 @@ class HeavyKnowledgeUser(_BaseSupremeAIUser):
             if response.status_code in (200, 201):
                 response.success()
             else:
-                response.failure(
-                    f"upload failed: {response.status_code} - {response.text[:200]}"
-                )
+                response.failure(f"upload failed: {response.status_code} - {response.text[:200]}")
 
 
 class TaskAgentUser(_BaseSupremeAIUser):
@@ -224,9 +220,7 @@ class TaskAgentUser(_BaseSupremeAIUser):
             if response.status_code in (200, 201, 202):
                 response.success()
             else:
-                response.failure(
-                    f"v1/tasks failed: {response.status_code} - {response.text[:200]}"
-                )
+                response.failure(f"v1/tasks failed: {response.status_code} - {response.text[:200]}")
 
     @task(2)
     def sse_stream_hold(self):

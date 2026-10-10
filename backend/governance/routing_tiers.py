@@ -16,6 +16,7 @@
 
 প্রতিটি routing decision তার tier-এ tag হয়। Tier-3 without approval → denial।
 """
+
 from __future__ import annotations
 
 import datetime as _dt
@@ -27,6 +28,7 @@ from typing import Any
 
 class RoutingTier(StrEnum):
     """3-Tier routing boundary (Roadmap v2 §5.2)."""
+
     AUTOMATIC = "automatic"  # Tier-1: system, no human
     GOVERNED_AUTOMATIC = "governed_automatic"  # Tier-2: system within admin bounds
     ADMIN_ONLY = "admin_only"  # Tier-3: human approval required
@@ -34,6 +36,7 @@ class RoutingTier(StrEnum):
 
 class DecisionResult(StrEnum):
     """Outcome of a routing decision."""
+
     ALLOW = "allow"
     DENY = "deny"
     PENDING_APPROVAL = "pending_approval"  # Tier-3 awaiting admin
@@ -42,6 +45,7 @@ class DecisionResult(StrEnum):
 @dataclass(frozen=True)
 class RoutingDecision:
     """A single routing decision with tier classification + audit trail."""
+
     decision_id: str
     tier: RoutingTier
     result: DecisionResult

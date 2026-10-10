@@ -10,6 +10,7 @@
 এই module শুধু steps 1-3 করে। Step 4 (inject) L1 context loader-এ হবে।
 Step 5 (measure) Evaluation Engine-এ হবে।
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -27,6 +28,7 @@ from .skill_template_writer import write_regression_guard, write_skill_template
 @dataclass(frozen=True)
 class LearningLoopResult:
     """Result of running the learning loop."""
+
     total_decisions: int
     patterns_mined: int
     skill_templates_written: int

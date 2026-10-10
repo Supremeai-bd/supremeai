@@ -80,9 +80,7 @@ class TestPoolSaturation:
 
         await asyncio.gather(*(_hold_then_release(0.02) for _ in range(6)))
 
-        assert fake.max_observed_in_use <= 2, (
-            f"pool limit ভাঙা হয়েছে: {fake.max_observed_in_use} > 2"
-        )
+        assert fake.max_observed_in_use <= 2, f"pool limit ভাঙা হয়েছে: {fake.max_observed_in_use} > 2"
         assert fake.in_use == 0, "সব কানেকশন ফেরত পাওয়া যায়নি (লিক)"
 
     async def test_waiting_acquires_proceed_after_release(self):
@@ -140,9 +138,7 @@ class TestPoolContractGuards:
         """
         monkeypatch.setattr(pool_mod, "_db_pool_instance", None)
         wrapper = PgBouncerConnectionPool("postgresql://fake:5432/fake")
-        monkeypatch.setattr(
-            pool_mod, "_pool_lock", asyncio.Lock()
-        )  # নতুন লুপে পুরনো লক বাঁধা থাকতে পারে
+        monkeypatch.setattr(pool_mod, "_pool_lock", asyncio.Lock())  # নতুন লুপে পুরনো লক বাঁধা থাকতে পারে
 
         async def _init_late() -> None:
             await asyncio.sleep(0.05)

@@ -407,8 +407,11 @@ async def _event_stream(
     safe implementation internally.
     """
     generator = SafeSSEGenerator(
-        prompt, user_id, task_type,
-        session_id=session_id, tenant_id=tenant_id,
+        prompt,
+        user_id,
+        task_type,
+        session_id=session_id,
+        tenant_id=tenant_id,
         messages=messages,  # ROOT-CAUSE FIX (#2725): history now flows through
     )
     async for event in generator():

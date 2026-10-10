@@ -3,6 +3,7 @@
 বাংলা: discovered repo SupremeAI-তে ইতিমধ্যে আছে কিনা যাচাই করে। inventory.yaml
 থেকে existing capabilities list পড়ে দেখে কোনো gap কিনা।
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,7 +12,9 @@ from typing import Any
 from ..models import ScoutFinding
 
 
-def load_inventory_repos(inventory_path: str | Path = "docs/architecture/inventory.yaml") -> dict[str, dict[str, Any]]:
+def load_inventory_repos(
+    inventory_path: str | Path = "docs/architecture/inventory.yaml",
+) -> dict[str, dict[str, Any]]:
     """Load external_repos from inventory.yaml.
 
     বাংলা: inventory.yaml-এর external_repos section থেকে সব repo load করে।

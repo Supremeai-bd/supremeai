@@ -42,11 +42,11 @@ MIN_SAMPLES_NORMAL = 50
 # up/down was written to the learning store but NEVER read by the scorer.
 # Now: feedback joins provider/model and contributes 0.15 to the weighted score.
 _DEFAULT_WEIGHTS = {
-    "quality": 0.35,     # was 0.45 — redistributed to make room for feedback
-    "reliability": 0.20, # was 0.25
+    "quality": 0.35,  # was 0.45 — redistributed to make room for feedback
+    "reliability": 0.20,  # was 0.25
     "latency": 0.15,
     "cost": 0.15,
-    "feedback": 0.15,    # ROOT-CAUSE FIX (#2727): NEW — user judgment
+    "feedback": 0.15,  # ROOT-CAUSE FIX (#2727): NEW — user judgment
 }
 # Reference points for the bounded component scores.
 _P95_REFERENCE_MS = 1000.0
@@ -164,7 +164,7 @@ def compute_provider_scores(rows: list[dict[str, Any]] | None) -> list[ProviderS
                 sample_tier=tier,
                 score=score,
                 components=components,
-                thumbs_up=thumbs_up,      # ROOT-CAUSE FIX (#2727)
+                thumbs_up=thumbs_up,  # ROOT-CAUSE FIX (#2727)
                 thumbs_down=thumbs_down,  # ROOT-CAUSE FIX (#2727)
             )
         )

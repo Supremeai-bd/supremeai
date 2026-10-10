@@ -67,9 +67,7 @@ async def test_scan_checks_at_least_five_real_metrics(monkeypatch):
     )
 
     # মেট্রিক ৪: latency p95 critical
-    monkeypatch.setattr(
-        metrics_mod.metrics_engine, "latency_history", [9.5] * 100, raising=False
-    )
+    monkeypatch.setattr(metrics_mod.metrics_engine, "latency_history", [9.5] * 100, raising=False)
 
     # মেট্রিক ৫: একটি OPEN circuit breaker
     from core.resilience.circuit_breaker import CircuitBreakerState
@@ -128,7 +126,12 @@ async def test_scan_healthy_state_returns_no_alerts(monkeypatch):
 async def test_alert_buffer_bounded():
     """alert-বাফার ৫০০-এ বাউন্ডেড — মেমরি-ব্লোট রোধ (Rule #2)।"""
     watcher = PrecognitiveWatcher()
-    watcher._alerts = [ SentinelAlert(alert_id=f"a{i}", severity="info", service="s", message="m", suggested_action="x") for i in range(600) ]
+    watcher._alerts = [
+        SentinelAlert(
+            alert_id=f"a{i}", severity="info", service="s", message="m", suggested_action="x"
+        )
+        for i in range(600)
+    ]
     await watcher.scan_system_health()
     assert len(watcher._alerts) <= 500
 
@@ -237,12 +240,14 @@ async def test_guardian_cycle_calls_auto_pr_pipeline_for_critical_automatic(monk
 
     pipeline_mock = SimpleNamespace(
         create_patch_pr=AsyncMock(
-            return_value={"status": "success", "pr_url": "https://github.com/x/pull/1", "pr_number": 1}
+            return_value={
+                "status": "success",
+                "pr_url": "https://github.com/x/pull/1",
+                "pr_number": 1,
+            }
         )
     )
-    monkeypatch.setattr(
-        "tools.code.auto_pr_pipeline.AutoPRPipeline", lambda: pipeline_mock
-    )
+    monkeypatch.setattr("tools.code.auto_pr_pipeline.AutoPRPipeline", lambda: pipeline_mock)
 
     summary = await healer.proactive_guardian_cycle([alert])
 
@@ -269,12 +274,14 @@ async def test_guardian_cycle_honest_when_token_missing(monkeypatch):
     )
     pipeline_mock = SimpleNamespace(
         create_patch_pr=AsyncMock(
-            return_value={"status": "failed", "reason": "GitHub token not configured.", "pr_url": None}
+            return_value={
+                "status": "failed",
+                "reason": "GitHub token not configured.",
+                "pr_url": None,
+            }
         )
     )
-    monkeypatch.setattr(
-        "tools.code.auto_pr_pipeline.AutoPRPipeline", lambda: pipeline_mock
-    )
+    monkeypatch.setattr("tools.code.auto_pr_pipeline.AutoPRPipeline", lambda: pipeline_mock)
 
     summary = await healer.proactive_guardian_cycle([alert])
     assert summary["prs_opened"] == 0
@@ -291,6 +298,7 @@ async def test_guardian_cycle_isolates_per_alert_failure():
         service = "x"
         message = "database is locked"
         suggested_action = "y"
+
         # ইচ্ছাকৃতভাবে বিকৃত: message পড়ার সময় exception ছুড়বে
         @property
         def message(self):  # type: ignore[override]

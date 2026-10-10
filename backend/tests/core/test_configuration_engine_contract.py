@@ -31,17 +31,33 @@ def _isolate_env(monkeypatch):
     """প্রতিটি টেস্টের জন্য env vars isolated — SETTINGS_RESET হয়।"""
     # বাংলা: critical env vars পরিষ্কার করে দিচ্ছি যাতে টেস্ট আইসোলেটেড থাকে।
     for var in (
-        "ENV", "DEBUG", "ALLOWED_HOSTS", "CORS_ORIGINS",
-        "USER_CORS_ORIGINS", "ADMIN_CORS_ORIGINS",
-        "SUPREMEAI_JWT_SECRET", "SUPABASE_DATABASE_URL",
-        "SUPABASE_DATABASE_URL_POOLER", "SUPABASE_ALLOW_DB_DEGRADATION",
-        "RENDER_EXTERNAL_HOSTNAME", "RENDER_EXTERNAL_URL",
-        "RENDER_SERVICE_NAME", "RENDER_SERVICE_ID", "RENDER",
-        "VERCEL_URL", "VERCEL_BRANCH_URL",
-        "N8N_ENABLED", "N8N_BASE_URL",
-        "APPWRITE_ENABLED", "APPWRITE_ENDPOINT", "APPWRITE_PROJECT_ID",
-        "MAX_COST_PER_TASK", "PORT", "HOST",
-        "ALLOW_TEST_AUTH_BYPASS", "ALLOW_TEST_ORIGIN_BYPASS",
+        "ENV",
+        "DEBUG",
+        "ALLOWED_HOSTS",
+        "CORS_ORIGINS",
+        "USER_CORS_ORIGINS",
+        "ADMIN_CORS_ORIGINS",
+        "SUPREMEAI_JWT_SECRET",
+        "SUPABASE_DATABASE_URL",
+        "SUPABASE_DATABASE_URL_POOLER",
+        "SUPABASE_ALLOW_DB_DEGRADATION",
+        "RENDER_EXTERNAL_HOSTNAME",
+        "RENDER_EXTERNAL_URL",
+        "RENDER_SERVICE_NAME",
+        "RENDER_SERVICE_ID",
+        "RENDER",
+        "VERCEL_URL",
+        "VERCEL_BRANCH_URL",
+        "N8N_ENABLED",
+        "N8N_BASE_URL",
+        "APPWRITE_ENABLED",
+        "APPWRITE_ENDPOINT",
+        "APPWRITE_PROJECT_ID",
+        "MAX_COST_PER_TASK",
+        "PORT",
+        "HOST",
+        "ALLOW_TEST_AUTH_BYPASS",
+        "ALLOW_TEST_ORIGIN_BYPASS",
     ):
         monkeypatch.delenv(var, raising=False)
     yield
@@ -154,6 +170,7 @@ class TestOptionalEnvWithDefault:
 
         # Reset secret cache (mixin's sanctioned accessor)
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         # When
@@ -171,6 +188,7 @@ class TestOptionalEnvWithDefault:
 
         monkeypatch.setenv("ENV", "test")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         s = Settings()
@@ -183,6 +201,7 @@ class TestOptionalEnvWithDefault:
         monkeypatch.setenv("ENV", "test")
         monkeypatch.setenv("PORT", "9000")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         s = Settings()
@@ -198,6 +217,7 @@ class TestOptionalEnvWithDefault:
         monkeypatch.setenv("ENV", "local")
         monkeypatch.setenv("DEBUG", "true")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         s = Settings()
@@ -223,6 +243,7 @@ class TestConfigValidationInvalidValue:
         # production, test} গ্রহণ করে।
         monkeypatch.setenv("ENV", "invalid_env")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         with pytest.raises((ValidationError, ValueError)):
@@ -238,6 +259,7 @@ class TestConfigValidationInvalidValue:
         monkeypatch.setenv("ENV", "test")
         monkeypatch.setenv("PORT", "abc")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         with pytest.raises((ValidationError, ValueError)):
@@ -253,6 +275,7 @@ class TestConfigValidationInvalidValue:
         monkeypatch.setenv("ENV", "test")
         monkeypatch.setenv("MAX_COST_PER_TASK", "abc")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         with pytest.raises((ValidationError, ValueError)):
@@ -271,8 +294,9 @@ class TestConfigValidationInvalidValue:
         report = build_config_validation_report(env="test")
         # Then: at least one error check for SUPABASE_URL
         supabase_checks = [c for c in report.checks if c.name == "SUPABASE_URL"]
-        assert any(c.status == "error" for c in supabase_checks), \
+        assert any(c.status == "error" for c in supabase_checks), (
             "invalid SUPABASE_URL must produce an error check in the report"
+        )
 
     def test_valid_supabase_url_format_accepted(self, mock_secret_vault, monkeypatch):
         """Given SUPABASE_URL='https://test.supabase.co', When report built,
@@ -294,8 +318,9 @@ class TestConfigValidationInvalidValue:
         monkeypatch.setenv("REDIS_URL", "invalid-redis")
         report = build_config_validation_report(env="test")
         redis_checks = [c for c in report.checks if c.name == "REDIS_URL"]
-        assert any(c.status == "error" for c in redis_checks), \
+        assert any(c.status == "error" for c in redis_checks), (
             "invalid REDIS_URL must produce an error check in the report"
+        )
 
     def test_valid_redis_url_accepted(self, mock_secret_vault, monkeypatch):
         """Given REDIS_URL='redis://localhost:6379', When report built,
@@ -335,6 +360,7 @@ class TestEnvironmentSpecificConfig:
 
         monkeypatch.setenv("ENV", "TEST")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         s = Settings()
@@ -346,6 +372,7 @@ class TestEnvironmentSpecificConfig:
 
         monkeypatch.setenv("ENV", "local")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         s = Settings()
@@ -364,6 +391,7 @@ class TestEnvironmentSpecificConfig:
 
         monkeypatch.setenv("ENV", "local")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         s = Settings()
@@ -375,6 +403,7 @@ class TestEnvironmentSpecificConfig:
 
         monkeypatch.setenv("ENV", "production")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         s = Settings()
@@ -387,6 +416,7 @@ class TestEnvironmentSpecificConfig:
 
         monkeypatch.setenv("ENV", "test")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         s = Settings()
@@ -398,6 +428,7 @@ class TestEnvironmentSpecificConfig:
 
         monkeypatch.setenv("ENV", "staging")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         s = Settings()
@@ -411,6 +442,7 @@ class TestEnvironmentSpecificConfig:
         monkeypatch.setenv("ENV", "production")
         monkeypatch.setenv("ALLOW_TEST_AUTH_BYPASS", "true")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         s = Settings()
@@ -424,6 +456,7 @@ class TestEnvironmentSpecificConfig:
         monkeypatch.setenv("ENV", "test")
         monkeypatch.setenv("ALLOW_TEST_AUTH_BYPASS", "true")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         s = Settings()
@@ -437,14 +470,13 @@ class TestEnvironmentSpecificConfig:
         monkeypatch.setenv("ENV", "test")
         monkeypatch.delenv("ALLOW_TEST_AUTH_BYPASS", raising=False)
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         s = Settings()
         assert s.is_bypass_allowed is False
 
-    def test_is_origin_bypass_allowed_false_in_production(
-        self, mock_secret_vault, monkeypatch
-    ):
+    def test_is_origin_bypass_allowed_false_in_production(self, mock_secret_vault, monkeypatch):
         """Given ENV=production + ALLOW_TEST_ORIGIN_BYPASS=true, When
         s.is_origin_bypass_allowed, Then False — prod-এ origin bypass নিষিদ্ধ।"""
         from core.config import Settings
@@ -452,14 +484,13 @@ class TestEnvironmentSpecificConfig:
         monkeypatch.setenv("ENV", "production")
         monkeypatch.setenv("ALLOW_TEST_ORIGIN_BYPASS", "true")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         s = Settings()
         assert s.is_origin_bypass_allowed is False
 
-    def test_production_debug_true_explicitly_rejected(
-        self, mock_secret_vault, monkeypatch
-    ):
+    def test_production_debug_true_explicitly_rejected(self, mock_secret_vault, monkeypatch):
         """Given ENV=production + DEBUG=true explicitly set, When Settings
         instantiated, Then ValidationError raised — validate_debug_mode
         prohibits explicit DEBUG=true in prod/staging (boundary)।"""
@@ -472,14 +503,13 @@ class TestEnvironmentSpecificConfig:
         # বাংলা: validate_debug_mode (config_validation.py:137) — prod/staging-এ
         # explicit DEBUG=true PROHIBITED → ValueError raised (fail-fast)।
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         with pytest.raises((ValidationError, ValueError)):
             Settings()
 
-    def test_production_debug_false_accepted(
-        self, mock_secret_vault, monkeypatch
-    ):
+    def test_production_debug_false_accepted(self, mock_secret_vault, monkeypatch):
         """Given ENV=production + DEBUG=false, When Settings instantiated,
         Then s.debug==False — happy path (production wants debug off)।"""
         from core.config import Settings
@@ -487,6 +517,7 @@ class TestEnvironmentSpecificConfig:
         monkeypatch.setenv("ENV", "production")
         monkeypatch.setenv("DEBUG", "false")
         from core.config import settings as _settings_singleton
+
         _settings_singleton._get_private_state()["_cached_secrets"].clear()
         _settings_singleton._get_private_state()["_secrets_batch_loaded"] = False
         s = Settings()

@@ -36,6 +36,7 @@ def _app_path_methods(app: FastAPI) -> set[tuple[str, str]]:
 
 # ── App route discovery tests ────────────────────────────────────────────────
 
+
 class TestAppRouteDiscovery:
     """#3270: FastAPI app route discovery + structure verification।
 
@@ -51,25 +52,26 @@ class TestAppRouteDiscovery:
 
     def test_health_routes_registered(self):
         paths = _app_paths(_APP)
-        assert any('health' in p.lower() for p in paths), "health routes should be registered"
+        assert any("health" in p.lower() for p in paths), "health routes should be registered"
 
     def test_api_v1_prefix_routes_registered(self):
         paths = _app_paths(_APP)
-        api_routes = [p for p in paths if p.startswith('/api/v1') or p.startswith('/api/')]
+        api_routes = [p for p in paths if p.startswith("/api/v1") or p.startswith("/api/")]
         assert len(api_routes) > 10, "should have many API routes"
 
     def test_all_paths_start_with_slash(self):
         for path in _app_paths(_APP):
             assert isinstance(path, str)
-            assert path.startswith('/'), f"route path must start with /: {path}"
+            assert path.startswith("/"), f"route path must start with /: {path}"
 
     def test_all_route_methods_valid(self):
-        valid = {'get', 'post', 'put', 'patch', 'delete', 'options', 'head'}
+        valid = {"get", "post", "put", "patch", "delete", "options", "head"}
         for _path, method in _app_path_methods(_APP):
             assert method in valid, f"unexpected HTTP method: {method}"
 
 
 # ── Route path uniqueness tests ──────────────────────────────────────────────
+
 
 class TestRoutePathUniqueness:
     """#3270: no duplicate (method, path) tuples — each route is unique।"""
@@ -80,18 +82,19 @@ class TestRoutePathUniqueness:
         # openapi paths-dict স্বভাবতই unique-keyed — তাই (path, method) জোড়ার
         # সংখ্যা == আসল সংখ্যা হলে ডুপ্লিকেট নেই; এখানে সেট-ই চুক্তি-গার্ড।
         for path, method in pairs:
-            assert isinstance(path, str) and path.startswith('/')
-            assert method in ('get', 'post', 'put', 'patch', 'delete', 'options', 'head')
+            assert isinstance(path, str) and path.startswith("/")
+            assert method in ("get", "post", "put", "patch", "delete", "options", "head")
 
 
 # ── Health endpoint contract tests ──────────────────────────────────────────
+
 
 class TestHealthEndpointContracts:
     """#3270: health endpoints — path + method contracts।"""
 
     def test_health_live_endpoint_exists(self):
         paths = _app_paths(_APP)
-        assert any('health' in p.lower() for p in paths), "health endpoint should exist"
+        assert any("health" in p.lower() for p in paths), "health endpoint should exist"
 
     def test_health_endpoints_are_get(self):
         # বাংলা: canonical health-probe surface = `/health/*` (operational
@@ -100,32 +103,35 @@ class TestHealthEndpointContracts:
         # বসে — যেমন /api/v1/health/agents-এর POST (agent-check কমান্ড) —
         # ওরা probe নয়, তাই এই চুক্তির বাইরে।)
         for path, method in _app_path_methods(_APP):
-            if path == '/health' or path.startswith('/health/'):
-                assert method == 'get', f"health probe should be GET: {path} (found {method})"
+            if path == "/health" or path.startswith("/health/"):
+                assert method == "get", f"health probe should be GET: {path} (found {method})"
 
 
 # ── Auth route contract tests ───────────────────────────────────────────────
+
 
 class TestAuthRouteContracts:
     """#3270: auth routes — login, register, refresh, logout contracts।"""
 
     def test_auth_routes_registered(self):
         paths = _app_paths(_APP)
-        auth_routes = [p for p in paths if '/auth' in p.lower()]
+        auth_routes = [p for p in paths if "/auth" in p.lower()]
         assert len(auth_routes) > 0, "auth routes should be registered"
 
     def test_login_endpoint_exists(self):
         paths = _app_paths(_APP)
-        assert any('login' in p.lower() for p in paths), "login endpoint should exist"
+        assert any("login" in p.lower() for p in paths), "login endpoint should exist"
 
     def test_register_endpoint_exists(self):
         paths = _app_paths(_APP)
         # May be named 'register' or 'signup'
-        assert any('register' in p.lower() or 'signup' in p.lower() for p in paths), \
+        assert any("register" in p.lower() or "signup" in p.lower() for p in paths), (
             "register/signup endpoint should exist"
+        )
 
 
 # ── OpenAPI schema tests ────────────────────────────────────────────────────
+
 
 class TestOpenAPISchema:
     """#3270: OpenAPI schema generation — ensures all routes have valid schema।"""
@@ -133,26 +139,34 @@ class TestOpenAPISchema:
     def test_openapi_schema_generated(self):
         schema = _APP.openapi()
         assert schema is not None
-        assert 'paths' in schema
-        assert len(schema['paths']) > 0
+        assert "paths" in schema
+        assert len(schema["paths"]) > 0
 
     def test_openapi_has_info(self):
         schema = _APP.openapi()
-        assert 'info' in schema
-        assert 'title' in schema['info']
+        assert "info" in schema
+        assert "title" in schema["info"]
 
     def test_openapi_paths_have_methods(self):
         schema = _APP.openapi()
-        for path, methods in schema['paths'].items():
+        for path, methods in schema["paths"].items():
             for method in methods:
-                assert method.lower() in ('get', 'post', 'put', 'patch', 'delete', 'head', 'options'), \
-                    f"unexpected method {method} for path {path}"
+                assert method.lower() in (
+                    "get",
+                    "post",
+                    "put",
+                    "patch",
+                    "delete",
+                    "head",
+                    "options",
+                ), f"unexpected method {method} for path {path}"
 
     def test_openapi_routes_have_responses(self):
         # বাংলা: each route in OpenAPI should have at least a response definition
         schema = _APP.openapi()
-        for path, methods in schema['paths'].items():
+        for path, methods in schema["paths"].items():
             for method, spec in methods.items():
-                if isinstance(spec, dict) and 'responses' in spec:
-                    assert len(spec['responses']) > 0, \
+                if isinstance(spec, dict) and "responses" in spec:
+                    assert len(spec["responses"]) > 0, (
                         f"{method.upper()} {path} has no responses defined"
+                    )

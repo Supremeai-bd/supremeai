@@ -145,14 +145,20 @@ def test_compare_detects_regression():
 
 
 def test_compare_reports_improvements_only():
-    partial = {"evaluator_id": "deterministic-v1", "checks": [
-        {"check": "outcome_declared", "passed": True},
-        {"check": "links_present", "passed": False},
-    ]}
-    fixed = {"evaluator_id": "deterministic-v1", "checks": [
-        {"check": "outcome_declared", "passed": True},
-        {"check": "links_present", "passed": True},
-    ]}
+    partial = {
+        "evaluator_id": "deterministic-v1",
+        "checks": [
+            {"check": "outcome_declared", "passed": True},
+            {"check": "links_present", "passed": False},
+        ],
+    }
+    fixed = {
+        "evaluator_id": "deterministic-v1",
+        "checks": [
+            {"check": "outcome_declared", "passed": True},
+            {"check": "links_present", "passed": True},
+        ],
+    }
     result = mod.compare_evaluations(partial, fixed)
     assert result["regressed"] is False
     assert "links_present" in result["improvements"]
@@ -180,9 +186,7 @@ def test_search_by_role_and_outcome(db):
 def test_module_is_pure_library_no_background_machinery():
     source = SCRIPT_PATH.read_text(encoding="utf-8")
     for token in ("Thread", "Timer", "asyncio", "Queue", "daemon", "scheduler"):
-        assert token not in source, (
-            f"agent_trace must stay a pure library — found {token!r}"
-        )
+        assert token not in source, f"agent_trace must stay a pure library — found {token!r}"
 
 
 # ---------------------------------------------------------------------------

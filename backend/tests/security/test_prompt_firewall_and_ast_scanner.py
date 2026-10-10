@@ -374,8 +374,9 @@ class TestASTScannerEvalExec:
         cmd_issues = [i for i in issues if i.category == "command_injection"]
         assert len(cmd_issues) >= 1
         assert all(i.severity == "critical" for i in cmd_issues)
-        assert any("eval" in i.code_snippet.lower() or "eval" in i.description.lower()
-                   for i in cmd_issues)
+        assert any(
+            "eval" in i.code_snippet.lower() or "eval" in i.description.lower() for i in cmd_issues
+        )
 
     def test_exec_call_detected(self):
         """Given: exec('...') call।
@@ -591,9 +592,7 @@ class TestHoneypotTrapIPBlock:
         assert start["type"] == "http.response.start"
         assert start["status"] == 418
 
-    async def test_blocked_ip_gets_403_on_subsequent_request(
-        self, mutator, prod_env, app_recorder
-    ):
+    async def test_blocked_ip_gets_403_on_subsequent_request(self, mutator, prod_env, app_recorder):
         """Given: IP ইতিমধ্যে RulesMutator-এ blocked।
         When: একই IP থেকে দ্বিতীয় request।
         Then: 403 Forbidden — আর downstream app কল হয় না।
@@ -675,9 +674,7 @@ class TestHoneypotTrapIPBlock:
         start = send.await_args_list[0].args[0]
         assert start["status"] == 418
 
-    async def test_test_env_short_circuits_no_block(
-        self, mutator, monkeypatch, app_recorder
-    ):
+    async def test_test_env_short_circuits_no_block(self, mutator, monkeypatch, app_recorder):
         """Given: ENV=test।
         When: malicious payload সহ রিকোয়েস্ট।
         Then: বাংলা: test env-এ honeypot short-circuit করে, block_ip কল হয় না।

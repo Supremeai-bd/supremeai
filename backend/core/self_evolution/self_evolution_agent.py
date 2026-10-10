@@ -153,6 +153,7 @@ class SelfEvolutionAgent:
                 raise RuntimeError("Redis URL not configured — self-evolution lock UNAVAILABLE")
             # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
             from core.cache.redis_manager import redis_manager
+
             self._redis = redis_manager.get_managed_client_sync()
         return self._redis
 

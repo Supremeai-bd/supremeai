@@ -425,10 +425,12 @@ class DynamicAIOrchestrator:
 
         client = get_shared_async_client()
         response = await client.post(
-            url, 
-            params={"key": provider.api_key}, 
-            json=payload, 
-            headers={"Content-Type": "application/json"}, timeout=60.0)
+            url,
+            params={"key": provider.api_key},
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=60.0,
+        )
 
         if response.status_code == 200:
             data = response.json()
@@ -460,12 +462,14 @@ class DynamicAIOrchestrator:
 
         client = get_shared_async_client()
         response = await client.post(
-            url, 
-            json=payload, 
+            url,
+            json=payload,
             headers={
-                "Authorization": f"Bearer {provider.api_key}", 
-                "Content-Type": "application/json", 
-            }, timeout=60.0)
+                "Authorization": f"Bearer {provider.api_key}",
+                "Content-Type": "application/json",
+            },
+            timeout=60.0,
+        )
 
         if response.status_code == 200:
             data = response.json()
@@ -483,7 +487,9 @@ class DynamicAIOrchestrator:
                 success=True, text=text, model_used=model, cost_usd=estimated_cost
             )
         else:
-            error_msg = f"{provider.provider_id} API error {response.status_code}: {response.text[:200]}"
+            error_msg = (
+                f"{provider.provider_id} API error {response.status_code}: {response.text[:200]}"
+            )
             return GenerationResult(success=False, error=error_msg)
 
     async def _call_huggingface(
@@ -505,12 +511,14 @@ class DynamicAIOrchestrator:
 
         client = get_shared_async_client()
         response = await client.post(
-            url, 
-            json=payload, 
+            url,
+            json=payload,
             headers={
-                "Authorization": f"Bearer {provider.api_key}", 
-                "Content-Type": "application/json", 
-            }, timeout=120.0)
+                "Authorization": f"Bearer {provider.api_key}",
+                "Content-Type": "application/json",
+            },
+            timeout=120.0,
+        )
 
         if response.status_code == 200:
             data = response.json()

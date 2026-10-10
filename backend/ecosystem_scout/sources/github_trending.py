@@ -4,6 +4,7 @@
 নেই, তাই scrape করতে হয় বা alternative (gh-trending API) ব্যবহার করতে হয়।
 এই prototype-এ mock data + optional real fetch দুটোই আছে।
 """
+
 from __future__ import annotations
 
 import json
@@ -44,26 +45,76 @@ def fetch_github_trending(
 def _mock_trending(limit: int) -> list[ScoutFinding]:
     """Return mock trending data for prototype/testing."""
     mock_repos = [
-        ("browser-use/browser-use", "AI-agent browser automation", 117000, "python", ["ai", "browser", "automation"]),
-        ("All-Hands-AI/OpenHands", "Autonomous coding agent", 45000, "python", ["ai", "coding", "agent"]),
-        ("Cerebras/cerebras-python", "Speed-optimized LLM inference", 5000, "python", ["llm", "inference", "fast"]),
-        ("OpenViking/openviking", "Hierarchical context for agents", 2000, "python", ["context", "memory", "agents"]),
-        ("agent-reach/agent-reach", "Agent discovery platform", 1500, "typescript", ["discovery", "agents"]),
-        ("Memanto/memanto", "Memory governance with TTL", 800, "python", ["memory", "governance", "ttl"]),
-        ("duckdb/duckdb", "In-process analytics database", 25000, "c++", ["analytics", "database", "olap"]),
-        ("Strata/strata", "Layered model staging for local inference", 600, "python", ["llm", "local", "vram"]),
+        (
+            "browser-use/browser-use",
+            "AI-agent browser automation",
+            117000,
+            "python",
+            ["ai", "browser", "automation"],
+        ),
+        (
+            "All-Hands-AI/OpenHands",
+            "Autonomous coding agent",
+            45000,
+            "python",
+            ["ai", "coding", "agent"],
+        ),
+        (
+            "Cerebras/cerebras-python",
+            "Speed-optimized LLM inference",
+            5000,
+            "python",
+            ["llm", "inference", "fast"],
+        ),
+        (
+            "OpenViking/openviking",
+            "Hierarchical context for agents",
+            2000,
+            "python",
+            ["context", "memory", "agents"],
+        ),
+        (
+            "agent-reach/agent-reach",
+            "Agent discovery platform",
+            1500,
+            "typescript",
+            ["discovery", "agents"],
+        ),
+        (
+            "Memanto/memanto",
+            "Memory governance with TTL",
+            800,
+            "python",
+            ["memory", "governance", "ttl"],
+        ),
+        (
+            "duckdb/duckdb",
+            "In-process analytics database",
+            25000,
+            "c++",
+            ["analytics", "database", "olap"],
+        ),
+        (
+            "Strata/strata",
+            "Layered model staging for local inference",
+            600,
+            "python",
+            ["llm", "local", "vram"],
+        ),
     ]
     findings = []
     for repo_name, desc, stars, lang, topics in mock_repos[:limit]:
-        findings.append(make_finding(
-            source=FindingSource.GITHUB_TRENDING,
-            repo_name=repo_name,
-            repo_url=f"https://github.com/{repo_name}",
-            description=desc,
-            stars=stars,
-            language=lang,
-            topics=topics,
-        ))
+        findings.append(
+            make_finding(
+                source=FindingSource.GITHUB_TRENDING,
+                repo_name=repo_name,
+                repo_url=f"https://github.com/{repo_name}",
+                description=desc,
+                stars=stars,
+                language=lang,
+                topics=topics,
+            )
+        )
     return findings
 
 
@@ -82,13 +133,15 @@ def _fetch_real_trending(language: str, since: str, limit: int) -> list[ScoutFin
 
     findings = []
     for item in data[:limit]:
-        findings.append(make_finding(
-            source=FindingSource.GITHUB_TRENDING,
-            repo_name=item.get("author", "") + "/" + item.get("name", ""),
-            repo_url=item.get("url", ""),
-            description=item.get("description", ""),
-            stars=item.get("stars", 0),
-            language=item.get("language", ""),
-            topics=item.get("currentPeriodStars", []),
-        ))
+        findings.append(
+            make_finding(
+                source=FindingSource.GITHUB_TRENDING,
+                repo_name=item.get("author", "") + "/" + item.get("name", ""),
+                repo_url=item.get("url", ""),
+                description=item.get("description", ""),
+                stars=item.get("stars", 0),
+                language=item.get("language", ""),
+                topics=item.get("currentPeriodStars", []),
+            )
+        )
     return findings

@@ -198,9 +198,10 @@ class TestStripeWebhookSignatureVerification:
 
             # Then: 400
             assert response.status_code == 400
-            assert "secret" in response.json()["detail"].lower() or "signature" in response.json()[
-                "detail"
-            ].lower()
+            assert (
+                "secret" in response.json()["detail"].lower()
+                or "signature" in response.json()["detail"].lower()
+            )
         finally:
             if old_env is None:
                 os.environ.pop("ENV", None)
@@ -530,7 +531,7 @@ class TestPaymentFailedEventHandling:
         # When
         response = await client.post(
             "/api/billing/webhook/stripe",
-            content=b'not-json',
+            content=b"not-json",
             headers={"Stripe-Signature": "t=1,v1=stub"},
         )
 
@@ -609,9 +610,7 @@ class TestSSLCommerzWebhookIdempotency:
         _patch_sslcommerz_verified(monkeypatch, None)
 
         # When
-        response = await client.post(
-            "/api/billing/webhook/sslcommerz", json={"val_id": "v-bad"}
-        )
+        response = await client.post("/api/billing/webhook/sslcommerz", json={"val_id": "v-bad"})
 
         # Then
         assert response.status_code == 400

@@ -60,6 +60,7 @@ async def poll_and_execute() -> None:
         sys.exit(1)
     # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
     from core.cache.redis_manager import redis_manager
+
     r = redis_manager.get_managed_client_sync()
     await r.ping()
     logger.info(">>> Redis connected")
@@ -98,6 +99,7 @@ async def heartbeat() -> None:
     try:
         # বাংলা (#4169): direct from_url নিষিদ্ধ — SecureRedisManager দিয়ে
         from core.cache.redis_manager import redis_manager
+
         r = redis_manager.get_managed_client_sync()
         while True:
             await r.hset(

@@ -270,7 +270,7 @@ class TestSpeculativeStagingRunner:
         merge_cmd = plan[2]
         # বাংলা মন্তব্য (#2888): #2874-এর one-shot -c identity flags — dynamic সূচি:
         mi = merge_cmd.index("merge")
-        assert merge_cmd[mi:mi + 2] == ["merge", "--no-ff"]
+        assert merge_cmd[mi : mi + 2] == ["merge", "--no-ff"]
         # identity flags অবশ্য merge-এর আগে (git global-opts আইন)
         assert merge_cmd[mi - 4] == "-c" and "user.name=" in merge_cmd[mi - 3]
         assert merge_cmd[mi - 2] == "-c" and "user.email=" in merge_cmd[mi - 1]
@@ -364,4 +364,3 @@ class TestFlakyTriageEngine:
 # বাংলা মন্তব্য (#3206): TestRollupIntelligence অংশটি মুছে ফেলা হয়েছে — এটি
 # merge_train_rollup.py টেস্ট করত, যা merge-train retirement-এ dead-code
 # হিসেবে অপসারিত (ফাইলের উপরের মন্তব্য দেখুন)।
-

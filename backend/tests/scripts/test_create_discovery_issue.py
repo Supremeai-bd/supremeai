@@ -1,4 +1,4 @@
-# বাংলা মন্তব্য (#2856 ফলো-আপ): legacy-API মাইগ্রেশন-শিম — create_discovery_issue.py একত্রীকরণের পর 
+# বাংলা মন্তব্য (#2856 ফলো-আপ): legacy-API মাইগ্রেশন-শিম — create_discovery_issue.py একত্রীকরণের পর
 # create_issue.py থেকে একে নামের ফাংশন প্রদান করে; টেস্ট-বডি অপরিবর্তিত। """Unit tests — unified scripts/agents/create_issue.py (legacy surface)."""
 
 from __future__ import annotations

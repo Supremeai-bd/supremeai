@@ -32,9 +32,7 @@ async def decision_table():
     engine = create_async_engine("sqlite+aiosqlite://")
     async with engine.begin() as conn:
         await conn.run_sync(
-            lambda sync_conn: DecisionMetadataModel.__table__.create(
-                sync_conn, checkfirst=True
-            )
+            lambda sync_conn: DecisionMetadataModel.__table__.create(sync_conn, checkfirst=True)
         )
     maker = async_sessionmaker(engine, expire_on_commit=False)
 

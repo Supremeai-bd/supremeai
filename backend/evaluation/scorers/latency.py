@@ -2,6 +2,7 @@
 
 বাংলা: latency score = inverse of response time (lower latency = higher score)।
 """
+
 from __future__ import annotations
 
 from typing import Any

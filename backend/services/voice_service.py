@@ -172,7 +172,7 @@ class VoiceService:
 
         started = time.monotonic()
         client = get_shared_async_client()
-        response = await client.post(url,  headers=headers,  files=files,  data=data, timeout=30.0)
+        response = await client.post(url, headers=headers, files=files, data=data, timeout=30.0)
         latency_ms = int((time.monotonic() - started) * 1000)
 
         if response.status_code != 200:
@@ -222,7 +222,7 @@ class VoiceService:
 
         started = time.monotonic()
         client = get_shared_async_client()
-        response = await client.post(url,  headers=headers,  files=files,  data=data, timeout=30.0)
+        response = await client.post(url, headers=headers, files=files, data=data, timeout=30.0)
         latency_ms = int((time.monotonic() - started) * 1000)
 
         if response.status_code != 200:
@@ -297,7 +297,7 @@ class VoiceService:
 
         started = time.monotonic()
         client = get_shared_async_client()
-        response = await client.post(url,  json=payload, timeout=30.0)
+        response = await client.post(url, json=payload, timeout=30.0)
         latency_ms = int((time.monotonic() - started) * 1000)
 
         if response.status_code != 200:
@@ -347,7 +347,7 @@ class VoiceService:
 
         started = time.monotonic()
         client = get_shared_async_client()
-        response = await client.post(url,  headers=headers,  content=audio_bytes, timeout=30.0)
+        response = await client.post(url, headers=headers, content=audio_bytes, timeout=30.0)
         latency_ms = int((time.monotonic() - started) * 1000)
 
         if response.status_code != 200:
@@ -477,7 +477,7 @@ class VoiceService:
         payload = {"text": text, "model_id": "eleven_multilingual_v2"}
 
         client = get_shared_async_client()
-        response = await client.post(url,  headers=headers,  json=payload, timeout=60.0)
+        response = await client.post(url, headers=headers, json=payload, timeout=60.0)
         if response.status_code != 200:
             return {
                 "status": "error",
