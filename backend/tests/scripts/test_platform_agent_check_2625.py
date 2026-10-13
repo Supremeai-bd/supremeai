@@ -196,6 +196,54 @@ class TestUpsertAlertSection:
         assert "12.0h behind" in captured["payload"]["body"]
 
 
+class TestRecoveryAutoClose:
+    """#46/#26 চুক্তি — full-recovery-এ পুরনো tracker issue কমেন্ট + ক্লোজ হয়।"""
+
+    def _close_http(self, search_status=200, comment_status=201, close_status=200):
+        calls: list[tuple] = []
+
+        def fake_gh_api(method, path, payload=None):
+            calls.append((method, path, payload))
+            if method == "GET":
+                if search_status != 200:
+                    return search_status, {}
+                return 200, {"items": [{"number": 46}]}
+            if method == "POST":
+                return comment_status, {}
+            return close_status, {}
+
+        return fake_gh_api, calls
+
+    def test_green_sweep_comments_and_closes_tracker(self, pac, monkeypatch):
+        fake, calls = self._close_http()
+        monkeypatch.setattr(pac, "gh_api", fake)
+        pac.close_recovered_tracker("https://github.example/actions/runs/1")
+        methods = [m for m, _, _ in calls]
+        assert methods == ["GET", "POST", "PATCH"]
+        assert "/issues/46/comments" in calls[1][1]
+        assert calls[2][2] == {"state": "closed", "state_reason": "completed"}
+        assert "recovered" in calls[1][2]["body"].lower()
+
+    def test_no_open_tracker_no_write(self, pac, monkeypatch):
+        """কোনো ওপেন tracker নেই → শুধু সার্চ, কোনো comment/close কল নয়।"""
+        calls: list[tuple] = []
+
+        def fake_gh_api(method, path, payload=None):
+            calls.append((method, path))
+            return 200, {"items": []}
+
+        monkeypatch.setattr(pac, "gh_api", fake_gh_api)
+        pac.close_recovered_tracker("")
+        assert [m for m, _ in calls] == ["GET"]
+
+    def test_comment_failure_blocks_close(self, pac, monkeypatch):
+        """recovery-comment ব্যর্থ → close PATCH কখনো নয় (আংশিক-প্রমাণ নয়)।"""
+        fake, calls = self._close_http(comment_status=403)
+        monkeypatch.setattr(pac, "gh_api", fake)
+        pac.close_recovered_tracker("")
+        assert [m for m, _, _ in calls] == ["GET", "POST"], "PATCH যেন না-হয়"
+
+
 class TestDefaultUserAgent:
     """#2625 চুক্তি ৩ — http() ডিফল্ট UA (caller-override সম্ভব)।"""
 

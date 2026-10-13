@@ -374,8 +374,11 @@ def probe_ai_providers(sec: dict) -> None:
     models("mistral", "https://api.mistral.ai/v1/models", sec.get("MISTRAL_API_KEY", ""))
     gemini = sec.get("GEMINI_API_KEY", "")
     if gemini:
+        # বাংলা (#25): Google key-এ HTTP-referrer restriction হলে referer ফাঁকা
+        # প্রোব 403 "Requests from referer <empty> are blocked." পায় (BOT_PROTECTION
+        # নয় — key-config)। সৎ, বর্ণনামূলক referer (এই প্রোবের origin) পাঠানো হয়।
         models("gemini", f"https://generativelanguage.googleapis.com/v1beta/models?key={gemini}", gemini,
-               {"x-goog-api-key": gemini}, '"models"')
+               {"x-goog-api-key": gemini, "Referer": "https://github.com/SaifulHaqueNiloy/supremeai"}, '"models"')
     else:
         record("gemini", "models list", None, "key not in vault")
     firecrawl = sec.get("FIRECRAWL_API_KEY", "")
@@ -520,6 +523,32 @@ def upsert_issue(failures: list[dict], run_url: str, alerts: list[dict] | None =
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
+# বাংলা মন্তব্য (#46/#26): সব চেক পাস হলে পুরনো ওপেন tracker issue রিকভারি-প্রমাণ
+# কমেন্ট + ক্লোজ — daily-quota-reset-এর পর stale tracker আর অফুরত ভাবে রেখে
+# দেয় না (আগে upsert শুধু কমেন্ট করত, ক্লোজ কখনো নয়)।
+def close_recovered_tracker(run_url: str) -> None:
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    q = urllib.parse.quote(f'repo:{REPO} state:open type:issue in:title "{ISSUE_TITLE_PREFIX}"')
+    status, data = gh_api("GET", f"/search/issues?q={q}&per_page=1")
+    items = (data.get("items") or []) if status == 200 else []
+    if not items:
+        return
+    number = items[0]["number"]
+    body = (
+        f"✅ **All platform checks recovered** ({now}) — sweep green, no failures or alerts.\n\n"
+        + (f"[Sweep run log]({run_url})\n\n" if run_url else "")
+        + "_স্বয়ংক্রিয়ভাবে: `platform_agent_check.py` — full recovery-এ auto-close (stale tracker drift বন্ধ, #46/#26)।_"
+    )
+    st, _ = gh_api("POST", f"/repos/{REPO}/issues/{number}/comments", {"body": body})
+    if st not in (200, 201):
+        print(f"recovery-comment FAILED issue #{number} HTTP {st}")
+        return
+    st, _ = gh_api("PATCH", f"/repos/{REPO}/issues/{number}", {"state": "closed", "state_reason": "completed"})
+    if st == 200:
+        print(f"recovered → closed issue #{number}")
+    else:
+        print(f"close FAILED issue #{number} HTTP {st}")
+
 # বাংলা মন্তব্য (#2715): রিপোর্ট-টেবিলের সারি-ক্রম রান-জুড়ে স্থিতিশীল রাখতে
 # প্ল্যাটফর্ম-অনুযায়ী ক্যানোনিকাল অর্ডার — সমান্তরাল রানে সমাপ্তি-ক্রম যা-ই হোক।
 PROBE_CANONICAL_ORDER = ["upstash", "render", "mcp-tower", "cloudflare", "supabase",
@@ -587,6 +616,8 @@ def main() -> int:
     alerts = [r for r in results if r.get("alert")]
     if failed or alerts:
         upsert_issue(failed, run_url, alerts=alerts)
+    else:
+        close_recovered_tracker(run_url)
     return 1 if failed else 0
 
 
