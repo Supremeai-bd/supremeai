@@ -26,7 +26,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: archive-mirror
+  # ২০২৬-১০-১৩ (#130): পুরনো group-এ Oct 10-এর zombie run (38017395370) ৩.৫+ দিন ধরে
+  # "in_progress" — cancel 409 / delete 403 (zombie-state, owner-lane cleanup বাকি)।
+  # group rename = একমাত্র operational escape — ভবিষ্যতের সব run (cron সহ) নতুন group-এ।
+  group: archive-mirror-v2
   cancel-in-progress: false
 
 jobs:
