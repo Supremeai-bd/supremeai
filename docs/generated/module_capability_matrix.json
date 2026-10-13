@@ -853,6 +853,15 @@
     },
     {
       "capability_signals": [
+        "mcp"
+      ],
+      "classification": "human_review",
+      "entrypoints": [],
+      "kind": "py",
+      "path": "backend/alembic_migrations/versions/2026_10_13_160000_add_client_slots_verified_slots.py"
+    },
+    {
+      "capability_signals": [
         "execute"
       ],
       "classification": "human_review",
@@ -23474,6 +23483,29 @@
     },
     {
       "capability_signals": [
+        "execute",
+        "health",
+        "mcp"
+      ],
+      "classification": "adapter",
+      "entrypoints": [],
+      "kind": "ts",
+      "path": "infrastructure/mcp-control-plane/src/policy/slot-audit.ts"
+    },
+    {
+      "capability_signals": [
+        "browser",
+        "mcp",
+        "memory",
+        "register"
+      ],
+      "classification": "adapter",
+      "entrypoints": [],
+      "kind": "ts",
+      "path": "infrastructure/mcp-control-plane/src/policy/slot-verification.ts"
+    },
+    {
+      "capability_signals": [
         "capability",
         "execute",
         "health",
@@ -23891,6 +23923,16 @@
       "classification": "adapter",
       "entrypoints": [],
       "kind": "ts",
+      "path": "infrastructure/mcp-control-plane/src/tools/slot.tools.ts"
+    },
+    {
+      "capability_signals": [
+        "mcp",
+        "register"
+      ],
+      "classification": "adapter",
+      "entrypoints": [],
+      "kind": "ts",
       "path": "infrastructure/mcp-control-plane/src/tools/source.tools.ts"
     },
     {
@@ -24166,6 +24208,18 @@
       "entrypoints": [],
       "kind": "ts",
       "path": "infrastructure/mcp-control-plane/test_service_circles.ts"
+    },
+    {
+      "capability_signals": [
+        "capability",
+        "execute",
+        "mcp",
+        "register"
+      ],
+      "classification": "adapter",
+      "entrypoints": [],
+      "kind": "ts",
+      "path": "infrastructure/mcp-control-plane/test_slot_verification.ts"
     },
     {
       "capability_signals": [
@@ -28377,5 +28431,5 @@
   ],
   "schema_version": "2.0",
   "source": "main",
-  "source_file_count": 3224
+  "source_file_count": 3229
 }
