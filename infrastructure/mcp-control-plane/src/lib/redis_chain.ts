@@ -45,34 +45,55 @@ export function buildAccountChain(): RedisAccountConfig[] {
   return chain;
 }
 
-// ── দৈনিক-কোটা cooldown registry (#2613 — #2452 free-tier permanent fix) ────
-// বাংলা মন্তব্য: Upstash free tier-এর দৈনিক কোটা শেষ হলে REST API HTTP 400 +
-// "max requests limit ..." মার্কার-সহ body দেয়। এই shared registry মার্কার দেখা
-// মাত্রই ওই account-কে পরবর্তী UTC মধ্যরাত + ৬০s পর্যন্ত cooldown-এ ফেলে —
-// ফলে tower-এর সব Redis-পথ (heartbeat read/write, orchestrator dispatch)
+// ── কোটা-উইন্ডো ও অটো-রোটেশন cooldown registry (#26 / #2613 — free-tier permanent fix) ────
+// বাংলা মন্তব্য: Upstash free tier-এর 500k মাসিক কোটা শেষ হলে REST API HTTP 400 +
+// "max requests limit ..." মার্কার-সহ body দেয় (Issue #26)। এই shared registry মার্কার দেখা
+// মাত্রই ওই account-কে পরবর্তী উইন্ডো রিসেট (মাসিক বা দৈনিক) পর্যন্ত cooldown-এ ফেলে —
+// ফলে tower-এর সব Redis-পথ (heartbeat read/write, orchestrator dispatch, health)
 // exhausted account-এ একটিও wasted request না পাঠিয়ে সরাসরি পরের account-এ
-// read-shift করে। UTC মধ্যরাতে কোটা রিসেট হলে account স্বয়ংক্রিয়ভাবে ফিরে আসে।
+// auto-rotate করে (primary → secondary → tertiary → quaternary → quinary)।
+// উইন্ডো শেষ হলে কোটা রিসেট পেয়ে account স্বয়ংক্রিয়ভাবে পুনরায় রোটেশন পুলে ফিরে আসে।
 export const QUOTA_EXCEEDED_MARKER = "max requests limit";
 
 const quotaCooldownUntil = new Map<string, number>();
 
-/** পরবর্তী UTC মধ্যরাত + ৬০s grace (ms epoch) — Upstash দৈনিক রিসেটের আনুমানিক সময়। */
-export function nextUtcResetEpochMs(nowMs: number = Date.now()): number {
+/**
+ * সক্রিয় কোটার রিসেট সময় (ms epoch)।
+ * Upstash free tier-এর 500k লিমিট মূলত **মাসিক** (#26) — মাসের ১ তারিখ 00:00 UTC রিসেট।
+ * legacy opt-out হিসেবে UPSTASH_QUOTA_WINDOW=daily দিলে দৈনিক মধ্যরাত ধরে।
+ */
+export function nextQuotaResetEpochMs(nowMs: number = Date.now()): number {
+  const windowType = (process.env.UPSTASH_QUOTA_WINDOW || "monthly").toLowerCase();
   const d = new Date(nowMs);
-  const nextMidnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1, 0, 0, 0, 0);
-  return nextMidnight + 60_000;
+  if (windowType === "daily" || windowType === "day") {
+    const nextMidnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1, 0, 0, 0, 0);
+    return nextMidnight + 60_000;
+  }
+  // Default: Monthly reset (1st of next month at 00:00 UTC + 60s grace)
+  const nextMonth = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1, 0, 0, 0, 0);
+  return nextMonth + 60_000;
 }
 
-/** ওই account-কে কোটা cooldown-এ ফেলে (R2)। আগের cooldown-এর চেয়ে দীর্ঘ হলে তবেই update। */
-export function markAccountQuotaExhausted(label: string, untilMs: number = nextUtcResetEpochMs()): void {
+/** পরবর্তী UTC মধ্যরাত + ৬০s grace (ms epoch) — legacy compatibility। */
+export function nextUtcResetEpochMs(nowMs: number = Date.now()): number {
+  return nextQuotaResetEpochMs(nowMs);
+}
+
+/** ওই account-কে কোটা cooldown-এ ফেলে ও পরের অ্যাকাউন্টে অটো-রোটেট করে (R2)। */
+export function markAccountQuotaExhausted(label: string, untilMs: number = nextQuotaResetEpochMs()): void {
   const prev = quotaCooldownUntil.get(label) ?? 0;
   if (untilMs > prev) {
     quotaCooldownUntil.set(label, untilMs);
     console.warn(
-      `[redis-chain] Upstash account "${label}" দৈনিক কোটা শেষ — ` +
-        `cooldown until ${new Date(untilMs).toISOString()} (স্বয়ংক্রিয় read-shift চালু)।`,
+      `[redis-chain] Upstash account "${label}" কোটা শেষ — ` +
+        `cooldown until ${new Date(untilMs).toISOString()} (স্বয়ংক্রিয় auto-rotate সক্রিয়)।`,
     );
   }
+}
+
+/** ম্যানুয়াল বা অ্যাডমিন কল দ্বারা একটি অ্যাকাউন্টকে অবিলম্বে cooldown/rotate করা। */
+export function forceRotateAccount(label: string, untilMs: number = nextQuotaResetEpochMs()): void {
+  markAccountQuotaExhausted(label, untilMs);
 }
 
 /** Account কি এই মুহূর্তে কোটা cooldown-এ? (মেয়াদ শেষ হলে entry পরিষ্কার হয়) */
@@ -97,19 +118,33 @@ export function activeAccountChain(nowMs: number = Date.now()): RedisAccountConf
   return active.length > 0 ? active : chain;
 }
 
+/**
+ * বর্তমানে সক্রিয় অটো-রোটেটেড Primary অ্যাকাউন্ট (চেইনের প্রথম সুস্থ অ্যাকাউন্ট)।
+ */
+export function getActiveRedisAccount(nowMs: number = Date.now()): RedisAccountConfig {
+  const active = activeAccountChain(nowMs);
+  return active[0] ?? buildAccountChain()[0] ?? { label: "primary", restUrl: env.redis.restUrl, tcpUrl: env.redis.url };
+}
+
 /** REST response-এ কোটা-ত্রুটির মার্কার আছে কি না (status + body উভয় থেকে)। */
 export function responseIndicatesQuotaExhaustion(status: number, body: string): boolean {
-  if (body && body.includes(QUOTA_EXCEEDED_MARKER)) return true;
+  if (body && (body.includes(QUOTA_EXCEEDED_MARKER) || body.includes("ERR max requests limit exceeded"))) return true;
   return status === 400 && body.includes("max requests limit");
 }
 
 /** পর্যবেক্ষণের জন্য cooldown snapshot (invariant #5 — fleet observability)। */
-export function quotaChainStatus(nowMs: number = Date.now()): { label: string; cooldownUntil: string | null }[] {
-  return buildAccountChain().map((account) => {
+export function quotaChainStatus(nowMs: number = Date.now()): { label: string; cooldownUntil: string | null; isActivePrimary: boolean }[] {
+  const activePrimary = getActiveRedisAccount(nowMs).label;
+  const chain = buildAccountChain();
+  if (chain.length === 0) {
+    return [{ label: "primary", cooldownUntil: null, isActivePrimary: true }];
+  }
+  return chain.map((account) => {
     const until = quotaCooldownUntil.get(account.label);
     return {
       label: account.label,
       cooldownUntil: until && nowMs < until ? new Date(until).toISOString() : null,
+      isActivePrimary: account.label === activePrimary,
     };
   });
 }
