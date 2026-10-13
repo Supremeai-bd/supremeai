@@ -20,7 +20,15 @@
 
 import { Redis as UpstashRedis } from "@upstash/redis";
 import Redis from "ioredis";
-import { buildAccountChain, type RedisAccountConfig } from "../../lib/redis_chain.js";
+import {
+  buildAccountChain,
+  activeAccountChain,
+  markAccountQuotaExhausted,
+  responseIndicatesQuotaExhaustion,
+  getActiveRedisAccount,
+  quotaChainStatus,
+  type RedisAccountConfig,
+} from "../../lib/redis_chain.js";
 
 type AccountAttempt = {
   account: string;
@@ -87,7 +95,8 @@ function clientForAccount(account: RedisAccountConfig): ChainClient | null {
 async function firstRespondingClient(
   op: (client: ChainClient) => Promise<unknown>,
 ): Promise<{ client: ChainClient; result: unknown; attempts: AccountAttempt[] }> {
-  const chain = buildAccountChain();
+  // Walk active non-exhausted accounts first (auto-rotated pool)
+  const chain = activeAccountChain();
   if (chain.length === 0) {
     throw new Error("No Redis configuration found (missing REST or TCP credentials)");
   }
@@ -100,11 +109,15 @@ async function firstRespondingClient(
       attempts.push({ account: client.account, mode: client.mode, ok: true });
       return { client, result, attempts };
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (responseIndicatesQuotaExhaustion(0, errMsg)) {
+        markAccountQuotaExhausted(client.account);
+      }
       attempts.push({
         account: client.account,
         mode: client.mode,
         ok: false,
-        error: err instanceof Error ? err.message : String(err),
+        error: errMsg,
       });
     }
   }
@@ -120,10 +133,12 @@ export async function pingRedis(): Promise<unknown> {
   return {
     mode: client.mode,
     account: client.account,
+    activePrimary: getActiveRedisAccount().label,
     status: result,
     latencyMs: Date.now() - start,
     chainSize: attempts.length,
     attemptedAccounts: attempts.map(({ account, mode, ok, error }) => ({ account, mode, ok, error })),
+    chainStatus: quotaChainStatus(),
   };
 }
 
@@ -132,7 +147,9 @@ export async function getRedisStats(): Promise<unknown> {
   return {
     mode: client.mode,
     account: client.account,
+    activePrimary: getActiveRedisAccount().label,
     statsRaw: result,
+    chainStatus: quotaChainStatus(),
   };
 }
 
@@ -141,6 +158,7 @@ export async function readRedisKey(key: string): Promise<unknown> {
   return {
     mode: client.mode,
     account: client.account,
+    activePrimary: getActiveRedisAccount().label,
     key,
     value: result ?? null,
   };
