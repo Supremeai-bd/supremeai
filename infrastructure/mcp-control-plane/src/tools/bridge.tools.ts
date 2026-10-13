@@ -26,7 +26,7 @@ import { env } from "../lib/env.js";
 
 /** The public front-door repository (env-overridable for tests/staging). */
 export function bridgeOpenRepo(): string {
-  return (process.env["BRIDGE_OPEN_REPO"] || "paykaribazaronline/supremeai-open").trim();
+  return (process.env["BRIDGE_OPEN_REPO"] || "Supremeai-bd/supremeai-open").trim();
 }
 
 /** The queue label upstream work orders carry in the open repo. */
@@ -52,7 +52,7 @@ const MAX_BODY_CHARS = 8_000;
 export function bridgeGuide() {
   return {
     mission:
-      "You are an external agent working from the PUBLIC repo paykaribazaronline/supremeai-open. " +
+      "You are an external agent working from the PUBLIC repo Supremeai-bd/supremeai-open. " +
       "Find work with bridge.work_queue, read the contract below, implement the smallest safe change, " +
       "and submit a Bridge Work Order. The tower lands approved work into the private repos through the " +
       "fail-closed bridge pipeline — you never need private credentials.",

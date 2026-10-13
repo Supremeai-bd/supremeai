@@ -76,9 +76,9 @@ function repoUrlFor(accountId: string): string {
   try {
     // বাংলা মন্তব্য: অ্যাকাউন্ট রেজিস্ট্রি থেকে baseUrl নেওয়া হয় — অ্যাডাপ্টারের সাথে একই উৎস, কোনো নেটওয়ার্ক I/O নেই।
     const account = buildAccountRegistry().find((a) => a.id === accountId && a.provider === "github");
-    return account?.url || "https://api.github.com/repos/paykaribazaronline/supremeai";
+    return account?.url || "https://api.github.com/repos/Supremeai-bd/supremeai";
   } catch {
-    return "https://api.github.com/repos/paykaribazaronline/supremeai";
+    return "https://api.github.com/repos/Supremeai-bd/supremeai";
   }
 }
 

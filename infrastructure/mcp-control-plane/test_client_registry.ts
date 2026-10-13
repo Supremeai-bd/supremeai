@@ -112,8 +112,8 @@ assert.equal(repoAccessFor("admin"), "read-write");
 assert.equal(repoAccessFor("supremeadmin"), "read-write");
 
 // 6a. restricted_viewer: satellite repo allowed, core repo BLOCKED.
-const satUrl = "https://api.github.com/repos/paykaribazaronline/supremeai-api";
-const coreUrl = "https://api.github.com/repos/paykaribazaronline/supremeai";
+const satUrl = "https://api.github.com/repos/Supremeai-bd/supremeai-api";
+const coreUrl = "https://api.github.com/repos/Supremeai-bd/supremeai";
 const rvScopes = defaultClientScopes("restricted_viewer");
 let deny = RequestContextStore.run({ role: "restricted_viewer", scopes: rvScopes }, () =>
   assertRepoReadAccess("github.read_file", "gh-sat", satUrl));

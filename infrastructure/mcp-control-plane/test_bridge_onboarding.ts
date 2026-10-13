@@ -108,7 +108,7 @@ assert.ok(guide.contract.protectedPathsToAdminReview.includes(".github/"), "prot
 assert.ok(guide.contract.secretScanFamilies.includes("ghp_"), "secret-scan families documented");
 assert.equal(guide.contract.landingAuthority.includes("constitutional gates"), true, "landing authority documented");
 assert.equal(BRIDGE_QUEUE_LABEL, "bridge:queued", "queue label matches the bridge pipeline");
-assert.equal(bridgeOpenRepo(), "paykaribazaronline/supremeai-open", "default open repo is the public front door");
+assert.equal(bridgeOpenRepo(), "Supremeai-bd/supremeai-open", "default open repo is the public front door");
 
 // ─── ৫. Profiles: read-only bridge tools ride the curated surfaces ───────────
 for (const name of ["bridge_guide", "bridge_work_queue", "bridge_work_order"]) {
@@ -165,7 +165,7 @@ async function makeBridgeServer(): Promise<McpServer> {
       const call = await client.callTool({ name: "bridge_guide", arguments: {} });
       assert.notEqual((call as { isError?: boolean }).isError, true, "bridge.guide must execute for anonymous callers");
       const payload = JSON.parse((call as { content: Array<{ text: string }> }).content[0]!.text) as ReturnType<typeof bridgeGuide>;
-      assert.equal(payload.entrypoints.openRepo, "paykaribazaronline/supremeai-open");
+      assert.equal(payload.entrypoints.openRepo, "Supremeai-bd/supremeai-open");
       assert.ok(payload.contract.diffCaps.maxBytes > 0, "guide carries the operator contract");
     });
   } finally {
