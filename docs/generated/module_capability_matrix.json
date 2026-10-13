@@ -4206,6 +4206,13 @@
       "path": "backend/core/config_proxy.py"
     },
     {
+      "capability_signals": [],
+      "classification": "canonical",
+      "entrypoints": [],
+      "kind": "py",
+      "path": "backend/core/config_registry.py"
+    },
+    {
       "capability_signals": [
         "memory"
       ],
@@ -28359,5 +28366,5 @@
   ],
   "schema_version": "2.0",
   "source": "main",
-  "source_file_count": 3222
+  "source_file_count": 3223
 }
