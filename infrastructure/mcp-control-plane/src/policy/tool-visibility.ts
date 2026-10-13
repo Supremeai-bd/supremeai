@@ -111,6 +111,10 @@ const CHATGPT_CURATED_TOOLS: readonly string[] = [
   "agent_review_workflow_status",
   "agent_review_workflow_execute",
   "guardian_evaluate_pr",
+  // bridge onboarding (public front door — zero-credential external agents)
+  "bridge_guide",
+  "bridge_work_queue",
+  "bridge_work_order",
   // docs
   "docs_search",
   "docs_list",
@@ -256,13 +260,15 @@ export function attachDiscoveryFilter(server: McpServer): void {
   }
 
   // Last resort: fail-closed. Advertise only the public-safe tools that the
-  // current caller may call (for anonymous guests: the 4 safe tools; for
+  // current caller may call (for anonymous guests: the safe tools; for
   // others: whichever safe tools pass RBAC). NEVER the full registry.
+  // bridge_guide is static (zero-network) so it stays listed even when the
+  // SDK's internals drift — an external agent must always keep the contract.
   console.error(
     "[tool-visibility] ⚠️ SDK internals drift: no tools/list handler AND no _registeredTools — FAIL-CLOSED discovery (public-safe tools only). Update tool-visibility.ts for the new SDK.",
   );
   inner.setRequestHandler(ListToolsRequestSchema, () => {
-    const failClosedSafe = ["system_summary", "system_health", "agent_status", "agent_heartbeat"];
+    const failClosedSafe = ["system_summary", "system_health", "agent_status", "agent_heartbeat", "bridge_guide"];
     return { tools: failClosedSafe.filter((name) => !toolListAccessError(name)).map((name) => ({ name, inputSchema: { type: "object" } })) };
   });
 }
