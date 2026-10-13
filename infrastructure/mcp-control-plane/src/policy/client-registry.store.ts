@@ -17,6 +17,10 @@ export interface PersistedClientRecord {
   expiresAt?: string;
   lastSeenAt?: string;
   status: string;
+  /** #48: revocation context for suspended slots. */
+  suspendedReason?: string;
+  /** #48: last credential rotation timestamp. */
+  rotatedAt?: string;
   tokenHash: string;
 }
 
@@ -135,10 +139,16 @@ export class UpstashClientRegistryStore implements ClientRegistryStore {
         errors.push(`${account.label}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
-    if (chain.length > 0) {
-      console.error(`[client-registry] hydration failed on all ${chain.length} chain account(s): ${errors.join(" | ")}`);
-    }
-    return [];
+    // #48 Invariant 5 (fail-closed): an UNREACHABLE store must never look
+    // like an empty one — authorization paths (refreshRegistryFromStore)
+    // treat a throw as "store unverifiable" and deny privileged operations.
+    // Boot-time callers (initClientRegistry) catch this and continue with
+    // the last-known snapshot, so startup behavior is unchanged.
+    const reason = chain.length === 0
+      ? "no reachable Upstash account configured (set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN)"
+      : `all ${chain.length} chain account(s) failed: ${errors.join(" | ")}`;
+    console.error(`[client-registry] hydration failed (${reason})`);
+    throw new Error(`Client registry store unverifiable: ${reason}`);
   }
 
   save(records: PersistedClientRecord[]): void {

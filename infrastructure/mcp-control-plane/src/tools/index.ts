@@ -20,6 +20,7 @@ import { registerDynamicTools } from "../dynamic/tool.registry.js";
 import { registerContext7Adapter } from "../dynamic/context7.adapter.js";
 import { registerTenantTools } from "./tenant.tools.js";
 import { registerClientTools } from "./client.tools.js";
+import { registerSlotTools } from "./slot.tools.js";
 import { registerSourceTools } from "./source.tools.js";
 import { registerBridgeTools } from "./bridge.tools.js";
 import { registerKnowledgeTools } from "./knowledge.tools.js";
@@ -49,6 +50,8 @@ export async function registerAllTools(
   // ── Multi-Tenant Tools (admin/customer management)
   await registerTenantTools(server);
   await registerClientTools(server);
+  // #48: Verified Slot Architecture — slot lifecycle + audit management plane.
+  await registerSlotTools(server);
   await registerFederationTools(server);
   await registerAgentReviewWorkflowTools(server);
 
