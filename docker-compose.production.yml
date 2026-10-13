@@ -40,7 +40,15 @@ services:
     env_file:
       - .env.production
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # Phase-4 fix (#125 / ROADMAP 4.1): মৃত `DATABASE_URL` ওয়্যারিং সরানো হলো।
+      # পুরনো লাইন লোকাল `postgres` কনটেইনারের DSN assemble করত — কিন্তু ইঞ্জিন
+      # (backend/core/db.py::_get_database_url) প্রথমে `SUPABASE_DATABASE_URL_POOLER`
+      # পড়ে; টেমপ্লেটে সেটি ছিলই না, ফলে টেমপ্লেট-অনুসারী ডিপ্লয় নীরবে ভুল DB-তে
+      # যেত বা hard-required চুক্তিতে বুটে ক্র্যাশ করত। এখন ইঞ্জিন-কন্ট্রাক্ট অনুযায়ী
+      # pooler DSN-ই পাস-থ্রু হয় — unset হলে compose config-এই fail-fast (স্পষ্ট
+      # বার্তা, বুট-ক্র্যাশ নয়)। লোকাল postgres সার্ভিস observability exporter-দের
+      # জন্য থাকছে (postgres-exporter DATA_SOURCE_NAME); অ্যাপ-DB আর নয়।
+      - SUPABASE_DATABASE_URL_POOLER=${SUPABASE_DATABASE_URL_POOLER:?SUPABASE_DATABASE_URL_POOLER must be set — Supabase pooler DSN is the canonical production DB contract (see .env.production.example)}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       # AI memory retention (issue #1825): policy doc mandates true in prod
       - ENABLE_AI_MEMORY_RETENTION=true
