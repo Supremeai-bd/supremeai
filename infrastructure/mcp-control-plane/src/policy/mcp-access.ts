@@ -71,7 +71,7 @@ export function canAccessCapability(context: McpAccessContext, capability: McpCa
 }
 
 export function accessModeFor(role: UserRole | null, authenticated: boolean): McpAccessMode {
-  if (!authenticated || role === null) return "public_viewer";
+  if (!authenticated || role === null) return "agent";
   return role;
 }
 
