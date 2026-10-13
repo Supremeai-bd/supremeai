@@ -96,23 +96,55 @@ class Gateway:
             cmd += ["--repo", REPO]
         return cmd
 
+    # #103 root-cause (#4291/#4292 চুক্তির merge-gate পা): ব্যক্তিগত fine-grained PAT
+    # (SELF_HEAL_PAT) private repo-তে checks:read নেই → check-runs API 403 →
+    # প্রতিটি রায় fail-closed HOLD → কোনো PR নিজে-নিজে land করতে পারে না (fleet-
+    # deadlock)। চুক্তি: শুধু token-scope-শ্রেণির ত্রুটিতে (HTTP 403 "not accessible")
+    # একবার GH_FALLBACK_TOKEN (= workflow-এর নিজস্ব github.token, স্যাংশনড পারমিশন)
+    # দিয়ে retry — অন্যান্য ত্রুটি (404/422/নেটওয়ার্ক) সৎভাবে ব্যর্থ হয়
+    # (fail-closed অপরিবর্তিত, কোনো ভুয়া প্রমাণ নয়)।
+    _TOKEN_SCOPE_MARKERS = ("not accessible", "http 403")
+
     def gh(self, *args: str) -> str:
         """gh CLI — nonzero exit বা exec-ব্যর্থতায় exception (fail-closed)।
 
         # বাংলা মন্তব্য: `gh api` এ `--repo` flag নেই (endpoint-এ owner/repo থাকে) —
         # শুধু api-বহির্ভূত সাবকমান্ডে (pr view/list/merge) --repo যোগ হয়।
         # লাইভ-ল্যান্ডিং প্রথম চেষ্টায় ধরা পড়া বাগ: api-কলে --repo দিলে
-        # "unknown flag: --repo" → evidence-fetch-fail → প্রতিটি রায় HOLD।
+        "unknown flag: --repo" → evidence-fetch-fail → প্রতিটি রায় HOLD।
         """
         if self._gh_fn is not None:
             return self._gh_fn(*args)
-        res = subprocess.run(
+        err = ""
+        try:
+            res = subprocess.run(
+                self._gh_command(*args),
+                capture_output=True, text=True, timeout=60, check=False,
+            )
+            if res.returncode == 0:
+                return res.stdout.strip()
+            err = res.stderr or ""
+        except Exception as exc:  # noqa: BLE001 — timeout/exec: fallback সিদ্ধান্তে যায়
+            err = str(exc)
+        fb = (os.environ.get("GH_FALLBACK_TOKEN") or "").strip()
+        cur = (os.environ.get("GH_TOKEN") or "").strip()
+        if (
+            not fb or fb == cur
+            or not any(m in err.lower() for m in self._TOKEN_SCOPE_MARKERS)
+        ):
+            raise RuntimeError(f"gh {' '.join(args[:2])}… failed: {err[:200]}")
+        # বাংলা মন্তব্য: fallback retry-তে gh-র জন্য GH_TOKEN env-ওভাররাইড —
+        # প্রক্সি-প্রসেসে মূল env দূষিত হয় না (শুধু এই subprocess-এ)।
+        res2 = subprocess.run(
             self._gh_command(*args),
             capture_output=True, text=True, timeout=60, check=False,
+            env={**os.environ, "GH_TOKEN": fb},
         )
-        if res.returncode != 0:
-            raise RuntimeError(f"gh {' '.join(args[:2])}… failed: {res.stderr[:200]}")
-        return res.stdout.strip()
+        if res2.returncode != 0:
+            raise RuntimeError(
+                f"gh {' '.join(args[:2])}… failed (primary+fallback): {res2.stderr[:200]}"
+            )
+        return res2.stdout.strip()
 
     def git(self, *args: str) -> str:
         if self._git_fn is not None:
