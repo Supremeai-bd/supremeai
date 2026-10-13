@@ -496,8 +496,8 @@ export function getOrCreateGuestClient(
     name: finalName,  // AUDIT-FIX (#2030): use auto-incremented name
     provider,
     protocol,
-    role: "viewer",
-    scopes: defaultClientScopes("viewer"),
+    role: "agent",
+    scopes: defaultClientScopes("agent"),
     toolProfile, // Tool Exposure Policy: provider-derived default (chatgpt → curated surface)
     createdAt: now,
     updatedAt: now,
