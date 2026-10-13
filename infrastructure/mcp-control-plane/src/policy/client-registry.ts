@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { env } from "../lib/env.js";
 import type { UserRole } from "./auth.context.js";
+import { roleRank } from "./auth.context.js";
 import { isValidToolProfile, type ToolProfile } from "./tool-visibility.js";
 import { createClientRegistryStore, type PersistedClientRecord } from "./client-registry.store.js";
 
@@ -259,14 +260,34 @@ export function rotateClient(id: string, tenantId?: string) {
 export function hasClientRegistry() { return Boolean(env.mcpAdminKey); }
 function sanitize(client: StoredClient): ExternalClient { const { tokenHash: _tokenHash, ...safe } = client; return safe; }
 
+// #110: 6-tier scope matrix. Viewer tiers get read-only scope sets; the
+// repo tiers additionally carry repo-read scopes that the GitHub tools
+// middleware (github.tools.ts assertRepoReadAccess) enforces against the
+// satellite allowlist / full-repo boundary.
+// বাংলা মন্তব্য: ৬-স্তর স্কোপ ম্যাট্রিক্স — রিড-অনলি স্তরগুলোতে repo-read স্কোপ, GitHub টুল মিডলওয়্যার সেগুলো স্যাটেলাইট allowlist-এর সাথে আচরণ করে।
 export function defaultClientScopes(role: ClientRole): string[] {
   if (role === "viewer") return ["health:read", "system:read", "audit:read"];
-  if (role === "agent") return ["health:read", "system:read", "audit:read", "tools:execute", "approvals:request"];
+  if (role === "restricted_viewer")
+    return ["health:read", "system:read", "audit:read", "repos:satellite:read"];
+  if (role === "repo_viewer")
+    return ["health:read", "system:read", "audit:read", "repos:satellite:read", "repos:all:read"];
+  if (role === "agent")
+    return ["health:read", "system:read", "audit:read", "repos:satellite:read", "repos:all:read", "tools:execute", "approvals:request"];
+  // admin ও supremeadmin: সম্পূর্ণ অ্যাক্সেস (omni scope)।
   return ["*"];
 }
 
+/**
+ * #110: rank-ladder role check (replaces the flat 3-tier boolean chain).
+ * Legacy required tiers map onto the rank scale (viewer=0, agent=3, admin=4)
+ * so existing call sites keep identical semantics; the new read-only tiers
+ * (restricted_viewer=1, repo_viewer=2) pass legacy-"viewer" requirements but
+ * never legacy-"agent"/"admin" ones — read-only stays read-only.
+ * বাংলা মন্তব্য: র‍্যাঙ্ক-ল্যাডার চেক — নতুন রিড-অনলি স্তরগুলো viewer-স্তরের কাজ পারে কিন্তু agent/admin-স্তরের নয়।
+ */
 export function roleAllows(role: ClientRole, required: "viewer" | "agent" | "admin") {
-  return role === "admin" || role === required || (role === "agent" && required === "viewer");
+  const requiredRank = required === "viewer" ? 0 : required === "agent" ? 3 : 4;
+  return roleRank(role) >= requiredRank;
 }
 
 export function scopeAllows(scopes: string[], required: string) { return scopes.includes("*") || scopes.includes(required); }

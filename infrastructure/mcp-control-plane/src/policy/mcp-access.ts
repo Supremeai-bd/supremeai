@@ -1,7 +1,16 @@
 import type { UserRole } from "./auth.context.js";
-import { RequestContextStore } from "./auth.context.js";
+import { RequestContextStore, roleRank } from "./auth.context.js";
 
-export type McpAccessMode = "public_viewer" | "viewer" | "agent" | "admin";
+// #110: mode union extended to mirror the 6-tier UserRole ladder.
+// বাংলা মন্তব্য: মোড ইউনিয়ন ৬-স্তর রোল ল্যাডারের সাথে সমন্বিত।
+export type McpAccessMode =
+  | "public_viewer"
+  | "viewer"
+  | "restricted_viewer"
+  | "repo_viewer"
+  | "agent"
+  | "admin"
+  | "supremeadmin";
 export type McpCapabilityClass = "safe" | "confirmation" | "restricted";
 
 export interface McpAccessContext {
@@ -34,8 +43,18 @@ export function canAccessCapability(context: McpAccessContext, capability: McpCa
   if (context.mode === "public_viewer") {
     return capability.access === "safe" && capability.dataClassification === "public";
   }
-  if (capability.dataClassification === "secret") return context.mode === "admin";
-  if (capability.access === "restricted") return context.mode === "admin" || context.mode === "agent";
+  // #110: tier-aware capability checks on the rank ladder (mode === role for
+  // every authenticated caller — accessModeFor). secret ⇒ rank ≥ 4
+  // (admin/supremeadmin); restricted ⇒ rank ≥ 3 (agent and above). The
+  // read-only tiers (restricted_viewer=1, repo_viewer=2) therefore keep
+  // access ONLY to safe/public capabilities gated by scopes — read-only stays
+  // read-only. Legacy semantics preserved for the original 3 tiers.
+  // বাংলা মন্তব্য: সিক্রেট ক্যাপাবিলিটি র‍্যাঙ্ক ≥ ৪, রিস্ট্রিক্টেড র‍্যাঙ্ক ≥ ৩ — রিড-অনলি স্তর শুধু সেফ ক্যাপাবিলিটি ব্যবহার করতে পারবে।
+  // After the public_viewer early-return, mode is a real UserRole (mode ===
+  // role for authenticated callers — accessModeFor), so rank lookup is direct.
+  const rank = roleRank(context.mode as UserRole);
+  if (capability.dataClassification === "secret") return rank >= 4;
+  if (capability.access === "restricted") return rank >= 3;
   if (capability.requiredScope && !context.scopes.includes("*") && !context.scopes.includes(capability.requiredScope)) return false;
   return true;
 }

@@ -1,7 +1,37 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ToolProfile } from "./tool-visibility.js";
 
-export type UserRole = "admin" | "agent" | "viewer";
+// #110: flat 3-tier → 6-tier operational RBAC ladder (viewer → supremeadmin).
+// বাংলা মন্তব্য: সমতল ৩-স্তর মডেল থেকে ৬-স্তর ক্রমোচ্চ RBAC শ্রেণিবিন্যাসে উন্নীত।
+export type UserRole =
+  | "supremeadmin"
+  | "admin"
+  | "agent"
+  | "repo_viewer"
+  | "restricted_viewer"
+  | "viewer";
+
+/**
+ * #110: explicit privilege rank per role. Higher rank ⇒ strictly more access
+ * (monotonic). repo_viewer (2) reads ALL private repos but cannot execute
+ * tools; restricted_viewer (1) reads only satellite repos; supremeadmin (5)
+ * is the omni-role super administrator (deploys, secret rotation, overrides).
+ * বাংলা মন্তব্য: প্রতিটি রোলের সুস্পষ্ট প্রাইভিলেজ র‍্যাঙ্ক — উচ্চতর র‍্যাঙ্ক মানে কঠোরভাবে বেশি অ্যাক্সেস।
+ */
+export const ROLE_RANK: Readonly<Record<UserRole, number>> = {
+  viewer: 0,
+  restricted_viewer: 1,
+  repo_viewer: 2,
+  agent: 3,
+  admin: 4,
+  supremeadmin: 5,
+} as const;
+
+/** #110: rank accessor with fail-closed viewer default. */
+export function roleRank(role: UserRole | undefined | null): number {
+  return role ? (ROLE_RANK[role] ?? 0) : 0;
+}
+
 export type AccessMode = "public_viewer" | UserRole;
 
 export interface RequestContext {
