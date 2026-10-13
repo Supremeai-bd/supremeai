@@ -1,4 +1,5 @@
 import { env } from "../lib/env.js";
+import { getActiveRedisAccount } from "../lib/redis_chain.js";
 import { ProviderName } from "./provider.registry.js";
 import { Capability } from "./capability.registry.js";
 
@@ -88,36 +89,22 @@ export function buildAccountRegistry(): ProviderAccount[] {
       available: isAvailable("RENDER_API_KEY_4"),
     },
 
-    // ── GitHub ──────────────────────────────────────────
+    // ── GitHub — SupremeAI Primary (paykaribazaronline/supremeai) ────────
+    // Note: SaifulHaqueNiloy/supremeai and paykaribazaronline/paykaribazar (e-commerce)
+    // are excluded. Only canonical SupremeAI ecosystem repositories are monitored.
     {
       id: "github-primary",
       provider: "github",
-      displayName: "GitHub Repo (SaifulHaqueNiloy/supremeai)",
+      displayName: "GitHub Repo (paykaribazaronline/supremeai)",
       role: "source-control",
       environment: "production",
       capabilities: ["health", "logs", "metrics"],
-      apiKeyRef: "GH_TOKEN",
-      url: "https://api.github.com/repos/SaifulHaqueNiloy/supremeai",
-      available: isAvailable("GH_TOKEN") || isAvailable("GITHUB_TOKEN"),
-    },
-    {
-      id: "github-test-ground",
-      provider: "github",
-      displayName: "supremeai test ground",
-      role: "source-control",
-      environment: "development",
-      capabilities: ["health", "logs", "metrics"],
-      apiKeyRef: "GH_TOKEN",
+      apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
       url: "https://api.github.com/repos/paykaribazaronline/supremeai",
-      available: isAvailable("GH_TOKEN") || isAvailable("GITHUB_TOKEN") || isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE"),
+      available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
     },
 
-    // ── GitHub — paykaribazaronline supremeai-federation (সম্পূর্ণ-কভারেজ, Task 35) ──
-    // বাংলা: paykaribazaronline অ্যাকাউন্টের প্রতিটি supremeai-সংশ্লিষ্ট রিপো টাওয়ারে
-    // যুক্ত। কী আসে Infisical vault থেকে (GITHUB_PAT_PAYKARIBAZARONLINE — বুট-সময়ে
-    // pullSecretsIntoProcessEnv() process.env-এ ভরে; মান কোডে/কমিটে কখনো নেই)।
-    // প্রতিটি entry = টাওয়ারের github.* টুলে আলাদা accountId → প্রতি-রিপো
-    // workflow-run / secret / PR / ফাইল পর্যবেক্ষণ।
+    // ── GitHub — paykaribazaronline supremeai-federation (সম্পূর্ণ-কভারেজ) ──
     {
       id: "github-pay-supremeai",
       provider: "github",
@@ -231,20 +218,24 @@ export function buildAccountRegistry(): ProviderAccount[] {
       available: isAvailable("SUPABASE_SERVICE_ROLE_KEY"),
     },
 
-    // ── Redis (Upstash) ───────────────────────────────────
-    {
-      id: "redis-primary",
-      provider: "redis",
-      displayName: "Upstash Redis (Cache + Queue)",
-      role: "cache",
-      environment: "production",
-      capabilities: ["health", "metrics", "storage"],
-      apiKeyRef: "UPSTASH_REDIS_REST_TOKEN",
-      // Prefer the Upstash REST URL (https, port 443) — the raw REDIS_URL uses
-      // the TCP-only port 6379 which every REST probe would fail on.
-      url: env.redis.restUrl || env.redis.url,
-      available: isAvailable("UPSTASH_REDIS_REST_TOKEN"),
-    },
+    // ── Redis (Upstash) — Auto-Rotating Multi-Account Chain (#26) ────
+    (() => {
+      const active = getActiveRedisAccount();
+      const label = active?.label || "primary";
+      const tokenRef = label === "primary" ? "UPSTASH_REDIS_REST_TOKEN" : `UPSTASH_REDIS_${label.toUpperCase()}_REST_TOKEN`;
+      return {
+        id: "redis-primary",
+        provider: "redis" as const,
+        displayName: label === "primary" ? "Upstash Redis (Cache + Queue)" : `Upstash Redis (Cache + Queue [auto-rotated: ${label}])`,
+        role: "cache",
+        environment: "production" as const,
+        capabilities: ["health", "metrics", "storage"] as const,
+        apiKeyRef: tokenRef,
+        // Prefer the active account's REST URL (https, port 443)
+        url: active?.restUrl || env.redis.restUrl || env.redis.url,
+        available: isAvailable(tokenRef) || isAvailable("UPSTASH_REDIS_REST_TOKEN") || isAvailable("REDIS_URL"),
+      };
+    })(),
 
     // ── Cloudflare (5-Account Federation Pool) ────────────
     {
@@ -388,14 +379,14 @@ export function buildAccountRegistry(): ProviderAccount[] {
       available: isAvailable("TELEGRAM_BOT_TOKEN"),
     },
     {
-      id: "discord-primary",
-      provider: "discord",
-      displayName: "Discord Webhook",
+      id: "whatsapp-primary",
+      provider: "whatsapp",
+      displayName: "WhatsApp Alerts Bot",
       role: "alerts",
       environment: "production",
       capabilities: ["health", "notify"],
-      apiKeyRef: "DISCORD_WEBHOOK_URL",
-      available: isAvailable("DISCORD_WEBHOOK_URL"),
+      apiKeyRef: "WHATSAPP_ACCESS_TOKEN",
+      available: isAvailable("WHATSAPP_ACCESS_TOKEN") || isAvailable("WHATSAPP_PHONE_NUMBER_ID") || isAvailable("WHATSAPP_WEBHOOK_URL"),
     },
   ];
 }

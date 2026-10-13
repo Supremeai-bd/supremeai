@@ -1,7 +1,7 @@
 import { buildAccountRegistry } from "../../registry/account.registry.js";
 import { httpRequest, bearerAuth } from "../../lib/http.js";
 
-const DEFAULT_BASE_URL = "https://api.github.com/repos/SaifulHaqueNiloy/supremeai";
+const DEFAULT_BASE_URL = "https://api.github.com/repos/paykaribazaronline/supremeai";
 
 export function getAccountConfig(accountId: string): { apiKey: string; baseUrl: string } {
   const accounts = buildAccountRegistry();

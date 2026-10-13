@@ -33,11 +33,13 @@ interface HealthProbe {
 function bearerFor(apiKeyRef: string): string | undefined {
   const primary = process.env[apiKeyRef];
   if (primary && primary.length > 0) return primary;
-  // GitHub accounts allow the generic fallback name (same rule as the registry)
-  if (apiKeyRef === "GH_TOKEN") {
-    const alt = process.env["GITHUB_TOKEN"];
-    if (alt && alt.length > 0) return alt;
-  }
+  // GitHub accounts allow generic fallback names (same rule as the registry)
+  const altPat = process.env["GITHUB_PAT_PAYKARIBAZARONLINE"];
+  if (altPat && altPat.length > 0) return altPat;
+  const alt = process.env["GITHUB_TOKEN"];
+  if (alt && alt.length > 0) return alt;
+  const ghToken = process.env["GH_TOKEN"];
+  if (ghToken && ghToken.length > 0) return ghToken;
   return undefined;
 }
 
@@ -106,7 +108,7 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
     return { ...base, url, status: "healthy", httpStatus: out.status, latencyMs: out.latencyMs };
   }
 
-  // ── Redis (Upstash): REST ping with the URL-embedded bearer token ──
+  // ── Redis (Upstash): REST ping with the URL-embedded bearer token (chain failover supported) ──
   if (svc.provider === "redis") {
     const rest = upstashRestUrl(svc.url!);
     if (!rest) return { ...base, url: svc.url!, status: "unreachable", httpStatus: null, latencyMs: null, error: "unparseable redis URL" };
@@ -117,15 +119,46 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
         headers: rest.token ? { Authorization: `Bearer ${rest.token}` } : {},
       });
       // Upstash REST replies {"result":"PONG"} — compare case-insensitively
-      // (the previous strict lowercase check made this row PERMANENTLY degraded).
       const pong = res.ok && String(res.data?.result ?? "").toLowerCase() === "pong";
+      if (!pong) {
+        // Fallback to secondary account if primary quota limit is exceeded (#26)
+        const secUrl = process.env.UPSTASH_REDIS_SECONDARY_REST_URL;
+        const secToken = process.env.UPSTASH_REDIS_SECONDARY_REST_TOKEN;
+        if (secUrl && secToken) {
+          const secRes = await httpRequest<{ result?: string }>(`${secUrl.replace(/\/+$/, "")}/ping`, {
+            timeoutMs: 6000,
+            retries: 0,
+            headers: { Authorization: `Bearer ${secToken}` },
+          });
+          const secPong = secRes.ok && String(secRes.data?.result ?? "").toLowerCase() === "pong";
+          if (secPong) {
+            return { ...base, url: secUrl, status: "healthy", httpStatus: secRes.status, latencyMs: secRes.latencyMs };
+          }
+        }
+      }
       return { ...base, url: rest.url, status: pong ? "healthy" : "degraded", httpStatus: res.status, latencyMs: res.latencyMs, ...(pong ? {} : { error: "PING did not return pong" }) };
     } catch (err) {
+      // Also try failover on network/connection error
+      const secUrl = process.env.UPSTASH_REDIS_SECONDARY_REST_URL;
+      const secToken = process.env.UPSTASH_REDIS_SECONDARY_REST_TOKEN;
+      if (secUrl && secToken) {
+        try {
+          const secRes = await httpRequest<{ result?: string }>(`${secUrl.replace(/\/+$/, "")}/ping`, {
+            timeoutMs: 6000,
+            retries: 0,
+            headers: { Authorization: `Bearer ${secToken}` },
+          });
+          const secPong = secRes.ok && String(secRes.data?.result ?? "").toLowerCase() === "pong";
+          if (secPong) {
+            return { ...base, url: secUrl, status: "healthy", httpStatus: secRes.status, latencyMs: secRes.latencyMs };
+          }
+        } catch {}
+      }
       return { ...base, url: rest.url, status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };
     }
   }
 
-  // ── Cloudflare: token verify against the management API ──
+  // ── Cloudflare: token verify (or Global API Key verify) against the management API ──
   if (svc.provider === "cloudflare") {
     const token = bearerFor(svc.apiKeyRef);
     if (!token) {
@@ -133,7 +166,29 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
       // manage/observe it without an API token.
       return { ...base, url: "https://api.cloudflare.com/client/v4", status: "unconfigured", httpStatus: null, latencyMs: null, error: `${svc.apiKeyRef} missing in tower env` };
     }
+    const isGlobalKey = svc.apiKeyRef.includes("GLOBAL_API_KEY");
+    const emailRef = svc.apiKeyRef.replace("_GLOBAL_API_KEY", "_EMAIL");
+    const email = process.env[emailRef];
+
     try {
+      if (isGlobalKey && email) {
+        // Global API Key authentication uses X-Auth-Key and X-Auth-Email headers
+        const res = await httpRequest<{ success?: boolean }>("https://api.cloudflare.com/client/v4/user", {
+          timeoutMs: 6000,
+          retries: 0,
+          headers: { "X-Auth-Key": token, "X-Auth-Email": email },
+        });
+        const verified = res.ok && res.data?.success === true;
+        return {
+          ...base,
+          url: "https://api.cloudflare.com/client/v4/user",
+          status: verified ? "healthy" : "degraded",
+          httpStatus: res.status,
+          latencyMs: res.latencyMs,
+          ...(verified ? {} : { error: "Cloudflare global API key rejected" }),
+        };
+      }
+
       const res = await httpRequest<{ success?: boolean; errors?: unknown[] }>("https://api.cloudflare.com/client/v4/user/tokens/verify", {
         timeoutMs: 6000,
         retries: 0,
@@ -231,15 +286,30 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
     }
   }
 
-  // ── Discord: GET on the webhook returns its metadata (URL masked in output) ──
-  if (svc.provider === "discord") {
-    const maskedUrl = "https://discord.com/api/webhooks";
-    const hook = env.notify.discordWebhookUrl;
-    if (!hook) return { ...base, url: maskedUrl, status: "unconfigured", httpStatus: null, latencyMs: null, error: "DISCORD_WEBHOOK_URL missing in tower env" };
+  // ── WhatsApp: Meta Graph API / Webhook health probe ──
+  if (svc.provider === "whatsapp") {
+    const maskedUrl = "https://graph.facebook.com/whatsapp";
+    const { whatsappAccessToken, whatsappPhoneNumberId, whatsappWebhookUrl } = env.notify;
+    if (!whatsappAccessToken && !whatsappWebhookUrl) {
+      return { ...base, url: maskedUrl, status: "unconfigured", httpStatus: null, latencyMs: null, error: "WHATSAPP_ACCESS_TOKEN or WHATSAPP_WEBHOOK_URL missing in tower env" };
+    }
     try {
-      const res = await httpRequest<{ id?: string; name?: string }>(hook, { timeoutMs: 6000, retries: 0 });
-      const ok = Boolean(res.data?.id && res.data?.name);
-      return { ...base, url: maskedUrl, status: ok ? "healthy" : "degraded", httpStatus: res.status, latencyMs: res.latencyMs, ...(ok ? {} : { error: "webhook URL did not return metadata — invalid or revoked" }) };
+      if (whatsappPhoneNumberId && whatsappAccessToken) {
+        const res = await httpRequest<{ id?: string }>(`https://graph.facebook.com/v20.0/${whatsappPhoneNumberId}`, {
+          timeoutMs: 6000,
+          retries: 0,
+          headers: { Authorization: `Bearer ${whatsappAccessToken}` },
+        });
+        const ok = Boolean(res.data?.id);
+        return { ...base, url: maskedUrl, status: ok ? "healthy" : "degraded", httpStatus: res.status, latencyMs: res.latencyMs, ...(ok ? {} : { error: "Meta API rejected phone number or token" }) };
+      }
+      if (whatsappWebhookUrl) {
+        const out = await probeHttp(whatsappWebhookUrl);
+        if (out === "unreachable") return { ...base, url: "webhook://whatsapp", status: "unreachable", httpStatus: null, latencyMs: null, error: "webhook unreachable" };
+        if (out === "degraded") return { ...base, url: "webhook://whatsapp", status: "degraded", httpStatus: null, latencyMs: null, error: "webhook returned non-2xx" };
+        return { ...base, url: "webhook://whatsapp", status: "healthy", httpStatus: out.status, latencyMs: out.latencyMs };
+      }
+      return { ...base, url: maskedUrl, status: "degraded", httpStatus: null, latencyMs: null, error: "WHATSAPP_PHONE_NUMBER_ID missing for Meta Cloud API" };
     } catch (err) {
       return { ...base, url: maskedUrl, status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };
     }

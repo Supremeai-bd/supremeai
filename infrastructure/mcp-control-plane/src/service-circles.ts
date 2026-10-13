@@ -23,7 +23,7 @@ export const serviceDescriptors: Array<Pick<ServiceDescriptor, "provider" | "cir
   { provider: "firebase", circle: "security", requiredEnv: ["FIREBASE_SERVICE_ACCOUNT_JSON"] },
   { provider: "github", circle: "integration", requiredEnv: ["GITHUB_TOKEN"] },
   { provider: "telegram", circle: "integration", requiredEnv: ["TELEGRAM_BOT_TOKEN"] },
-  { provider: "discord", circle: "integration", requiredEnv: ["DISCORD_WEBHOOK_URL"] },
+  { provider: "whatsapp", circle: "integration", requiredEnv: ["WHATSAPP_ACCESS_TOKEN"] },
   { provider: "stripe", circle: "integration", requiredEnv: ["STRIPE_SECRET_KEY"] },
 ];
 

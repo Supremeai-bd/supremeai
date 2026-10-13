@@ -23,25 +23,42 @@ export async function checkTelegram(): Promise<unknown> {
   throw new Error(`Telegram API Error: ${data.description}`);
 }
 
-export async function checkDiscord(): Promise<unknown> {
-  const { discordWebhookUrl } = env.notify;
-  if (!discordWebhookUrl) {
-    throw new Error("DISCORD_WEBHOOK_URL is not configured.");
+export async function checkWhatsApp(): Promise<unknown> {
+  const { whatsappAccessToken, whatsappPhoneNumberId, whatsappWebhookUrl } = env.notify;
+  if (!whatsappAccessToken && !whatsappWebhookUrl) {
+    throw new Error("Neither WHATSAPP_ACCESS_TOKEN nor WHATSAPP_WEBHOOK_URL is configured.");
   }
 
   const start = Date.now();
-  // A GET request to a Discord webhook URL returns the webhook info
-  const res = await httpRequest(discordWebhookUrl);
-  
-  const data = res.data as any;
-  if (data.id && data.name) {
+  if (whatsappPhoneNumberId && whatsappAccessToken) {
+    const res = await httpRequest(`https://graph.facebook.com/v20.0/${whatsappPhoneNumberId}`, {
+      headers: { Authorization: `Bearer ${whatsappAccessToken}` },
+    });
+    const data = res.data as any;
+    if (res.ok && data?.id) {
+      return {
+        status: "healthy",
+        provider: "meta-cloud-api",
+        phoneNumberId: data.id,
+        verifiedName: data.verified_name || data.display_phone_number,
+        latencyMs: Date.now() - start,
+      };
+    }
+    throw new Error(`WhatsApp Meta API Error: ${JSON.stringify(data)}`);
+  }
+
+  if (whatsappWebhookUrl) {
+    const res = await httpRequest(whatsappWebhookUrl);
     return {
-      status: "healthy",
-      webhookName: data.name,
-      channelId: data.channel_id,
-      latencyMs: Date.now() - start
+      status: res.ok ? "healthy" : "degraded",
+      provider: "webhook-gateway",
+      latencyMs: Date.now() - start,
     };
   }
-  
-  throw new Error(`Discord API Error: ${JSON.stringify(data)}`);
+
+  throw new Error("WHATSAPP_PHONE_NUMBER_ID is required for Meta Cloud API.");
+}
+
+export async function checkDiscord(): Promise<unknown> {
+  return { status: "deprecated", message: "Discord has been replaced with WhatsApp + Telegram." };
 }
