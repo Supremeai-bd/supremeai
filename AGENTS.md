@@ -16,12 +16,12 @@ Every agent runs the same 8-step cycle (Roadmap v2.0 Phase 1, #4143). The dispat
 |---|---|---|
 | 1. Understand | Read the task issue + linked context | `gh issue view <n>` |
 | 2. Rules | Load governing rules + your role contract | [`AGENT_RULES.md`](./AGENT_RULES.md) §1–§3 · `scripts/agents/role_registry.py` |
-| 3. Inspect state | Queue, open PRs, active claims, token freshness | `issue_queue_manager.py audit` · `agent_identity.refresh_token_if_stale()` |
+| 3. Inspect state | Queue, open PRs, active claims, token freshness | `scripts/ci/issue_queue_manager.py audit` · `agent_identity.refresh_token_if_stale()` |
 | 4. Claim | Atomic claim (session marker; no claim, no work) | `scripts/ci/atomic_claim.sh` |
 | 5. Work | Smallest safe change inside declared scope | role contract from `role_registry.get_role_contract()` |
 | 6. Verify | 3-tier: reflection → boot smoke → tests | issue's Verification Contract |
 | 7. Record | PR with full template + Test Evidence (+ meaningful decision note) | REST PR create |
-| 8. Return | Report outcome **with fresh-board re-check** (#4177), release claim, loop back | `continue_loop.py` + `gh pr list`/`next_claimable.sh` re-poll |
+| 8. Return | Report outcome **with fresh-board re-check** (#4177), release claim, loop back | `scripts/agents/continuous_agent_loop.py` + `gh pr list`/`next_claimable.sh` re-poll |
 
 Hard boundaries during the loop: gates outrank agent preference (§1.4) · scoped credentials only (`credential_manager` — master vault keys never reach children) · single-vs-multi execution follows Rule B (`role_registry.plan_task_execution()` — advisory).
 
@@ -49,7 +49,7 @@ READ ENTRYPOINT
   → PR / HANDOFF (only AFTER claim is posted)
   → BOARD-FRESHNESS RE-CHECK (#4177 — re-poll open PRs + queue before declaring done)
   → CLEAN EXIT (release locks, stop heartbeat, trim worklog)
-  → RERUN continue_loop.py (next task immediately — no sleep, per Rule 5)
+  → RERUN scripts/agents/continuous_agent_loop.py (next task immediately — no sleep, per Rule 5)
 ```
 
 Never invent a parallel workflow. The task contract is the common envelope for every model and role.

@@ -6,7 +6,7 @@
      fails CI when any value below drifts from tree reality. Only tree-checkable
      facts belong here; runtime/live claims must cite their evidence source.)
 missions_tests=62
-frontend_test_files=116
+frontend_test_files=122
 frontend_e2e_specs=4
 registered_routes=855
 -->
@@ -23,10 +23,10 @@ cross-document consistency enforced for the skip-registry and checkpoint — see
 [`docs/generated/STATUS_PROOF.md`](docs/generated/STATUS_PROOF.md)).
 
 - Backend mission suite: **62/62 PASS** (reliability/failure-mode missions, `backend/tests/missions/`)
-- Frontend unit tests: **PASS (116 test files)** — vitest (count machine-verified via STATUS-PROOF)
+- Frontend unit tests: **PASS (122 test files)** — vitest (count machine-verified via STATUS-PROOF)
 - Frontend typecheck: PASS (tsc --noEmit, 0 errors)
 - Backend lint: PASS (ruff format + check — enforced CI gate)
-- Coverage gates (thresholds in `ci.yml`): min backend 30%, min frontend 16%
+- Coverage gates (thresholds in `pr.yml` / `main.yml`): min backend 30%, min frontend 16%
 - Registered routes: **855** (route inventory, generator-diff gated — মেশিন-ব্লকের `registered_routes=855`-এর সাথে সমতা, #2586)
 - Skip inventory: **28 applied skip-marker sites / 27 files** (AST recount 2026-10-01, machine-enforced — [`docs/SKIPPED_TESTS.md`](docs/SKIPPED_TESTS.md))
 - CI Pipeline verdict + deploy results: **live in Actions run summaries** (volatile by design — not committed here; the latest run on `main` is the evidence stream)
