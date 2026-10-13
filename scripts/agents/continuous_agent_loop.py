@@ -1714,6 +1714,22 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
             # করে atomic_claim.sh-কে পাস করা হয়, যাতে Scope Gate PR-লেভেলে আটকায় না।
             declared_files = _extract_touching_files_from_issue(issue_number)
 
+            # #109 (Step-security.1): Scope Gate — claim-এর আগে customer-isolation
+            # fail-closed যাচাই। বাংলা মন্তব্য: refusal হলে claim-ই হয় না —
+            # structured audit-line stdout-এ যায় (mission §২.৪ audit trail)।
+            # Taxonomy SSOT = lint_plans.TARGET_SCOPES; demand = env
+            # SUPREMEAI_DEMAND_SCOPE (ডিফল্ট internal — আচরণ অপরিবর্তিত)।
+            from scripts.agents.scope_gate import audit_log, scope_gate_preflight
+
+            _scope_decision = scope_gate_preflight(
+                issue_number, task,
+                [f.strip() for f in declared_files.split(",") if f.strip()],
+            )
+            print(f"🛡️ Scope Gate audit: {audit_log(_scope_decision)}")
+            if not _scope_decision["allowed"]:
+                print(f"❌ Scope Gate refusal for issue #{issue_number}: {_scope_decision['reason']}")
+                continue
+
             if claim_with_backoff(issue_number, str(agent_slot), files=declared_files):
                 print(f"👉 Agent {agent_name} is now working on issue #{issue_number}")
 
