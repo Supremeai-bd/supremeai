@@ -26538,6 +26538,17 @@
     },
     {
       "capability_signals": [
+        "execute",
+        "health",
+        "register"
+      ],
+      "classification": "human_review",
+      "entrypoints": [],
+      "kind": "py",
+      "path": "scripts/ci/test_compose_config.py"
+    },
+    {
+      "capability_signals": [
         "mcp"
       ],
       "classification": "human_review",
@@ -28366,5 +28377,5 @@
   ],
   "schema_version": "2.0",
   "source": "main",
-  "source_file_count": 3223
+  "source_file_count": 3224
 }
