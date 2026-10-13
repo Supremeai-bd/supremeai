@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
-from brain.model_registry import ModelRegistry
 from core.config import settings
 from core.health.self_healer import RemediationPipeline, SelfHealerService
 from core.logging_config import logger
@@ -64,6 +63,10 @@ class PerformanceOptimizer:
         self.failure_history: list[FailureHistoryEntry] = []
         self.model_stats: dict[str, dict[str, float]] = {}
         self.dynamic_circuit_breakers: dict[str, CircuitBreaker] = {}
+        # বাংলা: lazy domain adapter (issue #126) — brain মডিউল-লেভেল import
+        # নিষিদ্ধ; ইনিশিয়ালাইজ-সময়ে resolve।
+        from brain.model_registry import ModelRegistry
+
         self.model_registry = ModelRegistry()
         self.self_healer = None
         self.reminder_pipeline = None
@@ -583,7 +586,17 @@ class PerformanceOptimizer:
 
 
 # Global instance of the performance optimizer
-performance_optimizer = PerformanceOptimizer()
+# বাংলা: lazy singleton (issue #126) — module-import সময়ে instantiate নয়;
+# প্রথম access-এ (PEP 562) — extraction simulation-এ core মডিউল brain ছাড়া
+# import-যোগ্য থাকে।
+_performance_optimizer: PerformanceOptimizer | None = None
+
+
+def __getattr__(name: str):
+    """PEP 562 lazy module attribute — ``performance_optimizer`` on first access."""
+    if name == "performance_optimizer":
+        return get_performance_optimizer()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def get_performance_optimizer() -> PerformanceOptimizer:
@@ -592,6 +605,10 @@ def get_performance_optimizer() -> PerformanceOptimizer:
     Returns:
         PerformanceOptimizer: The global instance of the performance optimizer.
 
-    বাংলা: গ্লোবাল পারফরম্যান্স অপ্টিমাইজার ইনস্ট্যান্স রিটার্ন করে।
+    বাংলা: গ্লোবাল পারফরম্যান্স অপ্টিমাইজার ইনস্ট্যান্স রিটার্ন করে
+    (lazy singleton — প্রথম কলে instantiate, issue #126)।
     """
-    return performance_optimizer
+    global _performance_optimizer
+    if _performance_optimizer is None:
+        _performance_optimizer = PerformanceOptimizer()
+    return _performance_optimizer

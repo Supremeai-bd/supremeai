@@ -11,13 +11,19 @@ This agent is central to the SupremeAI's capability for automatic skill evolutio
 
 from typing import Any
 
-from brain.model_router import ModelRouter
+from core.contracts.boundaries import ModelRoutingContract
 from core.logging_config import logger
 
 
 class EvolutionReActAgent:
-    def __init__(self, model_router: ModelRouter | None = None):
-        self.model_router = model_router or ModelRouter()
+    def __init__(self, model_router: ModelRoutingContract | None = None):
+        if model_router is None:
+            # বাংলা: lazy domain adapter (issue #126) — brain মডিউল-লেভেল
+            # import নিষিদ্ধ; ভোগের জায়গায় resolve (contracts.boundaries চুক্তি)।
+            from brain.model_router import ModelRouter
+
+            model_router = ModelRouter()
+        self.model_router = model_router
         self.max_reflexion_turns = 3
 
     def generate_skill(

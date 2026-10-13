@@ -22,12 +22,6 @@ try:
 except ImportError:
     settings = None  # type: ignore[misc,assignment]
 
-try:
-    from brain.model_router import ModelRouter
-except ImportError:
-    ModelRouter = None  # type: ignore[misc,assignment]
-
-
 # --- Config and Thresholds ---
 DEFAULT_CACHE_TTL_HOURS = settings.bhasha_cache_ttl_hours if settings else 24
 _bhasha_min_quality_raw = str(settings.bhasha_min_quality) if settings else "0.7"
@@ -45,8 +39,14 @@ class BhashaBot:
         min_quality: float = MIN_QUALITY_THRESHOLD,
     ) -> None:
         if model_router is None:
-            if ModelRouter is None:
-                raise RuntimeError("ModelRouter import failed - brain.model_router unavailable")
+            # বাংলা: lazy domain adapter (issue #126) — brain মডিউল-লেভেল import
+            # নিষিদ্ধ; ভোগের জায়গায় resolve, ব্যর্থ হলে তথ্যবহুল error।
+            try:
+                from brain.model_router import ModelRouter
+            except ImportError as exc:
+                raise RuntimeError(
+                    "ModelRouter import failed - brain.model_router unavailable"
+                ) from exc
             model_router = ModelRouter()
         self.model_router = model_router
         self.cache_ttl_hours = cache_ttl_hours

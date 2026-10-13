@@ -21,11 +21,6 @@ except ImportError:
     settings = None  # type: ignore[misc,assignment]
 
 try:
-    from brain.model_router import ModelRouter
-except ImportError:
-    ModelRouter = None  # type: ignore[misc,assignment]
-
-try:
     from core.localization.bhasha_bot import BhashaBot
 except ImportError:
     BhashaBot = None  # type: ignore[misc,assignment]
@@ -46,8 +41,12 @@ class VoiceDidi:
         bhasha_bot: Any | None = None,
     ) -> None:
         if model_router is None:
-            if ModelRouter is None:
-                raise RuntimeError("ModelRouter import failed")
+            # বাংলা: lazy domain adapter (issue #126) — brain মডিউল-লেভেল import
+            # নিষিদ্ধ; ভোগের জায়গায় resolve, ব্যর্থ হলে তথ্যবহুল error।
+            try:
+                from brain.model_router import ModelRouter
+            except ImportError as exc:
+                raise RuntimeError("ModelRouter import failed") from exc
             model_router = ModelRouter()
         self.model_router = model_router
 

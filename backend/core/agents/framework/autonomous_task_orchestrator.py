@@ -1,10 +1,12 @@
 from typing import Any
 
 from admin.god import AdminGodLayer
-from brain.autonomous_agent import AutonomousAgent
-from brain.model_router import ModelRouter
-from brain.reasoning_orchestrator import ReasoningOrchestrator
 from core.config import settings
+from core.contracts.boundaries import (
+    AutonomousAgentContract,
+    ModelRoutingContract,
+    ReasoningOrchestrationContract,
+)
 from core.intent import IntentClassifier
 from core.logging_config import logger
 from tools.security_tools.vpn_switcher import VPNRotator
@@ -16,15 +18,26 @@ class AutonomousTaskOrchestrator:
     def __init__(
         self,
         admin: AdminGodLayer | None = None,
-        model_router: ModelRouter | None = None,
+        model_router: ModelRoutingContract | None = None,
         intent_clf: IntentClassifier | None = None,
         admin_god: AdminGodLayer | None = None,
     ):
         self.admin = admin or admin_god
-        self.model_router = model_router or ModelRouter()
+        if model_router is None:
+            # বাংলা: lazy domain adapter (issue #126) — brain মডিউল-লেভেল
+            # import নিষিদ্ধ; ভোগের জায়গায় resolve (contracts.boundaries চুক্তি)।
+            from brain.model_router import ModelRouter
+
+            model_router = ModelRouter()
+        self.model_router = model_router
         self.intent_clf = intent_clf or IntentClassifier()
-        self.reasoning_orchestrator = ReasoningOrchestrator()
-        self.autonomous_agent = AutonomousAgent()
+        # বাংলা: lazy domain adapter (issue #126) — brain reasoning/autonomous
+        # এজেন্ট ইনিশিয়ালাইজ-সময়ে resolve।
+        from brain.autonomous_agent import AutonomousAgent
+        from brain.reasoning_orchestrator import ReasoningOrchestrator
+
+        self.reasoning_orchestrator: ReasoningOrchestrationContract = ReasoningOrchestrator()
+        self.autonomous_agent: AutonomousAgentContract = AutonomousAgent()
         self.vpn_rotator = VPNRotator()
 
     def _maybe_rotate_vpn(self, task_type: str) -> None:

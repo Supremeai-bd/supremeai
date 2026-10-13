@@ -13,7 +13,6 @@ from urllib.request import urlopen
 
 from pydantic import BaseModel, Field, HttpUrl
 
-from adaptive_engine._store import get_conn, jdump, jload
 from core.mcp_audit import MCPAuditEntry, get_audit_logger
 from core.plugins.mcp_security import MCPSecurityGuard
 
@@ -40,6 +39,8 @@ class ConnectionRegistry:
     TABLE = "supremeai_connections"
 
     def __init__(self) -> None:
+        from adaptive_engine._store import get_conn  # lazy adapter (issue #126)
+
         with get_conn() as conn:
             conn.execute(
                 f"""CREATE TABLE IF NOT EXISTS {self.TABLE} (
@@ -117,6 +118,9 @@ class ConnectionRegistry:
             created_at=now,
             updated_at=now,
         )
+        # বাংলা: lazy domain adapter (issue #126) — ভোগের জায়গায় resolve।
+        from adaptive_engine._store import get_conn, jdump
+
         with get_conn() as conn:
             conn.execute(
                 f"""INSERT INTO {self.TABLE}
@@ -174,6 +178,8 @@ class ConnectionRegistry:
             raise ValueError("permission_level must be user, admin, or system")
         if permission_level == "system":
             raise PermissionError("System authority requires a separate governance approval")
+        from adaptive_engine._store import get_conn  # lazy adapter (issue #126)
+
         with get_conn() as conn:
             previous = conn.execute(
                 f"SELECT permission_level FROM {self.TABLE} WHERE id = ? AND tenant_id = ?",
@@ -216,6 +222,8 @@ class ConnectionRegistry:
             level not in {"deny", "read", "execute", "write"} for level in tool_permissions.values()
         ):
             raise ValueError("Tool permission must be deny, read, execute, or write")
+        from adaptive_engine._store import get_conn, jdump  # lazy adapter (issue #126)
+
         with get_conn() as conn:
             row = conn.execute(
                 f"SELECT * FROM {self.TABLE} WHERE id = ? AND tenant_id = ?",
@@ -246,6 +254,8 @@ class ConnectionRegistry:
         tenant_id, _, role = self._identity(user)
         if role not in {"admin", "owner", "system"}:
             raise PermissionError("Only tenant administrators can reactivate connections")
+        from adaptive_engine._store import get_conn  # lazy adapter (issue #126)
+
         with get_conn() as conn:
             row = conn.execute(
                 f"SELECT * FROM {self.TABLE} WHERE id = ? AND tenant_id = ?",
@@ -276,6 +286,8 @@ class ConnectionRegistry:
 
     async def health(self, *, user: dict[str, Any], connection_id: str) -> ConnectionRecord:
         tenant_id, _, _ = self._identity(user)
+        from adaptive_engine._store import get_conn, jdump, jload  # lazy adapter (issue #126)
+
         with get_conn() as conn:
             row = conn.execute(
                 f"SELECT * FROM {self.TABLE} WHERE id = ? AND tenant_id = ?",
@@ -327,6 +339,8 @@ class ConnectionRegistry:
         tenant_id, _, role = self._identity(user)
         if role not in {"admin", "owner", "system"}:
             raise PermissionError("Only tenant administrators can revoke connections")
+        from adaptive_engine._store import get_conn  # lazy adapter (issue #126)
+
         with get_conn() as conn:
             conn.execute(
                 f"UPDATE {self.TABLE} SET status = 'revoked', updated_at = ? WHERE id = ? AND tenant_id = ?",
@@ -351,6 +365,8 @@ class ConnectionRegistry:
 
     def list_for_tenant(self, user: dict[str, Any]) -> list[ConnectionRecord]:
         tenant_id, _, _ = self._identity(user)
+        from adaptive_engine._store import get_conn  # lazy adapter (issue #126)
+
         with get_conn() as conn:
             rows = conn.execute(
                 f"SELECT * FROM {self.TABLE} WHERE tenant_id = ? ORDER BY created_at DESC",
@@ -360,6 +376,8 @@ class ConnectionRegistry:
 
     @staticmethod
     def _from_row(row: Any) -> ConnectionRecord:
+        from adaptive_engine._store import jload  # lazy adapter (issue #126)
+
         return ConnectionRecord(
             id=row["id"],
             tenant_id=row["tenant_id"],
@@ -377,6 +395,19 @@ class ConnectionRegistry:
         )
 
 
-connection_registry = ConnectionRegistry()
+# বাংলা: lazy singleton (issue #126) — module-import সময়ে instantiate নয়;
+# প্রথম access-এ (PEP 562) — core মডিউল adaptive_engine ছাড়া import-যোগ্য থাকে।
+_connection_registry: ConnectionRegistry | None = None
 
-__all__ = ["ConnectionRecord", "ConnectionRegistry", "connection_registry"]
+
+def __getattr__(name: str):
+    """PEP 562 lazy module attribute — ``connection_registry`` on first access."""
+    if name == "connection_registry":
+        global _connection_registry
+        if _connection_registry is None:
+            _connection_registry = ConnectionRegistry()
+        return _connection_registry
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+__all__ = ["ConnectionRecord", "ConnectionRegistry", "connection_registry"]  # noqa: F822 — PEP 562 lazy
