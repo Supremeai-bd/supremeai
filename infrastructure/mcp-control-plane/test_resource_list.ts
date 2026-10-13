@@ -1,3 +1,11 @@
+/**
+ * INTEGRATION test — requires a LIVE tower on http://localhost:3771 (#123).
+ *
+ * This used to run inside `test:unit`; its ECONNREFUSED exit-1 broke the whole
+ * `&&` chain in every server-less environment (local dev, CI without a tower).
+ * It now ships as `npm run test:integration` and is intentionally NOT part of
+ * the unit chain.
+ */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 // বাংলা: সার্ভারের /mcp এন্ডপয়েন্ট StreamableHTTPServerTransport ব্যবহার করে
 // (src/index.ts — "SupremeAI Control Tower → http://localhost:3771/mcp")।
