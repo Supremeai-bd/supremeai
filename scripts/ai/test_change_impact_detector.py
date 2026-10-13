@@ -4,7 +4,7 @@ from change_impact_detector import analyze, is_protected, resolve_local_import
 
 
 def test_protected_paths_require_review():
-    assert is_protected(".github/workflows/ci.yml")
+    assert is_protected(".github/workflows/pr.yml")
     assert is_protected("infrastructure/main.tf")
     assert not is_protected("frontend/src/app.tsx")
 
@@ -38,7 +38,7 @@ def test_package_change_without_lockfile_requires_review(tmp_path: Path):
 def test_multiple_high_risk_findings_become_critical(tmp_path: Path):
     source = tmp_path / "app.py"
     source.write_text("from .missing import value\n", encoding="utf-8")
-    report = analyze(tmp_path, ["app.py", ".github/workflows/ci.yml"])
+    report = analyze(tmp_path, ["app.py", ".github/workflows/pr.yml"])
     assert report["status"] == "blocked"
     assert report["risk"] == "critical"
     assert report["risk_score"] >= 10

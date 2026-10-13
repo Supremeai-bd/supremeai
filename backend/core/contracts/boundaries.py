@@ -33,11 +33,15 @@ __all__ = [
 class ModelRoutingContract(Protocol):
     """মডেল-রাউটিং ক্ষমতার চুক্তি (brain.model_router.ModelRouter সারফেস)।"""
 
-    def route_and_generate(self, prompt: str, task_type: str = "general", *args: Any, **kwargs: Any) -> str:
+    def route_and_generate(
+        self, prompt: str, task_type: str = "general", *args: Any, **kwargs: Any
+    ) -> str:
         """প্রম্পট রাউট করে generation ফেরত দেয়।"""
         ...
 
-    async def async_route_and_generate(self, prompt: str, task_type: str = "general", *args: Any, **kwargs: Any) -> str:
+    async def async_route_and_generate(
+        self, prompt: str, task_type: str = "general", *args: Any, **kwargs: Any
+    ) -> str:
         """async রাউট+generation।"""
         ...
 

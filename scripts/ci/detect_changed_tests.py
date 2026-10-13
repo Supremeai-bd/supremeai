@@ -99,7 +99,8 @@ def should_run_full_suite(changed_files: list[str]) -> bool:
         "backend/core/app.py",
         "backend/main.py",
         "backend/database/session.py",
-        ".github/workflows/ci.yml",
+        ".github/workflows/pr.yml",
+        ".github/workflows/main.yml",
     }
     for f in changed_files:
         norm = f.replace(chr(92), "/")

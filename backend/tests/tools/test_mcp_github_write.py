@@ -267,7 +267,7 @@ class TestHelpers:
         [
             "backend/core/config.py",
             "backend/core/sub/deep.py",
-            ".github/workflows/ci.yml",
+            ".github/workflows/pr.yml",
             ".github/CODEOWNERS",
             "/backend/core/leading-slash.py",  # leading slash normalized
             "/.github/leading-slash.yml",
@@ -297,11 +297,11 @@ class TestHelpers:
             "src/a.py",
             "backend/core/config.py",  # protected
             "docs/README.md",
-            ".github/workflows/ci.yml",  # protected
+            ".github/workflows/pr.yml",  # protected
             "tests/test_a.py",
         ]
         protected = gh._find_protected_paths(paths)
-        assert protected == ["backend/core/config.py", ".github/workflows/ci.yml"]
+        assert protected == ["backend/core/config.py", ".github/workflows/pr.yml"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -533,7 +533,7 @@ class TestPathAllowlist:
                     message="try workflow write",
                     files=[
                         gh.FileContentItem(
-                            path=".github/workflows/ci.yml",
+                            path=".github/workflows/pr.yml",
                             content="on: [push]",
                         )
                     ],
@@ -541,7 +541,7 @@ class TestPathAllowlist:
             )
         )
         assert "error" in result
-        assert ".github/workflows/ci.yml" in result["error"]
+        assert ".github/workflows/pr.yml" in result["error"]
         assert client.calls == []
 
     async def test_mixed_protected_and_safe_blocked_entirely(

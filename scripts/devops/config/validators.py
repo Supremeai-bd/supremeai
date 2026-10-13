@@ -636,7 +636,7 @@ class SuperAIConfigValidator:
             'docker-compose.yml': 'Docker compose config',
             'Dockerfile': 'Docker build config',
             'vercel.json': 'Vercel deployment config',
-            '.github/workflows/ci.yml': 'CI/CD workflow',
+            '.github/workflows/pr.yml': 'CI/CD workflow (PR gate)',
         }
         
         # Check required files

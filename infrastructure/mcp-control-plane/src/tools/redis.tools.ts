@@ -61,5 +61,42 @@ export async function registerRedisTools(server: McpServer): Promise<void> {
       }
     }
   );
+
+  server.tool(
+    "redis.rotation_status",
+    "Inspect the Upstash Redis auto-rotation chain status, active primary, and quota cooldowns (#26).",
+    {},
+    async () => {
+      try {
+        const { quotaChainStatus, getActiveRedisAccount, nextQuotaResetEpochMs } = await import("../lib/redis_chain.js");
+        const active = getActiveRedisAccount();
+        const chain = quotaChainStatus();
+        const nextReset = new Date(nextQuotaResetEpochMs()).toISOString();
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  autoRotateEnabled: true,
+                  activePrimary: active.label,
+                  quotaWindow: process.env.UPSTASH_QUOTA_WINDOW || "monthly",
+                  nextGlobalResetAt: nextReset,
+                  chain,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (err) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
+        };
+      }
+    }
+  );
 }
 

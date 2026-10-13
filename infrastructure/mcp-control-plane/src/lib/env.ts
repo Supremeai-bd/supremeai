@@ -112,7 +112,7 @@ export const env = {
   // ── GitHub
   github: {
     get token(): string { return optional("GITHUB_TOKEN", optional("GITHUB_API_TOKEN")); },
-    get repo(): string { return optional("GITHUB_REPO", "SaifulHaqueNiloy/supremeai"); },
+    get repo(): string { return optional("GITHUB_REPO", "paykaribazaronline/supremeai"); },
   },
 
   // ── Cloudflare (5-account federation pool)
@@ -185,7 +185,10 @@ export const env = {
   notify: {
     get telegramBotToken(): string { return optional("TELEGRAM_BOT_TOKEN"); },
     get telegramChatId(): string { return optional("TELEGRAM_CHAT_ID"); },
-    get discordWebhookUrl(): string { return optional("DISCORD_WEBHOOK_URL"); },
+    get whatsappAccessToken(): string { return optional("WHATSAPP_ACCESS_TOKEN", optional("WHATSAPP_API_KEY")); },
+    get whatsappPhoneNumberId(): string { return optional("WHATSAPP_PHONE_NUMBER_ID"); },
+    get whatsappRecipientPhone(): string { return optional("WHATSAPP_RECIPIENT_PHONE", optional("WHATSAPP_PHONE")); },
+    get whatsappWebhookUrl(): string { return optional("WHATSAPP_WEBHOOK_URL", optional("WHATSAPP_API_URL")); },
   },
 
   // ── Stripe

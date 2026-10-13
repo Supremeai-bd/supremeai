@@ -42,7 +42,8 @@ def test_core_trigger_change_is_full() -> None:
         "backend/tests/conftest.py",
         "backend/core/config.py",
         "backend/main.py",
-        ".github/workflows/ci.yml",
+        ".github/workflows/pr.yml",
+        ".github/workflows/main.yml",
         ".github/actions/setup-backend/action.yml",
         "scripts/ci/coverage_policy.yaml",
     ):

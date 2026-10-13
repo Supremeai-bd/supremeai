@@ -388,7 +388,7 @@ class TestAIFixGeneratorScope:
         assert _is_protected_path("backend/core/config.py") is True
 
     def test_protected_path_github(self):
-        assert _is_protected_path(".github/workflows/ci.yml") is True
+        assert _is_protected_path(".github/workflows/pr.yml") is True
 
     def test_protected_path_empty(self):
         assert _is_protected_path("") is True  # unknown → protected
