@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-13 22:28 UTC
+- **Date:** 2026-10-13 23:47 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/src/policy/slot-verification.ts`
   - `infrastructure/mcp-control-plane/src/index.ts`
-  - `CHECKPOINT.md`
-  - `infrastructure/mcp-control-plane/src/policy/client-registry.ts`
-  - `infrastructure/mcp-control-plane/src/policy/mcp-access.ts`
+  - `infrastructure/mcp-control-plane/src/registry/agent_heartbeat.ts`
+  - `infrastructure/mcp-control-plane/src/registry/orchestrator_dispatch.ts`
   - `docs/archive/lessons_2026-10.md`
+  - `infrastructure/mcp-control-plane/src/tools/bridge.tools.ts`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
