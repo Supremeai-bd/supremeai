@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-13 17:52 UTC
+- **Date:** 2026-10-13 19:21 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,26 +10,32 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/tools/test_mcp_github_write.py`
-  - `scripts/ci/plan_backend_test_groups.py`
-  - `docs/generated/module_capability_matrix.json`
-  - `docs/generated/STATUS_PROOF.md`
-  - `package.json`
-  - `apps/mission-control/package.json`
-  - `scripts/testing/test_runners.py`
-  - `scripts/ai/test_change_impact_detector.py`
-  - `scripts/devops/config/validators.py`
-  - `backend/tests/scripts/test_plan_backend_test_groups.py`
-  - `AGENTS.md`
-  - `backend/tests/ci/pr_helper/test_ai_fix_generator.py`
-  - `tests/test_bridge_intake.py`
+  - `infrastructure/mcp-control-plane/src/service-circles.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/redis/index.ts`
+  - `infrastructure/mcp-control-plane/src/health/engine.ts`
+  - `infrastructure/mcp-control-plane/test_redis_auto_rotation.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/notify/index.ts`
+  - `infrastructure/mcp-control-plane/src/tools/system.tools.ts`
+  - `infrastructure/mcp-control-plane/src/lib/redis_chain.ts`
+  - `infrastructure/mcp-control-plane/src/tools/github.tools.ts`
+  - `scripts/agents/instruction_builder.py`
+  - `infrastructure/mcp-control-plane/src/adapters/github/index.ts`
+  - `tests/test_instruction_builder.py`
+  - `infrastructure/mcp-control-plane/src/index.ts`
+  - `infrastructure/mcp-control-plane/package.json`
+  - `infrastructure/mcp-control-plane/src/tools/redis.tools.ts`
+  - `tests/test_scope_gate.py`
+  - `infrastructure/mcp-control-plane/src/lib/env.ts`
+  - `CHECKPOINT.md`
   - `docs/archive/lessons_2026-10.md`
-  - `pnpm-workspace.yaml`
-  - `scripts/ci/build_manual_task_report.py`
-  - `scripts/ci-full-audit.sh`
-  - `STATUS.md`
-  - `scripts/ci/detect_changed_tests.py`
-  - `pnpm-lock.yaml`
+  - `infrastructure/mcp-control-plane/src/registry/account.registry.ts`
+  - `infrastructure/mcp-control-plane/src/registry/provider.registry.ts`
+  - `scripts/_INDEX.md`
+  - `scripts/agents/continuous_agent_loop.py`
+  - `infrastructure/mcp-control-plane/src/adapters/notify/actions.ts`
+  - `infrastructure/mcp-control-plane/src/tools/notify.tools.ts`
+  - `scripts/agents/scope_gate.py`
+  - `docs/generated/module_capability_matrix.json`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

@@ -24189,6 +24189,13 @@
       "classification": "adapter",
       "entrypoints": [],
       "kind": "ts",
+      "path": "infrastructure/mcp-control-plane/test_redis_auto_rotation.ts"
+    },
+    {
+      "capability_signals": [],
+      "classification": "adapter",
+      "entrypoints": [],
+      "kind": "ts",
       "path": "infrastructure/mcp-control-plane/test_registry.ts"
     },
     {
@@ -28438,5 +28445,5 @@
   ],
   "schema_version": "2.0",
   "source": "main",
-  "source_file_count": 3230
+  "source_file_count": 3231
 }
