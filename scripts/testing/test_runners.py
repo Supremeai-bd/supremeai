@@ -1013,24 +1013,31 @@ class SuperAIVerifier:
 
         # Check GitHub Actions SHA pinning
         def check_sha_pinning():
-            ci_file = self.repo_path / ".github/workflows/ci.yml"
-            if not ci_file.exists():
-                return False, "CI workflow not found", {}
+            workflows = sorted(self.repo_path.glob(".github/workflows/*.yml"))
 
-            content = ci_file.read_text()
+            pinned_files, tag_only_files = [], []
+            for wf in workflows:
+                uses = [l.strip() for l in wf.read_text(encoding="utf-8").splitlines() if "uses:" in l]
+                if any(
+                    len(u.split("@", 1)[1].split()[0]) >= 7
+                    and u.split("@", 1)[1].split()[0].isalnum()
+                    for u in uses if "@" in u
+                ):
+                    pinned_files.append(wf.name)
+                elif uses:
+                    tag_only_files.append(wf.name)
 
-            # Count SHA-pinned actions vs tag-based
-            content.count("uses:") - len([
-                line for line in content.split('\n')
-                if 'uses:' in line and ('@v' in line or '@latest' in line)
-            ])
-
-            has_sha = any(len(line.strip().split('@')) > 1 and line.strip().split('@')[1][:10].isalnum()
-                         for line in content.split('\n') if 'uses:' in line)
-
-            if has_sha:
-                return True, "Actions are SHA-pinned ✅", {"sha_pinned": True}
-            return False, "⚠️ Actions may use floating tags", {"sha_pinned": False}
+            if pinned_files:
+                detail = {
+                    "sha_pinned": True,
+                    "pinned_workflows": pinned_files,
+                    "unpinned_workflows": tag_only_files,
+                }
+                return True, f"Actions are SHA-pinned ✅ ({len(pinned_files)}/{len(workflows)})", detail
+            return False, "⚠️ Actions may use floating tags", {
+                "sha_pinned": False,
+                "workflows_scanned": [w.name for w in workflows],
+            }
 
         results.append(self.run_check("SHA-Pinned Actions", "Security", check_sha_pinning))
 

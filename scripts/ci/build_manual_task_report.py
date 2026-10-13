@@ -44,7 +44,7 @@ def build(root: Path) -> dict[str, object]:
             "ci_advisory_promotion": {
                 "status": "manual_pending",
                 "evidence_required": ["CI run URL", "deterministic failure review", "blocking-mode decision"],
-                "local": local_check(root, (".github/workflows/ci.yml", "scripts/ci/release_acceptance_gate.py")),
+                "local": local_check(root, (".github/workflows/pr.yml", "scripts/ci/release_acceptance_gate.py")),
             },
             "protected_path_review": {
                 "status": "manual_pending",
