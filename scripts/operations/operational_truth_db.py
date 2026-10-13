@@ -95,6 +95,32 @@ _TABLE_DDLS: list[tuple[str, list[str], str]] = [
         """,
     ),
     (
+        # #48 Verified Slot Architecture — the DB-side mirror of the tower's
+        # credential-bound slot records (`slot_<name>` in the client registry).
+        # The registry (Upstash) stays the live authorization store; this table
+        # is the persistent operational projection for dashboards/forensics.
+        # (provisioned_at / rotated_at / last_verified_at come from the tower
+        # slot.list tool via tower_db_bridge.py sync-slots.)
+        "client_slots",
+        ["slot_id"],
+        """
+        CREATE TABLE IF NOT EXISTS client_slots (
+            slot_id VARCHAR(64) PRIMARY KEY,
+            slot_name VARCHAR(128) NOT NULL,
+            tenant_id VARCHAR(64) NOT NULL DEFAULT 'tenant_default',
+            role VARCHAR(32) NOT NULL DEFAULT 'viewer',
+            status VARCHAR(32) NOT NULL DEFAULT 'pending',
+            credential_id VARCHAR(32),
+            provisioned_at TEXT,
+            rotated_at TEXT,
+            last_verified_at TEXT,
+            suspended_reason TEXT,
+            meta JSON,
+            updated_at TEXT NOT NULL
+        )
+        """,
+    ),
+    (
         "operational_tasks",
         ["issue_number"],
         """
@@ -162,6 +188,9 @@ _PG_FIXUPS = {
     "verified_at TEXT": "verified_at TIMESTAMPTZ",
     "resolved_at TEXT": "resolved_at TIMESTAMPTZ",
     "last_audit_at TEXT": "last_audit_at TIMESTAMPTZ",
+    # #48 client_slots timestamps
+    "provisioned_at TEXT": "provisioned_at TIMESTAMPTZ",
+    "last_verified_at TEXT": "last_verified_at TIMESTAMPTZ",
 }
 
 _INDEXES = [
@@ -177,6 +206,8 @@ _INDEXES = [
     ("ix_operational_tasks_group", "CREATE INDEX IF NOT EXISTS ix_operational_tasks_group ON operational_tasks (group_name)"),
     ("ix_secret_rotations_name_scope", "CREATE INDEX IF NOT EXISTS ix_secret_rotations_name_scope ON secret_rotations (secret_name, scope)"),
     ("ix_audit_queue_status", "CREATE INDEX IF NOT EXISTS ix_audit_queue_status ON audit_queue (status)"),
+    ("ix_client_slots_status", "CREATE INDEX IF NOT EXISTS ix_client_slots_status ON client_slots (status)"),
+    ("ix_client_slots_tenant", "CREATE INDEX IF NOT EXISTS ix_client_slots_tenant ON client_slots (tenant_id)"),
 ]
 
 TABLE_NAMES = [spec[0] for spec in _TABLE_DDLS]

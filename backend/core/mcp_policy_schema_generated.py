@@ -8,18 +8,7 @@ from __future__ import annotations
 SCHEMA_VERSION = "1.0.0"
 SCHEMA_HASH = "8f3502cc8489d55c"
 READ_ONLY_PROVIDERS: tuple[str, ...] = ["system", "health"]
-READ_ONLY_KEYWORDS: tuple[str, ...] = [
-    "read",
-    "list",
-    "summary",
-    "status",
-    "search",
-    "get",
-    "query",
-    "fetch",
-    "open",
-    "verify",
-]
+READ_ONLY_KEYWORDS: tuple[str, ...] = ["read", "list", "summary", "status", "search", "get", "query", "fetch", "open", "verify"]
 DEFAULT_RISK = "R3"
 
 # provider → (action → risk) টেবিল + optional per-provider default risk
@@ -28,13 +17,7 @@ PROVIDER_RULES: dict[str, dict[str, str]] = {
         "actions": {"restart": "R2", "deploy": "R2", "suspend": "R4", "delete": "R6"},
     },
     "supabase": {
-        "actions": {
-            "restart": "R3",
-            "delete_table": "R6",
-            "drop_db": "R6",
-            "insert": "R2",
-            "update": "R2",
-        },
+        "actions": {"restart": "R3", "delete_table": "R6", "drop_db": "R6", "insert": "R2", "update": "R2"},
     },
     "redis": {
         "actions": {"flushall": "R5", "set": "R1", "del": "R2"},
@@ -43,30 +26,11 @@ PROVIDER_RULES: dict[str, dict[str, str]] = {
         "actions": {"commit": "R2", "push": "R2", "delete_repo": "R6"},
     },
     "agent_tools": {
-        "actions": {
-            "execute": "R5",
-            "execute_code": "R5",
-            "health": "R0",
-            "search": "R0",
-            "read": "R0",
-            "status": "R0",
-            "verify": "R0",
-        },
+        "actions": {"execute": "R5", "execute_code": "R5", "health": "R0", "search": "R0", "read": "R0", "status": "R0", "verify": "R0"},
         "default": "R3",
     },
     "memory": {
-        "actions": {
-            "delete": "R2",
-            "clear": "R2",
-            "drop": "R2",
-            "create": "R1",
-            "add": "R1",
-            "store": "R1",
-            "save": "R1",
-            "record": "R1",
-            "remember": "R1",
-            "ingest": "R1",
-        },
+        "actions": {"delete": "R2", "clear": "R2", "drop": "R2", "create": "R1", "add": "R1", "store": "R1", "save": "R1", "record": "R1", "remember": "R1", "ingest": "R1"},
         "default": "R0",
     },
     "mcp_tools": {
@@ -74,15 +38,7 @@ PROVIDER_RULES: dict[str, dict[str, str]] = {
         "default": "R0",
     },
     "mesh": {
-        "actions": {
-            "dispatch": "R1",
-            "release": "R1",
-            "renew": "R1",
-            "send": "R1",
-            "inbox": "R1",
-            "ack": "R1",
-            "subscribe": "R1",
-        },
+        "actions": {"dispatch": "R1", "release": "R1", "renew": "R1", "send": "R1", "inbox": "R1", "ack": "R1", "subscribe": "R1"},
         "default": "R0",
     },
 }
@@ -132,12 +88,4 @@ TOOL_PROVIDER_ACTION: dict[str, tuple[str, str]] = {
 UNKNOWN_TOOL_MAPPING: tuple[str, str] = ("unknown", "unknown")
 
 # risk level → policy decision
-DECISION_MATRIX: dict[str, str] = {
-    "R0": "ALLOW",
-    "R1": "ALLOW",
-    "R2": "REQUIRE_APPROVAL",
-    "R3": "REQUIRE_APPROVAL",
-    "R4": "REQUIRE_APPROVAL",
-    "R5": "REQUIRE_APPROVAL",
-    "R6": "REQUIRE_APPROVAL",
-}
+DECISION_MATRIX: dict[str, str] = {"R0": "ALLOW", "R1": "ALLOW", "R2": "REQUIRE_APPROVAL", "R3": "REQUIRE_APPROVAL", "R4": "REQUIRE_APPROVAL", "R5": "REQUIRE_APPROVAL", "R6": "REQUIRE_APPROVAL"}
