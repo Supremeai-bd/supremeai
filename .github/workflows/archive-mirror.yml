@@ -95,7 +95,14 @@ jobs:
 
       - name: Mirror push (শুধু fast-forward, main → archive/main)
         if: steps.ff.outputs.ff_ok == 'true' && github.event.inputs.verify_only != 'true'
+        env:
+          MIRROR_TOKEN: ${{ env.MIRROR_TOKEN }}
         run: |
+          # বাংলা: persist-credentials:false-এর কারণে origin-এ এম্বেডেড টোকেন থাকে না →
+          # git-lfs-এর batch API কলে "Git credentials not found" (run 38425381801 প্রমাণ)।
+          # ff-check-এর archive-remote প্যাটার্নেই origin-এ টোকেন বসানো হয় —
+          # শুধু এপিমেরাল রানারের .git-এ থাকে, কোনো লগ/রিপো-তে প্রিন্ট হয় না (শূন্য-প্রিন্ট শৃঙ্খলা)।
+          git remote set-url origin "https://x-access-token:${MIRROR_TOKEN}@github.com/paykaribazaronline/supremeai.git"
           git lfs fetch --all origin # পূর্ণ-ইতিহাস LFS object — first-mirror push সম্পূর্ণ রাখতে (#130)
           git push archive main:archive/main
           echo "[ok] archive-mirror push সম্পন্ন — archive/main এখন $(git rev-parse --short main)"
