@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-10 02:21 UTC
+- **Date:** 2026-10-13 12:16 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,36 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/providers/useThemeSync.ts`
-  - `frontend/src/types/swarm.ts`
-  - `frontend/src/components/customer/index.ts`
-  - `frontend/src/types/schema.ts`
-  - `scripts/testing/test_runners.py`
-  - `package.json`
-  - `backend/tests/tools/test_mcp_github_write_tools.py`
-  - `frontend/src/store/stateOwnership.ts`
-  - `scripts/_INDEX.md`
-  - `frontend/src/providers/SwarmHealthContext.ts`
-  - `frontend/src/hooks/useSwarmStream.ts`
-  - `pnpm-lock.yaml`
-  - `frontend/src/components/customer/HomeFeed.tsx`
-  - `backend/agents/autonomous_agent.py`
-  - `scripts/testing/log_anomaly_detector.py`
-  - `frontend/src/components/admin/index.ts`
+  - `docs/INDEX.md`
+  - `scripts/bridge/bridge_intake.py`
+  - `docs/generated/module_capability_matrix.json`
+  - `docs/architecture/AGENT_PORTAL_AND_FEDERATION_BRIDGE.md`
   - `docs/archive/lessons_2026-10.md`
-  - `CHECKPOINT.md`
-  - `frontend/src/i18n/useI18n.ts`
-  - `frontend/src/services/sandbox.ts`
-  - `frontend/src/hooks/useDashboardActions.ts`
-  - `frontend/src/hooks/useIframeConsole.ts`
-  - `frontend/src/components/customer/CodeEditor.tsx`
-  - `pnpm-workspace.yaml`
-  - `frontend/src/services/socialGrowthService.ts`
-  - `backend/tests/tools/test_mcp_github_write.py`
-  - `frontend/src/commandcenter/shell/index.ts`
-  - `frontend/package.json`
-  - `apps/mission-control/package.json`
-  - `scripts/testing/auto_test_generator.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

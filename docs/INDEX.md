@@ -30,7 +30,7 @@
 | ডিরেক্টরি | কেন active |
 |---|---|
 | `docs/agents/` | শুধু `heartbeat-integration.md` — `check_slot_registry_drift.py`-এর মেশিন-সংযুক্ত SSOT টেবিল (রুল-ডকগুলো #2841-তে অবসর নিয়েছে) |
-| `docs/architecture/` | `ARCH-LIVING-PIPELINE-01.md` — AGENTS.md §12-এর canon spec |
+| `docs/architecture/` | `ARCH-LIVING-PIPELINE-01.md` (canon spec) + `AGENT_PORTAL_AND_FEDERATION_BRIDGE.md` (supremeai-open gateway spec) |
 | `docs/plans/` | `ARCH-LIVING-PIPELINE-01-IMPL.md` (AGENTS.md §12 roadmap) + `architecture/SUPREMEAI_REPOSITORY_SEPARATION_AND_EVOLUTION_ROADMAP.md` (separation/evolution) + `lint_plans.py`-এর live target |
 | `docs/governance/` | গভর্নেন্স টুলিং-সংযুক্ত |
 | `docs/audit_reports/`, `docs/audits/` | `sync_modules_list.py`, `audit_module_wiring.py`, `sync_operational_truth.py`-এর write-target — পরবর্তী per-file ref-audit স্লাইসে prune হবে |
