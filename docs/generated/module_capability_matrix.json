@@ -14469,6 +14469,13 @@
       "path": "backend/tests/core/test_upstash_daily_softcap.py"
     },
     {
+      "capability_signals": [],
+      "classification": "test",
+      "entrypoints": [],
+      "kind": "py",
+      "path": "backend/tests/core/test_upstash_monthly_quota_window.py"
+    },
+    {
       "capability_signals": [
         "health",
         "register"
@@ -28328,5 +28335,5 @@
   ],
   "schema_version": "2.0",
   "source": "main",
-  "source_file_count": 3219
+  "source_file_count": 3220
 }
