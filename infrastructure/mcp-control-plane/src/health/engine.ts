@@ -85,12 +85,26 @@ export class HealthEngine {
     // come from env config. Missing ID fails THIS provider honestly (incident
     // হিসেবে ধরা পড়বে), বাকি providers স্বাভাবিক sweep চালিয়ে যাবে।
     const checks: Record<string, () => Promise<any>> = {
-      "render": () => {
+      "render": async () => {
         const serviceId = env.render.primary.serviceId;
         if (!serviceId) {
           throw new Error("env.render.primary.serviceId is not configured — hardcoded fallback removed (#4091 topology hygiene)");
         }
-        return getServiceHealth("render-primary", serviceId);
+        const data: any = await getServiceHealth("render-primary", serviceId);
+        // #110 Part 3: deploy-status cross-reference. The adapter only returns
+        // {service, lastDeployStatus} — no `status` field — so the engine's
+        // generic mapping used to call a build_failed deploy "healthy".
+        // বাংলা মন্তব্য: সর্বশেষ ডিপ্লয় ব্যর্থ হলে (build_failed/pre_deploy_failed)
+        // সার্ভিসকে এখন সৎভাবে degraded হিসেবে চিহ্নিত করা হয় — মিথ্যে healthy নয়।
+        const deployStatus = String(data?.lastDeployStatus ?? "").toLowerCase();
+        const deployDerived =
+          deployStatus === "build_failed" || deployStatus === "pre_deploy_failed" || deployStatus === "canceled"
+            ? "degraded"
+            : deployStatus === "deploy_failed" || deployStatus === "deactivated" || deployStatus === "crashed"
+              ? "down"
+              : undefined;
+        if (deployDerived) return { ...data, status: deployDerived };
+        return data;
       },
       "supabase": () => getSupabaseHealth("supabase-primary"),
       "redis": () => pingRedis(),
