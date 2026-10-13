@@ -45,8 +45,11 @@ MIRROR_ROUTING: dict[str, tuple[str, str]] = {
     "examples/gateway_client.py": ("paykaribazaronline/supremeai-api", "scripts/clients/gateway_client.py"),
     "docs/CONSUMERS.md": ("paykaribazaronline/supremeai-api", "docs/CONSUMERS.md"),
 }
-# bridge-land PR হতে পারে এমন সব repo — sync স্ক্যান + already-intaked dedup স্কোপ
-BRIDGE_TARGET_REPOS = ("paykaribazaronline/supremeai", "paykaribazaronline/supremeai-api")
+BRIDGE_TARGET_REPOS = (
+    "paykaribazaronline/supremeai",
+    "paykaribazaronline/supremeai-api",
+    "paykaribazaronline/supremeai-studio",
+)
 
 LABEL_QUEUED = "bridge:queued"
 LABEL_INGATES = "bridge:in-gates"
