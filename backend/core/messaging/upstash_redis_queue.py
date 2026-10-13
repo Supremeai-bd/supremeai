@@ -12,29 +12,66 @@ import httpx
 from core.config import settings
 from core.logging_config import logger
 
-# ── দৈনিক-কোটা সনাক্তকরণ (#2613 — R2/R3) ────────────────────────────────────
+# ── কোটা-উইন্ডো সনাক্তকরণ (#26 / #2613 — R2/R3) ───────────────────────────
 # বাংলা মন্তব্য: Upstash free tier-এ কোটা শেষ হলে REST API HTTP 400 + সুনির্দিষ্ট
-# এই মার্কার-সহ body দেয়। এই মার্কার দেখলেই ওই account-কে পরবর্তী UTC মধ্যরাত
+# এই মার্কার-সহ body দেয়। এই মার্কার দেখলেই ওই account-কে পরবর্তী উইন্ডোর রিসেট
 # পর্যন্ত cooldown-এ ফেলা হয় — ফলে প্রতি command-এ exhausted account-এ একটি
 # নিশ্চিত-ব্যর্থ request যাওয়া বন্ধ হয় এবং পরের মুহূর্তেই secondary-তে read-shift
 # হয়ে যায় (issue #2452-র free-tier permanent solution)।
+#
+# ⚠️ #26 সংশোধন: Upstash free-tier-এর `ERR max requests limit exceeded`
+# ("Limit: 500000") একটি **মাসিক** ক্যাপ — দৈনিক নয়। প্রমাণ (2026-10-13):
+# 2026-10-07-এ usage=500002 রিপোর্টের ৬ দিন পরেও (2026-10-13) হুবহু 500002 —
+# দৈনিক উইন্ডো হলে মধ্যরাতে রিসেট হয়ে গণনা বদলাত।
+# https://upstash.com/docs/redis/troubleshooting/max_requests_limit
+# ("exceeds the max monthly request count limit")। তাই ডিফল্ট উইন্ডো এখন
+# `monthly` (মাসের ১ তারিখ 00:00 UTC রিসেট); পুরনো দৈনিক-ধর্মাযজ behavior
+# UPSTASH_QUOTA_WINDOW=daily দিয়ে ফেরানো যায় (legacy opt-out)।
 _QUOTA_EXCEEDED_MARKER = "max requests limit"
+
+# ডিফল্ট মাসিক সফট-ক্যাপ — মুক্ত-স্তরের 500k মাসিক হার্ড-লিমিটের ৮০%।
+_DEFAULT_QUOTA_SOFT_CAP = 400_000
+
+
+def _quota_window() -> str:
+    """সক্রিয় কোটা-উইন্ডো — "monthly" (ডিফল্ট) বা "daily" (legacy opt-out)।"""
+    raw = (os.getenv("UPSTASH_QUOTA_WINDOW", "monthly") or "").strip().lower()
+    if raw in ("daily", "day", "utc-day"):
+        return "daily"
+    return "monthly"
 
 
 class QuotaExhaustedError(RuntimeError):
-    """চেইনের সব Upstash account-ই দৈনিক কোটা cooldown-এ আছে (R3)।
+    """চেইনের সব Upstash account-ই কোটা cooldown-এ আছে (R3)।
 
     RuntimeError-এর subclass হওয়া ইচ্ছাকৃত — বিদ্যমান callers ইতিমধ্যে
     ``(httpx.RequestError, httpx.HTTPStatusError, RuntimeError)`` ধরে থাকে,
     তাই API signature/behavior অপরিবর্তিত থাকে (graceful degradation)।
+    #26: cooldown মাসিক (ডিফল্ট) উইন্ডোতে — Upstash 500k মাসিক ক্যাপ।
     """
 
 
 def _next_utc_reset_epoch() -> float:
-    """পরবর্তী UTC মধ্যরাত + ৬০s grace — Upstash দৈনিক কোটা রিসেটের আনুমানিক সময়।"""
+    """পরবর্তী UTC মধ্যরাত + ৬০s grace — দৈনিক উইন্ডোর রিসেট সময় (legacy)।"""
     now = datetime.now(UTC)
     tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     return tomorrow.timestamp() + 60.0
+
+
+def _next_quota_reset_epoch() -> float:
+    """সক্রিয় উইন্ডোর রিসেট সময় — monthly (ডিফল্ট): মাসের ১ তারিখ 00:00 UTC + 60s।
+
+    #26: Upstash-এর 500k লিমিট মাসিক, তাই cooldown মাসের শেষে শেষ হয়ে ওঠে;
+    দৈনিক রিসেট-ধরে নেওয়া মানে exhausted account-টিকে প্রতি মধ্যরাতে আবার
+    নিশ্চিত-ব্যর্থ HTTP 400-এ পাঠাত (পুরনো বাগ)। daily উইন্ডোতে `_next_utc_reset_epoch`
+    ফেরত দেয় (backwards compatibility)।
+    """
+    if _quota_window() == "daily":
+        return _next_utc_reset_epoch()
+    now = datetime.now(UTC)
+    year, month = (now.year + 1, 1) if now.month == 12 else (now.year, now.month + 1)
+    next_month = datetime(year, month, 1, tzinfo=UTC)
+    return next_month.timestamp() + 60.0
 
 
 class _LocalTTLCache:
@@ -119,19 +156,30 @@ class UpstashRedisQueue:
             "softcap_shifts": 0,
             "failovers": 0,
         }
-        # ── #2710 (R2.5): প্রতিদিনের সক্রিয় soft-cap বাজেট ──
+        # ── #26: সক্রিয় কোটা-উইন্ডো (monthly ডিফল্ট — Upstash 500k মাসিক ক্যাপ) ──
+        self._quota_window = _quota_window()
+        # ── #2710 (R2.5): প্রতি-উইন্ডোর সক্রিয় soft-cap বাজেট ──
         # বাংলা মন্তব্য: R2-এর cooldown প্রতিক্রিয়াশীল — HTTP 400 আসার পরেই কাজ করে,
-        # ফলে primary প্রতিদিন ১০০% পর্যন্ত ভরে যেত। এখানে প্রতিটি account-এর
-        # দৈনিক command গণনা রাখা হয়; soft-cap (default 400k = 500k-এর ৮০%)
-        # ছুঁলে সেই account-কে UTC রিসেট পর্যন্ত সক্রিয়ভাবে skip করা হয় —
+        # ফলে primary প্রতিদিন ১০০% পর্যন্ত ভরে যেত। এখানে প্রতি account-এর
+        # উইন্ডোর command গণনা রাখা হয়; soft-cap (ডিফল্ট 400k = 500k-এর ৮০%)
+        # ছুঁলে সেই account-কে রিসেট পর্যন্ত সক্রিয়ভাবে skip করা হয় —
         # ফলে কোনো account কখনোই 500k স্পর্শ করে না এবং HTTP 400-নয়েজ বন্ধ হয়।
+        # #26 সংশোধন: soft-cap এখন মাসিক ক্যাপের বিপূর্ণে গণনা করে (দৈনিক নয়);
+        # UPSTASH_QUOTA_SOFT_CAP অগ্রাধীন, পুরনো UPSTASH_DAILY_SOFT_CAP fallback।
         try:
-            self._daily_soft_cap = max(0, int(os.getenv("UPSTASH_DAILY_SOFT_CAP", "400000")))
+            self._soft_cap_limit = max(
+                0,
+                int(
+                    os.getenv("UPSTASH_QUOTA_SOFT_CAP")
+                    or os.getenv("UPSTASH_DAILY_SOFT_CAP")
+                    or _DEFAULT_QUOTA_SOFT_CAP
+                ),
+            )
         except ValueError:
-            self._daily_soft_cap = 400_000
-        self._daily_counts: dict[str, int] = {}
+            self._soft_cap_limit = _DEFAULT_QUOTA_SOFT_CAP
+        self._window_counts: dict[str, int] = {}
         self._softcap_until: dict[str, float] = {}
-        self._day_bucket_until: float = _next_utc_reset_epoch()
+        self._day_bucket_until: float = _next_quota_reset_epoch()
         try:
             self._read_cache_ttl = max(0.0, float(os.getenv("UPSTASH_READ_CACHE_TTL", "10")))
             self._negative_cache_ttl = max(0.0, float(os.getenv("UPSTASH_NEGATIVE_CACHE_TTL", "3")))
@@ -146,13 +194,17 @@ class UpstashRedisQueue:
 
     # ── #2613: cooldown helpers ──────────────────────────────────────────────
     def _mark_quota_cooldown(self, url: str) -> float:
-        """ওই account-কে পরবর্তী UTC রিসেট পর্যন্ত cooldown-এ ফেলে (R2)।"""
-        until = _next_utc_reset_epoch()
+        """ওই account-কে পরবর্তী উইন্ডো-রিসেট পর্যন্ত cooldown-এ ফেলে (R2)।
+
+        #26: reset সময় সক্রিয় উইন্ডো অনুযায়ী — monthly হলে মাসের ১ তারিখ,
+        daily হলে UTC মধ্যরাত।
+        """
+        until = _next_quota_reset_epoch()
         with self._cooldown_lock:
             self._cooldown_until[url] = until
             self._stats["quota_cooldowns"] += 1
         logger.warning(
-            f"Upstash REST [{url}] দৈনিক কোটা শেষ — UTC রিসেট "
+            f"Upstash REST [{url}] কোটা শেষ ({self._quota_window} window) — রিসেট "
             f"({datetime.fromtimestamp(until, UTC).isoformat()}) পর্যন্ত cooldown, "
             f"চেইনের পরের account-এ shift করা হলো।"
         )
@@ -163,13 +215,17 @@ class UpstashRedisQueue:
             until = self._cooldown_until.get(url, 0.0)
             return time.time() < until
 
-    # ── #2710 (R2.5): দৈনিক soft-cap helpers ──────────────────────────────────
+    # ── #2710 (R2.5): উইন্ডো soft-cap helpers ────────────────────────────────
     def _rollover_day_bucket_locked(self, now: float) -> None:
-        """বাংলা মন্তব্য: UTC দিন বদলালে গণনা শূন্য করা হয় — lock ধরা অবস্থায় ডাকতে হয়।"""
+        """বাংলা মন্তব্য: উইন্ডো বদলালে গণনা শূন্য করা হয় — lock ধরা অবস্থায় ডাকতে হয়।
+
+        #26: daily-এ (legacy) UTC দিন, monthly-এ মাস — _next_quota_reset_epoch()
+        সক্রিয় উইন্ডো অনুসারে।
+        """
         if now >= self._day_bucket_until:
-            self._daily_counts.clear()
+            self._window_counts.clear()
             self._softcap_until.clear()
-            self._day_bucket_until = _next_utc_reset_epoch()
+            self._day_bucket_until = _next_quota_reset_epoch()
 
     def _soft_capped(self, url: str) -> bool:
         # বাংলা মন্তব্য: soft-cap সক্রিয় হলে ওই account-এ আর একটিও command না গিয়ে
@@ -179,22 +235,23 @@ class UpstashRedisQueue:
             until = self._softcap_until.get(url, 0.0)
             return time.time() < until
 
-    def _bump_daily(self, url: str) -> None:
-        """সফল command-এর পরে দৈনিক গণনা বাড়াই; soft-cap ছুঁলে সক্রিয় skip।"""
+    def _bump_window(self, url: str) -> None:
+        """সফল command-এর পরে উইন্ডো গণনা বাড়াই; soft-cap ছুঁলে সক্রিয় skip।"""
         with self._cooldown_lock:
             now = time.time()
             self._rollover_day_bucket_locked(now)
-            self._daily_counts[url] = self._daily_counts.get(url, 0) + 1
+            self._window_counts[url] = self._window_counts.get(url, 0) + 1
             if (
-                self._daily_soft_cap > 0
+                self._soft_cap_limit > 0
                 and url not in self._softcap_until
-                and self._daily_counts[url] >= self._daily_soft_cap
+                and self._window_counts[url] >= self._soft_cap_limit
             ):
                 self._softcap_until[url] = self._day_bucket_until
                 self._stats["softcap_shifts"] += 1
                 logger.warning(
-                    f"Upstash REST [{url}] দৈনিক soft-cap ({self._daily_soft_cap}) ছুঁয়েছে — "
-                    f"UTC রিসেট পর্যন্ত সক্রিয়ভাবে skip (#2710 R2.5); চেইনের পরের account দায়িত্ব নেবে।"
+                    f"Upstash REST [{url}] {self._quota_window} soft-cap "
+                    f"({self._soft_cap_limit}) ছুঁয়েছে — রিসেট পর্যন্ত সক্রিয়ভাবে skip "
+                    f"(#2710 R2.5 · #26 window-fix); চেইনের পরের account দায়িত্ব নেবে।"
                 )
 
     def quota_status(self) -> dict[str, Any]:
@@ -207,10 +264,14 @@ class UpstashRedisQueue:
                     for url, until in self._cooldown_until.items()
                     if now < until
                 },
-                # বাংলা মন্তব্য (#2710 R2.5): প্রতি-account দৈনিক বাজেট-দৃশ্যমালা —
+                # বাংলা মন্তব্য (#2710 R2.5): প্রতি-account উইন্ডো বাজেট-দৃশ্যমালা —
                 # কোন consumer বেশি খাচ্ছে তা অডিটে শনাক্ত করা সহজ হয়।
-                "daily_counts": dict(self._daily_counts),
-                "daily_soft_cap": self._daily_soft_cap,
+                # #26: উইন্ডো monthly (ডিফল্ট) — Upstash 500k মাসিক ক্যাপ।
+                "window": self._quota_window,
+                "window_counts": dict(self._window_counts),
+                "window_soft_cap": self._soft_cap_limit,
+                "daily_counts": dict(self._window_counts),  # legacy alias (observability compat)
+                "daily_soft_cap": self._soft_cap_limit,  # legacy alias
                 "softcap_accounts": {
                     url: datetime.fromtimestamp(until, UTC).isoformat()
                     for url, until in self._softcap_until.items()
@@ -249,8 +310,9 @@ class UpstashRedisQueue:
             with self._cooldown_lock:
                 self._stats["quota_refusals"] += 1
             raise QuotaExhaustedError(
-                "all Upstash REST accounts are in daily-quota cooldown or soft-cap "
-                "until the next UTC reset (free-tier federation fully consumed)"
+                f"all Upstash REST accounts are in quota cooldown or soft-cap "
+                f"({self._quota_window} window) until the next window reset "
+                f"(free-tier federation fully consumed)"
             )
 
         last_err: Exception | None = None
@@ -266,7 +328,8 @@ class UpstashRedisQueue:
                 if response.status_code == 400 and _QUOTA_EXCEEDED_MARKER in response.text:
                     self._mark_quota_cooldown(target_url)
                     last_err = QuotaExhaustedError(
-                        f"upstash[{target_url}] daily quota exceeded — cooldown until UTC reset"
+                        f"upstash[{target_url}] quota exceeded ({self._quota_window} window) — "
+                        f"cooldown until window reset"
                     )
                     continue
                 response.raise_for_status()
@@ -276,7 +339,7 @@ class UpstashRedisQueue:
                         self._stats["failovers"] += 1
                 with self._cooldown_lock:
                     self._stats["commands_sent"] += 1
-                self._bump_daily(target_url)  # #2710 (R2.5): দৈনিক বাজেট ট্র্যাকিং
+                self._bump_window(target_url)  # #2710 (R2.5) · #26: উইন্ডো বাজেট ট্র্যাকিং
                 return response.json()
             except QuotaExhaustedError:
                 continue  # উপরে ইতিমধ্যে cooldown চিহ্নিত — পরের account
