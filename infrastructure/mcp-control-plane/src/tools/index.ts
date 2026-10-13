@@ -21,6 +21,7 @@ import { registerContext7Adapter } from "../dynamic/context7.adapter.js";
 import { registerTenantTools } from "./tenant.tools.js";
 import { registerClientTools } from "./client.tools.js";
 import { registerSourceTools } from "./source.tools.js";
+import { registerBridgeTools } from "./bridge.tools.js";
 import { registerKnowledgeTools } from "./knowledge.tools.js";
 import { registerMemoryTools } from "./memory.tools.js";
 import { registerFederationTools } from "./federation.tools.js";
@@ -74,6 +75,8 @@ export async function registerAllTools(
 
   // ── Open Source Collection / Knowledge Store
   await registerSourceTools(server);
+  // ── Bridge onboarding (public front door — zero-credential external agents)
+  await registerBridgeTools(server);
   await registerKnowledgeTools(server);
 
   // ── Dynamic Tools (Database-driven)
