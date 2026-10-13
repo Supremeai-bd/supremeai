@@ -65,4 +65,52 @@ const listed = listClients("*");
 assert.ok(listed.some((c) => c.id === grokSse.id), "auto-registered guest missing from client_list");
 assert.ok(listed.some((c) => c.id === unknownAi.id), "generic guest missing from client_list");
 
+
+// ── #110 Part 2: Named Client Identity (?client=<name>) ──────────────────
+// বাংলা মন্তব্য: URL প্যারামিটার থেকে named identity — টোকেন ছাড়া স্থায়ী পরিচয়।
+import { namedClientFromUrl, isValidClientName } from "./src/policy/auto-register.js";
+
+// 1. URL parsing: valid names, absent param, invalid chars, weird URLs.
+assert.equal(namedClientFromUrl("/mcp?client=groq_main")?.id, "named_groq_main");
+assert.equal(namedClientFromUrl("/mcp?client=groq_main")?.name, "groq_main");
+assert.equal(namedClientFromUrl("https://tower.onrender.com/mcp?client=claude.web-01&x=1")?.id, "named_claude.web-01");
+assert.equal(namedClientFromUrl("/mcp"), null, "no param must yield null");
+assert.equal(namedClientFromUrl(undefined), null, "undefined URL must yield null");
+assert.equal(namedClientFromUrl("/mcp?client="), null, "empty name must yield null");
+assert.equal(namedClientFromUrl("/mcp?client=../etc/passwd"), null, "path traversal must be rejected");
+assert.equal(namedClientFromUrl("/mcp?client=%2e%2e%2fwin"), null, "encoded traversal must be rejected");
+assert.equal(namedClientFromUrl("/mcp?client=has space"), null, "spaces must be rejected");
+assert.equal(namedClientFromUrl("/mcp?client=" + "a".repeat(65)), null, "65-char name must be rejected");
+assert.ok(isValidClientName("groq_main") && isValidClientName("A.b-9"));
+assert.ok(!isValidClientName("-leading-dash"));
+
+// 2. Zero-token persistent identity: ?client= binds named_<name>, not IP.
+function namedReq(url: string, ip: string): IncomingMessage {
+  return {
+    url,
+    headers: { "user-agent": "Mozilla/5.0 Grok/1.0 xAI", "x-forwarded-for": ip },
+    socket: { remoteAddress: ip },
+  } as unknown as IncomingMessage;
+}
+const namedFromIpA = autoRegisterGuestClient(namedReq("/mcp?client=grok_prod", "203.0.113.10"), "streamable-http");
+assert.equal(namedFromIpA.id, "named_grok_prod", "named identity must win over IP guest id");
+assert.equal(namedFromIpA.status, "active");
+assert.equal(namedFromIpA.role, "viewer");
+
+// 3. IP-DRIFT IMMUNITY (the issue's core scenario): the SAME ?client= name
+//    reconnecting from a COMPLETELY different egress IP reuses the SAME
+//    record — role upgrades survive.
+const namedFromIpB = autoRegisterGuestClient(namedReq("/mcp?client=grok_prod", "198.51.100.77"), "sse");
+assert.equal(namedFromIpB.id, "named_grok_prod");
+assert.equal(namedFromIpB.provider, "xai");
+assert.equal(namedFromIpB.protocol, "sse"); // follows latest transport
+const listedNamed = listClients("*").find((c) => c.id === "named_grok_prod");
+assert.ok(listedNamed, "named record must be listed for admin dashboards");
+
+// 4. Invalid/absent client name degrades to the legacy IP-guest path.
+const fallback = autoRegisterGuestClient(namedReq("/mcp?client=bad%20name", "203.0.113.99"), "streamable-http");
+assert.ok(fallback.id.startsWith("guest_xai_"), `invalid name must fall back to guest id: ${fallback.id}`);
+const noParam = autoRegisterGuestClient(namedReq("/mcp", "203.0.113.100"), "streamable-http");
+assert.ok(noParam.id.startsWith("guest_xai_"));
+
 console.log("auto-register contract tests passed");
