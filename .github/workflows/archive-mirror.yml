@@ -6,6 +6,9 @@
 # ক্রেডেনশিয়াল: vault GITHUB_PAT_PAYKARIBAZARONLINE (PKO identity — archive repo-তে push প্রমাণিত) —
 # INFISICAL_* দিয়ে রানটাইমে ফেচ, কখনো repo-secret/লগে থাকে না (শূন্য-প্রিন্ট শৃঙ্খলা)।
 # পুরনো vault GITHUB_TOKEN (SHN identity) নতুন টার্গেটে "Repository not found" — প্রমাণসহ অচল (#130)।
+# LFS (#130, run 38413880153): নতুন টার্গেটের সাথে fork-LFS network নেই → সব LFS object upload করতে হয়।
+# checkout lfs:true + push-এর আগে `git lfs fetch --all origin` (পূর্ণ-ইতিহাস object, অন্যথায়
+# পুরনো commit-এর object মিসিং থেকে push reject — "missing or corrupt local objects")।
 # App-token ব্যবহারযোগ্য নয়: App-এ workflows permission নেই → workflow-ফাইল-বহুল commit push-এ remote-rejected (প্রমাণিত)।
 name: Archive Mirror (live main → cold archive)
 
@@ -35,6 +38,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          lfs: true # archive-টার্গেটে fork-LFS network নেই → object upload লাগবে (#130)
 
       - name: Vault থেকে mirror-token ফেচ (GITHUB_PAT_PAYKARIBAZARONLINE, মান প্রিন্ট নিষিদ্ধ)
         env:
@@ -89,8 +93,9 @@ jobs:
       - name: Mirror push (শুধু fast-forward, main → archive/main)
         if: steps.ff.outputs.ff_ok == 'true' && github.event.inputs.verify_only != 'true'
         run: |
+          git lfs fetch --all origin # পূর্ণ-ইতিহাস LFS object — first-mirror push সম্পূর্ণ রাখতে (#130)
           git push archive main:archive/main
-          echo "[ok] archive-mirror push সম্পন্ন — parent archive/main এখন $(git rev-parse --short main)"
+          echo "[ok] archive-mirror push সম্পন্ন — archive/main এখন $(git rev-parse --short main)"
 
       - name: ফলাফল-সারাংশ
         run: |
