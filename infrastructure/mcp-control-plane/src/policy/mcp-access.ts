@@ -37,6 +37,15 @@ export const publicSafeCapabilities: readonly McpCapabilityMetadata[] = [
   { name: "control-tower://system/health", kind: "resource", access: "safe", requiredScope: "health:read", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
   { name: "system.health", kind: "tool", access: "safe", requiredScope: "health:read", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
   { name: "system.summary", kind: "tool", access: "safe", requiredScope: "system:read", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
+  // #123: Bridge onboarding surface — the zero-credential front door for
+  // external agents working from `paykaribazaronline/supremeai-open`.
+  // bridge.guide is pure static contract data (zero network); the queue tools
+  // only read PUBLIC repo content (issues) and never accept or return
+  // credentials. Read-only + public ⇒ callable by every access mode.
+  // (Wire/sanitized names — the same form classifyToolCapability uses.)
+  { name: "bridge_guide", kind: "tool", access: "safe", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
+  { name: "bridge_work_queue", kind: "tool", access: "safe", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
+  { name: "bridge_work_order", kind: "tool", access: "safe", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
 ];
 
 export function canAccessCapability(context: McpAccessContext, capability: McpCapabilityMetadata): boolean {
@@ -123,6 +132,21 @@ export function classifyToolCapability(name: string): McpCapabilityMetadata {
       access: "safe",
       requiredScope: undefined,
       riskLevel: "R1",
+      dataClassification: "public",
+      approvalRequired: false,
+    };
+  }
+  // #123: Bridge onboarding tools — zero-credential front door for external
+  // agents. bridge.guide serves the static contract; the queue tools read ONLY
+  // public repo issue content (never credentials, never private data) and
+  // return sanitized fields. Read-only + public ⇒ safe for public_viewer.
+  if (name === "bridge_guide" || name === "bridge_work_queue" || name === "bridge_work_order") {
+    return {
+      name,
+      kind: "tool",
+      access: "safe",
+      requiredScope: undefined,
+      riskLevel: "R0",
       dataClassification: "public",
       approvalRequired: false,
     };

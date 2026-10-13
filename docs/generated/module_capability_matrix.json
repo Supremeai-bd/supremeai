@@ -23701,6 +23701,17 @@
     },
     {
       "capability_signals": [
+        "capability",
+        "mcp",
+        "register"
+      ],
+      "classification": "adapter",
+      "entrypoints": [],
+      "kind": "ts",
+      "path": "infrastructure/mcp-control-plane/src/tools/bridge.tools.ts"
+    },
+    {
+      "capability_signals": [
         "mcp",
         "register"
       ],
@@ -23962,6 +23973,19 @@
       "entrypoints": [],
       "kind": "ts",
       "path": "infrastructure/mcp-control-plane/test_auto_register.ts"
+    },
+    {
+      "capability_signals": [
+        "capability",
+        "execute",
+        "mcp",
+        "memory",
+        "register"
+      ],
+      "classification": "adapter",
+      "entrypoints": [],
+      "kind": "ts",
+      "path": "infrastructure/mcp-control-plane/test_bridge_onboarding.ts"
     },
     {
       "capability_signals": [
@@ -28335,5 +28359,5 @@
   ],
   "schema_version": "2.0",
   "source": "main",
-  "source_file_count": 3220
+  "source_file_count": 3222
 }
