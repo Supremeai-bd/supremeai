@@ -25,7 +25,13 @@ name: "AI PR Evaluator (2-Criteria Auto-Merge)"
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    # synchronize REMOVED: each push no longer triggers an ~8 min evaluator run.
+    # The landing verdict is re-computed FRESH by Merge Gate (merge_gate.py:387 ->
+    # ai_pr_evaluator.py --pr N --json) on PR-Gate completion, so a per-push run is
+    # pure waste of free minutes; dropping it changes no merge/landing decision.
+    # Real-time, deterministic feedback on push is replaced by the cheap push-note
+    # below (no checkout; gh CLI is preinstalled on the runner).
+    types: [opened, reopened, ready_for_review]
   # COST OPTIMIZATION: schedule trigger REMOVED entirely.
   # বাংলা: hourly cron প্রতি দিন ২৪টি schedule run তৈরি করত — বেশিরভাগ PR ইতিমধ্যে
   # evaluated থাকত। PR state change = synchronize event real-time trigger করে।
@@ -120,6 +126,28 @@ jobs:
             echo "🤖 Evaluating all open PRs (re-scan — verdicts refresh as main moves)"
             python scripts/ci/ai_pr_evaluator.py --scan --apply
           fi
+
+  # ────────────── Lightweight push feedback (synchronize only, no heavy eval) ───────
+  # Per the #2893 Merge Gate Convergence, the evaluator does NOT run on synchronize.
+  # This replaces the per-push ~8 min evaluate run with a ~15-second notice comment so
+  # reviewers never act on a stale verdict after pushing new commits.
+  push-note:
+    name: "ℹ️ New commits — final verdict via Merge Gate"
+    if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Comment — final AI verification runs at Merge Gate
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          gh pr comment "$PR_NUMBER" --body \
+            "ℹ️ **New commits pushed.** AI evaluation is deferred to Merge Gate — it re-runs fresh on PR-Gate completion (merge_gate.py), so this verdict comment is superseded by the landing decision once the PR Gate is green. Need an immediate re-check? Trigger \`ai-pr-evaluation\` on-demand via its **Run workflow** button (workflow_dispatch)." \
+            --quiet || echo "push-note: comment skipped (duplicate or permission)"
 
   # ─────────────────── Landing authority moved to Merge Gate ───────────────────
   # বাংলা মন্তব্য (Merge Gate Convergence): এই workflow আর সরাসরি merge করে না।
