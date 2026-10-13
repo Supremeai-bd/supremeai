@@ -11,7 +11,6 @@ without requiring redeployment."""
 # বাংলা মন্তব্য: এটি ফায়ারস্টোর বাদ দিয়ে সরাসরি experience_db.py (ChromaDB/Qdrant) ব্যবহার করে এবং ডাইনামিক থ্রেশহোল্ড সেট করে।
 from typing import Any
 
-from adaptive_engine.experience_db import Experience, ExperienceDatabase
 from core.config_cache import config_cache
 from core.errors.error_bus import with_error_bus
 from core.logging_config import logger
@@ -64,6 +63,10 @@ class CacheEntry:
 
 class SemanticCache:
     def __init__(self):
+        # বাংলা: lazy domain adapter (issue #126) — adaptive_engine মডিউল-লেভেল
+        # import নিষিদ্ধ; ইনিশিয়ালাইজ-সময়ে resolve।
+        from adaptive_engine.experience_db import ExperienceDatabase
+
         # Initialize Experience Database as the vector backend
         self.db = ExperienceDatabase()
         logger.info("SemanticCache initialized using ExperienceDatabase vector backend")
@@ -127,6 +130,9 @@ class SemanticCache:
         try:
             # বাংলা মন্তব্য: সফল ও ভেরিফাইড কোড/রেসপন্স এক্সপেরিয়েন্স ডেটাবেসে রাইট করা হচ্ছে
             resp_str = str(response) if not isinstance(response, str) else response
+            # বাংলা: lazy domain adapter (issue #126) — ভোগের জায়গায় resolve।
+            from adaptive_engine.experience_db import Experience
+
             exp = Experience(
                 user_id=user_id or "",
                 request=prompt,
@@ -141,4 +147,16 @@ class SemanticCache:
 
 
 # Singleton instance
-semantic_cache = SemanticCache()
+# বাংলা: lazy singleton (issue #126) — module-import সময়ে instantiate নয়;
+# প্রথম access-এ (PEP 562) — core মডিউল adaptive_engine ছাড়া import-যোগ্য থাকে।
+_semantic_cache: SemanticCache | None = None
+
+
+def __getattr__(name: str):
+    """PEP 562 lazy module attribute — ``semantic_cache`` on first access."""
+    if name == "semantic_cache":
+        global _semantic_cache
+        if _semantic_cache is None:
+            _semantic_cache = SemanticCache()
+        return _semantic_cache
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

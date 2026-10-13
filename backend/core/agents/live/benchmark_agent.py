@@ -3,13 +3,14 @@ from typing import Any, ClassVar
 
 from core.logging_config import logger
 
-try:
+
+def _resolve_dependencies() -> tuple[type, Any]:
+    """বাংলা: lazy domain adapter (issue #126) — brain/database নির্ভরতা
+    ভোগের জায়গায় resolve; module-import সময়ে কোনো cross-domain import নেই।"""
     from brain.model_router import ModelRouter
     from database.supabase_client import db
 
-    _DEPENDENCIES_AVAILABLE = True
-except ImportError:
-    _DEPENDENCIES_AVAILABLE = False
+    return ModelRouter, db
 
 
 class BenchmarkAgent:
@@ -35,10 +36,14 @@ class BenchmarkAgent:
     ]
 
     def __init__(self):
-        if not _DEPENDENCIES_AVAILABLE:
-            raise ImportError("BenchmarkAgent requires ModelRouter and Supabase client.")
-        self.model_router = ModelRouter()
-        self.db_client = db.client
+        try:
+            model_router_cls, db_module = _resolve_dependencies()
+        except ImportError as exc:
+            raise ImportError(
+                "BenchmarkAgent requires ModelRouter and Supabase client."
+            ) from exc
+        self.model_router = model_router_cls()
+        self.db_client = db_module.client
         logger.info("Initialized BenchmarkAgent")
 
     async def run_benchmark(self, providers: list[str]) -> dict[str, Any]:

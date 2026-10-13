@@ -21,8 +21,8 @@ from enum import StrEnum
 from typing import Any
 from urllib.parse import quote_plus
 
-from brain.model_router import ModelRouter
 from core.cache import get_cache
+from core.contracts.boundaries import ModelRoutingContract
 from core.logging_config import logger
 from core.self_evolution.evolution_engine import EvolutionEngine
 from services.config_service import ConfigService
@@ -87,8 +87,14 @@ class GoalDecomposer:
     Decomposes high-level objectives into executable sub-goals using LLM + heuristics.
     """
 
-    def __init__(self, llm_router: ModelRouter | None = None) -> None:
-        self.llm_router = llm_router or ModelRouter()
+    def __init__(self, llm_router: ModelRoutingContract | None = None) -> None:
+        if llm_router is None:
+            # বাংলা: lazy domain adapter (issue #126) — brain মডিউল-লেভেল
+            # import নিষিদ্ধ; ভোগের জায়গায় resolve (contracts.boundaries চুক্তি)।
+            from brain.model_router import ModelRouter
+
+            llm_router = ModelRouter()
+        self.llm_router = llm_router
         self.cache = get_cache()
 
     def _cache_key(self, objective: str) -> str:

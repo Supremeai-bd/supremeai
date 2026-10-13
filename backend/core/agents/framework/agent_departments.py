@@ -1,6 +1,6 @@
 from typing import Any
 
-from brain.model_router import ModelRouter
+from core.contracts.boundaries import ModelRoutingContract
 from core.logging_config import logger
 
 ROLE_PROMPTS: dict[str, str] = {
@@ -20,8 +20,14 @@ ROLE_PROMPTS: dict[str, str] = {
 
 
 class AgentDepartment:
-    def __init__(self, model_router: ModelRouter | None = None) -> None:
-        self.model_router = model_router or ModelRouter()
+    def __init__(self, model_router: ModelRoutingContract | None = None) -> None:
+        if model_router is None:
+            # বাংলা: lazy domain adapter (issue #126) — brain মডিউল-লেভেল
+            # import নিষিদ্ধ; ভোগের জায়গায় resolve (contracts.boundaries চুক্তি)।
+            from brain.model_router import ModelRouter
+
+            model_router = ModelRouter()
+        self.model_router = model_router
 
     def list_roles(self) -> list[str]:
         return list(ROLE_PROMPTS.keys())

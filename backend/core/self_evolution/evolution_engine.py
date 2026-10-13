@@ -16,7 +16,7 @@ import threading
 from datetime import UTC, datetime
 from typing import Any
 
-from brain.model_router import ModelRouter
+from core.contracts.boundaries import ModelRoutingContract
 from core.logging_config import logger
 
 try:
@@ -36,14 +36,20 @@ class EvolutionEngine:
     def __init__(
         self,
         db_path: str | None = None,
-        model_router: ModelRouter | None = None,
+        model_router: ModelRoutingContract | None = None,
         fitness_engine: Any | None = None,
     ):
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.db_path = db_path or os.getenv(
             "EVOLUTION_DB_PATH", os.path.join(base, "data", "evolution.db")
         )
-        self.model_router = model_router or ModelRouter()
+        if model_router is None:
+            # বাংলা: lazy domain adapter (issue #126) — brain মডিউল-লেভেল
+            # import নিষিদ্ধ; ভোগের জায়গায় resolve (contracts.boundaries চুক্তি)।
+            from brain.model_router import ModelRouter
+
+            model_router = ModelRouter()
+        self.model_router = model_router
         # SELF-EVOLVE FIX: connect EvolutionEngine to FitnessEngine so that
         # every learn_from_success/failure call updates the fitness metrics.
         # This closes the self-evolution loop:

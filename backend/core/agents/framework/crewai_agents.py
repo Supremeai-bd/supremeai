@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from typing import Optional
 
-from brain.model_router import ModelRouter
+from core.contracts.boundaries import ModelRoutingContract
 from core.logging_config import logger
 
 
@@ -17,14 +17,20 @@ class CrewAgent:
     def __init__(
         self,
         role: str,
-        model_router: ModelRouter | None = None,
+        model_router: ModelRoutingContract | None = None,
         goal: str = "",
         backstory: str = "",
     ):
         self.role = role
         self.goal = goal
         self.backstory = backstory
-        self.model_router = model_router or ModelRouter()
+        if model_router is None:
+            # বাংলা: lazy domain adapter (issue #126) — brain মডিউল-লেভেল
+            # import নিষিদ্ধ; ভোগের জায়গায় resolve (contracts.boundaries চুক্তি)।
+            from brain.model_router import ModelRouter
+
+            model_router = ModelRouter()
+        self.model_router = model_router
 
     def execute(self, description: str, context: str = "") -> str:
         prompt = (
