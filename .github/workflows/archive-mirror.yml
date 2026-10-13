@@ -1,9 +1,12 @@
-# বাংলা মন্তব্য: ADR-005 Phase B / ADR-007 Phase E — লাইভ main (এই fork) → parent cold-archive মিরর।
-# parent (SaifulHaqueNiloy/supremeai) এখন private receive-only আর্কাইভ।
-# টার্গেট ব্রাঞ্চ = archive/main (parent-এর main protected — মিরর ব্রাঞ্চে ff-push; ২০২৬-১০-০৯ প্রথম push প্রমাণিত 3e29a443)।
-# ক্রেডেনশিয়াল: vault GITHUB_TOKEN (parent-মালিক SaifulHaqueNiloy) — INFISICAL_* দিয়ে রানটাইমে ফেচ,
-# কখনো repo-secret/লগে থাকে না (শূন্য-প্রিন্ট শৃঙ্খলা)। App-token ব্যবহারযোগ্য নয়:
-# App-এ workflows permission নেই → workflow-ফাইল-বহুল commit push-এ remote-rejected (প্রমাণিত)।
+# বাংলা মন্তব্য: ADR-005 Phase B / ADR-007 Phase E — লাইভ main → cold-archive মিরর।
+# ২০২৬-১০-১৩ (#130): parent (SaifulHaqueNiloy/supremeai) ডিলিট হয়েছে — push-এ 403 (run 38408955048 প্রমাণ)।
+# নতুন টার্গেট = org-নিজস্ব paykaribazaronline/supremeai-archive (২০২৬-১০-০৯ থেকে বিদ্যমান cold-archive repo)।
+# টার্গেট ব্রাঞ্চ = archive/main (আর্কাইভ repo-র নিজের main অক্ষত থাকবে — মিরর ব্রাঞ্চে ff-push;
+# পুরনো parent-এ ২০২৬-১০-০৯ প্রথম push প্রমাণিত ছিল 3e29a443)। দীর্ঘমেয়াদি topology = #74 ADMIN_DECISION।
+# ক্রেডেনশিয়াল: vault GITHUB_PAT_PAYKARIBAZARONLINE (PKO identity — archive repo-তে push প্রমাণিত) —
+# INFISICAL_* দিয়ে রানটাইমে ফেচ, কখনো repo-secret/লগে থাকে না (শূন্য-প্রিন্ট শৃঙ্খলা)।
+# পুরনো vault GITHUB_TOKEN (SHN identity) নতুন টার্গেটে "Repository not found" — প্রমাণসহ অচল (#130)।
+# App-token ব্যবহারযোগ্য নয়: App-এ workflows permission নেই → workflow-ফাইল-বহুল commit push-এ remote-rejected (প্রমাণিত)।
 name: Archive Mirror (live main → cold archive)
 
 on:
@@ -33,14 +36,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Vault থেকে mirror-token ফেচ (GITHUB_TOKEN, মান প্রিন্ট নিষিদ্ধ)
+      - name: Vault থেকে mirror-token ফেচ (GITHUB_PAT_PAYKARIBAZARONLINE, মান প্রিন্ট নিষিদ্ধ)
         env:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
         run: |
           python3 - <<'PY'
-          # বাংলা: Infisical universal-auth login → prod secrets → GITHUB_TOKEN → GITHUB_ENV
+          # বাংলা: Infisical universal-auth login → prod secrets → GITHUB_PAT_PAYKARIBAZARONLINE → GITHUB_ENV
           import json, os, urllib.request
           def api(url, payload=None, tok=None):
               data = json.dumps(payload).encode() if payload is not None else None
@@ -53,12 +56,12 @@ jobs:
           secs = api(f"https://app.infisical.com/api/v3/secrets/raw?workspaceId={os.environ['INFISICAL_PROJECT_ID']}&environment=prod&recursive=true",
                      tok=res["accessToken"])
           kv = {s["secretKey"].upper(): s.get("secretValue") or "" for s in secs.get("secrets", [])}
-          tok = kv.get("GITHUB_TOKEN", "")
+          tok = kv.get("GITHUB_PAT_PAYKARIBAZARONLINE", "")
           if not tok:
-              raise SystemExit("vault-এ GITHUB_TOKEN শূন্য — mirror অসম্ভব")
+              raise SystemExit("vault-এ GITHUB_PAT_PAYKARIBAZARONLINE শূন্য — PKO archive-এ mirror অসম্ভব")
           with open(os.environ["GITHUB_ENV"], "a") as f:
               f.write(f"MIRROR_TOKEN<<EOF\n{tok}\nEOF\n")
-          print("[ok] vault থেকে mirror-token লোড (লেন ১৩-char মাস্কড, মান প্রিন্ট হয়নি)")
+          print("[ok] vault থেকে mirror-token লোড (মান মাস্কড, প্রিন্ট হয়নি)")
           PY
 
       - name: Fast-forward যাচাই (receive-only চুক্তি, fail-closed)
@@ -66,7 +69,7 @@ jobs:
         env:
           MIRROR_TOKEN: ${{ env.MIRROR_TOKEN }}
         run: |
-          git remote add archive "https://x-access-token:${MIRROR_TOKEN}@github.com/SaifulHaqueNiloy/supremeai.git"
+          git remote add archive "https://x-access-token:${MIRROR_TOKEN}@github.com/paykaribazaronline/supremeai-archive.git"
           git fetch -q archive main archive/main || true
           if git cat-file -e archive/main 2>/dev/null; then
             # বাংলা: বিদ্যমান মিরর-ব্রাঞ্চ — অবশ্যই fork main-এর পূর্বপুরুষ হতে হবে
@@ -92,7 +95,7 @@ jobs:
       - name: ফলাফল-সারাংশ
         run: |
           echo "mirror_mode=fast-forward-only"
-          echo "target=SaifulHaqueNiloy/supremeai@archive/main"
+          echo "target=paykaribazaronline/supremeai-archive@archive/main"
           echo "verify_only=${{ github.event.inputs.verify_only }}"
           echo "ff_ok=${{ steps.ff.outputs.ff_ok }}"
           echo "pending_commits=${{ steps.ff.outputs.ahead }}"
