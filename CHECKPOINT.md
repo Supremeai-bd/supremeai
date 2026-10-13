@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-13 13:50 UTC
+- **Date:** 2026-10-13 17:08 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,17 +10,16 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/architecture/WORKSPACE_AND_AGENT_FEDERATION_FAQ.md`
-  - `tests/test_deep_audit_upsert_2869.py`
-  - `tests/test_nightly_ops_cron_bundle_2860.py`
-  - `docs/INDEX.md`
-  - `docs/architecture/AGENT_PORTAL_AND_FEDERATION_BRIDGE.md`
-  - `docs/archive/lessons_2026-10.md`
-  - `backend/tests/scripts/test_platform_agent_check_2625.py`
-  - `.github/scripts/platform_agent_check.py`
   - `.github/workflows/nightly-ops.yml`
-  - `scripts/bridge/bridge_intake.py`
-  - `.github/scripts/platform_deep_audit.py`
+  - `.github/workflows/pr.yml`
+  - `.github/workflows/code-quality.yml`
+  - `.github/workflows/smart-deploy.yml`
+  - `config/mcp-clients.json`
+  - `docs/archive/lessons_2026-10.md`
+  - `.github/workflows/bridge-intake.yml`
+  - `.github/workflows/ai-pr-evaluation.yml`
+  - `.github/workflows/auto-sync-upstream.yml`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

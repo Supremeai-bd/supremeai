@@ -5,6 +5,7 @@ MCP Tower-এর লাইভ fleet-state টুলসকে ডাটাবে�
 "tower-এ ঘটে, DB-তে সত্য হয়" (Redis = fast-path, Postgres = persistent truth):
 
   agent_status    (tower read)  → agent_leases upsert (slot, heartbeat, state)
+  slot.list       (#48)         → client_slots upsert (verified-slot mirror)
   resource.list + resource.status (tower read) → system_modules upsert (kind=resource)
   agent_heartbeat (tower write) → mirror into agent_leases (mirror-heartbeat mode)
 
@@ -14,6 +15,9 @@ Usage:
 
     # Dry-run (tower থেকে পড়ে, DB-তে লেখে না):
     python scripts/operations/tower_db_bridge.py sync --dry-run
+
+    # #48 Verified Slot Architecture — slot state pull → client_slots:
+    python scripts/operations/tower_db_bridge.py sync-slots --sqlite data/operational_truth.db
 
     # Heartbeat mirror — tower-এ ping + DB-তে truth একসাথে:
     python scripts/operations/tower_db_bridge.py mirror-heartbeat \
@@ -99,7 +103,6 @@ def _tool_text(result: Any) -> str:
 def fetch_tower_state(client: McpTowerClient) -> dict[str, Any]:
     """agent_status + resource.list/resource.status → normalize করা state।"""
     state: dict[str, Any] = {"slots": [], "resources": []}
-
     raw = _tool_text(client.call_tool("agent_status", {}))
     data = json.loads(raw)
     for slot in data.get("slots", []):
@@ -149,6 +152,52 @@ def fetch_tower_state(client: McpTowerClient) -> dict[str, Any]:
     return state
 
 
+def fetch_tower_slots(client: McpTowerClient) -> dict[str, Any]:
+    """#48: tower `slot.list` → client_slots row-রূপ (Verified Slot Architecture)।
+
+    Tower-এর client registry (Upstash) লাইভ authorization store; এই ফাংশন
+    সেটির credential-bound slot রেকর্ডগুলোকে operational DB-র persistent
+    projection-এ মিরর করে (dashboard/forensics)।
+    """
+    raw = _tool_text(client.call_tool("slot.list", {}))
+    data = json.loads(raw)
+    slots = data.get("slots", []) if isinstance(data, dict) else []
+    normalized: list[dict[str, Any]] = []
+    for slot in slots or []:
+        slot_id = slot.get("slot_id") or slot.get("id")
+        if not slot_id:
+            continue
+        normalized.append(
+            {
+                "slot_id": slot_id,
+                "slot_name": slot.get("slot_name") or slot.get("name"),
+                "tenant_id": slot.get("tenant_id") or slot.get("tenantId") or "tenant_default",
+                "role": slot.get("role") or "viewer",
+                "status": slot.get("status") or "pending",
+                "credential_id": slot.get("credential_id"),
+                "provisioned_at": slot.get("provisioned_at") or slot.get("createdAt"),
+                "rotated_at": slot.get("rotated_at"),
+                "last_verified_at": None,  # bridge sync-এই প্রমাণিত — _write_rows-এ now বসে
+                "suspended_reason": slot.get("suspended_reason"),
+                "meta": {"source_field": "tower:slot.list"},
+            }
+        )
+    return {"slots": normalized}
+
+
+def tower_slots_to_rows(state: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    """Normalize করা tower slot state → upsert-ready row dicts।"""
+    now = _now_iso()
+    rows = []
+    for slot in state.get("slots", []):
+        row = dict(slot)
+        row["updated_at"] = now
+        if not row.get("last_verified_at"):
+            row["last_verified_at"] = now
+        rows.append(row)
+    return {"client_slots": rows}
+
+
 def tower_to_rows(state: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
     """Normalize করা tower state → upsert-ready row dicts।"""
     now = _now_iso()
@@ -192,7 +241,11 @@ def _write_rows(
         if ensure:
             ensure_schema(conn, flavor)
         for table, rows in rows_by_table.items():
-            conflict = ["slot_id"] if table == "agent_leases" else ["name"]
+            conflict = (
+                ["slot_id"]
+                if table in ("agent_leases", "client_slots")
+                else ["name"]
+            )
             written[table] = upsert_rows(conn, flavor, table, rows, conflict_cols=conflict)
     finally:
         conn.close()
@@ -211,6 +264,16 @@ def _cli() -> int:
     sync_p.add_argument("--ensure-schema", action="store_true")
     sync_p.add_argument("--dry-run", action="store_true")
     sync_p.add_argument("--verbose", "-v", action="store_true")
+
+    ss = sub.add_parser(
+        "sync-slots",
+        help="#48: Tower slot.list থেকে client_slots টেবিলে slot state pull করুন",
+    )
+    ss.add_argument("--db-url", default=None)
+    ss.add_argument("--sqlite", default=None)
+    ss.add_argument("--ensure-schema", action="store_true")
+    ss.add_argument("--dry-run", action="store_true")
+    ss.add_argument("--verbose", "-v", action="store_true")
 
     mh = sub.add_parser(
         "mirror-heartbeat", help="Tower-এ heartbeat পাঠান + DB-তে mirror করুন"
@@ -254,6 +317,26 @@ def _cli() -> int:
                             if k in row
                         }
                         print(f"  [dry-run] {table}: {summary}")
+                print("[bridge] dry-run সম্পন্ন — DB-তে কিছু লেখা হয়নি")
+                return 0
+            if not (args.db_url or args.sqlite):
+                print("[bridge] ✗ write mode-এ --db-url/--sqlite লাগবে", file=sys.stderr)
+                return 2
+            written = _write_rows(rows, args.db_url, args.sqlite, args.ensure_schema)
+            for table, count in written.items():
+                print(f"  ✓ {table}: {count} upserted")
+            return 0
+
+        if args.cmd == "sync-slots":
+            state = fetch_tower_slots(client)
+            rows = tower_slots_to_rows(state)
+            print(f"[bridge] tower slots: {len(rows['client_slots'])} verified-slot record(s)")
+            if args.dry_run:
+                for row in rows["client_slots"]:
+                    print(
+                        f"  [dry-run] client_slots: "
+                        f"{ {k: row.get(k) for k in ('slot_id', 'role', 'status', 'credential_id')} }"
+                    )
                 print("[bridge] dry-run সম্পন্ন — DB-তে কিছু লেখা হয়নি")
                 return 0
             if not (args.db_url or args.sqlite):

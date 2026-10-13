@@ -1,5 +1,7 @@
 import type { UserRole } from "./auth.context.js";
 import { RequestContextStore, roleRank } from "./auth.context.js";
+import { assertSlotAuthorization } from "./slot-verification.js";
+import { recordSlotAudit } from "./slot-audit.js";
 
 // #110: mode union extended to mirror the 6-tier UserRole ladder.
 // বাংলা মন্তব্য: মোড ইউনিয়ন ৬-স্তর রোল ল্যাডারের সাথে সমন্বিত।
@@ -151,6 +153,31 @@ export function classifyToolCapability(name: string): McpCapabilityMetadata {
       approvalRequired: false,
     };
   }
+  // #48: Verified Slot administration — provisioning, suspension, rotation
+  // and audit reading are ADMIN-only (secret classification ⇒ rank ≥ 4).
+  // slot_status is read-only slot telemetry (agent level, like agent_status).
+  if (name === "slot_status") {
+    return {
+      name,
+      kind: "tool",
+      access: "safe",
+      requiredScope: undefined,
+      riskLevel: "R1",
+      dataClassification: "internal",
+      approvalRequired: false,
+    };
+  }
+  if (name.startsWith("slot_")) {
+    return {
+      name,
+      kind: "tool",
+      access: "restricted",
+      requiredScope: undefined,
+      riskLevel: "R4",
+      dataClassification: "secret",
+      approvalRequired: false,
+    };
+  }
   if (
     name.startsWith("infisical_") ||
     name === "github_list_secrets" ||
@@ -184,16 +211,33 @@ export function classifyToolCapability(name: string): McpCapabilityMetadata {
  * routes populate) may execute the tool, or a human-readable denial message
  * when the role/capability check fails. No tool executes without passing this
  * check — the `server.tool` override in index.ts wraps EVERY handler with it.
+ *
+ * NOTE (#48): this synchronous variant evaluates the request-time context.
+ * The tool wrapper in index.ts calls `toolAccessErrorAsync`, which adds the
+ * LIVE slot re-authorization check (fail-closed) for credential-bound
+ * sessions. Kept for non-HTTP / unit-test call sites.
  */
 export function toolAccessError(toolName: string): string | null {
-  const store = RequestContextStore.get();
-  if (!store) {
-    // Fail-closed: no request context at all (neither an HTTP transport nor the
-    // trusted stdio path, which establishes an explicit admin context — see
-    // auth.context.ts getRole() and index.ts startStdioServer, #698).
-    return `Forbidden: tool '${toolName}' requires an authenticated request context (default-deny).`;
+  const context = currentAccessContext();
+  if (!context) {
+    // Fail-closed: no request context at all (neither an HTTP transport nor
+    // the trusted stdio path, which establishes an explicit admin context —
+    // see auth.context.ts getRole() and index.ts startStdioServer, #698).
+    return missingContextDenial(toolName);
   }
-  const context: McpAccessContext = {
+  return capabilityDenial(toolName, context);
+}
+
+/** Fail-closed denial used when no request context exists at all. */
+function missingContextDenial(toolName: string): string {
+  return `Forbidden: tool '${toolName}' requires an authenticated request context (default-deny).`;
+}
+
+/** Builds the McpAccessContext from the ambient RequestContextStore. */
+function currentAccessContext(): McpAccessContext | null {
+  const store = RequestContextStore.get();
+  if (!store) return null;
+  return {
     mode: store.accessMode ?? accessModeFor(store.role, store.authenticated === true),
     role: store.role,
     authenticated: store.authenticated === true,
@@ -201,8 +245,75 @@ export function toolAccessError(toolName: string): string | null {
     clientId: store.clientId,
     scopes: store.scopes ?? [],
   };
+}
+
+/** Role/capability evaluation shared by the sync and async gates. */
+function capabilityDenial(toolName: string, context: McpAccessContext): string | null {
   const capability = classifyToolCapability(toolName);
   if (canAccessCapability(context, capability)) return null;
   const requiredRole = capability.dataClassification === "secret" ? "admin" : "agent";
   return `Forbidden: tool '${toolName}' requires ${requiredRole} role or higher (default-deny RBAC). Present a valid MCP Bearer token with a sufficient role.`;
+}
+
+/**
+ * #48: LIVE default-deny gate — same evaluation as `toolAccessError`, plus
+ * for credential-bound (slot / registry-client) sessions:
+ *
+ *   • re-reads the slot role/status from the operational registry on EVERY
+ *     privileged call (Invariant 3),
+ *   • fails CLOSED when the operational store cannot be verified
+ *     (Invariant 5 — `slot-store-unreachable`),
+ *   • terminates suspended / demoted / rotated-out credentials on the
+ *     immediate-next check (Invariant 4),
+ *   • appends an audit row for every allowed/denied decision (Invariant 6).
+ *
+ * Demotion applies immediately (the live role is re-evaluated against the
+ * capability); a live promotion likewise applies without reconnection.
+ */
+export async function toolAccessErrorAsync(toolName: string): Promise<string | null> {
+  const context = currentAccessContext();
+  if (!context) return missingContextDenial(toolName);
+
+  const store = RequestContextStore.get();
+  const slotId = store?.slotId;
+  const credentialId = store?.credentialId;
+
+  if (slotId) {
+    const verdict = await assertSlotAuthorization(slotId, credentialId, { tool: toolName, operation: "tool-call" });
+    if (!verdict.allowed) {
+      recordSlotAudit({
+        slotId,
+        credentialId,
+        operation: "tool-call",
+        tool: toolName,
+        outcome: "denied",
+        reason: verdict.reason ?? "slot-denied",
+      });
+      return `Forbidden: slot '${slotId}' authorization failed at the live registry check (${verdict.reason ?? "denied"}) — access denied (fail-closed, #48).`;
+    }
+    // Re-evaluate the capability against the LIVE role/scopes (a mid-session
+    // demotion must apply on this very call; a promotion likewise).
+    const liveContext: McpAccessContext = {
+      ...context,
+      role: verdict.role ?? context.role,
+      scopes: verdict.scopes ?? context.scopes,
+      mode: accessModeFor(verdict.role ?? context.role, context.authenticated),
+    };
+    const denial = capabilityDenial(toolName, liveContext);
+    if (denial) {
+      recordSlotAudit({
+        slotId,
+        credentialId,
+        role: verdict.role,
+        operation: "tool-call",
+        tool: toolName,
+        outcome: "denied",
+        reason: "live-role-insufficient",
+      });
+      return denial;
+    }
+    return null;
+  }
+
+  return capabilityDenial(toolName, context);
 }

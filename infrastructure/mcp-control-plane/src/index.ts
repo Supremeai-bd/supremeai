@@ -18,9 +18,13 @@ import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.
 import { approveClient, changeClientProfile, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, getClient, initClientRegistry, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
 import { extractClientInfoName, recordPresence, listWorkforce, registerIoredis } from "./registry/mcp_presence.js";
 import { createBuiltinManifest } from "./registry/mcp.contracts.js";
-import { autoRegisterGuestClient, clientIpFor } from "./policy/auto-register.js";
+import { autoRegisterGuestClient, clientIpFor, isValidClientName } from "./policy/auto-register.js";
 import { executeGeminiFunctionCall, geminiAdapterInfo, listGeminiTools } from "./adapters/gemini/gemini.adapter.js";
-import { accessModeFor, publicAccessManifest, isPublicSafeResource, toolAccessError } from "./policy/mcp-access.js";
+import { accessModeFor, publicAccessManifest, isPublicSafeResource, toolAccessErrorAsync } from "./policy/mcp-access.js";
+import {
+  assertSlotAuthorization,
+  resolveSlotSession,
+} from "./policy/slot-verification.js";
 import { attachDiscoveryFilter, isValidToolProfile } from "./policy/tool-visibility.js";
 import { verifyApprovalLink } from "./policy/approvals/signing.js";
 import { pullSecretsIntoProcessEnv } from "./adapters/infisical/index.js";
@@ -275,8 +279,11 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
       const originalHandler = args[handlerIndex] as (toolArgs: unknown, extra: unknown) => unknown;
       const wrappedArgs = args.slice();
       wrappedArgs[handlerIndex] = async (toolArgs: unknown, extra: unknown) => {
-        // 1) Central default-deny RBAC gate (#695).
-        const denial = toolAccessError(sanitizedName);
+        // 1) Central default-deny RBAC gate (#695) + LIVE slot re-authorization
+        // (#48): credential-bound sessions are re-checked against the
+        // operational registry on every call — suspension, demotion, rotation
+        // and store outages all fail CLOSED on the immediate-next check.
+        const denial = await toolAccessErrorAsync(sanitizedName);
         if (denial) {
           return { isError: true, content: [{ type: "text", text: denial }] };
         }
@@ -622,6 +629,10 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
   // Per-session transports for SSE
   const sseSessions = new Map<string, any>();
   const sseClientMap = new Map<string, ExternalClient>();
+  // #48: per-session slot bindings — credential-verified slot identity that
+  // every subsequent /messages re-checks live (immediate-next-check
+  // revocation for in-flight SSE streams).
+  const sseSlotMap = new Map<string, { slotId: string; credentialId?: string }>();
 
   // ── Per-session transports for streamable HTTP /mcp (#2588) ────────────────
   // The old boot-time GLOBAL singleton transport was the root cause of the
@@ -638,6 +649,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
     server: McpServer;
     client?: ExternalClient;
     lastActivityMs: number;
+    /** #48: slot binding re-verified live on every session request. */
+    slot?: { slotId: string; credentialId?: string };
   }
   const httpSessions = new Map<string, HttpSessionEntry>();
   const HTTP_SESSION_IDLE_MS_DEFAULT = 3_600_000; // reap sessions idle > 1h
@@ -667,7 +680,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
 
   const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? "/";
-    const pathname = requestPath(req);
+    let pathname = requestPath(req);
     const caller = resolveCaller(req);
     const role = caller.role;
     const client = caller.client;
@@ -675,6 +688,21 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
     const isGlobalAdmin = caller.isGlobalAdmin;
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "no-referrer");
+
+    // #48: `/agents/<slot>/sse|mcp` — the slot URL form from the issue. The
+    // URL is an identity doorway ONLY: it normalizes to `?client=<slot>` and
+    // authentication still requires the slot credential (slot-verification.ts
+    // resolveSlotSession — URL alone never grants the slot's stored role).
+    const agentsRoute = /^\/agents\/([^/]+)\/(sse|mcp)$/.exec(pathname);
+    if (agentsRoute) {
+      const slotName = agentsRoute[1] ?? "";
+      if (!isValidClientName(slotName)) {
+        writeJson(res, 400, { error: "Invalid slot name in /agents/<slot>/ path" });
+        return;
+      }
+      req.url = `/${agentsRoute[2]}?client=${encodeURIComponent(slotName)}`;
+      pathname = `/${agentsRoute[2]}`;
+    }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // বাংলা মন্তব্য: অথেনটিকেশন ও অ্যাক্সেস কন্ট্রোল পলিসি (MCP Auth Architecture)
@@ -1219,12 +1247,14 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
 
       // #1767 + #2588: Dynamic Auto-Registration for No-Auth AI clients —
       // VENDOR-AGNOSTIC and shared with /mcp (see policy/auto-register.ts).
-      // Any AI connecting over SSE gets a database client record with zero
-      // manual registration; the User-Agent only picks a display label.
-      let effectiveClient = client;
-      if (!effectiveClient && !role) {
-        effectiveClient = autoRegisterGuestClient(req, "sse", tenantId);
-      }
+      // #48 Verified Slot Architecture: the URL alone is NEVER authentication.
+      // A presented `?client=`/`/agents/<slot>/` identity adopts its stored
+      // role ONLY when the request also presents a credential that verifies
+      // live against the operational registry — otherwise the strict
+      // `viewer` fallback applies (an observability record is still created
+      // so the dashboard sees the connected AI).
+      const session = await resolveSlotSession(req, { client, role, tenantId, protocol: "sse" });
+      const effectiveClient = session.client;
       // #3297 auto-presence: SSE connect — interactive client সংযুক্ত হলো;
       // presence key লিখে রাখি (fire-and-forget)।
       void recordPresence({
@@ -1234,14 +1264,18 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         tenantId,
       }).catch(() => undefined);
 
-      const activeRole = effectiveClient?.role ?? role ?? "viewer";
-      const authenticated = Boolean(effectiveClient || role !== null);
+      const activeRole = session.role;
+      const authenticated = session.authenticated;
       const accessMode = accessModeFor(activeRole, authenticated);
-      const scopes = effectiveClient?.scopes ?? defaultClientScopes(activeRole);
+      const scopes = session.scopes.length > 0 ? session.scopes : defaultClientScopes(activeRole);
+      const slotBinding = session.slotId ? { slotId: session.slotId, credentialId: session.credentialId } : undefined;
       const sseTransport = new SSEServerTransport("/messages", res);
       sseSessions.set(sseTransport.sessionId, sseTransport);
       if (effectiveClient) {
         sseClientMap.set(sseTransport.sessionId, effectiveClient);
+      }
+      if (slotBinding) {
+        sseSlotMap.set(sseTransport.sessionId, slotBinding);
       }
       // P0 crash-loop fix: the MCP SDK forbids connecting one Protocol instance
       // to a second transport while another is live ("Already connected to a
@@ -1265,6 +1299,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         dropped = true;
         sseSessions.delete(sseTransport.sessionId);
         sseClientMap.delete(sseTransport.sessionId);
+        sseSlotMap.delete(sseTransport.sessionId);
         try { sseTransport.close(); } catch {}
         // Release the per-session server + transport.
         void Promise.resolve().then(() => sseServer.close()).catch(() => undefined);
@@ -1274,7 +1309,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       res.once("close", dropSession);
       sseTransport.onclose = dropSession;
       try {
-        await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(effectiveClient?.id), clientId: effectiveClient?.id, scopes, toolProfile: effectiveClient?.toolProfile, isGlobalAdmin, tenantId }, async () => {
+        await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(effectiveClient?.id), clientId: effectiveClient?.id, scopes, toolProfile: effectiveClient?.toolProfile, isGlobalAdmin, tenantId, slotId: session.slotId, slotVerified: session.slotVerified, credentialId: session.credentialId }, async () => {
           await sseServer.connect(sseTransport);
         });
       } catch (err) {
@@ -1298,14 +1333,37 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         writeJson(res, 404, { error: "Session not found" });
         return;
       }
+      // #48: slot-bound sessions are re-authorized LIVE on every message —
+      // suspension, demotion and credential rotation terminate the in-flight
+      // stream on the immediate-next check (execution cancellation).
+      const slotBinding = sid ? sseSlotMap.get(sid) : undefined;
+      let slotRole: UserRole | undefined;
+      let slotScopes: string[] | undefined;
+      if (slotBinding && sid) {
+        const verdict = await assertSlotAuthorization(slotBinding.slotId, slotBinding.credentialId, { operation: "message" });
+        if (!verdict.allowed) {
+          const transport = sseSessions.get(sid);
+          if (transport) { try { transport.close(); } catch {} }
+          sseSessions.delete(sid);
+          sseClientMap.delete(sid);
+          sseSlotMap.delete(sid);
+          writeJson(res, 403, {
+            error: `Forbidden: slot '${slotBinding.slotId}' authorization failed (${verdict.reason ?? "denied"}) — SSE session terminated (fail-closed, #48).`,
+            code: "slot_authorization_failed",
+          });
+          return;
+        }
+        slotRole = verdict.role;
+        slotScopes = verdict.scopes;
+      }
       // Re-read client from map to pick up live database role upgrades (#1767)
       const mappedClient = sid ? sseClientMap.get(sid) : undefined;
       const refreshedClient = mappedClient?.id ? (getClient(mappedClient.id) ?? mappedClient) : client;
-      const activeRole = refreshedClient?.role ?? role ?? "viewer";
-      const authenticated = Boolean(refreshedClient || role !== null);
+      const activeRole = slotRole ?? refreshedClient?.role ?? role ?? "viewer";
+      const authenticated = Boolean(slotBinding || refreshedClient || role !== null);
       const accessMode = accessModeFor(activeRole, authenticated);
-      const scopes = refreshedClient?.scopes ?? defaultClientScopes(activeRole);
-      await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(refreshedClient?.id), clientId: refreshedClient?.id, scopes, toolProfile: refreshedClient?.toolProfile, isGlobalAdmin, tenantId }, async () => {
+      const scopes = slotScopes ?? refreshedClient?.scopes ?? defaultClientScopes(activeRole);
+      await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(refreshedClient?.id || slotBinding), clientId: refreshedClient?.id ?? slotBinding?.slotId, scopes, toolProfile: refreshedClient?.toolProfile, isGlobalAdmin, tenantId, slotId: slotBinding?.slotId, slotVerified: Boolean(slotBinding), credentialId: slotBinding?.credentialId }, async () => {
         await sseTransport.handlePostMessage(req, res);
       });
       return;
@@ -1370,6 +1428,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
 
         // ── Existing session: route by header, refresh role LIVE from the ──
         // registry (admin role changes apply instantly, like /messages #1767).
+        // #48: slot-bound sessions additionally re-authorize live on EVERY
+        // request — suspension/demotion/rotation fail closed immediately.
         if (sessionIdHeader) {
           const entry = httpSessions.get(sessionIdHeader);
           if (!entry) {
@@ -1377,6 +1437,28 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
             return;
           }
           entry.lastActivityMs = Date.now();
+          let slotRole: UserRole | undefined;
+          let slotScopes: string[] | undefined;
+          if (entry.slot) {
+            const verdict = await assertSlotAuthorization(entry.slot.slotId, entry.slot.credentialId, { operation: "message" });
+            if (!verdict.allowed) {
+              const sessionError = {
+                jsonrpc: "2.0" as const,
+                error: {
+                  code: -32001,
+                  message: `Slot '${entry.slot.slotId}' authorization failed (${verdict.reason ?? "denied"}) — session terminated (fail-closed, #48). Send a new initialize request.`,
+                  data: { code: "slot_authorization_failed", reason: verdict.reason ?? "denied" },
+                },
+                id: null,
+              };
+              try { entry.transport.close(); } catch {}
+              httpSessions.delete(sessionIdHeader);
+              writeJson(res, 403, sessionError);
+              return;
+            }
+            slotRole = verdict.role;
+            slotScopes = verdict.scopes;
+          }
           const refreshedClient = entry.client?.id ? (getClient(entry.client.id) ?? entry.client) : undefined;
           // #3297 auto-presence: প্রতিটি সেশন-রিকোয়েস্টই interactive client-এর
           // liveness প্রমাণ — sliding-TTL presence রিফ্রেশ (fire-and-forget,
@@ -1387,11 +1469,11 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
             protocol: "streamable-http",
             tenantId,
           }).catch(() => undefined);
-          const sessionRole = refreshedClient?.role ?? role ?? "viewer";
-          const sessionAuthenticated = Boolean(refreshedClient || role !== null);
+          const sessionRole = slotRole ?? refreshedClient?.role ?? role ?? "viewer";
+          const sessionAuthenticated = Boolean(entry.slot || refreshedClient || role !== null);
           const sessionAccessMode = accessModeFor(sessionRole, sessionAuthenticated);
-          const sessionScopes = refreshedClient?.scopes ?? defaultClientScopes(sessionRole);
-          await RequestContextStore.run({ role: sessionRole, accessMode: sessionAccessMode, authenticated: sessionAuthenticated, tenantBound: Boolean(refreshedClient?.id), clientId: refreshedClient?.id, scopes: sessionScopes, toolProfile: refreshedClient?.toolProfile, isGlobalAdmin, tenantId }, async () => {
+          const sessionScopes = slotScopes ?? refreshedClient?.scopes ?? defaultClientScopes(sessionRole);
+          await RequestContextStore.run({ role: sessionRole, accessMode: sessionAccessMode, authenticated: sessionAuthenticated, tenantBound: Boolean(refreshedClient?.id || entry.slot), clientId: refreshedClient?.id ?? entry.slot?.slotId, scopes: sessionScopes, toolProfile: refreshedClient?.toolProfile, isGlobalAdmin, tenantId, slotId: entry.slot?.slotId, slotVerified: Boolean(entry.slot), credentialId: entry.slot?.credentialId }, async () => {
             await entry.transport.handleRequest(req, res, parsedBody);
           });
           return;
@@ -1414,10 +1496,11 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         // Zero-manual-registration hook (#2588): a tokenless client — Gemini
         // Spark, xAI Grok, ANY AI — is auto-registered in the database on its
         // very first handshake, with protocol, client id, IP and timestamps.
-        let effectiveClient = client;
-        if (!effectiveClient && !role) {
-          effectiveClient = autoRegisterGuestClient(req, "streamable-http", tenantId);
-        }
+        // #48 Verified Slot Architecture: a `?client=<slot>` / `/agents/<slot>/`
+        // URL only adopts the slot's stored role when a credential verifies
+        // live; otherwise the strict viewer fallback applies.
+        const session = await resolveSlotSession(req, { client, role, tenantId, protocol: "streamable-http" });
+        const effectiveClient = session.client;
         // #3297 auto-presence: নতুন initialize handshake-ই interactive client-এর
         // প্রথম সংযোগ-সংকেত — clientInfo.name (MCP spec) বা auto-registered
         // guest label থেকে identity, Redis-এ 300s sliding TTL।
@@ -1430,10 +1513,11 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           protocol: "streamable-http",
           tenantId,
         }).catch(() => undefined);
-        const initRole = effectiveClient?.role ?? role ?? "viewer";
-        const initAuthenticated = Boolean(effectiveClient || role !== null);
+        const initRole = session.role;
+        const initAuthenticated = session.authenticated;
         const initAccessMode = accessModeFor(initRole, initAuthenticated);
-        const initScopes = effectiveClient?.scopes ?? defaultClientScopes(initRole);
+        const initScopes = session.scopes.length > 0 ? session.scopes : defaultClientScopes(initRole);
+        const slotBinding = session.slotId ? { slotId: session.slotId, credentialId: session.credentialId } : undefined;
 
         const httpTransport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
@@ -1465,14 +1549,14 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           try { writeJson(res, 503, { jsonrpc: "2.0", error: { code: -32000, message: "MCP session could not be established" }, id: null }); } catch {}
           return;
         }
-        await RequestContextStore.run({ role: initRole, accessMode: initAccessMode, authenticated: initAuthenticated, tenantBound: Boolean(effectiveClient?.id), clientId: effectiveClient?.id, scopes: initScopes, toolProfile: effectiveClient?.toolProfile, isGlobalAdmin, tenantId }, async () => {
+        await RequestContextStore.run({ role: initRole, accessMode: initAccessMode, authenticated: initAuthenticated, tenantBound: Boolean(effectiveClient?.id), clientId: effectiveClient?.id, scopes: initScopes, toolProfile: effectiveClient?.toolProfile, isGlobalAdmin, tenantId, slotId: session.slotId, slotVerified: session.slotVerified, credentialId: session.credentialId }, async () => {
           await httpTransport.handleRequest(req, res, parsedBody);
         });
         // The SDK assigns the session id DURING the initialize handshake; only
         // register the entry if the handshake actually established one (and
         // did not already tear the session down).
         if (httpTransport.sessionId && !dropped) {
-          httpSessions.set(httpTransport.sessionId, { transport: httpTransport, server: sessionServer, client: effectiveClient, lastActivityMs: Date.now() });
+          httpSessions.set(httpTransport.sessionId, { transport: httpTransport, server: sessionServer, client: effectiveClient, lastActivityMs: Date.now(), slot: slotBinding });
         }
       });
       return;
@@ -1498,15 +1582,16 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
 
       // Vendor-agnostic zero-manual-registration (#2588 pattern): tokenless
       // caller → auto-registered guest (public read-only scope পায়)।
-      let geminiClient = client;
-      if (!geminiClient && !role) {
-        geminiClient = autoRegisterGuestClient(req, "custom", tenantId);
-      }
-      const geminiRole = geminiClient?.role ?? role ?? "viewer";
-      const geminiAuthenticated = Boolean(geminiClient || role !== null);
+      // #48: same verified-slot rule as /sse + /mcp — a `?client=<slot>` URL
+      // never authenticates on its own; without a verifying credential the
+      // strict viewer fallback applies.
+      const geminiSession = await resolveSlotSession(req, { client, role, tenantId, protocol: "custom" });
+      const geminiClient = geminiSession.client;
+      const geminiRole = geminiSession.role;
+      const geminiAuthenticated = geminiSession.authenticated;
       const geminiAccessMode = accessModeFor(geminiRole, geminiAuthenticated);
-      const geminiScopes = geminiClient?.scopes ?? defaultClientScopes(geminiRole);
-      const geminiRequestContext = { role: geminiRole, accessMode: geminiAccessMode, authenticated: geminiAuthenticated, tenantBound: Boolean(geminiClient?.id), clientId: geminiClient?.id, scopes: geminiScopes, toolProfile: geminiClient?.toolProfile, isGlobalAdmin, tenantId };
+      const geminiScopes = geminiSession.scopes.length > 0 ? geminiSession.scopes : defaultClientScopes(geminiRole);
+      const geminiRequestContext = { role: geminiRole, accessMode: geminiAccessMode, authenticated: geminiAuthenticated, tenantBound: Boolean(geminiClient?.id), clientId: geminiClient?.id, scopes: geminiScopes, toolProfile: geminiClient?.toolProfile, isGlobalAdmin, tenantId, slotId: geminiSession.slotId, slotVerified: geminiSession.slotVerified, credentialId: geminiSession.credentialId };
       const geminiAdapterContext = { serverName: SERVER_NAME, serverVersion: SERVER_VERSION, serverFactory };
 
       // ── GET /gemini — adapter info manifest ──

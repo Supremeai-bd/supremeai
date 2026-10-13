@@ -289,6 +289,14 @@ jobs:
           python scripts/ci/rate_limit_endpoint_checker.py || echo "[WARN] Rate limit gaps found"
           python scripts/ci/rls_rbac_auditor.py || echo "[WARN] RLS/RBAC gaps found"
 
+      # Dead-code detection (moved here from the deleted code-quality.yml; #67).
+      # Continues-on-error: advisory until baseline ratchet lands (per Phase-4 plan).
+      - name: Backend dead-code scan (vulture)
+        continue-on-error: true
+        run: |
+          pip install vulture
+          python scripts/security/find_dead_code.py || echo "[WARN] Dead code detected"
+
       - name: Setup PNPM (SSOT from package.json)
         uses: pnpm/action-setup@v5
 
