@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-13 12:16 UTC
+- **Date:** 2026-10-13 13:26 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,15 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/INDEX.md`
-  - `scripts/bridge/bridge_intake.py`
-  - `docs/generated/module_capability_matrix.json`
-  - `docs/architecture/AGENT_PORTAL_AND_FEDERATION_BRIDGE.md`
   - `docs/archive/lessons_2026-10.md`
+  - `tests/test_merge_gate_token_fallback_103.py`
+  - `scripts/ci/merge_gate.py`
+  - `docs/architecture/WORKSPACE_AND_AGENT_FEDERATION_FAQ.md`
+  - `backend/core/messaging/upstash_redis_queue.py`
+  - `docs/generated/module_capability_matrix.json`
+  - `docs/INDEX.md`
+  - `CHECKPOINT.md`
+  - `backend/tests/core/test_upstash_monthly_quota_window.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
