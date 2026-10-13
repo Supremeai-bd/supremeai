@@ -9,7 +9,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test:unit": "npm run test:health-history && npm run test:heartbeat && npm run test:mcp-presence && tsx test_policy.ts && tsx test_registry.ts && tsx test_events.ts && tsx test_summary.ts && tsx test_resource_list.ts && npm run test:guardian && npm run test:client-registry && npm run test:auto-register && npm run test:gemini-adapter && npm run test:tool-visibility",
+    "test:unit": "npm run test:health-history && npm run test:heartbeat && npm run test:mcp-presence && tsx test_policy.ts && tsx test_registry.ts && tsx test_events.ts && tsx test_summary.ts && npm run test:guardian && npm run test:client-registry && npm run test:auto-register && npm run test:gemini-adapter && npm run test:tool-visibility && npm run test:bridge-onboarding",
+    "test:integration": "tsx test_resource_list.ts",
     "test:smoke": "tsx test_adapters.ts",
     "test:smoke:report": "tsx scripts/smoke-report.ts",
     "test:service-circles": "tsx test_service_circles.ts",
@@ -23,6 +24,7 @@
     "test:heartbeat": "tsx test_heartbeat.ts",
     "test:orchestrator": "tsx test_orchestrator_dispatch.ts",
     "test:gemini-adapter": "tsx test_gemini_adapter.ts",
+    "test:bridge-onboarding": "tsx test_bridge_onboarding.ts",
     "test:policy-parity": "tsx policy_parity_dump.ts > /dev/null && echo \"TS-side parity harness OK\"",
     "test:mcp-presence": "tsx test_mcp_presence.ts"
   },
