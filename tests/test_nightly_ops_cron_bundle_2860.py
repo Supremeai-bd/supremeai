@@ -18,38 +18,45 @@ import yaml
 REPO = Path(__file__).resolve().parents[1]
 WF = REPO / ".github" / "workflows" / "nightly-ops.yml"
 
-CANONICAL = ["0 */4 * * *", "0 3 * * *", "17 3 * * 1", "0 3 * * 0"]
+CANONICAL = ["0 3 * * *", "0 3 * * 0"]
 
-# issue #2860-র পূর্ণ job→schedule ম্যাপ (২২ job — #4267: +docs-garbage-sweep (#4261),
-# +load-locust/chaos-suite/browser-e2e/db-pool-health (#4228); সবার গার্ড daily 0 3 * * *)
-EXPECTED_MAP = {
-    "deep-audit": "0 3 * * *",
-    "ai-safety": "0 3 * * *",
-    "mission-passk": "0 3 * * *",
-    "platform-sweep": "0 3 * * *",
-    "platform-deep-audit": "0 3 * * *",
-    "rate-limit-trend": "0 3 * * *",
-    "stale-mutex": "0 3 * * *",
-    "live-smoke": "0 3 * * *",
-    "db-retention": "0 3 * * *",
-    "workflow-runs-retention": "0 3 * * *",
-    "e2e-customer": "0 3 * * *",
-    "branch-retention": "17 3 * * 1",
-    "silent-error": "17 3 * * 1",
-    "dast": "17 3 * * 1",
-    "constitution": "17 3 * * 1",
-    "self-audit": "0 3 * * 0",
-    "deploy-doctor-fallback": "0 */4 * * *",
-    # বাংলা মন্তব্য (#4267): rapid-landing drift — নিচের ৫টি job আসলে #4228/#4261-এ
-    # nightly-ops-এ যোগ হয়েছিল কিন্তু এই চুক্তি-ম্যাপে এন্ট্রি ছিল না (লোকাল ফুল-স্যুটে
-    # ধরা পড়েছিল — PR-gate targeted-lane এই drift দেখে না)। প্রতিটির লাইভ guard
-    # যাচাই-পূর্বক '0 3 * * *' (daily) — এখানে প্রতিষ্ঠিত।
-    "docs-garbage-sweep": "0 3 * * *",
-    "load-locust": "0 3 * * *",
-    "chaos-suite": "0 3 * * *",
-    "browser-e2e": "0 3 * * *",
-    "db-pool-health": "0 3 * * *",
+# #67 Workflow Diet 2-tier contract + #72 vault synth check
+TIER1_DAILY = {
+    "vault-synth-check",
+    "rate-limit-trend",
+    "stale-mutex",
+    "live-smoke",
+    "db-retention",
+    "db-pool-health",
+    "branch-retention",
+    "workflow-runs-retention",
 }
+
+TIER2_WEEKLY_SUN = {
+    "deep-audit",
+    "platform-deep-audit",
+    "docs-garbage-sweep",
+    "e2e-customer",
+    "load-locust",
+    "chaos-suite",
+    "browser-e2e",
+    "silent-error",
+    "dast",
+    "constitution",
+    "self-audit",
+}
+
+DISPATCH_ONLY = {
+    "ai-safety",
+    "mission-passk",
+    "platform-sweep",
+}
+
+DORMANT = {
+    "deploy-doctor-fallback",
+}
+
+ALL_EXPECTED_JOBS = TIER1_DAILY | TIER2_WEEKLY_SUN | DISPATCH_ONLY | DORMANT
 
 LEGACY_CRONS = [
     "30 1 * * *", "0 2 * * *", "15 3 * * *", "30 3 * * *",
@@ -63,26 +70,37 @@ def _load():
     return text, doc
 
 
-def test_yaml_parses_and_schedule_block_has_exactly_4_canonical_crons():
+def test_yaml_parses_and_schedule_block_has_canonical_crons():
     _, doc = _load()
     triggers = doc.get(True) or doc.get("on") or {}
     crons = [s["cron"] for s in triggers["schedule"]]
-    assert sorted(crons) == sorted(CANONICAL), f"expected 4 canonical crons, got: {crons}"
-    # ইস্যু-বডির আক্ষরিক তালিকার সাথে ক্রমানুসারেও মিলবে
-    assert crons == CANONICAL
+    assert crons == CANONICAL, f"expected canonical crons {CANONICAL}, got: {crons}"
 
 
 def test_every_job_has_expected_schedule_guard():
     _, doc = _load()
     jobs = doc["jobs"]
-    assert set(jobs.keys()) == set(EXPECTED_MAP.keys()), (
-        f"job-set drift: {set(jobs.keys()) ^ set(EXPECTED_MAP.keys())}"
+    assert set(jobs.keys()) == ALL_EXPECTED_JOBS, (
+        f"job-set drift: {set(jobs.keys()) ^ ALL_EXPECTED_JOBS}"
     )
-    for name, cron in EXPECTED_MAP.items():
+    for name in TIER1_DAILY:
         cond = str(jobs[name]["if"])
-        assert f"github.event.schedule == '{cron}'" in cond, (
-            f"job '{name}' must guard on '{cron}' (got: {cond[:120]})"
+        assert "github.event.schedule == '0 3 * * *'" in cond, (
+            f"Tier 1 job '{name}' must guard on '0 3 * * *' (got: {cond[:120]})"
         )
+    for name in TIER2_WEEKLY_SUN:
+        cond = str(jobs[name]["if"])
+        assert "github.event.schedule == '0 3 * * 0'" in cond, (
+            f"Tier 2 job '{name}' must guard on '0 3 * * 0' (got: {cond[:120]})"
+        )
+    for name in DISPATCH_ONLY:
+        cond = str(jobs[name]["if"])
+        assert "workflow_dispatch" in cond, (
+            f"Dispatch-only job '{name}' must guard on workflow_dispatch (got: {cond[:120]})"
+        )
+    for name in DORMANT:
+        cond = str(jobs[name].get("if", ""))
+        assert "false" in cond.lower(), f"Dormant job '{name}' must be disabled (got: {cond})"
 
 
 def test_no_legacy_cron_string_remains_in_file():
@@ -127,8 +145,8 @@ def test_dispatch_inputs_intact_all_arms_still_reachable():
     # schedule-only job-গুলোর dispatch আর্ম এই ফাইলে থাকে না (ইচ্ছাকৃত):
     #   e2e-customer → PR/dispatch আর্ম e2e-suites.yml-এ (Phase E #1857 পর্যন্ত),
     #   deploy-doctor-fallback → ম্যানুয়াল আর্ম ops-console-এ (হেডার migration map)
-    schedule_only = {"e2e-customer", "deploy-doctor-fallback"}
-    for name in EXPECTED_MAP:
+    schedule_only = {"e2e-customer", "deploy-doctor-fallback", "vault-synth-check"}
+    for name in ALL_EXPECTED_JOBS:
         if name in schedule_only:
             continue
         cond = str(doc["jobs"][name]["if"])

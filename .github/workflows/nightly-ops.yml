@@ -289,10 +289,15 @@ jobs:
           python scripts/ci/rate_limit_endpoint_checker.py || echo "[WARN] Rate limit gaps found"
           python scripts/ci/rls_rbac_auditor.py || echo "[WARN] RLS/RBAC gaps found"
 
+      - name: Setup PNPM (SSOT from package.json)
+        uses: pnpm/action-setup@v5
+
       - name: Setup Node
         uses: actions/setup-node@v5 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install Audit Prerequisites
         run: |
@@ -654,7 +659,7 @@ jobs:
     # hard cap, so this arm has NO dispatch toggle — Tier-1 daily schedule only
     # (lightweight API probe, 5-min timeout).
     name: 🧪 Infisical RAW Vault Synthetic Check (#72)
-    if: github.event_name == 'schedule' && github.event.schedule == '0 3 * * *' # #67 Tier 1 daily
+    if: github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0') # #67 Tier 1 daily
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -729,7 +734,7 @@ jobs:
     name: 📊 Rate Limit Trend Snapshot (daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_rate_limit_trend == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
     concurrency:
       group: rate-limit-monitor
       cancel-in-progress: false
@@ -914,7 +919,7 @@ jobs:
   stale-mutex:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_stale_mutex == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
     concurrency:
       group: stale-mutex-cleanup
       cancel-in-progress: false
@@ -1056,7 +1061,7 @@ jobs:
   live-smoke:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_live_smoke == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
     concurrency:
       group: qa-live-smoke
       cancel-in-progress: false
@@ -1376,7 +1381,7 @@ jobs:
   db-retention:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_db_retention == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
     concurrency:
       group: db-retention
       cancel-in-progress: false
@@ -1738,7 +1743,7 @@ jobs:
   db-pool-health:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_db_pool_health == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
     concurrency:
       group: nightly-ops-db-pool-health
       cancel-in-progress: false
@@ -1823,7 +1828,7 @@ jobs:
 
   deploy-doctor-fallback:
     name: 🔍 Deploy Doctor (hourly fallback, 90m window)
-    if: github.event_name == 'schedule' && github.event.schedule == '0 */4 * * *' # #4085: gate re-canonicalized to match schedule cron (cron-triple coupling rule). #67 note: dormant by design — cron absent from triggers since SCHEDULE DIET v4; 26th dispatch input would exceed GitHub's 25-input limit, so on-demand wiring deferred
+    if: false # dormant by design (#67): cron absent from triggers since SCHEDULE DIET v4; 26th dispatch input would exceed GitHub's 25-input limit
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -1873,7 +1878,7 @@ jobs:
     # #67 Tier 1: daily storage tidy (was Mon weekly)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_branch_retention == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
     concurrency:
       group: branch-retention-cleanup
       cancel-in-progress: false
@@ -2071,7 +2076,7 @@ jobs:
   workflow-runs-retention:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_workflow_runs_retention == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
     name: 🧹 Workflow Runs Retention & Purge
     concurrency:
       group: nightly-ops-workflow-runs-retention

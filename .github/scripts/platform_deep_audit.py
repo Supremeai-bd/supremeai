@@ -48,6 +48,14 @@ HTTP_TIMEOUT_DEFAULT = 20
 MIRROR_TARGET_REPO = "paykaribazaronline/supremeai"
 MIRROR_ORIGIN_REPO = "SaifulHaqueNiloy/supremeai"
 
+# বাংলা (#25): Google API key-এ HTTP-referrer restriction থাকলে probe-এর referer
+# ফাঁকা (`<empty>`) হলে Google 403 "Requests from referer <empty> are blocked."
+# দেয় — সেটি আমাদের Cloudflare/BOT_PROTECTION শ্রেণিতে ভুল পড়ত। সৎ ও
+# বর্ণনামূলক referer (এই প্রোব যে রিপো থেকে চলে) পাঠানো হয়; key-নির্দিষ্ট
+# referrer-তালিকাভুক্ত হলে তবুও 403 হবে এবং সেটি অ্যাকশনেবল (owner-কে
+# allowlist/নতুন-কী দরকার) — নীরব-পাস নয়, শ্রেণি বদলায় না।
+GOOGLE_PROBE_REFERER = "https://github.com/SaifulHaqueNiloy/supremeai"
+
 # বাংলা মন্তব্য: পরিচিত AI হোস্ট — যেকোনো *_API_KEY এই হোস্ট-ম্যাপে পড়লে generic models-প্রোব পাবে
 KNOWN_AI_HOSTS = {
     "GROQ_API_KEY": "https://api.groq.com/openai/v1/models",
@@ -119,6 +127,12 @@ def classify(platform: str, check: str, status: int, body: str) -> tuple[str, st
         return "REGION_BLOCKED", ""
     if status == 403 and ("error code: 1010" in low or "cloudflare" in low or "<!doctype html" in low):
         return "BOT_PROTECTION", ""
+    if "referer" in low and "blocked" in low:
+        # বাংলা (#25): Google-র HTTP-referrer restriction — "Requests from
+        # referer <empty> are blocked." — এটি WAF/bot-block নয়, key-config
+        # (allowed-referrer তালিকা)। snapshot-remediation অনুযায়ী owner-অ্যাকশন:
+        # Google Cloud console-এ key-এর referrer-allowlist আপডেট।
+        return "BOT_PROTECTION", " (Google key-এ HTTP-referrer restriction — console-এ probe-origin allowlist করুন বা unrestricted key; provider outage নয়)"
     if status in (403, 407):
         # বাংলা মন্তব্য (#2714): plain-JSON 403-ফ্যামিলি (groq `{"error":{"message":"Forbidden"}}`-স্টাইল)
         # সাধারণত provider-পাশের WAF/bot-ব্লক (#2423/#2483 প্রমাণিত জ্ঞান) — সংজ্ঞাগত
@@ -479,7 +493,7 @@ def probe_ai_hosts(kv: dict) -> list[dict]:
     google = kv.get("GOOGLE_API_KEY", "")
     if google:
         st, body = http("GET", f"https://generativelanguage.googleapis.com/v1beta/models",
-                        {"x-goog-api-key": google})
+                        {"x-goog-api-key": google, "Referer": GOOGLE_PROBE_REFERER})
         if st == 200:
             out.append(mk("google", "models", True, "HTTP 200"))
         else:
@@ -487,7 +501,7 @@ def probe_ai_hosts(kv: dict) -> list[dict]:
             out.append(mk("google", "models", False, f"HTTP {st}: {body[:140]}", category=cat, note=note))
     if gemini:
         st, body = http("GET", f"https://generativelanguage.googleapis.com/v1beta/models",
-                        {"x-goog-api-key": gemini})
+                        {"x-goog-api-key": gemini, "Referer": GOOGLE_PROBE_REFERER})
         if st == 200:
             out.append(mk("gemini", "models", True, "HTTP 200"))
         else:
@@ -626,7 +640,13 @@ def probe_github_mirror(kv: dict) -> list[dict]:
             else:
                 out.append(mk("mirror", "target-freshness", True, f"{gap:.1f}h ব্যবধান"))
     else:
-        out.append(mk("mirror", "target-freshness", False, f"HTTP {st}", category="NETWORK"))
+        # বাংলা (#99): private mirror-target-এ probe-token-এর access না থাকলে
+        # GitHub 404 দেয় (repo নেই নয় — private + no-access)। সেটি NETWORK নয়;
+        # "DNS/টাইমআউট যাচাই করুন" remediation ভুল দিকে পাঠায়। 404 = token/
+        # scope gap (owner: mirror-target-এ প্রোব-টোকেনকে read দিন), 0 = sত্যি
+        # নেটওয়ার্ক/egress ঘটনা।
+        cat = "CONFIG_MISSING" if st == 404 else "NETWORK"
+        out.append(mk("mirror", "target-freshness", False, f"HTTP {st}", category=cat))
     return out
 
 
@@ -732,6 +752,46 @@ def severity_labels(sev: str) -> list[str]:
     return {"P0": ["P0-critical"], "P1": ["P1-high"], "P2": ["P2-medium"], "P3": ["P2-medium"]}.get(sev, ["P2-medium"])
 
 
+def close_recovered_findings(current: list[dict], run_url: str) -> list[int]:
+    """বাংলা (#46/#26): রান-কালে যেসব চেক **পাস** (ok=True) — সেগুলোর open
+    deep-audit issue রিকভারি-প্রমাণ কমেন্ট করে ক্লোজ। নাইটলি রানের পরেও
+    (যেমন upstash কোটা UTC-মধ্যরাতে রিসেট) stale issue আর জমে থাকে না।
+
+    নিয়ম (fail-honest): শুধু current-findings-এ ok=True **দেখা** চেকই ক্লোজ
+    ট্রিগার করে — skip (ok=None) বা বর্তমান রানে অনুপস্থিত চেক নয় (creds-অভাব
+    = recovery নয়, অনির্দিষ্ট statusस)।"""
+    closed = []
+    passed_fps = [f["fp"] for f in current if f.get("ok") is True]
+    if not passed_fps:
+        return closed
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    for fp in passed_fps:
+        hits = gh_search_issues(f'repo:{REPO} state:open type:issue "{FP_MARK}{fp}"')
+        for it in hits:
+            num = it.get("number")
+            if not num:
+                continue
+            body = (
+                f"✅ **Recovered** ({now}): deep-audit re-probe PASSED for this check. "
+                "Auto-closed on verified recovery.\n\n"
+                + (f"[Run log]({run_url})\n\n" if run_url else "")
+                + "_স্বয়ংক্রিয়ভাবে: `.github/scripts/platform_deep_audit.py` — verified pass-এ auto-close (stale-tracker drift বন্ধ, #46/#26)।_"
+            )
+            st, _ = http("POST", f"https://api.github.com/repos/{REPO}/issues/{num}/comments",
+                         gh_headers() | {"Content-Type": "application/json"}, {"body": body})
+            if st not in (200, 201):
+                print(f"[deep-audit] recovery-comment FAILED issue #{num} HTTP {st}")
+                continue
+            st, data = http("PATCH", f"https://api.github.com/repos/{REPO}/issues/{num}",
+                            gh_headers() | {"Content-Type": "application/json"}, {"state": "closed", "state_reason": "completed"})
+            if st == 200:
+                closed.append(num)
+                print(f"[deep-audit] recovered → closed issue #{num}")
+            else:
+                print(f"[deep-audit] close FAILED issue #{num} HTTP {st}: {str(data)[:120]}")
+    return closed
+
+
 def upsert_issues(findings: list[dict], report: str) -> list[int]:
     """বাংলা মন্তব্য: tracker update + নতুন ফেইলের জন্য deduped per-finding issue। রিটার্ন: তৈরি issue-নম্বর।"""
     created = []
@@ -808,8 +868,11 @@ def main() -> int:
         print(f"[deep-audit] dry-run — issue-তৈরি বন্ধ (ফেইল: {len(failed)})")
         return 1 if failed else 0
     created = upsert_issues(findings, report)
+    run_url = (f"https://github.com/{REPO}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+               if os.environ.get("GITHUB_RUN_ID") else "")
+    recovered = close_recovered_findings(findings, run_url)
     failed = [f for f in findings if f["ok"] is False]
-    print(f"[deep-audit] done — ফেইল {len(failed)}, নতুন issue {len(created)}")
+    print(f"[deep-audit] done — ফেইল {len(failed)}, নতুন issue {len(created)}, রিকভারি-ক্লোজ {len(recovered)}")
     return 1 if failed else 0
 
 
