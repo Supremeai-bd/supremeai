@@ -32,7 +32,8 @@ function authTenantAdmin(tenantId?: string, adminToken?: string): boolean {
   return Boolean(tenantId && adminToken && verifyTenantAdminToken(tenantId, adminToken));
 }
 
-function requireScope(args: { tenantId?: string; adminToken?: string }): { scope: string | undefined; error?: string } {
+/** Admin-scope resolution shared with slot.tools.ts (#48). */
+export function requireScope(args: { tenantId?: string; adminToken?: string }): { scope: string | undefined; error?: string } {
   if (isGlobalAdmin()) return { scope: "*" };
   if (authTenantAdmin(args.tenantId, args.adminToken)) {
     return { scope: args.tenantId! };

@@ -3,11 +3,16 @@ import { env } from "../lib/env.js";
 import type { UserRole } from "./auth.context.js";
 import { roleRank } from "./auth.context.js";
 import { isValidToolProfile, type ToolProfile } from "./tool-visibility.js";
-import { createClientRegistryStore, type PersistedClientRecord } from "./client-registry.store.js";
+import { createClientRegistryStore, type ClientRegistryStore, type PersistedClientRecord } from "./client-registry.store.js";
 
 export type ClientRole = UserRole;
 export type ClientProtocol = "streamable-http" | "sse" | "stdio" | "custom";
-export type ClientStatus = "pending" | "active" | "revoked" | "expired";
+/**
+ * #48: `suspended` is a first-class status — the fail-closed revocation state.
+ * A suspended slot loses access on the immediate-next authorization check
+ * (see policy/slot-verification.ts) without requiring a client reconnect.
+ */
+export type ClientStatus = "pending" | "active" | "suspended" | "revoked" | "expired";
 
 export interface ExternalClient {
   id: string;
@@ -28,12 +33,16 @@ export interface ExternalClient {
   expiresAt?: string;
   lastSeenAt?: string;
   status: ClientStatus;
+  /** #48: why the slot was suspended (revocation audit context). */
+  suspendedReason?: string;
+  /** #48: when the slot credential was last rotated (rotation audit). */
+  rotatedAt?: string;
 }
 
 interface StoredClient extends ExternalClient { tokenHash: string; }
 
 const clients = new Map<string, StoredClient>();
-const registryStore = createClientRegistryStore(process.env.MCP_CLIENT_REGISTRY_FILE);
+let registryStore = createClientRegistryStore(process.env.MCP_CLIENT_REGISTRY_FILE);
 for (const record of registryStore.load()) clients.set(record.id, record as StoredClient);
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
 
@@ -127,12 +136,14 @@ export function registerClient(
   protocol: ClientProtocol = "streamable-http",
   tenantId = "tenant_default",
   customId?: string,
-  toolProfile?: ToolProfile
+  toolProfile?: ToolProfile,
+  /** #48: credential prefix — "slot_" marks server-issued slot credentials. */
+  tokenPrefix = "mcp_"
 ) {
   if (toolProfile !== undefined && !isValidToolProfile(toolProfile)) {
     throw new Error("toolProfile must be 'chatgpt' or 'readonly'");
   }
-  const token = `mcp_${randomBytes(32).toString("base64url")}`;
+  const token = `${tokenPrefix}${randomBytes(32).toString("base64url")}`;
   const now = new Date().toISOString();
   let id = customId?.trim();
   if (id) {
@@ -249,16 +260,127 @@ export function revokeClient(id: string, tenantId?: string) {
 export function rotateClient(id: string, tenantId?: string) {
   const client = clients.get(id);
   assertTenantScope(client, tenantId);
-  if (!client || client.status !== "active") return undefined;
+  // #48: rotation is allowed for active AND suspended slots — rotating a
+  // suspended slot's credential is part of the incident-recovery workflow.
+  if (!client || (client.status !== "active" && client.status !== "suspended")) return undefined;
   const token = `mcp_${randomBytes(32).toString("base64url")}`;
   client.tokenHash = digest(token);
-  client.updatedAt = new Date().toISOString();
+  client.rotatedAt = new Date().toISOString();
+  client.updatedAt = client.rotatedAt;
   persist();
   return { client: sanitize(client), token };
 }
 
+// ── #48 Verified Slot Architecture: server-side slot primitives ─────────────
+// The registry IS the operational RBAC store. Slots are ordinary registry
+// clients under the `slot_` id namespace (see policy/slot-verification.ts),
+// but their lifecycle primitives are expressed here so every mutation keeps
+// the single-writer + persist invariant.
+
+/** #48: timing-safe check that a presented credential belongs to THIS client. */
+export function clientMatchesToken(id: string, token: string): boolean {
+  const client = clients.get(id);
+  if (!client || !token) return false;
+  return digestEquals(client.tokenHash, digest(token));
+}
+
+/**
+ * #48: audit-safe credential fingerprint (first 12 hex chars of the stored
+ * sha256 digest). NEVER log or transport the raw credential — the fingerprint
+ * is enough to correlate audit rows and to detect rotation mid-session.
+ */
+export function clientCredentialId(id: string): string | undefined {
+  const client = clients.get(id);
+  return client ? client.tokenHash.slice(0, 12) : undefined;
+}
+
+/** #48: suspend a slot — fail-closed revocation state (distinct from revoke). */
+export function suspendClient(id: string, reason = "suspended by administrator", tenantId?: string): ExternalClient | undefined {
+  const client = clients.get(id);
+  assertTenantScope(client, tenantId);
+  if (!client || client.status === "revoked") return undefined;
+  client.status = "suspended";
+  client.suspendedReason = reason;
+  client.updatedAt = new Date().toISOString();
+  persist();
+  return sanitize(client);
+}
+
+/** #48: reinstate a suspended slot. */
+export function reinstateClient(id: string, tenantId?: string): ExternalClient | undefined {
+  const client = clients.get(id);
+  assertTenantScope(client, tenantId);
+  if (!client || client.status !== "suspended") return undefined;
+  client.status = "active";
+  client.suspendedReason = undefined;
+  client.updatedAt = new Date().toISOString();
+  persist();
+  return sanitize(client);
+}
+
+/** #48 slot id namespace — declared here so the registry owns the prefix. */
+export const SLOT_ID_PREFIX = "slot_";
+
+/** #48: list slot records (`slot_` id namespace) for the dashboard/bridge. */
+export function listSlotClients(tenantId?: string): ExternalClient[] {
+  return listClients(tenantId, true).filter((client) => client.id.startsWith(SLOT_ID_PREFIX));
+}
+
+// ── #48: live operational-store verification (fail-closed) ──────────────────
+// The in-memory map is kept current by this process (single writer, debounced
+// flush). For network-backed stores every privileged authorization check may
+// additionally require a FRESH read of the operational store; if that read
+// fails, callers MUST deny (Invariant 5). Local (file/memory) stores are
+// authoritative by construction — no freshness window applies.
+
+let lastStoreVerificationAtMs = 0;
+
+/** True when the registry is network-backed (staleness + fail-closed apply). */
+export function isRegistryNetworkBacked(): boolean {
+  return typeof registryStore.loadAsync === "function";
+}
+
+/** Epoch ms of the last SUCCESSFUL operational-store verification (0 = never). */
+export function lastStoreVerificationAt(): number {
+  return lastStoreVerificationAtMs;
+}
+
+/**
+ * Re-read the registry from the operational store, merging by `updatedAt`
+ * (local writes win ties so an unflushed local mutation is never clobbered
+ * by a stale remote snapshot). Returns ok=false when the store could not be
+ * verified — callers must treat that as fail-closed denial.
+ */
+export async function refreshRegistryFromStore(): Promise<{ ok: boolean; source: "local" | "store"; error?: string; clients: number }> {
+  if (typeof registryStore.loadAsync !== "function") {
+    return { ok: true, source: "local", clients: clients.size };
+  }
+  try {
+    const records = await registryStore.loadAsync();
+    for (const record of records) {
+      const local = clients.get(record.id);
+      if (!local || Date.parse(local.updatedAt) <= Date.parse(record.updatedAt)) {
+        clients.set(record.id, record as StoredClient);
+      }
+    }
+    lastStoreVerificationAtMs = Date.now();
+    return { ok: true, source: "store", clients: records.length };
+  } catch (err) {
+    return { ok: false, source: "store", error: err instanceof Error ? err.message : String(err), clients: clients.size };
+  }
+}
+
 export function hasClientRegistry() { return Boolean(env.mcpAdminKey); }
 function sanitize(client: StoredClient): ExternalClient { const { tokenHash: _tokenHash, ...safe } = client; return safe; }
+
+/**
+ * Test-only: swap the registry store (Verified Slot fail-closed suite, #48).
+ * Used to simulate an unreachable operational store without network calls
+ * against real infrastructure. Never call from production paths.
+ */
+export function __setRegistryStoreForTests(store: ClientRegistryStore): void {
+  registryStore = store;
+}
 
 // #110: 6-tier scope matrix. Viewer tiers get read-only scope sets; the
 // repo tiers additionally carry repo-read scopes that the GitHub tools

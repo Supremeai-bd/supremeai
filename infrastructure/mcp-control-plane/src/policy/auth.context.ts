@@ -49,6 +49,15 @@ export interface RequestContext {
   /** Tenant type (admin vs customer). */
   tenantType?: "admin" | "customer";
   /**
+   * Verified Slot Architecture (#48): slot / registry-client identity bound
+   * to this request. Set for credential-verified sessions only.
+   */
+  slotId?: string;
+  /** True only when the slot credential verified against the live registry. */
+  slotVerified?: boolean;
+  /** Audit-safe credential fingerprint (never the raw credential). */
+  credentialId?: string;
+  /**
    * Tool Exposure Policy: the client's curated tool-surface profile. Absent
    * or undefined = full RBAC surface (no discovery filtering beyond RBAC).
    * Derived from the registry client record at every transport entry point.
