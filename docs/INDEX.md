@@ -46,6 +46,8 @@
 | `CAPABILITY_INVENTORY.md` | সক্ষমতা ইনভেন্টরি |
 | `master_docs/PRODUCTION_CERTIFICATION.md` | Production certification gate রানবুক — GO/CONDITIONAL/NO-GO শর্ত (#4167) |
 | `governance/DOCUMENTATION_MIGRATION_PLAN.md` | মাস্টার ডকুমেন্টেশন অডিট, এক্সটার্নাল মাইগ্রেশন ও রিটেনশন প্ল্যান |
+| `architecture/AGENT_PORTAL_AND_FEDERATION_BRIDGE.md` | Federation portal & bridge architecture specification |
+| `architecture/WORKSPACE_AND_AGENT_FEDERATION_FAQ.md` | Workspace & agent federation operational FAQ |
 
 ## ৪. Archive & Recovery
 
