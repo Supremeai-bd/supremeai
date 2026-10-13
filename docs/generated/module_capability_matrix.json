@@ -24940,6 +24940,13 @@
       "path": "scripts/agents/rules_breaker.py"
     },
     {
+      "capability_signals": [],
+      "classification": "dormant_or_dynamic",
+      "entrypoints": [],
+      "kind": "py",
+      "path": "scripts/agents/scope_gate.py"
+    },
+    {
       "capability_signals": [
         "browser",
         "execute",
@@ -28452,5 +28459,5 @@
   ],
   "schema_version": "2.0",
   "source": "main",
-  "source_file_count": 3232
+  "source_file_count": 3233
 }
