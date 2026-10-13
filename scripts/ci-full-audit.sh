@@ -61,7 +61,8 @@ check_required_files() {
     "pnpm-lock.yaml"
     "backend/pyproject.toml"
     "backend/poetry.lock"
-    ".github/workflows/ci.yml"
+    ".github/workflows/main.yml"
+    ".github/workflows/pr.yml"
   )
 
   for file in "${files[@]}"; do

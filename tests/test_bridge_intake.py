@@ -70,9 +70,9 @@ def test_validate_task_id(tid, ok):
 # ---------------------------------------------------------------------------
 
 def test_classify_workflow_paths_go_admin_review():
-    ok, admin = bi.classify_paths([".github/workflows/ci.yml", "backend/api/routes/x.py"])
+    ok, admin = bi.classify_paths([".github/workflows/pr.yml", "backend/api/routes/x.py"])
     assert ok == ["backend/api/routes/x.py"]
-    assert admin == [".github/workflows/ci.yml"]
+    assert admin == [".github/workflows/pr.yml"]
 
 
 def test_classify_ledger_and_master_docs_admin_review():

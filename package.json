@@ -71,18 +71,5 @@
     "dotenv": "^17.4.2",
     "ioredis": "^5.11.1",
     "rollup": "^4.63.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "next": ">=16.3.6",
-      "axios": ">=1.20.0",
-      "joi": ">=18.2.9",
-      "@grpc/grpc-js": ">=1.13.6",
-      "source-map-js": ">=1.2.2",
-      "js-yaml": ">=4.3.0",
-      "dompurify": ">=3.4.9",
-      "deepmerge-ts": ">=8.0.2",
-      "brace-expansion@>=4.0.0 <5.0.12": ">=5.0.12"
-    }
   }
 }

@@ -39,9 +39,7 @@ class BenchmarkAgent:
         try:
             model_router_cls, db_module = _resolve_dependencies()
         except ImportError as exc:
-            raise ImportError(
-                "BenchmarkAgent requires ModelRouter and Supabase client."
-            ) from exc
+            raise ImportError("BenchmarkAgent requires ModelRouter and Supabase client.") from exc
         self.model_router = model_router_cls()
         self.db_client = db_module.client
         logger.info("Initialized BenchmarkAgent")

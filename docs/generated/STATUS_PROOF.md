@@ -9,7 +9,7 @@ runtime/live প্রমাণ Actions run summary-তে (ইচ্ছাক�
 ## Machine-verified claims (STATUS.md `STATUS-PROOF:CHECK` block)
 
 - ✅ `frontend_e2e_specs=4` → tree reality: **4**
-- ✅ `frontend_test_files=116` → tree reality: **116**
+- ✅ `frontend_test_files=122` → tree reality: **122**
 - ✅ `missions_tests=62` → tree reality: **62**
 - ✅ `registered_routes=855` → tree reality: **855**
 
