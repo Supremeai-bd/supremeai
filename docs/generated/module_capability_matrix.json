@@ -24832,6 +24832,13 @@
       "path": "scripts/agents/heartbeat_ping.py"
     },
     {
+      "capability_signals": [],
+      "classification": "dormant_or_dynamic",
+      "entrypoints": [],
+      "kind": "py",
+      "path": "scripts/agents/instruction_builder.py"
+    },
+    {
       "capability_signals": [
         "capability",
         "execute"
@@ -28445,5 +28452,5 @@
   ],
   "schema_version": "2.0",
   "source": "main",
-  "source_file_count": 3231
+  "source_file_count": 3232
 }
