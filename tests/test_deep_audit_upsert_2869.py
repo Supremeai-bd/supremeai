@@ -62,7 +62,7 @@ def test_tracker_creation_branch_survives_str_response(capsys):
 
 
 def test_error_status_still_logged_with_raw_body(capsys):
-    """HTTP-ব্যর্থতায় (যেমন 403 rate-limit str) raw বডি-সহ লগ; কোনো ক্র্য্যাশ নেই।"""
+    """HTTP-ব্যর্থতায় (যেমন 403 rate-limit str) raw বডি-সহ লগ; কোনো ক্র্যাশ নেই।"""
     with patch.object(pda, "http", return_value=(403, "rate limit exceeded")), \
          patch.object(pda, "find_tracker", return_value=2483), \
          patch.object(pda, "existing_issue_for", return_value=None):
@@ -71,3 +71,77 @@ def test_error_status_still_logged_with_raw_body(capsys):
     out = capsys.readouterr().out
     assert "issue create FAILED HTTP 403" in out
     assert "rate limit exceeded" in out
+
+
+# ── #46/#26: recovery auto-close চুক্তি ────────────────────────────────────────
+PASSED_UPSTASH = {
+    "ok": True,
+    "platform": "upstash",
+    "check": "ping[primary]",
+    "category": None,
+    "severity": None,
+    "fp": "feedface4600",
+    "detail": "HTTP 200 PONG",
+    "remediation": "",
+    "note": None,
+}
+SKIPPED_UPSTASH = {**PASSED_UPSTASH, "ok": None, "detail": "no REST creds in vault — account absent"}
+FAILED_UPSTASH = {**PASSED_UPSTASH, "ok": False, "detail": "HTTP 403"}
+
+
+def _close_calls_factory(comment_status: int, close_status: int):
+    """method → status; calls-তালিকায় (method, url, positional-args, kwargs) রেকর্ড।"""
+    calls: list[tuple] = []
+
+    def fake(method, url, *a, **kw):
+        calls.append((method, url, a, kw))
+        if method == "POST":
+            return comment_status, '{"id": 1}'
+        return close_status, '{"number": 46}'
+
+    return fake, calls
+
+
+def test_verified_pass_closes_open_issue():
+    """ok=True (verified pass) → recovery-comment + PATCH close; closed-তালিকায় number।"""
+    fake, calls = _close_calls_factory(201, 200)
+    with patch.object(pda, "http", side_effect=fake), \
+         patch.object(pda, "gh_search_issues", return_value=[{"number": 46}]):
+        closed = pda.close_recovered_findings([PASSED_UPSTASH], "https://github.example/actions/runs/1")
+    assert closed == [46]
+    assert calls[0][0] == "POST" and "/comments" in calls[0][1]
+    assert calls[1][0] == "PATCH"
+    # ৪র্থ positional arg = body (http(method, url, headers, body))
+    assert calls[1][2][1] == {"state": "closed", "state_reason": "completed"}
+
+
+def test_skipped_or_failed_never_triggers_close():
+    """ok=None (skip) ও ok=False — কোনো search/close কলই নয় (fail-honest)।
+
+    বাংলা: creds-অভাবে check skip হলে সেটা recovery নয়; পুরনো issue খোলা থাকে।
+    """
+    with patch.object(pda, "gh_search_issues") as search_mock, \
+         patch.object(pda, "http") as http_mock:
+        closed = pda.close_recovered_findings([SKIPPED_UPSTASH, FAILED_UPSTASH], "")
+    assert closed == []
+    search_mock.assert_not_called()
+    http_mock.assert_not_called()
+
+
+def test_empty_findings_no_close():
+    """কোনো ok=True নেই → early-exit-এ পূর্বে early-return (কোনো কল নয়)।"""
+    with patch.object(pda, "gh_search_issues") as search_mock, \
+         patch.object(pda, "http") as http_mock:
+        assert pda.close_recovered_findings([], "") == []
+    search_mock.assert_not_called()
+    http_mock.assert_not_called()
+
+
+def test_comment_failure_blocks_close():
+    """recovery-comment ব্যর্থ (403) → close PATCH কখনো চেষ্টা হয় না (আংশিক-প্রমাণ নয়)।"""
+    fake, calls = _close_calls_factory(403, 200)
+    with patch.object(pda, "http", side_effect=fake), \
+         patch.object(pda, "gh_search_issues", return_value=[{"number": 46}]):
+        closed = pda.close_recovered_findings([PASSED_UPSTASH], "")
+    assert closed == []
+    assert [c[0] for c in calls] == ["POST"], "শুধু comment-চেষ্টা; PATCH নয়"
