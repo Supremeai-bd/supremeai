@@ -23372,6 +23372,7 @@
     },
     {
       "capability_signals": [
+        "execute",
         "mcp"
       ],
       "classification": "adapter",
@@ -23957,6 +23958,7 @@
     },
     {
       "capability_signals": [
+        "execute",
         "health",
         "register"
       ],
