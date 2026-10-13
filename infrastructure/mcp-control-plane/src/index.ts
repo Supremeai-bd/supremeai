@@ -512,7 +512,16 @@ function safeEqual(left: string, right: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export type UserRole = "admin" | "agent" | "viewer" | null;
+// #110: wire-role union mirrors the policy 6-tier ladder (+ null = anonymous).
+// বাংলা মন্তব্য: লোকাল ইউনিয়নটি এখন পলিসি স্তরের ৬-টিয়ার ল্যাডারের প্রতিফলন।
+export type UserRole =
+  | "supremeadmin"
+  | "admin"
+  | "agent"
+  | "repo_viewer"
+  | "restricted_viewer"
+  | "viewer"
+  | null;
 
 function resolveRole(req: IncomingMessage): UserRole {
   let token = "";
