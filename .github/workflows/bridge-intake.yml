@@ -6,7 +6,13 @@ name: Bridge Intake (public work orders → private gates)
 
 on:
   schedule:
-    - cron: "13,43 * * * *" # বাংলা: ৩০-মিনিট ছন্দ, off-peak স্লট (:13/:43) — GitHub top-of-hour congestion এড়ানো (issue #52: */30 = :00/:30 সর্বাধিক ব্যস্ত, ৩ স্লট নীরব)
+    # DIET: 30-min cadence (48 runs/day) cut to hourly (24 runs/day) — #67/#2209
+    # evidence: each run pays checkout+python+vault-fetch (~1-2 min) with zero
+    # orders in most slots → ~50-100 min/day wasted. Hourly halves that; max
+    # intake latency rises 30->60 min (external agents tolerate; manual dispatch +
+    # schedule-watchdog self-heal already exist). Off-peak :23 (vs prior :13/:43)
+    # to stay clear of top-of-hour GitHub queue congestion.
+    - cron: "23 * * * *"
   workflow_dispatch:
     inputs:
       mode:

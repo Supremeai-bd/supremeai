@@ -241,6 +241,11 @@ jobs:
           python scripts/ci/reconcile_secrets_registry.py --strict
           # Loop 4: Slot Registry Drift Guard (docs/master_docs/AGENT_SLOT_REGISTRY.yaml SSOT)
           python scripts/agents/check_slot_registry_drift.py --quiet
+          # Loop 5: Capability Inventory Drift Guard (Rule 4: Evidence Before Adoption) —
+          # #4043: a new LLM provider / integration adapter must register in
+          # docs/architecture/inventory.yaml. Migrated here from the now-deleted
+          # code-quality.yml so it enforces on EVERY PR (was dispatch-only = dead guard).
+          python scripts/agents/inventory_lint.py --strict
           # ROOT-CAUSE FIX (#2518): Env-var drift guard — was dead code (script existed
           # but zero workflows called it). Now wired as a blocking gate so new env vars
           # added to code without .env.example documentation fail CI.
@@ -285,7 +290,9 @@ jobs:
     needs: [context, system-gates]
     if: needs.context.outputs.skip != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # 25 -> 30: vitest (merged from the old frontend-tests job) runs behind the
+    # frontend build on the same runner.
+    timeout-minutes: 30
     steps:
       - name: Checkout Code
         uses: actions/checkout@v5 # v7.0.1
@@ -429,6 +436,22 @@ jobs:
           test -d frontend/dist || { echo "::error::frontend/dist নেই — build ব্যর্থ"; exit 1; }
           du -sh frontend/dist
 
+      # ---------------------------------------------------------------------------
+      # 4a. Frontend unit tests (moved in from the deleted `frontend-tests` job)
+      # ---------------------------------------------------------------------------
+      # Same gating + same setup-frontend composite already initialized above (node 24 +
+      # pnpm install-deps:true). Folding it here avoids a SECOND checkout + node/pnpm
+      # bootstrap (~2-3 min/runner) per frontend PR.
+      - name: Frontend unit tests (vitest)
+        if: steps.paths.outputs.frontend == 'true'
+        working-directory: ./frontend
+        run: |
+          set -euo pipefail
+          # SSOT: `pnpm test` -> `vitest run` (frontend/package.json). Identical suite that
+          # the standalone job ran; just serialized behind the build this job already does.
+          pnpm test -- --reporter=dot 2>&1 | tee /tmp/vitest_output.txt
+          echo "vitest summary:" && tail -n 15 /tmp/vitest_output.txt
+
   # ---------------------------------------------------------------------------
   # 4b. #2893 — Cross-Tier Full Backend Suite (second gate)
   # ---------------------------------------------------------------------------
@@ -503,58 +526,11 @@ jobs:
             --baseline full-suite-baseline.json
 
   # ---------------------------------------------------------------------------
-  # 4b. ৩-স্তর টেস্টিং প্ল্যান Phase 4 — frontend vitest job
-  # ---------------------------------------------------------------------------
-  # বাংলা মন্তব্য (3-tier plan Phase 4): frontend/-এর ~১২০টি vitest ফাইল আগে
-  # কোনো CI-তেই চলত না (docs/master_docs/OPS-01 এর 'frontend-tests' দাবি stale
-  # ছিল) — সাইলেন্ট রিগ্রেশন ঝুঁকি। এই job path-gated: frontend/ পরিবর্তনে চলে।
-  frontend-tests:
-    name: "🧪 Frontend Unit Tests (vitest)"
-    needs: [context, system-gates]
-    if: needs.context.outputs.skip != 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v5 # v7.0.1
-        with:
-          fetch-depth: 0
-
-      # merge-base path detection — tests job-এর একই প্যাটার্ন (docs-only PR দ্রুত)
-      - name: Detect changed paths (merge-base diff)
-        id: paths
-        run: |
-          set -euo pipefail
-          git fetch origin main --quiet || true
-          BASE="$(git merge-base origin/main HEAD)"
-          CHANGED="$(git diff --name-only "$BASE"...HEAD || git diff --name-only "$BASE")"
-          frontend=false
-          if echo "$CHANGED" | grep -qE '^frontend/'; then frontend=true; fi
-          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
-          echo "✅ changed-path verdict: frontend=$frontend"
-
-      - name: Setup Frontend (node + pnpm, cached)
-        if: steps.paths.outputs.frontend == 'true'
-        uses: ./.github/actions/setup-frontend
-        with:
-          working-directory: ./frontend
-
-      - name: Run vitest suite
-        if: steps.paths.outputs.frontend == 'true'
-        working-directory: ./frontend
-        run: |
-          set -euo pipefail
-          # 'pnpm test' → 'vitest run' (frontend/package.json SSOT)
-          pnpm test -- --reporter=dot 2>&1 | tee /tmp/vitest_output.txt
-          # সারসংক্ষেপ প্রমাণ PR-evidence-তে ব্যবহারযোগ্য
-          echo "vitest summary:" && tail -n 15 /tmp/vitest_output.txt
-
-  # ---------------------------------------------------------------------------
   # 5. Unified PR Decision Contract
   # ---------------------------------------------------------------------------
   contract:
     name: "🚦 Unified PR Gate (Security, Scope & Policy Orchestrator)"
-    needs: [context, system-gates, tests, full-backend-suite, frontend-tests]
+    needs: [context, system-gates, tests, full-backend-suite]
     if: always() && needs.context.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -564,12 +540,12 @@ jobs:
           GATES_RESULT: ${{ needs.system-gates.result }}
           TESTS_RESULT: ${{ needs.tests.result }}
           FULL_SUITE_RESULT: ${{ needs.full-backend-suite.result }}
-          FRONTEND_TESTS_RESULT: ${{ needs.frontend-tests.result }}
         run: |
           echo "System Gates Result: $GATES_RESULT"
-          echo "Tests Result: $TESTS_RESULT"
+          echo "Tests Result: $TESTS_RESULT (now includes vitest — frontend-tests merged in)"
+          # vitest is now folded into the `tests` job (frontend-tests deleted).
           echo "Full Backend Suite Result: $FULL_SUITE_RESULT"
-          echo "Frontend Tests Result: $FRONTEND_TESTS_RESULT"
+
           # বাংলা মন্তব্য (#2893): full suite 'skipped' বৈধ (docs/infra-only PR);
           # 'failure' হলে cross-tier gate ব্লক করবে — stale assertion লাল main-এ যাবে না।
           if [[ ! "$FULL_SUITE_RESULT" =~ ^(success|skipped)$ ]]; then
@@ -577,14 +553,6 @@ jobs:
             # Roadmap v2.0 Phase 0.4 (#4139): name the failing job + where to look.
             echo "   Fix: open the 'Full Backend Suite (cross-tier gate #2893)' check log;"
             echo "   its failure lines carry the failing test/module. Re-run after fixing."
-            exit 1
-          fi
-          # বাংলা মন্তব্য (3-tier plan Phase 4): vitest 'skipped' বৈধ (frontend-only-নয় PR);
-          # failure হলে ব্লক — সাইলেন্ট ফ্রন্টএন্ড রিগ্রেশন আর অদৃশ্য থাকবে না।
-          if [[ ! "$FRONTEND_TESTS_RESULT" =~ ^(success|skipped)$ ]]; then
-            echo "❌ PR Gate Decision: BLOCK — frontend vitest suite failed."
-            echo "   Fix: open the 'Frontend Unit Tests (vitest)' check log; run 'pnpm test'"
-            echo "   locally in frontend/ to reproduce, then push the fix."
             exit 1
           fi
           if [[ "$GATES_RESULT" == "success" && "$TESTS_RESULT" == "success" ]]; then
