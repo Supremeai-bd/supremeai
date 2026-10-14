@@ -66,6 +66,11 @@ class BranchNamingGuardTests(unittest.TestCase):
         self.assert_branch_allowed("develop")
         self.assert_branch_allowed("main")
 
+    def test_vanguard_and_jules_branches_pass(self):
+        self.assert_branch_allowed("vanguard/fix-rate-limiting-sensitive-endpoints-8629471102908534819")
+        self.assert_branch_allowed("jules/fix-something-12345")
+        self.assert_branch_allowed("jules-status-proof-reconcile-9251497703969536758")
+
     # --- junk names must stay blocked ---
     def test_junk_branches_still_blocked(self):
         self.assert_branch_blocked("rogue-branch")
