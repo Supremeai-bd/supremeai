@@ -295,7 +295,7 @@ at the bottom — the generator preserves them verbatim on every regeneration.
 | `ci/merge_gate.py` | Merge Gate (Sequential Landing Controller) — Pipeline 2 of the 3-Pipeline Law. |
 | `ci/merge_policy.py` | Deterministic policy loading, failure classification, and decision logging. |
 | `ci/migration_safety_diff.py` | Delegation shim for migration_safety_diff. |
-| `ci/mirror_issue_to_open.py` | Auto-Mirror CI Failures & Tasks to supremeai-open |
+| `ci/mirror_issue_to_open.py` | scripts/ci/mirror_issue_to_open.py — Auto-Mirror CI Failures & Tasks to supremeai-open |
 | `ci/mirror_parent_linker.py` | Mirror-claim issue → parent has-pr linker (#2894). |
 | `ci/mission_passk.py` | Mission-suite pass^k harness — the first honest reliability scoreboard in CI. |
 | `ci/mutation_lease.py` | Mutation Lease — controlled remote mutation guard (#4200 §6/§7, #4207 distributed). |
