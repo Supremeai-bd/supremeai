@@ -48,6 +48,12 @@
 | `governance/DOCUMENTATION_MIGRATION_PLAN.md` | মাস্টার ডকুমেন্টেশন অডিট, এক্সটার্নাল মাইগ্রেশন ও রিটেনশন প্ল্যান |
 | `architecture/AGENT_PORTAL_AND_FEDERATION_BRIDGE.md` | Federation portal & bridge architecture specification |
 | `architecture/WORKSPACE_AND_AGENT_FEDERATION_FAQ.md` | Workspace & agent federation operational FAQ |
+| `AGENT_LOOP_SPEC.md` | Autonomous agent continuous loop 8-step specification |
+| `AUDIT_2026-10-15-duplicate-sweep.md` | Audit and deduplication sweep log |
+| `AUDIT_2026-10-15.md` | Daily architecture & bridge audit |
+| `CONSUMERS.md` | Consumer onboarding and gateway integration guide |
+| `CONTRIBUTING.md` | Contributor guide and zero-credential bridge lane |
+| `OPS_ACTIONS_QUOTA_RUNBOOK.md` | Actions quota diet and optimization runbook |
 
 ## ৪. Archive & Recovery
 
