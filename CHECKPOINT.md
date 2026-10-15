@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-15 16:34 UTC
+- **Date:** 2026-10-15 16:41 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,13 @@
   - (see git log for details)
 
 ## Files Changed
+  - `scripts/ci/mirror_issue_to_open.py`
   - `infrastructure/mcp-control-plane/src/lib/http.ts`
+  - `CHECKPOINT.md`
+  - `infrastructure/mcp-control-plane/test_auto_register.ts`
   - `docs/archive/lessons_2026-10.md`
   - `infrastructure/mcp-control-plane/src/tools/bridge.tools.ts`
-  - `scripts/ci/schedule_watchdog.py`
-  - `CHECKPOINT.md`
-  - `.github/workflows/bridge-intake.yml`
-  - `.github/workflows/archive-mirror.yml`
-  - `infrastructure/mcp-control-plane/test_auto_register.ts`
-  - `.github/workflows/continuous-agent-loop.yml`
+  - `.github/workflows/mirror-ci-failures-to-open.yml`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
