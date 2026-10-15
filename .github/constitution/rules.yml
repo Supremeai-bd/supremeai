@@ -595,6 +595,12 @@ docs_garbage_policy:
     - "docs/SECRETS_OPERATIONS.md"
     - "docs/SKIPPED_TESTS.md"
     - "docs/CAPABILITY_INVENTORY.md"
+    - "docs/AGENT_LOOP_SPEC.md"
+    - "docs/AUDIT_2026-10-15-duplicate-sweep.md"
+    - "docs/AUDIT_2026-10-15.md"
+    - "docs/CONSUMERS.md"
+    - "docs/CONTRIBUTING.md"
+    - "docs/OPS_ACTIONS_QUOTA_RUNBOOK.md"
 
 predecessor_policy:
   group_dependencies:
