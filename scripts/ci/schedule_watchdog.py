@@ -29,6 +29,9 @@ import os
 import sys
 import urllib.request
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 GRACE_MIN = 30          # cron মিসড ঘোষণার অতিরিক্ত সহনশীলতা
 SELF_PATH_SUFFIX = "schedule-watchdog.yml"
 API = "https://api.github.com"
