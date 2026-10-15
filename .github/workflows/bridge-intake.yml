@@ -70,11 +70,11 @@ jobs:
           # (db44c51 server-side bridge-lane pattern-এর workflow-সাইড প্রতিরূপ।)
           import base64, json, os, subprocess, tempfile, time, urllib.request
 
-          def api(url, payload=None, tok=None):
+          def api(url, payload=None, tok=None, method=None):
               data = json.dumps(payload).encode() if payload is not None else None
               h = {"Content-Type": "application/json", "Accept": "application/vnd.github+json", "User-Agent": "bridge-intake"}
               if tok: h["Authorization"] = f"Bearer {tok}"
-              req = urllib.request.Request(url, data=data, headers=h)
+              req = urllib.request.Request(url, data=data, headers=h, method=method)
               with urllib.request.urlopen(req, timeout=45) as r: return json.load(r)
 
           def b64u(b): return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
@@ -105,7 +105,7 @@ jobs:
                   inst = next((i for i in insts if (i.get("account") or {}).get("login") == "Supremeai-bd"), None)
                   if not inst:
                       raise RuntimeError("Supremeai-bd installation not found")
-                  tok = api(f"https://api.github.com/app/installations/{inst['id']}/access_tokens", tok=jwt)["token"]
+                  tok = api(f"https://api.github.com/app/installations/{inst['id']}/access_tokens", tok=jwt, method="POST")["token"]
                   src = "app-installation"
               except Exception as e:
                   print(f"[warn] app-token mint failed ({e}) — falling back to vault PAT")
