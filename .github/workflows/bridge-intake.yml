@@ -13,6 +13,8 @@ on:
     # schedule-watchdog self-heal already exist). Off-peak :23 (vs prior :13/:43)
     # to stay clear of top-of-hour GitHub queue congestion.
     - cron: "23 * * * *"
+  repository_dispatch:
+    types: [bridge_order_queued]
   workflow_dispatch:
     inputs:
       mode:
