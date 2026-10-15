@@ -2,19 +2,13 @@
 /**
  * SupremeAI MCP Control Tower — Main Entry Point
  * Supports both stdio (local: Claude Desktop, Cursor) and HTTP Streamable (remote)
+ *
+ * Environment loading (#109): ALL environment config — including the single
+ * repo-root `.env` load — lives in `lib/env.ts` (SSOT). This file must not
+ * parse `process.env` directly; every knob is a validated getter on `env`.
  */
 
-import "dotenv/config";
-import * as dotenv from "dotenv";
-import * as path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __currentFile = fileURLToPath(import.meta.url);
-const __currentDir = path.dirname(__currentFile);
-dotenv.config({ path: path.resolve(__currentDir, "../../../.env") });
-dotenv.config({ path: "F:/supremeai/.env" });
-
-import { timingSafeEqual, createHmac, randomUUID } from "node:crypto";
+import { timingSafeEqual, randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -36,6 +30,9 @@ import {
 } from "./policy/slot-verification.js";
 import { attachDiscoveryFilter, isValidToolProfile } from "./policy/tool-visibility.js";
 import { verifyApprovalLink } from "./policy/approvals/signing.js";
+import { hasWebhookSignature } from "./lib/webhook_signature.js";
+import { registerBridgeIntake } from "./events/bridge_intake.js";
+import { validateRuntimeKnobs } from "./lib/env.js";
 import { pullSecretsIntoProcessEnv } from "./adapters/infisical/index.js";
 import { MemorySubAdapter } from "./adapters/memory/index.js";
 import {
@@ -80,12 +77,9 @@ const mcpRateBuckets = new Map<string, number[]>();
 const toolIdentityRateBuckets = new Map<string, number[]>();
 
 function mcpRateLimitConfig(): { max: number; windowMs: number } {
-  const max = Number(process.env["MCP_RATE_LIMIT_MAX"] ?? 60);
-  const windowMs = Number(process.env["MCP_RATE_LIMIT_WINDOW_MS"] ?? 60_000);
-  return {
-    max: Number.isFinite(max) && max > 0 ? Math.floor(max) : 60,
-    windowMs: Number.isFinite(windowMs) && windowMs > 0 ? Math.floor(windowMs) : 60_000,
-  };
+  // #109: reads through the validated env SSOT — a garbage value throws
+  // (validateRuntimeKnobs at boot) instead of silently becoming NaN/60.
+  return { max: env.runtime.mcpRateLimitMax, windowMs: env.runtime.mcpRateLimitWindowMs };
 }
 
 /**
@@ -139,35 +133,8 @@ function consumeMcpRateLimit(key: string): { allowed: boolean; retryAfterMs: num
 //     MCP_TOOL_RATE_LIMIT_WINDOW_MS (defaults: 20 / 60 000 ms), keyed by
 //     `<tenant>|<principal>||<tool>`. The per-IP limiter above only bounds the
 //     transport; this bounds actual executions per caller per tool.
-const TOOL_PAYLOAD_MAX_BYTES_DEFAULT = 262_144;
-const TOOL_RESULT_MAX_BYTES_DEFAULT = 524_288;
-const TOOL_TIMEOUT_MS_DEFAULT = 30_000;
-const TOOL_RATE_LIMIT_MAX_DEFAULT = 20;
-const TOOL_RATE_LIMIT_WINDOW_MS_DEFAULT = 60_000;
-
-function positiveIntEnv(name: string, fallback: number): number {
-  const value = Number(process.env[name] ?? fallback);
-  return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
-}
-
-function toolPayloadMaxBytes(): number {
-  return positiveIntEnv("MCP_TOOL_PAYLOAD_MAX_BYTES", TOOL_PAYLOAD_MAX_BYTES_DEFAULT);
-}
-
-function toolResultMaxBytes(): number {
-  return positiveIntEnv("MCP_TOOL_RESULT_MAX_BYTES", TOOL_RESULT_MAX_BYTES_DEFAULT);
-}
-
-function toolTimeoutMs(): number {
-  return positiveIntEnv("MCP_TOOL_TIMEOUT_MS", TOOL_TIMEOUT_MS_DEFAULT);
-}
-
-function toolRateLimitConfig(): { max: number; windowMs: number } {
-  return {
-    max: positiveIntEnv("MCP_TOOL_RATE_LIMIT_MAX", TOOL_RATE_LIMIT_MAX_DEFAULT),
-    windowMs: positiveIntEnv("MCP_TOOL_RATE_LIMIT_WINDOW_MS", TOOL_RATE_LIMIT_WINDOW_MS_DEFAULT),
-  };
-}
+// #686 knob defaults now live in lib/env.ts (`env.runtime.*`, #109) —
+// validated positiveInt getters; garbage values fail loudly at boot.
 
 /**
  * Rate-limit identity for the per-(identity, tool) limiter: the tenant plus the
@@ -184,7 +151,7 @@ function toolRateLimitIdentity(): string {
 }
 
 function consumeToolRateLimit(toolName: string): { allowed: boolean; retryAfterMs: number } {
-  const { max, windowMs } = toolRateLimitConfig();
+  const { max, windowMs } = { max: env.runtime.toolRateLimitMax, windowMs: env.runtime.toolRateLimitWindowMs };
   return consumeSlidingWindow(toolIdentityRateBuckets, `${toolRateLimitIdentity()}||${toolName}`, max, windowMs);
 }
 
@@ -204,7 +171,7 @@ function toolPayloadError(toolName: string, toolArgs: unknown): string | null {
   } catch {
     return `Invalid arguments for tool '${toolName}': arguments are not JSON-serializable.`;
   }
-  const maxBytes = toolPayloadMaxBytes();
+  const maxBytes = env.runtime.toolPayloadMaxBytes;
   const byteLength = Buffer.byteLength(serialized, "utf8");
   if (byteLength > maxBytes) {
     return `Payload too large for tool '${toolName}': ${byteLength} bytes exceeds the ${maxBytes}-byte limit (MCP_TOOL_PAYLOAD_MAX_BYTES).`;
@@ -236,7 +203,7 @@ function truncateToolResult(toolName: string, result: unknown): unknown {
   }
   if (serialized === undefined) return result;
   const originalBytes = Buffer.byteLength(serialized, "utf8");
-  const maxBytes = toolResultMaxBytes();
+  const maxBytes = env.runtime.toolResultMaxBytes;
   if (originalBytes <= maxBytes) return result;
   const clipped = Buffer.from(serialized, "utf8").subarray(0, maxBytes).toString("utf8");
   const truncatedBytes = originalBytes - maxBytes;
@@ -304,7 +271,7 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
             isError: true,
             content: [{
               type: "text",
-              text: `Rate limit exceeded for tool '${sanitizedName}' (max ${toolRateLimitConfig().max} per ${toolRateLimitConfig().windowMs}ms per identity). Retry in ~${Math.ceil(toolRate.retryAfterMs / 1000)}s.`,
+              text: `Rate limit exceeded for tool '${sanitizedName}' (max ${env.runtime.toolRateLimitMax} per ${env.runtime.toolRateLimitWindowMs}ms per identity). Retry in ~${Math.ceil(toolRate.retryAfterMs / 1000)}s.`,
             }],
             metadata: { rateLimited: true, tool: sanitizedName, retryAfterMs: toolRate.retryAfterMs },
           };
@@ -319,7 +286,7 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
         // 4) Hard execution timeout (#686 item 3). The handler promise cannot
         // be cancelled, but the caller is released with a structured isError
         // denial as soon as the budget is spent.
-        const timeoutBudgetMs = toolTimeoutMs();
+        const timeoutBudgetMs = env.runtime.toolTimeoutMs;
         let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
         let result: unknown;
         try {
@@ -617,12 +584,8 @@ function resolveCaller(req: IncomingMessage): CallerContext {
   return { role, client, tenantId, isGlobalAdmin };
 }
 
-function hasWebhookSignature(req: IncomingMessage, body: string, secret: string, header: string): boolean {
-  const signature = req.headers[header]?.toString() ?? "";
-  if (!secret || !signature.startsWith("sha256=")) return false;
-  const expected = `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
-  return safeEqual(signature, expected);
-}
+// #69: signature verification extracted to src/lib/webhook_signature.ts for
+// unit testing — behavior unchanged (fail-closed, raw-body HMAC, constant-time).
 
 async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise<void> {
   // Dynamically import transports
@@ -662,12 +625,12 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
     slot?: { slotId: string; credentialId?: string };
   }
   const httpSessions = new Map<string, HttpSessionEntry>();
-  const HTTP_SESSION_IDLE_MS_DEFAULT = 3_600_000; // reap sessions idle > 1h
 
   /** Drop idle /mcp sessions so long-lived processes cannot leak transports. */
   function reapIdleHttpSessions(): void {
-    const idleMs = Number(process.env["MCP_HTTP_SESSION_IDLE_MS"] ?? HTTP_SESSION_IDLE_MS_DEFAULT);
-    if (!Number.isFinite(idleMs) || idleMs <= 0 || httpSessions.size === 0) return;
+    // #109: idle interval through the validated env SSOT (0 = never reap).
+    const idleMs = env.runtime.httpSessionIdleMs;
+    if (idleMs <= 0 || httpSessions.size === 0) return;
     const cutoff = Date.now() - idleMs;
     for (const entry of httpSessions.values()) {
       if (entry.lastActivityMs >= cutoff) continue;
@@ -1248,8 +1211,9 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
     if (pathname === "/sse" && req.method === "GET") {
       // Bounded session table: each SSE session pins a transport + socket.
       // Without a cap, reconnect storms exhaust memory on small instances.
-      const maxSseSessions = Number(process.env["MCP_MAX_SSE_SESSIONS"] ?? 100);
-      if (Number.isFinite(maxSseSessions) && sseSessions.size >= maxSseSessions) {
+      // #109: cap through the validated env SSOT (0 = refuse all sessions).
+      const maxSseSessions = env.runtime.maxSseSessions;
+      if (sseSessions.size >= maxSseSessions) {
         writeJson(res, 503, { error: "Too many concurrent SSE sessions", activeSessions: sseSessions.size });
         return;
       }
@@ -1496,8 +1460,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
 
         // Bounded session table (mirror of the SSE cap) + idle reaping.
         reapIdleHttpSessions();
-        const maxHttpSessions = Number(process.env["MCP_MAX_HTTP_SESSIONS"] ?? 100);
-        if (Number.isFinite(maxHttpSessions) && httpSessions.size >= maxHttpSessions) {
+        const maxHttpSessions = env.runtime.maxHttpSessions;
+        if (httpSessions.size >= maxHttpSessions) {
           writeJson(res, 503, { jsonrpc: "2.0", error: { code: -32000, message: "Too many concurrent MCP sessions", activeSessions: httpSessions.size }, id: null });
           return;
         }
@@ -1746,7 +1710,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           const isGithub = url === "/webhooks/github";
           const secret = isGithub ? env.githubWebhookSecret : env.cloudflareWebhookSecret;
           const signatureHeader = isGithub ? "x-hub-signature-256" : "x-cloudflare-signature";
-          if (env.nodeEnv === "production" && !hasWebhookSignature(req, body, secret, signatureHeader)) {
+          if (env.nodeEnv === "production" && !hasWebhookSignature(req.headers[signatureHeader]?.toString(), body, secret ?? "")) {
             res.writeHead(401, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: "Invalid webhook signature" }));
             return;
@@ -1757,7 +1721,9 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
 
           if (url === "/webhooks/github") {
             const eventName = req.headers["x-github-event"] as string || "unknown";
-            const normalized = globalEventNormalizer.normalizeGitHubEvent(eventName, payload);
+            // #69: delivery id rides the normalized event for idempotency.
+            const deliveryId = (req.headers["x-github-delivery"] as string) || undefined;
+            const normalized = globalEventNormalizer.normalizeGitHubEvent(eventName, payload, deliveryId);
             await globalEventGateway.dispatch(normalized);
           } else if (url === "/webhooks/cloudflare") {
             const normalized = globalEventNormalizer.normalizeCloudflareEvent(payload);
@@ -1834,7 +1800,10 @@ async function startStdioServer(server: McpServer): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const mode = process.env["MCP_TRANSPORT"] ?? "http";
+  // #109: single SSOT read for transport + fail-fast validation of every
+  // numeric knob — a garbage value aborts boot here, loudly.
+  validateRuntimeKnobs();
+  const mode = env.runtime.transport;
 
   // #3297 auto-presence: TCP-fallback account-গুলোর জন্য ioredis ctor
   // presence-মডিউলে রেজিস্টার করা (Upstash REST হলে দরকারই পড়ে না)।
@@ -1849,7 +1818,7 @@ async function main(): Promise<void> {
   // Non-blocking start — tools degrade gracefully while it spawns.
   // Disable with SUPREMEAI_DISABLE_MEMORY_SIDECAR=1.
   const memoryAdapter = new MemorySubAdapter();
-  if (process.env["SUPREMEAI_DISABLE_MEMORY_SIDECAR"] !== "1") {
+  if (!env.disableMemorySidecar) {
     memoryAdapter.start().catch((err) =>
       console.error("[Memory Sidecar] Background start failed:", err),
     );
@@ -1861,7 +1830,7 @@ async function main(): Promise<void> {
     process.on("SIGTERM", () => { shutdown(); process.exit(0); });
   }
   // For local dev / debugging only: block until the sidecar is ready.
-  const logReady = process.env["SUPREMEAI_LOG_MEMORY_READY"];
+  const logReady = env.logMemoryReady;
   if (logReady && logReady !== "0" && logReady !== "false") {
     try {
       const tools = await memoryAdapter.listTools();
@@ -1885,7 +1854,18 @@ async function main(): Promise<void> {
     // #2596: টাস্ক-কিউ রেজিস্ট্রিও একই সারিতে হাইড্রেট — tower restart-এ
     // চালু লিজ হারাবে না; সাথে প্রথম সিঙ্ক এগিয়ে ছোড়া (non-blocking)।
     await initTaskRegistry();
+
+    // #66 taxonomy-drift guard: boot-এ resolved GitHub repo slug ছাপা হয়
+    // (zero-secret) — যাতে stale default বা ভুল GITHUB_REPO ভ্যালু সাইলেন্ট
+    // 404 হয়ে টুল-কলে ধরা না পড়ে, বরং স্টার্টআপ লগেই চোখে পড়ে।
+    console.error(`[MCP] GitHub adapter resolved repo → ${env.github.repo} (override via GITHUB_REPO)`);
     void refreshFromGitHub();
+
+    // #69: event-driven bridge intake — webhook → workflow_dispatch wake-up.
+    // Idempotent, fail-closed (no-op unless BRIDGE_INTAKE_ENABLED=true) and
+    // replays the durable outbox on boot. Must be armed BEFORE the server
+    // accepts webhook traffic.
+    registerBridgeIntake();
 
     const server = await createMcpServer(memoryAdapter);
 
