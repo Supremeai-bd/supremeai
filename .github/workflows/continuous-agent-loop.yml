@@ -21,7 +21,7 @@ name: Continuous Agent Loop
 
 # #3031: serialize pipeline-failure-register scans — prevent concurrent-create race
 concurrency:
-  group: pipeline-failure-register
+  group: pipeline-failure-register-v2
   cancel-in-progress: false
 
 # Workflow Diet (#67, 2026-10-09): trigger removed per issue spec — on-demand workflow_dispatch only.
