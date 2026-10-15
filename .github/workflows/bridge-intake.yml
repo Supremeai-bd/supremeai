@@ -31,12 +31,9 @@ permissions:
   contents: read # script নিজে BRIDGE_TOKEN দিয়ে push/PR করে — github.token লেখার অধিকার লাগে না
 
 concurrency:
-  group: bridge-intake-v2
-  # E4: cancel-in-progress:false — intake প্রতি অর্ডারে (clone→apply→push→
-  # intake issue→PR) চলে; মাঝপথে cancel হলে `bridge-land/<task-id>` branch push
-  # হয়ে যায় কিন্তু dedup-marker issue তৈরি হয় না → পরের run-এ push
-  # non-fast-forward → ভ্যালিড অর্ডার ভুলভাবে `bridge:rejected` (E4)।
-  # পুরনো রান শেষ হউক, নতুন রান queue-তে অপেক্ষা করুক।
+  # ২০২৬-১০-১৫ (#169): v2 group-এ zombie queued runs জমে concurrency queue চিরতরে
+  # আটকে ছিল — group rename = একমাত্র operational escape (PR #130 প্যাটার্ন)।
+  group: bridge-intake-v3
   cancel-in-progress: false
 
 jobs:
