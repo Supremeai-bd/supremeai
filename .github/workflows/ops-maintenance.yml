@@ -186,6 +186,7 @@ on:
 # security-events:write for constitution SARIF — each verbatim from its source).
 permissions:
   contents: read
+  issues: write
 
 # QUEUE STORM FIX: workflow-level concurrency. Nightly jobs are idempotent but
 # long-running; cancel-in-progress: false ensures a 2nd dispatch does NOT kill
@@ -2110,3 +2111,72 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/ci/purge_stale_workflow_runs.py --min-age-days 2 --max-deletions 100
+
+
+  # ---------------------------------------------------------------------------
+  # Watchdog & Cron Health (from schedule-watchdog.yml)
+  # ---------------------------------------------------------------------------
+  watchdog:
+    name: "⏰ Schedule Watchdog (cron self-heal)"
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pyyaml
+        run: pip install pyyaml
+      - name: Watchdog sweep (re-arm dead cron + compensate missed slots)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: python scripts/ci/schedule_watchdog.py
+
+  # ---------------------------------------------------------------------------
+  # Issue Template Conformance & Ops (from issue-ops.yml)
+  # ---------------------------------------------------------------------------
+  template-validate:
+    name: "📝 Issue Template Conformance"
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Dependencies
+        run: pip install pyyaml
+      - name: Validate Issue Template
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: python .github/scripts/constitution/template_gate.py --issue "${{ github.event.inputs.issue_number || 0 }}"
+
+  # ---------------------------------------------------------------------------
+  # Dependency Health Scan (from dependency-health-check.yml)
+  # ---------------------------------------------------------------------------
+  dependency-scan:
+    name: "🩺 Dependency Health Scan"
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pipx install poetry
+      - name: Run Dependency Health Checker
+        run: python scripts/security/check_dependencies.py

@@ -28,6 +28,14 @@ on:
           - both
           - intake
           - sync
+      issue_number:
+        description: 'Core issue number to mirror'
+        required: false
+        type: string
+      run_id:
+        description: 'Workflow run ID to mirror'
+        required: false
+        type: string
 
 permissions:
   contents: read # script নিজে BRIDGE_TOKEN দিয়ে push/PR করে — github.token লেখার অধিকার লাগে না
@@ -137,3 +145,19 @@ jobs:
           # E1/E3: একটি invocation — bridge_intake.py main() নিজে intake→sync
           # চেইন করে ও rc প্রোপাগেট করে, mode-ভ্যালিডেশনও নিজেই করে (shell if নয়)।
           python scripts/bridge/bridge_intake.py "$MODE"
+
+
+      - name: Process Failure Mirroring (from mirror-ci-failures-to-open)
+        if: always() && (github.event.inputs.issue_number != '' || github.event.inputs.run_id != '')
+        env:
+          OPEN_SYNC_PAT: ${{ secrets.OPEN_SYNC_PAT || secrets.SELF_HEAL_PAT || github.token }}
+          CORE_REPO: ${{ github.repository }}
+          MIRROR_ISSUE_NUM: ${{ github.event.inputs.issue_number }}
+          MIRROR_RUN_ID: ${{ github.event.inputs.run_id }}
+        run: |
+          if [ -n "$MIRROR_ISSUE_NUM" ]; then
+            python scripts/ci/mirror_issue_to_open.py --issue-number "$MIRROR_ISSUE_NUM"
+          fi
+          if [ -n "$MIRROR_RUN_ID" ]; then
+            python scripts/ci/mirror_issue_to_open.py --run-id "$MIRROR_RUN_ID"
+          fi

@@ -12,6 +12,13 @@
 name: Deploy Train
 
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/generated/**"
+      - "docs/audit_reports/**"
+      - "**.md"
+      - "LICENSE"
   workflow_call:
     inputs:
       deploy-scraper:
@@ -1004,3 +1011,63 @@ jobs:
           git tag -a "${TAG}" -m "Deploy Train release ${TAG} (${GITHUB_SHA})"
           git push "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "refs/tags/${TAG}"
           echo "✅ Release tagged: ${TAG}"
+
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Station 6: Cold Archive Mirror (Integrated from archive-mirror.yml)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  archive-mirror:
+    name: "🪞 Cold Archive Mirror"
+    needs: [station-5-release]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout live main
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          lfs: true
+
+      - name: Vault mirror-token fetch
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          def api(url, payload=None, tok=None):
+              data = json.dumps(payload).encode() if payload is not None else None
+              h = {"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "archive-mirror"}
+              if tok: h["Authorization"] = f"Bearer {tok}"
+              req = urllib.request.Request(url, data=data, headers=h)
+              with urllib.request.urlopen(req, timeout=45) as r: return json.load(r)
+          res = api("https://app.infisical.com/api/v1/auth/universal-auth/login",
+                    {"clientId": os.environ["INFISICAL_CLIENT_ID"], "clientSecret": os.environ["INFISICAL_CLIENT_SECRET"]})
+          secs = api(f"https://app.infisical.com/api/v3/secrets/raw?workspaceId={os.environ['INFISICAL_PROJECT_ID']}&environment=prod&recursive=true",
+                     tok=res["accessToken"])
+          kv = {s["secretKey"].upper(): s.get("secretValue") or "" for s in secs.get("secrets", [])}
+          tok = kv.get("GITHUB_PAT_PAYKARIBAZARONLINE", "")
+          if not tok:
+              print("[warn] vault-এ GITHUB_PAT_PAYKARIBAZARONLINE শূন্য — mirror skipped")
+              exit(0)
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write(f"MIRROR_TOKEN<<EOF\n{tok}\nEOF\n")
+          print("[ok] vault থেকে mirror-token লোড")
+          PY
+
+      - name: Fast-forward mirror push
+        env:
+          MIRROR_TOKEN: ${{ env.MIRROR_TOKEN }}
+        run: |
+          if [ -z "${MIRROR_TOKEN:-}" ]; then
+            echo "No mirror token — skipping mirror push"
+            exit 0
+          fi
+          git remote add archive "https://x-access-token:${MIRROR_TOKEN}@github.com/paykaribazaronline/supremeai-archive.git" || true
+          git fetch -q archive main archive/main || true
+          git remote set-url origin "https://x-access-token:${MIRROR_TOKEN}@github.com/paykaribazaronline/supremeai.git"
+          git lfs fetch --all origin || true
+          git push archive main:archive/main || echo "::warning::Could not push to cold archive"

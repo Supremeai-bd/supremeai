@@ -19,8 +19,12 @@ RULES = REPO_ROOT / ".github" / "constitution" / "rules.yml"  # policy SSOT
 # 2026-10-10: issue-template-guard.yml retired (owner purge 07ee5bb8; the job was
 # already consolidated into issue-ops.yml by #3517/#3645) — wiring tests now point
 # at the surviving consolidated workflow.
-WORKFLOW = REPO_ROOT / ".github" / "workflows" / "issue-ops.yml"
-PR_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "pr.yml"
+WORKFLOW = (REPO_ROOT / ".github" / "workflows" / "ops-maintenance.yml"
+            if (REPO_ROOT / ".github" / "workflows" / "ops-maintenance.yml").is_file()
+            else REPO_ROOT / ".github" / "workflows" / "issue-ops.yml")
+PR_WORKFLOW = (REPO_ROOT / ".github" / "workflows" / "pr-pipeline.yml"
+               if (REPO_ROOT / ".github" / "workflows" / "pr-pipeline.yml").is_file()
+               else REPO_ROOT / ".github" / "workflows" / "pr.yml")
 
 AFTER = "2026-10-01T20:30:00Z"  # enforce_from (20:00Z)-এর পরের সময়
 BEFORE = "2026-10-01T19:30:00Z"  # enforce_from-এর আগের সময় (grandfathered)
