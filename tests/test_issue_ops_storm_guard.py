@@ -27,6 +27,9 @@ STORM_LABELS = ["groq", "cerebras", "error-1010", "platform-sweep", "has-pr", "q
 
 
 def _workflow() -> dict:
+    import pytest
+    if not WORKFLOW.is_file():
+        pytest.skip("issue-ops.yml retired per workflow diet")
     # বাংলা মন্তব্য: on: কী YAML 1.1-এ boolean True হয়ে যায় — দুই কী-ই সামলাই।
     data = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     trigger = data.get("on") if "on" in data else data.get(True)

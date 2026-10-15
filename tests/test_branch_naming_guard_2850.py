@@ -12,7 +12,9 @@ import re
 import unittest
 from pathlib import Path
 
-PR_YML = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "pr.yml"
+PR_YML = (Path(__file__).resolve().parents[1] / ".github" / "workflows" / "pr-pipeline.yml"
+          if (Path(__file__).resolve().parents[1] / ".github" / "workflows" / "pr-pipeline.yml").is_file()
+          else Path(__file__).resolve().parents[1] / ".github" / "workflows" / "pr.yml")
 
 
 def load_valid_pattern() -> str:

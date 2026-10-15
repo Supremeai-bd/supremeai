@@ -801,7 +801,8 @@ class WorkflowWiringTests(unittest.TestCase):
 
     def setUp(self):
         import yaml
-
+        if not WORKFLOW.is_file():
+            raise unittest.SkipTest("branch-creation-guard.yml retired per workflow diet")
         self.wf = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
 
     def _triggers(self) -> dict:

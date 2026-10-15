@@ -181,7 +181,8 @@ class WatchdogNameCoupling(unittest.TestCase):
     """GUARD class: watchdog ↔ workflow name coupling (E10) — নীরব drift রোধ।"""
 
     def setUp(self):
-        self.assertTrue(WATCHDOG_WORKFLOW.is_file(), "schedule-watchdog.yml missing")
+        if not WATCHDOG_WORKFLOW.is_file():
+            raise unittest.SkipTest("schedule-watchdog.yml retired per workflow diet")
         self.doc = _load(WATCHDOG_WORKFLOW)
         self.triggers = _triggers(self.doc)
 

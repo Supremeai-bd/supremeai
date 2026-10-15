@@ -158,6 +158,8 @@ class DeployTrainStationTests(unittest.TestCase):
 class SmartDeployRetirementTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        if not SMART_DEPLOY.is_file():
+            raise unittest.SkipTest("smart-deploy.yml retired")
         cls.graph = yaml.safe_load(SMART_DEPLOY.read_text(encoding="utf-8"))
         cls.jobs = cls.graph["jobs"]
         on = cls.graph.get("on", cls.graph.get(True, {}))
