@@ -55,6 +55,55 @@ PRIMARY_GROUPS: tuple[str, ...] = (
     "infrastructure",  # ডিপ্লয়, secrets-infra, CDN, এক্সটার্নাল সার্ভিস ইন্টিগ্রেশন
 )
 
+# ── Master Federation Group Taxonomy Registry (#180) ─────────────────────────
+# ৪টি প্রধান ক্যাটাগরিতে মোট ২৭টি ক্যানোনিকাল ফেডারেশন গ্রুপ:
+FEDERATION_REPO_GROUPS: dict[str, str] = {
+    "agents": "Supremeai-bd/supremeai-agents",
+    "browser": "Supremeai-bd/supremeai-browser",
+    "command": "Supremeai-bd/supremeai-command",
+    "skills": "Supremeai-bd/supremeai-skills",
+    "vscode": "Supremeai-bd/supremeai-vscode",
+    "api": "Supremeai-bd/supremeai-api",
+    "studio": "Supremeai-bd/supremeai-studio",
+    "core": "Supremeai-bd/supremeai-core",
+    "security": "Supremeai-bd/supremeai-security",
+    "infra": "Supremeai-bd/supremeai-infra",
+    "memory": "Supremeai-bd/supremeai-memory",
+    "gateway": "Supremeai-bd/supremeai-open",
+}
+
+AI_INTELLIGENCE_GROUPS: tuple[str, ...] = (
+    "prompts",
+    "evals",
+    "llm-routing",
+    "datasets",
+)
+
+SYSTEM_RESILIENCE_GROUPS: tuple[str, ...] = (
+    "reliability",
+    "perf",
+    "cost",
+    "telemetry",
+    "quality",
+)
+
+OPERATIONS_GOVERNANCE_GROUPS: tuple[str, ...] = (
+    "governance",
+    "bridge",
+    "release",
+    "docs",
+    "billing",
+    "triage",
+)
+
+# All 27 unique Master Federation Groups
+MASTER_FEDERATION_GROUPS: tuple[str, ...] = tuple(sorted(set(
+    list(FEDERATION_REPO_GROUPS.keys())
+    + list(AI_INTELLIGENCE_GROUPS)
+    + list(SYSTEM_RESILIENCE_GROUPS)
+    + list(OPERATIONS_GOVERNANCE_GROUPS)
+)))
+
 GROUP_LABEL_PREFIX = "group:"
 DEFAULT_REPO = "SaifulHaqueNiloy/supremeai"
 
@@ -74,13 +123,15 @@ KNOWN_LEGACY_GROUPS: tuple[str, ...] = (
 
 @dataclass
 class GroupValidation:
-    """#3088 §2 — primary-group validation-ফলাফল (observe-only rollout)।"""
+    """#3088 §2 / #180 — primary-group validation-ফলাফল (observe-only rollout)।"""
 
     group: str
     is_canonical: bool = False
     is_legacy: bool = False
     known: bool = False
     message: str = ""
+    target_repo: str | None = None
+    category: str = "unknown"
 
     @property
     def advisory_only(self) -> bool:
@@ -93,21 +144,51 @@ def normalize_group(name: str) -> str:
     return (name or "").strip().lower().removeprefix(GROUP_LABEL_PREFIX).strip()
 
 
+def resolve_group_repository(group: str) -> str | None:
+    """Returns the targeted federation repository for a given group, or None if cross-cutting."""
+    g = normalize_group(group)
+    return FEDERATION_REPO_GROUPS.get(g)
+
+
+def group_category(group: str) -> str:
+    """Returns the functional category for a given group."""
+    g = normalize_group(group)
+    if g in FEDERATION_REPO_GROUPS:
+        return "repository-direct"
+    if g in AI_INTELLIGENCE_GROUPS:
+        return "ai-intelligence"
+    if g in SYSTEM_RESILIENCE_GROUPS:
+        return "system-resilience"
+    if g in OPERATIONS_GOVERNANCE_GROUPS:
+        return "operations-governance"
+    return "unknown"
+
+
 def validate_primary_group(name: str) -> GroupValidation:
     """Primary group canonical/legacy/unknown শ্রেণীবিভাগ (observe-only)।
 
-    # বাংলা মন্তব্য (#3088 §9.11): enforcement ধাপে যাওয়ার আগ পর্যন্ত unknown
+    # বাংলা মন্তব্য (#3088 §9.11 / #180): enforcement ধাপে যাওয়ার আগ পর্যন্ত unknown
     group = advisory warning, creation আটকাবে না — বর্তমান চালু ফ্লো (step-N
     group ইত্যাদি) ভাঙা নিষিদ্ধ (Engineering constraint: existing preserved)।
     """
     g = normalize_group(name)
     if not g:
         return GroupValidation(group=g, message="primary group খালি — spec অনুযায়ী বাধ্যতামূলক (advisory এখন)")
-    if g in PRIMARY_GROUPS:
-        return GroupValidation(group=g, is_canonical=True, known=True, message=f"canonical primary group: {g}")
+    if g in MASTER_FEDERATION_GROUPS or g in PRIMARY_GROUPS:
+        repo = resolve_group_repository(g)
+        cat = group_category(g)
+        repo_note = f" -> target repo: {repo}" if repo else ""
+        return GroupValidation(
+            group=g,
+            is_canonical=True,
+            known=True,
+            target_repo=repo,
+            category=cat,
+            message=f"canonical primary group: {g} [{cat}]{repo_note}"
+        )
     if g in KNOWN_LEGACY_GROUPS or g.startswith("step-"):
         return GroupValidation(group=g, is_legacy=True, known=True, message=f"legacy/operational group: {g} (advisory)")
-    return GroupValidation(group=g, known=False, message=f"unknown group: {g} — canonical ৮-এর একটি বিবেচনা করুন (advisory)")
+    return GroupValidation(group=g, known=False, message=f"unknown group: {g} — canonical মাস্টার তালিকার একটি বিবেচনা করুন (advisory)")
 
 
 def primary_group_of_labels(labels: list[str] | None) -> str | None:
