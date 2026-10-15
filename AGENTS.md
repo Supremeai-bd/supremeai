@@ -26,8 +26,8 @@ Every agent runs the same 8-step cycle (Roadmap v2.0 Phase 1, #4143). The dispat
 | 3. Inspect state | Queue, open PRs, active claims, token freshness | `continuous_agent_loop.py` · `issue_queue_manager.py audit` |
 | 4. Claim | Atomic claim (session marker; no claim, no work) | Session branch / `scripts/ci/atomic_claim.sh` |
 | 5. Work | Smallest safe change inside declared scope | Standard Task Contract (`continuous_agent_loop.build_task_contract()`) |
-| 6. Verify | 3-tier: reflection → boot smoke → tests | `continuous_agent_loop.py --verify-only` |
-| 7. Record | PR with full template + Test Evidence (+ meaningful decision note) | `continuous_agent_loop.py --auto-pr` / REST PR create |
+| 6. Verify | 3-tier contract (process phases): reflection → boot smoke → tests · evidence tiers SSOT: AGENT_LOOP_SPEC §4 | `continuous_agent_loop.py --verify-only` |
+| 7. Record | PR with full template + Test Evidence (+ meaningful decision note; `Closes #N` must also ride in the **commit message** — squash auto-close doctrine, AGENT_RULES U8) | `continuous_agent_loop.py --auto-pr` / REST PR create |
 | 8. Return | Report outcome **with fresh-board re-check** (#4177), release claim, loop back | `continuous_agent_loop.py` + `gh pr list` re-poll |
 
 Hard boundaries during the loop: gates outrank agent preference (§1.4) · no competing/duplicate PRs for issues with an active open PR (AGENT_RULES.md U4) · scoped credentials only (`credential_manager` — master vault keys never reach children) · single-vs-multi execution follows Rule B (`role_registry.plan_task_execution()` — advisory).
@@ -112,6 +112,55 @@ Admin work budget is **≤ 0.01%**. Agents (local, cloud, web AI, or external bo
      git push https://x-access-token:<TOKEN>@github.com/Supremeai-bd/supremeai.git <branch>
      ```
   3. Create the PR via GitHub REST API. Internal CI Guardian evaluates and merges autonomously.
+
+### 2.2 Loop-Granted Authority — No Permission-Asking (U10)
+
+The loop **is** the permission. Agents never emit "should I start / বললেই পরের batch শুরু করছি / shall I proceed?" style output. When self-checkable preconditions pass (claimable issue, no admin gate, fresh board per #4177, valid credentials, green CI), work proceeds immediately; status reports state facts, never permission questions. Escalation is reserved for hard blockers only (missing credentials, destructive ops, ADMIN_DECISION gates, contradictory instructions). Canonical rule: [`AGENT_RULES.md`](./AGENT_RULES.md) **U10**.
+
+## 2.3 Public-First SSOT Doctrine (Public Boundary Contract, #155)
+
+`supremeai-open` is the **public SSOT for everything provable in public**; the private monorepo `Supremeai-bd/supremeai` is the SSOT for everything that needs private context. Landed public work flows into the private monorepo automatically through the bridge pipeline (`landing.yml`) — never by hand.
+
+### 2.3.1 What MUST NOT live in `supremeai-open` (private monorepo exclusives)
+
+These require private monorepo context, private credentials, or live databases and can never be executed here:
+
+1. **Proprietary Core Intelligence & Backend** (`backend/`, `supremeai-core`): real orchestrator decision logic, internal state machines, private runtime services.
+2. **Production Secrets & Vault Access:** Infisical master keys, live Supabase service keys, production Redis tokens, live cloud infrastructure credentials.
+3. **Live Database Migrations & Direct DB Tests:** schema migrations against production/staging databases.
+4. **Production Deployment Pipelines:** live Render / Cloudflare / Vercel production deployments that require proprietary backend context (e.g. `../../backend`).
+5. **Full Internal Monorepo Orchestration:** workspaces requiring private packages or proprietary core dependencies.
+
+This boundary is machine-enforced, not advisory: `scripts/ci/boundary_sanitization_guard.py` fail-closes the PR on proprietary paths or content (the `pipeline.yml` guard job), and gitleaks fail-closes on credentials.
+
+### 2.3.2 Shift-Left De-duplication (what private CI never re-runs)
+
+Because the free public runtime proves these first, they are **eliminated from private workflows** (quota is a shared 2,000 min/month Free-org budget — see `docs/OPS_ACTIONS_QUOTA_RUNBOOK.md`): branch naming · issue reference · anti-duplicate PR · full Python matrix (3.10–3.13; private pins 3.11) · MCP Control Plane TS typecheck & test suites · gitleaks full-history scan · boundary sanitization audit · docs/link/markdown checks · lint & formatting passes · dependency vulnerability scans · AI PR evaluation. Private CI keeps ONLY what requires private context: backend integration smoke, production deployment, bridge intake validation, and scheduled ops maintenance.
+
+### 2.3.3 Lightweight & Reusable Components (cross-federation SSOT)
+
+The diet is built from small, zero-bloat building blocks reused identically across repositories:
+
+1. **Zero-checkout fast metadata guards (~2–3s):** branch naming (pure event-context regex), issue reference (title/body regex), anti-duplicate PR (single `gh pr list` JSON query) — all zero clone, drop-in reusable across any federation repo.
+2. **Zero-dependency Python validation scripts (`scripts/ci/`):** `boundary_sanitization_guard.py` is 100% standard library, zero network, ~1s — the same file polices public and private trees.
+3. **Reusable composite actions (`.github/actions/`):**
+   - `setup-node-tower`: Node 24 setup + caching + `npm ci` + `tsc` in one action (cuts ~40 lines of YAML per workflow).
+   - `gitleaks-scan`: standardized zero-config secret scanner.
+4. **Path-filtered fast paths (sparse execution):** docs-only diffs (`docs/**`, `*.md`) skip the test matrix and Tower build and pass in <5 seconds; secrets scanning still runs (documentation can leak too).
+5. **Unified workflows with `workflow_call`-ready steps:** `pipeline.yml` (validation + cron) and `landing.yml` (auto-merge + bridge dispatch, dispatch structurally ordered after a successful merge in the same run).
+
+### 2.3.4 Workflow Diet (topology)
+
+| Surface | Before | After |
+|---|---|---|
+| `supremeai-open` | 5 workflows | **2**: `pipeline.yml` (guards → Python 3.10–3.13 matrix + secrets-scan + mcp-tower + agent-loop cron), `landing.yml` (auto-merge → bridge dispatch) |
+| `supremeai` (private) | 18 workflows | **4**: `pr-pipeline`, `deploy-train`, `bridge-intake`, `ops-maintenance` (private-side change) |
+
+Split/merge justification per AGENT_RULES P4: the public split existed for fork-security isolation; consolidation is safe because untrusted validation (guards/matrix) and trusted landing (merge/dispatch) remain in **separate workflows with separate permission sets** (`contents: read` vs `contents/pull-requests/issues: write`).
+
+### 2.3.5 Zero-Duplicate Mandate (U4, hard rule)
+
+Because landed changes on `supremeai-open` are automatically ingested into `Supremeai-bd/supremeai` via this consolidated pipeline, contributors and agents **must never create duplicate manual PRs on the private repository** for work handled at the public boundary. One issue = at most one open PR, anywhere in the federation.
 
 ## 3. New Agent: Required Reading Path
 

@@ -31,6 +31,9 @@ scripts/agents/continuous_agent_loop.py   # 8-step autonomous agent loop (Python
 infrastructure/mcp-control-plane/         # Source of the MCP Control Tower (TypeScript)
 docs/                                     # Documentation (this file lives here)
 .github/ISSUE_TEMPLATE/                   # Task envelope + Bridge Work Order templates
+.github/actions/                          # Reusable composite actions (setup-node-tower, gitleaks-scan — #155)
+.github/workflows/pipeline.yml            # Unified validation: guards -> Python 3.10-3.13 matrix + Tower TS + secret scan + agent-loop cron
+.github/workflows/landing.yml             # Unified autonomous landing: auto-merge -> bridge dispatch in the same run
 AGENTS.md, AGENT_RULES.md                 # Governance contracts (see §1)
 README.md                                 # What this repo is and is not
 ```
@@ -60,7 +63,7 @@ The repository ships a self-contained agent loop (`scripts/agents/continuous_age
 Python 3 + PyYAML — the only dependency: `pip install pyyaml`):
 
 ```bash
-# Dry-run the full 3-tier verification only (safe, no side effects):
+# Dry-run all verification tiers (safe, no side effects; tier count SSOT: docs/AGENT_LOOP_SPEC.md §4):
 python3 scripts/agents/continuous_agent_loop.py --verify-only
 
 # Claim a specific issue and emit the task contract:
@@ -73,28 +76,32 @@ python3 scripts/agents/continuous_agent_loop.py --pick-next --max-tasks 1
 python3 scripts/agents/continuous_agent_loop.py --loop --max-tasks 5
 ```
 
-Useful flags (regenerated from `--help` after #63/#67 — canonical details live in `docs/AGENT_LOOP_SPEC.md` §4):
-
-| Flag | Meaning |
-|------|---------|
-| `--verify-only` | Run 3-tier verification and exit (use this first, always); final stdout line is the `CONTRACT_VERSION` parity marker (#67) |
-| `--issue N` | Claim and resolve a specific issue number |
-| `--pick-next` | Auto-select the highest-priority **claimable** open issue (`status:unclaimed` only) |
-| `--loop --max-tasks N` | Sequentially process up to N tasks |
-| `--task-envelope` | **Canonical** (#63): emit the unified deterministic Task Envelope JSON and exit |
-| `--group NAME` | Canonical group override from the `VALID_GROUPS` registry (fail-closed: `agent-orchestration`, `mcp-tower`, `core-engine`, `schemas-contracts`, `infra-ops`) |
-| `--allow-adhoc` | Allow adhoc task execution without `--issue` (offline testing only) |
-| `--force` | Bypass dirty workspace isolation gate (not recommended) |
-| `--role NAME` | Force a specialist role — one of: `coder`, `auditor`, `ci-fixer`, `security-breaker`, `browser-qa`, `planner`, `watcher` |
-| `--emit-prompt` / `--emit-contract` | **DEPRECATED (#63)** — shims that emit the unified envelope with a deprecation warning; use `--task-envelope` |
-| `--auto-pr` | Submit the PR via the `gh` CLI when tests pass |
-| `--touching-files a,b` | Declare the exact scope (required by the task envelope) |
-| `--task-type`, `--priority` | Task envelope metadata (defaults: `IMPLEMENT`, `P2`) |
+Flag semantics are **SSOT'd in `docs/AGENT_LOOP_SPEC.md` §4** — do not copy
+the flag table here; the Loop-Contract Parity Guard (`scripts/agents/check_loop_contract_parity.py`)
+fails any drift between this file, the SPEC, and the code.
 
 **Graceful degradation:** the loop does not require the `gh` CLI. If it is not
 installed, every step that would call it degrades to a clear message
 (`executable not found: gh`) with the manual URL to open instead — the loop
 still completes and exits 0. The same applies to other missing optional tooling.
+
+### Mirror issues are born non-claimable
+
+Issues mirrored from the private monorepo (their body declares a
+non-public target repository) carry the `mirror:private` label and never
+carry `status:unclaimed`: no public lane can act on private-only paths,
+so mirrors are not claimable work on this board. The claimable scan
+(`--pick-next` and the cron board pre-check) excludes `mirror:private`
+by construction (#122). Future mirroring pipelines must label mirrors at
+creation time.
+
+### Closing spec issues — the delivered-by convention
+
+When a landing fulfills a spec/backlog issue, close the issue at landing
+time (or in the next triage sweep) with a `delivered-by` comment citing
+the landing commit/PR and the artifact path that proves it. Do not leave
+delivered specs open with the claimable label — stale delivered work
+invites duplicate implementations (#123).
 
 ## 5. The MCP Tower lane (fully zero-credential)
 
@@ -119,9 +126,12 @@ no GitHub account, no fork, no token:
 
 > Health check first: `system_summary` and `system_health` are open to everyone.
 
-## 6. The 3-tier verification contract
+## 6. The 3-tier verification contract (process phases)
 
-Every change — one line or one subsystem — passes all three tiers:
+Every change — one line or one subsystem — passes all three tiers.
+(The 3 tiers here are the *process phases* below; the automated *evidence
+tiers* executed by `--verify-only` are SSOT'd in `docs/AGENT_LOOP_SPEC.md` §4
+and parity-enforced by `scripts/agents/check_loop_contract_parity.py`.)
 
 1. **Reflection diff** — re-read your own diff before running anything. Does it
    do only what the issue declares?
@@ -150,7 +160,32 @@ The bridge intake is **fail-closed** — it rejects rather than sanitizes:
 - **External agents never write to `main`.** Landing authority belongs to the
   constitutional gates only.
 
-## 8. Branch, commit, and naming conventions
+## 8. Public boundary vs. private monorepo (Public-First SSOT, #155)
+
+This repository is the **public SSOT**; `Supremeai-bd/supremeai` is the private
+SSOT for everything that needs private context. Landed public work is
+**automatically bridged** into the private monorepo by `landing.yml` — you
+never move it by hand.
+
+**Never in this repo (private exclusives):** proprietary core/backend logic,
+production secrets & vault keys, live database migrations, production
+deployment pipelines needing private context, and anything requiring private
+packages. The boundary is machine-enforced: `boundary_sanitization_guard.py`
+(pipeline.yml guard job) fail-closes on proprietary paths/content, and gitleaks
+fail-closes on credentials.
+
+**Zero-duplicate rule (AGENT_RULES.md U4):** because your merged public PR
+flows into the private repo automatically, **never open a duplicate manual PR
+on `Supremeai-bd/supremeai`** for work handled here. One issue = at most one
+open PR, anywhere in the federation.
+
+**Shift-left benefit:** branch naming, issue reference, anti-duplicate PR,
+the full Python 3.10–3.13 matrix, Tower TypeScript checks, secret scanning,
+boundary audits, docs/link checks and lint all run **here, for free** — so the
+private pipeline runs only what needs private context (integration smoke,
+deployment, bridge intake, ops maintenance). See `docs/OPS_ACTIONS_QUOTA_RUNBOOK.md`.
+
+## 9. Branch, commit, and naming conventions
 
 - Task branches: `bridge/<task-id>` where task id = `bridge-YYYYMMDD-<slug>`
   (e.g. `bridge-20261015-contributing-guide`).
@@ -158,7 +193,7 @@ The bridge intake is **fail-closed** — it rejects rather than sanitizes:
 - Commits: conventional style — `fix(scope): …`, `feat(scope): …`, `docs(scope): …`.
 - One logical change per branch. The smallest safe change wins.
 
-## 9. Submission paths (pick by role)
+## 10. Submission paths (pick by role)
 
 | Path | Who | How |
 |------|-----|-----|
@@ -169,7 +204,7 @@ The bridge intake is **fail-closed** — it rejects rather than sanitizes:
 Work orders use the [Bridge Work Order template](../.github/ISSUE_TEMPLATE/bridge-work-order.yml);
 task envelopes use the [Agent Task template](../.github/ISSUE_TEMPLATE/agent-task.yml).
 
-## 10. Troubleshooting (field-tested)
+## 11. Troubleshooting (field-tested)
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
@@ -180,7 +215,7 @@ task envelopes use the [Agent Task template](../.github/ISSUE_TEMPLATE/agent-tas
 | `bridge_work_queue` 403 with rate-limit text | Tower egress IP throttled by GitHub | Transient — retry shortly; the queue itself needs no credentials |
 | Loop crashes on missing tooling | Should not happen since the graceful-degradation fix | Update to latest `main`; if it still crashes, that is a bug — file it with the traceback |
 
-## 11. Question, don't guess
+## 12. Question, don't guess
 
 If the issue is ambiguous, say so in your PR/work order and state the assumption
 you coded against. Reviewers would rather correct a stated assumption than

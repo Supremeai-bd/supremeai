@@ -6,7 +6,7 @@
 > `AGENT_RULES.md` = operational policy contracts.
 > Task templates, system gates and domain documents provide execution detail; they must not silently contradict these rules.
 >
-> Governance source: Issue `#3095` in the private codebase (`paykaribazaronline/supremeai`)
+> Governance source: [Issue #3095](https://github.com/Supremeai-bd/supremeai/issues/3095)
 
 ---
 
@@ -33,6 +33,8 @@ Before claiming or creating work, inspect the relevant group, active issues, ope
    - If the existing PR is active/green: Do NOT intervene. Let CI Guardian and auto-merge complete the landing.
    - If the existing PR is failing checks or abandoned (stale > 2 hours): The agent may follow up on that branch or review it, but MUST NOT create a blind duplicate PR from scratch without explicitly closing or superseding the previous PR first.
 
+**Zero-Duplicate across the federation (#155, Public-First SSOT):** `supremeai-open` is the public SSOT; landed public work is auto-bridged into `Supremeai-bd/supremeai` by `landing.yml`. Therefore **no agent or contributor may open a manual PR on the private repository** for work handled at the public boundary — one issue = at most one open PR, anywhere in the federation. Machine-enforced at the public boundary by the `duplicate-pr-guard` job in `pipeline.yml`; the private intake dedups bridge work orders.
+
 ## U5 — Freshness & Ownership
 Claim state before work. Verify current `main`/PR state before push. Do not work on `state:seq-hold` or work blocked by upstream. Never push stale work.
 
@@ -57,10 +59,24 @@ After clean exit (locks released, heartbeat stopped), the agent loop must **reru
 
 **Critical ordering reminder:** `atomic_claim.sh` → code changes → `gh pr create`. A PR opened before the claim comment exists will be auto-closed by the Claim Gate (#2644, #2892).
 
+**Closing-keyword placement (squash doctrine, #165):** `Closes #N` fires on landing only from the **squash commit message** — the landed commit's message MUST carry it (the PR body keeps the claim + keyword as belt-and-suspenders). A body-only keyword leaves the issue open after merge and violates the Zero-Admin close-on-landing expectation.
+
 ## U9 — Similar-Problem Sweep / Pattern-Aware Resolution
 When any defect, antipattern, stale reference, or policy gap is found, the agent MUST NOT treat it as isolated by default. First classify: isolated one-off, or member of a defect/problem class? Perform a targeted sweep for sibling occurrences — same pattern, same file family, same reference-set, same CI/checker surface. If siblings share the same root cause AND the same scope, address them within the same task (or an explicitly linked task series) before closing the original. If they fall outside scope or risk, file linked follow-up issue(s) instead of silently expanding. Report format: `similar found: N | fixed in-task: M | filed follow-up: K`.
 
 **Similar ≠ blindly fix everything.** Evidence decides class membership; scope and safety decide the fix boundary. Scope-expanding mass changes without a sweep report are a contract violation.
+## U10 — Loop-Granted Authority (No Permission-Asking)
+
+Agents do not ask permission to start, continue, or batch work. **The continuous loop itself is the authorization** (§11, AGENTS.md §2.1 Zero-Admin policy): when the preconditions an agent can self-check pass — issue claimable, no admin gate, credentials valid, CI green, base fresh per U5 — the agent proceeds immediately and silently.
+
+**Banned output patterns (non-exhaustive):** "বললেই পরের batch শুরু করছি" · "শুরু করবো কিনা" · "শুরু করতে পারি?" · "should I start?" · "shall I proceed / continue?" · "confirm?" · "waiting for your go-ahead". A status report states facts (done / running / next / blocked-with-evidence); it never ends in a permission question.
+
+**Self-check instead of ask:** before every step, re-verify preconditions from board and repo state (open PRs, claim labels, gates, freshness, CI). A failed self-check routes to its matching rule — U4 duplicate → yield, U5 stale → refresh, §6 gate → document and defer — never to a question.
+
+**Hard blockers — the only escalation cases:** missing credentials/secrets that cannot be self-provisioned through the approved broker; destructive/irreversible operations (AGENTS.md §1 safety stop); ADMIN_DECISION-gated choices (§6); contradictory instructions that repo state cannot resolve. Escalation format: blocker statement + evidence + workarounds already attempted + the next claimable task the agent is moving to instead.
+
+**"Waiting for admin" is not a terminal state.** While any claimable task exists, a blocked agent records the blocker and reruns the loop on the next task (§11). Idling on an admin reply while claimable work exists violates this rule.
+
 
 ---
 
@@ -176,6 +192,38 @@ INFRASTRUCTURE
 ```
 
 Every issue has exactly one primary group. Secondary `area:*` labels may describe cross-cutting scope.
+
+### Registry relationship (reconciled with the dispatch contract — #90)
+
+The §5 Primary Groups and the dispatcher's `VALID_GROUPS` registry are **two
+different taxonomies serving two different surfaces** — not a contradiction:
+
+- **§5 Primary Groups (8)** are **policy domains**: constitutional
+  classification of what *kind of concern* work is. They govern private/mono
+  governance tooling (e.g. the #3088 group-first enforcement scripts referenced
+  above — those live in the private codebase, not in this public repository).
+- **`VALID_GROUPS` (5)** in `scripts/agents/continuous_agent_loop.py` is the
+  **machine registry of execution surfaces** for the public board: fail-closed
+  enforced by `build_task_contract()`/`resolve_group()` and mirrored by the
+  `agent-task.yml` dropdown. It is authoritative for dispatch.
+
+When an issue carries only a §5 domain, route it to the registry surface with
+this default mapping; when the template dropdown is filled, the **registry
+group governs dispatch** and the §5 domain rides along as a policy tag:
+
+| §5 policy domain | Default `VALID_GROUPS` surface |
+|---|---|
+| GOVERNANCE | `agent-orchestration` |
+| SECURITY | `mcp-tower` |
+| PIPELINE | `infra-ops` |
+| ARCHITECTURE | `core-engine` |
+| RELIABILITY | `infra-ops` |
+| PRODUCT | `schemas-contracts` |
+| INTELLIGENCE | `agent-orchestration` |
+| INFRASTRUCTURE | `infra-ops` |
+
+Renaming or merging either taxonomy is an **ADMIN_DECISION** (§1.3) and must
+not be done by agents. Full taxonomy table: `docs/AGENT_LOOP_SPEC.md` §3.
 
 ## Priority
 - `P0-critical` — production/security/data-loss/merge-train emergency.
