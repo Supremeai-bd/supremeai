@@ -15,10 +15,54 @@ from group_taxonomy import (  # noqa: E402
     normalize_group,
     primary_group_of_labels,
     validate_primary_group,
+    MASTER_FEDERATION_GROUPS,
+    FEDERATION_REPO_GROUPS,
+    resolve_group_repository,
+    group_category,
 )
 
 
-# ── taxonomy validation (#3088 §2) ───────────────────────────────────────────
+# ── taxonomy validation (#3088 §2 / #180) ───────────────────────────────────
+
+def test_master_federation_groups():
+    assert len(MASTER_FEDERATION_GROUPS) == 27
+    assert "browser" in MASTER_FEDERATION_GROUPS
+    assert "command" in MASTER_FEDERATION_GROUPS
+    assert "skills" in MASTER_FEDERATION_GROUPS
+    assert "agents" in MASTER_FEDERATION_GROUPS
+    assert "vscode" in MASTER_FEDERATION_GROUPS
+    assert "api" in MASTER_FEDERATION_GROUPS
+    assert "studio" in MASTER_FEDERATION_GROUPS
+    assert "memory" in MASTER_FEDERATION_GROUPS
+    assert "infra" in MASTER_FEDERATION_GROUPS
+    assert "core" in MASTER_FEDERATION_GROUPS
+    assert "security" in MASTER_FEDERATION_GROUPS
+    assert "gateway" in MASTER_FEDERATION_GROUPS
+
+
+def test_federation_repository_resolution():
+    assert resolve_group_repository("browser") == "Supremeai-bd/supremeai-browser"
+    assert resolve_group_repository("command") == "Supremeai-bd/supremeai-command"
+    assert resolve_group_repository("skills") == "Supremeai-bd/supremeai-skills"
+    assert resolve_group_repository("agents") == "Supremeai-bd/supremeai-agents"
+    assert resolve_group_repository("vscode") == "Supremeai-bd/supremeai-vscode"
+    assert resolve_group_repository("gateway") == "Supremeai-bd/supremeai-open"
+    # Cross-cutting groups have no single repo binding
+    assert resolve_group_repository("evals") is None
+
+
+def test_group_category_classification():
+    assert group_category("browser") == "repository-direct"
+    assert group_category("prompts") == "ai-intelligence"
+    assert group_category("cost") == "system-resilience"
+    assert group_category("governance") == "operations-governance"
+
+
+def test_validate_federation_repo_groups():
+    v = validate_primary_group("browser")
+    assert v.is_canonical and v.known and v.group == "browser"
+    assert v.target_repo == "Supremeai-bd/supremeai-browser"
+    assert v.category == "repository-direct"
 
 def test_eight_canonical_groups():
     assert PRIMARY_GROUPS == (
