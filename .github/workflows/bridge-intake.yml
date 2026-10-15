@@ -33,9 +33,9 @@ permissions:
   contents: read # script নিজে BRIDGE_TOKEN দিয়ে push/PR করে — github.token লেখার অধিকার লাগে না
 
 concurrency:
-  # ২০২৬-১০-১৫ (#169): v2 group-এ zombie queued runs জমে concurrency queue চিরতরে
-  # আটকে ছিল — group rename = একমাত্র operational escape (PR #130 প্যাটার্ন)।
-  group: bridge-intake-v3
+  # ২০২৬-১০-১৬: v3 group-এ zombie queued runs জমে concurrency queue আটকে ছিল
+  # — group rename to v4 unblocks the deadlock.
+  group: bridge-intake-v4
   cancel-in-progress: false
 
 jobs:
