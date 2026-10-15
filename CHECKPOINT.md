@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-14 01:45 UTC
+- **Date:** 2026-10-15 14:37 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/ci/schedule_watchdog.py`
-  - `tests/test_branch_naming_guard_2850.py`
-  - `infrastructure/mcp-control-plane/src/registry/agent_heartbeat.ts`
-  - `infrastructure/mcp-control-plane/src/registry/orchestrator_dispatch.ts`
-  - `.github/workflows/pr.yml`
-  - `infrastructure/mcp-control-plane/src/tools/bridge.tools.ts`
-  - `.github/workflows/schedule-watchdog.yml`
-  - `CHECKPOINT.md`
+  - `infrastructure/mcp-control-plane/src/adapters/github/app_token.ts`
+  - `infrastructure/mcp-control-plane/test_client_registry.ts`
   - `tests/test_schedule_watchdog_contract.py`
+  - `infrastructure/mcp-control-plane/src/policy/mcp-access.ts`
+  - `tests/test_branch_naming_guard_2850.py`
+  - `scripts/bridge/bridge_intake.py`
+  - `.github/workflows/schedule-watchdog.yml`
+  - `.github/workflows/pr.yml`
+  - `infrastructure/mcp-control-plane/src/policy/tool-visibility.ts`
+  - `scripts/ci/schedule_watchdog.py`
+  - `CHECKPOINT.md`
+  - `infrastructure/mcp-control-plane/src/tools/bridge.tools.ts`
   - `docs/archive/lessons_2026-10.md`
 
 ## Pending (Carry Forward)
