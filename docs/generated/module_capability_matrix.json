@@ -23184,6 +23184,17 @@
     {
       "capability_signals": [
         "dispatch",
+        "mcp",
+        "register"
+      ],
+      "classification": "adapter",
+      "entrypoints": [],
+      "kind": "ts",
+      "path": "infrastructure/mcp-control-plane/src/events/bridge_intake.ts"
+    },
+    {
+      "capability_signals": [
+        "dispatch",
         "register"
       ],
       "classification": "adapter",
@@ -23328,7 +23339,9 @@
     },
     {
       "capability_signals": [
-        "mcp"
+        "dispatch",
+        "mcp",
+        "memory"
       ],
       "classification": "adapter",
       "entrypoints": [],
@@ -23353,6 +23366,7 @@
       "capability_signals": [
         "capability",
         "dispatch",
+        "execute",
         "health"
       ],
       "classification": "adapter",
@@ -23380,6 +23394,13 @@
       "entrypoints": [],
       "kind": "ts",
       "path": "infrastructure/mcp-control-plane/src/lib/timestamps.ts"
+    },
+    {
+      "capability_signals": [],
+      "classification": "adapter",
+      "entrypoints": [],
+      "kind": "ts",
+      "path": "infrastructure/mcp-control-plane/src/lib/webhook_signature.ts"
     },
     {
       "capability_signals": [
@@ -24042,6 +24063,15 @@
     },
     {
       "capability_signals": [
+        "dispatch"
+      ],
+      "classification": "adapter",
+      "entrypoints": [],
+      "kind": "ts",
+      "path": "infrastructure/mcp-control-plane/test_bridge_intake.ts"
+    },
+    {
+      "capability_signals": [
         "capability",
         "execute",
         "mcp",
@@ -24202,6 +24232,16 @@
       "path": "infrastructure/mcp-control-plane/test_redis_auto_rotation.ts"
     },
     {
+      "capability_signals": [
+        "dispatch",
+        "mcp"
+      ],
+      "classification": "adapter",
+      "entrypoints": [],
+      "kind": "ts",
+      "path": "infrastructure/mcp-control-plane/test_redis_quota_routing.ts"
+    },
+    {
       "capability_signals": [],
       "classification": "adapter",
       "entrypoints": [],
@@ -24216,6 +24256,15 @@
       "entrypoints": [],
       "kind": "ts",
       "path": "infrastructure/mcp-control-plane/test_remediation.ts"
+    },
+    {
+      "capability_signals": [
+        "mcp"
+      ],
+      "classification": "adapter",
+      "entrypoints": [],
+      "kind": "ts",
+      "path": "infrastructure/mcp-control-plane/test_render_logs.ts"
     },
     {
       "capability_signals": [
@@ -28478,5 +28527,5 @@
   ],
   "schema_version": "2.0",
   "source": "main",
-  "source_file_count": 3235
+  "source_file_count": 3240
 }
