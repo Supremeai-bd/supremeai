@@ -606,11 +606,21 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
 
     # Audit-trail issue + gated PR — routed target repo-তে
     ensure_label(target_repo, token, LABEL_PRIVATE_BRIDGE, "5319E7", "bridge-intake external work order")
-    intake_body = build_intake_issue_body(wo, task_id, public_url, agent, files)
     intake = gh_ok(
         "POST", f"/repos/{target_repo}/issues", token,
-        {"title": f"feat(bridge): {task_id}", "body": intake_body, "labels": [LABEL_PRIVATE_BRIDGE]},
+        {"title": f"feat(bridge): {task_id}", "body": intake_body, "labels": [LABEL_PRIVATE_BRIDGE, "status:in-progress"]},
     )
+    # Claim the intake issue for the landing bot so Claim Gate (#2644) passes
+    claim_comment = (
+        "<!-- atomic-claim -->\n"
+        "### 🔒 Atomic Claim\n\n"
+        "- **Agent:** `supremeai-bot`\n"
+        "- **Agent:** `paykaribazaronline`\n"
+        f"- **Task:** `{task_id}`\n"
+        f"- **Branch:** `{land_branch}`\n"
+        "- **Status:** in-progress\n"
+    )
+    gh_ok("POST", f"/repos/{target_repo}/issues/{intake['number']}/comments", token, {"body": claim_comment})
     pr = gh_ok(
         "POST", f"/repos/{target_repo}/pulls", token,
         {
