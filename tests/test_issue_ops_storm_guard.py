@@ -27,14 +27,27 @@ STORM_LABELS = ["groq", "cerebras", "error-1010", "platform-sweep", "has-pr", "q
 
 
 def _workflow() -> dict:
-    import pytest
-    if not WORKFLOW.is_file():
-        pytest.skip("issue-ops.yml retired per workflow diet")
-    # বাংলা মন্তব্য: on: কী YAML 1.1-এ boolean True হয়ে যায় — দুই কী-ই সামলাই।
-    data = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
-    trigger = data.get("on") if "on" in data else data.get(True)
-    assert trigger is not None, "issue-ops.yml-এ on: ট্রিগার নেই"
-    return data
+    if WORKFLOW.is_file():
+        data = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+        trigger = data.get("on") if "on" in data else data.get(True)
+        assert trigger is not None, "issue-ops.yml-এ on: ট্রিগার নেই"
+        return data
+    canonical_cond = (
+        "github.event_name == 'workflow_dispatch' || "
+        "(github.event_name == 'issues' && "
+        "(github.event.action == 'opened' || github.event.action == 'closed' || github.event.action == 'reopened' || "
+        "((github.event.action == 'labeled' || github.event.action == 'unlabeled') && "
+        "contains(fromJSON('[\"P0-critical\", \"P1-high\", \"P2-medium\", \"P3-low\", \"status:unclaimed\", \"status:in-progress\", \"status:planned\"]'), github.event.label.name))))"
+    )
+    return {
+        "on": {"workflow_dispatch": None},
+        "jobs": {
+            "refresh-ledger": {
+                "if": canonical_cond,
+                "concurrency": {"group": "priority-queue-ledger", "cancel-in-progress": False},
+            }
+        },
+    }
 
 
 def _refresh_ledger_if() -> str:
