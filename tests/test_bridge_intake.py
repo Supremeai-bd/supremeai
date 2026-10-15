@@ -353,7 +353,7 @@ def test_main_unknown_mode_rejected(monkeypatch):
 def test_route_files_mirror_trio_goes_to_satellite_with_canonical_map():
     files = ["api-schemas/gateway.openapi.yaml", "examples/gateway_client.py"]
     target, path_map = bi.route_files(files)
-    assert target == "paykaribazaronline/supremeai-api"
+    assert target == "Supremeai-bd/supremeai-api"
     assert path_map["api-schemas/gateway.openapi.yaml"] == "contracts/openapi.yaml"
     assert path_map["examples/gateway_client.py"] == "scripts/clients/gateway_client.py"
 

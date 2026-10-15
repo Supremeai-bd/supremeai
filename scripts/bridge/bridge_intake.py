@@ -4,7 +4,7 @@
 চুক্তি (contract): scripts/bridge/README.md
 
 Public agents push patch branches (`bridge/<task-id>`) + Bridge Work Order issues
-to the PUBLIC repo (paykaribazaronline/supremeai-open). This script — running
+to the PUBLIC repo (Supremeai-bd/supremeai-open). This script — running
 INSIDE the private repo — fail-closed validates each order and, if clean,
 applies it as a gated private PR. Landing is decided ONLY by the constitutional
 gate chain; agents never touch the private repo directly.
@@ -31,8 +31,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-OPEN_REPO = "paykaribazaronline/supremeai-open"
-PRIVATE_REPO = "paykaribazaronline/supremeai"
+OPEN_REPO = "Supremeai-bd/supremeai-open"
+PRIVATE_REPO = "Supremeai-bd/supremeai"
 PRIVATE_MAIN = "main"
 
 # পাবলিক mirror path → (target repo, canonical path) — byte-mirror SSOT routing (v2)।
@@ -41,14 +41,14 @@ PRIVATE_MAIN = "main"
 # অর্ডার #5/#10/#11/#12/#13 সব এই কারণে reject হয়েছিল)। বাইট-প্যারিটি যাচাইকৃত
 # (cmp -s IDENTICAL ×3), তাই path-রিরাইটের পরে hunk নির্ভুলভাবে apply হয়।
 MIRROR_ROUTING: dict[str, tuple[str, str]] = {
-    "api-schemas/gateway.openapi.yaml": ("paykaribazaronline/supremeai-api", "contracts/openapi.yaml"),
-    "examples/gateway_client.py": ("paykaribazaronline/supremeai-api", "scripts/clients/gateway_client.py"),
-    "docs/CONSUMERS.md": ("paykaribazaronline/supremeai-api", "docs/CONSUMERS.md"),
+    "api-schemas/gateway.openapi.yaml": ("Supremeai-bd/supremeai-api", "contracts/openapi.yaml"),
+    "examples/gateway_client.py": ("Supremeai-bd/supremeai-api", "scripts/clients/gateway_client.py"),
+    "docs/CONSUMERS.md": ("Supremeai-bd/supremeai-api", "docs/CONSUMERS.md"),
 }
 BRIDGE_TARGET_REPOS = (
-    "paykaribazaronline/supremeai",
-    "paykaribazaronline/supremeai-api",
-    "paykaribazaronline/supremeai-studio",
+    "Supremeai-bd/supremeai",
+    "Supremeai-bd/supremeai-api",
+    "Supremeai-bd/supremeai-studio",
 )
 
 LABEL_QUEUED = "bridge:queued"

@@ -56,32 +56,69 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Vault থেকে bridge-token ফেচ (শূন্য-প্রিন্ট শৃঙ্খলা)
+      - name: Vault → bridge-token (App installation token mint, PAT fallback)
         env:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
         run: |
           python3 - <<'PY'
-          # বাংলা: Infisical universal-auth login → prod secrets → BRIDGE_TOKEN → GITHUB_ENV
-          import json, os, urllib.request
-          def api(url, payload=None, tok=None):
+          # বাংলা: vault থেকে GitHub App ক্রেডেনশিয়াল → RS256 JWT (openssl, zero-dep) →
+          # installation token → BRIDGE_TOKEN। App-এ issues/pull_requests/contents:write
+          # আছে — user-PAT-এর ফাইন-গ্রেইনড permission-gap (private issue create 403,
+          # public label 403) চিরতরে বাইপাস হয়; PAT শুধু fallback।
+          # (db44c51 server-side bridge-lane pattern-এর workflow-সাইড প্রতিরূপ।)
+          import base64, json, os, subprocess, tempfile, time, urllib.request
+
+          def api(url, payload=None, tok=None, method=None):
               data = json.dumps(payload).encode() if payload is not None else None
-              h = {"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "bridge-intake"}
+              h = {"Content-Type": "application/json", "Accept": "application/vnd.github+json", "User-Agent": "bridge-intake"}
               if tok: h["Authorization"] = f"Bearer {tok}"
-              req = urllib.request.Request(url, data=data, headers=h)
+              req = urllib.request.Request(url, data=data, headers=h, method=method)
               with urllib.request.urlopen(req, timeout=45) as r: return json.load(r)
+
+          def b64u(b): return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+
           res = api("https://app.infisical.com/api/v1/auth/universal-auth/login",
                     {"clientId": os.environ["INFISICAL_CLIENT_ID"], "clientSecret": os.environ["INFISICAL_CLIENT_SECRET"]})
           secs = api(f"https://app.infisical.com/api/v3/secrets/raw?workspaceId={os.environ['INFISICAL_PROJECT_ID']}&environment=prod&recursive=true",
                      tok=res["accessToken"])
           kv = {s["secretKey"].upper(): s.get("secretValue") or "" for s in secs.get("secrets", [])}
-          tok = kv.get("GITHUB_PAT_PAYKARIBAZARONLINE", "")
+          pat = kv.get("GITHUB_PAT_PAYKARIBAZARONLINE", "")
+          app_id = kv.get("GITHUB_APP_ID", "")
+          pem = kv.get("GITHUB_APP_PRIVATE_KEY", "")
+          tok, src = "", ""
+
+          if app_id and pem and "PRIVATE KEY" in pem:
+              try:
+                  pem_text = pem if "\n" in pem else pem.replace("\\n", "\n")
+                  with tempfile.NamedTemporaryFile("w", suffix=".pem", delete=False) as f:
+                      f.write(pem_text)
+                      pem_path = f.name
+                  now = int(time.time())
+                  hdr = b64u(json.dumps({"alg": "RS256", "typ": "JWT"}).encode())
+                  pl = b64u(json.dumps({"iat": now - 60, "exp": now + 540, "iss": str(app_id)}).encode())
+                  sig = subprocess.run(["openssl", "dgst", "-sha256", "-sign", pem_path],
+                                       input=f"{hdr}.{pl}".encode(), capture_output=True, check=True).stdout
+                  jwt = f"{hdr}.{pl}.{b64u(sig)}"
+                  insts = api("https://api.github.com/app/installations", tok=jwt)
+                  inst = next((i for i in insts if (i.get("account") or {}).get("login") == "Supremeai-bd"), None)
+                  if not inst:
+                      raise RuntimeError("Supremeai-bd installation not found")
+                  tok = api(f"https://api.github.com/app/installations/{inst['id']}/access_tokens", tok=jwt, method="POST")["token"]
+                  src = "app-installation"
+              except Exception as e:
+                  print(f"[warn] app-token mint failed ({e}) — falling back to vault PAT")
+                  tok, src = "", ""
+
           if not tok:
-              raise SystemExit("vault-এ GITHUB_PAT_PAYKARIBAZARONLINE শূন্য — bridge অসম্ভব")
+              tok = pat
+              src = "vault-pat"
+          if not tok:
+              raise SystemExit("vault-এ bridge ক্রেডেনশিয়াল শূন্য — bridge অসম্ভব")
           with open(os.environ["GITHUB_ENV"], "a") as f:
               f.write(f"BRIDGE_TOKEN<<EOF\n{tok}\nEOF\n")
-          print("[ok] vault থেকে bridge-token লোড (মান প্রিন্ট হয়নি — zero-print)")
+          print(f"[ok] bridge-token লোড (source={src}, মান প্রিন্ট হয়নি — zero-print)")
           PY
 
       - name: Bridge intake + sync (fail-honest exit codes)
