@@ -1018,7 +1018,7 @@ jobs:
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   archive-mirror:
     name: "🪞 Cold Archive Mirror"
-    needs: [tag-release]
+    needs: [station-5-release]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 15
