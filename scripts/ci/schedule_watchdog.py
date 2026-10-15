@@ -230,7 +230,14 @@ def main() -> int:
             # আমরা এখানে `if dead`-এর ভেতরে — তাই compensation-এর শর্ত: শেষ যেকোনো-ইভেন্ট
             # রানও grace-এর চেয়ে বাসি (recent dispatch/PR রান থাকলে দ্বৈত চালানো বৃথা)।
             stale_any = last_any_dt is not None and now > last_any_dt + dt.timedelta(minutes=GRACE_MIN)
-            if can_dispatch and stale_any and armed:
+            # E11: check-before-dispatch — already queued বা running run থাকলে নতুন dispatch দিয়ে queue storm বানাবে না
+            code_q, runs_q = api("GET", f"/repos/{repo}/actions/workflows/{wf['id']}/runs?status=queued&per_page=1", token)
+            has_queued = code_q == 200 and bool(runs_q.get("workflow_runs"))
+            code_r, runs_r = api("GET", f"/repos/{repo}/actions/workflows/{wf['id']}/runs?status=in_progress&per_page=1", token)
+            has_running = code_r == 200 and bool(runs_r.get("workflow_runs"))
+            busy = has_queued or has_running
+
+            if can_dispatch and stale_any and armed and not busy:
                 c3, _ = api(
                     "POST",
                     f"/repos/{repo}/actions/workflows/{wf['id']}/dispatches",
@@ -242,6 +249,8 @@ def main() -> int:
                     line += f" | compensated(dispatch {c3})"
                 else:
                     line += f" | dispatch-failed({c3})"
+            elif busy:
+                line += " | comp=skipped(already-queued-or-running)"
             elif not can_dispatch:
                 line += " | comp=skipped(no-dispatch)"
             else:
