@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-15 18:47 UTC
+- **Date:** 2026-10-15 19:12 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,42 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/test_render_logs.ts`
-  - `infrastructure/mcp-control-plane/src/lib/webhook_signature.ts`
-  - `docs/CONTRIBUTING.md`
-  - `docs/AGENT_LOOP_SPEC.md`
-  - `infrastructure/mcp-control-plane/src/index.ts`
-  - `infrastructure/mcp-control-plane/.gitignore`
-  - `infrastructure/mcp-control-plane/Dockerfile`
-  - `infrastructure/mcp-control-plane/src/tools/bridge.tools.ts`
-  - `infrastructure/mcp-control-plane/src/lib/env.ts`
-  - `infrastructure/mcp-control-plane/test_bridge_intake.ts`
-  - `AGENTS.md`
-  - `infrastructure/mcp-control-plane/src/tools/system.tools.ts`
-  - `.github/workflows/mirror-ci-failures-to-open.yml`
-  - `infrastructure/mcp-control-plane/src/events/bridge_intake.ts`
-  - `infrastructure/mcp-control-plane/test_auto_register.ts`
-  - `infrastructure/mcp-control-plane/test_bridge_onboarding.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/github/index.ts`
-  - `infrastructure/mcp-control-plane/src/policy/mcp-access.ts`
-  - `docs/CONSUMERS.md`
-  - `infrastructure/mcp-control-plane/src/events/normalizer.ts`
-  - `docs/AUDIT_2026-10-15.md`
-  - `CHECKPOINT.md`
+  - `infrastructure/mcp-control-plane/src/policy/client-registry.ts`
+  - `infrastructure/mcp-control-plane/src/lib/redis_chain.ts`
+  - `infrastructure/mcp-control-plane/test_redis_quota_routing.ts`
+  - `infrastructure/mcp-control-plane/src/registry/agent_heartbeat.ts`
+  - `infrastructure/mcp-control-plane/test_client_registry.ts`
   - `docs/archive/lessons_2026-10.md`
-  - `infrastructure/mcp-control-plane/src/tools/render.tools.ts`
-  - `docs/OPS_ACTIONS_QUOTA_RUNBOOK.md`
-  - `infrastructure/mcp-control-plane/docs/TOOL-EXPOSURE.md`
-  - `infrastructure/mcp-control-plane/src/adapters/render/index.ts`
-  - `infrastructure/mcp-control-plane/src/lib/masking.ts`
-  - `scripts/ci/mirror_issue_to_open.py`
-  - `docs/AUDIT_2026-10-15-duplicate-sweep.md`
-  - `AGENT_RULES.md`
+  - `docs/generated/module_capability_matrix.json`
+  - `infrastructure/mcp-control-plane/src/registry/orchestrator_dispatch.ts`
+  - `infrastructure/mcp-control-plane/src/policy/client-registry.store.ts`
   - `infrastructure/mcp-control-plane/package.json`
-  - `infrastructure/mcp-control-plane/test_guardian.ts`
-  - `infrastructure/mcp-control-plane/src/registry/account.registry.ts`
-  - `.github/workflows/bridge-intake.yml`
-  - `infrastructure/mcp-control-plane/docs/BRIDGE_INTAKE.md`
+  - `infrastructure/mcp-control-plane/src/policy/slot-verification.ts`
+  - `infrastructure/mcp-control-plane/src/registry/mcp_presence.ts`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
