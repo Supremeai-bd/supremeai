@@ -1,60 +1,62 @@
 # =============================================================================
-# SupremeAI PR Gate (Pipeline 1 of Canonical 3-Pipeline Architecture)
+# SupremeAI Unified PR Pipeline & Autonomous Landing (PR Gate & Landing)
 # =============================================================================
-# Constitutional Reference: Protocol 14 & Hard Rule 6 (Rules v2.6)
-# One single pipeline for PR-side validation:
-#   1. resolve-context: Resolve author, slot & bot exemptions
-#   2. branch-guard: Validate branch name against standard pattern
-#   3. safety-gates: Lease, Scope, Verification, Sync, Guard, Predecessor, Collisions
-#   4. tests: Path-filtered test runner
-#   5. pr-contract: Unified PR Decision Contract (Pass / Block)
+# Consolidated Workflow Diet (#155 / #179) — private monorepo 18 -> 4 workflows.
+# Replaces:
+#   - pr.yml                      (PR validation pipeline)
+#   - merge-gate.yml              (Sequential Landing Controller)
+#   - ai-pr-evaluation.yml        (Evaluator is now integrated)
+#   - branch-creation-guard.yml   (Branch naming validated at PR time)
+#   - has-pr-reconciler.yml       (Dormant dispatch reconciler)
+#
+# Single PR lifecycle run:
+#   1. has-pr-labeler: Auto-add 'has-pr' label to linked issues
+#   2. context: Resolve author, slot & bot exemptions
+#   3. branch-guard: Validate branch name against standard pattern
+#   4. system-gates: Constitutional System Gates, Freshness, & Task Outcome Ledger
+#   5. tests: Path-filtered targeted tests (backend pytest/ruff + frontend tsc/vitest/build)
+#   6. full-backend-suite: Cross-tier full backend suite (ratchet gate #2893)
+#   7. contract: Unified PR Decision Contract (Pass / Block)
+#   8. auto-close-on-claim-failure: Clean up ghost PRs
+#   9. land: Sequential Landing Decision (runs in the SAME run — no workflow_run delay)
 # =============================================================================
 
-name: PR Gate (Unified Pipeline)
+name: "PR Gate (Unified Pipeline)"
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]  # COST: removed "edited"
-    # বাংলা: "edited" ইভেন্ট PR title/body edit হলে ফায়ার করত — কিন্তু CI correctness
-    # title/body দিয়ে বদলায় না (শুধু code changes matter = synchronize)। 21 min/run
-    # × ৩-৫ বার/day = ৬০-১০০ min/day বৃথা।
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [main, develop]
   workflow_dispatch:
     inputs:
       pr_number:
-        description: "PR number to evaluate"
-        required: true
+        description: "PR number to evaluate / land"
+        required: false
         type: string
+        default: ""
+      execute:
+        description: "MERGE if passing? (true = land; false = evaluate only)"
+        required: false
+        type: boolean
+        default: true
 
 concurrency:
   group: pr-gate-pipeline-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
   cancel-in-progress: true
 
-# বাংলা মন্তব্য (#2513): PR head-এর untrusted কোড এই workflow-এ চলে (tests job-এ pytest,
-# ruff, frontend build) — তাই টপ-লেভেল টোকেন ডিফল্টে read-only রাখা বাধ্যতামূলক (least-privilege)।
-# write স্কোপ শুধুমাত্র প্রমাণিত প্রয়োজনে job-level permissions-এ দেওয়া হয় (নিচে has-pr-labeler)।
 permissions:
   contents: read
   pull-requests: read
-  # #4271 Phase 0 fix (PR #4291 evidence): repo flipped PRIVATE mid-project —
-  # the runner token now gets HTTP 403 on issue reads (Scope Gate claim
-  # comments, Admin-Approval Gate #4271 lookup, Claim Gate evidence) → gates
-  # that are fail-closed on fetch-failure BLOCK legitimately-good PRs.
-  # issues: READ only — least-privilege restore of pre-privacy behavior.
   issues: read
 
 jobs:
   # ---------------------------------------------------------------------------
-  # 0. Auto-add 'has-pr' label to linked issues (Mandatory Rule 5)
+  # 0. Auto-add 'has-pr' label to linked issues
   # ---------------------------------------------------------------------------
   has-pr-labeler:
     name: "🏷️ Auto-add has-pr to linked issues"
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    # বাংলা মন্তব্য (#2513): এই job-ই একমাত্র write করে — linked issue-তে 'has-pr'
-    # label (gh issue edit)। তাই শুধু এখানে job-level permissions-এ issues: write;
-    # read স্কোপগুলো এই job-এর gh কল সচল রাখতে প্রয়োজন (job-level block টপ-লেভেল
-    # read গ্রান্ট override করে, তাই read-গুলো আবার লিখতে হয়)।
     permissions:
       issues: write
       contents: read
@@ -114,7 +116,6 @@ jobs:
           BRANCH="$(gh pr view "$PR_NUM" --json headRefName -q .headRefName 2>/dev/null || echo '')"
           HEAD_SHA="$(gh pr view "$PR_NUM" --json headRefOid -q .headRefOid 2>/dev/null || echo '')"
 
-          # বাংলা মন্তব্য: app/dependabot বা অন্যান্য bot ভ্যারিয়েন্টকে স্কিপ করে যাতে মিথ্যা গেট ফেইলিওর না ঘটে
           case "$AUTHOR" in
             *dependabot*|*github-actions*|*renovate*)
               echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -129,8 +130,6 @@ jobs:
           echo "pr_number=$PR_NUM" >> "$GITHUB_OUTPUT"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
           echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
-          # বাংলা মন্তব্য: নিজের step-এর output (steps.ctx.outputs.reason) self-reference
-          # করলে step শুরুর সময় সেটি সবসময় খালি থাকে (actionlint এরর) — তাই log লাইনে ব্যবহার নয়।
           echo "PR #$PR_NUM on branch '$BRANCH' ($HEAD_SHA)"
 
   # ---------------------------------------------------------------------------
@@ -148,27 +147,11 @@ jobs:
           BRANCH: ${{ needs.context.outputs.branch }}
         run: |
           set -euo pipefail
-          # বাংলা মন্তব্য (#2850): plan- লেন স্বীকৃত — #2841 সিরিজ (platform lane-এর
-          # constitution-slim কাজ) plan-<issue>-<desc> কনভেনশন ব্যবহার করে; গার্ড
-          # mechanical স্বীকৃতি দিচ্ছে (issue-number সাফিক্স বাধ্যতামূলক থাকছে)।
-          # লেন-ট্যাক্সোনমির আনুষ্ঠানিক ডকুমেন্টেশন owner-এর সিদ্ধান্তে যাবে।
-          # বাংলা (#4241): agent/<issue>-<slug> লেন = #4200 Persistent Branch
-          # Workflow-র canonical namespace — continuous_agent_loop.py
-          # (PERSISTENT_BRANCH_PREFIX = "agent/" + _issue_slug: [a-z0-9-]{0,40})।
-          # এই namespace Constitution-এই স্থায়ী: rules.yml persistent_branch_lifecycle
-          # rule ৭ + branch_discovery.persistent_branch_glob "agent/<issue>-*" +
-          # pr_integration_patterns ["agent/*"] (#4205 reconciliation, admin-approved)।
-          # গার্ড এতদিন স্টেল ছিল — PR #4229-এর live FAILURE-এ প্রমাণিত।
-          # বাংলা (Bridge v1): bridge-land/* লেন rules.yml branch_creation_policy-তেও
-          # sanctioned (scripts/bridge/README.md চুক্তি) — fail-closed intake জন্ম দেয়,
-          # PR-টাইম gate chain অনিবার্য থাকে।
           VALID_PATTERN='^((planner|coder|pr-helper|ci|platform|browser|super|plan)-[0-9]+(-[a-zA-Z0-9_-]+)?|agent-[a-zA-Z0-9_-]+/issue-[0-9]+-.+|agent-[0-9]+(-[a-zA-Z0-9_-]+)?|agent/[0-9]+-[a-z0-9-]+|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|group/[a-z0-9][a-z0-9._-]*|bridge-land/.+|vanguard/.+|jules/.+|jules-.+|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+|develop|main)$'
           if [[ "$BRANCH" =~ $VALID_PATTERN ]]; then
             echo "✅ Branch '$BRANCH' matches constitutional pattern."
           else
             echo "❌ Branch '$BRANCH' does not match naming convention."
-            # Roadmap v2.0 Phase 0.4 (#4139): actionable BLOCK — pattern + example
-            # travel WITH the error (agent knows exactly what to fix).
             echo "   Required pattern: $VALID_PATTERN"
             echo "   Valid examples:   coder-1-4139-gate-order-first | fix/4136-alembic-heads | agent-3-coder-1 | agent/4138-feat-frontend-dashboard (persistent issue branch, #4200)"
             echo "   Fix: rename the branch to '<role>-<issue>-<slug>' (or a documented lane pattern) and push again."
@@ -190,12 +173,12 @@ jobs:
       PR_NUMBER: ${{ needs.context.outputs.pr_number }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v5 # v7.0.1
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5 # v7.0.0
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -210,57 +193,24 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           set -euo pipefail
-          # Roadmap v2.0 Phase 0.3 (#4139): Template Gate FIRST — cheapest static
-          # check runs before the expensive gate chain so template-contract
-          # defects surface in fix-round 1 (live evidence: #4109/#4135 each
-          # burned full fix rounds before this gate ran last). Order-only
-          # change; no gate weakened.
           python .github/scripts/constitution/template_gate.py --pr "$PR_NUMBER"
           python -m constitution.gates all --pr "$PR_NUMBER"
-          # #2935 Freshness Gate — root-level old-code-push prevention: PR-head
-          # অবশ্যই সর্বশেষ main ধারণ করবে (stale-base merge = নতুন main-কোড
-          # চুপচাপ মুছে যাওয়া)। অ্যাডমিন-ডকট্রিন: "new main er sathe mil thakle
-          # e push hobe"। behind হলে BLOCK + self-heal নির্দেশনা।
           python .github/scripts/constitution/freshness_gate.py --pr "$PR_NUMBER"
-          # #2912: Template Conformance Gate — now runs FIRST (Phase 0.3, above);
-          # this invocation point was moved up — comment kept for provenance.
-          # #2492: Bengali mandate check (advisory — WARNING, not BLOCK)
           python .github/scripts/constitution/bengali_check.py "${PR_BODY:-}" || true
           python scripts/ci/generate_agents_md.py --check
-          # #2491: Architecture Preservation Gate (advisory WARNING)
           python .github/scripts/constitution/arch_preservation_gate.py --pr "$PR_NUMBER" || true
-          # #2682: Topological Sequence Gate (mandate 3 — Layer 4/5 grounding check)
           python scripts/ci/audit_suite.py --pr "$PR_NUMBER"
-          # Loop 1: Script Sprawl Guard (prevent new root scripts)
           python scripts/ci/sprawl_guard.py --pr "$PR_NUMBER"
-          # Loop 2: SSOT & Doc-Drift Guard (ensure scripts/_INDEX.md is in sync)
           python scripts/generate_script_index.py --check
-          # Loop 3: Secrets Registry Drift Guard (secrets_registry.yaml ↔ code sync)
-          # বাংলা মন্তব্য: নতুন secret key কোডে যোগ হলে registry-তেও থাকতে হবে।
-          # --strict মোডে unclassified sensitive key থাকলে PR block হবে।
           python scripts/ci/reconcile_secrets_registry.py --strict
-          # Loop 4: Slot Registry Drift Guard (docs/master_docs/AGENT_SLOT_REGISTRY.yaml SSOT)
           python scripts/agents/check_slot_registry_drift.py --quiet
-          # Loop 5: Capability Inventory Drift Guard (Rule 4: Evidence Before Adoption) —
-          # #4043: a new LLM provider / integration adapter must register in
-          # docs/architecture/inventory.yaml. Migrated here from the now-deleted
-          # code-quality.yml so it enforces on EVERY PR (was dispatch-only = dead guard).
           python scripts/agents/inventory_lint.py --strict
-          # ROOT-CAUSE FIX (#2518): Env-var drift guard — was dead code (script existed
-          # but zero workflows called it). Now wired as a blocking gate so new env vars
-          # added to code without .env.example documentation fail CI.
           python scripts/ci/generate_env_example.py --check
 
-      # ---------------------------------------------------------------------------
-      # #4271 Phase 0 (roadmap 7.6→9.0): Task Outcome Ledger Gate — append-only
-      # প্রমাণ-চেইন (issue→agent→commit→tests→PR→deploy→runtime→verifier→outcome)।
-      # Path-guarded: শুধুমাত্র ledger ফাইল বদলালে চলে; চললে fail-closed — schema,
-      # enum, SHA/URL format, verifier-independence (স্ব-যাচাই নিষিদ্ধ), এবং
-      # ---------------------------------------------------------------------------
       - name: 📒 Task Outcome Ledger Gate (#4271 Phase 0)
         run: |
           set -euo pipefail
-          BASE="origin/${{ github.base_ref || 'main' }}"  # base_ref খালি (dispatch run) হলে main
+          BASE="origin/${{ github.base_ref || 'main' }}"
           if git diff --quiet "$BASE...HEAD" -- docs/ledger/task-outcomes.jsonl 2>/dev/null; then
             echo "ledger unchanged in this PR — gate skipped"
           else
@@ -272,35 +222,28 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: |
-          set -euo pipefail  # #2526: was missing — collision failures were swallowed silently
+          set -euo pipefail
           if [ -f scripts/git/cross_pr_collision_detector.py ]; then
-            python scripts/git/cross_pr_collision_detector.py --pr "$PR_NUMBER" --strict  # #2486: was advisory (|| echo warning) — now BLOCKING
+            python scripts/git/cross_pr_collision_detector.py --pr "$PR_NUMBER" --strict
           fi
 
   # ---------------------------------------------------------------------------
   # 4. Path-Filtered Test Verification
-  # RESTORED (#2421 seq:1, 2026-09-28): PR সরলীকরণ (#2416)-এ আসল কোড টেস্ট ও
-  # ফ্রন্টএন্ড গার্ড হারিয়ে গিয়েছিল — PR-এ ভাঙা backend/frontend কোড অদেখা
-  # পড়ে যেত। এখন path-filtered targeted pytest + ruff + frontend typecheck/build
-  # ফিরিয়ে আনা হলো (3-Pipeline Law: এটাই PR Gate-এর একমাত্র টেস্ট স্টেশন;
-  # coverage/aggregate gate ci.yml-এর dispatch-only ম্যাট্রিক্সে থেকে যাবে)।
   # ---------------------------------------------------------------------------
   tests:
     name: "🧪 Test & Build Verification"
     needs: [context, system-gates]
     if: needs.context.outputs.skip != 'true'
     runs-on: ubuntu-latest
-    # 25 -> 30: vitest (merged from the old frontend-tests job) runs behind the
-    # frontend build on the same runner.
     timeout-minutes: 30
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v5 # v7.0.1
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5 # v7.0.0
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -317,8 +260,6 @@ jobs:
         run: |
           pytest -o addopts="" --confcutdir=backend/tests/core backend/tests/core/test_no_silent_exception_swallow.py -q
 
-      # বাংলা মন্তব্য (#2421): merge-base diff থেকে সিদ্ধান্ত — backend/frontend
-      # পরিবর্তন হলেই শুধু সংশ্লিষ্ট গার্ড চলবে (docs-only PR দ্রুত পাস)।
       - name: Detect changed paths (merge-base diff)
         id: paths
         run: |
@@ -333,7 +274,6 @@ jobs:
           echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
           echo "✅ changed-path verdict: backend=$backend frontend=$frontend"
 
-      # ── আসল ব্যাকএন্ড কোড টেস্ট (targeted, coverage ছাড়া — coverage gate ci.yml-এর) ──
       - name: Setup Backend (poetry, cached)
         if: steps.paths.outputs.backend == 'true'
         uses: ./.github/actions/setup-backend
@@ -348,16 +288,9 @@ jobs:
         if: steps.paths.outputs.backend == 'true'
         working-directory: backend
         env:
-          # বাংলা মন্তব্য (#2465 gate run): backend/tests/scripts রিপো-রুটের scripts
-          # প্যাকেজ ইমপোর্ট করে — PYTHONPATH-এ রিপো-রুট না থাকলে poetry venv-এর
-          # site-packages-এর shadow হলে 'No module named scripts.agents' হয়।
           PYTHONPATH: ..
         run: |
           set -euo pipefail
-          # বাংলা মন্তব্য: targeted=false দুই কারণে হয় — (a) backend source বদলেছে
-          # → full tier (ci.yml coverage-matrix চুক্তি, PR Gate-এও চলবে), (b) কোনো
-          # backend ফাইল নেই (docs/infra-only PR) → mapped টেস্টই নেই — ফাস্ট সুইট
-          # যথেষ্ট, ভারী fallback এখানে অপ্রয়োজনীয় (3-Pipeline DRY)।
           if [ "${{ steps.select.outputs.test_targeted }}" != "true" ]; then
             if git diff --name-only "$(git merge-base origin/main HEAD)"...HEAD | grep -q '^backend/'; then
               echo "backend source পরিবর্তন → full critical/important tier"
@@ -366,14 +299,8 @@ jobs:
               exit 0
             fi
           fi
-          # বাংলা মন্তব্য: -x = প্রথম ফেইলে থামো (দ্রুত ফিডব্যাক), --no-cov = coverage
-          # মাপা হয় না (PR Gate ফাস্ট; coverage গেট ci.yml dispatch ম্যাট্রিক্সে)।
-          # #2526 shell-hardening: test_targets আর markers দুটোই env-var মাধ্যমে
-          # pass করা হয়েছে — direct expression interpolation নয়, যা shell metacharacter
-          # injection (গ্যাপ-স্পেস-সেমিকলন) এড়ায়। Word-splitting ইচ্ছাকৃত (file list)।
           TEST_TARGETS="${{ steps.select.outputs.test_targets }}"
           TEST_MARKERS="${{ steps.select.outputs.test_markers }}"
-          # shellcheck disable=SC2086  # intentional word-splitting on TEST_TARGETS (file list)
           poetry run pytest $TEST_TARGETS \
             -m "$TEST_MARKERS" \
             -x --no-cov -q -p no:cacheprovider
@@ -384,8 +311,6 @@ jobs:
         run: |
           set -euo pipefail
           BASE="$(git merge-base origin/main HEAD)"
-          # বাংলা মন্তব্য: incremental gate — শুধু বদলানো .py ফাইল (ডিলিট হওয়া
-          # ফাইল বাদ); পুরনো ফাইলের pre-existing লিন্ট noise PR-কে মিথ্যা লাল করবে না।
           CHANGED_PY="$(git diff --name-only "$BASE"...HEAD -- '*.py' | sed 's|^backend/||' | while IFS= read -r f; do [ -f "$f" ] && echo "$f"; done || true)"
           if [ -n "$CHANGED_PY" ]; then
             echo "$CHANGED_PY" | xargs poetry run ruff check
@@ -393,7 +318,6 @@ jobs:
             echo "কোনো .py পরিবর্তন নেই — ruff স্কিপ"
           fi
 
-      # ── ফ্রন্টএন্ড সেফটি গার্ড (typecheck + build) ──
       - name: Setup Frontend Environment
         if: steps.paths.outputs.frontend == 'true'
         uses: ./.github/actions/setup-frontend
@@ -407,11 +331,6 @@ jobs:
         working-directory: ./frontend
         run: pnpm exec tsc -p tsconfig.app.json --noEmit
 
-      # ── #2736: dead-code CI assertion (knip ratchet) ──
-      # বাংলা মন্তব্য: knip.json-এ files/exports "error" নিয়ম (PR #2827) ছিল
-      # কিন্তু কোনো workflow তা চালাত না — মৃত কনফিগ। এখন ratchet-নীতিতে wired:
-      # main-এর জমা ঋণ বেসলাইন-আটকে, নতুন dead-file/export যোগ হলে PR লাল।
-      # (deletion-এ admin approval লাগে — wire-or-delete doctrine, App.tsx:42-44।)
       - name: Frontend dead-code ratchet (knip)
         if: steps.paths.outputs.frontend == 'true'
         working-directory: ./frontend
@@ -424,8 +343,6 @@ jobs:
         working-directory: ./frontend
         env:
           NODE_ENV: production
-          # বাংলা মন্তব্য: PR Gate-এ secrets হার্ড-ডিপেন্ডেন্সি নয় — build সাফল্যই মূল;
-          # প্রোডাকশন URL চুক্তি verify_frontend_build_contract.py প্রোডাকশন পাইপলাইনে যায়।
           VITE_API_URL: ${{ secrets.BACKEND_URL || vars.BACKEND_URL || secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
           VITE_BACKEND_URL: ${{ secrets.BACKEND_URL || vars.BACKEND_URL || secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
         run: pnpm run build
@@ -436,83 +353,51 @@ jobs:
           test -d frontend/dist || { echo "::error::frontend/dist নেই — build ব্যর্থ"; exit 1; }
           du -sh frontend/dist
 
-      # ---------------------------------------------------------------------------
-      # 4a. Frontend unit tests (moved in from the deleted `frontend-tests` job)
-      # ---------------------------------------------------------------------------
-      # Same gating + same setup-frontend composite already initialized above (node 24 +
-      # pnpm install-deps:true). Folding it here avoids a SECOND checkout + node/pnpm
-      # bootstrap (~2-3 min/runner) per frontend PR.
       - name: Frontend unit tests (vitest)
         if: steps.paths.outputs.frontend == 'true'
         working-directory: ./frontend
         run: |
           set -euo pipefail
-          # SSOT: `pnpm test` -> `vitest run` (frontend/package.json). Identical suite that
-          # the standalone job ran; just serialized behind the build this job already does.
           pnpm test -- --reporter=dot 2>&1 | tee /tmp/vitest_output.txt
           echo "vitest summary:" && tail -n 15 /tmp/vitest_output.txt
 
   # ---------------------------------------------------------------------------
-  # 4b. #2893 — Cross-Tier Full Backend Suite (second gate)
+  # 5. Cross-Tier Full Backend Suite
   # ---------------------------------------------------------------------------
-  # বাংলা মন্তব্য: PR Gate আগে শুধু changed-tier (critical/important মার্কার) চালাত —
-  # বাকি টিয়ারের stale assertion ধরা পড়ত না → "merge → red → fix" চক্র
-  # (#2728→#2829, #2874→#2888, #2733→#2833)। এই job প্রতিটি backend-স্পর্শী PR-এ
-  # সম্পূর্ণ suite চালায়; যেকোনো ফেইল = contract job PR BLOCK করবে (লাল main-এ
-  # merge নিষিদ্ধ)। changed-tier fast-path (উপরের tests job) অক্ষত — দ্রুত ফিডব্যাক +
-  # এটি দ্বিতীয় গেট। মার্কার চুক্তি detect_changed_tests ও ci.yml-এর অভিন্ন
-  # (requires_network/e2e/chaos hosted CI-তে চলে না); --timeout=60 প্রতি-টেস্ট হ্যাং
-  # রক্ষাকাচী (pytest-timeout locked dep)।
   full-backend-suite:
     name: "🧪 Full Backend Suite (cross-tier gate #2893)"
-    needs: [context, system-gates]
+    needs: [context, system-gates, tests]
     if: needs.context.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v5 # v7.0.1
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Detect backend touch (merge-base diff)
+      - name: Detect backend changes (merge-base diff)
         id: paths
         run: |
           set -euo pipefail
           git fetch origin main --quiet || true
           BASE="$(git merge-base origin/main HEAD)"
           CHANGED="$(git diff --name-only "$BASE"...HEAD || git diff --name-only "$BASE")"
-          # বাংলা মন্তব্য: tests job-এর path-verdict-এর অভিন্ন রেগেক্স — backend/ বা
-          # tests/ স্পর্শ মানেই পূর্ণ suite বাধ্যতামূলক; docs/infra-only PR স্কিপ।
-          if echo "$CHANGED" | grep -qE '^(backend/|tests/)'; then
-            echo "backend=true" >> "$GITHUB_OUTPUT"
-            echo "✅ PR touches backend/tests — full cross-tier suite will run (#2893)"
-          else
-            echo "backend=false" >> "$GITHUB_OUTPUT"
-            echo "docs/infra-only PR — full suite skipped (changed-tier fast-path suffices)"
-          fi
+          backend=false
+          if echo "$CHANGED" | grep -qE '^(backend/|tests/)'; then backend=true; fi
+          echo "backend=$backend" >> "$GITHUB_OUTPUT"
 
       - name: Setup Backend (poetry, cached)
         if: steps.paths.outputs.backend == 'true'
         uses: ./.github/actions/setup-backend
 
-      - name: Full backend suite (cross-tier gate)
+      - name: Full backend suite with ratchet gate
         if: steps.paths.outputs.backend == 'true'
         working-directory: backend
         env:
-          # বাংলা মন্তব্য (#2465 প্যাটার্ন): tests job-এর মতোই PYTHONPATH-এ রিপো-রুট —
-          # backend/tests/scripts রিপো-রুটের scripts প্যাকেজ ইমপোর্ট করে।
           PYTHONPATH: ..
         run: |
           set -euo pipefail
-          # বাংলা মন্তব্য: প্রথম-ফেইলে-থামো ফ্ল্যাগ ব্যবহার নেই — র্যাচেট তুলনার জন্য
-          # সম্পূর্ণ ফেইল-সেট দরকার (প্রথম ফেইলে থামলে নতুন-বনাম-known পার্থক্য
-          # করা যায় না)। --no-cov = coverage মাপা হয় না (aggregate gate ci.yml-এর);
-          # --timeout=60 = কোনো টেস্ট ৬০ সেকেন্ডের বেশি হ্যাং করলে ফেইল
-          # (pytest-timeout locked dev-dep)।
-          # #2893 র্যাচেট-চুক্তি: main-এর known-red (backend/full-suite-baseline.json)
-          # ভুক্ত ফেইল = স্বীকৃত ঋণ (PASS); baseline-এর বাইরে নতুন ফেইল = BLOCK —
-          # সিদ্ধান্ত full_suite_ratchet_gate.py নেয় (fail-closed: infra-rc/পার্স-অসঙ্গতিতেও ব্লক)।
           set +e
           poetry run pytest tests/ \
             -m "not requires_network and not e2e and not chaos" \
@@ -526,7 +411,7 @@ jobs:
             --baseline full-suite-baseline.json
 
   # ---------------------------------------------------------------------------
-  # 5. Unified PR Decision Contract
+  # 6. Unified PR Decision Contract
   # ---------------------------------------------------------------------------
   contract:
     name: "🚦 Unified PR Gate (Security, Scope & Policy Orchestrator)"
@@ -541,16 +426,13 @@ jobs:
           TESTS_RESULT: ${{ needs.tests.result }}
           FULL_SUITE_RESULT: ${{ needs.full-backend-suite.result }}
         run: |
-          echo "System Gates Result: $GATES_RESULT"
-          echo "Tests Result: $TESTS_RESULT (now includes vitest — frontend-tests merged in)"
-          # vitest is now folded into the `tests` job (frontend-tests deleted).
+          set -euo pipefail
+          echo "Constitutional System Gates: $GATES_RESULT"
+          echo "Test & Build Verification: $TESTS_RESULT"
           echo "Full Backend Suite Result: $FULL_SUITE_RESULT"
 
-          # বাংলা মন্তব্য (#2893): full suite 'skipped' বৈধ (docs/infra-only PR);
-          # 'failure' হলে cross-tier gate ব্লক করবে — stale assertion লাল main-এ যাবে না।
           if [[ ! "$FULL_SUITE_RESULT" =~ ^(success|skipped)$ ]]; then
             echo "❌ PR Gate Decision: BLOCK — full backend suite (cross-tier gate #2893) failed."
-            # Roadmap v2.0 Phase 0.4 (#4139): name the failing job + where to look.
             echo "   Fix: open the 'Full Backend Suite (cross-tier gate #2893)' check log;"
             echo "   its failure lines carry the failing test/module. Re-run after fixing."
             exit 1
@@ -559,7 +441,6 @@ jobs:
             echo "✅ PR Gate Decision: PASS — all constitutional gates & tests green."
           else
             echo "❌ PR Gate Decision: BLOCK — one or more gates/tests failed."
-            # Roadmap v2.0 Phase 0.4 (#4139): per-job actionable pointers.
             if [[ "$GATES_RESULT" != "success" ]]; then
               echo "   - Constitutional System Gates: $GATES_RESULT -> open its log; every gate"
               echo "     prints its own 'BLOCK + fix' line (template gate now reports FIRST)."
@@ -572,13 +453,8 @@ jobs:
           fi
 
   # ---------------------------------------------------------------------------
-  # 6. #2892 — Auto-close ghost PR on Claim Gate failure
+  # 7. Auto-close ghost PR on Claim Gate failure
   # ---------------------------------------------------------------------------
-  # বাংলা মন্তব্য: Claim-Gate ব্যর্থ agent-PR ghost হিসেবে ঝুলে ফাইল-লক করত
-  # (১৩+ stranded PR-এর root cause)। এই job শুধু claim-ব্যর্থতায় agent-লেখকের
-  # PR বন্ধ করে (fresh verdict re-run — log-parse নয়); মানুষ পান advisory;
-  # head-SHA race-guard নতুন-রান বিচার ছাড়া বন্ধ আটকায়। বিস্তারিত চুক্তি:
-  # .github/scripts/constitution/auto_close_on_failure.py ডকস্ট্রিং।
   auto-close-on-claim-failure:
     name: "🔒 Auto-close PR on Claim Gate failure"
     needs: [context, system-gates, tests]
@@ -589,20 +465,18 @@ jobs:
       needs.system-gates.result == 'failure'
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # বাংলা মন্তব্য (#2513 প্যাটার্ন): এই job-ই লেখে — PR close + কমেন্ট +
-    # linked issue-র has-pr লেবেল সরানো; বাকি সব read (টপ-লেভেল least-privilege)।
     permissions:
       contents: read
       pull-requests: write
       issues: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v5 # v7.0.1
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5 # v7.0.0
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -621,3 +495,56 @@ jobs:
           set -euo pipefail
           PYTHONPATH=.github/scripts python .github/scripts/constitution/auto_close_on_failure.py \
             --pr "$PR_NUMBER" --expected-head-sha "$EXPECTED_HEAD_SHA"
+
+  # ---------------------------------------------------------------------------
+  # 8. Sequential Landing Decision (Integrated from merge-gate.yml)
+  # ---------------------------------------------------------------------------
+  land:
+    name: "🛬 Sequential Landing Decision"
+    needs: [context, contract]
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.execute == true) ||
+      (needs.context.outputs.skip != 'true' && needs.contract.result == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    concurrency:
+      group: merge-gate
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      checks: read
+    steps:
+      - name: Checkout (main — decision-integrity)
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Merge Gate decision (+ landing if MERGE)
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_FALLBACK_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          INPUT_PR: ${{ inputs.pr_number }}
+          EVENT_PR: ${{ needs.context.outputs.pr_number || github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [ ! -f scripts/ci/merge_gate.py ]; then
+            echo "bootstrap: merge_gate.py main-এ নেই এখনো — এই PR merge-এর পর সক্রিয় হবে"
+            exit 0
+          fi
+          TARGET="${INPUT_PR:-$EVENT_PR}"
+          if [ -n "$TARGET" ] && [ "$TARGET" != "0" ]; then
+            echo "🛬 Merge Gate — PR #${TARGET} রায় + landing"
+            python scripts/ci/merge_gate.py --pr "$TARGET" --execute
+          else
+            echo "🛬 Merge Gate — priority-sequential queue scan + landing"
+            python scripts/ci/merge_gate.py --scan --execute --limit 1
+          fi

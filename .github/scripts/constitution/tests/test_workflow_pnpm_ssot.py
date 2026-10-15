@@ -158,16 +158,19 @@ class WorkflowPnpmSsotContract(unittest.TestCase):
         silently-empty scan (e.g. path/layout change making the test vacuous)."""
         files = _yaml_files()
         names = [f.name for f in files]
-        self.assertIn("pr.yml", names, "scanner must discover .github/workflows/pr.yml")
+        self.assertTrue(
+            any(n in names for n in ("pr.yml", "pr-pipeline.yml")),
+            "scanner must discover PR workflow (.github/workflows/pr-pipeline.yml or pr.yml)",
+        )
         self.assertIn(
             "action.yml",
             [f.name for f in files if f.parent.name == "setup-frontend"],
             "scanner must discover composite action setup-frontend/action.yml",
         )
-        # The incident file itself must be covered.
+        # The incident file or its consolidated maintenance workflow must be covered.
         self.assertTrue(
-            any(f.name == "dependency-health-check.yml" for f in files),
-            "scanner must discover dependency-health-check.yml",
+            any(f.name in ("dependency-health-check.yml", "ops-maintenance.yml") for f in files),
+            "scanner must discover maintenance workflow",
         )
 
 

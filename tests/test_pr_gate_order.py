@@ -17,7 +17,9 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PR_YML = REPO_ROOT / ".github" / "workflows" / "pr.yml"
+PR_YML = (REPO_ROOT / ".github" / "workflows" / "pr-pipeline.yml"
+          if (REPO_ROOT / ".github" / "workflows" / "pr-pipeline.yml").is_file()
+          else REPO_ROOT / ".github" / "workflows" / "pr.yml")
 
 
 class GateOrderTests(unittest.TestCase):

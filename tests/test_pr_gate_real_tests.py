@@ -8,7 +8,9 @@ from pathlib import Path
 
 import yaml
 
-WORKFLOW = Path(".github/workflows/pr.yml")
+WORKFLOW = (Path(".github/workflows/pr-pipeline.yml")
+            if Path(".github/workflows/pr-pipeline.yml").is_file()
+            else Path(".github/workflows/pr.yml"))
 
 
 def _tests_job() -> dict:

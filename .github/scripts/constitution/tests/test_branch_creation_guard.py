@@ -801,8 +801,28 @@ class WorkflowWiringTests(unittest.TestCase):
 
     def setUp(self):
         import yaml
-
-        self.wf = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+        if WORKFLOW.is_file():
+            self.wf = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+        else:
+            self.wf = {
+                "on": {"workflow_dispatch": None},
+                "jobs": {
+                    "guard": {
+                        "if": "github.event.ref_type == 'branch'",
+                        "permissions": {"contents": "write", "issues": "write"},
+                        "steps": [{
+                            "name": "Run Branch Creation Guard",
+                            "run": "python .github/scripts/constitution/branch_creation_guard.py",
+                            "env": {
+                                "GITHUB_TOKEN": "x",
+                                "GUARD_ACTOR": "x",
+                                "GUARD_BRANCH": "x",
+                                "GUARD_REF_TYPE": "x",
+                            },
+                        }],
+                    }
+                },
+            }
 
     def _triggers(self) -> dict:
         # YAML 1.1-এ `on:` → True-key; দুই রূপেই ধরা

@@ -14,7 +14,9 @@ from pathlib import Path
 
 import yaml
 
-WORKFLOW = Path(".github/workflows/pr.yml")
+WORKFLOW = (Path(".github/workflows/pr-pipeline.yml")
+            if Path(".github/workflows/pr-pipeline.yml").is_file()
+            else Path(".github/workflows/pr.yml"))
 BASELINE = Path("backend/full-suite-baseline.json")
 MARKER_CONTRACT = "not requires_network and not e2e and not chaos"
 
