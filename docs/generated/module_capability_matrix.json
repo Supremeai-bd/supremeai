@@ -24869,7 +24869,9 @@
     },
     {
       "capability_signals": [
+        "browser",
         "health",
+        "memory",
         "register"
       ],
       "classification": "dormant_or_dynamic",
