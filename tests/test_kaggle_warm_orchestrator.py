@@ -18,12 +18,21 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.routes.kaggle import router
-from backend.core.kaggle_orchestrator import (
-    KaggleAccount,
-    KaggleJob,
-    KaggleOrchestrator,
-    KaggleTaskType,
-)
+
+try:
+    from core.kaggle_orchestrator import (
+        KaggleAccount,
+        KaggleJob,
+        KaggleOrchestrator,
+        KaggleTaskType,
+    )
+except ImportError:
+    from backend.core.kaggle_orchestrator import (
+        KaggleAccount,
+        KaggleJob,
+        KaggleOrchestrator,
+        KaggleTaskType,
+    )
 
 
 @pytest.fixture
@@ -91,8 +100,12 @@ def mock_redis():
 @pytest.fixture
 def orchestrator(mock_redis):
     accounts = [
-        KaggleAccount(account_id="worker_1", username="supremeai_1", api_key="KGAT_validtoken123"),
-        KaggleAccount(account_id="worker_2", username="supremeai_2", api_key="legacy_key_456"),
+        KaggleAccount(
+            account_id="worker_1", username="supremeai_1", api_key="KGAT_validtoken123"
+        ),
+        KaggleAccount(
+            account_id="worker_2", username="supremeai_2", api_key="legacy_key_456"
+        ),
     ]
     orch = KaggleOrchestrator(redis_url="mock://redis", accounts=accounts)
     orch.redis_client = mock_redis
@@ -176,9 +189,17 @@ async def test_kgat_bearer_auth_dispatch(orchestrator):
         payload={"dataset_url": "https://example.com/data.csv"},
     )
 
-    with patch.object(orchestrator.http_client, "post", new_callable=AsyncMock) as mock_post:
+    with patch.object(
+        orchestrator.http_client, "post", new_callable=AsyncMock
+    ) as mock_post:
         mock_response = MagicMock()
         mock_response.status_code = 200
+        mock_response.json = MagicMock(
+            return_value={
+                "hasError": False,
+                "url": "https://www.kaggle.com/code/paykaribazar/supremeai-test-kgat-job",
+            }
+        )
         mock_post.return_value = mock_response
 
         ok = await orchestrator.dispatch_job_to_kaggle(job, account_kgat)
@@ -189,13 +210,50 @@ async def test_kgat_bearer_auth_dispatch(orchestrator):
         assert called_headers.get("Authorization") == f"Bearer {account_kgat.api_key}"
         assert "Kaggle-Username" not in called_headers
 
+        # Verify Kaggle API payload structure (issue #439 / #440 fix)
+        called_json = mock_post.call_args.kwargs.get("json", {})
+        assert "slug" in called_json
+        assert called_json["slug"].startswith(account_kgat.username)
+        assert "newTitle" in called_json
+        assert "text" in called_json
+        assert called_json["kernelType"] == "script"
+        assert called_json["isPrivate"] is True
+        assert "enableGpu" in called_json
+        assert called_json["enableInternet"] is True
+
+
+@pytest.mark.asyncio
+async def test_kaggle_dispatch_has_error_rejection(orchestrator):
+    account_kgat = orchestrator.accounts["worker_1"]
+    job = KaggleJob(
+        job_id="test_rejection_job",
+        task_type=KaggleTaskType.DATA_PROCESSING,
+        payload={"dataset_url": "https://example.com/data.csv"},
+    )
+
+    with patch.object(
+        orchestrator.http_client, "post", new_callable=AsyncMock
+    ) as mock_post:
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(
+            return_value={"hasError": True, "error": "Invalid slug format"}
+        )
+        mock_post.return_value = mock_response
+
+        ok = await orchestrator.dispatch_job_to_kaggle(job, account_kgat)
+        assert ok is False
+
 
 def test_routes_endpoints(orchestrator):
     app = FastAPI()
     app.include_router(router)
     client = TestClient(app)
 
-    with patch("backend.api.routes.kaggle.KaggleOrchestrator.get_instance", return_value=orchestrator):
+    with patch(
+        "backend.api.routes.kaggle.KaggleOrchestrator.get_instance",
+        return_value=orchestrator,
+    ):
         # 1. Heartbeat endpoint
         hb_resp = client.post(
             "/api/v1/kaggle/heartbeat",
@@ -224,3 +282,38 @@ def test_routes_endpoints(orchestrator):
         sub_data = sub_resp.json()
         assert "job_id" in sub_data
         assert sub_data["worker_state"] == "warm"
+
+
+@pytest.mark.asyncio
+async def test_model_trainer_kaggle_integration(orchestrator, tmp_path):
+    from backend.tools.learning.model_trainer import ModelTrainer
+
+    dummy_dataset = tmp_path / "train.jsonl"
+    dummy_dataset.write_text('{"text": "example prompt and completion"}\n')
+
+    with (
+        patch("backend.tools.learning.model_trainer.settings") as mock_settings,
+        patch(
+            "core.kaggle_orchestrator.KaggleOrchestrator.get_instance",
+            return_value=orchestrator,
+            create=True,
+        ),
+        patch.object(KaggleOrchestrator, "get_instance", return_value=orchestrator),
+    ):
+        mock_settings.runpod_api_key = None
+        mock_settings.modal_token_id = None
+        mock_settings.kaggle_api_keys = ["KGAT_validtoken123"]
+
+        trainer = ModelTrainer(provider="auto")
+        assert trainer.provider == "kaggle"
+
+        res = await trainer.trigger_lora_finetune(str(dummy_dataset), base_model="gpt2")
+        assert res["status"] == "success"
+        assert res["provider"] == "kaggle"
+        assert "job_id" in res
+        assert "worker_state" in res
+
+        # Check job status tracking
+        status_res = await trainer.get_job_status(res["job_id"])
+        assert "status" in status_res
+        assert status_res["job_id"] == res["job_id"]

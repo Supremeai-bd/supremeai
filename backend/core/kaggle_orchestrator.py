@@ -314,9 +314,12 @@ class KaggleOrchestrator:
             # Initialize with accounts from settings
             accounts = []
             keys = settings.kaggle_api_keys
+            default_username = os.getenv("KAGGLE_USERNAME", "paykaribazar")
             for i, key in enumerate(keys):
                 # Simple extraction: normally Kaggle tokens are username:key
-                username = f"supremeai_worker_{i + 1}"
+                username = (
+                    default_username if key.startswith("KGAT_") else f"supremeai_worker_{i + 1}"
+                )
                 api_key = key
                 if ":" in key:
                     username, api_key = key.split(":", 1)
@@ -554,22 +557,28 @@ class KaggleOrchestrator:
             return False
 
         try:
+            # Kaggle API fields for /api/v1/kernels/push (issue #439 / #440 fix):
+            # 1. 'slug' MUST be '{owner}/{kernel-slug}' (not numeric or plain string 'id')
+            # 2. 'text' carries code (not 'code')
+            # 3. 'newTitle' carries human-readable title (not 'title')
+            # 4. 'enableGpu', 'enableInternet', 'isPrivate', 'kernelType' are camelCase
+            kernel_slug = f"{account.username}/supremeai-{job.job_id.lower().replace('_', '-')}"
             kernel_payload = {
-                "id": f"supremeai-{job.job_id}",
-                "title": f"SupremeAI: {job.task_type.value} [{job.job_id}]",
-                "code": self._generate_kernel_code(
+                "slug": kernel_slug,
+                "newTitle": f"SupremeAI: {job.task_type.value} [{job.job_id}]",
+                "text": self._generate_kernel_code(
                     job, await self.get_callback_token(job.job_id) or ""
                 ),
-                "dataset_sources": [],
-                "kernel_sources": [],
-                "kernel_type": "script",
-                "is_private": True,
+                "datasetSources": [],
+                "kernelSources": [],
+                "kernelType": "script",
+                "isPrivate": True,
                 # GPU only for training tasks — ETL/inference run fine on CPU
                 # and GPU quota is the scarce resource across the 6 accounts.
-                "enable_gpu": job.task_type
+                "enableGpu": job.task_type
                 in (KaggleTaskType.MODEL_FINE_TUNING, KaggleTaskType.TRAINING_RUN),
-                "enable_internet": True,
-                "category_ids": [],
+                "enableInternet": True,
+                "categoryIds": [],
                 "language": "python",
             }
 
@@ -586,6 +595,21 @@ class KaggleOrchestrator:
             )
 
             if response.status_code in (200, 201):
+                try:
+                    data = response.json()
+                except Exception:
+                    data = {}
+
+                if data.get("hasError"):
+                    err_msg = (
+                        data.get("error")
+                        or data.get("errorNullable")
+                        or "Unknown Kaggle push rejection"
+                    )
+                    logger.error(f"❌ Failed to dispatch job: Kaggle rejected kernel: {err_msg}")
+                    await self._record_dispatch_failure(job)
+                    return False
+
                 job_key = self.JOB_STATUS_KEY.format(job_id=job.job_id)
                 await self.redis_client.hset(
                     job_key, mapping={"status": "running", "assigned_account": account.account_id}

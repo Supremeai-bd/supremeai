@@ -261,6 +261,8 @@ export const env = {
     get tokens(): string[] {
       const explicit = multiKey("KAGGLE_API_TOKENS");
       if (explicit.length > 0) return explicit;
+      const explicitKeys = multiKey("KAGGLE_API_KEYS");
+      if (explicitKeys.length > 0) return explicitKeys;
       const collected: string[] = [];
       for (let i = 1; i <= 6; i++) {
         const val = optional(`KAGGLE_API_TOKEN_${i}`);

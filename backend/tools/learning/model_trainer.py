@@ -11,7 +11,7 @@ from core.logging_config import logger
 class ModelTrainer:
     def __init__(self, provider: str = "auto"):
         self.provider = "auto"
-        if provider in ("runpod", "modal", "docker"):
+        if provider in ("runpod", "modal", "docker", "kaggle"):
             self.provider = provider
         elif getattr(settings, "runpod_api_key", None):
             self.provider = "runpod"
@@ -19,6 +19,8 @@ class ModelTrainer:
             settings, "modal_token_secret", None
         ):
             self.provider = "modal"
+        elif getattr(settings, "kaggle_api_keys", None):
+            self.provider = "kaggle"
         else:
             self.provider = "local"
         logger.info(f"Initialized ModelTrainer with provider {self.provider}")
@@ -91,6 +93,58 @@ class ModelTrainer:
                 if resp.status_code not in (200, 201):
                     raise RuntimeError(f"Modal execution failed: {resp.text}")
                 logger.info(f"Modal training job queued: {job_id}")
+        elif self.provider == "kaggle":
+            from core.kaggle_orchestrator import KaggleOrchestrator, KaggleTaskType
+
+            orchestrator = KaggleOrchestrator.get_instance()
+            payload: dict[str, Any] = {
+                "base_model": base_model,
+                "hyperparameters": {
+                    "learning_rate": 2e-4,
+                    "epochs": 3,
+                    "batch_size": 2,
+                },
+            }
+            if dataset_path.startswith(("http://", "https://", "kaggle://")):
+                payload["dataset_url"] = dataset_path
+            else:
+                try:
+                    from database.supabase_client import get_supabase_client
+
+                    client = get_supabase_client()
+                    bucket_name = "datasets"
+                    filename = os.path.basename(dataset_path)
+                    remote_path = f"training/{job_id}/{filename}"
+                    with open(dataset_path, "rb") as f:
+                        client.storage.from_(bucket_name).upload(remote_path, f)
+                    payload["dataset_url"] = client.storage.from_(bucket_name).get_public_url(
+                        remote_path
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        f"Could not upload dataset to storage: {exc}. Using path directly."
+                    )
+                    payload["dataset_url"] = dataset_path
+
+            speculative_res = await orchestrator.submit_job_speculative(
+                task_type=KaggleTaskType.MODEL_FINE_TUNING,
+                payload=payload,
+                priority=8,
+                estimated_hours=2.0,
+            )
+            job_id = speculative_res.get("job_id", job_id)
+            logger.info(f"Kaggle training job queued: {job_id}")
+            return {
+                "status": "success",
+                "job_id": job_id,
+                "base_model": base_model,
+                "provider": "kaggle",
+                "dataset": dataset_path,
+                "worker_state": speculative_res.get("worker_state", "cold_booting"),
+                "speculative_thinking": speculative_res.get("speculative_thinking", False),
+                "thinking_trace": speculative_res.get("thinking_trace", []),
+                "message": "Training initiated on Kaggle GPU cluster.",
+            }
         else:
             # Issue #440 fix: "local" previously logged a "simulation" line and
             # returned success — nothing ran.  Honest not_implemented now.
@@ -159,6 +213,37 @@ class ModelTrainer:
                     "job_id": job_id,
                     "message": "Could not verify job status",
                 }
+
+        if self.provider == "kaggle":
+            import json
+
+            from core.kaggle_orchestrator import KaggleOrchestrator
+
+            orch = KaggleOrchestrator.get_instance()
+            if orch.redis_client:
+                job_key = orch.JOB_STATUS_KEY.format(job_id=job_id)
+                job_data = await orch.redis_client.hgetall(job_key)
+                if job_data:
+                    status = job_data.get("status", "unknown").lower()
+                    result_data = {}
+                    if "result" in job_data:
+                        try:
+                            result_data = json.loads(job_data["result"])
+                        except Exception:
+                            result_data = {}
+                    return {
+                        "status": "completed" if status == "success" else status,
+                        "job_id": job_id,
+                        "loss": result_data.get("loss"),
+                        "checkpoint_path": result_data.get("checkpoint_path"),
+                        "epochs_trained": result_data.get("epochs_trained"),
+                        "error": job_data.get("error") or None,
+                    }
+            return {
+                "status": "unknown",
+                "job_id": job_id,
+                "message": "Kaggle job status unavailable or Redis disconnected",
+            }
 
         if self.provider == "local":
             # বাংলা মন্তব্য: local training কখনো বাস্তবে চালানো হয়নি (simulation-only) —
