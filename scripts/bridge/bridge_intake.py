@@ -291,6 +291,16 @@ def build_intake_issue_body(wo: dict, task_id: str, public_url: str, agent: str,
 
 def build_pr_body(wo: dict, task_id: str, intake_issue: int, public_url: str, agent: str, files: list[str]) -> str:
     file_lines = "\n".join(f"- `{f}`" for f in files) or "- (none)"
+    linked_claims = [
+        f"Refs #{intake_issue}",
+        f"Closes #{intake_issue}",
+    ]
+    m = re.search(r"github\.com/([^/]+/[^/]+)/issues/(\d+)", public_url or "")
+    if m:
+        target_repo, issue_id = m.group(1), m.group(2)
+        linked_claims.append(f"Closes {target_repo}#{issue_id}")
+    linked_claim_str = "\n".join(linked_claims)
+
     return "\n".join(
         [
             "## Summary",
@@ -299,7 +309,7 @@ def build_pr_body(wo: dict, task_id: str, intake_issue: int, public_url: str, ag
             (wo.get("Summary (what + why)") or "(no summary provided)")[:800],
             "",
             "## Linked Issue / Claim",
-            f"Refs #{intake_issue}",
+            linked_claim_str,
             "",
             "## Type of Change",
             "- [ ] `fix` — বাগ-ফিক্স",
