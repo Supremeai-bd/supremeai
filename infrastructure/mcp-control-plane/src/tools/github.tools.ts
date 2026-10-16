@@ -22,6 +22,11 @@ const SATELLITE_REPOS: ReadonlySet<string> = new Set([
   "supremeai-studio",
   "supremeai-infrastructure",
   "supremeai-mcp-control-plane",
+  "supremeai-command",
+  "supremeai-skills",
+  "supremeai-vscode",
+  "supremeai-agents",
+  "supremeai-browser",
 ]);
 
 export type RepoAccess = "none" | "satellite-readonly" | "all-readonly" | "read-write";

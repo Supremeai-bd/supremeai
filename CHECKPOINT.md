@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-15 19:12 UTC
+- **Date:** 2026-10-16 08:35 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,18 +10,13 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/src/policy/client-registry.ts`
-  - `infrastructure/mcp-control-plane/src/lib/redis_chain.ts`
-  - `infrastructure/mcp-control-plane/test_redis_quota_routing.ts`
-  - `infrastructure/mcp-control-plane/src/registry/agent_heartbeat.ts`
-  - `infrastructure/mcp-control-plane/test_client_registry.ts`
+  - `api-schemas/telemetry-log.schema.json`
+  - `tests/test_bridge_intake.py`
+  - `examples/telemetry-logger/logger.py`
+  - `.github/workflows/bridge-intake.yml`
+  - `scripts/bridge/bridge_intake.py`
   - `docs/archive/lessons_2026-10.md`
-  - `docs/generated/module_capability_matrix.json`
-  - `infrastructure/mcp-control-plane/src/registry/orchestrator_dispatch.ts`
-  - `infrastructure/mcp-control-plane/src/policy/client-registry.store.ts`
-  - `infrastructure/mcp-control-plane/package.json`
-  - `infrastructure/mcp-control-plane/src/policy/slot-verification.ts`
-  - `infrastructure/mcp-control-plane/src/registry/mcp_presence.ts`
+  - `infrastructure/mcp-control-plane/src/tools/github.tools.ts`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
