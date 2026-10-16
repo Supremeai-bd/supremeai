@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-16 16:55 UTC
+- **Date:** 2026-10-16 17:07 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,16 @@
   - (see git log for details)
 
 ## Files Changed
+  - `backend/tools/learning/meta_cognition_dataset.py`
+  - `CHECKPOINT.md`
+  - `backend/adaptive_engine/intent_parser.py`
   - `docs/archive/lessons_2026-10.md`
   - `tests/test_kaggle_warm_orchestrator.py`
+  - `backend/tools/learning/model_trainer.py`
   - `backend/middleware/cors_policy.py`
   - `backend/core/kaggle_orchestrator.py`
+  - `tests/test_meta_cognitive_intent.py`
   - `infrastructure/mcp-control-plane/src/lib/env.ts`
-  - `backend/tools/learning/model_trainer.py`
-  - `scripts/agents/smart_context_selector.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
