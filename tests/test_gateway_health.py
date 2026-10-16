@@ -102,16 +102,17 @@ def walk_text_files(root: Path, subdir: str):
     when NOTHING is readable (UNVERIFIABLE is never a pass).
     """
     base = root / subdir
-    for p in sorted(base.rglob("*")):
-        if not p.is_file():
-            continue
-        try:
-            if p.stat().st_size > 2_000_000:
+    for dirpath, dirnames, filenames in os.walk(base):
+        dirnames[:] = [d for d in dirnames if not d.startswith(".") and d != "__pycache__"]
+        for fname in sorted(filenames):
+            p = Path(dirpath) / fname
+            try:
+                if p.stat().st_size > 2_000_000:
+                    yield p, None
+                    continue
+                yield p, p.read_text(encoding="utf-8", errors="replace")
+            except OSError:
                 yield p, None
-                continue
-            yield p, p.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            yield p, None
 
 
 # --------------------------------------------------------------------------
