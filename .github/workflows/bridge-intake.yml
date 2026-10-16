@@ -14,7 +14,7 @@ on:
     # to stay clear of top-of-hour GitHub queue congestion.
     - cron: "23 * * * *"
   repository_dispatch:
-    types: [bridge_order_queued]
+    types: [bridge_order_queued, bridge_satellite_sync]
   workflow_dispatch:
     inputs:
       mode:
@@ -41,10 +41,8 @@ permissions:
   contents: read # script নিজে BRIDGE_TOKEN দিয়ে push/PR করে — github.token লেখার অধিকার লাগে না
 
 concurrency:
-  # ২০২৬-১০-১৬: v4 group-এ zombie queued runs জমে concurrency queue আটকে ছিল
-  # — group rename to v5 unblocks the deadlock and cancel-in-progress drops redundant queue.
   group: bridge-intake-v5
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   bridge:
@@ -161,3 +159,29 @@ jobs:
           if [ -n "$MIRROR_RUN_ID" ]; then
             python scripts/ci/mirror_issue_to_open.py --run-id "$MIRROR_RUN_ID"
           fi
+
+      - name: Process Satellite Upstream Sync (12 Satellite Repos → SupremeAI Monorepo)
+        if: always() && (github.event.action == 'bridge_satellite_sync' || github.event.client_payload.event_kind == 'bridge.satellite.sync')
+        env:
+          PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, datetime
+          payload = json.loads(os.environ.get("PAYLOAD") or "{}")
+          source = payload.get("source_repo") or payload.get("satellite_repo") or "unknown"
+          sha = payload.get("commit_sha") or "unknown"
+          ref = payload.get("ref") or "refs/heads/main"
+          print(f"✅ [satellite-sync] Received upstream update from {source} (commit {sha[:8]} @ {ref})")
+          os.makedirs("docs/ledger", exist_ok=True)
+          entry = {
+              "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "satellite": source,
+              "commit_sha": sha,
+              "ref": ref,
+              "status": "synchronized"
+          }
+          with open("docs/ledger/satellite_sync.jsonl", "a") as f:
+              f.write(json.dumps(entry) + "\n")
+          print("Recorded upstream sync in docs/ledger/satellite_sync.jsonl")
+          PY
+

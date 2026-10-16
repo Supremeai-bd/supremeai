@@ -47,8 +47,18 @@ MIRROR_ROUTING: dict[str, tuple[str, str]] = {
 }
 BRIDGE_TARGET_REPOS = (
     "Supremeai-bd/supremeai",
-    "Supremeai-bd/supremeai-api",
     "Supremeai-bd/supremeai-studio",
+    "Supremeai-bd/supremeai-api",
+    "Supremeai-bd/supremeai-core",
+    "Supremeai-bd/supremeai-command",
+    "Supremeai-bd/supremeai-skills",
+    "Supremeai-bd/supremeai-vscode",
+    "Supremeai-bd/supremeai-agents",
+    "Supremeai-bd/supremeai-browser",
+    "Supremeai-bd/supremeai-sdk",
+    "Supremeai-bd/supremeai-infrastructure",
+    "Supremeai-bd/supremeai-mcp-control-plane",
+    "Supremeai-bd/supremeai-archive",
 )
 
 LABEL_QUEUED = "bridge:queued"
@@ -406,7 +416,7 @@ def already_intaked(token: str, task_id: str) -> bool:
     return intake_marker_state(token, task_id) != "absent"
 
 
-def route_files(files: list[str]) -> tuple[str | None, dict[str, str]]:
+def route_files(files: list[str], explicit_target: str | None = None) -> tuple[str | None, dict[str, str]]:
     """প্রতিটি পাবলিক path → (target repo, canonical path)।
 
     রিটার্ন: (target_repo | None, path_map)। মিশ্র-target অর্ডার → None (fail-closed;
@@ -415,7 +425,50 @@ def route_files(files: list[str]) -> tuple[str | None, dict[str, str]]:
     targets: set[str] = set()
     path_map: dict[str, str] = {}
     for f in files:
-        repo, canon = MIRROR_ROUTING.get(f, (PRIVATE_REPO, f))
+        if f in MIRROR_ROUTING:
+            repo, canon = MIRROR_ROUTING[f]
+        elif explicit_target and explicit_target in BRIDGE_TARGET_REPOS:
+            repo = explicit_target
+            canon = f
+        elif f.startswith(("studio/", "public/dashboard-preview/", "examples/dashboard-preview/")):
+            repo = "Supremeai-bd/supremeai-studio"
+            canon = f
+        elif f.startswith(("api/", "gateway/", "api-schemas/gateway.")):
+            repo = "Supremeai-bd/supremeai-api"
+            canon = f
+        elif f.startswith(("core/", "api-schemas/task-router.")):
+            repo = "Supremeai-bd/supremeai-core"
+            canon = f
+        elif f.startswith(("command/", "handlers/telegram")):
+            repo = "Supremeai-bd/supremeai-command"
+            canon = f
+        elif f.startswith(("skills/", "examples/langchain-", "examples/vercel-")):
+            repo = "Supremeai-bd/supremeai-skills"
+            canon = f
+        elif f.startswith("vscode/"):
+            repo = "Supremeai-bd/supremeai-vscode"
+            canon = f
+        elif f.startswith(("agents/", "runner/")):
+            repo = "Supremeai-bd/supremeai-agents"
+            canon = f
+        elif f.startswith(("browser/", "sandbox/")):
+            repo = "Supremeai-bd/supremeai-browser"
+            canon = f
+        elif f.startswith(("sdk/", "examples/sdk-", "api-schemas/telemetry-log.", "api-schemas/websocket-events.")):
+            repo = "Supremeai-bd/supremeai-sdk"
+            canon = f
+        elif f.startswith(("infrastructure/mcp-control-plane/", "api-schemas/heartbeat.")):
+            repo = "Supremeai-bd/supremeai-mcp-control-plane"
+            canon = f
+        elif f.startswith(("deployments/", "infra/")):
+            repo = "Supremeai-bd/supremeai-infrastructure"
+            canon = f
+        elif f.startswith("archive/"):
+            repo = "Supremeai-bd/supremeai-archive"
+            canon = f
+        else:
+            repo = PRIVATE_REPO
+            canon = f
         targets.add(repo)
         path_map[f] = canon
     if len(targets) != 1:
@@ -540,8 +593,16 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
         reject("secret-pattern scan hit: " + ", ".join(families) + " — remove secrets and resubmit")
         return
 
-    # Apply — routed target repo (v2: mirror ত্রয়ী supremeai-api স্যাটেলাইটে জমে, বাকি মূল repo-তে)
-    target_repo, path_map = route_files(files)
+    # Apply — routed target repo (supports all 12 federation repositories + monorepo)
+    explicit_target = None
+    target_field = (wo.get("Target Repository") or wo.get("Target") or "").strip()
+    if target_field:
+        if not target_field.startswith("Supremeai-bd/"):
+            target_field = f"Supremeai-bd/{target_field}"
+        if target_field in BRIDGE_TARGET_REPOS:
+            explicit_target = target_field
+
+    target_repo, path_map = route_files(files, explicit_target=explicit_target)
     if target_repo is None:
         reject("order spans multiple target repos — one order per target (bridge v2 routing rule)")
         return
