@@ -156,6 +156,9 @@ class SettingsFieldsMixin:
         default=[
             "https://supremeai-a.web.app",  # Firebase Hosting user portal
             "https://supremeai-studio.vercel.app",  # Vercel studio
+            "https://supremeai-studio-live.vercel.app",  # Vercel studio live
+            "http://localhost:5173",  # Local Vite dev
+            "http://localhost:3000",  # Local dev
         ],
         validation_alias="USER_CORS_ORIGINS",
     )
@@ -324,6 +327,7 @@ class SettingsFieldsMixin:
         default=[
             "/",
             "/health",
+            "/healthz",
             "/health/live",
             "/health/ready",
             "/metrics",

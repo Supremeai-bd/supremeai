@@ -180,6 +180,7 @@ def _compute_overall(results: list[HealthResult]) -> HealthStatus:
 
 @router.get("")
 @router.get("/full")
+@router.get("/healthz")
 async def get_full_health(response: Response) -> dict[str, Any]:
     """Full health check — runs ALL registered checks.
 

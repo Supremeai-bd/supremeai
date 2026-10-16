@@ -42,6 +42,7 @@ _start_time = time.time()
 
 @router.get("/health")
 @router.get("/deep")
+@router.get("/healthz")
 async def deep_health_check(response: Response):
     """
     Comprehensive health check endpoint.
