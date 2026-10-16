@@ -606,6 +606,7 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
 
     # Audit-trail issue + gated PR — routed target repo-তে
     ensure_label(target_repo, token, LABEL_PRIVATE_BRIDGE, "5319E7", "bridge-intake external work order")
+    intake_body = build_intake_issue_body(wo, task_id, public_url, agent, files)
     intake = gh_ok(
         "POST", f"/repos/{target_repo}/issues", token,
         {"title": f"feat(bridge): {task_id}", "body": intake_body, "labels": [LABEL_PRIVATE_BRIDGE, "status:in-progress"]},
