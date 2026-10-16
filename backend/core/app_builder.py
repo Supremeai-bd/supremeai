@@ -19,7 +19,7 @@ import sys
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.gzip import GZipMiddleware
 
 from core.config import settings
@@ -408,6 +408,7 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
         allow_headers=[
             "Authorization",
             "Content-Type",
+            "X-Supreme-Key",
             "Accept",
             "Origin",
             "X-Requested-With",
@@ -505,6 +506,14 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
     app.include_router(health_router, prefix="/health")
     # লিগ্যাসি অ্যালায়েস: পুরনো /api/v1/health পাথও একই রাউটার এক্সপোজ করে।
     app.include_router(health_router, prefix="/api/v1/health")
+
+    # Issue #401 (Phase 0 Seq 0.1): Root /healthz unauthenticated probe (OpenAPI parity)
+    @app.get("/healthz", tags=["health"])
+    async def root_healthz(response: Response):
+        """Kubernetes / Render standard root /healthz probe."""
+        from core.health_routes import get_full_health
+
+        return await get_full_health(response)
 
     @app.api_route("/", methods=["GET", "HEAD"])
     async def root():

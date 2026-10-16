@@ -75,6 +75,9 @@ def _load_origins(env_var: str, default: tuple[str, ...]) -> tuple[str, ...]:
 DEFAULT_USER_ALLOWED_ORIGINS: tuple[str, ...] = (
     "https://supremeai-a.web.app",  # Firebase Hosting user portal (production)
     "https://supremeai-studio.vercel.app",  # Vercel studio
+    "https://supremeai-studio-live.vercel.app",  # Vercel studio live
+    "http://localhost:5173",  # Local Vite dev
+    "http://localhost:3000",  # Local dev
 )
 
 # Issue #1484 (CRITICAL): same story for the admin console —
