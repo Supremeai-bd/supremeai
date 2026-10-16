@@ -194,7 +194,22 @@ def test_pr_body_has_required_pr_sections_and_refs():
     for section in ("## Summary", "## Linked Issue / Claim", "## Rollback Path", "## Touching Files (Scope Gate Boundary)", "## Test Evidence"):
         assert section in body
     assert "Refs #777" in body
+    assert "Closes #777" in body
     assert "`docs/a.md`" in body
+
+
+def test_pr_body_has_cross_repo_closes_keyword():
+    body = bi.build_pr_body(
+        WO,
+        "bridge-20261009-demo",
+        777,
+        "https://github.com/Supremeai-bd/supremeai-open/issues/420",
+        "agent-a",
+        ["docs/a.md"],
+    )
+    assert "Refs #777" in body
+    assert "Closes #777" in body
+    assert "Closes Supremeai-bd/supremeai-open#420" in body
 
 
 def test_intake_body_empty_files_fallback():
