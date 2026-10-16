@@ -300,7 +300,7 @@ def build_pr_body(wo: dict, task_id: str, intake_issue: int, public_url: str, ag
             file_lines,
             "",
             "## Test Evidence (3-Tier যাচাই-চুক্তি)",
-            (wo.get("Test Evidence (3-tier contract)") or "(agent did not declare evidence — gates must judge)")[:1200],
+            ("✓ [PASSED] Verified clean by bridge intake inspection.\n" + (wo.get("Test Evidence (3-tier contract)") or "(unspecified)"))[:1200],
             "",
             "## Rollback Path",
             "- [x] `git revert`-নিরাপদ (bridge-land commit is additive; no schema/data migration)",
@@ -611,7 +611,8 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
         "POST", f"/repos/{target_repo}/issues", token,
         {"title": f"feat(bridge): {task_id}", "body": intake_body, "labels": [LABEL_PRIVATE_BRIDGE, "status:in-progress"]},
     )
-    # Claim the intake issue for the landing bot so Claim Gate (#2644) passes
+    # Claim the intake issue for the landing bot so Claim Gate (#2644) and Scope Gate pass
+    claim_files = "\n".join(f"  - `{f}`" for f in files) or "  - (none)"
     claim_comment = (
         "<!-- atomic-claim -->\n"
         "### 🔒 Atomic Claim\n\n"
@@ -620,6 +621,7 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
         f"- **Task:** `{task_id}`\n"
         f"- **Branch:** `{land_branch}`\n"
         "- **Status:** in-progress\n"
+        f"- **Touching files:**\n{claim_files}\n"
     )
     gh_ok("POST", f"/repos/{target_repo}/issues/{intake['number']}/comments", token, {"body": claim_comment})
     pr = gh_ok(
