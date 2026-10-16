@@ -406,3 +406,32 @@ def test_rewrite_patch_paths_devnull_and_identity_untouched():
 def test_rewrite_patch_paths_empty_map_noop():
     diff = "diff --git a/x b/x\n"
     assert bi.rewrite_patch_paths(diff, {}) == diff
+
+
+def test_route_files_12_federation_repositories():
+    test_cases = [
+        (["studio/App.tsx"], "Supremeai-bd/supremeai-studio"),
+        (["public/dashboard-preview/index.html"], "Supremeai-bd/supremeai-studio"),
+        (["api/v1/router.py"], "Supremeai-bd/supremeai-api"),
+        (["core/planner.py"], "Supremeai-bd/supremeai-core"),
+        (["command/bot.py"], "Supremeai-bd/supremeai-command"),
+        (["skills/search.py"], "Supremeai-bd/supremeai-skills"),
+        (["vscode/extension.ts"], "Supremeai-bd/supremeai-vscode"),
+        (["agents/runner.py"], "Supremeai-bd/supremeai-agents"),
+        (["browser/stealth.py"], "Supremeai-bd/supremeai-browser"),
+        (["sdk/client.ts"], "Supremeai-bd/supremeai-sdk"),
+        (["infrastructure/mcp-control-plane/src/index.ts"], "Supremeai-bd/supremeai-mcp-control-plane"),
+        (["infra/docker-compose.yml"], "Supremeai-bd/supremeai-infrastructure"),
+        (["archive/v1-snapshot.md"], "Supremeai-bd/supremeai-archive"),
+    ]
+    for files, expected_repo in test_cases:
+        target, path_map = bi.route_files(files)
+        assert target == expected_repo, f"Expected {expected_repo} for {files}, got {target}"
+        assert path_map[files[0]] == files[0]
+
+
+def test_route_files_explicit_target_override():
+    target, path_map = bi.route_files(["misc/config.json"], explicit_target="Supremeai-bd/supremeai-studio")
+    assert target == "Supremeai-bd/supremeai-studio"
+    assert path_map["misc/config.json"] == "misc/config.json"
+
