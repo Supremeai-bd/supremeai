@@ -601,6 +601,9 @@ docs_garbage_policy:
     - "docs/CONSUMERS.md"
     - "docs/CONTRIBUTING.md"
     - "docs/OPS_ACTIONS_QUOTA_RUNBOOK.md"
+    - "docs/S0*.md"
+    - "docs/SEQ*.md"
+    - "docs/AUTONOMOUS_TRANSIT_PIPELINE.md"
 
 predecessor_policy:
   group_dependencies:

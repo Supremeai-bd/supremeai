@@ -54,6 +54,13 @@
 | `CONSUMERS.md` | Consumer onboarding and gateway integration guide |
 | `CONTRIBUTING.md` | Contributor guide and zero-credential bridge lane |
 | `OPS_ACTIONS_QUOTA_RUNBOOK.md` | Actions quota diet and optimization runbook |
+| `AUTONOMOUS_TRANSIT_PIPELINE.md` | Autonomous transit station & pipeline specification |
+| `S01_ATOMIC_CLAIM_SPEC.md` | S0.1 Atomic Claim protocol specification |
+| `S02_STRUCTURED_EVIDENCE_SPEC.md` | S0.2 PR Evidence Envelope specification |
+| `S03_WORK_NEXT_SPEC.md` | S0.3 work.next computed queue specification |
+| `S04_TOOL_CONSOLIDATION_SPEC.md` | S0.4 MCP Tool consolidation specification |
+| `SEQ04_CONSUMERS_QUICKSTART_HANDOFF.md` | Consumer quickstart handoff documentation |
+| `SEQ453_LIVE_TELEMETRY_PROBE_HANDOFF.md` | Live runtime telemetry & probe handoff specification |
 
 ## ৪. Archive & Recovery
 

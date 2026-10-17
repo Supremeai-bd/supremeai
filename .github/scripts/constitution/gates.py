@@ -132,6 +132,9 @@ DEFAULT_DOCS_GARBAGE_POLICY = {
         "docs/SECRETS_OPERATIONS.md",
         "docs/SKIPPED_TESTS.md",
         "docs/CAPABILITY_INVENTORY.md",
+        "docs/S0*.md",
+        "docs/SEQ*.md",
+        "docs/AUTONOMOUS_TRANSIT_PIPELINE.md",
     ],
 }
 
