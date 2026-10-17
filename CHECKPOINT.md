@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-17 05:05 UTC
+- **Date:** 2026-10-17 20:04 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,23 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/SEQ453_LIVE_TELEMETRY_PROBE_HANDOFF.md`
+  - `infrastructure/mcp-control-plane/src/index.ts`
+  - `infrastructure/mcp-control-plane/test_auto_register.ts`
+  - `docs/AUTONOMOUS_TRANSIT_PIPELINE.md`
+  - `infrastructure/mcp-control-plane/src/policy/slot-verification.ts`
+  - `infrastructure/mcp-control-plane/test_redis_auto_rotation.ts`
+  - `infrastructure/mcp-control-plane/test_slot_verification.ts`
+  - `infrastructure/mcp-control-plane/src/lib/redis_chain.ts`
+  - `infrastructure/mcp-control-plane/test_client_registry.ts`
+  - `infrastructure/mcp-control-plane/src/tools/system.tools.ts`
   - `docs/archive/lessons_2026-10.md`
-  - `docs/SEQ04_CONSUMERS_QUICKSTART_HANDOFF.md`
-  - `docs/CONSUMERS.md`
-  - `scripts/ci/probe_live_status_453.py`
-  - `tests/test_s03_work_next_contract.py`
-  - `scripts/tower/work_next_reference.py`
-  - `scripts/tower/tool_consolidation_reference.py`
-  - `tests/test_s02_evidence_envelope.py`
-  - `examples/curl-tests/README.md`
-  - `docs/S04_TOOL_CONSOLIDATION_SPEC.md`
-  - `scripts/ci/validate_md_links_seq04.py`
-  - `tests/test_s04_tool_consolidation.py`
-  - `docs/S02_STRUCTURED_EVIDENCE_SPEC.md`
-  - `CHECKPOINT.md`
-  - `docs/S03_WORK_NEXT_SPEC.md`
-  - `scripts/tower/pr_evidence_envelope.py`
+  - `infrastructure/mcp-control-plane/src/policy/client-registry.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/redis/index.ts`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

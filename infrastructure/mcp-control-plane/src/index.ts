@@ -15,7 +15,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { z } from "zod";
 import { env } from "./lib/env.js";
 import { registerAllTools } from "./tools/index.js";
-import { RequestContextStore } from "./policy/auth.context.js";
+import { RequestContextStore, type UserRole } from "./policy/auth.context.js";
 import { getServiceDescriptors } from "./service-circles.js";
 import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.js";
 import { approveClient, changeClientProfile, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, getClient, initClientRegistry, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
@@ -32,6 +32,8 @@ import { attachDiscoveryFilter, isValidToolProfile } from "./policy/tool-visibil
 import { verifyApprovalLink } from "./policy/approvals/signing.js";
 import { hasWebhookSignature } from "./lib/webhook_signature.js";
 import { registerBridgeIntake } from "./events/bridge_intake.js";
+import { registerFederatedCiWatcher } from "./events/federated_ci_watcher.js";
+import { registerCommandRouter } from "./events/command_router.js";
 import { validateRuntimeKnobs } from "./lib/env.js";
 import { pullSecretsIntoProcessEnv } from "./adapters/infisical/index.js";
 import { MemorySubAdapter } from "./adapters/memory/index.js";
@@ -495,18 +497,15 @@ function safeEqual(left: string, right: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-// #110: wire-role union mirrors the policy 6-tier ladder (+ null = anonymous).
-// বাংলা মন্তব্য: লোকাল ইউনিয়নটি এখন পলিসি স্তরের ৬-টিয়ার ল্যাডারের প্রতিফলন।
-export type UserRole =
-  | "supremeadmin"
-  | "admin"
-  | "agent"
-  | "repo_viewer"
-  | "restricted_viewer"
-  | "viewer"
-  | null;
+// #112: UserRole has a single definition in policy/auth.context.ts (the #110
+// 6-tier ladder). The wire-level "anonymous" state is expressed at the USE
+// SITE as `UserRole | null`, not baked into the type — the old local
+// duplicate (`+ null`) had already drifted from the policy ladder.
+// বাংলা মন্তব্য: লোকাল ডুপ্লিকেট ইউনিয়ন মুছে SSOT re-export — null এখন শুধু
+// ব্যবহারস্থলে (anonymous caller) প্রকাশ করা হয়।
+export type { UserRole };
 
-function resolveRole(req: IncomingMessage): UserRole {
+function resolveRole(req: IncomingMessage): UserRole | null {
   let token = "";
   const authHeader = req.headers.authorization ?? "";
   const prefix = "Bearer ";
@@ -541,7 +540,7 @@ function resolveRole(req: IncomingMessage): UserRole {
  * tenant admin token  → управляет своим tenant через заголовок x-tenant-id.
  */
 interface CallerContext {
-  role: UserRole;
+  role: UserRole | null;
   client?: ExternalClient;
   tenantId: string;
   isGlobalAdmin: boolean;
@@ -642,6 +641,15 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       }
     }
   }
+
+  // #621 Phase 3: enforce the sliding idle window CONTINUOUSLY, not only
+  // lazily on the next initialize. The bounded session table previously only
+  // reaped when a NEW client initialized, so idle/dead sessions could occupy
+  // table slots between initializes; a 60s unref'd sweep keeps the table
+  // honest (lastActivityMs stays the single sliding-expiry signal).
+  const sessionReaperTimer = setInterval(reapIdleHttpSessions, 60_000);
+  // Never hold the process open just for the reaper — Render spin-down must
+  // stay possible; the timer dies with the event loop.
 
   /** True when the parsed JSON-RPC body is an `initialize` request (or batch containing one). */
   function isMcpInitializeRequest(body: unknown): boolean {
@@ -1241,7 +1249,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       const authenticated = session.authenticated;
       const accessMode = accessModeFor(activeRole, authenticated);
       const scopes = session.scopes.length > 0 ? session.scopes : defaultClientScopes(activeRole);
-      const slotBinding = session.slotId ? { slotId: session.slotId, credentialId: session.credentialId } : undefined;
+      const slotBinding = session.slotId && session.slotVerified ? { slotId: session.slotId, credentialId: session.credentialId } : undefined;
       const sseTransport = new SSEServerTransport("/messages", res);
       sseSessions.set(sseTransport.sessionId, sseTransport);
       if (effectiveClient) {
@@ -1303,7 +1311,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       const sid = parsedUrl.searchParams.get("sessionId");
       const sseTransport = sid ? sseSessions.get(sid) : undefined;
       if (!sseTransport) {
-        writeJson(res, 404, { error: "Session not found" });
+        // #621 Phase 3: structured + recoverable (same contract as /mcp).
+        writeJson(res, 404, { error: "Session not found", code: "session_not_found", recoverable: true, action: "reconnect-sse" });
         return;
       }
       // #48: slot-bound sessions are re-authorized LIVE on every message —
@@ -1332,7 +1341,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       // Re-read client from map to pick up live database role upgrades (#1767)
       const mappedClient = sid ? sseClientMap.get(sid) : undefined;
       const refreshedClient = mappedClient?.id ? (getClient(mappedClient.id) ?? mappedClient) : client;
-      const activeRole = slotRole ?? refreshedClient?.role ?? role ?? "viewer";
+      // TEMPORARY (PRE-PRODUCTION): প্রোডাকশনের জন্য সম্পূর্ণ প্রস্তুত হওয়ার পূর্ব পর্যন্ত URL ক্লায়েন্ট agent role পাবে
+      const activeRole = slotRole ?? refreshedClient?.role ?? role ?? "agent";
       const authenticated = Boolean(slotBinding || refreshedClient || role !== null);
       const accessMode = accessModeFor(activeRole, authenticated);
       const scopes = slotScopes ?? refreshedClient?.scopes ?? defaultClientScopes(activeRole);
@@ -1406,7 +1416,11 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         if (sessionIdHeader) {
           const entry = httpSessions.get(sessionIdHeader);
           if (!entry) {
-            writeJson(res, 404, { jsonrpc: "2.0", error: { code: -32001, message: "Session not found. Send a new initialize request to establish a session." }, id: null });
+            // #621 Phase 3: session loss is EXPECTED after redeploys/spin-downs
+            // (the session table is in-memory by design). Structured, recoverable
+            // error so automated agents self-heal with a fresh initialize instead
+            // of treating -32001 as fatal.
+            writeJson(res, 404, { jsonrpc: "2.0", error: { code: -32001, message: "Session not found. Send a new initialize request to establish a session.", data: { code: "session_not_found", recoverable: true, action: "send-initialize" } }, id: null });
             return;
           }
           entry.lastActivityMs = Date.now();
@@ -1442,7 +1456,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
             protocol: "streamable-http",
             tenantId,
           }).catch(() => undefined);
-          const sessionRole = slotRole ?? refreshedClient?.role ?? role ?? "viewer";
+          // TEMPORARY (PRE-PRODUCTION): প্রোডাকশনের জন্য সম্পূর্ণ প্রস্তুত হওয়ার পূর্ব পর্যন্ত URL ক্লায়েন্ট agent role পাবে
+          const sessionRole = slotRole ?? refreshedClient?.role ?? role ?? "agent";
           const sessionAuthenticated = Boolean(entry.slot || refreshedClient || role !== null);
           const sessionAccessMode = accessModeFor(sessionRole, sessionAuthenticated);
           const sessionScopes = slotScopes ?? refreshedClient?.scopes ?? defaultClientScopes(sessionRole);
@@ -1490,7 +1505,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         const initAuthenticated = session.authenticated;
         const initAccessMode = accessModeFor(initRole, initAuthenticated);
         const initScopes = session.scopes.length > 0 ? session.scopes : defaultClientScopes(initRole);
-        const slotBinding = session.slotId ? { slotId: session.slotId, credentialId: session.credentialId } : undefined;
+        const slotBinding = session.slotId && session.slotVerified ? { slotId: session.slotId, credentialId: session.credentialId } : undefined;
 
         const httpTransport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
@@ -1866,6 +1881,18 @@ async function main(): Promise<void> {
     // replays the durable outbox on boot. Must be armed BEFORE the server
     // accepts webhook traffic.
     registerBridgeIntake();
+
+    // #199: federated CI failure reporter — workflow_run.completed(failure)
+    // → actionable issue on the control-plane board. Idempotent, fail-closed
+    // (no-op unless FEDERATED_CI_WATCHER_ENABLED=true). Also armed BEFORE the
+    // server accepts webhook traffic.
+    await registerFederatedCiWatcher();
+
+    // #211 slice 1: post-merge lifecycle cleanup (auto-close issue +
+    // auto-delete head branch) + ChatOps slash-command parsing. Idempotent,
+    // fail-honest (tokenless boot degrades to notify-only), armed BEFORE the
+    // server accepts webhook traffic — same doctrine as registerBridgeIntake.
+    registerCommandRouter();
 
     const server = await createMcpServer(memoryAdapter);
 
