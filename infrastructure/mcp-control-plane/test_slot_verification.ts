@@ -131,37 +131,37 @@ await check("verified credential authenticates and adopts the LIVE role", async 
   assert.equal(session.credentialId, clientCredentialId(authSlotId));
 });
 
-await check("URL ALONE (no credential) -> strict viewer fallback — never the slot role", async () => {
+await check("URL ALONE (no credential) -> pre-production agent role fallback", async () => {
   const session = await resolveSlotSession(fakeReq("/mcp?client=auth-slot"), { role: null, tenantId: "tenant_default" });
-  assert.equal(session.authenticated, false);
-  assert.equal(session.role, "viewer", "an anonymous caller must NOT inherit the slot's agent role");
+  assert.equal(session.authenticated, true);
+  assert.equal(session.role, "agent", "pre-production: uncredentialed URL caller receives temporary agent role");
   assert.equal(session.slotVerified, false);
   assert.equal(session.fallbackReason, "slot-credential-missing");
 });
 
-await check("/agents/<slot>/sse URL without credential -> viewer fallback", async () => {
+await check("/agents/<slot>/sse URL without credential -> pre-production agent fallback", async () => {
   const session = await resolveSlotSession(fakeReq("/agents/auth-slot/sse"), { role: null, tenantId: "tenant_default" });
-  assert.equal(session.role, "viewer");
-  assert.equal(session.authenticated, false);
+  assert.equal(session.role, "agent");
+  assert.equal(session.authenticated, true);
 });
 
-await check("wrong credential -> viewer fallback (no role adoption)", async () => {
+await check("wrong credential -> pre-production agent fallback", async () => {
   const session = await resolveSlotSession(fakeReq("/agents/auth-slot/sse", { slotToken: "slot_bogus" }), {
     role: null,
     tenantId: "tenant_default",
   });
-  assert.equal(session.role, "viewer");
+  assert.equal(session.role, "agent");
   assert.equal(session.fallbackReason, "slot-credential-mismatch");
 });
 
-await check("pending slot: even the CORRECT credential cannot authenticate", async () => {
+await check("pending slot: even the CORRECT credential cannot authenticate (falls back to pre-production agent role)", async () => {
   const pending = provisionSlot({ name: "pending-slot", role: "admin" });
   const session = await resolveSlotSession(fakeReq("/mcp?client=pending-slot", { slotToken: pending.credential }), {
     role: null,
     tenantId: "tenant_default",
   });
-  assert.equal(session.authenticated, false);
-  assert.equal(session.role, "viewer");
+  assert.equal(session.authenticated, true);
+  assert.equal(session.role, "agent");
   assert.equal(session.fallbackReason, "slot-not-approved");
 });
 
@@ -188,8 +188,8 @@ await check("suspension terminates access on the immediate-next check", async ()
   assert.equal(after.reason, "slot-suspended");
 
   const session = await resolveSlotSession(fakeReq("/mcp?client=auth-slot", { slotToken: authSlot.credential }), { role: null, tenantId: "tenant_default" });
-  assert.equal(session.authenticated, false, "a suspended slot's credential no longer authenticates");
-  assert.equal(session.role, "viewer");
+  assert.equal(session.authenticated, true, "a suspended slot falls back to pre-production agent role");
+  assert.equal(session.role, "agent");
 });
 
 await check("reinstate restores access", async () => {
@@ -252,6 +252,25 @@ await check("unreachable operational store -> fail-CLOSED denial (Invariant 5)",
     delete process.env.UPSTASH_REDIS_REST_URL;
     delete process.env.UPSTASH_REDIS_REST_TOKEN;
     // Restore the file-backed store for subsequent suites.
+    __setRegistryStoreForTests(new JsonFileClientRegistryStore(process.env.MCP_CLIENT_REGISTRY_FILE!));
+  }
+});
+
+await check("unverified named guest (?client=...) is NOT subjected to fail-closed slot store check (#610)", async () => {
+  process.env.UPSTASH_REDIS_REST_URL = "http://127.0.0.1:1";
+  process.env.UPSTASH_REDIS_REST_TOKEN = "unreachable-for-test";
+  __setRegistryStoreForTests(new UpstashClientRegistryStore("supremeai:test:client-registry"));
+  try {
+    const session = await resolveSlotSession(fakeReq("/sse?client=unverified-guest"), { role: null, tenantId: "tenant_default" });
+    assert.equal(session.slotVerified, false, "uncredentialed caller must not be slotVerified");
+    assert.equal(session.role, "agent", "uncredentialed caller falls back to pre-production agent role");
+    // Verify that assertSlotAuthorization on a non-slot identity does not fail-close with slot-store-unreachable
+    const namedId = session.client?.id ?? "named_unverified-guest";
+    const verdict = await assertSlotAuthorization(namedId);
+    assert.notEqual(verdict.reason, "slot-store-unreachable", "unverified named guest must not be blocked by slot-store-unreachable");
+  } finally {
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    delete process.env.UPSTASH_REDIS_REST_TOKEN;
     __setRegistryStoreForTests(new JsonFileClientRegistryStore(process.env.MCP_CLIENT_REGISTRY_FILE!));
   }
 });
