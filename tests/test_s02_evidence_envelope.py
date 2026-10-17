@@ -137,8 +137,6 @@ class UnitGuardIntegration(unittest.TestCase):
 
 
 class LiveContract(unittest.TestCase):
-    @unittest.skipUnless(os.environ.get("S02_LIVE") == "1",
-                         "skip-until-landed (set S02_LIVE=1 to attempt live checks)")
     def test_21_reference_importable_and_healthy(self):
         # on landing this layer asserts the guard-side consumption contract
         self.assertTrue(callable(env_mod.parse_envelope))

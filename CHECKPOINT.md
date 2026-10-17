@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-16 22:51 UTC
+- **Date:** 2026-10-17 04:51 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
+  - `tests/test_s02_evidence_envelope.py`
+  - `scripts/tower/pr_evidence_envelope.py`
   - `docs/archive/lessons_2026-10.md`
-  - `api-schemas/gateway.openapi.yaml`
-  - `backend/core/config_fields.py`
-  - `backend/core/health_routes.py`
-  - `docs/GATEWAY_HEALTH_401_APPENDIX.md`
-  - `backend/core/app_builder.py`
-  - `backend/middleware/cors_policy.py`
-  - `tests/test_gateway_health.py`
-  - `backend/api/routes/health.py`
+  - `docs/S02_STRUCTURED_EVIDENCE_SPEC.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
