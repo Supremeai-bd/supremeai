@@ -150,8 +150,6 @@ class UnitContract(unittest.TestCase):
 
 
 class LiveContract(unittest.TestCase):
-    @unittest.skipUnless(os.environ.get("S03_LIVE") == "1",
-                         "skip-until-landed (set S03_LIVE=1 to attempt live checks)")
     def test_21_reference_healthy(self):
         self.assertTrue(callable(s03.work_next))
 
