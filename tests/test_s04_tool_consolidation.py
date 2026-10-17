@@ -115,8 +115,6 @@ class UnitReceipts(unittest.TestCase):
 
 
 class LiveContract(unittest.TestCase):
-    @unittest.skipUnless(os.environ.get("S04_LIVE") == "1",
-                         "skip-until-landed (set S04_LIVE=1 to attempt live checks)")
     def test_18_registry_healthy(self):
         s04.assert_no_regression()
 
