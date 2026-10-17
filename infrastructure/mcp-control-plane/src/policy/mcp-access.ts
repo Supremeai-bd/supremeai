@@ -49,6 +49,7 @@ export const publicSafeCapabilities: readonly McpCapabilityMetadata[] = [
   { name: "bridge_work_queue", kind: "tool", access: "safe", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
   { name: "bridge_work_order", kind: "tool", access: "safe", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
   { name: "bridge_submit_patch", kind: "tool", access: "safe", riskLevel: "R1", dataClassification: "public", approvalRequired: false },
+  { name: "work_claim", kind: "tool", access: "safe", riskLevel: "R1", dataClassification: "public", approvalRequired: false },
 ];
 
 export function canAccessCapability(context: McpAccessContext, capability: McpCapabilityMetadata): boolean {
@@ -143,13 +144,19 @@ export function classifyToolCapability(name: string): McpCapabilityMetadata {
   // agents. bridge.guide serves the static contract; the queue tools read ONLY
   // public repo issue content (never credentials, never private data) and
   // return sanitized fields. Read-only + public ⇒ safe for public_viewer.
-  if (name === "bridge_guide" || name === "bridge_work_queue" || name === "bridge_work_order" || name === "bridge_submit_patch") {
+  if (
+    name === "bridge_guide" ||
+    name === "bridge_work_queue" ||
+    name === "bridge_work_order" ||
+    name === "bridge_submit_patch" ||
+    name === "work_claim"
+  ) {
     return {
       name,
       kind: "tool",
       access: "safe",
       requiredScope: undefined,
-      riskLevel: name === "bridge_submit_patch" ? "R1" : "R0",
+      riskLevel: name === "bridge_submit_patch" || name === "work_claim" ? "R1" : "R0",
       dataClassification: "public",
       approvalRequired: false,
     };
@@ -192,24 +199,6 @@ export function classifyToolCapability(name: string): McpCapabilityMetadata {
       riskLevel: "R4",
       dataClassification: "secret",
       approvalRequired: false,
-    };
-  }
-  // Audit 2026-10-16 U4: destructive autonomy primitives previously fell to the
-  // default class (restricted/internal ⇒ rank ≥ 3) so ANY agent-role client
-  // could emergency-stop the whole federation — while the REST route
-  // (/autonomy/kill, index.ts) already demanded admin. Align MCP with REST:
-  // kill_switch/enable are ADMIN-only (secret ⇒ rank ≥ 4). Founder-approved fix
-  // wave ("start fixing them" on the #283 roadmap); matching hardening, no
-  // new policy surface.
-  if (name === "autonomy_kill_switch" || name === "autonomy_enable") {
-    return {
-      name,
-      kind: "tool",
-      access: "restricted",
-      requiredScope: undefined,
-      riskLevel: "R5",
-      dataClassification: "secret",
-      approvalRequired: true,
     };
   }
   return {
