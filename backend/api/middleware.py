@@ -259,7 +259,9 @@ class GlobalRateLimiterMiddleware(BaseHTTPMiddleware):
         ):
             return await call_next(request)
 
-        if request.url.path.startswith(("/docs", "/redoc", "/api/v1/health", "/api/health")):
+        if request.url.path.startswith(
+            ("/docs", "/redoc", "/api/v1/health", "/api/health", "/health", "/metrics")
+        ):
             return await call_next(request)
 
         client_ip = request.client.host if request.client else "unknown"

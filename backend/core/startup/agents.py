@@ -114,13 +114,17 @@ async def start_background_services(app):
         logger.warning(f"⚠️ Sentinel Agent failed to start: {exc}")
 
     # Agent 2: Swarm Cache Invalidator (multi-layer cache maintenance)
-    await agent_supervisor.start_agent(
-        "swarm-cache",
-        start_swarm_cache_invalidator,
-        health_check_interval=60,
-        max_restarts=5,
-        restart_delay=5.0,
-    )
+    # Issue #701: Default disabled in dev/single-instance mode to eliminate Redis PubSub command burn
+    if os.getenv("ENABLE_SWARM_STREAM", "false").lower() == "true":
+        await agent_supervisor.start_agent(
+            "swarm-cache",
+            start_swarm_cache_invalidator,
+            health_check_interval=60,
+            max_restarts=5,
+            restart_delay=5.0,
+        )
+    else:
+        logger.info("ℹ️ Swarm Cache Invalidator disabled (ENABLE_SWARM_STREAM=false).")
 
     # Agent 3: Task Queue Worker
     try:
@@ -196,7 +200,7 @@ async def start_background_services(app):
     try:
         import os
 
-        if os.getenv("ENABLE_AGENT_HEARTBEAT", "true").lower() == "true":
+        if os.getenv("ENABLE_AGENT_HEARTBEAT", "false").lower() == "true":
             from core.agent_heartbeat import (
                 redis_configured_for_heartbeat,
                 run_agent_heartbeat_loop,

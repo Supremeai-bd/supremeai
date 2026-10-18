@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-17 20:04 UTC
+- **Date:** 2026-10-18 02:37 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,18 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/src/index.ts`
-  - `infrastructure/mcp-control-plane/test_auto_register.ts`
-  - `docs/AUTONOMOUS_TRANSIT_PIPELINE.md`
-  - `infrastructure/mcp-control-plane/src/policy/slot-verification.ts`
-  - `infrastructure/mcp-control-plane/test_redis_auto_rotation.ts`
-  - `infrastructure/mcp-control-plane/test_slot_verification.ts`
-  - `infrastructure/mcp-control-plane/src/lib/redis_chain.ts`
-  - `infrastructure/mcp-control-plane/test_client_registry.ts`
-  - `infrastructure/mcp-control-plane/src/tools/system.tools.ts`
+  - `backend/core/middleware/security.py`
+  - `backend/tests/core/test_redis_command_burn_reduction.py`
   - `docs/archive/lessons_2026-10.md`
-  - `infrastructure/mcp-control-plane/src/policy/client-registry.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/redis/index.ts`
+  - `.github/workflows/federation-bridge-sync.yml`
+  - `backend/core/cache/multi_layer_cache.py`
+  - `backend/middleware/rate_limiter.py`
+  - `backend/api/middleware.py`
+  - `backend/core/startup/agents.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

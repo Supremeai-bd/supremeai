@@ -130,6 +130,16 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
         "/api/v1/kaggle/submit": {"requests": 10, "window": 3600},  # 10 per hour
     }
 
+    # Issue #701: Health, metrics, and docs are exempt from billable Redis rate limiting
+    EXEMPT_RATE_LIMIT_PREFIXES = (
+        "/health",
+        "/api/v1/health",
+        "/api/health",
+        "/metrics",
+        "/docs",
+        "/redoc",
+    )
+
     def __init__(self, app):
         super().__init__(app)
         # বাংলা: EMERGENCY fallback state — প্রতি ইনস্ট্যান্সে আলাদা (per-process)।
@@ -165,7 +175,8 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
             or bool(os.getenv("PYTEST_CURRENT_TEST"))
             or os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "false"
         )
-        if not is_testing:
+        is_exempt_path = request.url.path.startswith(self.EXEMPT_RATE_LIMIT_PREFIXES)
+        if not is_testing and not is_exempt_path:
             # Issue #460 dedup: APIKeyAuthMiddleware (outermost) already
             # evaluated this request's IP verdict at the same (limit, window)
             # — reuse it instead of double-billing a second Redis evaluation.

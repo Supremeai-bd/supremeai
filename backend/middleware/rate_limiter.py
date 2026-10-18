@@ -153,6 +153,13 @@ class AsyncRateLimiter:
         limit = limit or settings.rate_limit_default_limit
         window = window or settings.rate_limit_default_window
 
+        # Issue #701: If RATE_LIMIT_PROVIDER is memory or in dev mode, use in-memory limiter directly
+        if (
+            os.getenv("RATE_LIMIT_PROVIDER", "").lower() == "memory"
+            or str(getattr(settings, "env", "")).lower() == "dev"
+        ):
+            return self._fallback_limiter.is_allowed(key, limit)
+
         try:
             client = await self._get_redis()
             if client is None:

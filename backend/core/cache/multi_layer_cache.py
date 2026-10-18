@@ -131,6 +131,14 @@ class _PipelineStub:
 _MAX_PREFIX_CANDIDATES = 8
 
 
+def is_simple_cache_mode() -> bool:
+    """Issue #701: Cut Redis command burn to near-zero.
+    When True (default: True), bypasses L2 (semantic) and L3 (prefix) layers,
+    keeping only L1 (exact match) and session LRU.
+    """
+    return os.getenv("CACHE_SIMPLE_MODE", "true").strip().lower() in ("true", "1", "yes")
+
+
 class MultiLayerCache:
     """বাংলা মন্তব্ব্য: ৫-লেয়ার অ্যাগ্রেসিভ ক্যাশিং সিস্টেম।
     Redis client গুলো lazy init — import করলে কোনো network call নেই।"""
@@ -247,97 +255,99 @@ class MultiLayerCache:
                 )
             )
 
-        try:
-            # Layer 2: Semantic Cache
-            semantic_start = time.time()
-            semantic_result = await self._get_semantic_cache().query_similar(
-                prompt, user_id=user_id
-            )
-            semantic_duration = time.time() - semantic_start
-            if semantic_result:
-                logger.info("✅ L2 CACHE HIT: Semantic Match")
-                self.cache_stats["semantic_hits"] += 1
-                self._record_hit("semantic", semantic_result.response)
-                await record_cache_access(True)  # Record cache hit
-                await metrics_collector.observe_histogram(
-                    "cache_access_duration_seconds",
-                    semantic_duration,
-                    {"layer": "semantic", "result": "hit"},
+        # Layers 2 & 3: Semantic and Prefix caches (Issue #701: bypassed in simple mode to save Redis quota)
+        if not is_simple_cache_mode():
+            try:
+                # Layer 2: Semantic Cache
+                semantic_start = time.time()
+                semantic_result = await self._get_semantic_cache().query_similar(
+                    prompt, user_id=user_id
                 )
-                return {
-                    "response": semantic_result.response,
-                    "source": "L2_SEMANTIC_CACHE",
-                    "latency_ms": int(semantic_duration * 1000),
-                }
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            logger.error(f"L2 semantic cache error: {e}")
-            await record_cache_access(False)  # Record cache miss/error
-            error_event_bus.emit(
-                ErrorEvent(
-                    module="multi_layer_cache",
-                    error_type="L2_READ_FAILED",
-                    message=str(e)[:200],
-                    severity="WARNING",
-                    structured_context=ErrorContext(module="auto_fixed"),
-                )
-            )
-
-        try:
-            # Layer 3: Prefix Cache (Redis) — এখন একটাই batched round-trip
-            prefix_start = time.time()
-            prefix_cache = self._get_prefix_cache()
-            words = prompt.split()
-            # বাংলা মন্তব্ব্য: O(n) রাউন্ড-ট্রিপ এড়াতে এবং দীর্ঘতম প্রিফিক্সে অগ্রাধিকার দিতে ক্যান্ডিডেট সংখ্যা ক্যাপ করা হলো।
-            candidate_lengths = sorted(
-                {
-                    max(1, len(words) - step)
-                    for step in range(0, min(len(words), _MAX_PREFIX_CANDIDATES))
-                },
-                reverse=True,
-            )
-            prefix_keys = []
-            for i in candidate_lengths:
-                prefix = " ".join(words[:i])
-                prefix_keys.append(
-                    f"prefix:{hashlib.sha256(f'{scope}{prefix}:{model_name}'.encode()).hexdigest()}"
+                semantic_duration = time.time() - semantic_start
+                if semantic_result:
+                    logger.info("✅ L2 CACHE HIT: Semantic Match")
+                    self.cache_stats["semantic_hits"] += 1
+                    self._record_hit("semantic", semantic_result.response)
+                    await record_cache_access(True)  # Record cache hit
+                    await metrics_collector.observe_histogram(
+                        "cache_access_duration_seconds",
+                        semantic_duration,
+                        {"layer": "semantic", "result": "hit"},
+                    )
+                    return {
+                        "response": semantic_result.response,
+                        "source": "L2_SEMANTIC_CACHE",
+                        "latency_ms": int(semantic_duration * 1000),
+                    }
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.error(f"L2 semantic cache error: {e}")
+                await record_cache_access(False)  # Record cache miss/error
+                error_event_bus.emit(
+                    ErrorEvent(
+                        module="multi_layer_cache",
+                        error_type="L2_READ_FAILED",
+                        message=str(e)[:200],
+                        severity="WARNING",
+                        structured_context=ErrorContext(module="auto_fixed"),
+                    )
                 )
 
-            if prefix_keys:
-                # বাংলা মন্তব্ব্য: mget দিয়ে সম্পূর্ণ প্রিফিক্স ক্যান্ডিডেটগুলোর ডাটা একটাই নেটওয়ার্ক রাউন্ড-ট্রিপে আনা হচ্ছে।
-                results = await prefix_cache.mget(prefix_keys)
-                for cached_response in results:
-                    if cached_response:
-                        logger.info("✅ L3 CACHE HIT: Prefix Match")
-                        self.cache_stats["prefix_hits"] += 1
-                        self._record_hit("prefix", cached_response)
-                        await record_cache_access(True)  # Record cache hit
-                        prefix_duration = time.time() - prefix_start
-                        await metrics_collector.observe_histogram(
-                            "cache_access_duration_seconds",
-                            prefix_duration,
-                            {"layer": "prefix", "result": "hit"},
-                        )
-                        return {
-                            "response": cached_response,
-                            "source": "L3_PREFIX_CACHE",
-                            "latency_ms": int(prefix_duration * 1000),
-                        }
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            logger.error(f"L3 prefix cache error: {e}")
-            await record_cache_access(False)  # Record cache miss/error
-            error_event_bus.emit(
-                ErrorEvent(
-                    module="multi_layer_cache",
-                    error_type="L3_READ_FAILED",
-                    message=str(e)[:200],
-                    severity="WARNING",
-                    structured_context=ErrorContext(module="auto_fixed"),
+            try:
+                # Layer 3: Prefix Cache (Redis) — এখন একটাই batched round-trip
+                prefix_start = time.time()
+                prefix_cache = self._get_prefix_cache()
+                words = prompt.split()
+                # বাংলা মন্তব্ব্য: O(n) রাউন্ড-ট্রিপ এড়াতে এবং দীর্ঘতম প্রিফিক্সে অগ্রাধিকার দিতে ক্যান্ডিডেট সংখ্যা ক্যাপ করা হলো।
+                candidate_lengths = sorted(
+                    {
+                        max(1, len(words) - step)
+                        for step in range(0, min(len(words), _MAX_PREFIX_CANDIDATES))
+                    },
+                    reverse=True,
                 )
-            )
+                prefix_keys = []
+                for i in candidate_lengths:
+                    prefix = " ".join(words[:i])
+                    prefix_keys.append(
+                        f"prefix:{hashlib.sha256(f'{scope}{prefix}:{model_name}'.encode()).hexdigest()}"
+                    )
+
+                if prefix_keys:
+                    # বাংলা মন্তব্ব্য: mget দিয়ে সম্পূর্ণ প্রিফিক্স ক্যান্ডিডেটগুলোর ডাটা একটাই নেটওয়ার্ক রাউন্ড-ট্রিপে আনা হচ্ছে।
+                    results = await prefix_cache.mget(prefix_keys)
+                    for cached_response in results:
+                        if cached_response:
+                            logger.info("✅ L3 CACHE HIT: Prefix Match")
+                            self.cache_stats["prefix_hits"] += 1
+                            self._record_hit("prefix", cached_response)
+                            await record_cache_access(True)  # Record cache hit
+                            prefix_duration = time.time() - prefix_start
+                            await metrics_collector.observe_histogram(
+                                "cache_access_duration_seconds",
+                                prefix_duration,
+                                {"layer": "prefix", "result": "hit"},
+                            )
+                            return {
+                                "response": cached_response,
+                                "source": "L3_PREFIX_CACHE",
+                                "latency_ms": int(prefix_duration * 1000),
+                            }
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.error(f"L3 prefix cache error: {e}")
+                await record_cache_access(False)  # Record cache miss/error
+                error_event_bus.emit(
+                    ErrorEvent(
+                        module="multi_layer_cache",
+                        error_type="L3_READ_FAILED",
+                        message=str(e)[:200],
+                        severity="WARNING",
+                        structured_context=ErrorContext(module="auto_fixed"),
+                    )
+                )
 
         # Layer 4: Session Cache (In-memory LRU)
         if session_id:
@@ -424,71 +434,73 @@ class MultiLayerCache:
                 )
             )
 
-        try:
-            semantic_start = time.time()
-            await self._get_semantic_cache().set(
-                prompt, response, task_type="general", user_id=user_id
-            )
-            semantic_duration = time.time() - semantic_start
-            await metrics_collector.observe_histogram(
-                "cache_write_duration_seconds", semantic_duration, {"layer": "semantic"}
-            )
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            logger.error(f"L2 semantic cache write error: {e}")
-            error_event_bus.emit(
-                ErrorEvent(
-                    module="multi_layer_cache",
-                    error_type="L2_WRITE_FAILED",
-                    message=str(e)[:200],
-                    severity="WARNING",
-                    structured_context=ErrorContext(module="auto_fixed"),
+        # Layers 2 & 3: Semantic and Prefix caches (Issue #701: bypassed in simple mode to save Redis quota)
+        if not is_simple_cache_mode():
+            try:
+                semantic_start = time.time()
+                await self._get_semantic_cache().set(
+                    prompt, response, task_type="general", user_id=user_id
                 )
-            )
+                semantic_duration = time.time() - semantic_start
+                await metrics_collector.observe_histogram(
+                    "cache_write_duration_seconds", semantic_duration, {"layer": "semantic"}
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.error(f"L2 semantic cache write error: {e}")
+                error_event_bus.emit(
+                    ErrorEvent(
+                        module="multi_layer_cache",
+                        error_type="L2_WRITE_FAILED",
+                        message=str(e)[:200],
+                        severity="WARNING",
+                        structured_context=ErrorContext(module="auto_fixed"),
+                    )
+                )
 
-        try:
-            prefix_start = time.time()
-            prefix_cache = self._get_prefix_cache()
-            words = prompt.split()
-            # বাংলা মন্তব্ব্য: O(n) রাইট এড়াতে এবং স্টোরেজ অপটিমাইজেশনের জন্য প্রিফিক্স ক্যান্ডিডেট ক্যাপ করা হচ্ছে।
-            candidate_lengths = sorted(
-                {
-                    max(1, len(words) - step)
-                    for step in range(0, min(len(words), _MAX_PREFIX_CANDIDATES))
-                },
-                reverse=True,
-            )
-            # pipelined write if pipeline method exists
-            if hasattr(prefix_cache, "pipeline"):
-                async with prefix_cache.pipeline(transaction=False) as pipe:
+            try:
+                prefix_start = time.time()
+                prefix_cache = self._get_prefix_cache()
+                words = prompt.split()
+                # বাংলা মন্তব্ব্য: O(n) রাইট এড়াতে এবং স্টোরেজ অপটিমাইজেশনের জন্য প্রিফিক্স ক্যান্ডিডেট ক্যাপ করা হচ্ছে।
+                candidate_lengths = sorted(
+                    {
+                        max(1, len(words) - step)
+                        for step in range(0, min(len(words), _MAX_PREFIX_CANDIDATES))
+                    },
+                    reverse=True,
+                )
+                # pipelined write if pipeline method exists
+                if hasattr(prefix_cache, "pipeline"):
+                    async with prefix_cache.pipeline(transaction=False) as pipe:
+                        for i in candidate_lengths:
+                            prefix = " ".join(words[:i])
+                            prefix_cache_key = f"prefix:{hashlib.sha256(f'{scope}{prefix}:{model_name}'.encode()).hexdigest()}"
+                            pipe.setex(prefix_cache_key, 1800, response)
+                        await pipe.execute()
+                else:
                     for i in candidate_lengths:
                         prefix = " ".join(words[:i])
                         prefix_cache_key = f"prefix:{hashlib.sha256(f'{scope}{prefix}:{model_name}'.encode()).hexdigest()}"
-                        pipe.setex(prefix_cache_key, 1800, response)
-                    await pipe.execute()
-            else:
-                for i in candidate_lengths:
-                    prefix = " ".join(words[:i])
-                    prefix_cache_key = f"prefix:{hashlib.sha256(f'{scope}{prefix}:{model_name}'.encode()).hexdigest()}"
-                    await prefix_cache.setex(prefix_cache_key, 1800, response)
-            prefix_duration = time.time() - prefix_start
-            await metrics_collector.observe_histogram(
-                "cache_write_duration_seconds", prefix_duration, {"layer": "prefix"}
-            )
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            logger.error(f"L3 prefix cache write error: {e}")
-            error_event_bus.emit(
-                ErrorEvent(
-                    module="multi_layer_cache",
-                    error_type="L3_WRITE_FAILED",
-                    message=str(e)[:200],
-                    severity="WARNING",
-                    structured_context=ErrorContext(module="auto_fixed"),
+                        await prefix_cache.setex(prefix_cache_key, 1800, response)
+                prefix_duration = time.time() - prefix_start
+                await metrics_collector.observe_histogram(
+                    "cache_write_duration_seconds", prefix_duration, {"layer": "prefix"}
                 )
-            )
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.error(f"L3 prefix cache write error: {e}")
+                error_event_bus.emit(
+                    ErrorEvent(
+                        module="multi_layer_cache",
+                        error_type="L3_WRITE_FAILED",
+                        message=str(e)[:200],
+                        severity="WARNING",
+                        structured_context=ErrorContext(module="auto_fixed"),
+                    )
+                )
 
         if session_id:
             _set_session_cache(session_id, prompt, response)

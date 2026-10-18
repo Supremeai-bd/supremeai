@@ -96,6 +96,7 @@ async def heartbeat() -> None:
         return
     try:
         import redis.asyncio as aioredis
+
         # Issue #641: Decoupled standalone redis.asyncio client (worker container builds in isolation without core/)
         r = aioredis.from_url(REDIS_URL, decode_responses=False)
         while True:
