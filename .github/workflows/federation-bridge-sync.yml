@@ -1,10 +1,12 @@
 # =============================================================================
 # 🌉 SupremeAI Federation Bridge Orchestrator (Manual Restart & Sync)
 # =============================================================================
-# Bidirectional sync and manual bridge restart across all 12 Federation Satellites:
-#   1. supremeai -> 12 Satellites (Downstream baseline & contract propagation)
-#   2. 12 Satellites -> supremeai (Upstream sync & commit reconciliation)
-#   3. Bridge Intake & Reconciliation (Restarts intake queue & settles PR verdicts)
+# Bidirectional sync and manual bridge restart across Federation Satellites:
+#   - Multi-satellite selection (e.g. 'all' or 'studio, api, core')
+#   - Smart Drift / Change Detection (skips repos with zero changes unless forced)
+#   - supremeai -> Satellites (Downstream baseline & contract propagation)
+#   - Satellites -> supremeai (Upstream sync & commit reconciliation)
+#   - Bridge Intake & Reconciliation (Restarts intake queue & settles PR verdicts)
 # =============================================================================
 
 name: 🌉 Federation Bridge Orchestrator (Restart & Bidirectional Sync)
@@ -22,30 +24,21 @@ on:
           - "supremeai_to_satellites"
           - "satellites_to_supremeai"
           - "intake_restart_only"
-      target_satellite:
-        description: "Target satellite repository"
+      target_satellites:
+        description: "Target satellite(s): 'all' or comma-separated (e.g. 'studio, api, core')"
         required: true
-        type: choice
+        type: string
         default: "all"
-        options:
-          - "all"
-          - "studio"
-          - "api"
-          - "vscode"
-          - "browser"
-          - "core"
-          - "command"
-          - "skills"
-          - "agents"
-          - "sdk"
-          - "archive"
-          - "infrastructure"
-          - "mcp-control-plane"
-      force_reconcile:
-        description: "Force full status reconciliation on all PRs/Issues"
+      skip_if_no_changes:
+        description: "Smart Change Detection: skip satellites that have no drift/changes"
         required: false
         type: boolean
         default: true
+      force_sync:
+        description: "Force sync even if no new changes are detected"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -91,9 +84,8 @@ jobs:
 
           def b64u(b): return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
 
-          # Fallback to github.token if Infisical secrets are not set in environment
           if not os.environ.get("INFISICAL_CLIENT_ID"):
-              print("[info] INFISICAL_CLIENT_ID not found in secrets, using GITHUB_TOKEN fallback")
+              print("[info] INFISICAL_CLIENT_ID not found, using GITHUB_TOKEN fallback")
               tok = os.environ.get("GITHUB_TOKEN", "")
               with open(os.environ["GITHUB_ENV"], "a") as f:
                   f.write(f"BRIDGE_TOKEN<<EOF\n{tok}\nEOF\n")
@@ -138,33 +130,65 @@ jobs:
                   f.write(f"BRIDGE_TOKEN<<EOF\n{tok}\nEOF\n")
               print(f"[ok] Bridge token loaded successfully (source={src})")
           except Exception as e:
-              print(f"[warn] Vault fetch encountered error ({e}) - falling back to GITHUB_TOKEN")
+              print(f"[warn] Vault fetch error ({e}) - falling back to GITHUB_TOKEN")
               tok = os.environ.get("GITHUB_TOKEN", "")
               with open(os.environ["GITHUB_ENV"], "a") as f:
                   f.write(f"BRIDGE_TOKEN<<EOF\n{tok}\nEOF\n")
           PY
 
-      - name: "Execute Bidirectional Bridge Sync & Restart Engine"
+      - name: "Execute Smart Bidirectional Bridge Sync with Change Detection"
         env:
           BRIDGE_TOKEN: ${{ env.BRIDGE_TOKEN }}
           DIRECTION: ${{ github.event.inputs.direction || 'bidirectional' }}
-          TARGET_SATELLITE: ${{ github.event.inputs.target_satellite || 'all' }}
-          FORCE_RECONCILE: ${{ github.event.inputs.force_reconcile || 'true' }}
+          TARGET_SATELLITES: ${{ github.event.inputs.target_satellites || 'all' }}
+          SKIP_IF_NO_CHANGES: ${{ github.event.inputs.skip_if_no_changes || 'true' }}
+          FORCE_SYNC: ${{ github.event.inputs.force_sync || 'false' }}
         run: |
           python3 - <<'PY'
-          import json, os, sys, urllib.request, datetime
+          import json, os, sys, urllib.request, datetime, subprocess
 
           token = os.environ.get("BRIDGE_TOKEN")
           direction = os.environ.get("DIRECTION", "bidirectional")
-          target_sat = os.environ.get("TARGET_SATELLITE", "all")
+          raw_targets = os.environ.get("TARGET_SATELLITES", "all").strip()
+          skip_no_changes = os.environ.get("SKIP_IF_NO_CHANGES", "true").lower() == "true"
+          force_sync = os.environ.get("FORCE_SYNC", "false").lower() == "true"
           org = "Supremeai-bd"
 
-          all_satellites = [
+          ALL_SATELLITES = [
               "studio", "api", "vscode", "browser", "core", "command",
               "skills", "agents", "sdk", "archive", "infrastructure", "mcp-control-plane"
           ]
 
-          satellites = all_satellites if target_sat == "all" else [target_sat]
+          # Monorepo directory mapping for downstream change detection
+          SATELLITE_PATHS = {
+              "studio": "frontend",
+              "api": "backend/services/api",
+              "core": "backend/core",
+              "command": "backend/services/command",
+              "skills": "skills",
+              "vscode": "vscode",
+              "browser": "browser",
+              "agents": "backend/agents",
+              "sdk": "sdk",
+              "archive": "docs/archive",
+              "infrastructure": "infrastructure",
+              "mcp-control-plane": "infrastructure/mcp-control-plane"
+          }
+
+          # Parse multiple selection or 'all'
+          if raw_targets.lower() == "all":
+              selected_satellites = ALL_SATELLITES
+          else:
+              selected_satellites = [
+                  s.strip().replace("supremeai-", "") 
+                  for s in raw_targets.split(",") 
+                  if s.strip().replace("supremeai-", "") in ALL_SATELLITES
+              ]
+
+          if not selected_satellites:
+              print(f"[-] No valid satellites found in target selection: '{raw_targets}'")
+              print(f"    Available satellites: {', '.join(ALL_SATELLITES)}")
+              sys.exit(1)
 
           def gh_req(method, endpoint, payload=None):
               url = f"https://api.github.com{endpoint}"
@@ -182,73 +206,126 @@ jobs:
               except Exception as e:
                   return {"error": str(e)}
 
-          print(f"=== Starting Federation Bridge Sync ({direction}) ===")
-          print(f"Target Satellites: {satellites}")
+          # Load sync history ledger for change detection
+          ledger_path = "docs/ledger/satellite_sync.jsonl"
+          last_synced_shas = {}
+          if os.path.exists(ledger_path):
+              with open(ledger_path, "r", encoding="utf-8") as f:
+                  for line in f:
+                      if line.strip():
+                          try:
+                              entry = json.loads(line)
+                              sat_key = entry.get("satellite", "").replace(f"{org}/supremeai-", "")
+                              last_synced_shas[sat_key] = entry.get("commit_sha", "")
+                          except Exception:
+                              pass
+
+          print(f"=== Starting Federation Bridge Sync ===")
+          print(f"Mode: {direction}")
+          print(f"Satellites ({len(selected_satellites)}): {', '.join(selected_satellites)}")
+          print(f"Smart Change Detection: {'ENABLED' if skip_no_changes else 'DISABLED'}")
+          print(f"Force Sync: {'YES' if force_sync else 'NO'}\n")
 
           summary_table = []
+          os.makedirs("docs/ledger", exist_ok=True)
 
           # 1. Satellites -> SupremeAI (Upstream Sync)
           if direction in ("bidirectional", "satellites_to_supremeai"):
-              print("\n--- Phase 1: Upstream Sync (Satellites -> SupremeAI Monorepo) ---")
-              os.makedirs("docs/ledger", exist_ok=True)
-              for sat in satellites:
+              print("--- Phase 1: Upstream Sync (Satellites -> SupremeAI) ---")
+              for sat in selected_satellites:
                   repo_name = f"supremeai-{sat}"
                   res = gh_req("GET", f"/repos/{org}/{repo_name}/commits/main")
                   if "error" in res:
-                      summary_table.append((sat, "Upstream", "FAIL", res["error"]))
+                      summary_table.append((sat, "Upstream", "❌ ERROR", res["error"]))
                       print(f"[-] {repo_name}: {res['error']}")
-                  else:
-                      sha = res.get("sha", "unknown")[:8]
-                      commit_msg = (res.get("commit", {}).get("message", "")).splitlines()[0][:50]
-                      record = {
-                          "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                          "satellite": f"{org}/{repo_name}",
-                          "commit_sha": sha,
-                          "message": commit_msg,
-                          "status": "synchronized"
-                      }
-                      with open("docs/ledger/satellite_sync.jsonl", "a") as f:
-                          f.write(json.dumps(record) + "\n")
-                      summary_table.append((sat, "Upstream", "OK", f"HEAD: {sha} ({commit_msg})"))
-                      print(f"[+] {repo_name}: Synced HEAD {sha}")
+                      continue
 
-          # 2. SupremeAI -> Satellites (Downstream Sync Notification)
+                  latest_sha = res.get("sha", "")[:8]
+                  commit_msg = (res.get("commit", {}).get("message", "")).splitlines()[0][:50]
+                  last_sha = last_synced_shas.get(sat, "")[:8]
+
+                  # Change detection check
+                  if skip_no_changes and not force_sync and last_sha == latest_sha:
+                      print(f"[=] {repo_name}: SKIPPED (No drift; already in sync at {latest_sha})")
+                      summary_table.append((sat, "Upstream", "⏭️ SKIPPED", f"Up to date at {latest_sha} (no new commits)"))
+                      continue
+
+                  record = {
+                      "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                      "satellite": f"{org}/{repo_name}",
+                      "commit_sha": latest_sha,
+                      "message": commit_msg,
+                      "status": "synchronized"
+                  }
+                  with open(ledger_path, "a", encoding="utf-8") as f:
+                      f.write(json.dumps(record) + "\n")
+                  last_synced_shas[sat] = latest_sha
+                  print(f"[+] {repo_name}: SYNCED HEAD {latest_sha} - {commit_msg}")
+                  summary_table.append((sat, "Upstream", "✅ SYNCED", f"New HEAD: {latest_sha} ({commit_msg})"))
+
+          # 2. SupremeAI -> Satellites (Downstream Sync)
           if direction in ("bidirectional", "supremeai_to_satellites"):
-              print("\n--- Phase 2: Downstream Sync (SupremeAI Monorepo -> Satellites) ---")
-              for sat in satellites:
+              print("\n--- Phase 2: Downstream Sync (SupremeAI -> Satellites) ---")
+              head_sha = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
+              
+              for sat in selected_satellites:
                   repo_name = f"supremeai-{sat}"
+                  source_dir = SATELLITE_PATHS.get(sat, "")
+                  
+                  # Check if source directory exists and has changes
+                  has_changes = True
+                  if skip_no_changes and not force_sync and source_dir:
+                      try:
+                          # Check if files in this satellite folder were changed in the latest commit
+                          changed_files = subprocess.check_output(
+                              ["git", "diff", "--name-only", "HEAD~1", "HEAD", "--", source_dir],
+                              text=True, stderr=subprocess.DEVNULL
+                          ).strip()
+                          if not changed_files and sat in last_synced_shas:
+                              has_changes = False
+                      except Exception:
+                          has_changes = True
+
+                  if not has_changes:
+                      print(f"[=] {repo_name}: SKIPPED (No local changes in '{source_dir}/')")
+                      summary_table.append((sat, "Downstream", "⏭️ SKIPPED", f"No changes in '{source_dir}/'"))
+                      continue
+
                   payload = {
                       "event_type": "bridge_downstream_sync",
                       "client_payload": {
                           "source_repo": f"{org}/supremeai",
                           "target_repo": f"{org}/{repo_name}",
+                          "monorepo_sha": head_sha,
                           "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                           "event_kind": "bridge.downstream.sync"
                       }
                   }
                   res = gh_req("POST", f"/repos/{org}/{repo_name}/dispatches", payload)
                   if "error" in res:
-                      summary_table.append((sat, "Downstream", "WARN", f"Dispatch rejected: {res['error']}"))
+                      summary_table.append((sat, "Downstream", "⚠️ WARN", f"Dispatch rejected: {res['error']}"))
                       print(f"[-] {repo_name} dispatch: {res['error']}")
                   else:
-                      summary_table.append((sat, "Downstream", "OK", "Dispatched bridge_downstream_sync"))
+                      summary_table.append((sat, "Downstream", "✅ DISPATCHED", f"Event bridge_downstream_sync sent (SHA {head_sha})"))
                       print(f"[+] {repo_name}: Dispatched downstream sync event")
 
-          # 3. Output Step Summary
-          summary_md = "### 🌉 Federation Bridge Sync & Restart Report\n\n"
+          # 3. Generate Markdown Report for GitHub Step Summary
+          summary_md = "### 🌉 Federation Bridge Sync & Change Detection Report\n\n"
           summary_md += f"- **Mode**: `{direction}`\n"
-          summary_md += f"- **Target**: `{target_sat}`\n"
-          summary_md += f"- **Executed At**: `{datetime.datetime.now(datetime.timezone.utc).isoformat()}`\n\n"
-          summary_md += "| Satellite | Direction | Status | Details |\n"
+          summary_md += f"- **Target Satellites**: `{', '.join(selected_satellites)}`\n"
+          summary_md += f"- **Smart Change Detection**: `{'Enabled' if skip_no_changes else 'Disabled'}`\n"
+          summary_md += f"- **Force Sync**: `{'Yes' if force_sync else 'No'}`\n"
+          summary_md += f"- **Timestamp**: `{datetime.datetime.now(datetime.timezone.utc).isoformat()}`\n\n"
+          summary_md += "| Satellite | Direction | Verdict | Details |\n"
           summary_md += "|---|---|---|---|\n"
           for sat, d, st, det in summary_table:
-              summary_md += f"| `{sat}` | {d} | **{st}** | {det} |\n"
+              summary_md += f"| `supremeai-{sat}` | {d} | {st} | {det} |\n"
 
           step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
           if step_summary:
               with open(step_summary, "a", encoding="utf-8") as f:
                   f.write(summary_md)
-          print("\n=== Sync Process Complete ===")
+          print("\n=== Bridge Sync Finished ===")
           PY
 
       - name: "Restart Bridge Intake Queue & Reconcile Orders"
