@@ -39,7 +39,7 @@ function getKV() {
 }
 
 function getBackends() {
-  // 4-role backends — each on a separate Render account with independent 750h free quota
+  // 5-role backends — each on a separate Render account with independent 750h free quota
   function getVar(name) {
     if (typeof env !== 'undefined' && env[name]) return env[name];
     if (typeof globalThis[name] !== 'undefined') return globalThis[name];
@@ -47,14 +47,16 @@ function getBackends() {
   }
 
   const ROLES = [
-    { key: 'PRIMARY_URL', name: 'render-primary', healthPath: '/health', weight: 25 },
-    { key: 'WORKER_URL',  name: 'render-worker',  healthPath: '/health',        weight: 25 },
+    { key: 'PRIMARY_URL', name: 'render-primary', healthPath: '/health', weight: 20 },
+    { key: 'WORKER_URL',  name: 'render-worker',  healthPath: '/health',        weight: 20 },
     // #2626: scraper শুধু /health serve করে (backend/services/scraper/main.py) —
     // /api/v1/health probe-এ KV healthy_backends থেকে স্থায়ীভাবে বাদ পড়ত
-    { key: 'SCRAPER_URL', name: 'render-scraper', healthPath: '/health',        weight: 25 },
-    { key: 'MCP_URL',     name: 'render-mcp',     healthPath: '/health',        weight: 25 },
+    { key: 'SCRAPER_URL', name: 'render-scraper', healthPath: '/health',        weight: 20 },
+    { key: 'MCP_URL',     name: 'render-mcp',     healthPath: '/health',        weight: 20 },
+    { key: 'API_URL',     name: 'render-api',     healthPath: '/health',        weight: 20 },
     // Legacy fallback: also check old var names
     { key: 'USER_BACKEND_URL', name: 'render-legacy', healthPath: '/api/v1/health', weight: 0 },
+    { key: 'GCP_CLOUD_RUN_URL', name: 'render-legacy-gcp', healthPath: '/api/v1/health', weight: parseInt(getVar('GCP_WEIGHT') || '0', 10) },
   ];
 
   const list = [];
@@ -69,7 +71,7 @@ function getBackends() {
       url:     url,
       health:  `${url.replace(/\/$/, '')}${role.healthPath || '/health'}`,
       region:  'us-west',
-      timeout: 8000,
+      timeout: role.timeout || (role.name === 'render-api' ? 45000 : 8000),
       retries: 3,
       weight:  role.weight,
     });
@@ -89,6 +91,27 @@ async function handleRequest(event) {
 
   if (backends.length === 0) {
     return new Response(FALLBACK_HTML, { status: 503, headers: { 'Content-Type': 'text/html' } })
+  }
+
+  // Explicit Keepalive endpoint: keeps all 5 Render nodes + Neon + Supabase warm
+  if (url.pathname === '/__keepalive' || url.pathname === '/keepalive') {
+    const healthy = await getHealthyBackends(backends);
+    const healthyNames = healthy.map(b => b.name);
+    const kv = getKV();
+    if (kv) {
+      await kv.put('healthy_backends', JSON.stringify(healthyNames), { expirationTtl: 600 });
+    }
+    return new Response(JSON.stringify({
+      status: "ok",
+      service: "supremeai-worker",
+      mode: "always-on",
+      healthy_backends: healthyNames,
+      total_backends: backends.length,
+      timestamp: new Date().toISOString()
+    }, null, 2), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
   // Caching Layer for public APIs
@@ -153,15 +176,20 @@ async function handleRequest(event) {
     return forwardRequest(request, backend, url);
   }
 
-  const backend = weightedPick(healthyBackends)
+  let backend = weightedPick(healthyBackends);
+  if (url.pathname.startsWith('/v1/') || url.pathname.startsWith('/admin/squad/')) {
+    const apiBackend = healthyBackends.find(b => b.name === 'render-api');
+    if (apiBackend) backend = apiBackend;
+  }
   const target = new URL(url.pathname + url.search, backend.url)
+  const reqTimeout = (url.pathname.startsWith('/v1/') || backend.name === 'render-api') ? 45000 : backend.timeout;
 
   try {
     const response = await fetch(target, {
       method: request.method,
       headers: withOriginShield(omitWranglerHeaders(request.headers)),
       body: request.method !== 'GET' ? await request.text() : null,
-      signal: AbortSignal.timeout(backend.timeout),
+      signal: AbortSignal.timeout(reqTimeout),
     })
 
     const finalResponse = new Response(response.body, {
@@ -179,6 +207,12 @@ async function handleRequest(event) {
 
     return finalResponse;
   } catch (err) {
+    if (url.pathname.startsWith('/v1/')) {
+      return new Response(JSON.stringify({ error: `Backend ${backend.name} error: ${err.message}` }), {
+        status: 504,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
     return new Response(FALLBACK_HTML, { status: 502, headers: { 'Content-Type': 'text/html' } })
   }
 }
@@ -271,9 +305,9 @@ async function checkHealthAndStore(event) {
   const healthyNames = healthyBackends.map(b => b.name);
 
   if (kv) {
-    // আর্কিটেকচারাল ফিক্স #2: Add a TTL to prevent using stale data if the cron fails
+    // আর্কিটেকচারাল ফিক্স #2: Add a TTL matching the 8-minute cron (10 minutes) to prevent using stale data if the cron fails
     await kv.put('healthy_backends', JSON.stringify(healthyNames), {
-      expirationTtl: 60 // Expire after 60 seconds
+      expirationTtl: 600 // Expire after 10 minutes (covers 8-min cron interval)
     });
     console.log('Saved healthy backends to KV:', healthyNames);
   }
@@ -384,6 +418,9 @@ const FORWARDED_HEADER_ALLOWLIST = new Set([
   'x-request-id',
   'x-requested-with',
   'x-telegram-bot-token', // telegram webhook path (legacy allowlist member)
+  'x-supremeai-key', // SupremeAI client API key
+  'x-api-key', // generic API key header
+  'x-model', // dynamic model selection header
 ])
 
 function omitWranglerHeaders(headers) {
