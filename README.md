@@ -1,1138 +1,156 @@
-# SupremeAI 🚀
+# SupremeAI Open Foundation
 
-<p align="center"><strong>Autonomously Orchestrated AI Task-Execution Platform</strong></p>
+> **Open the implementation that teaches people how to use SupremeAI; keep private the implementation that reveals why SupremeAI performs better.**
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.11+-009688" alt="Backend" />
-  <img src="https://img.shields.io/badge/Console-Next.js%2016%20%7C%20Tailwind%204-black" alt="Mission Control" />
-  <img src="https://img.shields.io/badge/MCP-106%20Governed%20Tools-8A2BE2" alt="MCP Tools" />
-  <img src="https://img.shields.io/badge/Frontend-React%20%7C%20TypeScript%20%7C%20Vite-61DAFB" alt="Frontend" />
-  <img src="https://img.shields.io/badge/Architecture-Free--Tier%20First-green" alt="Free-Tier First" />
-  <img src="https://img.shields.io/badge/Database-PostgreSQL%20%2B%20pgvector-336791" alt="Database" />
-  <img src="https://img.shields.io/badge/CI-GitHub%20Actions-blue" alt="CI" />
-  <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License" />
-</p>
+This repository is the **public boundary** of the SupremeAI federation (roadmap §4.3 / Phase 8 foundation).
+It contains only artifacts that are useful *outside* SupremeAI's private intelligence:
 
-> **SupremeAI is not a chatbot that happens to have many tools.** It is being built as a governed, model-agnostic task-execution system whose long-term purpose is to solve real user problems by discovering, composing, reusing and—when genuinely necessary—creating capabilities. The same machinery is intended to operate, test, repair, learn from and safely improve SupremeAI itself.
+> [!IMPORTANT]
+> ### 🤖 AI Agent & MCP Contributor Quickstart (Where & How to Work)
+> If you are an external AI (Claude, Cursor, Antigravity, etc.) connecting via MCP Tower or GitHub:
+> 1. **Single Door for Work:** All tasks, bug reports, and PRs live exclusively in **`Supremeai-bd/supremeai-open`**. Satellite repositories maintain a strict 0 Issues / 0 PRs policy ([`FEDERATION_CHARTER.md`](./docs/FEDERATION_CHARTER.md)).
+> 2. **Where to Write Code:** Edit the corresponding domain folders inside this repository (`studio/`, `command/`, `core/`, `vscode/`, etc.). Do NOT attempt to push directly to satellite repos.
+> 3. **Automated Dispatch & Zero Residue:** When your PR merges into `supremeai-open:main`, the automated bridge pipeline dispatches your changes to the target satellite repo and cleans up transit files automatically ([`AUTONOMOUS_TRANSIT_PIPELINE.md`](./AUTONOMOUS_TRANSIT_PIPELINE.md)).
+> 4. **Boundary Restrictions:** You do not need private credentials. Access to `supremeai` (core monorepo) is restricted to admin, and `supremeai-api` is air-gapped (ghost-cloaked). All other 12 satellites are accessible via MCP.
 
-## Security
-
-Found a vulnerability? **Do not open a public issue** — report it privately via [GitHub Private Vulnerability Reporting](https://github.com/SaifulHaqueNiloy/supremeai/security/advisories/new). Policy, SLAs and scope: [`SECURITY.md`](SECURITY.md).
-
-## Run It
-
-Every command below is the real one used by devs and CI — no shortcuts, no fake flags.
-
-```bash
-# 1) Environment — copy the template (657 lines as of 2026-10-10; regenerate with
-#    scripts/ci/generate_env_example.py, which also wires the --check CI gate),
-#    fill in what your features need
-cp .env.example .env
-
-# 2) Backend — FastAPI behind Uvicorn (entry: backend/main.py, env-driven boot,
-#    hot-reload in local env; port comes from PORT / settings, compose maps 8080)
-cd backend && poetry install && poetry run python main.py
-
-# 3) Frontend — pnpm workspace (install once at repo root), then Vite dev server
-pnpm install && cd frontend && pnpm dev
-
-# 4) Mission Control Console — Next.js 16 + shadcn/ui cockpit
-cd apps/mission-control && bun install && bun run dev  # http://localhost:3000
-
-#    ...or the container path. `core` + `frontend` always start; profiles add more:
-#      --profile local → redis + postgres      --profile full → + worker, scraper, mcp
-docker compose --profile local up --build
-```
-
-Test suites (same entry points CI uses):
-
-```bash
-cd backend  && poetry run pytest tests/missions   # mission tests
-cd frontend && pnpm test                          # vitest run (whole suite)
-```
-
-## The Core Idea — Capability Before Construction
-
-The most important architectural rule is simple:
-
-> **When a new problem arrives, SupremeAI should first ask what it already has before deciding what it needs to build.**
-
-A new user request is therefore not automatically a new engineering project. SupremeAI should inspect its existing capability surface—agents, MCP tools, browser automation, provider adapters, account/resource pools, memory, workflows, execution workers, validation, failover, and previously planned capabilities—and compose the smallest safe solution from what is already available.
-
-```text
-                         NEW USER GOAL
-                               │
-                               ▼
-                     Understand the problem
-                               │
-                               ▼
-                  Discover required capabilities
-                               │
-                ┌──────────────┼──────────────┐
-                │              │              │
-                ▼              ▼              ▼
-             Existing       Planned /       External
-             capability     near-ready      capability
-                │              │              │
-                └──────────────┼──────────────┘
-                               ▼
-                         Compose a plan
-                               │
-                               ▼
-                       Policy / permissions
-                               │
-                               ▼
-                            Execute
-                               │
-                    ┌──────────┴──────────┐
-                    ▼                     ▼
-                 Verify                Failure
-                    │                     │
-                    │              Retry / repair /
-                    │                 failover
-                    └──────────┬──────────┘
-                               ▼
-                         Deliver honestly
-                               │
-                               ▼
-                  Capture reusable experience
-```
-
-This is why SupremeAI's capability coverage can be much larger than the number of polished user-facing features. A capability may already exist in code, be exposed through MCP, be available through a provider adapter, be implemented in a dedicated service, or already be specified in the project's planning corpus and need only final wiring.
-
----
-
-## 🏛️ Comprehensive System Architecture (End-to-End Topology)
-
-SupremeAI operates as a governed, resilient multi-layered system designed for zero-cost operation and autonomous execution:
+## Federation at a glance
 
 ```mermaid
-flowchart TD
-    subgraph CLIENTS["👥 Access & Client Surfaces"]
-        User["👤 End User / Web Portal"]
-        Admin["👑 Admin / Fleet Commander (God Mode / CLI)"]
-        ExternalClients["🔌 External Systems & Agents (MCP Clients)"]
+flowchart LR
+    AGENT["🤖 Autonomous agents<br/>(MCP bridge · fork+PR · JIT lease)"]
+
+    subgraph OPEN["supremeai-open · Public Window (this repo)"]
+        direction TB
+        TASKS["Task contracts (issues)"] --> GUARDS["7 PR guards<br/>+ CI Guardian"]
+        GUARDS --> GATE["Merge Gate<br/>(squash authority)"]
     end
 
-    subgraph EDGE_GATEWAY["🌐 Edge, Routing & Control Tower"]
-        CF["⚡ Cloudflare Edge (WAF & Proxy)"]
-        MCP["🗼 MCP Control Tower (infrastructure/mcp-control-plane)"]
-        FastAPI["🚀 FastAPI Gateway (backend/main.py)"]
-        EventBus["📡 Event Bus (backend/core/messaging/event_bus.py)"]
+    subgraph PRIVATE["Private federation cores"]
+        direction TB
+        TOWER["mcp-control-plane<br/>Control Tower · tool plane"]
+        API["supremeai-api<br/>Gateway"]
+        CORE["supremeai-core<br/>decision moat"]
+        STUDIO["supremeai-studio<br/>Studio UI"]
     end
 
-    subgraph AGENT_FLEET["🤖 Autonomous Agent Fleet & Governance"]
-        AgentLoop["🔄 Autonomous Agent Loop (scripts/agents/continuous_agent_loop.py)"]
-        Constitution["📜 Universal Operating Constitution (AGENTS.md)"]
-        PolicyEngine["🛡️ Policy Engine & AutonoGuard (policy_engine.py)"]
-        PRGate["🚦 Unified PR Gate & Merge Train (scripts/ci/)"]
-    end
+    AGENT --> TASKS
+    AGENT <-.->|"MCP tools · zero credentials"| TOWER
+    GATE ==>|"auto-bridge<br/>(webhook / direct dispatch)"| PRIVATE
 
-    subgraph PLANNING_EXEC["⚙️ Planning & Execution Engine"]
-        TaskEngine["🔄 Task State Machine (backend/adaptive_engine/task_engine.py)"]
-        DebateEngine["⚖️ Multi-Agent Debate Engine (debate_engine.py)"]
-        CapSurface["🔍 Capability Surface & Tool Dispatcher"]
-        Recipes["📜 Dynamic Pipeline Recipes"]
-    end
-
-    subgraph MODELS_CONTEXT["🧠 Models & Context Engine"]
-        ModelRouter["🔀 Multi-LLM Router (backend/brain/model_router.py)"]
-        LLMs["🌐 LLM Providers (Gemini / Anthropic / OpenAI / Groq)"]
-        RAG["📚 RAG Pipeline (backend/memory/rag_pipeline.py)"]
-        TokenBudget["💰 Token Budget Guard (backend/core/llm/token_budget.py)"]
-    end
-
-    subgraph DATA_STORAGE["💾 Storage, Memory & Infrastructure"]
-        Redis[("⚡ Redis Cache & Lock (backend/core/cache/redis_manager.py)")]
-        Postgres[("🗄️ PostgreSQL + pgvector / Supabase")]
-        MemorySidecar["🧠 Memory Service (backend/services/memory_service.py)"]
-        Infisical["🔐 Secrets Vault (Infisical)"]
-    end
-
-    User --> CF
-    CF --> FastAPI
-    Admin --> MCP
-    Admin --> AgentLoop
-    ExternalClients --> MCP
-
-    MCP <-->|Federated MCP / Tools| FastAPI
-
-    AgentLoop --> Constitution
-    AgentLoop --> PRGate
-    AgentLoop --> PolicyEngine
-
-    FastAPI --> EventBus
-    FastAPI --> PLANNING_EXEC
-    MCP --> CapSurface
-
-    PLANNING_EXEC --> DebateEngine
-    PLANNING_EXEC --> TaskEngine
-    TaskEngine --> PolicyEngine
-
-    PLANNING_EXEC --> MODELS_CONTEXT
-    ModelRouter --> TokenBudget
-    TokenBudget --> LLMs
-    RAG --> MODELS_CONTEXT
-
-    FastAPI --> Redis
-    FastAPI --> Postgres
-    FastAPI --> MemorySidecar
-    MCP --> MemorySidecar
-    FastAPI --> Infisical
+    classDef boundary fill:none,stroke-width:2px;
+    classDef core fill:none,stroke-dasharray:4 3;
+    class OPEN boundary;
+    class PRIVATE core;
 ```
 
-> 🔍 **Interactive Graph Explorer:** You can also explore the live interactive code-graph at [GitDiagram: SupremeAI](https://gitdiagram.com/saifulhaqueniIoy/supremeai).
+> Consuming the platform (not contributing)? Start at
+> [`docs/CONSUMERS.md`](./docs/CONSUMERS.md) and the
+> [`api-schemas/gateway.openapi.yaml`](./api-schemas/gateway.openapi.yaml)
+> Gateway surface. Contributing? [`AGENTS.md`](./AGENTS.md) and
+> [`docs/ZERO_ADMIN_GUIDE.md`](./docs/ZERO_ADMIN_GUIDE.md) are the entry points.
 
----
+### 🌐 Live Federation Services
 
-## 🎛️ Mission Control — Real-Time Operator Console (`apps/mission-control`)
+| Service | Live URL | Description |
+|---|---|---|
+| **SupremeAI Studio (Web UI)** | [https://supremeai-studio-live.vercel.app](https://supremeai-studio-live.vercel.app) | User-facing React/Vite console interface and agent workspace |
+| **MCP Control Tower** | [`https://supremeai-mcp-tower.onrender.com`](https://supremeai-mcp-tower.onrender.com) | Remote Streamable HTTP (`/mcp`) & SSE (`/sse`) tool plane |
+| **API Gateway** | [`https://supremeai-api-ulw0.onrender.com`](https://supremeai-api-ulw0.onrender.com) | Unified OpenAI-compatible multi-LLM provider gateway |
 
-SupremeAI features a dedicated, high-performance operator console built on **Next.js 16 (App Router, TypeScript 5, Tailwind 4, shadcn/ui)** that connects directly to the **central MCP Control Tower** (`supremeai-mcp-tower`), giving administrators and engineers a unified cockpit over the entire platform.
-
-| Control Surface | Live Capability & Architecture |
+| Path | What it is |
 |---|---|
-| 📊 **Live System Matrix** | Quick System Matrix across **18 connected services**, tower round-trip latency, KPI rail, live activity stream, and lazy-loaded dependency graph. |
-| 🗼 **Tower Explorer** | Interactively browse and execute all **106 governed Model Context Protocol (MCP) tools** (system, health, memory, render, github, autonomy, AI pools) via JSON runner with real-time payload inspector. |
-| 🔀 **Git Sync Center** | Autonomous fleet directive: checks all open PRs against `main`, detects merge conflicts, logs durable SQLite sync ledgers, and visualizes live CI Pipeline status. |
-| 🧠 **Brain & Memory Hub** | Long-term hierarchical memory (facts, decisions, lessons, insights) with semantic search, tagging, and one-click mirroring to the tower brain (`memory_remember_fact`). |
-| 🛑 **Autonomy Kill-Switch** | The constitutional **0.01% নাটাই**: instant visual autonomy toggle, emergency kill-switch, and Human-in-the-Loop pending approval queue. |
-| ⌨️ **⌘K Command Palette** | Keyboard-first command center to navigate views, wake sleeping Render services, force cache sync, or execute system directives in milliseconds. |
+| `api-schemas/gateway.openapi.yaml` | **The stable SupremeAI API Gateway surface** (OpenAI-compatible `/v1/chat/completions`) — byte-mirror of `supremeai-api/contracts/openapi.yaml` |
+| `examples/gateway_client.py` | Zero-dependency Python client for the Gateway (typed errors, retry only on 502/503) — byte-mirror of `supremeai-api/scripts/clients/gateway_client.py` |
+| `docs/CONSUMERS.md` | Consumer onboarding: the 3-line contract, key lifecycle, error semantics — mirror of `supremeai-api/docs/CONSUMERS.md` |
+| `ECOSYSTEM_MAP.md` | **The Federation Ecosystem Map** — architecture directory for agents working across repos |
+| [`docs/FEDERATION_TAXONOMY_AND_LICENSING.md`](./docs/FEDERATION_TAXONOMY_AND_LICENSING.md) | **Federation Taxonomy & Licensing SSOT** — 12 domain satellites, institutional memory, and the master umbrella model |
+| [`docs/AGENT_PORTAL_SPEC.md`](./docs/AGENT_PORTAL_SPEC.md) | **Agent Portal & Federation Bridge architecture spec** (#23): two-repo relationship, the 3 submission pathways mapped to machinery, guard/gate/router map, clickable contract-schema references |
+| [`docs/FAQ.md`](./docs/FAQ.md) | **Operational FAQ** (#23): symptom→cause→fix for every known validation-error class (naming, duplicates, boundary, stale-base, force-push, keyword propagation, env-skips) |
+| `AGENTS.md` | Agent entrypoint: autonomous work-submission loop, submission pathways, bridge lane |
+| `AGENT_RULES.md` | Agent policy constitution: universal rules, policies, roles, fail-closed guards |
+| `.github/workflows/pipeline.yml` | Unified validation & cron engine (#155): guards → Python 3.10–3.13 matrix + Tower TS verification + secret scan, plus the agent-loop dispatch job (`scripts/agents/continuous_agent_loop.py --pick-next`) — triggerable by manual `workflow_dispatch`; the */30 schedule is currently disabled per admin directive (AGENTS.md §0 8-step cycle; draft-only scheduled runs with explicit §10 no-op on empty board, PR submission opt-in via manual dispatch; event-driven intake via the MCP Tower, see `infrastructure/mcp-control-plane/docs/BRIDGE_INTAKE.md`) |
+| `.github/workflows/landing.yml` | Unified autonomous landing & bridge dispatch (#155): auto-squash-merge on full gate success, then the same run streams the landed patch reference into the private bridge queue |
+| `.github/ISSUE_TEMPLATE/bridge-work-order.yml` | Work-order template for bridge submissions (task id, patch branch, test evidence) |
+| `LICENSE` | MIT |
 
-```text
-Next.js 16 Console ──► /api/tower/* ──► MCP Streamable HTTP (/mcp, JSON-RPC)
-        │                  │                    │
-        │                  ├─ session cache + auto-wake (Render sleep) + retry
-        │                  └─ in-memory response cache (zero-cost reads)
-        │
-        ├──► /api/git/* ──► GitHub REST (PRs, compare, merges, CI runs) → SQLite ledger
-        └──► Prisma (SQLite) — brain & memory: snapshots, activity, memory notes,
-             git-sync ledger, tool-call journal, dynamic settings
+## The one stable contract
+
 ```
+Client ──SUPREMEAI_API_KEY──▶ SupremeAI Gateway ──▶ Provider Adapters (Gemini / Groq / …)
+```
+
+- One stable SupremeAI API on the outside; dynamic, replaceable, multi-provider intelligence on the inside.
+- Provider credentials never leave the server side. Your `SUPREMEAI_API_KEY` is the only thing you need.
+
+## What goes here vs. what never goes here
+
+**Belongs here:** generic interfaces, examples, open schemas, documentation helpers, consumer tooling.
+
+**Never here:** proprietary routing policies, internal autonomy scoring, private repair/healing policy, key-plane internals.
+
+## Drift protection
+
+Mirrors above are byte-parity-checked daily by the federation integration CI
+(`supremeai-infrastructure` → `federation-integration.yml`, roadmap §21). If a mirror drifts from its
+source-of-truth, that check fails closed.
+
+## 🤖 Continuous Agent Loop & Federation Roles
+
+`supremeai-open` acts as the **Public Face / Embassy** (`scripts/agents/continuous_agent_loop.py`), providing an open zero-dependency CLI entrypoint for any agent or contributor. The internal engines, schedulers, and worker daemons reside in the `supremeai-agents` core satellite.
+
+> **Continuous Loop Core Doctrine:**
+> *"কার কী দায়িত্ব তা বুঝিয়ে দেওয়া, দায়িত্ব পালনের সময় কোন রুলস মানতে হবে আর কোনটা মানবে না তা বেঁধে দেওয়া, এবং কাজে লাঠি লাগবে নাকি ছুরি লাগবে (Weapon Provisioning) তা সুনির্দিষ্ট করে দেওয়াই Continuous Agent Loop-এর মূল কাজ।"*
+
+### 1. Two-Paradigm Dispatch Architecture
+- **Task-Driven Roles (Event & Runway Driven):**
+  - **Coder:** Feature/bug implementation within scope under atomic single-lock.
+  - **CI Fixer:** Preempts backlog to heal failing PR checks and unblock the runway.
+  - **Task Auditor:** Pre-landing verification for boundaries, secret leaks, and decision ledgers.
+- **Time-Driven / Platform-Driven Roles (Scheduled Cron & Periodic Probing):**
+  - **Ecosystem Scout:** Global tech radar scouring outside innovations (Meta, Anthropic, OpenAI) with full-spectrum evaluation (pros, cons, "এটা করা যাবে না", risks) producing min. 10 proposals.
+  - **Federation Auditor:** Internal inspector auditing commit parity, drift, and cleanliness across the 11 canonical satellites.
+  - **Human Eye (Visual QA):** SupremeAI's PR & Styling Team (*"বস, এই ড্রেসে ভালো লাগছে না, ওই ড্রেস পরেন"*), profiling visual polish, typography, and premium user experience (Issue create only).
+  - **Rules Breaker:** Dual-vector chaos hacker (breaks existing guards + exploits unprotected gaps to measure worst-case damage, filing failing tests and P0 issues).
+  - **3rd-Party Platform Guardian:** High-frequency prober for external model latency and quotas (auto-failovers if possible, else creates issues).
+
+### 2. Weapons & Scoped Permissions Matrix (লাঠি বনাম ছুরি — RBAC)
+
+| Role | Weapon Metaphor | Scoped Tools & Permissions | Forbidden Operations |
+|---|---|---|---|
+| **Coder** | Surgical Knife 🔪 | Code edit, Local test runner, Git branch, PR create | Claiming without atomic lock, breaking scope |
+| **CI Fixer** | Emergency Defibrillator ⚡ | Direct commit on PR branch, CI log parser | Grabbing backlog when PR runway is blocked |
+| **Task Auditor** | Policy Stamp 📋 | Boundary guards, Gitleaks scanner, PR approve/block | Direct source code modifications |
+| **Ecosystem Scout** | Long-Range Telescope 🔭 | Web search, URL readers, Issue creation | Local code edits, uncritical hype |
+| **Federation Auditor** | Ledger Microscope 🔬 | Multi-repo git reader (11 satellites), Issue create | Direct source code edits |
+| **Human Eye** | Stylist Camera & Mirror 📸 | Browser subagent, Screenshot capture, Issue create | Direct code or CSS edits |
+| **Rules Breaker** | Sledgehammer & Lockpick 🔨 | Adversarial fuzzers, `tests/adversarial/` commits | Production damage, writing self-patches |
+| **3rd-Party Guardian** | Routing Circuit Breaker 🔌 | Provider prober, Dynamic Failover Toggle, Issue create | Corrupting permanent configuration files |
 
 ---
 
-## 🌐 Connected Ecosystem & Provider Matrix (18 Services)
+## Bridge — external agent work submission (v1)
 
-SupremeAI federates multiple clouds, model providers, and edge networks under a resilient, fail-closed governance tier:
+Agents work **in public**; code lands **private** after the full constitutional gate battery.
 
-| Category | Integrated Services & Roles | Zero-Cost / Resilience Mechanism |
-|---|---|---|
-| **AI Engines** | Google Gemini · OpenAI · Anthropic Claude · Groq | Dynamic Model Router (`model_router.py`), rate-limit fallback chain, and token budget enforcement |
-| **Edge & Cloud** | Cloudflare Workers · Render · Vercel · Firebase | Cloudflare WAF, cold-start auto-wake on Render, serverless edge routing |
-| **Data & Vector** | PostgreSQL + pgvector · Supabase · Upstash Redis · Qdrant | Hybrid search (keyword + vector), sub-millisecond Redis lock & cache, tenant data isolation |
-| **Security & Vault** | Infisical Secrets Manager · GitHub Secrets | Zero plaintext keys in code, JIT broker ephemeral tokens, scoped credential lease |
-| **External & Comms** | GitHub API · Firecrawl · Kaggle · Stripe · Telegram · Discord | Bi-directional fleet notifications, real-time alerting watchdog, autonomous web crawling |
+> **Lane eligibility:** the `bridge/<task-id>` branch lane requires **collaborator write access**
+> to this repo (proxy bots / org agents). Zero-credential agents **cannot push branches here** —
+> use §2.1 Pathway 2 of [`AGENTS.md`](./AGENTS.md) (fork + PR) instead; the PR is ingested by the
+> same internal automation.
 
----
+1. Push your patch branch to this repo: `bridge/<task-id>` (diff base = `main`).
+2. Open a **Bridge Work Order** issue (issue template above).
+3. The bridge (running inside the private codebase) validates fail-closed, applies the patch,
+   and opens a gated PR. Status flows back to your issue via labels + comments.
 
-## 🛠️ Continuous Tooling & Zero-Cost Web Delivery
-
-To adhere to SupremeAI's **Free-Tier First (Zero-Cost)** invariant while maximizing transparency and developer ergonomics, three continuous web delivery and observability tools are integrated into our live development loop:
-
-| Continuous Tool | Purpose & Integration Point | Real-World SupremeAI Usage |
-|---|---|---|
-| **⏳ [Git History](https://github.githistory.xyz/SaifulHaqueNiloy/supremeai/blob/main/AGENTS.md)** | **Interactive Time-Machine** · Visualizes git file evolution and commit playback | Inspect how our [Universal Constitution (AGENTS.md)](https://github.githistory.xyz/SaifulHaqueNiloy/supremeai/blob/main/AGENTS.md) and [Master Roadmap (docs/ROADMAP.md)](https://github.githistory.xyz/SaifulHaqueNiloy/supremeai/blob/main/docs/ROADMAP.md) evolved over time. |
-| **⚡ [Raw.Githack](https://raw.githack.com/)** | **Zero-Cost HTML CDN** · Serves static web pages directly from git with correct MIME headers | Exposes Pytest HTML coverage (`htmlcov/index.html`) and regression test suites directly to PR reviewers without standing web servers. |
-| **🌐 [jsDelivr](https://www.jsdelivr.com/)** | **Enterprise Multi-CDN** · Global edge caching for release-tagged repository assets | High-speed, permanent delivery of documentation diagrams, badges, and zero-cost client-side AI widget script distributions. |
+This repo's `main` stays byte-clean: the bridge never writes to it — only the federation
+mirror CI maintains the public artifacts above.
 
 ---
 
-# The Road to Production — One-Man-Army Master Plan
-
-The full strategy lives in [`docs/ROADMAP.md`](docs/ROADMAP.md) (live priority roadmap, evidence-gated phases) and [`docs/master_docs/ARCH-05-MASTER_ROADMAP_AND_DECISIONS.md`](docs/master_docs/ARCH-05-MASTER_ROADMAP_AND_DECISIONS.md) (decision-history log). Its shape in one table:
-
-> **A frontier model shipped as a bare API loses to a governed system on any field where the SYSTEM is the product.** SupremeAI competes where machinery — not parameter count — decides the winner.
-
-| Field | How we win | Measured by |
-|---|---|---|
-| **Verified reliability** | Governed verify-loop + `pass^k` gate (`core/self_benchmark.py`) — consistency beats demo-grade pass@1 | pass^3 on the mission suite |
-| **Agentic task completion** | Capability composition + governed execution + repair/failover beats the same model served raw | GAIA-style mission success rate |
-| **Cost frontier** | Zero-cost provider chain + Tier0 + cache + zero-token scout summarizer | $ per verified task (published) |
-| **Memory that compounds** | Auto-RAG + hierarchical memory + learning loop: every solved task makes the next one cheaper | repeat-task cost delta |
-| **Bengali & regional depth** | Native Bangla tooling today; dedicated own-model adapter in Phase 3 | Bangla eval head-to-head |
-| **Integration surface** | Governed MCP federation + one-URL connect capability registry | time-to-first-verified-task |
-
-The ladder from current stage to production — **Phase 0 Stop the Bleed → Phase 1 Capability Completion → Phase 2 Reliability Moat → Phase 3 Own Model v1 (small, narrow, ours) → Phase 4 Public Benchmark Attacks → Phase 5 Production Hardening → Phase 6 Compounding** — with phase gates, budget math (under ~$75/month) and kill criteria, is specified in the master plan. Every phase reuses machinery that already exists in this repository; that is *Reuse Before Creation* applied to strategy itself.
-
----
-
-## Table of Contents
-
-1. [The Road to Production — One-Man-Army Master Plan](#the-road-to-production--one-man-army-master-plan)
-2. [SupremeAI Constitution](#supremeai-constitution)
-3. [What SupremeAI Is](#what-supremeai-is)
-4. [The Capability-Composition Model](#the-capability-composition-model)
-5. [How a User Problem Is Solved](#how-a-user-problem-is-solved)
-6. [Self-Evolution Loop](#self-evolution-loop)
-7. [External Capability Delegation](#external-capability-delegation)
-8. [North-Star Architecture](#north-star-architecture)
-9. [Existing Capability Surface](#existing-capability-surface)
-10. [Planning Is Part of the Capability Surface](#planning-is-part-of-the-capability-surface)
-11. [Technology & Service Map](#technology--service-map)
-12. [MCP & Central Control Plane](#mcp--central-control-plane)
-13. [Memory & Learning](#memory--learning)
-14. [Security & Governance](#security--governance)
-15. [Reliability, Failover & Degradation](#reliability-failover--degradation)
-16. [Low-Cost / Zero-Waste Philosophy](#low-cost--zero-waste-philosophy)
-17. [CI/CD & Deployment](#cicd--deployment)
-18. [Repository & Planning Map](#repository--planning-map)
-19. [Testing & Quality](#testing--quality)
-20. [Current-State Caveats](#current-state-caveats)
-21. [License](#license)
-
----
-
-# SupremeAI Constitution
-
-These principles govern how the system should be designed and extended.
-
-### 1. Eternal Brain
-
-SupremeAI's durable identity and useful experience should accumulate in its own memory and learning systems. External models are replaceable processing engines, not the permanent identity of SupremeAI.
-
-### 2. Capability Sovereignty
-
-Capabilities should be replaceable, composable, testable and reusable. Provider-specific details belong behind adapters or governed execution surfaces.
-
-### 3. Reuse Before Creation
-
-```text
-Discover → Reuse → Compose → Adapt → Extend → Create
-```
-
-Never build a new subsystem merely because a similar capability already exists somewhere in the repository or planning corpus.
-
-### 4. Dynamic Discovery
-
-Prefer repository inspection, registries, runtime metadata, configuration discovery, MCP discovery and memory queries over brittle hard-coded inventories.
-
-### 5. Verification Before Trust
-
-```text
-Generate → Execute → Verify → Trust
-```
-
-An unverified answer, artifact, deployment or autonomous change is not considered successfully completed.
-
-### 6. Policy Before Power
-
-```text
-Observe → Analyze → Risk → Permission → Approval → Act → Verify → Audit
-```
-
-High-impact actions remain governed even when the system is autonomous.
-
-### 7. Reversible Evolution
-
-Autonomous improvements should preserve their reason, evidence, tests, risk and rollback path whenever practical.
-
-### 8. Graceful Degradation
-
-A single provider, account, runtime or service failure should not unnecessarily destroy the whole task. Prefer safe alternatives, reduced functionality and bounded recovery.
-
-### 9. Provider Agnostic, User Loyal
-
-The user asks SupremeAI for an outcome. The underlying provider stack may change without changing the user's mental model.
-
-### 10. One System, Many Execution Surfaces
-
-User work, research, browser automation, system maintenance, incident repair, deployment and self-evolution should increasingly share the same task/capability machinery with different scopes and permissions.
-
-### 11. Memory Must Compound
-
-```text
-Task → Result → Experience → Memory → Better Future Planning
-```
-
-### 12. Least Privilege, Maximum Capability
-
-```text
-Capability ≠ Permission
-```
-
-The system may know how to do something without automatically being authorized to do it.
-
-### 13. No Silent Failure
-
-```text
-Failure → Detect → Explain → Repair/Retry → Verify → Report honestly
-```
-
-### 14. Sustainable Cost
-
-The objective is minimum sustainable infrastructure cost, not an unconditional promise that every vendor will remain free forever. Workload placement, reuse, caching, on-demand execution and replaceable providers are preferred over fragile quota assumptions.
-
----
-
-## Zero-Friction SupremeAI Integration Model
-
-Zero-friction belongs to SupremeAI as a whole, not to MCP alone. Customers and admins use one connection contract for MCP servers, APIs, OAuth services and internal capabilities; the backend keeps discovery, policy, credentials, verification and audit centralized.
-
-### Customer connection
-
-```yaml
-connect: https://mcp.example.com/mcp
-```
-
-The URL identifies a capability. SupremeAI validates it, discovers what it can safely use, scopes it to the current tenant, applies the least-privilege default and exposes verified capabilities through the central control interface. Provider consent or credentials are requested only when the provider requires them.
-
-### Administrator authority
-
-```yaml
-connection_role: admin
-```
-
-This is the optional one-line authority change. It is accepted only after actor authorization and policy evaluation; it does not bypass provider scopes, safety checks or approval requirements. A URL alone never grants authority.
-
-### Canonical documentation
-
-- [MCP & Integration Handbook](docs/integration/MCP_INTEGRATION_HANDBOOK.md)
-- [Zero-Friction Backend Specification](docs/integration/ZERO_FRICTION_BACKEND_SPEC.md)
-- [Connection Examples](docs/integration/CONNECTION_EXAMPLES.md)
-- [Permission Model](docs/integration/PERMISSION_MODEL.md)
-
----
-
-# What SupremeAI Is
-
-SupremeAI is an autonomous task-execution platform for both **user work** and **system operations**.
-
-Its real benchmark is not how many features are listed in the UI. The benchmark is:
-
-> **Can SupremeAI reliably finish a real user's task, using the capabilities it already has, while safely discovering or acquiring only what is actually missing?**
-
-This changes the engineering strategy.
-
-A traditional product might do this:
-
-```text
-New requirement → Build new feature → Deploy → Maintain
-```
-
-SupremeAI aims for:
-
-```text
-New requirement
-      ↓
-Capability inventory
-      ↓
-Reuse existing capability
-      ↓
-Compose existing capabilities
-      ↓
-Use a planned/near-ready capability if appropriate
-      ↓
-Delegate to an authorized external capability if appropriate
-      ↓
-Only then build the smallest missing capability
-      ↓
-Test → Verify → Register → Reuse later
-```
-
----
-
-# The Capability-Composition Model
-
-SupremeAI should maintain a mental model of **what it can do**, not merely a list of software packages.
-
-A capability can come from several sources:
-
-```text
-┌─────────────────────────────────────────────────────┐
-│              SUPREMEAI CAPABILITY SURFACE           │
-├─────────────────────────────────────────────────────┤
-│ Native code / services                               │
-│ Agents and dynamic agents                            │
-│ MCP tools and resources                              │
-│ Browser / Playwright automation                      │
-│ LLM/provider adapters                                │
-│ Multi-account / resource pools                      │
-│ Workers and asynchronous execution                   │
-│ Memory / RAG / experience                            │
-│ CI/CD and repository automation                      │
-│ Existing workflows and integrations                  │
-│ Planned / near-complete architecture                 │
-│ User-authorized external capabilities                │
-└─────────────────────────────────────────────────────┘
-```
-
-The system should therefore distinguish three useful states:
-
-| State | Meaning | Preferred action |
-|---|---|---|
-| **Available** | Capability is implemented and usable | Reuse/compose it |
-| **Near-ready** | Capability is already designed/partially implemented and mainly needs wiring, hardening or activation | Finish it |
-| **Missing** | No suitable capability exists | Discover, delegate, or create the minimum required capability |
-
-This is the foundation for the project's long-term **problem coverage** strategy.
-
-### Problem Coverage
-
-For a new task, a useful internal metric is:
-
-```text
-Problem Coverage =
-    reusable existing capabilities
-  + near-ready planned capabilities
-  + safe external capabilities
-  ───────────────────────────────────
-    capabilities required by the task
-```
-
-This is **not** a promise that every task is already solved. It is a planning metric that prevents the team and the AI from rebuilding infrastructure unnecessarily.
-
----
-
-# How a User Problem Is Solved
-
-Consider a user asking for something SupremeAI does not natively specialize in—for example, producing a video, interacting with a third-party web application, researching a niche subject, repairing a repository, or operating a business workflow.
-
-SupremeAI should not immediately answer “I cannot do that.”
-
-It should reason approximately as follows:
-
-```text
-1. What exactly is the user asking for?
-2. What capabilities does the task require?
-3. Which required capabilities already exist?
-4. Which can be composed through MCP/tools/agents?
-5. Which existing account/provider/resource can perform the work?
-6. Can browser automation operate an authorized web capability?
-7. Is there a near-ready capability already documented in the plans?
-8. What is the safest and cheapest execution route?
-9. How can the result be independently verified?
-10. What experience should be retained for future tasks?
-```
-
-The result should be a **task plan**, not a provider-specific script.
-
-```text
-User Intent
-   ↓
-Task Decomposition
-   ↓
-Capability Discovery
-   ↓
-Resource / Provider Selection
-   ↓
-Policy & Permission
-   ↓
-Execution
-   ↓
-Verification
-   ↓
-Repair / Retry / Failover if necessary
-   ↓
-Delivery + Evidence
-   ↓
-Experience / Memory
-```
-
----
-
-# Self-Evolution Loop
-
-One of SupremeAI's long-term goals is to turn real user problems into a continuous capability-improvement loop.
-
-**The critical safety rule:** learning does not mean blindly changing production.
-
-```text
-                 REAL USER PROBLEM
-                         │
-                         ▼
-                Identify capability gap
-                         │
-              ┌──────────┴──────────┐
-              │                     │
-        Capability exists      Capability missing
-              │                     │
-              ▼                     ▼
-           Reuse            Research / discover
-                                    │
-                         ┌──────────┴──────────┐
-                         │                     │
-                    Learn from AI        Learn from web
-                    / memory             / user / docs
-                         └──────────┬──────────┘
-                                    ▼
-                           Candidate capability
-                                    │
-                                    ▼
-                              Sandbox / test
-                                    │
-                                    ▼
-                       Evaluation + security checks
-                                    │
-                         ┌──────────┴──────────┐
-                         ▼                     ▼
-                       FAIL                  PASS
-                         │                     │
-                      Iterate            Governed promotion
-                                               │
-                                               ▼
-                                      Capability Registry
-                                               │
-                                               ▼
-                                      Future task reuse
-```
-
-Therefore:
-
-> **Every solved problem should have the opportunity to make the next similar problem cheaper, faster and more reliable.**
-
-The system is not trying to become omniscient. It is trying to make its **reusable problem-solving surface compound over time**.
-
----
-
-# External Capability Delegation
-
-SupremeAI does not need to personally host every specialized capability.
-
-If an external service can perform a specialized task and the user has authorized access where required, SupremeAI may act as an intelligent orchestrator/operator.
-
-For example:
-
-```text
-User: “Create a marketing video.”
-
-SupremeAI:
-  Native video generator? → No
-  Existing authorized provider? → Yes
-  API available? → Use API
-  Browser-only capability? → Use governed browser automation
-  Result retrieved? → Validate
-  Result valid? → Present to user
-```
-
-This makes **browser automation an execution surface for authorized capabilities**, not merely a scraper.
-
-```text
-SupremeAI
-   │
-   ├── Native capability
-   ├── MCP capability
-   ├── API capability
-   └── Browser-accessible capability
-             │
-             ▼
-      User-authorized account
-             │
-             ▼
-         Execute → Verify
-```
-
-Credentials and sessions must remain protected. SupremeAI must not bypass authentication controls, security challenges or provider restrictions. External execution is subordinate to permission, policy, safety and verification.
-
----
-
-# North-Star Architecture
-
-```mermaid
-flowchart TB
-    USER["User / Client / Admin / External Agents"]
-    UI["Unified React + TypeScript Frontend"]
-    GATEWAY["Core API Task Gateway (/api/v1/tasks)"]
-    KERNEL["SupremeKernel Single-Door Facade (/api/v1/kernel/dispatch)"]
-
-    subgraph CIRCLES["The 4 SupremeAI Bounded Circles"]
-        GOV["Governance Circle (Auth, RBAC, Policy, HITL, Audit)"]
-        EXEC["Execution Circle (Tasks, Browser, Agents, Tools, Scrapers)"]
-        EVO["Evolution Circle (Self-Healing, Experience, Auto-Skills)"]
-        INFRA["Infrastructure Circle (DB, Redis, Queues, Cloudflare, Network)"]
-    end
-
-    MCP["SupremeAI MCP / Control Plane"]
-    EXT["Authorized External Capabilities / Multi-Account Pool"]
-    MEM[("PostgreSQL + pgvector (Durable Memory)")]
-    CACHE[("Redis Cache / PubSub Invalidation")]
-
-    USER --> UI
-    UI --> GATEWAY
-    UI --> KERNEL
-    GATEWAY --> KERNEL
-    KERNEL --> GOV
-    KERNEL --> EXEC
-    KERNEL --> EVO
-    KERNEL --> INFRA
-    EXEC --> MCP --> EXT
-    EXEC --> MEM
-    INFRA --> CACHE
-    INFRA --> MEM
-    EVO --> MEM
-```
-
-### Core Architecture Pillars
-
-> **Distributed execution, centralized intelligence and bounded Circle governance.**
-
-1. **SupremeKernel Single-Door Facade:** Every capability execution is governed through `backend/core/kernel/dispatcher.py` and `POST /api/v1/kernel/dispatch`, ensuring unified actor resolution, tenant scoping, policy evaluation, and audit logging.
-2. **The 4 Bounded Circles:** Strict architectural boundaries enforced by AST linting:
-   - **Governance:** Auth, RBAC, Policy enforcement, and Audit Journal.
-   - **Execution:** Tasks, Agents, Headless Playwright Browser automation, and Tools.
-   - **Evolution:** Synaptic memory, dynamic learning, and self-healing.
-   - **Infrastructure:** Database connection pooling, Redis caching/invalidation, Cloudflare circuit breakers, and network egress controls.
-3. **Core API Task Gateway:** Direct client calls to worker backends are eliminated; all asynchronous and background workflows route through `/api/v1/tasks`.
-
----
-
-# Existing Capability Surface
-
-The current repository already contains many of the ingredients required by the North Star. The purpose of this section is to make that reality visible in the README rather than making future work look like a collection of unrelated greenfield projects.
-
-### MCP / capability discovery
-
-MCP is intended to be a central discovery and execution/control surface. The repository contains MCP tooling, configuration and deployment paths. The architecture should use MCP to expose reusable capabilities rather than creating a new bespoke integration for every task.
-
-### Dynamic planning and agents
-
-The repository contains a dynamic planning engine and dynamic agent/tool machinery. New tasks should therefore be mapped onto existing capabilities before new agents are created.
-
-### LLM/provider abstraction
-
-The repository uses gateway/adapter concepts for model/provider selection and failover. Providers are replaceable processing resources rather than SupremeAI's identity.
-
-### Browser automation
-
-Playwright/Chromium-based browser execution is already a dedicated capability. It can support scraping, multi-step interaction and authorized browser-accessible external capabilities.
-
-### Multi-account / resource pools
-
-The architecture contains multi-account/resource-rotation concepts. These should be treated as a configurable resource pool behind orchestration—not as assumptions that a particular vendor will provide unlimited quota.
-
-### Failover and self-healing
-
-Retry, failover, circuit adaptation, health monitoring, automated healing and deployment health checks are already represented in the codebase and planning.
-
-### Workers and asynchronous execution
-
-Background execution exists as a separate workload surface so heavy or long-running work does not have to be loaded into the lean Core API.
-
-### Memory / RAG
-
-PostgreSQL + pgvector and memory abstractions provide durable state and semantic/experience storage. Useful execution experience should become reusable knowledge rather than disappearing after a single request.
-
-### CI/CD and immutable artifacts
-
-GitHub Actions/GHCR and deployment automation provide an engineering control plane for testing, building and delivering services.
-
-### Governance
-
-RBAC, policy, audit, HITL and sandbox/evaluation concepts provide the foundation for safely promoting powerful autonomous changes.
-
----
-
-# Planning Is Part of the Capability Surface
-
-SupremeAI's design history matters.
-
-The repository contains a substantial planning corpus covering architecture consolidation, production readiness, browser automation, missing-service integrations, storage, configuration hardening, testing and other capabilities. These plans should not be treated as disconnected documentation.
-
-They are **architectural intent** and, where implementation already exists, evidence of capabilities that are already partially realized.
-
-Important examples include:
-
-- `docs/ROADMAP.md` — the live priority roadmap (Execution Contract: Evidence → Verification Gate → DoD → Rollback per phase).
-- `docs/master_docs/ARCH-05-MASTER_ROADMAP_AND_DECISIONS.md` — the architecture decision-history log.
-- `docs/plans/ARCH-LIVING-PIPELINE-01-IMPL.md` — AGENTS.md §12 canon-spec implementation roadmap.
-- `docs/plans/architecture/SUPREMEAI_REPOSITORY_SEPARATION_AND_EVOLUTION_ROADMAP.md` — repository separation, privacy & self-evolution roadmap.
-- `docs/FRONTEND_DASHBOARD_MASTER_PLAN_V2.md` — active frontend/dashboard master plan (v2.0).
-- `specs/001-dynamic-production-configuration/` — deployment-agnostic configuration specification (spec-kit workflow).
-- `specs/002-policy-driven-web-crawler/` — governed, policy-driven web crawler specification.
-- `docs/archive/` + `archives/legacy-docs-2026-09-28.tar.gz` — historical plans (superseded; recover via `tar -xzf` or `git log --follow`).
-- `AGENTS.md` — universal operating & governance constitution (consolidated single source of truth).
-
-> বাংলা নোট: রোডম্যাপ ও সাম্প্রতিক সিদ্ধান্তের সারসংক্ষেপ `docs/plans/ROADMAP_ECOSYSTEM_ARCHITECTURE_BN.md`-এ সংরক্ষিত আছে।
-
-The repository also contains tooling that treats an admin-plan corpus as an input to plan organization. That means the planning system itself is part of the project's execution model, not merely a collection of old notes.
-
-### Rule for future AI agents
-
-Before proposing a new subsystem:
-
-```text
-1. Inspect the current implementation.
-2. Search the repository for an existing capability.
-3. Search the relevant planning corpus.
-4. Determine whether the capability is available, near-ready, or genuinely missing.
-5. Reuse or finish the existing path when possible.
-6. Only create new infrastructure when the evidence says it is necessary.
-```
-
-This rule is one of the most important ways SupremeAI avoids architectural duplication.
-
----
-
-# Technology & Service Map
-
-| Layer | Technology / Service | Role |
-|---|---|---|
-| Kernel | SupremeKernel + Circle Facades | Single-door unified dispatch & 4 Circle boundaries |
-| Gateway | Core API Task Gateway (`/api/v1/tasks`) | Governed task submission & worker decoupling |
-| Frontend | React + TypeScript + Vite | Unified user/admin interface |
-| Core | Python 3.11 + FastAPI | API, orchestration, policy boundary |
-| Database | PostgreSQL + pgvector | Durable state and semantic memory |
-| Cache/coordination | Redis / Upstash | Tiered L1 cache, Pub/Sub live invalidation & distributed locks |
-| AI | Configured/provider-compatible models | Replaceable reasoning/processing |
-| Browser | Playwright + Chromium | Browser automation and scraping |
-| MCP | SupremeAI MCP / control plane | Capability/resource/provider discovery and governed control |
-| Worker | Async execution service | Long-running/background work |
-| Edge | Cloudflare | Edge/routing/edge execution where configured |
-| Runtime | Render | Managed production compute |
-| Frontend hosting | Firebase Hosting | Static UI delivery where configured |
-| Registry | GHCR | Immutable container artifacts |
-| Source/CI | GitHub + GitHub Actions | Source, tests, audits, builds and deployment |
-| Secrets | Infisical + environment injection | Secret lifecycle |
-| Observability | OpenTelemetry | Cross-service telemetry |
-| Automation | n8n | Optional workflow automation |
-| Burst compute | External compute when justified | On-demand heavy workloads |
-
----
-
-# MCP & Central Control Plane
-
-MCP is strategically important because it can turn a collection of independent capabilities into a discoverable execution fabric.
-
-Instead of teaching every agent every integration:
-
-```text
-Agent
-  ↓
-Capability Discovery
-  ↓
-MCP
-  ↓
-Available tools/resources/providers
-  ↓
-Choose the smallest useful combination
-```
-
-The same control plane can increasingly serve:
-
-- user tasks
-- research
-- browser operations
-- repository work
-- deployments
-- incident response
-- system maintenance
-- capability discovery
-- capability testing
-- self-evolution
-
-MCP should not bypass policy. Powerful actions remain permissioned and auditable.
-
----
-
-# Memory & Learning
-
-Memory should make SupremeAI better at future tasks without turning the database into an unbounded event dump.
-
-```text
-Task
- ↓
-Plan
- ↓
-Execution
- ↓
-Result / failure
- ↓
-Useful experience
- ↓
-Memory
- ↓
-Future capability selection
-```
-
-Memory should preferentially retain reusable information such as:
-
-- successful execution strategies
-- validated tool combinations
-- failure causes and remedies
-- user-approved preferences
-- provider reliability observations
-- reusable domain knowledge
-- capability metadata
-
-Raw transient execution state belongs in the appropriate short-lived store.
-
----
-
-# Security & Governance
-
-Autonomy must not mean unrestricted authority.
-
-```text
-Capability
-   ≠
-Permission
-   ≠
-Approval
-```
-
-A safe autonomous action path is:
-
-```text
-Discover
-  ↓
-Classify risk
-  ↓
-Check permission
-  ↓
-Request approval when required
-  ↓
-Execute in the correct scope
-  ↓
-Verify
-  ↓
-Audit
-```
-
-Generated code, new capabilities and production-impacting changes should be versioned, tested and reversible where practical. Sandbox/evaluation and HITL mechanisms are preferred before promoting powerful changes.
-
-For user-provided credentials or browser sessions:
-
-- credentials must be handled as secrets;
-- users must explicitly authorize access;
-- sessions must be scoped to the intended task;
-- SupremeAI must not attempt to bypass authentication or security controls;
-- third-party policies and permissions remain constraints on execution.
-
----
-
-# Reliability, Failover & Degradation
-
-Free-tier and distributed execution makes failure normal. The architecture therefore prefers **resource abstraction over resource certainty**.
-
-```text
-Primary resource
-      ↓
-Health / capacity check
-      ↓
-Execute
-      ↓
-Failure?
- ┌────┴────┐
- No       Yes
- │          │
- ▼          ▼
-Verify   Retry / alternate resource
-             ↓
-         Verify again
-             ↓
-      Reduced/deferred mode
-             ↓
-         Honest report
-```
-
-Multi-account and multi-provider mechanisms should be hidden behind resource pools and schedulers. A vendor quota should never be treated as a permanent architectural guarantee.
-
----
-
-# Low-Cost / Zero-Waste Philosophy
-
-The goal is **minimum sustainable cost**, with zero-cost operation where practical—not a fragile promise that every provider will remain free forever.
-
-Preferred techniques:
-
-- reuse existing capabilities;
-- cache repeatable results;
-- avoid duplicate services;
-- keep heavy runtimes outside Core;
-- execute heavy work on demand;
-- use provider/account pools through adapters;
-- use browser delegation when an authorized external capability is more economical than hosting a specialized stack;
-- build only affected artifacts;
-- retain immutable artifacts;
-- make provider counts/configuration dynamic.
-
-The most important cost optimization is not another quota trick. It is **not doing work that an existing capability can already do**.
-
----
-
-# CI/CD & Deployment
-
-The repository uses GitHub/GitHub Actions/GHCR and managed runtime surfaces as its engineering control plane.
-
-The preferred lifecycle is:
-
-```text
-Change
- ↓
-Lint / Type / Unit tests
- ↓
-Security / audit checks
- ↓
-Build immutable artifact
- ↓
-Deploy the exact artifact
- ↓
-Health / smoke verification
- ↓
-Observe
- ↓
-Rollback or repair if necessary
-```
-
-Autonomous evolution must use the same discipline. A generated improvement is a candidate until it has evidence.
-
----
-
-# Repository & Planning Map
-
-Useful entry points include:
-
-```text
-README.md                         ← this architecture contract
-AGENTS.md                         ← AI-agent engineering guidance & Pure Cloud Production Parity
-CHECKPOINT.md                     ← session continuity
-STATUS.md                         ← current project state
-LESSONS_LEARNED.md                ← accumulated engineering lessons
-
-backend/core/kernel/              ← SupremeKernel single-door facade & dispatcher
-backend/core/circles/             ← 4 bounded Circle contracts (governance, execution, evolution, infra)
-backend/api/routes/task_gateway.py← canonical task submission gateway (/api/v1/tasks)
-backend/api/routers.py            ← 143 centralized and validated routers
-backend/services/                 ← orchestration/runtime services
-backend/tools/                    ← reusable tools and planning helpers
-
-frontend/                         ← unified React + TypeScript application
-frontend/src/services/controlPlane.ts ← governed API gateway client
-
-infrastructure/mcp-control-plane/ ← governed MCP federation gateway
-scripts/ci/                       ← AST circle boundary linter & architecture topology tools
-
-docs/architecture/               ← architecture plans & Core Constitution
-docs/browser/                    ← browser master plan
-docs/generated/route_topology.mmd← living mermaid architecture graph
-specs/                            ← feature specifications and plans
-```
-
-When a plan says something is missing, verify the current `main` before implementing it. Plans are historical/architectural inputs; current code and runtime evidence remain the final authority for what is actually available.
-
----
-
-# Testing & Quality
-
-SupremeAI's quality strategy should test both individual capabilities and the composition layer.
-
-Important categories include:
-
-- unit and integration tests;
-- agent/tool discovery;
-- task planning and routing;
-- browser automation;
-- provider/account selection;
-- failover and retry;
-- worker execution;
-- memory persistence/retrieval;
-- policy/RBAC/HITL;
-- generated capability evaluation;
-- deployment smoke tests;
-- end-to-end user missions.
-
-The most valuable future tests are **mission tests**:
-
-> Given a realistic user problem, can SupremeAI discover and compose the required existing capabilities and finish the task with verified evidence?
-
-That measures the actual product, rather than only measuring whether individual modules exist.
-
----
-
-# Current-State Caveats
-
-This README describes the **North-Star architecture and the capability-composition philosophy**, while acknowledging that implementation maturity varies.
-
-A capability being:
-
-- documented,
-- partially implemented,
-- registered,
-- tested in isolation, or
-- present behind a feature flag
-
-does not automatically mean the complete end-to-end user mission is production-ready.
-
-For current truth, prefer:
-
-```text
-Runtime evidence
-  > current source code
-  > current tests / CI
-  > telemetry and logs
-  > current planning documents
-  > assumptions
-```
-
-The project's goal is not to claim that SupremeAI can already solve every problem. The goal is to build a system where **most new problems can be solved by discovering, composing, activating, or safely extending capabilities that are already part of the SupremeAI ecosystem**.
-
----
-
-# The Long-Term North Star
-
-SupremeAI should evolve from:
-
-```text
-“An AI with many features”
-```
-
-toward:
-
-```text
-“An AI that knows what it can do,
-knows what it needs,
-knows where to get what it lacks,
-knows how to verify the result,
-and becomes more capable after every validated problem.”
-```
-
-In its strongest form:
-
-```text
-                USER PROBLEM
-                     ↓
-              SUPREMEAI BRAIN
-                     ↓
-          Discover existing capability
-                     ↓
-              Compose / delegate
-                     ↓
-                Execute safely
-                     ↓
-              Verify the outcome
-                     ↓
-             Repair when needed
-                     ↓
-             Learn from evidence
-                     ↓
-          Promote reusable capability
-                     ↓
-             Larger capability graph
-                     ↓
-          Better next-user experience
-```
-
-**That compounding capability graph—not the number of individual services—is the real product.**
-
----
-
----
-
-## Developer Automation Setup (one command — V8)
-
-বাংলা: push-এর আগেই CI-লালের সব পরিচিত কারণ (formatter drift, generated-evidence drift, mission regression) ধরতে local hooks ইনস্টল করুন — এক কমান্ড:
-
-```bash
-bash scripts/setup-git-hooks.sh && pre-commit install --hook-type pre-commit
-```
-
-- `git commit` → fast static gates (ruff, gitleaks, yaml/json sanity)
-- `git push` → CI-Parity Matrix (ruff format, 5× generator evidence-drift auto-regen, mission suite on protected pushes)
-- এক push-এর জন্য bypass: `SKIP_CI_PARITY=1 git push` (সতর্কতার সাথে)
-
-CI-side automation: CI Doctor (failure → honest issue + drift-only auto-fix), nightly STATUS_PROOF, weekly hygiene report (changelog + knip + i18n) — সব GitHub-native, শূন্য বাড়তি খরচ।
-
----
-
-# License
-
-MIT �� see [`LICENSE`](LICENSE).
+## Contributing
+
+New here? Start with **[`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md)** — the
+zero-credential contributor guide covering both human (fork + PR) and autonomous-agent
+(8-step loop, MCP Tower lane) workflows, the 3-tier verification contract, scope caps,
+and a field-tested troubleshooting table. The governance contracts live in
+[`AGENTS.md`](./AGENTS.md) and [`AGENT_RULES.md`](./AGENT_RULES.md).
