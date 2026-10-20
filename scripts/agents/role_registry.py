@@ -1,251 +1,245 @@
 #!/usr/bin/env python3
-"""Role Registry & Dynamic Prompt composer (Roadmap v2.0 Phase 1/2/4/6 — #4143).
+"""S10 — Agent Role Registry (issue #497, acceptance criterion 1).
 
-A read-only VIEW over EXISTING sources of truth — this module adds NO new SSOT:
+Operational registry that instantiates the deterministic dispatch contracts
+from ``role_trigger_matrix.py`` (SSOT — the registry NEVER redefines a
+role's trigger or contradicts its weapon allowlist; it only adds
+operational, execution-level facts such as tool adapters and read-only
+posture).
 
-  authority     → AUTHORITY_TIERS (here) — Phase 4's simple 3-tier matrix,
-                  hard-coded + deterministic (NOT a 100-rule policy framework;
-                  deterministic gates always outrank it — constitution §1.4)
-  verification  → VERIFICATION_REQUIREMENTS (here)
-  allowed tools → credential_manager.TASK_SCOPED_ENV_KEYS (env allowlist, #2644/#4134)
-  GH scopes     → credential_manager.BOT_SLOT_CREDENTIALS (SSOT, #1821/#2644)
-  constraints   → AGENT_RULES.md §3 "Role Policy Contracts" (parsed LIVE —
-                  prose stays the single source for role policy text)
+Issue #497 registers the **Ecosystem Scout (`ecosystem-scout`)** with its
+scoped weapons: read-only URL reader, AST parser, repository inspector and
+artifact writer. Note the RBAC invariant: `artifact_writer` produces
+*report artifacts* (dossiers), not source code — it is deliberately NOT in
+`role_trigger_matrix.CODE_WRITE_WEAPONS`, and every read-only role's
+registry weapons must remain disjoint from that set.
 
-Phase 2.2 Dynamic Prompt = Role + authority + verification + tools + task.
-Phase 6   plan_task_execution = Rule B single-vs-multi advisory planner
-          (logging/contract use only — execution authority is unchanged).
+Fail-closed by contract:
 
-Zero secrets are ever returned (env KEY NAMES and GitHub scope NAMES only).
+  * unknown role lookups raise ValueError;
+  * duplicate registration raises ValueError;
+  * a registry record whose weapons violate the SSOT contract (missing a
+    dispatch weapon, or leaking a code-write weapon into a read-only role)
+    is rejected at registration time.
+
+Pure stdlib. Run: python3 scripts/agents/role_registry.py --self-test
 """
 
 from __future__ import annotations
 
-from pathlib import Path
+import argparse
+import sys
+from dataclasses import dataclass, field
+from typing import Final
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-AGENT_RULES_PATH = REPO_ROOT / "AGENT_RULES.md"
+sys.path.insert(0, str(__file__).rsplit("/", 1)[0])
 
-# ─────────────── Phase 4: simple authority matrix (deterministic) ───────────────
-# Three tiers, per Roadmap v2.0: Autonomous → Governed Autonomous → Human Required.
-# governed_autonomous = the role acts alone but its output passes human-owned
-# deterministic gates (PR gates, claim gates) before landing on main.
-AUTHORITY_TIERS: dict[str, str] = {
-    "planner": "autonomous",            # issues:write only — issue-output lane
-    "auditor": "autonomous",            # read + issues:write, lease-scoped
-    "watcher": "autonomous",            # read + platform health, evidence-backed issues
-    "human-eyes": "autonomous",         # read-only browser evidence
-    "breaker": "autonomous",            # zero-write adversarial sandbox
-    "coder": "governed_autonomous",     # write lane — every PR passes the gate chain
-    "pr-helper": "governed_autonomous", # PR lane — gate-governed
-    "ci-fixer": "governed_autonomous",  # CI lane — gate-governed
-    "platform": "governed_autonomous",  # infra lane — gate-governed
-    "merge-agent": "human_required",    # merge authority is human/owner gated
-    "super": "human_required",
-}
-
-# Role aliases → canonical registry keys (mirrors fleet naming variants).
-ROLE_ALIASES: dict[str, str] = {
-    "ci": "ci-fixer",
-    "browser": "human-eyes",
-    "scout": "planner",
-    "adversarial": "breaker",
-    "merge": "merge-agent",
-}
-
-# AGENT_RULES.md §3 headings (verbatim) per canonical role.
-_RULES_HEADINGS: dict[str, str] = {
-    "auditor": "Auditor",
-    "planner": "Ecosystem Scout / Planner",
-    "coder": "Coder",
-    "ci-fixer": "CI Fixer",
-    "watcher": "Watcher",
-    "human-eyes": "Human-Eyes / Browser Agent",
-    "breaker": "Breaker / Adversarial Auditor",
-    "merge-agent": "Merge Agent",
-}
-
-# credential_manager uses slightly different role keys (TASK_SCOPED_ENV_KEYS /
-# BOT_SLOT_CREDENTIALS) — map canonical → cm key (single source, no duplication).
-_CM_ROLE_KEYS: dict[str, str] = {
-    "ci-fixer": "ci",
-    "human-eyes": "browser",
-    "breaker": "rules_breaker",
-}
-
-# ─────────────── verification requirement per role (Phase 2.1) ───────────────
-VERIFICATION_REQUIREMENTS: dict[str, str] = {
-    "coder": "3-tier: reflection grep + live boot smoke + pytest green; Test Evidence section in PR body",
-    "ci-fixer": "failed gate re-run green on current commit + recorded evidence",
-    "breaker": "reproducible negative evidence (edge/malformed/stress); no production fix unless assigned",
-    "auditor": "verified finding + existing issue/PR search + root-cause explanation",
-    "planner": "Observation → Evidence → Relevance → smallest useful improvement → impact",
-    "watcher": "evidence-backed health/quota/latency issue; approved fallback policy",
-    "human-eyes": "reproducible browser journey evidence (steps + screenshot/console)",
-    "pr-helper": "gate verdicts + evidence; scope conformance",
-    "merge-agent": "evaluate-only verdict: READY / BLOCKED / REISSUE",
-}
-
-_CONSTRAINTS_CACHE: list[tuple[str, list[str]]] | None = None
-
-
-class UnknownRoleError(ValueError):
-    """Raised for roles outside the registry (typo or unregistered lane)."""
-
-
-def canonical_role(role: str) -> str:
-    """Normalize a role/alias to its canonical registry key."""
-    r = (role or "").strip().lower()
-    r = ROLE_ALIASES.get(r, r)
-    # tolerate agent-name-ish inputs ("coder-1", "supremeai-coder-1")
-    for known in AUTHORITY_TIERS:
-        if r == known or r.startswith(known + "-") or r.endswith("-" + known):
-            return known
-    if r in AUTHORITY_TIERS:
-        return r
-    raise UnknownRoleError(
-        f"unknown role '{role}' (known: {sorted(AUTHORITY_TIERS)}; aliases: {sorted(ROLE_ALIASES)})"
-    )
-
-
-def _parse_role_constraints() -> list[tuple[str, list[str]]]:
-    """Parse AGENT_RULES.md §3 role sections once: [(heading, [lines])]."""
-    global _CONSTRAINTS_CACHE
-    if _CONSTRAINTS_CACHE is not None:
-        return _CONSTRAINTS_CACHE
-    sections: list[tuple[str, list[str]]] = []
-    try:
-        text = AGENT_RULES_PATH.read_text(encoding="utf-8")
-    except OSError:
-        _CONSTRAINTS_CACHE = sections
-        return sections
-    start = text.find("# 3. Role Policy Contracts")
-    end = text.find("# 4.", start + 1) if start >= 0 else -1
-    body = text[start:end if end > start else len(text)] if start >= 0 else ""
-    current: tuple[str, list[str]] | None = None
-    for line in body.splitlines():
-        if line.startswith("## "):
-            if current:
-                sections.append(current)
-            current = (line[3:].strip(), [])
-        elif current and line.strip() and not line.strip() == "---":
-            current[1].append(line.strip())
-    if current:
-        sections.append(current)
-    _CONSTRAINTS_CACHE = sections
-    return sections
-
-
-def role_constraints(role: str, max_lines: int = 6) -> list[str]:
-    """Live-parsed constraint lines for a role from AGENT_RULES.md §3."""
-    role = canonical_role(role)
-    heading = _RULES_HEADINGS.get(role, role.replace("-", " ").title())
-    for h, lines in _parse_role_constraints():
-        if h.lower() == heading.lower():
-            return lines[:max_lines]
-    return []
-
-
-def gh_scopes_for(role: str) -> list[str]:
-    """GitHub scopes for the role from BOT_SLOT_CREDENTIALS (names only)."""
-    from scripts.agents.credential_manager import BOT_SLOT_CREDENTIALS
-
-    cm_role = _CM_ROLE_KEYS.get(canonical_role(role), canonical_role(role))
-    for cfg in BOT_SLOT_CREDENTIALS.values():
-        if cfg.get("role") == cm_role:
-            return list(cfg.get("scopes", []))
-    return []
-
-
-def get_role_contract(role: str) -> dict:
-    """One per-role contract composed from the existing SSOTs (no secrets)."""
-    role = canonical_role(role)
-    from scripts.agents.credential_manager import TASK_SCOPED_ENV_KEYS
-
-    cm_role = _CM_ROLE_KEYS.get(role, role)
-    if cm_role not in TASK_SCOPED_ENV_KEYS:
-        raise UnknownRoleError(f"no scoped-env contract for role '{role}'")
-    return {
-        "role": role,
-        "authority": AUTHORITY_TIERS[role],
-        "verification": VERIFICATION_REQUIREMENTS.get(role, "follow issue Verification Contract"),
-        "allowed_env_keys": sorted(TASK_SCOPED_ENV_KEYS[cm_role]),
-        "gh_scopes": gh_scopes_for(role),
-        "constraints": role_constraints(role),
-        "rules_source": "AGENT_RULES.md#3-role-policy-contracts",
-    }
-
-
-def build_dynamic_prompt(role: str, task: str) -> str:
-    """Phase 2.2 Dynamic Prompt — composed per task, not a giant static prompt."""
-    c = get_role_contract(role)
-    lines = [
-        f"ROLE: {c['role']} (authority: {c['authority']})",
-        f"VERIFICATION REQUIRED: {c['verification']}",
-        f"ALLOWED TOOLS/ENV KEYS: {', '.join(c['allowed_env_keys'])}",
-    ]
-    if c["gh_scopes"]:
-        lines.append(f"GITHUB SCOPES: {', '.join(c['gh_scopes'])}")
-    if c["constraints"]:
-        lines.append("CONSTRAINTS (from AGENT_RULES.md §3):")
-        lines += [f"  - {cl}" for cl in c["constraints"]]
-    lines.append(f"TASK: {task.strip()}")
-    lines.append(
-        "BOUNDARY: deterministic gates outrank any AI preference "
-        "(constitution §1.4) — AI consensus never overrides a deterministic gate."
-    )
-    return "\n".join(lines)
-
-
-# ─────────────── Phase 6 (planning half): Rule B composition planner ───────────────
-
-_SECURITY_HINTS = (
-    "security", "vulnerab", "auth bypass", "injection", "xss", "csrf",
-    "secret", "exploit", "credential", "privilege",
-)
-_LARGE_HINTS = (
-    "architecture", "migration", "investigation", "overhaul",
-    "redesign", "large refactor", "multi-layer",
+from role_trigger_matrix import (
+    CODE_WRITE_WEAPONS,
+    ROLE_CONTRACTS,
+    ROLE_IDS,
+    provision_weapons,
 )
 
 
-def plan_task_execution(task_text: str, labels: list[str] | None = None) -> dict:
-    """Rule B advisory planner: single agent, or decompose with rationale.
+@dataclass(frozen=True)
+class RoleRecord:
+    """Operational registration for one dispatch role."""
 
-    Multi-agent ONLY when at least one real benefit exists (independent
-    verification / specialization / large decomposition). Advisory output —
-    the caller logs it into the task contract; execution authority unchanged.
-    """
-    text = (task_text or "").lower()
-    label_set = {str(l).lower().lstrip("@") for l in (labels or [])}
-    if any(h in text for h in _SECURITY_HINTS) or "security" in label_set:
-        return {
-            "mode": "multi",
-            "agents": ["coder", "breaker"],
-            "verification": "independent adversarial review (breaker) + pytest green",
-            "rationale": "security-sensitive work benefits from adversarial verification (Rule B)",
-        }
-    if any(h in text for h in _LARGE_HINTS) or "large" in label_set:
-        return {
-            "mode": "multi_decompose",
-            "agents": ["planner", "coder"],
-            "verification": "synthesis review + tiered tests",
-            "rationale": "large decomposition benefits from planning + specialist split (Rule B)",
-        }
-    return {
-        "mode": "single",
-        "agents": ["coder"],
-        "verification": "issue Verification Contract (3-tier)",
-        "rationale": "one reliable agent is the simplest sufficient solution (Rule A/B)",
+    role_id: str
+    display_name: str
+    #: Superset of the SSOT dispatch weapons — operational tool adapters.
+    operational_weapons: frozenset[str]
+    #: True -> role may not hold any code-write weapon (auditor family).
+    read_only: bool
+    description: str
+    adapters: tuple[str, ...] = field(default_factory=tuple)
+
+
+class RoleRegistry:
+    """Fail-closed registry. Registration validates against the SSOT."""
+
+    def __init__(self) -> None:
+        self._roles: dict[str, RoleRecord] = {}
+
+    def register(self, record: RoleRecord) -> None:
+        if record.role_id in self._roles:
+            raise ValueError(f"role {record.role_id!r} is already registered")
+        if record.role_id not in ROLE_CONTRACTS:
+            raise ValueError(
+                f"role {record.role_id!r} is not a dispatch role; "
+                f"add it to role_trigger_matrix.ROLE_CONTRACTS first "
+                f"(single source of truth: {sorted(ROLE_IDS)})"
+            )
+        contract_weapons = provision_weapons(record.role_id)
+        missing = contract_weapons - record.operational_weapons
+        if missing:
+            raise ValueError(
+                f"role {record.role_id!r} registry weapons are missing SSOT "
+                f"dispatch weapons {sorted(missing)}"
+            )
+        leaked = record.operational_weapons & CODE_WRITE_WEAPONS
+        if record.read_only and leaked:
+            raise ValueError(
+                f"read-only role {record.role_id!r} leaked code-write "
+                f"weapons {sorted(leaked)}"
+            )
+        if not record.read_only and not leaked:
+            # Not fatal, but the registry demands an explicit posture.
+            raise ValueError(
+                f"role {record.role_id!r} holds code-write weapons "
+                f"{sorted(leaked) if leaked else CODE_WRITE_WEAPONS & record.operational_weapons} "
+                "and must declare read_only=False explicitly"
+            )
+        self._roles[record.role_id] = record
+
+    def get(self, role_id: str) -> RoleRecord:
+        record = self._roles.get(role_id)
+        if record is None:
+            raise ValueError(f"unknown role: {role_id!r}")
+        return record
+
+    def list_roles(self) -> tuple[str, ...]:
+        return tuple(sorted(self._roles))
+
+    def check_read_only(self, role_id: str) -> bool:
+        record = self.get(role_id)
+        if record.read_only:
+            return not (record.operational_weapons & CODE_WRITE_WEAPONS)
+        return False
+
+
+SCOUT_WEAPONS: Final = frozenset(
+    {
+        # SSOT dispatch weapons (role_trigger_matrix, issue #489 matrix):
+        "search_web",
+        "read_url_content",
+        "gh_issue_create",
+        # Operational scoped weapons mandated by issue #497:
+        "ast_parser",  # AST slicing for the Gold Pearl (20-100 lines)
+        "repo_inspector",  # read-only manifests / contracts / dependency graphs
+        "artifact_writer",  # writes EcosystemDossier report artifacts (NOT code)
     }
+)
+
+
+def default_registry() -> RoleRegistry:
+    """Registry with the #497 Ecosystem Scout registration."""
+    registry = RoleRegistry()
+    registry.register(
+        RoleRecord(
+            role_id="ecosystem-scout",
+            display_name="Ecosystem Scout (ইকোসিস্টেম এজেন্ট)",
+            operational_weapons=SCOUT_WEAPONS,
+            read_only=True,
+            description=(
+                "Autonomous external-intelligence scout: 4-phase dissection "
+                "(extraction, comparative analysis, risk audit, adoption RFC) "
+                "under the Surgical Need-Driven Extraction Doctrine — "
+                "never vendor full repositories, extract only the Gold Pearl."
+            ),
+            adapters=(
+                "scout_analyze_repository",  # MCP tool (issue #497 criterion 3)
+                "render_dossier_markdown",  # standard artifact export
+            ),
+        )
+    )
+    return registry
+
+
+def self_test() -> bool:
+    registry = default_registry()
+    assert registry.list_roles() == ("ecosystem-scout",)
+    record = registry.get("ecosystem-scout")
+    assert record.read_only is True
+    assert registry.check_read_only("ecosystem-scout")
+    # SSOT superset holds: every dispatch weapon is registered.
+    assert provision_weapons("ecosystem-scout") <= SCOUT_WEAPONS
+    # No code-write weapons leak into the read-only role.
+    assert not (SCOUT_WEAPONS & CODE_WRITE_WEAPONS)
+
+    # Fail-closed lookups and registrations.
+    for broken, exc in (
+        (lambda: registry.get("ghost"), ValueError),
+        (lambda: registry.register(record), ValueError),  # duplicate
+        (
+            lambda: registry.register(
+                RoleRecord(  # not dispatch role
+                    role_id="ghost",
+                    display_name="g",
+                    operational_weapons=frozenset({"search_web"}),
+                    read_only=True,
+                    description="x",
+                )
+            ),
+            ValueError,
+        ),
+        (
+            lambda: registry.register(
+                RoleRecord(  # missing SSOT weapon
+                    role_id="ecosystem-scout",
+                    display_name="g",
+                    operational_weapons=frozenset({"search_web"}),
+                    read_only=True,
+                    description="x",
+                )
+            ),
+            ValueError,
+        ),
+        (
+            lambda: registry.register(
+                RoleRecord(  # write leak
+                    role_id="ecosystem-scout",
+                    display_name="g",
+                    operational_weapons=SCOUT_WEAPONS | {"write_to_file"},
+                    read_only=True,
+                    description="x",
+                )
+            ),
+            ValueError,
+        ),
+        (
+            lambda: registry.register(
+                RoleRecord(  # undeclared posture
+                    role_id="ecosystem-scout",
+                    display_name="g",
+                    operational_weapons=SCOUT_WEAPONS | {"pr_create"},
+                    read_only=True,
+                    description="x",
+                )
+            ),
+            ValueError,
+        ),
+    ):
+        try:
+            broken()
+            raise SystemExit(f"registry gate failed open: {exc}")
+        except exc:  # type: ignore[misc]
+            pass
+    return True
+
+
+def _cli() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--list", action="store_true")
+    args = parser.parse_args()
+    if args.self_test:
+        self_test()
+        print("SELF-TEST OK: role_registry")
+        return 0
+    if args.list:
+        registry = default_registry()
+        for role in registry.list_roles():
+            r = registry.get(role)
+            print(
+                f"{role}: {r.display_name} read_only={r.read_only} "
+                f"weapons={sorted(r.operational_weapons)}"
+            )
+        return 0
+    parser.print_help()
+    return 2
 
 
 if __name__ == "__main__":
-    import json
-    import sys
-
-    if len(sys.argv) >= 2:
-        print(json.dumps(get_role_contract(sys.argv[1]), indent=1))
-    else:
-        print("usage: role_registry.py <role>")
-    sys.exit(0)
+    raise SystemExit(_cli())

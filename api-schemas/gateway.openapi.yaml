@@ -33,6 +33,12 @@ paths:
         "403": { description: Key lacks required scope }
         "429": { description: Quota/rate limit exceeded (config-driven) }
         "502": { description: All providers in fallback chain failed }
+        "503":
+          description: >
+            Keyplane/infrastructure unavailable (retry-able). Contract parity:
+            docs/CONSUMERS.md §3 and the reference client treat 503 as the
+            retry-able class — the spec previously omitted it, so generated
+            SDKs lost the retry semantics.
   /v1/models:
     get:
       summary: Enabled models (from routing_policy config, not provider internals)
@@ -53,6 +59,8 @@ paths:
                         id: { type: string }
                         object: { type: string, const: model }
                         owned_by: { type: string, const: supremeai }
+        "401": { description: Invalid or missing SupremeAI key }
+        "429": { description: Quota/rate limit exceeded (config-driven) }
   /healthz:
     get:
       summary: Gateway health (no auth)
@@ -86,7 +94,8 @@ components:
               role: { type: string, enum: [system, user, assistant] }
               content: { type: string }
         temperature: { type: number, default: 0.7 }
-        max_tokens: { type: integer, nullable: true }
+        # OAS 3.1: `nullable` was removed — the 3.1-valid form is a type array.
+        max_tokens: { type: [integer, "null"] }
         stream: { type: boolean, default: false }
     ChatCompletionResponse:
       type: object

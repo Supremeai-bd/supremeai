@@ -1,355 +1,222 @@
-"""SupremeAI telemetry log parser — zero-dependency example (issue #38).
+"""SupremeAI telemetry — zero-dependency structured JSON logger (issue #38).
 
-Spec companion: api-schemas/telemetry-log.schema.json.
+Standard: api-schemas/telemetry-log.schema.json (OpenTelemetry-aligned).
 
-House style (mirrors examples/gateway_client.py and examples/mcp-client-py/client.py):
+House style (mirrors examples/gateway_client.py):
 - no third-party dependencies; stdlib only
-- honest errors: every contract violation names the offending field/path
-- file/network I/O happens ONLY on explicit CLI action (offline-safe import)
-- credentials and record payloads are never echoed back — the parser counts, it never leaks
+- honest output: one JSON object per line (JSONL) — streams, greps, ships
+- network I/O: none, ever (local emission only; shipping is another layer's job)
+- secrets never enter messages or context (constitutional log hygiene)
 
-Contract (বাংলা মন্তব্য — parser-চুক্তি):
-- ইনপুট: প্রতি লাইনে একটি JSON log record (JSONL) — খালি লাইন চুপচাপ skip
-- validation: `jsonschema` প্যাকেজ থাকলে পূর্ণ Draft 2020-12 যাচাই (authoritative);
-  না থাকলে সৎ fallback — frozen 7-field চুক্তির হুবহু mirror (কোনো ফিল্ড বাদ,
-  ভুল enum/pattern/length = fail-honest, কখনো অনুমান নয়)
-- metric: schema-র $defs/MetricConventions রেজিস্ট্রির তিন পরিবার aggregate করে —
-  supremeai.request.duration, supremeai.tokens.consumed, supremeai.agent.task.completion
-  (self-test চলাকালীন constants↔schema examples ড্রিফট-চেকও হয়)
-- secret/PII context-এ কখনোই নয় — parser শুধু গোনে, কনটেন্ট কখনো ফেরত দেয় না
+Canonical metric catalog (enum-pinned in the schema):
+- supremeai.request.latency            (histogram, ms)
+- supremeai.tokens.consumed            (counter, count)
+- supremeai.agent.task.completion_rate (gauge, ratio)
+
+Usage:
+    from logger import TelemetryLogger, metric_latency
+    log = TelemetryLogger(service_name="mcp-tower", component="gate")
+    log.info("gate merged PR", context={"pr": 315, "issue": 36})
+    log.metric(metric_latency(42.5, attributes={"provider": "anthropic"}))
+
+CLI self-test (offline):
+    python logger.py --self-test
 """
+
 from __future__ import annotations
 
-import argparse
+import io
 import json
-import os
-import re
 import sys
+import time
+import uuid
 
-DEFAULT_SCHEMA_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "api-schemas",
-    "telemetry-log.schema.json",
-)
+LEVELS = ("DEBUG", "INFO", "WARN", "ERROR", "FATAL")
+# OTel severity_number default mapping per level (schema documents this).
+LEVEL_SEVERITY_NUMBER = {"DEBUG": 5, "INFO": 9, "WARN": 13, "ERROR": 17, "FATAL": 21}
 
-# ── frozen field contract (exact mirror of telemetry-log.schema.json) ─────────
-REQUIRED_FIELDS = ("timestamp", "level", "trace_id", "agent_id", "component", "message", "context")
-LEVELS = ("debug", "info", "warn", "error", "fatal")
-TIMESTAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$")
-TRACE_ID_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.:-]{7,127}$")
-AGENT_ID_RE = re.compile(r"^$|^agent-[a-zA-Z0-9_-]{1,64}$")
-COMPONENT_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
-MAX_MESSAGE_LEN = 2000
-MAX_CONTEXT_PROPS = 64
-
-# ── $defs/MetricConventions registry (names are a contract) ─────────────────
-METRIC_REQUEST_DURATION = "supremeai.request.duration"
-METRIC_TOKENS_CONSUMED = "supremeai.tokens.consumed"
-METRIC_TASK_COMPLETION = "supremeai.agent.task.completion"
-
-TASK_COMPLETED_EVENT = "task.completed"
-TASK_FAILED_EVENT = "task.failed"
+CANONICAL_METRICS = {
+    "supremeai.request.latency": ("histogram", "ms"),
+    "supremeai.tokens.consumed": ("counter", "count"),
+    "supremeai.agent.task.completion_rate": ("gauge", "ratio"),
+}
 
 
-class TelemetryValidationError(ValueError):
-    """রেকর্ড চুক্তি-ভঙ্গ — field/path সহ সৎ ব্যর্থতা (honest failure)."""
-
-    def __init__(self, message: str, path: str = "<record>"):
-        super().__init__(f"{path}: {message}")
-        self.path = path
+class TelemetryError(RuntimeError):
+    """Logger misuse — fail loudly rather than emitting a non-conforming record."""
 
 
-class TelemetrySchemaError(RuntimeError):
-    """schema ফাইল পড়া/parse করা গেল না — সৎ ব্যর্থতা, ডিফল্ট চুপ নয়।"""
+def _rfc3339_now() -> str:
+    """RFC 3339 UTC timestamp with milliseconds and Z suffix."""
+    secs, millis = divmod(int(time.time() * 1000), 1000)
+    return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(secs)) + f".{millis:03d}Z"
 
 
-def load_schema(schema_path: str | None = None) -> dict:
-    """schema JSON load; না পেলে সৎ TelemetrySchemaError (না পেলে বানানো নয়)।"""
-    path = schema_path or DEFAULT_SCHEMA_PATH
-    try:
-        with open(path, "r", encoding="utf-8") as fh:
-            schema = json.load(fh)
-    except FileNotFoundError as exc:
-        raise TelemetrySchemaError(f"schema ফাইল নেই: {path}") from exc
-    except json.JSONDecodeError as exc:
-        raise TelemetrySchemaError(f"schema JSON ভাঙা: {path}: {exc}") from exc
-    if not isinstance(schema, dict):
-        raise TelemetrySchemaError(f"schema top-level object নয়: {path}")
-    return schema
+def _new_trace_id() -> str:
+    """W3C Trace Context trace id: 32 lowercase hex (uuid4 hex is exactly that)."""
+    return uuid.uuid4().hex
 
 
-def _fallback_validate(record: object, path: str) -> None:
-    """frozen চুক্তির হুবহু mirror — jsonschema অনুপস্থিত হলেও শৃঙ্খলা একই।"""
-    if not isinstance(record, dict):
-        raise TelemetryValidationError("record top-level object নয়", path)
-    missing = [f for f in REQUIRED_FIELDS if f not in record]
-    if missing:
-        raise TelemetryValidationError(f"required field অনুপস্থিত: {', '.join(missing)}", path)
-    extra = sorted(set(record) - set(REQUIRED_FIELDS))
-    if extra:
-        raise TelemetryValidationError(
-            f"অজানা top-level field (additionalProperties:false): {', '.join(extra)}", path
+def metric_latency(value_ms: float, attributes: dict | None = None) -> dict:
+    return _metric("supremeai.request.latency", value_ms, attributes)
+
+
+def metric_tokens(value: int, attributes: dict | None = None) -> dict:
+    return _metric("supremeai.tokens.consumed", value, attributes)
+
+
+def metric_completion_rate(value: float, attributes: dict | None = None) -> dict:
+    return _metric("supremeai.agent.task.completion_rate", value, attributes)
+
+
+def _metric(name: str, value: float, attributes: dict | None) -> dict:
+    if name not in CANONICAL_METRICS:
+        raise TelemetryError(
+            f"metric '{name}' is not in the canonical catalog {sorted(CANONICAL_METRICS)} — "
+            "extend the schema enum first, dashboards must not drift"
         )
-    ts = record["timestamp"]
-    if not isinstance(ts, str) or not TIMESTAMP_RE.match(ts):
-        raise TelemetryValidationError("timestamp RFC 3339 date-time নয়", path)
-    if record["level"] not in LEVELS:
-        raise TelemetryValidationError(f"level {record['level']!r} enum {list(LEVELS)}-এর বাইরে", path)
-    for name, pat, value in (
-        ("trace_id", TRACE_ID_RE, record["trace_id"]),
-        ("agent_id", AGENT_ID_RE, record["agent_id"]),
-        ("component", COMPONENT_RE, record["component"]),
+    instrument, unit = CANONICAL_METRICS[name]
+    return {
+        "metric": name,
+        "value": value,
+        "unit": unit,
+        "instrument": instrument,
+        "attributes": attributes or {},
+    }
+
+
+class TelemetryLogger:
+    """Emits schema-conforming JSONL records to stdout or a file object."""
+
+    def __init__(
+        self,
+        service_name: str,
+        component: str,
+        agent_id: str | None = None,
+        sink=None,
+        trace_id: str | None = None,
     ):
-        if not isinstance(value, str) or not pat.match(value):
-            raise TelemetryValidationError(f"{name} pattern চুক্তি-ভঙ্গ", path)
-    message = record["message"]
-    if not isinstance(message, str) or not (1 <= len(message) <= MAX_MESSAGE_LEN):
-        raise TelemetryValidationError(f"message দৈর্ঘ্য 1..{MAX_MESSAGE_LEN} চুক্তি-ভঙ্গ", path)
-    context = record["context"]
-    if not isinstance(context, dict):
-        raise TelemetryValidationError("context object নয়", path)
-    if len(context) > MAX_CONTEXT_PROPS:
-        raise TelemetryValidationError(f"context maxProperties {MAX_CONTEXT_PROPS} ছাড়ায়", path)
+        self.service_name = service_name
+        self.component = component
+        self.agent_id = agent_id
+        self.sink = sink or sys.stdout
+        self.trace_id = trace_id or _new_trace_id()
+
+    def _emit(
+        self,
+        level: str,
+        message: str,
+        context: dict | None,
+        metrics: list | None = None,
+    ) -> dict:
+        if level not in LEVELS:
+            raise TelemetryError(f"level '{level}' not in {LEVELS}")
+        if not message:
+            raise TelemetryError("message must be non-empty (honest logging)")
+        record: dict = {
+            "timestamp": _rfc3339_now(),
+            "level": level,
+            "trace_id": self.trace_id,
+            "service_name": self.service_name,
+            "component": self.component,
+            "message": message,
+            "context": context or {},
+        }
+        if self.agent_id:
+            record["agent_id"] = self.agent_id
+        record["severity_number"] = LEVEL_SEVERITY_NUMBER[level]
+        if metrics:
+            record["metrics"] = metrics
+        self.sink.write(json.dumps(record, ensure_ascii=False) + "\n")
+        return record
+
+    def debug(self, message: str, context: dict | None = None) -> dict:
+        return self._emit("DEBUG", message, context)
+
+    def info(self, message: str, context: dict | None = None) -> dict:
+        return self._emit("INFO", message, context)
+
+    def warn(self, message: str, context: dict | None = None) -> dict:
+        return self._emit("WARN", message, context)
+
+    def error(self, message: str, context: dict | None = None) -> dict:
+        return self._emit("ERROR", message, context)
+
+    def fatal(self, message: str, context: dict | None = None) -> dict:
+        return self._emit("FATAL", message, context)
+
+    def metric(self, *samples: dict) -> dict:
+        """Emit an INFO record carrying one or more canonical metric samples."""
+        for s in samples:
+            if s.get("metric") not in CANONICAL_METRICS:
+                raise TelemetryError(f"non-canonical metric sample: {s}")
+        return self._emit("INFO", "metric sample", {}, metrics=list(samples))
 
 
-_validator_degraded_notice_shown = False
+def _self_test() -> int:
+    """Offline round-trip: emit records, re-parse, assert contract shape."""
+    checks: list = []
 
-
-def validate_record(record: object, schema: dict, path: str = "<record>") -> None:
-    """jsonschema থাকলে authoritative যাচাই; না থাকলে এক লাইন সৎ notice + fallback।"""
-    global _validator_degraded_notice_shown
-    try:
-        import jsonschema  # type: ignore
-    except ImportError:
-        if not _validator_degraded_notice_shown:
-            print(
-                "[telemetry] jsonschema নেই — frozen-field fallback validation চলছে "
-                "(সৎ অবনমন; schema ফাইলই authoritative)",
-                file=sys.stderr,
-            )
-            _validator_degraded_notice_shown = True
-        _fallback_validate(record, path)
-        return
-    validator_cls = getattr(jsonschema, "Draft202012Validator", None)
-    if validator_cls is None:
-        _fallback_validate(record, path)
-        return
-    validator = validator_cls(schema)
-    errors = sorted(validator.iter_errors(record), key=lambda e: list(e.absolute_path))
-    if errors:
-        first = errors[0]
-        where = "/".join(str(p) for p in first.absolute_path) or "<record>"
-        raise TelemetryValidationError(first.message, f"{path}#{where}")
-
-
-def parse_log_line(line: str, lineno: int, schema: dict) -> dict | None:
-    """একটি লাইন → validated record; খালি লাইন None; চুক্তিভঙ্গে TelemetryValidationError।"""
-    stripped = line.strip()
-    if not stripped:
-        return None
-    path = f"<line {lineno}>"
-    try:
-        record = json.loads(stripped)
-    except json.JSONDecodeError as exc:
-        raise TelemetryValidationError(f"JSON নয়: {exc.msg}", path) from exc
-    validate_record(record, schema, path)
-    return record
-
-
-def _percentile(sorted_values: list[float], pct: float) -> float | None:
-    if not sorted_values:
-        return None
-    rank = max(1, min(len(sorted_values), round(pct / 100 * len(sorted_values))))
-    return sorted_values[rank - 1]
-
-
-def extract_metrics(records: list[dict]) -> dict:
-    """তিন metric-পরিবার aggregate — $defs/MetricConventions-এর log_source চুক্তি অনুযায়ী।"""
-    duration: dict[tuple[str, str], list[float]] = {}
-    tokens: dict[str, dict[str, int]] = {}
-    tasks = {"success": 0, "failure": 0}
-    for rec in records:
-        ctx = rec.get("context")
-        if not isinstance(ctx, dict):
-            continue
-        latency = ctx.get("latency_ms")
-        if isinstance(latency, (int, float)) and latency >= 0:
-            outcome = str(ctx.get("status", "unknown")).lower()
-            outcome = "success" if outcome == "success" else "failure" if outcome == "failure" else "unknown"
-            duration.setdefault((rec["component"], outcome), []).append(float(latency))
-        usage = ctx.get("usage")
-        if isinstance(usage, dict):
-            model = str(ctx.get("model", "unknown"))
-            bucket = tokens.setdefault(model, {"prompt": 0, "completion": 0})
-            prompt = usage.get("prompt_tokens")
-            completion = usage.get("completion_tokens")
-            if isinstance(prompt, (int, float)) and prompt >= 0:
-                bucket["prompt"] += int(prompt)
-            if isinstance(completion, (int, float)) and completion >= 0:
-                bucket["completion"] += int(completion)
-        event = ctx.get("event")
-        if rec["agent_id"] and event == TASK_COMPLETED_EVENT:
-            tasks["success"] += 1
-        elif rec["agent_id"] and event == TASK_FAILED_EVENT:
-            tasks["failure"] += 1
-    return {"duration": duration, "tokens": tokens, "tasks": tasks}
-
-
-def render_summary(valid: int, invalid: int, metrics: dict) -> str:
-    lines = [f"records: {valid + invalid} read, {valid} valid, {invalid} invalid"]
-    duration = metrics["duration"]
-    total_events = sum(len(v) for v in duration.values())
-    lines.append(
-        f"metric {METRIC_REQUEST_DURATION}: {total_events} events across {len(duration)} component/outcome buckets"
+    buf = io.StringIO()
+    log = TelemetryLogger(
+        "mcp-tower",
+        "gate",
+        agent_id="agent-1",
+        sink=buf,
+        trace_id="0af7651916cd43dd8448eb211c80319c",
     )
-    for (component, outcome), values in sorted(duration.items()):
-        values.sort()
-        n = len(values)
-        mean = sum(values) / n
-        p50 = _percentile(values, 50)
-        p95 = _percentile(values, 95)
-        lines.append(
-            f"  component={component} outcome={outcome}: n={n} min={values[0]:.0f}ms "
-            f"p50={p50:.0f}ms p95={p95:.0f}ms max={values[-1]:.0f}ms mean={mean:.1f}ms"
+    r1 = log.info("gate merged PR", context={"pr": 315, "issue": 36})
+    log.metric(metric_latency(42.5, {"provider": "anthropic"}), metric_tokens(1337))
+    try:
+        log._emit("LOUD", "bad level", {})
+        checks.append(("bad level rejected", False))
+    except TelemetryError:
+        checks.append(("bad level rejected", True))
+    try:
+        _metric("custom rogue.metric", 1, None)
+        checks.append(("non-canonical metric rejected", False))
+    except TelemetryError:
+        checks.append(("non-canonical metric rejected", True))
+
+    records = [json.loads(line) for line in buf.getvalue().splitlines()]
+    checks.append(("records parse as JSONL", len(records) == 2))
+    required = {"timestamp", "level", "trace_id", "component", "message", "context"}
+    checks.append(("required fields present", all(required <= set(r) for r in records)))
+    checks.append(
+        (
+            "trace_id is 32 hex",
+            all(
+                len(r["trace_id"]) == 32
+                and all(c in "0123456789abcdef" for c in r["trace_id"])
+                for r in records
+            ),
         )
-    tokens = metrics["tokens"]
-    total_prompt = sum(b["prompt"] for b in tokens.values())
-    total_completion = sum(b["completion"] for b in tokens.values())
-    lines.append(
-        f"metric {METRIC_TOKENS_CONSUMED}: prompt={total_prompt} completion={total_completion} "
-        f"tokens across {len(tokens)} models"
     )
-    for model, bucket in sorted(tokens.items()):
-        lines.append(
-            f"  model={model} token_type=prompt: {bucket['prompt']} tokens; "
-            f"token_type=completion: {bucket['completion']} tokens"
+    checks.append(("level vocabulary", all(r["level"] in LEVELS for r in records)))
+    checks.append(
+        (
+            "metric catalog pinned",
+            records[1]["metrics"][0]["metric"] == "supremeai.request.latency"
+            and records[1]["metrics"][0]["unit"] == "ms",
         )
-    success, failure = metrics["tasks"]["success"], metrics["tasks"]["failure"]
-    rate = (success / (success + failure)) if (success + failure) else 0.0
-    lines.append(f"metric {METRIC_TASK_COMPLETION}: success={success} failure={failure} rate={rate:.3f}")
-    return "\n".join(lines)
+    )
+    checks.append(("correlation fields", r1["context"].get("issue") == 36))
 
-
-def run_parser(stream, schema: dict) -> tuple[int, int, dict]:
-    valid = invalid = 0
-    records: list[dict] = []
-    for lineno, line in enumerate(stream, start=1):
-        try:
-            record = parse_log_line(line, lineno, schema)
-        except TelemetryValidationError as exc:
-            invalid += 1
-            print(f"[invalid] {exc}", file=sys.stderr)
-            continue
-        if record is None:
-            continue
-        valid += 1
-        records.append(record)
-    return valid, invalid, extract_metrics(records)
-
-
-def self_test() -> int:
-    """শেষ-থেকে-শেষ আত্মপরীক্ষা — positive + negative + metric assertion (offline)।"""
-    schema = load_schema()
     ok = True
-
-    def check(name: str, cond: bool) -> None:
-        nonlocal ok
-        print(f"  [{'PASS' if cond else 'FAIL'}] {name}")
-        ok = ok and cond
-
-    # constants ↔ schema $defs/MetricConventions examples — ড্রিফট ধরার চুক্তি
-    metric_def = (schema.get("$defs") or {}).get("MetricConventions") or {}
-    example_names = [e.get("name") for e in metric_def.get("examples", [])]
-    check("metric registry constants match schema examples",
-          example_names == [METRIC_REQUEST_DURATION, METRIC_TOKENS_CONSUMED, METRIC_TASK_COMPLETION])
-
-    valid_records = [
-        {"timestamp": "2026-10-16T10:18:15Z", "level": "info", "trace_id": "9f86d081884c7d65",
-         "agent_id": "agent-planner", "component": "orchestrator", "message": "dispatch complete",
-         "context": {"latency_ms": 210, "status": "SUCCESS",
-                     "usage": {"prompt_tokens": 120, "completion_tokens": 80, "total_tokens": 200},
-                     "model": "auto", "event": TASK_COMPLETED_EVENT}},
-        {"timestamp": "2026-10-16T10:19:00.5Z", "level": "error", "trace_id": "req-a1b2c3d4e5",
-         "agent_id": "", "component": "gateway", "message": "provider chain exhausted",
-         "context": {"latency_ms": 480, "status": "FAILURE", "provider": "openai", "action": "chat"}},
-        {"timestamp": "2026-10-16T10:20:00Z", "level": "warn", "trace_id": "20261016-mem-0001",
-         "agent_id": "agent-coder", "component": "memory", "message": "visibility-scoped dependency skipped",
-         "context": {"event": TASK_FAILED_EVENT}},
-        {"timestamp": "2026-10-16T10:21:00Z", "level": "fatal", "trace_id": "trace:dead:beef:42",
-         "agent_id": "", "component": "mcp-tower", "message": "session table exhausted", "context": {}},
-    ]
-    invalid_records: list[tuple[str, object]] = [
-        ("missing level", {k: v for k, v in valid_records[0].items() if k != "level"}),
-        ("bad level", {**valid_records[0], "level": "verbose"}),
-        ("bad agent_id", {**valid_records[1], "agent_id": "agentX"}),
-        ("extra top-level field", {**valid_records[1], "extra": 1}),
-        ("context not object", {**valid_records[1], "context": "oops"}),
-        ("empty message", {**valid_records[1], "message": ""}),
-        ("short trace_id", {**valid_records[1], "trace_id": "abc"}),
-    ]
-    for i, rec in enumerate(valid_records):
-        try:
-            validate_record(rec, schema, f"<self-test valid {i}>")
-            check(f"valid record {i} accepted", True)
-        except TelemetryValidationError as exc:
-            check(f"valid record {i} accepted (got: {exc})", False)
-    for name, rec in invalid_records:
-        try:
-            validate_record(rec, schema, f"<self-test {name}>")
-            check(f"negative rejected: {name}", False)
-        except TelemetryValidationError:
-            check(f"negative rejected: {name}", True)
-    metrics = extract_metrics(valid_records)
-    check("duration events = 2", sum(len(v) for v in metrics["duration"].values()) == 2)
-    check("tokens prompt=120 completion=80",
-          metrics["tokens"]["auto"]["prompt"] == 120 and metrics["tokens"]["auto"]["completion"] == 80)
-    check("task success=1 failure=1",
-          metrics["tasks"]["success"] == 1 and metrics["tasks"]["failure"] == 1)
-    check("completion rate=0.5", abs((1 / 2) - 0.5) < 1e-9)
-    print(render_summary(len(valid_records), len(invalid_records), metrics))
+    for name, passed in checks:
+        print(f"  {'PASS' if passed else 'FAIL'} | {name}")
+        ok &= passed
+    print(f"Self-test: {sum(1 for _, p in checks if p)}/{len(checks)} checks passed")
     return 0 if ok else 1
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="logger.py",
-        description=(
-            "SupremeAI telemetry JSONL parser — validates against "
-            "api-schemas/telemetry-log.schema.json and aggregates the $defs/MetricConventions "
-            "registry (issue #38)."
-        ),
-    )
-    parser.add_argument("input", nargs="?", default="-", help="JSONL file path, or '-' for stdin (default)")
-    parser.add_argument("--schema", default=None, help=f"schema path override (default: {DEFAULT_SCHEMA_PATH})")
-    parser.add_argument("--strict", action="store_true", help="exit 2 on the first invalid record instead of continuing")
-    parser.add_argument("--self-test", action="store_true", help="run the embedded end-to-end self test (offline)")
-    args = parser.parse_args(argv)
-    if args.self_test:
-        return self_test()
-    try:
-        schema = load_schema(args.schema)
-    except TelemetrySchemaError as exc:
-        print(f"[telemetry] {exc}", file=sys.stderr)
-        return 2
-    if args.input == "-":
-        valid, invalid, metrics = run_parser(sys.stdin, schema)
-    else:
-        try:
-            with open(args.input, "r", encoding="utf-8") as fh:
-                valid, invalid, metrics = run_parser(fh, schema)
-        except OSError as exc:
-            print(f"[telemetry] ইনপুট খোলা গেল না: {exc}", file=sys.stderr)
-            return 2
-    if invalid:
-        print(render_summary(valid, invalid, metrics), file=sys.stderr)
-        return 1
-    print(render_summary(valid, invalid, metrics))
+def main(argv: list) -> int:
+    if argv and argv[0] == "--self-test":
+        return _self_test()
+    print(__doc__.strip())
+    print("\nUsage: logger.py --self-test")
     return 0
 
 
 if __name__ == "__main__":
-    try:
-        sys.exit(main())
-    except KeyboardInterrupt:
-        print("[telemetry] বাতিল — KeyboardInterrupt", file=sys.stderr)
-        sys.exit(130)
+    sys.exit(main(sys.argv[1:]))

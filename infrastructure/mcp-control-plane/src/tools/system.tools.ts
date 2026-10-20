@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { buildAccountRegistry, ProviderAccount } from "../registry/account.registry.js";
+import { buildAccountRegistry, getAccountsForRole, ProviderAccount } from "../registry/account.registry.js";
 import { listResources, getResourceStatus } from "../registry/resource.registry.js";
 import { httpRequest } from "../lib/http.js";
 import { env } from "../lib/env.js";
@@ -253,25 +253,6 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
     return { ...base, url, status: "healthy", httpStatus: out.status, latencyMs: out.latencyMs };
   }
 
-  // ── Firebase: service-account JSON config validation (no public unauth probe exists) ──
-  if (svc.provider === "firebase") {
-    const url = "config://firebase-service-account";
-    try {
-      const parsed = JSON.parse(env.firebase.serviceAccountJson || "null") as { project_id?: string; client_email?: string } | null;
-      const ok = Boolean(parsed?.project_id && parsed?.client_email);
-      return {
-        ...base,
-        url,
-        status: ok ? "healthy" : "degraded",
-        httpStatus: null,
-        latencyMs: null,
-        ...(ok ? {} : { error: "service account JSON missing project_id/client_email or unparseable" }),
-      };
-    } catch {
-      return { ...base, url, status: "degraded", httpStatus: null, latencyMs: null, error: "FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON" };
-    }
-  }
-
   // ── Kaggle: pool config + authenticated competitions list (first token) ──
   if (svc.provider === "kaggle") {
     const url = "https://www.kaggle.com/api/v1/competitions/list";
@@ -295,35 +276,6 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
       const res = await httpRequest<{ ok?: boolean }>(`https://api.telegram.org/bot${token}/getMe`, { timeoutMs: 6000, retries: 0 });
       const ok = Boolean(res.data?.ok);
       return { ...base, url: maskedUrl, status: ok ? "healthy" : "degraded", httpStatus: res.status, latencyMs: res.latencyMs, ...(ok ? {} : { error: "getMe rejected the bot token" }) };
-    } catch (err) {
-      return { ...base, url: maskedUrl, status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };
-    }
-  }
-
-  // ── WhatsApp: Meta Graph API / Webhook health probe ──
-  if (svc.provider === "whatsapp") {
-    const maskedUrl = "https://graph.facebook.com/whatsapp";
-    const { whatsappAccessToken, whatsappPhoneNumberId, whatsappWebhookUrl } = env.notify;
-    if (!whatsappAccessToken && !whatsappWebhookUrl) {
-      return { ...base, url: maskedUrl, status: "unconfigured", httpStatus: null, latencyMs: null, error: "WHATSAPP_ACCESS_TOKEN or WHATSAPP_WEBHOOK_URL missing in tower env" };
-    }
-    try {
-      if (whatsappPhoneNumberId && whatsappAccessToken) {
-        const res = await httpRequest<{ id?: string }>(`https://graph.facebook.com/v20.0/${whatsappPhoneNumberId}`, {
-          timeoutMs: 6000,
-          retries: 0,
-          headers: { Authorization: `Bearer ${whatsappAccessToken}` },
-        });
-        const ok = Boolean(res.data?.id);
-        return { ...base, url: maskedUrl, status: ok ? "healthy" : "degraded", httpStatus: res.status, latencyMs: res.latencyMs, ...(ok ? {} : { error: "Meta API rejected phone number or token" }) };
-      }
-      if (whatsappWebhookUrl) {
-        const out = await probeHttp(whatsappWebhookUrl);
-        if (out === "unreachable") return { ...base, url: "webhook://whatsapp", status: "unreachable", httpStatus: null, latencyMs: null, error: "webhook unreachable" };
-        if (out === "degraded") return { ...base, url: "webhook://whatsapp", status: "degraded", httpStatus: null, latencyMs: null, error: "webhook returned non-2xx" };
-        return { ...base, url: "webhook://whatsapp", status: "healthy", httpStatus: out.status, latencyMs: out.latencyMs };
-      }
-      return { ...base, url: maskedUrl, status: "degraded", httpStatus: null, latencyMs: null, error: "WHATSAPP_PHONE_NUMBER_ID missing for Meta Cloud API" };
     } catch (err) {
       return { ...base, url: maskedUrl, status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };
     }
@@ -367,7 +319,8 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
     "Get a high-level summary of all SupremeAI services — availability, roles, and capabilities",
     {},
     async () => {
-      const registry = buildAccountRegistry();
+      const store = RequestContextStore.get();
+      const registry = getAccountsForRole(store?.role);
       const byProvider = registry.reduce(
         (acc, r) => {
           const key = r.provider;
@@ -412,7 +365,8 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
     "Ping all backend services and report their HTTP health status",
     {},
     async () => {
-      const registry = buildAccountRegistry();
+      const store = RequestContextStore.get();
+      const registry = getAccountsForRole(store?.role);
 
       // Probe every registry row with bounded concurrency (8 workers) to avoid
       // saturating container socket pools and inflating probe latencies.

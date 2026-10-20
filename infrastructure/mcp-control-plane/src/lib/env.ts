@@ -22,7 +22,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * import tree, so the `.env` file is available to every module body that
  * reads process.env at import time (client-registry.ts, tenant.registry.ts).
  */
-dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+const candidateEnvPaths = [
+  path.resolve(__dirname, "../../../../.env"),
+  path.resolve(__dirname, "../../../.env"),
+  path.resolve(process.cwd(), ".env"),
+  path.resolve(process.cwd(), "../../.env"),
+];
+for (const envPath of candidateEnvPaths) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    break;
+  }
+}
 
 function required(name: string): string {
   const v = process.env[name];
@@ -107,7 +118,7 @@ export const env = {
   get backendUrl(): string { return optional("SUPREMEAI_BACKEND_URL"); },
   get backendServiceToken(): string { return optional("SUPREMEAI_BACKEND_SERVICE_TOKEN"); },
 
-  // ── Render (4 accounts)
+  // ── Render (5 accounts)
   render: {
     primary: {
       get apiKey(): string { return optional("RENDER_API_KEY_1", optional("RENDER_API_KEY")); },
@@ -131,6 +142,11 @@ export const env = {
       get apiKey(): string { return optional("RENDER_API_KEY_4", optional("RENDER_API_KEY")); },
       get serviceId(): string { return optional("RENDER_MCP_SVC_ID"); },
       get url(): string { return optional("RENDER_MCP_URL"); },
+    },
+    api: {
+      get apiKey(): string { return optional("RENDER_API_KEY_5", optional("RENDER_API_KEY_API")); },
+      get serviceId(): string { return optional("RENDER_API_SVC_ID", "srv-dbappass728c7396p580"); },
+      get url(): string { return optional("RENDER_API_URL", "https://supremeai-api-ulw0.onrender.com"); },
     },
   },
 
@@ -198,11 +214,27 @@ export const env = {
   bridgeIntake: {
     get enabled(): boolean { return process.env.BRIDGE_INTAKE_ENABLED === "true"; },
     get repo(): string { return optional("BRIDGE_INTAKE_REPO", "Supremeai-bd/supremeai-open"); },
-    get workflow(): string { return optional("BRIDGE_INTAKE_WORKFLOW", "continuous-agent-loop.yml"); },
+    get workflow(): string { return optional("BRIDGE_INTAKE_WORKFLOW", "pipeline.yml"); },
     get ref(): string { return optional("BRIDGE_INTAKE_REF", "main"); },
     get minIntervalMs(): number { return parseInt(optional("BRIDGE_INTAKE_MIN_INTERVAL_MS", "60000"), 10) || 60000; },
     get maxAttempts(): number { return parseInt(optional("BRIDGE_INTAKE_MAX_ATTEMPTS", "5"), 10) || 5; },
     get outboxPath(): string { return optional("BRIDGE_INTAKE_OUTBOX_PATH", "var/bridge-intake-outbox.jsonl"); },
+    get token(): string { return optional("GITHUB_TOKEN", optional("GITHUB_API_TOKEN")); },
+  },
+
+  // Arms the #199 federated CI failure reporter (workflow_run.completed →
+  // failure issue on the control-plane board). Fail-closed: disabled unless
+  // explicitly enabled. See docs/FEDERATED_CI_WATCHER.md for activation steps.
+  federatedCiWatcher: {
+    get enabled(): boolean { return process.env.FEDERATED_CI_WATCHER_ENABLED === "true"; },
+    get reportRepo(): string { return optional("FEDERATED_CI_WATCHER_REPORT_REPO", "Supremeai-bd/supremeai-open"); },
+    /** Comma-separated explicit allowlist; empty → same-org-as-reportRepo policy. */
+    get repos(): string[] {
+      return optional("FEDERATED_CI_WATCHER_REPOS", "").split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    },
+    get maxIssuesPerHour(): number { return parseInt(optional("FEDERATED_CI_WATCHER_MAX_PER_HOUR", "6"), 10) || 6; },
+    get dedupeTtlMs(): number { return parseInt(optional("FEDERATED_CI_WATCHER_DEDUPE_TTL_MS", "86400000"), 10) || 86400000; },
+    get maxAttempts(): number { return parseInt(optional("FEDERATED_CI_WATCHER_MAX_ATTEMPTS", "3"), 10) || 3; },
     get token(): string { return optional("GITHUB_TOKEN", optional("GITHUB_API_TOKEN")); },
   },
 
@@ -230,31 +262,11 @@ export const env = {
     },
   },
 
-  // ── Firebase (SA key loaded from Infisical at runtime — not from file)
-  firebase: {
-    get serviceAccountJson(): string { return optional("FIREBASE_SERVICE_ACCOUNT_JSON"); },
-    get projectId(): string { return optional("GCP_PROJECT_ID", "supremeai-a"); },
-  },
-
-  // ── AI Providers (comma-separated multi-key pools)
-  ai: {
-    // Model identifiers are intentionally configuration-only. Runtime discovery or
-    // provider configuration supplies the selected model; no model is hardcoded.
-    get geminiModel(): string { return optional("MCP_GEMINI_MODEL"); },
-    get groqModel(): string { return optional("MCP_GROQ_MODEL"); },
-    get openrouterModel(): string { return optional("MCP_OPENROUTER_MODEL"); },
-    get githubModel(): string { return optional("MCP_GITHUB_MODEL"); },
-    get mistralModel(): string { return optional("MCP_MISTRAL_MODEL"); },
-    get geminiKeys(): string[] { return multiKey("GEMINI_API_KEY"); },
-    get groqKeys(): string[] { return multiKey("GROQ_API_KEY"); },
-    get openrouterKeys(): string[] { return multiKey("OPENROUTER_API_KEY"); },
-    get openaiKeys(): string[] { return multiKey("OPENAI_API_KEY"); },
-    get openaiModel(): string { return optional("MCP_OPENAI_MODEL", "gpt-4o-mini"); },
-    get anthropicKeys(): string[] { return multiKey("ANTHROPIC_API_KEY"); },
-    get anthropicModel(): string { return optional("MCP_ANTHROPIC_MODEL", "claude-3-5-haiku-20241022"); },
-    get githubModelsKeys(): string[] { return multiKey("GITHUB_MODELS_API_KEY"); },
-    get mistralKey(): string { return optional("MISTRAL_API_KEY"); },
-  },
+  // #643: direct LLM provider key pools (Gemini/Groq/OpenRouter/OpenAI/
+  // Anthropic/GitHub Models/Mistral) were REMOVED from the zero-credential
+  // control plane. AI analysis is delegated to the external agent caller
+  // context (or Core API) — the tower must not require or store provider
+  // master keys. See adapters/ai/index.ts (delegation stub).
 
   // ── Kaggle (6-account pool)
   kaggle: {

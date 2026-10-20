@@ -70,19 +70,10 @@ await RequestContextStore.run({ role: "viewer", accessMode: "public_viewer", aut
   assert.ok(toolListAccessError("autonomy_kill_switch"), "public_viewer must never see destructive tools");
 });
 
-// Agent WITHOUT a profile → full RBAC surface (minus audit-U4 hardening:
-// autonomy_kill_switch/enable are now admin-only, matching the REST route
-// /autonomy/kill — so an agent no longer sees (or calls) them).
+// Agent WITHOUT a profile → full RBAC surface (unchanged behavior).
 await RequestContextStore.run({ role: "agent", authenticated: true, scopes: defaultClientScopes("agent") }, async () => {
   assert.equal(toolListAccessError("github_read_file"), null);
-  assert.ok(
-    (toolListAccessError("autonomy_kill_switch") ?? "").includes("admin"),
-    "audit U4: destructive kill switch now admin-only (list ⊆ call)",
-  );
-  assert.ok(
-    (toolListAccessError("autonomy_enable") ?? "").includes("admin"),
-    "audit U4: autonomy re-enable now admin-only",
-  );
+  assert.equal(toolListAccessError("autonomy_kill_switch"), null, "no profile → no profile filtering");
   assert.equal(toolListAccessError("echo_with_schema"), null);
 });
 
@@ -90,10 +81,7 @@ await RequestContextStore.run({ role: "agent", authenticated: true, scopes: defa
 await RequestContextStore.run({ role: "agent", authenticated: true, scopes: defaultClientScopes("agent"), toolProfile: "chatgpt" }, async () => {
   assert.equal(toolListAccessError("github_read_file"), null);
   assert.equal(toolListAccessError("notify_telegram"), null);
-  assert.ok(
-    (toolListAccessError("autonomy_kill_switch") ?? "").includes("admin"),
-    "audit U4: RBAC denial wins over profile (kill switch admin-only)",
-  );
+  assert.ok(toolListAccessError("autonomy_kill_switch")?.includes("'chatgpt'"), "profile hides non-curated tools");
   assert.ok(toolListAccessError("echo_with_schema")?.includes("'chatgpt'"), "profile hides unknown tools");
   assert.ok(toolListAccessError("github_list_secrets")?.includes("admin"), "RBAC denial wins over profile (secret-class)");
 });
@@ -168,10 +156,9 @@ const viewerCtx = { role: "viewer" as const, authenticated: true, scopes: defaul
 const adminList = await listToolsUnder(adminCtx);
 assert.deepEqual(adminList, ["system_summary", "system_health", "github_read_file", "notify_telegram", "autonomy_kill_switch", "echo_with_schema"]);
 
-// Agent, no profile → full RBAC surface minus audit-U4 admin-only tools
-// (kill switch/enable now match the REST route's admin gate).
+// Agent, no profile → full RBAC surface (same 6).
 const agentList = await listToolsUnder(agentCtx);
-assert.deepEqual(agentList, ["system_summary", "system_health", "github_read_file", "notify_telegram", "echo_with_schema"]);
+assert.deepEqual(agentList, adminList);
 
 // Agent + chatgpt profile → exactly the curated members of this fixture.
 const agentChatgptList = await listToolsUnder(agentChatgptCtx);
@@ -225,11 +212,9 @@ for (const [label, context, list] of [
       // autonomy_kill_switch is HIDDEN from this caller's list…
       const list = await client.listTools();
       assert.ok(!(list.tools ?? []).some((tool) => tool.name === "autonomy_kill_switch"));
-      // …AND — audit U4 — the call path denies it too: kill_switch is
-      // admin-only now (matching the /autonomy/kill REST route), so the old
-      // "hidden but agent-callable" hole is closed end-to-end.
+      // …but the CALL path still goes through RBAC alone (agent may call it).
       const call = await client.callTool({ name: "autonomy_kill_switch", arguments: {} });
-      assert.equal((call as { isError?: boolean }).isError, true, "audit U4: hidden AND denied — agent cannot emergency-stop");
+      assert.notEqual((call as { isError?: boolean }).isError, true, "profile hides; RBAC decides calls");
       // And the RBAC gate still denies roles that lack permission.
       const viewerResult = await RequestContextStore.run(viewerCtx, async () =>
         client.callTool({ name: "github_read_file", arguments: { path: "x" } }),

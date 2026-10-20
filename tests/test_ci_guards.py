@@ -28,6 +28,7 @@ enforces the fail-closed contract permanently.
 Every test is offline and deterministic; the only network-adjacent tool
 (``gh``) is a local stub reading fixture files.
 """
+
 from __future__ import annotations
 
 import json
@@ -45,25 +46,46 @@ PR_TEMPLATE = REPO_ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md"
 
 # Exact strings mandated verbatim by issue #392 (acceptance criteria).
 CLAIM_ERROR_PREFIX = "::error::PR opened without a prior claim on Issue #"
+# 4301d9a loop variant: the guard now reports EVERY referenced issue (loop
+# over title/body/branch refs) when none carries an active claim plane.
+CLAIM_ERROR_ISSUES_PREFIX = (
+    "::error::PR opened without a prior claim on any referenced issue (#"
+)
 CLAIM_ERROR_TAIL = ". Per AGENTS.md Step 4 (No claim, no work), claim the issue before creating a branch or PR."
 REFL_ERROR_EXACT = (
     "::error::PR body missing required '## Reflection Evidence (why + alternatives_rejected)'. "
     "AGENTS.md mandates knowledge capture on every contribution."
 )
 
-CLAIM_JQ_LABEL = 'any(.labels[]?; .name == "status:claimed" or .name == "status:in-progress")'
+# Byte-exact contract with the deployed claim-guard label plane. The plane
+# accepts the bridge lifecycle labels (bridge:queued/in-gates/landed) in
+# addition to the status labels — oracle re-synced after 4301d9a extended the
+# guard without updating this constant (2 tests red on main since then).
+CLAIM_JQ_LABEL = (
+    'any(.labels[]?; .name == "status:claimed" or .name == "status:in-progress"'
+    ' or .name == "bridge:queued" or .name == "bridge:in-gates"'
+    ' or .name == "bridge:landed")'
+)
 CLAIM_JQ_MARKER = 'any(.comments[]?; (.body // "") | contains("<!-- atomic-claim -->"))'
 
 # High fixture numbers — deliberately outside the real issue range.
-FX_CLAIMED = 5001          # status:claimed label
-FX_ATOMIC = 5002           # <!-- atomic-claim --> comment
-FX_UNCLAIMED = 5003        # neither plane
-FX_MISSING = 5004          # gh lookup fails (no fixture) -> fail-closed
+FX_CLAIMED = 5001  # status:claimed label
+FX_ATOMIC = 5002  # <!-- atomic-claim --> comment
+FX_UNCLAIMED = 5003  # neither plane (non-claim label only)
+FX_MISSING = 5004  # gh lookup fails (no fixture) -> fail-closed
+FX_BRIDGE_QUEUED = 5005  # bridge:queued label — active claim plane per 4301d9a
 
 FIXTURE_ISSUES = {
     str(FX_CLAIMED): {"labels": [{"name": "status:claimed"}], "comments": []},
-    str(FX_ATOMIC): {"labels": [], "comments": [{"body": "<!-- atomic-claim -->\n🎯 **Claimed**"}]},
-    str(FX_UNCLAIMED): {"labels": [{"name": "bridge:queued"}], "comments": [{"body": "regular comment"}]},
+    str(FX_ATOMIC): {
+        "labels": [],
+        "comments": [{"body": "<!-- atomic-claim -->\n🎯 **Claimed**"}],
+    },
+    str(FX_UNCLAIMED): {
+        "labels": [{"name": "question"}],
+        "comments": [{"body": "regular comment"}],
+    },
+    str(FX_BRIDGE_QUEUED): {"labels": [{"name": "bridge:queued"}], "comments": []},
 }
 
 GOOD_BODY = (
@@ -81,7 +103,7 @@ class _Skip(Exception):
 def _skip(reason: str) -> None:
     # Under pytest -> real pytest.skip; stdlib mode -> plain _Skip signal.
     if "PYTEST_CURRENT_TEST" in os.environ:
-        import pytest  # noqa: PLC0415 — dual-mode: pytest optional by design
+        import pytest
 
         pytest.skip(reason)
     raise _Skip(reason)
@@ -91,9 +113,12 @@ def _skip(reason: str) -> None:
 # SSOT extraction from the live pipeline.yml (indent-scan; no PyYAML needed)  #
 # --------------------------------------------------------------------------- #
 
+
 def _load_pipeline_text() -> str:
     if not PIPELINE.is_file():
-        raise AssertionError(f"pipeline.yml missing at {PIPELINE} — constitutional workflow file required")
+        raise AssertionError(
+            f"pipeline.yml missing at {PIPELINE} — constitutional workflow file required"
+        )
     return PIPELINE.read_text(encoding="utf-8")
 
 
@@ -169,6 +194,27 @@ def _require_guards() -> None:
 # Harness: stubbed gh + fixture JSONs + materialization + real bash execution #
 # --------------------------------------------------------------------------- #
 
+
+def _find_bash() -> str:
+    if sys.platform == "win32":
+        candidates: list[Path] = []
+        pf = os.environ.get("PROGRAMFILES")
+        if pf:
+            candidates.extend(
+                [
+                    Path(pf) / "Git" / "bin" / "bash.exe",
+                    Path(pf) / "Git" / "usr" / "bin" / "bash.exe",
+                ]
+            )
+        local_app = os.environ.get("LOCALAPPDATA")
+        if local_app:
+            candidates.append(Path(local_app) / "Programs" / "Git" / "bin" / "bash.exe")
+        for cand in candidates:
+            if cand.is_file():
+                return str(cand)
+    return shutil.which("bash") or "bash"
+
+
 class _GuardHarness:
     """Event-context execution rig: stub `gh`, fixture issues, real bash."""
 
@@ -189,10 +235,33 @@ class _GuardHarness:
             '  if [ -f "$f" ]; then cat "$f"; exit 0; fi\n'
             "  exit 1\n"
             "fi\n"
-            "exit 1\n".replace("FIXTURE_DIR", str(self.fixtures)),
+            "exit 1\n".replace("FIXTURE_DIR", str(self.fixtures).replace("\\", "/")),
             encoding="utf-8",
         )
         shim.chmod(0o755)
+        if not shutil.which("jq"):
+            jq_shim = shim_dir / "jq"
+            py_exe = sys.executable.replace("\\", "/")
+            jq_shim.write_text(
+                f'#!/bin/bash\n"{py_exe}" -c \'\n'
+                "import sys, json\n"
+                "try:\n"
+                "    data = json.load(sys.stdin)\n"
+                '    expr = sys.argv[-1] if len(sys.argv) > 1 else ""\n'
+                '    if "labels" in expr:\n'
+                '        targets = {"status:claimed", "status:in-progress", "bridge:queued", "bridge:in-gates", "bridge:landed"}\n'
+                '        labels = [l.get("name") for l in data.get("labels", []) if isinstance(l, dict)]\n'
+                "        sys.exit(0 if any(l in targets for l in labels) else 1)\n"
+                '    if "atomic-claim" in expr:\n'
+                '        comments = data.get("comments", [])\n'
+                '        sys.exit(0 if any("<!-- atomic-claim -->" in (c.get("body") or "") for c in comments if isinstance(c, dict)) else 1)\n'
+                "    sys.exit(0)\n"
+                "except Exception:\n"
+                "    sys.exit(1)\n"
+                '\' "$@"\n',
+                encoding="utf-8",
+            )
+            jq_shim.chmod(0o755)
         for num, obj in FIXTURE_ISSUES.items():
             (self.fixtures / f"issue_{num}.json").write_text(
                 json.dumps(obj), encoding="utf-8"
@@ -200,25 +269,35 @@ class _GuardHarness:
 
     def materialize(self, script: str) -> str:
         """Substitute every `${{ }}` expression; fail closed if any remain."""
-        script = script.replace("${{ github.repository }}", "Supremeai-bd/supremeai-open")
+        script = script.replace(
+            "${{ github.repository }}", "Supremeai-bd/supremeai-open"
+        )
         script = script.replace("${{ secrets.GITHUB_TOKEN }}", "testtoken")
         if "${{" in script:
             i = script.index("${{")
-            raise AssertionError(f"unsubstituted expression remains: {script[i : i + 60]!r}")
+            raise AssertionError(
+                f"unsubstituted expression remains: {script[i : i + 60]!r}"
+            )
         return script
 
     def run(self, script_text: str, **env: str) -> subprocess.CompletedProcess:
         path = self.root / "scenario.sh"
         path.write_text(self.materialize(script_text), encoding="utf-8")
+        bin_dir = str(self.root / "bin").replace("\\", "/")
         e = {
-            "PATH": f"{self.root / 'bin'}{os.pathsep}{os.environ.get('PATH', '/usr/bin:/bin')}",
-            "HOME": str(self.root),
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '/usr/bin:/bin')}",
+            "HOME": str(self.root).replace("\\", "/"),
             "LANG": "C.UTF-8",
             "GH_TOKEN": "testtoken",
         }
         e.update(env)
         return subprocess.run(
-            ["bash", str(path)], capture_output=True, text=True, env=e, timeout=120
+            [_find_bash(), str(path)],
+            capture_output=True,
+            text=True,
+            env=e,
+            timeout=120,
+            check=False,
         )
 
     def close(self) -> None:
@@ -237,6 +316,7 @@ def _claim_env(num: int, labels: str = "", head_ref: str | None = None) -> dict:
 # --------------------------------------------------------------------------- #
 # Static contract tests (structure of the applied jobs)                       #
 # --------------------------------------------------------------------------- #
+
 
 def test_pipeline_exists():
     assert PIPELINE.is_file(), f"pipeline.yml missing at {PIPELINE}"
@@ -275,8 +355,12 @@ def test_claim_guard_escape_hatch_order():
     _require_guards()
     b = CLAIM_BLOCK or ""
     assert "guard-exempt" in b, "admin escape hatch required by issue #392"
-    assert b.index("guard-exempt") < b.index("dependabot"), "exempt check must come first"
-    assert "status:claimed" in b[b.index("guard-exempt") :], "claim planes follow the hatch"
+    assert b.index("guard-exempt") < b.index("dependabot"), (
+        "exempt check must come first"
+    )
+    assert "status:claimed" in b[b.index("guard-exempt") :], (
+        "claim planes follow the hatch"
+    )
 
 
 def test_ks_guard_pr_only_zero_checkout_and_timeout():
@@ -298,6 +382,7 @@ def test_ks_guard_exact_error_string_and_parsers():
 # --------------------------------------------------------------------------- #
 # Behavioral matrix (real bash execution; issue #392 acceptance criteria)     #
 # --------------------------------------------------------------------------- #
+
 
 def _claim_script(h: _GuardHarness) -> str:
     block = CLAIM_BLOCK or ""
@@ -322,17 +407,55 @@ def test_claim_guard_behavior_matrix():
         script = _claim_script(h)
         cases = [
             ("claim label passes", _claim_env(FX_CLAIMED), 0, None),
+            (
+                "bridge:queued label passes (4301d9a plane)",
+                _claim_env(FX_BRIDGE_QUEUED),
+                0,
+                None,
+            ),
             ("atomic-claim comment passes", _claim_env(FX_ATOMIC), 0, None),
-            ("unclaimed fails with exact message", _claim_env(FX_UNCLAIMED), 1, f"{CLAIM_ERROR_PREFIX}{FX_UNCLAIMED}."),
-            ("gh lookup failure fails closed", _claim_env(FX_MISSING), 1, f"{CLAIM_ERROR_PREFIX}{FX_MISSING}."),
-            ("guard-exempt bypasses", _claim_env(FX_UNCLAIMED, labels="guard-exempt"), 0, None),
-            ("bot branch bypasses", _claim_env(FX_UNCLAIMED, head_ref="dependabot/npm_and_yarn/pkg-1.2.3"), 0, None),
+            (
+                "unclaimed fails with exact message",
+                _claim_env(FX_UNCLAIMED),
+                1,
+                f"{CLAIM_ERROR_ISSUES_PREFIX}{FX_UNCLAIMED}){CLAIM_ERROR_TAIL}",
+            ),
+            (
+                "gh lookup failure fails closed",
+                _claim_env(FX_MISSING),
+                1,
+                f"{CLAIM_ERROR_ISSUES_PREFIX}{FX_MISSING}){CLAIM_ERROR_TAIL}",
+            ),
+            (
+                "guard-exempt bypasses",
+                _claim_env(FX_UNCLAIMED, labels="guard-exempt"),
+                0,
+                None,
+            ),
+            (
+                "bot branch bypasses",
+                _claim_env(FX_UNCLAIMED, head_ref="dependabot/npm_and_yarn/pkg-1.2.3"),
+                0,
+                None,
+            ),
             # No issue ref: the guard echoes the literal #<num> template form.
-            ("no issue reference fails closed", dict(PR_TITLE="feat: nothing", PR_BODY="no refs here", PR_LABELS="", HEAD_REF="agent/work-1"), 1, f"{CLAIM_ERROR_PREFIX}<num>."),
+            (
+                "no issue reference fails closed",
+                {
+                    "PR_TITLE": "feat: nothing",
+                    "PR_BODY": "no refs here",
+                    "PR_LABELS": "",
+                    "HEAD_REF": "agent/work-1",
+                },
+                1,
+                f"{CLAIM_ERROR_PREFIX}<num>.",
+            ),
         ]
         for name, env, want, want_msg in cases:
             r = h.run(script, **env)
-            assert r.returncode == want, f"{name}: exit {r.returncode} != {want}; out={r.stdout[:200]!r}"
+            assert r.returncode == want, (
+                f"{name}: exit {r.returncode} != {want}; out={r.stdout[:200]!r}"
+            )
             if want_msg:
                 assert want_msg in r.stdout and CLAIM_ERROR_TAIL in r.stdout, (
                     f"{name}: exact issue-#392 error not emitted; out={r.stdout[:240]!r}"
@@ -353,17 +476,48 @@ def test_ks_guard_behavior_matrix():
         cases = [
             ("valid body passes", GOOD_BODY, 0, False),
             ("missing section fails", body("nothing here"), 1, True),
-            ("empty why fails", "## Reflection Evidence (why + alternatives_rejected)\n- **why:**\n- **alternatives_rejected:**\n  - a\n", 1, True),
-            ("placeholder why fails", "## Reflection Evidence (why + alternatives_rejected)\n- **why:** <replace: rationale>\n- **alternatives_rejected:**\n  - real reason\n", 1, True),
-            ("inline alternatives passes", "## Reflection Evidence (why + alternatives_rejected)\n- **why:** because\n- **alternatives_rejected:** did it inline instead\n", 0, False),
-            ("empty alternatives fails", "## Reflection Evidence (why + alternatives_rejected)\n- **why:** because\n- **alternatives_rejected:**\n", 1, True),
-            ("placeholder alternatives fails", "## Reflection Evidence (why + alternatives_rejected)\n- **why:** because\n- **alternatives_rejected:**\n  - <replace: alternative approach 1, rejected because ...>\n", 1, True),
+            (
+                "empty why fails",
+                "## Reflection Evidence (why + alternatives_rejected)\n- **why:**\n- **alternatives_rejected:**\n  - a\n",
+                1,
+                True,
+            ),
+            (
+                "placeholder why fails",
+                "## Reflection Evidence (why + alternatives_rejected)\n- **why:** <replace: rationale>\n- **alternatives_rejected:**\n  - real reason\n",
+                1,
+                True,
+            ),
+            (
+                "inline alternatives passes",
+                "## Reflection Evidence (why + alternatives_rejected)\n- **why:** because\n- **alternatives_rejected:** did it inline instead\n",
+                0,
+                False,
+            ),
+            (
+                "empty alternatives fails",
+                "## Reflection Evidence (why + alternatives_rejected)\n- **why:** because\n- **alternatives_rejected:**\n",
+                1,
+                True,
+            ),
+            (
+                "placeholder alternatives fails",
+                "## Reflection Evidence (why + alternatives_rejected)\n- **why:** because\n- **alternatives_rejected:**\n  - <replace: alternative approach 1, rejected because ...>\n",
+                1,
+                True,
+            ),
         ]
         for name, pr_body, want, want_msg in cases:
-            r = h.run(script, PR_BODY=pr_body, PR_LABELS="", HEAD_REF="contributor/issue-392")
-            assert r.returncode == want, f"{name}: exit {r.returncode} != {want}; out={r.stdout[:200]!r}"
+            r = h.run(
+                script, PR_BODY=pr_body, PR_LABELS="", HEAD_REF="contributor/issue-392"
+            )
+            assert r.returncode == want, (
+                f"{name}: exit {r.returncode} != {want}; out={r.stdout[:200]!r}"
+            )
             if want_msg:
-                assert REFL_ERROR_EXACT in r.stdout, f"{name}: exact error not emitted; out={r.stdout[:240]!r}"
+                assert REFL_ERROR_EXACT in r.stdout, (
+                    f"{name}: exact error not emitted; out={r.stdout[:240]!r}"
+                )
 
         # escape hatches
         r = h.run(script, PR_BODY="empty", PR_LABELS="guard-exempt", HEAD_REF="agent/x")
@@ -380,7 +534,12 @@ def test_combined_claim_and_reflection_pass_together():
     h = _GuardHarness()
     try:
         r1 = h.run(_claim_script(h), **_claim_env(FX_CLAIMED))
-        r2 = h.run(_ks_script(h), PR_BODY=GOOD_BODY, PR_LABELS="", HEAD_REF="contributor/issue-392")
+        r2 = h.run(
+            _ks_script(h),
+            PR_BODY=GOOD_BODY,
+            PR_LABELS="",
+            HEAD_REF="contributor/issue-392",
+        )
         assert r1.returncode == 0 and r2.returncode == 0, (
             f"combined pass failed: claim={r1.returncode}, reflection={r2.returncode}"
         )
@@ -394,12 +553,19 @@ def test_unfilled_template_body_fails_ks_guard():
     if not PR_TEMPLATE.is_file():
         _skip(".github/PULL_REQUEST_TEMPLATE.md not yet applied (WO #395 appendix C)")
     tpl = PR_TEMPLATE.read_text(encoding="utf-8")
-    unfilled = re.sub(r"<!--.*?-->", "", tpl, flags=re.S)
+    unfilled = re.sub(r"<!--.*?-->", "", tpl, flags=re.DOTALL)
     unfilled = re.sub(r"\n{3,}", "\n\n", unfilled).strip()
     h = _GuardHarness()
     try:
-        r = h.run(_ks_script(h), PR_BODY=unfilled, PR_LABELS="", HEAD_REF="contributor/issue-392")
-        assert r.returncode == 1, "unfilled template body must FAIL the guard (fail-closed)"
+        r = h.run(
+            _ks_script(h),
+            PR_BODY=unfilled,
+            PR_LABELS="",
+            HEAD_REF="contributor/issue-392",
+        )
+        assert r.returncode == 1, (
+            "unfilled template body must FAIL the guard (fail-closed)"
+        )
         assert REFL_ERROR_EXACT in r.stdout
     finally:
         h.close()
@@ -410,7 +576,9 @@ def test_unfilled_template_body_fails_ks_guard():
 # --------------------------------------------------------------------------- #
 
 if __name__ == "__main__":
-    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    fns = [
+        v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)
+    ]
     failed = skipped = 0
     for fn in fns:
         try:
@@ -422,7 +590,7 @@ if __name__ == "__main__":
         except AssertionError as exc:
             failed += 1
             print(f"  FAIL | {fn.__name__}: {exc}")
-        except Exception as exc:  # noqa: BLE001 — honest failure reporting
+        except (RuntimeError, ValueError, TypeError, OSError, TimeoutError, ConnectionError, AttributeError, KeyError, ImportError, ModuleNotFoundError) as exc:
             failed += 1
             print(f"  ERROR | {fn.__name__}: {type(exc).__name__}: {exc}")
     passed = len(fns) - failed - skipped

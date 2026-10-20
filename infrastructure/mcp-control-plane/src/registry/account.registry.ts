@@ -2,6 +2,7 @@ import { env } from "../lib/env.js";
 import { getActiveRedisAccount } from "../lib/redis_chain.js";
 import { ProviderName } from "./provider.registry.js";
 import { Capability } from "./capability.registry.js";
+import { roleRank, type UserRole } from "../policy/auth.context.js";
 
 export interface ProviderAccount {
   id: string;
@@ -33,6 +34,79 @@ export interface ProviderAccount {
 function isAvailable(envRef: string): boolean {
   const val = process.env[envRef] ?? "";
   return val.length > 0;
+}
+
+/**
+ * Canonical federation repositories under the Supremeai-bd organization
+ * (SSOT: ECOSYSTEM_MAP.md §2). Used as the guaranteed baseline for discovery.
+ */
+export const CANONICAL_FEDERATION_REPOS = [
+  "supremeai",
+  "supremeai-open",
+  "supremeai-command",
+  "supremeai-skills",
+  "supremeai-vscode",
+  "supremeai-agents",
+  "supremeai-browser",
+  "supremeai-api",
+  "supremeai-studio",
+  "supremeai-infrastructure",
+  "supremeai-core",
+  "supremeai-sdk",
+  "supremeai-mcp-control-plane",
+  "supremeai-archive",
+] as const;
+
+export const GITHUB_ORGANIZATION = "Supremeai-bd";
+
+// In-memory registry of discovered repositories under the organization.
+// Initialized with canonical federation repos to guarantee zero-network baseline.
+const discoveredOrgRepos = new Set<string>(CANONICAL_FEDERATION_REPOS);
+
+/**
+ * Register a newly discovered repository name under the organization.
+ */
+export function registerDiscoveredOrgRepo(repoName: string): void {
+  const normalized = repoName.trim().toLowerCase();
+  // Ghost Cloaking & Core Isolation: supremeai-api and supremeai are never exposed as generic satellites
+  if (normalized === "supremeai-api" || normalized === "supremeai") return;
+  if (normalized && !discoveredOrgRepos.has(normalized)) {
+    discoveredOrgRepos.add(normalized);
+  }
+}
+
+/**
+ * Get all tracked repository names under the organization.
+ */
+export function getTrackedOrgRepos(): string[] {
+  return Array.from(discoveredOrgRepos);
+}
+
+/**
+ * Dynamically discover repositories under Supremeai-bd from GitHub API.
+ * Updates discoveredOrgRepos in memory without requiring server restart or code edits.
+ */
+export async function refreshDiscoveredOrgRepos(): Promise<string[]> {
+  const token =
+    process.env["GITHUB_PAT_PAYKARIBAZARONLINE"] ||
+    process.env["GITHUB_TOKEN"] ||
+    process.env["GH_TOKEN"];
+  try {
+    const res = await fetch(`https://api.github.com/orgs/${GITHUB_ORGANIZATION}/repos?per_page=100`, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (res.ok) {
+      const repos = (await res.json()) as Array<{ name?: string }>;
+      for (const r of repos) {
+        if (r.name) registerDiscoveredOrgRepo(r.name);
+      }
+    }
+  } catch {}
+  return getTrackedOrgRepos();
 }
 
 /**
@@ -100,6 +174,20 @@ export function buildAccountRegistry(): ProviderAccount[] {
       // render.* tool failed even though a valid key was provisioned.
       available: isAvailable("RENDER_API_KEY_4") || isAvailable("RENDER_API_KEY"),
     },
+    {
+      id: "render-api",
+      provider: "render",
+      displayName: "Render API (Gateway Shield)",
+      role: "gateway-api",
+      environment: "production",
+      capabilities: ["health", "logs", "deploy", "restart", "env_vars"],
+      apiKeyRef: "RENDER_API_KEY_5",
+      apiKeyRefs: ["RENDER_API_KEY_API"],
+      url: env.render.api.url,
+      serviceId: env.render.api.serviceId,
+      healthPath: "/healthz",
+      available: isAvailable("RENDER_API_KEY_5") || isAvailable("RENDER_API_KEY_API"),
+    },
 
     // ── GitHub — SupremeAI Primary (Supremeai-bd/supremeai) ────────
     // Note: SaifulHaqueNiloy/supremeai and the pre-migration personal e-commerce namespace
@@ -107,115 +195,40 @@ export function buildAccountRegistry(): ProviderAccount[] {
     {
       id: "github-primary",
       provider: "github",
-      displayName: "GitHub Repo (Supremeai-bd/supremeai)",
+      displayName: `GitHub Repo (${GITHUB_ORGANIZATION}/supremeai)`,
       role: "source-control",
       environment: "production",
       capabilities: ["health", "logs", "metrics"],
       apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
-      url: "https://api.github.com/repos/Supremeai-bd/supremeai",
+      url: `https://api.github.com/repos/${GITHUB_ORGANIZATION}/supremeai`,
       available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
     },
 
-    // ── GitHub — Supremeai-bd federation (সম্পূর্ণ-কভারেজ) ──
+    // ── GitHub — Supremeai-bd Organization Level Monitor ──
     {
-      id: "github-pay-supremeai",
+      id: "github-org-supremeai-bd",
       provider: "github",
-      displayName: "GitHub Repo (Supremeai-bd/supremeai)",
-      role: "source-control",
+      displayName: `GitHub Organization (${GITHUB_ORGANIZATION})`,
+      role: "organization",
       environment: "production",
-      capabilities: ["health", "logs", "metrics"],
+      capabilities: ["health", "metrics"],
       apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
-      url: "https://api.github.com/repos/Supremeai-bd/supremeai",
+      url: `https://api.github.com/orgs/${GITHUB_ORGANIZATION}`,
       available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
     },
-    {
-      id: "github-pay-supremeai-api",
-      provider: "github",
-      displayName: "GitHub Repo (Supremeai-bd/supremeai-api)",
+
+    // ── GitHub — Supremeai-bd federation (Dynamic Org-Wide Auto-Discovery) ──
+    ...getTrackedOrgRepos().map((repoName) => ({
+      id: `github-pay-${repoName}`,
+      provider: "github" as const,
+      displayName: `GitHub Repo (${GITHUB_ORGANIZATION}/${repoName})`,
       role: "source-control",
-      environment: "production",
-      capabilities: ["health", "logs", "metrics"],
+      environment: "production" as const,
+      capabilities: ["health", "logs", "metrics"] as Capability[],
       apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
-      url: "https://api.github.com/repos/Supremeai-bd/supremeai-api",
+      url: `https://api.github.com/repos/${GITHUB_ORGANIZATION}/${repoName}`,
       available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
-    },
-    {
-      id: "github-pay-supremeai-archive",
-      provider: "github",
-      displayName: "GitHub Repo (Supremeai-bd/supremeai-archive)",
-      role: "source-control",
-      environment: "production",
-      capabilities: ["health", "logs", "metrics"],
-      apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
-      url: "https://api.github.com/repos/Supremeai-bd/supremeai-archive",
-      available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
-    },
-    {
-      id: "github-pay-supremeai-core",
-      provider: "github",
-      displayName: "GitHub Repo (Supremeai-bd/supremeai-core)",
-      role: "source-control",
-      environment: "production",
-      capabilities: ["health", "logs", "metrics"],
-      apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
-      url: "https://api.github.com/repos/Supremeai-bd/supremeai-core",
-      available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
-    },
-    {
-      id: "github-pay-supremeai-infrastructure",
-      provider: "github",
-      displayName: "GitHub Repo (Supremeai-bd/supremeai-infrastructure)",
-      role: "source-control",
-      environment: "production",
-      capabilities: ["health", "logs", "metrics"],
-      apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
-      url: "https://api.github.com/repos/Supremeai-bd/supremeai-infrastructure",
-      available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
-    },
-    {
-      id: "github-pay-supremeai-mcp-control-plane",
-      provider: "github",
-      displayName: "GitHub Repo (Supremeai-bd/supremeai-mcp-control-plane)",
-      role: "source-control",
-      environment: "production",
-      capabilities: ["health", "logs", "metrics"],
-      apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
-      url: "https://api.github.com/repos/Supremeai-bd/supremeai-mcp-control-plane",
-      available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
-    },
-    {
-      id: "github-pay-supremeai-open",
-      provider: "github",
-      displayName: "GitHub Repo (Supremeai-bd/supremeai-open)",
-      role: "source-control",
-      environment: "production",
-      capabilities: ["health", "logs", "metrics"],
-      apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
-      url: "https://api.github.com/repos/Supremeai-bd/supremeai-open",
-      available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
-    },
-    {
-      id: "github-pay-supremeai-sdk",
-      provider: "github",
-      displayName: "GitHub Repo (Supremeai-bd/supremeai-sdk)",
-      role: "source-control",
-      environment: "production",
-      capabilities: ["health", "logs", "metrics"],
-      apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
-      url: "https://api.github.com/repos/Supremeai-bd/supremeai-sdk",
-      available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
-    },
-    {
-      id: "github-pay-supremeai-studio",
-      provider: "github",
-      displayName: "GitHub Repo (Supremeai-bd/supremeai-studio)",
-      role: "source-control",
-      environment: "production",
-      capabilities: ["health", "logs", "metrics"],
-      apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
-      url: "https://api.github.com/repos/Supremeai-bd/supremeai-studio",
-      available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
-    },
+    })),
 
     // ── Supabase ──────────────────────────────────────────
     {
@@ -238,7 +251,7 @@ export function buildAccountRegistry(): ProviderAccount[] {
       return {
         id: "redis-primary",
         provider: "redis" as const,
-        displayName: label === "primary" ? "Upstash Redis (Cache + Queue)" : `Upstash Redis (Cache + Queue [auto-rotated: ${label}])`,
+        displayName: label === "primary" ? "Upstash Redis (Multi-Account Chain: 5 accounts)" : `Upstash Redis (Multi-Account Chain: 5 accounts [auto-rotated: ${label}])`,
         role: "cache",
         environment: "production" as const,
         capabilities: ["health", "metrics", "storage"] as const,
@@ -253,52 +266,18 @@ export function buildAccountRegistry(): ProviderAccount[] {
     {
       id: "cloudflare-primary",
       provider: "cloudflare",
-      displayName: "Cloudflare Primary (DNS + Workers + Edge)",
+      displayName: "Cloudflare Edge Mesh (Federation Pool: 5 accounts)",
       role: "edge",
       environment: "production",
       capabilities: ["health", "metrics", "logs"],
       apiKeyRef: "CLOUDFLARE_API_TOKEN",
-      available: isAvailable("CLOUDFLARE_API_TOKEN") || isAvailable("CLOUDFLARE_GLOBAL_API_KEY"),
-    },
-    {
-      id: "cloudflare-secondary",
-      provider: "cloudflare",
-      displayName: "Cloudflare Secondary (Edge Failover)",
-      role: "edge-secondary",
-      environment: "production",
-      capabilities: ["health", "metrics", "logs"],
-      apiKeyRef: "CLOUDFLARE_SECONDARY_GLOBAL_API_KEY",
-      available: isAvailable("CLOUDFLARE_SECONDARY_GLOBAL_API_KEY"),
-    },
-    {
-      id: "cloudflare-tertiary",
-      provider: "cloudflare",
-      displayName: "Cloudflare Tertiary (Edge Failover)",
-      role: "edge-tertiary",
-      environment: "production",
-      capabilities: ["health", "metrics", "logs"],
-      apiKeyRef: "CLOUDFLARE_TERTIARY_GLOBAL_API_KEY",
-      available: isAvailable("CLOUDFLARE_TERTIARY_GLOBAL_API_KEY"),
-    },
-    {
-      id: "cloudflare-quaternary",
-      provider: "cloudflare",
-      displayName: "Cloudflare Quaternary (Edge Failover)",
-      role: "edge-quaternary",
-      environment: "production",
-      capabilities: ["health", "metrics", "logs"],
-      apiKeyRef: "CLOUDFLARE_QUATERNARY_GLOBAL_API_KEY",
-      available: isAvailable("CLOUDFLARE_QUATERNARY_GLOBAL_API_KEY"),
-    },
-    {
-      id: "cloudflare-quinary",
-      provider: "cloudflare",
-      displayName: "Cloudflare Quinary (Edge Failover)",
-      role: "edge-quinary",
-      environment: "production",
-      capabilities: ["health", "metrics", "logs"],
-      apiKeyRef: "CLOUDFLARE_QUINARY_GLOBAL_API_KEY",
-      available: isAvailable("CLOUDFLARE_QUINARY_GLOBAL_API_KEY"),
+      available:
+        isAvailable("CLOUDFLARE_API_TOKEN") ||
+        isAvailable("CLOUDFLARE_GLOBAL_API_KEY") ||
+        isAvailable("CLOUDFLARE_SECONDARY_GLOBAL_API_KEY") ||
+        isAvailable("CLOUDFLARE_TERTIARY_GLOBAL_API_KEY") ||
+        isAvailable("CLOUDFLARE_QUATERNARY_GLOBAL_API_KEY") ||
+        isAvailable("CLOUDFLARE_QUINARY_GLOBAL_API_KEY"),
     },
 
     // ── Infisical ─────────────────────────────────────────
@@ -313,59 +292,11 @@ export function buildAccountRegistry(): ProviderAccount[] {
       available: isAvailable("INFISICAL_CLIENT_SECRET"),
     },
 
-    // ── Firebase ──────────────────────────────────────────
-    {
-      id: "firebase-primary",
-      provider: "firebase",
-      displayName: "Firebase (Auth + Storage)",
-      role: "auth-storage",
-      environment: "production",
-      capabilities: ["health", "auth", "storage"],
-      apiKeyRef: "FIREBASE_SERVICE_ACCOUNT_JSON",
-      available: isAvailable("FIREBASE_SERVICE_ACCOUNT_JSON"),
-    },
 
-    // ── AI Providers (Multi-Key Pools) ────────────────────
-    {
-      id: "ai-gemini",
-      provider: "ai",
-      displayName: "Google Gemini API Pool",
-      role: "llm-inference",
-      environment: "production",
-      capabilities: ["health", "ai_inference", "metrics"],
-      apiKeyRef: "GEMINI_API_KEY",
-      available: env.ai.geminiKeys.length > 0,
-    },
-    {
-      id: "ai-groq",
-      provider: "ai",
-      displayName: "Groq LPU Inference Pool",
-      role: "llm-inference",
-      environment: "production",
-      capabilities: ["health", "ai_inference", "metrics"],
-      apiKeyRef: "GROQ_API_KEY",
-      available: env.ai.groqKeys.length > 0,
-    },
-    {
-      id: "ai-openrouter",
-      provider: "ai",
-      displayName: "OpenRouter Unified Pool",
-      role: "llm-inference",
-      environment: "production",
-      capabilities: ["health", "ai_inference", "metrics"],
-      apiKeyRef: "OPENROUTER_API_KEY",
-      available: env.ai.openrouterKeys.length > 0,
-    },
-    {
-      id: "ai-mistral",
-      provider: "ai",
-      displayName: "Mistral AI Pool",
-      role: "llm-inference",
-      environment: "production",
-      capabilities: ["health", "ai_inference", "metrics"],
-      apiKeyRef: "MISTRAL_API_KEY",
-      available: !!env.ai.mistralKey,
-    },
+    // #643: direct LLM provider pools (gemini/groq/openrouter/mistral) were
+    // REMOVED from the zero-credential control plane — AI analysis is delegated
+    // to the external agent caller context (or Core API). No apiKeyRef for any
+    // LLM provider is required or stored in the tower runtime env anymore.
 
     // ── Kaggle ────────────────────────────────────────────
     {
@@ -390,15 +321,61 @@ export function buildAccountRegistry(): ProviderAccount[] {
       apiKeyRef: "TELEGRAM_BOT_TOKEN",
       available: isAvailable("TELEGRAM_BOT_TOKEN"),
     },
-    {
-      id: "whatsapp-primary",
-      provider: "whatsapp",
-      displayName: "WhatsApp Alerts Bot",
-      role: "alerts",
-      environment: "production",
-      capabilities: ["health", "notify"],
-      apiKeyRef: "WHATSAPP_ACCESS_TOKEN",
-      available: isAvailable("WHATSAPP_ACCESS_TOKEN") || isAvailable("WHATSAPP_PHONE_NUMBER_ID") || isAvailable("WHATSAPP_WEBHOOK_URL"),
-    },
   ];
+}
+
+export const ADMIN_ONLY_GITHUB_REPOS = new Set([
+  "supremeai",
+  "supremeai-api",
+  "supremeai-core",
+  "supremeai-command",
+  "supremeai-infrastructure",
+  "supremeai-mcp-control-plane",
+  "github-org-supremeai-bd",
+]);
+
+/**
+ * Role-aware repository & account filter:
+ * - Admin & supremeadmin (rank >= 4): see all accounts (core monorepo, org monitor, satellites).
+ * - Agent / repo_viewer (rank 2..3): see only open satellite repositories;
+ *   core monorepo ('supremeai'), API gateway ('supremeai-api'), command bot, core, infra, and org monitor are strictly excluded.
+ * - Viewer / guest / restricted_viewer (rank <= 1): only see public-safe SSOT repository ('supremeai-open' for GitHub).
+ */
+export function getAccountsForRole(role?: UserRole): ProviderAccount[] {
+  const allAccounts = buildAccountRegistry();
+  const rank = roleRank(role);
+
+  if (rank >= 4) {
+    return allAccounts;
+  }
+
+  return allAccounts.filter((account) => {
+    if (account.provider !== "github") {
+      return true;
+    }
+    // Organization monitor: admin-only
+    if (account.id === "github-org-supremeai-bd" || account.role === "organization") {
+      return false;
+    }
+    // Core monorepo: admin-only
+    if (account.id === "github-primary" || account.url?.endsWith("/supremeai")) {
+      return false;
+    }
+
+    // Extract repo name
+    const match = /\/repos\/([^/]+)\/([^/?#]+)/.exec(account.url ?? "");
+    const repoName = (match ? match[2].replace(/\.git$/, "") : account.id.replace(/^github-pay-/, "")).toLowerCase();
+
+    // Admin-only core and operational infrastructure repos
+    if (ADMIN_ONLY_GITHUB_REPOS.has(repoName)) {
+      return false;
+    }
+
+    // Guest viewer / restricted viewer: strictly only public SSOT repo supremeai-open
+    if (rank <= 1) {
+      return repoName === "supremeai-open" || account.id.includes("supremeai-open");
+    }
+
+    return true;
+  });
 }

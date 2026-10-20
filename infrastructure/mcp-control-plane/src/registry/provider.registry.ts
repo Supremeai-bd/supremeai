@@ -10,16 +10,13 @@ export type ProviderName =
   | "redis"
   | "cloudflare"
   | "infisical"
-  | "firebase"
   | "ai"
   | "kaggle"
   | "stripe"
   | "qdrant"
   | "vercel"
   | "firecrawl"
-  | "telegram"
-  | "discord"
-  | "whatsapp";
+  | "telegram";
 
 export interface ProviderDefinition {
   name: ProviderName;
@@ -65,12 +62,6 @@ export const PROVIDERS: Record<ProviderName, ProviderDefinition> = {
     description: "Secret Management Platform",
     authType: "service_account",
   },
-  firebase: {
-    name: "firebase",
-    displayName: "Firebase",
-    description: "Google Firebase Auth and Storage",
-    authType: "service_account",
-  },
   ai: {
     name: "ai",
     displayName: "AI Providers",
@@ -111,18 +102,6 @@ export const PROVIDERS: Record<ProviderName, ProviderDefinition> = {
     name: "telegram",
     displayName: "Telegram",
     description: "Messaging and alerts",
-    authType: "api_key",
-  },
-  discord: {
-    name: "discord",
-    displayName: "Discord",
-    description: "Messaging webhooks",
-    authType: "api_key",
-  },
-  whatsapp: {
-    name: "whatsapp",
-    displayName: "WhatsApp",
-    description: "Messaging and alerts via WhatsApp Cloud API or Webhook Gateway",
     authType: "api_key",
   },
 };

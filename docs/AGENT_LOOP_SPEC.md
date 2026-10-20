@@ -79,15 +79,11 @@ unlisted group raises `ValueError` inside `build_task_contract()` **and**
 `.github/ISSUE_TEMPLATE/agent-task.yml` carries a **dropdown aligned to this
 registry** — keep the two in sync when the taxonomy changes.
 
-**Relationship to `AGENT_RULES.md` §5 (#90):** §5's eight Primary Groups
-(GOVERNANCE, SECURITY, PIPELINE, ARCHITECTURE, RELIABILITY, PRODUCT,
-INTELLIGENCE, INFRASTRUCTURE) are *policy domains* of the constitutional
-taxonomy — a different surface from this *execution registry*. They are
-reconciled by a default-routing map in `AGENT_RULES.md` §5 ("Registry
-relationship"); on the public board the registry group below is authoritative
-for dispatch, and a §5 domain never substitutes for a registry group. Changing
-either list is an ADMIN_DECISION.
-
+**Relationship to `AGENT_RULES.md` (#90):** the canonical U1–U10 universal rules and
+P0–P7 engineering policies live in `AGENT_RULES.md` (§2 and §4 respectively); its §5 is
+*Machine Enforcement* (task-validation and board-SSOT guard commands) — it defines no
+group taxonomy. The execution registry below is the authoritative group surface for
+dispatch; no constitutional section substitutes for a registry group. Changing
 ## 4. CLI surface after #63
 
 | Command | Status | Behaviour |
@@ -144,7 +140,8 @@ parity contract:
 ## 5. Open Guards — shift-left on free public runtime
 
 The guard jobs in `.github/workflows/pipeline.yml` (branch-naming,
-issue-reference, anti-duplicate PR, boundary-sanitization, loop-contract-parity)
+issue-reference, anti-duplicate PR, boundary-sanitization, loop-contract-parity,
+ingress-hook, stale-base)
 run on every PR to `supremeai-open` — free, unlimited public Actions minutes — so invalid
 contributions fail at the public boundary instead of burning the private
 repo's limited quota (Free org ≈ 2,000 min/month). The first three guards
@@ -165,6 +162,19 @@ tree for content inspection (stdlib-only, still minutes-bounded):
    surface stays in sync: evidence tier count (code emission vs §4),
    this guard list vs the workflow job set, and no flag-table copies
    in CONTRIBUTING.
+6. **Ingress Hook Guard (#161)** — asserts the §5.2 ingress hook
+   surface (`docs/INGRESS_SECURITY_POLICY.md`): executable bit (git
+   silently skips a non-executable hook), `bash -n` syntax gate, and
+   the hook's own 5-scenario offline `--self-test`.
+7. **Stale-Base Guard (#161)** — rejects PR branches built behind
+   `main` (`rev-list` count base..head > 0 → rebase required;
+   Board-Freshness #4177 at CI time, mirroring the local pre-push
+   hook's freshness check).
+8. **Claim Gate Guard (#392)** — verifies referenced issue carries an active claim
+   (`status:claimed` or `status:in-progress` label, or `<!-- atomic-claim -->` comment)
+   before PR creation (AGENTS.md Step 4: no claim, no work).
+9. **Knowledge Sharing Guard (#392)** — verifies PR body carries filled Reflection Evidence
+   (`why` + `alternatives_rejected`).
 
 ## 6. Submission flow (Pathway 1 wiring)
 

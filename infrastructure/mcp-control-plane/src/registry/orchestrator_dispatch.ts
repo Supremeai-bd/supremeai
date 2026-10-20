@@ -15,9 +15,10 @@
  * the ORCHESTRATOR_ROLE_POOLS env JSON without code changes.
  */
 
-import { env } from "../lib/env.js";
 import {
   activeAccountChain,
+  noteQuotaErrorUsage,
+  noteRedisCommands,
   RedisQuotaExhaustedError,
   responseIndicatesQuotaExhaustion,
   runWithAccountChain,
@@ -30,8 +31,6 @@ import {
 export const ORCHESTRATE_STATE_PREFIX = "supremeai:orchestrate:";
 export const STATE_TTL_SECONDS = 30 * 24 * 3600; // 30 days of task history
 export const MAX_RETRIES = 3;
-/** F3: assignments older than this are considered abandoned (state TTL is 30d). */
-export const ASSIGNMENT_FRESH_WINDOW_SECONDS = 24 * 3600;
 
 /** Deterministic event → required lane map (Phase C event set). */
 export const ROLE_EVENT_MAP: Record<string, string> = {
@@ -160,11 +159,10 @@ export function decideRoute(input: {
   };
 }
 
-/** Minimal Redis client over the account chain (GET/SET/KEYS semantics). */
+/** Minimal Redis client over the account chain (GET/SET semantics). */
 type DispatchStore = {
   get(key: string): Promise<string | null>;
   setEx(key: string, ttlSeconds: number, value: string): Promise<void>;
-  keys(pattern: string): Promise<string[]>;
 };
 
 export async function makeDispatchStore(): Promise<DispatchStore> {
@@ -211,6 +209,7 @@ export async function makeDispatchStore(): Promise<DispatchStore> {
             const payload = (await res.json()) as { result?: unknown; error?: string };
             if (payload.error) {
               if (responseIndicatesQuotaExhaustion(res.status, String(payload.error))) {
+                noteQuotaErrorUsage(account.label, String(payload.error));
                 throw new RedisQuotaExhaustedError(
                   account.label,
                   `Upstash REST [${account.label}] দৈনিক কোটা শেষ (body) — cooldown পর্যন্ত shift`,
@@ -218,6 +217,8 @@ export async function makeDispatchStore(): Promise<DispatchStore> {
               }
               throw new Error(`Upstash error [${account.label}]: ${payload.error}`);
             }
+            // #646 AC1: সফল কমান্ড গণনা — preemptive rotation-এর প্রাথমিক সত্য-উৎস।
+            noteRedisCommands(account.label, 1);
             return payload.result;
           },
           {
@@ -242,7 +243,6 @@ export async function makeDispatchStore(): Promise<DispatchStore> {
       setEx: async (key, ttl, value) => {
         await call(["SET", key, value, "EX", String(ttl)]);
       },
-      keys: async (pattern) => (await call(["KEYS", pattern])) as string[],
     };
   }
   const tcpAccount = chain.find((account) => account.tcpUrl);
@@ -253,14 +253,12 @@ export async function makeDispatchStore(): Promise<DispatchStore> {
   const client = new (Redis as unknown as new (url: string, opts: object) => {
     get(key: string): Promise<string | null>;
     set(key: string, value: string, mode: "EX", ttl: number): Promise<"OK">;
-    keys(pattern: string): Promise<string[]>;
   })(tcpAccount.tcpUrl as string, { maxRetriesPerRequest: 2, lazyConnect: false });
   return {
     get: async (key) => client.get(key),
     setEx: async (key, ttl, value) => {
       await client.set(key, value, "EX", ttl);
     },
-    keys: async (pattern) => client.keys(pattern),
   };
 }
 
@@ -271,9 +269,6 @@ export type DispatchState = {
   attempts: number;
   log: string[];
   updatedAt: string;
-  /** F3: last routing decision kind — persisted so listOpenAssignments can
-   *  distinguish open assignments from no-candidate/escalate terminal states. */
-  decisionHint?: "assigned" | "fallback" | "escalate" | "no-candidate";
 };
 
 export async function readState(store: DispatchStore, issueRef: string): Promise<DispatchState> {
@@ -306,91 +301,6 @@ export async function writeState(store: DispatchStore, state: DispatchState): Pr
  * Full dispatch: heartbeat-based selection + state record + decision audit log.
  * Returns the decision and the (updated) task state.
  */
-/** An open (assigned/fallback) routing assignment read back from dispatch state. */
-export type OpenAssignment = {
-  issueRef: string;
-  role: string | null;
-  assignedSlot: string;
-  decision: "assigned" | "fallback";
-  attempts: number;
-  updatedAt: string;
-  ageSeconds: number;
-};
-
-/**
- * F3 (audit 2026-10-16): list OPEN routing assignments from dispatch state.
- * Closes the dispatch loop: assigned agents poll this (via orchestrator_my_tasks)
- * instead of decisions living and dying in a log line. Store injectable for
- * offline tests; defaults to the live account-chain store.
- */
-export async function listOpenAssignments(
-  nowMs: number = Date.now(),
-  store?: DispatchStore,
-): Promise<{ ok: true; now: string; assignments: OpenAssignment[]; stateKeysScanned: number }> {
-  const dispatchStore = store ?? (await makeDispatchStore());
-  const keys = await dispatchStore.keys(`${ORCHESTRATE_STATE_PREFIX}*`);
-  const assignments: OpenAssignment[] = [];
-  for (const key of keys.sort()) {
-    const raw = await dispatchStore.get(key);
-    if (!raw) continue;
-    let state: DispatchState;
-    let decisionKind: DispatchState["decisionHint"];
-    try {
-      state = JSON.parse(raw) as DispatchState;
-      decisionKind = state.decisionHint;
-    } catch {
-      continue; // corrupt state — skip, never break the listing
-    }
-    if (
-      (decisionKind === "assigned" || decisionKind === "fallback") &&
-      state.assignedSlot
-    ) {
-      const updatedMs = Date.parse(state.updatedAt) || 0;
-      const ageSeconds = Math.max(0, Math.floor((nowMs - updatedMs) / 1000));
-      if (ageSeconds <= ASSIGNMENT_FRESH_WINDOW_SECONDS) {
-        assignments.push({
-          issueRef: state.issueRef || key.slice(ORCHESTRATE_STATE_PREFIX.length),
-          role: state.role ?? null,
-          assignedSlot: state.assignedSlot,
-          decision: decisionKind,
-          attempts: state.attempts ?? 0,
-          updatedAt: state.updatedAt,
-          ageSeconds,
-        });
-      }
-    }
-  }
-  return {
-    ok: true,
-    now: new Date(nowMs).toISOString(),
-    assignments: assignments.sort((a, b) => a.issueRef.localeCompare(b.issueRef)),
-    stateKeysScanned: keys.length,
-  };
-}
-
-/**
- * Best-effort Telegram dispatch notice (F3 half 2). Env-unconfigured or failing
- * sends are non-blocking and logged honestly — deterministic protections stay
- * authoritative (CONSUMERS.md §6: AI/notify output is advisory).
- */
-export async function notifyDispatchDecision(decision: RouteDecision, issueRef: string): Promise<void> {
-  if (decision.decision !== "assigned" && decision.decision !== "escalate") return;
-  if (!env.notify.telegramBotToken || !env.notify.telegramChatId) {
-    console.log(`[orchestrator-dispatch] notify skipped: telegram unconfigured (${decision.decision} on ${issueRef})`);
-    return;
-  }
-  try {
-    const { sendTelegram } = await import("../adapters/notify/actions.js");
-    const text =
-      decision.decision === "assigned"
-        ? `🧭 Orchestrator: ${issueRef} → ${decision.role} @ ${decision.assignedSlot}\n${decision.reason}`
-        : `🚨 Orchestrator ESCALATION: ${issueRef} needs human input (${decision.role ?? "n/a"})\n${decision.reason}`;
-    await sendTelegram(text);
-  } catch (err) {
-    console.error(`[orchestrator-dispatch] notify failed (non-blocking): ${(err as Error).message}`);
-  }
-}
-
 export async function orchestratorDispatch(input: {
   issueRef: string;
   event: string;
@@ -419,12 +329,9 @@ export async function orchestratorDispatch(input: {
     attempts: decision.decision === "no-candidate" ? state.attempts + 1 : 0,
     log: [...state.log, logLine].slice(-50),
     updatedAt: new Date().toISOString(),
-    decisionHint: decision.decision,
   };
   await writeState(store, nextState);
   // Audit trail: the routing decision is always logged server-side (#1803).
   console.log(`[orchestrator-dispatch] ${logLine}`);
-  // F3 half 2: best-effort notify (never blocks, never throws — see fn doc).
-  await notifyDispatchDecision(decision, input.issueRef);
   return { decision, state: nextState };
 }
