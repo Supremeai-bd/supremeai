@@ -43,17 +43,11 @@ function isAvailable(envRef: string): boolean {
 export const CANONICAL_FEDERATION_REPOS = [
   "supremeai",
   "supremeai-open",
-  "supremeai-command",
-  "supremeai-skills",
-  "supremeai-vscode",
-  "supremeai-agents",
-  "supremeai-browser",
-  "supremeai-api",
-  "supremeai-studio",
-  "supremeai-infrastructure",
   "supremeai-core",
-  "supremeai-sdk",
-  "supremeai-mcp-control-plane",
+  "supremeai-api",
+  "supremeai-browser",
+  "supremeai-studio",
+  "supremeai-vscode",
   "supremeai-archive",
 ] as const;
 
@@ -68,8 +62,8 @@ const discoveredOrgRepos = new Set<string>(CANONICAL_FEDERATION_REPOS);
  */
 export function registerDiscoveredOrgRepo(repoName: string): void {
   const normalized = repoName.trim().toLowerCase();
-  // Ghost Cloaking & Core Isolation: supremeai-api and supremeai are never exposed as generic satellites
-  if (normalized === "supremeai-api" || normalized === "supremeai") return;
+  // Core Isolation: supremeai is never exposed as generic satellite
+  if (normalized === "supremeai") return;
   if (normalized && !discoveredOrgRepos.has(normalized)) {
     discoveredOrgRepos.add(normalized);
   }
@@ -326,11 +320,7 @@ export function buildAccountRegistry(): ProviderAccount[] {
 
 export const ADMIN_ONLY_GITHUB_REPOS = new Set([
   "supremeai",
-  "supremeai-api",
   "supremeai-core",
-  "supremeai-command",
-  "supremeai-infrastructure",
-  "supremeai-mcp-control-plane",
   "github-org-supremeai-bd",
 ]);
 

@@ -39,8 +39,6 @@ DOMAIN_MAP: dict[str, str] = {
     "Supremeai-bd/supremeai-api": "gateway",
     "Supremeai-bd/supremeai-browser": "browser",
     "Supremeai-bd/supremeai-vscode": "vscode",
-    "Supremeai-bd/supremeai-infrastructure": "infra",
-    "Supremeai-bd/supremeai-sdk": "sdk",
 }
 
 # Mirrored contract files mapped from supremeai-open root to specific satellite destination paths:
@@ -202,7 +200,18 @@ def sync_satellite(
         )
         subprocess.check_call(["git", "add", "-A"], cwd=str(tmp_repo))
         msg = f"sync(open->{slug}): {commit_msg} [skip ci]"
-        subprocess.check_call(["git", "commit", "-m", msg], cwd=str(tmp_repo))
+        res = subprocess.run(
+            ["git", "commit", "--no-verify", "-m", msg],
+            cwd=str(tmp_repo),
+            capture_output=True,
+            text=True,
+        )
+        if res.returncode != 0:
+            if "nothing to commit" in res.stdout or "nothing to commit" in res.stderr:
+                print(f"⏩ [CLEAN] No new code changes to commit for {slug}.")
+                return True
+            print(f"Git commit failed:\nSTDOUT: {res.stdout}\nSTDERR: {res.stderr}")
+            return False
 
         # Avoid non-fast-forward rejection on concurrent landings (#416).
         subprocess.run(
@@ -336,12 +345,14 @@ def prune_ephemeral_patches(repo_root: Path) -> None:
 
 def self_test() -> bool:
     """Self-test verifying contract and mappings."""
-    assert len(DOMAIN_MAP) == 7, (
-        f"Expected 7 active satellites in DOMAIN_MAP, got {len(DOMAIN_MAP)}"
+    assert len(DOMAIN_MAP) == 5, (
+        f"Expected 5 active satellites in DOMAIN_MAP, got {len(DOMAIN_MAP)}"
     )
     assert "Supremeai-bd/supremeai-studio" in DOMAIN_MAP
     assert "Supremeai-bd/supremeai-core" in DOMAIN_MAP
     assert "Supremeai-bd/supremeai-api" in DOMAIN_MAP
+    assert "Supremeai-bd/supremeai-browser" in DOMAIN_MAP
+    assert "Supremeai-bd/supremeai-vscode" in DOMAIN_MAP
     assert len(CONTRACT_MIRROR_PAIRS) >= 2, (
         "Expected at least 2 mirrored contract pairs"
     )
