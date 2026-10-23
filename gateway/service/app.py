@@ -208,24 +208,18 @@ async def chat_completions(
         preferred_provider = requested_model
 
     use_priority_1 = (
-        (STEALTH_WEBHOOK_URL or (web_bridge and getattr(web_bridge, "has_active_accounts", False)))
-        and (preferred_provider is None or preferred_provider in ("stealth", "ghost_gemini", "web_session"))
+        bool(STEALTH_WEBHOOK_URL)
+        and (preferred_provider is None or preferred_provider in ("stealth", "ghost_gemini"))
     )
     if use_priority_1:
         w_status, w_response = None, None
         try:
-            if STEALTH_WEBHOOK_URL:
-                w_status, w_response = await forward_stealth_webhook(
-                    STEALTH_WEBHOOK_URL,
-                    STEALTH_WEBHOOK_SECRET,
-                    body,
-                    timeout=STEALTH_WEBHOOK_TIMEOUT,
-                )
-            elif web_bridge:
-                w_status, w_response = await web_bridge.forward_web_chat(
-                    body,
-                    timeout=STEALTH_WEBHOOK_TIMEOUT,
-                )
+            w_status, w_response = await forward_stealth_webhook(
+                STEALTH_WEBHOOK_URL,
+                STEALTH_WEBHOOK_SECRET,
+                body,
+                timeout=STEALTH_WEBHOOK_TIMEOUT,
+            )
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"Priority-1 Web Relay attempt exception: {exc}")
             w_status, w_response = 500, None
@@ -250,16 +244,20 @@ async def chat_completions(
                 "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
             }
 
-        # Priority 1 is ONLY accepted if HTTP 2xx AND valid non-empty chat completion choices
-        is_valid_chat = (
+        chat_content = ""
+        if (
             isinstance(w_response, dict)
             and bool(w_response.get("choices"))
             and isinstance(w_response["choices"], list)
             and len(w_response["choices"]) > 0
             and isinstance(w_response["choices"][0], dict)
-            and "message" in w_response["choices"][0]
-            and isinstance(w_response["choices"][0]["message"], dict)
-            and bool(str(w_response["choices"][0]["message"].get("content", "")).strip())
+            and isinstance(w_response["choices"][0].get("message"), dict)
+        ):
+            chat_content = str(w_response["choices"][0]["message"].get("content", "")).strip()
+
+        # Reject mock/dummy stubs and require genuine non-empty content
+        is_valid_chat = bool(chat_content) and not any(
+            marker in chat_content for marker in ("Web Session Active", "health=", "Authenticated via")
         )
 
         if w_status is not None and 200 <= w_status < 300 and is_valid_chat:
@@ -270,51 +268,57 @@ async def chat_completions(
             }
             return JSONResponse(status_code=w_status, content=w_response, headers=headers)
 
-        logger.info(
-            f"Priority-1 Web Relay skipped or non-chat response (status={w_status}), "
-            "instantly falling back to Priority-2 API squad..."
-        )
-
-    if not squad:
-        raise HTTPException(status_code=503, detail="Dynamic squad uninitialized")
-
-    candidates = squad.get_candidate_slots(preferred_provider)
-    if not candidates:
         raise HTTPException(
-            status_code=503,
-            detail="No healthy AI provider keys available at this moment. All keys cooling down."
+            status_code=502,
+            detail=f"Stealth Webhook relay returned non-chat or error status ({w_status}). API fallback disabled."
         )
 
-    last_error = None
-    for provider, slot in candidates:
-        status, response_data = await forward_chat_completion(provider, slot.key, body)
-
-        if 200 <= status < 300:
-            headers = {
-                "X-SupremeAI-Provider": provider,
-                "X-SupremeAI-Slot": slot.name,
-                "X-SupremeAI-Priority": "2-squad-fallback" if use_priority_1 else "direct-squad",
-            }
-            if use_priority_1:
-                headers["X-SupremeAI-Fallback"] = "p1-stealth-failover"
-            if isinstance(response_data, dict):
-                return JSONResponse(status_code=status, content=response_data, headers=headers)
-            return Response(content=str(response_data), status_code=status, headers=headers, media_type="text/plain")
-
-        pool = squad.pools.get(provider)
-        if pool:
-            pool.report_injury(slot, status)
-
-        last_error = {"provider": provider, "slot": slot.name, "status": status, "error": response_data}
-        logger.warning(f"Candidate {slot.name} failed ({status}), failing over to next player...")
-
-    return JSONResponse(
-        status_code=502,
-        content={
-            "error": "All healthy provider attempts failed during cross-provider failover.",
-            "last_error": last_error,
-        }
+    raise HTTPException(
+        status_code=503,
+        detail="Stealth Webhook relay is currently unconfigured or offline. API key replies disabled per user mandate."
     )
+
+    # ── [COMMENTED OUT PER USER MANDATE: reply only webhook use korbe, API key squad disabled] ──
+    # if not squad:
+    #     raise HTTPException(status_code=503, detail="Dynamic squad uninitialized")
+    #
+    # candidates = squad.get_candidate_slots(preferred_provider)
+    # if not candidates:
+    #     raise HTTPException(
+    #         status_code=503,
+    #         detail="No healthy AI provider keys available at this moment. All keys cooling down."
+    #     )
+    #
+    # last_error = None
+    # for provider, slot in candidates:
+    #     status, response_data = await forward_chat_completion(provider, slot.key, body)
+    #
+    #     if 200 <= status < 300:
+    #         headers = {
+    #             "X-SupremeAI-Provider": provider,
+    #             "X-SupremeAI-Slot": slot.name,
+    #             "X-SupremeAI-Priority": "2-squad-fallback" if use_priority_1 else "direct-squad",
+    #         }
+    #         if use_priority_1:
+    #             headers["X-SupremeAI-Fallback"] = "p1-stealth-failover"
+    #         if isinstance(response_data, dict):
+    #             return JSONResponse(status_code=status, content=response_data, headers=headers)
+    #         return Response(content=str(response_data), status_code=status, headers=headers, media_type="text/plain")
+    #
+    #     pool = squad.pools.get(provider)
+    #     if pool:
+    #         pool.report_injury(slot, status)
+    #
+    #     last_error = {"provider": provider, "slot": slot.name, "status": status, "error": response_data}
+    #     logger.warning(f"Candidate {slot.name} failed ({status}), failing over to next player...")
+    #
+    # return JSONResponse(
+    #     status_code=502,
+    #     content={
+    #         "error": "All healthy provider attempts failed during cross-provider failover.",
+    #         "last_error": last_error,
+    #     }
+    # )
 
 
 # ── MCP Control Tower & Superadmin Management Surface ────────────────────────
