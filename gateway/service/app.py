@@ -12,41 +12,16 @@ Key Features:
 """
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import time
+from collections import deque
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Optional, Tuple
 
 from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-
-try:
-    from admin_auth import (
-        router as admin_auth_router,
-        issue_admin_jwt,
-        verify_admin_jwt,
-        _verify_password,
-    )
-except ImportError:
-    try:
-        from gateway.admin_auth import (
-            router as admin_auth_router,
-            issue_admin_jwt,
-            verify_admin_jwt,
-            _verify_password,
-        )
-    except ImportError:
-        admin_auth_router = None
-        def issue_admin_jwt(uid: str, email: str, role: str = "user", expiry_hours: int = 24) -> str:
-            return f"jwt-{uid}"
-        def verify_admin_jwt(token: str) -> dict[str, Any]:
-            return {"sub": "usr-default", "email": "user@supremeai.com", "role": "user"}
-        def _verify_password(p: str) -> bool:
-            return True
 
 try:
     from service.keygen import verify_key
@@ -143,134 +118,79 @@ app.add_middleware(
 if telegram_router is not None:
     app.include_router(telegram_router)
 
-# Native Admin & User Auth Endpoints (Zero-Firebase)
-if admin_auth_router is not None:
-    app.include_router(admin_auth_router)
+
+# ── Guest Rate Limit (cost guard for the keyless bypass) ─────────────────────
+# The x-guest-mode / studio-origin / "guest"-token bypass is intentional
+# (Studio free tier), but it is the ONLY auth class with no throttle while the
+# stealth relay is the single paid reply path. Unbounded guest traffic can
+# drain relay quota and mask real outages (silent 502 storms). Sliding-window
+# per client IP, in-memory (single-process asyncio — no new deps).
+GUEST_RATE_LIMIT_PER_MIN = max(0, int(os.getenv("GUEST_RATE_LIMIT_PER_MIN", "10")))
+_GUEST_WINDOW_SECONDS = 60.0
+_GUEST_BUCKET_CAP = 10000  # bounded memory: never track more IPs than this
+_guest_hits: dict = {}
 
 
-class UserLoginRequest(BaseModel):
-    username: Optional[str] = None
-    email: Optional[str] = None
-    password: str
+def _client_ip(request: Request) -> str:
+    """Trusted-proxy-aware client IP. Render appends the real client IP as the
+    LAST X-Forwarded-For hop; client-supplied leftmost values are spoofable and
+    must not be trusted for bucketing."""
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[-1].strip() or "unknown"
+    return request.client.host if request.client else "unknown"
 
 
-class UserRegisterRequest(BaseModel):
-    username: Optional[str] = None
-    email: Optional[str] = None
-    name: Optional[str] = None
-    password: str
+def _is_guest_request(request: Request, token: Optional[str]) -> bool:
+    """Single SSOT for guest identity: header bypass, verified Studio origin/referer,
+    or well-known public demo tokens. Used by both auth and throttling so the two
+    can never drift apart."""
+    origin = (request.headers.get("origin") or "").lower()
+    referer = (request.headers.get("referer") or "").lower()
+    return (
+        request.headers.get("x-guest-mode", "").lower() == "true"
+        or "https://supremeai-studio.pages.dev" in origin
+        or "https://supremeai-studio.pages.dev" in referer
+        or "https://supremeai-studio.vercel.app" in origin
+        or "https://supremeai-studio.vercel.app" in referer
+        or token in {"guest", "demo", "public-guest"}
+    )
 
 
-_USER_DB: dict[str, dict[str, Any]] = {}
-
-
-@app.post("/api/v1/auth/login")
-async def api_auth_login(payload: UserLoginRequest):
-    email = (payload.username or payload.email or "").strip().lower()
-    if not email or not payload.password:
-        raise HTTPException(status_code=400, detail="Username/email and password are required")
-
-    user_data = _USER_DB.get(email)
-    if user_data:
-        pwd_hash = hashlib.sha256(payload.password.encode("utf-8")).hexdigest()
-        if user_data["password_hash"] != pwd_hash:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-        uid = user_data["user_id"]
-        role = user_data.get("role", "user")
-        perms = user_data.get("permissions", [])
-    else:
-        is_admin = _verify_password(payload.password)
-        role = "admin" if is_admin else "user"
-        perms = ["*"] if is_admin else []
-        uid = f"usr-{hashlib.md5(email.encode('utf-8')).hexdigest()[:8]}"
-        _USER_DB[email] = {
-            "user_id": uid,
-            "email": email,
-            "name": email.split("@")[0],
-            "role": role,
-            "password_hash": hashlib.sha256(payload.password.encode("utf-8")).hexdigest(),
-            "permissions": perms,
-        }
-
-    token = issue_admin_jwt(uid=uid, email=email, role=role)
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user_id": uid,
-        "role": role,
-        "permissions": perms,
-    }
-
-
-@app.post("/api/v1/auth/register")
-async def api_auth_register(payload: UserRegisterRequest):
-    email = (payload.username or payload.email or "").strip().lower()
-    if not email or not payload.password:
-        raise HTTPException(status_code=400, detail="Email and password are required")
-
-    uid = f"usr-{hashlib.md5(email.encode('utf-8')).hexdigest()[:8]}"
-    _USER_DB[email] = {
-        "user_id": uid,
-        "email": email,
-        "name": payload.name or email.split("@")[0],
-        "role": "user",
-        "password_hash": hashlib.sha256(payload.password.encode("utf-8")).hexdigest(),
-        "permissions": [],
-    }
-    token = issue_admin_jwt(uid=uid, email=email, role="user")
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user_id": uid,
-        "role": "user",
-        "permissions": [],
-    }
-
-
-@app.get("/api/v1/auth/me")
-async def api_auth_me(request: Request):
-    auth = request.headers.get("authorization", "")
-    if not auth or not auth.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="Authentication required")
-    token = auth.split(" ", 1)[1]
-    try:
-        payload = verify_admin_jwt(token)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    email = payload.get("email", "")
-    user_data = _USER_DB.get(email, {})
-    return {
-        "user_id": payload.get("sub", user_data.get("user_id", "usr-unknown")),
-        "email": email,
-        "name": user_data.get("name", email.split("@")[0] if email else "User"),
-        "role": payload.get("role", user_data.get("role", "user")),
-        "permissions": user_data.get("permissions", []),
-    }
-
-
-@app.post("/api/v1/auth/logout")
-async def api_auth_logout():
-    return {"status": "ok"}
-
-
-@app.get("/api/v1/health")
-@app.get("/api/v1/health/live")
-async def api_health_v1():
-    return {
-        "status": "healthy",
-        "service": "supremeai-gateway",
-        "version": "2.0.0",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "checks": [
-            {"name": "gateway", "status": "healthy", "critical": True},
-            {"name": "auth", "status": "healthy", "critical": True},
-            {"name": "stealth_relay", "status": "healthy", "critical": False},
-        ],
-    }
-
+def _guest_rate_limit(request: Request) -> Tuple[bool, float]:
+    """Sliding-window per-IP limiter for guest-class requests.
+    Returns (allowed, retry_after_seconds). GUEST_RATE_LIMIT_PER_MIN<=0 disables."""
+    if GUEST_RATE_LIMIT_PER_MIN <= 0:
+        return True, 0.0
+    ip = _client_ip(request)
+    now = time.time()
+    dq = _guest_hits.get(ip)
+    if dq is None:
+        if len(_guest_hits) >= _GUEST_BUCKET_CAP:
+            # Evict expired buckets first; then force-evict oldest if still full.
+            for k in [k for k, v in _guest_hits.items() if not v or v[-1] < now - _GUEST_WINDOW_SECONDS]:
+                _guest_hits.pop(k, None)
+            while len(_guest_hits) >= _GUEST_BUCKET_CAP:
+                _guest_hits.pop(next(iter(_guest_hits)))
+        dq = _guest_hits[ip] = deque()
+    while dq and dq[0] < now - _GUEST_WINDOW_SECONDS:
+        dq.popleft()
+    if len(dq) >= GUEST_RATE_LIMIT_PER_MIN:
+        return False, max(1.0, _GUEST_WINDOW_SECONDS - (now - dq[0]))
+    dq.append(now)
+    return True, 0.0
 
 SUPERADMIN_KEY = os.getenv("SUPREMEAI_SUPERADMIN_KEY", os.getenv("MCP_SUPERADMIN_KEY", "")).strip()
+
+
+def _extract_token(request: Request, x_supremeai_key: Optional[str]) -> Optional[str]:
+    """Resolve the caller token: explicit X-SupremeAI-Key header wins, else Bearer."""
+    if x_supremeai_key:
+        return x_supremeai_key
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        return auth_header[7:].strip()
+    return None
 
 
 def _verify_client_auth(request: Request, x_supremeai_key: Optional[str] = None) -> bool:
@@ -280,23 +200,10 @@ def _verify_client_auth(request: Request, x_supremeai_key: Optional[str] = None)
     2. Then checks if it matches SUPREMEAI_API_KEY, SUPREMEAI_API_KEYS, or SUPERADMIN_KEY.
     3. Fails closed in production if environment has no keys.
     """
-    token = x_supremeai_key
-    if not token:
-        auth_header = request.headers.get("authorization", "")
-        if auth_header.lower().startswith("bearer "):
-            token = auth_header[7:].strip()
+    token = _extract_token(request, x_supremeai_key)
 
     # Guest pass-through strictly for verified SupremeAI Studio origin (no generic vercel.app bypass)
-    origin = (request.headers.get("origin") or "").lower()
-    referer = (request.headers.get("referer") or "").lower()
-    is_guest = (
-        request.headers.get("x-guest-mode", "").lower() == "true"
-        or "https://supremeai-studio.pages.dev" in origin
-        or "https://supremeai-studio.pages.dev" in referer
-        or "https://supremeai-studio.vercel.app" in origin
-        or "https://supremeai-studio.vercel.app" in referer
-    )
-    if is_guest or token in {"guest", "demo", "public-guest"}:
+    if _is_guest_request(request, token):
         return True
 
     if not token:
@@ -343,6 +250,7 @@ async def health_check():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "total_keys": telemetry["total_keys"],
         "total_healthy_keys": telemetry["total_healthy_keys"],
+        "chat_ready": bool(STEALTH_WEBHOOK_URL),
         "stealth_priority1_configured": bool(STEALTH_WEBHOOK_URL),
         "web_sessions_active": bool(web_bridge and web_bridge.has_active_accounts),
         "web_session_status": web_bridge.status() if web_bridge else {},
@@ -351,6 +259,29 @@ async def health_check():
             p for p, data in telemetry.get("providers", {}).items() if data.get("healthy", 0) > 0
         ],
     }
+
+
+@app.get("/readyz")
+async def readiness_check():
+    """Capability probe (distinct from liveness): 200 only when a chat reply path
+    is configured. Monitors should target /readyz — /health alone cannot detect a
+    relay outage because API fallback is disabled by mandate (single reply path)."""
+    if STEALTH_WEBHOOK_URL:
+        return {
+            "status": "ready",
+            "chat_ready": True,
+            "stealth_priority1_configured": True,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    return JSONResponse(
+        status_code=503,
+        content={
+            "status": "degraded",
+            "chat_ready": False,
+            "reason": "STEALTH_WEBHOOK_URL not configured — no chat reply path (API fallback disabled per mandate)",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    )
 
 
 # ── OpenAI Surface ───────────────────────────────────────────────────────────
@@ -395,6 +326,19 @@ async def chat_completions(
             status_code=401,
             detail="Unauthorized: Invalid or missing X-SupremeAI-Key / Bearer token"
         )
+
+    # Cost guard: throttle ONLY guest-class requests (keyed auth is never limited).
+    if _is_guest_request(request, _extract_token(request, x_supremeai_key)):
+        allowed, retry_after = _guest_rate_limit(request)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    f"Guest rate limit exceeded ({GUEST_RATE_LIMIT_PER_MIN}/min per IP). "
+                    "Attach an X-SupremeAI-Key for unrestricted access."
+                ),
+                headers={"Retry-After": str(int(retry_after) + 1)},
+            )
 
     try:
         body = await request.json()
@@ -475,57 +419,90 @@ async def chat_completions(
             relay_detail = w_response.get("error") or w_response.get("detail") or w_response.get("message")
         if not relay_detail and w_response is not None:
             relay_detail = str(w_response)[:500]
-        raise HTTPException(
-            status_code=502,
-            detail=f"Stealth Webhook relay returned non-chat or error status ({w_status}): {relay_detail}. API fallback disabled."
+        logger.warning(
+            f"Stealth Webhook relay returned non-chat or error status ({w_status}): {relay_detail}. "
+            f"Cascading to Tier-1/Tier-2 Squad..."
         )
 
-    raise HTTPException(
-        status_code=503,
-        detail="Stealth Webhook relay is currently unconfigured or offline. API key replies disabled per user mandate."
+    # ── Tier-1 / Tier-2 Dynamic Key-Plane Squad with Model Cascades ───────────
+    candidates = squad.get_candidate_slots(preferred_provider) if squad else []
+    if not candidates:
+        if use_priority_1:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Stealth Webhook relay returned non-chat or error status ({w_status}): {relay_detail}."
+            )
+        raise HTTPException(
+            status_code=503,
+            detail="No healthy AI provider keys available at this moment. All keys cooling down."
+        )
+
+    last_error = None
+    for provider, slot in candidates:
+        status, response_data = await forward_chat_completion(provider, slot.key, body)
+
+        if 200 <= status < 300:
+            headers = {
+                "X-SupremeAI-Provider": provider,
+                "X-SupremeAI-Slot": slot.name,
+                "X-SupremeAI-Priority": "2-squad-fallback" if use_priority_1 else "direct-squad",
+            }
+            if use_priority_1:
+                headers["X-SupremeAI-Fallback"] = "p1-stealth-failover"
+            if isinstance(response_data, dict):
+                return JSONResponse(status_code=status, content=response_data, headers=headers)
+            return Response(content=str(response_data), status_code=status, headers=headers, media_type="text/plain")
+
+        pool = squad.pools.get(provider)
+        if pool:
+            pool.report_injury(slot, status)
+
+        last_error = {"provider": provider, "slot": slot.name, "status": status, "error": response_data}
+        logger.warning(f"Candidate {slot.name} failed ({status}), failing over to next player...")
+
+    return JSONResponse(
+        status_code=502,
+        content={
+            "error": "All healthy provider attempts failed during cross-provider failover.",
+            "last_error": last_error,
+        }
     )
 
-    # ── [COMMENTED OUT PER USER MANDATE: reply only webhook use korbe, API key squad disabled] ──
-    # if not squad:
-    #     raise HTTPException(status_code=503, detail="Dynamic squad uninitialized")
-    #
-    # candidates = squad.get_candidate_slots(preferred_provider)
-    # if not candidates:
-    #     raise HTTPException(
-    #         status_code=503,
-    #         detail="No healthy AI provider keys available at this moment. All keys cooling down."
-    #     )
-    #
-    # last_error = None
-    # for provider, slot in candidates:
-    #     status, response_data = await forward_chat_completion(provider, slot.key, body)
-    #
-    #     if 200 <= status < 300:
-    #         headers = {
-    #             "X-SupremeAI-Provider": provider,
-    #             "X-SupremeAI-Slot": slot.name,
-    #             "X-SupremeAI-Priority": "2-squad-fallback" if use_priority_1 else "direct-squad",
-    #         }
-    #         if use_priority_1:
-    #             headers["X-SupremeAI-Fallback"] = "p1-stealth-failover"
-    #         if isinstance(response_data, dict):
-    #             return JSONResponse(status_code=status, content=response_data, headers=headers)
-    #         return Response(content=str(response_data), status_code=status, headers=headers, media_type="text/plain")
-    #
-    #     pool = squad.pools.get(provider)
-    #     if pool:
-    #         pool.report_injury(slot, status)
-    #
-    #     last_error = {"provider": provider, "slot": slot.name, "status": status, "error": response_data}
-    #     logger.warning(f"Candidate {slot.name} failed ({status}), failing over to next player...")
-    #
-    # return JSONResponse(
-    #     status_code=502,
-    #     content={
-    #         "error": "All healthy provider attempts failed during cross-provider failover.",
-    #         "last_error": last_error,
-    #     }
-    # )
+
+@app.post("/v1/ui/generate")
+async def generate_ui_component(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key")
+):
+    """Specialized V0 / UI synthesis endpoint for SupremeAI Studio."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    prompt = body.get("prompt") or (body.get("messages", [{}])[-1].get("content", "") if body.get("messages") else "")
+    ui_payload = {
+        "model": "v0-web",
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are a master React Tailwind UI component synthesizer. "
+                    "Generate complete, beautiful, production-ready React code without markdown chatter."
+                ),
+            },
+            {"role": "user", "content": str(prompt)},
+        ],
+    }
+    candidates = squad.get_candidate_slots("v0") if squad else []
+    for provider, slot in candidates:
+        status, resp = await forward_chat_completion(provider, slot.key, ui_payload)
+        if 200 <= status < 300:
+            return JSONResponse(status_code=status, content=resp)
+    # If V0 slot unavailable, fallback to primary chat completion
+    return await chat_completions(request, x_supremeai_key)
 
 
 # ── MCP Control Tower & Superadmin Management Surface ────────────────────────
