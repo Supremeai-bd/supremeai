@@ -381,7 +381,7 @@ def mask_token(token: str) -> str:
 # ─────────────────── scoped child-env construction (#2644 item 2) ───────────────────
 
 def build_scoped_env(role: str, token: str = "", agent_name: str = "",
-                     slot: str = "", repo: str = "SaifulHaqueNiloy/supremeai",
+                     slot: str = "", repo: str = "Supremeai-bd/supremeai-open",
                      base_env: dict | None = None) -> dict:
     """Least-privilege env for a child agent subprocess (role-keyed, pure).
 
@@ -403,6 +403,11 @@ def build_scoped_env(role: str, token: str = "", agent_name: str = "",
     if "GH_TOKEN" in allowed:
         scoped["GH_TOKEN"] = token
     if base_env:
+        forbidden_in = FORBIDDEN_ENV_KEYS & set(base_env)
+        if forbidden_in:
+            raise CredentialError(
+                f"scope violation: forbidden keys in base_env: {sorted(forbidden_in)}"
+            )
         for k in allowed:
             if k in scoped:
                 continue
@@ -415,7 +420,7 @@ def build_scoped_env(role: str, token: str = "", agent_name: str = "",
 
 
 def build_scoped_child_env(slot: str, token: str, agent_name: str = "",
-                           repo: str = "SaifulHaqueNiloy/supremeai",
+                           repo: str = "Supremeai-bd/supremeai-open",
                            base_env: dict | None = None) -> dict:
     """Slot convenience wrapper over build_scoped_env (role from the SSOT)."""
     cfg = slot_config(slot)

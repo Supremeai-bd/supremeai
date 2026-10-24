@@ -29,7 +29,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-ROOT_DIR = Path(__file__).resolve().parents[1]
+ROOT_DIR = Path(__file__).resolve().parents[2]
 INBOX_DIR = ROOT_DIR / ".agents" / "a2a_inbox"
 
 
