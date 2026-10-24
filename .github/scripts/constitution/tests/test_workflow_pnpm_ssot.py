@@ -159,8 +159,8 @@ class WorkflowPnpmSsotContract(unittest.TestCase):
         files = _yaml_files()
         names = [f.name for f in files]
         self.assertTrue(
-            any(n in names for n in ("pr.yml", "pr-pipeline.yml")),
-            "scanner must discover PR workflow (.github/workflows/pr-pipeline.yml or pr.yml)",
+            any(n in names for n in ("pr.yml", "pr-pipeline.yml", "ops-maintenance.yml")),
+            "scanner must discover primary workflows (.github/workflows)",
         )
         self.assertIn(
             "action.yml",

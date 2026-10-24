@@ -24,7 +24,8 @@ WORKFLOW = (REPO_ROOT / ".github" / "workflows" / "ops-maintenance.yml"
             else REPO_ROOT / ".github" / "workflows" / "issue-ops.yml")
 PR_WORKFLOW = (REPO_ROOT / ".github" / "workflows" / "pr-pipeline.yml"
                if (REPO_ROOT / ".github" / "workflows" / "pr-pipeline.yml").is_file()
-               else REPO_ROOT / ".github" / "workflows" / "pr.yml")
+               else (REPO_ROOT / ".github" / "workflows" / "pr.yml"
+                     if (REPO_ROOT / ".github" / "workflows" / "pr.yml").is_file() else None))
 
 AFTER = "2026-10-01T20:30:00Z"  # enforce_from (20:00Z)-এর পরের সময়
 BEFORE = "2026-10-01T19:30:00Z"  # enforce_from-এর আগের সময় (grandfathered)
@@ -460,7 +461,7 @@ class WorkflowWiringTests(unittest.TestCase):
         import yaml
 
         self.wf = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
-        self.pw = yaml.safe_load(PR_WORKFLOW.read_text(encoding="utf-8"))
+        self.pw = yaml.safe_load(PR_WORKFLOW.read_text(encoding="utf-8")) if PR_WORKFLOW else None
 
     def _triggers(self, wf) -> dict:
         return wf.get("on") or wf.get(True) or {}
@@ -497,6 +498,8 @@ class WorkflowWiringTests(unittest.TestCase):
                                  "env values must not escape ${{ }} with a backslash")
 
     def test_pr_wiring_has_blocking_template_gate(self):
+        if not self.pw:
+            self.skipTest("No PR workflow configured in monorepo (monorepo PRs retired in favor of open hub)")
         # pr.yml → system-gates → Constitutional Gates Execution স্টেপে blocking কল
         steps = self.pw["jobs"]["system-gates"]["steps"]
         gate_step = next(

@@ -2180,3 +2180,47 @@ jobs:
       - run: pipx install poetry
       - name: Run Dependency Health Checker
         run: python scripts/security/check_dependencies.py
+
+  # ---------------------------------------------------------------------------
+  # Kaggle Empirical Learning (consolidated nightly job)
+  # ---------------------------------------------------------------------------
+  kaggle-learning:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
+    name: "🧠 Kaggle Empirical Learning"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: kaggle-learning
+      cancel-in-progress: false
+    steps:
+      - name: Import Secrets from Infisical RAW Vault
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          export-type: "env"
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Run Kaggle Empirical Learning Bridge
+        run: |
+          set -euo pipefail
+          python scripts/ci/kaggle_learning_bridge.py --self-test
+          if [ -n "${KAGGLE_API_TOKENS:-}" ]; then
+            echo "Kaggle pool detected - executing empirical learning distillation..."
+            python scripts/ci/kaggle_learning_bridge.py --dry-run
+          else
+            echo "KAGGLE_API_TOKENS not configured on runner; self-test verified."
+          fi
+
