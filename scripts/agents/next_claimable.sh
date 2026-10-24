@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # next_claimable.sh — the priority-ordered claim queue for your lane.
 # ============================================================================
-# Implements docs/archive/ISSUE_PRIORITY_POLICY.md (founder directive):
+# Implements docs/agents/ISSUE_PRIORITY_POLICY.md (founder directive):
 #   claim order = priority DESC (P0-critical > P1-high > P2-medium > P3-low),
 #   then oldest first (createdAt ASC). Missing priority label = P3-low
 #   (unlabeled issues never jump the queue).
@@ -81,35 +81,29 @@ def prio(i):
     ps = [l["name"] for l in i["labels"] if l["name"] in RANK]
     return min(ps, key=lambda p: RANK[p]) if ps else "P3-low"
 
-def seq_of(i):
-    for n in labels_of(i):
-        if n.startswith("seq:"):
-            try:
-                return int(n.split(":", 1)[1])
-            except ValueError:
-                pass
-    return 999
+def sort_key(match):
+    rank, created = match
+    return (rank, created)
 
 rows = []
 for i in lane_issues:
-    rows.append((RANK[prio(i)], seq_of(i), i["createdAt"], prio(i), i, "lane"))
+    rows.append((RANK[prio(i)], i["createdAt"], prio(i), i, "lane"))
 for i in generic:
-    rows.append((RANK[prio(i)], seq_of(i), i["createdAt"], prio(i), i, "generic"))
-rows.sort(key=lambda r: (r[0], r[1], r[2]))
+    rows.append((RANK[prio(i)], i["createdAt"], prio(i), i, "generic"))
+rows.sort(key=lambda r: (r[0], r[1]))
 
 if not rows:
     print(f"No unclaimed issues for lane '{lane}'.")
     print("Never idle — check adjacent lanes' backlogs with the auditor before sitting silent.")
     sys.exit(0)
 
-print(f"Next claimable for lane '{lane}' (priority + sequence order — ISSUE_PRIORITY_POLICY.md)\n")
+print(f"Next claimable for lane '{lane}' (priority order — ISSUE_PRIORITY_POLICY.md)\n")
 print(f"  {'PRIORITY':<12} {'#':<6} {'CREATED':<11} {'POOL':<8} TITLE")
-for rank, seq, created, p, i, pool in rows[:limit]:
-    marker = "  <-- CLAIM THIS" if (rank, seq, created) == (rows[0][0], rows[0][1], rows[0][2]) and i["number"] == rows[0][4]["number"] else ""
-    seq_tag = f" [seq:{seq}]" if seq < 999 else ""
-    print(f"  {p:<12} {i['number']:<6} {i['createdAt'][:10]:<11} {pool:<8} {i['title'][:56]}{seq_tag}{marker}")
+for rank, created, p, i, pool in rows[:limit]:
+    marker = "  <-- CLAIM THIS" if (rank, created) == (rows[0][0], rows[0][1]) and i["number"] == rows[0][3]["number"] else ""
+    print(f"  {p:<12} {i['number']:<6} {i['createdAt'][:10]:<11} {pool:<8} {i['title'][:64]}{marker}")
 
-top = rows[0][4]
+top = rows[0][3]
 print(f"\nClaim the top issue:")
 print(f"  GH_TOKEN=<token> GH_REPO={repo} ./scripts/ci/atomic_claim.sh {top['number']} <identity>")
 print("\nSkipping a priority level requires a stated reason on the skipped issue (policy §2).")

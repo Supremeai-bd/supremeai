@@ -30,13 +30,6 @@ Usage:
 
 The script never prints or writes secret values — the template only ever
 contains placeholders.
-
-Secrets-registry sync (issue #124, Phase-3): the same CONFIG_SPECS SSOT also
-keeps ``secrets_registry.yaml`` complete. Every secret-class spec missing from
-the registry is appended with a conservative criticality block (existing
-hand-maintained entries are never modified — merge-from-SSOT, not clobber).
-``--check`` additionally fails when any secret-class spec is absent from the
-registry, so the gap class cannot silently re-open.
 """
 
 from __future__ import annotations
@@ -52,7 +45,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CLASSIFICATION = ROOT / "backend" / "core" / "config_classification.py"
 ENV_EXAMPLE = ROOT / ".env.example"
-SECRETS_REGISTRY = ROOT / "secrets_registry.yaml"
 
 # Primary-scope category order for the canonical sections.
 CATEGORY_ORDER = ("backend", "frontend", "ci", "deploy", "security", "user-local")
@@ -291,91 +283,12 @@ def generate(by_name: dict, aliases: dict, current: str) -> str:
     return "\n".join(out) + "\n"
 
 
-# --- secrets_registry.yaml sync (issue #124) --------------------------------
-
-_REGISTRY_NAME = re.compile(r"^-\s+name:\s*([A-Za-z_][A-Za-z0-9_]*)\s*$", re.M)
-
-
-def load_secrets_registry_names() -> set[str]:
-    """Return the key names currently present in ``secrets_registry.yaml``."""
-    if not SECRETS_REGISTRY.exists():
-        return set()
-    return set(_REGISTRY_NAME.findall(SECRETS_REGISTRY.read_text(encoding="utf-8")))
-
-
-def _secret_entry_block(name: str, required: bool, scopes: frozenset) -> list[str]:
-    """Render one conservative registry entry for a secret-class spec.
-
-    বাংলা: হাতে-লেখা criticality নকল করা হয় না — শুধু অনুপস্থিত key-গুলোর
-    জন্য সংরক্ষণশীল (conservative) criticality যোগ হয়: REQUIRED ⇒ important,
-    নইলে optional; scope দেখে render-backend / github-actions target।
-    """
-    level = "important" if required else "optional"
-    targets = ["infisical-vault"]
-    if "backend" in scopes:
-        targets.append("render-backend")
-    if "ci" in scopes:
-        targets.append("github-actions")
-    lines = [f"- name: {name}", "  criticality:"]
-    lines.extend(f"    {target}: {level}" for target in targets)
-    lines.append(
-        "  note: 'Auto-generated from CONFIG_SPECS SSOT via "
-        "scripts/ci/generate_env_example.py (issue #124); "
-        "review and refine criticality targets'"
-    )
-    return lines
-
-
-def load_classification_module():
-    """Load (or reuse the cached) classification module for CONFIG_SPECS access."""
-    module_name = "supremeai_config_classification"
-    cached = sys.modules.get(module_name)
-    if cached is not None and hasattr(cached, "CONFIG_SPECS"):
-        return cached
-    spec = importlib.util.spec_from_file_location(module_name, CLASSIFICATION)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Unable to load {CLASSIFICATION}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-def generate_secrets_registry() -> tuple[int, list[str]]:
-    """Append every missing secret-class SSOT key to ``secrets_registry.yaml``.
-
-    Returns ``(added_count, added_names)``. Existing entries are preserved
-    byte-for-byte (append-only merge — the hand-maintained criticality
-    metadata is authoritative where present).
-    """
-    specs_module = load_classification_module()
-    secret_specs = [s for s in specs_module.CONFIG_SPECS if s.is_secret]
-    existing = load_secrets_registry_names()
-    missing = [s for s in secret_specs if s.name not in existing]
-    if not missing:
-        return 0, []
-    required_class = getattr(specs_module.ConfigClass, "REQUIRED")
-    blocks: list[str] = []
-    for spec in missing:
-        required = required_class in spec.classes
-        blocks.append("\n".join(_secret_entry_block(spec.name, required, spec.scopes)))
-    text = SECRETS_REGISTRY.read_text(encoding="utf-8")
-    if not text.endswith("\n"):
-        text += "\n"
-    text += "\n".join(blocks) + "\n"
-    SECRETS_REGISTRY.write_text(text, encoding="utf-8")
-    return len(missing), [s.name for s in missing]
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
         "--check",
         action="store_true",
-        help=(
-            "regenerate to a temp file and diff against the committed .env.example; "
-            "also fail when secrets_registry.yaml misses any secret-class SSOT key"
-        ),
+        help="regenerate to a temp file and diff against the committed .env.example",
     )
     args = parser.parse_args()
 
@@ -384,29 +297,10 @@ def main() -> int:
     rendered = generate(by_name, aliases, current)
 
     if args.check:
-        gaps = sorted(
-            set(
-                s.name
-                for s in load_classification_module().CONFIG_SPECS
-                if s.is_secret
-            )
-            - load_secrets_registry_names()
-        )
-        if gaps:
-            print(
-                f"[FAIL] {SECRETS_REGISTRY.name} is missing {len(gaps)} "
-                f"secret-class CONFIG_SPECS keys: {', '.join(gaps)}"
-            )
-            print(
-                "Run `python3 scripts/ci/generate_env_example.py` to append them "
-                "(existing entries are never modified)."
-            )
-            return 1
         if current == rendered:
             print(
                 f"[PASS] {ENV_EXAMPLE.name} is up to date with CONFIG_SPECS "
-                f"({len(by_name)} canonical keys); secrets_registry.yaml covers "
-                "all secret-class SSOT keys"
+                f"({len(by_name)} canonical keys)"
             )
             return 0
         with tempfile.NamedTemporaryFile(
@@ -433,18 +327,12 @@ def main() -> int:
         return 1
 
     ENV_EXAMPLE.write_text(rendered, encoding="utf-8")
-    added_count, added_names = generate_secrets_registry()
     before = parse_template(current)[1]
     legacy = sum(1 for k in before if k not in by_name)
     print(
         f"[OK] regenerated {ENV_EXAMPLE} — {len(by_name)} canonical keys "
         f"({len(before)} unique keys before, {legacy} legacy keys preserved)"
     )
-    if added_count:
-        print(
-            f"[OK] secrets_registry.yaml — appended {added_count} missing "
-            f"secret-class keys: {', '.join(added_names)}"
-        )
     return 0
 
 

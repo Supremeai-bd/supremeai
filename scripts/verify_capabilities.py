@@ -36,7 +36,7 @@ def test(name: str, fn):
         result = fn()
         if asyncio.iscoroutine(result):
             result = asyncio.run(result)
-        print("  ✅ PASS")
+        print(f"  ✅ PASS")
         if result is not None:
             print(f"     → {result!r}")
         return True
@@ -133,8 +133,6 @@ def test_prompt_action_dataclass():
     from core.intent_router import ACTION_PATTERNS, PromptAction
     from core.intent_router_v2 import (
         ACTION_PATTERNS as AP2,
-    )
-    from core.intent_router_v2 import (
         PromptAction as PA2,
     )
 

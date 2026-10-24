@@ -4,9 +4,8 @@ then health-check each backend.
 Values are loaded from environment variables — never hardcoded.
 """
 import os
-import time
-
 import requests
+import time
 
 # ── 3 services: IDs, URLs and API keys loaded from env ────
 SERVICES = [

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
+import hashlib
 from pathlib import Path
 from typing import Any
 

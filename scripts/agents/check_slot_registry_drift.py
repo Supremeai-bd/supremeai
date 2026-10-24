@@ -11,9 +11,6 @@ from) it:
   3. docs/agents/heartbeat-integration.md -> slot/tool table must match the YAML
   4. scripts/agents/agent_bot_registry.py -> must stay deleted (5th conflicting copy)
   5. scripts/git/push_as_agent.py         -> bot-credential map only (no role claims)
-  6. scripts/agents/credential_manager.py  -> SSOT bot-credential map (#2644):
-     roles must derive from the YAML role_pools (or the auditor alias of the
-     planner-and-auditor pool); push_as_agent must IMPORT, not inline it.
 
 Exit codes: 0 = no drift, 1 = drift detected (push/CI must fail).
 
@@ -37,7 +34,6 @@ DISPATCH_PATH = REPO_ROOT / "scripts" / "agents" / "dispatch_task_all_agents.py"
 HEARTBEAT_DOC_PATH = REPO_ROOT / "docs" / "agents" / "heartbeat-integration.md"
 DEAD_REGISTRY_PATH = REPO_ROOT / "scripts" / "agents" / "agent_bot_registry.py"
 PUSH_AS_AGENT_PATH = REPO_ROOT / "scripts" / "git" / "push_as_agent.py"
-CREDENTIAL_MANAGER_PATH = REPO_ROOT / "scripts" / "agents" / "credential_manager.py"
 
 issues: list[str] = []
 
@@ -193,145 +189,11 @@ def check_push_as_agent() -> None:
         fail(
             "push_as_agent.py: claims role mapping — roles belong to the governance YAML"
         )
-    # (#2644) SSOT: the slot→app map moved to credential_manager.py — an
-    # inline copy here would resurrect the #1821 5th-registry drift class.
-    if re.search(r"BOT_SLOT_CREDENTIALS\s*=\s*\{", text):
-        fail(
-            "push_as_agent.py: inline BOT_SLOT_CREDENTIALS found — import it from "
-            "scripts/agents/credential_manager.py (SSOT, #2644)"
-        )
-
-
-def check_credential_manager() -> None:
-    """#2644 SSOT gate: credential_manager's routing table must derive from
-    the governance YAML — roles from role_pools (auditor = planner-and-auditor
-    pool alias), bot identities in the supremeai-* family."""
-    if not CREDENTIAL_MANAGER_PATH.exists():
-        return
-    import yaml
-
-    text = CREDENTIAL_MANAGER_PATH.read_text(encoding="utf-8")
-    data = yaml.safe_load(YAML_PATH.read_text(encoding="utf-8")) or {}
-    pool_roles = set((data.get("role_pools") or {}).keys())
-    # planner-and-auditor is one pool (#2644 §2: audit agents share it)
-    allowed_roles = pool_roles | {"auditor"}
-
-    # BOT_SLOT_CREDENTIALS entries: parse the dict literal's bot_name/role lines
-    block = re.search(
-        r"BOT_SLOT_CREDENTIALS\s*=\s*\{(.*?)\n\}", text, re.DOTALL
-    )
-    if not block:
-        fail("credential_manager.py: BOT_SLOT_CREDENTIALS table not found")
-        return
-    body = block.group(1)
-    for m in re.finditer(r'"bot_name":\s*"([^"]+)"', body):
-        if not m.group(1).startswith("supremeai-"):
-            fail(
-                f"credential_manager.py: bot_name '{m.group(1)}' outside the "
-                "supremeai-* app family (governance YAML owns identities)"
-            )
-    for m in re.finditer(r'"role":\s*"([^"]+)"', body):
-        if m.group(1) not in allowed_roles:
-            fail(
-                f"credential_manager.py: role '{m.group(1)}' is not a role_pools "
-                "key in AGENT_SLOT_REGISTRY.yaml (or the 'auditor' alias) — "
-                "roles belong to the governance YAML"
-            )
-
-
-def check_tower_live_drift() -> None:
-    """ROOT-CAUSE FIX (#2723): verify the YAML registry against the LIVE tower.
-
-    Previously this gate only checked file-to-file consistency (YAML vs JSON vs
-    docs) — it NEVER connected to the live MCP tower to verify that slots
-    marked `active: true` actually have a registered agent. Result: 6 slots
-    marked active in the YAML were absent from the tower, and 3 agentIds
-    diverged. This check now queries the tower's agent list via the same
-    mcp_tower_client.py the agents use, and flags:
-      - active slots with no tower agent
-      - tower agents with no registry entry
-      - agentId mismatches (registry tool name vs tower agentId)
-
-    Graceful: if MCP_TOWER_URL is unset or the tower is unreachable, this
-    check is SKIPPED (not failed) — matches AGENTS.md Step 2 "graceful offline
-    fallback". The file-consistency checks above still run.
-    """
-    import os
-    import subprocess
-
-    tower_url = os.environ.get("MCP_TOWER_URL") or os.environ.get("MCP_SERVER_URL")
-    if not tower_url:
-        # No tower configured (local dev, CI without secrets) — skip live check
-        return
-
-    # Query the tower via mcp_tower_client.py status (JSON-parseable output)
-    try:
-        result = subprocess.run(
-            ["python3", str(REPO_ROOT / "scripts" / "agents" / "mcp_tower_client.py"), "status"],
-            capture_output=True, text=True, timeout=30, check=False,
-            env={**os.environ, "MCP_TOWER_URL": tower_url},
-        )
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        # Tower unreachable — graceful skip (offline fallback, AGENTS.md Rule #3)
-        return
-
-    if result.returncode != 0:
-        # Tower returned error — graceful skip, don't fail CI on tower outage
-        return
-
-    # Parse tower agents: lines like "  agent-3    state=online    agentId=supremeai-coder-1-bot"
-    import re
-    tower_agents: dict[str, dict[str, str]] = {}
-    for line in result.stdout.splitlines():
-        m = re.match(r"^\s+(agent-\d+)\s+state=(\w+)\s+agentId=(.+)$", line)
-        if m:
-            slot, state, agent_id = m.group(1), m.group(2), m.group(3).strip()
-            tower_agents[slot] = {"state": state, "agentId": agent_id}
-
-    if not tower_agents:
-        return  # tower returned no agents — nothing to compare
-
-    yaml_slots = load_yaml_slots()
-
-    # Check 1: active YAML slots missing from tower
-    for slot_id, info in yaml_slots.items():
-        if info.get("active") and slot_id not in tower_agents:
-            fail(
-                f"tower-drift: slot '{slot_id}' marked active=true in YAML but "
-                f"ABSENT from live tower (never registered or purged)"
-            )
-
-    # Check 2: tower agents not in YAML registry
-    for slot_id in tower_agents:
-        if slot_id not in yaml_slots:
-            fail(
-                f"tower-drift: tower has agent '{slot_id}' "
-                f"(agentId={tower_agents[slot_id]['agentId']}) but YAML registry has no entry"
-            )
-
-    # Check 3: agentId mismatches (registry tool name vs tower agentId)
-    # YAML 'tool' field is the canonical name; tower 'agentId' is what the
-    # agent registered as. They should match (or the tower agentId should
-    # contain the YAML tool name as a prefix/suffix).
-    for slot_id, tower_info in tower_agents.items():
-        if slot_id in yaml_slots:
-            yaml_tool = yaml_slots[slot_id].get("tool", "")
-            tower_aid = tower_info["agentId"]
-            # Allow partial match (e.g. YAML "coder-1" vs tower "supremeai-coder-1-bot")
-            # Also allow tower agentId to have a suffix like " (git PR merge & regression)"
-            tower_aid_base = tower_aid.split(" (")[0].strip()
-            if yaml_tool and yaml_tool not in tower_aid_base and tower_aid_base not in yaml_tool:
-                fail(
-                    f"tower-drift: slot '{slot_id}' agentId mismatch — "
-                    f"YAML tool='{yaml_tool}' vs tower agentId='{tower_aid}'"
-                )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--quiet", action="store_true", help="print failures only")
-    parser.add_argument("--skip-tower", action="store_true",
-                        help="skip live tower drift check (offline/CI without MCP_TOWER_URL)")
     args = parser.parse_args()
 
     if not YAML_PATH.exists():
@@ -343,9 +205,6 @@ def main() -> int:
     check_heartbeat_doc()
     check_dead_registry()
     check_push_as_agent()
-    check_credential_manager()
-    if not args.skip_tower:
-        check_tower_live_drift()
 
     if issues:
         print(

@@ -8,6 +8,7 @@ to eliminate code duplication while preserving full backwards compatibility.
 from __future__ import annotations
 
 import runpy
+import sys
 from pathlib import Path
 
 _TARGET_SCRIPT = (

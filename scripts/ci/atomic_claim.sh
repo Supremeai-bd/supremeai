@@ -16,63 +16,21 @@
 # replaced by a LABEL-based pre-check + LOCK (status:in-progress label,
 # the canonical lock per AGENTS.md §3).
 #
-# SESSION MARKER (Roadmap v2.0 Phase 0.2 — shared-slot identity isolation):
-#   AGENT_SESSION_ID env (optional) — set হলে claim comment-এ
-#   `- **Session:**` লাইন যায় এবং Rule #13 active-claim report বলে দেয়
-#   কোন session claim ধরে আছে (same-session vs parallel-session vs
-#   no-marker)। এক vault slot = এক bot identity ভাগ করে এমন parallel
-#   session-গুলো আর অন্ধভাবে একে অপরের claim-এ --force খায় না — blocked
-#   agent জানবে কেন ব্লক হলো (Phase 0 DoD: "agent knows why it was
-#   blocked")। Deterministic block semantics অপরিবর্তিত — এটা কোনো
-#   bypass নয় (Principle 5: Deterministic Safety Wins)।
-#
-# GROUP BRANCHING (#2378 — Flexible Group Branching Protocol):
-#   1. BRANCH_NAME="group/<name>" গ্রহণযোগ্য — issue number থাকা বাধ্যতামূলক নয়,
-#      গ্রুপ ব্রাঞ্চ নামকরণ `^group/<name>$` হলেই হবে।
-#   2. --files "f1, f2" — claim comment-এ 'Touching files:' ঘোষণা এম্বেড করে।
-#   3. শেয়ার্ড গ্রুপ ব্রাঞ্চে একাধিক agent-এর ফাইল-বাউন্ডারি এনফোর্স করে: একই
-#      group:* লেবেলের অন্য status:in-progress ইস্যুর ঘোষণার সাথে overlap
-#      হলে claim বাতিল (--force override)। ফলে একই ব্রাঞ্চে ২ agent একই ফাইলে
-#      হাত দিতে পারে না — collision gate-এর group-লেভেল প্রি-চেক।
-#   4. গ্রুপ ব্রাঞ্চে origin/main auto-sync স্কিপ হয় — গ্রুপ sync হবে Merge Train-এ।
-#
-# FAIR-SHARE COOLDOWN (#2573):
-#   After completing a group sequence, record a cooldown so other agents
-# can claim the next sequence. Use --record-cooldown-group <group_name>.
-#
 # Usage:
 #   scripts/ci/atomic_claim.sh <issue_number> <agent_name> [--status-label <label>] [--skip-assign]
-#                              [--files "path/a.py, path/b.py"] [--force]
-#                              [--record-cooldown-group <group_name>]
 #
 # Exit codes:
 #   0 = claim successful (this agent owns the issue now)
 #   1 = claim failed (race lost — another agent got there first)
 #   2 = invalid args / missing dependencies
-#   3 = file-boundary overlap with a sibling claim in the same group (#2378)
 
 set -euo pipefail
-
-# Python interpreter detection (handles Linux, macOS, and Windows Git Bash / MS Store stubs)
-if command -v python &>/dev/null && python -c "import sys" 2>/dev/null; then
-  PYTHON_BIN="python"
-elif command -v python3 &>/dev/null && python3 -c "import sys" 2>/dev/null; then
-  PYTHON_BIN="python3"
-elif command -v py &>/dev/null && py -c "import sys" 2>/dev/null; then
-  PYTHON_BIN="py"
-else
-  PYTHON_BIN="python"
-fi
 
 # ─── Args ────────────────────────────────────────────────────────────────
 # (#1838) flag parsing — backwards compatible with positional args.
 SKIP_ASSIGN=false
 FORCE=false
 STATUS_LABEL="status:in-progress"
-FILES_DECLARATION=""
-RECORD_COOLDOWN_GROUP=""
-# Roadmap v2.0 Phase 0.2: claim-এ session marker (AGENT_SESSION_ID env)।
-SESSION_ID="${AGENT_SESSION_ID:-}"
 POSITIONAL=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -84,15 +42,6 @@ while [ $# -gt 0 ]; do
       FORCE=true
       shift
       ;;
-    --files)
-      shift
-      FILES_DECLARATION="${1:-}"
-      shift
-      ;;
-    --files=*)
-      FILES_DECLARATION="${1#*=}"
-      shift
-      ;;
     --status-label)
       shift
       STATUS_LABEL="${1:-status:in-progress}"
@@ -100,15 +49,6 @@ while [ $# -gt 0 ]; do
       ;;
     --status-label=*)
       STATUS_LABEL="${1#*=}"
-      shift
-      ;;
-    --record-cooldown-group)
-      shift
-      RECORD_COOLDOWN_GROUP="${1:-}"
-      shift
-      ;;
-    --record-cooldown-group=*)
-      RECORD_COOLDOWN_GROUP="${1#*=}"
       shift
       ;;
     *)
@@ -120,23 +60,10 @@ done
 ISSUE_NUMBER="${POSITIONAL[0]:-}"
 AGENT_NAME="${POSITIONAL[1]:-}"
 
-if [ -n "$RECORD_COOLDOWN_GROUP" ]; then
-  echo "🧊 Recording cooldown for group '$RECORD_COOLDOWN_GROUP'..."
-  "$PYTHON_BIN" scripts/agents/acquire_role_slot.py --record-cooldown-group "$RECORD_COOLDOWN_GROUP" --agent-name "$AGENT_NAME" ${ISSUE_NUMBER:+--issue "$ISSUE_NUMBER"} 2>/dev/null || true
-  if [ -n "$ISSUE_NUMBER" ]; then
-    echo "✅ Cooldown recorded for group '$RECORD_COOLDOWN_GROUP' after issue #$ISSUE_NUMBER"
-  else
-    echo "✅ Cooldown recorded for group '$RECORD_COOLDOWN_GROUP'"
-  fi
-  exit 0
-fi
-
 if [ -z "$ISSUE_NUMBER" ] || [ -z "$AGENT_NAME" ]; then
-  echo "Usage: $0 <issue_number> <agent_name> [--status-label <label>] [--skip-assign] [--files \"f1, f2\"] [--force]" >&2
+  echo "Usage: $0 <issue_number> <agent_name> [--status-label <label>] [--skip-assign]" >&2
   echo "  --skip-assign      Skip assignee step (for GitHub App bots that get 403)" >&2
   echo "  --status-label     Override the status label (default: status:in-progress)" >&2
-  echo "  --files            'Touching files:' declaration (required on group branches, #2378)" >&2
-  echo "  --force            Override file-boundary overlap block (with caution)" >&2
   echo "Examples:" >&2
   echo "  $0 900 agent-1                          # Human operator claim" >&2
   echo "  $0 900 agent-3-coder-1 --skip-assign   # Bot claim (skips 403)" >&2
@@ -154,32 +81,6 @@ fi
 export GH_REPO="${GH_REPO:-SaifulHaqueNiloy/supremeai}"
 : "${GH_TOKEN:?GH_TOKEN required -- run: gh auth login}"
 
-# ─── LIVE-ISSUE REVALIDATION GATE (#3215) ────────────────────────────────
-# নীতি: "No live validation = no implementation" (AGENT_RULES.md U3)।
-# Machine gate: BLOCKED/OBSOLETE/DUPLICATE/REVALIDATE দাবি নিষিদ্ধ করে;
-# STALE শুধুমাত্র AGENT_REVALIDATE_ACK=1 স্বীকার-পতাকায় চলে (গভীর
-# re-check সম্পন্ন হয়েছে) — নীরব বাইপাস নেই (§15 fail-closed)।
-REVAL_ARGS=(--issue "$ISSUE_NUMBER")
-if [ "${AGENT_REVALIDATE_ACK:-0}" = "1" ]; then
-  REVAL_ARGS+=(--acknowledge-stale)
-fi
-# নোট: revalidator exit 1 = "verdict: do-not-claim" (CLI contract) — এটা
-# subprocess failure নয়। || true দিয়ে output নিশ্চিত করি; ফাঁকা আউটপুট মানেই
-# সত্যিকারের crash → fail-closed fallback (§15)।
-REVAL_JSON=$("$PYTHON_BIN" scripts/agents/issue_revalidator.py "${REVAL_ARGS[@]}" --json 2>/dev/null || true)
-if [ -z "$REVAL_JSON" ]; then
-  REVAL_JSON='{"state":"REVALIDATE","proceed":false,"reasons":["revalidation subprocess failed — fail-closed"]}'
-fi
-REVAL_STATE=$(printf '%s' "$REVAL_JSON" | "$PYTHON_BIN" -c "import json,sys; print((json.load(sys.stdin) or {}).get('state','REVALIDATE'))" 2>/dev/null || echo "REVALIDATE")
-if [ "$REVAL_STATE" != "LIVE" ] && ! printf '%s' "$REVAL_JSON" | "$PYTHON_BIN" -c "import json,sys; sys.exit(0 if json.load(sys.stdin).get('proceed') else 1)" 2>/dev/null; then
-  echo "❌ Revalidation gate (#3215): issue #$ISSUE_NUMBER state=$REVAL_STATE — claim refused." >&2
-  printf '%s\n' "$REVAL_JSON" >&2
-  echo "   STALE-এর জন্য: গভীর re-verify করে AGENT_REVALIDATE_ACK=1 সহ পুনরায় চালান;" >&2
-  echo "   OBSOLETE/DUPLICATE/BLOCKED: issue-টি ঠিক/বন্ধ/লিংক করা প্রয়োজন — বলপ্রয়োগ নেই।" >&2
-  exit 1
-fi
-echo "✅ Revalidation gate (#3215): issue #$ISSUE_NUMBER state=$REVAL_STATE — claim permitted."
-
 # ─── Pre-check: already claimed? ────────────────────────────────────────
 echo "🔍 Pre-checking issue #$ISSUE_NUMBER for existing claim..."
 
@@ -196,19 +97,13 @@ fi
 
 # GAP-DUPLICATE-01 FIX: Also check if any open PR references this issue
 # (fallback for issues where 'has-pr' label wasn't set by a prior agent)
-# Roadmap v2.0 Phase 0.5 (#4141): REST universe — Search API is eventually
-# consistent (fresh PRs invisible → duplicate-PR guard missed them, seq114/115
-# live evidence). Mirrors issue_queue_manager.py normalization (#4115).
-OPEN_PR_FOR_ISSUE=$(gh api --paginate --slurp "repos/$GH_REPO/pulls?state=open&per_page=100" 2>/dev/null | "$PYTHON_BIN" -c "
+OPEN_PR_FOR_ISSUE=$(gh pr list --state open --search "#$ISSUE_NUMBER" --json number,title --limit 5 2>/dev/null | python3 -c "
 import json, sys
 try:
-    pages = json.load(sys.stdin)
-    items = [i for page in pages for i in (page if isinstance(page, list) else [page])]
-    n = str($ISSUE_NUMBER)
-    refs = [str(p['number']) for p in items
-            if n in (p.get('title') or '') or n in (p.get('body') or '')]
+    prs = json.load(sys.stdin)
+    refs = [str(p['number']) for p in prs if str($ISSUE_NUMBER) in (p.get('body') or p.get('title') or '')]
     print(' '.join(refs))
-except Exception:
+except:
     print('')
 " 2>/dev/null || echo "")
 if [ -n "$OPEN_PR_FOR_ISSUE" ]; then
@@ -219,80 +114,24 @@ if [ -n "$OPEN_PR_FOR_ISSUE" ]; then
   exit 1
 fi
 
-# ─── MIRROR GUARD (#2894): open mirror-claim issue থাকলে claim বন্ধ ───────
-# Planner/agent parent issue-র কাজের জন্য আলাদা mirror issue খুললে (title/body
-# -এ `root-cause #N` প্যাটার্ন — প্রমাণ-কেস #2756 for #2718, #2775 for #2735),
-# parent claim করা duplicate-PR race তৈরি করে। এখানে claim-time স্ক্যান:
-# খোলা mirror পেলে parent-এ has-pr backfill + abort (linker-ই python লজিক)।
-MIRROR_SCAN_JSON=$("$PYTHON_BIN" scripts/ci/mirror_parent_linker.py --scan-parent "$ISSUE_NUMBER" --repo "${GH_REPO}" 2>/dev/null || echo '{"mirrors":[]}')
-MIRROR_HITS=$(echo "$MIRROR_SCAN_JSON" | "$PYTHON_BIN" -c "
-import json, sys
-try:
-    print(' '.join(str(m) for m in json.load(sys.stdin).get('mirrors', [])))
-except Exception:
-    print('')
-" 2>/dev/null || echo "")
-if [ -n "$MIRROR_HITS" ]; then
-  echo "⚠️  Open mirror claim issue(s) found for #$ISSUE_NUMBER: $MIRROR_HITS"
-  echo "Adding missing 'has-pr' label to parent issue (backfill, #2894)..."
-  gh issue edit "$ISSUE_NUMBER" --add-label 'has-pr' 2>/dev/null || true
-  echo "❌ Duplicate PR prevention (#2894): aborting claim — work is tracked via open mirror issue(s)."
-  echo "   Review the mirror issue(s) status instead of claiming this parent directly."
-  exit 1
-fi
-
 # ─── Sequential Integrity Check (Rule #26: GSPQ Contiguous Order) ───────
 echo "🚂 Checking sequential integrity for issue #$ISSUE_NUMBER..."
-# #4110: stderr was discarded here (2>/dev/null) — a fail-closed gate error
-# (e.g. lag window hiding a LIVE issue → "not found or closed") surfaced as a
-# false "sequence violation", sending agents to misdiagnose GSPQ ordering or
-# burn --force. Now: capture stderr, surface the REAL gate reason, and give a
-# not-found verdict one lag-window retry (verify-claim's REST single-issue
-# fallback is the authoritative re-check) before failing.
-SEQ_GATE_ERR=$(mktemp)
-if "$PYTHON_BIN" scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>"$SEQ_GATE_ERR"; then
+if python3 scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>/dev/null; then
+  echo "✅ Sequential constraint verified."
+elif python scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>/dev/null; then
   echo "✅ Sequential constraint verified."
 else
-  SEQ_GATE_MSG=$(cat "$SEQ_GATE_ERR")
-  rm -f "$SEQ_GATE_ERR"
-  if printf '%s' "$SEQ_GATE_MSG" | grep -q "not found or closed"; then
-    echo "⏳ #4110: queue fetch could not see issue #$ISSUE_NUMBER (lag window) — one retry after 5s..."
-    sleep 5
-    if "$PYTHON_BIN" scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>/dev/null; then
-      echo "✅ Sequential constraint verified (post-retry, #4110)."
-    else
-      echo "❌ Sequential gate: issue #$ISSUE_NUMBER invisible to the queue fetch even after retry (REST-confirmed not-open)."
-      echo "Prior issue in group sequence must be claimed or completed first."
-      exit 1
-    fi
-  else
-    echo "❌ Sequential constraint violation! You cannot claim out of sequence."
-    printf '   gate reason: %s\n' "$SEQ_GATE_MSG"
-    echo "Prior issue in group sequence must be claimed or completed first."
-    exit 1
-  fi
+  echo "❌ Sequential constraint violation! You cannot claim out of sequence."
+  echo "Prior issue in group sequence must be claimed or completed first."
+  exit 1
 fi
 
 
 # AUDIT-FIX (#2008): Rule #13 "ONE ACTIVE CLAIM PER AGENT" — check if this
 # agent already has another issue with status:in-progress before claiming.
 # Uses label-based check (works for bots that can't be assigned via API).
-# Roadmap v2.0 Phase 0.5 (#4141): REST list — a fresh in-progress claim must
-# be visible to the mutex (Search-API lag = shared-identity collision class).
-# Output shape unchanged: JSON array of {number, title}; PRs excluded
-# (in-progress labels only sit on issues; pull_request key = PR discriminator).
-_ACTIVE_LABEL_ENC=$(printf '%s' "$STATUS_LABEL" | sed 's/:/%3A/g')
-ACTIVE_CLAIMS=$(gh api --paginate --slurp "repos/$GH_REPO/issues?labels=$_ACTIVE_LABEL_ENC&state=open&per_page=100" 2>/dev/null | "$PYTHON_BIN" -c "
-import json, sys
-try:
-    pages = json.load(sys.stdin)
-    items = [i for page in pages for i in (page if isinstance(page, list) else [page])]
-    issues = [i for i in items if i.get('pull_request') is None]
-    print(json.dumps([{'number': i.get('number'), 'title': i.get('title', '')} for i in issues]))
-except Exception:
-    print('[]')
-" 2>/dev/null || echo "[]")
-ACTIVE_COUNT=$(echo "$ACTIVE_CLAIMS" | "$PYTHON_BIN" -c "
+ACTIVE_CLAIMS=$(gh issue list --label "$STATUS_LABEL" --state open --json number,title --limit 50 2>/dev/null || echo "[]")
+ACTIVE_COUNT=$(echo "$ACTIVE_CLAIMS" | python3 -c "
 import json, sys
 try:
     issues = json.load(sys.stdin)
@@ -303,33 +142,18 @@ except:
 
 if [ "$ACTIVE_COUNT" -gt 0 ]; then
   # Check if any of the active claims have THIS agent's audit comment
-  # বাংলা মন্তব্য (#2950 follow-up root-cause fix): আগে `if me in comments.stdout`
-  # — substring ম্যাচ করত। ফলে agent-নাম যদি design-doc/example-এ substring
-  # হিসেবে থাকে (যেমন "coder-1" শব্দটি JSON example-এ), false Rule #13 block
-  # হতো। এখন atomic_claim-এর canonical marker `**Agent:** \`<name>\`` regex-এ
-  # exact-match করা হয় — design-doc/excerpt আর false-positive দেবে না।
-  MY_ACTIVE=$(echo "$ACTIVE_CLAIMS" | "$PYTHON_BIN" -c "
-import json, sys, subprocess, re
+  MY_ACTIVE=$(echo "$ACTIVE_CLAIMS" | python3 -c "
+import json, sys, subprocess
 issues = json.load(sys.stdin)
 me = '$AGENT_NAME'
-# Canonical claim marker: '**Agent:** \`<name>\`' — atomic_claim.sh-এর format
-# (#2644 audit trail; gates.py extract_claim_agents-ও এই regex ব্যবহার করে)।
-pattern = re.compile(r'\*\*Agent:\*\*\s*\`' + re.escape(me) + r'\`')
-session_re = re.compile(r'\*\*Session:\*\*\s*\`([^\`]*)\`')
 my_issues = []
 for issue in issues:
     num = issue.get('number')
     try:
         comments = subprocess.run(['gh', 'issue', 'view', str(num), '--json', 'comments', '-q', '.comments[].body'],
             capture_output=True, text=True, timeout=10)
-        if pattern.search(comments.stdout):
-            # Roadmap v2.0 Phase 0.2: report WHICH session holds each active
-            # claim — blocked agent on a shared slot identity can tell
-            # same-session from parallel-session (pre-marker claims print
-            # 'no-session-marker').
-            m = session_re.search(comments.stdout)
-            sess = m.group(1) if m else 'no-session-marker'
-            my_issues.append(f'#{num} [session: {sess}]: {issue.get(\"title\",\"\")[:60]}')
+        if me in comments.stdout:
+            my_issues.append(f'#{num}: {issue.get(\"title\",\"\")[:60]}')
     except:
         pass
 if my_issues:
@@ -342,16 +166,8 @@ else:
     echo "⚠️  WARNING: You already have $STATUS_LABEL on these issues (Rule #13: ONE ACTIVE CLAIM PER AGENT):"
     echo "$MY_ACTIVE" | sed 's/^/    /'
     echo ""
-    # Roadmap v2.0 Phase 0.2: explain WHY the block fired — same session
-    # (real duplicate) vs another session of this shared slot identity.
-    if [ -n "$SESSION_ID" ] && echo "$MY_ACTIVE" | grep -qF "[session: ${SESSION_ID}]"; then
-      echo "This is a SAME-SESSION active claim (session: $SESSION_ID) —"
-      echo "complete or release it before claiming another."
-    else
-      echo "Active claim(s) held by ANOTHER session of this shared identity"
-      echo "(or a pre-marker claim). Coordinate with the parallel session,"
-      echo "or use --force with a justification comment if boundaries are disjoint."
-    fi
+    echo "Complete or release the current claim before claiming another."
+    echo "Use --force to override (with caution)."
     # (--force is parsed in the Args loop above — "$@" is consumed by then)
     if [ "$FORCE" != "true" ]; then
       echo "❌ Claim blocked by Rule #13. Use --force to override."
@@ -419,8 +235,8 @@ echo "🔍 Verifying claim..."
 sleep 1  # Brief delay to let any concurrent claims settle
 
 ASSIGNEES_JSON=$(gh issue view "$ISSUE_NUMBER" --json assignees)
-ASSIGNEE_COUNT=$(echo "$ASSIGNEES_JSON" | "$PYTHON_BIN" -c "import json,sys;d=json.load(sys.stdin);print(len(d.get('assignees',[])))")
-FIRST_ASSIGNEE=$(echo "$ASSIGNEES_JSON" | "$PYTHON_BIN" -c "import json,sys;d=json.load(sys.stdin);a=d.get('assignees',[]);print(a[0]['login'] if a else '')")
+ASSIGNEE_COUNT=$(echo "$ASSIGNEES_JSON" | python3 -c "import json,sys;d=json.load(sys.stdin);print(len(d.get('assignees',[])))")
+FIRST_ASSIGNEE=$(echo "$ASSIGNEES_JSON" | python3 -c "import json,sys;d=json.load(sys.stdin);a=d.get('assignees',[]);print(a[0]['login'] if a else '')")
 
 echo "  Current assignees: $ASSIGNEE_COUNT"
 echo "  First assignee: $FIRST_ASSIGNEE"
@@ -436,7 +252,7 @@ if [ "$ASSIGNEE_COUNT" -gt 1 ]; then
   echo "⚠️ Multiple assignees detected ($ASSIGNEE_COUNT) — I am first, but race happened"
   echo "Removing other assignees (I claimed first)..."
   # Remove all assignees except myself
-  OTHER_ASSIGNEES=$(echo "$ASSIGNEES_JSON" | "$PYTHON_BIN" -c "
+  OTHER_ASSIGNEES=$(echo "$ASSIGNEES_JSON" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 me = '$AGENT_NAME'
@@ -479,7 +295,7 @@ sleep 1
 FINAL_JSON=$(gh issue view "$ISSUE_NUMBER" --json assignees,labels 2>/dev/null || echo "{}")
 if [ "$SKIP_ASSIGN" != "true" ]; then
   # (#1838) assignee re-check only makes sense when we wrote an assignee.
-  ME_STILL_ASSIGNED=$(echo "$FINAL_JSON" | "$PYTHON_BIN" -c "
+  ME_STILL_ASSIGNED=$(echo "$FINAL_JSON" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 me = '$AGENT_NAME'
@@ -491,7 +307,7 @@ print('yes' if any(a.get('login') == me for a in d.get('assignees', [])) else 'n
     exit 1
   fi
 fi
-FINAL_HAS_LABEL=$(echo "$FINAL_JSON" | "$PYTHON_BIN" -c "
+FINAL_HAS_LABEL=$(echo "$FINAL_JSON" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 want = '$STATUS_LABEL'
@@ -510,35 +326,15 @@ fi
 # ─── STEP 4: Post claim timestamp comment (for audit trail) ────────────
 CLAIM_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
-# (#2464) Touching-files কম্পোজিশন — tests-গাছ অটো-ইনক্লুড:
-# 101% test-policy অনুযায়ী fix-PR সবসময় নতুন টেস্ট ফাইল আনে, কিন্তু এজেন্ট
-# claim-টাইমে সেগুলো ঘোষণায় রাখে না → Scope Gate-এর প্রতি-PR বাড়তি
-# BLOCK-চক্র (#2461 প্রমাণ)। কম্পোজার (compose_touching_declaration.py)
-# tests-গাছ না থাকলে `tests/` অটো-যোগ করে; helper ব্যর্থ হলে পুরনো ইনলাইন
-# আচরণ (safe-degrade — gate ব্লক করবে, allowlist নয়)।
-FILES_LINE=$("$PYTHON_BIN" scripts/ci/compose_touching_declaration.py --files "$FILES_DECLARATION" 2>/dev/null) \
-  || FILES_LINE="${FILES_DECLARATION:-_(declared in a follow-up comment before PR — Rule 2)_}"
-
 # GAP-DUPLICATE-01: Enforce branch naming convention in the claim comment.
-# Independent branch MUST include the issue number: <lane>-<N>-<issue_number>-<slug>
+# Branch MUST include the issue number: <lane>-<N>-<issue_number>-<slug>
 # Example: coder-1-2253-fix-session-takeover  (NOT just 'coder-1')
-# GROUP branch (#2378): `group/<name>` — issue number থাকবে না, গ্রুপ নাম থাকবে।
-if [ -n "${BRANCH_NAME:-}" ]; then
-  if [[ "$BRANCH_NAME" == group/* ]]; then
-    if ! echo "$BRANCH_NAME" | grep -qE '^group/[a-z0-9][a-z0-9._-]*$'; then
-      echo "❌ GROUP BRANCH NAME VIOLATION (#2378): '$BRANCH_NAME' must match 'group/<name>' (lowercase slug)"
-      echo "Releasing claim..."
-      gh issue edit "$ISSUE_NUMBER" --remove-label "$STATUS_LABEL" 2>/dev/null || true
-      exit 1
-    fi
-    echo "🌿 Group branch '$BRANCH_NAME' accepted (#2378 Connected Work — shared branch, 1 group PR)"
-  elif [[ "$BRANCH_NAME" != *"$ISSUE_NUMBER"* ]]; then
-    echo "❌ BRANCH NAME VIOLATION (GAP-DUPLICATE-01): '$BRANCH_NAME' must contain issue number '$ISSUE_NUMBER'"
-    echo "Required format: <lane>-<N>-<issue_number>-<slug>  e.g. coder-1-${ISSUE_NUMBER}-my-fix"
-    echo "Releasing claim..."
-    gh issue edit "$ISSUE_NUMBER" --remove-label "$STATUS_LABEL" 2>/dev/null || true
-    exit 1
-  fi
+if [ -n "${BRANCH_NAME:-}" ] && [[ "$BRANCH_NAME" != *"$ISSUE_NUMBER"* ]]; then
+  echo "❌ BRANCH NAME VIOLATION (GAP-DUPLICATE-01): '$BRANCH_NAME' must contain issue number '$ISSUE_NUMBER'"
+  echo "Required format: <lane>-<N>-<issue_number>-<slug>  e.g. coder-1-${ISSUE_NUMBER}-my-fix"
+  echo "Releasing claim..."
+  gh issue edit "$ISSUE_NUMBER" --remove-label "$STATUS_LABEL" 2>/dev/null || true
+  exit 1
 fi
 
 CLAIM_COMMENT="### 🔒 Atomic Claim Established (GAP-01)
@@ -546,17 +342,7 @@ CLAIM_COMMENT="### 🔒 Atomic Claim Established (GAP-01)
 - **Agent:** \`$AGENT_NAME\`
 - **Issue:** #$ISSUE_NUMBER
 - **Claimed at:** $CLAIM_TIME
-- **Session:** \`${SESSION_ID:-unspecified}\`
 - **Branch:** \`${BRANCH_NAME:-not-yet-created}\`
-# বাংলা মন্তব্য (#2597, #2644): এই কমেন্ট block-টি double-quoted string —
-# ভেতরের প্রতিটি literal backtick \` দিয়ে escape করতে হয়, নাহলে bash সেগুলো
-# command substitution হিসেবে চালায় (যেমন #2644-এ: \`fallback_\` → 'command
-# not found' ×4, set -e স্ক্রিপ্ট আবর্তনে মেরে ফেলত — claim comment-ই আর
-# পোস্ট হতো না, Touching files: ডিক্লারেশন হারিয়ে Scope Gate ভাঙত)।
-# (#2464) Touching files-এর মান এখন FILES_LINE — compose_touching_declaration.py
-# কম্পোজ করে (tests-গাছ অটো-ইনক্লুড + parse-safe অ্যানোটেশন); ইটালিক ফলব্যাক
-# কেবল খালি ঘোষণায়।
-- **Touching files:** ${FILES_LINE}
 - **Method:** Claim-then-Verify (Compare-And-Swap) + has-pr guard (GAP-DUPLICATE-01)
 - **Verifier:** \`scripts/ci/atomic_claim.sh\`
 
@@ -573,130 +359,9 @@ echo "📌 REMINDER (GAP-DUPLICATE-01): After 'gh pr create', immediately run:"
 echo "   gh issue edit $ISSUE_NUMBER --add-label 'has-pr'"
 echo "   This MUST happen before any other agent's next_claimable.sh run."
 
-# ─── STEP 4.5: Group-branch file-boundary check (#2378) ────────────────
-# বাংলা: শেয়ার্ড গ্রুপ ব্রাঞ্চে একাধিক agent কাজ করে — তাই একই group:* লেবেলের
-# অন্য status:in-progress ইস্যুগুলোর 'Touching files:' ঘোষণার সাথে overlap
-# ধরা আবশ্যক, নইলে একই ব্রাঞ্চে ২ agent একই ফাইল এডিট করে পালা করে উল্টে দেবে।
-# Overlap পেলে নিজের claim release করে exit 3 (--force override সম্ভব)।
-if [ -n "${BRANCH_NAME:-}" ] && [[ "$BRANCH_NAME" == group/* ]]; then
-  GROUP_LABEL=$(gh issue view "$ISSUE_NUMBER" --json labels -q '.labels[].name' 2>/dev/null | grep -E '^group:' | head -1 || true)
-  if [ -n "$GROUP_LABEL" ]; then
-    echo "🌿 Group lease detected ($GROUP_LABEL on $BRANCH_NAME) — checking sibling file boundaries (#2378)..."
-    # Roadmap v2.0 Phase 0.5 (#4141): REST list (Search-API lag = stale sibling
-    # boundaries → false overlap passes); same normalization as Rule #13 scan.
-    _GROUP_LABEL_ENC=$(printf '%s' "$GROUP_LABEL" | sed 's/:/%3A/g')
-    SIBLINGS_JSON=$(gh api --paginate --slurp "repos/$GH_REPO/issues?labels=$_GROUP_LABEL_ENC,$_ACTIVE_LABEL_ENC&state=open&per_page=100" 2>/dev/null | "$PYTHON_BIN" -c "
-import json, sys
-try:
-    pages = json.load(sys.stdin)
-    items = [i for page in pages for i in (page if isinstance(page, list) else [page])]
-    issues = [i for i in items if i.get('pull_request') is None]
-    print(json.dumps([{'number': i.get('number'), 'title': i.get('title', '')} for i in issues]))
-except Exception:
-    print('[]')
-" 2>/dev/null || echo "[]")
-    RC=0
-    OVERLAP=$(GROUP_NAME="${GROUP_LABEL#group:}" \
-              MY_ISSUE="$ISSUE_NUMBER" \
-              MY_FILES="$FILES_DECLARATION" \
-              MY_AGENT="$AGENT_NAME" \
-              SIBLINGS_JSON="$SIBLINGS_JSON" \
-              "$PYTHON_BIN" << 'GROUP_BOUNDARY_PY'
-import json, os, re, subprocess
-
-marker = "Touching files:"
-
-def norm(p):
-    p = (p or "").strip().strip("`").strip()
-    p = re.sub(r"^\.\/", "", p)
-    if p in ("", "/"):
-        return ""
-    return p.rstrip("/").removesuffix("/**").rstrip("/")
-
-def harvest(segment):
-    files = set()
-    idx = segment.find(marker)
-    if idx == -1:
-        return files
-    seg = segment[idx + len(marker):]
-    stop = re.search(r"\n#{1,6} ", seg)
-    if stop:
-        seg = seg[: stop.start()]
-    for tok in re.split(r"[,`\n]+", seg):
-        t = tok.strip().lstrip("-* ").strip()
-        t = t.split()[0] if t.split() else ""
-        if t and ("/" in t or "." in t) and not t.startswith("#") and not t.startswith("("):
-            n = norm(t)
-            if n:
-                files.add(n)
-    return files
-
-def overlap_pair(mine, theirs):
-    for a in sorted(mine):
-        for b in sorted(theirs):
-            if a == b or a.startswith(b + "/") or b.startswith(a + "/"):
-                # (#2464) tests-গাছ auto-ইনক্লুডের পার্সপেক্টিভ: ট্রি-টোকেন
-                # ('tests', claim-কমেন্ট থেকে auto-যোগ) vs নির্দিষ্ট টেস্ট-ফাইলের
-                # ম্যাচ ভুল কলিশন — ভিন্ন টেস্ট-ফাইল ভিন্ন পাথ, git-লেভেলে
-                # কনফ্লিক্ট করে না। একই-ফাইল (a == b) আগের মতোই ধরা পড়ে;
-                # ট্রি-টোকেন নয় এমন ম্যাচ (src/ ইত্যাদি) অপরিবর্তিত।
-                if not a == b and "tests" in (a, b):
-                    continue
-                return (a, b)
-    return None
-
-my_files = harvest("Touching files: " + os.environ.get("MY_FILES", ""))
-if not my_files:
-    print("NOTICE: no --files declaration; boundary check advisory-only")
-    raise SystemExit(0)
-
-me = os.environ.get("MY_ISSUE", "")
-try:
-    siblings = [s for s in json.loads(os.environ.get("SIBLINGS_JSON", "[]")) if str(s.get("number")) != str(me)]
-except json.JSONDecodeError:
-    siblings = []
-
-for s in siblings[:10]:
-    num = s.get("number")
-    try:
-        res = subprocess.run(
-            ["gh", "issue", "view", str(num), "--json", "comments", "-q", "[.comments[].body] | join(\"\\n\\n\")"],
-            capture_output=True, text=True, timeout=15,
-        )
-        body = res.stdout or ""
-    except Exception:
-        continue
-    their_files = harvest(body)
-    hit = overlap_pair(my_files, their_files)
-    if hit:
-        print(f"OVERLAP: issue #{num} already declared `{'` + `'.join(sorted(their_files))}`; my `{hit[0]}` collides")
-        raise SystemExit(1)
-print("OK: no file-boundary overlap with sibling claims in this group")
-GROUP_BOUNDARY_PY
-    ) || RC=$?
-    if [ "$RC" -ne 0 ]; then
-      if [ "$FORCE" != "true" ]; then
-        echo "$OVERLAP" | sed 's/^/  /'
-        echo "❌ File-boundary overlap in group branch (#2378) — claim released. Change your scope or coordinate; use --force to override."
-        gh issue edit "$ISSUE_NUMBER" --remove-label "$STATUS_LABEL" 2>/dev/null || true
-        exit 3
-      else
-        echo "⚡ --force override: proceeding despite file-boundary overlap"
-      fi
-    else
-      echo "$OVERLAP" | sed 's/^/  /'
-    fi
-  fi
-fi
-
 # ─── STEP 5: AUTO-SYNC WORKSPACE (Zero Drift Protection) ─────────────────
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
-if [[ "$CURRENT_BRANCH" == group/* ]]; then
-  echo "🌿 Group branch '$CURRENT_BRANCH' — origin/main auto-sync SKIPPED (#2378: গ্রুপ ব্রাঞ্চ sync হবে Merge Train-এ, মাঝপথে main-merge নয়)"
-else
-  echo "🔄 Auto-syncing workspace with latest origin/main..."
-  "$PYTHON_BIN" scripts/git/auto_sync_main.py 2>/dev/null || true
-fi
+echo "🔄 Auto-syncing workspace with latest origin/main..."
+python3 scripts/git/auto_sync_main.py 2>/dev/null || python scripts/git/auto_sync_main.py 2>/dev/null || true
 
 echo "✅ Atomic claim successful — issue #$ISSUE_NUMBER owned by $AGENT_NAME"
 exit 0

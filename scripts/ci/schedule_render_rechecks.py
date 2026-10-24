@@ -5,9 +5,9 @@ Runs idempotently to re-evaluate capacity for Render accounts whose recheck_at <
 """
 from __future__ import annotations
 
+import json
 import os
-from datetime import UTC, datetime
-
+from datetime import datetime, timezone
 from backend.services.render_preflight_service import RenderPreflightService
 
 
@@ -20,7 +20,7 @@ def main() -> int:
         "mcp": os.getenv("RENDER_API_KEY_4", ""),
     }
 
-    print(f"[{datetime.now(UTC).isoformat()}] Starting scheduled Render recheck scan...")
+    print(f"[{datetime.now(timezone.utc).isoformat()}] Starting scheduled Render recheck scan...")
     refreshed = service.run_scheduled_rechecks(role_keys)
     print(f"Recheck scan completed. Refreshed accounts count: {len(refreshed)}")
     for record in refreshed:

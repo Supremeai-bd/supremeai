@@ -32,6 +32,7 @@ import re
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Optional
 
 
 @dataclass
@@ -557,7 +558,7 @@ def check_env_files_exposed(root: Path, report: Report):
                 "env_file_with_secrets",
                 str(f.relative_to(root)),
                 0,
-                ".env file contains secret-like values and is tracked in git",
+                f".env file contains secret-like values and is tracked in git",
                 "Add .env to .gitignore and remove from git cache using git rm --cached.",
             )
 

@@ -13,7 +13,7 @@ How the dynamic behavior works
   drift sweep and manual dispatch.
 * This script then re-computes the full claim queue from live labels
   (ladder priority DESC → oldest first, missing label = P3 — exactly
-  `docs/archive/ISSUE_PRIORITY_POLICY.md` and `next_claimable.sh`).
+  `docs/agents/ISSUE_PRIORITY_POLICY.md` and `next_claimable.sh`).
 * The ranked queue is written to ONE ledger issue (find-by-marker,
   create-if-missing). Body edit = the live queue; no comment spam.
 * When the overall #1 CHANGES because the previous #1 was closed or
@@ -31,7 +31,7 @@ Usage
 
 Companions
 ----------
-* `docs/archive/ISSUE_PRIORITY_POLICY.md`  — the policy this enforces
+* `docs/agents/ISSUE_PRIORITY_POLICY.md`  — the policy this enforces
 * `scripts/agents/next_claimable.sh`      — per-lane CLI view
 """
 
@@ -41,11 +41,10 @@ import argparse
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
-from datetime import UTC, datetime
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
 
 if sys.stdout.encoding != "utf-8":
     try:
@@ -65,7 +64,7 @@ TOP1_MARKER_RE = re.compile(r"<!-- TOP1:OVERALL:(\d+) -->")
 # and the find-or-create loop creates duplicate ledgers (found the hard way).
 LEDGER_SEARCH = '"PRIORITY-QUEUE-LEDGER" in:title'
 
-RANK: dict[str, int] = {"P0-critical": 0, "P1-high": 1, "P2-medium": 2, "P3-low": 3}
+RANK: Dict[str, int] = {"P0-critical": 0, "P1-high": 1, "P2-medium": 2, "P3-low": 3}
 RANK_DEFAULT = "P3-low"
 
 # lanes rendered in a fixed order first (policy lanes), then any other
@@ -80,7 +79,7 @@ def gh_bin() -> str:
     for candidate in (os.environ.get("GH_BIN"), "gh", os.path.expanduser("~/bin/gh")):
         if candidate and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
             return candidate
-    found = shutil.which("gh")
+    found = subprocess.run(["which", "gh"], capture_output=True, text=True).stdout.strip()
     if found:
         return found
     print("error: gh CLI not found (install github cli or set GH_BIN)", file=sys.stderr)
@@ -90,16 +89,10 @@ def gh_bin() -> str:
 GH = gh_bin()
 
 
-def gh_run(args: list[str], check: bool = True) -> str:
+def gh_run(args: List[str], check: bool = True) -> str:
     env = dict(os.environ)
-    repo = env.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
-    full_args = [GH]
-    if "--repo" not in args and "-R" not in args:
-        full_args += ["--repo", repo]
-    full_args += args
-    res = subprocess.run(
-        full_args, capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, timeout=120
-    )
+    env.setdefault("GH_REPO", "SaifulHaqueNiloy/supremeai")
+    res = subprocess.run([GH] + args, capture_output=True, text=True, env=env, timeout=120)
     if check and res.returncode != 0:
         raise RuntimeError(f"gh {' '.join(args)} failed: {res.stderr.strip()}")
     return res.stdout
@@ -108,13 +101,13 @@ def gh_run(args: list[str], check: bool = True) -> str:
 # --- queue computation -------------------------------------------------------
 
 
-def priority_of(labels: list[dict[str, Any]]) -> str:
+def priority_of(labels: List[Dict[str, Any]]) -> str:
     names = [l["name"] for l in labels]
     present = [n for n in names if n in RANK]
     return min(present, key=lambda n: RANK[n]) if present else RANK_DEFAULT
 
 
-def fetch_unclaimed() -> list[dict[str, Any]]:
+def fetch_unclaimed() -> List[Dict[str, Any]]:
     """The claimable universe: open issues NOT actively worked and not ledgers.
 
     `status:planned` AND `status:unclaimed` both mean "awaiting a claim"
@@ -139,104 +132,43 @@ def fetch_unclaimed() -> list[dict[str, Any]]:
     return result
 
 
-def lane_of(labels: list[dict[str, Any]]) -> str:
+def lane_of(labels: List[Dict[str, Any]]) -> str:
     for l in labels:
         if l["name"].startswith("handoff:"):
             return l["name"].split(":", 1)[1]
     return "generic"
 
 
-def seq_of(labels: list[dict[str, Any]]) -> int:
-    for l in labels:
-        name = l["name"]
-        if name.startswith("seq:"):
-            try:
-                return int(name.split(":", 1)[1])
-            except ValueError:
-                pass
-    return 999
-
-
-# --- #3211 AC-3: Force-Multiplier Prioritization (Weapon-First Mandate) ------
-
-_TIER1_PATTERNS = (
-    # Weapons & gateways — এরা বাকি সব কাজকে unblock করে: evaluator,
-    # dispatcher, claim-gate, PR-bot, CI/merge train, queue/ledger নিজেই।
-    "evaluator", "dispatcher", "claim", "gate", "pr-bot", "merge-train",
-    "orchestrat", "queue", "ledger", "ci/cd", "workflow", "agent-loop",
-)
-_TIER2_PATTERNS = (
-    # Core infrastructure & plumbing — সব feature-এর নিচে যারা বসে।
-    "vault", "secret", "credential", "database", "schema", "migration",
-    "auth", "storage", "redis", "prisma", "supabase", "tenancy",
-)
-
-
-def force_multiplier_tier(title: str, labels: list[dict[str, Any]]) -> int:
-    """#3211 AC-3: কাজকে ৩ স্তরে ফেলে — একই priority-র ভেতরে ক্রম ঠিক করে।
-
-    Tier 1 (Weapons & Gateways): evaluator/dispatcher/claim-gate/PR-bot/CI —
-      ৯৯ কাজকে unblock করে এমন কাজ সবার আগে।
-    Tier 2 (Core Infra): vault/db/schema/auth-মতো plumbing।
-    Tier 3 (Leaf): route/component-স্তরের নির্দিষ্ট fix/feature।
-
-    Pure function — label-শব্দ + title-শব্দ থেকেই নির্ধারিত, network নেই।
-    """
-    haystack = (title or []).lower() if isinstance(title, str) else ""
-    label_words = " ".join(
-        (l.get("name", "") if isinstance(l, dict) else str(l)) for l in (labels or [])
-    ).lower()
-    text = f"{haystack} {label_words}"
-    if any(p in text for p in _TIER1_PATTERNS):
-        return 1
-    if any(p in text for p in _TIER2_PATTERNS):
-        return 2
-    return 3
-
-
-def build_queue(issues: list[dict[str, Any]]) -> list[tuple[int, int, str, dict[str, Any]]]:
-    """(rank, seq, createdAt, issue) — priority DESC, tier ASC (#3211 AC-3), sequence ASC, then FIFO."""
-    queue = [(RANK[priority_of(i["labels"])], seq_of(i["labels"]), i["createdAt"], i) for i in issues]
-    # #3211 AC-3: একই priority-র ভেতরে force-multiplier tier-অগ্রাধিকার —
-    # যে কাজ অন্য ৯৯টাকে unblock করে সে-ই আগে (weapon-first mandate)।
-    # Merge note (worker-engine sync): tier-এর পরে seq: label ASC, তারপর FIFO —
-    # দুই ordering-স্তরই সংরক্ষিত, ৪-tuple caller contract অপরিবর্তিত।
-    queue.sort(
-        key=lambda row: (
-            row[0],
-            force_multiplier_tier(row[3].get("title", ""), row[3].get("labels", [])),
-            row[1],
-            row[2],
-        )
-    )
+def build_queue(issues: List[Dict[str, Any]]) -> List[Tuple[int, str, Dict[str, Any]]]:
+    """(rank, createdAt, issue) — priority DESC, then FIFO within a priority."""
+    queue = [(RANK[priority_of(i["labels"])], i["createdAt"], i) for i in issues]
+    queue.sort(key=lambda row: (row[0], row[1]))
     return queue
 
 
 # --- rendering ---------------------------------------------------------------
 
 
-def render_row(issue: dict[str, Any], rank: int) -> str:
+def render_row(issue: Dict[str, Any], rank: int) -> str:
     p = priority_of(issue["labels"])
-    seq = seq_of(issue["labels"])
-    seq_str = f" `seq:{seq}`" if seq < 999 else ""
-    age = (datetime.now(UTC) - datetime.fromisoformat(issue["createdAt"].replace("Z", "+00:00"))).days
-    return f"| #{issue['number']} | `{p}`{seq_str} | {age}d | {issue['title'][:90]} |"
+    age = (datetime.now(timezone.utc) - datetime.fromisoformat(issue["createdAt"].replace("Z", "+00:00"))).days
+    return f"| #{issue['number']} | `{p}` | {age}d | {issue['title'][:90]} |"
 
 
-def render_body(queue: list[tuple[int, int, str, dict[str, Any]]], limit: int, trigger: str) -> str:
-    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+def render_body(queue: List[Tuple[int, str, Dict[str, Any]]], limit: int, trigger: str) -> str:
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     counts = {p: 0 for p in RANK}
-    for rank, _, _, issue in queue:
+    for rank, _, issue in queue:
         counts[priority_of(issue["labels"])] += 1
 
-    lines: list[str] = [
+    lines: List[str] = [
         LEDGER_BODY_MARKER,
         f"# {LEDGER_TITLE.split('] ', 1)[-1]}",
         "",
         "> **Auto-maintained.** `.github/workflows/priority-queue.yml` re-ranks this queue on every issue",
         "> event — when the #1 issue closes, #2 automatically becomes #1 (founder directive 2026-09-27).",
         "> Claim order: **priority ladder DESC** (`P0-critical → P1-high → P2-medium → P3-low`,",
-        "> no label = P3) then **sequence ASC** (`seq:1 → seq:2...`) then **oldest first** — [`ISSUE_PRIORITY_POLICY.md`](../../docs/archive/ISSUE_PRIORITY_POLICY.md).",
+        "> no label = P3) then **oldest first** — [`ISSUE_PRIORITY_POLICY.md`](../../docs/agents/ISSUE_PRIORITY_POLICY.md).",
         "",
         f"**Last update:** {now} · **trigger:** `{trigger}` · **unclaimed total:** {len(queue)} "
         f"(P0: {counts['P0-critical']} · P1: {counts['P1-high']} · P2: {counts['P2-medium']} · P3: {counts['P3-low']})",
@@ -246,14 +178,14 @@ def render_body(queue: list[tuple[int, int, str, dict[str, Any]]], limit: int, t
         "| Issue | Priority | Age | Title |",
         "|---|---|---|---|",
     ]
-    for rank, _, _, issue in queue[:limit]:
+    for rank, _, issue in queue[:limit]:
         lines.append(render_row(issue, rank))
     if not queue:
         lines.append("| — | — | — | _No unclaimed issues — lanes, verify with the auditor before idling (GOLDEN_RULES 1)._ |")
 
     # per-lane sections
-    lanes: dict[str, list[dict[str, Any]]] = {}
-    for _, _, _, issue in queue:
+    lanes: Dict[str, List[Dict[str, Any]]] = {}
+    for _, _, issue in queue:
         lanes.setdefault(lane_of(issue["labels"]), []).append(issue)
     ordered_lanes = [l for l in KNOWN_LANES if l in lanes] + sorted(
         l for l in lanes if l not in KNOWN_LANES and l != "generic"
@@ -266,7 +198,7 @@ def render_body(queue: list[tuple[int, int, str, dict[str, Any]]], limit: int, t
         lane_queue = build_queue(lanes[lane])
         lines += [f"### `{lane}` — {len(lanes[lane])} unclaimed", "",
                   "| Issue | Priority | Age | Title |", "|---|---|---|---|"]
-        for rank, _, _, issue in lane_queue[:5]:
+        for rank, _, issue in lane_queue[:5]:
             lines.append(render_row(issue, rank))
         lines.append("")
 
@@ -277,7 +209,7 @@ def render_body(queue: list[tuple[int, int, str, dict[str, Any]]], limit: int, t
         "",
     ]
     if queue:
-        lines.append(f"<!-- TOP1:OVERALL:{queue[0][3]['number']} -->")
+        lines.append(f"<!-- TOP1:OVERALL:{queue[0][2]['number']} -->")
     else:
         lines.append("<!-- TOP1:OVERALL:0 -->")
     return "\n".join(lines)
@@ -286,7 +218,7 @@ def render_body(queue: list[tuple[int, int, str, dict[str, Any]]], limit: int, t
 # --- ledger issue management --------------------------------------------------
 
 
-def find_ledger() -> int | None:
+def find_ledger() -> Optional[int]:
     out = gh_run([
         "issue", "list", "--state", "open", "--search", LEDGER_SEARCH,
         "--json", "number,title",
@@ -346,9 +278,9 @@ def main() -> int:
         print("No unclaimed issues — ledger will render an empty (healthy) queue.")
 
     body = render_body(queue, args.limit, trigger)
-    top1 = int(queue[0][3]["number"]) if queue else 0
-    top1_title = queue[0][3]["title"] if queue else ""
-    top1_prio = priority_of(queue[0][3]["labels"]) if queue else "-"
+    top1 = int(queue[0][2]["number"]) if queue else 0
+    top1_title = queue[0][2]["title"] if queue else ""
+    top1_prio = priority_of(queue[0][2]["labels"]) if queue else "-"
 
     if args.dry_run:
         print(body)

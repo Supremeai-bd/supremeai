@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import requests
 
@@ -174,9 +174,9 @@ def mark_request_as_processed(db: firestore.Client, request_id: str, success: bo
 
         # Prepare update data
         update_data = {
-            "processed_at": datetime.now(UTC),
+            "processed_at": datetime.now(timezone.utc),
             "processed_success": success,
-            "processing_log": f"Skill forging attempted at {datetime.now(UTC).isoformat()}"
+            "processing_log": f"Skill forging attempted at {datetime.now(timezone.utc).isoformat()}"
         }
 
         if success:

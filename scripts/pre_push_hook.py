@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from typing import List
 
 if sys.stdout.encoding != "utf-8":
     try:
@@ -42,8 +43,8 @@ def is_ref_deletion() -> bool:
 
         if os.name == "nt":
             import ctypes
-            import msvcrt
             from ctypes import wintypes
+            import msvcrt
 
             handle = msvcrt.get_osfhandle(sys.stdin.fileno())
             avail = wintypes.DWORD()
@@ -87,7 +88,7 @@ def get_current_branch() -> str:
         return "main"
 
 
-def get_changed_files() -> list[str]:
+def get_changed_files() -> List[str]:
     """Get list of files modified in this branch relative to origin/main."""
     try:
         res = subprocess.run(

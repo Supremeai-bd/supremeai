@@ -50,8 +50,14 @@ BRIDGE_TARGET_REPOS = (
     "Supremeai-bd/supremeai-studio",
     "Supremeai-bd/supremeai-api",
     "Supremeai-bd/supremeai-core",
+    "Supremeai-bd/supremeai-command",
+    "Supremeai-bd/supremeai-skills",
     "Supremeai-bd/supremeai-vscode",
+    "Supremeai-bd/supremeai-agents",
     "Supremeai-bd/supremeai-browser",
+    "Supremeai-bd/supremeai-sdk",
+    "Supremeai-bd/supremeai-infrastructure",
+    "Supremeai-bd/supremeai-mcp-control-plane",
     "Supremeai-bd/supremeai-archive",
 )
 

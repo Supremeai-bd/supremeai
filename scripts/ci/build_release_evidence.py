@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
+import hashlib
 import os
 import subprocess
 from datetime import UTC, datetime

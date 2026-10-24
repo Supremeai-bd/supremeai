@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """Validate local release acceptance evidence without contacting production systems."""
 from __future__ import annotations
-
-import argparse
-import json
+import argparse, json
 from pathlib import Path
 
 REQUIRED = ("merge_policy", "route_inventory", "route_graph", "preflight_evidence", "security_tests")

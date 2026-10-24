@@ -1,52 +1,41 @@
 #!/usr/bin/env python3
 """Role-Scoped Branch Slot Acquirer & Dynamic Gap Allocator (Branch-as-Lease).
 ================================================================================
-Implements the SupremeAI Elastic Pool & Slot Governance Law + the Flexible
-Group Branching Protocol (#2378):
+Implements the SupremeAI Elastic Pool & Slot Governance Law:
 1. Infers Role from Task/Issue (coder, planner, pr-helper, ci, platform).
 2. Performs `git fetch origin --prune` to synchronize active remote branches.
-3. Flexible Context-Aware Workflow (#2378):
-   - Connected Work  (issue carries a `group:<name>` label):
-       1 Group Issue Set -> 1 SHARED group branch `group/<name>` -> 1 PR.
-       The group branch is shared across agents: if it exists remotely it is
-       checked out as-is (prior group commits preserved), else created from
-       origin/main. NEVER reset to main mid-group.
-   - Independent Work (no group label) — classic Branch-as-Lease below.
-4. Checks for occupied slot indices across:
+3. Checks for occupied slot indices across:
    - Remote branches on origin matching `<role>-<N>(-.*)?`
    - Open PR head branches matching `<role>-<N>(-.*)?`
    - In-progress issues assigned to `<role>-<N>`
    - Active heartbeat leases in the mesh registry.
-5. Finds the lowest available slot gap (first free integer >= 1).
+4. Finds the lowest available slot gap (first free integer >= 1).
    - If slots 1-9 are active, allocates slot 10.
    - If slot 3 completed (branch merged/deleted), allocates gap 3.
-6. Generates the branch name:
+5. Generates the branch name:
    - With issue: `<role>-<slot_index>-<issue#>-<slug>`
    - Without issue: `<role>-<slot_index>`
-7. Prepares and checks out the clean branch synced strictly with origin/main.
-8. Upon PR merge or close, the branch is deleted, instantly freeing the slot.
+6. Prepares and checks out the clean branch synced strictly with origin/main.
+7. Upon PR merge or close, the branch is deleted, instantly freeing the slot.
 
 Usage:
     python scripts/agents/acquire_role_slot.py --issue 2275
     python scripts/agents/acquire_role_slot.py --role coder --dry-run
-    python scripts/agents/acquire_role_slot.py --issue 2378 --dry-run   # group:* issue -> shared group branch
     python scripts/agents/acquire_role_slot.py --task "Full architecture audit" --dry-run
 """
 
 from __future__ import annotations
 
 import argparse
-import calendar
 import json
 import logging
 import os
 import re
 import subprocess
 import sys
-import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional, Set
 
 if sys.stdout.encoding != "utf-8":
     try:
@@ -59,64 +48,6 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 VALID_ROLES = ("planner", "coder", "pr-helper", "ci", "platform")
-
-# ── Registry-driven lane discovery (#2681 Finding-1) ─────────────────────────
-# বাংলা মন্তব্য: আগে role সম্পূর্ণ hardcoded ছিল — registry (v2.2)-তে browser/super
-# pool থাকলেও এই স্ক্রিপ্ট সেই lane-এ infer/allocate করতে পারত না। এখন registry
-# থেকে নতুন lanes ডাইনামিকভাবে যুক্ত হয় (union — পুরোনো ৫টি অপরিবর্তিত)।
-_REGISTRY_PATH = ROOT_DIR / "docs" / "master_docs" / "AGENT_SLOT_REGISTRY.yaml"
-_REGISTRY_LANE_CACHE: dict[str, str] | None = None
-
-# নতুন registry lanes-এর জন্য conservative title/label patterns (built-in-দের
-# পরে চেক হয় — পুরোনো প্রায়োরিটি অটুট)।
-REGISTRY_LANE_PATTERNS = {
-    "browser": re.compile(r"(?i)\b(browser|e2e-explor|frontend-verification|playwright)\b"),
-}
-# বাংলা মন্তব্য: super = union lane (guardrail) — কেবল explicit --role/label-এ,
-# title-pattern থেকে কখনো auto-infer হবে না (handoff:<lane> বিশেষজ্ঞ lane-এই থাকে)।
-EXPLICIT_ONLY_LANES = {"super"}
-
-
-def load_registry_lanes() -> dict[str, str]:
-    """AGENT_SLOT_REGISTRY.yaml থেকে branch-slotted pools আবিষ্কার (fail-soft)।
-
-    বাংলা মন্তব্য: yaml লাইব্রেরি না থাকলে বা registry corrupt হলে খালি dict —
-    স্ক্রিপ্ট আগের hardcoded আচরণেই চলবে (backward-compatible fallback)।
-    """
-    global _REGISTRY_LANE_CACHE
-    if _REGISTRY_LANE_CACHE is not None:
-        return _REGISTRY_LANE_CACHE
-    lanes: dict[str, str] = {}
-    try:
-        import yaml  # optional dependency — backend পরিবেশে উপলব্ধ
-
-        data = yaml.safe_load(_REGISTRY_PATH.read_text(encoding="utf-8")) or {}
-        for name, cfg in (data.get("role_pools") or {}).items():
-            pattern = (cfg or {}).get("branch_pattern")
-            if isinstance(pattern, str) and "{N}" in pattern:
-                lanes[str(name)] = pattern
-    except Exception as err:  # noqa: BLE001 — যেকোনো ব্যর্থতায় static fallback
-        logger.debug("Registry lane discovery unavailable: %s", err)
-    _REGISTRY_LANE_CACHE = lanes
-    return lanes
-
-
-def get_valid_roles() -> tuple[str, ...]:
-    """Hardcoded base lanes + registry-এর নতুন branch-slotted lanes (union)।"""
-    extra = tuple(k for k in load_registry_lanes() if k not in VALID_ROLES)
-    return VALID_ROLES + extra
-
-
-# Flexible Group Branching Protocol (#2378): issue label prefix -> shared group branch.
-GROUP_LABEL_PREFIX = "group:"
-GROUP_BRANCH_PREFIX = "group/"
-
-# Multi-Agent Fair-Share Cooldown (#2573): 2-minute anti-monopoly window for group sequences.
-GROUP_COOLDOWN_SECONDS = 120
-GROUP_COOLDOWN_STATE_FILE = ROOT_DIR / ".group_cooldown_state.json"
-
-# Have-Branch Tracking (#2573): label prefix used to mark groups with an active branch.
-HAVE_BRANCH_LABEL_PREFIX = "have-branch:"
 
 ROLE_PATTERNS = {
     "planner": re.compile(r"(?i)\b(plan|planning|audit|architect|architecture|gap-analysis)\b"),
@@ -151,242 +82,7 @@ def make_branch_slug(text: str, max_words: int = 4, max_len: int = 30) -> str:
     return slug[:max_len].rstrip("-")
 
 
-def extract_group_name(labels: list[Any] | None) -> str | None:
-    """Return the group name when the issue carries a `group:<name>` label (#2378).
-
-    # বাংলা মন্তব্য: group:pipeline-governance লেবেল থাকলে 'pipeline-governance'
-    # রিটার্ন হয় — অর্থাৎ Connected Work মডেল: ১ গ্রুপ ব্রাঞ্চ, ১ গ্রুপ PR।
-    """
-    for lbl in labels or []:
-        name = lbl.get("name", "") if isinstance(lbl, dict) else str(lbl or "")
-        if name.startswith(GROUP_LABEL_PREFIX):
-            group = name[len(GROUP_LABEL_PREFIX) :].strip()
-            if group:
-                return group
-    return None
-
-
-class GroupCooldownManager:
-    """Persisted cooldown state for group-specific anti-monopoly handoff (#2573).
-
-    # বাংলা মন্তব্য: একটি এজেন্ট কোনো গ্রুপের seq complet সফলভাবে শেষ করার পর
-    # সেই গ্রুপের পরবর্তী seq-এর জন্য ২ মিনিটের কুলডাউন সক্রিয় হয়। এই সময়ে
-    # অন্য কোনো এজেন্ট থাকলে সে ওই গ্রুপের পরবর্তী ইস্যু ক্লেইম করতে পারবে।
-    # শুধুমাত্র ১ এজেন্ট থাকলে (single-agent mode) কুলডাউন bypass হয়।
-    """
-
-    def __init__(self, state_file: Path = GROUP_COOLDOWN_STATE_FILE) -> None:
-        self.state_file = state_file
-        self.state: dict[str, dict[str, Any]] = {}
-        self._load()
-
-    def _load(self) -> None:
-        if self.state_file.exists():
-            try:
-                raw = self.state_file.read_text(encoding="utf-8")
-                data = json.loads(raw) if raw.strip() else {}
-                if isinstance(data, dict):
-                    self.state = data
-            except (OSError, json.JSONDecodeError):
-                self.state = {}
-
-    def _persist(self) -> None:
-        try:
-            self.state_file.write_text(
-                json.dumps(self.state, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-        except OSError:
-            pass
-
-    def record_completion(self, group_name: str, issue_number: int, agent_name: str) -> None:
-        key = group_name
-        self.state[key] = {
-            "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "issue_number": issue_number,
-            "agent_name": agent_name,
-        }
-        self._persist()
-
-    def is_blocked(self, group_name: str, agent_name: str, active_agents_count: int) -> tuple[bool, int]:
-        entry = self.state.get(group_name)
-        if not entry:
-            return False, 0
-        if entry.get("agent_name") != agent_name:
-            return False, 0
-        if active_agents_count <= 1:
-            return False, 0
-        completed_at = entry.get("completed_at", "")
-        try:
-            completed_ts = calendar.timegm(time.strptime(completed_at, "%Y-%m-%dT%H:%M:%SZ"))
-        except (ValueError, TypeError):
-            return False, 0
-        elapsed = time.time() - completed_ts
-        remaining = max(0, int(GROUP_COOLDOWN_SECONDS - elapsed))
-        if remaining > 0:
-            return True, remaining
-        self.state.pop(group_name, None)
-        self._persist()
-        return False, 0
-
-    @staticmethod
-    def get_active_agent_count(
-        repo_dir: Path = ROOT_DIR,
-        base_url: str | None = None,
-    ) -> int:
-        mesh_nodes = fetch_active_mesh_heartbeats(base_url=base_url)
-        try:
-            res = subprocess.run(
-                ["gh", "issue", "list", "--label", "status:in-progress", "--state", "open", "--json", "number"],
-                cwd=str(repo_dir),
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                check=False,
-                timeout=20,
-            )
-            issue_count = len(json.loads(res.stdout)) if res.returncode == 0 and res.stdout.strip() else 0
-        except Exception:
-            issue_count = 0
-        unique_agents: set[str] = set()
-        for node in mesh_nodes:
-            if node and not node.startswith("["):
-                unique_agents.add(node)
-        if issue_count > 0:
-            unique_agents.add("issue-active")
-        return max(1, len(unique_agents))
-
-
-def normalize_have_branch_label(group_name: str) -> str:
-    return f"{HAVE_BRANCH_LABEL_PREFIX}{group_name}"
-
-
-def add_have_branch_label(repo_dir: Path, group_name: str, issue_number: int) -> None:
-    label = normalize_have_branch_label(group_name)
-    try:
-        subprocess.run(
-            ["gh", "issue", "edit", str(issue_number), "--add-label", label],
-            cwd=str(repo_dir),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-            timeout=20,
-        )
-    except (OSError, subprocess.SubprocessError):
-        pass
-
-
-def remove_have_branch_label(repo_dir: Path, group_name: str, issue_number: int) -> None:
-    label = normalize_have_branch_label(group_name)
-    try:
-        subprocess.run(
-            ["gh", "issue", "edit", str(issue_number), "--remove-label", label],
-            cwd=str(repo_dir),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            checkout=False,
-            timeout=20,
-        )
-    except (OSError, subprocess.SubprocessError):
-        pass
-
-
-def group_has_active_branch(repo_dir: Path, group_name: str) -> bool:
-    branch = f"{GROUP_BRANCH_PREFIX}{group_name}"
-    try:
-        res = subprocess.run(
-            ["git", "ls-remote", "--heads", "origin", branch],
-            cwd=str(repo_dir),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-            timeout=20,
-        )
-        if res.returncode == 0 and res.stdout.strip():
-            return True
-    except (OSError, subprocess.SubprocessError):
-        pass
-    return False
-
-
-def sync_have_branch_labels_for_group(repo_dir: Path, group_name: str) -> None:
-    has_branch = group_has_active_branch(repo_dir, group_name)
-    label = normalize_have_branch_label(group_name)
-    try:
-        issues = json.loads(
-            subprocess.run(
-                ["gh", "issue", "list", "--label", f"group:{group_name}", "--state", "open", "--json", "number"],
-                cwd=str(repo_dir),
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                check=False,
-                timeout=20,
-            ).stdout
-            or "[]"
-        )
-    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
-        issues = []
-    for issue in issues:
-        num = issue.get("number")
-        if not num:
-            continue
-        if has_branch:
-            subprocess.run(
-                ["gh", "issue", "edit", str(num), "--add-label", label],
-                cwd=str(repo_dir),
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                check=False,
-                timeout=20,
-            )
-        else:
-            subprocess.run(
-                ["gh", "issue", "edit", str(num), "--remove-label", label],
-                cwd=str(repo_dir),
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                check=False,
-                timeout=20,
-            )
-
-
-def load_group_dependencies(repo_dir: Path = ROOT_DIR) -> dict[str, str]:
-    """Load group dependency map (child_group -> predecessor_group) from rules.yml (#2408).
-
-    # বাংলা মন্তব্য: Predecessor Group Merge Hold Engine (#2408):
-    # কোনো গ্রুপ অন্য গ্রুপের ওপর নির্ভরশীল হলে (যেমন foundation-closeout -> pipeline-governance)
-    # পূর্ববর্তী গ্রুপ সম্পূর্ণ না হওয়া পর্যন্ত পরবর্তী গ্রুপ কিউতে প্রায়োরিটি পাবে না এবং PR হোল্ডে থাকবে।
-    """
-    rules_path = repo_dir / ".github" / "constitution" / "rules.yml"
-    deps: dict[str, str] = {"foundation-closeout": "pipeline-governance"}
-    if rules_path.exists():
-        try:
-            import yaml
-
-            with open(rules_path, encoding="utf-8") as f:
-                data = yaml.safe_load(f) or {}
-                poly = data.get("predecessor_policy") or {}
-                if "group_dependencies" in poly and isinstance(poly["group_dependencies"], dict):
-                    deps.update(poly["group_dependencies"])
-        except Exception:
-            pass
-    return deps
-
-
-def extract_slot_index(ref: str, role: str) -> int | None:
+def extract_slot_index(ref: str, role: str) -> Optional[int]:
     """Extract slot index if ref matches role pattern (e.g. coder-1, coder-2-2253-fix, origin/coder-3)."""
     clean = ref.strip().lstrip("* ").strip()
     pat = re.compile(rf"^(?:remotes/origin/|origin/)?{re.escape(role)}-([0-9]+)(?:-.*)?$")
@@ -396,112 +92,50 @@ def extract_slot_index(ref: str, role: str) -> int | None:
     return None
 
 
-def infer_role_candidates(
+def infer_role_from_context(
     title: str = "",
     body: str = "",
-    labels: list[str] | None = None,
-    explicit_role: str | None = None,
-) -> list[str]:
-    """প্রার্থী lane-দের প্রায়োরিটি-ক্রমে ফেরত (#2681 Finding-1)।
-
-    বাংলা মন্তব্য: আগে প্রথম match-এই থেমে যেত — lane-লোড দেখার সুযোগ ছিল না।
-    এখন ordered candidates ফেরত যায়; caller চাইলে workload-aware ranking চালায়।
-    explicit_role থাকলে একমাত্র প্রার্থী (আচরণ অপরিবর্তিত)।
-    """
-    valid = get_valid_roles()
+    labels: Optional[List[str]] = None,
+    explicit_role: Optional[str] = None,
+) -> str:
+    """Infer the appropriate agent role from issue metadata or user task description."""
     if explicit_role:
         normalized = explicit_role.strip().lower()
-        if normalized in valid:
-            return [normalized]
+        if normalized in VALID_ROLES:
+            return normalized
         if normalized.startswith("plan"):
-            return ["planner"]
+            return "planner"
         if normalized.startswith("code") or normalized.startswith("solve"):
-            return ["coder"]
+            return "coder"
         if normalized.startswith("ci"):
-            return ["ci"]
+            return "ci"
         if normalized.startswith("plat"):
-            return ["platform"]
+            return "platform"
         if normalized.startswith("pr"):
-            return ["pr-helper"]
+            return "pr-helper"
 
     lbls = [l.lower() for l in (labels or [])]
-    candidates: list[str] = []
     for lbl in lbls:
         if "plan" in lbl or "audit" in lbl:
-            _push(candidates, "planner")
+            return "planner"
         if "ci" in lbl or "workflow" in lbl or "pipeline" in lbl:
-            _push(candidates, "ci")
+            return "ci"
         if "platform" in lbl or "infrastructure" in lbl:
-            _push(candidates, "platform")
+            return "platform"
         if "pr-helper" in lbl or "gate" in lbl:
-            _push(candidates, "pr-helper")
+            return "pr-helper"
         if "coder" in lbl or "solver" in lbl or "bug" in lbl or "feature" in lbl:
-            _push(candidates, "coder")
-        # registry lanes: handoff:<lane>/lane:<label> আকারেও ধরা হয়
-        for lane in load_registry_lanes():
-            if lane in VALID_ROLES or lane in EXPLICIT_ONLY_LANES:
-                continue  # বিল্ট-ইন চেকেই কভার / super explicit-only (guardrail)
-            if f"handoff:{lane}" in lbl or f"lane:{lane}" in lbl or lbl == lane:
-                _push(candidates, lane)
+            return "coder"
 
     text = f"{title} {body}"
     for role, pat in ROLE_PATTERNS.items():
         if pat.search(text):
-            _push(candidates, role)
-    for role, pat in REGISTRY_LANE_PATTERNS.items():
-        if pat.search(text):
-            _push(candidates, role)
+            return role
 
-    # বাংলা মন্তব্য: কোনো match না হলেই কেবল coder-default — আগের মতোই।
-    return candidates or ["coder"]
+    return "coder"
 
 
-def _push(candidates: list[str], role: str) -> None:
-    """প্রার্থী তালিকায় ডুপ্লিকেট ছাড়া যোগ (প্রথম occurrence = উচ্চতর প্রায়োরিটি)।"""
-    if role not in candidates:
-        candidates.append(role)
-
-
-def infer_role_from_context(
-    title: str = "",
-    body: str = "",
-    labels: list[str] | None = None,
-    explicit_role: str | None = None,
-) -> str:
-    """Backward-compatible single-role wrapper — আগের প্রথম-match আচরণ।"""
-    return infer_role_candidates(title=title, body=body, labels=labels, explicit_role=explicit_role)[0]
-
-
-def select_least_loaded_role(candidates: list[str], repo_dir: Path = ROOT_DIR) -> str:
-    """Workload-aware lane ranking (#2681 Finding-1b) — least-loaded matching lane আগে।
-
-    বাংলা মন্তব্য: একই টাস্ক একাধিক lane-এ ফিট করলে ব্যস্ততম নয়, সবচেয়ে ফাঁকা
-    lane বেছে নেওয়া হয় (slot 1..10 স্ক্যান); টাই-তে প্রার্থী-ক্রম (label/pattern
-    প্রায়োরিটি) বহাল। এক প্রার্থী হলে কোনো gh কল-ই হয় না — zero-overhead path।
-    """
-    if len(candidates) <= 1:
-        return candidates[0] if candidates else "coder"
-    try:
-        open_prs = fetch_open_prs_head_branches(repo_dir=repo_dir)
-        busy_issues = fetch_in_progress_issues_by_slot(repo_dir=repo_dir)
-        heartbeats = fetch_active_mesh_heartbeats()
-        loads: dict[str, int] = {}
-        for role in candidates:
-            existing = set(fetch_existing_role_branches(role, repo_dir=repo_dir))
-            busy = sum(
-                1
-                for idx in range(1, 11)
-                if evaluate_slot_occupancy(role, idx, open_prs, busy_issues, heartbeats).is_occupied or idx in existing
-            )
-            loads[role] = busy
-        logger.info("Lane loads: %s", loads)
-        return min(candidates, key=lambda r: loads.get(r, 0))
-    except Exception as err:  # noqa: BLE001 — ranking ব্যর্থ = প্রথম প্রার্থী
-        logger.debug("Lane-load ranking failed: %s", err)
-        return candidates[0]
-
-
-def fetch_open_prs_head_branches(repo_dir: Path = ROOT_DIR) -> set[str]:
+def fetch_open_prs_head_branches(repo_dir: Path = ROOT_DIR) -> Set[str]:
     """Fetch head branches of all open PRs."""
     try:
         res = subprocess.run(
@@ -522,9 +156,9 @@ def fetch_open_prs_head_branches(repo_dir: Path = ROOT_DIR) -> set[str]:
     return set()
 
 
-def fetch_in_progress_issues_by_slot(repo_dir: Path = ROOT_DIR) -> dict[str, int]:
+def fetch_in_progress_issues_by_slot(repo_dir: Path = ROOT_DIR) -> Dict[str, int]:
     """Fetch issues claimed by agent slots in status:in-progress."""
-    slots_busy: dict[str, int] = {}
+    slots_busy: Dict[str, int] = {}
     try:
         res = subprocess.run(
             ["gh", "issue", "list", "--label", "status:in-progress", "--json", "number,assignees,title,body"],
@@ -549,16 +183,15 @@ def fetch_in_progress_issues_by_slot(repo_dir: Path = ROOT_DIR) -> dict[str, int
     return slots_busy
 
 
-def fetch_active_mesh_heartbeats(base_url: str | None = None) -> set[str]:
+def fetch_active_mesh_heartbeats(base_url: Optional[str] = None) -> Set[str]:
     """Check backend mesh registry for nodes currently holding active leases."""
-    active_nodes: set[str] = set()
+    active_nodes: Set[str] = set()
     mesh_url = base_url or os.environ.get("SUPREME_MESH_URL")
     if not mesh_url:
         return active_nodes
 
     try:
         import urllib.request
-
         req = urllib.request.Request(f"{mesh_url}/api/v1/nodes", headers={"Accept": "application/json"})
         with urllib.request.urlopen(req, timeout=2) as resp:
             if resp.status == 200:
@@ -574,9 +207,9 @@ def fetch_active_mesh_heartbeats(base_url: str | None = None) -> set[str]:
     return active_nodes
 
 
-def fetch_existing_role_branches(role: str, repo_dir: Path = ROOT_DIR) -> list[int]:
+def fetch_existing_role_branches(role: str, repo_dir: Path = ROOT_DIR) -> List[int]:
     """Find all existing local or remote branch indices for a role (e.g. coder-1 -> 1)."""
-    indices: set[int] = set()
+    indices: Set[int] = set()
     pat = re.compile(rf"^(?:remotes/origin/|origin/)?{re.escape(role)}-([0-9]+)(?:-.*)?$")
 
     try:
@@ -605,9 +238,9 @@ def fetch_existing_role_branches(role: str, repo_dir: Path = ROOT_DIR) -> list[i
 def evaluate_slot_occupancy(
     role: str,
     index: int,
-    open_pr_branches: set[str],
-    busy_issue_slots: dict[str, int],
-    active_heartbeats: set[str],
+    open_pr_branches: Set[str],
+    busy_issue_slots: Dict[str, int],
+    active_heartbeats: Set[str],
 ) -> SlotStatus:
     """Evaluate whether a specific slot (e.g., coder-1) is busy or empty."""
     branch = f"{role}-{index}"
@@ -656,7 +289,7 @@ def evaluate_slot_occupancy(
 
 def find_next_available_slot(
     role: str,
-    issue: int | None = None,
+    issue: Optional[int] = None,
     title: str = "",
     repo_dir: Path = ROOT_DIR,
 ) -> SlotStatus:
@@ -707,47 +340,6 @@ def find_next_available_slot(
     )
 
 
-def checkout_group_branch(group_name: str, repo_dir: Path = ROOT_DIR) -> bool:
-    """Share-or-create the group branch (Connected Work model, #2378).
-
-    # বাংলা মন্তব্য: গ্রুপ ব্রাঞ্চ রিমোটে থাকলে তার head থেকেই checkout হয় —
-    # গ্রুপের আগের এজেন্টদের কমিট সংরক্ষিত থাকে। না থাকলে origin/main থেকে
-    # তৈরি হয়। slot-branch-এর মতো reset-to-main কখনোই নয় — গ্রুপ কমিট ধ্বংস হবে।
-    """
-    branch = f"{GROUP_BRANCH_PREFIX}{group_name}"
-    try:
-        probe = subprocess.run(
-            ["git", "ls-remote", "--exit-code", "--heads", "origin", branch],
-            cwd=str(repo_dir),
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=30,
-        )
-        if probe.returncode == 0:
-            subprocess.run(
-                ["git", "fetch", "origin", branch],
-                cwd=str(repo_dir),
-                check=False,
-                capture_output=True,
-                timeout=60,
-            )
-            base = f"origin/{branch}"
-        else:
-            base = "origin/main"
-        res = subprocess.run(
-            ["git", "checkout", "-B", branch, base],
-            cwd=str(repo_dir),
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return res.returncode == 0
-    except (subprocess.SubprocessError, OSError) as e:
-        print(f"Error checking out group branch {branch}: {e}", file=sys.stderr)
-        return False
-
-
 def checkout_slot_branch(branch_name: str, base_branch: str = "origin/main", repo_dir: Path = ROOT_DIR) -> bool:
     """Checkout the slot branch cleanly synced with origin/main."""
     try:
@@ -765,33 +357,19 @@ def checkout_slot_branch(branch_name: str, base_branch: str = "origin/main", rep
         return False
 
 
-def find_next_unclaimed_issue(
-    role: str | None = None,
-    repo_dir: Path = ROOT_DIR,
-    agent_name: str | None = None,
-) -> dict[str, Any] | None:
+def find_next_unclaimed_issue(role: Optional[str] = None, repo_dir: Path = ROOT_DIR) -> Optional[Dict[str, Any]]:
     """Autonomous Queue Resolver: Find the highest priority unclaimed issue for role.
 
-    Precedence order (SupremeAI Constitution & GSPQ + #2573 Fair-Share Cooldown):
+    Precedence order (SupremeAI Constitution & GSPQ):
     1. P0-critical
-    2. Active group sequences without cooldown block and without active branch (fair distribution)
+    2. Active group sequences (group:step-2, group:step-3, sorted by seq:N)
     3. P1-high
     4. P2-medium
     5. Oldest issue first
     """
     try:
         res = subprocess.run(
-            [
-                "gh",
-                "issue",
-                "list",
-                "--state",
-                "open",
-                "--limit",
-                "400",
-                "--json",
-                "number,title,body,labels,createdAt",
-            ],
+            ["gh", "issue", "list", "--state", "open", "--limit", "400", "--json", "number,title,body,labels,createdAt"],
             cwd=str(repo_dir),
             capture_output=True,
             encoding="utf-8",
@@ -809,15 +387,6 @@ def find_next_unclaimed_issue(
         # Skip in-progress, has-pr, and ledger issues
         if "status:in-progress" in lbls or "has-pr" in lbls or "type:ledger" in lbls:
             continue
-        # বাংলা মন্তব্য (#2745, 99.99/0.01 আইন): `gate:admin-approval` লেবেলযুক্ত
-        # সংবেদনশীল ইস্যু (প্রোডাকশন DB ড্রপ, বিলিং-টিয়ার বদল, সিক্রেট রোটেশন...)
-        # অ্যাডমিনের অনুমোদন (`approved-by:admin` লেবেল) ছাড়া কেউ ক্লেইম করতে
-        # পারবে না — নির্বাচন-স্তরেই স্কিপ।
-        if "gate:admin-approval" in lbls and "approved-by:admin" not in lbls:
-            logger.info(
-                f"Issue #{i.get('number')} gated by admin-approval — skipped (label 'approved-by:admin' absent)"
-            )
-            continue
         # If role specified, match explicit handoff or generic pool
         if role:
             handoffs = [l for l in lbls if l.startswith("handoff:")]
@@ -828,135 +397,28 @@ def find_next_unclaimed_issue(
     if not claimable:
         return None
 
-    group_deps = load_group_dependencies(repo_dir=repo_dir)
-
-    # Collect all groups present across open issues to detect in-flight predecessor groups
-    active_open_groups: set[str] = set()
-    for item in issues:
-        l_names = [l.get("name", "") if isinstance(l, dict) else str(l) for l in item.get("labels", [])]
-        grp = extract_group_name(l_names)
-        if grp:
-            active_open_groups.add(grp)
-
-    # Collect groups that already have an active remote branch (have-branch fairness)
-    groups_with_branch: set[str] = set()
-    try:
-        res = subprocess.run(
-            ["git", "ls-remote", "--heads", "origin"],
-            cwd=str(repo_dir),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-            timeout=20,
-        )
-        if res.returncode == 0:
-            for line in res.stdout.splitlines():
-                if not line.strip():
-                    continue
-                head = line.split("/")[-1]
-                if head.startswith(GROUP_BRANCH_PREFIX):
-                    groups_with_branch.add(head[len(GROUP_BRANCH_PREFIX) :])
-    except (OSError, subprocess.SubprocessError):
-        pass
-
-    # Fair-Share Cooldown state (#2573)
-    cooldown_mgr = GroupCooldownManager()
-    active_agents_count = GroupCooldownManager.get_active_agent_count(repo_dir=repo_dir)
-    blocked_groups: dict[str, int] = {}
-    if agent_name and active_agents_count > 1:
-        for grp in active_open_groups:
-            blocked, remaining = cooldown_mgr.is_blocked(grp, agent_name, active_agents_count)
-            if blocked:
-                blocked_groups[grp] = remaining
-
     def priority_sort_key(item):
         i, lbls = item
         num = i["number"]
         created = i.get("createdAt", "")
-        grp = extract_group_name(lbls)
-        seq_num = 99
-        for l in lbls:
-            m = re.search(r"seq:(\d+)", l)
-            if m:
-                seq_num = int(m.group(1))
-                break
-
-        # P0-critical stays absolute top priority
         if "P0-critical" in lbls:
             return (0, 0, created, num)
-
-        if grp:
-            # Fair-Share: deprioritize groups where this agent is on cooldown
-            # when other agents exist. Single-agent mode always bypasses cooldown.
-            cooldown_blocked = grp in blocked_groups
-            # Fair-Share: if another agent already has this group's branch,
-            # prefer unassigned groups first so work distributes across agents.
-            has_branch = grp in groups_with_branch
-            dep_penalty = 0
-            pred_grp = group_deps.get(grp)
-            pred_active = bool(pred_grp and pred_grp in active_open_groups)
-            if pred_active:
-                dep_penalty = 20
-            branch_penalty = 10 if has_branch else 0
-            cooldown_penalty = 50 if cooldown_blocked else 0
-            return (1 + dep_penalty + branch_penalty + cooldown_penalty, seq_num, created, num)
-
+        if "group:step-2" in lbls:
+            seq_m = [re.search(r"seq:(\d+)", l) for l in lbls if re.search(r"seq:(\d+)", l)]
+            seq_num = int(seq_m[0].group(1)) if seq_m else 99
+            return (1, seq_num, created, num)
         if "P1-high" in lbls:
-            return (3, 0, created, num)
+            return (2, 0, created, num)
+        if "group:step-3" in lbls:
+            seq_m = [re.search(r"seq:(\d+)", l) for l in lbls if re.search(r"seq:(\d+)", l)]
+            seq_num = int(seq_m[0].group(1)) if seq_m else 99
+            return (3, seq_num, created, num)
         if "P2-medium" in lbls:
             return (4, 0, created, num)
         return (5, 0, created, num)
 
-    # Filter out group issues that are blocked by cooldown when other agents exist.
-    # In single-agent mode (active_agents_count <= 1), cooldown is always bypassed.
-    def claimable_filter(item):
-        _, lbls = item
-        grp = extract_group_name(lbls)
-        if not grp:
-            return True
-        if active_agents_count <= 1:
-            return True
-        return grp not in blocked_groups
-
-    # #2902: Group Sequential Block — যদি কোনো group-এর sibling issue
-    # status:in-progress থাকে কিন্তু has-pr না থাকে, সেই group-এর অন্য কোনো
-    # issue claim করা যাবে না (hard block, শুধু deprioritize নয়)।
-    # Block তখনই সরবে যখন in-progress issue-এর PR push হয় (has-pr label)।
-    # বাংলা মন্তব্য: sequential কাজে সমান্তরায় হাত দিলে conflict হয় — তাই
-    # seq:1 in-progress থাকলে seq:2 সত্যিই block হবে।
-    groups_with_in_progress_no_pr: set = set()
-    for item in issues:
-        l_names = [l.get("name", "") if isinstance(l, dict) else str(l) for l in item.get("labels", [])]
-        grp = extract_group_name(l_names)
-        if grp and "status:in-progress" in l_names and "has-pr" not in l_names:
-            groups_with_in_progress_no_pr.add(grp)
-
-    def sequential_block_filter(item):
-        """#2902: hard block group siblings that are in-progress without PR."""
-        i, lbls = item
-        grp = extract_group_name(lbls)
-        if not grp:
-            return True
-        # যদি এই issue-টি নিজেই in-progress হয়, সেটি skip (already claimed)
-        if "status:in-progress" in lbls:
-            return False
-        # #2902: যদি এই group-এ কোনো sibling in-progress (no PR) হয় → block
-        if grp in groups_with_in_progress_no_pr:
-            return False
-        return True
-
-    filtered = [item for item in claimable if claimable_filter(item)]
-    # #2902: apply sequential block after cooldown filter
-    seq_filtered = [item for item in filtered if sequential_block_filter(item)]
-    if seq_filtered:
-        filtered = seq_filtered
-    elif not filtered:
-        filtered = claimable
-
-    filtered.sort(key=priority_sort_key)
-    top_issue, top_lbls = filtered[0] if filtered else claimable[0]
+    claimable.sort(key=priority_sort_key)
+    top_issue, top_lbls = claimable[0]
     return {
         "number": top_issue["number"],
         "title": top_issue.get("title", ""),
@@ -969,33 +431,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Role-Scoped Branch Slot Acquirer & Dynamic Gap Allocator (Branch-as-Lease)"
     )
-    parser.add_argument("--role", choices=get_valid_roles(), help="Explicit role pool")
+    parser.add_argument("--role", choices=VALID_ROLES, help="Explicit role pool")
     parser.add_argument("--issue", type=int, help="GitHub Issue number to claim (optional: auto-discovered if omitted)")
     parser.add_argument("--task", type=str, help="Task description to infer role from")
     parser.add_argument("--dry-run", action="store_true", help="Print plan without checking out branch")
-    parser.add_argument(
-        "--defer-checkout",
-        action="store_true",
-        help="Return branch info without checking out — caller must checkout after atomic_claim succeeds (#2949)",
-    )
     parser.add_argument("--format", choices=["json", "text"], default="text", help="Output format")
-    parser.add_argument("--agent-name", default="", help="Current agent identifier for cooldown and audit trails")
-    parser.add_argument(
-        "--record-cooldown-group",
-        default="",
-        help="Record a group completion cooldown for this agent after PR merge/close",
-    )
 
     args = parser.parse_args()
-
-    agent_name = args.agent_name or os.environ.get("AGENT_NAME", "")
-
-    if args.record_cooldown_group:
-        mgr = GroupCooldownManager()
-        issue_num = args.issue or 0
-        mgr.record_completion(args.record_cooldown_group, issue_num, agent_name or "unknown")
-        print(f"🧊 Recorded group cooldown for '{args.record_cooldown_group}' (issue #{issue_num})")
-        return 0
 
     title = args.task or ""
     body = ""
@@ -1009,8 +451,6 @@ def main() -> int:
                 cwd=str(ROOT_DIR),
                 capture_output=True,
                 text=True,
-                encoding="utf-8",
-                errors="replace",
                 check=True,
             )
             data = json.loads(res.stdout)
@@ -1021,11 +461,7 @@ def main() -> int:
             print(f"Warning: could not fetch issue #{args.issue}: {e}", file=sys.stderr)
     elif not args.task:
         # Autonomous Queue Resolver: Auto-discover the next priority unclaimed issue for role
-        discovered = find_next_unclaimed_issue(
-            role=args.role,
-            repo_dir=ROOT_DIR,
-            agent_name=agent_name,
-        )
+        discovered = find_next_unclaimed_issue(role=args.role, repo_dir=ROOT_DIR)
         if discovered:
             args.issue = discovered["number"]
             title = discovered["title"]
@@ -1033,62 +469,25 @@ def main() -> int:
             labels = discovered.get("labels", [])
             auto_discovered = True
 
-    # #2681 Finding-1: candidates → workload-aware ranking (multi-match হলে
-    # least-loaded lane; এক match বা explicit --role হলে zero-overhead)।
-    candidates = infer_role_candidates(title=title, body=body, labels=labels, explicit_role=args.role)
-    role = select_least_loaded_role(candidates, repo_dir=ROOT_DIR)
-
-    # Flexible Group Branching (#2378): group:* label -> shared group branch.
-    group_name = extract_group_name(labels)
+    role = infer_role_from_context(title=title, body=body, labels=labels, explicit_role=args.role)
+    slot = find_next_available_slot(role=role, issue=args.issue, title=title, repo_dir=ROOT_DIR)
 
     result_payload = {
         "role": role,
-        "workflow": "group" if group_name else "independent",
-        "group_name": group_name,
-        "slot_index": None,
-        "branch_name": "",
-        "is_occupied": False,
+        "slot_index": slot.index,
+        "branch_name": slot.branch_name,
+        "is_occupied": slot.is_occupied,
         "checkout_performed": False,
         "issue": args.issue,
         "auto_discovered": auto_discovered,
     }
 
-    if group_name:
-        # Connected Work: ১ গ্রুপ ব্রাঞ্চ শেয়ার — slot-gap স্ক্যান অপ্রাসঙ্গিক।
-        branch_name = f"{GROUP_BRANCH_PREFIX}{group_name}"
-        result_payload["branch_name"] = branch_name
-        # #2949 root-cause fix: defer checkout until atomic_claim succeeds।
-        # বাংলা মন্তব্য: আগে checkout এখানেই হতো — কিন্তু claim ব্যর্থ হলে branch
-        # dirty state এ পড়ে থাকতো (orphan slot/branch)। এখন --defer-checkout দিলে
-        # শুধু branch_name রিটার্ন করে, caller claim সফল হলে checkout করে।
-        if not args.dry_run and not args.defer_checkout:
-            success = checkout_group_branch(group_name, repo_dir=ROOT_DIR)
-            result_payload["checkout_performed"] = success
-            if not success:
-                print(f"Failed to checkout {branch_name}", file=sys.stderr)
-                return 1
-            if args.issue:
-                sync_have_branch_labels_for_group(ROOT_DIR, group_name)
-                add_have_branch_label(ROOT_DIR, group_name, args.issue)
-        elif args.defer_checkout:
-            result_payload["checkout_performed"] = False
-            result_payload["checkout_deferred"] = True
-    else:
-        slot = find_next_available_slot(role=role, issue=args.issue, title=title, repo_dir=ROOT_DIR)
-        result_payload["slot_index"] = slot.index
-        branch_name = slot.branch_name
-        result_payload["branch_name"] = branch_name
-        result_payload["is_occupied"] = slot.is_occupied
-        # #2949 root-cause fix: defer checkout until atomic_claim succeeds।
-        if not args.dry_run and not args.defer_checkout:
-            success = checkout_slot_branch(slot.branch_name, repo_dir=ROOT_DIR)
-            result_payload["checkout_performed"] = success
-            if not success:
-                print(f"Failed to checkout {slot.branch_name}", file=sys.stderr)
-                return 1
-        elif args.defer_checkout:
-            result_payload["checkout_performed"] = False
-            result_payload["checkout_deferred"] = True
+    if not args.dry_run:
+        success = checkout_slot_branch(slot.branch_name, repo_dir=ROOT_DIR)
+        result_payload["checkout_performed"] = success
+        if not success:
+            print(f"Failed to checkout {slot.branch_name}", file=sys.stderr)
+            return 1
 
     if args.format == "json":
         print(json.dumps(result_payload, indent=2))
@@ -1096,28 +495,15 @@ def main() -> int:
         if auto_discovered:
             print(f"⚡ [Autonomous Queue Resolver] Next priority issue: #{args.issue} ({title})")
         print(f"🎯 Assigned Role:   {role}")
-        if group_name:
-            print("🤝 Workflow:        Connected Group Work (#2378) — shared group branch, 1 group PR")
-            print(f"🌿 Group Branch:    {branch_name}")
-        else:
-            print(f"🌿 Acquired Slot:   {branch_name} (Slot Gap Index: {result_payload['slot_index']})")
+        print(f"🌿 Acquired Slot:   {slot.branch_name} (Slot Gap Index: {slot.index})")
         if args.dry_run:
             print("🔍 Mode:            Dry Run (No branch checkout performed)")
-        elif args.defer_checkout:
-            print("⏸️  Mode:            Checkout Deferred (#2949) — caller must checkout after atomic_claim succeeds")
-        elif group_name:
-            shared = "shared from remote group head" if result_payload["checkout_performed"] else "(dry-run)"
-            print(f"✅ Checked out:     {branch_name} {shared}")
         else:
-            print(f"✅ Checked out:     {branch_name} (synced cleanly with origin/main)")
+            print(f"✅ Checked out:     {slot.branch_name} (synced cleanly with origin/main)")
         if args.issue:
-            print(
-                f"👉 Next Step:       ./scripts/ci/atomic_claim.sh {args.issue} {role}-{result_payload['slot_index'] or ''}"
-            )
+            print(f"👉 Next Step:       ./scripts/ci/atomic_claim.sh {args.issue} {role}-{slot.index}")
         else:
-            print(
-                "💡 No unclaimed issues found. Dual-State Loop: Check open PRs with 'gh pr list --state open' for Peer Review."
-            )
+            print("💡 No unclaimed issues found. Dual-State Loop: Check open PRs with 'gh pr list --state open' for Peer Review.")
 
     return 0
 
