@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-22 18:07 UTC
+- **Date:** 2026-10-24 21:23 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,19 @@
   - (see git log for details)
 
 ## Files Changed
+  - `.github/workflows/pr-pipeline.yml`
+  - `.github/scripts/constitution/tests/test_template_gate.py`
+  - `apps/mission-control/.env.example`
   - `CHECKPOINT.md`
-  - `infrastructure/wrangler.toml`
-  - `infrastructure/cloudflare_worker.js`
+  - `.github/scripts/constitution/tests/test_workflow_pnpm_ssot.py`
+  - `apps/mission-control/src/app/globals.css`
   - `config/mcp-clients.json`
-  - `scripts/bridge/bridge_intake.py`
   - `docs/archive/lessons_2026-10.md`
+  - `apps/mission-control/next-env.d.ts`
+  - `.github/workflows/ops-maintenance.yml`
+  - `apps/mission-control/src/components/mission-control/shell.tsx`
+  - `.github/workflows/deploy-train.yml`
+  - `apps/mission-control/package.json`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
