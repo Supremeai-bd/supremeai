@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-24 20:59 UTC
+- **Date:** 2026-10-24 21:23 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,31 +10,19 @@
   - (see git log for details)
 
 ## Files Changed
-  - `studio/src/contexts/ToastProvider.tsx`
-  - `studio/src/components/dashboard/SettingsPage.tsx`
-  - `config/mcp-clients.json`
-  - `apps/mission-control/src/components/mission-control/shell.tsx`
-  - `studio/src/contexts/ThemeConstants.ts`
-  - `apps/mission-control/next-env.d.ts`
-  - `apps/mission-control/package.json`
-  - `apps/mission-control/.env.example`
-  - `studio/src/lib/devicePresets.ts`
   - `.github/workflows/pr-pipeline.yml`
-  - `studio/src/hooks/useAuth.ts`
-  - `studio/src/contexts/useTheme.ts`
-  - `studio/src/contexts/ThemeContext.ts`
-  - `.github/scripts/constitution/tests/test_workflow_pnpm_ssot.py`
-  - `studio/src/store/unifiedStore.ts`
-  - `studio/src/contexts/ToastContext.ts`
   - `.github/scripts/constitution/tests/test_template_gate.py`
-  - `.github/workflows/ops-maintenance.yml`
-  - `studio/src/store/dashboardStore.ts`
-  - `studio/src/contexts/ThemeProvider.test.tsx`
-  - `.github/workflows/deploy-train.yml`
+  - `apps/mission-control/.env.example`
+  - `CHECKPOINT.md`
+  - `.github/scripts/constitution/tests/test_workflow_pnpm_ssot.py`
   - `apps/mission-control/src/app/globals.css`
-  - `studio/src/contexts/useToast.ts`
-  - `studio/src/contexts/ThemeProvider.tsx`
-  - `studio/src/services/adminTokenStore.ts`
+  - `config/mcp-clients.json`
+  - `docs/archive/lessons_2026-10.md`
+  - `apps/mission-control/next-env.d.ts`
+  - `.github/workflows/ops-maintenance.yml`
+  - `apps/mission-control/src/components/mission-control/shell.tsx`
+  - `.github/workflows/deploy-train.yml`
+  - `apps/mission-control/package.json`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
