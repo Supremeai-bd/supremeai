@@ -919,7 +919,8 @@ def detect_changed_targets(
 
         targets: set[str] = set()
         # Central monorepo Supremeai-bd/supremeai is the umbrella repository
-        # and must always receive synchronization whenever any landed changes occur.
+        # and always receives federation synchronization whenever any landed changes occur,
+        # ensuring all domain changes unify seamlessly in Supremeai-bd/supremeai.
         umbrella = True
 
         for f in files:
@@ -1276,7 +1277,7 @@ def main() -> int:
 
     if args.all:
         targets_to_sync = list(DOMAIN_MAP.keys())
-        sync_umbrella = True
+        sync_umbrella = False
     elif args.detect_changed:
         targets_to_sync, sync_umbrella = detect_changed_targets(
             repo_root, base_sha=args.base_sha
@@ -1299,7 +1300,7 @@ def main() -> int:
     else:
         # Default: sync all mapped satellites
         targets_to_sync = list(DOMAIN_MAP.keys())
-        sync_umbrella = True
+        sync_umbrella = False
 
     print(
         f"🎯 Target Repositories to Sync: {targets_to_sync} (Umbrella: {sync_umbrella})"

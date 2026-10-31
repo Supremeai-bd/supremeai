@@ -34,6 +34,7 @@ class TestFederationSatelliteSync(unittest.TestCase):
         targets, umbrella = sync_mod.detect_changed_targets(sync_mod.Path("/tmp"))
         self.assertIn("Supremeai-bd/supremeai-studio", targets)
         self.assertIn("Supremeai-bd/supremeai-api", targets)
+        # Umbrella is True to ensure Supremeai-bd/supremeai receives changes seamlessly
         self.assertTrue(umbrella)
 
     @patch("subprocess.run")
@@ -65,8 +66,9 @@ class TestFederationSatelliteSync(unittest.TestCase):
             (satellite / "infrastructure" / "proxy" / "wrangler.toml").write_text("k")
             mirror.mkdir()
             removed = sync_mod.prune_domain_self_shadows(satellite, "studio", mirror)
-            self.assertIn("studio/package.json", removed)
-            self.assertIn("studio/src/utils/api.ts", removed)
+            norm_removed = [p.replace("\\", "/") for p in removed]
+            self.assertIn("studio/package.json", norm_removed)
+            self.assertIn("studio/src/utils/api.ts", norm_removed)
             self.assertFalse((satellite / "studio").exists())
             # canonical root files and legitimate satellite-only dirs survive
             self.assertTrue((satellite / "src" / "utils" / "api.ts").exists())

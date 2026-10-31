@@ -289,11 +289,52 @@ _INCIDENT_TITLE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# #4009 class (GLM Agent 22, Job 486813, 2026-10-31): PR-lane merge-check refs
+# have GitHub's numeric shape "<n>/merge". They already carry a recorded
+# decision (GLM Agent 07: staleness stays main-scoped, never existence-probed)
+# — the numeric shape below must keep matching so those rows keep the old
+# behavior. A branch name like "fix/...-merge" has no numeric prefix and is
+# therefore existence-probed instead.
+_MERGE_REF_RE = re.compile(r"^\d+/merge$")
+
+# Conservative git-ref token guard for the existence probe: the token rides as
+# a git ARGUMENT (never a shell), but a hostile title could still smuggle a
+# leading-dash option or a malformed ref — anything outside this class is
+# indeterminate (fail-open), never probed.
+_SAFE_REF_TOKEN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
+
+
+def _lsremote_ref_exists(ref: str) -> bool | None:
+    """Default existence probe: `git ls-remote --exit-code` against origin.
+
+    Zero credentials, zero API rate limit (plain git transport over the public
+    repo — the post-RBAC anonymous tower lost the github.* family, so the
+    guard's data source must not). rc 0 = ref present, rc 2 = --exit-code's
+    'not found', anything else (transport, timeout, hostile ref) is
+    indeterminate → None. Fail-open: None serves the row unchanged.
+    """
+    if not _SAFE_REF_TOKEN_RE.match(ref) or ".." in ref or ref.endswith(".lock"):
+        return None
+    url = f"https://github.com/{UPSTREAM_REPO}.git"
+    try:
+        proc = subprocess.run(
+            ["git", "ls-remote", "--exit-code", url, f"refs/heads/{ref}"],
+            capture_output=True, text=True, timeout=STALE_INCIDENT_PROBE_TIMEOUT_S,
+        )
+    except Exception:  # noqa: BLE001 — probe failure must never raise through the pick
+        return None
+    if proc.returncode == 0:
+        return True
+    if proc.returncode == 2:
+        return False
+    return None
+
 
 def _incident_stale_note(
     item: dict[str, Any],
     fetch_runs: Callable[[int], list[dict[str, Any]]] | None = None,
     min_green: int | None = None,
+    remote_probe: Callable[[str], bool | None] | None = None,
 ) -> str | None:
     """#3050 — demotion note for a superseded CI-failure incident, else None.
 
@@ -308,6 +349,17 @@ def _incident_stale_note(
     pruning must not read as red). Returns None for anything unjudgeable
     (non-incident titles, scrolled-off runs, renamed workflows, fetch errors):
     fail-open by construction, the row is served exactly as before.
+
+    #4009 class demotion (GLM Agent 22): when the title's ref is a real
+    branch name (not main, not the numeric "<n>/merge" merge-check shape)
+    and that branch no longer exists on origin, the incident has NO
+    remediable surface — the failure lives only on a deleted head; the row
+    is served forever otherwise because the deleted run never appears in the
+    main-side supersession window (live witness: Run #41149642412 on
+    fix/pipeline-guard-watchdog-and-admin-merge, branch 404, zero PRs, row
+    still dispatching). Existence is probed via git ls-remote (credential-
+    and rate-limit-free); an indeterminate probe or an existing branch
+    falls through to the historical main-scoped judgment unchanged.
     """
     n_green = STALE_INCIDENT_GREEN_RUNS if min_green is None else min_green
     title = str(item.get("title", ""))
@@ -324,6 +376,26 @@ def _incident_stale_note(
     workflow = head.rsplit("] ", 1)[1].strip()
     if not workflow:
         return None
+
+    # #4009 class: a deleted head branch removes the incident's remediable
+    # surface entirely. Only real branch names are probed — "main" always
+    # exists, and the numeric "<n>/merge" merge-check refs keep their recorded
+    # main-scoped decision (GLM Agent 07) untouched.
+    ref_token = title_match.group("ref")
+    if ref_token != "main" and not _MERGE_REF_RE.match(ref_token):
+        probe = _lsremote_ref_exists if remote_probe is None else remote_probe
+        try:
+            exists = probe(ref_token)
+        except Exception:  # noqa: BLE001 — fail-open, identical to fetch_errors below
+            exists = None
+        if exists is False:
+            return (
+                f"incident-branch-gone (U3 demotion, #4009 class): head branch "
+                f"'{ref_token}' no longer exists on origin — the failure lived "
+                "only on a deleted head, no remediable surface "
+                "(ROW-CLOSED-UNDER-US); admin/verdict lane owns row closure"
+            )
+        # exists is True or indeterminate → historical main-scoped judgment
 
     if fetch_runs is None:
         def fetch_runs(per_page: int) -> list[dict[str, Any]]:
@@ -2025,28 +2097,29 @@ def action_instruction(picked: str | int) -> str:
 # to wait out a clock even when the board was idle; the rotation below is
 # condition-driven: one scheduled role per idle cycle, in this order, re-armed
 # by work events (a claimable issue being dispatched).
+# Auditor duties are absorbed by MCP Tower & platform-guardian; coder/fixer/solver unified.
 DEFAULT_SCHEDULED_ROLES: tuple[str, ...] = (
     "ecosystem-scout",
-    "auditor",
     "human-eye",
     "rules-breaker",
     "platform-guardian",
 )
 
 DEFAULT_MERGED_ROLES: dict[str, str] = {
-    "federation-auditor": "auditor",
-    "task-auditor": "auditor",
+    "auditor": "platform-guardian",
+    "federation-auditor": "platform-guardian",
+    "task-auditor": "platform-guardian",
     "ci-fixer": "solver",
+    "fixer": "solver",
     "coder": "solver",
 }
 
 ROLE_RULES: dict[str, str] = {
     "solver": "Unlimited concurrent solvers allowed. Solve root cause, verify boundary, write all required migrations/configs/tests end-to-end (no partial work), and submit PR.",
-    "auditor": "6 repo codebase-এ যা যা সমস্যা আছে তা পুঙ্খানুপুঙ্খ অডিট ও সমাধান বের করা।",
     "ecosystem-scout": "সারা বিশ্বের যেকোনো জায়গা থেকে SupremeAI-এর জন্য সবচেয়ে লাভজনক ও উপকারী হবে এমন জিনিস ও ইনোভেশন খুঁজে আনা। শুধুমাত্র লাইভ প্রমাণসহ কংক্রিট, বাস্তবায়নযোগ্য ফাইন্ডিং ফাইল করা যাবে; অনুমাননির্ভর/হাইপ টিকেট কঠোরভাবে নিষিদ্ধ; কোড এডিট নয়।",
     "human-eye": "আমাদের কাস্টমার যেন সর্বোত্তম ও শ্রেষ্ঠ এক্সপেরিয়েন্স পায় তার জন্য প্রয়োজনীয় সমস্ত UI/UX ও পারফরম্যান্স নিশ্চিত করা।",
     "rules-breaker": "আমাদের সম্পূর্ণ সিস্টেমের সিকিউরিটি, টেকনিক্যাল ডেট এবং লজিক্যাল গ্যাপের সমস্ত দুর্বলতা খুঁজে বের করে রিপোর্ট করা।",
-    "platform-guardian": "প্রজেক্টের সাথে যুক্ত অন্যান্য সমস্ত থার্ড-পার্টি প্ল্যাটফর্ম ও সার্ভিসের সার্বক্ষণিক তদারকি ও নজরদারি নিশ্চিত করা।",
+    "platform-guardian": "প্রজেক্টের সাথে যুক্ত অন্যান্য সমস্ত থার্ড-পার্টি প্ল্যাটফর্ম ও সার্ভিসের সার্বক্ষণিক তদারকি, অডিট ও নজরদারি নিশ্চিত করা (absorbed auditor duties)।",
 }
 
 COMMON_RULES = """=== UNIVERSAL INVARIANTS (ALL ROLES MUST FOLLOW) ===
@@ -2771,8 +2844,9 @@ def hooks_path_advisory() -> str | None:
     return (
         "hooks-path probe: core.hooksPath is unset in this worktree — the shipped "
         ".githooks/ enforcement suite (Board-Freshness pre-push gate, #4177) stays dark "
-        "by git default ($GIT_DIR/hooks). One-line activation: "
-        "git config core.hooksPath .githooks"
+        "by git default ($GIT_DIR/hooks). One-line activation (idempotent, exec-bit "
+        "guarded): python3 scripts/ops/activate_githooks.py --activate "
+        "(report-only: --verify; R63/#2343 bootstrap-gap close-out)"
     )
 
 def diff_rule_freshness(
@@ -3092,13 +3166,24 @@ def build_task_envelope(
     # আগের আচরণ (IMPLEMENT)।
     task_type = ROLE_TASK_TYPES.get(role, "IMPLEMENT")
 
+    # বাংলা: (#3933-শ্রেণির adhoc সততা, লাইভ-পর্যবেক্ষিত 2026-10-31 08:06+08 সাইকেল)
+    # adhoc এনভেলপে (issue: null) 'Closes #<issue_number>' নির্দেশটা অসম্ভব চুক্তি —
+    # এর পাশেই issue_reference_required:true; নির্দেশ অনুসরণকারী এজেন্ট বাধ্য হয়ে
+    # ইস্যু-রেফারেন্স বানায় (ঠিক সেই #1609 false-close verb-শ্রেণি যা ব্রিজ স্পষ্টভাবে
+    # আটকায়)। সৎ অনুসথিতি নীতি (SPEC §2) অনুযায়ী: issue থাকলেই close-ব্লুপ্রিন্ট,
+    # adhoc-এ adhoc-রেফারেন্স নির্দেশ — ইস্যু-রেফারেন্স ফেলসিফাই নিষিদ্ধ।
+    pr_blueprint_line = (
+        "PR BLUEPRINT: PR must carry 'Closes #<issue_number>' in PR description to automatically close the resolved issue on merge."
+        if issue_number is not None
+        else "PR BLUEPRINT: ad-hoc envelope — no original issue to close. Reference the ad-hoc task id ('task-adhoc') in the PR description; do NOT fabricate an issue reference or a 'Closes #N' footer."
+    )
     specialist_prompt = "\n".join(
         [
             COMMON_RULES,
             "",
             f"ROLE: {role}",
             f"MANDATE: {role_description}",
-            "PR BLUEPRINT: PR must carry 'Closes #<issue_number>' in PR description to automatically close the resolved issue on merge.",
+            pr_blueprint_line,
             "CONTINUOUS DISPATCH: After completing this task, rerun continuous agent loop again.",
             "STALE-INCIDENT GUARD (U3): before claiming a CI-failure incident, verify on live main that the referenced run still fails; resolved incidents are skipped with evidence, never re-solved. The picker also auto-demotes mechanically (#3050): an incident whose referenced run is superseded by >=5 green main runs of the same workflow (zero newer reds) is skipped at pick time — for explicit --issue N dispatches this manual check remains the backstop.",
             # বাংলা: কিউ-স্তরের claim লেবেল tower-এর লাইভ claim-কে পিছিয়ে থাকে (live
@@ -3149,7 +3234,9 @@ def build_task_envelope(
             "reference": "AGENTS.md §2.1 Pathway 1 + §8 (bridge_submit_patch)",
             "base_branch": "main",
             "pr_title_prefix": "fix(open):",
-            "issue_reference_required": True,
+            # বাংলা: adhoc (issue নেই) হলে issue-reference দাবি মিথ্যা চুক্তি —
+            # প্রকৃত issue-dispatch পথে True আগের মতোই।
+            "issue_reference_required": issue_number is not None,
             "branch_convention": "^(feat|fix|docs|chore|test|refactor|perf|bridge|group|contributor|hotfix|release|agent)/<slug>",
         },
     }
@@ -3733,6 +3820,26 @@ def run_dispatch_cycle(args: argparse.Namespace) -> int:
     if not board_unavailable and has_open_p0_blocker(raw):
         log("!", "P0 Drainage Invariant: Active P0-critical blocker detected on board. Holding cadence roles until P0 issues are resolved.")
         print("ACTION: System is draining P0-critical architectural backlog. Routine cadence roles held.")
+        return 0
+
+    # Founder directive: Scheduled rotation (ecosystem-scout, human-eye, rules-breaker, platform-guardian)
+    # runs only when the system has accumulated a baseline backlog of claimable issues (>= 5 claimable issues),
+    # ensuring observation/audit roles don't churn when the board is completely green/clean or sparse.
+    # When claimable count < 5, system reports clean and stays sleep/ready for work.
+    claimable_count = 0
+    if not board_unavailable and isinstance(raw, list):
+        claimable_count = sum(
+            1 for i in raw
+            if isinstance(i, dict)
+            and not (EXCLUDED_LABELS & set(label_names(i)))
+            and "anchor hub" not in str(i.get("title") or "").lower()
+            and "sentry" not in str(i.get("title") or "").lower()
+            and str(i.get("state", "open")).lower() == "open"
+        )
+
+    force_flag = getattr(args, "force", False)
+    if claimable_count < 5 and not force_flag:
+        print(f"ACTION: System is clean and healthy (claimable issues: {claimable_count}/5 threshold). Observation roles idle.")
         return 0
 
     for role in due_roles(state, cfg):
