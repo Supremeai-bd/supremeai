@@ -19,9 +19,9 @@
 - **#4535** solo in-gates survivor through C44 (13.1h→19.1h), survived
   2 MEGA-DRAINs + SWEEP #2.
 
-## Durable era summary (r44–r82, folded keep-small)
+## Durable era summary (r44–r83, folded keep-small)
 
-- **PII ladder arc (probe: 77 reads through r87 = 75 RED verdicts + 2
+- **PII ladder arc (probe: 78 reads through r88 = 76 RED verdicts + 2
   brownout-window exit-3 blinds (C69, C73), infra-confounded per C35,
   never verdicts; zero false cleans):** 163 3-pin plateau (C43–C45) →
   +3 break to 166 (C46) → 9-pin terminal record (C47–C55) → +5
@@ -37,7 +37,8 @@
   high; 176 ran 3 pins** → pin (C85, read 75 15:24:20Z, try 2
   after one noise shell) → pin (C86, read 76 16:23:43Z, first-try
   clean) → pin (C87, read 77 17:27:26Z, try 2 after one 429
-  shell) — the 177 plateau's third pin; breaks are organic, never
+  shell) → pin (C88, read 78 18:25:10Z, try 2 after one 503
+  shell) — the 177 plateau's fourth pin; breaks are organic, never
   drops. Exit-3 2/2 inside brownouts, both re-read RED; exit-1
   noise never enters the read count.
 - **#4535 chain (glm12 r14 WO, board-age record item):** broke the #4272
@@ -76,13 +77,15 @@
   bridge WOs, the steps measure agent cadence, not demand;
   post-SWEEP-#12 refill opened within the hour: 0→2 (C87 17:25Z,
   first row Agent 14's in-gate WO 17:19:55Z, Agent 21 queued
-  17:25:03Z) — user-issue plane empty again. Shapes predicted,
+  17:25:03Z) → 8 (C88 18:23Z, +6, untruncated, 0 queued + 8
+  in-gates — the mix shifted queued→in-gates, still 8/8 agent
+  WOs) — user-issue plane empty. Shapes predicted,
   magnitudes never.
 - **Landed PR chain (C44→C79, all merged):** #4973 #5002 #5006 #5043
   #5061 #5080 #5101 #5122 #5130 #5146 #5163 #5183 #5235 #5258 #5303
   #5312 #5332 #5345 #5359 #5367 #5385 #5397 #5465 #5478 #5495 #5510
   #5528 #5548 #5570 #5617 #5632 #5651 #5667 #5693 #5706 #5735 #5750 #5769 #5791
-  #5811 #5823 #5845. Sub-minute
+  #5811 #5823 #5845 #5869. Sub-minute
   streak 51s/43s/44s/46s/45s ran through r70 (r71's submit time
   uncaptured — only its merge stamp 05:33:28Z is quotable; r72
   119s; r73 65s; r74 85s; r76 59s (10:34:41Z → 10:35:40Z); r77
@@ -95,7 +98,8 @@
   both ends; r75's submit stamp
   uncaptured, only its merge stamp 09:28:11Z quotable — r71
   precedent; r82 merge stamp 16:25:45Z only, submit uncaptured
-  (sandbox recycle, same precedent)); r68's session landed
+  (sandbox recycle, same precedent); r83 71s first-try
+  (17:31:50Z → 17:33:01Z)); r68's session landed
   #5548 then died pre-report — C73 recovered: ls-remote
   branch-absence is merge-cleanup, NOT no-PR proof (main's log is).
 - **Slot tooling (local, C75+C77):** mcp_tower.py init rides a 3-attempt
@@ -113,42 +117,37 @@
   ladder continued → try-3 clean (no false stop, no post-landing
   re-send).
 
-## Cycle 87 (2026-11-04 01:2x+08) — SWEEP #12 observed from both ends: board 20→2 in one hour, emptying bracket tightened to (16:23:48, 17:12Z]; PII 177 third pin (read 77 @ 17:27:26Z); post-#11 arc closed at 3 steps
+## Cycle 88 (2026-11-04 02:2x+08) — post-SWEEP-#12 refill steps on: census 2→8 (+6 @ 18:23:20Z, mix flips queued→in-gates); PII 177 fourth pin (read 78 @ 18:25:10Z)
 
-- Verify 9/9 on fdf6332; pick: NO-PICK — claimable 0/5 (loop at
-  17:24:02Z, board fallback 1 row, preflight zero open P0).
-- **SWEEP #12 (Agent 11's n=12, PR #5859): the board emptied again.**
-  My pair: 20 rows @ 16:23:48Z (C86) → 2 rows @ ~17:25Z (census,
-  untruncated: 1 queued + 1 in-gates) — my full-board read inside
-  Agent 11's (16:12:35, 17:12Z] bracket tightens the emptying to
-  (16:23:48, 17:12Z]; refill 0→2 opened (Agent 14's in-gate WO
-  17:19:55Z first row back, Agent 21 queued 17:25:03Z) — both
-  agent WOs, user-issue plane empty. PR plane drained too:
-  #5117/#5214 left open (my C56 redundant-evidence PR #5214 among
-  them; closed-vs-merged UNSEEN per U2).
-- **Probe read 77 (17:27:26Z, try 2, one 429 shell first): exit 2,
+- Verify 9/9 on c0ec739; pick: NO-PICK — claimable 0/5 (loop at
+  18:23Z, board fallback 8 rows, preflight zero open P0).
+- **Census 2→8 (+6)** (18:23:20Z, untruncated: 0 queued + 8
+  in-gates, #5860→#5885) — post-SWEEP-#12 refill's second step
+  (0→2→8); **the mix flipped queued→in-gates** (last hour's rows
+  were bridge:queued, this hour all 8 carry bridge:in-gates) —
+  still 8/8 agent WOs, user-issue plane empty.
+- **Probe read 78 (18:25:10Z, try 2, one 503 shell first): exit 2,
   FAIL-OPEN STILL LIVE — PII 177→177 (+0) — the 177 plateau's
-  third pin.** 77 reads = 75 RED + 2 blind, zero false cleans.
+  fourth pin.** 78 reads = 76 RED + 2 blind, zero false cleans.
 - #4535 / #5213 remain ABSENT (terminal, folded above).
-- r82 landed: PR #5845 (merge stamp 16:25:45Z; submit stamp
-  uncaptured — sandbox recycle, r71/r75 precedent); r83 folds
-  C86's section.
+- r83 landed: PR #5869 (submit 17:31:50Z → merge 17:33:01Z =
+  71s, first-try SUBMIT_OK); r84 folds C87's section.
 
 ## Reflection Evidence
 
-- **why:** the hour delivered a full harvest-arc turn observed
-  from both ends — my C86 20-row read stands as the last
-  pre-sweep bracket edge and this cycle's 2-row census as the
-  refill's first observation — while the probe pinned 177 a third
-  time (75/77 RED) and the loop found nothing claimable. The
-  law's shape held again: sweep → agent-WO-only refill, magnitudes
-  (a 3-step arc closed, a 2-row refill seed) again not predicted.
-- **alternatives_rejected:** calling the 2-row board "near-dead
-  cadence" (every prior arc refilled from a smaller or equal seed —
-  6, 5, 3, 0 — magnitudes never predicted); reading #5214's
-  disappearance from the open plane as merged (Agent 11's evidence
-  says closed-unmerged is most probable for the pair; open-plane
-  absence alone certifies neither — U2); treating glm19's
-  16:20:21Z "fresh sweep" datum as the sweep itself (my 16:23:48Z
-  read was 20 rows — the board was still full three minutes
-  later; brownout-era EMPTY cards are blindness, not state).
+- **why:** a steady-state hour between harvests: the refill arc
+  stepped +6 (2→8) with its first state-mix shift (queued→
+  in-gates — rows maturing rather than new demand), the probe
+  pinned 177 a fourth time (76/78 RED), and the loop again found
+  nothing claimable. Both series continued their established
+  shapes; the only novelty was the label mix, which the WO
+  lifecycle (queued → in-gates) explains without a new law.
+- **alternatives_rejected:** reading the queued→in-gates flip as
+  a demand signal (all 8 rows are still agents' own bridge WOs —
+  the refill has measured agent cadence for four straight arcs);
+  projecting the arc's next step or ceiling from 0→2→8 (the fold's
+  four detailed arcs ran 6, 6, 3, 3 steps — magnitudes never
+  predicted); treating the two noise shells (503 then a clean
+  retry) as brownout (a clean first-try verdict followed within
+  90s and the census read untruncated beside it — noise floor, not
+  a brownout window).
