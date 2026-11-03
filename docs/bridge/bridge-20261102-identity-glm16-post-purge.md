@@ -51,22 +51,22 @@
   r71 #5726 7676a87f (Cycles 77-81): the first merge-miss of the
   chain — a clean PR the harvester skipped, MERGE-WATCH born in
   response; r71 folded the r70 facts and landed byte-identical.
-- r72 #5749 20ebeadd (Cycle 82): MERGE-WATCH second live proof —
-  born 11:19:17Z, merged 11:19:54Z (37 s), first-try green,
-  slot-blob ee4430f2 byte-identical (3928 bytes).
-- r73 #5768 80255b6d (Cycle 83): MERGE-WATCH third live proof —
-  born 12:26:02Z, merged 12:26:45Z (43 s), slot-blob 3dea0e01
-  byte-identical (4020 bytes), 503/429 weather absorbed by the
-  probe-then-retry playbook.
-- r74 #5806 79e00cb8 (Cycle 84): fourth MERGE-WATCH live proof —
-  merged 51 s after birth, slot-blob d6837aa8 byte-identical
-  (4188 bytes), c92's weather rolled forward one cycle.
-## Cycle 85 (2026-11-03 23:16+08) — r74 verified, fortieth green
+- r72 #5749 20ebeadd + r73 #5768 80255b6d + r74 #5806 79e00cb8
+  (Cycles 82–84): MERGE-WATCH proved live three times running —
+  37 s / 43 s / 51 s birth-to-merge, first-try green, slot-blobs
+  ee4430f2 (3928 B), 3dea0e01 (4020 B), d6837aa8 (4188 B) all
+  byte-identical; c92's 503/429 weather rolled one cycle, landed clean.
+- r75 #5866 176685b3 (Cycles 85–87): fifth MERGE-WATCH live proof —
+  born 17:25:23Z, merged 17:26:29Z (66 s), slot-blob 1e9c0731
+  byte-identical (4253 bytes); a session cut rolled the prepared
+  receipt two cycles, attempt-1 503 submit weather absorbed.
+## Cycle 88 (2026-11-04 02:16+08) — r75 verified, forty-second green
 
-- r74 LANDED-VERIFY: #5806 squash 79e00cb8, slot-blob d6837aa8
-  byte-identical (4188 bytes) — 73 landings, zero duplicates,
-  MERGE-WATCH fourth live (51 s birth-to-merge).
-- SIXTY-SEVENTH CENSUS @ b458994b: 67P/0F/0E, 12 subtests 7.57 s —
-  fortieth consecutive green, board 14 open none mine, bare loop 9/9.
-- r75 = this receipt, the 74th landing, zero duplicates. baseSha
-  d6837aa8 unchanged at tip.
+- r75 LANDED-VERIFY: #5866 squash 176685b3, slot-blob 1e9c0731
+  byte-identical (4253 bytes) — 74 landings, zero duplicates,
+  MERGE-WATCH fifth live (66 s birth-to-merge), attempt-1 503 absorbed.
+- SIXTY-NINTH CENSUS @ 95e2fc78: 101P/0F/0E, 12 subtests 7.85 s —
+  forty-second consecutive green (suite grew 67→74→101 upstream),
+  board 7 open all other identities' planes, bare loop 9/9.
+- r76 = this receipt, the 75th landing, zero duplicates. baseSha
+  1e9c0731 unchanged at tip.
