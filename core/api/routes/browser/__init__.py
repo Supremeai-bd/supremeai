@@ -98,7 +98,6 @@ router = APIRouter(
 from . import (
     _automation,  # noqa: F401,E402  (route registration + re-exports)
     _cognitive,  # noqa: F401,E402  (route registration + re-exports)
-    _credentials,  # noqa: F401,E402  (route registration + re-exports)
     _crown_jewel,  # noqa: F401,E402  (route registration + re-exports)
     _learning,  # noqa: F401,E402  (route registration + re-exports)
     _legacy_status,  # noqa: F401,E402  (route registration + re-exports)
@@ -134,18 +133,6 @@ from ._cognitive import (  # noqa: F401,E402  (re-exports)
     run_autonomous_goal,
     semantic_click,
     smart_click,
-)
-from ._credentials import (  # noqa: F401,E402  (re-exports)
-    CREDENTIALS,
-    CredentialRequest,
-    CredentialUseRequest,
-    delete_credential,
-    get_audit,
-    get_credential_store,
-    get_credentials,
-    revoke_credential,
-    save_credential,
-    use_credential,
 )
 from ._crown_jewel import (  # noqa: F401,E402  (re-exports)
     AIActionRequest,

@@ -16,6 +16,20 @@ __all__ = ["SettingsFieldsMixin", "parse_origin_list"]
 
 
 class SettingsFieldsMixin:
+
+    encryption_key: SecretStr = Field(default=SecretStr("dGVzdF9mZXJuZXRfa2V5XzMyX2J5dGVzX2xvbmdfMTIzNDU="), validation_alias=AliasChoices("ENCRYPTION_KEY", "SECRET_KEY"))
+    supabase_database_url: SecretStr | None = Field(default=None, validation_alias=AliasChoices("SUPABASE_DATABASE_URL", "DATABASE_URL"))
+
+    redis_url: str | None = Field(default=None, validation_alias=AliasChoices("REDIS_URL", "UPSTASH_REDIS_REST_URL"))
+    redis_host: str = Field(default="localhost", validation_alias=AliasChoices("REDIS_HOST"))
+    redis_port: int = Field(default=6379, validation_alias=AliasChoices("REDIS_PORT"))
+    redis_password: SecretStr | None = Field(default=None, validation_alias=AliasChoices("REDIS_PASSWORD", "UPSTASH_REDIS_REST_TOKEN"))
+
+    supabase_service_key: SecretStr | None = Field(default=None, validation_alias=AliasChoices("SUPABASE_SERVICE_KEY", "SUPABASE_SERVICE_ROLE_KEY"))
+
+    supabase_url: str | None = Field(default=None, validation_alias=AliasChoices("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"))
+    supabase_key: SecretStr | None = Field(default=None, validation_alias=AliasChoices("SUPABASE_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_ANON_KEY"))
+    supabase_service_role_key: SecretStr | None = Field(default=None, validation_alias=AliasChoices("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY"))
     PROJECT_NAME: str = "SupremeAI 2.0"
     API_V1_STR: str = "/api/v1"
     app_name: str = "SupremeAI 2.0"
