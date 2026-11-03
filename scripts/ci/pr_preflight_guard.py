@@ -1,6 +1,6 @@
 """pr_preflight_guard.py — pre-submission guard for SupremeAI PRs."""
 from __future__ import annotations
-import argparse, os, re, subprocess, sys
+import argparse, os, re, subprocess, sys, shutil, json as _json
 from pathlib import Path
 
 BRANCH_RE = re.compile(r"^(feat|fix|chore|docs|ci|test|refactor|perf|bridge|hotfix)/[a-z0-9][a-z0-9._/-]*$")
@@ -43,16 +43,10 @@ def check_lint(files):
                 errs.append("json syntax error: %s" % f)
     return errs
 
-# ── Shield 1: Task-Scope Domain Fence ──────────────────────────────────────────
+# Shield 1: Task-Scope Domain Fence
 def check_scope_fence(branch: str | None, files: list[str]) -> list[str]:
-    """Prevent cross-domain collateral contamination.
-    
-    If a branch declares a domain prefix (e.g. feat/studio-*, fix/core-*),
-    changes must not leak into unrelated active satellite domains.
-    """
     if not branch or not files:
         return []
-    
     domain_tags = {
         "studio": "studio/",
         "gateway": "gateway/",
@@ -60,24 +54,19 @@ def check_scope_fence(branch: str | None, files: list[str]) -> list[str]:
         "browser": "browser/",
         "vscode": "vscode/",
     }
-    
     matched_domain = None
     for tag in domain_tags:
         if f"/{tag}-" in branch or f"/{tag}/" in branch:
             matched_domain = tag
             break
-            
     if not matched_domain:
         return []
-
     prefix = domain_tags[matched_domain]
     errs = []
     for f in files:
         f_norm = f.replace("\\", "/")
-        # Allow repo-level docs, ci, and test changes that support the task
         if f_norm.startswith(("docs/", "tests/", ".agents/")):
             continue
-        # If file belongs to another distinct satellite domain, raise collision error
         for other_tag, other_prefix in domain_tags.items():
             if other_tag != matched_domain and f_norm.startswith(other_prefix):
                 errs.append(
@@ -86,14 +75,11 @@ def check_scope_fence(branch: str | None, files: list[str]) -> list[str]:
                 )
     return errs
 
-# ── Shield 2: Stale-Base & Full-File Overwrite Guard ────────────────────────────
+# Shield 2: Stale-Base
 def check_stale_base() -> list[str]:
-    """CAS Stale-Base Guard: ensure current branch is not behind origin/main."""
     r = run(["git", "rev-parse", "--verify", "origin/main"])
     if r.returncode != 0:
-        return []  # No origin/main found (offline or shallow clone)
-    
-    # Check if branch is behind origin/main
+        return []
     r_behind = run(["git", "rev-list", "--count", "HEAD..origin/main"])
     if r_behind.returncode == 0:
         count = r_behind.stdout.strip()
@@ -104,14 +90,12 @@ def check_stale_base() -> list[str]:
             ]
     return []
 
-# ── Shield 3: AST Anti-Regression Guard (Test & Function Deletion) ─────────────
+# Shield 3: AST Anti-Regression
 def check_ast_regressions(files: list[str]) -> list[str]:
-    """Verify that existing test cases or public functions were not deleted."""
     errs = []
     for f in files:
         if not (f.endswith(".py") and Path(f).is_file() and ("test_" in f or "tests/" in f)):
             continue
-        # Check diff for deleted test functions
         r_diff = run(["git", "diff", "origin/main", "--", f])
         if r_diff.returncode == 0 and r_diff.stdout:
             deleted_tests = [
@@ -129,6 +113,35 @@ def check_ast_regressions(files: list[str]) -> list[str]:
                 )
     return errs
 
+# Shield 4: Semgrep Policy Shield
+def check_semgrep(files: list[str]) -> list[str]:
+    errs = []
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    cfg_path = os.path.join(repo_root, ".semgrep", "supremeai-invariants.yaml")
+    if not os.path.isfile(cfg_path):
+        return []
+    if shutil.which("semgrep") is None:
+        return []
+    target_files = []
+    for f in files:
+        p = f if os.path.isabs(f) else os.path.join(repo_root, f)
+        if os.path.isfile(p):
+            target_files.append(p)
+    if not target_files:
+        return []
+    r = run(["semgrep", "--config", cfg_path, "--quiet", "--json", *target_files])
+    try:
+        data = _json.loads(r.stdout or "{}")
+        results = data.get("results", []) if isinstance(data, dict) else []
+        for res in results:
+            msg = (res.get("extra", {}) or {}).get("message") or res.get("message") or "semgrep finding"
+            path = res.get("path", "?")
+            line = (res.get("start") or {}).get("line", "?")
+            errs.append(f"semgrep: {path}:{line} {msg}")
+    except Exception:
+        pass
+    return errs
+
 def self_test():
     fails = 0
     if check_branch("feat/foo-bar"): fails+=1; print("FAIL branch-ok")
@@ -140,17 +153,16 @@ def self_test():
     else: print("PASS issue-ok")
     if not check_issue_ref("no ref"): fails+=1; print("FAIL issue-missing")
     else: print("PASS issue-missing")
-    
-    # Test Scope Fence
+
     scope_bad = check_scope_fence("feat/studio-login", ["studio/src/app.ts", "core/engine/auth.py"])
     if not scope_bad: fails+=1; print("FAIL scope-bad")
     else: print("PASS scope-bad")
-    
+
     scope_good = check_scope_fence("feat/studio-login", ["studio/src/app.ts", "docs/login.md"])
     if scope_good: fails+=1; print("FAIL scope-good")
     else: print("PASS scope-good")
 
-    import tempfile, os
+    import tempfile
     with tempfile.TemporaryDirectory() as d:
         p=os.path.join(d,"bad.py")
         open(p,"w").write("def broken(: pass\n")
@@ -173,7 +185,7 @@ def main():
     args = ap.parse_args()
     if args.self_test: return self_test()
     errs = []
-    if args.branch: 
+    if args.branch:
         errs += check_branch(args.branch)
         errs += check_scope_fence(args.branch, args.files)
     if args.pr_body:
@@ -183,6 +195,8 @@ def main():
     errs += check_boundary(args.files)
     errs += check_lint(args.files)
     errs += check_ast_regressions(args.files)
+    if args.files:
+        errs += check_semgrep(args.files)
     if errs:
         print("pr_preflight_guard: FAIL")
         for e in errs: print(" -", e)

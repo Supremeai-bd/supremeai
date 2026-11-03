@@ -14,3 +14,21 @@ rules:
     languages: [python]
     severity: ERROR
 
+  - id: supremeai-no-admin-merge-bypass
+    patterns:
+      - pattern: subprocess.$METHOD(..., "--admin", ...)
+    message: "Policy Violation: direct 'gh pr merge --admin' bypasses CI status checks and is forbidden."
+    languages: [python]
+    severity: ERROR
+
+  - id: supremeai-no-hardcoded-credentials
+    pattern-regex: '(?i)(GITHUB_READONLY_TOKEN|OPEN_SYNC_PAT|GH_TOKEN|GITHUB_TOKEN|MERGE_PAT|SUPREMEAI_API_KEY|SECRET_KEY|API_KEY)\s*=\s*"[^"]+"'
+    message: "Security Risk: do not hardcode secrets/tokens in source; load from Infisical/env."
+    languages: [python]
+    severity: ERROR
+
+  - id: supremeai-no-guard-file-mutation
+    pattern-regex: 'open\([^)]*(pr_preflight_guard|federation_anchors|secret_scanner_policy|dependency_parasite_guard|live_pr_auditor|memory_consolidation_guard|supremeai-invariants)[^)]*,\s*["'']w'
+    message: "Policy Violation: automated solver branches must not mutate security guard files."
+    languages: [python]
+    severity: WARNING

@@ -434,6 +434,32 @@ def create_sub_issue(
     return None, ""
 
 
+# Mapping of retired satellite hubs to their consolidated active domain.
+RETIRED_TO_ACTIVE: dict[str, str] = {
+    "Supremeai-bd/supremeai-core": "Supremeai-bd/supremeai",
+    "Supremeai-bd/supremeai-api": "Supremeai-bd/supremeai",
+    "Supremeai-bd/supremeai-browser": "Supremeai-bd/supremeai",
+    "Supremeai-bd/supremeai-vscode": "Supremeai-bd/supremeai",
+    "Supremeai-bd/supremeai-command": "Supremeai-bd/supremeai",
+    "Supremeai-bd/supremeai-skills": "Supremeai-bd/supremeai",
+    "Supremeai-bd/supremeai-agents": "Supremeai-bd/supremeai",
+    "Supremeai-bd/supremeai-sdk": "Supremeai-bd/supremeai",
+    "Supremeai-bd/supremeai-infrastructure": "Supremeai-bd/supremeai",
+    "Supremeai-bd/supremeai-mcp-control-plane": "Supremeai-bd/supremeai",
+    "Supremeai-bd/supremeai-archive": "Supremeai-bd/supremeai",
+}
+
+
+def remap_retired_to_active(identifier: str) -> tuple[str, int] | None:
+    """If identifier resolves to a retired hub, return its consolidated active hub."""
+    key = normalize_repo_key(identifier)
+    if key not in RETIRED_ANCHOR_HUBS:
+        return None
+    active_repo = RETIRED_TO_ACTIVE.get(key, "Supremeai-bd/supremeai")
+    active_num = ACTIVE_ANCHOR_HUBS.get(active_repo, 761)
+    return active_repo, active_num
+
+
 def self_test() -> int:
     """Hermetic contract test verifying the Federation Anchor Hub architecture (zero network)."""
     print("[self-test] Validating Federation Anchor Hub SSOT contract...")
@@ -495,6 +521,12 @@ def self_test() -> int:
         "hyphenated /sub-issues returns 404"
     )
     assert "sub-issues" not in SUB_ISSUES_PATH
+
+    # 7. Retired hub remap
+    remapped = remap_retired_to_active("Supremeai-bd/supremeai-core")
+    assert remapped == ("Supremeai-bd/supremeai", 761), remapped
+    assert remap_retired_to_active("Supremeai-bd/supremeai") is None
+    assert remap_retired_to_active("studio") is None
 
     print("✅ [self-test] All 14 Anchor Hub contracts verified successfully!")
     return 0
