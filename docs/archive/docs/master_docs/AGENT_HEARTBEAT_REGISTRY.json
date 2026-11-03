@@ -1,0 +1,11 @@
+{
+  "unknown-coder-1": {
+    "model": "unknown",
+    "role": "ci-fixer",
+    "current_issue": null,
+    "branch": "",
+    "last_heartbeat": 1791195354.2263658,
+    "machine_id": "b06218d1-584f-53a0-a126-b49b1ef5906f",
+    "status": "exited"
+  }
+}

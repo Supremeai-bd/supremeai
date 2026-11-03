@@ -1,0 +1,109 @@
+# v4 Public-Projection Workflow — supremeai-open sync (gitleaks fail-closed)
+# বাংলা: private live-fork থেকে নির্বাচিত public-safe path → paykaribazaronline/supremeai-open।
+# নিরাপত্তা: ①gitleaks প্রতি sync-এ fail-closed ②App-installation token self-mint (নতুন PAT নয়)
+#           ③[skip ci] — open-রিপোতে CI-চক্র এড়াতে ④প্রথম রান diff-মোডে (DRY_RUN=true)।
+# স্থাপন: private fork-এর .github/workflows/open-projection.yml
+# প্রয়োজনীয় repo-var: PROJECTION_MAP ("src:dst" জোড়া, newline-বিভাজিত) — cutover-সেশনে
+#   মোনোরিপো-গাছ থেকে বাস্তব path-ম্যাপ ভরা হবে (docs-উপসেট, api-schemas-উৎস, examples, client-kit)।
+
+name: 🔓 Open Projection Sync (private → supremeai-open)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "শুধু-পড়া মোড (push হবে না)"
+        type: boolean
+        default: true
+
+concurrency:
+  group: open-projection
+  cancel-in-progress: false
+
+env:
+  OPEN_REPO: paykaribazaronline/supremeai-open
+  WORKDIR: /tmp/projection
+
+jobs:
+  project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private live main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: App-installation token self-mint (vault AGENT_PLATFORM_* থেকে)
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+        run: |
+          python3 - <<'PY'
+          # বাংলা: vault→App-JWT→installation-token (মান কখনো প্রিন্ট হয় না; GITHUB_TOKEN-এ লেখা হয়)
+          import json, os, time, urllib.request, jwt as pyjwt
+          def api(url, payload=None, tok=None, method=None):
+              data = json.dumps(payload).encode() if payload is not None else None
+              h = {"Content-Type": "application/json", "Accept": "application/vnd.github+json", "User-Agent": "open-projection"}
+              if tok: h["Authorization"] = f"Bearer {tok}"
+              req = urllib.request.Request(url, data=data, headers=h, method=method or ("POST" if data else "GET"))
+              with urllib.request.urlopen(req, timeout=45) as r: return json.load(r)
+          env_file = os.environ.get("GITHUB_ENV")
+          res = api("https://app.infisical.com/api/v1/auth/universal-auth/login",
+                    {"clientId": os.environ["INFISICAL_CLIENT_ID"], "clientSecret": os.environ["INFISICAL_CLIENT_SECRET"]})
+          secs = api(f"https://app.infisical.com/api/v3/secrets/raw?workspaceId={os.environ['INFISICAL_PROJECT_ID']}&environment=prod&recursive=true",
+                     tok=res["accessToken"])
+          kv = {s["secretKey"].upper(): s.get("secretValue") or "" for s in secs.get("secrets", [])}
+          app_id, pem = kv["AGENT_PLATFORM_APP_ID"], kv["AGENT_PLATFORM_PRIVATE_KEY"]
+          now = int(time.time())
+          jwt_tok = pyjwt.encode({"iat": now-60, "exp": now+540, "iss": str(app_id)}, pem, algorithm="RS256")
+          insts = api("https://api.github.com/app/installations", tok=jwt_tok)
+          il = insts["installations"] if isinstance(insts, dict) else insts
+          inst = next(i for i in il if i["account"]["login"] == "paykaribazaronline")
+          itok = api(f"https://api.github.com/app/installations/{inst['id']}/access_tokens", tok=jwt_tok, payload={})
+          with open(env_file, "a") as f: f.write(f"OPEN_TOKEN<<EOF\n{itok['token']}\nEOF\n")
+          print("[ok] installation token minted (paykaribazaronline)")
+          PY
+
+      - name: নির্বাচিত path সংগ্রহ (PROJECTION_MAP)
+        run: |
+          mkdir -p "$WORKDIR"
+          echo "$PROJECTION_MAP" | while IFS= read -r pair; do
+            [ -z "$pair" ] && continue
+            src="${pair%%:*}"; dst="${pair#*:}"
+            mkdir -p "$WORKDIR/$(dirname "$dst")"
+            cp -r "$src" "$WORKDIR/$dst"
+          done
+          find "$WORKDIR" -type f | wc -l
+
+      - name: gitleaks fail-closed স্ক্যান (প্রজেকশন-সেটে)
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar -xz
+          ./gitleaks detect --source "$WORKDIR" --no-git --redact --exit-code 1
+          echo "[ok] শূন্য-লিক প্রমাণিত"
+
+      - name: Checkout open + diff (DRY_RUN=true হলে শুধু দেখাও)
+        run: |
+          git clone -q "https://x-access-token:${OPEN_TOKEN}@github.com/${OPEN_REPO}.git" open-clone
+          rsync -a --delete "$WORKDIR"/ open-clone/ --exclude .git
+          cd open-clone
+          git add -A
+          git diff --cached --stat
+          if [ "${{ inputs.dry_run || 'false' }}" = "true" ]; then
+            echo "[dry-run] push বাদ — উপরের diff যাচাই করো"; exit 0
+          fi
+
+      - name: Push to supremeai-open (generated-repo নীতি)
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          cd open-clone
+          git -c user.name="supremeai-agent" -c user.email="agent@supremeai.local" \
+            commit -q -m "docs(open): projection sync from live main $(date -u +%F-%H%M) [skip ci]"
+          git push -q origin main
+          echo "[ok] supremeai-open main হালনাগাদ"
+
+      - name: ব্যর্থতা-সতর্কতা (sync ভাঙলে ফেস-পুরনো হয়ে থাকবে)
+        if: failure()
+        run: echo "::warning::Open-projection ব্যর্থ — supremeai-open পুরনো হয়ে আছে; তদন্ত দরকার"

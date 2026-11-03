@@ -1,0 +1,45 @@
+# docs/03-architecture/service_registry.yaml
+# Managed by: Learner Agent (The Historian) & Cost Auditor Agent
+# Purpose: Prevent "Service Sprawl" by tracking why each 3rd-party service exists and its cost implications.
+
+services:
+  - id: "render"
+    name: "Render"
+    category: "Hosting & Infrastructure"
+    status: "Active"
+    pricing_tier: "Free Tier (500 Build Minutes/mo, Zero Cost Static Hosting)"
+    added_date: "2026-07"
+    reason_for_adoption: >
+      Replaced Firebase and Vercel for the frontend to consolidate infrastructure into a single
+      "Zero Cost Blueprint". Render provides infinitely scaling Static Site hosting for free,
+      and Docker-based web services for the backend.
+    used_by: ["supremeai-backend", "supremeai-studio-client"]
+    maintainer_agent: "Cost Auditor"
+    health_endpoint: "https://api.render.com"
+
+  - id: "upstash-redis"
+    name: "Upstash Redis"
+    category: "Message Broker & Cache"
+    status: "Active"
+    pricing_tier: "Free Tier (256 MB / 10k req/day)"
+    added_date: "2026-07"
+    reason_for_adoption: >
+      Selected as the primary Message Broker over Render's Native Redis because Render's free tier
+      only provides 25 MB, which is insufficient for inter-agent communication (Swarm Intelligence).
+      Upstash provides 256 MB for free and acts as the backbone for SyncGuard's Pub/Sub broadcasts.
+    used_by: ["SyncGuard Agent", "Developer Agent", "Architect Agent"]
+    maintainer_agent: "Cost Auditor"
+    health_endpoint: "redis://..."
+
+  - id: "github-actions"
+    name: "GitHub Actions"
+    category: "CI/CD & Orchestration"
+    status: "Active"
+    pricing_tier: "Free Tier (2,000 minutes/mo for private repos)"
+    added_date: "2024"
+    reason_for_adoption: >
+      Acts as the primary "Iron Gate" (Shift-Left Security). Executes pre-merge checks, tests,
+      and triggers the SyncGuard Agent to verify blueprint sync before any deployments.
+    used_by: ["CI/CD Pipeline", "SyncGuard Agent"]
+    maintainer_agent: "Cost Auditor"
+    health_endpoint: "https://api.github.com"
