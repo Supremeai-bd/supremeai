@@ -47,24 +47,20 @@
   floor holds across the 48th–59th censuses (67P/0F/0E), laws
   held, refill 5 → 40 witnessed.
 
-## Cycles 78-81 (2026-11-03 14:16 to 18:16+08) - r70 reaped unmerged, RESUBMIT lived
+- r70 #5646 (REAPED unmerged 09:47Z, blob 075bb813 never landed) +
+  r71 #5726 7676a87f (Cycles 77-81): the first merge-miss of the
+  chain — a clean PR the harvester skipped, MERGE-WATCH born in
+  response; r71 folded the r70 facts and landed byte-identical.
+## Cycle 82 (2026-11-03 19:16+08) — r71 verified, MERGE-WATCH lived
 
-- r70 SUBMITTED as PR #5646 (tip c28ccf12, blob 075bb813, baseSha
-  2f66438e, first-try green, delta-verified) but the landing machine
-  never picked it - neighbours merged inside 2 minutes of creation,
-  mine sat 3.5 h and a reaper closed it 09:47:45Z with mergedAt null.
-  Root cause: the PR was clean (single commit, parent 4a75b248 =
-  then-tip, mode 100644, no conflict) - a harvester gap, not a content
-  defect. NEW LAW MERGE-WATCH: bridge PRs merge inside 2 minutes at
-  cadence, a receipt PR still open after 1 h is a merge-miss - probe
-  the PR state right after submit and resubmit next cycle, never wait
-  out the reaper.
-- Green floor held through the churn: 61st census @ fc90b49c 67P/0F/0E
-  7.42 s (c88), 62nd @ ff6e0c80 67P/0F/0E 12 subtests 7.50 s (c89) -
-  thirty-five consecutive green. Board pump 39 to 49, then a
-  MEGA-DRAIN to 5 in one window, none mine, bare loop 9/9 PASS each
-  cycle, the 17:16 cron never delivered (CRON-GAP noted).
-- r71 = this receipt: r70 facts folded here, the slot stayed 2f66438e
-  so baseSha is unchanged, content built as cp + tail-replace of the
-  r70 file per WORKLOG-PLANE - this landing is the 70th receipt, zero
-  duplicates.
+- r71 LANDED-VERIFY: #5726 squash 7676a87f, slot-blob 00085d77
+  byte-identical (4203 bytes) — 70 landings, zero duplicates.
+  Submission weather: attempt-1 502, attempt-2 green, and the
+  MERGE-WATCH probe confirmed the merge inside one minute of birth.
+- SIXTY-THIRD CENSUS @ 374e4262: 67P/0F/0E, 12 subtests 7.17 s —
+  thirty-sixth green. Board drain 49 → 5 then refill to 15 (SWEEP-11
+  witnessed), none mine, claimable 0, bare loop 9/9 PASS.
+  GLM16-SUBMIT-GATE law: builders default to a true dry-run, the
+  tower call only fires behind the explicit flag.
+- r72 = this receipt, the 71st landing, zero duplicates. baseSha
+  00085d77 unchanged at tip.
