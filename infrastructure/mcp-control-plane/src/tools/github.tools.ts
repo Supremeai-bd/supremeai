@@ -491,61 +491,115 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
   server.registerTool(
     "github.inspect_pr_diff",
     {
-      description: "Inspect merged PR diffs from the local archive index. Enables agents to query historical PR changes, file diffs, and modifications without hitting GitHub rate limits.",
+      description: "Query PR diff intelligence and file modifications. Priority 1: Supabase DB metadata lookup. Priority 2: Direct GitHub API fallback. Never depends on local filesystem storage.",
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
       inputSchema: {
-        pr_number: z.number().describe("The merged PR number to inspect (e.g. 5744)"),
+        pr_number: z.number().describe("The PR number to inspect (e.g. 5744)"),
         file_path_filter: z.string().optional().describe("Optional substring filter to only show diff chunks for specific files"),
         max_lines: z.number().optional().describe("Maximum lines of diff to return (default: 300)"),
       },
       outputSchema: targetEchoSchema,
     },
     async ({ pr_number, file_path_filter, max_lines }) => {
-      const fs = await import("fs");
-      const path = await import("path");
       const limit = max_lines ?? 300;
-      
-      const diffPath = path.resolve(process.cwd(), "docs/archive/merged_pr_diffs", `pr_${pr_number}.diff`);
-      if (!fs.existsSync(diffPath)) {
-        return {
-          isError: true,
-          content: [{ type: "text", text: `Diff for PR #${pr_number} not found in docs/archive/merged_pr_diffs/` }],
-        };
-      }
+      let rawDiff = "";
 
+      // 1. Primary: Try fetching PR metadata from Supabase database
       try {
-        const raw = fs.readFileSync(diffPath, "utf-8");
-        const lines = raw.split("\n");
-        let outputLines: string[] = [];
+        const { readTable } = await import("../adapters/supabase/index.js");
+        const rows = (await readTable(
+          "supabase-primary",
+          "pr_intelligence_index",
+          "*",
+          1,
+          `pr_number=eq.${pr_number}`
+        )) as any[];
 
-        if (file_path_filter) {
-          let inTargetChunk = false;
-          for (const line of lines) {
-            if (line.startsWith("diff --git ")) {
-              inTargetChunk = line.toLowerCase().includes(file_path_filter.toLowerCase());
+        if (rows && rows.length > 0) {
+          const meta = rows[0];
+          if (file_path_filter && meta.files_changed && Array.isArray(meta.files_changed)) {
+            const hasFile = meta.files_changed.some((f: string) =>
+              f.toLowerCase().includes(file_path_filter.toLowerCase())
+            );
+            if (!hasFile) {
+              return {
+                content: [{
+                  type: "text",
+                  text: `PR #${pr_number} does not touch file matching '${file_path_filter}'.\nFiles modified in PR #${pr_number}: ${meta.files_changed.join(", ")}`,
+                }],
+                structuredContent: { targetRepo: "Supremeai-bd/supremeai-open", targetUrl: `https://github.com/Supremeai-bd/supremeai-open/pull/${pr_number}` },
+              };
             }
-            if (inTargetChunk) {
-              outputLines.push(line);
-              if (outputLines.length >= limit) {
-                outputLines.push(`\n... [Truncated: reached ${limit} lines limit]`);
-                break;
-              }
-            }
-          }
-        } else {
-          outputLines = lines.slice(0, limit);
-          if (lines.length > limit) {
-            outputLines.push(`\n... [Truncated: showing first ${limit} of ${lines.length} lines]`);
           }
         }
-
-        return {
-          content: [{ type: "text", text: outputLines.join("\n") }],
-          structuredContent: { targetRepo: "Supremeai-bd/supremeai-open", targetUrl: `https://github.com/Supremeai-bd/supremeai-open/pull/${pr_number}` },
-        };
-      } catch (err) {
-        return { isError: true, content: [{ type: "text", text: `Error reading PR diff: ${(err as Error).message}` }] };
+      } catch {
+        // Database optional or table not yet populated; proceed to GitHub API
       }
+
+      // 2. Secondary / Universal Fallback: Direct GitHub API with application/vnd.github.v3.diff
+      try {
+        const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+        const headers: Record<string, string> = {
+          "User-Agent": "SupremeAI-Agent",
+          Accept: "application/vnd.github.v3.diff",
+        };
+        if (token) {
+          headers["Authorization"] = `token ${token}`;
+        }
+
+        const res = await fetch(`https://api.github.com/repos/Supremeai-bd/supremeai-open/pulls/${pr_number}`, {
+          headers,
+        });
+
+        if (res.ok) {
+          rawDiff = await res.text();
+        } else if (res.status === 404) {
+          return {
+            isError: true,
+            content: [{ type: "text", text: `PR #${pr_number} not found on GitHub repository Supremeai-bd/supremeai-open` }],
+          };
+        } else {
+          return {
+            isError: true,
+            content: [{ type: "text", text: `GitHub API returned HTTP ${res.status}: ${res.statusText}` }],
+          };
+        }
+      } catch (err) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Error fetching PR diff from GitHub: ${(err as Error).message}` }],
+        };
+      }
+
+      // 3. Process lines and filter if requested
+      const lines = rawDiff.split("\n");
+      let outputLines: string[] = [];
+
+      if (file_path_filter) {
+        let inTargetChunk = false;
+        for (const line of lines) {
+          if (line.startsWith("diff --git ")) {
+            inTargetChunk = line.toLowerCase().includes(file_path_filter.toLowerCase());
+          }
+          if (inTargetChunk) {
+            outputLines.push(line);
+            if (outputLines.length >= limit) {
+              outputLines.push(`\n... [Truncated: reached ${limit} lines limit]`);
+              break;
+            }
+          }
+        }
+      } else {
+        outputLines = lines.slice(0, limit);
+        if (lines.length > limit) {
+          outputLines.push(`\n... [Truncated: showing first ${limit} of ${lines.length} lines]`);
+        }
+      }
+
+      return {
+        content: [{ type: "text", text: outputLines.join("\n") }],
+        structuredContent: { targetRepo: "Supremeai-bd/supremeai-open", targetUrl: `https://github.com/Supremeai-bd/supremeai-open/pull/${pr_number}` },
+      };
     }
   );
 }

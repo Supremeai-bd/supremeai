@@ -47,41 +47,45 @@
   first-try-healthy no-pick, 13th cycle on baseline; r42 #5703
   (9a937e6) heartbeat-brownout-absorbed no-pick, 14th cycle on
   baseline; r43 #5717 (bce3470) drain-bottom observation no-pick,
-  15th cycle on baseline.
+  15th cycle on baseline; r44 #5746 (374e426) refill-again no-pick,
+  16th cycle on baseline; r45 #5762 (5a146f1) refill-holds no-pick,
+  17th cycle on baseline.
 
-## Cycle 44 (2026-11-03 19:09+08) — refill-again no-pick, 16th cycle on baseline
+## Cycle 46 (2026-11-03 21:09+08) — refill-3rd-window no-pick, 18th cycle on baseline
 
-- Back-to-back window (3rd consecutive: c42→c43→c44 — longest
-  consecutive-trigger streak since the r34→r35 era). Heartbeat,
-  dispatch ×2, submit: all first-try healthy; zero brownout.
-- Board 13 rows (2→13): refill leg after the c43 drain bottom —
-  the post-drain refill direction now observed at c39 (10→19) and
-  again at c44 (2→13). Falsifier (mid-arc stall) did not fire;
-  amplitude not cited per law. PR plane 1 open (UNSEEN per-PR).
-  Claimable 0/5 → no-pick.
-- Census: 67 passed / 0 failed / 12 subtests EXIT=0 @ bf78eda
-  (9.19s) — 16th consecutive cycle on the 67P baseline. CI-gate
-  rehearsal 5/5 PASS; standing watch: claim_ttl intact (TTL SSOT
-  True=3h, OSError fail-closed True).
+- 5th consecutive trigger (c42→c46). Heartbeat first-try; dispatch
+  run 1 REAL read: board 26 rows (19→26 — refill leg's 3rd
+  consecutive window, longest post-drain climb observed on this
+  lane); run 2 tower 429 dark — run-1 read stands (U2 per-read,
+  c43/c45 ruling). PR plane 1 open (UNSEEN per-PR). Claimable 0/5
+  → no-pick.
+- Upstream tower CODE landed this window (#5782 database-first PR
+  diff intelligence) — first non-bridge HEAD seen in days; census
+  re-run at the new tip anyway per freshness rule.
+- Census: 67 passed / 0 failed / 12 subtests EXIT=0 @ 380b3c3
+  (9.23s) — 18th consecutive cycle on the 67P baseline, holding
+  across the upstream code landing. CI-gate rehearsal 5/5 PASS;
+  standing watch: claim_ttl intact (TTL SSOT True=3h, OSError
+  fail-closed True).
 
 ## Reflection Evidence
 
-- **why:** the drain bottom is never certified as a state, only as
-  a reading — one window later the board is already refilling
-  (2→13), which is exactly why U2 forbids certifying a drained
-  board as "clean": the board is a flow, not a stock. The
-  three-window consecutive streak shows cadence is bounded purely
-  by trigger delivery; the lane itself has no rate bottleneck
-  (every channel first-try healthy).
-- **alternatives_rejected:** certifying the 2-row board at c43 as
-  a stable end-state (refilled within one window — U2 vindicated);
-  citing 2→13 as a refill-rate law parameter (direction only);
-  chasing the 1 visible PR's check status (loop's threshold said
-  0/5 claimable; racing it manufactures noise); keeping the c43
-  section verbatim (folded per keep-small).
+- **why:** the upstream tower-code landing (#5782) was the real
+  test of the census baseline this window — intake planes (board,
+  PR) are noisy by design, but a code change to the tower itself
+  could plausibly shift test outcomes; re-running the full census
+  at the new tip and holding 67P ×18 is what turns "baseline" from
+  a habit into a measurement. Refill leg at 3 windows beats every
+  prior post-drain climb — direction continues, falsifier still
+  silent.
+- **alternatives_rejected:** skipping the census re-run because
+  the landing was "someone else's" code (freshness rule requires
+  verification at the actual tip); citing 26 as a law parameter;
+  racing the loop's 0/5 threshold; keeping the c45 section
+  verbatim (folded per keep-small).
 
 ## Rollback
 
-Docs-only in-place replace of the Cycle 44 section (baseSha recorded
-at submission): revert of the landed r44 PR restores the r43 blob.
+Docs-only in-place replace of the Cycle 46 section (baseSha recorded
+at submission): revert of the landed r46 PR restores the r45 blob.
 No code, test, or workflow surface touched this cycle.

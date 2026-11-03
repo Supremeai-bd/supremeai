@@ -290,23 +290,25 @@ export const BRIDGE_RECEIPT_LABEL = "bridge:receipt";
  * সব pure helpers exported — অফলাইন ব্যাটারিতে যাচাই হয়।
  */
 
-/** Known satellite anchors → private satellite repos (single-target rule per Golden 6-Domain topology). */
+/**
+ * Topology Architecture (Pure 3-Domain Model):
+ * Studio frontend anchors route to Supremeai-bd/supremeai-studio.
+ * All internal backend, core, gateway, browser, vscode, and infrastructure paths
+ * route directly to Supremeai-bd/supremeai (the Umbrella monorepo).
+ */
 const SATELLITE_REPO_MAP: ReadonlyArray<{ anchor: string; repo: string }> = [
-  { anchor: "infrastructure/mcp-control-plane/", repo: "Supremeai-bd/supremeai-api" },
-  { anchor: "gateway/", repo: "Supremeai-bd/supremeai-api" },
   { anchor: "studio/", repo: "Supremeai-bd/supremeai-studio" },
-  { anchor: "browser/", repo: "Supremeai-bd/supremeai-browser" },
-  { anchor: "vscode/", repo: "Supremeai-bd/supremeai-vscode" },
-  { anchor: "core/", repo: "Supremeai-bd/supremeai-core" },
+  { anchor: "infrastructure/mcp-control-plane/", repo: "Supremeai-bd/supremeai" },
+  { anchor: "gateway/", repo: "Supremeai-bd/supremeai" },
+  { anchor: "browser/", repo: "Supremeai-bd/supremeai" },
+  { anchor: "vscode/", repo: "Supremeai-bd/supremeai" },
+  { anchor: "core/", repo: "Supremeai-bd/supremeai" },
 ];
 
-/** Canonical 6 Active Domain Anchor Hub Issue Numbers on Supremeai-bd/supremeai-open */
+/** Canonical Active Domain Anchor Hub Issue Numbers on Supremeai-bd/supremeai-open */
 export const DOMAIN_ANCHOR_HUBS: Record<string, number> = {
   "Supremeai-bd/supremeai-studio": 749,
-  "Supremeai-bd/supremeai-api": 750,
-  "Supremeai-bd/supremeai-core": 751,
-  "Supremeai-bd/supremeai-vscode": 754,
-  "Supremeai-bd/supremeai-browser": 756,
+  "Supremeai-bd/supremeai": 761,
   "Supremeai-bd/supremeai-open": 762,
 };
 

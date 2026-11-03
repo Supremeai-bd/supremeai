@@ -35,13 +35,20 @@ if hasattr(sys.stdout, "reconfigure"):
 
 # Mapping of target repository to its source directory in supremeai-open
 # (slug -> relative source path in supremeai-open)
+# Mapping of active target satellite repository to its source directory in supremeai-open
+# Under Pure 3-Repository Topology SSOT (#5767), Studio is the sole active satellite UI desk.
+# Core, Gateway, Browser, VSCode are unified into Supremeai-bd/supremeai (Umbrella Monorepo SSOT).
 DOMAIN_MAP: dict[str, str] = {
     "Supremeai-bd/supremeai-studio": "studio",
-    "Supremeai-bd/supremeai-core": "core",
-    "Supremeai-bd/supremeai-api": "gateway",
-    "Supremeai-bd/supremeai-browser": "browser",
-    "Supremeai-bd/supremeai-vscode": "vscode",
 }
+
+# Historical archived satellites (permanently retired to supremeai-archive)
+RETIRED_SATELLITES: frozenset[str] = frozenset({
+    "Supremeai-bd/supremeai-core",
+    "Supremeai-bd/supremeai-api",
+    "Supremeai-bd/supremeai-browser",
+    "Supremeai-bd/supremeai-vscode",
+})
 
 # Dynamic Anchor Verification: Ensure all domain targets are registered in federation_anchors SSOT
 try:
@@ -58,7 +65,6 @@ except Exception:
 # (e.g. Cloudflare Pages deploy in supremeai-studio)
 DEPLOY_TARGETS: set[str] = {
     "Supremeai-bd/supremeai-studio",
-    "Supremeai-bd/supremeai-vscode",
 }
 
 # (#3441 root cause) Satellites whose OWN CI surface imports the domain mirror
@@ -71,20 +77,7 @@ DEPLOY_TARGETS: set[str] = {
 # artifact to delete — it is a REQUIRED import surface that must be kept
 # FRESH. The sync therefore re-copies the domain into the package path with
 # prune=True on every run: a sync-managed exact copy can never drift.
-PACKAGE_SHADOW_REFRESH_TARGETS: set[str] = {
-    "Supremeai-bd/supremeai-core",
-    # (#3649 root cause, 2026-10-31) supremeai-api joins core in the
-    # package-surface class: the #1772 package-true layout made the satellite's
-    # Dockerfile CMD import `gateway.service.app:app` from the nested copy, so
-    # `satellite_root/gateway/` is load-bearing exactly like core's `core.*`.
-    # With the default prune policy the #1676 shadow guard deleted the fresh
-    # gateway/ tree right after the api block copied it — every Render build
-    # then died at `COPY gateway/ gateway/` ("/gateway": not found; 5 failed
-    # auto-deploys 13:02-16:23Z, commit e7694bc) while the Dockerfile at the
-    # satellite root stayed perfectly in sync. Same lesson as #3441: a
-    # package-surface satellite must get refresh_package, never prune.
-    "Supremeai-bd/supremeai-api",
-}
+PACKAGE_SHADOW_REFRESH_TARGETS: set[str] = set()
 
 # (#3441 root cause) Satellites the federation DELIBERATELY keeps outside the
 # sync token's reach (cloaked by admin decision). Only repos listed here may
@@ -102,174 +95,9 @@ SATELLITE_CLOAK_ALLOWLIST: frozenset[str] = frozenset()
 # (source_rel_in_open, target_repo, target_rel_in_satellite)
 CONTRACT_MIRROR_PAIRS: list[tuple[str, str, str]] = [
     (
-        "examples/gateway_client.py",
-        "Supremeai-bd/supremeai-api",
-        "scripts/clients/gateway_client.py",
-    ),
-    (
-        "api-schemas/gateway.openapi.yaml",
-        "Supremeai-bd/supremeai-api",
-        "contracts/openapi.yaml",
-    ),
-    (
-        "api-schemas/context-assembly.schema.json",
-        "Supremeai-bd/supremeai-api",
-        "contracts/schemas/context-assembly.schema.json",
-    ),
-    (
-        "api-schemas/dashboard.schema.json",
-        "Supremeai-bd/supremeai-api",
-        "contracts/schemas/dashboard.schema.json",
-    ),
-    (
-        "api-schemas/federated-ci-failure.schema.json",
-        "Supremeai-bd/supremeai-api",
-        "contracts/schemas/federated-ci-failure.schema.json",
-    ),
-    (
-        "api-schemas/guardian-evaluation.schema.json",
-        "Supremeai-bd/supremeai-api",
-        "contracts/schemas/guardian-evaluation.schema.json",
-    ),
-    (
-        "api-schemas/heartbeat.schema.json",
-        "Supremeai-bd/supremeai-api",
-        "contracts/schemas/heartbeat.schema.json",
-    ),
-    (
-        "api-schemas/instruction-envelope.schema.json",
-        "Supremeai-bd/supremeai-api",
-        "contracts/schemas/instruction-envelope.schema.json",
-    ),
-    (
-        "api-schemas/memory-search.schema.json",
-        "Supremeai-bd/supremeai-api",
-        "contracts/schemas/memory-search.schema.json",
-    ),
-    (
-        "api-schemas/permissions.schema.json",
-        "Supremeai-bd/supremeai-api",
-        "contracts/schemas/permissions.schema.json",
-    ),
-    (
-        "api-schemas/provider-registry.schema.json",
-        "Supremeai-bd/supremeai-api",
-        "contracts/schemas/provider-registry.schema.json",
-    ),
-    (
-        "api-schemas/task-router.schema.json",
-        "Supremeai-bd/supremeai-api",
-        "contracts/schemas/task-router.schema.json",
-    ),
-    (
-        "api-schemas/telemetry-log.schema.json",
-        "Supremeai-bd/supremeai-api",
-        "contracts/schemas/telemetry-log.schema.json",
-    ),
-    (
-        "api-schemas/webhook-notification.schema.json",
-        "Supremeai-bd/supremeai-api",
-        "contracts/schemas/webhook-notification.schema.json",
-    ),
-    (
-        "api-schemas/websocket-events.schema.json",
-        "Supremeai-bd/supremeai-api",
-        "contracts/schemas/websocket-events.schema.json",
-    ),
-    (
-        "skills",
-        "Supremeai-bd/supremeai-core",
-        "skills",
-    ),
-    (
-        "evals",
-        "Supremeai-bd/supremeai-core",
-        "evals",
-    ),
-    (
-        "tests/test_tiny_brain_service.py",
-        "Supremeai-bd/supremeai-core",
-        "tests/test_tiny_brain_service.py",
-    ),
-    (
-        "tests/test_core_exports.py",
-        "Supremeai-bd/supremeai-core",
-        "tests/test_core_exports.py",
-    ),
-    (
-        "tests/test_brain_curriculum.py",
-        "Supremeai-bd/supremeai-core",
-        "tests/test_brain_curriculum.py",
-    ),
-    (
-        "tests/test_kaggle_orchestrator_dual_brain.py",
-        "Supremeai-bd/supremeai-core",
-        "tests/test_kaggle_orchestrator_dual_brain.py",
-    ),
-    (
-        "examples/curl-tests",
-        "Supremeai-bd/supremeai-api",
-        "examples/curl-tests",
-    ),
-    (
-        "examples/mcp-client-py",
-        "Supremeai-bd/supremeai-api",
-        "examples/mcp-client-py",
-    ),
-    (
-        "examples/mcp-client-ts",
-        "Supremeai-bd/supremeai-api",
-        "examples/mcp-client-ts",
-    ),
-    (
-        "examples/langchain-mcp-bot",
-        "Supremeai-bd/supremeai-api",
-        "examples/langchain-mcp-bot",
-    ),
-    (
-        "examples/vercel-ai-mcp",
-        "Supremeai-bd/supremeai-api",
-        "examples/vercel-ai-mcp",
-    ),
-    (
-        "tests/test_gateway_foundation.py",
-        "Supremeai-bd/supremeai-api",
-        "tests/test_gateway_foundation.py",
-    ),
-    (
-        "tests/test_gateway_shield.py",
-        "Supremeai-bd/supremeai-api",
-        "tests/test_gateway_shield.py",
-    ),
-    (
-        "tests/test_mcp_access_policy_guard.py",
-        "Supremeai-bd/supremeai-api",
-        "tests/test_mcp_access_policy_guard.py",
-    ),
-    (
-        "tests/test_openapi_breaking_guard.py",
-        "Supremeai-bd/supremeai-api",
-        "tests/test_openapi_breaking_guard.py",
-    ),
-    (
         "examples/dashboard-preview",
         "Supremeai-bd/supremeai-studio",
         "examples/dashboard-preview",
-    ),
-    (
-        "examples/vscode-agent-monitor",
-        "Supremeai-bd/supremeai-vscode",
-        "examples/vscode-agent-monitor",
-    ),
-    (
-        "tests/test_browser_foundation.py",
-        "Supremeai-bd/supremeai-browser",
-        "tests/test_browser_foundation.py",
-    ),
-    (
-        "tests/test_browser_injection_canary.py",
-        "Supremeai-bd/supremeai-browser",
-        "tests/test_browser_injection_canary.py",
     ),
 ]
 
@@ -290,40 +118,9 @@ ARCHIVE_MIRROR_PAIRS: list[tuple[str, str]] = []
 SENTINEL_MANIFEST_PATH = Path("scripts/ci/satellite_sentinels.json")
 DEFAULT_SENTINEL_PAIRS: list[dict[str, str]] = [
     {
-        "open": "gateway/main.py",
-        "satellite": "Supremeai-bd/supremeai-api",
-        "path": "main.py",
-        "note": "satellite root entrypoint artifact - drift source of #1689",
-    },
-    {
-        "open": "core/main.py",
-        "satellite": "Supremeai-bd/supremeai-core",
-        "path": "main.py",
-    },
-    {
-        "open": "browser/main.py",
-        "satellite": "Supremeai-bd/supremeai-browser",
-        "path": "main.py",
-    },
-    {
         "open": "studio/package.json",
         "satellite": "Supremeai-bd/supremeai-studio",
         "path": "package.json",
-    },
-    {
-        "open": "vscode/package.json",
-        "satellite": "Supremeai-bd/supremeai-vscode",
-        "path": "package.json",
-    },
-    {
-        "open": "api-schemas/gateway.openapi.yaml",
-        "satellite": "Supremeai-bd/supremeai-api",
-        "path": "contracts/openapi.yaml",
-    },
-    {
-        "open": "examples/gateway_client.py",
-        "satellite": "Supremeai-bd/supremeai-api",
-        "path": "scripts/clients/gateway_client.py",
     },
 ]
 
@@ -1228,16 +1025,12 @@ def verify_sentinels(
 
 def self_test() -> bool:
     """Self-test verifying contract and mappings."""
-    assert len(DOMAIN_MAP) == 5, (
-        f"Expected 5 active satellites in DOMAIN_MAP, got {len(DOMAIN_MAP)}"
+    assert len(DOMAIN_MAP) == 1, (
+        f"Expected 1 active satellite (Studio) in DOMAIN_MAP under 3-repo topology, got {len(DOMAIN_MAP)}"
     )
     assert "Supremeai-bd/supremeai-studio" in DOMAIN_MAP
-    assert "Supremeai-bd/supremeai-core" in DOMAIN_MAP
-    assert "Supremeai-bd/supremeai-api" in DOMAIN_MAP
-    assert "Supremeai-bd/supremeai-browser" in DOMAIN_MAP
-    assert "Supremeai-bd/supremeai-vscode" in DOMAIN_MAP
-    assert len(CONTRACT_MIRROR_PAIRS) >= 2, (
-        "Expected at least 2 mirrored contract pairs"
+    assert len(CONTRACT_MIRROR_PAIRS) >= 1, (
+        "Expected at least 1 mirrored contract pair"
     )
     for open_rel, sat_repo, sat_rel in CONTRACT_MIRROR_PAIRS:
         assert sat_repo in DOMAIN_MAP, (
@@ -1297,9 +1090,9 @@ def self_test() -> bool:
             f"Sentinel target {p['satellite']} must be a mapped satellite"
         )
     assert any(
-        p["open"] == "gateway/main.py" and p["path"] == "main.py"
+        p["open"] == "studio/package.json" and p["path"] == "package.json"
         for p in DEFAULT_SENTINEL_PAIRS
-    ), "api satellite root main.py parity pair is mandatory (#1689)"
+    ), "studio satellite package.json parity pair is mandatory"
     with tempfile.TemporaryDirectory() as td:
         fake_root = Path(td)
         assert load_sentinel_pairs(fake_root) == [dict(p) for p in DEFAULT_SENTINEL_PAIRS], (
@@ -1485,7 +1278,7 @@ def main() -> int:
     # check is observational only (the contents API can lag a just-pushed ref) and
     # never flips the sync exit code.
     try:
-        obs_clean, obs_drift, obs_errors = verify_sentinels(repo_root, token)
+        obs_clean, obs_drift, obs_errors = verify_sentinels(repo_root, token, only_satellites=list(DOMAIN_MAP.keys()))
         print(
             f"🛡️ [observe] post-sync sentinels: "
             f"{len(obs_clean)} clean / {len(obs_drift)} drift / {len(obs_errors)} errors"

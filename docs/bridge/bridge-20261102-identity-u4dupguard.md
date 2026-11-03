@@ -130,50 +130,51 @@
   record high 57 no reap, cohort round 7 6/6 open,
   elder 28th 62.09h >62h class, telegram 9th window
   ~15h, census 40th 67P.
+- a117 #5731 fb02236e (10:32Z): IN-PLACE #24 — SWEEP-11
+  captured (57->5, net -52), cohort round 8 0/6 batch
+  bracket 09:44:48-09:47:20Z, elder fallen 62.87h,
+  telegram streak ended, census 41st 67P.
 
-## a117 cycle (read 10:21-10:25Z)
+## a118 cycle (read 12:24-12:26Z)
 
-- **SWEEP-11 CAPTURED — the largest reap in lane
-  memory**: board 57 @09:22:16Z (a116 pre-drain
-  snapshot, all open) -> 5 @10:21:56Z (net -52 in ~60m;
-  Sentry c140 windowed the drain 54->3 @09:29-09:50Z).
-  Post-drain refill already live: floor rows all mints
-  #5711..#5720 (from 09:41:34Z).
-- **Cohort instrument round 8: 0/6 — ALL SIX CLOSED
-  (completed)** with close-stamp bracket 09:44:48Z
-  (#5607) -> 09:47:20Z (#5553), ~2.5min batch — the
-  SWEEP-10 minutes-scale batch signature reproduced.
-  The four-round all-open streak (rounds 4-7) ended
-  exactly per the batch model: survivors are taken
-  in batches, not opportunistically.
-- **THE ELDER HAS FALLEN**: #4535 closed (completed)
-  @ 10:08:41Z — an out-of-band single close ~21min
-  AFTER the main batch (#4905 precedent class);
-  tenancy at close 62.87h (created 10-31 19:16:44Z);
-  28 lane reads open, 29th closed; survived 9
-  witnessed sweeps, taken by the 11th. **Durable fact
-  2's in-gates durability BROKEN — no row is exempt;
-  'durable' only meant 'not yet reached' (#4898 law
-  generalized to the longest-running counterexample).**
-- **TELEGRAM 9-window streak ENDED**: 17/4/1/0
-  @10:23:06Z, telegram-primary unreachable — first
-  witnessed blip since the 18:23:33Z recovery; last
-  healthy read 09:22:29Z (a116) bounds the clean
-  stretch at ~15h (sampling-bound bracket 09:22-10:23Z).
-  Render-quad unchanged; render-brain 'live' crack
-  holds (8th consecutive read).
-- **PR face UNREADABLE this cycle** (3 attempts, no-JSON
-  under contention) — last-known n=4 (a116); #5695
-  fix(mcp-tower) LANDED 09:46:00Z (41afe361 per
-  origin/main). **Census 41st: 67P/12sub @10.25s —
-  25th consecutive all-green.**
+- **Post-drain refill strong, no second drain**: board
+  5 @10:21:56Z -> 22 @12:24:11Z (+17 in ~2h02m ~8.4/h),
+  top-20 all mints #5716..#5765; #5711/#5714 open
+  beyond rank 20. The climb matches the pre-drain
+  slope band — the pump does not pause after a drain.
+- **Cohort instrument round 9 (re-seeded on the new
+  floor stratum): 5/5 probed OPEN** @12:24:13-18Z
+  (#5711/#5714/#5716/#5718/#5720) — first round on
+  the post-SWEEP-11 generation; ~2h tenancy so far.
+- **New-elder hunt settled — and a117 retroactively
+  refined**: #5213 closed, close stamp 10:08:37Z —
+  4 SECONDS before the elder's 10:08:41Z. The a117
+  'out-of-band single close' was a TWO-ROW trailing
+  close: both longest-tenancy survivors taken
+  together. New oldest open row: #5711 (created
+  09:41:34Z, ~2.71h at read) — the board is now
+  entirely young (max age <3h); the elder instrument
+  re-seeds from a mint.
+- **TELEGRAM RECOVERED**: healthy @12:24:25Z — the
+  10:23:06Z blip healed within a 10:23-12:24Z
+  bracket, consistent with the 1h self-heal class
+  canon (bracket-bound, not exact). **NEW degradation:
+  the github-pay quad** (core/api/browser/vscode) all
+  non-healthy (deployStatus None) — first witnessed;
+  14/8/0/0. Render-quad unchanged; render-brain
+  'live' crack holds (9th consecutive read).
+- **Husk face CLEARED**: #5117 (~37h last-witnessed),
+  #5214 (~32h), #5646 all exited the open PR face —
+  exit stamps unretrievable (closed-face list adapter
+  returns a recency page without addressing); exit
+  mode unverified. New face n=3, all fresh (#5767 ci
+  auto-sync / #5758 graphify / #5732 r62). **Census
+  42nd: 67P/12sub @10.39s — 26th consecutive
+  all-green.**
 
-Handed to a118: post-drain refill slope (floor 5,
-mints from 09:41Z — watch the wave), cohort instrument
-round 9 (the old set is gone — re-seed from the new
-floor stratum #5711..#5720), telegram recovery watch
-(blip @10:23Z — 1h self-heal class?), elder vacancy
-(first cycle with no elder since the receipt began —
-who is the new oldest row?), husk face re-witness
-(#5117 ~37h / #5214 ~32h / #5646), render-brain crack
-(8 reads old), 67P floor guard.
+Handed to a119: github-pay quad watch (degraded — cure
+or work-order class?), refill slope (22 @8.4/h — wave
+or decel?), cohort instrument round 10 (new-generation
+set), elder 2nd read (#5711 ~4h?), telegram
+healed-stretch watch, render-brain crack (9 reads
+old), 67P floor guard.

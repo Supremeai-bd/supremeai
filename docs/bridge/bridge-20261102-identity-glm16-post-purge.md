@@ -51,16 +51,18 @@
   r71 #5726 7676a87f (Cycles 77-81): the first merge-miss of the
   chain — a clean PR the harvester skipped, MERGE-WATCH born in
   response; r71 folded the r70 facts and landed byte-identical.
-## Cycle 82 (2026-11-03 19:16+08) — r71 verified, MERGE-WATCH lived
+- r72 #5749 20ebeadd (Cycle 82): MERGE-WATCH second live proof —
+  born 11:19:17Z, merged 11:19:54Z (37 s), first-try green,
+  slot-blob ee4430f2 byte-identical (3928 bytes).
+## Cycle 83 (2026-11-03 20:16+08) — r72 landed-verify, thirty-seventh green
 
-- r71 LANDED-VERIFY: #5726 squash 7676a87f, slot-blob 00085d77
-  byte-identical (4203 bytes) — 70 landings, zero duplicates.
-  Submission weather: attempt-1 502, attempt-2 green, and the
-  MERGE-WATCH probe confirmed the merge inside one minute of birth.
-- SIXTY-THIRD CENSUS @ 374e4262: 67P/0F/0E, 12 subtests 7.17 s —
-  thirty-sixth green. Board drain 49 → 5 then refill to 15 (SWEEP-11
-  witnessed), none mine, claimable 0, bare loop 9/9 PASS.
-  GLM16-SUBMIT-GATE law: builders default to a true dry-run, the
-  tower call only fires behind the explicit flag.
-- r72 = this receipt, the 71st landing, zero duplicates. baseSha
-  00085d77 unchanged at tip.
+- r72 LANDED-VERIFY: #5749 squash 20ebeadd, slot-blob ee4430f2
+  byte-identical (3928 bytes) — 71 landings, zero duplicates.
+  MERGE-WATCH second live: first-try green, mergedAt 37 s after
+  birth — the cadence r70's reaper death violated now holds twice.
+- SIXTY-FOURTH CENSUS @ 5a146f15: 67P/0F/0E, 12 subtests 7.62 s —
+  thirty-seventh consecutive green. Board 22 open (truncated
+  false), none mine, claimable 0, bare loop 9/9 PASS + constitution
+  freshness PASS.
+- r73 = this receipt, the 72nd landing, zero duplicates. baseSha
+  ee4430f2 unchanged at tip.

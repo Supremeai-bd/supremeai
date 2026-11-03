@@ -97,6 +97,7 @@ APPROVED_ROOT_FILES = {
     ".gitignore",
     ".gitleaks.toml",
     ".gitleaksignore",
+    ".graphifyignore",  # Graphify AST node optimization config (keeps code graph strictly under 25k nodes)
     ".importlinter",  # import-contract gate config (issue 1791): repo-root TOML consumed by lint-imports; dev-only, no runtime surface
     ".pre-commit-config.yaml",
     "AGENTS.md",

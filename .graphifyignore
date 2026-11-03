@@ -1,0 +1,64 @@
+# ========================================================
+# SupremeAI Graphify Ignore — Optimized & Safe (Under 25K)
+# ========================================================
+
+# 1. Tests & Mocks (Highest Noise Reduction - Pure Test Logic)
+tests/
+**/tests/
+**/__tests__/
+**/*.test.*
+**/*.spec.*
+**/test_*.py
+**/mock/
+**/mocks/
+**/fixtures/
+
+# 2. Automation Scripts, Tooling & Internal Pipelines
+scripts/
+tools/
+.agent/
+.agents/
+.gsd/
+.github/
+infra/monitoring/
+
+# 3. Documentation (Keep Constitutional Rules & Architecture SSOT)
+docs/
+*.md
+**/*.md
+*.txt
+!AGENTS.md
+!ECOSYSTEM_MAP.md
+!PROJECT_RULES.md
+!CONTRIBUTING.md
+!README.md
+
+# 4. Static Data, Caches & Configs (Keep API Schemas & Critical Manifests)
+data/
+all_graphs/
+**/*.json
+**/*.yaml
+**/*.yml
+**/*.csv
+!api-schemas/**
+!model_capabilities.yaml
+!package.json
+!**/package.json
+!mcp.json
+
+# 5. Database Raw Dumps & Fixtures (Keep Schema DDLs & Migrations)
+database/seeds/
+*.sql.dump
+*.dump
+
+# 6. Build Artifacts & Generated Files
+dist/
+build/
+out/
+target/
+**/target/
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+*.d.ts

@@ -15,7 +15,8 @@
   (53d987b7) → #5410 r14 (cf3a0fcf) → #5442 r15 (447ea415) → #5485 r16
   (27d404f8) → #5503 r17 (8863b72c) → #5542 r18 (f18f80bd) → #5561 r19
   (047af7d6) → #5578 r20 (8ddf33d4) → #5590 r20c (c0d38bd5) → #5645 r21
-  (470a8289) → #5679 r22 (fc90b49c) → #5705 r23 (aa39bd83). Pre-purge
+  (470a8289) → #5679 r22 (fc90b49c) → #5705 r23 (aa39bd83) → #5719
+  r24 (ff6e0c80). Pre-purge
   chain (r4→r13, 9 receipts: #3655/#4138/#4170/#4198/#4213/#4333/
   #4394/#4437/#4487/#4498) lives in git history — its file was purged;
   see header.
@@ -42,19 +43,19 @@
 - **Standing**: PR #4180 (fabricated `run_verify`) — owner-lane radar;
   CVE pair owner-only (#4204 + Never-do #1913) — never touched.
 
-## Cycle 18:12+08 (2026-11-03) — standing verify
+## Cycle 20:12+08 (2026-11-03) — standing verify
 
-1. **Board + loop**: heartbeat first-try OK; workspace clean; loop
-   clean: claimable **0/5**, board **2 rows** (MEGA-DRAIN 55 → 2,
-   matching Sentry c140's independently-reported DRAIN #12
-   54 → 3 harvest wave), zero open P0; no forced picks. PR plane:
-   0 open (fully drained).
-2. **Census at a3d60050**: **67 passed / 0 failed** (12 subtests,
-   7.01s) excl. the owner-lane CVE pair — suite green at TWENTY-FOUR
+1. **GAP first (U2)**: no 19:12 run (cron skip — no r25 commit or
+   branch anywhere on main/remote); disclosed same-cycle, no
+   backfill. Board + loop: heartbeat first-try OK; workspace clean;
+   loop board-dark (429 Cloudflare contention), direct probe
+   recovered at the 60s rung: board **21 rows** (refill wave
+   2 → 21), zero open P0, claimable **0/5**, no forced picks. PR
+   plane: UNSEEN (rate-limited), not certified clean.
+2. **Census at 5a146f15**: **67 passed / 0 failed** (12 subtests,
+   7.21s) excl. the owner-lane CVE pair — suite green at TWENTY-FIVE
    consecutive tips; `--verify-only` **9/9 PASS**.
-3. **Streaks**: r23 landed fast (#5705, aa39bd83) — TWENTY-SECOND
-   consecutive fast-lane landing; chain now 24 post-purge receipts.
-   Full wave arc: 10 → 33 → 47 → 55 → 2. Sentry c140 also
-   independently confirmed the 09:30Z tower 503 storm that hit my
-   17:12 submit retries — cross-agent corroboration of the
-   backoff-ladder diagnosis. r24 = this submit.
+3. **Streaks**: r24 landed fast (#5719, ff6e0c80) — TWENTY-THIRD
+   consecutive fast-lane landing; chain now 25 post-purge receipts.
+   Prior cycle arc folded: 18:12 board 2 rows (MEGA-DRAIN 55 → 2,
+   matching Sentry c140's DRAIN #12) → refill 21. r25 = this submit.

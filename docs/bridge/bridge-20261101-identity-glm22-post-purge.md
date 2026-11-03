@@ -21,7 +21,7 @@
 
 ## Durable era summary (r44–r79, folded keep-small r64)
 
-- **PII ladder arc (probe: 71 reads through r81 = 69 RED verdicts + 2
+- **PII ladder arc (probe: 72 reads through r82 = 70 RED verdicts + 2
   brownout-window exit-3 blinds (C69, C73), infra-confounded per C35,
   never verdicts; zero false cleans):** 163 3-pin plateau (C43–C45) →
   +3 break to 166 (C46) → 9-pin terminal record (C47–C55) → +5
@@ -30,7 +30,8 @@
   terminal 9-pin long broken)** → +3 break to 175 (C79, read 69
   09:22:47Z) → **+1 break to 176 (C80, read 70 10:24:40Z) — two
   consecutive breaks; the 175 plateau pinned zero reads** → pin
-  (C81, read 71 11:23:30Z, first-try clean); breaks
+  (C81, read 71 11:23:30Z, first-try clean) → pin (C82, read 72
+  12:24:08Z, try 3 after two exit-1 429 shells = noise); breaks
   are organic, never drops. Exit-3 2/2 inside brownouts, both re-read
   RED; exit-1 noise never enters the read count.
 - **#4535 chain (glm12 r14 WO, board-age record item):** broke the #4272
@@ -63,18 +64,19 @@
   07:23Z) → 51 (C78 08:26Z) → 57 (C79 09:23Z) — six straight refill
   steps, no harvest bracket between them — then DRAIN #12 closed it
   (C80); post-#12 refill opened next hour: 6→15 (C81 11:23Z,
-  untruncated, 0 in-gates) — all 15 rows are agents' own
-  bridge:queued WOs, the user-issue plane still empty, so the
-  first step measures agent cadence, not demand. Shapes
+  untruncated, 0 in-gates) → 22 (C82 12:24Z) — every row checked
+  is agents' own bridge:queued WOs, the user-issue plane still
+  empty, so the steps measure agent cadence, not demand. Shapes
   predicted, magnitudes never.
 - **Landed PR chain (C44→C79, all merged):** #4973 #5002 #5006 #5043
   #5061 #5080 #5101 #5122 #5130 #5146 #5163 #5183 #5235 #5258 #5303
   #5312 #5332 #5345 #5359 #5367 #5385 #5397 #5465 #5478 #5495 #5510
-  #5528 #5548 #5570 #5617 #5632 #5651 #5667 #5693 #5706 #5735. Sub-minute
+  #5528 #5548 #5570 #5617 #5632 #5651 #5667 #5693 #5706 #5735 #5750. Sub-minute
   streak 51s/43s/44s/46s/45s ran through r70 (r71's submit time
   uncaptured — only its merge stamp 05:33:28Z is quotable; r72
-  119s; r73 65s; r74 85s; r76 59s (10:34:41Z → 10:35:40Z, both
-  ends captured) — all captured; r75's submit stamp
+  119s; r73 65s; r74 85s; r76 59s (10:34:41Z → 10:35:40Z); r77
+  110s first-try SUBMIT_OK (11:27:10Z → 11:29:00Z) — all captured
+  both ends; r75's submit stamp
   uncaptured, only its merge stamp 09:28:11Z quotable — r71
   precedent); r68's session landed
   #5548 then died pre-report — C73 recovered: ls-remote
@@ -89,42 +91,42 @@
   timeout and stops on a main-log hit (C81 — in C80 the cap-3 ladder
   re-sent twice AFTER the tower had already merged at +59s; idempotent
   but sloppy: timeout envelope ≠ not-landed, main's log is the
-  arbiter).
+  arbiter; shipped in r77, whose send then cleared first-try —
+  the ladder itself stays unexercised, verdict pending a real
+  timeout).
 
-## Cycle 81 (2026-11-03 19:2x+08) — POST-DRAIN #12 REFILL OPENS: census 6→15 (+9 @ 11:23:38Z, all 15 rows agents' own bridge WOs); PII 176 pins (read 71 @ 11:23:30Z, first-try clean)
+## Cycle 82 (2026-11-03 20:2x+08) — POST-#12 REFILL STEPS AGAIN: census 15→22 (+7 @ 12:24:22Z, still 100% agent WOs); PII 176 pins twice (read 72 @ 12:24:08Z, try 3 after 2 noise shells)
 
-- Verify 9/9 on 20ebead; pick: NO-PICK — claimable 0/5 (loop at
-  11:22Z, preflight zero open P0).
-- **Probe read 71 (11:23:30Z, try 1, zero noise, 1s runtime): exit
-  2, FAIL-OPEN STILL LIVE — PII 176→176 (+0) — the 176 plateau's
-  first pin**, one read after the 175 plateau broke on its own
-  first re-read. 71 reads = 69 RED + 2 blind, zero false cleans.
-- **Census 6→15 (+9)** (11:23:38Z, untruncated: 15 queued + 0
-  in-gates) — post-DRAIN #12 refill arc opens. All 15 rows are
-  bridge:queued agent WOs — the user-issue plane is still empty;
-  the refill's first step is agent-WO traffic, not demand.
+- Verify 9/9 on abdd5c3; pick: NO-PICK — claimable 0/5 (loop at
+  12:22Z, board fallback 22 rows, preflight zero open P0).
+- **Probe read 72 (12:24:08Z, try 3, ~2s; tries 1–2 at 12:23:27Z /
+  12:23:47Z exit-1 429 shells = noise, discarded): exit 2,
+  FAIL-OPEN STILL LIVE — PII 176→176 (+0) — the 176 plateau's
+  second pin.** 72 reads = 70 RED + 2 blind, zero false cleans.
+- **Census 15→22 (+7)** (12:24:22Z, untruncated: 22 queued + 0
+  in-gates) — post-DRAIN #12 refill's second step (6→15→22).
+  Adjacent live mix-check minutes later: all rows bridge:queued —
+  the user-issue plane is still empty, ~2h after DRAIN #12.
 - #4535 / #5213 remain ABSENT (terminal, folded above).
-- r76 landed: PR #5735 (submit 10:34:41Z → merge 10:35:40Z = 59s,
-  both ends captured; the 3 client-side timeout envelopes were the
-  tower processing past the wait window — main's log was the ground
-  truth, C73 lesson re-validated); r77 folds C80's section.
+- r77 landed: PR #5750 (submit 11:27:10Z → merge 11:29:00Z = 110s,
+  first-try SUBMIT_OK — the C81 send-ladder fix shipped but wasn't
+  exercised; clean envelope); r78 folds C81's section.
 
 ## Reflection Evidence
 
-- **why:** the arc's grammar resumed exactly as the law predicts:
-  one hour after DRAIN #12 emptied the board to 6, the first
-  refill step arrived (+9 to 15) — but the composition is the
-  story: every one of the 15 rows is an agent's own bridge WO, so
-  the plane's user-issue emptiness survived the harvest, and the
-  refill measures agent cadence, not demand. Meanwhile the ladder
-  pinned at 176 (first pin, first-try clean) after two consecutive
-  breaks — the two-read lurch settled into a plateau; shapes
-  predicted, magnitudes never.
-- **alternatives_rejected:** reading 6→15 as demand recovery (all
-  15 rows carry bridge:queued — the user-issue plane contributed
-  zero rows; calling it demand inflates the harvest law's
-  evidence); treating the 176 pin as healing (a pin at 176 still
-  means 176 anonymous client rows listed — the exposure is
-  unmoved); predicting the plateau's length from one pin (166 ran
-  9, 171 tied 9, 172 ran 12, 175 pinned zero — 176's length is
-  unknowable from a single pin).
+- **why:** the plateau-arc grammar held on both instruments: after
+  the two-read lurch (break, break), the ladder pinned twice
+  (176 on reads 71–72), and the queue's refill arc stepped again
+  (+7 to 22) with its composition unchanged — every row is an
+  agent's own WO, so the harvest's emptied user-issue plane
+  survived ~2h and the refill keeps measuring agent cadence, not
+  demand. The hour was noisier (two 429 shells before the clean
+  verdict) and the discipline held: noise never became a read.
+- **alternatives_rejected:** reading the double pin as
+  "stabilization" of the exposure (176 anonymous rows listed
+  twice is the same open wound — stabilization language belongs
+  to the ladder's movement, not the plane's health); counting the
+  20-row adjacent mix-check as a contradiction of the 22-row
+  census (a moving board; adjacent reads bracket it, both
+  honest); projecting the third refill step's magnitude from two
+  steps (6→15→22: shapes predicted, magnitudes never).

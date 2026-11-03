@@ -57,18 +57,19 @@ ANCHOR_HUBS: dict[str, int] = {
     "Supremeai-bd/supremeai-open": 762,
 }
 
-# Active 6 Primary Domain Anchor Hubs (Core Live Repositories with Active Domain Mirrors)
+# Active 3 Primary Anchor Hubs (Pure 3-Repository Topology SSOT)
 ACTIVE_ANCHOR_HUBS: dict[str, int] = {
-    "Supremeai-bd/supremeai-studio": 749,
-    "Supremeai-bd/supremeai-api": 750,
-    "Supremeai-bd/supremeai-core": 751,
-    "Supremeai-bd/supremeai-vscode": 754,
-    "Supremeai-bd/supremeai-browser": 756,
-    "Supremeai-bd/supremeai-open": 762,
+    "Supremeai-bd/supremeai": 761,        # [Monorepo SSOT Desk: Core, Gateway, Browser, VSCode]
+    "Supremeai-bd/supremeai-studio": 749, # [Studio UI Desk]
+    "Supremeai-bd/supremeai-open": 762,   # [Open Task Board Desk & Embassy]
 }
 
 # Consolidated / Retired Anchor Hubs (Merged domains + Retired operational desks)
 RETIRED_ANCHOR_HUBS: dict[str, int] = {
+    "Supremeai-bd/supremeai-core": 751,
+    "Supremeai-bd/supremeai-api": 750,
+    "Supremeai-bd/supremeai-browser": 756,
+    "Supremeai-bd/supremeai-vscode": 754,
     "Supremeai-bd/supremeai-command": 752,
     "Supremeai-bd/supremeai-skills": 753,
     "Supremeai-bd/supremeai-agents": 755,
@@ -76,7 +77,6 @@ RETIRED_ANCHOR_HUBS: dict[str, int] = {
     "Supremeai-bd/supremeai-infrastructure": 758,
     "Supremeai-bd/supremeai-mcp-control-plane": 759,
     "Supremeai-bd/supremeai-archive": 760,
-    "Supremeai-bd/supremeai": 761,
 }
 
 # Specialized Hubs
@@ -442,18 +442,20 @@ def self_test() -> int:
     assert len(ANCHOR_HUBS) == 14, (
         f"Must have 14 total historical anchor hubs in lookup, found {len(ANCHOR_HUBS)}"
     )
-    assert len(ACTIVE_ANCHOR_HUBS) == 6, (
-        f"Must have strictly 6 active domain anchor hubs, found {len(ACTIVE_ANCHOR_HUBS)}"
+    assert len(ACTIVE_ANCHOR_HUBS) == 3, (
+        f"Must have strictly 3 active anchor hubs under the pure 3-repo "
+        f"topology SSOT (#5767), found {len(ACTIVE_ANCHOR_HUBS)}"
     )
-    assert len(RETIRED_ANCHOR_HUBS) == 8, (
-        f"Must have strictly 8 consolidated/retired anchor hubs, found {len(RETIRED_ANCHOR_HUBS)}"
+    assert len(RETIRED_ANCHOR_HUBS) == 11, (
+        f"Must have strictly 11 consolidated/retired anchor hubs under "
+        f"the pure 3-repo topology SSOT (#5767), found {len(RETIRED_ANCHOR_HUBS)}"
     )
 
     # 2. Unique issue numbers
     numbers = list(ANCHOR_HUBS.values())
     assert len(set(numbers)) == 14, "Anchor issue numbers must all be distinct"
-    assert len(set(ACTIVE_ANCHOR_HUBS.values())) == 6, "Active anchor issue numbers must all be distinct"
-    assert len(set(RETIRED_ANCHOR_HUBS.values())) == 8, "Retired anchor issue numbers must all be distinct"
+    assert len(set(ACTIVE_ANCHOR_HUBS.values())) == 3, "Active anchor issue numbers must all be distinct"
+    assert len(set(RETIRED_ANCHOR_HUBS.values())) == 11, "Retired anchor issue numbers must all be distinct"
 
     # 3. Sequential 749-762 range
     expected_range = set(range(749, 763))
