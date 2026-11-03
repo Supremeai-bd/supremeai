@@ -41,9 +41,9 @@ PRIVATE_MAIN = "main"
 # অর্ডার #5/#10/#11/#12/#13 সব এই কারণে reject হয়েছিল)। বাইট-প্যারিটি যাচাইকৃত
 # (cmp -s IDENTICAL ×3), তাই path-রিরাইটের পরে hunk নির্ভুলভাবে apply হয়।
 MIRROR_ROUTING: dict[str, tuple[str, str]] = {
-    "api-schemas/gateway.openapi.yaml": (PRIVATE_REPO, "gateway/contracts/openapi.yaml"),
-    "examples/gateway_client.py": (PRIVATE_REPO, "examples/gateway_client.py"),
-    "docs/CONSUMERS.md": (PRIVATE_REPO, "docs/CONSUMERS.md"),
+    "api-schemas/gateway.openapi.yaml": ("Supremeai-bd/supremeai-api", "contracts/openapi.yaml"),
+    "examples/gateway_client.py": ("Supremeai-bd/supremeai-api", "scripts/clients/gateway_client.py"),
+    "docs/CONSUMERS.md": ("Supremeai-bd/supremeai-api", "docs/CONSUMERS.md"),
 }
 # R1 (2026-10-25) satellite-consolidation prune: 6 of the 13 listed repos now
 # return HTTP 404 on the GitHub API (verified via two independent endpoints:
@@ -59,6 +59,11 @@ MIRROR_ROUTING: dict[str, tuple[str, str]] = {
 BRIDGE_TARGET_REPOS = (
     "Supremeai-bd/supremeai",
     "Supremeai-bd/supremeai-studio",
+    "Supremeai-bd/supremeai-api",
+    "Supremeai-bd/supremeai-core",
+    "Supremeai-bd/supremeai-vscode",
+    "Supremeai-bd/supremeai-browser",
+    "Supremeai-bd/supremeai-archive",
 )
 
 LABEL_QUEUED = "bridge:queued"
@@ -621,9 +626,7 @@ def intake_marker_state(token: str, task_id: str) -> str:
                 token,
                 max_pages=5,
             )
-        except BridgeError as exc:
-            if "HTTP 404" in str(exc):
-                continue
+        except BridgeError:
             return "unknown"  # fail-closed: duplicate-ঝুঁকির চেয়ে না-apply ভালো
         if any(marker in (i.get("body") or "") for i in issues):
             return "found"
@@ -734,37 +737,37 @@ def route_files(files: list[str], explicit_target: str | None = None) -> tuple[s
             repo = "Supremeai-bd/supremeai-studio"
             canon = f
         elif f.startswith(("api/", "gateway/", "api-schemas/gateway.")):
-            repo = PRIVATE_REPO
+            repo = "Supremeai-bd/supremeai-api"
             canon = f
         elif f.startswith(("core/", "api-schemas/task-router.")):
-            repo = PRIVATE_REPO
+            repo = "Supremeai-bd/supremeai-core"
             canon = f
         elif f.startswith(("command/", "handlers/telegram")):
-            repo = PRIVATE_REPO
+            repo = "Supremeai-bd/supremeai-command"
             canon = f
         elif f.startswith(("skills/", "examples/langchain-", "examples/vercel-")):
-            repo = PRIVATE_REPO
+            repo = "Supremeai-bd/supremeai-skills"
             canon = f
         elif f.startswith("vscode/"):
-            repo = PRIVATE_REPO
+            repo = "Supremeai-bd/supremeai-vscode"
             canon = f
         elif f.startswith(("agents/", "runner/")):
-            repo = PRIVATE_REPO
+            repo = "Supremeai-bd/supremeai-agents"
             canon = f
         elif f.startswith(("browser/", "sandbox/")):
-            repo = PRIVATE_REPO
+            repo = "Supremeai-bd/supremeai-browser"
             canon = f
         elif f.startswith(("sdk/", "examples/sdk-", "api-schemas/telemetry-log.", "api-schemas/websocket-events.")):
-            repo = PRIVATE_REPO
+            repo = "Supremeai-bd/supremeai-sdk"
             canon = f
         elif f.startswith(("infrastructure/mcp-control-plane/", "api-schemas/heartbeat.")):
-            repo = PRIVATE_REPO
+            repo = "Supremeai-bd/supremeai-mcp-control-plane"
             canon = f
         elif f.startswith(("deployments/", "infra/")):
-            repo = PRIVATE_REPO
+            repo = "Supremeai-bd/supremeai-infrastructure"
             canon = f
         elif f.startswith("archive/"):
-            repo = PRIVATE_REPO
+            repo = "Supremeai-bd/supremeai-archive"
             canon = f
         else:
             repo = PRIVATE_REPO
@@ -1202,9 +1205,6 @@ def cmd_sync(token: str) -> int:
                 f"/repos/{repo}/pulls?state=closed&sort=updated&per_page=100", token, max_pages=5
             )
         except BridgeError as exc:
-            if "HTTP 404" in str(exc):
-                window_notes.append(f"closed-PR scan: repo {repo} returned HTTP 404 (retired/inactive satellite — skipped)")
-                continue
             sync_errors.append(f"PR fetch failed: {str(exc)[:160]} ({repo})")
             continue
         if pulls_more:
@@ -1286,9 +1286,6 @@ def cmd_sync(token: str) -> int:
         try:
             open_pulls = gh_paged(f"/repos/{repo}/pulls?state=open&per_page=100", token, max_pages=3)
         except BridgeError as exc:
-            if "HTTP 404" in str(exc):
-                window_notes.append(f"open-PR scan: repo {repo} returned HTTP 404 (retired/inactive satellite — skipped)")
-                continue
             sync_errors.append(f"open PR fetch failed: {str(exc)[:160]} ({repo})")
             continue
         for pr in open_pulls:
