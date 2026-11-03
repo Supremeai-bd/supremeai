@@ -17,7 +17,7 @@
   (047af7d6) → #5578 r20 (8ddf33d4) → #5590 r20c (c0d38bd5) → #5645 r21
   (470a8289) → #5679 r22 (fc90b49c) → #5705 r23 (aa39bd83) → #5719
   r24 (ff6e0c80) → #5766 r25 (abdd5c3d) → #5805 r26 (47275c40) →
-  #5843 r27 (cc717f77). Pre-purge
+  #5843 r27 (cc717f77) → #5881 r28 (214dbeb4). Pre-purge
   chain (r4→r13, 9 receipts: #3655/#4138/#4170/#4198/#4213/#4333/
   #4394/#4437/#4487/#4498) lives in git history — its file was purged;
   see header.
@@ -27,12 +27,14 @@
   census, and then #4995 (58-lean-SSOT) collected the entire file class —
   the guard's boundary duty now lives wholly in the sovereign satellite
   repos. Unblock → land → superseded by owner cleanup: the intended arc.
-- **Dedup protocol, proven FIVE times**: duplicate PR #4468
+- **Dedup protocol, proven SIX times**: duplicate PR #4468
   mechanically reaped by the #4470 pruner; duplicate WO #4535 caught
-  by bridge idempotent-noop; r17/r20/r20c submit read-timeouts —
+  by bridge idempotent-noop; r17/r20/r20c/r28 submit read-timeouts —
   every first attempt had actually landed (r17 retry got
   `idempotent-noop`; r20/r20c retries hit deterministic "context
-  mismatch" against the already-patched branch). Zero duplicate
+  mismatch"; r28's timeout lost only the response — branch+WO #5882
+  +PR #5881 all confirmed at the four-point check, no retry). Zero
+  duplicate
   landings. Born protocol: after a submit timeout wait 60s+ (an
   immediate verify RACES the server-side push), then verify
   branch+WO+PR+main BEFORE any retry; taskId idempotency alone
@@ -47,20 +49,22 @@
 - **Standing**: PR #4180 (fabricated `run_verify`) — owner-lane radar;
   CVE pair owner-only (#4204 + Never-do #1913) — never touched.
 
-## Cycle 02:12+08 (2026-11-04) — standing verify
+## Cycle 04:12+08 (2026-11-04) — standing verify
 
-1. **GAP fourth (U2)**: no 01:12 run (cron skip — no r28
-   anywhere); the 2-hourly cadence holds (19:12/21:12/23:12/01:12
-   skipped). Disclosed same-cycle, no backfill. Heartbeat 503 on
-   the first try, recovered at the 25s rung (side-effect-free);
-   workspace clean; loop CLEAN again: claimable **0/5**, board
-   **5 rows** (drain 19 → 5), zero open P0; PR plane UNSEEN.
+1. **GAP fifth (U2)**: no 03:12 run (cron skip — no r29 anywhere);
+   the 2-hourly cadence holds. Disclosed same-cycle, no backfill.
+   Heartbeat first-try OK; workspace clean; loop CLEAN (third
+   consecutive): claimable **0/5**, zero open P0; row-count probe
+   then hit a 429/503 storm at three rungs — row count UNSEEN this
+   window, probe stopped after 3 (anti-storm). PR plane UNSEEN.
    `--verify-only` **9/9 PASS**.
-2. **Census at 3db0a601**: **101 passed / 0 failed** (12 subtests,
-   7.62s) excl. the owner-lane CVE pair — suite grew +27
-   (guardian PR #5878's new test files) with zero reds; TWENTY-EIGHT
+2. **Census at 19e09b1f**: **110 passed / 0 failed** (12 subtests,
+   7.78s) excl. the owner-lane CVE pair — suite grew +9
+   (test_rbac.py, guardian wave) with zero reds; TWENTY-NINE
    consecutive green tips.
-3. **Streaks**: r27 landed fast (#5843, cc717f77) — TWENTY-SIXTH
-   consecutive fast-lane landing; chain now 28 post-purge receipts.
-   Prior cycle folded: 00:12 loop clean (no 429 dark), board 19
-   rows (refill 7 → 19), census +7. r28 = this submit.
+3. **Streaks**: r28 landed fast (#5881, 214dbeb4) — TWENTY-SEVENTH
+   consecutive fast-lane landing; chain now 29 post-purge receipts.
+   Prior cycle folded: r28's submit read-timeout was the SIXTH
+   protocol proof — four-point verify (branch e53a8424 + WO #5882 +
+   PR #5881) showed the first attempt fully arrived; no retry.
+   r29 = this submit.
