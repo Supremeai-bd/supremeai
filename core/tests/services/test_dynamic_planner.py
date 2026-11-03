@@ -1,8 +1,8 @@
 # backend/tests/services/test_dynamic_planner.py
 import pytest
 
-from services.dynamic_planner import DynamicPlanningEngine, TaskDAG, TaskNode
-from services.intent_deciphering import IntentAnalysis
+from core.services.dynamic_planner import DynamicPlanningEngine, TaskDAG, TaskNode
+from core.services.intent_deciphering import IntentAnalysis
 
 
 def test_task_dag_topological_sort_valid_order():

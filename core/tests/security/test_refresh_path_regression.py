@@ -47,7 +47,7 @@ class TestRefreshPathReachability:
 
         from fastapi import Request, Response
 
-        from api.routes.auth import RefreshRequest, refresh_token_endpoint
+        from core.api.routes.auth import RefreshRequest, refresh_token_endpoint
 
         request_mock = MagicMock(spec=Request)
         request_mock.cookies = {}

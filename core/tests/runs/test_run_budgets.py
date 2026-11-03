@@ -1,7 +1,7 @@
-"""M1-B — budget enforcement tests (pure, offline).
+﻿"""M1-B â€” budget enforcement tests (pure, offline).
 
 Covers the roadmap M1 budget contract: wall-clock / token / tool-call /
-retry — plain columns + pure enforcement helper, colibrì-free.
+retry â€” plain columns + pure enforcement helper, colibrÃ¬-free.
 
 Semantics under test:
 - ``None`` cap = uncapped dimension (never violates);
@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from runs.budgets import (
+from core.runs.budgets import (
     BudgetDimension,
     BudgetSnapshot,
     can_admit_attempt,

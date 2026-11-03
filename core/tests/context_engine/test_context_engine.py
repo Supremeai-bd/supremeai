@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from context_engine import (
+from core.context_engine import (
     DEFAULT_INPUT_BUDGET,
     ContextBlock,
     ContextEngine,
@@ -23,7 +23,7 @@ from context_engine import (
     estimate_tokens,
     resolve_input_budget,
 )
-from context_engine.engine import _TRUNCATION_MARK
+from core.context_engine.engine import _TRUNCATION_MARK
 
 
 def test_estimate_tokens_ascii_and_bengali():

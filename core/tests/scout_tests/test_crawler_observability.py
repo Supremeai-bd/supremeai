@@ -6,7 +6,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from api.routes.crawler_admin import router
+from core.api.routes.crawler_admin import router
 from scout.models import CrawlEventType
 from scout.telemetry import CrawlerTelemetry
 

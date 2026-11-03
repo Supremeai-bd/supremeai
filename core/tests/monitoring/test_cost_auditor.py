@@ -1,4 +1,4 @@
-from tools.billing.cost_auditor import CostAuditor
+from core.tools.billing.cost_auditor import CostAuditor
 
 
 class TestCostAuditor:

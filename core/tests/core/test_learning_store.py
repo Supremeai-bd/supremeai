@@ -447,7 +447,7 @@ class _FakeSupabaseClient:
 
 
 def _offline_supabase_db():
-    from database.supabase_client import SupabaseDB
+    from core.database.supabase_client import SupabaseDB
 
     instance = SupabaseDB()  # offline in sandbox: no clients created
     fake_client = _FakeSupabaseClient()
@@ -494,7 +494,7 @@ def test_repository_insert_improvement_proposal_returns_id():
 
 
 def test_repository_degrades_without_client():
-    from database.supabase_client import SupabaseDB
+    from core.database.supabase_client import SupabaseDB
 
     instance = SupabaseDB()  # offline: no clients
     instance.service_client = None

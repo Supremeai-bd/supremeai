@@ -298,7 +298,7 @@ async def test_fastapi_web_ai_proxy_routes():
     from fastapi import FastAPI
     from httpx import ASGITransport, AsyncClient
 
-    from api.routes.web_ai_proxy import router as web_ai_router
+    from core.api.routes.web_ai_proxy import router as web_ai_router
     from core.web_ai_session_bridge import global_session_pool
 
     test_app = FastAPI()
@@ -510,7 +510,7 @@ async def test_fastapi_parallel_tasks_route():
     from fastapi import FastAPI
     from httpx import ASGITransport, AsyncClient
 
-    from api.routes.web_ai_proxy import router as proxy_router
+    from core.api.routes.web_ai_proxy import router as proxy_router
     from core.web_ai_session_bridge import global_session_pool
 
     app = FastAPI()

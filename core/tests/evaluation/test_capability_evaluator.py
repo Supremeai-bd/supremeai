@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import pytest
 
-from evaluation.capability_evaluator import evaluate_provider
-from evaluation.models import DimensionScore, ProviderScore, ScoreDimension
-from evaluation.scorers.latency import (
+from core.evaluation.capability_evaluator import evaluate_provider
+from core.evaluation.models import DimensionScore, ProviderScore, ScoreDimension
+from core.evaluation.scorers.latency import (
     LATENCY_P95_BEST_MS,
     LATENCY_P95_WORST_MS,
     score_latency,
@@ -161,7 +161,7 @@ class TestRegressionScorerBands:
         When: score_regression চালালে।
         Then: ডকুমেন্টেড ব্যান্ড-স্কোর + alert ফ্ল্যাগ।
         """
-        from evaluation.scorers.regression import score_regression
+        from core.evaluation.scorers.regression import score_regression
 
         result = score_regression(current, previous)
         assert result.score == expected_score
@@ -173,7 +173,7 @@ class TestRegressionScorerBands:
         When: score_regression চালালে।
         Then: ValueError — ভুয়া স্কোর নীরবে গিলতে নেই।
         """
-        from evaluation.scorers.regression import score_regression
+        from core.evaluation.scorers.regression import score_regression
 
         with pytest.raises(ValueError):
             score_regression(1.5, 0.8)

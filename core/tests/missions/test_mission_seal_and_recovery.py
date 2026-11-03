@@ -43,8 +43,8 @@ async def runs_tables(client):
     global _runs_tables_ready
     if not _runs_tables_ready:
         import database.session as dbs
-        from models.base import Base
-        from runs.models import Run, RunEvent
+        from core.models.base import Base
+        from core.runs.models import Run, RunEvent
 
         dbs.init_engine()
         engine = dbs.engine
@@ -78,7 +78,7 @@ def _install_pair_staging(monkeypatch) -> tuple[Callable[[], None], Callable[[],
     sleep/ঘুমানো টাইমার নেই। রিটার্ন (arm, disarm) — জোড়ার ঠিক আগে arm(),
     শেষ হলে সাথে সাথে disarm() (নইলে একা লোড আটকায়)।
     """
-    from runs.service import RunService
+    from core.runs.service import RunService
 
     original_get_run = RunService.get_run
     original_emit = RunService._emit
@@ -116,8 +116,8 @@ def _install_pair_staging(monkeypatch) -> tuple[Callable[[], None], Callable[[],
 
 async def _make_running_run(session) -> uuid.UUID:
     """নতুন run তৈরি করে running অবস্থায় নিয়ে যায় (কমিটসহ)।"""
-    from runs.service import RunService
-    from runs.state_machine import PLANNED, POLICY_CHECKED, RUNNING
+    from core.runs.service import RunService
+    from core.runs.state_machine import PLANNED, POLICY_CHECKED, RUNNING
 
     svc = RunService()
     run = await svc.create_run(session, run_type="tool", user_id="mission-seal-user")
@@ -129,7 +129,7 @@ async def _make_running_run(session) -> uuid.UUID:
 
 async def _stream(session, run_id: uuid.UUID) -> list[tuple[str, dict | None]]:
     """রানের ইভেন্ট-স্ট্রিম (event, detail) তালিকা — seq ক্রমানুসারে।"""
-    from runs.models import RunEvent
+    from core.runs.models import RunEvent
 
     rows = (
         (
@@ -152,8 +152,8 @@ class TestMissionConcurrentSeal:
         নথিভুক্ত পথে যায় (বাতিল হারলে cancel_ignored no-op, সমাপ্তি হারলে
         IllegalTransition conflict), ইভেন্ট-স্ট্রিম দ্বৈত-মুক্ত।"""
         import database.session as dbs
-        from runs.service import RunService
-        from runs.state_machine import CANCELLED, SUCCEEDED, IllegalTransition
+        from core.runs.service import RunService
+        from core.runs.state_machine import CANCELLED, SUCCEEDED, IllegalTransition
 
         arm_pair, disarm_pair = _install_pair_staging(monkeypatch)
         svc = RunService()
@@ -177,7 +177,7 @@ class TestMissionConcurrentSeal:
             await session.commit()
 
         async with dbs.AsyncSessionLocal() as reader:
-            from runs.models import Run, RunEvent
+            from core.runs.models import Run, RunEvent
 
             stream = await _stream(reader, rid)
             kinds = [k for k, _ in stream]
@@ -224,7 +224,7 @@ class TestMissionConcurrentSeal:
             await session.commit()
 
         async with dbs.AsyncSessionLocal() as reader:
-            from runs.models import Run
+            from core.runs.models import Run
 
             stream = await _stream(reader, rid2)
             kinds = [k for k, _ in stream]
@@ -255,8 +255,8 @@ class TestMissionConcurrentSeal:
         নথিভুক্ত cancel_ignored no-op; সিলের পরে আর কোনো মিউটেশন/দ্বিতীয় সিল
         সম্ভব নয় (audit-lock)।"""
         import database.session as dbs
-        from runs.service import RunService
-        from runs.state_machine import CANCELLED, FINALIZED, RUNNING, IllegalTransition
+        from core.runs.service import RunService
+        from core.runs.state_machine import CANCELLED, FINALIZED, RUNNING, IllegalTransition
 
         arm_pair, disarm_pair = _install_pair_staging(monkeypatch)
         svc = RunService()
@@ -283,7 +283,7 @@ class TestMissionConcurrentSeal:
             await session.commit()
 
         async with dbs.AsyncSessionLocal() as reader:
-            from runs.models import Run
+            from core.runs.models import Run
 
             stream = await _stream(reader, rid)
             kinds = [k for k, _ in stream]
@@ -334,8 +334,8 @@ class TestMissionDegradedRecovery:
         core-এর জন্য fail-closed, সহনশীল role-এ দৃশ্যমান role-tolerated);
         ইঞ্জিন ফিরে এলে একই প্রোব সুস্থ সংকেত দেয় — সততা দুই দিকেই সত্য।"""
         import database.session as dbs
-        from api.routes.health import _check_database
-        from database.session import check_engine_health
+        from core.api.routes.health import _check_database
+        from core.database.session import check_engine_health
 
         real_engine = dbs._engine_instance
         assert real_engine is not None  # অ্যাপ ইঞ্জিন বুট হয়েই আছে

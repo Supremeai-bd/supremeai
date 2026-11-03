@@ -21,8 +21,8 @@ from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from models.base import Base
-from models.chat_attachment import ChatAttachment
+from core.models.base import Base
+from core.models.chat_attachment import ChatAttachment
 
 
 @pytest_asyncio.fixture

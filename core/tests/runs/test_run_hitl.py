@@ -1,4 +1,4 @@
-"""M1-C — HITL hook tests (runs/hitl.py + service.request/resolve_approval).
+﻿"""M1-C â€” HITL hook tests (runs/hitl.py + service.request/resolve_approval).
 
 The run-side HITL contract reuses the existing HITL manager shape
 (``suspend(target_resource, payload) -> record_id``). This suite proves:
@@ -20,12 +20,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from missions.models import Mission  # noqa: F401 — registers missions table
-from models.base import Base
-from runs.hitl import InMemoryApprovalHook, PendingTaskApprovalHook, _payload_hash
-from runs.models import Run, RunEvent
-from runs.service import RunService
-from runs.state_machine import (
+from core.missions.models import Mission  # noqa: F401 â€” registers missions table
+from core.models.base import Base
+from core.runs.hitl import InMemoryApprovalHook, PendingTaskApprovalHook, _payload_hash
+from core.runs.models import Run, RunEvent
+from core.runs.service import RunService
+from core.runs.state_machine import (
     FAILED,
     PLANNED,
     POLICY_CHECKED,

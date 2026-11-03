@@ -20,8 +20,8 @@ import pytest
 
 from core.security.codegen_gate import ALLOW_INPROCESS_CODEGEN_ENV
 from core.skill_manager import SkillManager
-from services.tool_forge import ToolForgeError, ToolForgeService, ToolSpec
-from tools.code.safe_executor import run_restricted
+from core.services.tool_forge import ToolForgeError, ToolForgeService, ToolSpec
+from core.tools.code.safe_executor import run_restricted
 
 
 def test_tool_forge_fail_closed_by_default(monkeypatch):

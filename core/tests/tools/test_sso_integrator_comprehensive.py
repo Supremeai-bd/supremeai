@@ -5,7 +5,7 @@ import httpx
 import jwt
 import pytest
 
-from tools.sso_integrator import SSOIntegrator
+from core.tools.sso_integrator import SSOIntegrator
 
 
 class TestSSOIntegratorComprehensive:

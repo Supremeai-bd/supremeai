@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from tools.freebuff_client import FreebuffClient
+from core.tools.freebuff_client import FreebuffClient
 
 
 @pytest.mark.asyncio

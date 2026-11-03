@@ -372,6 +372,98 @@ def verify_mcp() -> bool:
     return False
 
 
+
+def record_strategic_decision(
+    task_id,
+    decision,
+    what_not_to_do,
+    why_not,
+    source_legitimacy='',
+    source_legitimacy_audit=None,
+    agent='',
+    tags=None,
+    **kwargs,
+) -> bool:
+    tid = str(task_id).strip().lstrip('#')
+    if not all(str(x).strip() for x in (tid, decision, what_not_to_do, why_not)):
+        return False
+    audit = source_legitimacy if source_legitimacy_audit is None else source_legitimacy_audit
+    entry = {
+        'task_id': tid,
+        'decision': decision,
+        'what_not_to_do': what_not_to_do,
+        'why_not': why_not,
+        'source_legitimacy_audit': audit,
+        'agent': agent,
+        'tags': list(tags) if tags else [],
+    }
+    try:
+        STRATEGIC_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(STRATEGIC_FILE, 'a', encoding='utf-8') as f:
+            f.write(__import__('json').dumps(entry, ensure_ascii=False) + chr(10))
+    except Exception:
+        return False
+    return True
+
+
+def search_strategic_memory(query, limit=5, **kwargs):
+    if not query or not str(query).strip():
+        return []
+    try:
+        lim = int(limit)
+    except (TypeError, ValueError):
+        lim = 5
+    if lim <= 0:
+        return []
+    terms = [t for t in str(query).lower().split() if t]
+    if not terms:
+        return []
+    term_set = set(terms)
+    if not STRATEGIC_FILE.exists():
+        return []
+    results = []
+    try:
+        with open(STRATEGIC_FILE, encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = __import__('json').loads(line)
+                except Exception:
+                    continue
+                if not isinstance(entry, dict):
+                    continue
+                text = ' '.join([
+                    str(entry.get('decision', '')),
+                    str(entry.get('what_not_to_do', '')),
+                    str(entry.get('why_not', '')),
+                    ' '.join(str(t) for t in (entry.get('tags') or [])),
+                    str(entry.get('agent', '')),
+                ]).lower()
+                score = sum(1 for t in term_set if t in text)
+                if score > 0:
+                    r = dict(entry)
+                    r['score'] = score
+                    results.append(r)
+    except Exception:
+        return []
+    results.sort(key=lambda r: r.get('score', 0), reverse=True)
+    return results[:lim]
+
+
+def format_strategic_block(entries):
+    if not entries:
+        return ''
+    lines = ['## Strategic Red Lines', '']
+    for e in entries:
+        tid = e.get('task_id', '')
+        lines.append('- #' + str(tid) + ': ' + str(e.get('what_not_to_do', '')))
+        lines.append('  - Why not: ' + str(e.get('why_not', '')))
+        lines.append('  - Source: ' + str(e.get('source_legitimacy_audit', '')))
+    return chr(10).join(lines)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="SupremeAI Collective Agent Memory & Problem-Solving Layer CLI"

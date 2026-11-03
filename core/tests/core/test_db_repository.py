@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from database.db_repository import SmartDataRepository
+from core.database.db_repository import SmartDataRepository
 
 
 class FakeDoc:

@@ -3,7 +3,7 @@ import os
 
 os.environ["ENCRYPTION_KEY"] = "9llmzMU2XSRhbAS-R__JMW1XLZzc0ll7obD_RqaVwno="
 
-from byoc.cloud_connector import CloudStatus, list_resources, ping
+from core.byoc.cloud_connector import CloudStatus, list_resources, ping
 
 
 class TestCloudConnector:
@@ -23,7 +23,7 @@ class TestCloudConnector:
         assert len(result) == 0
 
     def test_credential_encryption_and_decryption(self):
-        from byoc.cloud_connector import GCPCredentialManager
+        from core.byoc.cloud_connector import GCPCredentialManager
 
         sa_data = {
             "type": "service_account",
@@ -42,7 +42,7 @@ class TestCloudConnector:
         assert decrypted["private_key_id"] == "abcd123"
 
     def test_credential_validation_returns_false_for_malformed(self):
-        from byoc.cloud_connector import GCPCredentialManager
+        from core.byoc.cloud_connector import GCPCredentialManager
 
         sa_data = {"invalid": "data"}
         is_valid = GCPCredentialManager.validate_service_account(sa_data)

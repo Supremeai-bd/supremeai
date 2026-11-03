@@ -11,7 +11,7 @@ import pytest
 @pytest.mark.asyncio
 async def test_i18n_ai_translate_wiring():
     """Verify AI translation route works with graceful fallback."""
-    from api.routes.localization import AITranslateRequest, ai_translate, get_bhasha_bot
+    from core.api.routes.localization import AITranslateRequest, ai_translate, get_bhasha_bot
 
     bot = get_bhasha_bot()
     payload = AITranslateRequest(key="welcome", target_lang="bn")
@@ -34,7 +34,7 @@ async def test_health_check_predictive_wiring():
 @pytest.mark.asyncio
 async def test_email_drafting_wiring():
     """Verify email service AI drafting and optimal send hour."""
-    from services.email.email_service import email_service
+    from core.services.email.email_service import email_service
 
     draft = await email_service.draft("account_verification", {"email": "dev@supremeai.dev"})
     assert "subject" in draft
@@ -46,7 +46,7 @@ async def test_email_drafting_wiring():
 @pytest.mark.asyncio
 async def test_markdown_semantic_search_wiring():
     """Verify semantic markdown search endpoint."""
-    from api.routes.markdown import semantic_search
+    from core.api.routes.markdown import semantic_search
 
     res = await semantic_search(q="orchestrator", top_k=3)
     assert "results" in res
@@ -56,7 +56,7 @@ async def test_markdown_semantic_search_wiring():
 @pytest.mark.asyncio
 async def test_onboarding_plan_wiring():
     """Verify personalized onboarding plan generation."""
-    from api.routes.onboarding import OnboardingPlanRequest, build_onboarding_plan
+    from core.api.routes.onboarding import OnboardingPlanRequest, build_onboarding_plan
 
     req = OnboardingPlanRequest(locale="en", persona="developer")
     res = await build_onboarding_plan(req)

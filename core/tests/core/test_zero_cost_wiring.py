@@ -166,7 +166,7 @@ class TestLearningMetricsFeed:
         from fastapi.testclient import TestClient
 
         import api.routes.zero_cost as zero_cost_module
-        from api.dependencies import get_current_user_token
+        from core.api.dependencies import get_current_user_token
 
         orch = zc.ZeroCostOrchestrator(config=ZeroCostConfig())
         monkeypatch.setattr(zero_cost_module, "get_orchestrator", lambda: orch)

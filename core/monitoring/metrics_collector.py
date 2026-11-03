@@ -288,3 +288,6 @@ async def end_operation_timer(
 ):
     """End timing an operation and record the duration."""
     return await metrics_collector.stop_timer(operation_id, metric_name, labels)
+
+_HISTOGRAM_WINDOW = 512
+

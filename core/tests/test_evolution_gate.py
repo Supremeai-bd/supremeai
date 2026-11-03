@@ -1,6 +1,6 @@
-import pytest
+﻿import pytest
 
-from backend.ecosystem.evolution_gate import (
+from core.ecosystem.evolution_gate import (
     EvidenceReport,
     PromotionDecision,
     evaluate_promotion,
@@ -29,3 +29,4 @@ def test_invalid_impact_is_rejected():
     result = evaluate_promotion(EvidenceReport(True, True, True, True, True), impact_score=2)
     assert result.decision is PromotionDecision.REJECT
     assert result.reasons == ("invalid_impact_score",)
+

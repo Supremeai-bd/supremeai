@@ -1,10 +1,10 @@
-"""AUD-2.8 / AUD-3.9 (P0) — Cross-tenant adversarial security tests.
+﻿"""AUD-2.8 / AUD-3.9 (P0) â€” Cross-tenant adversarial security tests.
 
 These tests assert that user B cannot access, mutate, or replay user A's data,
 and that the HITL approval surface rejects replay/tampering/expiry attacks.
 
 Implementation note: source-level assertions read files from disk instead of
-importing every route module — importing some modules transitively pulls the
+importing every route module â€” importing some modules transitively pulls the
 full model registry and app fixtures (JSONB is Postgres-only and cannot compile
 against the local sqlite test DB).
 """
@@ -17,7 +17,7 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi import HTTPException
 
-from models.pending_tasks import (
+from core.models.pending_tasks import (
     TaskStatus,
     TaskType,
     create_pending_task,
@@ -191,7 +191,7 @@ class TestMemoryTenantScoping:
 class TestHITLApprovalSurface:
     def test_approval_router_is_mounted(self):
         """AUD-3.5: the router was previously never registered (dead end)."""
-        from api.routers import ALL_ROUTERS
+        from core.api.routers import ALL_ROUTERS
 
         paths = [r["path"] for r in ALL_ROUTERS]
         assert "api.routes.approval_manager" in paths
@@ -210,7 +210,7 @@ class TestHITLApprovalSurface:
 
     def test_expired_task_rejected_via_route_logic(self):
         """AUD-4.3: expired task decision returns 410 from the route helper."""
-        from api.routes import approval_manager
+        from core.api.routes import approval_manager
 
         task = create_pending_task(
             TaskType.CODE_PUSH,
@@ -227,7 +227,7 @@ class TestHITLApprovalSurface:
         assert excinfo.value.status_code == 410
 
     def test_replayed_task_rejected_with_409(self):
-        from api.routes import approval_manager
+        from core.api.routes import approval_manager
 
         task = create_pending_task(TaskType.CODE_PUSH, {"action": "push"}, created_by="alice")
         req = approval_manager.ApproveRequest(resolved_by="admin")
@@ -276,3 +276,4 @@ class TestSelfEvolutionSafety:
     def test_canary_no_fabricated_success(self):
         src = _source_of("evolution/change_proposal.py")
         assert "proposal.canary_success_rate = 1.0  # Canary passed" not in src
+

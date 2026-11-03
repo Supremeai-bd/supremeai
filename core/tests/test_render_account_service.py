@@ -2,7 +2,7 @@ import unittest
 from datetime import UTC, datetime, timezone
 from unittest.mock import MagicMock, patch
 
-from services.render_account_service import RenderAccountService
+from core.services.render_account_service import RenderAccountService
 
 
 class TestRenderAccountService(unittest.TestCase):

@@ -1,9 +1,9 @@
-"""M06 P-A — run_scope + remediation-run_type hygiene tests.
+﻿"""M06 P-A â€” run_scope + remediation-run_type hygiene tests.
 
-বাংলা: flag-gated universal run তৈরির চুক্তি — ফ্ল্যাগ-অফে byte-নিরপেক্ষ
-no-op, ফ্ল্যাগ-অনে সম্পূর্ণ লাইফসাইকেল (REQUESTED→…→RUNNING→terminal),
-run-fabric ব্যর্থতা আয়োজক-নির্বাহ কখনো ব্লক করে না, আর অবৈধ
-``"remediation"`` RunType মানা হয়েছে (federation_bridge রিম্যাপ)।
+à¦¬à¦¾à¦‚à¦²à¦¾: flag-gated universal run à¦¤à§ˆà¦°à¦¿à¦° à¦šà§à¦•à§à¦¤à¦¿ â€” à¦«à§à¦²à§à¦¯à¦¾à¦—-à¦…à¦«à§‡ byte-à¦¨à¦¿à¦°à¦ªà§‡à¦•à§à¦·
+no-op, à¦«à§à¦²à§à¦¯à¦¾à¦—-à¦…à¦¨à§‡ à¦¸à¦®à§à¦ªà§‚à¦°à§à¦£ à¦²à¦¾à¦‡à¦«à¦¸à¦¾à¦‡à¦•à§‡à¦² (REQUESTEDâ†’â€¦â†’RUNNINGâ†’terminal),
+run-fabric à¦¬à§à¦¯à¦°à§à¦¥à¦¤à¦¾ à¦†à¦¯à¦¼à§‹à¦œà¦•-à¦¨à¦¿à¦°à§à¦¬à¦¾à¦¹ à¦•à¦–à¦¨à§‹ à¦¬à§à¦²à¦• à¦•à¦°à§‡ à¦¨à¦¾, à¦†à¦° à¦…à¦¬à§ˆà¦§
+``"remediation"`` RunType à¦®à¦¾à¦¨à¦¾ à¦¹à¦¯à¦¼à§‡à¦›à§‡ (federation_bridge à¦°à¦¿à¦®à§à¦¯à¦¾à¦ª)à¥¤
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from runs.run_scope import RunContext, run_fabric_universal, run_scope
+from core.runs.run_scope import RunContext, run_fabric_universal, run_scope
 
 
 class FakeService:
@@ -73,7 +73,7 @@ async def test_flag_off_yields_none_and_never_touches_db() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Flag ON — full lifecycle
+# Flag ON â€” full lifecycle
 # ---------------------------------------------------------------------------
 
 
@@ -117,13 +117,13 @@ async def test_run_fabric_failure_never_blocks_host() -> None:
     executed = []
 
     async with run_scope(object(), service, run_type="agent", user_id="u1") as ctx:
-        assert ctx is None  # পর্যবেক্ষণ-অনুপস্থিতি সৎভাবে জানানো হল
+        assert ctx is None  # à¦ªà¦°à§à¦¯à¦¬à§‡à¦•à§à¦·à¦£-à¦…à¦¨à§à¦ªà¦¸à§à¦¥à¦¿à¦¤à¦¿ à¦¸à§Žà¦­à¦¾à¦¬à§‡ à¦œà¦¾à¦¨à¦¾à¦¨à§‹ à¦¹à¦²
         executed.append("dispatch-ran")
     assert executed == ["dispatch-ran"]
 
 
 # ---------------------------------------------------------------------------
-# federation_bridge hygiene — "remediation" ছিল অবৈধ RunType
+# federation_bridge hygiene â€” "remediation" à¦›à¦¿à¦² à¦…à¦¬à§ˆà¦§ RunType
 # ---------------------------------------------------------------------------
 
 

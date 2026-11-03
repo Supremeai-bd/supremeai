@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from core.unified_memory import UnifiedMemoryInterface
-from memory.sliding_window import SlidingWindowMemory
+from core.memory.sliding_window import SlidingWindowMemory
 
 pytestmark = [pytest.mark.memory, pytest.mark.performance]
 

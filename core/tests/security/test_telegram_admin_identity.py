@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 from core.config import settings
-from tools.social.telegram_bot.handler import TelegramBotCore
+from core.tools.social.telegram_bot.handler import TelegramBotCore
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 TELEGRAM_PKG = BACKEND_DIR / "tools" / "social" / "telegram_bot"

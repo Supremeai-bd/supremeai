@@ -27,8 +27,8 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from missions.service import MissionNotFound, MissionService
-from missions.state_machine import (
+from core.missions.service import MissionNotFound, MissionService
+from core.missions.state_machine import (
     APPROVED,
     ASSIGNED,
     CANCELLED,
@@ -55,8 +55,8 @@ def _svc() -> MissionService:
 @pytest_asyncio.fixture
 async def mission_db() -> AsyncSession:
     """In-memory sqlite session with ONLY the missions tables created."""
-    from missions.models import Mission, MissionTraceEvent
-    from models.base import Base
+    from core.missions.models import Mission, MissionTraceEvent
+    from core.models.base import Base
 
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
@@ -85,8 +85,8 @@ async def missions_api_tables(client):
     global _api_tables_ready
     if not _api_tables_ready:
         import database.session as dbs
-        from missions.models import Mission, MissionTraceEvent
-        from models.base import Base
+        from core.missions.models import Mission, MissionTraceEvent
+        from core.models.base import Base
 
         dbs.init_engine()
         engine = dbs.engine
@@ -312,7 +312,7 @@ async def principal(client):
     is the only way to exercise the router's multi-principal ownership logic
     against the real app.
     """
-    from api.dependencies import get_current_user_token
+    from core.api.dependencies import get_current_user_token
     from core.app import app as application
 
     def install(sub: str, role: str = "user") -> str:

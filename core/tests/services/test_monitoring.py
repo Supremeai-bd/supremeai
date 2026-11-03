@@ -5,10 +5,10 @@ import tempfile
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.kernel.audit_logger import AuditLogger
-from tools.billing.cost_auditor import CostAuditor
-from tools.devops.docker_sandbox import DockerSandbox
-from tools.health_checker import HealthChecker
-from tools.plan_sorter import PlanSorter
+from core.tools.billing.cost_auditor import CostAuditor
+from core.tools.devops.docker_sandbox import DockerSandbox
+from core.tools.health_checker import HealthChecker
+from core.tools.plan_sorter import PlanSorter
 
 
 def test_docker_sandbox_security():

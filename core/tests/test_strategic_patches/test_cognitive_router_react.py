@@ -1,14 +1,14 @@
-# tests/test_strategic_patches/test_cognitive_router_react.py
-"""#2705 — CognitiveRouter ReAct-routing চুক্তি-পরীক্ষা।
+﻿# tests/test_strategic_patches/test_cognitive_router_react.py
+"""#2705 â€” CognitiveRouter ReAct-routing à¦šà§à¦•à§à¦¤à¦¿-à¦ªà¦°à§€à¦•à§à¦·à¦¾à¥¤
 
-বাংলা মন্তব্য: complex টাস্ক এখন routing_mode="react" + production execution-hint
-(ReasoningOrchestrator.decide_and_execute) পায়; simple Q&A direct থাকে;
-"analyze"+"implement" decomposed চুক্তি অক্ষুণ্ণ থাকে।
+à¦¬à¦¾à¦‚à¦²à¦¾ à¦®à¦¨à§à¦¤à¦¬à§à¦¯: complex à¦Ÿà¦¾à¦¸à§à¦• à¦à¦–à¦¨ routing_mode="react" + production execution-hint
+(ReasoningOrchestrator.decide_and_execute) à¦ªà¦¾à¦¯à¦¼; simple Q&A direct à¦¥à¦¾à¦•à§‡;
+"analyze"+"implement" decomposed à¦šà§à¦•à§à¦¤à¦¿ à¦…à¦•à§à¦·à§à¦£à§à¦£ à¦¥à¦¾à¦•à§‡à¥¤
 """
 
 import pytest
 
-from backend.brain.cognitive_router import (
+from core.brain.cognitive_router import (
     CognitiveRouter,
     classify_task_complexity,
 )
@@ -26,7 +26,7 @@ async def test_complex_task_routes_to_react():
     assert result["complexity"] == "complex"
     assert result["execution"] == "reasoning_orchestrator.decide_and_execute"
     assert result["max_iterations"] >= 1
-    # provider/model সব মোডে থাকবে (budget-aware chat path)
+    # provider/model à¦¸à¦¬ à¦®à§‹à¦¡à§‡ à¦¥à¦¾à¦•à¦¬à§‡ (budget-aware chat path)
     assert "provider" in result and "model" in result
     assert result["reasoning_mode"] in ("standard", "cot", "tot_mcts", "direct")
 
@@ -112,10 +112,10 @@ def test_classify_empty_prompt_safe():
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_complex_task_with_budget_context_still_reaches_react():
-    """#2705 গুরুত্বপূর্ণ চুক্তি: production API (api/routes/cognitive.py) সবসময়
-    BudgetContext পাঠায় — ReAct গেট বাজেট-শাখার আগে থাকতে হবে, নইলে
-    main chat path-এ react mode অগম্য হয়ে যায়।"""
-    from backend.brain.cognitive_router import BudgetContext  # noqa: F401
+    """#2705 à¦—à§à¦°à§à¦¤à§à¦¬à¦ªà§‚à¦°à§à¦£ à¦šà§à¦•à§à¦¤à¦¿: production API (api/routes/cognitive.py) à¦¸à¦¬à¦¸à¦®à¦¯à¦¼
+    BudgetContext à¦ªà¦¾à¦ à¦¾à¦¯à¦¼ â€” ReAct à¦—à§‡à¦Ÿ à¦¬à¦¾à¦œà§‡à¦Ÿ-à¦¶à¦¾à¦–à¦¾à¦° à¦†à¦—à§‡ à¦¥à¦¾à¦•à¦¤à§‡ à¦¹à¦¬à§‡, à¦¨à¦‡à¦²à§‡
+    main chat path-à¦ react mode à¦…à¦—à¦®à§à¦¯ à¦¹à¦¯à¦¼à§‡ à¦¯à¦¾à¦¯à¦¼à¥¤"""
+    from core.brain.cognitive_router import BudgetContext  # noqa: F401
 
     class Decision:
         provider = "budget-provider"
@@ -132,6 +132,7 @@ async def test_complex_task_with_budget_context_still_reaches_react():
     )
 
     assert result["routing_mode"] == "react"
-    # provider/model এখনো budget-awareভাবে resolve হয়
+    # provider/model à¦à¦–à¦¨à§‹ budget-awareà¦­à¦¾à¦¬à§‡ resolve à¦¹à¦¯à¦¼
     assert result["provider"] == "budget-provider"
     assert result["model"] == "budget-model"
+

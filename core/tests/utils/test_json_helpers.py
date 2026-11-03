@@ -1,6 +1,6 @@
 import json
 
-from utils.json_helpers import json_error, json_response, json_success
+from core.utils.json_helpers import json_error, json_response, json_success
 
 
 class TestJsonHelpers:

@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 
 import database.supabase_client as supabase_client_module
-from database.supabase_client import get_db, reset_db_singleton
+from core.database.supabase_client import get_db, reset_db_singleton
 
 RUNTIME_SITES = [
     "api/routes/artifacts.py",

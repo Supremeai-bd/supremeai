@@ -28,7 +28,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from memory.chromadb_store import ChromaDBStore
+from core.memory.chromadb_store import ChromaDBStore
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = BACKEND_ROOT / "memory" / "chromadb_store.py"

@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from tools.media.multilingual_tts import MultilingualTTS
+from core.tools.media.multilingual_tts import MultilingualTTS
 
 
 class TestMultilingualTTS:

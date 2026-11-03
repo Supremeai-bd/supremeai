@@ -6,7 +6,7 @@ Urgent/Feature/Bug ক্যাটাগরাইজেশন এবং খা�
 
 from __future__ import annotations
 
-from tools.plan_sorter import PlanSorter
+from core.tools.plan_sorter import PlanSorter
 
 
 def test_sort_empty_dir_returns_empty_categories(tmp_path):

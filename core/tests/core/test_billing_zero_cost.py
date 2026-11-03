@@ -10,8 +10,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from services.billing.billing_plans import SUBSCRIPTION_PLANS
-from tools.tenant_rate_limiter import TenantRateLimiter
+from core.services.billing.billing_plans import SUBSCRIPTION_PLANS
+from core.tools.tenant_rate_limiter import TenantRateLimiter
 
 
 class TestBillingZeroCost:

@@ -71,28 +71,28 @@ class TestPluginLifecycleManager:
 
 class TestProviderRegistry:
     def test_importable(self):
-        from services.dynamic_ai.provider_registry import ProviderRegistry
+        from core.services.dynamic_ai.provider_registry import ProviderRegistry
 
         assert ProviderRegistry is not None
 
 
 class TestLocalFallback:
     def test_importable(self):
-        from services.dynamic_ai.local_fallback import OllamaFallback
+        from core.services.dynamic_ai.local_fallback import OllamaFallback
 
         assert OllamaFallback is not None
 
 
 class TestGeminiWriter:
     def test_importable(self):
-        from services.ide_trio.gemini_writer import GeminiWriter
+        from core.services.ide_trio.gemini_writer import GeminiWriter
 
         assert GeminiWriter is not None
 
 
 class TestCloudStorage:
     def test_importable(self):
-        from services.storage.cloud_storage import CloudStorageManager
+        from core.services.storage.cloud_storage import CloudStorageManager
 
         assert CloudStorageManager is not None
 

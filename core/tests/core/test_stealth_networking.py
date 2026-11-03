@@ -4,9 +4,9 @@ from unittest.mock import patch
 import pytest
 
 from core.config import settings
-from tools.browser.stealth_http_client import StealthHTTPClient
-from tools.code.local_code_executor import LocalCodeExecutor
-from tools.security_tools.proxy_manager import ProxyManager
+from core.tools.browser.stealth_http_client import StealthHTTPClient
+from core.tools.code.local_code_executor import LocalCodeExecutor
+from core.tools.security_tools.proxy_manager import ProxyManager
 
 
 @pytest.mark.asyncio

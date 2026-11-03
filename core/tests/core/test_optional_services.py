@@ -31,7 +31,7 @@ async def test_optional_services_unconfigured_do_not_degrade_health():
                 return_value={"agent1": {"status": "running"}},
             ),
         ):
-            from api.routes.health import deep_health_check
+            from core.api.routes.health import deep_health_check
 
             response = Response()
             health_status = await deep_health_check(response)

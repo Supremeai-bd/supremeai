@@ -22,7 +22,7 @@ client = TestClient(app)
 # core-unit: test_multicloud::test_cloud_distribution_endpoint — 403 instead
 # of 200, "Unauthorized admin access attempt by test-user-id"). Autouse
 # fixture + teardown keeps the override scoped to THIS file's tests only.
-from api.deps import get_current_user_token  # noqa: E402
+from core.api.deps import get_current_user_token  # noqa: E402
 
 
 @pytest.fixture(autouse=True)

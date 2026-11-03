@@ -16,8 +16,8 @@ from typing import Any
 
 import pytest
 
-from services.hitl.engine import HITLEngine
-from services.hitl.resume_token import (
+from core.services.hitl.engine import HITLEngine
+from core.services.hitl.resume_token import (
     DEFAULT_RESUME_TTL_SECONDS,
     ResumeTokenAlreadyUsedError,
     ResumeTokenError,

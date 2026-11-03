@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tools.social.email_agent import EmailAgent
+from core.tools.social.email_agent import EmailAgent
 
 
 def test_gmail_oauth_fails_closed_instead_of_fake_success():

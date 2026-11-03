@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 
 def _make_pipeline(tmpdir: str):
-    from tools.learning.rlhf_pipeline import RLHFPipeline
+    from core.tools.learning.rlhf_pipeline import RLHFPipeline
 
     return RLHFPipeline(storage_dir=tmpdir)
 

@@ -1,7 +1,7 @@
 import pytest
 
-from memory.checkpoint_resume import CheckpointResume
-from memory.sliding_window import SlidingWindowConfig, SlidingWindowMemory
+from core.memory.checkpoint_resume import CheckpointResume
+from core.memory.sliding_window import SlidingWindowConfig, SlidingWindowMemory
 
 
 @pytest.fixture()

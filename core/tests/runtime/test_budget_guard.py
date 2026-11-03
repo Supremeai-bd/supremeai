@@ -4,7 +4,7 @@
 import pytest
 
 from core.task_contract import TaskBudget, TaskContract
-from runtime.budget_guard import BudgetExceededError, BudgetGuard
+from core.runtime.budget_guard import BudgetExceededError, BudgetGuard
 
 
 def test_budget_guard_pre_execution_passes():

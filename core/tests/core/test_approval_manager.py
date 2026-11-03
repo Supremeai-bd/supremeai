@@ -20,7 +20,7 @@ from fastapi import HTTPException
 @pytest.fixture
 def clean_skills_dir():
     """টেস্টের সময় লেখা কোনো স্কিল ফাইল টেস্ট শেষে পরিষ্কার করে দেয়।"""
-    from api.routes.approval_manager import _get_allowed_skills_dir
+    from core.api.routes.approval_manager import _get_allowed_skills_dir
 
     skills_dir = _get_allowed_skills_dir()
     os.makedirs(skills_dir, exist_ok=True)
@@ -33,7 +33,7 @@ def clean_skills_dir():
 
 def _make_skill_generation_task(skill_name: str, code: str):
     """একটা PENDING SKILL_GENERATION টাস্ক sqlite-backed store-এ তৈরি করে।"""
-    from models.pending_tasks import TaskType, create_pending_task
+    from core.models.pending_tasks import TaskType, create_pending_task
 
     return create_pending_task(
         task_type=TaskType.SKILL_GENERATION,
@@ -47,7 +47,7 @@ class TestApproveSkillGeneration:
 
     def test_valid_code_is_approved_and_written(self, clean_skills_dir):
         """সিনট্যাক্টিকালি সঠিক কোড approve হলে ফাইল সত্যিই লেখা হবে, exception ছাড়া।"""
-        from api.routes.approval_manager import (
+        from core.api.routes.approval_manager import (
             ApproveRequest,
             _get_allowed_skills_dir,
             approve_task,
@@ -72,7 +72,7 @@ class TestApproveSkillGeneration:
 
     def test_syntactically_invalid_code_returns_400_not_500(self):
         """ভুল সিনট্যাক্সের কোড 400 দেবে ('Code validation failed'), NameError/500 না।"""
-        from api.routes.approval_manager import ApproveRequest, approve_task
+        from core.api.routes.approval_manager import ApproveRequest, approve_task
 
         skill_name = f"test_bad_skill_{uuid.uuid4().hex[:8]}"
         code = "def run(:\n    return\n"  # ইচ্ছাকৃত সিনট্যাক্স এরর
@@ -90,7 +90,7 @@ class TestApproveSkillGeneration:
 
     def test_missing_skill_name_returns_400(self):
         """skill_name অনুপস্থিত থাকলে 400 (Missing skill_name...)।"""
-        from api.routes.approval_manager import ApproveRequest, approve_task
+        from core.api.routes.approval_manager import ApproveRequest, approve_task
 
         task = _make_skill_generation_task("", "print('hi')")
 
@@ -105,7 +105,7 @@ class TestApproveSkillGeneration:
 
     def test_path_traversal_skill_name_blocked(self):
         """স্কিল নেমে path-traversal ক্যারেক্টার থাকলে অনুমোদনের আগেই 400 দিয়ে আটকাবে।"""
-        from api.routes.approval_manager import ApproveRequest, approve_task
+        from core.api.routes.approval_manager import ApproveRequest, approve_task
 
         task = _make_skill_generation_task("../../etc/passwd", "print('hi')")
 

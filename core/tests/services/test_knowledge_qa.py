@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi import HTTPException
 
-from services.knowledge_qa import Citation, KnowledgeQAService
+from core.services.knowledge_qa import Citation, KnowledgeQAService
 
 
 class TestCitation:
@@ -61,12 +61,12 @@ class TestKnowledgeQAService:
         assert hasattr(service, "gateway")
 
     def test_min_retrieval_score_constant(self):
-        from services.knowledge_qa import MIN_RETRIEVAL_SCORE
+        from core.services.knowledge_qa import MIN_RETRIEVAL_SCORE
 
         assert MIN_RETRIEVAL_SCORE == 0.05
 
     def test_max_context_chars_constant(self):
-        from services.knowledge_qa import MAX_CONTEXT_CHARS
+        from core.services.knowledge_qa import MAX_CONTEXT_CHARS
 
         assert MAX_CONTEXT_CHARS == 12_000
 

@@ -202,7 +202,7 @@ class TestTOTPVerification:
 
     def test_verify_totp_code_success(self):
         """সঠিক TOTP কোড ভেরিফাই করা হয়।"""
-        from api.routes.admin_routes import verify_totp_code
+        from core.api.routes.admin_routes import verify_totp_code
 
         # Generate a valid TOTP code for testing
         secret = base64.b32encode(os.urandom(10)).decode("utf-8")
@@ -220,14 +220,14 @@ class TestTOTPVerification:
         assert verify_totp_code(valid_code, secret) is True
 
         """TOTP কোড প্রসੂসিং এ এক্সেপশন হলে False রিটার্ন করে।"""
-        from api.routes.admin_routes import verify_totp_code
+        from core.api.routes.admin_routes import verify_totp_code
 
         assert verify_totp_code("123456", "") is False
         assert verify_totp_code("123456", "invalid-secret!!!") is False
 
     def test_check_totp_success(self):
         """check_totp ফাংশন সফল ভেরিফিকেশন রিটার্ন করে।"""
-        from api.routes.admin_routes import check_totp
+        from core.api.routes.admin_routes import check_totp
 
         secret = base64.b32encode(os.urandom(10)).decode("utf-8")
         current_time = int(time.time() // 30)

@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from services.hitl.engine import HITLEngine, HITLStateError
+from core.services.hitl.engine import HITLEngine, HITLStateError
 
 
 class TestHITLEngine:

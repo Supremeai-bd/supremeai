@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tools.code.cot_reasoner import (
+from core.tools.code.cot_reasoner import (
     ChainOfThoughtReasoner,
     DeepReasoningChain,
     Thought,

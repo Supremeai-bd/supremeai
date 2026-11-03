@@ -1,4 +1,4 @@
-"""M1-A — canonical Run lifecycle state machine tests (pure, offline).
+﻿"""M1-A â€” canonical Run lifecycle state machine tests (pure, offline).
 
 Covers:
 - the full happy-path lifecycle (user-approved verdict chain);
@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import pytest
 
-from runs import retry as run_retry
-from runs import state_machine as sm
+from core.runs import retry as run_retry
+from core.runs import state_machine as sm
 
 # ---------------------------------------------------------------------------
 # Happy path
@@ -26,7 +26,7 @@ from runs import state_machine as sm
 
 class TestHappyPath:
     def test_full_lifecycle_chain(self):
-        """REQUESTED → POLICY_CHECKED → PLANNED → RUNNING → SUCCEEDED → FINALIZED."""
+        """REQUESTED â†’ POLICY_CHECKED â†’ PLANNED â†’ RUNNING â†’ SUCCEEDED â†’ FINALIZED."""
         state = sm.REQUESTED
         for nxt in (
             sm.POLICY_CHECKED,
@@ -39,7 +39,7 @@ class TestHappyPath:
         assert state == sm.FINALIZED
 
     def test_failed_path_with_retry_then_seal(self):
-        """RUNNING → RETRYING → RUNNING → FAILED → FINALIZED (retry inside budget)."""
+        """RUNNING â†’ RETRYING â†’ RUNNING â†’ FAILED â†’ FINALIZED (retry inside budget)."""
         state = sm.assert_transition(sm.RUNNING, sm.RETRYING, retry_class="transient")
         assert state == sm.RETRYING
         state = sm.assert_transition(state, sm.RUNNING)
@@ -47,25 +47,25 @@ class TestHappyPath:
         assert sm.assert_transition(state, sm.FINALIZED) == sm.FINALIZED
 
     def test_hitl_path(self):
-        """RUNNING → WAITING_APPROVAL → RUNNING (approval granted)."""
+        """RUNNING â†’ WAITING_APPROVAL â†’ RUNNING (approval granted)."""
         state = sm.assert_transition(sm.RUNNING, sm.WAITING_APPROVAL)
         assert state == sm.WAITING_APPROVAL
         assert sm.assert_transition(state, sm.RUNNING) == sm.RUNNING
 
     def test_hitl_rejection_path(self):
-        """WAITING_APPROVAL → FAILED (approval rejected) → FINALIZED."""
+        """WAITING_APPROVAL â†’ FAILED (approval rejected) â†’ FINALIZED."""
         state = sm.assert_transition(sm.RUNNING, sm.WAITING_APPROVAL)
         state = sm.assert_transition(state, sm.FAILED)
         assert sm.is_terminal(state)
 
     def test_degraded_recovers_and_succeeds(self):
-        """RUNNING → DEGRADED → RUNNING → SUCCEEDED."""
+        """RUNNING â†’ DEGRADED â†’ RUNNING â†’ SUCCEEDED."""
         state = sm.assert_transition(sm.RUNNING, sm.DEGRADED)
         state = sm.assert_transition(state, sm.RUNNING)
         assert sm.assert_transition(state, sm.SUCCEEDED) == sm.SUCCEEDED
 
     def test_blocked_from_policy_and_unblock(self):
-        """POLICY_CHECKED → BLOCKED → RUNNING (external resolution)."""
+        """POLICY_CHECKED â†’ BLOCKED â†’ RUNNING (external resolution)."""
         state = sm.assert_transition(sm.POLICY_CHECKED, sm.BLOCKED)
         assert sm.assert_transition(state, sm.RUNNING) == sm.RUNNING
 
@@ -123,7 +123,7 @@ class TestEdgeMatrix:
 
 class TestIllegalTransitions:
     def test_skip_ahead_rejected(self):
-        """REQUESTED → PLANNED (policy check must happen) is illegal."""
+        """REQUESTED â†’ PLANNED (policy check must happen) is illegal."""
         with pytest.raises(sm.IllegalTransition, match="illegal run transition"):
             sm.assert_transition(sm.REQUESTED, sm.PLANNED)
 
@@ -227,7 +227,7 @@ class TestHelpers:
         assert not sm.is_immutable(sm.FAILED)
 
     def test_every_state_has_transition_entry(self):
-        """No hidden states: STATES ↔ LEGAL_TRANSITIONS keys are identical."""
+        """No hidden states: STATES â†” LEGAL_TRANSITIONS keys are identical."""
         assert set(sm.STATES) == set(sm.LEGAL_TRANSITIONS)
 
     def test_terminal_states_have_only_seal_or_nothing(self):
@@ -243,7 +243,7 @@ class TestHelpers:
 
 class TestRetryClassification:
     def test_fixed_eight_class_enum(self):
-        """The roadmap's fixed 8-class set — no more, no less."""
+        """The roadmap's fixed 8-class set â€” no more, no less."""
         assert {rc.value for rc in run_retry.RetryClass} == {
             "transient",
             "rate_limited",

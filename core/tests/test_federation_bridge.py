@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import uuid
 
 import pytest
 
-from backend.ecosystem.federation_bridge import observe_browser_run, observe_remediation_run
+from core.ecosystem.federation_bridge import observe_browser_run, observe_remediation_run
 
 
 class FakeRunService:
@@ -36,7 +36,8 @@ async def test_remediation_is_governed_by_canonical_run():
     )
     assert (
         result["run_type"] == "agent"
-    )  # M06 ফিক্স: "remediation" ছিল অবৈধ RunType (latent ValueError)
+    )  # M06 à¦«à¦¿à¦•à§à¦¸: "remediation" à¦›à¦¿à¦² à¦…à¦¬à§ˆà¦§ RunType (latent ValueError)
     assert result["source_type"] == "self_healing"
     assert result["source_ref"] == "fix-1"
     assert result["correlation_id"] == "tenant-1"
+

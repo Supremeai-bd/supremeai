@@ -14,8 +14,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from services import memory_service as memory_service_module
-from services.memory_service import CascadeMemoryService, memory_dedup_enabled
+from core.services import memory_service as memory_service_module
+from core.services.memory_service import CascadeMemoryService, memory_dedup_enabled
 
 pytestmark = pytest.mark.memory
 

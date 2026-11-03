@@ -2,7 +2,7 @@ import os
 import tempfile
 from unittest.mock import MagicMock, patch
 
-from tools.ai_agents.vision_agent import VisionAgent
+from core.tools.ai_agents.vision_agent import VisionAgent
 
 
 def test_vision_agent_image_no_easyocr():

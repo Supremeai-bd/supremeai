@@ -1,4 +1,4 @@
-"""M1-B — Run service tests (lifecycle + budgets + retry + cancellation).
+﻿"""M1-B â€” Run service tests (lifecycle + budgets + retry + cancellation).
 
 Dedicated sqlite+aiosqlite in-memory engine (missions-test pattern; the
 root conftest's autouse cleanup fixture requires a parseable DATABASE_URL
@@ -29,13 +29,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from missions.models import Mission  # noqa: F401 — registers missions table
-from models.base import Base
-from runs.budgets import BudgetDimension
-from runs.models import Run, RunEvent
-from runs.retry import RetryClass
-from runs.service import RunNotFound, RunService
-from runs.state_machine import (
+from core.missions.models import Mission  # noqa: F401 â€” registers missions table
+from core.models.base import Base
+from core.runs.budgets import BudgetDimension
+from core.runs.models import Run, RunEvent
+from core.runs.retry import RetryClass
+from core.runs.service import RunNotFound, RunService
+from core.runs.state_machine import (
     BLOCKED,
     CANCELLED,
     FAILED,
@@ -280,7 +280,7 @@ class TestServiceBudgets:
 
 
 def check_ok(snapshot) -> bool:
-    from runs.budgets import check_budgets
+    from core.runs.budgets import check_budgets
 
     return check_budgets(snapshot).ok
 

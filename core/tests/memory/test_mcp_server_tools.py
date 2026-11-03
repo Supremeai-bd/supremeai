@@ -23,7 +23,7 @@ import types as _stdlib_types
 import pytest
 
 import memory.mcp_server as mcp_server
-from memory.mcp_server import KnowledgeGraph, _check_policy, _dispatch, build_server
+from core.memory.mcp_server import KnowledgeGraph, _check_policy, _dispatch, build_server
 
 pytestmark = pytest.mark.memory
 

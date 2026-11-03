@@ -10,7 +10,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 import tools.comment_thread_ai as ctai
-from tools.comment_thread_ai import _verify_signature, router
+from core.tools.comment_thread_ai import _verify_signature, router
 
 SECRET = "test-webhook-secret-12345"
 

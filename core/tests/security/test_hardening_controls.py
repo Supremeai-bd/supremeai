@@ -32,7 +32,7 @@ from fastapi import HTTPException
 # ---------------------------------------------------------------------------
 from core.middleware.security import RequestValidationMiddleware
 from core.security.protection.ssrf_protection import SSRFProtection
-from utils.client_ip import get_client_ip
+from core.utils.client_ip import get_client_ip
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -439,7 +439,7 @@ class TestOidcSignatureVerification:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_unsupported_provider_fails_closed(self):
-        from tools.sso_integrator import SSOIntegrator
+        from core.tools.sso_integrator import SSOIntegrator
 
         payload, err = await SSOIntegrator()._verify_oidc_id_token("nope", "x.y.z", "client-1")
         assert payload is None
@@ -448,7 +448,7 @@ class TestOidcSignatureVerification:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_plain_http_jwks_refused(self, monkeypatch):
-        from tools.sso_integrator import SSOIntegrator
+        from core.tools.sso_integrator import SSOIntegrator
 
         # Force a provider whose jwks_uri would be fetched over plain http.
         monkeypatch.setitem(
@@ -463,7 +463,7 @@ class TestOidcSignatureVerification:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_jwks_fetch_or_verify_failure_returns_no_claims(self):
-        from tools.sso_integrator import SSOIntegrator
+        from core.tools.sso_integrator import SSOIntegrator
 
         with patch("tools.sso_integrator.jwt.PyJWKClient", side_effect=RuntimeError("boom")):
             payload, err = await SSOIntegrator()._verify_oidc_id_token(

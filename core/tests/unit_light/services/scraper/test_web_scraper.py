@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 
-from services.scraper.web_scraper import WebScraper
+from core.services.scraper.web_scraper import WebScraper
 
 
 def test_fetch_page_blocks_ssrf():

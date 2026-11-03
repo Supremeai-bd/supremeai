@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from services.storage.gcp_firestore import GCPFirestoreVerificationQueue
+from core.services.storage.gcp_firestore import GCPFirestoreVerificationQueue
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

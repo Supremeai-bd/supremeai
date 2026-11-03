@@ -26,7 +26,7 @@ import pytest
 import core.config
 import core.degraded_mode as degraded_mode
 from core.degraded_mode import sqlite_fallback_allowed
-from tools.code.fuzz_sandbox import SecurityError, run_sandbox_ast_check
+from core.tools.code.fuzz_sandbox import SecurityError, run_sandbox_ast_check
 
 # The root-level ``skills`` package lives outside backend/ — mirror the sys.path
 # handling used by core/self_evolution/auto_skill_creator.py.

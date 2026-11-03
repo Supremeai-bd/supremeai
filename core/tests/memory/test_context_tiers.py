@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-from memory.context_tiers import (
+from core.memory.context_tiers import (
     L0Context,
     L1Context,
     L2Context,

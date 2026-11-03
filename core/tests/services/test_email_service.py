@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from services.email.email_service import EmailService
+from core.services.email.email_service import EmailService
 
 
 @pytest.fixture

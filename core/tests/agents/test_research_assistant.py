@@ -14,8 +14,8 @@ import importlib
 import pytest
 from fastapi import HTTPException
 
-from agents.research_assistant import ResearchAssistant, ResearchSourceError
-from api.routes import agents as agents_routes
+from core.agents.research_assistant import ResearchAssistant, ResearchSourceError
+from core.api.routes import agents as agents_routes
 
 # ----------------------------------------------------------------- summarize
 

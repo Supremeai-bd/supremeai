@@ -21,14 +21,14 @@ from typing import Any
 
 import pytest
 
-from services.hitl.dispatch import (
+from core.services.hitl.dispatch import (
     APPROVAL_EXECUTORS,
     ApprovalDispatchError,
     execute_approved,
     execute_approved_skill,
     resolve_executor,
 )
-from services.hitl.engine import HITLEngine
+from core.services.hitl.engine import HITLEngine
 
 # ---------------------------------------------------------------------------
 # Fake store — HITLEngine চুক্তি: `.client` + `.collection()`

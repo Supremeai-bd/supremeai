@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tools.knowledge.knowledge_base_indexer import KnowledgeBaseIndexer
+from core.tools.knowledge.knowledge_base_indexer import KnowledgeBaseIndexer
 
 SAMPLE_PYTHON_CODE = '''
 """Module docstring."""

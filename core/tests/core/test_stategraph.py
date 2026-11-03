@@ -4,7 +4,7 @@ Unit tests for SupremeAI Micro StateGraph Engine
 
 import pytest
 
-from runs.stategraph import (
+from core.runs.stategraph import (
     END,
     CompiledGraph,
     RecursionLimitExceeded,

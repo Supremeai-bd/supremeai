@@ -31,8 +31,8 @@ from uuid import uuid4
 
 import pytest
 
-from memory import mcp_server
-from memory.mcp_server import build_server
+from core.memory import mcp_server
+from core.memory.mcp_server import build_server
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = BACKEND_ROOT / "memory" / "mcp_server.py"

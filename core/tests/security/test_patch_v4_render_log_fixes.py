@@ -215,7 +215,7 @@ def test_bootstrap_statements_include_automation_executions():
     so cleanup_automation_executions failed with UndefinedTableError every
     60 seconds.
     """
-    from database.supabase_client import SupabaseDB
+    from core.database.supabase_client import SupabaseDB
 
     statements = SupabaseDB.get_bootstrap_statements()
     joined = " ".join(statements)

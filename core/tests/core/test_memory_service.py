@@ -9,7 +9,7 @@ import os
 
 import pytest
 
-from services.memory_service import CascadeMemoryService, hash_vectorize
+from core.services.memory_service import CascadeMemoryService, hash_vectorize
 
 
 class TestHashVectorize:
@@ -114,7 +114,7 @@ class TestCascadeMemoryService:
 
 class TestVectorMemoryFunctions:
     def test_get_embedding_returns_384_dimensions(self):
-        from services.memory_service import get_embedding
+        from core.services.memory_service import get_embedding
 
         vec = get_embedding("test prompt for vectorization")
         assert isinstance(vec, list)
@@ -123,7 +123,7 @@ class TestVectorMemoryFunctions:
 
     @pytest.mark.asyncio
     async def test_save_and_recall_memory(self):
-        from services.memory_service import recall_memories, save_memory
+        from core.services.memory_service import recall_memories, save_memory
 
         res = await save_memory(
             session_id="test_sess_101",
@@ -141,7 +141,7 @@ class TestVectorMemoryFunctions:
 
     @pytest.mark.asyncio
     async def test_summarize_and_save_session(self):
-        from services.memory_service import summarize_and_save_session
+        from core.services.memory_service import summarize_and_save_session
 
         messages = [
             {"role": "user", "content": "How do we implement LLM telemetry?"},

@@ -14,7 +14,7 @@ os.environ.setdefault("OLLAMA_URL", "http://127.0.0.1:11434")  # is_local()
 
 # Bengali: CodeSmellDetector-এর مختلف মেথড সংক্রান্ত পরীক্ষা
 # এটি কেন্দ্রীয় স্ট্যাটিক অ্যানালাইসিস টুলের কভারেজ বৃদ্ধি করতে সাহায্য করে
-from tools.code.code_smell_detector import CodeSmellDetector
+from core.tools.code.code_smell_detector import CodeSmellDetector
 
 
 @pytest.fixture

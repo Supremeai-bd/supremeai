@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from tools.code.local_code_executor import LocalCodeExecutor
+from core.tools.code.local_code_executor import LocalCodeExecutor
 
 
 @pytest.mark.asyncio

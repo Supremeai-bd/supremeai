@@ -29,7 +29,7 @@ from unittest.mock import patch
 import pytest
 
 import tools.browser.playwright_browser_agent as pa
-from tools.browser.playwright_browser_agent import (
+from core.tools.browser.playwright_browser_agent import (
     TRUST_SCORE_THRESHOLD,
     PlaywrightBrowserAgent,
 )

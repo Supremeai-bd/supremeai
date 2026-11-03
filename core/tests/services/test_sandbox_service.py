@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from services.sandbox_service import SandboxService
+from core.services.sandbox_service import SandboxService
 
 
 def test_create_sandbox_returns_id():

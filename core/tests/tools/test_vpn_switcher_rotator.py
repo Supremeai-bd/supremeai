@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from tools.security_tools.vpn_switcher import VPNRotator
+from core.tools.security_tools.vpn_switcher import VPNRotator
 
 
 def test_rotate_without_endpoints():

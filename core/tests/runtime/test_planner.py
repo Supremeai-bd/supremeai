@@ -4,7 +4,7 @@
 import pytest
 
 from core.task_contract import RiskLevel, TaskContract, VerificationPolicy
-from runtime.planner import StepStatus, get_planner
+from core.runtime.planner import StepStatus, get_planner
 
 
 @pytest.mark.asyncio

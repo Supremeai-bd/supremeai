@@ -1,4 +1,4 @@
-from memory.long_term_memory import LongTermMemory
+from core.memory.long_term_memory import LongTermMemory
 
 
 def test_long_term_memory_remember_and_recall():

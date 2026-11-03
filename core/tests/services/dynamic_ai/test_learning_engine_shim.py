@@ -22,8 +22,8 @@ import inspect
 
 import pytest
 
-from services.dynamic_ai.learning_engine import LearningEngine
-from services.dynamic_ai.orchestrator import DynamicAIOrchestrator, TaskType
+from core.services.dynamic_ai.learning_engine import LearningEngine
+from core.services.dynamic_ai.orchestrator import DynamicAIOrchestrator, TaskType
 
 
 @pytest.fixture

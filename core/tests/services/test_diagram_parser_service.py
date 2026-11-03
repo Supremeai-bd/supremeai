@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from services.diagram_parser_service import (
+from core.services.diagram_parser_service import (
     DiagramParserService,
     DiagramType,
     DrawIOParser,
@@ -191,8 +191,8 @@ async def test_to_infrastructure_failure_returns_error():
 
 
 def test_get_diagram_parser_returns_same_instance():
-    from services import diagram_parser_service
-    from services.diagram_parser_service import get_diagram_parser
+    from core.services import diagram_parser_service
+    from core.services.diagram_parser_service import get_diagram_parser
 
     diagram_parser_service._service_instance = None  # reset
     a = get_diagram_parser()

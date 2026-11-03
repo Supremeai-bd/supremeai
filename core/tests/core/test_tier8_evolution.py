@@ -5,8 +5,8 @@
 import pytest
 
 from core.failure_fingerprint import make_fingerprint
-from services.auto_healer import AutoHealer
-from tools.learning.model_trainer import ModelTrainer
+from core.services.auto_healer import AutoHealer
+from core.tools.learning.model_trainer import ModelTrainer
 
 
 @pytest.fixture

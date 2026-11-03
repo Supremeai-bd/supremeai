@@ -14,17 +14,39 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from adapters.business_adapter import BusinessAdapter
-from adapters.dev_adapter import DevAdapter
-from adapters.ux_adapter import UXAdapter
+try:
+    from adapters.business_adapter import BusinessAdapter
+except Exception:
+    BusinessAdapter = None
+try:
+    from adapters.dev_adapter import DevAdapter
+except Exception:
+    DevAdapter = None
+try:
+    from adapters.ux_adapter import UXAdapter
+except Exception:
+    UXAdapter = None
 from core.advanced_reasoning import AdvancedReasoningEngine
 from core.evolution_module import EvolutionModule
 from core.monitoring.logging_config import logger
 from core.resilience.safety_rollback_manager import SafetyRollbackManager
-from evolution.auto_evolution_controller import AutoEvolutionController
-from learning.pattern_recognizer import PatternRecognizer
-from scaling.distributed_manager import DistributedScalingManager
-from services.living_engine import LivingEngineOrchestrator, SolutionResult
+try:
+    from evolution.auto_evolution_controller import AutoEvolutionController
+except Exception:
+    AutoEvolutionController = None
+try:
+    from learning.pattern_recognizer import PatternRecognizer
+except Exception:
+    PatternRecognizer = None
+try:
+    from scaling.distributed_manager import DistributedScalingManager
+except Exception:
+    DistributedScalingManager = None
+try:
+    from services.living_engine import LivingEngineOrchestrator, SolutionResult
+except Exception:
+    LivingEngineOrchestrator = None
+    SolutionResult = None
 
 
 @dataclass

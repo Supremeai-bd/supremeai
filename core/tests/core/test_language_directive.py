@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from context_engine import ContextEngine, Section
+from core.context_engine import ContextEngine, Section
 from core.i18n.language_directive import (
     build_language_directive,
     language_loop_enabled,
@@ -87,7 +87,7 @@ async def test_directive_flows_through_context_engine():
     # বাংলা: directive SYSTEM block হিসেবে assemble-এ টিকে থাকে (M07 চুক্তি)।
     directive = build_language_directive("bn")
     assert directive is not None
-    from context_engine import ContextBlock
+    from core.context_engine import ContextBlock
 
     blocks = [
         ContextBlock(section=Section.SYSTEM, text=directive, priority=0, block_id="lang-directive"),

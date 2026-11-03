@@ -27,7 +27,7 @@ import types
 
 import pytest
 
-from memory.supabase_store import SupabaseStore
+from core.memory.supabase_store import SupabaseStore
 
 pytestmark = pytest.mark.memory
 

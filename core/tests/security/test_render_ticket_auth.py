@@ -19,8 +19,8 @@ from unittest.mock import patch
 import pytest
 from fastapi import HTTPException
 
-from api.routes.browser import _render_proxy
-from api.routes.browser._render_proxy import (
+from core.api.routes.browser import _render_proxy
+from core.api.routes.browser._render_proxy import (
     _consume_ticket,
     _issue_ticket,
     render_proxy,

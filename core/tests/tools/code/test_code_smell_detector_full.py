@@ -19,7 +19,7 @@ from typing import Any
 import pytest
 
 import tools.code.code_smell_detector as csd
-from tools.code.code_smell_detector import CodeSmellDetector
+from core.tools.code.code_smell_detector import CodeSmellDetector
 
 
 @pytest.fixture

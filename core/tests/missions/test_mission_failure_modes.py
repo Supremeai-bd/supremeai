@@ -236,7 +236,7 @@ def _hmac_hex(secret: str, body: bytes) -> str:
 
 
 def _hmac_family_app():
-    from api.routes.n8n_webhooks import router as hmac_family_router
+    from core.api.routes.n8n_webhooks import router as hmac_family_router
 
     app = FastAPI()
     app.include_router(hmac_family_router)
@@ -244,7 +244,7 @@ def _hmac_family_app():
 
 
 def _header_family_app():
-    from api.routes.webhooks_ai import router as header_family_router
+    from core.api.routes.webhooks_ai import router as header_family_router
 
     app = FastAPI()
     app.include_router(header_family_router)
@@ -252,7 +252,7 @@ def _header_family_app():
 
 
 def _git_family_app():
-    from api.routes.pr_review_api import router as git_family_router
+    from core.api.routes.pr_review_api import router as git_family_router
 
     app = FastAPI()
     app.include_router(git_family_router)

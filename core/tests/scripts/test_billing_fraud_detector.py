@@ -125,7 +125,7 @@ class TestFraudDetectorLedger:
 
     @pytest.mark.asyncio
     async def test_get_ledger_entries_with_data(self, mock_db_session):
-        from models.wallet import TransactionLedgerEntry
+        from core.models.wallet import TransactionLedgerEntry
 
         entry = TransactionLedgerEntry(
             transaction_id="tx1",
@@ -164,7 +164,7 @@ class TestFraudDetectorAnomalyDetection:
 
     @pytest.mark.asyncio
     async def test_scan_tenant_with_entries(self, mock_db_session):
-        from models.wallet import TransactionLedgerEntry
+        from core.models.wallet import TransactionLedgerEntry
 
         entries = []
         now = datetime.now(UTC)

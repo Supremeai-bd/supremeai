@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from services.auto_healer import AutoHealer, IssueCategory, Severity
+from core.services.auto_healer import AutoHealer, IssueCategory, Severity
 from workers.precognitive_watcher import PrecognitiveWatcher, SentinelAlert
 
 
