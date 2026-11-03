@@ -155,7 +155,8 @@ class SettingsFieldsMixin:
     user_cors_origins: str | list[str] = Field(
         default=[
             "https://supremeai-a.web.app",  # Firebase Hosting user portal
-            "https://supremeai-studio.vercel.app",  # Vercel studio
+            "https://supremeai-studio.vercel.app",
+            "https://supremeai-studio-live.vercel.app",  # Vercel studio
         ],
         validation_alias="USER_CORS_ORIGINS",
     )
