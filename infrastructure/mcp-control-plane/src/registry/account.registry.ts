@@ -38,18 +38,15 @@ function isAvailable(envRef: string): boolean {
 
 /**
  * Canonical federation repositories under the Supremeai-bd organization
- * (SSOT: Pure 3-Repo Model - Umbrella, Studio, and Open Embassy).
+ * (SSOT: ECOSYSTEM_MAP.md §2). Used as the guaranteed baseline for discovery.
  */
 export const CANONICAL_FEDERATION_REPOS = [
   "supremeai",
-  "supremeai-studio",
   "supremeai-open",
-] as const;
-
-export const ARCHIVED_FEDERATION_REPOS = [
   "supremeai-core",
   "supremeai-api",
   "supremeai-browser",
+  "supremeai-studio",
   "supremeai-vscode",
   "supremeai-archive",
 ] as const;
