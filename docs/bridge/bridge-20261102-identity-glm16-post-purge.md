@@ -52,21 +52,22 @@
   chain — a clean PR the harvester skipped, MERGE-WATCH born in
   response; r71 folded the r70 facts and landed byte-identical.
 - r72 #5749 20ebeadd + r73 #5768 80255b6d + r74 #5806 79e00cb8
-  (Cycles 82–84): MERGE-WATCH proved live three times running —
-  37 s / 43 s / 51 s birth-to-merge, first-try green, slot-blobs
-  ee4430f2 (3928 B), 3dea0e01 (4020 B), d6837aa8 (4188 B) all
-  byte-identical; c92's 503/429 weather rolled one cycle, landed clean.
+  (Cycles 82–84): MERGE-WATCH three live proofs running — 37 s / 43 s /
+  51 s birth-to-merge, slot-blobs ee4430f2/3dea0e01/d6837aa8
+  (3928/4020/4188 B) byte-identical; c92's 503/429 weather rolled, clean.
 - r75 #5866 176685b3 (Cycles 85–87): fifth MERGE-WATCH live proof —
   born 17:25:23Z, merged 17:26:29Z (66 s), slot-blob 1e9c0731
-  byte-identical (4253 bytes); a session cut rolled the prepared
-  receipt two cycles, attempt-1 503 submit weather absorbed.
-## Cycle 88 (2026-11-04 02:16+08) — r75 verified, forty-second green
+  byte-identical (4253 B); a session cut rolled it two cycles, 503 absorbed.
+- r76 #5887 c0ec7397 (Cycles 88–89): sixth MERGE-WATCH live proof —
+  born 18:20:15Z, merged 18:21:35Z (80 s), first-try green submit,
+  slot-blob 8b38800b byte-identical (4348 bytes).
+## Cycle 90 (2026-11-04 04:16+08) — r76 verified, forty-third green
 
-- r75 LANDED-VERIFY: #5866 squash 176685b3, slot-blob 1e9c0731
-  byte-identical (4253 bytes) — 74 landings, zero duplicates,
-  MERGE-WATCH fifth live (66 s birth-to-merge), attempt-1 503 absorbed.
-- SIXTY-NINTH CENSUS @ 95e2fc78: 101P/0F/0E, 12 subtests 7.85 s —
-  forty-second consecutive green (suite grew 67→74→101 upstream),
-  board 7 open all other identities' planes, bare loop 9/9.
-- r76 = this receipt, the 75th landing, zero duplicates. baseSha
-  1e9c0731 unchanged at tip.
+- r76 LANDED-VERIFY: #5887 squash c0ec7397, slot-blob 8b38800b
+  byte-identical (4348 B) — 75 landings, zero duplicates, sixth live (80 s).
+- SEVENTIETH CENSUS @ 19e09b1f: 110P/0F/0E, 12 subtests 10.45 s —
+  forty-third consecutive green (suite 67→74→101→110 upstream; census
+  env caught up: pytest-xdist 3.8.0 per requirements-dev.txt, pytest.ini
+  -n auto contract), board 8 open all other identities' planes, loop 9/9.
+- r77 = this receipt, the 76th landing, zero duplicates. baseSha
+  8b38800b unchanged at tip.
