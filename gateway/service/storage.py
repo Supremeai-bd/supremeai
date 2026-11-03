@@ -14,6 +14,8 @@ import os
 import sqlite3
 import time
 import uuid
+import hashlib
+import hmac
 from contextlib import contextmanager
 from typing import Any, Dict, List, Optional
 
@@ -31,6 +33,8 @@ _MEM_FALLBACK: Dict[str, Any] = {
     "messages": {},
     "preferences": {},
     "trusted_browsers": {},
+    "users": {},
+    "guest_tokens": {},
 }
 _USE_MEM_FALLBACK = False
 
@@ -134,6 +138,29 @@ def init_db() -> None:
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_passkeys_user ON user_passkeys(user_id);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_passkeys_role ON user_passkeys(role);")
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id TEXT PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                name TEXT NOT NULL DEFAULT '',
+                role TEXT NOT NULL DEFAULT 'user',
+                verified INTEGER NOT NULL DEFAULT 0,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL
+            );
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);")
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS guest_tokens (
+                token_hash TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                expires_at REAL NOT NULL,
+                revoked INTEGER NOT NULL DEFAULT 0
+            );
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_guest_tokens_expires ON guest_tokens(expires_at);")
         logger.info(f"Gateway SQLite storage initialized at {_DB_PATH}")
     except Exception as exc:
         logger.warning(f"Failed to initialize SQLite storage: {exc}. Using memory fallback.")
@@ -785,6 +812,160 @@ def revoke_user_passkey(credential_id: str, user_id: str) -> bool:
                 passkeys[credential_id]["revoked"] = 1
                 return True
     return False
+
+
+# ── User Registration Persistence ────────────────────────────────────────────
+# Public registration must create a REAL durable record: unique email,
+# hashed password, and a stable user_id. The old flow returned a fresh
+# int(time.time())-derived id with no persistence, which allowed duplicate
+# registrations and lost account state on restart.
+
+def _hash_password(password: str) -> str:
+    """Hash a password with a salted SHA-256 scheme (no third-party deps).
+
+    Format:  salt$hex(hash(salt:password))  — constant-time compare via hmac.
+    """
+    salt = os.urandom(16).hex()
+    digest = hashlib.sha256(f"{salt}:{password}".encode("utf-8")).hexdigest()
+    return f"{salt}${digest}"
+
+
+def _verify_password_hash(password: str, stored: str) -> bool:
+    try:
+        salt, digest = stored.split("$", 1)
+    except ValueError:
+        return False
+    expected = hashlib.sha256(f"{salt}:{password}".encode("utf-8")).hexdigest()
+    return hmac.compare_digest(expected, digest)
+
+
+def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    """Look up a registered user by email (case-insensitive)."""
+    email = (email or "").strip().lower()
+    if not email:
+        return None
+    with get_db() as conn:
+        if conn is not None:
+            cur = conn.execute(
+                "SELECT user_id, email, name, role, verified, created_at, updated_at FROM users WHERE lower(email) = ?;",
+                (email,),
+            )
+            row = cur.fetchone()
+            return dict(row) if row else None
+        else:
+            for u in _MEM_FALLBACK.get("users", {}).values():
+                if str(u.get("email", "")).lower() == email:
+                    return dict(u)
+    return None
+
+
+def create_user(email: str, password: str, name: str = "", role: str = "user") -> Dict[str, Any]:
+    """Create a durable user record. Raises ValueError on duplicate email."""
+    email = (email or "").strip().lower()
+    if not email or "@" not in email:
+        raise ValueError("Valid email address is required")
+    if len(password) < 6:
+        raise ValueError("Password must be at least 6 characters")
+
+    if get_user_by_email(email) is not None:
+        raise ValueError("Email already registered")
+
+    user_id = f"usr-{uuid.uuid4().hex[:12]}"
+    now = time.time()
+    record = {
+        "user_id": user_id,
+        "email": email,
+        "password_hash": _hash_password(password),
+        "name": name or (email.split("@")[0].capitalize() if "@" in email else "User"),
+        "role": role,
+        "verified": 0,
+        "created_at": now,
+        "updated_at": now,
+    }
+    with get_db() as conn:
+        if conn is not None:
+            conn.execute(
+                "INSERT INTO users (user_id, email, password_hash, name, role, verified, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
+                (
+                    record["user_id"],
+                    record["email"],
+                    record["password_hash"],
+                    record["name"],
+                    record["role"],
+                    record["verified"],
+                    record["created_at"],
+                    record["updated_at"],
+                ),
+            )
+        else:
+            _MEM_FALLBACK.setdefault("users", {})[user_id] = dict(record)
+    return record
+
+
+def verify_user_password(email: str, password: str) -> Optional[Dict[str, Any]]:
+    """Authenticate a registered user by email+password. Returns user record or None."""
+    user = get_user_by_email(email)
+    if user is None:
+        return None
+    stored = _MEM_FALLBACK.get("users", {}).get(user["user_id"], {}).get("password_hash")
+    if stored is None:
+        with get_db() as conn:
+            if conn is not None:
+                cur = conn.execute(
+                    "SELECT password_hash FROM users WHERE user_id = ?;",
+                    (user["user_id"],),
+                )
+                row = cur.fetchone()
+                stored = row["password_hash"] if row else None
+    if not stored or not _verify_password_hash(password, stored):
+        return None
+    return user
+
+
+# ── Guest token persistence (signed short-lived guest sessions) ─────────────
+
+def save_guest_token(user_id: str, token: str, ttl_seconds: int = 300) -> None:
+    """Persist a signed guest session token for auth verification."""
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    now = time.time()
+    with get_db() as conn:
+        if conn is not None:
+            conn.execute(
+                "INSERT OR REPLACE INTO guest_tokens (token_hash, user_id, created_at, expires_at, revoked) "
+                "VALUES (?, ?, ?, ?, 0);",
+                (token_hash, user_id, now, now + ttl_seconds),
+            )
+        else:
+            _MEM_FALLBACK.setdefault("guest_tokens", {})[token_hash] = {
+                "token_hash": token_hash,
+                "user_id": user_id,
+                "created_at": now,
+                "expires_at": now + ttl_seconds,
+                "revoked": 0,
+            }
+
+
+def verify_guest_token(token: str) -> Optional[str]:
+    """Return the user_id bound to a signed guest token, or None if invalid/expired."""
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    now = time.time()
+    with get_db() as conn:
+        if conn is not None:
+            cur = conn.execute(
+                "SELECT user_id, expires_at, revoked FROM guest_tokens WHERE token_hash = ?;",
+                (token_hash,),
+            )
+            row = cur.fetchone()
+        else:
+            row = _MEM_FALLBACK.get("guest_tokens", {}).get(token_hash)
+    if not row:
+        return None
+    if row.get("revoked"):
+        return None
+    if float(row.get("expires_at", 0)) < now:
+        return None
+    return row.get("user_id")
 
 
 # Auto-run initialization on module load

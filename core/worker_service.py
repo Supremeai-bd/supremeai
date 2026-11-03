@@ -68,6 +68,29 @@ _idempotency_records: dict[str, tuple[str, str]] = {}
 MAX_IDEMPOTENCY_RECORDS = 10_000
 
 
+def _is_safe_scrape_url(url: str) -> bool:
+    """SSRF guard for client-supplied scrape URLs.
+
+    The scraper service performs an arbitrary HTTP fetch, so an attacker who
+    controls metadata["url"] can probe the internal network, cloud metadata
+    endpoints, or private services. Validate against the canonical allowlist
+    (scheme + hostname + private/loopback/reserved IP block) and reject
+    anything else before the URL ever reaches the scraper.
+    """
+    try:
+        from core.services.scraper.security import is_safe_url
+    except ImportError:
+        try:
+            from gateway.services.scraper.security import is_safe_url
+        except ImportError:
+            # Fail closed: if the guard module is unavailable, no URL is safe.
+            return False
+    try:
+        return bool(is_safe_url(url))
+    except Exception:  # noqa: BLE001 - any guard error rejects the URL
+        return False
+
+
 class TaskContract(BaseModel):
     """The single tenant-scoped contract accepted by the worker boundary."""
 
@@ -98,8 +121,12 @@ class TaskContract(BaseModel):
                 intent=self.goal,
                 trace_id=self.correlation_id,
             )
-        if self.capability == "scrape" and not isinstance(self.metadata.get("url"), str):
-            raise ValueError("metadata.url is required for scrape tasks")
+        if self.capability == "scrape":
+            url = self.metadata.get("url")
+            if not isinstance(url, str) or not url:
+                raise ValueError("metadata.url is required for scrape tasks")
+            if not _is_safe_scrape_url(url):
+                raise ValueError("metadata.url failed SSRF safety check")
         return self
 
 
@@ -110,9 +137,50 @@ class HealthStatus(BaseModel):
     queue_available: bool
     celery_alive: bool
     detail: str | None = None
+    build: dict[str, Any] | None = None  # build freshness (deployed vs expected commit)
 
 
-def _celery_alive() -> bool:
+def _degraded_response(correlation_id: str | None, message: str) -> JSONResponse:
+    """Standardized degraded response.
+
+    Raw exception detail (DB URLs, Redis hostnames, filesystem paths, internal
+    service info) is logged server-side only and NEVER echoed to the client.
+    The client receives a generic message plus the correlation id so it can be
+    matched to sanitized server logs.
+    """
+    payload: dict[str, Any] = {"status": "degraded", "message": message}
+    if correlation_id:
+        payload["correlation_id"] = correlation_id
+    return JSONResponse(payload, status_code=503)
+
+
+def _build_freshness() -> dict[str, Any]:
+    """Compare the running build metadata against the deployed image.
+
+    Render reports update_failed when the latest deployment did not take over,
+    so a service can answer HTTP 200 while still running a stale build. This
+    exposes the freshness explicitly so health/readiness can distinguish
+    "healthy-looking" from "healthy and current".
+    """
+    deployed = os.getenv("SUPREMEAI_DEPLOYED_COMMIT_SHA") or os.getenv("SUPREMEAI_COMMIT_SHA")
+    expected = os.getenv("SUPREMEAI_EXPECTED_COMMIT_SHA")
+    build_time = os.getenv("SUPREMEAI_DEPLOYED_BUILD_TIME") or os.getenv("SUPREMEAI_BUILD_TIME")
+    if expected and deployed:
+        fresh = secrets.compare_digest(str(expected), str(deployed))
+        reason = "match" if fresh else "stale"
+    elif deployed:
+        fresh = True
+        reason = "no_expected_sha"
+    else:
+        fresh = True
+        reason = "not_configured"
+    return {
+        "deployed_commit": deployed or "unknown",
+        "expected_commit": expected or "unknown",
+        "build_time": build_time or "unknown",
+        "fresh": fresh,
+        "reason": reason,
+    }
     proc: subprocess.Popen[bytes] | None = _state.get("celery_proc")
     return bool(proc and proc.poll() is None)
 
@@ -279,7 +347,7 @@ def _drain_once() -> dict[str, Any]:
 
 @app.get("/")
 async def root() -> dict[str, Any]:
-    return {"service": "supremeai-worker", "status": "ok", "role": ROLE}
+    return {"service": "supremeai-worker", "status": "ok", "role": ROLE, "build": _build_freshness()}
 
 
 @app.get("/health")
@@ -300,6 +368,7 @@ async def liveness() -> JSONResponse:
     a broken instance.
     """
     queue_ok, detail = await _queue_available()
+    build = _build_freshness()
     payload = HealthStatus(
         status="ready" if queue_ok else "not_ready",
         role=ROLE,
@@ -307,6 +376,7 @@ async def liveness() -> JSONResponse:
         queue_available=queue_ok,
         celery_alive=_celery_alive(),
         detail=detail,
+        build=build,
     )
     return JSONResponse(payload.model_dump(), status_code=200 if queue_ok else 503)
 
@@ -314,7 +384,11 @@ async def liveness() -> JSONResponse:
 @app.get("/health/ready", response_model=HealthStatus)
 async def readiness() -> JSONResponse:
     queue_ok, detail = await _queue_available()
-    status = "ready" if queue_ok else "not_ready"
+    build = _build_freshness()
+    build_ok = bool(build["fresh"])
+    status = "ready" if (queue_ok and build_ok) else "not_ready"
+    if not build_ok:
+        detail = (detail + "; " if detail else "") + f"stale build: deployed={build['deployed_commit']} expected={build['expected_commit']}"
     payload = HealthStatus(
         status=status,
         role=ROLE,
@@ -322,13 +396,15 @@ async def readiness() -> JSONResponse:
         queue_available=queue_ok,
         celery_alive=_celery_alive(),
         detail=detail,
+        build=build,
     )
-    return JSONResponse(payload.model_dump(), status_code=200 if queue_ok else 503)
+    return JSONResponse(payload.model_dump(), status_code=200 if (queue_ok and build_ok) else 503)
 
 
 @app.get("/health/degraded", response_model=HealthStatus)
 async def degraded_health() -> HealthStatus:
     queue_ok, detail = await _queue_available()
+    build = _build_freshness()
     return HealthStatus(
         status="degraded" if _state["degraded"] or not queue_ok else "ready",
         role=ROLE,
@@ -336,6 +412,7 @@ async def degraded_health() -> HealthStatus:
         queue_available=queue_ok,
         celery_alive=_celery_alive(),
         detail=detail or _state["detail"] or None,
+        build=build,
     )
 
 
@@ -570,8 +647,9 @@ async def submit_task(request: TaskContract) -> JSONResponse:
         raise
     except Exception as exc:
         _log_task_event("submission_failed", request, error_type=type(exc).__name__)
-        _state.update(degraded=True, detail=f"task submit failed: {exc}")
-        return JSONResponse({"status": "degraded", "detail": str(exc)[:200]}, status_code=503)
+        logger.warning("[worker] task submit failed: %s", exc, extra={"correlation_id": request.correlation_id})
+        _state.update(degraded=True, detail=f"task submit failed: {type(exc).__name__}")
+        return _degraded_response(request.correlation_id, "Task submission is temporarily unavailable")
 
 
 @app.get("/tasks/{task_id}", dependencies=[Depends(_verify_worker_auth)])
@@ -611,7 +689,8 @@ async def tasks_stats() -> JSONResponse:
         return JSONResponse({"status": "ok", "stats": stats})
     except Exception as exc:
         _state.update(degraded=True, detail=f"queue stats failed: {exc}")
-        return JSONResponse({"status": "degraded", "detail": str(exc)[:200]}, status_code=503)
+        logger.warning("[worker] queue stats failed: %s", exc)
+        return _degraded_response(None, "Queue statistics are temporarily unavailable")
 
 
 @app.post("/tasks/drain", dependencies=[Depends(_verify_worker_auth)])
@@ -621,7 +700,8 @@ async def tasks_drain() -> JSONResponse:
         return JSONResponse({"status": "ok", "queue": "asyncio", **proof})
     except Exception as exc:
         _state.update(degraded=True, detail=f"drain failed: {exc}")
-        return JSONResponse({"status": "degraded", "detail": str(exc)[:200]}, status_code=503)
+        logger.warning("[worker] drain failed: %s", exc)
+        return _degraded_response(None, "Queue drain is temporarily unavailable")
 
 
 @app.get("/worker/status", dependencies=[Depends(_verify_worker_auth)])

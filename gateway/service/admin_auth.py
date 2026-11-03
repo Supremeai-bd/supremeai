@@ -313,7 +313,10 @@ def verify_trusted_browser_token(token: str | None) -> dict[str, Any] | None:
         return None
     try:
         payload = verify_admin_jwt(token)
-        if payload.get("type") not in ("trusted_browser", "access"):
+        # STRICT type check: only trusted_browser tokens may satisfy the
+        # trusted-browser path. Accepting type=="access" here let a normal
+        # admin session token bypass MFA / act as a 7-day trusted browser.
+        if payload.get("type") != "trusted_browser":
             return None
         token_hash = _hash_trusted_token(token)
         if get_valid_trusted_browser is not None:
@@ -367,15 +370,27 @@ def check_totp(user_otp: str, base32_secret: str) -> bool:
 # --- Admin Credential Checks ---
 
 def _get_admin_emails() -> set[str]:
+    """Resolve the set of authorized admin emails.
+
+    Privileged identities come ONLY from explicit environment configuration
+    (ADMIN_EMAILS / ADMIN_EMAIL / SUPREMEAI_ADMIN_LOGIN_EMAIL). Hardcoded
+    defaults are deliberately NOT added: a misconfigured production env must
+    NOT silently keep a default admin account active. In non-production
+    environments an explicit dev bootstrap is still required — set
+    SUPREMEAI_ADMIN_BOOTSTRAP_EMAIL to opt in.
+    """
     raw = (
         os.environ.get("ADMIN_EMAILS")
         or os.environ.get("ADMIN_EMAIL")
         or os.environ.get("SUPREMEAI_ADMIN_LOGIN_EMAIL")
-        or DEFAULT_ADMIN_EMAIL
     )
-    emails = {e.strip().lower() for e in raw.split(",") if e.strip()}
-    emails.add(PRIMARY_OWNER_EMAIL.lower())
-    emails.add(DEFAULT_ADMIN_EMAIL.lower())
+    emails: set[str] = set()
+    if raw:
+        emails.update(e.strip().lower() for e in raw.split(",") if e.strip())
+    if not emails:
+        bootstrap = os.environ.get("SUPREMEAI_ADMIN_BOOTSTRAP_EMAIL", "").strip().lower()
+        if bootstrap and os.environ.get("ENV", "production").lower() not in ("production", "prod"):
+            emails.add(bootstrap)
     return emails
 
 
@@ -796,16 +811,40 @@ async def admin_login(
 
 @router.post("/totp-setup")
 async def admin_totp_setup(request: Request):
-    """Initiate TOTP setup, generating a fresh secret and provisioning URI."""
-    env_name = os.environ.get("ENV", "local").lower()
-    if env_name not in ("local", "dev", "development", "test"):
+    """Initiate TOTP setup, generating a fresh secret and provisioning URI.
+
+    Production-safe: unauthenticated TOTP setup is NEVER allowed. The
+    enforcement ladder is:
+
+    - production / prod / staging -> requires a valid platform-owner session
+      (fail-closed, no env bypass).
+    - test -> open (the test suite exercises the enrollment flow directly).
+    - local / dev / development -> requires an explicit bootstrap secret
+      (SUPREMEAI_ADMIN_BOOTSTRAP_SECRET + X-Bootstrap-Secret header) so a
+      misconfigured ENV=local cannot silently open admin enrollment.
+
+    Setup state is one-time and short-lived (see _pending_totp_setups).
+    """
+    env_name = os.environ.get("ENV", "production").lower()
+    if env_name in ("production", "prod", "staging"):
+        # Production: require a valid platform-owner session. No env-based bypass.
         _require_platform_owner(request.headers.get("authorization"))
+    elif env_name not in ("test",):
+        # Dev/local: require an explicit bootstrap secret; never auto-open.
+        bootstrap = os.environ.get("SUPREMEAI_ADMIN_BOOTSTRAP_SECRET", "").strip()
+        provided = request.headers.get("X-Bootstrap-Secret", "").strip()
+        if not bootstrap or not hmac.compare_digest(provided, bootstrap):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="TOTP setup requires a bootstrap secret in this environment.",
+            )
+
     secret = generate_totp_secret()
     recovery_codes = [secrets.token_hex(4).upper() for _ in range(4)]
-    email = os.environ.get("ADMIN_EMAIL", DEFAULT_ADMIN_EMAIL)
+    email = os.environ.get("ADMIN_EMAIL", "").strip().lower() or "admin@supremeai.local"
     uri = build_provisioning_uri(email=email, secret=secret)
 
-    # Store in pending cache for verification
+    # Store in pending cache for verification (one-time, short-lived).
     _pending_totp_setups[email] = {
         "secret": secret,
         "created_at": time.time(),

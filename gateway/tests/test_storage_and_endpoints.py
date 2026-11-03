@@ -33,6 +33,11 @@ from starlette.testclient import TestClient
 class TestStorageAndEndpoints(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # Explicit opt-in test bypass for the guest auth path. Only active when
+        # ENV=test AND the bypass flag is set, so no production code path is
+        # affected.
+        os.environ["ENV"] = "test"
+        os.environ["SUPREMEAI_TEST_GUEST_BYPASS"] = "1"
         storage.init_db()
         cls.client = TestClient(app)
 
@@ -217,12 +222,22 @@ class TestStorageAndEndpoints(unittest.TestCase):
         r_email = self.client.post("/api/v1/auth/login", json={"email": "niloyjoy7@gmail.com", "password": "password123"})
         self.assertEqual(r_email.status_code, 200)
 
-        # 3. User registration
-        r_reg = self.client.post("/api/v1/auth/register", json={"username": "newuser@example.com", "password": "securepassword", "name": "New User"})
+        # 3. User registration — unique email per run so re-runs do not 409.
+        reg_email = f"newuser-{int(time.time())}@example.com"
+        r_reg = self.client.post("/api/v1/auth/register", json={"username": reg_email, "password": "securepassword", "name": "New User"})
         self.assertEqual(r_reg.status_code, 200)
         reg_data = r_reg.json()
         self.assertIn("access_token", reg_data)
         self.assertEqual(reg_data["role"], "user")
+
+        # 3b. Duplicate registration is rejected (unique email constraint).
+        r_dup = self.client.post("/api/v1/auth/register", json={"username": reg_email, "password": "anotherpassword", "name": "Dup"})
+        self.assertEqual(r_dup.status_code, 409)
+
+        # 3c. Registered user can log in with the durable users table.
+        r_login = self.client.post("/api/v1/auth/login", json={"email": reg_email, "password": "securepassword"})
+        self.assertEqual(r_login.status_code, 200)
+        self.assertEqual(r_login.json()["role"], "user")
 
         # 4. Invalid credentials rejection
         r_invalid = self.client.post("/api/v1/auth/login", json={"username": "unknown@example.com", "password": "123"})
