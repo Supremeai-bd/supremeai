@@ -1,10 +1,13 @@
 # ========================================================
-# SupremeAI Graphify Ignore — Optimized & Safe (Under 25K)
+# SupremeAI Graphify Ignore — 25K Free Tier Safe Master
+# Target: strictly under 10k nodes, laser-focused on real core logic
 # ========================================================
 
 # 1. Tests & Mocks (Highest Noise Reduction - Pure Test Logic)
+# (Pytest handles verification; keeping these out saves ~14,000 dead nodes)
 tests/
 **/tests/
+backend/tests/
 **/__tests__/
 **/*.test.*
 **/*.spec.*
@@ -13,17 +16,32 @@ tests/
 **/mocks/
 **/fixtures/
 
-# 2. Automation Scripts, Tooling & Internal Pipelines
+# 2. Frontend & Apps (Managed in supremeai-studio repo)
+frontend/
+apps/
+studio/
+client/
+**/*.tsx
+**/*.jsx
+**/*.vue
+**/*.css
+**/*.scss
+
+# 3. Automation Scripts, Tooling & Internal Pipelines
 scripts/
+backend/scripts/
 tools/
+.github/
 .agent/
 .agents/
 .gsd/
-.github/
+.specify/
+qa/
 infra/monitoring/
 
-# 3. Documentation (Keep Constitutional Rules & Architecture SSOT)
+# 4. Documentation & Markdown (Keep Constitutional Rules & Architecture SSOT)
 docs/
+specs/
 *.md
 **/*.md
 *.txt
@@ -33,25 +51,27 @@ docs/
 !CONTRIBUTING.md
 !README.md
 
-# 4. Static Data, Caches & Configs (Keep API Schemas & Critical Manifests)
+# 5. Static Data, Large JSON, Vectors & Assets (Keep API Schemas & Manifests)
 data/
 all_graphs/
 **/*.json
 **/*.yaml
 **/*.yml
 **/*.csv
+**/*.svg
+**/*.png
 !api-schemas/**
 !model_capabilities.yaml
 !package.json
 !**/package.json
 !mcp.json
 
-# 5. Database Raw Dumps & Fixtures (Keep Schema DDLs & Migrations)
+# 6. Database Raw Dumps & Fixtures (Keep Schema DDLs & Migrations)
 database/seeds/
 *.sql.dump
 *.dump
 
-# 6. Build Artifacts & Generated Files
+# 7. Build Artifacts & Generated Files
 dist/
 build/
 out/
