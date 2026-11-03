@@ -18,31 +18,42 @@
 > watch); PR #5688 (r10, c77: board 39->49 record high, SWEEP-#10 call
 > missed, trigger model corrected); PR #5728 (r11, c79: DRAIN #12
 > confirmed 58->3->6, batch-drain model born, watchpoints #5214/#5117
-> closed as reaped-not-landed). Durable laws kept: 429/503 ladder
-> (attempt 1 -> +90s stagger -> +150-180s cool, cap 3/cycle; 429 =
-> Cloudflare cron-window contention, 503 = Render boot-churn);
-> ambiguous submit timeout -> verify-first (ls-remote branch probe),
-> never blind-retry;
+> closed as reaped-not-landed); PR #5776 (r12, c81: refill arc
+> 6->23, first mixed 429+503 double-fault, ladder held). Code lane:
+> PR #5781 (c81, P0 root-cause fix: #5767's 6->3 SSOT migration left
+> self_test() pins stale, main RED -> fixed 4 assertions -> GREEN;
+> maintainer #5786 validated the direction). Durable laws kept:
+> 429/503 ladder (attempt 1 -> +90s stagger -> +150-180s cool, cap
+> 3/cycle; 429 = Cloudflare cron-window contention, 503 = Render
+> boot-churn);
+> ambiguous submit timeout or STALE_BASE_UNVERIFIED (fail-closed,
+> tower 500 on blob read; branch may already exist) -> verify-first
+> (ls-remote probe), then idempotent retry — never blind-retry;
 > a shrink-only ratchet is mortal (dies with its target module);
 > envelope check before any claim (satellite repos / .github / GH vars
 > = don't touch).
 
-## r12 (cycle 81, 2026-11-03 20:23+08) — standing verify, 19th consecutive NO-PICK
+## r13 (cycle 83, 2026-11-03 22:23+08) — standing verify, 21st consecutive NO-PICK
 
-- Full-ladder cycle: heartbeat 429 -> 503 -> green at 12:27:45Z
-  (+90s, +150s rungs; first mixed 429+503 double-fault, ladder held
-  without a single false move). ff-pull to abdd5c3d, loop auto-rebase
-  through b4a61c0f, freshness 0 behind.
-- HEADLINE: batch-drain refill arc confirmed across 3 reads — board 6
-  (DRAIN #12 trough) -> 15 (c80) -> 22 -> 23 (this window, ~7-9/h).
-  glm22 r77 census 6->15 corroborates; every refill row is an agent
-  bridge:queued WO, user-issue plane still empty — refill measures
-  agent cadence, not demand.
-- Open PR plane 3: two non-bridge feature PRs surfaced post-drain
-  (#5767 ci auto-sync on merge, #5758 graphify 3-repo topology) plus
-  #5732 (agent r62) — functional traffic returning after the harvest.
-- Loop preflight cleanpass: 0 P0, claimable 0/5 — 19th consecutive
-  NO-PICK. Baseline re-certified first-hand at abdd5c3d: 67 passed +
-  12 subtests, 0 failed, 7.30s.
-- No pick, no race. r11 body folded into lane-history header (net
+- Heartbeat green attempt 1 (14:23:35Z); ff-pull 4 commits to tip
+  79e00cb8, freshness 0 behind.
+- HEADLINE (first code landing of the lane): P0 root-cause fix PR
+  #5781 — #5767's 6->3 SSOT migration (maintainer, 0ae0ba28) left
+  self_test()'s pinned counts stale and main went RED
+  (test_federation_anchors, blocking every agent's certification).
+  Fixed the 4 stale assertions (active 6->3, retired 8->11) inside
+  the maintainer's declared direction; merged 651c9868 at 20:45+08;
+  main GREEN again. Maintainer's follow-up #5786 (satellite sync
+  pinned to 3-repo topology) independently validated the direction.
+  STALE_BASE_UNVERIFIED (tower 500) on submit — ls-remote probe
+  showed the branch existed, idempotent retry opened PR #5781 once,
+  no duplicate (law extension captured in header).
+- SWEEP #11 captured — batch-drain model's third straight hit:
+  board 29 (c82) -> 26 (glm11 66th) -> 7 (SWEEP #11) -> 9 (my read,
+  refill restarted). DRAIN #12 (58->3) + SWEEP #11 (26->7): the
+  regime is stable, big water then one wave.
+- Loop preflight cleanpass: 0 P0, claimable 0/5 — 21st consecutive
+  NO-PICK. Baseline re-certified first-hand at 79e00cb8: 67 passed
+  + 12 subtests, 0 failed, 7.55s.
+- No pick, no race. r12 body folded into lane-history header (net
   size flat).
