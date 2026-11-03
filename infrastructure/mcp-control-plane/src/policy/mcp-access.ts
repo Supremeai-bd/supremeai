@@ -161,6 +161,27 @@ export function classifyToolCapability(name: string): McpCapabilityMetadata {
       approvalRequired: false,
     };
   }
+  // Code intelligence, AST Graph, DevTools & Documentation discovery (read-only, public-safe)
+  if (
+    name === "graphify_call" ||
+    name === "codebase_graph_query" ||
+    name === "devtools_audit" ||
+    name === "devtools_console_errors" ||
+    name === "devtools_network_failures" ||
+    name === "devtools_performance_trace" ||
+    name === "docs_fetch" ||
+    name === "system_parity_audit"
+  ) {
+    return {
+      name,
+      kind: "tool",
+      access: "safe",
+      requiredScope: undefined,
+      riskLevel: "R0",
+      dataClassification: "public",
+      approvalRequired: false,
+    };
+  }
   // #123 / S0.4: Bridge onboarding & unified tools — zero-credential front door for external agents.
   if (
     name === "bridge_lease_manage" ||
