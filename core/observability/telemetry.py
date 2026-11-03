@@ -79,17 +79,3 @@ def trace_agent_step(step_name: str, attributes: Optional[Dict[str, Any]] = None
             span.set_status(trace.StatusCode.ERROR, str(exc))
             raise
 
-
-
-from contextlib import contextmanager
-
-@contextmanager
-def trace_span(name: str, **kwargs):
-    tracer = get_tracer("supremeai")
-    if tracer:
-        with tracer.start_as_current_span(name) as span:
-            for k, v in kwargs.items():
-                span.set_attribute(k, str(v))
-            yield span
-    else:
-        yield None
