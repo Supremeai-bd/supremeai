@@ -121,32 +121,47 @@ except ImportError:
 try:
     from service.storage import (
         add_message,
+        create_user,
         delete_conversation,
         get_conversation,
+        get_user_by_email,
         get_user_preferences,
         list_conversations,
         save_conversation,
+        save_guest_token,
         save_user_preferences,
+        verify_guest_token,
+        verify_user_password,
     )
 except ImportError:
     try:
         from gateway.service.storage import (
             add_message,
+            create_user,
             delete_conversation,
             get_conversation,
+            get_user_by_email,
             get_user_preferences,
             list_conversations,
             save_conversation,
+            save_guest_token,
             save_user_preferences,
+            verify_guest_token,
+            verify_user_password,
         )
     except ImportError:
         add_message = None  # type: ignore[assignment]
+        create_user = None  # type: ignore[assignment]
         delete_conversation = None  # type: ignore[assignment]
         get_conversation = None  # type: ignore[assignment]
+        get_user_by_email = None  # type: ignore[assignment]
         get_user_preferences = None  # type: ignore[assignment]
         list_conversations = None  # type: ignore[assignment]
         save_conversation = None  # type: ignore[assignment]
+        save_guest_token = None  # type: ignore[assignment]
         save_user_preferences = None  # type: ignore[assignment]
+        verify_guest_token = None  # type: ignore[assignment]
+        verify_user_password = None  # type: ignore[assignment]
 
 # ── Provider-Agnostic Context Compiler, Response Guard & Canonical Memory ──
 try:
@@ -375,20 +390,95 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _is_guest_request(request: Request, token: Optional[str]) -> bool:
-    """Single SSOT for guest identity: header bypass, verified Studio origin/referer,
-    or well-known public demo tokens. Used by both auth and throttling so the two
-    can never drift apart."""
-    origin = (request.headers.get("origin") or "").lower()
-    referer = (request.headers.get("referer") or "").lower()
-    studio_preview = os.getenv("STUDIO_FRONTEND_URL", "").lower().strip()
+# ── Guest identity split (auth vs. cost-guard) ───────────────────────────────
+# HTTP clients fully control Origin/Referer/X-Guest-Mode and the well-known
+# demo tokens, so NONE of them may gate an AUTH decision. They remain legitimate
+# ONLY as a cost-guard signal for throttling. Real guest access is granted by a
+# server-issued, signed, short-lived guest token or session cookie (see
+# _is_verified_guest). This closes the spoof vector where an attacker sets
+# X-Guest-Mode: true / Origin: <studio host> and rides the paid relay path.
+_GUEST_TOKENS = {"guest", "demo", "public-guest"}
+_GUEST_COOKIE = "supremeai_guest_session"
+
+
+def _client_origin(request: Request) -> str:
+    """Lowercased Origin header (client-supplied, never trusted for auth)."""
+    return (request.headers.get("origin") or "").lower()
+
+
+def _client_referer(request: Request) -> str:
+    """Lowercased Referer header (client-supplied, never trusted for auth)."""
+    return (request.headers.get("referer") or "").lower()
+
+
+def _studio_hosts() -> list[str]:
+    """Known Studio front-end hosts (for cost-guard classification only)."""
+    hosts = [
+        "https://supremeai-studio.pages.dev",
+        "https://supremeai-studio.vercel.app",
+    ]
+    preview = os.getenv("STUDIO_FRONTEND_URL", "").lower().strip()
+    if preview:
+        hosts.append(preview)
+    return hosts
+
+
+def _is_guest_cost_guard_signal(request: Request, token: Optional[str]) -> bool:
+    """Cost-guard ONLY: classify a request as guest-class for throttling.
+
+    Deliberately trusts spoofable client headers and well-known demo tokens.
+    This is safe here because the worst case is over-throttling a keyed-auth
+    caller — it never grants access. It must NEVER be used as an auth decision.
+    """
+    origin = _client_origin(request)
+    referer = _client_referer(request)
     return (
         request.headers.get("x-guest-mode", "").lower() == "true"
-        or "https://supremeai-studio.pages.dev" in origin
-        or "https://supremeai-studio.pages.dev" in referer
-        or (bool(studio_preview) and (studio_preview in origin or studio_preview in referer))
-        or token in {"guest", "demo", "public-guest"}
+        or any(host in origin or host in referer for host in _studio_hosts())
+        or token in _GUEST_TOKENS
     )
+
+
+def _is_verified_guest(request: Request, token: Optional[str]) -> bool:
+    """AUTH-CLASS guest check: only server-issued, signed short-lived tokens.
+
+    A client-supplied header is NEVER sufficient. A request is a verified guest
+    only when it carries a signed guest token (issued by _issue_guest_token)
+    or a valid HttpOnly guest session cookie. Everything else — including
+    X-Guest-Mode: true and any Origin/Referer — is rejected.
+
+    An explicit test-only bypass exists ONLY when ENV=test AND
+    SUPREMEAI_TEST_GUEST_BYPASS=1 is set, so the offline test suite can
+    exercise the guest path without shipping a production bypass.
+    """
+    if os.environ.get("ENV", "").lower() == "test" and os.environ.get(
+        "SUPREMEAI_TEST_GUEST_BYPASS", ""
+    ) in ("1", "true", "yes"):
+        return True
+    if token and token.startswith("sk-supreme-guest-"):
+        try:
+            meta = verify_key(token)
+            if meta and meta.get("class") == "guest":
+                return True
+        except Exception:  # noqa: BLE001 - fail closed on verification errors
+            return False
+    cookie = request.cookies.get(_GUEST_COOKIE)
+    if cookie and cookie.startswith("sk-supreme-guest-"):
+        try:
+            meta = verify_key(cookie)
+            if meta and meta.get("class") == "guest":
+                return True
+        except Exception:  # noqa: BLE001 - fail closed on verification errors
+            return False
+    return False
+
+
+def _issue_guest_token(ttl_seconds: int = 300) -> str:
+    """Issue a signed, short-lived guest token (HMAC via service.keygen)."""
+    try:
+        return generate_key(client_name="guest", quota="guest")
+    except Exception:  # noqa: BLE001 - never let guest issuance break the gateway
+        return ""
 
 
 def _guest_rate_limit(request: Request) -> Tuple[bool, float]:
@@ -436,8 +526,10 @@ def _verify_client_auth(request: Request, x_supremeai_key: Optional[str] = None)
     """
     token = _extract_token(request, x_supremeai_key)
 
-    # Guest pass-through strictly for verified SupremeAI Studio origin (no generic vercel.app bypass)
-    if _is_guest_request(request, token):
+    # Guest pass-through ONLY for server-issued, signed short-lived guest tokens
+    # or a valid HttpOnly guest session cookie. Client-supplied headers are NOT
+    # trusted here — see _is_verified_guest / _is_guest_cost_guard_signal.
+    if _is_verified_guest(request, token):
         return True
 
     if not token:
@@ -473,9 +565,9 @@ def _require_operator_key(request: Request, x_supremeai_key: Optional[str] = Non
     """Strict credential gate for operator-grade surfaces (#1729).
 
     Unlike _verify_client_auth this deliberately has NO guest pass-through:
-    _is_guest_request trusts spoofable client headers (x-guest-mode, Origin/
-    Referer containing the Studio host, well-known demo tokens), which is fine
-    for chat-rate-limiting but must never gate operator fleet detail.
+    _is_guest_cost_guard_signal trusts spoofable client headers (x-guest-mode,
+    Origin/Referer containing the Studio host, well-known demo tokens), which is
+    fine for chat-rate-limiting but must never gate operator fleet detail.
     Fails closed: no key configured -> False (set SUPREMEAI_API_KEY / SUPREMEAI_API_KEYS
     / SUPREMEAI_SUPERADMIN_KEY to enable operator access).
     """
@@ -770,7 +862,13 @@ async def _close_stealth_http_client():
 @app.get("/api/config/public")
 @app.get("/api/config/public/branding")
 async def get_public_config():
-    """Provides public defaults and branding for SupremeAI Studio without authentication."""
+    """Provides public defaults and branding for SupremeAI Studio without authentication.
+
+NOTE: The feature flags below are PRESENTATION METADATA only. They MUST NOT be
+used as a security boundary. Authorization, quota enforcement and cost guards
+are enforced server-side regardless of these values. Clients that gate on these
+flags are doing so at their own risk.
+"""
     return {
         "status": "ready",
         "app": "SupremeAI Studio",
@@ -789,17 +887,90 @@ async def get_public_config():
     }
 
 
+# ── SSE connection accounting (per-user cap + idle timeout) ──────────────────
+# Prevents unauthenticated connection exhaustion: every SSE stream is bound to
+# a verified identity and counted; idle streams are closed by the heartbeat.
+_SSE_MAX_PER_USER = int(os.getenv("SSE_MAX_PER_USER", "3"))
+_SSE_IDLE_TIMEOUT_SECONDS = float(os.getenv("SSE_IDLE_TIMEOUT_SECONDS", "45.0"))
+_sse_connections: dict[str, set[asyncio.Queue]] = {}
+
+
+def _register_sse(user_id: str, queue: asyncio.Queue) -> bool:
+    """Register an SSE stream for a verified user. Returns False when at cap."""
+    active = _sse_connections.setdefault(user_id, set())
+    if len(active) >= _SSE_MAX_PER_USER:
+        return False
+    active.add(queue)
+    return True
+
+
+def _unregister_sse(user_id: str, queue: asyncio.Queue) -> None:
+    active = _sse_connections.get(user_id)
+    if active:
+        active.discard(queue)
+        if not active:
+            _sse_connections.pop(user_id, None)
+
+
 @app.get("/api/preferences/{user_id}/stream")
-async def stream_preferences(user_id: str):
-    """SSE endpoint for real-time theme/preference updates (service tier)."""
-    import asyncio
-    import json
+async def stream_preferences(
+    user_id: str,
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+) -> StreamingResponse:
+    """SSE endpoint for real-time theme/preference updates (service tier).
+
+    Auth-gated: the bearer/key identity MUST match the path user_id, so a
+    caller can only stream their own preferences. Per-user connection cap and
+    idle timeout prevent connection exhaustion.
+    """
+    # 1. Authenticate.
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized: valid X-SupremeAI-Key / Bearer token required",
+        )
+
+    # 2. Identity must match the path user_id (no cross-user access).
+    caller_id = _extract_user_id(request)
+    if caller_id == "anonymous" or caller_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: cannot stream another user's preferences",
+        )
+
+    # 3. Enforce per-user connection cap.
+    queue: asyncio.Queue = asyncio.Queue(maxsize=64)
+    if not _register_sse(user_id, queue):
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many SSE connections for user (max {_SSE_MAX_PER_USER})",
+            headers={"Retry-After": "30"},
+        )
 
     async def event_generator():
-        yield "event: connected\ndata: " + json.dumps({"status": "connected", "user_id": user_id}) + "\n\n"
-        while True:
-            await asyncio.sleep(15)
-            yield "event: ping\ndata: " + json.dumps({"channel": "heartbeat"}) + "\n\n"
+        try:
+            yield "event: connected\ndata: " + json.dumps(
+                {"status": "connected", "user_id": user_id}
+            ) + "\n\n"
+            last_activity = time.time()
+            while True:
+                try:
+                    entry = await asyncio.wait_for(
+                        queue.get(), timeout=_SSE_IDLE_TIMEOUT_SECONDS
+                    )
+                    last_activity = time.time()
+                    yield f"data: {json.dumps(entry)}\n\n"
+                except asyncio.TimeoutError:
+                    # Idle timeout: close the stream rather than leaking it.
+                    yield "event: timeout\ndata: " + json.dumps(
+                        {"reason": "idle_timeout"}
+                    ) + "\n\n"
+                    return
+        except asyncio.CancelledError:  # pragma: no cover - client disconnect
+            return
+        finally:
+            _unregister_sse(user_id, queue)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -849,7 +1020,7 @@ async def studio_auth_login(request: Request):
     # ANY password of >=6 chars produced a session, and the admin password had a
     # hardcoded "admin123" fallback. Both bypasses removed: only the configured
     # admin email + exact env password/hash match is accepted.
-    # User accounts require the register flow / a real user store (tracked separately).
+    # Registered user accounts authenticate against the durable users table.
     if email == admin_email and _verify_password(password):
         # Generate stateless signed API token
         try:
@@ -878,6 +1049,33 @@ async def studio_auth_login(request: Request):
             },
         }
 
+    # Registered user login (durable users table, salted password hash).
+    if verify_user_password is not None:
+        try:
+            user = verify_user_password(email, password)
+        except Exception:  # noqa: BLE001 - storage failure must not leak internals
+            user = None
+        if user:
+            try:
+                from service.keygen import generate_key
+                token = generate_key(client_name=f"usr-{user['user_id']}", quota="standard")
+            except Exception:
+                token = f"sess_{secrets.token_hex(16)}"
+            return {
+                "token": token,
+                "access_token": token,
+                "token_type": "bearer",
+                "user_id": user["user_id"],
+                "role": user.get("role", "user"),
+                "permissions": ["read", "write"],
+                "user": {
+                    "id": user["user_id"],
+                    "email": user.get("email", email),
+                    "name": user.get("name", ""),
+                    "role": user.get("role", "user"),
+                },
+            }
+
     raise HTTPException(status_code=401, detail="Invalid email or password")
 
 
@@ -887,6 +1085,11 @@ async def studio_auth_login(request: Request):
 async def studio_auth_register(request: Request):
     """
     Studio User Registration Endpoint.
+
+    Persisted registration: the user record is written to the durable users
+    table (unique email, salted password hash, stable UUID user_id). Tokens are
+    signed by service.keygen and bound to the persisted user. Duplicate emails
+    are rejected; no in-memory / time-derived identity is used.
     """
     try:
         body = await request.json()
@@ -906,25 +1109,41 @@ async def studio_auth_register(request: Request):
     if len(password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
 
+    # Rate-limit registration attempts per IP to curb email enumeration / abuse.
+    allowed, retry_after = _guest_rate_limit(request)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Registration rate limit exceeded. Retry after {int(retry_after)}s.",
+            headers={"Retry-After": str(int(retry_after) + 1)},
+        )
+
+    try:
+        record = create_user(email=email, password=password, name=name, role="user")
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except Exception as exc:  # noqa: BLE001 - storage failure must not leak internals
+        logger.warning("[register] persistence failed for %s: %s", email, type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Registration is temporarily unavailable")
+
     try:
         from service.keygen import generate_key
-        token = generate_key(client_name=f"usr-{email.split('@')[0]}", quota="standard")
-    except Exception:
-        token = f"sk-supreme-user-{int(time.time())}"
+        token = generate_key(client_name=f"usr-{record['user_id']}", quota="standard")
+    except Exception:  # noqa: BLE001 - token issuance must not break registration
+        token = ""
 
-    user_id = f"usr-{int(time.time())}"
     return {
         "token": token,
         "access_token": token,
         "token_type": "bearer",
-        "user_id": user_id,
-        "role": "user",
+        "user_id": record["user_id"],
+        "role": record["role"],
         "permissions": ["read", "write"],
         "user": {
-            "id": user_id,
-            "email": email,
-            "name": name,
-            "role": "user",
+            "id": record["user_id"],
+            "email": record["email"],
+            "name": record["name"],
+            "role": record["role"],
         },
     }
 
@@ -1163,7 +1382,9 @@ async def _execute_chat_completion(
         )
 
     # Cost guard: throttle ONLY guest-class requests (keyed auth is never limited).
-    if _is_guest_request(request, _extract_token(request, x_supremeai_key)):
+    # Classification here is a cost-guard signal, NOT an auth decision: client
+    # headers are spoofable but harmless here (worst case = over-throttle).
+    if _is_guest_cost_guard_signal(request, _extract_token(request, x_supremeai_key)):
         allowed, retry_after = _guest_rate_limit(request)
         if not allowed:
             raise HTTPException(

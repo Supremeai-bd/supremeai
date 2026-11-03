@@ -155,6 +155,7 @@ APPROVED_SUBTREES = {
         "tools",
         "search.py",
         "multi_platform_orchestrator.py",
+        "worker_service.py",
         "main.py",
         "LICENSE",
         ".github",

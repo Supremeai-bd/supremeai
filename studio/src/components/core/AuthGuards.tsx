@@ -17,8 +17,9 @@ export const useAuthStatus = () => {
   }, [status, initialize]);
 
   const isChecking = status === AuthStatus.UNINITIALIZED;
-  // 🛡️ ISSUE #495: বৈধ unexpired admin JWT থাকলে ProtectedRoute যেন এডমিনকে অকালে লগআউট বা রিডাইরেক্ট না করে
-  const isAuthenticated = status === AuthStatus.LOGGED_IN || canAccessAdminContext();
+  // Backend session introspection is the canonical authority: a stale local
+  // admin context must NEVER override an invalid/expired backend session.
+  const isAuthenticated = status === AuthStatus.LOGGED_IN;
 
   return { isChecking, isAuthenticated };
 };
