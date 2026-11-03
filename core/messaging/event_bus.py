@@ -6,6 +6,7 @@
 # Listener failure → DLQ — silent drop সম্পূর্ণ নিষিদ্ধ।
 
 import asyncio
+import logging
 import os
 import threading
 from collections import defaultdict
@@ -16,6 +17,43 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from core.logging_config import logger
+
+# Telemetry is secondary to the error pipeline. The old code imported
+# `monitoring.track_exception`, but no implementation/export was present in
+# the repository. A broken telemetry import must never create a second error
+# or flood production logs.
+_telemetry_warning_emitted = False
+
+
+def _forward_to_telemetry(event: "ErrorEvent") -> None:
+    """Best-effort Sentry forwarding; never masks the original event."""
+    global _telemetry_warning_emitted
+    try:
+        import sentry_sdk
+    except ImportError:
+        if not _telemetry_warning_emitted:
+            logger.warning("Telemetry unavailable: sentry-sdk is not installed")
+            _telemetry_warning_emitted = True
+        return
+
+    try:
+        sentry_sdk.capture_exception(
+            Exception(f"[{event.error_type}] {event.message}"),
+            contexts={
+                "supremeai": {
+                    "module": event.module,
+                    "service": event.service,
+                    **event.context,
+                    **event.structured_context.model_dump(),
+                }
+            },
+        )
+    except Exception as exc:  # telemetry must never mask the source event
+        if not _telemetry_warning_emitted:
+            logger.warning(
+                f"Telemetry forwarding unavailable; continuing with structured logs: {exc}"
+            )
+            _telemetry_warning_emitted = True
 
 try:
     import psutil
@@ -383,31 +421,8 @@ class IntelligentErrorBus(ErrorEventBus):
         event.structured_context.system_state = self._get_current_metrics()
         self._check_and_escalate_pattern(event)
 
-        # Forward severe errors to Sentry via monitoring.
-        # বাংলা: এটি error-REPORTING path — এখানে raise মানে মূল error mask হয়ে বুট-মৃত্যু
-        # (live প্রমাণ 2026-10-29: Render deploy update_failed since 2026-10-24; boot crash
-        # "cannot import name 'track_exception' from 'monitoring'" — monitoring shim-ের
-        # legacy মডিয়ুল মুছে ফেলা হয়েছে, track_exception এখন কোথাও নেই)।
-        # ফাইল-হেডার-ইন চুক্তি (Anti-Suppression Pipeline): telemetry ব্যর্থতা কখনো
-        # মূল error-কে প্রতিস্থাপন করতে পারবে না — সেক্ষেত্রে structured log-ে degrade করুক।
         if event.severity in ["CRITICAL", "ERROR", "HIGH"]:
-            try:
-                from monitoring import track_exception
-
-                track_exception(
-                    Exception(f"[{event.error_type}] {event.message}"),
-                    context={
-                        "module": event.module,
-                        "service": event.service,
-                        **event.context,
-                        **event.structured_context.model_dump(),
-                    },
-                )
-            except Exception as exc:  # noqa: BLE001 — telemetry must never mask the original error
-                logger.warning(
-                    "[EventBus] telemetry forward unavailable "
-                    f"({type(exc).__name__}: {exc}); event remains recorded via structured log"
-                )
+            _forward_to_telemetry(event)
 
         super().emit(event)
 

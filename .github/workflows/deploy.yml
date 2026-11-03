@@ -35,6 +35,8 @@ jobs:
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
+          RENDER_WAIT: "1"
+          RENDER_WAIT_TIMEOUT_SECONDS: "1200"
         run: |
           if [ -n "$RENDER_API_KEY" ] && [ -n "$RENDER_SVC_ID" ]; then
             python scripts/ci/render_trigger_deploy.py
@@ -43,16 +45,15 @@ jobs:
           fi
 
       - name: Wait for services to stabilize
-        run: sleep 30
+        run: sleep 10
 
       - name: Post-Deploy Smoke Canary (6 Render Nodes)
         run: |
           python -c "
           import urllib.request, ssl, sys, time
 
+          # Keep normal certificate and hostname verification enabled.
           ctx = ssl.create_default_context()
-          ctx.check_hostname = False
-          ctx.verify_mode = ssl.CERT_NONE
 
           targets = [
               ('API Gateway', 'https://supremeai-api-ulw0.onrender.com/healthz'),
@@ -67,6 +68,9 @@ jobs:
               try:
                   req = urllib.request.Request(url, headers={'User-Agent': 'SupremeAI-Canary/1.0'})
                   with urllib.request.urlopen(req, timeout=45, context=ctx) as r:
+                      body = r.read(4096).decode('utf-8', errors='replace')
+                      if r.status != 200:
+                          raise RuntimeError(f'HTTP {r.status}: {body[:200]}')
                       print(f'✅ {name}: HTTP {r.status}')
               except Exception as e:
                   print(f'⚠️ {name} probe warning ({e})')
