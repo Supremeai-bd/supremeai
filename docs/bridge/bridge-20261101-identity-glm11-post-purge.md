@@ -3,81 +3,81 @@
 > Continuation of `bridge-20261031-identity-glm11.md` (slot chain r2→r44,
 > 38 merged landings, r2 = #3230 first, r44 = 023e016/#4937 last), removed
 > by the owner-side docs purge (#4965 + prune #4995, refs #762). Restarts
-> the slot receipt (r45 = 1c8f736/#4994 → r86 = ed87110/#5859; r62 = LOST
+> the slot receipt (r45 = 1c8f736/#4994 → r87 = 95e2fc7/#5879; r62 = LOST
 > pre-merge; r50 = orphaned PR #5117). Compressed durable facts:
 
-- **Landing chain**: 38 merged r2→r44 + r45-r49, r51-r61, r63-r86
-  post-purge (78 total); forty-six of the last forty-eight (r39→r86)
+- **Landing chain**: 38 merged r2→r44 + r45-r49, r51-r61, r63-r87
+  post-purge (79 total); forty-seven of the last forty-nine (r39→r87)
   landed first-pass via fail-closed CAS + SUMMARY≤1000 preflight
   (r50 orphan; r62 lost pre-merge). Acceptance = the PR OBJECT
   visible, not merely the branch.
-- **Sweep law (n=12, multi-agent)**: EPISODIC — … #12 in (16:12:35,
-  17:12Z] 19→0 ours, NO survivors (first full wipe; glm19 #5850
-  "fresh sweep" 16:20:21Z inside) — gaps ~7.2-8.2 → ~2.8-3.8 →
-  ~2-3h (n=3, contracting, no clock); sweeps favor high boards.
+- **Sweep law (n=13, multi-agent)**: EPISODIC — #13 in (18:15,
+  19:15Z] 5→0 ours, all-ghost bulk drain, no survivors — gaps
+  ~7.2-8.2 → ~2.8-3.8 → ~2-3 → ~1-3h (n=4, band holds).
 - **Refill law (arcs 15+16 CLOSED, 17 open)**: ratchet …→4→7→14→
-  19→0→5 — **arc 17 W1 = 0→5 (+5), symmetric with arc-15 W1 (+5
-  after #10's bottom-5); empty board dwelled exactly 1 window.**
-- **Board lane SHIFT (structural)**: new mints arrive
-  **[bridge:in-gates]** (5/5 at census-71) vs the long [bridge:
-  queued] era — queued stage may be gone; watch.
-- **Taxonomy (a120 #5848)**: board WOs are receipt-mirrors (7/7
-  probes incl. closed #5711/#5722/#5730 carry mirror titles);
-  sweep = bulk closure. **#5730 CLOSED** (a120).
-- **PR plane DRAINED**: standing pair #5117/#5214 gone from open
-  (0 open @17:12Z and @18:12Z); #5117 = closed-unmerged most
-  probable (4a09893 not merged, branch persists) — saga ENDED.
+  19→0→5→0→1 — arc-17 W1 = +5 (symmetric with arc-15 W1), W2 = #13
+  drain then SAME-WINDOW refill: empty dwell <5 min (0 @19:17:07Z →
+  1 @19:18:56Z).
+- **Taxonomy (a120 #5848 + r88 birth-proof)**: board WOs are
+  receipt-mirrors MINTED AT/AFTER MERGE — first-hand: board 0 rows
+  @19:15Z AND @19:17Z while PR #5898 open → merged (47611ab) + WO-
+  5897 present @19:18:56Z, born already-ghosted (ingest-lag alt ≤4
+  min not excluded). Sweep = bulk closure; #5730 CLOSED (a120).
+- **Lane watch**: in-gates lane (5/5 at census-71) drained at #13;
+  new mint WO-5897 carries NO lane tag (emoji-prefixed, no
+  [bridge:*] bracket) — tags inconsistent; queued never returned.
+- **PR plane DRAINED**: 0 open @17:12Z/@18:12Z; 2-min blip #5898
+  (glm14 u40) open→merged in <2 min @~19:18Z → 0 again. #5117 =
+  closed-unmerged (saga ENDED; branch 4a09893 still on remote).
 - **#4250 (loop CI verdict): workflow-failure = PRIMARY** (last #51
   09:04:46Z failure, streak 6). **WATCH SUSPENDED: core actions API
-  404** — probe prints loudly; 404 persisted at census 71.
+  404** — persisted at census 72. Owner guardian tooling landed
+  3db0a60 (#5878) then 22a11b0 (#5896 AST/Semgrep/RBAC) — evidence-only.
 - **Disciplines pinned**: 2-window persistence; receipts invisible —
   never resubmit unless the remote holds NO anchor (the r62 case);
   zero cross-agent collateral; protected paths evidence-only; loop
   is the permission (U10); one-outstanding-PR per slot.
 
-## Cycle 93 (2026-11-04 02:11+08) — arc-17 W1 refill 0→5; board lane shifted to in-gates; skip
+## Cycle 94 (2026-11-04 03:11+08) — sweep #13 captured; receipt birth-proof; skip
 
-- **r86 merge CONFIRMED**: ed87110 (#5859) on main, branch pruned.
-  Chain 78.
-- **Census (71st, full board): totalOpen 0→5 (+5), truncated=false
-  — 5 ghosts [#5860..#5875, all post-landing, ALL in the new
-  in-gates lane], 0/0; 71st clean (streak 71), dual-confirmed.**
-- **Lane shift**: new receipts bypass [bridge:queued] entirely —
-  structural, watch whether queued ever returns.
-- **Owner guardian tooling landed** (3db0a60: live PR auditor,
-  secret scanner, dependency parasite guard) — evidence-only.
-- **Loop: board LIT, preflight "zero open P0" — verdict "clean and
-  healthy"; claimable 0/5 → honest skip (U10); PR plane 0 open
-  (2nd read); 31st consecutive clean sync (0 behind).**
-- **#4250: 404 persists — watch still suspended** (loud-print
-  verified at census 71); last known #51 failure streak 6.
-- **#5117: NOT merged** (closed-unmerged probable stands).
-  Heartbeat attempt-1 fast-OK.
+- **r87 merge CONFIRMED**: 95e2fc7 (#5879) on main, branch pruned.
+  Chain 79.
+- **SWEEP #13 (n=13)**: census-72 5→0 @19:15Z — all-ghost bulk
+  drain, no survivors; gap ~1-3h (n=4), contracting band holds.
+- **Census (72nd, full board): totalOpen 5→0→1, truncated=false —
+  sole row WO-5897 (glm14 u40), ghost-on-fetch (47611ab landed
+  in-cycle); 0 legit 4th cycle; streak 72, 4 reads.**
+- **Receipt birth-time PROOF**: board 0 rows @19:15Z and @19:17Z
+  with PR #5898 open → merged 47611ab + WO-5897 present @19:18:56Z
+  — mint-at/after-merge, not PR-open (alt ≤4 min lag recorded).
+- **Loop**: auto-rebase 11-behind → 0 behind (32nd clean sync);
+  preflight "zero open P0" — "clean and healthy" (2nd); claimable
+  0/5 → honest skip (U10); PR plane 0 post-blip.
+- **#4250: 404 persists — suspended** (census 72).
+- Docs-only, CAS fresh; no claimable work — receipt-only landing.
 
 ## Notes for next agent (first probes)
 
-1. Verify r87 landed (receipt prNumber or github_list_prs state=all
-   if governance-timeout); #5117 closed-unmerged stands (closedAt
-   verify only if cheap).
-2. Census 72: arc-17 W2 watch (board 5, W1 = +5); lane-shift watch
-   (do in-gates rows close differently; does queued return?);
-   sweep watch LOW-MED (board low; if contraction holds, next
-   window ~19-20Z ≈ cycle-95/96 zone — no clock); legit-respawn
-   watch (0 legit 3 cycles).
-3. #4250: watch SUSPENDED (404) — resume only if the source
-   returns.
+1. Verify r88 landed (receipt prNumber or github_list_prs state=all
+   if governance-timeout); #5117 closed-unmerged stands.
+2. Census 73: arc-17 W3 watch (board 1 ghost-in-waiting — WO-5897
+   dies at the next sweep); lane watch ([bridge:*] tag return?);
+   sweep watch (band → ~20-21Z ≈ cycle-96/97 zone — no clock);
+   mint-at-merge re-check (n=2 pins it).
+3. #4250: watch SUSPENDED (404) — resume only if the source returns.
 4. Keep the clone synced (guard auto-rebases clean).
 
 ## Reflection Evidence
 
-- **why:** the empty board refilled in one window (+5, symmetric
-  with arc-15 W1) and new receipts arrived in a different lane
-  (in-gates, 5/5) — structural shift under watch; loop's first
-  "clean and healthy" verdict in four cycles also noted.
-- **alternatives_rejected:** declaring the queued lane dead from
-  one window (watch, not conclude); reading W1 = +5 as a fixed
-  refill clock (n=1 per arc); hand-claiming work at 0/5 (U10);
-  re-recording the 404 as a new event (suspended).
+- **why:** the 5→0 drain matched the sweep signature exactly
+  (all-ghost bulk closure, no survivors) and the same-window mint of
+  WO-5897 caught a receipt being born right at merge time — the
+  taxonomy's strongest first-hand datum yet (n=1, watch to pin).
+- **alternatives_rejected:** reading WO-5897 as claimable work (it
+  is glm14's already-merged receipt — U10, zero cross-agent
+  collateral); dating sweep #13 to a precise minute (bounded window
+  only — no clock); calling the #5898 blip a plane revival (merged,
+  not revived); excluding ingest-lag entirely (≤4 min alt recorded).
 
 ## Rollback
 
