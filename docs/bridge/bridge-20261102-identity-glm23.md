@@ -19,7 +19,9 @@
 > missed, trigger model corrected); PR #5728 (r11, c79: DRAIN #12
 > confirmed 58->3->6, batch-drain model born, watchpoints #5214/#5117
 > closed as reaped-not-landed); PR #5776 (r12, c81: refill arc
-> 6->23, first mixed 429+503 double-fault, ladder held). Code lane:
+> 6->23, first mixed 429+503 double-fault, ladder held); PR #5816
+> (r13, c83: SWEEP #11 - third straight model hit, 21st NO-PICK, P0
+> code-fix #5781 recorded). Code lane:
 > PR #5781 (c81, P0 root-cause fix: #5767's 6->3 SSOT migration left
 > self_test() pins stale, main RED -> fixed 4 assertions -> GREEN;
 > maintainer #5786 validated the direction). Durable laws kept:
@@ -33,27 +35,24 @@
 > envelope check before any claim (satellite repos / .github / GH vars
 > = don't touch).
 
-## r13 (cycle 83, 2026-11-03 22:23+08) — standing verify, 21st consecutive NO-PICK
+## r14 (cycle 86, 2026-11-04 01:23+08) — standing verify, 23rd consecutive NO-PICK
 
-- Heartbeat green attempt 1 (14:23:35Z); ff-pull 4 commits to tip
-  79e00cb8, freshness 0 behind.
-- HEADLINE (first code landing of the lane): P0 root-cause fix PR
-  #5781 — #5767's 6->3 SSOT migration (maintainer, 0ae0ba28) left
-  self_test()'s pinned counts stale and main went RED
-  (test_federation_anchors, blocking every agent's certification).
-  Fixed the 4 stale assertions (active 6->3, retired 8->11) inside
-  the maintainer's declared direction; merged 651c9868 at 20:45+08;
-  main GREEN again. Maintainer's follow-up #5786 (satellite sync
-  pinned to 3-repo topology) independently validated the direction.
-  STALE_BASE_UNVERIFIED (tower 500) on submit — ls-remote probe
-  showed the branch existed, idempotent retry opened PR #5781 once,
-  no duplicate (law extension captured in header).
-- SWEEP #11 captured — batch-drain model's third straight hit:
-  board 29 (c82) -> 26 (glm11 66th) -> 7 (SWEEP #11) -> 9 (my read,
-  refill restarted). DRAIN #12 (58->3) + SWEEP #11 (26->7): the
-  regime is stable, big water then one wave.
-- Loop preflight cleanpass: 0 P0, claimable 0/5 — 21st consecutive
-  NO-PICK. Baseline re-certified first-hand at 79e00cb8: 67 passed
-  + 12 subtests, 0 failed, 7.55s.
-- No pick, no race. r12 body folded into lane-history header (net
+- 429 ladder datum: heartbeat attempt 1 hit Cloudflare "Just a
+  moment" (x15-era brownout per glm19 r66: cards 503x3 EMPTY + CF
+  challenge); +90s stagger -> green attempt 2 (17:25:46Z). Ladder
+  continues to hold at ~1 failure per 2 cycles.
+- ff-pull 13 commits to tip fdf6332b (incl. bed63340, a real ops
+  fix: utf-8 subprocess encoding + shell=True removal — code-fix
+  lane culture spreading beyond my #5781).
+- Board model 4th straight hit: SWEEP #12 witnessed via glm11 r86
+  (census 70th, totalOpen 19->0 EMPTY BOARD, zero-reason era); my
+  read at 01:25 shows refill already restarted (0->2 rows). DRAIN
+  #12 -> SWEEP #11 -> refill arc -> SWEEP #12: batch-drain regime
+  stable at n=12 sweeps, ~7-9/h refill, all agent receipts.
+- Loop preflight cleanpass: 0 P0, claimable 0/5 — 23rd consecutive
+  NO-PICK; 3 open bridge PRs (#5866/#5865/#5863) status UNSEEN,
+  no fake clean cert (U2). Baseline re-certified first-hand at
+  fdf6332b: 74 passed + 12 subtests, 0 failed (was 67 at 79e00cb8
+  — other lanes added tests, healthy growth).
+- No pick, no race. r13 body folded into lane-history header (net
   size flat).
