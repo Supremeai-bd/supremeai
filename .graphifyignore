@@ -1,10 +1,36 @@
 # ========================================================
-# SupremeAI Graphify Ignore — 25K Free Tier Safe Master
-# Target: strictly under 10k nodes, laser-focused on real core logic
+# SupremeAI Graphify Ignore — Free Tier Safe Master
+# Target: strictly under 8,000 nodes, focused on core intelligence
 # ========================================================
 
-# 1. Tests & Mocks (Highest Noise Reduction - Pure Test Logic)
-# (Pytest handles verification; keeping these out saves ~14,000 dead nodes)
+# 1. Satellites, Editor Tooling & UI Bundles (Over 33,000 files / massive noise)
+vscode/
+**/vscode/**
+browser/
+**/browser/**
+studio/
+**/studio/**
+frontend/
+**/frontend/**
+apps/
+client/
+**/*.tsx
+**/*.jsx
+**/*.vue
+**/*.css
+**/*.scss
+
+# 2. Infrastructure, Deployment & DevOps Configs
+infrastructure/
+**/infrastructure/**
+infra/
+**/infra/**
+docker/
+k8s/
+helm/
+terraform/
+
+# 3. Tests & Mocks (Pure test assertions, prevents 14,000 dead nodes)
 tests/
 **/tests/
 backend/tests/
@@ -16,18 +42,7 @@ backend/tests/
 **/mocks/
 **/fixtures/
 
-# 2. Frontend & Apps (Managed in supremeai-studio repo)
-frontend/
-apps/
-studio/
-client/
-**/*.tsx
-**/*.jsx
-**/*.vue
-**/*.css
-**/*.scss
-
-# 3. Automation Scripts, Tooling & Internal Pipelines
+# 4. Automation Scripts, Tooling & Internal Pipelines
 scripts/
 backend/scripts/
 tools/
@@ -37,9 +52,8 @@ tools/
 .gsd/
 .specify/
 qa/
-infra/monitoring/
 
-# 4. Documentation & Markdown (Keep Constitutional Rules & Architecture SSOT)
+# 5. Documentation & Markdown (Keep constitutional rules only)
 docs/
 specs/
 *.md
@@ -51,7 +65,7 @@ specs/
 !CONTRIBUTING.md
 !README.md
 
-# 5. Static Data, Large JSON, Vectors & Assets (Keep API Schemas & Manifests)
+# 6. Static Data, Vectors & Asset Dumps (Keep essential schemas)
 data/
 all_graphs/
 **/*.json
@@ -66,12 +80,12 @@ all_graphs/
 !**/package.json
 !mcp.json
 
-# 6. Database Raw Dumps & Fixtures (Keep Schema DDLs & Migrations)
+# 7. Database Raw Dumps & Fixtures
 database/seeds/
 *.sql.dump
 *.dump
 
-# 7. Build Artifacts & Generated Files
+# 8. Build Artifacts, Cache & Environments
 dist/
 build/
 out/
@@ -82,3 +96,4 @@ node_modules/
 __pycache__/
 *.pyc
 *.d.ts
+.ruff_cache/
