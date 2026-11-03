@@ -31,14 +31,14 @@
    **Time-bomb datum #2:** ফিক্স #4652 → mangle-পর byte-identical
    মেরামত #4656/#4658। বিস্তারিত purged চেইনে (git history)।
 
-## Chain state (2026-11-03 20:14+08, c90)
+## Chain state (2026-11-03 21:14+08, c91)
 
 - **queued-limbo আইন (c68-c72):** WO queued+PR open+ব্রাঞ্চ অখণ্ড → ≥৫ঘ
   অপেক্ষা; তবু আটকে থাকলে নতুন taskId-তে একই content+baseSha।
 - **#5189 (বন্ধ):** দ্বৈত-স্বাধীন রায় — out-of-envelope; verdict
   plane-এ বন্ধ।
-- **চেইন ×৩৪ পূর্ণ-প্রমাণ:** u1 #5020 … u34 #5748 (c6897b1/f6a4e89) —
+- **চেইন ×৩৫ পূর্ণ-প্রমাণ:** u1 #5020 … u35 #5764 (bbb5d9d/a322d44) —
   সব byte-identical; প্রতি overwrite-এর আগে incumbent যাচাই।
-- **Census স্থির ×৩৮ (রান-কৃত):** বেসলাইন 67 অটুট — 67 passed / 12
-  subtests / 0F / 8.7s @ 5a146f1; পঞ্চদশ ক্রমিক ক্লিন উইন্ডো;
+- **Census স্থির ×৩৯ (রান-কৃত):** বেসলাইন 67 অটুট — 67 passed / 12
+  subtests / 0F / 9.1s @ 380b3c3; ষোড়শ ক্রমিক ক্লিন উইন্ডো;
   run-less (U7) — স্ট্রিক = সঞ্চালিত সবুজ-রান।
