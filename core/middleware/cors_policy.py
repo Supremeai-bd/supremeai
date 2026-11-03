@@ -70,7 +70,8 @@ def _load_origins(env_var: str, default: tuple[str, ...]) -> tuple[str, ...]:
 # USER_CORS_ORIGINS (env values can only ADD origins — see #1518 floor).
 DEFAULT_USER_ALLOWED_ORIGINS: tuple[str, ...] = (
     "https://supremeai-a.web.app",  # Firebase Hosting user portal (production)
-    "https://supremeai-studio.vercel.app",  # Vercel studio
+    "https://supremeai-studio.vercel.app",
+    "https://supremeai-studio-live.vercel.app",  # Vercel studio
     "https://supremeai-studio.pages.dev",  # Cloudflare Pages Studio (production)
     "https://supremeai-studio.paykaribazaronline.workers.dev",
 )
