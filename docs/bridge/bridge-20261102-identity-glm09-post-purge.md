@@ -23,8 +23,10 @@
   owner prunes #4984/#4988/#4995: 62P/0F ×8 (c22-c28) → 67P/0F from
   c29 (+5 tests upstream, #5212 intake-pagination root-cause fix) →
   101P/0F from c48 (+34 guardian tests, #5878; new pytest.ini makes
-  bare `pytest` the census SSOT); scripts/ops/_INDEX.md 559→303→312
-  scripts, 6→2 hand sections.
+  bare `pytest` the census SSOT) → 110P/0F from c49 (+9 tests,
+  #5827 4-pillar + #5896 guardian AST indexer; pytest.ini now needs
+  pytest-xdist — `-n auto --dist=loadscope`); scripts/ops/_INDEX.md
+  559→303→312 scripts, 6→2 hand sections.
 - **Landed**: r21 re-anchor #5033 (c014fd9); r22 #5053 (9bcac54)
   brownout receipt; r23 #5072 (28f519b) first certified dispatch +
   zombie-PR escalation #5068 (stale PR #4872 → closed-unmerged,
@@ -54,52 +56,51 @@
   17th cycle on baseline; r46 #5785 (fcfabad) refill-3rd-window
   no-pick, 18th cycle on baseline; r47 #5821 (19311d2)
   first-decline no-pick, async-recovered submit (infra EOF, landed
-  without retry), 19th cycle on baseline.
+  without retry), 19th cycle on baseline; r48 #5886 (de2576b)
+  drain-confirmed no-pick, census 101P first cycle (SSOT migrated
+  67→101 via #5878), 20th cycle counting r21-r47 chain eras
+  collectively.
 
-## Cycle 48 (2026-11-04 02:09+08) — drain-confirmed no-pick, census 101P first cycle on new baseline
+## Cycle 49 (2026-11-04 04:09+08) — brownout-absorbed no-pick, census 110P first cycle (xdist era)
 
-- 7th consecutive trigger (c42→c48 — streak record extended).
-  Heartbeat first-try; dispatch run 1 REAL read: board 5 rows
-  (26→14→5 — second consecutive declining window, drain direction
-  confirmed per the two-window rule; 4th arc is in its drain leg);
-  PR plane 0 open (empty list — still UNSEEN, not certified clean,
-  U2); run 2 tower 429 dark — run-1 read stands (U2 per-read,
-  c43/c45 ruling). Claimable 0/5 → no-pick.
-- r47 submit post-mortem: the previous session's tower call died
-  with an infra EOF (prod-wsmgr-svc) and the session ended on a
-  sandbox tool failure — but the tower completed the patch ASYNC
-  and r47 landed (#5821, 19311d2) with zero retries. Async-guard
-  doctrine validated end-to-end: absence proven after the timeout,
-  the EOF response never retried blindly.
-- Upstream guardian CODE landed (#5878 — live PR auditor, secret
-  scanner, dependency parasite guard, memory consolidation guard +
-  new pytest.ini). Census re-run at the new tip: 101 passed / 0
-  failed / 12 subtests EXIT=0 @ 3db0a60 (9.77s) — census SSOT is
-  now bare `pytest` (pytest.ini testpaths = tests + scripts/ci;
-  the +34 guardian tests lift the baseline 67→101, first cycle on
-  the new number). CI-gate rehearsal 5/5 PASS; standing watch:
-  claim_ttl intact (TTL SSOT True=3h, OSError fail-closed True).
+- 8th consecutive trigger (c42→c49 — streak record extended).
+  Heartbeat 503 brownout → census-as-backoff; retry healthy after
+  verification bundle built.
+- Census first FAILED with pytest EXIT=4 (usage error:
+  unrecognized `-n --dist=loadscope`) — root cause: #5827/#5896
+  landed a pytest.ini that requires pytest-xdist, the sandbox env
+  had drifted. Fix: installed pytest-xdist 3.8.0 (env matched to
+  repo SSOT, no argument bypass). Census then: 110 passed / 0
+  failed / 12 subtests EXIT=0 @ 19e09b1 (13.08s) — baseline
+  101→110 (+9 tests, #5827 4-pillar + #5896 guardian AST indexer),
+  first cycle on 110P and first under xdist parallel mode.
+- Dispatch run 1 REAL read: board 6 rows (5→6 — first uptick after
+  the confirmed drain; single window, refill not yet declared); PR
+  plane 0 open (UNSEEN, U2); run 2 tower HEALTHY — second certified
+  read, ACTION clean and healthy, claimable 0/5 → no-pick. CI-gate
+  rehearsal 5/5 PASS; standing watch: claim_ttl intact (TTL SSOT
+  True=3h, OSError fail-closed True).
 
 ## Reflection Evidence
 
-- **why:** two durable facts needed capturing this window. (1) The
-  14→5 second decline upgrades c47's "single window unresolved" to
-  confirmed drain — the cycle law predicted a post-peak decline and
-  it arrived on schedule; the falsifier (mid-arc stall) stays
-  silent because the drain is moving, not stalled. (2) #5878 didn't
-  just add code, it changed the census SSOT itself (new pytest.ini
-  with testpaths=tests+scripts/ci) — re-running at the tip caught
-  the 67→101 migration; a habit-driven rerun with the old command
-  would have mislabeled the baseline.
-- **alternatives_rejected:** keeping `pytest tests/` as the census
-  command after pytest.ini landed (SSOT moved to bare `pytest`);
-  quoting 67P/19th-cycle out of habit (baseline migrated, honest
-  number is 101P/first cycle); calling the empty PR plane "clean"
-  (UNSEEN is not certified, U2); chasing a second read after the
-  429 (burns contention budget, c43/c45 ruling).
+- **why:** the pytest EXIT=4 was not a flake to retry blindly — it
+  was environment dependency drift against the repo's own SSOT
+  (pytest.ini gained xdist flags in #5827/#5896). The root-cause
+  fix is to make the sandbox match the SSOT (install pytest-xdist),
+  not to bypass flags or fall back to an old command — falling back
+  would have hidden the 101→110 baseline migration entirely. The
+  5→6 uptick is the direction the cycle law predicts after a
+  confirmed drain; one-window rule keeps it an observation, not a
+  refill declaration. Run 2 healthy gave this window two certified
+  reads — first time since the streak began that no run went dark.
+- **alternatives_rejected:** retrying census without diagnosing
+  (masks the dependency drift); falling back to `pytest tests/` or
+  stripping xdist flags (bypasses the SSOT, mislabels baseline);
+  declaring the refill leg started (one-window rule); quoting 101P
+  out of habit (honest number is 110P/first cycle).
 
 ## Rollback
 
-Docs-only in-place replace of the Cycle 48 section (baseSha recorded
-at submission): revert of the landed r48 PR restores the r47 blob.
+Docs-only in-place replace of the Cycle 49 section (baseSha recorded
+at submission): revert of the landed r49 PR restores the r48 blob.
 No code, test, or workflow surface touched this cycle.

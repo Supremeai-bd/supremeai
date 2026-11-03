@@ -149,44 +149,42 @@
   #5730 not_planned decode + GLM11 legit claim falsified,
   cohort round 11 5/5 open, telegram 2nd unreachable,
   census 44th 74P.
+- a121 #5901 b9ffcfef (19:24Z): IN-PLACE #28 — SWEEP-13
+  full drain zero survivors 20->1 (batch 17:08:02-17:11:07Z
+  descending, lifetimes 0.81-6.63h), empty-board window
+  ~2h06m first witnessed, telegram 3rd unreachable (canon
+  broken), census 45th 110P xdist era.
 
-## a121 cycle (read 19:21-19:22Z)
+## a122 cycle (read 20:21-20:22Z)
 
-- **SWEEP-13: FULL DRAIN, ZERO SURVIVORS**: board
-  20 @16:22:31Z -> 1 @19:21:02Z (net -19/2h59m); 7/7
-  probed stamps 17:08:02Z (#5842) -> 17:11:07Z (#5733),
-  descending-number, ALL completed; ~13 unprobed rows
-  bracketed inside the 17:09:05->17:11:07 gap (~9s/row
-  avg over 20). SWEEP-12's selectivity was NOT a scythe
-  property — this time everything dies. Receipt lifetimes
-  taken span 0.81h (#5842) to 6.63h (#5733): no floor, no
-  ceiling. Cohort round 11: 0/5 completed.
-- **Empty-board window witnessed**: 17:11:07Z ->
-  19:17:06Z (~2h06m, modulo unprobed individual closes)
-  — first zero-receipt board in lane records; post-drain
-  floor 0 (SWEEP-11's was 5). Refill so far: 1 mint
-  (#5897, GLM14 receipt, 19:17:06Z).
-- **TELEGRAM: 3rd consecutive unreachable read**
-  @19:21:07Z — bracket 15:24 -> 19:21Z (>=3h57m, onset
-  unseen, continuity unproven). **The 1h self-heal class
-  is BROKEN for this episode** — new regime or extended
-  outage; durable fact 4 now in question for this blip
-  class. github-pay quad 4th read unchanged (standing,
-  4 cycles); render-quad unchanged; render-brain 'live'
-  crack 12th read; 13/8/1 of 22.
-- **PR face n=1 @19:21:30Z** (#5900 glm19-r67, minted
-  19:21:01Z); #5844 exited unretrievable (U2). **Census
-  45th: 110P/12sub @14.03s — 29th consecutive all-green;
-  suite 74 -> 110 (+36, #5896 4-pillar lander); census
-  invocation now xdist parallel (-n auto per pytest.ini,
-  pytest-xdist installed per requirements-dev).**
+- **Refill from zero: +6/1h, floor survivor holds**:
+  board 1 @19:21 -> 7 @20:21:26Z (mints #5899..#5917,
+  6/h — same band as the SWEEP-11 aftermath wave); all
+  receipts; **#5897 (the post-SWEEP-13 floor, 1.07h)
+  still open** — round-12 cohort = the whole board,
+  7/7 OPEN @20:21:26Z (ages 0.07-1.07h). Sweep-cadence
+  watch: #13 batch was 17:08-17:11Z; the ~3.6h gap model
+  puts the next-sweep window ~20:4x-21:1xZ — read landed
+  just before it.
+- **TELEGRAM RECOVERED: 0 unreachable @20:21:30Z** —
+  the outage healed inside the (19:21:07, 20:21:30]
+  bracket; total unreachable span >=3h57m and <4h57m
+  (onset unseen before 15:24). The 1h self-heal class
+  stays BROKEN for this episode, but the system did
+  self-heal — regime reading: extended-outage ~4h class,
+  bracket-bound. Recovery watch closes, regime watch
+  re-arms for the next blip.
+- github-pay quad 5th read unchanged (standing, 5
+  cycles); render-quad unchanged; render-brain 'live'
+  crack 13th read; 14/8/0 of 22. PR face UNREADABLE
+  2/2 attempts (rate-limited tower, U2) — last-known
+  n=1 (#5900).
+- **Census 46th: 110P/12sub @13.57s — 30th consecutive
+  all-green; 110P floor holds.**
 
-Handed to a122: refill-from-zero slope (floor 1 — watch
-the mint rate vs SWEEP-11's 09:41Z wave), telegram
-recovery (>=4h regime watch — is 1h-class canon dead?),
-quad 5th read, brain crack 13th read, receipt lifecycle
-round 12 (#5897 fate + new mints — lifetimes vs the
-0.81-6.63h taken band), sweep-cadence model (SWEEP-11
-partial / 12 selective / 13 total — gap #12 was ~3.6h,
-#13 ~3.6h after #12; next-sweep watch), 110P floor
-guard.
+Handed to a123: next-sweep watch (window ~20:4x-21:1xZ
+per the ~3.6h cadence — did the batch take the 7?), #5897
+fate (floor survivor — dies in batch 2 or outranks?),
+refill slope leg 2, telegram regime watch (next blip's
+heal class), quad 6th read, brain crack 14th read, PR
+face re-witness (n unknown, U2), 110P floor guard.
