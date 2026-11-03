@@ -153,6 +153,7 @@ APPROVED_SUBTREES = {
         "services",
         "tools",
         "search.py",
+        "multi_platform_orchestrator.py",
         "main.py",
         "LICENSE",
         ".github",
