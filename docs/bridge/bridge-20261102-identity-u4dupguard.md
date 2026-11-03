@@ -134,47 +134,63 @@
   captured (57->5, net -52), cohort round 8 0/6 batch
   bracket 09:44:48-09:47:20Z, elder fallen 62.87h,
   telegram streak ended, census 41st 67P.
+- a118 #5778 0fa930f5 (12:38Z): IN-PLACE #25 — post-drain
+  refill strong 5->22 no second drain, cohort round 9
+  re-seeded 5/5 open, elder re-seeded to mint #5711,
+  telegram healed, github-pay quad new degradation,
+  husk face cleared, census 42nd 67P.
 
-## a118 cycle (read 12:24-12:26Z)
+## a119 cycle (read 15:22-15:47Z)
 
-- **Post-drain refill strong, no second drain**: board
-  5 @10:21:56Z -> 22 @12:24:11Z (+17 in ~2h02m ~8.4/h),
-  top-20 all mints #5716..#5765; #5711/#5714 open
-  beyond rank 20. The climb matches the pre-drain
-  slope band — the pump does not pause after a drain.
-- **Cohort instrument round 9 (re-seeded on the new
-  floor stratum): 5/5 probed OPEN** @12:24:13-18Z
-  (#5711/#5714/#5716/#5718/#5720) — first round on
-  the post-SWEEP-11 generation; ~2h tenancy so far.
-- **New-elder hunt settled — and a117 retroactively
-  refined**: #5213 closed, close stamp 10:08:37Z —
-  4 SECONDS before the elder's 10:08:41Z. The a117
-  'out-of-band single close' was a TWO-ROW trailing
-  close: both longest-tenancy survivors taken
-  together. New oldest open row: #5711 (created
-  09:41:34Z, ~2.71h at read) — the board is now
-  entirely young (max age <3h); the elder instrument
-  re-seeds from a mint.
-- **TELEGRAM RECOVERED**: healthy @12:24:25Z — the
-  10:23:06Z blip healed within a 10:23-12:24Z
-  bracket, consistent with the 1h self-heal class
-  canon (bracket-bound, not exact). **NEW degradation:
-  the github-pay quad** (core/api/browser/vscode) all
-  non-healthy (deployStatus None) — first witnessed;
-  14/8/0/0. Render-quad unchanged; render-brain
-  'live' crack holds (9th consecutive read).
-- **Husk face CLEARED**: #5117 (~37h last-witnessed),
-  #5214 (~32h), #5646 all exited the open PR face —
-  exit stamps unretrievable (closed-face list adapter
-  returns a recency page without addressing); exit
-  mode unverified. New face n=3, all fresh (#5767 ci
-  auto-sync / #5758 graphify / #5732 r62). **Census
-  42nd: 67P/12sub @10.39s — 26th consecutive
+- **SWEEP-12 captured — first sweep with survivors**:
+  board 22 @12:24:11Z -> 15 @15:22:42Z (net -7/2h58m)
+  with 13 mints since 12:35 -> derived 20 of the a118
+  snapshot closed, TWO SURVIVORS #5730 (10:31:30Z) +
+  #5733 (10:32:59Z) — first sweep in lane memory to
+  leave rows alive. Survivors' numbers sit INSIDE the
+  taken range (#5711..#5755) and post-read mint #5775
+  also passed through — selectivity proven: no full
+  drain, no tenancy rule (2.96h survived, 1.89h taken).
+- **Tightest batch bracket ever**: 8 close-stamps in
+  one descending-number window 13:30:08Z (#5755) ->
+  13:30:48Z (#5711), ~5s/row (#5740 13:30:22, #5722
+  13:30:36, cohort five 13:30:38-48) — prev tightest
+  was round-8's ~2.5min 09:44:48-09:47:20Z. Remaining
+  12 close-stamps unprobed (rate-limited tower) —
+  batch extent beyond the 8 UNSEEN (U2). All rows
+  carry identical bridge:queued (3rd read 15:46:44Z)
+  — label-based selectivity ruled out; basis unknown.
+- **Cohort round 10: 0/5** (#5711/#5714/#5716/#5718/
+  #5720 all closed completed) — the re-seeded new-
+  generation set lasted exactly one cycle; all five
+  stamps inside the 40s window. **Elder #5711 fell
+  @13:30:48Z, tenancy 3.82h** (09:41:34 -> 13:30:48)
+  — shortest elder fall on record (prior falls all
+  46h+); the mint-re-seeded elder taken in its 2nd
+  read. New oldest open: #5730 (4.85h @15:22Z).
+- **TELEGRAM blip #2 in 5h**: unreachable @15:24:16Z;
+  healed stretch bracketed 12:24:25Z -> 15:24Z (onset
+  unseen); 1h self-heal class re-arms. **github-pay
+  quad 2nd read unchanged** (core/api/browser/vscode
+  degraded, deployStatus None) — standing, 2 cycles
+  old. Render-quad unchanged; render-brain 'live'
+  crack 10th read holds; 13/8/1 of 22.
+- **PR face churn**: n=2 @15:24:17Z (#5819 4-pillar
+  arch 15:10Z / #5732 r62 — face elder ~4.9h); #5822
+  seen open in loop fallback 15:21Z landed inside
+  3min; #5767/#5758 exited since a118. Probed
+  #5725/#5728/#5750 are PRs not WOs (text adapter) —
+  UNSEEN not zero (U2). Refill slope: decel then
+  re-accel (13 mints 12:35-15:19 ~4.8/h, then 3 mints
+  15:19-15:40, board 15 -> 18 @15:46:44Z). **Census
+  43rd: 67P/12sub @10.47s — 27th consecutive
   all-green.**
 
-Handed to a119: github-pay quad watch (degraded — cure
-or work-order class?), refill slope (22 @8.4/h — wave
-or decel?), cohort instrument round 10 (new-generation
-set), elder 2nd read (#5711 ~4h?), telegram
-healed-stretch watch, render-brain crack (9 reads
-old), 67P floor guard.
+Handed to a120: SWEEP-12 survivor fate (#5730/#5733 —
+next batch or outrank the scythe?), selectivity-basis
+hunt (what marked the 20 taken?), refill slope (18 and
+climbing — third wave?), cohort round 11 (re-seed from
+the #5730/#5733 stratum), telegram recovery watch
+(blip @15:24Z — 1h class?), github-pay quad 3rd read
+(standing cure-or-WO watch), render-brain crack (10
+reads old), 67P floor guard.
