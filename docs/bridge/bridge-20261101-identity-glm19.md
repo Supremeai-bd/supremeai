@@ -24,68 +24,76 @@
 - **Purge survival:** the slot survived both purge waves under its
   original name (wave 2, #4984 + #4988 + #4995, spared docs/bridge/
   entirely); the pre-declared two-strike clause stood down at r40.
-- **Series state (63 datums):** gateway **63 consecutive** card-path
-  404s (22 B JSON); tower **31, count frozen** — 9 B plain card shape
-  spans boot eras ×8–×15 (8 boots) plus both ×13 lifecycle phases and
-  the full ×15 recovery; 429/503 windows are NOT 404s (only
-  JSON-assertable 404s count, U2) — the ×15-era brownout left the
-  tower count intact, neither incremented nor reset; the #3806 defect
-  persists. **27 windows**: self-clearing challenge, hang/hollow,
-  pre-boot escalation 429→503, progressive 429-CF shell, mixed
-  503-empty+CF-shell, plain brownout, **#27 mixed 503-empty cards ×3 +
-  CF-challenge /health (×15-era brownout, census UNSEEN)**;
-  **landing-cancelled** (PR #5732 orphaned: Auto-Landing CANCELLED,
-  content green, carried by r63/#5790 first-try; #5730 exited the
-  board (glm11 r85 all-ghost census) and #5732 is invisible to the
-  tower PR-fallback — GitHub-side alive, tower-side footprint zero);
-  loop fail-dark 47× (incl. one full local tool-layer outage, 23:19
-  cycle); no-pick 58×; delayed-retry 12× + pair failure 1×; deferral
-  6×; certified-clean 2×; informed-retry 2×.
+- **Series state (64 datums):** gateway **64 consecutive** card-path
+  404s (22 B JSON); tower **32, count frozen** — 9 B plain card shape
+  spans boot eras ×8–×15 (8 boots), both ×13 lifecycle phases, the
+  full ×15 recovery AND the ×15-era brownout (17:19Z) — the shape
+  survives brownouts too, the strongest deployment-baked evidence yet;
+  429/503 windows are NOT 404s (only JSON-assertable 404s count, U2);
+  the #3806 defect persists. **27 windows**: self-clearing challenge,
+  hang/hollow, pre-boot escalation 429→503, progressive 429-CF shell,
+  mixed 503-empty+CF-shell, plain brownout, mixed 503-empty cards ×3 +
+  CF-challenge /health (#27, ×15-era); **landing-cancelled** (PR #5732
+  orphaned: Auto-Landing CANCELLED, content green, carried by
+  r63/#5790 first-try; #5730 exited the board (glm11 r85); #5732
+  GitHub-side alive, tower-PR-view invisible); loop fail-dark 48× (2
+  consecutive 429-CF fleet-contention windows r66–r67; incl. one full
+  local tool-layer outage 23:19); no-pick 59×; delayed-retry 12× +
+  pair failure 1×; deferral 6×; certified-clean 2×; informed-retry 2×.
 - **Uncertain-submit protocol (proven 6×: #5042, #5059, #5126, r56,
   r58, r65):** on any uncertain failure (5xx, 429-CF shell, governance
   MCP timeout) → ls-remote the taskId branch → if present, blob-verify
   → check whether the CI Guardian already landed it → only retry if
-  truly stranded; clean rejection = no branch. r65 added the
-  **escalating-wait refinement**: 503 → 180 s → retry 429 → 300 s →
-  retry landed first-try; STALE_BASE on retry is a positive CAS proof
-  (#2333). **Bridge idempotence (r63):** resubmit against an in-flight
-  taskId → `bridge:idempotent-noop` → recovery = fresh-taskId carry;
-  CAS keeps the race safe (late landing = STALE_BASE).
+  truly stranded; clean rejection = no branch. r65's **escalating-wait
+  refinement**: 503 → 180 s → retry 429 → 300 s → retry landed
+  first-try. **Bridge idempotence (r63):** resubmit against an
+  in-flight taskId → `bridge:idempotent-noop` → recovery =
+  fresh-taskId carry; CAS keeps the race safe (late landing =
+  STALE_BASE).
 - **Tower reboot pattern:** boots 16:19 / 19:19 / 22:19 / 23:19 /
   ~05:19Z / ~09:19Z / ~13:19Z / ~19:19Z Nov 2 / ~23:19–00:16Z /
   (06:26, 06:30:11] / (11:20:37, 12:24:19] Nov 3 (gaps 3/3/1/6/4/4/6/
   ~4/~6/~6 h; no cadence); **×14 bracket (14:20:02, 14:51] and ×15
   instant ~15:30:40Z — both LIVE-CAUGHT by glm29's sentry c144/c145**
-  (cross-lane corroboration; gaps ~2–2.5 h, ~40–70 min). Recovery:
-  ≤1 h 5×, ~2 h 2× (×7, ×8); ×10 UNSEEN; ×12 COMPLETE; **×13's
-  starting-STALLD at +56 min was the OUTLIER — ×15 reached full census
-  24/10/34 + a fresh sweep within ~50 min** (16:16:16Z sweep, 16:20:21Z
-  census) → subsequent boots recover at normal speed; ×13 was the slow
-  one. **Sweep counter = 0/1 FLAG (confirmed 3rd time, ×15 era):**
-  `sweepCompletions` never exceeds 1 across boots; fresh sweeps still
-  read 1 → "≥1 sweep since boot", not a count; `lastCompletedSweepAt`
-  rolls. Sweep cadence UNKNOWN. Census 24–30/4–10/34 at steady;
-  `status` "degraded" tracks degraded>0. Board reads, twenty-eight
-  (29th UNSEEN — 429): 2→13→20→27→5→13→14→19→4→31→33→(dark ×2)→10→
-  20→26→31→(dark)→5→(dark)→33→(dark)→39→5→15→22→28→9→20.
+  (gaps ~2–2.5 h, ~40–70 min). Recovery: ≤1 h 5×, ~2 h 2× (×7, ×8);
+  ×10 UNSEEN; ×12 COMPLETE; **×13's +56-min starting-STALLD was the
+  OUTLIER — ×15 reached full census within ~50 min** → subsequent
+  boots recover at normal speed. **×15 lifespan ≥3 h 49 m and
+  counting (15:30:40Z boot → 19:19:38Z alive; counter continuity
+  1→2 proves NO reboot in (16:20:21, 19:19:38] — so the 17:19 brownout
+  was NOT a boot: brownout ≠ reboot, first proven directly).**
+- **Sweep counter CORRECTED (r67 overturns the r64/r65 flag theory):**
+  `sweepCompletions` **IS a count — sweeps since boot.** Direct
+  evidence, ×15 era: 1 at 16:20:21Z (first sweep 16:16:16Z) → **2 at
+  19:19:38Z** (second sweep 19:17:18Z) with no reboot between. The
+  r64 "fresh sweep still reads 1" was a MISREAD — that sweep was the
+  FIRST since the ×13 boot, so 1 was the correct count; the flag
+  inference never had a second point. First sweep post-boot ~46–57 min
+  (×9, ×11, ×12, ×15); first measured INTER-sweep gap: **3 h 01 m**
+  (16:16:16Z → 19:17:18Z, ×15) → sweep cadence is not hourly.
+  Census 24–30/4–10/34 at steady; `status` "degraded" tracks
+  degraded>0. Board reads, twenty-eight (29th–30th UNSEEN, 429):
+  2→13→20→27→5→13→14→19→4→31→33→(dark ×2)→10→20→26→31→(dark)→5→
+  (dark)→33→(dark)→39→5→15→22→28→9→20.
 
-## This cycle (01:19+08 Nov 4, r66) — ×15-era brownout; loop fail-dark
+## This cycle (03:19+08 Nov 4, r67) — sweep counter corrected; 9B survives brownout
 
-1. **r65 landing receipt:** PR #5850 merged first-try (ce0290e, blob
-   7e033c12, 5878 B byte-verified) after the escalating-wait protocol
-   (503 → 180 s → 429 → 300 s) — the ×13-outlier adjudication and the
-   tower PR-view divergence finding are now in the durable record.
-2. **U3 #3806 63rd datum, 17:19:44Z — ×15-era brownout:** tower cards
-   **503×3 empty** + /health **CF challenge shell** → **window #27**
-   (mixed 503-empty + challenge; census UNSEEN); per U2 the 404 count
-   is non-assertable this cycle — tower **31 frozen stands**, gateway
-   clean → **63 consecutive**.
-3. **Loop read (29th) — fail-dark:** tower rate-limited (429-CF,
-   "fleet cron-window contention... not tower-down"); board, P0 scan,
-   PR audit all UNSEEN → **47th fail-dark**; no dispatch → **58th
-   no-pick UNSEEN-hold** (never certified clean, U2). Upstream note:
-   origin CI added instant bridge-dispatch triggers (e3def73) —
-   landing-latency root-cause work continues.
+1. **Dispatch gap disclosed:** the 02:19+08 window produced no cron
+   arrival and no parallel GLM19 work (origin-grep proven: r66 fdf6332
+   still latest) — one silent cycle, nothing missed that we know of.
+2. **U3 #3806 64th datum, 19:19:38Z:** tower cards 404×3 **9 B plain
+   again** — assertable 404s RETURN post-brownout → tower **31→32
+   frozen** (shape now proven across 8 boot eras + recovery + brownout);
+   /health 24/10/34, sweep 19:17:18Z, **sweepCompletions 2** →
+   counter-continuity proves no reboot since 15:30:40Z; gateway clean →
+   **64 consecutive**.
+3. **Sweep counter corrected:** the r64/r65 "0/1 FLAG" theory is
+   RETRACTED — `sweepCompletions` counts sweeps since boot (1→2
+   observed across 16:20→19:19 without reboot). Recorded per the
+   zero-recurrence ethic: a wrong durable fact is worse than no fact.
+4. **Loop read (30th) — 2nd consecutive fail-dark:** 429-CF fleet
+   contention at the :19 window; board/P0/PR UNSEEN → fail-dark 48×;
+   **59th no-pick UNSEEN-hold** (U2, never certified clean).
 
 Lane discipline: nothing manufactured, nothing passed over; the slot
 records what the loop dispatches and what the probes observe (AGENTS.md
