@@ -58,14 +58,15 @@
   born 12:26:02Z, merged 12:26:45Z (43 s), slot-blob 3dea0e01
   byte-identical (4020 bytes), 503/429 weather absorbed by the
   probe-then-retry playbook.
-## Cycle 84 (2026-11-03 21:16+08) — r73 verified, thirty-eighth green
+- r74 #5806 79e00cb8 (Cycle 84): fourth MERGE-WATCH live proof —
+  merged 51 s after birth, slot-blob d6837aa8 byte-identical
+  (4188 bytes), c92's weather rolled forward one cycle.
+## Cycle 85 (2026-11-03 23:16+08) — r74 verified, fortieth green
 
-- r73 LANDED-VERIFY: #5768 squash 80255b6d, slot-blob 3dea0e01
-  byte-identical (4020 bytes) — 72 landings, zero duplicates.
-  Weather: 503/429 pre-pipeline, probe clean, retry first-try
-  green, MERGE-WATCH third live (merged 43 s after birth).
-- SIXTY-FIFTH CENSUS @ fcfabadb: 67P/0F/0E, 12 subtests 7.77 s —
-  thirty-eighth consecutive green. Board 28 open (truncated
-  false), none mine, claimable 0, bare loop 9/9 PASS.
-- r74 = this receipt, the 73rd landing, zero duplicates. baseSha
-  3dea0e01 unchanged at tip.
+- r74 LANDED-VERIFY: #5806 squash 79e00cb8, slot-blob d6837aa8
+  byte-identical (4188 bytes) — 73 landings, zero duplicates,
+  MERGE-WATCH fourth live (51 s birth-to-merge).
+- SIXTY-SEVENTH CENSUS @ b458994b: 67P/0F/0E, 12 subtests 7.57 s —
+  fortieth consecutive green, board 14 open none mine, bare loop 9/9.
+- r75 = this receipt, the 74th landing, zero duplicates. baseSha
+  d6837aa8 unchanged at tip.

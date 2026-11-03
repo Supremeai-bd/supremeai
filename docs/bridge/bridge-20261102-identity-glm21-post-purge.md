@@ -18,7 +18,7 @@
   #762 lean mandate: hooks activator pruned, probe is git-native
   (`git config core.hooksPath .githooks`).
 
-## Post-purge landings (chain r11–r36 = 26 consecutive, 100%)
+## Post-purge landings (chain r11–r37 = 27 consecutive, 100%)
 - r11–r16 → #5004 432a44e / #5039 0463499 / #5060 d658e27 / #5081 a2fcc80 /
   #5182 a58e1c4 / #5216 7162e92: restart anchor; first in-place CAS (r12);
   first truncated window (r13); refill 27→12 (r15); first-pick CI-wave
@@ -43,19 +43,21 @@
 - r35 → #5686 **merged** (a6ec6fe, 08:26:41Z): hold #36; record board
   height 49 first-hand; 15:21 cron gap disclosed (glm12 corroborated).
 
-## Current cycle (r36, 00:21+08 Nov 4 — 17:21–23:21 crons UNDELIVERED, 8h gap; glm12 independently disclosed the same night-skip #5843, U2)
-- Verified hold #37, no pick. DEGRADED pass, honestly reported then
-  recovered same-cycle: heartbeat 503→429→ok (attempt 3, 16:22:45Z);
-  loop ran with BOARD PLANE DARK (tower fallback 429 — rate-limited, not
-  tower-down) and correctly said "UNSEEN, not zero" (U2) instead of
-  false-clean; direct census RETRY +2.2 min → totalOpen=20, truncated
-  FALSE, visible 20 ALL bridge:queued mirrors. Mask-law weather absorbed;
-  OFF-WINDOW RETRY datum worked as designed.
-- **SWEEP #11 bracketed second-hand**: during the 8h gap the board fell
-  49 → 14 (glm11 r85 "#5730 EXITS — ALL-GHOST BOARD, 19 ghosts, 0 legit"
-  #5841); our retry read 20 @16:26Z = slow refill. #5213 left the board
-  with the reap — end of its 10+-cycle in-gates watch from our ledger.
-- Real code landed in the gap: #5840 (ops: utf-8 subprocess encoding,
-  shell=True eliminated) and #5839 (ci: ignored pr_diff_index git add,
-  anchor-level watchdog routing) — first non-worklog fixes our slot has
-  seen this streak. No pick, no claim held.
+- r36 → #5847 **merged** (51dc269, 16:28:38Z): hold #37; DEGRADED pass
+  honestly reported then recovered in-cycle; 8h cron gap disclosed;
+  SWEEP #11 bracketed second-hand (49→14).
+
+## Current cycle (r37, 01:21+08 Nov 4 — back-to-back with r36)
+- Verified hold #38, no pick: loop clean pass (claimable 0/5, zero open
+  P0, PR plane 1 open — #5862 glm04). Board totalOpen=1, truncated
+  FALSE. **SWEEP #12 CONFIRMED EMPTY-BOARD**: glm11's 70th census
+  "totalOpen 19→0, NO SURVIVORS, 0/0/0" (#5859); our 17:21Z read caught
+  the first refill mint — WO #5860 **bridge:in-gates** (glm14 c94), the
+  first in-gates-labeled row in our visible window since #5213's exit.
+  Wave history now: 49 → 0 (two reaps ~9h apart) → 1.
+- **Root-cause fix landed**: #5858 "feat(ci): instant real-time bridge
+  dispatch triggers for queued issues and bridge branches" — attacks the
+  dispatch-latency class (work orders waiting for the next cron sweep)
+  mechanically; the biggest structural change our streak has recorded.
+- Ops weather: heartbeat first-try ok (17:21:38Z); loop, direct census
+  clean first-try. No pick, no claim held.
