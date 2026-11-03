@@ -21,8 +21,10 @@
   (U2); the healthy rerun always yielded a REAL dispatch.
 - **Census across eras**: pre-purge 2358/13/0 flat ×8 → lean era after
   owner prunes #4984/#4988/#4995: 62P/0F ×8 (c22-c28) → 67P/0F from
-  c29 (+5 tests upstream, #5212 intake-pagination root-cause fix);
-  scripts/ops/_INDEX.md 559→303 scripts, 6→2 hand sections.
+  c29 (+5 tests upstream, #5212 intake-pagination root-cause fix) →
+  101P/0F from c48 (+34 guardian tests, #5878; new pytest.ini makes
+  bare `pytest` the census SSOT); scripts/ops/_INDEX.md 559→303→312
+  scripts, 6→2 hand sections.
 - **Landed**: r21 re-anchor #5033 (c014fd9); r22 #5053 (9bcac54)
   brownout receipt; r23 #5072 (28f519b) first certified dispatch +
   zombie-PR escalation #5068 (stale PR #4872 → closed-unmerged,
@@ -50,40 +52,54 @@
   15th cycle on baseline; r44 #5746 (374e426) refill-again no-pick,
   16th cycle on baseline; r45 #5762 (5a146f1) refill-holds no-pick,
   17th cycle on baseline; r46 #5785 (fcfabad) refill-3rd-window
-  no-pick, 18th cycle on baseline.
+  no-pick, 18th cycle on baseline; r47 #5821 (19311d2)
+  first-decline no-pick, async-recovered submit (infra EOF, landed
+  without retry), 19th cycle on baseline.
 
-## Cycle 47 (2026-11-03 23:09+08) — first-decline-after-peak no-pick, 19th cycle on baseline
+## Cycle 48 (2026-11-04 02:09+08) — drain-confirmed no-pick, census 101P first cycle on new baseline
 
-- 6th consecutive trigger (c42→c47 — streak record extended).
-  Heartbeat first-try; dispatch run 1 REAL read: board 14 rows
-  (26→14 — first decline after the 4th arc's refill leg peaked at
-  26 in c46; single window, drain-vs-noise unresolved); run 2 tower
-  429 dark — run-1 read stands (U2 per-read, c43/c45 ruling). PR
-  plane 2 open (UNSEEN per-PR; #5819 4-pillar modernization new
-  this window). Claimable 0/5 → no-pick.
-- Census: 67 passed / 0 failed / 12 subtests EXIT=0 @ b458994
-  (8.93s) — 19th consecutive cycle on the 67P baseline. CI-gate
-  rehearsal 5/5 PASS; standing watch: claim_ttl intact (TTL SSOT
-  True=3h, OSError fail-closed True).
+- 7th consecutive trigger (c42→c48 — streak record extended).
+  Heartbeat first-try; dispatch run 1 REAL read: board 5 rows
+  (26→14→5 — second consecutive declining window, drain direction
+  confirmed per the two-window rule; 4th arc is in its drain leg);
+  PR plane 0 open (empty list — still UNSEEN, not certified clean,
+  U2); run 2 tower 429 dark — run-1 read stands (U2 per-read,
+  c43/c45 ruling). Claimable 0/5 → no-pick.
+- r47 submit post-mortem: the previous session's tower call died
+  with an infra EOF (prod-wsmgr-svc) and the session ended on a
+  sandbox tool failure — but the tower completed the patch ASYNC
+  and r47 landed (#5821, 19311d2) with zero retries. Async-guard
+  doctrine validated end-to-end: absence proven after the timeout,
+  the EOF response never retried blindly.
+- Upstream guardian CODE landed (#5878 — live PR auditor, secret
+  scanner, dependency parasite guard, memory consolidation guard +
+  new pytest.ini). Census re-run at the new tip: 101 passed / 0
+  failed / 12 subtests EXIT=0 @ 3db0a60 (9.77s) — census SSOT is
+  now bare `pytest` (pytest.ini testpaths = tests + scripts/ci;
+  the +34 guardian tests lift the baseline 67→101, first cycle on
+  the new number). CI-gate rehearsal 5/5 PASS; standing watch:
+  claim_ttl intact (TTL SSOT True=3h, OSError fail-closed True).
 
 ## Reflection Evidence
 
-- **why:** the 26→14 move is the first directional change after
-  four straight refill windows — the cycle-law falsifier was built
-  for mid-arc stalls, so it stays silent here; a post-peak decline
-  is exactly what the law predicts next, and logging direction (not
-  amplitude) is the only honest claim until a second window
-  confirms drain. Census re-run at b458994 because three more
-  landings (glm29 Sentry c144, glm23 r13, glm32 r74) moved HEAD
-  past the r46-verified 380b3c3.
-- **alternatives_rejected:** declaring the 4th arc "complete" from
-  one declining window (one-window confirmation rule); chasing a
-  second read after the 429 (burns contention budget, c43/c45
-  ruling); certifying the PR plane clean (per-PR status UNSEEN,
-  U2); keeping the c46 section verbatim (folded per keep-small).
+- **why:** two durable facts needed capturing this window. (1) The
+  14→5 second decline upgrades c47's "single window unresolved" to
+  confirmed drain — the cycle law predicted a post-peak decline and
+  it arrived on schedule; the falsifier (mid-arc stall) stays
+  silent because the drain is moving, not stalled. (2) #5878 didn't
+  just add code, it changed the census SSOT itself (new pytest.ini
+  with testpaths=tests+scripts/ci) — re-running at the tip caught
+  the 67→101 migration; a habit-driven rerun with the old command
+  would have mislabeled the baseline.
+- **alternatives_rejected:** keeping `pytest tests/` as the census
+  command after pytest.ini landed (SSOT moved to bare `pytest`);
+  quoting 67P/19th-cycle out of habit (baseline migrated, honest
+  number is 101P/first cycle); calling the empty PR plane "clean"
+  (UNSEEN is not certified, U2); chasing a second read after the
+  429 (burns contention budget, c43/c45 ruling).
 
 ## Rollback
 
-Docs-only in-place replace of the Cycle 47 section (baseSha recorded
-at submission): revert of the landed r47 PR restores the r46 blob.
+Docs-only in-place replace of the Cycle 48 section (baseSha recorded
+at submission): revert of the landed r48 PR restores the r47 blob.
 No code, test, or workflow surface touched this cycle.

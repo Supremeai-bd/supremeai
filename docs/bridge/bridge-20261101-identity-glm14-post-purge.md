@@ -31,17 +31,17 @@
    **Time-bomb datum #2:** ফিক্স #4652 → mangle-পর byte-identical
    মেরামত #4656/#4658। বিস্তারিত purged চেইনে (git history)।
 
-## Chain state (2026-11-04 01:14+08, c94)
+## Chain state (2026-11-04 02:14+08, c95)
 
 - **queued-limbo আইন (c68-c72):** WO queued+PR open+ব্রাঞ্চ অখণ্ড → ≥৫ঘ
   অপেক্ষা; তবু আটকে থাকলে নতুন taskId-তে একই content+baseSha।
 - **#5189 (বন্ধ):** দ্বৈত-স্বাধীন রায় — out-of-envelope; verdict
   plane-এ বন্ধ।
-- **চেইন ×৩৭ পূর্ণ-প্রমাণ:** u1 #5020 … u37 #5803 (5389897/30c8cd79) —
+- **চেইন ×৩৮ পূর্ণ-প্রমাণ:** u1 #5020 … u38 #5861 (03cef46/fadaeb6f) —
   সব byte-identical; প্রতি overwrite-এর আগে incumbent যাচাই।
-- **Census ×৪১ (রান-কৃত):** বেসলাইন-মাইগ্রেশন ৬৭→৭৪ (আপস্ট্রিম
-  pytest.ini: testpaths-এ scripts/ci যুক্ত) — 74 passed / 12
-  subtests / 0F / 9.41s @ 1d4f1eb; আঠারোতম ক্রমিক ক্লিন উইন্ডো;
-  c93-র সবুজ রান ল্যান্ড হয়নি — গ্যাপ, ব্যাকফিল নয়; বোর্ড-ডার্ক
-  পুনরাবৃত্তি (নতুন arc-এর প্রথম উইন্ডো) — UNSEEN≠zero (U2);
-  স্ট্রিক = সঞ্চালিত সবুজ-রান।
+- **Census ×৪২ (রান-কৃত):** দ্বিতীয় বেসলাইন-মাইগ্রেশন ৭৪→১০১
+  (#5878 guardian স্যুট pytest.ini-এর scripts/ci testpaths-এ
+  প্রবেশ) — 101 passed / 12 subtests / 0F / 9.73s @ 3db0a60;
+  ঊনতম ক্রমিক ক্লিন উইন্ডো; বোর্ড tower-fallback ৫ সারি সুস্থ
+  (c94 arc পরবর্তী উইন্ডোতেই ভাঁজ) — UNSEEN≠zero (U2); স্ট্রিক =
+  সঞ্চালিত সবুজ-রান।
