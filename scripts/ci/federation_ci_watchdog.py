@@ -388,15 +388,17 @@ def linked_issue_numbers(pr_body: str) -> list[int]:
 
 
 def is_active_anchor_child(issue_number: int, repo: str, token: str | None = None) -> bool:
-    """Fail closed unless issue_number is a direct child of this repo's active anchor.
+    """Fail closed unless issue_number is the repo's active anchor hub itself or a direct child of it.
 
     GitHub's sub-issues endpoint returns database IDs, not issue numbers; fetch
     the candidate first and compare its database ID with the anchor's children.
     """
+    anchor = active_anchor_for_repo(repo)
+    if issue_number == anchor:
+        return True
     if list_sub_issue_ids is None:
         print("[watchdog] Cannot verify anchor-child relationship; refusing label write.")
         return False
-    anchor = active_anchor_for_repo(repo)
     code, issue = gh_api(f"repos/{OPEN_REPO}/issues/{issue_number}", token=token)
     if code != 200 or not isinstance(issue, dict) or not issue.get("id"):
         return False
