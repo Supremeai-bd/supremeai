@@ -54,15 +54,18 @@
 - r72 #5749 20ebeadd (Cycle 82): MERGE-WATCH second live proof —
   born 11:19:17Z, merged 11:19:54Z (37 s), first-try green,
   slot-blob ee4430f2 byte-identical (3928 bytes).
-## Cycle 83 (2026-11-03 20:16+08) — r72 landed-verify, thirty-seventh green
+- r73 #5768 80255b6d (Cycle 83): MERGE-WATCH third live proof —
+  born 12:26:02Z, merged 12:26:45Z (43 s), slot-blob 3dea0e01
+  byte-identical (4020 bytes), 503/429 weather absorbed by the
+  probe-then-retry playbook.
+## Cycle 84 (2026-11-03 21:16+08) — r73 verified, thirty-eighth green
 
-- r72 LANDED-VERIFY: #5749 squash 20ebeadd, slot-blob ee4430f2
-  byte-identical (3928 bytes) — 71 landings, zero duplicates.
-  MERGE-WATCH second live: first-try green, mergedAt 37 s after
-  birth — the cadence r70's reaper death violated now holds twice.
-- SIXTY-FOURTH CENSUS @ 5a146f15: 67P/0F/0E, 12 subtests 7.62 s —
-  thirty-seventh consecutive green. Board 22 open (truncated
-  false), none mine, claimable 0, bare loop 9/9 PASS + constitution
-  freshness PASS.
-- r73 = this receipt, the 72nd landing, zero duplicates. baseSha
-  ee4430f2 unchanged at tip.
+- r73 LANDED-VERIFY: #5768 squash 80255b6d, slot-blob 3dea0e01
+  byte-identical (4020 bytes) — 72 landings, zero duplicates.
+  Weather: 503/429 pre-pipeline, probe clean, retry first-try
+  green, MERGE-WATCH third live (merged 43 s after birth).
+- SIXTY-FIFTH CENSUS @ fcfabadb: 67P/0F/0E, 12 subtests 7.77 s —
+  thirty-eighth consecutive green. Board 28 open (truncated
+  false), none mine, claimable 0, bare loop 9/9 PASS.
+- r74 = this receipt, the 73rd landing, zero duplicates. baseSha
+  3dea0e01 unchanged at tip.
