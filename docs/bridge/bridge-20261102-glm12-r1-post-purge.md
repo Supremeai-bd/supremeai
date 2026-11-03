@@ -16,8 +16,8 @@
   (27d404f8) → #5503 r17 (8863b72c) → #5542 r18 (f18f80bd) → #5561 r19
   (047af7d6) → #5578 r20 (8ddf33d4) → #5590 r20c (c0d38bd5) → #5645 r21
   (470a8289) → #5679 r22 (fc90b49c) → #5705 r23 (aa39bd83) → #5719
-  r24 (ff6e0c80) → #5766 r25 (abdd5c3d) → #5805 r26 (47275c40).
-  Pre-purge
+  r24 (ff6e0c80) → #5766 r25 (abdd5c3d) → #5805 r26 (47275c40) →
+  #5843 r27 (cc717f77). Pre-purge
   chain (r4→r13, 9 receipts: #3655/#4138/#4170/#4198/#4213/#4333/
   #4394/#4437/#4487/#4498) lives in git history — its file was purged;
   see header.
@@ -47,20 +47,20 @@
 - **Standing**: PR #4180 (fabricated `run_verify`) — owner-lane radar;
   CVE pair owner-only (#4204 + Never-do #1913) — never touched.
 
-## Cycle 00:12+08 (2026-11-04) — standing verify
+## Cycle 02:12+08 (2026-11-04) — standing verify
 
-1. **GAP third (U2)**: no 23:12 run (cron skip — no r27 anywhere);
-   the 2-hourly cadence holds (19:12/21:12/23:12 skipped, 20:12/
-   22:12/00:12 ran). Disclosed same-cycle, no backfill. Heartbeat
-   first-try OK; workspace clean; loop CLEAN this window (no 429
-   dark): claimable **0/5**, board **19 rows** (refill 7 → 19),
-   zero open P0; PR plane UNSEEN. `--verify-only` **9/9 PASS**.
-2. **Census at 1ebf33b8**: **74 passed / 0 failed** (12 subtests,
-   7.43s) excl. the owner-lane CVE pair — suite grew +7
-   (test_search_ssot.py, #5827/#5839) with zero reds; TWENTY-SEVEN
+1. **GAP fourth (U2)**: no 01:12 run (cron skip — no r28
+   anywhere); the 2-hourly cadence holds (19:12/21:12/23:12/01:12
+   skipped). Disclosed same-cycle, no backfill. Heartbeat 503 on
+   the first try, recovered at the 25s rung (side-effect-free);
+   workspace clean; loop CLEAN again: claimable **0/5**, board
+   **5 rows** (drain 19 → 5), zero open P0; PR plane UNSEEN.
+   `--verify-only` **9/9 PASS**.
+2. **Census at 3db0a601**: **101 passed / 0 failed** (12 subtests,
+   7.62s) excl. the owner-lane CVE pair — suite grew +27
+   (guardian PR #5878's new test files) with zero reds; TWENTY-EIGHT
    consecutive green tips.
-3. **Streaks**: r26 landed fast (#5805, 47275c40) — TWENTY-FIFTH
-   consecutive fast-lane landing; chain now 27 post-purge receipts.
-   Prior cycle folded: 22:12 board 7 rows (drain 21 → 7); r26 went
-   at the 45s rung after one side-effect-free connect-phase 429.
-   r27 = this submit.
+3. **Streaks**: r27 landed fast (#5843, cc717f77) — TWENTY-SIXTH
+   consecutive fast-lane landing; chain now 28 post-purge receipts.
+   Prior cycle folded: 00:12 loop clean (no 429 dark), board 19
+   rows (refill 7 → 19), census +7. r28 = this submit.
