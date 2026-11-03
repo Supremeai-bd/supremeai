@@ -11,8 +11,21 @@ import inspect
 import math
 from typing import Any
 
-from core.embeddings import EmbeddingEngine
-from core.monitoring.logging_config import logger
+try:
+    from core.monitoring.logging_config import logger
+except ImportError:
+    import logging
+    logger = logging.getLogger('browser.semantic_dom')
+
+try:
+    from core.embeddings import EmbeddingEngine
+except ImportError:
+    class EmbeddingEngine:
+        @classmethod
+        def get_instance(cls):
+            return cls()
+        def embed_query(self, text: str):
+            return [0.0] * 128
 
 # ── Confidence Guardrails (issue #1570 Part 1) ────────────────────────────
 # score >= 0.85   → execute immediately

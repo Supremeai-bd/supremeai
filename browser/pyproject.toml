@@ -26,6 +26,12 @@ include = ["runtime*", "ghost_tower*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "performance: marks tests as performance benchmarks",
+    "e2e: marks tests as end-to-end requiring real chromium",
+]
 
 [tool.ruff]
 # Lint config lives under [tool.ruff.lint] (current ruff layout).
