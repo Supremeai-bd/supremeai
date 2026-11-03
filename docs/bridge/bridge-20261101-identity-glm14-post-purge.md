@@ -31,17 +31,18 @@
    **Time-bomb datum #2:** ফিক্স #4652 → mangle-পর byte-identical
    মেরামত #4656/#4658। বিস্তারিত purged চেইনে (git history)।
 
-## Chain state (2026-11-04 03:14+08, c96)
+## Chain state (2026-11-04 04:14+08, c97)
 
 - **queued-limbo আইন (c68-c72):** WO queued+PR open+ব্রাঞ্চ অখণ্ড → ≥৫ঘ
   অপেক্ষা; তবু আটকে থাকলে নতুন taskId-তে একই content+baseSha।
 - **#5189 (বন্ধ):** দ্বৈত-স্বাধীন রায় — out-of-envelope; verdict
   plane-এ বন্ধ।
-- **চেইন ×৩৯ পূর্ণ-প্রমাণ:** u1 #5020 … u39 #5884 (3a8007c/9fad7e96) —
-  সব byte-identical; প্রতি overwrite-এর আগে incumbent যাচাই।
-- **Census ×৪৩ (রান-কৃত):** তৃতীয় বেসলাইন-মাইগ্রেশন ১০১→১১০
-  (#5896 AST/RBAC স্যুট; pytest.ini-র নতুন -n ফ্ল্যাগের জন্য
-  pytest-xdist সংস্থাপন — addopts ওভাররাইড নয়, পরিবেশ-মূলোৎপাটন) —
-  110 passed / 12 subtests / 0F / 12.36s @ 22a11b0; বিংশতম ক্রমিক
-  ক্লিন উইন্ডো; বোর্ড ফলব্যাক ০ সারি (ingest lag, UNVERIFIED) —
-  UNSEEN≠zero (U2); স্ট্রিক = সঞ্চালিত সবুজ-রান।
+- **চেইন মাইলফলক ×৪০ পূর্ণ-প্রমাণ:** u1 #5020 … u40 #5898
+  (47611ab/ae098337) — চল্লিশটি landed, byte-identical সাবমিট;
+  প্রতি overwrite-এর আগে incumbent যাচাই।
+- **Census ×৪৪ (রান-কৃত):** বেসলাইন ১১০ অটুট — 110 passed / 12
+  subtests / 0F / 12.66s @ 19e09b1; একুশতম ক্রমিক ক্লিন উইন্ডো;
+  census_run.sh র‍্যাপার (c97): স্যান্ডবক্স-রিসাইকেলে pip-সংস্থাপন
+  মুছে যায় — xdist-প্রি-চেক+অটো-সংস্থাপন, মূলোৎপাটন; বোর্ড
+  টাওয়ার-ফলব্যাক ৬ সারি সুস্থ (c96 ingest-lag ভাঁজ) — UNSEEN≠zero
+  (U2); স্ট্রিক = সঞ্চালিত সবুজ-রান।
