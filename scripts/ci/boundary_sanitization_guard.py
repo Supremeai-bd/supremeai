@@ -144,6 +144,7 @@ APPROVED_SUBTREES = {
     "infrastructure": {
         "mcp-control-plane",
         "cloudflare-studio-proxy",
+        "cloudflare-render-keepwarm",
         "LICENSE",
     },
     "core": {
