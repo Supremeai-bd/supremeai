@@ -61,7 +61,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from core.monitoring.logging_config import logger
 
 from .config_fields import SettingsFieldsMixin
-from .config_secrets import SettingsSecretsMixin
 from .config_validation import SettingsValidationMixin
 
 try:
@@ -78,7 +77,7 @@ if "pytest" not in sys.modules:
     load_dotenv(root_env)
 
 
-class Settings(BaseSettings, SettingsFieldsMixin, SettingsSecretsMixin, SettingsValidationMixin):
+class Settings(BaseSettings, SettingsFieldsMixin, SettingsValidationMixin):
     """
     বাংলা মন্তব্য: এটি সিস্টেমের একমাত্র সত্যের উৎস (Single Source of Truth)।
     কোনো hardcoded value নেই। সব env-driven।
