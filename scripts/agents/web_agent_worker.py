@@ -317,7 +317,7 @@ class Guard:
         hook = os.environ.get("WEB_AGENT_NOTIFY_CMD")  # optional custom script hook
         if hook:
             try:
-                subprocess.Popen(hook, shell=True, env={**os.environ, "WEB_AGENT_EVENT": reason, "WEB_AGENT_SESSION": s.title})
+                subprocess.Popen(shlex.split(hook), shell=False, env={**os.environ, "WEB_AGENT_EVENT": reason, "WEB_AGENT_SESSION": s.title})
             except Exception:
                 pass
 
@@ -360,7 +360,7 @@ class PromptComposer:
         if not cmd:
             return None
         try:
-            r = subprocess.run(cmd, shell=True, input=json.dumps({"role": role, "session": title, "last_reply": reply[-6000:]}),
+            r = subprocess.run(shlex.split(cmd), shell=False, input=json.dumps({"role": role, "session": title, "last_reply": reply[-6000:]}),
                                capture_output=True, text=True, timeout=90)
             out = r.stdout.strip()
             return out[:2000] if r.returncode == 0 and out else None

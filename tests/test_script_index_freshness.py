@@ -53,6 +53,8 @@ class TestScriptIndexFreshness(unittest.TestCase):
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=120,
         )
         self.assertEqual(
@@ -83,6 +85,8 @@ class TestScriptIndexFreshness(unittest.TestCase):
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=120,
             )
             self.assertEqual(
@@ -161,6 +165,8 @@ class TestScriptIndexFreshness(unittest.TestCase):
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=120,
         )
         self.assertEqual(
@@ -195,6 +201,8 @@ class TestScriptIndexFreshness(unittest.TestCase):
                 ["git", "clone", "--shared", "--quiet", str(REPO_ROOT), clone],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=300,
             )
             self.assertEqual(setup.returncode, 0, f"clone failed: {setup.stderr[:300]}")
@@ -206,11 +214,17 @@ class TestScriptIndexFreshness(unittest.TestCase):
             # lib.auto_discovery and SCAN_ROOT resolve inside the clone, so the
             # regen basis stays the clone's own tree.
             shutil.copy2(GENERATOR, gen_in_clone)
+            shutil.copy2(
+                GENERATOR.parent / "lib" / "auto_discovery.py",
+                Path(clone) / "scripts" / "ops" / "lib" / "auto_discovery.py",
+            )
             fresh = subprocess.run(
                 [sys.executable, str(gen_in_clone), "--check-committed"],
                 cwd=clone,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=120,
             )
             self.assertEqual(fresh.returncode, 0,
@@ -226,6 +240,8 @@ class TestScriptIndexFreshness(unittest.TestCase):
                 cwd=clone,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=120,
             )
             self.assertEqual(commit.returncode, 0, f"commit failed: {commit.stderr[:300]}")
@@ -234,6 +250,8 @@ class TestScriptIndexFreshness(unittest.TestCase):
                 cwd=clone,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=120,
             )
             self.assertEqual(
@@ -268,6 +286,8 @@ class TestScriptIndexFreshness(unittest.TestCase):
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=120,
             )
             self.assertEqual(

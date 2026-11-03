@@ -156,7 +156,12 @@ def _git_ls_files(root: Path, cached_only: bool = False) -> Optional[List[Path]]
             cmd += ["--others", "--exclude-standard"]
         out = subprocess.run(
             cmd,
-            cwd=str(root), capture_output=True, text=True, timeout=30,
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
         )
         if out.returncode != 0:
             return None

@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -108,7 +109,8 @@ def verify_digests(
 def run_test_commands(commands: list[str], cwd: Path) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     for cmd in commands or []:
-        rc, _out, err = _run(cmd, cwd, shell=True)
+        args = shlex.split(cmd) if isinstance(cmd, str) else cmd
+        rc, _out, err = _run(args, cwd, shell=False)
         results.append({"cmd": cmd, "rc": rc, "passed": rc == 0, "stderr": err[:200]})
     return results
 

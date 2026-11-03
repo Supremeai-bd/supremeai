@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import subprocess
 import time
 from pathlib import Path
@@ -36,8 +37,9 @@ def load_intent(path: Path) -> dict[str, Any] | None:
 
 def _run_cmd(cmd: str, cwd: Path, timeout: int = 300) -> tuple[int, str]:
     try:
+        args = shlex.split(cmd) if isinstance(cmd, str) else cmd
         p = subprocess.run(
-            cmd, cwd=cwd, shell=True, capture_output=True, timeout=timeout, check=False
+            args, cwd=cwd, shell=False, capture_output=True, timeout=timeout, check=False
         )
         return p.returncode, (p.stderr or b"").decode("utf-8", errors="replace")[:200]
     except Exception as exc:
