@@ -47,3 +47,5 @@ def build_federation(
 
 
 __all__ = ["build_circle_registry", "build_federation"]
+
+from core.circles.governance_core import get_governance_core, reset_governance_core
