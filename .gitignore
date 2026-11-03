@@ -568,3 +568,12 @@ docs/master_docs/role_locks/
 .browser_profile/
 .browser_tasks/
 
+
+# Runtime & Graphify Artifacts
+*graphify-out/
+all_graphs/
+scripts/agents/*_state.json
+.agent/
+.gsd/
+check_tower.py
+model_capabilities.yaml

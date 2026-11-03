@@ -50,16 +50,18 @@ import { toolAccessError } from "./mcp-access.js";
  */
 
 /** Client tool-surface profiles. Absent/undefined profile = full RBAC surface. */
-export type ToolProfile = "chatgpt" | "readonly";
+export type ToolProfile = "standard" | "chatgpt" | "readonly";
 
 /**
- * The curated ChatGPT surface: read-mostly, low-noise, high-value tools.
+ * The vendor-neutral curated tool surface: read-mostly, low-noise, high-value tools.
+ * Formerly hardcoded as CHATGPT_CURATED_TOOLS, now generalized to STANDARD_CURATED_TOOLS
+ * in adherence to SupremeAI's Vendor-Neutral Architecture Invariant.
  * Names are SANITIZED wire names (dots→underscores — the same form
  * `classifyToolCapability` and the SDK's `_registeredTools` use).
  *
  * Curation principles:
  *  - every read/monitoring domain is represented (github/render/supabase/
- *    redis/cloudflare/ai/memory/docs/agents);
+ *    redis/cloudflare/ai/memory/docs/agents/graphify/devtools);
  *  - secret-class tools (infisical_*, github_list_secrets, render_get_env_vars)
  *    are NEVER listed (they are also RBAC admin-only — invariant 1 holds);
  *  - exactly TWO operational writes: notify_telegram (the one sanctioned
@@ -68,7 +70,7 @@ export type ToolProfile = "chatgpt" | "readonly";
  *  - autonomy_kill_switch and other destructive actions stay invisible
  *    (and remain RBAC-gated on the call path).
  */
-const CHATGPT_CURATED_TOOLS: readonly string[] = [
+export const STANDARD_CURATED_TOOLS: readonly string[] = [
   // unified observability & work hub (S0.4)
   "status",
   "bridge_work",
@@ -90,6 +92,8 @@ const CHATGPT_CURATED_TOOLS: readonly string[] = [
   "github_get_failed_logs",
   "github_search_repos",
   "github_collect_highlights",
+  "github_search_code",
+  "github_inspect_pr_diff",
   // render (read)
   "render_manage",
   "render_list_services",
@@ -122,6 +126,7 @@ const CHATGPT_CURATED_TOOLS: readonly string[] = [
   "autonomy_status",
   // agents (status + guarded workflow execution)
   "agent_status",
+  "agent_heartbeat",
   "agent_review_workflow_status",
   "agent_review_workflow_execute",
   "guardian_evaluate_pr",
@@ -140,9 +145,24 @@ const CHATGPT_CURATED_TOOLS: readonly string[] = [
   "docs_query",
   "docs_search",
   "docs_list",
+  "docs_fetch",
+  // knowledge & graph intelligence (Graphify AST / DevTools)
+  "graphify_call",
+  "codebase_graph_query",
+  "devtools_audit",
+  "devtools_console_errors",
+  "devtools_network_failures",
+  "devtools_performance_trace",
+  "system_parity_audit",
+  // vector memory & search
+  "qdrant_search",
+  "qdrant_collections",
   // the single sanctioned outbound notify channel
   "notify_telegram",
 ];
+
+/** Backward compatibility alias for legacy scripts and references */
+export const CHATGPT_CURATED_TOOLS = STANDARD_CURATED_TOOLS;
 
 /** The mutating tools inside the curated surface (excluded from `readonly`). */
 const MUTATING_TOOLS: readonly string[] = [
@@ -157,17 +177,18 @@ const MUTATING_TOOLS: readonly string[] = [
 ];
 
 export const TOOL_PROFILES: Record<ToolProfile, readonly string[]> = {
-  chatgpt: CHATGPT_CURATED_TOOLS,
-  readonly: CHATGPT_CURATED_TOOLS.filter((name) => !MUTATING_TOOLS.includes(name)),
+  standard: STANDARD_CURATED_TOOLS,
+  chatgpt: STANDARD_CURATED_TOOLS, // backward compatibility
+  readonly: STANDARD_CURATED_TOOLS.filter((name) => !MUTATING_TOOLS.includes(name)),
 };
 
 export function isValidToolProfile(value: unknown): value is ToolProfile {
-  return value === "chatgpt" || value === "readonly";
+  return value === "standard" || value === "chatgpt" || value === "readonly";
 }
 
 /**
  * Provider → default profile for auto-registered guests (#1767/#2588).
- * ONLY chatgpt guests get a curated surface by default; every other client
+ * Standard curated surface by default for web guests; every other client
  * keeps the full list (its call path stays RBAC-gated as before). Admins can
  * override per client via client.set_profile / PATCH /clients/:id.
  */
