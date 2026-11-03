@@ -1,0 +1,25 @@
+# বাংলা: SupremeAI API gateway-র Render blueprint (P2) — deploy কোড নয়, ঘোষণা।
+# secret এখানে নয় — INFISICAL identity-দ্বারা boot-time vault-pull (SECRETS_MODEL.md সংগত)
+services:
+  - type: web
+    name: supremeai-api
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /healthz
+    envVars:
+      # বাংলা: রাউটিং-কনফিগ ইমেজের ভেতরেই (কোড-বদল ছাড়াই অপারেশন = কনফিগ বদল)
+      - key: GATEWAY_CONFIG
+        value: config/routing_policy.example.json
+      # বাংলা: metering JSONL অস্থায়ী পাথে (container filesystem)
+      - key: GATEWAY_USAGE_LOG
+        value: /tmp/supremeai_api_usage.jsonl
+      # বাংলা: vault-identity — প্রকৃত মান Render dashboard-এ (vault থেকে), git-এ কখনো নয়
+      - key: INFISICAL_PROJECT_ID
+        sync: false
+      - key: INFISICAL_ENV
+        value: prod
+      - key: INFISICAL_CLIENT_ID
+        sync: false
+      - key: INFISICAL_CLIENT_SECRET
+        sync: false

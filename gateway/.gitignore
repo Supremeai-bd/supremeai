@@ -1,0 +1,11 @@
+# বাংলা: সতর্কতা — bare "env/" প্যাটার্ন নিষিদ্ধ (gitignore auto-init env-templates গিলে ফেলত —
+# infra-রেপো শিক্ষা)। নির্দিষ্ট ফাইল-নাম ব্যবহার।
+.env
+.env.*
+*.log
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+var/
+usage*.jsonl

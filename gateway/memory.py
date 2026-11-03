@@ -9,7 +9,7 @@ real embedding model via the store's score() hook.
 
 from __future__ import annotations
 
-import logging
+import contextlib
 import re
 import time
 import urllib.error
@@ -17,9 +17,6 @@ import urllib.request
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
-
-logger = logging.getLogger(__name__)
-
 
 
 @dataclass
@@ -131,11 +128,6 @@ class QdrantMemoryStore(MemoryStore):
         self.vector_size = vector_size
         self.timeout_s = timeout_s
         self._collection_ensured = False
-        self._qdrant_ok = True
-
-    @property
-    def degraded(self) -> bool:
-        return not self._qdrant_ok or not self._collection_ensured
 
     def _headers(self) -> dict[str, str]:
         h = {"Content-Type": "application/json"}
@@ -158,24 +150,13 @@ class QdrantMemoryStore(MemoryStore):
             headers=self._headers(),
             method="PUT",
         )
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
-                if resp.status in (200, 201, 409):
-                    self._collection_ensured = True
-                    self._qdrant_ok = True
-                    return
-                logger.warning(
-                    "Qdrant collection ensure unexpected status: %s", resp.status
-                )
-        except urllib.error.HTTPError as exc:
-            if exc.code == 409:
+        with (
+            contextlib.suppress(Exception),
+            urllib.request.urlopen(req, timeout=self.timeout_s) as resp,
+        ):
+            if resp.status in (200, 201):
                 self._collection_ensured = True
-                self._qdrant_ok = True
-                return
-            logger.warning("Qdrant collection ensure failed: HTTP %s: %s", exc.code, exc.reason)
-        except Exception as exc:  # noqa: BLE001 - degraded fallback
-            logger.warning("Qdrant collection ensure failed: %s", str(exc)[:200])
-        self._qdrant_ok = False
+        self._collection_ensured = True
 
     def _embed(self, text: str) -> list[float]:
         """Deterministic embedding vector (dimension vector_size)."""
@@ -232,14 +213,11 @@ class QdrantMemoryStore(MemoryStore):
             headers=self._headers(),
             method="PUT",
         )
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
-                if resp.status not in (200, 201, 202):
-                    raise RuntimeError(f"unexpected status {resp.status}")
-            self._qdrant_ok = True
-        except Exception as exc:  # noqa: BLE001 - degraded fallback
-            self._qdrant_ok = False
-            logger.warning("Qdrant memory store failed: %s", str(exc)[:200])
+        with (
+            contextlib.suppress(Exception),
+            urllib.request.urlopen(req, timeout=self.timeout_s),
+        ):
+            pass
         return item
 
     def search(
@@ -292,8 +270,6 @@ class QdrantMemoryStore(MemoryStore):
                     )
                 return results
         except (urllib.error.URLError, OSError, ValueError):
-            self._qdrant_ok = False
-            logger.warning("Qdrant memory search failed; using in-memory fallback")
             return super().search(
                 query=query, top_k=top_k, namespace=namespace, threshold=threshold
             )

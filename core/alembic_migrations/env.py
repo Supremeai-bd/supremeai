@@ -92,6 +92,48 @@ def _resolve_reachable_url(url: str) -> str:
 
 
 migration_url = _resolve_reachable_url(raw_migration_url)
+
+
+def _normalize_sync_driver_url(url: str) -> str:
+    """Alembic sync engine contract — মাইগ্রেশন সর্বদা psycopg2 দিয়ে চলবে (#2597, #2619)।
+
+    বাংলা মন্তব্য: Writer secret-এর scheme যা-ই হোক (`postgresql+psycopg://` v3
+    বা `postgresql+asyncpg://` — এমনকি driver-হীন bare `postgresql://`),
+    alembic সিঙ্ক-ইঞ্জিন — তাই ড্রাইভার চুক্তি রিপো-স্বতন্ত্রভাবে psycopg2-তে
+    নির্দিষ্ট করা হলো। এতে:
+      ১. সিক্রেট scheme `+psycopg://` (v3) হলেও রিপোতে নেই এমন psycopg v3
+         মডিউল খোঁজার ModuleNotFoundError আর হবে না (প্রমাণ: Deploy Train
+         run 36652606180 Migration Gate failure);
+      ২. `+asyncpg://` sync-engine-এ অবৈধ — sync পথেও psycopg2-ই একমাত্র
+         সামঞ্জস্যপূর্ণ ড্রাইভার;
+      ৩. **SQLAlchemy 2.1 আচরণ-পরিবর্তন (#2619):** dependabot #2462 দিয়ে
+         sqlalchemy 2.1.1 এসেছে — এই সিরিজ থেকে bare `postgresql://`-এর
+         ডিফল্ট dialect psycopg (v3)। ফলে driver-হীন সিক্রেটও v3 মডিউল
+         খোঁজে → `ModuleNotFoundError: No module named 'psycopg'` (প্রমাণ:
+         Deploy Train run 36686618685 — রান #৪-এ #2597 ফিক্স সহ main HEAD
+         `8d2559d1`-এই ব্যর্থতা)। তাই bare `postgresql://` এবং লিগ্যাসি
+         `postgres://`-ও এখন psycopg2-তে পিন করা হলো;
+      ৪. নিচের `_sync_psycopg2_ssl_args()` file-based SSL চুক্তি সর্বদা
+         প্রযোজ্য থাকে; নতুন ড্রাইভার-নির্ভরতা যোগ করার দরকার নেই
+         (free-tier dependency minimalism বহাল)।
+    """
+    for legacy_scheme in ("postgresql+psycopg://", "postgresql+asyncpg://"):
+        if url.startswith(legacy_scheme):
+            return "postgresql+psycopg2://" + url[len(legacy_scheme) :]
+    # বাংলা মন্তব্য: bare `postgresql://` ও লিগ্যাসি `postgres://` — SQLAlchemy
+    # 2.1+ এসবকে psycopg (v3) ডিফল্ট dialect-এ ম্যাপ করে (`postgres://` নিজেই
+    # 2.x-এ NoSuchModuleError)। রিপোর ঘোষিত sync ড্রাইভার শুধু psycopg2
+    # (psycopg2-binary ^2.9.9) — তাই driver-হীন scheme-ও এখানেই পিন করা হলো।
+    # `postgresql+psycopg2://` ইনপুট এই ব্রাঞ্চে ঢোকে না ("postgresql+..." ≠
+    # "postgresql://") — ডাবল-রিরাইট অসম্ভব।
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg2://" + url[len("postgresql://") :]
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg2://" + url[len("postgres://") :]
+    return url
+
+
+migration_url = _normalize_sync_driver_url(migration_url)
 config.set_main_option("sqlalchemy.url", migration_url)
 
 # Interpret the config file for Python logging.

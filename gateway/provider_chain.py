@@ -83,11 +83,7 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
             relay_url = os.environ.get("STEALTH_WEBHOOK_URL", "").rstrip("/")
         if not relay_url:
             relay_url = "https://supremeai-worker.paykaribazaronline.workers.dev"
-        base = relay_url.rstrip("/")
-        if base.endswith("/v1"):
-            url = base + "/chat/completions"
-        else:
-            url = base + "/v1/chat/completions"
+        url = relay_url + "/v1/chat/completions"
         started = time.monotonic()
         req_model = endpoint.model
         if req_model in ("gemini", "gemini-web"):
@@ -127,10 +123,6 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
         "mistral": ("https://api.mistral.ai/v1", ["MISTRAL_API_KEY"]),
         "anthropic": ("https://api.anthropic.com/v1", ["ANTHROPIC_API_KEY"]),
         "deepseek": ("https://api.deepseek.com/v1", ["DEEPSEEK_API_KEY"]),
-        "deepinfra": ("https://api.deepinfra.com/v1/openai", ["DEEPINFRA_API_KEY", "DEEPINFRA_API_KEYS"]),
-        "together": ("https://api.together.xyz/v1", ["TOGETHER_API_KEY", "TOGETHER_API_KEYS"]),
-        "xai": ("https://api.x.ai/v1", ["XAI_API_KEY", "XAI_API_KEYS"]),
-        "manus": ("https://api.manus.ai/v1", ["MANUS_API_KEY", "MANUS_API_KEYS"]),
     }
     if (not api_base or not api_key) and provider in _FALLBACKS:
         fb_base, fb_keys = _FALLBACKS[provider]
@@ -153,10 +145,6 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
         "mistral": ["MISTRAL_API_KEY"],
         "anthropic": ["ANTHROPIC_API_KEY"],
         "deepseek": ["DEEPSEEK_API_KEY"],
-        "deepinfra": ["DEEPINFRA_API_KEY", "DEEPINFRA_API_KEYS"],
-        "together": ["TOGETHER_API_KEY", "TOGETHER_API_KEYS"],
-        "xai": ["XAI_API_KEY", "XAI_API_KEYS"],
-        "manus": ["MANUS_API_KEY", "MANUS_API_KEYS"],
     }
     keys: list[str] = []
     if api_key:
@@ -177,11 +165,7 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
             f"provider {endpoint.provider} not configured (set SUPREMEAI_PROVIDER_BASE_/KEY_)"
         )
 
-    base = api_base.rstrip("/")
-    if base.endswith("/v1"):
-        url = base + "/chat/completions"
-    else:
-        url = base + "/v1/chat/completions"
+    url = api_base.rstrip("/") + "/v1/chat/completions"
     body = {
         "model": endpoint.model,
         "messages": json.loads(payload).get("messages", []),
@@ -191,14 +175,11 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
     last_result: AttemptResult | None = None
     for key in keys:
         started = time.monotonic()
-        req_headers = {"Authorization": f"Bearer {key}"}
-        if provider == "manus":
-            req_headers["API_KEY"] = key
         try:
             resp = await client.post(
                 url,
                 json=body,
-                headers=req_headers,
+                headers={"Authorization": f"Bearer {key}"},
                 timeout=30.0,
             )
         except (httpx.HTTPError, OSError, asyncio.TimeoutError):
@@ -237,97 +218,48 @@ async def execute_chain(
     payload: bytes,
     *,
     attempt_fn: AttemptFn | None = None,
-    max_retries: int = 2,
-    backoff_base_s: float = 0.1,
-    circuit_breaker: Any = None,
 ) -> AttemptResult:
     """Try endpoints in order; fail over ONLY on retryable outcomes.
 
-    On a retryable 5xx (esp. 503) from a provider, retry the SAME endpoint up
-    to ``max_retries`` times with exponential backoff (issue #2082) before
-    failing over to the next endpoint. Each retry is ledgered honestly.
+    - 2xx → success, ledger records the win.
+    - 429/5xx from a provider → ledger + next endpoint (failover semantics).
+    - 401/403 from a provider → that endpoint is misconfigured; ledger +
+      failover (a different provider may be configured correctly).
+    - Exhaustion → ProviderChainExhausted with the FULL ledger (→ 502).
     """
-    if circuit_breaker is None:
-        from .circuit_breaker import default_breaker as circuit_breaker
     attempt = attempt_fn or _default_attempt
     ledger = ChainLedger()
     for idx, endpoint in enumerate(chain):
-        provider = endpoint.provider
         try:
-            allowed = circuit_breaker.allow(provider)
-        except Exception:
-            allowed = True
-        if not allowed:
+            result = await attempt(endpoint, payload)
+        except (
+            RuntimeError,
+            httpx.HTTPError,
+            OSError,
+            asyncio.TimeoutError,
+        ) as exc:  # transport-level failure — honest ledger entry
             ledger.record(
                 index=idx,
-                provider=provider,
+                provider=endpoint.provider,
                 model=endpoint.model,
-                outcome="circuit_open",
-                detail="circuit breaker open; provider skipped",
+                outcome="transport_error",
+                detail=str(exc)[:200],
             )
             continue
-        last_result = None
-        for retry in range(max_retries + 1):
-            try:
-                result = await attempt(endpoint, payload)
-            except (
-                RuntimeError,
-                httpx.HTTPError,
-                OSError,
-                asyncio.TimeoutError,
-            ) as exc:
-                ledger.record(
-                    index=idx,
-                    provider=provider,
-                    model=endpoint.model,
-                    attempt=retry,
-                    outcome="transport_error",
-                    detail=str(exc)[:200],
-                )
-                try:
-                    circuit_breaker.record_failure(provider)
-                except Exception:
-                    pass
-                if retry < max_retries:
-                    await asyncio.sleep(backoff_base_s * (2 ** retry))
-                    continue
-                last_result = None
-                break
-            last_result = result
-            ledger.record(
-                index=idx,
-                provider=provider,
-                model=endpoint.model,
-                attempt=retry,
-                outcome="success" if result.status < 400 else "provider_error",
-                status=result.status,
-                latency_ms=result.latency_ms,
-            )
-            if result.status < 400:
-                try:
-                    circuit_breaker.record_success(provider)
-                except Exception:
-                    pass
-                return result
-            retryable = result.status == 503 or result.status == 429
-            if retryable and retry < max_retries:
-                delay = backoff_base_s * (2 ** retry)
-                ra = result.retry_after_s
-                if ra is not None and ra > 0:
-                    delay = min(delay, ra)
-                await asyncio.sleep(delay)
-                continue
-            if result.status not in FAILOVER_STATUS and result.status not in (401, 403):
-                try:
-                    circuit_breaker.record_failure(provider)
-                except Exception:
-                    pass
-                return result
-            try:
-                circuit_breaker.record_failure(provider)
-            except Exception:
-                pass
-            break
+        ledger.record(
+            index=idx,
+            provider=endpoint.provider,
+            model=endpoint.model,
+            outcome="success" if result.status < 400 else "provider_error",
+            status=result.status,
+            latency_ms=result.latency_ms,
+        )
+        if result.status < 400:
+            return result
+        if result.status not in FAILOVER_STATUS and result.status not in (401, 403):
+            # Non-retryable, non-auth provider error (e.g. 400 bad request
+            # shaped by the gateway itself): honest 4xx passthrough.
+            return result
     raise ProviderChainExhausted(
         "all providers in the chain failed — 502 upstream (zero silent fallback)",
         ledger=ledger.entries,

@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "providers": [
+    {
+      "id": "gemini",
+      "adapter": "gemini",
+      "enabled": true,
+      "api_key_env": "GEMINI_API_KEY",
+      "models": ["gemini-2.5-flash"],
+      "priority": 1,
+      "max_timeout_s": 60,
+      "cost_per_1k_input": 0.10,
+      "cost_per_1k_output": 0.40,
+      "notes": "vault: GEMINI_API_KEY — খরচের মান উদাহরণস্বরূপ (strategy=cost-এ ব্যবহৃত); gemini-2.0-flash লাইভ-404 (deprecated) — অপসারিত"
+    },
+    {
+      "id": "groq",
+      "adapter": "groq",
+      "enabled": true,
+      "api_key_env": "GROQ_API_KEY",
+      "models": ["llama-3.3-70b-versatile"],
+      "priority": 2,
+      "max_timeout_s": 45,
+      "cost_per_1k_input": 0.05,
+      "cost_per_1k_output": 0.08,
+      "notes": "vault: GROQ_API_KEY + pool (GROQ_API_KEY_9/10/11) — pool-rotation P4; GROQ_API_KEY_POOL = env-নামের তালিকা"
+    }
+  ],
+  "routes": [
+    {
+      "match": { "model": "auto" },
+      "fallback_chain": ["gemini", "groq"]
+    },
+    {
+      "match": { "model": "gemini-2.5-flash" },
+      "fallback_chain": ["gemini", "groq"]
+    },
+    {
+      "match": { "model": "llama-3.3-70b-versatile" },
+      "fallback_chain": ["groq", "gemini"]
+    }
+  ],
+  "defaults": {
+    "temperature": 0.7,
+    "max_timeout_s": 60,
+    "rate_limit_per_minute": 60,
+    "strategy": "priority"
+  }
+}

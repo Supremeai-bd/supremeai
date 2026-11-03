@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-vscode-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  preflight-and-build:
+    name: "🛡️ Preflight, Guardrails & Extension Check"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: "Binary & Artifact Leak Guard (Zero Bloat Invariant)"
+        run: |
+          echo "Scanning for accidental build artifact commits (target/ or >5MB files)..."
+          BAD_FILES=$(git ls-files | grep -E '(^|/)target/|\.(rlib|rmeta|pdb|exe|dll|dylib|so)$' || true)
+          if [ -n "$BAD_FILES" ]; then
+            echo "::error::Build artifacts or binaries committed: $BAD_FILES"
+            exit 1
+          fi
+          echo "✅ Build artifact check passed."
+
+      - name: "Secret Scan (Fail-Closed)"
+        run: |
+          HIT=0
+          check() {
+            if grep -rInE "$1" --exclude-dir=.git . 2>/dev/null; then
+              echo "::error::secret-pattern hit: $2"; HIT=1
+            fi
+          }
+          check 'sk-[A-Za-z0-9]{20,}' 'OpenAI-style sk- key'
+          check 'gh[pousr]_[A-Za-z0-9]{36,}' 'GitHub token'
+          check 'AKIA[0-9A-Z]{16}' 'AWS access key'
+          check 'AIza[0-9A-Za-z_-]{35}' 'Google API key'
+          if [ "$HIT" -eq 1 ]; then
+            echo "Security violation: secret detected in repository"
+            exit 1
+          fi
+          echo "✅ Secret scan clean."
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+        continue-on-error: true
+
+      - name: Check extension syntax & lint
+        run: |
+          if [ -f package.json ]; then
+            npm ci --ignore-scripts || npm install || true
+            if npm run | grep -q "lint"; then npm run lint; fi
+          fi
+          echo "✅ Extension checks complete."

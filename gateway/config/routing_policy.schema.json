@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SupremeAI Routing Policy",
+  "description": "বাংলা: plan §৬+§১৩ — routing/fallback/quota কোডে নয়, ডেটায়। এই schema ছাড়া config বোঝাই নিষেধ (fail-closed)।",
+  "type": "object",
+  "required": ["version", "providers", "routes"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "providers": {
+      "type": "array",
+      "description": "সক্রিয় provider-তালিকা — adapter id অবশ্যই service/providers/-এ থাকতে হবে",
+      "items": {
+        "type": "object",
+        "required": ["id", "adapter", "enabled", "api_key_env"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+          "adapter": { "type": "string", "enum": ["gemini", "groq"] },
+          "enabled": { "type": "boolean" },
+          "api_key_env": {
+            "type": "string",
+            "description": "vault-ফিড env-নাম (যেমন GEMINI_API_KEY) — মান কখনো config-এ নয়"
+          },
+          "models": { "type": "array", "items": { "type": "string" } },
+          "priority": { "type": "integer", "description": "ছোট = বেশি অগ্রাধিকার" },
+          "cost_per_1k_input": {
+            "type": "number",
+            "minimum": 0,
+            "description": "P4 — USD/1k input-token (উদারিত); strategy=cost-এর সাজানো-চাবি"
+          },
+          "cost_per_1k_output": {
+            "type": "number",
+            "minimum": 0,
+            "description": "P4 — USD/1k output-token (উদারিত); strategy=cost-এ মুখ্য চাবি"
+          },
+          "max_timeout_s": { "type": "number", "minimum": 1, "maximum": 300 },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "routes": {
+      "type": "array",
+      "description": "task-type → fallback-chain (§৬: capability/task-type routing, configuration-driven §৫)",
+      "items": {
+        "type": "object",
+        "required": ["match", "fallback_chain"],
+        "properties": {
+          "match": {
+            "type": "object",
+            "properties": {
+              "model": { "type": "string", "description": "নির্দিষ্ট model-নাম বা 'auto'" },
+              "task_type": { "type": "string" }
+            }
+          },
+          "fallback_chain": {
+            "type": "array",
+            "minItems": 1,
+            "description": "ক্রম = চেষ্টা-ক্রম; provider-native fallback আগে, SupremeAI fallback পরে (§৫)",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "temperature": { "type": "number" },
+        "max_timeout_s": { "type": "number" },
+        "rate_limit_per_minute": {
+          "type": "integer",
+          "description": "per-key (§৯) — v0 global, P1 key-plane ঐক্যে per-key"
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["priority", "cost"],
+          "description": "P4 — priority: config-ক্রম অটুট; cost: fallback-chain সস্তা-আগে পুনঃসাজানো"
+        }
+      }
+    }
+  }
+}
