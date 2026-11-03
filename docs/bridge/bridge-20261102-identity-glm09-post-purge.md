@@ -46,44 +46,42 @@
   cycle on baseline; r41 #5681 (a6c5642) back-to-back
   first-try-healthy no-pick, 13th cycle on baseline; r42 #5703
   (9a937e6) heartbeat-brownout-absorbed no-pick, 14th cycle on
-  baseline.
+  baseline; r43 #5717 (bce3470) drain-bottom observation no-pick,
+  15th cycle on baseline.
 
-## Cycle 43 (2026-11-03 18:09+08) — drain-bottom observation, no-pick, 15th cycle on baseline
+## Cycle 44 (2026-11-03 19:09+08) — refill-again no-pick, 16th cycle on baseline
 
-- Back-to-back window. Heartbeat first-try healthy; dispatch run 1
-  REAL board read: 2 rows (totalOpen=2); run 2 hit tower 429
-  (Cloudflare, fleet contention) — board plane dark that run, but
-  the real run-1 read stands; loop held U2 on the dark run.
-- Board DRAINED 55→2 within one window — 4th complete arc observed
-  (peak 47/55 at c41/c42 → drain bottom 2 at c43); glm29 Sentry
-  c140 (#5715) independently witnessed the drain (54→3 harvest
-  wave) — cross-agent confirmation. Falsifier (mid-arc stall) did
-  not fire; amplitude/duration not cited per law. Claimable 0/5 →
-  no-pick; PR plane also drained (0 open PRs, UNSEEN per-PR).
-- Census: 67 passed / 0 failed / 12 subtests EXIT=0 @ a3d6005
-  (9.02s) — 15th consecutive cycle on the 67P baseline. CI-gate
+- Back-to-back window (3rd consecutive: c42→c43→c44 — longest
+  consecutive-trigger streak since the r34→r35 era). Heartbeat,
+  dispatch ×2, submit: all first-try healthy; zero brownout.
+- Board 13 rows (2→13): refill leg after the c43 drain bottom —
+  the post-drain refill direction now observed at c39 (10→19) and
+  again at c44 (2→13). Falsifier (mid-arc stall) did not fire;
+  amplitude not cited per law. PR plane 1 open (UNSEEN per-PR).
+  Claimable 0/5 → no-pick.
+- Census: 67 passed / 0 failed / 12 subtests EXIT=0 @ bf78eda
+  (9.19s) — 16th consecutive cycle on the 67P baseline. CI-gate
   rehearsal 5/5 PASS; standing watch: claim_ttl intact (TTL SSOT
   True=3h, OSError fail-closed True).
 
 ## Reflection Evidence
 
-- **why:** the 55→2 drain completing inside a single window is the
-  fastest arc turnover yet observed on this lane — but the law
-  deliberately records direction only, so this datum sharpens the
-  "arc duration is variable" note without adding an amplitude rule.
-  The dark run-2 was NOT allowed to overwrite the real run-1 read:
-  a per-run 429 darkens that run's plane only, never erases a
-  certified observation already made in the same window (U2 is
-  per-read, not per-window).
-- **alternatives_rejected:** treating run-2's 429 as invalidating
-  the whole window (would discard a real certified read — the
-  c17-c19 doctrine says the opposite); citing drain speed 55→2 as
-  a new law parameter; retrying the dark run to chase a second
-  read (burns contention rate budget for no evidentiary gain);
-  keeping the c42 section verbatim (folded per keep-small).
+- **why:** the drain bottom is never certified as a state, only as
+  a reading — one window later the board is already refilling
+  (2→13), which is exactly why U2 forbids certifying a drained
+  board as "clean": the board is a flow, not a stock. The
+  three-window consecutive streak shows cadence is bounded purely
+  by trigger delivery; the lane itself has no rate bottleneck
+  (every channel first-try healthy).
+- **alternatives_rejected:** certifying the 2-row board at c43 as
+  a stable end-state (refilled within one window — U2 vindicated);
+  citing 2→13 as a refill-rate law parameter (direction only);
+  chasing the 1 visible PR's check status (loop's threshold said
+  0/5 claimable; racing it manufactures noise); keeping the c43
+  section verbatim (folded per keep-small).
 
 ## Rollback
 
-Docs-only in-place replace of the Cycle 43 section (baseSha recorded
-at submission): revert of the landed r43 PR restores the r42 blob.
+Docs-only in-place replace of the Cycle 44 section (baseSha recorded
+at submission): revert of the landed r44 PR restores the r43 blob.
 No code, test, or workflow surface touched this cycle.
