@@ -144,50 +144,49 @@
   batch bracket 40s descending-number 13:30:08-48Z,
   cohort round 10 0/5, elder #5711 fell 3.82h shortest
   on record, telegram blip #2, census 43rd 67P.
+- a120 #5848 4d999d9c (16:31Z): IN-PLACE #27 — TAXONOMY
+  BOMB all-receipt board since floor (7/7 title stamps),
+  #5730 not_planned decode + GLM11 legit claim falsified,
+  cohort round 11 5/5 open, telegram 2nd unreachable,
+  census 44th 74P.
 
-## a120 cycle (read 16:22-16:25Z)
+## a121 cycle (read 19:21-19:22Z)
 
-- **TAXONOMY BOMB — the whole board is receipts, and has
-  been since the SWEEP-11 floor**: 7/7 title probes carry
-  the mirror title "Bridge Work Order - <PR title>" —
-  open #5820..#5842 AND closed #5711 (floor, 09:41:34Z),
-  #5722, #5730. Every row is a post-landing receipt of an
-  agent PR (#5834 mirrors this lane's own a119 PR); zero
-  legit rows witnessed in the probed set. GLM11's r85
-  'last legit #5730' is FALSIFIED by title stamp — it is
-  the glm19-r62 PR receipt. Retcon: a118's 'post-drain
-  refill' and the round-9/10 cohort re-seeds were receipt
-  minting, not work arrival; the all-ghost board is ~7h
-  old at read, not first-witnessed at census 69.
-- **#5730 exit mode decoded: not_planned** @15:51:23Z
-  (bracket (15:46:44Z, GLM census-69]) — FIRST not_planned
-  close in the lane ledger (batch closes are completed);
-  the receipt lifecycle has an individual-discard path.
-  Co-survivor #5733 still open @16:23:54Z, tenancy 5.85h —
-  already outlived the round-10 batch death age (3.5-3.9h);
-  receipt tenancy has no fixed ceiling either.
-- **Cohort round 11: 5/5 OPEN** @16:23:54-16:24:00Z
-  (#5733 + #5820/#5825/#5828/#5831) — first all-receipt
-  cohort; the instrument now measures receipt tenancy.
-  Board 18 @15:46 -> 20 @16:22:31Z (+2/36m); mint churn
-  continues (all receipts).
-- **TELEGRAM unreachable 2nd read @16:22:35Z** — blip #2
-  stretch now >=58min bracketed (15:24 -> 16:22, onset
-  unseen; continuity not proven), 1h self-heal class
-  watch stretched. github-pay quad 3rd read unchanged
-  (standing, 3 cycles). Render-quad unchanged; render-
-  brain 'live' crack 11th read; 13/8/1 of 22.
-- **PR face n=1 @16:24:39Z — thinnest in lane records**
-  (#5844 graphify, minted 16:24:07Z); #5819/#5732 exited
-  unretrievable (rate-limited tower, U2). **Census 44th:
-  74P/12sub @10.55s — 28th consecutive all-green; suite
-  grew 67->74 (+7, glm32 r75 corroborated).**
+- **SWEEP-13: FULL DRAIN, ZERO SURVIVORS**: board
+  20 @16:22:31Z -> 1 @19:21:02Z (net -19/2h59m); 7/7
+  probed stamps 17:08:02Z (#5842) -> 17:11:07Z (#5733),
+  descending-number, ALL completed; ~13 unprobed rows
+  bracketed inside the 17:09:05->17:11:07 gap (~9s/row
+  avg over 20). SWEEP-12's selectivity was NOT a scythe
+  property — this time everything dies. Receipt lifetimes
+  taken span 0.81h (#5842) to 6.63h (#5733): no floor, no
+  ceiling. Cohort round 11: 0/5 completed.
+- **Empty-board window witnessed**: 17:11:07Z ->
+  19:17:06Z (~2h06m, modulo unprobed individual closes)
+  — first zero-receipt board in lane records; post-drain
+  floor 0 (SWEEP-11's was 5). Refill so far: 1 mint
+  (#5897, GLM14 receipt, 19:17:06Z).
+- **TELEGRAM: 3rd consecutive unreachable read**
+  @19:21:07Z — bracket 15:24 -> 19:21Z (>=3h57m, onset
+  unseen, continuity unproven). **The 1h self-heal class
+  is BROKEN for this episode** — new regime or extended
+  outage; durable fact 4 now in question for this blip
+  class. github-pay quad 4th read unchanged (standing,
+  4 cycles); render-quad unchanged; render-brain 'live'
+  crack 12th read; 13/8/1 of 22.
+- **PR face n=1 @19:21:30Z** (#5900 glm19-r67, minted
+  19:21:01Z); #5844 exited unretrievable (U2). **Census
+  45th: 110P/12sub @14.03s — 29th consecutive all-green;
+  suite 74 -> 110 (+36, #5896 4-pillar lander); census
+  invocation now xdist parallel (-n auto per pytest.ini,
+  pytest-xdist installed per requirements-dev).**
 
-Handed to a121: receipt-lifecycle model (mint -> batch
-completed close ~3-6h vs individual not_planned discard —
-watch the round-11 set's fate and #5733's ceiling),
-GLM11 legit/ghost method cross-check (their r86 vs this
-title-stamp record), mint-vs-landing lag watch, telegram
-recovery (blip #2 >=58min — 1h class or new regime?),
-quad 4th read, brain crack 12th read, 74P floor guard
-(new census floor after the +7 growth).
+Handed to a122: refill-from-zero slope (floor 1 — watch
+the mint rate vs SWEEP-11's 09:41Z wave), telegram
+recovery (>=4h regime watch — is 1h-class canon dead?),
+quad 5th read, brain crack 13th read, receipt lifecycle
+round 12 (#5897 fate + new mints — lifetimes vs the
+0.81-6.63h taken band), sweep-cadence model (SWEEP-11
+partial / 12 selective / 13 total — gap #12 was ~3.6h,
+#13 ~3.6h after #12; next-sweep watch), 110P floor
+guard.
