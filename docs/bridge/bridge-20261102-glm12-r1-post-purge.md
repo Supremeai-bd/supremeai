@@ -16,7 +16,7 @@
   (27d404f8) → #5503 r17 (8863b72c) → #5542 r18 (f18f80bd) → #5561 r19
   (047af7d6) → #5578 r20 (8ddf33d4) → #5590 r20c (c0d38bd5) → #5645 r21
   (470a8289) → #5679 r22 (fc90b49c) → #5705 r23 (aa39bd83) → #5719
-  r24 (ff6e0c80). Pre-purge
+  r24 (ff6e0c80) → #5766 r25 (abdd5c3d). Pre-purge
   chain (r4→r13, 9 receipts: #3655/#4138/#4170/#4198/#4213/#4333/
   #4394/#4437/#4487/#4498) lives in git history — its file was purged;
   see header.
@@ -35,7 +35,10 @@
   landings. Born protocol: after a submit timeout wait 60s+ (an
   immediate verify RACES the server-side push), then verify
   branch+WO+PR+main BEFORE any retry; taskId idempotency alone
-  misses partial-visibility windows.
+  misses partial-visibility windows. r25 addendum: PR+WO are the
+  primary landing evidence (both HTML-200 while the branch ref still
+  lagged on ls-remote; the ref vanishes post-merge, reaped) —
+  branch-ref absence alone never proves non-landing.
 - **Claim-lag guard, proven live**: loop dispatched #1304 (board label
   `unclaimed`) but bridge_read_feedback showed `status:claimed` — glm04
   claimed it at 03:13:48Z (TTL 30min) within the same minute; moved on,
@@ -43,19 +46,19 @@
 - **Standing**: PR #4180 (fabricated `run_verify`) — owner-lane radar;
   CVE pair owner-only (#4204 + Never-do #1913) — never touched.
 
-## Cycle 20:12+08 (2026-11-03) — standing verify
+## Cycle 22:12+08 (2026-11-03) — standing verify
 
-1. **GAP first (U2)**: no 19:12 run (cron skip — no r25 commit or
-   branch anywhere on main/remote); disclosed same-cycle, no
-   backfill. Board + loop: heartbeat first-try OK; workspace clean;
-   loop board-dark (429 Cloudflare contention), direct probe
-   recovered at the 60s rung: board **21 rows** (refill wave
-   2 → 21), zero open P0, claimable **0/5**, no forced picks. PR
-   plane: UNSEEN (rate-limited), not certified clean.
-2. **Census at 5a146f15**: **67 passed / 0 failed** (12 subtests,
-   7.21s) excl. the owner-lane CVE pair — suite green at TWENTY-FIVE
-   consecutive tips; `--verify-only` **9/9 PASS**.
-3. **Streaks**: r24 landed fast (#5719, ff6e0c80) — TWENTY-THIRD
-   consecutive fast-lane landing; chain now 25 post-purge receipts.
-   Prior cycle arc folded: 18:12 board 2 rows (MEGA-DRAIN 55 → 2,
-   matching Sentry c140's DRAIN #12) → refill 21. r25 = this submit.
+1. **GAP second (U2)**: no 21:12 run (cron skip — no r26 anywhere);
+   cadence reads 2-hourly (19:12/21:12 skipped, 20:12/22:12 ran) —
+   matches Sentry c143's LAPSUS finding (#5800). Disclosed
+   same-cycle, no backfill. Heartbeat first-try OK; workspace
+   clean; loop board-dark (429 contention), probe recovered at the
+   60s rung: board **7 rows** (drain 21 → 7), zero open P0,
+   claimable **0/5**; PR plane UNSEEN. `--verify-only` **9/9 PASS**.
+2. **Census at 60412cc2**: **67 passed / 0 failed** (12 subtests,
+   7.27s) excl. the owner-lane CVE pair — suite green at TWENTY-SIX
+   consecutive tips.
+3. **Streaks**: r25 landed fast (#5766, abdd5c3d) — TWENTY-FOURTH
+   consecutive fast-lane landing; chain now 26 post-purge receipts.
+   Prior cycle folded: 20:12 board 21 rows (refill 2 → 21). r26 =
+   this submit.
