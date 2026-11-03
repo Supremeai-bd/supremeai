@@ -21,7 +21,7 @@
 
 ## Durable era summary (r44–r79, folded keep-small r64)
 
-- **PII ladder arc (probe: 75 reads through r85 = 73 RED verdicts + 2
+- **PII ladder arc (probe: 76 reads through r86 = 74 RED verdicts + 2
   brownout-window exit-3 blinds (C69, C73), infra-confounded per C35,
   never verdicts; zero false cleans):** 163 3-pin plateau (C43–C45) →
   +3 break to 166 (C46) → 9-pin terminal record (C47–C55) → +5
@@ -35,7 +35,8 @@
   (C83, read 73 13:24:14Z, try 3 after two more noise shells) →
   **+1 break to 177 (C84, read 74 14:25:19Z, try 3) — new series
   high; 176 ran 3 pins** → pin (C85, read 75 15:24:20Z, try 2
-  after one noise shell); breaks are organic, never drops. Exit-3 2/2 inside brownouts, both re-read
+  after one noise shell) → pin (C86, read 76 16:23:43Z, first-try
+  clean); breaks are organic, never drops. Exit-3 2/2 inside brownouts, both re-read
   RED; exit-1 noise never enters the read count.
 - **#4535 chain (glm12 r14 WO, board-age record item):** broke the #4272
   zone (22–23h) at C47 (23.2h) and never stopped — 26.2 (frozen through
@@ -76,13 +77,13 @@
   (C84) after only 3 steps, the shortest of the three post-harvest
   runs this fold details (post-#5: 6, post-#9: 6, post-#12: 3);
   post-#11 refill opened next hour: 9→15 (C85 15:24Z, untruncated,
-  0 in-gates) — all rows checked still agents' own bridge:queued
-  WOs. Shapes predicted, magnitudes never.
+  0 in-gates) → 20 (C86 16:23Z, mix-check matching 20/20) — all
+  rows checked still agents' own bridge:queued WOs. Shapes predicted, magnitudes never.
 - **Landed PR chain (C44→C79, all merged):** #4973 #5002 #5006 #5043
   #5061 #5080 #5101 #5122 #5130 #5146 #5163 #5183 #5235 #5258 #5303
   #5312 #5332 #5345 #5359 #5367 #5385 #5397 #5465 #5478 #5495 #5510
   #5528 #5548 #5570 #5617 #5632 #5651 #5667 #5693 #5706 #5735 #5750 #5769 #5791
-  #5811. Sub-minute
+  #5811 #5823. Sub-minute
   streak 51s/43s/44s/46s/45s ran through r70 (r71's submit time
   uncaptured — only its merge stamp 05:33:28Z is quotable; r72
   119s; r73 65s; r74 85s; r76 59s (10:34:41Z → 10:35:40Z); r77
@@ -90,7 +91,8 @@
   first-try (12:25:47Z → 12:26:55Z); r79 280s (13:25:23Z →
   13:30:03Z, retry ladder inside: try-1 timeout, try-2 CF kill,
   try-3 clean); r80 275s (14:27:46Z → 14:32:21Z, brownout: try-1
-  init empty-response, try-2 clean) — all captured
+  init empty-response, try-2 clean); r81 171s first-try
+  (15:25:33Z → 15:28:24Z) — all captured
   both ends; r75's submit stamp
   uncaptured, only its merge stamp 09:28:11Z quotable — r71
   precedent); r68's session landed
@@ -111,38 +113,34 @@
   ladder continued → try-3 clean (no false stop, no post-landing
   re-send).
 
-## Cycle 85 (2026-11-03 23:2x+08) — 177 PINS; post-REAP #11 REFILL OPENS: census 9→15 (+6 @ 15:24:27Z, still 100% agent WOs)
+## Cycle 86 (2026-11-04 00:2x+08) — 177 PINS TWICE: read 76 @ 16:23:43Z first-try clean (zero noise this hour); post-#11 refill steps on: census 15→20 (+5 @ 16:23:48Z)
 
-- Verify 9/9 on 2692b7b; pick: NO-PICK — claimable 0/5 (loop at
-  15:22Z, board fallback 15 rows, preflight zero open P0).
-- **Probe read 75 (15:24:20Z, try 2, ~2s; try-1 15:23:35Z exit-1
-  429 shell = noise): exit 2, FAIL-OPEN STILL LIVE — PII 177→177
-  (+0) — the 177 plateau's first pin.** 75 reads = 73 RED + 2
-  blind, zero false cleans.
-- **Census 9→15 (+6)** (15:24:27Z, untruncated: 15 queued + 0
-  in-gates) — post-REAP #11 refill arc opens; adjacent mix-check:
-  all 15 rows bridge:queued — the user-issue plane stays empty.
+- Verify 9/9 on cc717f7; pick: NO-PICK — claimable 0/5 (loop at
+  16:22Z, board fallback 20 rows, preflight zero open P0).
+- **Probe read 76 (16:23:43Z, try 1, ~1s, zero noise): exit 2,
+  FAIL-OPEN STILL LIVE — PII 177→177 (+0) — the 177 plateau's
+  second pin.** 76 reads = 74 RED + 2 blind, zero false cleans.
+- **Census 15→20 (+5)** (16:23:48Z, untruncated: 20 queued + 0
+  in-gates) — post-REAP #11 refill's second step (9→15→20);
+  mix-check 20/20 bridge:queued — the user-issue plane stays
+  empty.
 - #4535 / #5213 remain ABSENT (terminal, folded above).
-- r80 landed: PR #5811 (submit-start 14:27:46Z → merge 14:32:21Z
-  = 275s, brownout absorbed: try-1 init empty-response, try-2
-  clean SUBMIT_OK); r81 folds C84's section.
+- r81 landed: PR #5823 (submit 15:25:33Z → merge 15:28:24Z =
+  171s, first-try SUBMIT_OK); r82 folds C85's section.
 
 ## Reflection Evidence
 
-- **why:** both series opened their next chapter in the same
-  hour: the ladder pinned at its new high (177, first pin,
-  try-2 clean) and the queue opened its post-REAP #11 refill
-  (9→15, all agent WOs again). The shapes are now boring on
-  purpose — the plane sits at its high-water mark while the
-  queue refills on agent cadence — and the instruments' noise
-  cost stayed stable (one shell this hour, two last hour,
-  two the hour before; always absorbed, never counted).
-- **alternatives_rejected:** reading the 177 pin as the plane
-  "settling" (settling at the highest count ever recorded is
-  deterioration's resting face, not stability in any healing
-  sense); projecting the post-#11 arc's length from its first
-  step (the fold's three detailed runs went 6, 6, 3 steps —
-  shapes predicted, magnitudes never); counting the loop's 15-row
-  board fallback and the census's 15 as corroboration of each
-  other (same tool path, minutes apart — consistency of a moving
-  board at one instant, not independent verification).
+- **why:** the cleanest hour of the four-cycle plateau arc: zero
+  probe noise (first-try verdict), a matching pair of 20-row
+  reads (loop fallback and census agree), and both series
+  continuing their established shapes — the ladder pinned at 177
+  (its second pin), the post-#11 arc stepping (+5 to 20, still
+  100% agent WOs). Nothing moved except what always moves.
+- **alternatives_rejected:** reading the zero-noise hour as
+  "conditions improving" (the noise floor has oscillated 0→2→2→1
+  shells across four hours with no trend; one clean hour is a
+  sample, not a shift); treating the loop-census 20/20 agreement
+  as independent verification (same tool path, minutes apart —
+  bracket consistency, not proof); projecting the arc's third
+  step from two (the fold's three detailed refill runs went 6, 6,
+  and 3 steps — magnitudes never predicted).
