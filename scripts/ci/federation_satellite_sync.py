@@ -844,7 +844,7 @@ def sync_monorepo(
     token: str,
     commit_msg: str,
 ) -> bool:
-    """Sync full umbrella monorepo Supremeai-bd/supremeai."""
+    """Sync full umbrella monorepo Supremeai-bd/supremeai without pruning private satellite moats."""
     target_repo = "Supremeai-bd/supremeai"
     clone_url = f"https://x-access-token:{token}@github.com/{target_repo}.git"
 
@@ -865,30 +865,15 @@ def sync_monorepo(
             print(f"❌ Failed to clone {target_repo}: {err}")
             return False
 
-        # Copy non-excluded root dirs and files
+        # Copy non-excluded root dirs and files with prune=False to preserve private satellite moats & test suites
         for item in repo_root.iterdir():
             if item.name in MONOREPO_EXCLUDES or item.name.startswith(".git"):
                 continue
             dst_item = tmp_repo / item.name
             if item.is_dir():
-                copy_tree_contents(item, dst_item, prune=True)
+                copy_tree_contents(item, dst_item, prune=False)
             else:
                 shutil.copy2(item, dst_item)
-
-        # Prune legacy VS Code residue in monorepo that migrated to modern extension layout
-        legacy_vscode_paths = [
-            tmp_repo / "vscode" / "src",
-            tmp_repo / "vscode" / "media",
-            tmp_repo / "vscode" / "tsconfig.json",
-            tmp_repo / "vscode" / ".vscodeignore",
-        ]
-        for p in legacy_vscode_paths:
-            if p.is_dir():
-                shutil.rmtree(p, ignore_errors=True)
-                print(f"🧹 Pruned legacy directory in monorepo: {p.relative_to(tmp_repo)}")
-            elif p.is_file():
-                p.unlink(missing_ok=True)
-                print(f"🧹 Pruned legacy file in monorepo: {p.relative_to(tmp_repo)}")
 
         status = subprocess.check_output(
             ["git", "status", "--porcelain"],
@@ -931,7 +916,6 @@ def sync_monorepo(
             print(f"Git commit failed:\nSTDOUT: {res.stdout}\nSTDERR: {res.stderr}")
             return False
 
-        # Avoid non-fast-forward rejection on concurrent landings (#416).
         subprocess.run(
             ["git", "pull", "--rebase", "origin", "main"],
             cwd=str(tmp_repo),

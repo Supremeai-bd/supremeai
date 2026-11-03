@@ -23,6 +23,17 @@ Root fix pinned here (zero network — fake responses and patched fakes):
   4. Classifier purity: string-based so it works even when the sibling client
      cannot be imported; matches the client class name and urllib's
      "HTTP Error 429" spelling, never a bare tool-payload digit.
+  5. Dependency mandatoriness (re-land pin, 2026-11-02): the sibling client is
+     a LIVE dependency of the loop, not an optional import — if a future prune
+     removes it, this suite must FAIL, not degrade to silent skips. Live
+     recurrence evidence: purge batch #4976 ("prune 361 legacy test files")
+     swept THIS file on 2026-11-01 while its subject module stayed in main and
+     kept firing in production (24th/25th triggers that same window) — the
+     skip-if-absent pattern would have hidden such a sweep forever.
+
+Re-land provenance (GLM Agent 26, Job 486824): original suite landed e3462f4f
+(#4364); batch purge #4976 collateral on 2026-11-01; re-landed 2026-11-02 with
+pin 5 added — no pin from the original was weakened or removed.
 
 Dual-mode: runs under both `python3 -m unittest` and `pytest`.
 """
@@ -91,6 +102,23 @@ class TestClassifierPurity(unittest.TestCase):
         # as a rate limit (e.g. "row 4290 malformed" contains no HTTP-429 shape).
         self.assertFalse(cal._tower_rate_limited(RuntimeError("row 4290 malformed")))
         self.assertFalse(cal._tower_rate_limited(RuntimeError("totalOpen=429")))
+
+
+class TestDependencyMandatory(unittest.TestCase):
+    """Re-land pin: the sibling client is live production code, not optional.
+
+    বাংলা: purge-ব্যাচ জীবিত চুক্তির টেস্ট নিশ্চিহ্ন করলেও subject মডিউল main-এ
+    রয়ে গিয়েছিল। HAVE_SIBLING-নির্ভর skip সেই নিশ্চিহ্ন চিরকাল লুকিয়ে রাখত —
+    তাই এই পিন নিশ্চিত করে client সরানো হলে টেস্ট লাল হবে, নীরব সবুজ নয়।
+    """
+
+    def test_sibling_client_is_mandatory_dependency(self):
+        self.assertTrue(
+            HAVE_SIBLING,
+            "mcp_tower_client.py is a live loop dependency (its 429-honesty "
+            "classifier fired in production); if this import fails, a prune "
+            "swept live code — restore it, do not skip",
+        )
 
 
 @unittest.skipUnless(HAVE_SIBLING, "sibling mcp_tower_client unavailable")

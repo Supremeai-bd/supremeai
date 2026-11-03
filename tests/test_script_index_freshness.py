@@ -243,6 +243,74 @@ class TestScriptIndexFreshness(unittest.TestCase):
             )
             self.assertIn("STALE", stale.stdout + stale.stderr)
 
+    def test_check_fails_closed_on_stale_hand_refs(self):
+        """Prune-wave residue class (2026-11-02): a hand block referencing a
+        pruned path must FAIL --check, not merely warn on stderr.
+
+        Lived defect: #4975/#4976 pruned 256 ops scripts and regenerated the
+        auto sections (so every match check stayed green) while 4 hand blocks
+        kept pointing at 9 dead paths — the preserved-verbatim design carries
+        the rot into every future regen, and the only signal was an advisory
+        the guard never escalates. Fail-closed in the check modes makes the
+        next purge land green only with truthful hand sections.
+        """
+        probe_block = (
+            "\n<!-- hand:Stale Probe -->\n"
+            "## Stale Probe\n"
+            "| `definitely_pruned_glm07_probe.py` | probe row |\n"
+            "<!-- /hand:Stale Probe -->\n"
+        )
+        original = INDEX.read_text(encoding="utf-8")
+        try:
+            INDEX.write_text(original + probe_block, encoding="utf-8")
+            r = subprocess.run(
+                [sys.executable, str(GENERATOR), "--check"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            self.assertEqual(
+                r.returncode, 1,
+                "--check passed despite a hand block referencing a pruned path "
+                f"(fail-closed class reopened):\n{r.stdout}\n{r.stderr}",
+            )
+            self.assertIn("STALE HAND SECTION", r.stderr)
+            self.assertIn("FAIL (--check)", r.stdout + r.stderr)
+        finally:
+            INDEX.write_text(original, encoding="utf-8")
+
+    def test_regen_mode_stays_advisory_on_stale_hand_refs(self):
+        """The write/regen mode must stay advisory (exit 0): writing is not
+        the enforcement surface; the check modes and the guard layer are.
+        Restores the original index afterwards so the probe leaves no trace.
+        """
+        probe_block = (
+            "\n<!-- hand:Stale Probe 2 -->\n"
+            "## Stale Probe 2\n"
+            "| `also_pruned_glm07_probe.py` | probe row |\n"
+            "<!-- /hand:Stale Probe 2 -->\n"
+        )
+        original = INDEX.read_text(encoding="utf-8")
+        try:
+            INDEX.write_text(original + probe_block, encoding="utf-8")
+            r = subprocess.run(
+                [sys.executable, str(GENERATOR)],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+            self.assertEqual(
+                r.returncode, 0,
+                f"regen mode must not fail on stale hand refs: {r.stdout}\n{r.stderr}",
+            )
+            self.assertIn("STALE HAND SECTION", r.stderr)
+            # regen preserved the stale hand block verbatim (by design)
+            self.assertIn("hand:Stale Probe 2", INDEX.read_text(encoding="utf-8"))
+        finally:
+            INDEX.write_text(original, encoding="utf-8")
+
 
 if __name__ == "__main__":
     unittest.main()
