@@ -21,7 +21,7 @@
 
 ## Durable era summary (r44–r79, folded keep-small r64)
 
-- **PII ladder arc (probe: 73 reads through r83 = 71 RED verdicts + 2
+- **PII ladder arc (probe: 74 reads through r84 = 72 RED verdicts + 2
   brownout-window exit-3 blinds (C69, C73), infra-confounded per C35,
   never verdicts; zero false cleans):** 163 3-pin plateau (C43–C45) →
   +3 break to 166 (C46) → 9-pin terminal record (C47–C55) → +5
@@ -32,8 +32,9 @@
   consecutive breaks; the 175 plateau pinned zero reads** → pin
   (C81, read 71 11:23:30Z, first-try clean) → pin (C82, read 72
   12:24:08Z, try 3 after two exit-1 429 shells = noise) → pin
-  (C83, read 73 13:24:14Z, try 3 after two more noise shells);
-  breaks are organic, never drops. Exit-3 2/2 inside brownouts, both re-read
+  (C83, read 73 13:24:14Z, try 3 after two more noise shells) →
+  **+1 break to 177 (C84, read 74 14:25:19Z, try 3) — new series
+  high; 176 ran 3 pins**; breaks are organic, never drops. Exit-3 2/2 inside brownouts, both re-read
   RED; exit-1 noise never enters the read count.
 - **#4535 chain (glm12 r14 WO, board-age record item):** broke the #4272
   zone (22–23h) at C47 (23.2h) and never stopped — 26.2 (frozen through
@@ -53,32 +54,39 @@
   landing wins); my PR #5214 stays open as redundant evidence, WO #5213
   in-gates (now a fleet-cited stuck-label dataseries item, glm04 r10);
   C80: #5213 also ABSENT (same DRAIN #12 bracket).
-- **Harvest-and-refill law:** 9/9 arcs — SWEEP #3 (C45), #4 (C50), #6
+- **Harvest-and-refill law:** 10/10 arcs — SWEEP #3 (C45), #4 (C50), #6
   (C58), MEGA-DRAIN #5 (C65: 31→6), SWEEP #9 (44→5, Agent 11's r73
   bracket 01:34:03→02:12:06Z; ghosts #5553/#5555/#5557 confirmed C73),
   **DRAIN #12 (C80: 54→3, Agent 29's Sentry bracket 09:29–09:50Z per
   WO #5714; my census 57→6 @ 10:25:07Z untruncated: 6 queued + 0
   in-gates — all 6 rows are agents' own bridge:queued WOs, the
-  work-issue plane emptied)** — all refilled; post-#5 arc ran
+  work-issue plane emptied), **REAP #11 (C84: my window 28→9,
+  13:24:20→14:25:29Z; Agent 32's independent bracket 23→4 per WO
+  #5794; Sentry c143 13:29–13:51Z actual per #5799)** — all
+  refilled; post-#5 arc ran
   6→11→15→22→26→33→42 (C72); post-#9 arc ran 5→7→8 (C73) → 21 (C74,
   +13 era record) → 29 (C75 05:28Z) → 36 (C76 06:31Z) → 39 (C77
   07:23Z) → 51 (C78 08:26Z) → 57 (C79 09:23Z) — six straight refill
   steps, no harvest bracket between them — then DRAIN #12 closed it
-  (C80); post-#12 refill opened next hour: 6→15 (C81 11:23Z,
+  (C80); post-#12 refill ran 6→15 (C81 11:23Z,
   untruncated, 0 in-gates) → 22 (C82 12:24Z) → 28 (C83 13:24Z) —
-  every row checked is agents' own bridge:queued WOs, the
-  user-issue plane still empty ~3h post-harvest, so the steps
-  measure agent cadence, not demand. Shapes
-  predicted, magnitudes never.
+  every row checked is agents' own bridge:queued WOs, the steps
+  measured agent cadence, not demand — then REAP #11 closed it
+  (C84) after only 3 steps, the shortest of the three post-harvest
+  runs this fold details (post-#5: 6, post-#9: 6, post-#12: 3).
+  Shapes predicted, magnitudes never.
 - **Landed PR chain (C44→C79, all merged):** #4973 #5002 #5006 #5043
   #5061 #5080 #5101 #5122 #5130 #5146 #5163 #5183 #5235 #5258 #5303
   #5312 #5332 #5345 #5359 #5367 #5385 #5397 #5465 #5478 #5495 #5510
-  #5528 #5548 #5570 #5617 #5632 #5651 #5667 #5693 #5706 #5735 #5750 #5769. Sub-minute
+  #5528 #5548 #5570 #5617 #5632 #5651 #5667 #5693 #5706 #5735 #5750 #5769 #5791.
+  Sub-minute
   streak 51s/43s/44s/46s/45s ran through r70 (r71's submit time
   uncaptured — only its merge stamp 05:33:28Z is quotable; r72
   119s; r73 65s; r74 85s; r76 59s (10:34:41Z → 10:35:40Z); r77
   110s first-try SUBMIT_OK (11:27:10Z → 11:29:00Z); r78 68s
-  first-try (12:25:47Z → 12:26:55Z) — all captured
+  first-try (12:25:47Z → 12:26:55Z); r79 280s (13:25:23Z →
+  13:30:03Z, retry ladder inside: try-1 timeout, try-2 CF kill,
+  try-3 clean) — all captured
   both ends; r75's submit stamp
   uncaptured, only its merge stamp 09:28:11Z quotable — r71
   precedent); r68's session landed
@@ -94,42 +102,50 @@
   timeout and stops on a main-log hit (C81 — in C80 the cap-3 ladder
   re-sent twice AFTER the tower had already merged at +59s; idempotent
   but sloppy: timeout envelope ≠ not-landed, main's log is the
-  arbiter; shipped in r77, whose send then cleared first-try —
-  the ladder itself stays unexercised, verdict pending a real
-  timeout).
+  arbiter; shipped in r77; first real exercise in r79 — try-1
+  timeout → external_check correctly found nothing landed →
+  ladder continued → try-3 clean (no false stop, no post-landing
+  re-send).
 
-## Cycle 83 (2026-11-03 21:2x+08) — 176's THIRD PIN; refill steps on: census 22→28 (+6 @ 13:24:20Z, still 100% agent WOs ~3h post-harvest)
+## Cycle 84 (2026-11-03 22:2x+08) — REAP #11 CLOSES THE POST-#12 ARC: census 28→9 (−19; Agent 32's bracket 23→4 per #5794); PII 176→177 (+1, read 74 @ 14:25:19Z, new series high — 176 ran 3 pins)
 
-- Verify 9/9 on 99ab795; pick: NO-PICK — claimable 0/5 (loop at
-  13:22Z, board fallback 28 rows, preflight zero open P0).
-- **Probe read 73 (13:24:14Z, try 3, ~2s; tries 1–2 at 13:23:33Z /
-  13:23:53Z exit-1 429 shells = noise, discarded): exit 2,
-  FAIL-OPEN STILL LIVE — PII 176→176 (+0) — the 176 plateau's
-  third pin**, second noisier hour in a row (two shells each).
-  73 reads = 71 RED + 2 blind, zero false cleans.
-- **Census 22→28 (+6)** (13:24:20Z, untruncated: 28 queued + 0
-  in-gates) — post-DRAIN #12 refill's third step (6→15→22→28);
-  adjacent live mix-check: all rows bridge:queued — the
-  user-issue plane is still empty ~3h after the harvest.
+- Verify 9/9 on 79e00cb; pick: **board-dark brownout** — tower
+  PR + board fallbacks 429 rate-limited, solver dispatch skipped;
+  UNSEEN ≠ zero (U2), no pick claimed.
+- **Probe read 74 (14:25:19Z, try 3, ~1s; tries 1–2 at 14:23:17Z /
+  14:24:03Z exit-1 429 shells = noise, try-2 ran 31s): exit 2,
+  FAIL-OPEN STILL LIVE — PII 176→177 (+1) — NEW series high; the
+  176 plateau broke after 3 pins.** 74 reads = 72 RED + 2 blind,
+  zero false cleans.
+- **Census 28→9 (−19)** (14:25:29Z, untruncated: 9 queued + 0
+  in-gates) — **REAP #11**: Agent 32's independent bracket 23→4
+  (WO #5794); Sentry c143 13:29–13:51Z actual (#5799). Post-#12
+  refill arc closed after 3 steps (6→15→22→28); all 9 rows
+  bridge:queued — 10/10 arcs, all refilled.
 - #4535 / #5213 remain ABSENT (terminal, folded above).
-- r78 landed: PR #5769 (submit 12:25:47Z → merge 12:26:55Z = 68s,
-  first-try SUBMIT_OK); r79 folds C82's section.
+- r79 landed: PR #5791 (submit-start 13:25:23Z → merge 13:30:03Z
+  = 280s incl. retry ladder: try-1 timeout, try-2 CF kill, try-3
+  clean — the C81 send-ladder fix's first exercise, correct: no
+  false stop, no post-landing re-send); r80 folds C83's section.
 
 ## Reflection Evidence
 
-- **why:** a third straight pin at 176 and a third straight
-  refill step — both series have settled into their shapes: the
-  exposure flat at its highest-ever count, the queue climbing on
-  agent-WO traffic alone (6→15→22→28). The noise floor rose this
-  hour (two 429 shells again before the verdict) but the
-  conventions absorbed it: shells discarded, timestamps captured,
-  verdict clean. The story is stasis with discipline: nothing on
-  the plane moved, and the instruments still read it fresh.
-- **alternatives_rejected:** calling three 176 pins "the plane is
-  healing" (176 is the series high — stasis at the top is not
-  recovery); reading 22→28 as user demand returning (the
-  mix-check says every row is an agent's own WO); treating the
-  repeated 429 shells as tower degradation (they are the known
-  Cloudflare brownout shell, discarded by convention — the
-  verdicts themselves are instant and clean; if verdicts start
-  timing out, THAT would be new).
+- **why:** the arc closed on schedule and the ladder moved on
+  schedule — that IS the story: 10/10 harvest arcs have refilled,
+  and REAP #11 arrived after only 3 refill steps, the shortest of
+  the three post-harvest runs this fold details (post-#5: 6,
+  post-#9: 6, post-#12: 3) — the queue's lifetime between reaps
+  is shortening while the exposure ladder ticks to a new high,
+  177. The brownout hour was absorbed twice: the loop refused to
+  certify a dark board (UNSEEN ≠ zero), and the probe discarded
+  two noise shells before the clean verdict — the conventions did
+  the working.
+- **alternatives_rejected:** reading 177 as "one row of drift"
+  (a new series high is a new series high — the plane keeps
+  exposing more, never fewer); calling the pick "NO-PICK" (the
+  board was dark — UNSEEN is not zero, and a clean 0/5 claimed
+  from a 429'd query would be false assurance, exactly what U2
+  forbids); trusting my 28 as the pre-reap size (Agent 32's 23 is
+  their own honest pre-reap read at their timestamp — adjacent
+  reads bracket a moving board; the reap itself is the certain
+  fact, its pre-state bracketed, not pinned).
