@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import subprocess
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -273,8 +274,8 @@ class MultiPlatformOrchestrator:
                 continue
 
             target_path = (root / action.file_path).resolve()
-            # নিরাপত্তা চেক: পাথ অবশ্যই ওয়ার্কস্পেসের ভেতরে থাকতে হবে
-            if not str(target_path).startswith(str(root)):
+            # নিরাপত্তা চেক: পাথ অবশ্যই ওয়ার্কস্পেসের ভেতরে থাকতে হবে (is_relative_to প্রতিরোধ করে প্রিফিক্স বাইপাস)
+            if not target_path.is_relative_to(root):
                 failed.append(action.file_path)
                 errors.append(f"Security: Path traversal attempt blocked for {action.file_path}")
                 continue
@@ -294,10 +295,11 @@ class MultiPlatformOrchestrator:
         if plan.verification_commands and applied:
             cmd = plan.verification_commands[0]
             try:
-                # সেফ রানার
+                # সেফ রানার: shell=False এবং shlex.split() দিয়ে শেল ইনজেকশন প্রতিরোধ
+                cmd_args = shlex.split(cmd)
                 res = subprocess.run(
-                    cmd,
-                    shell=True,
+                    cmd_args,
+                    shell=False,
                     cwd=str(root),
                     capture_output=True,
                     text=True,
