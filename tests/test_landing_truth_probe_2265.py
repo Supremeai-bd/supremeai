@@ -196,11 +196,6 @@ def test_probe_repo_order_open_first_then_private_tuple():
     assert intake.BRIDGE_TARGET_REPOS == (
         "Supremeai-bd/supremeai",
         "Supremeai-bd/supremeai-studio",
-        "Supremeai-bd/supremeai-api",
-        "Supremeai-bd/supremeai-core",
-        "Supremeai-bd/supremeai-vscode",
-        "Supremeai-bd/supremeai-browser",
-        "Supremeai-bd/supremeai-archive",
     )
 
 
