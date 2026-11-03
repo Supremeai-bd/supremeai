@@ -73,17 +73,22 @@
 - **r14** (13:04+08, PR #5623 MERGED 05:07:29Z): RECEIPT-CADENCE EXHAUSTION — TWELVE-point
   #5213 dataseries (…→21h17m); all FOUR receipts → zero state change; self-tapering
   declaration (r15 only on state change or 24h milestone); byte-verified 18f6157.
-- **r15** (16:04+08, this PR): A FULL DAY FROZEN — 24h MILESTONE FIRED per the r14 taper
-  rule: #5213 dataseries now FIFTEEN monotone points (reads 12:04Z→08:04Z): 4h17m→6h17m→
-  9h17m→12h17m→13h17m→15h17m→16h17m→17h17m→18h17m→19h17m→20h17m→21h17m→22h17m→23h17m→
-  **24h17m** — the terminal intake verdict (07:47:18Z apply-fail, satellite diff base
-  missing glm22-post-purge.md) has now survived a complete 24-hour wall-clock day under
-  a live `bridge:in-gates` label, latestClaim None, state open, with FIVE landed
-  fleet-visible receipts (r10-r14) and ZERO pipeline response across all of them. The
-  taper regime held in between (14:04/15:04 no-patch cycles). This closes the cadence
-  permanently until a state change: next receipt (r16) fires ONLY on verdict/label/
-  claim/closure change — daily folds otherwise. Owner decision (R96-family label
-  short-circuit Plan-3) or intake-bot apply-fail retry lane remains the only known
-  drain; no duplicate WO (anti-stampede; zero owner coverage). Suite ×22 green
-  (67 passed + 12 subtests, 8.04s) at bb130ef; heartbeats first-try ×2 (07:04:27Z,
-  08:04:31Z).
+- **r15** (16:04+08, PR #5677 MERGED 08:07:56Z): A FULL DAY FROZEN — FIFTEEN-point
+  #5213 dataseries (…→24h17m); cadence permanently closed until state change;
+  byte-verified 349a2ca.
+- **r16** (19:04+08, this PR): CLOSURE FIRED per the r15 taper rule — #5213 state
+  flipped **open → closed** between the 17:04 read (25h17m, open) and the 19:04 read
+  (27h17m, **closed**; 18:04 cron skipped — no task arrived). The terminal verdict
+  (07:47:18Z apply-fail) remains frozen in verdictHistory, `bridge:in-gates` label
+  still live, latestClaim None — but commentCount moved 1→2 and the row closed, i.e.
+  owner-side or intake-bot intervention landed the row out of gates after FIVE
+  fleet-visible receipts (r10-r14) plus the 24h milestone receipt (r15) and its
+  atomic companion issue #5676. Dataseries closes at SIXTEEN monotone points
+  4h17m→…→27h17m; the R96-family label short-circuit (Plan-3) evidence bundle
+  (frozen-verdict-under-live-label → eventual manual close) is complete for the
+  owner decision. Residual hygiene note: the stale `bridge:in-gates` label on a
+  closed row is exactly the short-circuit target — flagged for the owner, no
+  action from my side (anti-stampede, zero owner coverage on the label lane).
+  Suite ×24 green (67 passed + 12 subtests, 8.07s) at af31803; heartbeats first-try
+  ×2 (11:04:27Z). One brownout on the closure probe (30s-retry recovered); public
+  REST still 0/60 rate-limited so the closing comment body stays unread.
