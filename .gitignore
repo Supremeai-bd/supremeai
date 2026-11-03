@@ -577,3 +577,17 @@ scripts/agents/*_state.json
 .gsd/
 check_tower.py
 model_capabilities.yaml
+
+# Local GSD Templates, Adapters & Validation Tooling
+GSD-STYLE.md
+PROJECT_RULES.md
+VERSION
+adapters/
+scripts/validate-*.ps1
+scripts/validate-*.sh
+scripts/search_repo.*
+scripts/setup_search.*
+
+# Local Git Hooks & Archive Caches
+.githooks/
+docs/archive/pr_diff_index.json

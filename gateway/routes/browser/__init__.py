@@ -1,4 +1,4 @@
-"""Browser router (``/api/browser``) — package layout.
+﻿"""Browser router (``/api/browser``) â€” package layout.
 
 Formerly a single ~1,507-line module (api/routes/browser.py); now split into
 cohesive submodules. The public contract is unchanged:
@@ -14,7 +14,7 @@ cohesive submodules. The public contract is unchanged:
   file top-to-bottom), so OpenAPI output and route matching are identical;
 * ``tests/core/test_browser_credentials.py`` clears
   ``CREDENTIALS`` / ``RECENT_ACTIVITIES`` / ``FINDINGS`` through
-  this package namespace — the re-exported names are the SAME objects the
+  this package namespace â€” the re-exported names are the SAME objects the
   endpoint modules use, so the in-place ``.clear()`` calls behave exactly
   as they did against the monolithic module.
 
@@ -92,13 +92,12 @@ router = APIRouter(
     prefix="/api/browser", tags=["browser"], dependencies=[Depends(get_current_user_token)]
 )
 
-# ── Submodule imports below register routes on ``router`` in EXACTLY the
-#    original single-file order. Do not reorder. ────────────────────────────
+# â”€â”€ Submodule imports below register routes on ``router`` in EXACTLY the
+#    original single-file order. Do not reorder. â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 from . import (
     _automation,  # noqa: F401,E402  (route registration + re-exports)
     _cognitive,  # noqa: F401,E402  (route registration + re-exports)
-    _credentials,  # noqa: F401,E402  (route registration + re-exports)
     _crown_jewel,  # noqa: F401,E402  (route registration + re-exports)
     _learning,  # noqa: F401,E402  (route registration + re-exports)
     _legacy_status,  # noqa: F401,E402  (route registration + re-exports)
@@ -134,18 +133,6 @@ from ._cognitive import (  # noqa: F401,E402  (re-exports)
     run_autonomous_goal,
     semantic_click,
     smart_click,
-)
-from ._credentials import (  # noqa: F401,E402  (re-exports)
-    CREDENTIALS,
-    CredentialRequest,
-    CredentialUseRequest,
-    delete_credential,
-    get_audit,
-    get_credential_store,
-    get_credentials,
-    revoke_credential,
-    save_credential,
-    use_credential,
 )
 from ._crown_jewel import (  # noqa: F401,E402  (re-exports)
     AIActionRequest,

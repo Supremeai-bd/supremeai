@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
-r"""SupremeAI — Collective Agent Memory & Problem-Solving Layer CLI.
+﻿#!/usr/bin/env python3
+r"""SupremeAI â€” Collective Agent Memory & Problem-Solving Layer CLI.
 
-Implements the "Search Before Solving · Pave Before Leaving · Gap Before Guessing" workflow:
+Implements the "Search Before Solving Â· Pave Before Leaving Â· Gap Before Guessing" workflow:
 1. Search database & LESSONS_LEARNED.md for how previous agents solved the same issue.
 2. Record newly validated solutions into database memory and LESSONS_LEARNED.md.
 3. Record Solution Gaps (failed attempts, missing capabilities, future path) when no solution exists.
@@ -59,6 +59,7 @@ if str(BACKEND_DIR) not in sys.path:
 LESSONS_FILE = REPO_ROOT / "LESSONS_LEARNED.md"
 MCP_CONFIG_FILE = REPO_ROOT / "mcp.json"
 SQLITE_DB_PATH = REPO_ROOT / "data" / "supremeai.db"
+STRATEGIC_FILE = REPO_ROOT / "data" / "strategic_decisions.jsonl"
 
 # --- Tower semantic-memory tier (#1747 slice 1: Gold Pearl, stdlib-only) ---
 # Session pattern mirrors examples/mcp-client-py/client.py (docs/MCP_CONNECT.md):
@@ -95,7 +96,7 @@ def _tower_post(session_id: str | None, payload: dict[str, Any]) -> tuple[str, s
         headers=headers, method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=TOWER_TIMEOUT_SECS) as resp:  # nosec B310 — tower MCP endpoint, env-overridable with pinned https default; audited #2081
+        with urllib.request.urlopen(req, timeout=TOWER_TIMEOUT_SECS) as resp:  # nosec B310 â€” tower MCP endpoint, env-overridable with pinned https default; audited #2081
             return (resp.read().decode("utf-8", errors="replace"),
                     resp.headers.get("mcp-session-id") or session_id or "")
     except urllib.error.HTTPError as err:  # honest failure class (4xx/5xx)
@@ -141,7 +142,7 @@ def _coerce_memory_items(result: dict[str, Any]) -> list[Any]:
 def _tower_semantic_hits(query: str) -> list[dict[str, Any]]:
     """Query the tower semantic tier (one session, two read-only tools).
 
-    Raises on any tower failure — callers degrade to local-only results.
+    Raises on any tower failure â€” callers degrade to local-only results.
     """
     _, session_id = _tower_post(None, {
         "jsonrpc": "2.0", "id": 1, "method": "initialize",
@@ -275,7 +276,7 @@ def record_solution(
                 "verified": status == "VERIFIED",
             },  # #1747: additive provenance stamping (schema-compatible)
         )
-        print(f"✅ Stored solution [{status}] into Database Episodic Memory for task #{clean_task}.")
+        print(f"âœ… Stored solution [{status}] into Database Episodic Memory for task #{clean_task}.")
     except Exception as err:
         print(f"[INFO] Database storage skipped ({err}), recording to file.")
 
@@ -294,13 +295,13 @@ def record_solution(
                 if table_idx != -1:
                     lines.insert(table_idx, new_entry)
                     LESSONS_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
-                    print(f"✅ Appended entry to LESSONS_LEARNED.md (# {clean_task}).")
+                    print(f"âœ… Appended entry to LESSONS_LEARNED.md (# {clean_task}).")
                 else:
                     with open(LESSONS_FILE, "a", encoding="utf-8") as f:
                         f.write(f"\n{new_entry}\n")
-                    print(f"✅ Appended entry to end of LESSONS_LEARNED.md (# {clean_task}).")
+                    print(f"âœ… Appended entry to end of LESSONS_LEARNED.md (# {clean_task}).")
             else:
-                print(f"ℹ️ Issue #{clean_task} already present in LESSONS_LEARNED.md.")
+                print(f"â„¹ï¸ Issue #{clean_task} already present in LESSONS_LEARNED.md.")
         except Exception as err:
             print(f"[ERROR] Failed writing to LESSONS_LEARNED.md: {err}", file=sys.stderr)
             return False
@@ -337,7 +338,7 @@ def record_solution_gap(
                 "source": "agent_solution_memory",
             },  # #1747: additive provenance stamping (schema-compatible)
         )
-        print(f"🧭 Solution Gap [GAP-{clean_task}] recorded in Database Memory:")
+        print(f"ðŸ§­ Solution Gap [GAP-{clean_task}] recorded in Database Memory:")
         print(f"   Missing Capability: {missing_capability}")
         print(f"   Future Recommended Path: {future_path}")
         return True
@@ -348,7 +349,7 @@ def record_solution_gap(
 
 def verify_mcp() -> bool:
     """Verify MCP Control Tower connection contract."""
-    print("🔍 Checking SupremeAI MCP Tower connection contract...")
+    print("ðŸ” Checking SupremeAI MCP Tower connection contract...")
     
     # 1. Check workspace config (mcp.json)
     if MCP_CONFIG_FILE.exists():
@@ -356,7 +357,7 @@ def verify_mcp() -> bool:
             cfg = json.loads(MCP_CONFIG_FILE.read_text(encoding="utf-8"))
             servers = cfg.get("mcpServers", {})
             if "supremeai-control-tower" in servers:
-                print("✅ Valid MCP Tower contract found in mcp.json.")
+                print("âœ… Valid MCP Tower contract found in mcp.json.")
                 return True
         except Exception:
             pass
@@ -364,10 +365,10 @@ def verify_mcp() -> bool:
     # 2. Check environment variable contract
     mcp_env = os.environ.get("MCP_TOWER_URL", os.environ.get("MCP_SERVER_URL", ""))
     if mcp_env:
-        print("✅ Valid MCP Tower contract found in environment (MCP_TOWER_URL).")
+        print("âœ… Valid MCP Tower contract found in environment (MCP_TOWER_URL).")
         return True
 
-    print("❌ No valid MCP Tower contract found (checked mcp.json and MCP_TOWER_URL).", file=sys.stderr)
+    print("âŒ No valid MCP Tower contract found (checked mcp.json and MCP_TOWER_URL).", file=sys.stderr)
     return False
 
 
@@ -404,25 +405,25 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.command == "search":
-        print(f"🔍 Searching SupremeAI Collective Memory for: '{args.query}'...\n")
+        print(f"ðŸ” Searching SupremeAI Collective Memory for: '{args.query}'...\n")
         lessons = search_local_lessons(args.query)
         db_hits = search_database_memory(args.query)
 
         if not lessons and not db_hits:
-            print("⚠️ No exact previous solutions found in system memory.")
-            print("👉 Recommendation: Check available capabilities, or record a Solution Gap ('gap') if missing tools!")
+            print("âš ï¸ No exact previous solutions found in system memory.")
+            print("ðŸ‘‰ Recommendation: Check available capabilities, or record a Solution Gap ('gap') if missing tools!")
             return 0
 
         print(f"Found {len(lessons) + len(db_hits)} potential reference(s):\n")
         if lessons:
-            print("📋 Matches from LESSONS_LEARNED.md:")
+            print("ðŸ“‹ Matches from LESSONS_LEARNED.md:")
             for hit in lessons:
-                print(f"  • {hit['text']}")
+                print(f"  â€¢ {hit['text']}")
             print()
         if db_hits:
-            print("🧠 Matches from Database Episodic Memory:")
+            print("ðŸ§  Matches from Database Episodic Memory:")
             for hit in db_hits:
-                print(f"  • ({hit.get('tier', 'local')}) [{hit['type'].upper()} #{hit['task_id']}] {hit['problem']} -> {hit['solution']}")
+                print(f"  â€¢ ({hit.get('tier', 'local')}) [{hit['type'].upper()} #{hit['task_id']}] {hit['problem']} -> {hit['solution']}")
             print()
 
         return 0
@@ -457,3 +458,6 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+
