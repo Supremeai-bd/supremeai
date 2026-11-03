@@ -1,0 +1,16 @@
+rules:
+  - id: supremeai-no-shell-true
+    patterns:
+      - pattern: subprocess.$METHOD(..., shell=True, ...)
+    message: "Security Risk: shell=True usage is strictly forbidden. Pass command list instead."
+    languages: [python]
+    severity: ERROR
+
+  - id: supremeai-no-raw-eval
+    patterns:
+      - pattern: eval(...)
+      - pattern: exec(...)
+    message: "Security Risk: eval() / exec() on dynamic code is prohibited in agent routines."
+    languages: [python]
+    severity: ERROR
+

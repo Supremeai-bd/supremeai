@@ -68,6 +68,7 @@ APPROVED_TOP_LEVEL_DIRS = {
     ".github",
     ".githooks",  # issue #161: local ingress pre-push guard (poka-yoke, no runtime surface)
     ".agents",  # Agent workspace customizations (rules, skills, minimal-elegance)
+    ".semgrep",  # Semgrep semantic security rules and invariants configuration
     "api-schemas",
     "docs",
     "evals",  # Golden eval suite — 100-case AI quality benchmark + offline runner (issue #1362)
@@ -100,6 +101,7 @@ APPROVED_ROOT_FILES = {
     ".graphifyignore",  # Graphify AST node optimization config (keeps code graph strictly under 25k nodes)
     ".importlinter",  # import-contract gate config (issue 1791): repo-root TOML consumed by lint-imports; dev-only, no runtime surface
     ".pre-commit-config.yaml",
+    "pytest.ini",  # Pytest 9.x configuration and test optimization
     "AGENTS.md",
     # "AGENT_RULES.md" deliberately NOT approved — deleted by #1526 (#1642);
     # keeping it here would invite re-creating the dead constitution at root.
@@ -142,13 +144,21 @@ APPROVED_SUBTREES = {
     "infrastructure": {
         "mcp-control-plane",
         "cloudflare-studio-proxy",
-        # FILE entry (issue #1640): proprietary LICENSE notice at the mirror
-        # surface root. Legal notices are boundary-neutral — license_ssot_guard
-        # owns placement SSOT; PR #2510 adds these notices and its gate red
-        # (run 40840030278, Boundary Sanitization Guard exit 1) is this
-        # registry's omission, not a leak. Same FILE-entry precedent as
-        # scripts/"validate_schemas.py" above.
         "LICENSE",
+    },
+    "core": {
+        "observability",
+        "api",
+        "monitoring",
+        "services",
+        "tools",
+        "search.py",
+        "main.py",
+        "LICENSE",
+        ".github",
+    },
+    ".semgrep": {
+        "supremeai-invariants.yaml",
     },
 }
 

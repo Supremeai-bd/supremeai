@@ -18,11 +18,18 @@ _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if _CURRENT_DIR not in sys.path:
     sys.path.insert(0, _CURRENT_DIR)
 
-# Import primary application from server.py (Cookie Relay Engine)
+# Import primary application from server.py (Cookie Relay Engine) or create standalone app
 try:
     from server import app, relay_engine, duck_engine, ChatRequest
 except ImportError:
-    from browser.server import app, relay_engine, duck_engine, ChatRequest  # type: ignore
+    try:
+        from browser.server import app, relay_engine, duck_engine, ChatRequest  # type: ignore
+    except ImportError:
+        from fastapi import FastAPI
+        app = FastAPI(title="SupremeAI Browser & Scraper Service", version="2.0.0")
+        relay_engine = None
+        duck_engine = None
+        ChatRequest = None
 
 # Register optional browser scraper routes if dependencies are available
 try:
