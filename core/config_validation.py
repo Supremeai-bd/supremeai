@@ -266,7 +266,7 @@ class SettingsValidationMixin:
                 critical_infrastructure.append("SUPABASE_KEY")
             if not getattr(self, "firebase_service_account_json", None):
                 critical_infrastructure.append("FIREBASE_SERVICE_ACCOUNT_JSON")
-            if not self.encryption_key.get_secret_value():
+            if not getattr(self, "encryption_key", None):
                 critical_infrastructure.append("ENCRYPTION_KEY")
             if critical_infrastructure:
                 logger.critical(
@@ -278,7 +278,7 @@ class SettingsValidationMixin:
                 )
         elif self.env not in {"test"}:
             missing: list[str] = []
-            if not self.encryption_key.get_secret_value():
+            if not getattr(self, "encryption_key", None):
                 missing.append("ENCRYPTION_KEY")
             if not getattr(self, "firebase_service_account_json", None):
                 missing.append("FIREBASE_SERVICE_ACCOUNT_JSON")
