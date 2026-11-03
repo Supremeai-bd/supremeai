@@ -83,6 +83,11 @@ class _FakeGitHub:
 def fake_github(monkeypatch: pytest.MonkeyPatch) -> _FakeGitHub:
     fake = _FakeGitHub()
     monkeypatch.setattr(intake, "gh_paged", fake.fake_gh_paged)
+    monkeypatch.setattr(
+        intake,
+        "gh_paged_bounded",
+        lambda path, token, max_pages=5: (fake.fake_gh_paged(path, token, max_pages), False),
+    )
     monkeypatch.setattr(intake, "gh", fake.fake_gh)
     monkeypatch.setattr(intake, "ensure_public_labels", lambda token: None)
     return fake
@@ -166,11 +171,6 @@ def test_closed_scan_includes_open_repo_before_satellites(fake_github: _FakeGitH
     assert intake.BRIDGE_TARGET_REPOS == (
         "Supremeai-bd/supremeai",
         "Supremeai-bd/supremeai-studio",
-        "Supremeai-bd/supremeai-api",
-        "Supremeai-bd/supremeai-core",
-        "Supremeai-bd/supremeai-vscode",
-        "Supremeai-bd/supremeai-browser",
-        "Supremeai-bd/supremeai-archive",
     )
     assert OPEN not in intake.BRIDGE_TARGET_REPOS
 
