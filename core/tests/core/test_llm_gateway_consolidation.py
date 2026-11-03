@@ -163,8 +163,8 @@ def test_gateway_health_endpoint_simulation():
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
-    from api.dependencies import get_current_user_token
-    from api.routes.llm_gateway_routes import router
+    from core.api.dependencies import get_current_user_token
+    from core.api.routes.llm_gateway_routes import router
 
     probe = FastAPI()
     probe.include_router(router)

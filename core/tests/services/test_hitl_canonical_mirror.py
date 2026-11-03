@@ -12,8 +12,8 @@ from typing import Any
 import pytest
 
 import models.pending_tasks as pending_tasks
-from models.pending_tasks import TaskStatus, TaskType, get_task_by_idempotency
-from services.hitl.engine import HITLEngine
+from core.models.pending_tasks import TaskStatus, TaskType, get_task_by_idempotency
+from core.services.hitl.engine import HITLEngine
 
 # ---------------------------------------------------------------------------
 # Fake store — test_hitl_dispatch.py-র একই ন্যূনতম যমজ চুক্তি

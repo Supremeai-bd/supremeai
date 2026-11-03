@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from utils.timestamps import utc_now, utc_now_iso, utc_timestamp
+from core.utils.timestamps import utc_now, utc_now_iso, utc_timestamp
 
 
 class TestUtcNowIso:

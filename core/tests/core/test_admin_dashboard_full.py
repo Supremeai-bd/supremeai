@@ -24,7 +24,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-from api.routes.admin_dashboard import (
+from core.api.routes.admin_dashboard import (
     RouterOverrideRequest,
     UserUpdate,
     _acquire_env_lock,

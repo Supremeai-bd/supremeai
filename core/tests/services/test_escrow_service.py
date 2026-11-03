@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from services.escrow_service import Escrow, EscrowService, EscrowStatus
+from core.services.escrow_service import Escrow, EscrowService, EscrowStatus
 
 
 class TestEscrowStatus:

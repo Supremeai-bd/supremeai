@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tools.code.diagram_to_architecture import DiagramToArchitecture
+from core.tools.code.diagram_to_architecture import DiagramToArchitecture
 
 
 @pytest.fixture

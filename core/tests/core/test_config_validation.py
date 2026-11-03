@@ -4,7 +4,7 @@
 import pytest
 
 from core.config import Settings
-from database.pgbouncer_pool import dispose_db_pool
+from core.database.pgbouncer_pool import dispose_db_pool
 
 
 def test_jwt_secret_validation_local():

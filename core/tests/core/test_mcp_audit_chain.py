@@ -20,8 +20,8 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core.kernel.audit_chain import MCPAuditChainStore, args_fingerprint, compute_entry_hash
-from models.base import Base
-from models.mcp_audit_event import MCPAuditEvent
+from core.models.base import Base
+from core.models.mcp_audit_event import MCPAuditEvent
 
 TENANT = "tenant-audit-test"
 

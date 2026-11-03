@@ -30,9 +30,9 @@ from sqlalchemy.pool import StaticPool
 from core.automation.execution_recorder import ExecutionRecorder
 from core.automation.models import AutomationEvent, AutomationResult, AutomationStatus
 from core.orchestration.conversation_orchestrator import ExecutionRecord
-from missions.models import Mission  # noqa: F401 — registers missions table (runs FK target)
-from models.base import Base
-from runs.models import Run, RunEvent
+from core.missions.models import Mission  # noqa: F401 — registers missions table (runs FK target)
+from core.models.base import Base
+from core.runs.models import Run, RunEvent
 
 
 def _make_engine(tables: list):
@@ -47,7 +47,7 @@ def _make_engine(tables: list):
 @pytest_asyncio.fixture
 async def full_session():
     """Session with BOTH the automation tables and the canonical run tables."""
-    from models.automation_execution import (  # noqa: F401
+    from core.models.automation_execution import (  # noqa: F401
         AutomationExecution,
         AutomationExecutionAttempt,
     )
@@ -75,7 +75,7 @@ async def full_session():
 @pytest_asyncio.fixture
 async def automation_only_session():
     """Session WITHOUT the run-fabric tables (legacy/old DB simulation)."""
-    from models.automation_execution import AutomationExecution  # noqa: F401
+    from core.models.automation_execution import AutomationExecution  # noqa: F401
 
     engine, _ = _make_engine([])
     async with engine.begin() as conn:
@@ -253,7 +253,7 @@ async def test_record_completion_maps_skipped_to_cancelled(full_session):
 @pytest.mark.asyncio
 async def test_bridge_failure_never_breaks_dispatch_persistence(automation_only_session):
     """No run tables (old DB) → automation row still persists, no exception."""
-    from models.automation_execution import AutomationExecution
+    from core.models.automation_execution import AutomationExecution
 
     recorder = ExecutionRecorder()
     event = _event()

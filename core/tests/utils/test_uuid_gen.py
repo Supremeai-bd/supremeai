@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 
-from utils.uuid_gen import UUIDv7, generate_uuid7
+from core.utils.uuid_gen import UUIDv7, generate_uuid7
 
 
 class TestGenerateUuid7:

@@ -22,7 +22,7 @@ mcp_server.py (1272L) ও বাকি store adapter-গুলোর ramp হল
 
 import pytest
 
-from memory.sqlite_store import SQLiteMemoryStore
+from core.memory.sqlite_store import SQLiteMemoryStore
 
 pytestmark = pytest.mark.memory
 

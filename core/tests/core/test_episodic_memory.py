@@ -1,6 +1,6 @@
 import pytest
 
-from memory.episodic_memory import EpisodicMemory
+from core.memory.episodic_memory import EpisodicMemory
 
 
 @pytest.fixture()

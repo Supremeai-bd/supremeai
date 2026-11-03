@@ -1,4 +1,4 @@
-"""M1-C — evidence bridges: missions + tool + MCP + automation as Runs.
+﻿"""M1-C â€” evidence bridges: missions + tool + MCP + automation as Runs.
 
 Roadmap M1 exit criteria: "missions + one tool path + one MCP path
 observable as Runs in a test DB." This suite IS that exit evidence.
@@ -24,17 +24,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from missions.models import Mission, MissionTraceEvent
-from models.base import Base
-from runs.bridges import (
+from core.missions.models import Mission, MissionTraceEvent
+from core.models.base import Base
+from core.runs.bridges import (
     observe_automation_run,
     observe_mcp_run,
     observe_mission_run,
     observe_task_run,
     observe_tool_run,
 )
-from runs.models import Run, RunEvent
-from runs.service import RunService
+from core.runs.models import Run, RunEvent
+from core.runs.service import RunService
 
 
 @pytest_asyncio.fixture
@@ -92,7 +92,7 @@ class TestMissionBridge:
         assert run.source_ref == str(mission.id)
 
         # The run lifecycle observes the mission's execution.
-        from runs.state_machine import RUNNING, SUCCEEDED
+        from core.runs.state_machine import RUNNING, SUCCEEDED
 
         await svc.transition(db_session, run.id, "policy_checked")
         await svc.transition(db_session, run.id, "planned")
@@ -139,7 +139,7 @@ class TestToolBridge:
         assert run.chat_id == "chat-9"
 
         # tool executes -> usage lands on the run (budget enforcement active)
-        from runs.state_machine import POLICY_CHECKED, RUNNING
+        from core.runs.state_machine import POLICY_CHECKED, RUNNING
 
         await svc.transition(db_session, run.id, POLICY_CHECKED)
         await svc.transition(db_session, run.id, "planned")
@@ -158,7 +158,7 @@ class TestToolBridge:
             tool_name="expensive_tool",
             max_tool_calls=1,
         )
-        from runs.state_machine import POLICY_CHECKED, RUNNING
+        from core.runs.state_machine import POLICY_CHECKED, RUNNING
 
         await svc.transition(db_session, run.id, POLICY_CHECKED)
         await svc.transition(db_session, run.id, "planned")
@@ -186,8 +186,8 @@ class TestMCPBridge:
         assert run.source_type == "mcp"
         assert run.source_ref == "inv-777"
 
-        # full lifecycle to terminal — run survives as the audit record
-        from runs.state_machine import FAILED, FINALIZED
+        # full lifecycle to terminal â€” run survives as the audit record
+        from core.runs.state_machine import FAILED, FINALIZED
 
         await svc.transition(db_session, run.id, "policy_checked")
         await svc.transition(db_session, run.id, "planned")
@@ -271,8 +271,8 @@ class TestUnifiedView:
 class TestTaskBridgeM02PB:
     """M02 P-B (ERR-F01): scheduled-task execution observed as a canonical run.
 
-    বাংলা: sweep-এর প্রকৃত নির্বাহ এখন Run fabric-এ দেখা যায় — M05/M06/M17-এর
-    run-তথ্য-খোঁজার প্রবেশদ্বার।
+    à¦¬à¦¾à¦‚à¦²à¦¾: sweep-à¦à¦° à¦ªà§à¦°à¦•à§ƒà¦¤ à¦¨à¦¿à¦°à§à¦¬à¦¾à¦¹ à¦à¦–à¦¨ Run fabric-à¦ à¦¦à§‡à¦–à¦¾ à¦¯à¦¾à¦¯à¦¼ â€” M05/M06/M17-à¦à¦°
+    run-à¦¤à¦¥à§à¦¯-à¦–à§‹à¦à¦œà¦¾à¦° à¦ªà§à¦°à¦¬à§‡à¦¶à¦¦à§à¦¬à¦¾à¦°à¥¤
     """
 
     @pytest.mark.asyncio

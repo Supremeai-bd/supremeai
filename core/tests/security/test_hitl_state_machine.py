@@ -1,4 +1,4 @@
-"""AUD-4 (P0) HITL approval state machine regression tests.
+﻿"""AUD-4 (P0) HITL approval state machine regression tests.
 
 Covers the hardening of backend/models/pending_tasks.py:
 - AUD-4.1 ownership/tenant binding persisted
@@ -14,7 +14,7 @@ import uuid
 
 import pytest
 
-from models.pending_tasks import (
+from core.models.pending_tasks import (
     DEFAULT_APPROVAL_TTL_SECONDS,
     ApprovalStateError,
     TaskAlreadyResolvedError,
@@ -81,7 +81,7 @@ def test_payload_tampering_detected(task_payload):
     task = create_pending_task(TaskType.SKILL_GENERATION, task_payload, created_by="alice")
 
     # Simulate a DB-level tamper: rewrite payload without recomputing the hash.
-    from models import pending_tasks as pt
+    from core.models import pending_tasks as pt
 
     conn = pt._get_conn()
     conn.execute(
@@ -120,7 +120,7 @@ def test_duplicate_execution_guard(task_payload):
     with pytest.raises(TaskAlreadyResolvedError):
         mark_executed(task.task_id, "worker-2")
 
-    # approving again after execution is a replay → rejected
+    # approving again after execution is a replay â†’ rejected
     with pytest.raises(TaskAlreadyResolvedError):
         update_task_status(task.task_id, TaskStatus.APPROVED, "admin")
 
@@ -144,19 +144,19 @@ def test_cancellation_is_authoritative(task_payload):
 
 
 def test_concurrent_decisions_single_winner(task_payload):
-    """AUD-4.6: two 'concurrent' decision attempts → exactly one wins."""
+    """AUD-4.6: two 'concurrent' decision attempts â†’ exactly one wins."""
     task = create_pending_task(TaskType.SKILL_GENERATION, task_payload, created_by="alice")
 
     # First attempt takes the row out of PENDING via the CAS update.
     first = update_task_status(task.task_id, TaskStatus.APPROVED, "admin-1")
     assert first.status == TaskStatus.APPROVED
-    # Second attempt arrives "simultaneously" — must be rejected.
+    # Second attempt arrives "simultaneously" â€” must be rejected.
     with pytest.raises(TaskAlreadyResolvedError):
         update_task_status(task.task_id, TaskStatus.REJECTED, "admin-2")
 
 
 def test_cross_tenant_decision_rejected(task_payload):
-    """#481: the CAS transition is tenant-scoped — a foreign tenant's decision loses."""
+    """#481: the CAS transition is tenant-scoped â€” a foreign tenant's decision loses."""
     task = create_pending_task(
         TaskType.SKILL_GENERATION, task_payload, created_by="alice", tenant_id="tenant-a"
     )
@@ -176,8 +176,9 @@ def test_unknown_task_returns_none():
 
 def test_hash_is_canonical_and_stable():
     """AUD-4.4: hash independent of key order."""
-    from models.pending_tasks import compute_payload_hash
+    from core.models.pending_tasks import compute_payload_hash
 
     a = {"b": 1, "a": 2}
     b = {"a": 2, "b": 1}
     assert compute_payload_hash(a) == compute_payload_hash(b)
+

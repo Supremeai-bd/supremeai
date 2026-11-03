@@ -37,7 +37,7 @@ os.environ.setdefault("DATABASE_URL", "postgresql://u:p@db.example.com:5432/supr
 import sqlglot  # noqa: E402
 from sqlglot import exp  # noqa: E402
 
-from models.ai_memory import (  # noqa: E402
+from core.models.ai_memory import (  # noqa: E402
     EMBEDDING_DIMENSIONS,
     HAS_PGVECTOR_TYPE,
     AIMemory,

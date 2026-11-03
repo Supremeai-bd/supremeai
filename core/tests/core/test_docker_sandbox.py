@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tools.devops.docker_sandbox import DockerSandbox
+from core.tools.devops.docker_sandbox import DockerSandbox
 
 
 @pytest.fixture

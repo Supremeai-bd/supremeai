@@ -100,8 +100,8 @@ async def test_save_memory_offloads_blocking_embedding(monkeypatch):
 @pytest.mark.asyncio
 async def test_research_search_offloads_blocking_urlopen(monkeypatch):
     """বাংলা মন্তব্য: arXiv urlopen (15s timeout) hang করলেও লুপ সাড়া দেয়।"""
-    from agents.research_assistant import ResearchAssistant
-    from api.routes.agents import ResearchRequest, research_search
+    from core.agents.research_assistant import ResearchAssistant
+    from core.api.routes.agents import ResearchRequest, research_search
 
     gate = _Gate()
 
@@ -127,8 +127,8 @@ async def test_research_search_offloads_blocking_urlopen(monkeypatch):
 @pytest.mark.asyncio
 async def test_research_search_error_contracts_preserved(monkeypatch):
     """বাংলা মন্তব্য: to_thread thread-exception re-raise করে — 400/502 চুক্তি অক্ষত।"""
-    from agents.research_assistant import ResearchAssistant, ResearchSourceError
-    from api.routes.agents import ResearchRequest, research_search
+    from core.agents.research_assistant import ResearchAssistant, ResearchSourceError
+    from core.api.routes.agents import ResearchRequest, research_search
 
     def bad_query(self, query: str, source: str = "arxiv", max_results: int = 5):
         raise ValueError("query must not be empty")

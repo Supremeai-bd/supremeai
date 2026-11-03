@@ -1,6 +1,6 @@
 import pytest
 
-from byoc.container_orchestrator import ContainerOrchestrator
+from core.byoc.container_orchestrator import ContainerOrchestrator
 
 
 class TestContainerOrchestrator:

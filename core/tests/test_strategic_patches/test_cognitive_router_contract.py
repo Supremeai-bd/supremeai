@@ -1,8 +1,8 @@
-"""Deterministic contract tests for the currently supported cognitive router."""
+﻿"""Deterministic contract tests for the currently supported cognitive router."""
 
 import pytest
 
-from backend.brain.cognitive_router import CognitiveRouter
+from core.brain.cognitive_router import CognitiveRouter
 
 
 @pytest.mark.unit
@@ -30,7 +30,7 @@ async def test_router_decomposes_analysis_and_implementation_prompt():
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_router_returns_configured_default_model_for_direct_prompt(monkeypatch):
-    from backend.brain import cognitive_router
+    from core.brain import cognitive_router
 
     monkeypatch.setattr(cognitive_router.settings, "model_general", "test-provider/test-model")
 
@@ -72,10 +72,11 @@ async def test_router_uses_economic_optimizer_when_budget_context_is_present():
 
 @pytest.mark.unit
 def test_router_factory_reuses_singleton():
-    from backend.brain.cognitive_router import get_cognitive_router
+    from core.brain.cognitive_router import get_cognitive_router
 
     first = get_cognitive_router()
     second = get_cognitive_router()
 
     assert first is second
     assert isinstance(first, CognitiveRouter)
+

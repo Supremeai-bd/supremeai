@@ -180,7 +180,7 @@ class TestMiddlewareImportContract:
         import inspect
         import re
 
-        from api.middleware import IdempotencyMiddleware
+        from core.api.middleware import IdempotencyMiddleware
 
         src = inspect.getsource(IdempotencyMiddleware.dispatch)
         # Strip Python comments (# ...) — comment-এ থাকা শব্দ code pattern হিসেবে

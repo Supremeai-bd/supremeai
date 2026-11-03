@@ -1,14 +1,14 @@
-"""M1-A — canonical Run / RunEvent model tests (offline, sqlite in-memory).
+﻿"""M1-A â€” canonical Run / RunEvent model tests (offline, sqlite in-memory).
 
 Dedicated sqlite+aiosqlite engine with ONLY the runs tables created (same
-pattern as tests/missions — the shared conftest ``db_engine`` runs
+pattern as tests/missions â€” the shared conftest ``db_engine`` runs
 ``create_all`` over the FULL ``models.base.Base`` metadata which cannot
 compile PG-only column types on sqlite; the runs tables are fully
 sqlite-compatible via ``JSON().with_variant(JSONB, "postgresql")``).
 
 Covers: defaults, counters, artifacts JSON round-trip, per-run event seq
 uniqueness, cascade delete of events, mission anchor + parent-run
-self-reference, and state-machine ↔ model integration (status stays a plain
+self-reference, and state-machine â†” model integration (status stays a plain
 string; the machine validates transitions before the model is updated).
 """
 
@@ -22,10 +22,10 @@ from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from missions.models import Mission  # noqa: F401 — registers missions table for the FK
-from models.base import Base
-from runs.models import Run, RunEvent
-from runs.state_machine import (
+from core.missions.models import Mission  # noqa: F401 â€” registers missions table for the FK
+from core.models.base import Base
+from core.runs.models import Run, RunEvent
+from core.runs.state_machine import (
     CANCELLED,
     FINALIZED,
     PLANNED,
@@ -46,7 +46,7 @@ async def db_session():
     )
 
     # SQLite skips FK enforcement (incl. ON DELETE CASCADE) unless the
-    # pragma is on — the cascade test must exercise the REAL constraint.
+    # pragma is on â€” the cascade test must exercise the REAL constraint.
     @event.listens_for(engine.sync_engine, "connect")
     def _fk_pragma(dbapi_conn, _record):
         cursor = dbapi_conn.cursor()
@@ -57,7 +57,7 @@ async def db_session():
         # missions + runs + run_events only (same pattern as tests/missions:
         # the shared conftest db_engine create_all over the FULL Base
         # metadata cannot compile PG-only types on sqlite). The missions
-        # table must exist because runs.mission_id FK references it — and
+        # table must exist because runs.mission_id FK references it â€” and
         # having it lets the anchor test exercise a REAL FK link.
         await conn.run_sync(
             lambda sync_conn: Base.metadata.create_all(
@@ -235,7 +235,7 @@ class TestRunEventModel:
 
 
 # ---------------------------------------------------------------------------
-# State machine ↔ model integration
+# State machine â†” model integration
 # ---------------------------------------------------------------------------
 
 
@@ -267,7 +267,7 @@ class TestLifecycleIntegration:
 
     @pytest.mark.asyncio
     async def test_illegal_transition_never_touches_row(self, db_session: AsyncSession):
-        from runs.state_machine import IllegalTransition
+        from core.runs.state_machine import IllegalTransition
 
         run = _make_run()
         db_session.add(run)

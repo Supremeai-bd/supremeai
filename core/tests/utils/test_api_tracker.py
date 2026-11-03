@@ -1,6 +1,6 @@
 import time
 
-from utils.api_tracker import APICallRecord, APITracker, get_tracker
+from core.utils.api_tracker import APICallRecord, APITracker, get_tracker
 
 
 class TestAPITracker:

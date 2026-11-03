@@ -26,7 +26,7 @@ import httpx
 import pytest
 
 import tools.billing.monthly_cost_reporter as mcr_mod
-from tools.billing.monthly_cost_reporter import MonthlyCostReporter
+from core.tools.billing.monthly_cost_reporter import MonthlyCostReporter
 
 MODULE_NAME = "tools.billing.monthly_cost_reporter"
 

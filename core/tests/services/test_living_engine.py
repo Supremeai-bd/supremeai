@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from services.living_engine import LivingEngineOrchestrator
+from core.services.living_engine import LivingEngineOrchestrator
 
 
 @pytest.fixture

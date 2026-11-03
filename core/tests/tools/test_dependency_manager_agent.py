@@ -26,7 +26,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 import tools.code.dependency_manager_agent as dma_module
-from tools.code.dependency_manager_agent import DependencyManagerAgent
+from core.tools.code.dependency_manager_agent import DependencyManagerAgent
 
 # --------------------------------------------------------------------------- #
 # Harness                                                                     #

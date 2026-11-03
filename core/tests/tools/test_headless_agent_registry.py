@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from tools import headless_agent_registry
+from core.tools import headless_agent_registry
 
 
 def test_get_configs_fallback_returns_dict():

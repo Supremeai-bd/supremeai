@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from services.project_context_service import ContextType, ProjectContextService
+from core.services.project_context_service import ContextType, ProjectContextService
 
 
 def test_is_ignored_hidden_file():

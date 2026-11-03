@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from monitoring.log_batcher import LogBatcherError, SupremeLogBatcher
+from core.monitoring.log_batcher import LogBatcherError, SupremeLogBatcher
 
 
 def test_log_batcher_append_and_size_flush():

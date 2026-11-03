@@ -192,7 +192,7 @@ class TestQuotaEnforcerWallet:
 
     @pytest.mark.asyncio
     async def test_get_wallet_found(self, mock_db_session):
-        from models.wallet import UserWallet
+        from core.models.wallet import UserWallet
 
         wallet = UserWallet(
             user_id="t1",
@@ -230,7 +230,7 @@ class TestQuotaEnforcerUsage:
 
     @pytest.mark.asyncio
     async def test_get_current_usage_with_data(self, mock_db_session):
-        from models.wallet import TransactionLedgerEntry
+        from core.models.wallet import TransactionLedgerEntry
 
         entry = TransactionLedgerEntry(
             transaction_id="tx1",
@@ -295,7 +295,7 @@ class TestQuotaEnforcerEnforcement:
 
     @pytest.mark.asyncio
     async def test_check_tenant_quota_within_quota(self, mock_db_session, pricing_tiers_path):
-        from models.wallet import UserWallet
+        from core.models.wallet import UserWallet
 
         wallet = UserWallet(
             user_id="t1",
@@ -319,7 +319,7 @@ class TestQuotaEnforcerEnforcement:
 
     @pytest.mark.asyncio
     async def test_check_tenant_quota_over_quota(self, mock_db_session, pricing_tiers_path):
-        from models.wallet import TransactionLedgerEntry, UserWallet
+        from core.models.wallet import TransactionLedgerEntry, UserWallet
 
         wallet = UserWallet(
             user_id="t1",
@@ -353,7 +353,7 @@ class TestQuotaEnforcerEnforcement:
 
     @pytest.mark.asyncio
     async def test_enforce_all_dry_run(self, mock_db_session, pricing_tiers_path):
-        from models.wallet import UserWallet
+        from core.models.wallet import UserWallet
 
         wallet = UserWallet(
             user_id="t1",

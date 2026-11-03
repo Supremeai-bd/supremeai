@@ -24,7 +24,7 @@ from typing import Any
 import pytest
 
 import database.pgbouncer_pool as pool_mod
-from database.pgbouncer_pool import PgBouncerConnectionPool
+from core.database.pgbouncer_pool import PgBouncerConnectionPool
 
 pytestmark = pytest.mark.performance
 

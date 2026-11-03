@@ -131,7 +131,7 @@ class TestMissionAdminSurface:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from api.routes.admin_v1 import router as admin_v1_router
+        from core.api.routes.admin_v1 import router as admin_v1_router
 
         app = FastAPI()
         app.include_router(admin_v1_router)

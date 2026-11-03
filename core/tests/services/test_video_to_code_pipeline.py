@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from services.video_to_code_pipeline import (
+from core.services.video_to_code_pipeline import (
     FRAME_INTERVAL_SECONDS,
     MAX_VIDEO_SIZE_MB,
     VIDEO_CACHE_TTL,
@@ -79,7 +79,7 @@ async def test_extract_frames_refuses_honestly_when_no_ffmpeg(tmp_path, monkeypa
 @pytest.mark.anyio
 async def test_fallback_extract_method_is_removed(tmp_path):
     """Issue #449: calling the removed fallback raises instead of faking data."""
-    from services.video_to_code_pipeline import VideoToCodePipeline  # noqa: F401
+    from core.services.video_to_code_pipeline import VideoToCodePipeline  # noqa: F401
 
     extractor = VideoFrameExtractor()
     with pytest.raises(RuntimeError, match="removed"):
@@ -91,7 +91,7 @@ async def test_process_video_reports_honest_failure_on_error_marker(tmp_path, mo
     """Issue #449: error-marker code must not be reported as status=success."""
     from fastapi import HTTPException
 
-    from services.video_to_code_pipeline import CodeGenerationResult, get_video_pipeline
+    from core.services.video_to_code_pipeline import CodeGenerationResult, get_video_pipeline
 
     pipeline = get_video_pipeline()
 
@@ -109,7 +109,7 @@ async def test_process_video_reports_honest_failure_on_error_marker(tmp_path, mo
 
     from unittest.mock import AsyncMock
 
-    from services.video_to_code_pipeline import process_video  # noqa: F811
+    from core.services.video_to_code_pipeline import process_video  # noqa: F811
 
     upload = AsyncMock()
     upload.content_type = "video/mp4"

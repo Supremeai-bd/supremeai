@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.meta_architect import MetaArchitect
+from core.tools.meta_architect import MetaArchitect
 
 
 @pytest.mark.asyncio

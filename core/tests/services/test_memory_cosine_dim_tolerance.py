@@ -16,7 +16,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from services.memory_service import CascadeMemoryService  # noqa: E402
+from core.services.memory_service import CascadeMemoryService  # noqa: E402
 
 
 @pytest.fixture
@@ -47,7 +47,7 @@ def test_dim_mismatch_scores_over_prefix_and_warns(svc):
     core.logging_config routes through loguru, so we observe the module's
     logger directly (caplog cannot see it).
     """
-    from services import memory_service as ms_mod
+    from core.services import memory_service as ms_mod
 
     query = [1.0, 0.0, 0.0]
     legacy = [1.0, 0.0, 0.0] + [0.0] * 1533  # 1536-dim legacy row shape

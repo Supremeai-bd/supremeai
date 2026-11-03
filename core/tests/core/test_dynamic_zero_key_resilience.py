@@ -10,8 +10,8 @@ import os
 import pytest
 
 from brain.model_router import ModelRouter
-from services.voice_service import VoiceService
-from tools.social.telegram_bot.ai_engine import AIEngineMixin
+from core.services.voice_service import VoiceService
+from core.tools.social.telegram_bot.ai_engine import AIEngineMixin
 
 
 class DummyTelegramBot(AIEngineMixin):
@@ -174,7 +174,7 @@ async def test_voice_service_provider_error_auto_switch(monkeypatch):
 
 def test_get_voice_service_singleton():
     """websocket_voice route imports get_voice_service — must exist and be a stable singleton."""
-    from services.voice_service import get_voice_service
+    from core.services.voice_service import get_voice_service
 
     first = get_voice_service()
     second = get_voice_service()

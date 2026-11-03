@@ -16,14 +16,14 @@ async def test_task_gateway_lifecycle():
     # usable here — the app imports only a subset of models, and a partial
     # metadata raises NoReferencedTableError (execution_logs → agent_sessions).
     import models.task_record  # noqa: F401  (model registration side-effect)
-    from database import session as db_session
+    from core.database import session as db_session
 
     db_session.init_engine()
     engine = db_session._engine_instance
     assert engine is not None, (
         "task gateway requires a working DB engine — SQLite fallback must be active in test env"
     )
-    from models.task_record import TaskRecord
+    from core.models.task_record import TaskRecord
 
     async with engine.begin() as conn:
         await conn.run_sync(TaskRecord.__table__.create, checkfirst=True)
@@ -66,7 +66,7 @@ async def test_task_gateway_lifecycle():
         # the task up under a foreign tenant must raise 404.
         from fastapi import HTTPException as _HTTPException
 
-        from api.routes.task_gateway import _owned_record
+        from core.api.routes.task_gateway import _owned_record
 
         with pytest.raises(_HTTPException) as excinfo:
             await _owned_record(task_id, "tenant_other")

@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from services.minio_client import MinIOClient, StoredObject
+from core.services.minio_client import MinIOClient, StoredObject
 
 
 def test_stored_object_dataclass():

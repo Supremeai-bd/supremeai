@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from core.learning import decision_store
-from models.decision_metadata import DecisionMetadata
+from core.models.decision_metadata import DecisionMetadata
 
 pytestmark = pytest.mark.unit
 
@@ -25,7 +25,7 @@ async def decision_table():
     অন্য মডেলের FK আছে — সেগুলো এই টেস্টের ব্যাপার নয়; isolation)।"""
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-    from models.decision_metadata import (
+    from core.models.decision_metadata import (
         DecisionMetadata as DecisionMetadataModel,
     )
 

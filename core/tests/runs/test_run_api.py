@@ -1,4 +1,4 @@
-"""M1-C — canonical Run API contract tests (/api/v1/runs).
+﻿"""M1-C â€” canonical Run API contract tests (/api/v1/runs).
 
 Drives the REAL app through httpx ASGITransport with the conftest test-auth
 bypass environment (missions-test pattern): the runs tables are created on
@@ -17,7 +17,7 @@ import uuid
 import pytest
 import pytest_asyncio
 
-# The runs router is imported for its side effect of registering nothing —
+# The runs router is imported for its side effect of registering nothing â€”
 # mounting happens through api/routers.py (registry); these tests go through
 # the real app, so no import is needed here beyond the override target.
 
@@ -28,9 +28,9 @@ async def runs_api_tables(client):
     global _tables_ready
     if not _tables_ready:
         import database.session as dbs
-        from missions.models import Mission
-        from models.base import Base
-        from runs.models import Run, RunEvent
+        from core.missions.models import Mission
+        from core.models.base import Base
+        from core.runs.models import Run, RunEvent
 
         dbs.init_engine()
         engine = dbs.engine
@@ -54,7 +54,7 @@ _tables_ready = False
 @pytest_asyncio.fixture
 async def principal(client):
     """Per-test principal factory (missions-test pattern)."""
-    from api.dependencies import get_current_user_token
+    from core.api.dependencies import get_current_user_token
     from core.app import app as application
 
     def install(sub: str, role: str = "user"):
@@ -179,7 +179,7 @@ class TestOwnership:
     @pytest.mark.asyncio
     async def test_empty_principal_403(self, client, runs_api_tables):
         """A token payload with no sub/user_id/email must 403 (identity required)."""
-        from api.dependencies import get_current_user_token
+        from core.api.dependencies import get_current_user_token
         from core.app import app as application
 
         application.dependency_overrides[get_current_user_token] = lambda: {"role": "user"}

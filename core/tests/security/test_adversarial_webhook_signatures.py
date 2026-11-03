@@ -17,9 +17,9 @@ import time
 
 import pytest
 
-from api.routes.cdc_webhooks import _verify_webhook_signature as verify_cdc
-from api.routes.n8n_webhooks import _verify_n8n_signature as verify_n8n
-from api.routes.pr_review_api import _verify_signature as verify_github
+from core.api.routes.cdc_webhooks import _verify_webhook_signature as verify_cdc
+from core.api.routes.n8n_webhooks import _verify_n8n_signature as verify_n8n
+from core.api.routes.pr_review_api import _verify_signature as verify_github
 
 SECRET = "adversarial-test-secret-0123456789"
 

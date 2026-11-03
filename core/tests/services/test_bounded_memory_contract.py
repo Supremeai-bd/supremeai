@@ -20,7 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-from monitoring.metrics_collector import _HISTOGRAM_WINDOW, MetricsCollector
+from core.monitoring.metrics_collector import _HISTOGRAM_WINDOW, MetricsCollector
 
 # ---------------------------------------------------------------------------
 # 1) metrics_collector — histogram bounded window
@@ -70,7 +70,7 @@ def test_db_query_count_honest_after_window_overflow():
 
 def test_share_cache_lru_bounded_at_500(monkeypatch):
     """Acceptance: LRU maxsize≈500 — 600 insert-এ cache size 500-ই থাকে।"""
-    from api.routes import share as share_mod
+    from core.api.routes import share as share_mod
 
     share_mod._share_cache.clear()
     try:
@@ -89,7 +89,7 @@ def test_share_cache_lru_bounded_at_500(monkeypatch):
 
 def test_share_revoke_evicts_cache():
     """Acceptance: revoke-এ share cache hit না হওয়া — pop কন্ট্র্যাক্ট লক।"""
-    from api.routes import share as share_mod
+    from core.api.routes import share as share_mod
 
     share_mod._share_cache.clear()
     try:
@@ -109,14 +109,14 @@ def test_share_revoke_evicts_cache():
 
 def _issue_valid_ticket():
     """Valid one-time ticket — render_proxy-এর auth contract পূরণে।"""
-    from api.routes.browser._render_proxy import _issue_ticket
+    from core.api.routes.browser._render_proxy import _issue_ticket
 
     return _issue_ticket()
 
 
 def test_render_proxy_over_5mb_aborts_502():
     """Acceptance: >5MB upstream 502 দেয় — chunk loop সাথে সাথে abort।"""
-    from api.routes.browser import _render_proxy
+    from core.api.routes.browser import _render_proxy
 
     big_chunk = b"x" * (64 * 1024)
 
@@ -147,7 +147,7 @@ def test_render_proxy_over_5mb_aborts_502():
 
 def test_render_proxy_small_body_still_proxies():
     """ছোট upstream — chunked পথেও আগের মতোই 200 + কনটেন্ট।"""
-    from api.routes.browser import _render_proxy
+    from core.api.routes.browser import _render_proxy
 
     reads = iter([b"small-body", b""])
 

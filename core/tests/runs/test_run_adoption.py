@@ -1,10 +1,10 @@
-"""M06 P-A — observe_run + ৮/৮ RunType adoption চুক্তি-টেস্ট।
+﻿"""M06 P-A â€” observe_run + à§®/à§® RunType adoption à¦šà§à¦•à§à¦¤à¦¿-à¦Ÿà§‡à¦¸à§à¦Ÿà¥¤
 
-বাংলা: সব সাইটের (tool/mcp/mission/browser/code) রান-পর্যবেক্ষণ একই চুক্তি
-মানে — flag-off = byte-নিরপেক্ষ no-op, session-অনুপস্থিতি = লাউড + আয়োজক
-অপ্রভাবিত, আয়োজক-ব্যতিক্রম = রান FAILED হয়ে ব্যতিক্রম আয়োজকের কাছেই যায়।
-pipeline RunType-এর প্রোডাকশন-নির্বাহ পথ এখনো নেই — মৃত-কোডের জাল পর্যবেক্ষণ
-নিষিদ্ধ (False-Assurance), তাই সেখানে লেখক নেই — এই অনুপস্থিতিই সৎ-দলিল।
+à¦¬à¦¾à¦‚à¦²à¦¾: à¦¸à¦¬ à¦¸à¦¾à¦‡à¦Ÿà§‡à¦° (tool/mcp/mission/browser/code) à¦°à¦¾à¦¨-à¦ªà¦°à§à¦¯à¦¬à§‡à¦•à§à¦·à¦£ à¦à¦•à¦‡ à¦šà§à¦•à§à¦¤à¦¿
+à¦®à¦¾à¦¨à§‡ â€” flag-off = byte-à¦¨à¦¿à¦°à¦ªà§‡à¦•à§à¦· no-op, session-à¦…à¦¨à§à¦ªà¦¸à§à¦¥à¦¿à¦¤à¦¿ = à¦²à¦¾à¦‰à¦¡ + à¦†à¦¯à¦¼à§‹à¦œà¦•
+à¦…à¦ªà§à¦°à¦­à¦¾à¦¬à¦¿à¦¤, à¦†à¦¯à¦¼à§‹à¦œà¦•-à¦¬à§à¦¯à¦¤à¦¿à¦•à§à¦°à¦® = à¦°à¦¾à¦¨ FAILED à¦¹à¦¯à¦¼à§‡ à¦¬à§à¦¯à¦¤à¦¿à¦•à§à¦°à¦® à¦†à¦¯à¦¼à§‹à¦œà¦•à§‡à¦° à¦•à¦¾à¦›à§‡à¦‡ à¦¯à¦¾à¦¯à¦¼à¥¤
+pipeline RunType-à¦à¦° à¦ªà§à¦°à§‹à¦¡à¦¾à¦•à¦¶à¦¨-à¦¨à¦¿à¦°à§à¦¬à¦¾à¦¹ à¦ªà¦¥ à¦à¦–à¦¨à§‹ à¦¨à§‡à¦‡ â€” à¦®à§ƒà¦¤-à¦•à§‹à¦¡à§‡à¦° à¦œà¦¾à¦² à¦ªà¦°à§à¦¯à¦¬à§‡à¦•à§à¦·à¦£
+à¦¨à¦¿à¦·à¦¿à¦¦à§à¦§ (False-Assurance), à¦¤à¦¾à¦‡ à¦¸à§‡à¦–à¦¾à¦¨à§‡ à¦²à§‡à¦–à¦• à¦¨à§‡à¦‡ â€” à¦à¦‡ à¦…à¦¨à§à¦ªà¦¸à§à¦¥à¦¿à¦¤à¦¿à¦‡ à¦¸à§Ž-à¦¦à¦²à¦¿à¦²à¥¤
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 
 import database.session as db_session
-from runs.run_scope import observe_run
+from core.runs.run_scope import observe_run
 
 
 class FakeService:
@@ -60,13 +60,13 @@ def _flag_off(monkeypatch: pytest.MonkeyPatch):
 
 
 # ---------------------------------------------------------------------------
-# observe_run চুক্তি
+# observe_run à¦šà§à¦•à§à¦¤à¦¿
 # ---------------------------------------------------------------------------
 
 
 async def test_observe_run_flag_off_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
     def _boom():
-        raise AssertionError("flag-off-এ DB স্পর্শ নিষিদ্ধ")
+        raise AssertionError("flag-off-à¦ DB à¦¸à§à¦ªà¦°à§à¦¶ à¦¨à¦¿à¦·à¦¿à¦¦à§à¦§")
 
     monkeypatch.setattr(db_session, "get_db_session_context", lambda: _boom())
 
@@ -82,7 +82,7 @@ async def test_observe_run_session_unavailable_loud_noop(
 
     monkeypatch.setattr(db_session, "get_db_session_context", _fail)
 
-    # বাংলা: আয়োজকের ফল অক্ষত — রান-ফ্যাব্রিক ব্যর্থতা কখনো আয়োজককে ব্লক করে না।
+    # à¦¬à¦¾à¦‚à¦²à¦¾: à¦†à¦¯à¦¼à§‹à¦œà¦•à§‡à¦° à¦«à¦² à¦…à¦•à§à¦·à¦¤ â€” à¦°à¦¾à¦¨-à¦«à§à¦¯à¦¾à¦¬à§à¦°à¦¿à¦• à¦¬à§à¦¯à¦°à§à¦¥à¦¤à¦¾ à¦•à¦–à¦¨à§‹ à¦†à¦¯à¦¼à§‹à¦œà¦•à¦•à§‡ à¦¬à§à¦²à¦• à¦•à¦°à§‡ à¦¨à¦¾à¥¤
     async with observe_run(run_type="mcp", title="m") as ctx:
         assert ctx is None
 
@@ -107,7 +107,7 @@ async def test_observe_run_happy_path_full_lifecycle(
     assert kinds[0] == "create"
     assert service.calls[0][1]["run_type"] == "tool"
     assert service.calls[0][1]["user_id"] == "u1"
-    # বাংলা: ধাপে ধাপে লাইফসাইকেল + terminal settle — কোনো skip-ahead নয়।
+    # à¦¬à¦¾à¦‚à¦²à¦¾: à¦§à¦¾à¦ªà§‡ à¦§à¦¾à¦ªà§‡ à¦²à¦¾à¦‡à¦«à¦¸à¦¾à¦‡à¦•à§‡à¦² + terminal settle â€” à¦•à§‹à¦¨à§‹ skip-ahead à¦¨à¦¯à¦¼à¥¤
     assert kinds[-1] == "transition"
     assert cm.exited is True
 
@@ -127,14 +127,14 @@ async def test_observe_run_host_exception_propagates_and_settles_failed(
             assert ctx is not None
             raise RuntimeError("host broke")
 
-    # বাংলা: সত্য প্রতিফলন — আয়োজক-ব্যর্থতা রান-ও FAILED করে, আর ব্যতিক্রম
-    # কখনো গিলে ফেলা হয় না।
+    # à¦¬à¦¾à¦‚à¦²à¦¾: à¦¸à¦¤à§à¦¯ à¦ªà§à¦°à¦¤à¦¿à¦«à¦²à¦¨ â€” à¦†à¦¯à¦¼à§‹à¦œà¦•-à¦¬à§à¦¯à¦°à§à¦¥à¦¤à¦¾ à¦°à¦¾à¦¨-à¦“ FAILED à¦•à¦°à§‡, à¦†à¦° à¦¬à§à¦¯à¦¤à¦¿à¦•à§à¦°à¦®
+    # à¦•à¦–à¦¨à§‹ à¦—à¦¿à¦²à§‡ à¦«à§‡à¦²à¦¾ à¦¹à¦¯à¦¼ à¦¨à¦¾à¥¤
     assert service.calls[-1][0] == "transition"
     assert cm.exited is True
 
 
 # ---------------------------------------------------------------------------
-# সাইট-স্তরের সংযোগ চুক্তি (flag-off = আজকের আচরণ)
+# à¦¸à¦¾à¦‡à¦Ÿ-à¦¸à§à¦¤à¦°à§‡à¦° à¦¸à¦‚à¦¯à§‹à¦— à¦šà§à¦•à§à¦¤à¦¿ (flag-off = à¦†à¦œà¦•à§‡à¦° à¦†à¦šà¦°à¦£)
 # ---------------------------------------------------------------------------
 
 
@@ -143,7 +143,7 @@ async def test_tool_loop_flag_off_unchanged(monkeypatch: pytest.MonkeyPatch) -> 
 
     monkeypatch.delenv("SUPREMEAI_AGENT_TOOLS", raising=False)
     result = await execute_tool_decision({"tool": "anything", "args": {}})
-    # বাংলা: gate-refusal পথ অক্ষত — রান-ফ্যাব্রিক স্পর্শ ছাড়াই স্পষ্ট কারণ।
+    # à¦¬à¦¾à¦‚à¦²à¦¾: gate-refusal à¦ªà¦¥ à¦…à¦•à§à¦·à¦¤ â€” à¦°à¦¾à¦¨-à¦«à§à¦¯à¦¾à¦¬à§à¦°à¦¿à¦• à¦¸à§à¦ªà¦°à§à¦¶ à¦›à¦¾à¦¡à¦¼à¦¾à¦‡ à¦¸à§à¦ªà¦·à§à¦Ÿ à¦•à¦¾à¦°à¦£à¥¤
     assert result["executed"] is False
     assert result["status"] == "disabled"
 

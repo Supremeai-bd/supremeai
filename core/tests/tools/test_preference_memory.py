@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from tools.preference_memory import PreferenceMemory
+from core.tools.preference_memory import PreferenceMemory
 
 
 def test_load_creates_default_preferences(tmp_path):

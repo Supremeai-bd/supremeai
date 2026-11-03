@@ -1,11 +1,11 @@
-from types import SimpleNamespace
+﻿from types import SimpleNamespace
 
 import pytest
 
 from adaptive_engine.capability_registry import CapabilityLifecycleState
 from adaptive_engine.resource_registry import ProviderKind, ResourceState
-from backend.ecosystem.citizen import CitizenManifest, CitizenRegistry
-from backend.ecosystem.runtime_selector import PlacementError, select_placement
+from core.ecosystem.citizen import CitizenManifest, CitizenRegistry
+from core.ecosystem.runtime_selector import PlacementError, select_placement
 
 
 class FakeCapabilityRegistry:
@@ -82,3 +82,4 @@ def test_citizen_registry_builds_graph_and_detects_boundary_violation():
     assert registry.validate_boundaries({("circle.run", "circle.tool")}) == [
         "direct_cross_domain:circle.run->circle.tool"
     ]
+

@@ -10,8 +10,8 @@ except ImportError:
 
 from brain.gcp_router import GCPCloudRunRouter
 from core.messaging.gcp_pubsub_queue import GCPPubSubQueue
-from services.storage.gcp_firestore import GCPFirestoreVerificationQueue
-from tools.devops.gcp_cloud_functions import GCPCloudFunctionClient
+from core.services.storage.gcp_firestore import GCPFirestoreVerificationQueue
+from core.tools.devops.gcp_cloud_functions import GCPCloudFunctionClient
 
 pytestmark = pytest.mark.skipif(not HAS_FIREBASE_DEPS, reason="firebase/google deps not installed")
 

@@ -33,7 +33,7 @@ import pytest
 
 import core.cache.redis_manager  # noqa: F401 — ensures the module is in sys.modules
 from core.cache.redis_manager import SecureRedisManager, redis_manager
-from tools.tenant_rate_limiter import TenantRateLimiter
+from core.tools.tenant_rate_limiter import TenantRateLimiter
 
 # GOTCHA: `core.cache.__init__` re-exports the SINGLETON under the name
 # `redis_manager`, shadowing the submodule attribute on the package — so

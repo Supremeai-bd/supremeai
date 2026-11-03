@@ -1,6 +1,6 @@
 import pytest
 
-from tools.social.marketplace_agent import MarketplaceAgent
+from core.tools.social.marketplace_agent import MarketplaceAgent
 
 # FIX(#1097): module-level skip removed; tests re-triaged against the REAL
 # agent contract (tools/social/marketplace_agent.py):

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from services.rider_tracker import RiderTracker
+from core.services.rider_tracker import RiderTracker
 
 
 def test_rider_tracker_initialization():

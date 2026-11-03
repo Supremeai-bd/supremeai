@@ -4,8 +4,8 @@
 import pytest
 
 from core.task_contract import RiskLevel, TaskBudget, TaskContract, TaskStatus, VerificationPolicy
-from runtime.task_context import TaskContext
-from runtime.task_runtime import get_task_runtime
+from core.runtime.task_context import TaskContext
+from core.runtime.task_runtime import get_task_runtime
 
 
 @pytest.mark.asyncio

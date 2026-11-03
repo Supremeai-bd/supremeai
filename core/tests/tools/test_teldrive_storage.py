@@ -258,7 +258,7 @@ class TestConstruction:
         # uses: teldrive_storage imports `from tools.social.telegram_bot import
         # TelegramBotHandler` (top-level `tools` package) which under pytest is
         # a DISTINCT class object from `backend.tools.social.telegram_bot`.
-        from tools.social.telegram_bot import TelegramBotHandler as TopLevelHandler
+        from core.tools.social.telegram_bot import TelegramBotHandler as TopLevelHandler
 
         monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
         storage = TelDriveStorage()

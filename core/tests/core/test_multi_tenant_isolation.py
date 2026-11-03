@@ -8,8 +8,8 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException, status
 
-from api.dependencies import get_current_platform_admin
-from database.tenant_db import TenantAwareFirestore
+from core.api.dependencies import get_current_platform_admin
+from core.database.tenant_db import TenantAwareFirestore
 
 
 class TestMultiTenantIsolation:

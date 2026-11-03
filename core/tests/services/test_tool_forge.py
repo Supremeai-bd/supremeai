@@ -2,7 +2,7 @@
 import pytest
 
 from core.security.codegen_gate import ALLOW_INPROCESS_CODEGEN_ENV
-from services.tool_forge import (
+from core.services.tool_forge import (
     SecurityViolationError,
     ToolForgeError,
     ToolForgeService,

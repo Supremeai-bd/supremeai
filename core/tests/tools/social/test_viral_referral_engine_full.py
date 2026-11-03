@@ -18,7 +18,7 @@ from typing import Any
 import pytest
 
 import tools.social.viral_referral_engine as vre
-from tools.social.viral_referral_engine import FRAUD_INDICATOR_THRESHOLD, ViralReferralEngine
+from core.tools.social.viral_referral_engine import FRAUD_INDICATOR_THRESHOLD, ViralReferralEngine
 
 # ──────────────────────────────── fake objects ────────────────────────────────
 
@@ -113,7 +113,7 @@ class FakeSupabase:
 @pytest.fixture
 def engine(monkeypatch, tmp_path) -> ViralReferralEngine:
     """Engine in LOCAL mode with its JSON store inside tmp_path."""
-    from database.supabase_client import db
+    from core.database.supabase_client import db
 
     monkeypatch.setattr(db, "client", None, raising=False)
     monkeypatch.setattr(db, "service_client", None, raising=False)
@@ -124,7 +124,7 @@ def engine(monkeypatch, tmp_path) -> ViralReferralEngine:
 
 
 def _db_mode(monkeypatch, handlers: dict[str, Any]) -> FakeSupabase:
-    from database.supabase_client import db
+    from core.database.supabase_client import db
 
     fake = FakeSupabase(handlers)
     monkeypatch.setattr(db, "client", fake, raising=False)

@@ -18,7 +18,7 @@ from typing import Any
 import pytest
 
 import memory.chromadb_store as cs
-from memory.chromadb_store import ChromaDBStore
+from core.memory.chromadb_store import ChromaDBStore
 
 pytestmark = [pytest.mark.memory, pytest.mark.performance]
 

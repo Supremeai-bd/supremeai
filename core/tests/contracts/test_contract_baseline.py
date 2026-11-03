@@ -116,7 +116,7 @@ class TestJwtContract:
     # forged token) — এটাই প্রোডাকশন আচরণের সঠিক pin।
 
     def test_access_token_shape_hs256_with_required_claims(self):
-        from api.routes.auth import create_access_token
+        from core.api.routes.auth import create_access_token
         from core.security.authentication import auth_middleware
 
         token = create_access_token({"sub": "user@example.com"})
@@ -130,7 +130,7 @@ class TestJwtContract:
         assert decoded is not None and decoded["sub"] == "user@example.com"
 
     def test_access_token_preserves_caller_jti_and_honours_expiry_delta(self):
-        from api.routes.auth import create_access_token
+        from core.api.routes.auth import create_access_token
 
         _, payload, _ = _segments(create_access_token({"sub": "u@x.com", "jti": "fixed-jti"}))
         assert payload["jti"] == "fixed-jti"
@@ -142,7 +142,7 @@ class TestJwtContract:
         assert short["exp"] - now == pytest.approx(300, abs=5)
 
     def test_refresh_token_has_refresh_type_and_family_id(self):
-        from api.routes.auth import create_refresh_token
+        from core.api.routes.auth import create_refresh_token
 
         _, payload, _ = _segments(create_refresh_token({"sub": "u@x.com"}))
         assert payload["type"] == "refresh"
@@ -152,13 +152,13 @@ class TestJwtContract:
 
     def test_refresh_token_rejected_as_access_token(self):
         """refresh-as-access ব্যবহার রোধ — _decode_jwt নিশ্চিতভাবে None।"""
-        from api.routes.auth import create_refresh_token
+        from core.api.routes.auth import create_refresh_token
         from core.security.authentication import auth_middleware
 
         assert auth_middleware._decode_jwt(create_refresh_token({"sub": "u@x.com"})) is None
 
     def test_tampered_signature_rejected(self):
-        from api.routes.auth import create_access_token
+        from core.api.routes.auth import create_access_token
         from core.security.authentication import auth_middleware
 
         token = create_access_token({"sub": "u@x.com"})
@@ -166,7 +166,7 @@ class TestJwtContract:
         assert auth_middleware._decode_jwt(tampered) is None
 
     def test_expired_token_rejected(self):
-        from api.routes.auth import create_access_token
+        from core.api.routes.auth import create_access_token
         from core.security.authentication import auth_middleware
 
         expired = create_access_token({"sub": "u@x.com"}, expires_delta=timedelta(seconds=-30))

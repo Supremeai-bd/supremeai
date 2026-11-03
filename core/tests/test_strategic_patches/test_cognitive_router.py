@@ -1,4 +1,4 @@
-# tests/test_strategic_patches/test_cognitive_router.py
+﻿# tests/test_strategic_patches/test_cognitive_router.py
 """
 Tests for Cognitive Router v2.0 - Intent Decomposition & Task Orchestration
 ===========================================================================
@@ -14,7 +14,7 @@ Tests cover:
 import pytest
 
 try:
-    from backend.brain.cognitive_router import (
+    from core.brain.cognitive_router import (
         CognitiveRouter,
         ComplexityLevel,
         SubTask,
@@ -25,7 +25,7 @@ try:
 except ImportError as e:
     pytest.skip(
         "Cognitive Router v2.0 (TaskDecomposer/TaskGraph/TaskExecutionEngine) "
-        "is not implemented yet — brain/cognitive_router.py currently only "
+        "is not implemented yet â€” brain/cognitive_router.py currently only "
         "contains the simplified direct/decomposed CognitiveRouter stub. "
         f"Un-skip once the full decomposition engine lands ({e}).",
         allow_module_level=True,
@@ -157,7 +157,7 @@ class TestTaskExecutionEngine:
 
     @pytest.fixture
     def engine(self):
-        from backend.brain.cognitive_router import TaskExecutionEngine
+        from core.brain.cognitive_router import TaskExecutionEngine
 
         return TaskExecutionEngine()
 
@@ -243,3 +243,4 @@ class TestTaskExecutionEngine:
             assert result["metadata"]["has_parallelism"]
 
     # test_dependency_ordering removed as it was truncated
+

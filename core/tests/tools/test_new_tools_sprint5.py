@@ -10,20 +10,20 @@ os.environ.setdefault("HF_API_KEY", "")
 
 class TestSSOIntegrator:
     def test_sso_instantiation(self):
-        from tools.sso_integrator import SSOIntegrator
+        from core.tools.sso_integrator import SSOIntegrator
 
         integrator = SSOIntegrator()
         assert integrator.onelogin in (True, False)
 
     def test_sso_metadata_fallback(self):
-        from tools.sso_integrator import SSOIntegrator
+        from core.tools.sso_integrator import SSOIntegrator
 
         integrator = SSOIntegrator()
         meta = integrator.get_metadata()
         assert "body" in meta
 
     def test_role_mapping_default(self):
-        from tools.sso_integrator import SSOIntegrator
+        from core.tools.sso_integrator import SSOIntegrator
 
         integrator = SSOIntegrator()
         roles = integrator.map_roles(["Viewers", "Operators"])
@@ -31,7 +31,7 @@ class TestSSOIntegrator:
         assert "operator" in roles
 
     def test_role_mapping_empty(self):
-        from tools.sso_integrator import SSOIntegrator
+        from core.tools.sso_integrator import SSOIntegrator
 
         integrator = SSOIntegrator()
         roles = integrator.map_roles([])
@@ -41,7 +41,7 @@ class TestSSOIntegrator:
 class TestReferralEngine:
     def test_referral_engine_generates_code(self):
         import database.supabase_client as db_mod
-        from tools.social.viral_referral_engine import ViralReferralEngine
+        from core.tools.social.viral_referral_engine import ViralReferralEngine
 
         original = db_mod.db.client
         db_mod.db.client = None
@@ -54,7 +54,7 @@ class TestReferralEngine:
             db_mod.db.client = original
 
     def test_referral_deep_links(self):
-        from tools.social.viral_referral_engine import ViralReferralEngine
+        from core.tools.social.viral_referral_engine import ViralReferralEngine
 
         engine = ViralReferralEngine()
         link_fb = engine.generate_deep_link("SUPREME-ABC123", "facebook")
@@ -64,7 +64,7 @@ class TestReferralEngine:
 
     def test_wallet_balance_default(self):
         import database.supabase_client as db_mod
-        from tools.social.viral_referral_engine import ViralReferralEngine
+        from core.tools.social.viral_referral_engine import ViralReferralEngine
 
         original = db_mod.db.client
         db_mod.db.client = None
@@ -78,12 +78,12 @@ class TestReferralEngine:
 
 class TestTenantRateLimiter:
     def test_rate_limiter_init(self):
-        from tools.tenant_rate_limiter import TenantRateLimiter
+        from core.tools.tenant_rate_limiter import TenantRateLimiter
 
         limiter = TenantRateLimiter(redis_client=None)
         assert limiter.billing_tiers["free"]["rpm"] == 60
 
-        from tools.tenant_rate_limiter import TenantRateLimiter
+        from core.tools.tenant_rate_limiter import TenantRateLimiter
 
         limiter = TenantRateLimiter(redis_client=None)
         assert "pro" in limiter.billing_tiers

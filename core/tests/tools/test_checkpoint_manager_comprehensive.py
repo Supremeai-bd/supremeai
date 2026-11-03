@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from core.degraded_mode import SQLiteFallbackDisabledError
-from tools.checkpoint_manager import Checkpoint, CheckpointManager
+from core.tools.checkpoint_manager import Checkpoint, CheckpointManager
 
 
 class TestCheckpointManagerComprehensive:
@@ -94,7 +94,7 @@ class TestCheckpointManagerComprehensive:
             assert mgr.clear("t1") is False
 
     def test_lazy_checkpoint_manager(self, temp_sqlite_file):
-        from tools.checkpoint_manager import LazyCheckpointManager
+        from core.tools.checkpoint_manager import LazyCheckpointManager
 
         lazy_mgr = LazyCheckpointManager(db_path=temp_sqlite_file)
         assert lazy_mgr.save("lazy-1", 1, {"a": 1}) is True

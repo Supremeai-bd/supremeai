@@ -17,7 +17,7 @@ from typing import Any
 import pytest
 
 import tools.code.pre_commit_ai as pc
-from tools.code.pre_commit_ai import PreCommitAI
+from core.tools.code.pre_commit_ai import PreCommitAI
 
 MOCK_AWS_KEY = "".join(["AK", "IA", "IOSFODNN7EXAMPLE"])
 MOCK_PASS_VAR = "pass" + "word"

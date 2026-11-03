@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from core.logging_config import logger
-from sandbox.docker_sandbox import DockerSandbox
+from core.sandbox.docker_sandbox import DockerSandbox
 from schemas.skill_index import SkillIndexManager
 from schemas.skill_manifest import SkillManifest, SkillStatus
 

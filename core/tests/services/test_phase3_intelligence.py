@@ -10,8 +10,8 @@ import pytest
 
 from adaptive_engine.learning_loop import LearningLoop
 from pipelines.synthetic_data_pipeline import SyntheticDataPipeline
-from services.vision_service import VisionService
-from services.voice_service import VoiceService
+from core.services.vision_service import VisionService
+from core.services.voice_service import VoiceService
 
 
 @pytest.mark.asyncio

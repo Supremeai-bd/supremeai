@@ -278,7 +278,7 @@ class TestAPIKeysRouteContracts:
 
     def test_create_api_key_request_valid(self):
         # বাংলা: আসল চুক্তি — user_id + name আবশ্যক, rate_limit_rps default 6
-        from api.routes.api_keys import CreateAPIKeyRequest
+        from core.api.routes.api_keys import CreateAPIKeyRequest
 
         req = CreateAPIKeyRequest(user_id="user@example.com", name="test-key", scopes=["read"])
         assert req.name == "test-key"
@@ -289,7 +289,7 @@ class TestAPIKeysRouteContracts:
     def test_create_api_key_request_rejects_empty_name(self):
         from pydantic import ValidationError
 
-        from api.routes.api_keys import CreateAPIKeyRequest
+        from core.api.routes.api_keys import CreateAPIKeyRequest
 
         with pytest.raises(ValidationError):
             CreateAPIKeyRequest(user_id="user@example.com", name="")
@@ -297,20 +297,20 @@ class TestAPIKeysRouteContracts:
     def test_create_api_key_request_rejects_missing_user_id(self):
         from pydantic import ValidationError
 
-        from api.routes.api_keys import CreateAPIKeyRequest
+        from core.api.routes.api_keys import CreateAPIKeyRequest
 
         with pytest.raises(ValidationError):
             CreateAPIKeyRequest(name="test-key")
 
     def test_create_api_key_strips_whitespace(self):
-        from api.routes.api_keys import CreateAPIKeyRequest
+        from core.api.routes.api_keys import CreateAPIKeyRequest
 
         req = CreateAPIKeyRequest(user_id="  user@example.com  ", name="  key  ")
         assert req.user_id == "user@example.com"
         assert req.name == "key"
 
     def test_update_api_key_request_model(self):
-        from api.routes.api_keys import UpdateAPIKeyRequest
+        from core.api.routes.api_keys import UpdateAPIKeyRequest
 
         req = UpdateAPIKeyRequest(name="updated-key", rate_limit_rps=10)
         assert req.name == "updated-key"
@@ -318,14 +318,14 @@ class TestAPIKeysRouteContracts:
 
     def test_rotate_api_key_request_model(self):
         # বাংলা: আসল চুক্তি — old_key আবশ্যক, grace default 24h
-        from api.routes.api_keys import RotateAPIKeyRequest
+        from core.api.routes.api_keys import RotateAPIKeyRequest
 
         req = RotateAPIKeyRequest(old_key="sk-old")
         assert req.old_key == "sk-old"
         assert req.grace_period_hours == 24
 
     def test_bulk_delete_request_model(self):
-        from api.routes.api_keys import BulkDeleteRequest
+        from core.api.routes.api_keys import BulkDeleteRequest
 
         req = BulkDeleteRequest(key_ids=[1, 2, 3])
         assert req.key_ids == [1, 2, 3]
@@ -333,7 +333,7 @@ class TestAPIKeysRouteContracts:
     def test_bulk_delete_request_rejects_empty_list(self):
         from pydantic import ValidationError
 
-        from api.routes.api_keys import BulkDeleteRequest
+        from core.api.routes.api_keys import BulkDeleteRequest
 
         with pytest.raises(ValidationError):
             BulkDeleteRequest(key_ids=[])
@@ -341,7 +341,7 @@ class TestAPIKeysRouteContracts:
     def test_bulk_delete_rejects_over_50(self):
         from pydantic import ValidationError
 
-        from api.routes.api_keys import BulkDeleteRequest
+        from core.api.routes.api_keys import BulkDeleteRequest
 
         with pytest.raises(ValidationError):
             BulkDeleteRequest(key_ids=list(range(51)))

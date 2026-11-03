@@ -237,7 +237,7 @@ class TestUsageReporterLedger:
 
     @pytest.mark.asyncio
     async def test_get_ledger_entries_with_data(self, mock_db_session):
-        from models.wallet import TransactionLedgerEntry
+        from core.models.wallet import TransactionLedgerEntry
 
         entry = TransactionLedgerEntry(
             transaction_id="tx1",
@@ -281,7 +281,7 @@ class TestUsageReporterReportGeneration:
 
     @pytest.mark.asyncio
     async def test_generate_tenant_report_with_data(self, mock_firestore, mock_db_session):
-        from models.wallet import TransactionLedgerEntry
+        from core.models.wallet import TransactionLedgerEntry
 
         entry = TransactionLedgerEntry(
             transaction_id="tx1",

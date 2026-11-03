@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from tools.social.telegram_bot import TelegramBotHandler
-from tools.social.telegram_security import security_guard
+from core.tools.social.telegram_bot import TelegramBotHandler
+from core.tools.social.telegram_security import security_guard
 
 
 @pytest.fixture
@@ -190,7 +190,7 @@ async def test_abort_unknown_run_reports_honestly(bot_handler, monkeypatch):
     """বাংলা: অজানা run_id → সৎ 'not found' — ভুয়া 'বাতিল হয়েছে' নয়।"""
     from contextlib import asynccontextmanager
 
-    from runs.service import RunNotFound
+    from core.runs.service import RunNotFound
 
     @asynccontextmanager
     async def fake_ctx():

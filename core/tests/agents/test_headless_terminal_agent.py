@@ -10,7 +10,7 @@ if "google" not in sys.modules:
 if "google.genai" not in sys.modules:
     sys.modules["google.genai"] = MagicMock()
 
-from agents.headless_terminal_agent import CommandSafety, HeadlessTerminalAgent
+from core.agents.headless_terminal_agent import CommandSafety, HeadlessTerminalAgent
 
 
 @pytest.mark.anyio

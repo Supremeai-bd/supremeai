@@ -11,7 +11,7 @@ import pytest
 
 from core.mcp_policy import evaluate_tool
 from core.tool_loop import _resolve_call_args, execute_tool_decision, tool_registry
-from tools.agent_tools import FLEET_TOOLS, SUPREME_TOOLS, governed_tools
+from core.tools.agent_tools import FLEET_TOOLS, SUPREME_TOOLS, governed_tools
 
 
 @pytest.fixture(autouse=True)

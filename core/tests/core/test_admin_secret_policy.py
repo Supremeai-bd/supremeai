@@ -12,7 +12,7 @@
 import pytest
 from fastapi import HTTPException, Request
 
-from api.routes.internal import _require_admin
+from core.api.routes.internal import _require_admin
 from core.config import Settings, settings
 
 STRONG_SECRET = "unit-test-admin-secret-0123456789"

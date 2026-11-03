@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from context_engine import ContextBlock, ContextEngine, Section
-from context_engine.budget import (
+from core.context_engine import ContextBlock, ContextEngine, Section
+from core.context_engine.budget import (
     DEFAULT_INPUT_BUDGET,
     SECTION_CAPS,
     context_engine_enabled,

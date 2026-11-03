@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from tools.code.image_to_code import ImageToCode
+from core.tools.code.image_to_code import ImageToCode
 
 
 @pytest.fixture

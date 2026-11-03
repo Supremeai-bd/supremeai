@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from services.auto_healer import AutoHealer, Issue, IssueCategory, RetryPolicy, Severity
+from core.services.auto_healer import AutoHealer, Issue, IssueCategory, RetryPolicy, Severity
 
 
 def _issue(**kw) -> Issue:

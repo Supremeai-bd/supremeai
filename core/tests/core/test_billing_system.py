@@ -14,8 +14,8 @@ from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
 from core.app import app
-from database.session import get_db_session
-from models.wallet import UserWallet
+from core.database.session import get_db_session
+from core.models.wallet import UserWallet
 
 client = TestClient(app)
 
@@ -120,7 +120,7 @@ def test_fetch_wallet_pre_seeds_bonus(mock_db_session):
 
 @pytest.mark.anyio
 async def test_token_deductor_deducts_main_balance(mock_db_session):
-    from api.routes.billing_api import token_deductor
+    from core.api.routes.billing_api import token_deductor
 
     with patch.object(token_deductor, "_acquire_lock", new=AsyncMock(return_value=True)):
         with patch.object(token_deductor, "_release_lock", new=AsyncMock(return_value=True)):
@@ -136,7 +136,7 @@ async def test_token_deductor_deducts_main_balance(mock_db_session):
 
 @pytest.mark.anyio
 async def test_token_deductor_insufficient_funds(mock_db_session):
-    from api.routes.billing_api import token_deductor
+    from core.api.routes.billing_api import token_deductor
 
     with patch.object(token_deductor, "_acquire_lock", new=AsyncMock(return_value=True)):
         with patch.object(token_deductor, "_release_lock", new=AsyncMock(return_value=True)):

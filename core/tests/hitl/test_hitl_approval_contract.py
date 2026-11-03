@@ -26,9 +26,9 @@ from typing import Any
 
 import pytest
 
-from services.hitl import engine as engine_module
-from services.hitl.dispatch import ApprovalDispatchError
-from services.hitl.engine import (
+from core.services.hitl import engine as engine_module
+from core.services.hitl.dispatch import ApprovalDispatchError
+from core.services.hitl.engine import (
     DEFAULT_APPROVAL_TTL_SECONDS,
     STATUS_EXPIRED,
     STATUS_PENDING,
@@ -40,7 +40,7 @@ from services.hitl.engine import (
 
 try:  # canonical store needs the full `models` package (CI: available)
     import models.pending_tasks as pending_tasks
-    from models.pending_tasks import TaskStatus, get_task_by_idempotency
+    from core.models.pending_tasks import TaskStatus, get_task_by_idempotency
 
     _CANONICAL_STORE_AVAILABLE = True
 except Exception:  # pragma: no cover — degraded envs without the models package deps

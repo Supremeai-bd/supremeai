@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.app import app
-from tools.media.voice import VoiceInterface
+from core.tools.media.voice import VoiceInterface
 
 
 @pytest.fixture

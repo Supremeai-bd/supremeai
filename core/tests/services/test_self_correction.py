@@ -3,9 +3,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from services.dynamic_planner import TaskDAG, TaskNode
-from services.intent_deciphering import IntentAnalysis
-from services.self_correction import SelfCorrectionService
+from core.services.dynamic_planner import TaskDAG, TaskNode
+from core.services.intent_deciphering import IntentAnalysis
+from core.services.self_correction import SelfCorrectionService
 
 
 @pytest.fixture

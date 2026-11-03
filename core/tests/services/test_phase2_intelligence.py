@@ -21,7 +21,7 @@ from adapters.ux_adapter import UXAdapter
 from core.advanced_reasoning import AdvancedReasoningEngine
 from core.evolution_module import EvolutionModule
 from learning.pattern_recognizer import PatternRecognizer
-from services.living_engine import LivingEngineOrchestrator
+from core.services.living_engine import LivingEngineOrchestrator
 
 # ── 1. Advanced Reasoning Tests ───────────────────────────────────────────────
 

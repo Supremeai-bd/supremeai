@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from services.intent_deciphering import IntentDecipheringService
+from core.services.intent_deciphering import IntentDecipheringService
 
 
 @pytest.fixture

@@ -18,7 +18,7 @@ import services.auto_healer as ah
 
 REAL_SLEEP = asyncio.sleep  # un-mocked reference (autouse fixture patches asyncio.sleep)
 from core.resilience.circuit_breaker import CircuitBreakerState
-from services.auto_healer import (
+from core.services.auto_healer import (
     AutoHealer,
     CircuitBreaker,
     FixResult,

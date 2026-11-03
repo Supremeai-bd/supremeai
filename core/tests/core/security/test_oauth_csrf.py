@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import RedirectResponse
 from httpx import ASGITransport, AsyncClient
 
-from api.routes.integrations import _sign_oauth_state, _verify_oauth_state, router
+from core.api.routes.integrations import _sign_oauth_state, _verify_oauth_state, router
 from core.config import settings
 
 

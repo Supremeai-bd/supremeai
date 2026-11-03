@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from services.config_registry import safe_defaults, schema, validate_value
+from core.services.config_registry import safe_defaults, schema, validate_value
 
 
 class ConfigRegistryTests(unittest.TestCase):

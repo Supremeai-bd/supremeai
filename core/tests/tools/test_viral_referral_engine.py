@@ -1,7 +1,7 @@
 import time
 from unittest.mock import patch
 
-from tools.social.viral_referral_engine import ViralReferralEngine
+from core.tools.social.viral_referral_engine import ViralReferralEngine
 
 
 class TestViralReferralEngine:

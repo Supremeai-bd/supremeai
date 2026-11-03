@@ -67,14 +67,14 @@ class TestPreviouslyDeadRoutesImport:
 
 class TestRouterWiring:
     def test_service_topology_registered_in_all_routers(self):
-        from api.routers import ALL_ROUTERS
+        from core.api.routers import ALL_ROUTERS
 
         entry = next((r for r in ALL_ROUTERS if r["path"] == "api.routes.service_topology"), None)
         assert entry is not None, "service_topology must be registered in ALL_ROUTERS"
         assert entry["is_admin"] is True
 
     def test_health_aggregation_registered_in_all_routers(self):
-        from api.routers import ALL_ROUTERS
+        from core.api.routers import ALL_ROUTERS
 
         assert any(r["path"] == "api.routes.health_aggregation" for r in ALL_ROUTERS)
 
@@ -103,7 +103,7 @@ PARITY_AUDIT_ROUTERS = (
 
 class TestParityAuditRouterWiring:
     def test_parity_audit_routers_registered_in_all_routers(self):
-        from api.routers import ALL_ROUTERS
+        from core.api.routers import ALL_ROUTERS
 
         registered_paths = {r["path"] for r in ALL_ROUTERS}
         missing = [p for p in PARITY_AUDIT_ROUTERS if p not in registered_paths]
@@ -116,14 +116,14 @@ class TestParityAuditRouterWiring:
 
     def test_agent_heartbeat_route_exists(self):
         """Frontend useSwarmGraph/MockSwarmProvider poll /api/v1/health/agents."""
-        from api.routes.health import router as health_router
+        from core.api.routes.health import router as health_router
 
         paths = {getattr(route, "path", None) for route in health_router.routes}
         assert "/health/agents" in paths
 
     def test_budget_check_route_exists(self):
         """Frontend useBudgetCheck calls /api/billing/budget-check?estimated=..."""
-        from api.routes.billing_api import router as billing_router
+        from core.api.routes.billing_api import router as billing_router
 
         paths = {getattr(route, "path", None) for route in billing_router.routes}
         assert "/api/billing/budget-check" in paths
