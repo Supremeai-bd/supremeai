@@ -1,0 +1,90 @@
+# SupremeAI Unified Monorepo - Render Blueprint
+services:
+  - type: web
+    name: supremeai-api
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    dockerfilePath: gateway/Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      - key: GATEWAY_CONFIG
+        value: config/routing_policy.example.json
+      - key: GATEWAY_USAGE_LOG
+        value: /tmp/supremeai_api_usage.jsonl
+      - key: INFISICAL_PROJECT_ID
+        sync: false
+      - key: INFISICAL_ENV
+        value: prod
+      - key: INFISICAL_CLIENT_ID
+        sync: false
+      - key: INFISICAL_CLIENT_SECRET
+        sync: false
+
+  - type: web
+    name: supremeai-browser
+    runtime: docker
+    plan: free
+    dockerfilePath: browser/Dockerfile
+    dockerContext: browser
+    healthCheckPath: /health
+    envVars:
+      - key: GEMINI_PROFILE_DIR
+        value: /tmp/profile
+      - key: CREDENTIAL_MASTER_KEY
+        sync: false
+
+  - type: web
+    name: supremeai-mcp-tower
+    env: node
+    plan: free
+    rootDir: infrastructure/mcp-control-plane
+    healthCheckPath: /health
+    buildCommand: npm install && npm run build
+    startCommand: python scripts/runtime/infisical_bootstrap.py npm run start
+    envVars:
+      - key: MCP_API_KEY
+        generateValue: true
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: RENDER_API_TOKEN
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: INFISICAL_CLIENT_ID
+        sync: false
+      - key: INFISICAL_CLIENT_SECRET
+        sync: false
+      - key: INFISICAL_PROJECT_ID
+        sync: false
+      - key: INFISICAL_ENV
+        value: prod
+      - key: INFISICAL_SECRET_PATH
+        value: /
+      - key: INFISICAL_TOKEN
+        sync: false
+      - key: SUPREMEAI_ADMIN_PASSWORD_HASH
+        sync: false
+      - key: SUPREMEAI_JWT_SECRET
+        sync: false
+      - key: MCP_ADMIN_KEY
+        sync: false
+      - key: TOWER_AUTH_TOKEN
+        sync: false
+      - key: GH_TOKEN
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
