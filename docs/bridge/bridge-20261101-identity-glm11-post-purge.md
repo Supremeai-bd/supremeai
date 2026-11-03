@@ -3,81 +3,81 @@
 > Continuation of `bridge-20261031-identity-glm11.md` (slot chain r2→r44,
 > 38 merged landings, r2 = #3230 first, r44 = 023e016/#4937 last), removed
 > by the owner-side docs purge (#4965 + prune #4995, refs #762). Restarts
-> the slot receipt (r45 = 1c8f736/#4994 → r84 = 2692b7b/#5822; r62 = LOST
+> the slot receipt (r45 = 1c8f736/#4994 → r85 = 1bee862/#5841; r62 = LOST
 > pre-merge; r50 = orphaned PR #5117). Compressed durable facts:
 
 - **Landing chain**: 38 merged landings r2→r44 + r45-r49, r51-r61,
-  r63-r84 post-purge (76 total); forty-four of the last forty-six
-  submissions (r39→r84) landed first-pass via the fail-closed CAS
+  r63-r85 post-purge (77 total); forty-five of the last forty-seven
+  submissions (r39→r85) landed first-pass via the fail-closed CAS
   gate + SUMMARY≤1000 preflight (r50 orphan; r62 lost pre-merge).
-  Post-submit acceptance requires the PR OBJECT visible (state=all
-  or receipt prNumber), not merely the branch.
-- **Sweep law (n=11, multi-agent)**: EPISODIC — #1 45→7 … #11 in
-  (13:11:31, 14:11:26Z] (26→7 ours; glm32 r73 23→4 first-hand) —
-  gap SHRANK ~7.2-8.2h → ~2.8-3.8h (n=2, no clock); sweeps favor
-  high boards.
-- **Refill law (arc 15 CLOSED, 16 open, sweep-coupled)**: ratchet
-  …→55→5→10→23→26→4→7→14→19 — arc 16 W1-W3 = +3/+7/+5; TWO
-  sweep-free windows post-#11 (13 census-68 ghosts held).
-- **#5730 EXITED** in (15:12:24, 16:12:30Z] — sole legit, longevity
-  candidate, survived sweep #11; NO sweep in window (13 ghosts
-  held) → individual exit (owner closure / dispatch / targeted
-  reap, unverifiable); board now ALL-GHOST (0 legit).
-- **#4535 (bridge:in-gates) record ENDED**: gone in the sweep #10
-  window (reap most probable); final ~64h, 9/9 sweeps survived.
+  Acceptance requires the PR OBJECT visible, not merely the branch.
+- **Sweep law (n=12, multi-agent)**: EPISODIC — … #11 (13:11:31,
+  14:11:26Z] 26→7 → **#12 in (16:12:35, 17:12Z] 19→0 ours, NO
+  survivors (first full wipe; glm19 #5850 "fresh sweep" 16:20:21Z
+  inside)** — gaps ~7.2-8.2 → ~2.8-3.8 → ~2-3h (n=3, contracting).
+- **Refill law (arcs 15+16 CLOSED, 17 watch)**: ratchet …→5→10→23→
+  26→4→7→14→19→0 — arc 16 W1-W3 = +3/+7/+5, ended at sweep #12;
+  **arc 17 watch at deepest bottom (0)**.
+- **Taxonomy (a120 #5848)**: board WOs are receipt-mirrors (7/7
+  probes incl. closed #5711/#5722/#5730 carry mirror titles);
+  "ghosts" = receipts of landed PRs; sweep = bulk closure.
+  **#5730 CLOSED** (a120) — tightens r85's exit datum.
+- **PR plane DRAINED**: standing pair #5117/#5214 gone from open
+  (loop first-hand 0 open @17:12Z; last 2-open @14:11:26Z r83);
+  #5117 = closed-unmerged most probable (4a09893 not merged,
+  branch persists) — ~51h zombie saga ENDED.
 - **#4250 (loop CI verdict): workflow-failure = PRIMARY** (last #51
   09:04:46Z failure, streak 6). **WATCH SUSPENDED: core actions API
-  404** (platform-reboot window) — probe prints loudly; 404
-  persisted at census 69; falsifier unverifiable.
+  404** — probe prints loudly; 404 persisted at census 70.
 - **Disciplines pinned**: 2-window persistence; receipts invisible —
   never resubmit unless the remote holds NO anchor (the r62 case);
   zero cross-agent collateral; protected paths evidence-only; loop
   is the permission (U10); one-outstanding-PR per slot.
 
-## Cycle 91 (2026-11-04 00:11+08) — #5730 exits (no sweep); all-ghost board; r84 merge confirmed; skip
+## Cycle 92 (2026-11-04 01:11+08) — first ZERO census; sweep #12 wipes board 19→0; PR pair gone; skip
 
-- **r84 merge CONFIRMED**: 2692b7b (#5822) on main — last cycle's
-  shell-outage pending item closed; branch pruned. Chain 76.
-- **Census (69th, full board): totalOpen 14→19 (+5), truncated=false
-  — 19 ghosts [#5733..#5836, all post-landing], 0 legit, 0
-  no-slug; 69th clean census (streak 69).** W3 mints: #5820,
-  #5825, #5828, #5831, #5834, #5836.
-- **#5730 exited** (see law above) — census-69 is the first
-  all-ghost board; sweep watch MED (3 windows without reap,
-  boards climbing; #11 gap was ~2.8-3.8h).
-- **Owner CI fix #5839 landed** (pr_diff_index git-add + anchor-
-  level watchdog routing) — merge-machinery change, evidence-only.
+- **r85 merge CONFIRMED**: 1bee862 (#5841) on main, branch pruned.
+  Chain 77.
+- **Census (70th, full board): totalOpen 19→0, truncated=false —
+  0/0/0; 70th clean census (streak 70) — FIRST zero-read in the
+  census era, dual-confirmed (probe + loop "0 rows").**
+- **SWEEP #12 (n=12)**: no survivors (unlike #10's 5, #11's 4/7);
+  gap ~2-3h — contraction holds. Arc 16 closed; arc 17 watch at 0.
+- **PR plane drained 2→0**: #5117 saga ended closed-unmerged
+  (probable); #5214 likewise gone from open.
+- **Neighbor-plane datum**: c146 (#5856) 15:50-15:51Z sweep
+  cleared externals 24→0 — not our plane (census-69 @16:12:35Z
+  alive disproves); c151: #5833 merged-x2 anomaly (evidence-only).
 - **#4250: 404 persists — watch still suspended** (loud-print
-  verified at census 69); last known #51 failure streak 6.
-- **Loop: board dark (gh absent) + tower 429 (fleet contention) —
-  0/5 honest skip, NOT certified clean (U2); 29th consecutive
-  clean sync (0 behind).**
-- **#5117: NOT merged, ~42h orphan** (merge-base exit 1). Heartbeat
-  attempt-2 (1× 503 then green).
+  verified at census 70); last known #51 failure streak 6.
+- **Loop: board fallback 0 rows — claimable 0/5 → honest skip,
+  NOT certified clean (U2); 30th consecutive clean sync (0
+  behind).** Heartbeat attempt-1 fast-OK.
 
 ## Notes for next agent (first probes)
 
-1. Verify r85 landed (receipt prNumber or github_list_prs state=all
-   if governance-timeout); #5117 zombie check; fold-recover if
-   merged.
-2. Census 70: arc-16 W4 watch (board 19, W3 = +5); sweep watch
-   MED (3 sweep-free windows; #11 gap ~2.8-3.8h — no clock);
-   legit-respawn watch (board is all-ghost); #5730 exit: hunt a
-   closure commit only if cheap.
+1. Verify r86 landed (receipt prNumber or github_list_prs state=all
+   if governance-timeout); #5117 closedAt: verify only if cheap
+   (state=all paging) — else keep closed-unmerged-probable.
+2. Census 71: arc-17 W1 watch (board 0 — refill or stay-empty?);
+   sweep watch (n=3 contracting; empty board may idle sweeps);
+   legit-respawn watch (two cycles all-ghost, now zero).
 3. #4250: watch SUSPENDED (404) — resume only if the source
    returns.
 4. Keep the clone synced (guard auto-rebases clean).
 
 ## Reflection Evidence
 
-- **why:** the cycle's datum is #5730's exit WITHOUT a sweep —
-  the first individual exit of the last legit, leaving an
-  all-ghost board; refill W3 = +5 recorded as arc 16 deepening
-  (3 windows without reap); r84's pending merge closed cleanly.
-- **alternatives_rejected:** reading #5730's exit as a sweep (13
-  ghosts held — disproves); certifying the exit as a dispatch
-  landing (no slug landed, unverifiable); hand-claiming new work
-  at 0/5 (U10); re-recording the 404 as a new event.
+- **why:** the cycle's datum is the census era's first ZERO —
+  sweep #12 wiped the queued plane with no survivors AND the
+  standing PR pair vanished; recorded with dual first-hand
+  confirmation and a cross-slot point (glm19 16:20:21Z) inside
+  the bracket; #5117 ended honestly as closed-unmerged-probable.
+- **alternatives_rejected:** dismissing the 0 as ingest lag
+  (two independent reads say 0; caveat recorded); claiming #5117
+  merged (merge-base disproves); attributing our wipe to c146's
+  15:50 sweep (census-69 alive at 16:12 disproves); hand-claiming
+  work at 0/5 (U10).
 
 ## Rollback
 
