@@ -87,6 +87,8 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
   const server = new McpServer({
     name: SERVER_NAME,
     version: SERVER_VERSION,
+    title: "SupremeAI Control Tower",
+    description: "MCP control tower for SupremeAI services, bridge, and federation.",
   });
 
   // Sanitize tool names: replace dots '.' with underscores '_' so that tool names

@@ -5,7 +5,7 @@ services:
     name: supremeai-api
     runtime: docker
     plan: free
-    autoDeploy: true
+    autoDeploy: false
     healthCheckPath: /healthz
     envVars:
       # বাংলা: রাউটিং-কনফিগ ইমেজের ভেতরেই (কোড-বদল ছাড়াই অপারেশন = কনফিগ বদল)

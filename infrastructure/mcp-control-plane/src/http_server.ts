@@ -292,6 +292,28 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "no-referrer");
 
+    // F-06: CORS allowlist for studio + MCP Apps origins
+    const ALLOWED_ORIGINS = new Set([
+      "https://supremeai-studio.pages.dev",
+      "https://supremeai-studio.vercel.app",
+      "http://localhost:5173",
+      "http://localhost:3000",
+    ]);
+    const origin = req.headers.origin;
+    if (origin && ALLOWED_ORIGINS.has(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    }
+    if (req.method === "OPTIONS") {
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Mcp-Session-Id, X-MCP-Slot-Token");
+      res.setHeader("Access-Control-Max-Age", "86400");
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
     // #48: `/agents/<slot>/sse|mcp` — the slot URL form from the issue. The
     // URL is an identity doorway ONLY: it normalizes to `?client=<slot>` and
     // authentication still requires the slot credential (slot-verification.ts
