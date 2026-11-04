@@ -19,6 +19,9 @@ class SettingsFieldsMixin:
 
     encryption_key: SecretStr = Field(default=SecretStr("dGVzdF9mZXJuZXRfa2V5XzMyX2J5dGVzX2xvbmdfMTIzNDU="), validation_alias=AliasChoices("ENCRYPTION_KEY", "SECRET_KEY"))
     supabase_database_url: SecretStr | None = Field(default=None, validation_alias=AliasChoices("SUPABASE_DATABASE_URL", "DATABASE_URL"))
+    supabase_db_ca_cert: SecretStr | None = Field(
+        default=None, validation_alias="SUPABASE_DB_CA_CERT"
+    )
 
     redis_url: str | None = Field(default=None, validation_alias=AliasChoices("REDIS_URL", "UPSTASH_REDIS_REST_URL"))
     redis_host: str = Field(default="localhost", validation_alias=AliasChoices("REDIS_HOST"))

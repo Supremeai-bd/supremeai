@@ -5,6 +5,7 @@ import time
 from typing import Any
 
 from core.config import settings
+from core.middleware.cors_policy import resolve_user_cors_origins
 from core.monitoring.logging_config import logger
 
 
@@ -108,10 +109,13 @@ class StartupValidator:
 
             # 6. CORS validation for production
             if settings.env == "production":
-                cls._validation_results["cors_origins"] = bool(settings.cors_origins)
-                if not settings.cors_origins:
+                # CORS is owned by middleware/cors_policy.py. Do not read the
+                # removed legacy Settings.cors_origins attribute here.
+                cors_origins = resolve_user_cors_origins(None)
+                cls._validation_results["cors_origins"] = bool(cors_origins)
+                if not cors_origins:
                     errors.append("CORS_ORIGINS cannot be empty in production")
-                if "*" in settings.cors_origins:
+                if "*" in cors_origins:
                     errors.append("Wildcard '*' is strictly prohibited in production CORS")
 
             # Store results

@@ -168,6 +168,7 @@ APPROVED_SUBTREES = {
         "startup",
         "startup_validator.py",
         "db_ssl.py",
+        "config_fields.py",
         ".github",
     },
     ".semgrep": {
