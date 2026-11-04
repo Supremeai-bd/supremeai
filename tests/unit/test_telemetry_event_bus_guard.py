@@ -29,9 +29,10 @@ def test_event_bus_emit_without_sentry_does_not_crash(monkeypatch):
         severity="CRITICAL",
     )
 
-    # Should not raise any ImportError or exception
-    bus.emit(event)
-    assert eb._telemetry_warning_emitted is True
+    with patch.dict("sys.modules", {"sentry_sdk": None}):
+        # Should not raise any ImportError or exception
+        bus.emit(event)
+        assert eb._telemetry_warning_emitted is True
 
 
 def test_event_bus_emit_rate_limits_telemetry_warning(caplog):
@@ -52,8 +53,9 @@ def test_event_bus_emit_rate_limits_telemetry_warning(caplog):
         severity="ERROR",
     )
 
-    bus.emit(event1)
-    bus.emit(event2)
+    with patch.dict("sys.modules", {"sentry_sdk": None}):
+        bus.emit(event1)
+        bus.emit(event2)
 
     # Count warnings about telemetry
     telemetry_warnings = [
