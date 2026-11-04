@@ -79,15 +79,26 @@ async def initialize_independent_services(app):
                 if os.getenv("AUTO_MIGRATE", "true").lower() == "true":
                     try:
                         from scripts.db.auto_migrate import run_migrations
-
-                        logger.info("🔄 Running automatic Alembic migrations on startup...")
-                        await asyncio.to_thread(run_migrations)
-                        logger.info("✅ Automatic Alembic migrations completed.")
+                    except ModuleNotFoundError as import_err:
+                        # Render's core service uses rootDir=core, so the
+                        # repository-level scripts/ package is not present in
+                        # this image. Missing migration tooling must not turn
+                        # an otherwise reachable DB into a degraded boot; run
+                        # migrations in the dedicated CI/owner lane instead.
+                        logger.warning(
+                            "⚠️ Automatic migrations skipped: migration module is not available "
+                            "in this runtime image (%s).",
+                            import_err,
+                        )
                     except Exception as mig_err:
                         if settings.env == "production":
                             logger.critical("❌ Production database migration failed: %s", mig_err)
                             raise
                         logger.warning("⚠️ Automatic migration notice: %s", mig_err)
+                    else:
+                        logger.info("🔄 Running automatic Alembic migrations on startup...")
+                        await asyncio.to_thread(run_migrations)
+                        logger.info("✅ Automatic Alembic migrations completed.")
 
                 # Optimize queries with connection pooling best practices
                 app.state.db_pool = pool
