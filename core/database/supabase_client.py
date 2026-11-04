@@ -300,6 +300,10 @@ class SupabaseDB:
             "metric_value NUMERIC,"
             "collected_at TIMESTAMP WITH TIME ZONE NOT NULL"
             ");",
+            # Existing production databases may have been created before the
+            # usage dashboard contract introduced metric_date. Keep bootstrap
+            # additive and idempotent; never drop or rename existing columns.
+            "ALTER TABLE usage_metrics ADD COLUMN IF NOT EXISTS metric_date DATE;", 
             "CREATE TABLE IF NOT EXISTS tenant_limits ("
             "id SERIAL PRIMARY KEY,"
             "tenant_id TEXT NOT NULL UNIQUE,"
