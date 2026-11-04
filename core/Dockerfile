@@ -6,14 +6,21 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=8080
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl perl-base && rm -rf /var/lib/apt/lists/* \
+RUN apt-get update && apt-get install -y --no-install-recommends curl perl-base bash && rm -rf /var/lib/apt/lists/* \
     && addgroup --system supremeai && adduser --system supremeai --ingroup supremeai
 
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir pytest pytest-asyncio pytest-cov pydantic fastapi httpx cryptography pyotp
 
 COPY --chown=supremeai:supremeai . .
 RUN mkdir -p /app/data /app/uploads /app/logs /app/tmp && chown -R supremeai:supremeai /app/data /app/uploads /app/logs /app/tmp
+
+# =============================================================================
+# RENDER HEAVY CI BATTERY: Runs Pytest, Migration, RLS, & Secret checks in build
+# If any test fails, Render build terminates with failure and blocks the PR.
+# =============================================================================
+RUN chmod +x scripts/run_render_heavy_suite.sh && bash scripts/run_render_heavy_suite.sh
 
 USER supremeai
 EXPOSE 8080
