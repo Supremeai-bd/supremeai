@@ -43,6 +43,15 @@ from __future__ import annotations
 
 import enum
 import uuid
+import warnings
+
+import sqlalchemy.exc
+
+warnings.filterwarnings(
+    "ignore",
+    category=sqlalchemy.exc.SAWarning,
+    message=".*already contains a class with the same class name.*",
+)
 from datetime import UTC, datetime
 from typing import Any
 
@@ -97,6 +106,7 @@ class Run(Base, TimestampMixin):
     )
 
     __tablename__ = "runs"
+    __table_args__ = {"extend_existing": True}
 
     # Primary key — this IS the run_id every subsystem observes.
     id: Mapped[uuid.UUID] = mapped_column(
@@ -220,7 +230,10 @@ class RunEvent(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    __table_args__ = (UniqueConstraint("run_id", "seq", name="uq_run_events_run_seq"),)
+    __table_args__ = (
+        UniqueConstraint("run_id", "seq", name="uq_run_events_run_seq"),
+        {"extend_existing": True},
+    )
 
     def __repr__(self) -> str:
         return f"<RunEvent(run_id={self.run_id!s}, seq={self.seq}, event={self.event!r})>"

@@ -12,7 +12,7 @@ from core.monitoring.logging_config import logger
 router = APIRouter(prefix="/api/v1/webhooks/n8n", tags=["n8n Webhooks"])
 
 N8N_WEBHOOK_SECRET = (
-    settings.n8n_webhook_secret.get_secret_value() if settings.n8n_webhook_secret else ""
+    getattr(settings, "n8n_webhook_secret", "") or ""
 )
 # Replay protection window: 5 minutes
 REPLAY_WINDOW_SECONDS = 300

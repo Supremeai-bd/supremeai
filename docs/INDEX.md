@@ -32,3 +32,4 @@ The active documents in this repository govern live production operations, archi
 | [`docs/ECOSYSTEM_MAP.md`](../ECOSYSTEM_MAP.md) | Complete capability and architectural ecosystem map |
 | [`docs/specs/`](specs/) | Active feature specifications (Spec-Driven Development) |
 | [`.agents/`](../.agents/) | Executable agent skills, workflows, and prompts |
+

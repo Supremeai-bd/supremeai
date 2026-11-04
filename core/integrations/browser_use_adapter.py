@@ -33,7 +33,7 @@ from typing import Any
 import httpx
 
 from core.logging_config import logger
-from integrations._flags import flag, import_available
+from core.integrations._flags import flag, import_available
 
 _ENABLED_FLAG = "SUPREMEAI_BROWSER_USE_ENABLED"
 

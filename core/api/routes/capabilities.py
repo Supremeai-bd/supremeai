@@ -102,7 +102,7 @@ async def runtime_capabilities(user: dict = Depends(get_current_user_token)) -> 
     honest degradation path, and which third-party provider keys are wired.
     Values only — never secret contents.
     """
-    from integrations._flags import import_available
+    from core.integrations._flags import import_available
 
     low_memory_mode = os.getenv("LOW_MEMORY_MODE", "false").lower() == "true"
 
