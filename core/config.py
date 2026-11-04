@@ -170,6 +170,51 @@ class Settings(BaseSettings, SettingsFieldsMixin, SettingsValidationMixin):
         return self.allow_test_auth_bypass
 
     @property
+    def jwt_secret(self) -> str:
+        """Resolve JWT secret from env, secret_vault, or non-production fallback."""
+        from core.secret_policy import resolve_jwt_secret_env
+
+        secret = resolve_jwt_secret_env()
+        if not secret:
+            try:
+                from core.security.secret_vault import get_secret_vault
+
+                secret = get_secret_vault().get_secret("SUPREMEAI_JWT_SECRET", default="")
+            except Exception:
+                secret = ""
+        if not secret:
+            if not hasattr(self, "_jwt_secret_cache"):
+                if (self.env or "").lower() in ("production", "staging", "prod"):
+                    return ""
+                import secrets
+
+                self._jwt_secret_cache = secrets.token_urlsafe(64)
+            return getattr(self, "_jwt_secret_cache", "")
+        return secret
+
+    @property
+    def _cached_secrets(self) -> dict:
+        if not hasattr(self, "_secrets_cache"):
+            self._secrets_cache = {}
+        return self._secrets_cache
+
+    @property
+    def supremeai_api_token(self) -> str:
+        """Resolve SUPREMEAI_API_TOKEN or SUPREMEAI_API_KEY from environment or secret vault."""
+        token = os.getenv("SUPREMEAI_API_TOKEN") or os.getenv("SUPREMEAI_API_KEY") or ""
+        if not token:
+            try:
+                from core.security.secret_vault import get_secret_vault
+
+                token = (
+                    get_secret_vault().get_secret("SUPREMEAI_API_TOKEN", default="")
+                    or get_secret_vault().get_secret("SUPREMEAI_API_KEY", default="")
+                )
+            except Exception:
+                token = ""
+        return token
+
+    @property
     def is_origin_bypass_allowed(self) -> bool:
         """বাংলা: Production-এ origin bypass সম্পূর্ণ নিষিদ্ধ।"""
         current_env = (self.env or "").lower()
