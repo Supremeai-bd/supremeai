@@ -1,17 +1,9 @@
-"""SupremeAI Gateway — unified provider gateway (issue #336).
+"""DEPRECATED: duplicate of gateway/main.py (canonical).
 
-FastAPI/Starlette implementation of api-schemas/gateway.openapi.yaml:
-
-- ``GET /health`` + ``GET /healthz`` — credential-free probes (OpenAPI security: [])
-- ``GET /v1/models`` — enabled models from the routing policy (scope ``models``)
-- ``POST /v1/chat/completions`` — OpenAI-compatible completions (scope ``chat``);
-  ``stream: true`` relays Server-Sent Events with ``event:``/``data:`` framing
-  (docs/MCP_CONNECT.md §3) and the ``data: [DONE]`` terminal sentinel
-- Sliding-window rate limiting → standardized JSON error contract on
-  429/503 with ``X-RateLimit-*`` + ``Retry-After`` headers (AC2)
-- Provider failover via gateway/provider_chain.py — exhaustion → 502 with a
-  REDACTED transition ledger (zero silent fallback, provider names visible,
-  keys NEVER — OpenAPI §ChatCompletionResponse model description)
+This module is a byte-identical copy retained for backward compatibility.
+Canonical production gateway is ``gateway.main`` (or ``gateway.service.app``).
+Do not add new routes here. Scheduled for removal after the deprecation window.
+"""
 
 Wire honesty: usage is echoed only when the provider reported it; ``model``
 names the endpoint that ACTUALLY served the request.

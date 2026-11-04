@@ -1,11 +1,10 @@
 # backend/api/server.py
-"""SupremeAI REST API Server - FastAPI Implementation (Phase 4 Production Ready).
+"""DEPRECATED: SupremeAI REST API Server (legacy).
 
-Production-ready HTTP interface for SupremeAI:
-- Full Request Lifecycle (`/api/v1/process`)
-- Health and Telemetry Dashboard (`/api/v1/health`, `/api/v1/status`, `/api/v1/dashboard`)
-- Real-time Evolution Control (`/api/v1/evolution/status`, `/api/v1/evolution/trigger`)
-- Smart Memory Management (`/api/v1/memory/stats`, `/api/v1/memory/consolidate`)
+Canonical production app is ``core.app:app`` (built via ``core.app_builder.create_app``).
+This module is retained for backward compatibility and will be removed after the
+deprecation window. Do not add new routes here; register them in the canonical
+app builder / route manifest instead.
 """
 
 from __future__ import annotations
