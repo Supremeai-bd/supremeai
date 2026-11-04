@@ -1,0 +1,105 @@
+name: Private CI and Nightly Audit
+
+on:
+  pull_request:
+    paths:
+      - "core/**"
+      - "gateway/**"
+      - "browser/**"
+      - "studio/**"
+      - "vscode/**"
+      - "infrastructure/**"
+      - "scripts/**"
+      - "requirements*.txt"
+      - "pyproject.toml"
+      - "Dockerfile"
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: private-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  fast-gate:
+    name: Private fast gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f core/requirements.txt ]; then pip install -r core/requirements.txt; fi
+          pip install ruff pytest pytest-asyncio pytest-cov
+
+      - name: Targeted unit test guard
+        run: pytest -q tests/unit/test_telemetry_event_bus_guard.py
+
+  runtime-readiness:
+    name: Runtime readiness contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify readiness contract without production secrets
+        run: |
+          test -f scripts/ci/readiness_contract.py
+          python scripts/ci/readiness_contract.py --self-test
+          # Required secrets are checked by name only; values are never printed.
+          python scripts/ci/readiness_contract.py --check-required-names
+
+      - name: Verify timeout and silent-failure policy
+        run: |
+          python scripts/ci/timeout_policy_guard.py --check
+          python scripts/ci/silent_failure_guard.py --check
+
+  schema-contract:
+    name: Database migration and RLS contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate migrations are idempotent
+        run: python scripts/ci/migration_contract.py --check --disposable-db
+
+      - name: Validate schema and RLS contracts
+        run: python scripts/ci/schema_contract.py --check --rls
+
+  public-door-boundary:
+    name: Public door boundary check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check public export allowlist
+        run: python scripts/ci/public_surface_guard.py --manifest scripts/ci/public_surface_manifest.txt

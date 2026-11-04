@@ -10,6 +10,7 @@ Enforces:
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -20,6 +21,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Readiness contract guard")
+    parser.add_argument("--self-test", action="store_true", help="Perform offline self-test")
+    parser.add_argument("--check-required-names", action="store_true", help="Check required secret names without values")
+    args = parser.parse_args()
+
     errors = []
 
     # 1. Check db_schema_gate
@@ -40,6 +46,16 @@ def main() -> int:
         health_content = health_routes_path.read_text(encoding="utf-8", errors="replace")
         if "readiness_probe" not in health_content and "/health/ready" not in health_content:
             errors.append("health_routes.py missing readiness probe endpoint definition")
+
+    # 3. Check required secret names definition in secret_vault
+    if args.check_required_names or not args.self_test:
+        vault_path = REPO_ROOT / "core" / "security" / "secret_vault.py"
+        if not vault_path.is_file():
+            errors.append(f"Missing secret vault: {vault_path}")
+        else:
+            vault_content = vault_path.read_text(encoding="utf-8", errors="replace")
+            if "HARD_REQUIRED_SECRETS" not in vault_content:
+                errors.append("HARD_REQUIRED_SECRETS registry missing from secret_vault.py")
 
     if errors:
         print("[FAIL] readiness_contract FAILED:")

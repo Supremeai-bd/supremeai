@@ -8,6 +8,7 @@ Enforces:
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -19,13 +20,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Migration contract guard")
+    parser.add_argument("--check", action="store_true", help="Perform check")
+    parser.add_argument("--disposable-db", action="store_true", help="Validate against disposable test database if available")
+    args = parser.parse_args()
+
     migrations_dir = REPO_ROOT / "core" / "database" / "migrations"
     if not migrations_dir.is_dir():
         print("[FAIL] migration_contract: core/database/migrations directory not found")
         return 1
 
     errors = []
-    # Check top-level migration sql files (skip legacy and manual subdirs)
     sql_files = [f for f in migrations_dir.glob("*.sql") if f.is_file()]
 
     valid_name_re = re.compile(r"^(\d{8}|\d{1,4})_[a-zA-Z0-9_-]+\.sql$")

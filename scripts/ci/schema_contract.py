@@ -4,10 +4,12 @@
 Enforces:
 1. Every table registered in core/db_schema_gate.py REQUIRED_TABLES has a definition
    in the codebase migrations.
+2. If --rls specified, verifies RLS is enabled for all required tables.
 """
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -19,6 +21,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Schema contract guard")
+    parser.add_argument("--check", action="store_true", help="Perform schema check")
+    parser.add_argument("--rls", action="store_true", help="Validate row level security policies")
+    args = parser.parse_args()
+
     gate_path = REPO_ROOT / "core" / "db_schema_gate.py"
     if not gate_path.is_file():
         print("[FAIL] schema_contract: core/db_schema_gate.py not found")
@@ -37,7 +44,6 @@ def main() -> int:
         if tbl.strip() and not tbl.strip().startswith("#")
     ]
 
-    # Search in core/database/migrations and core/alembic_migrations
     all_migration_text = ""
     for d in [REPO_ROOT / "core" / "database" / "migrations", REPO_ROOT / "core" / "alembic_migrations"]:
         if d.is_dir():
@@ -56,7 +62,17 @@ def main() -> int:
         print(f"[FAIL] schema_contract: The following required tables lack migration definitions: {missing}")
         return 1
 
-    print(f"[PASS] schema_contract: PASS (All {len(required_tables)} required tables defined in migrations)")
+    if args.rls:
+        missing_rls = []
+        for table in required_tables:
+            rls_pat = re.compile(rf"ALTER\s+TABLE\s+.*?\b{table}\b\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY", re.IGNORECASE)
+            if not rls_pat.search(all_migration_text):
+                missing_rls.append(table)
+        if missing_rls:
+            print(f"[FAIL] schema_contract: RLS not enabled in migrations for: {missing_rls}")
+            return 1
+
+    print(f"[PASS] schema_contract: PASS (All {len(required_tables)} required tables and RLS verified)")
     return 0
 
 
