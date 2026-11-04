@@ -159,6 +159,8 @@ APPROVED_SUBTREES = {
         "multi_platform_orchestrator.py",
         "worker_service.py",
         "main.py",
+        "requirements.txt",
+        "Dockerfile",
         "LICENSE",
         ".github",
     },

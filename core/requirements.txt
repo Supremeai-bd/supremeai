@@ -20,3 +20,4 @@ prometheus-client>=0.21.0
 python-multipart>=0.0.18
 pyjwt[crypto]>=2.10.1
 infisical-python>=2.3.5
+sentry-sdk[fastapi]>=2.21.0
