@@ -4,7 +4,7 @@
 __pycache__
 *.pyc
 *.pyo
-tests/
+# tests/ included for Render CI runner
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
