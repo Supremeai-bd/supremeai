@@ -6,17 +6,8 @@ import * as vscode from "vscode";
 import { McpBridge, TaskDispatchRequest } from "../mcp_bridge";
 
 const FEDERATION_REPOSITORIES = [
-  "Supremeai-bd/supremeai-open",
-  "Supremeai-bd/supremeai-studio",
-  "Supremeai-bd/supremeai-api",
-  "Supremeai-bd/supremeai-command",
-  "Supremeai-bd/supremeai-skills",
-  "Supremeai-bd/supremeai-browser",
-  "Supremeai-bd/supremeai-sdk",
-  "Supremeai-bd/supremeai-infrastructure",
-  "Supremeai-bd/supremeai-vscode",
-  "Supremeai-bd/supremeai-core",
   "Supremeai-bd/supremeai",
+  "Supremeai-bd/supremeai-studio",
 ];
 
 export async function submitTaskCommand(bridge: McpBridge): Promise<void> {

@@ -15,13 +15,11 @@ import { buildAccountRegistry } from "../registry/account.registry.js";
  * উর্ধ্বতন স্তর আগের মতোই read/write (টাস্ক স্কোপের মধ্যে)।
  */
 export const SATELLITE_REPOS: ReadonlySet<string> = new Set([
-  "supremeai-open",
   "supremeai-api",
   "supremeai-core",
   "supremeai-studio",
   "supremeai-vscode",
   "supremeai-browser",
-  "supremeai-archive",
 ]);
 
 export function isSatelliteRepo(repoName: string): boolean {
