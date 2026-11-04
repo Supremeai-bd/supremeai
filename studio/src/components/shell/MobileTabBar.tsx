@@ -17,7 +17,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { MoreHorizontal } from 'lucide-react';
 import { getNavigationForContext } from '../../config/navigationRegistry';
-import { useAuthStore } from '../../store/authStore';
+import { useStore } from '../../store/useStore';
 import { useWorkspaceSettings } from '../../hooks/useWorkspaceSettings';
 import { useMobileNav } from '../../hooks/useMobileNav';
 import { getCanonicalRole } from '../../auth/identity';
@@ -29,11 +29,12 @@ export function MobileTabBar() {
   const permissions = useAuthStore((state) => state.permissions);
   const enabledModules = useWorkspaceSettings((state) => state.enabledModules);
   const setMobileNavOpen = useMobileNav((state) => state.setMobileNavOpen);
-
-  // RoleAwareNavRail-এর acquisition + filtering semantics হুবহু (একক truth)।
+  const serverNav = useStore((state) => (state.systemConfig as any)?.navigation) as string[] | undefined;
+  // RoleAwareNavRail-एर acquisition + filtering semantics हुबहু (एक truth)।
   const routeTabs = getNavigationForContext('user', {
     role: role || getCanonicalRole(),
     permissions,
+    allowedViewerIds: serverNav,
   })
     .flatMap((group) => group.items)
     .filter((item) => item.kind === 'route')

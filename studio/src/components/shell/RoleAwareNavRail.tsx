@@ -6,9 +6,9 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { PanelLeft, PanelLeftClose } from 'lucide-react';
 import { getNavigationForContext, type NavEntry } from '../../config/navigationRegistry';
-import { useAuthStore } from '../../store/authStore';
+import { useStore } from '../../store/useStore';
 import { useWorkspaceSettings } from '../../hooks/useWorkspaceSettings';
-import { getCanonicalRole } from '../../auth/identity';
+import { useStore } from '../../store/useStore';
 
 export interface RoleAwareNavRailProps {
   context: 'user' | 'admin';
@@ -26,9 +26,10 @@ export function RoleAwareNavRail({ context, collapsed, activeActionId, onAction,
   const role = useAuthStore((state) => state.role);
   const permissions = useAuthStore((state) => state.permissions);
   const enabledModules = useWorkspaceSettings((state) => state.enabledModules);
-  // 🛡️ ISSUE #496: অ্যাডমিন কনটেক্সটে সর্বদাই 'admin' রোল সক্রিয় থাকবে যাতে সব সাবট্যাব অপরিবর্তিত থাকে
+  const serverNav = (useStore((state) => (state.systemConfig as any)?.navigation) as string[] | undefined);
+  // 🛡️ ISSUE #496: ...
   const effectiveRole = context === 'admin' ? 'admin' : (role || getCanonicalRole());
-  const groups = getNavigationForContext(context, { role: effectiveRole, permissions }).map((group) => ({
+  const groups = getNavigationForContext(context, { role: effectiveRole, permissions, allowedViewerIds: serverNav }).map((group) => ({
     ...group,
     items: group.items.filter((item) => item.id !== 'nav-ide' || enabledModules.includes('code')),
   })).filter((group) => group.items.length > 0);

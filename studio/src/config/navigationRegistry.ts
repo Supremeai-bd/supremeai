@@ -273,7 +273,9 @@ export interface NavFilterOptions {
   role?: Role | null;
   /** Extra permission strings the viewer holds (backend-resolved). */
   permissions?: string[];
-  /** Include non-implemented items (defaults to false — never render dead nav). */
+  /** Server-driven capability profile: allowed nav item ids for the viewer.
+   *  Falls back to SIMPLE_VIEWER_ENTRY_IDS when not provided. */
+  allowedViewerIds?: string[];
   includePlanned?: boolean;
 }
 
@@ -302,7 +304,8 @@ export function getNavigationForContext(
   context: NavContext,
   options: NavFilterOptions = {}
 ): NavGroup[] {
-  const { role, permissions, includePlanned = false } = options;
+  const { role, permissions, includePlanned = false, allowedViewerIds } = options;
+  const viewerIds = allowedViewerIds && allowedViewerIds.length > 0 ? new Set(allowedViewerIds) : SIMPLE_VIEWER_ENTRY_IDS;
   return NAVIGATION_REGISTRY
     .filter((group) => group.contexts.includes(context))
     .map((group) => ({
@@ -310,7 +313,7 @@ export function getNavigationForContext(
       items: group.items
         .filter((item) => {
           if (!item.contexts.includes(context)) return false;
-          if (context === 'user' && !SIMPLE_VIEWER_ENTRY_IDS.has(item.id)) return false;
+          if (context === 'user' && !viewerIds.has(item.id)) return false;
           if (!includePlanned && item.status !== 'implemented') return false;
           if (item.requiredRole && role && item.requiredRole !== role) return false;
           if (item.requiredRole && !role) return false;
