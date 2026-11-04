@@ -126,7 +126,7 @@ class VoiceInterface:
         encoded_text = urllib.parse.quote(text)
         tts_url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl={lang}&client=tw-ob&q={encoded_text}"
         try:
-            response = httpx.get(tts_url)
+            response = httpx.get(tts_url, timeout=15)
             if response.status_code == 200:
                 with open(output_path, "wb") as f:
                     f.write(response.content)

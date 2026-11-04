@@ -111,6 +111,7 @@ APPROVED_ROOT_FILES = {
     "LICENSE",
     "README.md",
     "mcp.json",
+    "render.yaml",  # Unified root Render blueprint for umbrella deployment
     "requirements-dev.txt",  # dev/CI-only tooling pins (issue 1791): import-linter==2.15 for the .importlinter gate; nothing at runtime imports it
     "requirements-dev.lock",  # compiled lockfile for dev tooling pins (issue #1745 uv adoption)
     "ruff.toml",
@@ -149,6 +150,10 @@ APPROVED_SUBTREES = {
     },
     "core": {
         "observability",
+        "messaging",
+        "security",
+        "database",
+        "agents",
         "api",
         "monitoring",
         "services",
@@ -157,6 +162,8 @@ APPROVED_SUBTREES = {
         "multi_platform_orchestrator.py",
         "worker_service.py",
         "main.py",
+        "requirements.txt",
+        "Dockerfile",
         "LICENSE",
         ".github",
     },

@@ -128,7 +128,7 @@ class _CacheEntry:
         return time.monotonic() > self.expires_at
 
 
-class SecretNotFoundError(Exception):
+class SecretNotFoundError(RuntimeError):
     """Raised when a secret is not found in any source in production environment."""
 
     pass
@@ -562,9 +562,9 @@ class ProductionSecretVault:
             except Exception as exc:
                 logger.debug(f"Failed to emit error event: {exc}")
             # বাংলা মন্তব্য: infra-critical secret অনুপস্থিত হলে Fail-closed।
-            raise RuntimeError(
-                f"CRITICAL: Secret '{secret_id}' not found in {self.env}! Fail-closed."
-            )
+            raise SecretNotFoundError(
+                    f"CRITICAL: Secret \'{secret_id}\' not found in {self.env}! Fail-closed."
+                )
 
         env_value = os.getenv(secret_id)
         if env_value:
@@ -593,8 +593,8 @@ class ProductionSecretVault:
                 except Exception as exc:
                     logger.debug(f"Failed to emit error event: {exc}")
                 # বাংলা মন্তব্য: infra-critical secret অনুপস্থিত হলে Fail-closed।
-                raise RuntimeError(
-                    f"CRITICAL: Secret '{secret_id}' not found in {self.env}! Fail-closed."
+                raise SecretNotFoundError(
+                    f"CRITICAL: Secret \'{secret_id}\' not found in {self.env}! Fail-closed."
                 )
             else:
                 # BE-13 (issue #545): default fail-closed for every secret not
@@ -607,8 +607,8 @@ class ProductionSecretVault:
                 # empty SecretStr("") reached webhook verification and accepted
                 # forged events. Operators opt unknown/optional secrets in
                 # explicitly instead.
-                raise RuntimeError(
-                    f"Secret '{secret_id}' is missing in {self.env} and is not in the "
+                raise SecretNotFoundError(
+                    f"Secret \'{secret_id}\' is missing in {self.env} and is not in the "
                     f"optional allowlist (BE-13 fail-closed). Provision it via Infisical/env, "
                     f"or add it to OPTIONAL_SECRETS in core/security/secret_vault.py if it is "
                     f"genuinely optional."
@@ -739,6 +739,11 @@ class ProductionSecretVault:
                 f"(env={infisical_env}) in one HTTP call."
             )
             # Issue #901: bulk probe succeeded — close the circuit.
+            if not result:
+                logger.warning("Infisical SDK returned 0 secrets (issue #434 blind-index bug). Attempting raw REST API fetch.")
+                raw_res = self._fetch_raw_secrets(environment=infisical_env)
+                if raw_res:
+                    return raw_res
             if self._circuit_breaker_open:
                 self._close_circuit()
             return result
@@ -757,6 +762,93 @@ class ProductionSecretVault:
                 logger.opt(exception=True).warning(
                     f"fetch_all_secrets: unexpected error — {exc}. Falling back."
                 )
+            return {}
+
+
+    def _fetch_raw_secrets(self, environment: str | None = None) -> dict[str, str]:
+        """Fetch secrets via Infisical raw REST API (/api/v3/secrets/raw).
+
+        Bypasses vendor blind-index SDK bug (issue #434).
+        """
+        import json
+        import urllib.parse
+        import urllib.request
+
+        # Avoid spamming the raw API if already fetched within TTL
+        now = time.monotonic()
+        if getattr(self, "_raw_fetched_at", 0.0) and (now - self._raw_fetched_at) < CACHE_TTL_SECONDS:
+            return {k: v.value for k, v in self._cache.items() if not v.is_expired}
+
+        project = self.project_id
+        env = environment or self._resolve_infisical_environment()
+        if not project:
+            return {}
+
+        token = self.token
+        api_base = os.getenv("INFISICAL_API_URL", "https://app.infisical.com").rstrip("/")
+        if not token and self.client_id and self.client_secret:
+            try:
+                auth_payload = json.dumps({"clientId": self.client_id, "clientSecret": self.client_secret}).encode()
+                auth_req = urllib.request.Request(
+                    f"{api_base}/api/v1/auth/universal-auth/login",
+                    data=auth_payload,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(auth_req, timeout=INFISICAL_TIMEOUT) as auth_res:
+                    token = json.load(auth_res).get("accessToken")
+            except Exception as e:
+                logger.warning(f"Raw Infisical universal-auth login failed: {e}")
+                return {}
+
+        if not token:
+            return {}
+
+        workspace_id = project
+        try:
+            ws_req = urllib.request.Request(
+                f"{api_base}/api/v1/workspace",
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(ws_req, timeout=INFISICAL_TIMEOUT) as ws_res:
+                ws_data = json.load(ws_res)
+                for ws in ws_data.get("workspaces", []):
+                    if ws.get("id") == workspace_id or ws.get("slug") == workspace_id:
+                        workspace_id = ws.get("id")
+                        break
+        except Exception as e:
+            logger.debug(f"Unable to resolve Infisical workspace: {e}")
+
+        try:
+            path = os.getenv("INFISICAL_SECRET_PATH", "/")
+            query = urllib.parse.urlencode({"workspaceId": workspace_id, "environment": env, "secretPath": path})
+            req = urllib.request.Request(
+                f"{api_base}/api/v3/secrets/raw?{query}",
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=INFISICAL_TIMEOUT) as res:
+                data = json.load(res)
+
+            result: dict[str, str] = {}
+            ttl = CACHE_TTL_SECONDS
+            for item in data.get("secrets", []):
+                k = item.get("secretKey")
+                v = item.get("secretValue")
+                if k and v is not None:
+                    result[k] = v
+                    self._cache[k] = _CacheEntry(v, ttl=ttl)
+
+            self._raw_fetched_at = now
+            if result:
+                logger.info(
+                    f"✅ Raw REST fetch complete: {len(result)} secrets loaded from Infisical "
+                    f"(env={env}, workspace={workspace_id})."
+                )
+                if self._circuit_breaker_open:
+                    self._close_circuit()
+            return result
+        except Exception as e:
+            logger.warning(f"Raw Infisical fetch failed: {e}")
             return {}
 
     def invalidate_cache(self, secret_id: str | None = None) -> None:

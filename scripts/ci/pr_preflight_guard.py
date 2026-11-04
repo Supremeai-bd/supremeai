@@ -11,7 +11,7 @@ VERIFY_SIG_RE = re.compile(r"(3[- ]?Tier|Test Evidence)", re.IGNORECASE)
 # Six active domain prefixes for Federation boundary check
 DOMAIN_PREFIXES = ("studio/", "gateway/", "core/", "browser/", "vscode/", "scripts/", "tests/", "docs/", ".agents/", ".github/")
 
-def run(cmd): return subprocess.run(cmd, capture_output=True, text=True)
+def run(cmd): return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 def check_branch(branch):
     if branch in ("main","master"): return []
