@@ -61,12 +61,16 @@ echo "✅ Bytecode Compilation: PASS"
 
 # Ensure `core.*` import paths resolve (Docker WORKDIR is /app = core contents)
 ln -sfn . core
+touch __init__.py
 
 # 4. Core Pytest Battery
 echo ""
 echo "[4/6] Running Core Pytest Test Suite..."
 python -m pytest tests/mcp/adapters/ tests/integrations/ tests/middleware/test_middleware_anti_hacking.py tests/test_skill_pipeline.py -q
 echo "✅ Pytest Test Battery: PASS"
+# Cleanup import-path shims (keep image clean)
+rm -f __init__.py
+rm -f core
 
 # 5. Security & Vulnerability Analysis
 echo ""
