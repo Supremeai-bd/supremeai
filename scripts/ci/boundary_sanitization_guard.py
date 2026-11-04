@@ -165,6 +165,9 @@ APPROVED_SUBTREES = {
         "requirements.txt",
         "Dockerfile",
         "LICENSE",
+        "startup",
+        "startup_validator.py",
+        "db_ssl.py",
         ".github",
     },
     ".semgrep": {

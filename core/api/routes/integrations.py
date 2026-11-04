@@ -234,7 +234,9 @@ from services.integration_discovery import IntegrationDiscoveryService  # noqa: 
 
 class DiscoverRequest(BaseModel):
     url: str = Field(..., min_length=4, max_length=2048, description="MCP/AI provider/webhook URL")
-    register: bool = Field(False, description="Save to registry if detection succeeds")
+    should_register: bool = Field(
+        False, validation_alias="register", description="Save to registry if detection succeeds"
+    )
 
 
 @router.post("/integrations/discover")
@@ -255,5 +257,5 @@ async def discover_integration(
         url=payload.url,
         tenant_id=str(tenant_id) if tenant_id else None,
         actor_id=str(actor_id) if actor_id else None,
-        register=payload.register,
+        register=payload.should_register,
     )

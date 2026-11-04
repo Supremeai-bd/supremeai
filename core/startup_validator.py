@@ -49,14 +49,22 @@ class StartupValidator:
                 warnings.append("ENCRYPTION_KEY is missing — BYOC router will not load")
 
             # 3. API keys validation (at least one LLM provider)
+            def _configured_secret(attribute: str, *env_names: str) -> str:
+                value = getattr(settings, attribute, None)
+                if value is None:
+                    value = next((os.getenv(name) for name in env_names if os.getenv(name)), None)
+                if hasattr(value, "get_secret_value"):
+                    value = value.get_secret_value()
+                return str(value or "")
+
             api_keys = [
-                ("openrouter_api_key", settings.openrouter_api_key),
-                ("gemini_api_key", settings.gemini_api_key),
-                ("deepseek_api_key", settings.deepseek_api_key),
-                ("groq_api_key", settings.groq_api_key),
-                ("nvidia_api_key", settings.nvidia_api_key),
-                ("openai_api_key", settings.openai_api_key),
-                ("hf_api_key", settings.hf_api_key),
+                ("openrouter_api_key", _configured_secret("openrouter_api_key", "OPENROUTER_API_KEY")),
+                ("gemini_api_key", _configured_secret("gemini_api_key", "GEMINI_API_KEY", "GOOGLE_API_KEY")),
+                ("deepseek_api_key", _configured_secret("deepseek_api_key", "DEEPSEEK_API_KEY")),
+                ("groq_api_key", _configured_secret("groq_api_key", "GROQ_API_KEY")),
+                ("nvidia_api_key", _configured_secret("nvidia_api_key", "NVIDIA_API_KEY")),
+                ("openai_api_key", _configured_secret("openai_api_key", "OPENAI_API_KEY")),
+                ("hf_api_key", _configured_secret("hf_api_key", "HF_API_KEY", "HUGGINGFACE_API_KEY")),
             ]
             configured_keys = [name for name, value in api_keys if value]
             cls._validation_results["api_keys_configured"] = len(configured_keys)

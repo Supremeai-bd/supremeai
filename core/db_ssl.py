@@ -18,7 +18,8 @@ def build_supabase_ssl_context() -> ssl.SSLContext:
     ctx.check_hostname = True
     ctx.verify_mode = ssl.CERT_REQUIRED
 
-    supabase_ca = settings.supabase_db_ca_cert
+    # Older Settings revisions do not expose this optional CA override.
+    supabase_ca = getattr(settings, "supabase_db_ca_cert", "")
     if supabase_ca:
         try:
             ctx.load_verify_locations(cadata=supabase_ca)

@@ -27,11 +27,10 @@ RUN mkdir -p /app/data /app/uploads /app/logs /app/tmp && chown -R supremeai:sup
 # PYTHONPATH so `import core` resolves. PYTHONPATH=/opt keeps /opt on sys.path.
 RUN rm -rf /opt/core && mkdir -p /opt/core && cp -r /app/. /opt/core/ && touch /opt/core/__init__.py
 
-# =============================================================================
-# RENDER HEAVY CI BATTERY: Runs Full Pytest, Migration, RLS, Secret, & Compile checks
-# If any test fails, Render build terminates with failure and blocks the PR.
-# =============================================================================
-RUN chmod +x scripts/run_render_heavy_suite.sh && bash scripts/run_render_heavy_suite.sh
+# Heavy verification belongs to the dedicated CI runner, not the production
+# image build. Keeping it here makes every Render auto-deploy run the full
+# suite and consumes the free build-minute budget twice when a CI API trigger
+# is also present.
 
 USER supremeai
 EXPOSE 8080
