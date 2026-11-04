@@ -8,6 +8,7 @@ Enforces:
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -40,7 +41,6 @@ def check_empty_excepts() -> list[str]:
     scan_dirs = [REPO_ROOT / "core", REPO_ROOT / "gateway"]
     exclude = {"tests", "test", "mock", ".venv", "venv", "node_modules", ".pytest_cache", "docs"}
 
-    # Pattern for bare except: pass without any logger or comment
     empty_except = re.compile(r"except\s+Exception(\s+as\s+\w+)?:\s*\n\s*pass\b")
 
     for s_dir in scan_dirs:
@@ -50,10 +50,8 @@ def check_empty_excepts() -> list[str]:
             if set(py_path.parts).intersection(exclude):
                 continue
             content = py_path.read_text(encoding="utf-8", errors="replace")
-            # If there's an except Exception:\n pass without any comment on that line
             matches = list(empty_except.finditer(content))
             for m in matches:
-                # Find line number
                 lineno = content[: m.start()].count("\n") + 1
                 violations.append(f"{py_path.relative_to(REPO_ROOT)}:{lineno}: bare unhandled exception pass")
 
@@ -61,6 +59,10 @@ def check_empty_excepts() -> list[str]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Silent failure policy guard")
+    parser.add_argument("--check", action="store_true", help="Perform check")
+    args = parser.parse_args()
+
     wf_errors = check_workflows()
     if wf_errors:
         print(f"[FAIL] silent_failure_guard: Found suppressed CI failures with '|| true':")

@@ -293,6 +293,10 @@ archive/
 
 # Temporary test logs & scratch files
 *.txt
+!requirements.txt
+!requirements-dev.txt
+!core/requirements.txt
+!scripts/ci/public_surface_manifest.txt
 *.ini
 *.bak
 backend/tmp_test_learning_data/
@@ -353,6 +357,10 @@ render_env.json
 
 # Temporary test logs & scratch files
 *.txt
+!requirements.txt
+!requirements-dev.txt
+!core/requirements.txt
+!scripts/ci/public_surface_manifest.txt
 dataconnect_generated/
 dataconnect-admin-generated/
 scratch_*.py

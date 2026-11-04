@@ -7,6 +7,7 @@ Scans runtime code in core/ and gateway/ (excluding tests, venvs, devops scripts
 
 from __future__ import annotations
 
+import argparse
 import ast
 import sys
 from pathlib import Path
@@ -79,6 +80,10 @@ class TimeoutVisitor(ast.NodeVisitor):
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Timeout policy guard")
+    parser.add_argument("--check", action="store_true", help="Run policy check")
+    args = parser.parse_args()
+
     scan_dirs = [REPO_ROOT / "core", REPO_ROOT / "gateway"]
     all_violations: list[str] = []
 

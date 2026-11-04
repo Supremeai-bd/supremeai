@@ -1,0 +1,26 @@
+# SupremeAI Approved Public Surfaces Manifest
+core
+gateway
+browser
+vscode
+studio
+scripts
+tests
+docs
+.agents
+.github
+backend
+packages
+infrastructure
+.semgrep
+setup.py
+conftest.py
+manage.py
+render.yaml
+AGENTS.md
+README.md
+LICENSE
+.gitignore
+pyproject.toml
+requirements.txt
+requirements-dev.txt

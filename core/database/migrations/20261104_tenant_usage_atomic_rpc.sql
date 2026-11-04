@@ -42,3 +42,4 @@ $$;
 GRANT EXECUTE ON FUNCTION public.increment_tenant_usage(TEXT, DATE, INTEGER, INTEGER) TO service_role, authenticated;
 
 COMMIT;
+
