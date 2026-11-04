@@ -133,7 +133,7 @@ deny = RequestContextStore.run({ role: "repo_viewer", scopes: defaultClientScope
 assert.equal(deny, null, `repo_viewer must read satellite repo: ${deny}`);
 deny = RequestContextStore.run({ role: "repo_viewer", scopes: defaultClientScopes("repo_viewer") }, () =>
   assertRepoReadAccess("github.read_file", "gh-core", coreUrl));
-assert.ok(deny && deny.includes("strictly restricted to admin and supremeadmin"), "core repo must be blocked for repo_viewer");
+assert.ok(deny && deny.includes("strictly restricted to agent"), "core repo must be blocked for repo_viewer");
 
 // 6c. viewer: no repo access at all; no context: default-deny.
 deny = RequestContextStore.run({ role: "viewer", scopes: defaultClientScopes("viewer") }, () =>
@@ -142,13 +142,13 @@ assert.ok(deny && deny.includes("no repository read access"));
 deny = assertRepoReadAccess("github.read_file", "gh-sat", satUrl);
 assert.ok(deny && deny.includes("authenticated request context"));
 
-// 6d. agent: satellite read-write; core repo blocked (admin-only).
+// 6d. agent: satellite read-write; core repo accessible (agent and above).
 deny = RequestContextStore.run({ role: "agent", scopes: ["tools:execute"] }, () =>
   assertRepoReadAccess("github.read_file", "gh-sat", satUrl));
 assert.equal(deny, null, `agent must read satellite repo: ${deny}`);
 deny = RequestContextStore.run({ role: "agent", scopes: ["tools:execute"] }, () =>
   assertRepoReadAccess("github.read_file", "gh-core", coreUrl));
-assert.ok(deny && deny.includes("strictly restricted to admin and supremeadmin"), "core repo must be blocked for agent");
+assert.equal(deny, null, `agent must read core repo: ${deny}`);
 
 // 6e. admin & supremeadmin: full access to core monorepo.
 deny = RequestContextStore.run({ role: "admin", scopes: ["tools:execute"] }, () =>

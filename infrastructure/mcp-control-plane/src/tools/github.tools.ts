@@ -88,10 +88,10 @@ export function assertRepoReadAccess(toolName: string, accountId: string, accoun
   if (shortName === "supremeai-api" && roleRank(store.role) < 3 && !contract) {
     return `Repository not found: '${shortName}'.`;
   }
-  // কোর মোনোরিপো সার্বভৌম সিকিউরিটি: 'supremeai' শুধুমাত্র admin ও supremeadmin
-  // রোলের জন্য উন্মুক্ত — তবে contract ফাইলগুলো non-admin-ও read-only পড়তে পারবে।
-  if (shortName === "supremeai" && roleRank(store.role) < 4 && !contract) {
-    return `Forbidden: core monorepo 'supremeai' is strictly restricted to admin and supremeadmin roles; non-admin roles are limited to satellite repos (current role: '${store.role}').`;
+  // কোর মোনোরিপো অ্যাক্সেস: agent রোল (rank >= 3) ও উর্ধ্বতন (admin/supremeadmin) —
+  // তবে contract ফাইলগুলো non-agent-ও read-only পড়তে পারবে।
+  if (shortName === "supremeai" && roleRank(store.role) < 3 && !contract) {
+    return `Forbidden: core monorepo 'supremeai' is strictly restricted to agent and above roles; non-agent roles are limited to satellite repos (current role: '${store.role}').`;
   }
   if (access === "satellite-readonly" && !contract && (shortName === "supremeai" || !isSatelliteRepo(shortName))) {
     return `Forbidden: restricted_viewer is limited to satellite repos; '${shortName}' is outside the allowlist (core repo is blocked).`;

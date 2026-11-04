@@ -55,7 +55,6 @@ export const CANONICAL_FEDERATION_REPOS = [
 export const ACTIVE_FEDERATION_REPOS = [
   "supremeai",
   "supremeai-studio",
-  "supremeai-open",
 ] as const;
 
 export const ARCHIVED_FEDERATION_REPOS = [
@@ -69,8 +68,8 @@ export const ARCHIVED_FEDERATION_REPOS = [
 export const GITHUB_ORGANIZATION = "Supremeai-bd";
 
 // In-memory registry of discovered repositories under the organization.
-// Initialized with canonical federation repos to guarantee zero-network baseline.
-const discoveredOrgRepos = new Set<string>(CANONICAL_FEDERATION_REPOS);
+// Initialized with ACTIVE repos only — MCP tower monitors live code repos.
+const discoveredOrgRepos = new Set<string>(ACTIVE_FEDERATION_REPOS);
 
 /**
  * Register a newly discovered repository name under the organization.

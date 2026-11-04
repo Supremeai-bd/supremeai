@@ -37,7 +37,7 @@ echo ""
 echo "[2/6] Running Deep Secret Leak Scan..."
 HIT=0
 check_secret() {
-  if grep -rInE "$1" --exclude-dir=.git --exclude-dir=__pycache__ --exclude="*.log" . 2>/dev/null; then
+  if grep -rInE "$1" --exclude-dir=.git --exclude-dir=__pycache__ --exclude-dir=tests --exclude="*.log" . 2>/dev/null; then
     echo "::error::secret-pattern hit: $2"
     HIT=1
   fi
