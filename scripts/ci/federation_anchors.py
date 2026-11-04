@@ -5,11 +5,11 @@ Defines the permanent Anchor Hub parent issues hosted on Supremeai-bd/supremeai-
 All automated CI failure reports, bridge sync work orders, rejections, and agent tasks
 attach strictly as Sub-Issues under their respective repository's Anchor Hub.
 
-Topology Architecture (Golden 6-Domain Architecture):
-  - Strictly 6 Active Primary Domain Anchor Hubs (#749 Studio, #750 API, #751 Core, #754 VSCode,
-    #756 Browser, #762 Open Embassy).
+Topology Architecture (Golden 5-Domain Architecture):
+  - Strictly 5 Active Primary Domain Anchor Hubs (#749 Studio, #751 Core, #754 VSCode,
+    #756 Browser, #761 Monorepo).
   - 8 Historical / Consolidated / Infrastructure Hubs:
-    * 6 Historical Transit Hubs (#752 Command, #753 Skills, #755 Agents, #757 SDK, #758 Infra, #759 MCP)
+    * 6 Historical Transit Hubs (#750 API, #751 Core, #752 Command, #753 Skills, #755 Agents, #757 SDK, #758 Infra, #759 MCP)
       permanently consolidated into API (#750) and VSCode (#754).
     * 2 Operational / Cold Storage Desks (#760 Archive/Bridge, #761 Monorepo/CI Desk) retired
       in favor of in-place failure tracking and direct repository sync.
@@ -34,9 +34,9 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-OPEN_REPO = "Supremeai-bd/supremeai-open"
+OPEN_REPO = "Supremeai-bd/supremeai"
 
-# Canonical 14 Anchor Hub Issue Numbers on Supremeai-bd/supremeai-open
+# Canonical 13 Anchor Hub Issue Numbers on Supremeai-bd/supremeai (open retired)
 ANCHOR_HUBS: dict[str, int] = {
     # 12 Satellites
     "Supremeai-bd/supremeai-studio": 749,
@@ -51,17 +51,14 @@ ANCHOR_HUBS: dict[str, int] = {
     "Supremeai-bd/supremeai-infrastructure": 758,
     "Supremeai-bd/supremeai-mcp-control-plane": 759,
     "Supremeai-bd/supremeai-archive": 760,
-    # 1 Central Monorepo
+# 1 Central Monorepo
     "Supremeai-bd/supremeai": 761,
-    # 1 Open Embassy / Task Board SSOT
-    "Supremeai-bd/supremeai-open": 762,
 }
 
 # Active 3 Primary Anchor Hubs (Pure 3-Repository Topology SSOT)
 ACTIVE_ANCHOR_HUBS: dict[str, int] = {
     "Supremeai-bd/supremeai": 761,        # [Monorepo SSOT Desk: Core, Gateway, Browser, VSCode]
     "Supremeai-bd/supremeai-studio": 749, # [Studio UI Desk]
-    "Supremeai-bd/supremeai-open": 762,   # [Open Task Board Desk & Embassy]
 }
 
 # Consolidated / Retired Anchor Hubs (Merged domains + Retired operational desks)
@@ -104,8 +101,6 @@ ANCHOR_ALIASES: dict[str, int] = {
     "supremeai": 761,
     "ci": 761,
     "pipeline": 761,
-    "open": 762,
-    "supremeai-open": 762,
 }
 
 
@@ -465,26 +460,26 @@ def self_test() -> int:
     print("[self-test] Validating Federation Anchor Hub SSOT contract...")
 
     # 1. Exact count check
-    assert len(ANCHOR_HUBS) == 14, (
-        f"Must have 14 total historical anchor hubs in lookup, found {len(ANCHOR_HUBS)}"
+    assert len(ANCHOR_HUBS) == 13, (
+        f"Must have 13 total historical anchor hubs in lookup, found {len(ANCHOR_HUBS)}"
     )
-    assert len(ACTIVE_ANCHOR_HUBS) == 3, (
-        f"Must have strictly 3 active anchor hubs under the pure 3-repo "
-        f"topology SSOT (#5767), found {len(ACTIVE_ANCHOR_HUBS)}"
+    assert len(ACTIVE_ANCHOR_HUBS) == 2, (
+        f"Must have strictly 2 active anchor hubs under the pure 2-repo "
+        f"topology SSOT, found {len(ACTIVE_ANCHOR_HUBS)}"
     )
     assert len(RETIRED_ANCHOR_HUBS) == 11, (
         f"Must have strictly 11 consolidated/retired anchor hubs under "
-        f"the pure 3-repo topology SSOT (#5767), found {len(RETIRED_ANCHOR_HUBS)}"
+        f"the pure 2-repo topology SSOT, found {len(RETIRED_ANCHOR_HUBS)}"
     )
 
     # 2. Unique issue numbers
     numbers = list(ANCHOR_HUBS.values())
-    assert len(set(numbers)) == 14, "Anchor issue numbers must all be distinct"
-    assert len(set(ACTIVE_ANCHOR_HUBS.values())) == 3, "Active anchor issue numbers must all be distinct"
+    assert len(set(numbers)) == 13, "Anchor issue numbers must all be distinct"
+    assert len(set(ACTIVE_ANCHOR_HUBS.values())) == 2, "Active anchor issue numbers must all be distinct"
     assert len(set(RETIRED_ANCHOR_HUBS.values())) == 11, "Retired anchor issue numbers must all be distinct"
 
     # 3. Sequential 749-762 range
-    expected_range = set(range(749, 763))
+    expected_range = set(range(749, 762))
     assert set(numbers) == expected_range, (
         f"Anchor numbers must match {expected_range}, got {set(numbers)}"
     )
@@ -507,8 +502,6 @@ def self_test() -> int:
     assert get_anchor_issue_number("archive") == 760
     assert get_anchor_issue_number("monorepo") == 761
     assert get_anchor_issue_number("Supremeai-bd/supremeai") == 761
-    assert get_anchor_issue_number("open") == 762
-    assert get_anchor_issue_number("Supremeai-bd/supremeai-open") == 762
 
     # 5. Unknown repo returns None (fail-honest)
     assert get_anchor_issue_number("nonexistent-repo") is None
@@ -528,7 +521,7 @@ def self_test() -> int:
     assert remap_retired_to_active("Supremeai-bd/supremeai") is None
     assert remap_retired_to_active("studio") is None
 
-    print("✅ [self-test] All 14 Anchor Hub contracts verified successfully!")
+    print("✅ [self-test] All 13 Anchor Hub contracts verified successfully!")
     return 0
 
 

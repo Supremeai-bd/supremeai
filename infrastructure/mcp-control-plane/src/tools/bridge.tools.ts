@@ -309,11 +309,10 @@ const SATELLITE_REPO_MAP: ReadonlyArray<{ anchor: string; repo: string }> = [
 export const DOMAIN_ANCHOR_HUBS: Record<string, number> = {
   "Supremeai-bd/supremeai-studio": 749,
   "Supremeai-bd/supremeai": 761,
-  "Supremeai-bd/supremeai-open": 762,
 };
 
 export function resolveDomainAnchorHub(repo: string): number {
-  return DOMAIN_ANCHOR_HUBS[repo] || 762;
+  return DOMAIN_ANCHOR_HUBS[repo] || 761;
 }
 
 /** The monorepo trunk — the conservative default when no single anchor covers all paths. */
