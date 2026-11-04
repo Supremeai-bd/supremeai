@@ -59,9 +59,12 @@ echo "[3/6] Running Bytecode Compilation Verification..."
 python -m compileall -q .
 echo "✅ Bytecode Compilation: PASS"
 
-# Ensure `core.*` import paths resolve (Docker WORKDIR is /app = core contents)
-ln -sfn . core
-touch __init__.py
+# Ensure `core.*` import paths resolve (Docker WORKDIR is /app = core contents).
+# Create a filesystem-root symlink /core -> /app (NOT self-referential) and an
+# __init__.py so `core` is a regular package, not a namespace package.
+ln -sfn /app /core
+touch /app/__init__.py
+export PYTHONPATH=/:${PYTHONPATH:-}
 
 # 4. Core Pytest Battery
 echo ""
@@ -69,8 +72,8 @@ echo "[4/6] Running Core Pytest Test Suite..."
 python -m pytest tests/mcp/adapters/ tests/integrations/ tests/middleware/test_middleware_anti_hacking.py tests/test_skill_pipeline.py -q
 echo "✅ Pytest Test Battery: PASS"
 # Cleanup import-path shims (keep image clean)
-rm -f __init__.py
-rm -f core
+rm -f /app/__init__.py
+rm -f /core
 
 # 5. Security & Vulnerability Analysis
 echo ""
