@@ -75,15 +75,9 @@ def _ensure_schema_columns() -> None:
     silently continue (the column may already be there)."""
     _ensure_supabase()
     try:
-        supabase_db.client.rpc(
-            "exec_sql",
-            {
-                "query_string": (
-                    "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS "
-                    "parent_conversation_id UUID REFERENCES conversations(id);"
-                )
-            },
-        ).execute()
+        # Schema managed by versioned migrations; exec_sql RPC not used.
+        import logging
+        logging.getLogger(__name__).info("branch_conversations schema assumed present via migrations")
     except asyncio.CancelledError:
         raise
     except Exception as e:
@@ -91,15 +85,8 @@ def _ensure_schema_columns() -> None:
 
         logging.getLogger(__name__).exception(f"Silenced error: {e}")
     try:
-        supabase_db.client.rpc(
-            "exec_sql",
-            {
-                "query_string": (
-                    "ALTER TABLE messages ADD COLUMN IF NOT EXISTS "
-                    "parent_message_id UUID REFERENCES messages(id);"
-                )
-            },
-        ).execute()
+        import logging
+        logging.getLogger(__name__).info("branch_conversations schema assumed present via migrations")
     except asyncio.CancelledError:
         raise
     except Exception as e:

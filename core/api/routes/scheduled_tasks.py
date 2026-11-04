@@ -72,7 +72,10 @@ def _ensure_schema() -> None:
     if not supabase_db.client:
         raise HTTPException(status_code=503, detail="Database is not available.")
     try:
-        supabase_db.client.rpc("exec_sql", {"query_string": _BOOTSTRAP_SQL}).execute()
+        # Schema is managed by versioned migrations (scripts.db guard); exec_sql
+        # RPC is intentionally not used (see schema_contract.yaml).
+        import logging
+        logging.getLogger(__name__).info("scheduled_tasks schema assumed present via migrations")
     except asyncio.CancelledError:
         raise
     except Exception as e:

@@ -276,26 +276,9 @@ def _bootstrap_schema() -> None:
     """Ensure the prompt_templates table exists in Supabase."""
     _ensure_supabase()
     try:
-        supabase_db.client.rpc(
-            "exec_sql",
-            {
-                "query_string": (
-                    "CREATE TABLE IF NOT EXISTS prompt_templates ("
-                    "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),"
-                    "  user_id TEXT,"
-                    "  name TEXT NOT NULL,"
-                    "  description TEXT,"
-                    "  category TEXT DEFAULT 'general',"
-                    "  prompt TEXT NOT NULL,"
-                    "  variables JSONB DEFAULT '[]',"
-                    "  is_builtin BOOLEAN DEFAULT false,"
-                    "  usage_count INTEGER DEFAULT 0,"
-                    "  created_at TIMESTAMPTZ DEFAULT NOW(),"
-                    "  updated_at TIMESTAMPTZ DEFAULT NOW()"
-                    ")"
-                )
-            },
-        ).execute()
+        # Schema managed by versioned migrations; exec_sql RPC not used.
+        import logging
+        logging.getLogger(__name__).info("prompt_templates schema assumed present via migrations")
     except asyncio.CancelledError:
         raise
     except Exception as e:
