@@ -59,6 +59,9 @@ echo "[3/6] Running Bytecode Compilation Verification..."
 python -m compileall -q .
 echo "✅ Bytecode Compilation: PASS"
 
+# Ensure `core.*` import paths resolve (Docker WORKDIR is /app = core contents)
+ln -sfn . core
+
 # 4. Core Pytest Battery
 echo ""
 echo "[4/6] Running Core Pytest Test Suite..."
