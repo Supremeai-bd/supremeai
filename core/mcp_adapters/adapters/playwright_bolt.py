@@ -22,7 +22,7 @@ from typing import Any
 
 from core.browser_session_vault import BrowserSessionVault
 from core.logging_config import logger
-from core.mcp_adapters.adapters import PLAYWRIGHT_AVAILABLE
+from . import PLAYWRIGHT_AVAILABLE
 
 
 class AdapterUnavailable(RuntimeError):
