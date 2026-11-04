@@ -34,6 +34,7 @@ class DecisionMetadata(Base, TimestampMixin):
     """One governed agent decision — evidence, verification and provenance।"""
 
     __tablename__ = "decision_metadata"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String(64), index=True, nullable=True)

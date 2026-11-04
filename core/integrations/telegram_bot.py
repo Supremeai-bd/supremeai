@@ -32,8 +32,8 @@ from typing import Any
 import httpx
 
 from core.logging_config import logger
-from integrations.telegram_config import MeshTelegramConfig, load_mesh_telegram_config
-from integrations.telegram_handlers import (
+from core.integrations.telegram_config import MeshTelegramConfig, load_mesh_telegram_config
+from core.integrations.telegram_handlers import (
     CB_APPROVE,
     CB_DEFER,
     CB_REJECT,

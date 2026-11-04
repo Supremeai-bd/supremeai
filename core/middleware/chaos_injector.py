@@ -11,13 +11,29 @@ from core.logging_config import logger
 # বাংলা মন্তব্য: ChaosInjectorMiddleware — LOCAL_CHAOS_MODE env var দিয়ে নিয়ন্ত্রিত।
 # Production-এ সম্পূর্ণ নিষ্ক্রিয়। শুধুমাত্র local dev/test-এ random delay ও packet drop inject করে।
 
+_DEFAULT_DROP_THRESHOLD: float = 0.15
+_DEFAULT_DELAY_THRESHOLD: float = 0.3
+_DEFAULT_RATE_LIMIT_THRESHOLD: float = 0.0
 
-# DROP_THRESHOLD এর নিচে random() হলে packet drop হবে
-_DROP_THRESHOLD = 0.15
-# DELAY_THRESHOLD এর নিচে random() হলে delay inject হবে
-_DELAY_THRESHOLD = 0.3
-_DELAY_MIN = 0.5
-_DELAY_MAX = 3.5
+_DROP_THRESHOLD: float = _DEFAULT_DROP_THRESHOLD
+_DELAY_THRESHOLD: float = _DEFAULT_DELAY_THRESHOLD
+_DELAY_MIN: float = 0.5
+_DELAY_MAX: float = 3.5
+
+
+def _parse_chance(env_var: str, default: float) -> float:
+    raw = os.getenv(env_var)
+    if raw is None:
+        return default
+    try:
+        val = float(raw)
+        if 0.0 <= val <= 1.0:
+            return val
+        logger.warning(f"{env_var}={raw} out of range [0.0, 1.0], using default {default}")
+        return default
+    except (ValueError, TypeError):
+        logger.warning(f"Invalid float for {env_var}={raw}, using default {default}")
+        return default
 
 
 class ChaosInjectorMiddleware(BaseHTTPMiddleware):
@@ -28,38 +44,40 @@ class ChaosInjectorMiddleware(BaseHTTPMiddleware):
 
     def __init__(self, app, **kwargs):
         super().__init__(app, **kwargs)
-        # বাংলা মন্তব্য: LOCAL_CHAOS_MODE env var থেকে chaos_enabled নির্ধারণ করা হয়
         self.chaos_enabled = os.getenv("LOCAL_CHAOS_MODE", "false").lower() == "true"
+        self.rate_limit_threshold = _parse_chance(
+            "CHAOS_RATE_LIMIT_CHANCE", _DEFAULT_RATE_LIMIT_THRESHOLD
+        )
+        self.drop_threshold = _parse_chance(
+            "CHAOS_PACKET_DROP_CHANCE", _DEFAULT_DROP_THRESHOLD
+        )
+        self.delay_threshold = _parse_chance(
+            "CHAOS_LATENCY_CHANCE", _DEFAULT_DELAY_THRESHOLD
+        )
 
     async def dispatch(self, request: Request, call_next) -> Response:
         env = os.getenv("ENV", "local").lower()
-        # Production safety switch — production is completely bypassed regardless of
-        # LOCAL_CHAOS_MODE. self.chaos_enabled (explicit LOCAL_CHAOS_MODE=true opt-in) is
-        # the only other gate needed: nothing in .github/workflows/ or render.yaml ever sets
-        # that var, so no test/CI run is affected unless it deliberately opts in (as this
-        # middleware's own unit tests do, to verify the injection logic itself). An earlier
-        # blanket "pytest in sys.modules" / CI/GITHUB_ACTIONS bypass here broke exactly those
-        # tests, in both local pytest runs and real GitHub Actions CI (GITHUB_ACTIONS=true is
-        # always set there).
         if env == "production" or not self.chaos_enabled:
             return await call_next(request)
 
-        roll = random.random()  # — intentional non-crypto random for chaos
+        # 1. Rate limit check (429)
+        if self.rate_limit_threshold > 0 and random.random() < self.rate_limit_threshold:
+            logger.warning(f"Chaos injected: Rate limit 429 for {getattr(request.url, 'path', '')}")
+            return JSONResponse(
+                {"detail": "Chaos: rate limit simulated. Please try again later.", "error": "rate limit"},
+                status_code=429,
+                headers={"retry-after": "60"},
+            )
 
-        # packet drop — 504 Gateway Timeout
-        if roll < _DROP_THRESHOLD:
-            logger.warning(f"[CHAOS] Packet drop for {request.url.path}")
-            return JSONResponse(status_code=504, content={"detail": "Chaos: packet dropped"})
+        # 2. Packet drop (504)
+        if self.drop_threshold > 0 and random.random() < self.drop_threshold:
+            logger.warning(f"Chaos injected: Packet drop 504 for {getattr(request.url, 'path', '')}")
+            return Response(status_code=504, content="Gateway Timeout (Chaos Injection)")
 
-        # latency injection — random sleep
-        if roll < _DELAY_THRESHOLD:
-            delay = _DELAY_MIN + random.random() * (_DELAY_MAX - _DELAY_MIN)
-            logger.warning(f"[CHAOS] Injecting {delay:.2f}s delay for {request.url.path}")
+        # 3. Latency injection
+        if self.delay_threshold > 0 and random.random() < self.delay_threshold:
+            delay = random.uniform(_DELAY_MIN, _DELAY_MAX)
+            logger.info(f"Chaos injected: Delay {delay:.2f}s for {getattr(request.url, 'path', '')}")
             await asyncio.sleep(delay)
-            # packet drop after delay (values[1] < threshold triggers drop)
-            if random.random() < _DROP_THRESHOLD:
-                return JSONResponse(
-                    status_code=504, content={"detail": "Chaos: packet dropped after delay"}
-                )
 
         return await call_next(request)

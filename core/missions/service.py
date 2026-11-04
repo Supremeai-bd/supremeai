@@ -28,8 +28,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.logging_config import logger
-from missions.models import Mission, MissionTraceEvent
-from missions.state_machine import (
+from core.missions.models import Mission, MissionTraceEvent
+from core.missions.state_machine import (
     APPROVED,
     ASSIGNED,
     CANCELLED,
