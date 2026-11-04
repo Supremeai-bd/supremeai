@@ -5,7 +5,7 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=8080 \
-    PYTHONPATH=/
+    PYTHONPATH=/opt
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl perl-base bash && rm -rf /var/lib/apt/lists/* \
     && addgroup --system supremeai && adduser --system supremeai --ingroup supremeai
@@ -18,11 +18,10 @@ COPY --chown=supremeai:supremeai . .
 RUN mkdir -p /app/data /app/uploads /app/logs /app/tmp && chown -R supremeai:supremeai /app/data /app/uploads /app/logs /app/tmp
 
 # Make `core` an importable package at runtime (main.py uses `from core.xxx`).
-# Docker WORKDIR is /app (= core contents), so expose a real `core` package
-# via /tmp/corepkg + /core symlink (PYTHONPATH=/ keeps / on sys.path).
-# Using a real dir (not a self-referential symlink) keeps __file__ resolution
-# sane so pathlib parents[] indexing in config.py doesn't crash.
-RUN rm -rf /tmp/corepkg && mkdir -p /tmp/corepkg && cp -r /app/. /tmp/corepkg/ && touch /tmp/corepkg/__init__.py && ln -s /tmp/corepkg /core
+# Docker WORKDIR is /app (= core contents), so expose a real `core` package under
+# /opt (persistent, not /tmp which may be cleared at runtime) and put /opt on
+# PYTHONPATH so `import core` resolves. PYTHONPATH=/opt keeps /opt on sys.path.
+RUN rm -rf /opt/core && mkdir -p /opt/core && cp -r /app/. /opt/core/ && touch /opt/core/__init__.py
 
 # =============================================================================
 # RENDER HEAVY CI BATTERY: Runs Full Pytest, Migration, RLS, Secret, & Compile checks
