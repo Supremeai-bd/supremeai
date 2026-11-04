@@ -153,6 +153,11 @@ export const env = {
       get serviceId(): string { return optional("RENDER_BRAIN_SVC_ID", "srv-dabm7dfqj5pc738jkbmg"); },
       get url(): string { return optional("RENDER_BRAIN_URL", "https://supremeai-primary-node.onrender.com"); },
     },
+    ciRunner: {
+      get apiKey(): string { return optional("RENDER_API_KEY_7", optional("RENDER_API_KEY_PAYKARI", optional("RENDER_API_KEY"))); },
+      get serviceId(): string { return optional("RENDER_CI_RUNNER_SVC_ID", "srv-dbl8tbmtlv9c73bbkvqg"); },
+      get url(): string { return optional("RENDER_CI_RUNNER_URL", "https://supremeai-ci-runner.onrender.com"); },
+    },
   },
 
   // ── Supabase
@@ -338,6 +343,11 @@ export const env = {
     get defaultTimeoutMs(): number { return positiveInt("DEVTOOLS_AUDIT_TIMEOUT_MS", 30000); },
     get slowRequestMs(): number { return positiveInt("DEVTOOLS_SLOW_REQUEST_MS", 1500); },
     get resultCapBytes(): number { return positiveInt("DEVTOOLS_RESULT_CAP_BYTES", 30000); },
+  },
+
+  // ── Firebase
+  firebase: {
+    get serviceAccountJson(): string { return optional("FIREBASE_SERVICE_ACCOUNT_JSON"); },
   },
 };
 

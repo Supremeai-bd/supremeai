@@ -2,7 +2,7 @@
 """Migration contract guard — verifies idempotency and naming conventions of DB migrations.
 
 Enforces:
-1. Migration files in core/database/migrations/ follow naming conventions.
+1. Migration files in database/migrations/ follow naming conventions.
 2. Migrations use idempotent DDL statements (IF NOT EXISTS, IF EXISTS, CREATE OR REPLACE).
 """
 
@@ -19,15 +19,28 @@ if hasattr(sys.stdout, "reconfigure"):
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+def find_migrations_dir() -> Path | None:
+    candidates = [
+        REPO_ROOT / "core" / "database" / "migrations",
+        REPO_ROOT / "database" / "migrations",
+        Path("database/migrations").resolve(),
+        Path("/app/database/migrations").resolve(),
+    ]
+    for c in candidates:
+        if c.is_dir():
+            return c
+    return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Migration contract guard")
     parser.add_argument("--check", action="store_true", help="Perform check")
     parser.add_argument("--disposable-db", action="store_true", help="Validate against disposable test database if available")
     args = parser.parse_args()
 
-    migrations_dir = REPO_ROOT / "core" / "database" / "migrations"
-    if not migrations_dir.is_dir():
-        print("[FAIL] migration_contract: core/database/migrations directory not found")
+    migrations_dir = find_migrations_dir()
+    if not migrations_dir:
+        print("[FAIL] migration_contract: database/migrations directory not found")
         return 1
 
     errors = []
