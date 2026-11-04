@@ -78,6 +78,9 @@ export function registerDiscoveredOrgRepo(repoName: string): void {
   const normalized = repoName.trim().toLowerCase();
   // Core Isolation: supremeai is never exposed as generic satellite
   if (normalized === "supremeai") return;
+  // Constitution: Pure 3-Repository Topology. Historical archived satellites
+  // (supremeai-core, api, browser, vscode, archive) must never be tracked or monitored as live services.
+  if ((ARCHIVED_FEDERATION_REPOS as readonly string[]).includes(normalized)) return;
   if (normalized && !discoveredOrgRepos.has(normalized)) {
     discoveredOrgRepos.add(normalized);
   }
