@@ -137,6 +137,7 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
                 from sqlalchemy import text
 
                 from core.db import get_engine
+                from core.secret_utils import unwrap_secret
 
                 engine = get_engine()
                 async with engine.connect() as conn:
@@ -148,9 +149,9 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
                     import httpx
 
                     supa_url = getattr(settings, "supabase_url", "")
-                    supa_key = getattr(settings, "supabase_service_key", "") or getattr(
-                        settings, "supabase_key", ""
-                    )
+                    supa_key = unwrap_secret(
+                        getattr(settings, "supabase_service_key", "")
+                    ) or unwrap_secret(getattr(settings, "supabase_key", ""))
                     if supa_url and supa_key:
                         async with httpx.AsyncClient(timeout=4.0) as client:
                             r = await client.get(

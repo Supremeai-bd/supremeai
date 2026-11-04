@@ -51,6 +51,7 @@ except ImportError:
     psycopg2 = None
 from core.config import settings
 from core.logging_config import logger
+from core.secret_utils import unwrap_secret
 
 # Deliberately small: these 4 subsystems are secondary telemetry/state, not
 # primary request traffic. They must never meaningfully compete with the
@@ -77,7 +78,7 @@ def _resolve_dsn() -> str | None:
     PATCH v4: still used by `execute()` (DML) and `query()`. DDL callers
     must use `_resolve_writer_dsn()` instead.
     """
-    dsn = settings.supabase_database_url
+    dsn = unwrap_secret(settings.supabase_database_url)
     if not dsn or dsn.startswith("sqlite"):
         return None
     return dsn

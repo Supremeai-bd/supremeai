@@ -8,6 +8,7 @@ from core.logging_config import logger
 from core.maintenance_pipeline import maintenance_pipeline
 from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus
 from core.reliability_controller import ReliabilityController
+from core.secret_utils import unwrap_secret
 from core.startup.api_key_tables import ensure_api_key_tables as _ensure_api_key_tables
 from database.pgbouncer_pool import PgBouncerConnectionPool, get_db_pool, init_db_pool
 
@@ -35,7 +36,7 @@ async def initialize_independent_services(app):
 
     async def _init_db_pool() -> None:
         """Initialize database connection pool and API key tables with unified connection management."""
-        _db_url = settings.supabase_database_url
+        _db_url = unwrap_secret(settings.supabase_database_url)
         try:
             if "sqlite" in _db_url:
                 logger.info(

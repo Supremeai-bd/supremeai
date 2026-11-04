@@ -11,6 +11,7 @@ from sqlalchemy import engine_from_config, pool
 # Import all models to ensure they are registered with Base.metadata before autogenerate
 from alembic import context
 from core.config import settings
+from core.secret_utils import unwrap_secret
 from models.base import Base
 
 # this is the Alembic Config object, which provides
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 # বাংলা মন্তব্য: মাইগ্রেশনের জন্য ডিরেক্ট রাইটার (SUPABASE_DATABASE_URL_WRITER) অগ্রাধিকার পাবে,
 # কারণ PgBouncer ট্রানজ্যাকশন পুলে DDL / মাইগ্রেশন লকিং স্টেটমেন্ট প্রত্যাখ্যাত হতে পারে।
-raw_migration_url = (
+raw_migration_url = unwrap_secret(
     os.getenv("SUPABASE_DATABASE_URL_WRITER")
     or getattr(settings, "database_url", None)
     or getattr(settings, "supabase_database_url", None)

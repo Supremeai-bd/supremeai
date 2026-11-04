@@ -18,6 +18,7 @@ from fastapi import HTTPException, status
 
 from core.config import settings
 from core.monitoring.logging_config import logger
+from core.secret_utils import unwrap_secret
 from utils.http_client import DEFAULT_TIMEOUT, create_async_client
 
 
@@ -25,7 +26,7 @@ class CloudStorageManager:
     def __init__(self):
         # বাংলা কমেন্ট: Supabase বা ক্লাউড স্টোরেজের ক্রেডেনশিয়াল লোড করা হচ্ছে।
         self.supabase_url = getattr(settings, "supabase_url", None)
-        self.supabase_key = getattr(settings, "supabase_key", None)
+        self.supabase_key = unwrap_secret(getattr(settings, "supabase_key", None))
         self.bucket_name = "supremeai-assets"
 
     async def upload_file_async(

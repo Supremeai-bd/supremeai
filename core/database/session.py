@@ -15,10 +15,12 @@ from sqlalchemy.pool import NullPool, StaticPool
 from core.config import settings
 from core.degraded_mode import allow_db_degradation
 from core.logging_config import logger
+from core.secret_utils import unwrap_secret
 
 
 # বাংলা মন্তব্য: কানেকশন স্ট্রিংয়ে postgresql:// বা postgres:// থাকলে তা asyncpg-এর জন্য postgresql+asyncpg:// দিয়ে প্রতিস্থাপন করা হচ্ছে
 def get_async_url(url: str) -> str:
+    url = unwrap_secret(url)
     if not url or not isinstance(url, str):
         return "sqlite+aiosqlite:///:memory:"
     if url.startswith("postgresql://"):
@@ -141,7 +143,7 @@ def init_engine() -> None:
     if _engine_instance is not None:
         return
 
-    DATABASE_URL = settings.supabase_database_url
+    DATABASE_URL = unwrap_secret(settings.supabase_database_url)
     # Master audit 2026-09-02: env-gated production degradation.
     # Default behaviour is UNCHANGED (fail-fast in production). When
     # SUPABASE_ALLOW_DB_DEGRADATION=true is explicitly set (free-tier
