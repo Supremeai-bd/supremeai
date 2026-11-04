@@ -14,6 +14,10 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir pytest pytest-asyncio pytest-cov pydantic fastapi httpx cryptography pyotp bandit pip-audit
 
+# Fail the image build rather than the production boot if SQLAlchemy's async
+# runtime dependency (greenlet) is missing.
+RUN python -c "import greenlet; from sqlalchemy.ext.asyncio import create_async_engine; print('SQLAlchemy asyncio dependencies available')"
+
 COPY --chown=supremeai:supremeai . .
 RUN mkdir -p /app/data /app/uploads /app/logs /app/tmp && chown -R supremeai:supremeai /app/data /app/uploads /app/logs /app/tmp
 
