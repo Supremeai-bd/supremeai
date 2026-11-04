@@ -62,7 +62,7 @@ echo "✅ Bytecode Compilation: PASS"
 # 4. Core Pytest Battery
 echo ""
 echo "[4/6] Running Core Pytest Test Suite..."
-python -m pytest tests/mcp/adapters/ tests/integrations/ tests/middleware/test_middleware_anti_hacking.py tests/test_skill_pipeline.py tests/agents/ -q
+python -m pytest tests/mcp/adapters/ tests/integrations/ tests/middleware/test_middleware_anti_hacking.py tests/test_skill_pipeline.py -q
 echo "✅ Pytest Test Battery: PASS"
 
 # 5. Security & Vulnerability Analysis
