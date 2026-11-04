@@ -171,4 +171,3 @@ __all__ = [
     "schema",
     "validate_value",
 ]
-PYEOF
