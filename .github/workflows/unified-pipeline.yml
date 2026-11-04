@@ -151,18 +151,8 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Trigger Render Core Deployment
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
-          RENDER_WAIT: "1"
-          RENDER_WAIT_TIMEOUT_SECONDS: "1200"
-        run: |
-          if [ -n "$RENDER_API_KEY" ] && [ -n "$RENDER_SVC_ID" ]; then
-            python scripts/ci/render_trigger_deploy.py
-          else
-            echo "Render credentials not set on runner - skipping API trigger (Git auto-deploy active)"
-          fi
+      # Render is configured with autoDeploy=commit on main. Do not call the
+      # Render deploy API here: that would create a second build for this push.
 
       - name: Wait for services to stabilize
         run: sleep 10

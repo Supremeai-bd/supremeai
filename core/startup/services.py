@@ -218,8 +218,12 @@ async def initialize_independent_services(app):
     # sync Infisical fetch + time.sleep retry backoff on the loop thread,
     # freezing every concurrent request and the liveness probe on timeouts.
     try:
-        await settings.apreload_secrets()
-        logger.info("✅ Core secrets preloaded off the event loop (BE-12).")
+        preload_secrets = getattr(settings, "apreload_secrets", None)
+        if callable(preload_secrets):
+            await preload_secrets()
+            logger.info("✅ Core secrets preloaded off the event loop (BE-12).")
+        else:
+            logger.info("Secret preload is not configured; using lazy secret loading.")
     except Exception as exc:
         logger.warning(f"Secret preload failed (continuing with lazy loads): {exc}")
 
