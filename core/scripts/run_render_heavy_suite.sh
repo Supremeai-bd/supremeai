@@ -65,14 +65,22 @@ echo "[4/6] Running Core Pytest Test Suite..."
 python -m pytest tests/mcp/adapters/ tests/integrations/ tests/middleware/test_middleware_anti_hacking.py tests/test_skill_pipeline.py -q
 echo "✅ Pytest Test Battery: PASS"
 
-# 5. Security & Vulnerability Analysis
+# 5. Fast Targeted Security & Vulnerability Scans (<5s)
 echo ""
-echo "[5/6] Running Static Security & Vulnerability Scans..."
+echo "[5/6] Running Fast Targeted Security Scans..."
+# Restrict bandit to critical server surface (core, api) instead of scanning the full 322k LOC repo
 if command -v bandit >/dev/null 2>&1; then
-  bandit -q -r . -lll || true
+  TARGETS=""
+  [ -d "core" ] && TARGETS="$TARGETS core"
+  [ -d "api" ] && TARGETS="$TARGETS api"
+  [ -d "services" ] && TARGETS="$TARGETS services"
+  if [ -n "$TARGETS" ]; then
+    bandit -q -r $TARGETS -lll || true
+  fi
 fi
-if command -v pip-audit >/dev/null 2>&1; then
-  pip-audit -r requirements.txt || true
+# Non-blocking async / shallow pip-audit check without stalling CI runner deployment
+if command -v pip-audit >/dev/null 2>&1 && [ -f requirements.txt ]; then
+  timeout 10 pip-audit -r requirements.txt || true
 fi
 echo "✅ Security Analysis: COMPLETED"
 

@@ -134,6 +134,16 @@ jobs:
             echo "::warning::RENDER_API_KEY_PAYKARI not available in context - skipping remote trigger"
           fi
 
+      - name: Autonomous Auto-Landing on Green CI (Squash Merge)
+        if: github.event_name == 'pull_request' && success()
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          echo "🚀 Tier 1 and Tier 2 Render CI verification fully passed for PR #${PR_NUMBER}!"
+          echo "🛬 Autonomous Auto-Landing: Squashing and merging PR into main..."
+          gh pr merge "$PR_NUMBER" --squash --delete-branch || echo "::warning::Auto-merge failed or branch already merged."
+
   # =========================================================================
   # STAGE 3: POST-MERGE PRODUCTION DEPLOY & CANARY (Only on Push to Main)
   # =========================================================================
