@@ -2,13 +2,11 @@ name: SupremeAI Unified CI/CD Pipeline
 
 # =============================================================================
 # SINGLE UNIFIED CI/CD SSOT (Zero Duplicate Runs)
-# 1. On Pull Request:
-#    - Tier 1 Fast Safety Gates (GitHub Actions: Lint, Boundaries, Contracts)
-#    - Tier 2 Heavy CI Runner (Render supremeai-ci-runner in paykaribazaronline)
+# 1. On Pull Request / Schedule:
+#    - Tier 1 Fast Safety Gates (GitHub Actions: Lint, Boundaries, Contracts <30s)
+#    - Tier 2 Heavy CI Runner (Render supremeai-ci-runner: Full Test & Security Suite)
 # 2. On Merge / Push to Main:
 #    - Deploy Render Core & Live 5-Node Canary Smoke Check
-# 3. On Schedule:
-#    - Nightly Audit
 # =============================================================================
 
 on:
@@ -53,13 +51,14 @@ concurrency:
 
 jobs:
   # =========================================================================
-  # STAGE 1: TIER 1 - MINIMAL FAST GATES (Only on Pull Request & Nightly)
+  # STAGE 1: TIER 1 - MINIMAL FAST GATES (Only on Pull Request & Scheduled Audits)
+  # Ultra-fast (~20-30s): Lint, boundary sanitization, readiness contract
   # =========================================================================
   fast-gate:
-    name: "Tier 1: Fast Safety Gate"
+    name: "Tier 1: Fast Safety Gate (<30s)"
     if: github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -68,22 +67,22 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install minimal linter and test dependencies
+      - name: Install minimal dependencies
         run: |
           python -m pip install --upgrade pip
           pip install ruff pytest pytest-asyncio pydantic fastapi httpx
 
-      - name: Fast syntax & fatal error lint
+      - name: Fast fatal error & syntax lint
         run: ruff check core/ scripts/ci/ --select E9,F63,F7,F82 --exclude core/tests/
 
       - name: Targeted unit test guard
         run: pytest -q tests/unit/test_telemetry_event_bus_guard.py
 
   runtime-readiness:
-    name: "Tier 1: Runtime Readiness & Boundaries"
+    name: "Tier 1: Runtime Readiness & Boundaries (<30s)"
     if: github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -106,13 +105,14 @@ jobs:
         run: python scripts/ci/public_surface_guard.py --manifest scripts/ci/public_surface_manifest.txt
 
   # =========================================================================
-  # STAGE 2: TIER 2 - RENDER REMOTE HEAVY GATE (Only on Pull Request)
+  # STAGE 2: TIER 2 - RENDER REMOTE HEAVY GATE (PR & Nightly Schedule)
+  # Offloads heavy test battery, DB migrations, compileall, SAST to Render
   # =========================================================================
   render-heavy-gate:
-    name: "Tier 2: Render Remote Heavy Check"
-    if: github.event_name == 'pull_request'
+    name: "Tier 2: Render Remote Heavy Suite"
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 15
     needs: [fast-gate, runtime-readiness]
     steps:
       - uses: actions/checkout@v4
