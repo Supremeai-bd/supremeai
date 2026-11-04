@@ -126,15 +126,25 @@ jobs:
       - name: Trigger & Poll Render supremeai-ci-runner
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
-          RENDER_SVC_ID: "srv-dbl8tbmtlv9c73bbkvqg"
+          RENDER_SVC_ID: ${{ vars.RENDER_CI_RUNNER_SVC_ID }}
           RENDER_WAIT: "1"
           RENDER_WAIT_TIMEOUT_SECONDS: "600"
         run: |
           if [ -n "$RENDER_API_KEY" ] && [ -n "$RENDER_SVC_ID" ]; then
             python scripts/ci/render_trigger_deploy.py
           else
-            echo "::warning::RENDER_API_KEY_PAYKARI not available in context - skipping remote trigger"
+            echo "::warning::RENDER_API_KEY_PAYKARI or RENDER_CI_RUNNER_SVC_ID not available in context - skipping remote trigger"
           fi
+
+      - name: Publish CI runner result to MCP Tower
+        if: always()
+        env:
+          MCP_TOWER_ATTESTATION_URL: ${{ vars.MCP_TOWER_ATTESTATION_URL }}
+          MCP_TOWER_AUTH_TOKEN: ${{ secrets.MCP_TOWER_AUTH_TOKEN }}
+          EXPECTED_SHA: ${{ github.sha }}
+          CI_RESULT: ${{ job.status }}
+          RENDER_SVC_ID: ${{ vars.RENDER_CI_RUNNER_SVC_ID }}
+        run: python scripts/ci/publish_ci_attestation.py
 
       # Plan: 99.99% autonomous operation. Auto-merge is allowed only after
       # Tier 1 fast gates AND Tier 2 Render CI runner heavy suite both pass
@@ -160,6 +170,7 @@ jobs:
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
       has_services: ${{ steps.plan.outputs.has_services }}
+      unregistered: ${{ steps.plan.outputs.unregistered }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -178,6 +189,25 @@ jobs:
             --base "${{ github.event.before }}" \
             --head "${{ github.sha }}" \
             --output "$GITHUB_OUTPUT"
+
+      # A changed service whose ID is not configured is UNREGISTERED, not a
+      # failure. It is skipped from the deploy matrix but MUST stay visible:
+      # log it, surface it in the summary, and publish it to MCP Tower so the
+      # dashboard shows UNREGISTERED instead of silently looking healthy.
+      - name: Surface UNREGISTERED services
+        if: always()
+        env:
+          UNREGISTERED: ${{ steps.plan.outputs.unregistered }}
+          MCP_TOWER_ATTESTATION_URL: ${{ vars.MCP_TOWER_ATTESTATION_URL }}
+          MCP_TOWER_AUTH_TOKEN: ${{ secrets.MCP_TOWER_AUTH_TOKEN }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "$UNREGISTERED" ] && [ "$UNREGISTERED" != "[]" ]; then
+            echo "⚠️ UNREGISTERED Render services (skipped, visible): $UNREGISTERED"
+            python scripts/ci/publish_ci_attestation.py || true
+          else
+            echo "✅ All changed Render services are registered"
+          fi
 
   deploy-render-services:
     name: "Deploy changed Render services"
@@ -217,6 +247,18 @@ jobs:
         env:
           RENDER_CANARY_URLS_JSON: ${{ vars.RENDER_CANARY_URLS_JSON }}
         run: python scripts/ci/render_canary.py
+
+      # HTTP 200 is only PROCESS_ALIVE, not HEALTHY. For every service that
+      # actually deployed, verify the live revision carries the expected main
+      # commit SHA via the service /release endpoint. Fail-closed: missing
+      # service ID, expected SHA, or release URL fails the job (run 41918034520).
+      - name: Verify source revision, not only HTTP health
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
+          RENDER_SERVICE_ID: ${{ matrix.service_id }}
+          EXPECTED_SHA: ${{ github.sha }}
+          RELEASE_URL: ${{ vars.RENDER_CORE_RELEASE_URL }}
+        run: python scripts/ci/render_deploy_attestation.py
 
   no-render-deploy:
     name: "No Render deploy required"

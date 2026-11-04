@@ -511,7 +511,17 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
             "service": settings.app_name,
             "status": "online",
             "health_check": "/health",
+            "release": "/release",
         }
+
+    # Safe deployment-identity endpoint (run 41918034520): HTTP 200 alone is
+    # only PROCESS_ALIVE. This exposes the running commit SHA so an external
+    # verifier can distinguish VERIFIED from STALE/UNKNOWN. No secrets.
+    @app.get("/release")
+    async def release() -> dict[str, Any]:
+        from core.health_routes import release_info
+
+        return await release_info()
 
     from fastapi.responses import JSONResponse
 

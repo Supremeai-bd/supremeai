@@ -7,6 +7,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=8080 \
     PYTHONPATH=/opt
 
+# Render injects RENDER_GIT_COMMIT as a build arg for Docker services.
+# Bake it into the runtime env so /release can report the running commit SHA
+# (HTTP 200 alone is only PROCESS_ALIVE, never VERIFIED).
+ARG RENDER_GIT_COMMIT=""
+ENV RENDER_GIT_COMMIT=${RENDER_GIT_COMMIT} GIT_COMMIT=${RENDER_GIT_COMMIT}
+
 RUN apt-get update && apt-get install -y --no-install-recommends curl perl-base bash && rm -rf /var/lib/apt/lists/* \
     && addgroup --system supremeai && adduser --system supremeai --ingroup supremeai
 

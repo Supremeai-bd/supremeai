@@ -2,6 +2,11 @@
 FROM python:3.11-slim
 WORKDIR /app
 
+# Render injects RENDER_GIT_COMMIT as a build arg for Docker services.
+# Bake it into the runtime env so /release can report the running commit SHA.
+ARG RENDER_GIT_COMMIT=""
+ENV RENDER_GIT_COMMIT=${RENDER_GIT_COMMIT} GIT_COMMIT=${RENDER_GIT_COMMIT}
+
 # Requirements live at the satellite root (federation_satellite_sync.py maps
 # gateway/requirements.txt -> requirements.txt); single source, no flat copy.
 COPY requirements*.txt /app/
