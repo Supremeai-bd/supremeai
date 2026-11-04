@@ -8,6 +8,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from api.dependencies import get_current_user_token
 from core.monitoring.logging_config import logger
+from core.request_context import get_correlation_id
 from core.messaging.pubsub import global_pubsub as theme_pubsub
 from database.supabase_client import db
 
@@ -199,7 +200,7 @@ async def upsert_preferences(payload: PreferenceUpdate, user_id: str = Query(def
     except Exception as exc:
         # AUD-2.9 follow-up (MANUAL_STEPS 7.4): generic 500 + correlation id —
         # raw exception text (DSN/SQL) must not reach clients.
-        correlation_id = uuid.uuid4().hex[:12]
+        correlation_id = get_correlation_id() or uuid.uuid4().hex[:12]
         logger.exception(f"preferences update failed correlation_id={correlation_id}")
         raise HTTPException(
             status_code=500,

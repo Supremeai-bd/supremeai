@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from api.dependencies import get_current_admin
 from api.routes.admin import god_layer  # shared God-layer instance (single SQLite handle)
 from core.monitoring.logging_config import logger
+from core.request_context import get_correlation_id
 
 router = APIRouter(prefix="/api/admin/llm", tags=["Admin LLM Gateway"])
 
@@ -78,7 +79,7 @@ async def get_llm_providers(admin_user: dict = Depends(get_current_admin)):
             )
         return providers
     except Exception as exc:
-        correlation_id = uuid.uuid4().hex[:12]
+        correlation_id = get_correlation_id() or uuid.uuid4().hex[:12]
         logger.exception(f"llm providers listing failed correlation_id={correlation_id}")
         raise HTTPException(
             status_code=500,
@@ -116,7 +117,7 @@ async def get_llm_router(admin_user: dict = Depends(get_current_admin)):
             "override_remaining_requests": override["remaining_requests"],
         }
     except Exception as exc:
-        correlation_id = uuid.uuid4().hex[:12]
+        correlation_id = get_correlation_id() or uuid.uuid4().hex[:12]
         logger.exception(f"llm router state failed correlation_id={correlation_id}")
         raise HTTPException(
             status_code=500,
@@ -148,7 +149,7 @@ async def set_llm_router_override(
             "remaining_requests": payload.remaining_requests,
         }
     except Exception as exc:
-        correlation_id = uuid.uuid4().hex[:12]
+        correlation_id = get_correlation_id() or uuid.uuid4().hex[:12]
         logger.exception(f"llm router override failed correlation_id={correlation_id}")
         raise HTTPException(
             status_code=500,
@@ -167,7 +168,7 @@ async def get_llm_rules(admin_user: dict = Depends(get_current_admin)):
                 as_object[str(entry["key"])] = str(entry.get("value", ""))
         return as_object
     except Exception as exc:
-        correlation_id = uuid.uuid4().hex[:12]
+        correlation_id = get_correlation_id() or uuid.uuid4().hex[:12]
         logger.exception(f"llm rules read failed correlation_id={correlation_id}")
         raise HTTPException(
             status_code=500,
@@ -188,7 +189,7 @@ async def update_llm_rules(
         )
         return {"status": "success", "updated": len(payload.rules)}
     except Exception as exc:
-        correlation_id = uuid.uuid4().hex[:12]
+        correlation_id = get_correlation_id() or uuid.uuid4().hex[:12]
         logger.exception(f"llm rules write failed correlation_id={correlation_id}")
         raise HTTPException(
             status_code=500,

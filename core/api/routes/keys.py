@@ -24,6 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
 
 from core.monitoring.logging_config import logger
+from core.request_context import get_correlation_id
 from core.security.authentication.rbac import get_current_user_token as verify_token_dependency
 from database.supabase_client import SupabaseDB
 
@@ -249,7 +250,7 @@ async def create_or_update_key(key_data: KeyCreate, user: dict = Depends(verify_
             created_at=data["created_at"],
         )
     except Exception as e:
-        correlation_id = uuid.uuid4().hex[:12]
+        correlation_id = get_correlation_id() or uuid.uuid4().hex[:12]
         logger.exception(f"key upsert failed correlation_id={correlation_id}")
         raise HTTPException(
             status_code=500,
@@ -302,7 +303,7 @@ async def delete_key(provider: str, user: dict = Depends(verify_token_dependency
         )
         return {"status": "success", "message": f"{provider.upper()} key removed successfully."}
     except Exception as e:
-        correlation_id = uuid.uuid4().hex[:12]
+        correlation_id = get_correlation_id() or uuid.uuid4().hex[:12]
         logger.exception(f"key delete failed correlation_id={correlation_id}")
         raise HTTPException(
             status_code=500,

@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from core.monitoring.logging_config import logger
+from core.request_context import get_correlation_id
 from core.security.authentication.rbac import get_current_user_token as verify_token_dependency
 from database.supabase_client import SupabaseDB
 
@@ -30,7 +31,7 @@ def _internal_error(e: Exception) -> HTTPException:
     full stack is logged server-side, the client gets a correlation id only.
     Raises the HTTPException (so ``raise _internal_error(e)`` keeps typing).
     """
-    correlation_id = uuid.uuid4().hex[:12]
+    correlation_id = get_correlation_id() or uuid.uuid4().hex[:12]
     logger.exception(f"conversations route failed correlation_id={correlation_id}")
     raise HTTPException(
         status_code=500,

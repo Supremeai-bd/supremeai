@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from core.monitoring.logging_config import logger
+from core.request_context import get_correlation_id
 from pydantic import BaseModel
 
 from admin.god import AdminGodLayer  # Your existing god.py
@@ -67,7 +68,7 @@ async def update_constitutional_rule(
     except Exception as e:
         # AUD-2.9 follow-up (MANUAL_STEPS 7.4): generic 500 + correlation id —
         # raw exception text must not reach even admin clients (defense in depth).
-        correlation_id = uuid.uuid4().hex[:12]
+        correlation_id = get_correlation_id() or uuid.uuid4().hex[:12]
         logger.exception(
             f"constitutional rule update failed key={payload.key!r} correlation_id={correlation_id}"
         )
