@@ -39,22 +39,87 @@ class ConfigDefinition:
 
 
 REGISTRY: dict[str, ConfigDefinition] = {
+    # --- Runtime ---
     "runtime.max_concurrency": ConfigDefinition(
         "runtime.max_concurrency", int, 5, "runtime", "Maximum concurrent runtime tasks", 1, 100
     ),
+    "runtime.max_prompt_chars": ConfigDefinition(
+        "runtime.max_prompt_chars", int, 20000, "runtime", "Maximum prompt size in characters", 1000, 200000, public=True
+    ),
+    "runtime.retry_count": ConfigDefinition(
+        "runtime.retry_count", int, 3, "runtime", "Retry count for provider calls", 0, 10
+    ),
+    "runtime.timeout_seconds": ConfigDefinition(
+        "runtime.timeout_seconds", int, 60, "runtime", "Timeout for provider calls", 5, 600
+    ),
+    "runtime.browser_session_duration_minutes": ConfigDefinition(
+        "runtime.browser_session_duration_minutes", int, 30, "runtime", "Browser session duration in minutes", 5, 240
+    ),
+    # --- Feature flags (public) ---
     "feature.self_healing": ConfigDefinition(
         "feature.self_healing", bool, False, "feature", "Enable self-healing workflows", public=True
     ),
     "feature.cost_guard": ConfigDefinition(
         "feature.cost_guard", bool, True, "feature", "Enable cost guardrails", public=True
     ),
+    "feature.chat": ConfigDefinition(
+        "feature.chat", bool, True, "feature", "Enable chat", public=True
+    ),
+    "feature.research": ConfigDefinition(
+        "feature.research", bool, True, "feature", "Enable research", public=True
+    ),
+    "feature.scheduled_tasks": ConfigDefinition(
+        "feature.scheduled_tasks", bool, True, "feature", "Enable scheduled tasks", public=True
+    ),
+    "feature.browser": ConfigDefinition(
+        "feature.browser", bool, False, "feature", "Enable browser automation", public=True
+    ),
+    "feature.billing": ConfigDefinition(
+        "feature.billing", bool, True, "feature", "Enable billing", public=True
+    ),
+    "feature.rollout_percentage": ConfigDefinition(
+        "feature.rollout_percentage", int, 100, "feature", "Feature rollout percentage", 0, 100, public=True
+    ),
+    # --- System ---
     "system.maintenance_mode": ConfigDefinition(
-        "system.maintenance_mode",
-        bool,
-        False,
-        "system",
-        "Put public services into maintenance mode",
-        public=True,
+        "system.maintenance_mode", bool, False, "system", "Put public services into maintenance mode", public=True
+    ),
+    "system.maintenance_message": ConfigDefinition(
+        "system.maintenance_message", str, "", "system", "Maintenance message shown to users", public=True
+    ),
+    "system.degraded_message": ConfigDefinition(
+        "system.degraded_message", str, "Service is degraded. Some features may be unavailable.", "system",
+        "Degraded-mode message", public=True
+    ),
+    # --- Branding (public) ---
+    "branding.product_name": ConfigDefinition(
+        "branding.product_name", str, "SupremeAI", "branding", "Product name", public=True
+    ),
+    "branding.support_url": ConfigDefinition(
+        "branding.support_url", str, "", "branding", "Support URL", public=True
+    ),
+    "branding.status_page_url": ConfigDefinition(
+        "branding.status_page_url", str, "", "branding", "Status page URL", public=True
+    ),
+    # --- Navigation (public) ---
+    "navigation.user": ConfigDefinition(
+        "navigation.user", tuple, ("chat", "projects", "research", "scheduled_tasks", "profile", "settings"),
+        "navigation", "User navigation items", public=True
+    ),
+    # --- Limits ---
+    "limits.daily_usage": ConfigDefinition(
+        "limits.daily_usage", int, 1000, "limits", "Daily usage limit", 0, 100000, public=True
+    ),
+    "limits.monthly_usage": ConfigDefinition(
+        "limits.monthly_usage", int, 10000, "limits", "Monthly usage limit", 0, 1000000, public=True
+    ),
+    # --- Provider/Model ---
+    "provider.default_model_chat": ConfigDefinition(
+        "provider.default_model_chat", str, "moonshot/kimi-k2", "provider", "Default model for chat", public=True
+    ),
+    "provider.fallback_order": ConfigDefinition(
+        "provider.fallback_order", tuple, ("moonshot/kimi-k2", "deepseek/deepseek-v3", "gemini/flash-2.0"),
+        "provider", "Provider fallback order"
     ),
 }
 
@@ -106,3 +171,4 @@ __all__ = [
     "schema",
     "validate_value",
 ]
+PYEOF
