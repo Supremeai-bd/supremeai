@@ -4,7 +4,8 @@ FROM python:3.11-slim
 WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8080
+    PORT=8080 \
+    PYTHONPATH=/
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl perl-base bash && rm -rf /var/lib/apt/lists/* \
     && addgroup --system supremeai && adduser --system supremeai --ingroup supremeai
@@ -15,6 +16,11 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY --chown=supremeai:supremeai . .
 RUN mkdir -p /app/data /app/uploads /app/logs /app/tmp && chown -R supremeai:supremeai /app/data /app/uploads /app/logs /app/tmp
+
+# Make `core` an importable package at runtime (main.py uses `from core.xxx`).
+# Docker WORKDIR is /app (= core contents), so /core -> /app symlink + __init__.py
+# lets `import core` resolve. PYTHONPATH=/ (set above) keeps / on sys.path.
+RUN touch /app/__init__.py && ln -s /app /core && chown -h supremeai:supremeai /core
 
 # =============================================================================
 # RENDER HEAVY CI BATTERY: Runs Full Pytest, Migration, RLS, Secret, & Compile checks
