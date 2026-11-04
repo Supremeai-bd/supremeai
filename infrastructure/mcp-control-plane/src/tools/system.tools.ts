@@ -128,13 +128,18 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
+      // Pure 2-Repo Topology SSOT: Retired / Archived satellites (e.g. 404 merged repositories or archived embassy)
+      // do not mark the system degraded.
+      const isArchivedOrRetired = res.status === 404 || (res.data && typeof res.data === "object" && (res.data as any).archived === true);
+      const effectiveStatus = res.ok ? "healthy" : isArchivedOrRetired ? "healthy" : "degraded";
+
       return {
         ...base,
         url: svc.url!,
-        status: res.ok ? "healthy" : "degraded",
+        status: effectiveStatus,
         httpStatus: res.status,
         latencyMs: res.latencyMs,
-        ...(res.ok ? {} : { error: res.status === 401 || res.status === 403 ? "GitHub auth rejected — token missing, invalid or expired" : `GitHub responded ${res.status}` }),
+        ...(res.ok || isArchivedOrRetired ? {} : { error: res.status === 401 || res.status === 403 ? "GitHub auth rejected — token missing, invalid or expired" : `GitHub responded ${res.status}` }),
       };
     } catch (err) {
       return { ...base, url: svc.url!, status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };
