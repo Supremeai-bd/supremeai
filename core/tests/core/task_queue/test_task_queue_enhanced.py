@@ -1,8 +1,8 @@
-"""Critical-path tests for core/queue/task_queue_enhanced.py (TaskQueue).
+"""Critical-path tests for core/task_queue/task_queue_enhanced.py (TaskQueue).
 
 CONTEXT (final-test hardening-2): this module had ZERO coverage in the CI
 combined coverage report (0/340 statements) while being tier-critical
-(core/queue/**). These tests lock the production contracts:
+(core/task_queue/**). These tests lock the production contracts:
 
 1. Anti-polling: get_result() awaits an asyncio.Event — no sleep loops.
 2. Bounded memory: max tracked tasks + FIFO eviction; bounded local queue
@@ -18,7 +18,7 @@ import asyncio
 import pytest
 
 from core.logging_config import logger
-from core.queue.task_queue_enhanced import (
+from core.task_queue.task_queue_enhanced import (
     EnhancedTaskQueue,
     QueueBackend,
     TaskPriority,

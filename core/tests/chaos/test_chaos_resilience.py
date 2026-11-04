@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from core.queue.task_queue_enhanced import TaskQueue, TaskQueueOverflowError
+from core.task_queue.task_queue_enhanced import TaskQueue, TaskQueueOverflowError
 from core.resilience.predictive_circuit_breaker import (
     CircuitBreakerState,
     PredictiveCircuitBreaker,
@@ -138,7 +138,7 @@ class TestTaskQueueMemoryPressureHold:
         Then: TaskQueueOverflowError ("memory pressure") — caller 429 দেবে;
         task ভেতরে ঢোকে না (OOM রোধ)।
         """
-        import core.queue.task_queue_enhanced as tq
+        import core.task_queue.task_queue_enhanced as tq
 
         monkeypatch.setattr(tq, "_system_memory_pressure", lambda pct: True)
         queue = TaskQueue(default_backend=tq.QueueBackend.ASYNCIO)
@@ -151,7 +151,7 @@ class TestTaskQueueMemoryPressureHold:
         When: task submit করা হলে।
         Then: স্বাভাবিকভাবে task_id ফেরে — hold শুধু চাপের সময়।
         """
-        import core.queue.task_queue_enhanced as tq
+        import core.task_queue.task_queue_enhanced as tq
 
         monkeypatch.setattr(tq, "_system_memory_pressure", lambda pct: False)
         queue = TaskQueue(default_backend=tq.QueueBackend.ASYNCIO)
@@ -166,7 +166,7 @@ class TestTaskQueueMemoryPressureHold:
         When: এরর বার্তা পরীক্ষা করলে।
         Then: বার্তায় 'try again later' আছে — caller-এর 429-mapping চুক্তি।
         """
-        import core.queue.task_queue_enhanced as tq
+        import core.task_queue.task_queue_enhanced as tq
 
         monkeypatch.setattr(tq, "_system_memory_pressure", lambda pct: True)
         queue = TaskQueue(default_backend=tq.QueueBackend.ASYNCIO)
@@ -179,7 +179,7 @@ class TestTaskQueueMemoryPressureHold:
         When: TaskQueue কনস্ট্রাক্ট হলে।
         Then: hold থ্রেশহোল্ড ৫০ — env টিউনেবল কাজ করছে।
         """
-        import core.queue.task_queue_enhanced as tq
+        import core.task_queue.task_queue_enhanced as tq
 
         monkeypatch.setenv("TASK_QUEUE_MEMORY_HOLD_PCT", "50")
         assert tq._default_memory_hold_threshold() == 50

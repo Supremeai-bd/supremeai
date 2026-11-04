@@ -31,7 +31,7 @@ for p in (str(RUNNER_DIR), str(REPO)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from agent_runner import (  # noqa: E402
+from gateway.agents.runner.agent_runner import (  # noqa: E402
     REQUIRED_TIERS,
     STEPS,
     AgentRunner,

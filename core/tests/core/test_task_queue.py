@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from core.queue.task_queue import _PLACEHOLDER_TOKENS, RedisTaskQueue, redis_configured
+from core.task_queue.task_queue import _PLACEHOLDER_TOKENS, RedisTaskQueue, redis_configured
 
 
 class TestRedisConfigured:
@@ -107,7 +107,7 @@ class TestRedisTaskQueueEnqueue:
 
         # Mock redis_configured to return True (skip the env check)
         with (
-            patch("core.queue.task_queue.redis_configured", return_value=True),
+            patch("core.task_queue.task_queue.redis_configured", return_value=True),
             patch.object(queue, "ensure_worker_started"),
         ):
             # When
@@ -139,7 +139,7 @@ class TestRedisTaskQueueEnqueue:
         queue.redis = mock_redis
 
         with (
-            patch("core.queue.task_queue.redis_configured", return_value=True),
+            patch("core.task_queue.task_queue.redis_configured", return_value=True),
             patch.object(queue, "ensure_worker_started"),
         ):
             # When: two enqueues with same payload
@@ -210,7 +210,7 @@ class TestRedisTaskQueueEnsureWorker:
         mock_task.done.return_value = False
         queue._worker_task = mock_task
 
-        with patch("core.queue.task_queue.redis_configured", return_value=True):
+        with patch("core.task_queue.task_queue.redis_configured", return_value=True):
             # When
             queue.ensure_worker_started()
 
@@ -222,7 +222,7 @@ class TestRedisTaskQueueEnsureWorker:
         """বাংলা: Redis configured + কোনো running worker না থাকলে নতুন worker তৈরি।"""
         # Given: Redis configured + the pytest-asyncio running loop
         queue = RedisTaskQueue()
-        with patch("core.queue.task_queue.redis_configured", return_value=True):
+        with patch("core.task_queue.task_queue.redis_configured", return_value=True):
             # When
             queue.ensure_worker_started()
             # Then: worker task created
@@ -405,12 +405,12 @@ class TestTaskQueueSingleton:
 
     def test_singleton_exists(self):
         # Given/When: import the singleton
-        from core.queue.task_queue import task_queue
+        from core.task_queue.task_queue import task_queue
 
         # Then: it's a RedisTaskQueue instance
         assert isinstance(task_queue, RedisTaskQueue)
 
     def test_singleton_uses_default_queue_name(self):
-        from core.queue.task_queue import task_queue
+        from core.task_queue.task_queue import task_queue
 
         assert task_queue.queue_name == "supreme_task_queue"

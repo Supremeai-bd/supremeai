@@ -1,6 +1,6 @@
-"""Coverage-completion tests for core/queue/task_queue_enhanced.py (TaskQueue).
+"""Coverage-completion tests for core/task_queue/task_queue_enhanced.py (TaskQueue).
 
-Task 7-b. Complements tests/core/queue/test_task_queue_enhanced.py by hitting
+Task 7-b. Complements tests/core/task_queue/test_task_queue_enhanced.py by hitting
 the backend-selection branches, fallback paths, worker error paths, redis /
 pubsub / celery submission adapters and the module-level celery_app bootstrap.
 
@@ -28,8 +28,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from core.config import settings
-from core.queue import task_queue_enhanced as tqe
-from core.queue.task_queue_enhanced import (
+from core.task_queue import task_queue_enhanced as tqe
+from core.task_queue.task_queue_enhanced import (
     QueueBackend,
     TaskPriority,
     TaskQueue,
@@ -44,7 +44,12 @@ async def _wait_result(q: TaskQueue, task_id: str) -> TaskResult:
 
 
 def _patch_redis_url(monkeypatch, value: str | None) -> None:
+    monkeypatch.setattr(settings, "redis_url", value, raising=False)
     monkeypatch.setattr(type(settings), "redis_url", value, raising=False)
+    if value is not None:
+        monkeypatch.setenv("REDIS_URL", value)
+    else:
+        monkeypatch.delenv("REDIS_URL", raising=False)
 
 
 # ---------------------------------------------------------------------------
@@ -508,6 +513,7 @@ def _load_fresh_module(monkeypatch, name: str):
 
 class TestCeleryBootstrap:
     def test_celery_app_created_when_celery_importable(self, monkeypatch):
+        _patch_redis_url(monkeypatch, "redis://localhost:6379/0")
         fake_celery = types.ModuleType("celery")
         created_kwargs = {}
 

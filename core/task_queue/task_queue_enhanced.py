@@ -431,11 +431,13 @@ class TaskQueue:
         """বাংলা মন্তব্য: Redis sorted set-এ task push। Lazy import।"""
         from core.cache.redis_manager import redis_manager
 
-        client = redis_manager.client
+        client = None
+        if hasattr(redis_manager, "get_managed_client_sync"):
+            client = redis_manager.get_managed_client_sync()
+        elif getattr(redis_manager, "client", None):
+            client = redis_manager.client
         if not client:
-            import redis.asyncio as aioredis
-
-            client = aioredis.from_url(self.redis_url, decode_responses=True)
+            return
 
         task_data = {
             "task_id": task_id,
@@ -449,7 +451,9 @@ class TaskQueue:
         pipeline = client.pipeline()
         pipeline.zadd("supremeai:task_queue", {json.dumps(task_data): score})
         pipeline.hset("supremeai:task_metadata", task_id, json.dumps(task_data))
-        await pipeline.execute()
+        pipe_res = pipeline.execute()
+        if inspect.isawaitable(pipe_res):
+            await pipe_res
 
     async def _submit_to_pubsub(
         self,

@@ -1,4 +1,4 @@
-"""Full-coverage tests for core/queue/task_queue.py (RedisTaskQueue + redis_configured).
+"""Full-coverage tests for core/task_queue/task_queue.py (RedisTaskQueue + redis_configured).
 
 Task 7-b (critical-tier queue coverage campaign).
 
@@ -21,14 +21,16 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from core.config import settings
-from core.queue import task_queue as tq_module
-from core.queue.task_queue import RedisTaskQueue, redis_configured
+from core.task_queue import task_queue as tq_module
+from core.task_queue.task_queue import RedisTaskQueue, redis_configured
 
 
 def _patch_redis_url(monkeypatch, value: str) -> None:
     """settings.redis_url is a read-only property (secret-vault backed);
-    patch it on the Settings class instead."""
+    patch it on both Settings instance and class."""
+    monkeypatch.setattr(settings, "redis_url", value, raising=False)
     monkeypatch.setattr(type(settings), "redis_url", value, raising=False)
+    monkeypatch.setenv("REDIS_URL", value)
 
 
 # ---------------------------------------------------------------------------
@@ -72,13 +74,7 @@ class TestGetRedis:
 
         # Mock redis_manager.get_managed_client to return fake_client
         rm_module = __import__("core.cache.redis_manager", fromlist=["redis_manager"])
-        monkeypatch.setattr(
-            rm_module.redis_manager,
-            "get_managed_client",
-            lambda: fake_client,  # sync mock — _get_redis awaits it but get_managed_client is async
-        )
 
-        # Need async version
         async def fake_get_managed():
             return fake_client
 
@@ -86,6 +82,7 @@ class TestGetRedis:
             rm_module.redis_manager,
             "get_managed_client",
             fake_get_managed,
+            raising=False,
         )
 
         q = RedisTaskQueue()
