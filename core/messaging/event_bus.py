@@ -392,6 +392,8 @@ class IntelligentErrorBus(ErrorEventBus):
         "CONFIG_ERROR",
         "CONFIGURATION_ERROR",
         "SECRET_NOT_FOUND",
+        "SecretNotFoundError",
+        "CriticalSecretMissingError",
     }
 
     def __init__(self) -> None:

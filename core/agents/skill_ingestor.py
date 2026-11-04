@@ -90,7 +90,7 @@ class SkillIngestor:
             return {"success": False, "detail": "Zip download domain unauthorized."}
 
         try:
-            with urllib.request.urlopen(zip_url) as response:
+            with urllib.request.urlopen(zip_url, timeout=30) as response:
                 zip_data = response.read()
 
             if hashlib.sha256(zip_data).hexdigest() != manifest.checksum:

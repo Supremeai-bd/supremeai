@@ -2,8 +2,10 @@
 
 Validates that missing Sentry or legacy `monitoring.track_exception` imports
 never crash the error bus or flood logs (Zero-Recurrence Invariant).
+Also validates fail-closed SecretNotFoundError and non-retryable config errors.
 """
 
+import json
 from unittest.mock import MagicMock, patch
 import pytest
 
@@ -13,6 +15,7 @@ from core.messaging.event_bus import (
     _forward_to_telemetry,
 )
 import core.messaging.event_bus as eb
+from core.security.secret_vault import ProductionSecretVault, SecretNotFoundError
 
 
 def test_event_bus_emit_without_sentry_does_not_crash(monkeypatch):
@@ -100,3 +103,66 @@ async def test_deterministic_config_errors_skip_pattern_escalation():
     await bus.process_error_for_healing(event)
     assert event.resolved is False
 
+
+@pytest.mark.asyncio
+async def test_secret_not_found_error_is_non_retryable():
+    """SecretNotFoundError must be classified as non-retryable in IntelligentErrorBus."""
+    bus = IntelligentErrorBus()
+    event = ErrorEvent(
+        module="secret_vault",
+        error_type="SecretNotFoundError",
+        message="Secret SUPABASE_URL not found in production! Fail-closed.",
+        severity="CRITICAL",
+    )
+
+    for _ in range(5):
+        bus.emit(event)
+
+    assert event.error_type == "SecretNotFoundError"
+    await bus.process_error_for_healing(event)
+    assert event.resolved is False
+
+
+def test_vault_fail_closed_raises_secret_not_found_error(monkeypatch):
+    """Production vault must raise SecretNotFoundError when required secret is absent."""
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.setenv("TESTING", "0")
+    monkeypatch.setenv("PRE_COMMIT", "0")
+    monkeypatch.delenv("SUPABASE_URL", raising=False)
+
+    vault = ProductionSecretVault()
+    vault.env = "production"
+
+    with pytest.raises(SecretNotFoundError) as exc_info:
+        vault._fallback_to_env("SUPABASE_URL", None)
+
+    assert "CRITICAL" in str(exc_info.value)
+    assert issubclass(SecretNotFoundError, RuntimeError)
+
+
+def test_vault_raw_rest_fetch_fallback(monkeypatch):
+    """Production vault _fetch_raw_secrets must populate cache from raw REST response."""
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.setenv("INFISICAL_PROJECT_ID", "test-project-123")
+    monkeypatch.setenv("INFISICAL_TOKEN", "mock-token-raw")
+
+    vault = ProductionSecretVault()
+    vault.env = "production"
+    vault.project_id = "test-project-123"
+    vault.token = "mock-token-raw"
+
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = json.dumps({
+        "secrets": [
+            {"secretKey": "UPSTASH_REDIS_REST_URL", "secretValue": "https://redis.upstash.io"},
+            {"secretKey": "UPSTASH_REDIS_REST_TOKEN", "secretValue": "token-xyz-123"}
+        ]
+    }).encode("utf-8")
+    mock_resp.__enter__.return_value = mock_resp
+
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        secrets = vault._fetch_raw_secrets(environment="prod")
+
+    assert secrets.get("UPSTASH_REDIS_REST_URL") == "https://redis.upstash.io"
+    assert "UPSTASH_REDIS_REST_URL" in vault._cache
+    assert vault._cache["UPSTASH_REDIS_REST_URL"].value == "https://redis.upstash.io"

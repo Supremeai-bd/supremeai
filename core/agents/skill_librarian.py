@@ -126,7 +126,7 @@ class SkillLibrarian:
                 },
             )
             # নেটওয়ার্ক হ্যান্ডশেক ফায়ার
-            with urllib.request.urlopen(req) as response:
+            with urllib.request.urlopen(req, timeout=15) as response:
                 if response.status not in [200, 204]:
                     logger.error(f"Discord Webhook returned invalid status code: {response.status}")
         except Exception as net_err:

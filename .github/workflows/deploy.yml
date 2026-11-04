@@ -57,7 +57,7 @@ jobs:
 
           targets = [
               ('API Gateway', 'https://supremeai-api-ulw0.onrender.com/healthz'),
-              ('Primary Node', 'https://supremeai-primary-node-5xso.onrender.com/health/live'),
+              ('Primary Node', 'https://supremeai-primary-node-5xso.onrender.com/health/ready'),
               ('MCP Control Tower', 'https://supremeai-mcp-tower.onrender.com/health'),
               ('Scraper Node', 'https://supremeai-scraper-node.onrender.com/health'),
               ('Worker Node', 'https://supremeai-worker-node.onrender.com/health'),
@@ -71,10 +71,16 @@ jobs:
                       body = r.read(4096).decode('utf-8', errors='replace')
                       if r.status != 200:
                           raise RuntimeError(f'HTTP {r.status}: {body[:200]}')
+                      if name == 'Primary Node' and 'ready' not in body:
+                          raise RuntimeError(f'Primary Node status not ready: {body[:200]}')
                       print(f'✅ {name}: HTTP {r.status}')
               except Exception as e:
                   print(f'⚠️ {name} probe warning ({e})')
                   failed.append(name)
+
+          if any(core in failed for core in ['API Gateway', 'Primary Node']):
+              print(f'❌ Canary failed: Core node down: {failed}')
+              sys.exit(1)
 
           if len(failed) > 2:
               print(f'❌ Canary failed: Multiple nodes down: {failed}')

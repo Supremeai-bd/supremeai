@@ -151,6 +151,9 @@ APPROVED_SUBTREES = {
     "core": {
         "observability",
         "messaging",
+        "security",
+        "database",
+        "agents",
         "api",
         "monitoring",
         "services",

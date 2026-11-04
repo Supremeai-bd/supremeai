@@ -169,7 +169,20 @@ CREATE INDEX IF NOT EXISTS idx_ai_memory_created_at ON public.ai_memory(created_
 CREATE INDEX IF NOT EXISTS idx_ai_memory_session_id ON public.ai_memory(session_id);
 
 -- -----------------------------------------------------------------------------
--- 10. ROW LEVEL SECURITY (RLS) POLICIES
+-- 10. TASK CHECKPOINTS TABLE (Fail-closed schema gate required table)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.task_checkpoints (
+    task_id TEXT PRIMARY KEY,
+    step_index INTEGER,
+    state TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    resumed BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_checkpoints_created_at ON public.task_checkpoints(created_at DESC);
+
+-- -----------------------------------------------------------------------------
+-- 11. ROW LEVEL SECURITY (RLS) POLICIES
 -- -----------------------------------------------------------------------------
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
@@ -179,6 +192,8 @@ ALTER TABLE public.tenant_limits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tenant_usage ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.automation_executions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_memory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.task_checkpoints ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.task_checkpoints ENABLE ROW LEVEL SECURITY;
 
 -- Allow service_role full access across all tables
 DO $$
@@ -189,7 +204,7 @@ BEGIN
         SELECT table_name
         FROM information_schema.tables
         WHERE table_schema = 'public'
-          AND table_name IN ('users', 'api_keys', 'conversation_context', 'task_history', 'tenant_limits', 'tenant_usage', 'automation_executions', 'ai_memory')
+          AND table_name IN ('users', 'api_keys', 'conversation_context', 'task_history', 'tenant_limits', 'tenant_usage', 'automation_executions', 'ai_memory', 'task_checkpoints')
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS service_role_all ON public.%I', tbl);
         EXECUTE format('CREATE POLICY service_role_all ON public.%I FOR ALL USING (auth.role() = ''service_role'')', tbl);
