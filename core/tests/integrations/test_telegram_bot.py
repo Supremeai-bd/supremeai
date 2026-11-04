@@ -13,10 +13,9 @@ from typing import Any
 
 import httpx
 import pytest
-
-from integrations.telegram_bot import MeshTelegramBot, TowerClient
-from integrations.telegram_config import MeshTelegramConfig
-from integrations.telegram_handlers import DeferStore, KeyRegistry
+from core.integrations.telegram_bot import MeshTelegramBot, TowerClient
+from core.integrations.telegram_config import MeshTelegramConfig
+from core.integrations.telegram_handlers import DeferStore, KeyRegistry
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 ADMIN_CHAT = "111"
@@ -349,7 +348,7 @@ def test_tower_client_parses_json_and_sends_auth_header(monkeypatch):
         kwargs.pop("transport", None)
         return real_async_client(*args, transport=transport, **kwargs)
 
-    monkeypatch.setattr("integrations.telegram_bot.httpx.AsyncClient", factory)
+    monkeypatch.setattr("core.integrations.telegram_bot.httpx.AsyncClient", factory)
     client = TowerClient("http://tower.test", admin_token="secret-token")
     code, data = asyncio.run(client.request("GET", "/api/v1/nodes"))
     assert code == 200 and data["ok"] is True
@@ -368,7 +367,7 @@ def test_tower_client_non_json_body_becomes_detail_dict(monkeypatch):
         kwargs.pop("transport", None)
         return real_async_client(*args, transport=transport, **kwargs)
 
-    monkeypatch.setattr("integrations.telegram_bot.httpx.AsyncClient", factory)
+    monkeypatch.setattr("core.integrations.telegram_bot.httpx.AsyncClient", factory)
     client = TowerClient("http://tower.test")
     code, data = asyncio.run(client.request("POST", "/api/v1/mesh/tasks", json_body={"a": 1}))
     assert code == 502

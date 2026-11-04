@@ -5,10 +5,9 @@ import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from core.middleware.anti_hacking import AntiHackingContextMiddleware, _octet3
 from fastapi import Request
 from fastapi.responses import JSONResponse
-
-from backend.middleware.anti_hacking import AntiHackingContextMiddleware, _octet3
 
 
 def test_octet3_ipv4():
@@ -89,13 +88,13 @@ async def test_dispatch_admin_request_no_previous_context():
     request.state.user = {"sub": "admin123"}
 
     # Mock Redis manager
-    with patch("backend.middleware.anti_hacking.redis_manager") as mock_redis_manager:
+    with patch("core.middleware.anti_hacking.redis_manager") as mock_redis_manager:
         mock_redis_manager.client = AsyncMock()
         mock_redis_manager.get_cache = AsyncMock(return_value=None)  # No previous context
         mock_redis_manager.set_cache = AsyncMock()
 
         # Mock send_otp function
-        with patch("backend.middleware.anti_hacking.send_otp"):
+        with patch("core.middleware.anti_hacking.send_otp"):
             # Mock call_next to return a simple response
             call_next = AsyncMock(return_value=JSONResponse(content={"test": "response"}))
 
@@ -135,7 +134,7 @@ async def test_dispatch_admin_request_matching_context():
     request.state.user = {"sub": "admin123"}
 
     # Mock Redis manager with matching context
-    with patch("backend.middleware.anti_hacking.redis_manager") as mock_redis_manager:
+    with patch("core.middleware.anti_hacking.redis_manager") as mock_redis_manager:
         mock_redis_manager.client = AsyncMock()
         previous_context = {
             "ip": "192.168.1.100",
@@ -184,12 +183,12 @@ async def test_dispatch_admin_request_context_mismatch_alert_only():
     request.state.user = {"sub": "admin123"}
 
     # Mock settings to be in alert-only mode (enforce_anti_hacking = False)
-    with patch("backend.middleware.anti_hacking.settings") as mock_settings:
+    with patch("core.middleware.anti_hacking.settings") as mock_settings:
         mock_settings.enforce_anti_hacking = False
         mock_settings.otp_cooldown_seconds = 300
 
         # Mock Redis manager with different context
-        with patch("backend.middleware.anti_hacking.redis_manager") as mock_redis_manager:
+        with patch("core.middleware.anti_hacking.redis_manager") as mock_redis_manager:
             mock_redis_manager.client = AsyncMock()
             previous_context = {
                 "ip": "192.168.1.100",  # Previous IP (different subnet)
@@ -201,7 +200,7 @@ async def test_dispatch_admin_request_context_mismatch_alert_only():
             mock_redis_manager.set_cache = AsyncMock()
 
             # Mock send_otp function
-            with patch("backend.middleware.anti_hacking.send_otp") as mock_send_otp:
+            with patch("core.middleware.anti_hacking.send_otp") as mock_send_otp:
                 # Mock call_next to return a simple response
                 call_next = AsyncMock(return_value=JSONResponse(content={"test": "response"}))
 
@@ -242,12 +241,12 @@ async def test_dispatch_admin_request_context_mismatch_enforce_mode():
     request.state.user = {"sub": "admin123"}
 
     # Mock settings to be in enforce mode (enforce_anti_hacking = True)
-    with patch("backend.middleware.anti_hacking.settings") as mock_settings:
+    with patch("core.middleware.anti_hacking.settings") as mock_settings:
         mock_settings.enforce_anti_hacking = True
         mock_settings.otp_cooldown_seconds = 300
 
         # Mock Redis manager with different context
-        with patch("backend.middleware.anti_hacking.redis_manager") as mock_redis_manager:
+        with patch("core.middleware.anti_hacking.redis_manager") as mock_redis_manager:
             mock_redis_manager.client = AsyncMock()
             previous_context = {
                 "ip": "192.168.1.100",  # Previous IP (different subnet)
@@ -264,7 +263,7 @@ async def test_dispatch_admin_request_context_mismatch_enforce_mode():
             )  # Successfully acquire lock
 
             # Mock send_otp function
-            with patch("backend.middleware.anti_hacking.send_otp") as mock_send_otp:
+            with patch("core.middleware.anti_hacking.send_otp") as mock_send_otp:
                 # Mock call_next to return a simple response
                 call_next = AsyncMock(return_value=JSONResponse(content={"test": "response"}))
 
@@ -303,7 +302,7 @@ async def test_dispatch_admin_request_same_subnet_ua_caution():
     request.state.user = {"sub": "admin123"}
 
     # Mock Redis manager with similar context (different IP but same subnet/UA)
-    with patch("backend.middleware.anti_hacking.redis_manager") as mock_redis_manager:
+    with patch("core.middleware.anti_hacking.redis_manager") as mock_redis_manager:
         mock_redis_manager.client = AsyncMock()
         previous_context = {
             "ip": "192.168.1.100",  # Previous IP (same subnet)
@@ -345,12 +344,12 @@ async def test_dispatch_admin_request_otp_cooldown_active():
     request.state.user = {"sub": "admin123"}
 
     # Mock settings
-    with patch("backend.middleware.anti_hacking.settings") as mock_settings:
+    with patch("core.middleware.anti_hacking.settings") as mock_settings:
         mock_settings.enforce_anti_hacking = True
         mock_settings.otp_cooldown_seconds = 300
 
         # Mock Redis manager with different context
-        with patch("backend.middleware.anti_hacking.redis_manager") as mock_redis_manager:
+        with patch("core.middleware.anti_hacking.redis_manager") as mock_redis_manager:
             mock_redis_manager.client = AsyncMock()
             previous_context = {
                 "ip": "192.168.1.100",  # Previous IP (different subnet)
@@ -364,7 +363,7 @@ async def test_dispatch_admin_request_otp_cooldown_active():
             mock_redis_manager.client.set = AsyncMock(return_value=False)  # Cooldown active
 
             # Mock send_otp function
-            with patch("backend.middleware.anti_hacking.send_otp") as mock_send_otp:
+            with patch("core.middleware.anti_hacking.send_otp") as mock_send_otp:
                 # Mock call_next to return a simple response
                 call_next = AsyncMock(return_value=JSONResponse(content={"test": "response"}))
 
@@ -404,7 +403,7 @@ async def test_dispatch_with_redis_disabled():
     request.state.user = {"sub": "admin123"}
 
     # Mock Redis manager as None/disabled
-    with patch("backend.middleware.anti_hacking.redis_manager", None):
+    with patch("core.middleware.anti_hacking.redis_manager", None):
         # Mock call_next to return a simple response
         call_next = AsyncMock(return_value=JSONResponse(content={"test": "response"}))
 
@@ -440,7 +439,7 @@ async def test_dispatch_with_redis_client_none():
     request.state.user = {"sub": "admin123"}
 
     # Mock Redis manager with None client
-    with patch("backend.middleware.anti_hacking.redis_manager") as mock_redis_manager:
+    with patch("core.middleware.anti_hacking.redis_manager") as mock_redis_manager:
         mock_redis_manager.client = None
         mock_redis_manager.get_cache = AsyncMock(return_value=None)
         mock_redis_manager.set_cache = AsyncMock()

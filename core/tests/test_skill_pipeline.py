@@ -1,6 +1,6 @@
 # tests/test_skill_pipeline.py
-from backend.agents.skill_ingestor import SkillIngestor
-from backend.schemas.skill_manifest import SkillManifest
+from core.agents.skill_ingestor import SkillIngestor
+from core.schemas.skill_manifest import SkillManifest
 
 
 def test_malicious_skill_ingestion_drops_to_rejected():

@@ -10,8 +10,7 @@ import asyncio
 
 import httpx
 import pytest
-
-from mcp_adapters.adapters.playwright_bolt import BoltAdapter
+from core.mcp_adapters.adapters.playwright_bolt import BoltAdapter
 
 
 # ── Fake playwright objects ──────────────────────────────────────────────────
@@ -123,14 +122,14 @@ def test_push_task_timeout_when_no_pr_url(monkeypatch):
 
 def test_adapter_unavailable_without_playwright(monkeypatch):
     adapter = BoltAdapter()
-    monkeypatch.setattr("mcp_adapters.adapters.playwright_bolt.PLAYWRIGHT_AVAILABLE", False)
+    monkeypatch.setattr("core.mcp_adapters.adapters.playwright_bolt.PLAYWRIGHT_AVAILABLE", False)
     with pytest.raises(RuntimeError, match="playwright is not installed"):
         adapter._require_playwright()
 
 
 # ── LovableAdapter ───────────────────────────────────────────────────────────
 def test_lovable_fail_closed_without_token(monkeypatch):
-    from mcp_adapters.adapters.lovable_adapter import LovableAdapter
+    from core.mcp_adapters.adapters.lovable_adapter import LovableAdapter
 
     monkeypatch.delenv("LOVABLE_API_TOKEN", raising=False)
     adapter = LovableAdapter()
@@ -140,7 +139,7 @@ def test_lovable_fail_closed_without_token(monkeypatch):
 
 
 def test_lovable_create_project_calls_official_api(monkeypatch):
-    from mcp_adapters.adapters.lovable_adapter import LovableAdapter
+    from core.mcp_adapters.adapters.lovable_adapter import LovableAdapter
 
     seen = {}
 
@@ -156,7 +155,7 @@ def test_lovable_create_project_calls_official_api(monkeypatch):
         kwargs.pop("transport", None)
         return real_client(*args, transport=transport, **kwargs)
 
-    monkeypatch.setattr("mcp_adapters.adapters.lovable_adapter.httpx.AsyncClient", factory)
+    monkeypatch.setattr("core.mcp_adapters.adapters.lovable_adapter.httpx.AsyncClient", factory)
     adapter = LovableAdapter(api_token="tok-1")
     code, data = asyncio.run(adapter.create_project("demo", "make a dashboard"))
     assert code == 201 and data["id"] == "proj-1"
@@ -165,7 +164,7 @@ def test_lovable_create_project_calls_official_api(monkeypatch):
 
 
 def test_lovable_network_error_never_raises(monkeypatch):
-    from mcp_adapters.adapters.lovable_adapter import LovableAdapter
+    from core.mcp_adapters.adapters.lovable_adapter import LovableAdapter
 
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("boom")
@@ -177,7 +176,7 @@ def test_lovable_network_error_never_raises(monkeypatch):
         kwargs.pop("transport", None)
         return real_client(*args, transport=transport, **kwargs)
 
-    monkeypatch.setattr("mcp_adapters.adapters.lovable_adapter.httpx.AsyncClient", factory)
+    monkeypatch.setattr("core.mcp_adapters.adapters.lovable_adapter.httpx.AsyncClient", factory)
     adapter = LovableAdapter(api_token="t")
     code, data = asyncio.run(adapter.get_project("p1"))
     assert code == 0 and "unreachable" in str(data)
