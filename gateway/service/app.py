@@ -722,6 +722,43 @@ async def health_check():
     )
 
 
+@app.get("/release")
+async def release_info():
+    """Safe deployment identity endpoint (run 41918034520).
+
+    HTTP 200 alone is only PROCESS_ALIVE. This exposes the running commit SHA
+    so an external verifier can distinguish VERIFIED from STALE/UNKNOWN. No
+    secrets are exposed.
+    """
+    import os
+    import time
+
+    commit = (
+        os.getenv("RENDER_GIT_COMMIT")
+        or os.getenv("GIT_COMMIT")
+        or os.getenv("GITHUB_SHA")
+        or os.getenv("COMMIT_SHA")
+        or ""
+    ).strip()
+    service = os.getenv("RENDER_SERVICE_NAME") or "supremeai-api"
+    environment = os.getenv("ENV") or os.getenv("RENDER_ENV") or "production"
+    build_id = os.getenv("RENDER_DEPLOY_ID") or os.getenv("RENDER_INSTANCE_ID") or ""
+    started_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    return {
+        "service": service,
+        "environment": environment,
+        "commit": commit,
+        "build_id": build_id,
+        "started_at": started_at,
+        "capabilities": {
+            "gateway": "registered",
+            "database": "unknown",
+            "orchestrator": "unknown",
+            "browser": "unknown",
+        },
+    }
+
+
 @app.get("/internal/status")
 async def internal_status(
     request: Request, x_supremeai_key: Optional[str] = Header(default=None)

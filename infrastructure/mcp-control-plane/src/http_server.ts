@@ -411,6 +411,35 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       return;
     }
 
+    // ── Safe deployment identity endpoint (run 41918034520) ─────────────────
+    // HTTP 200 alone is only PROCESS_ALIVE. Exposes the running commit SHA so
+    // an external verifier can distinguish VERIFIED from STALE/UNKNOWN. No
+    // secrets are exposed.
+    if (pathname === "/release" && req.method === "GET") {
+      const commit = (process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || process.env.GITHUB_SHA || process.env.COMMIT_SHA || "").trim();
+      const service = (process.env.RENDER_SERVICE_NAME || process.env.SUPREMEAI_SERVICE_NAME || "supremeai-mcp-tower").trim();
+      const environment = (process.env.RENDER_ENV || process.env.NODE_ENV || "production").trim();
+      const buildId = (process.env.RENDER_DEPLOY_ID || process.env.RENDER_INSTANCE_ID || process.env.BUILD_ID || "").trim();
+      const startedAt = new Date(healthWatchdogBootedAtMs || Date.now()).toISOString();
+      const payload = {
+        service,
+        environment,
+        commit,
+        build_id: buildId,
+        started_at: startedAt,
+        capabilities: {
+          mcp: "registered",
+          database: "unknown",
+          orchestrator: "unknown",
+          browser: "unknown",
+          gateway: "unknown",
+        },
+      };
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify(withTimestamp(payload)));
+      return;
+    }
+
     // ── #3297: Unified workforce telemetry — autonomous + interactive ─────────
     if (pathname === "/api/agents" && req.method === "GET") {
       // বাংলা: ড্যাশবোর্ড/টেলিমেট্রির জন্য একীভূত agent-গণনা —

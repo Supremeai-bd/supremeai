@@ -40,6 +40,11 @@ FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Render injects RENDER_GIT_COMMIT as a build arg for Docker services.
+# Bake it into the runtime env so /release can report the running commit SHA.
+ARG RENDER_GIT_COMMIT=""
+ENV RENDER_GIT_COMMIT=${RENDER_GIT_COMMIT} GIT_COMMIT=${RENDER_GIT_COMMIT}
+
 # ── Python 3 + uv (needed for memory sidecar: backend/memory/mcp_server.py) ──
 # python3, pip3, and curl for uv installer. Keep the layer small with --no-cache.
 # #2525: pin uv version (was unpinned 'install.sh | sh' — supply-chain risk).

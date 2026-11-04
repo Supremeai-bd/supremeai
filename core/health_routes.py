@@ -346,3 +346,81 @@ async def liveness_probe(response: Response) -> dict[str, Any]:
         "alive": _liveness_status,
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
+
+
+@router.get("/release")
+async def release_info() -> dict[str, Any]:
+    """Safe deployment identity endpoint.
+
+    Exposes only non-secret deployment metadata so an external verifier
+    (Render deploy attestation, MCP Tower) can confirm that the running
+    process is actually the expected main commit — HTTP 200 alone is only
+    ``PROCESS_ALIVE``, never ``HEALTHY``/``VERIFIED``.
+
+    Returns:
+      service        — service name (Render service name or SUPREMEAI_SERVICE_NAME)
+      environment    — deployment environment
+      commit         — running commit SHA (Render git commit or GITHUB_SHA)
+      build_id       — Render deploy/instance id when available
+      started_at     — process start timestamp (UTC)
+      capabilities   — coarse capability states (honest, never faked)
+    """
+    import os
+
+    commit = (
+        os.getenv("RENDER_GIT_COMMIT")
+        or os.getenv("GITHUB_SHA")
+        or os.getenv("COMMIT_SHA")
+        or os.getenv("APP_COMMIT")
+        or ""
+    ).strip()
+
+    service = (
+        os.getenv("RENDER_SERVICE_NAME")
+        or os.getenv("SUPREMEAI_SERVICE_NAME")
+        or os.getenv("SERVICE_NAME")
+        or "supremeai"
+    ).strip()
+
+    environment = (
+        os.getenv("RENDER_ENV")
+        or os.getenv("ENV")
+        or os.getenv("SUPREMEAI_ENV")
+        or "production"
+    ).strip()
+
+    build_id = (
+        os.getenv("RENDER_DEPLOY_ID")
+        or os.getenv("RENDER_INSTANCE_ID")
+        or os.getenv("BUILD_ID")
+        or ""
+    ).strip()
+
+    started_at = time.strftime(
+        "%Y-%m-%dT%H:%M:%SZ", time.gmtime(_start_time)
+    )
+
+    # Capability states are reported honestly: "unknown" unless a concrete
+    # signal exists. Never claim "ready" from a 200 alone.
+    capabilities = {
+        "database": "unknown",
+        "orchestrator": "unknown",
+        "browser": "unknown",
+        "gateway": "unknown",
+    }
+    # Best-effort: reflect the registered health checks we can evaluate cheaply.
+    for check in _checks:
+        name = check.name.lower()
+        if "database" in name or "db" in name:
+            capabilities["database"] = "registered"
+        if "browser" in name:
+            capabilities["browser"] = "registered"
+
+    return {
+        "service": service,
+        "environment": environment,
+        "commit": commit,
+        "build_id": build_id,
+        "started_at": started_at,
+        "capabilities": capabilities,
+    }

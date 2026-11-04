@@ -144,19 +144,29 @@ export const env = {
       get url(): string { return optional("RENDER_MCP_URL"); },
     },
     api: {
+      // Service identity is deployment metadata, not application source.
+      // Empty means "not registered in this Render account" and must be
+      // surfaced as unavailable instead of targeting a stale service.
+      // Stale hardcoded ID srv-dbappass728c7396p580 removed (run 41918034520).
       get apiKey(): string { return optional("RENDER_API_KEY_5", optional("RENDER_API_KEY_API")); },
-      get serviceId(): string { return optional("RENDER_API_SVC_ID", "srv-dbappass728c7396p580"); }, // gitleaks:allow
-      get url(): string { return optional("RENDER_API_URL", "https://supremeai-api-ulw0.onrender.com"); },
+      get serviceId(): string { return optional("RENDER_API_SVC_ID"); },
+      get url(): string { return optional("RENDER_API_URL"); },
     },
     brain: {
       get apiKey(): string { return optional("RENDER_API_KEY_6"); },
-      get serviceId(): string { return optional("RENDER_BRAIN_SVC_ID", "srv-dabm7dfqj5pc738jkbmg"); },
-      get url(): string { return optional("RENDER_BRAIN_URL", "https://supremeai-primary-node.onrender.com"); },
+      // Must be explicitly configured to the Tiny Brain URL. Never fall back
+      // to the primary node: that makes the wrong service look healthy.
+      // Stale hardcoded ID srv-dabm7dfqj5pc738jkbmg removed (run 41918034520).
+      get serviceId(): string { return optional("RENDER_BRAIN_SVC_ID"); },
+      get url(): string { return optional("RENDER_BRAIN_URL"); },
     },
     ciRunner: {
       get apiKey(): string { return optional("RENDER_API_KEY_7", optional("RENDER_API_KEY_PAYKARI", optional("RENDER_API_KEY"))); },
-      get serviceId(): string { return optional("RENDER_CI_RUNNER_SVC_ID", "srv-dbl8tbmtlv9c73bbkvqg"); },
-      get url(): string { return optional("RENDER_CI_RUNNER_URL", "https://supremeai-ci-runner.onrender.com"); },
+      // Stale hardcoded ID srv-dbl8tbmtlv9c73bbkvqg removed (run 41918034520);
+      // CI runner identity now comes from the GitHub Actions variable
+      // RENDER_CI_RUNNER_SVC_ID, never baked into source.
+      get serviceId(): string { return optional("RENDER_CI_RUNNER_SVC_ID"); },
+      get url(): string { return optional("RENDER_CI_RUNNER_URL"); },
     },
   },
 

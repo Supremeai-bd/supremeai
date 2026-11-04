@@ -144,6 +144,27 @@ class RenderClient:
             query={"limit": limit},
         ) or []
 
+    def get_latest_deploy(self, service_id: Optional[str] = None) -> Dict[str, Any]:
+        """GET /v1/services/{id}/deploys?limit=1 — most recent deployment record.
+
+        Added for deployment attestation (#4246): the SHA-verification path
+        needs the latest deploy's terminal status and commit identity, not a
+        fire-and-forget trigger. An empty/missing deploy list is a failure
+        signal, not a silent pass — the attestation script refuses
+        health-only green.
+        """
+        deploys = self._request(
+            "GET",
+            f"/services/{service_id or self.default_service_id}/deploys",
+            query={"limit": 1},
+        ) or []
+        if not deploys:
+            raise RenderApiError(
+                f"no deploy history for service {service_id or self.default_service_id}",
+                status=0,
+            )
+        return deploys[0]
+
     def trigger_deploy(
         self,
         service_id: Optional[str] = None,
