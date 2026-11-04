@@ -4,7 +4,9 @@ services:
     name: supremeai-api
     runtime: docker
     plan: free
-    autoDeploy: true
+    # GitHub Actions owns selective deployment. Keeping Render native
+    # autoDeploy enabled would rebuild this service on every main commit.
+    autoDeploy: false
     dockerfilePath: gateway/Dockerfile
     dockerContext: .
     healthCheckPath: /healthz
@@ -31,6 +33,9 @@ services:
     name: supremeai-browser
     runtime: docker
     plan: free
+    # GitHub Actions owns selective deployment. Keeping Render native
+    # autoDeploy enabled would rebuild this service on every main commit.
+    autoDeploy: false
     dockerfilePath: browser/Dockerfile
     dockerContext: browser
     healthCheckPath: /health
@@ -44,6 +49,7 @@ services:
     name: supremeai-mcp-tower
     env: node
     plan: free
+    autoDeploy: false
     rootDir: infrastructure/mcp-control-plane
     healthCheckPath: /health
     buildCommand: npm install && npm run build
