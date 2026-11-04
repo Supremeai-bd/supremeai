@@ -210,6 +210,20 @@ export function buildAccountRegistry(): ProviderAccount[] {
       healthPath: "/health",
       available: isAvailable("RENDER_API_KEY_6"),
     },
+    {
+      id: "render-ci-runner",
+      provider: "render",
+      displayName: "Render CI Runner (Ephemeral Task Execution)",
+      role: "ci-runner",
+      environment: "production",
+      capabilities: ["health", "logs", "deploy", "restart", "env_vars"],
+      apiKeyRef: "RENDER_API_KEY_7",
+      apiKeyRefs: ["RENDER_API_KEY_PAYKARI", "RENDER_API_KEY"],
+      url: env.render.ciRunner.url,
+      serviceId: env.render.ciRunner.serviceId,
+      healthPath: "/health",
+      available: isAvailable("RENDER_API_KEY_7") || isAvailable("RENDER_API_KEY_PAYKARI") || isAvailable("RENDER_API_KEY"),
+    },
 
     // ── GitHub — SupremeAI Primary (Supremeai-bd/supremeai) ────────
     // Note: SaifulHaqueNiloy/supremeai and the pre-migration personal e-commerce namespace
