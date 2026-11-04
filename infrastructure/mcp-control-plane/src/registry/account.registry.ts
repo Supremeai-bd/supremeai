@@ -43,13 +43,11 @@ function isAvailable(envRef: string): boolean {
  */
 export const CANONICAL_FEDERATION_REPOS = [
   "supremeai",
-  "supremeai-open",
+  "supremeai-studio",
   "supremeai-core",
   "supremeai-api",
   "supremeai-browser",
-  "supremeai-studio",
   "supremeai-vscode",
-  "supremeai-archive",
 ] as const;
 
 export const ACTIVE_FEDERATION_REPOS = [
@@ -62,7 +60,6 @@ export const ARCHIVED_FEDERATION_REPOS = [
   "supremeai-api",
   "supremeai-browser",
   "supremeai-vscode",
-  "supremeai-archive",
 ] as const;
 
 export const GITHUB_ORGANIZATION = "Supremeai-bd";
