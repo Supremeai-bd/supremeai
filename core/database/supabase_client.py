@@ -22,6 +22,7 @@ except ImportError:
     create_client = None
 
 from core.config import settings
+from core.secret_utils import unwrap_secret
 
 
 def _supabase_retry_decorator(func: Callable) -> Callable:
@@ -147,7 +148,7 @@ class SupabaseDB:
             os.environ.get("SUPABASE_DATABASE_URL")
             or os.environ.get("SUPABASE_DATABASE_URL_POOLER")
         )
-        self.key = settings.supabase_key
+        self.key = unwrap_secret(settings.supabase_key)
         self.client: Client | None = None
 
         if self.url and self.key and self.url.startswith(("http://", "https://")):
@@ -173,7 +174,7 @@ class SupabaseDB:
         # বাংলা মন্তব্য: RLS-protected backend-only/audit টেবিল (যেমন evolution_logs)-এ
         # লিখতে হলে service_role key প্রয়োজন, যা RLS bypass করে। এই client কখনো
         # ইউজার Authorization ফরওয়ার্ড করবে না — শুধু ব্যাকএন্ড সিস্টেম রাইটের জন্য ব্যবহৃত হবে।
-        self.service_key = settings.supabase_service_key
+        self.service_key = unwrap_secret(settings.supabase_service_key)
         self.service_client: Client | None = None
         if self.url and self.service_key and self.url.startswith(("http://", "https://")):
             try:

@@ -42,9 +42,12 @@ def _rest_base_and_key() -> tuple[str, str] | None:
     """
     try:
         from core.config import settings
+        from core.secret_utils import unwrap_secret
 
         base = (getattr(settings, "supabase_url", "") or "").rstrip("/")
-        key = getattr(settings, "supabase_service_key", "") or getattr(settings, "supabase_key", "")
+        key = unwrap_secret(getattr(settings, "supabase_service_key", "")) or unwrap_secret(
+            getattr(settings, "supabase_key", "")
+        )
     except Exception:  # noqa: BLE001 — very-early-boot safety; settings is heavy
         return None
     if not base or not key:

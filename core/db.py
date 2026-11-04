@@ -21,6 +21,7 @@ from sqlalchemy.orm import DeclarativeBase
 
 from core.config import settings
 from core.monitoring.logging_config import logger
+from core.secret_utils import unwrap_secret
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -55,7 +56,7 @@ def _get_database_url() -> str:
 
     url = ""
     try:
-        url = settings.supabase_database_url or ""
+        url = unwrap_secret(settings.supabase_database_url) or ""
     except AttributeError:
         url = ""
     if not url:

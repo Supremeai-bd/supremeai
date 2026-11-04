@@ -9,6 +9,7 @@ from uuid import UUID
 import asyncpg
 
 from core.config import settings
+from core.secret_utils import unwrap_secret
 
 _pool: asyncpg.Pool | None = None
 
@@ -28,8 +29,8 @@ def _asyncpg_dsn(database_url: str) -> str:
 async def get_neon_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
-        database_url = getattr(settings, "database_url", "") or getattr(
-            settings, "supabase_database_url", ""
+        database_url = unwrap_secret(getattr(settings, "database_url", "")) or unwrap_secret(
+            getattr(settings, "supabase_database_url", "")
         )
         if not database_url:
             raise RuntimeError("DATABASE_URL is required for Neon persistence")

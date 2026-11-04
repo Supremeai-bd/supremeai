@@ -85,13 +85,12 @@ def _get_vector_store():
     try:
         from core.ai_memory.vector_store import FreeTierOptimizedVectorStore
         from core.config import settings
+        from core.secret_utils import unwrap_secret
 
         supabase_url = getattr(settings, "supabase_url", "") or ""
-        supabase_key = (
+        supabase_key = unwrap_secret(
             getattr(settings, "supabase_service_role_key", "")
-            or getattr(settings, "supabase_anon_key", "")
-            or ""
-        )
+        ) or unwrap_secret(getattr(settings, "supabase_anon_key", "")) or ""
         if not supabase_url or not supabase_key:
             return None
         return FreeTierOptimizedVectorStore(supabase_url=supabase_url, supabase_key=supabase_key)

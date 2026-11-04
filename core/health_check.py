@@ -20,6 +20,7 @@ from typing import Any
 import httpx
 
 from core.monitoring.logging_config import logger
+from core.secret_utils import unwrap_secret
 
 # Fixed import path - using relative import
 from .cache.redis_manager import redis_manager
@@ -166,7 +167,7 @@ class ComprehensiveHealthChecker:
             if engine is None:
                 # Direct Supabase REST ping fallback if raw engine is not initialized (e.g. REST-only mode or pooler unconfigured)
                 supa_url = getattr(settings, "supabase_url", "")
-                supa_key = getattr(settings, "supabase_key", "")
+                supa_key = unwrap_secret(getattr(settings, "supabase_key", ""))
                 if supa_url and supa_key:
                     try:
                         async with httpx.AsyncClient(timeout=4) as client:
@@ -216,7 +217,7 @@ class ComprehensiveHealthChecker:
             # Direct Supabase REST ping fallback
             try:
                 supa_url = getattr(settings, "supabase_url", "")
-                supa_key = getattr(settings, "supabase_key", "")
+                supa_key = unwrap_secret(getattr(settings, "supabase_key", ""))
                 if supa_url and supa_key:
                     async with httpx.AsyncClient(timeout=4) as client:
                         r = await client.get(

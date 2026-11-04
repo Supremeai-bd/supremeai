@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 from core.config import settings
+from core.secret_utils import unwrap_secret
 from memory.sqlite_store import SQLiteMemoryStore
 
 
@@ -22,7 +23,7 @@ class SupabaseStore(SQLiteMemoryStore):
             # Audit fix (patch v3): canonical settings field (the previous
             # ``settings.database_url`` attribute does not exist → latent
             # AttributeError when all env vars above are unset).
-            or getattr(settings, "supabase_database_url", "")
+            or unwrap_secret(getattr(settings, "supabase_database_url", ""))
         )
         self.local_path = local_path or os.getenv("SQLITE_PATH", "data/supremeai.db")
         self._provider: str | None = None  # Will be determined after health check
