@@ -18,9 +18,11 @@ COPY --chown=supremeai:supremeai . .
 RUN mkdir -p /app/data /app/uploads /app/logs /app/tmp && chown -R supremeai:supremeai /app/data /app/uploads /app/logs /app/tmp
 
 # Make `core` an importable package at runtime (main.py uses `from core.xxx`).
-# Docker WORKDIR is /app (= core contents), so /core -> /app symlink + __init__.py
-# lets `import core` resolve. PYTHONPATH=/ (set above) keeps / on sys.path.
-RUN touch /app/__init__.py && ln -s /app /core && chown -h supremeai:supremeai /core
+# Docker WORKDIR is /app (= core contents), so expose a real `core` package
+# via /tmp/corepkg + /core symlink (PYTHONPATH=/ keeps / on sys.path).
+# Using a real dir (not a self-referential symlink) keeps __file__ resolution
+# sane so pathlib parents[] indexing in config.py doesn't crash.
+RUN rm -rf /tmp/corepkg && mkdir -p /tmp/corepkg && cp -r /app/. /tmp/corepkg/ && touch /tmp/corepkg/__init__.py && ln -s /tmp/corepkg /core
 
 # =============================================================================
 # RENDER HEAVY CI BATTERY: Runs Full Pytest, Migration, RLS, Secret, & Compile checks
