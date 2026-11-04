@@ -35,10 +35,10 @@ async def get_usage_metrics(
             await db.client.table("usage_metrics").select("*").eq("tenant_id", user["tenant_id"])
         )
         if start:
-            query = query.gte("date", start)
+            query = query.gte("metric_date", start)
         if end:
-            query = query.lte("date", end)
-        res = query.order("date", desc=True).limit(limit).execute()
+            query = query.lte("metric_date", end)
+        res = query.order("metric_date", desc=True).limit(limit).execute()
         return {"items": res.data or [], "total": len(res.data or [])}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

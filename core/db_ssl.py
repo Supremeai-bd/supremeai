@@ -2,6 +2,7 @@ import logging
 import ssl
 
 from core.config import settings
+from core.secret_utils import unwrap_secret
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +19,7 @@ def build_supabase_ssl_context() -> ssl.SSLContext:
     ctx.check_hostname = True
     ctx.verify_mode = ssl.CERT_REQUIRED
 
-    # Older Settings revisions do not expose this optional CA override.
-    supabase_ca = getattr(settings, "supabase_db_ca_cert", "")
+    supabase_ca = unwrap_secret(getattr(settings, "supabase_db_ca_cert", None))
     if supabase_ca:
         try:
             ctx.load_verify_locations(cadata=supabase_ca)
