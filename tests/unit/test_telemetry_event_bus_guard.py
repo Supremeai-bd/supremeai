@@ -77,3 +77,26 @@ def test_event_bus_forwards_to_sentry_when_available():
         assert "[AUTH_FAILURE] Token expired" in str(args[0])
         assert "supremeai" in kwargs["contexts"]
 
+
+@pytest.mark.asyncio
+async def test_deterministic_config_errors_skip_pattern_escalation():
+    """Missing secret and deterministic config errors must not escalate to SILENT_PATTERN_ESCALATED."""
+    bus = IntelligentErrorBus()
+    event = ErrorEvent(
+        module="secret_vault",
+        error_type="CRITICAL_SECRET_MISSING",
+        message="Secret UPSTASH_REDIS_REST_URL is missing",
+        severity="CRITICAL",
+    )
+
+    # Emit 4 times consecutively
+    for _ in range(4):
+        bus.emit(event)
+
+    # Must NOT have escalated to SILENT_PATTERN_ESCALATED
+    assert event.error_type == "CRITICAL_SECRET_MISSING"
+
+    # Self healing should cleanly skip non-retryable error
+    await bus.process_error_for_healing(event)
+    assert event.resolved is False
+

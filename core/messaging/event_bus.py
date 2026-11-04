@@ -387,6 +387,13 @@ class IntelligentErrorBus(ErrorEventBus):
     Contextually enriches errors with system metrics and escalates repeating patterns.
     """
 
+    NON_RETRYABLE_CONFIG_ERRORS = {
+        "CRITICAL_SECRET_MISSING",
+        "CONFIG_ERROR",
+        "CONFIGURATION_ERROR",
+        "SECRET_NOT_FOUND",
+    }
+
     def __init__(self) -> None:
         super().__init__()
         from collections import deque
@@ -406,6 +413,8 @@ class IntelligentErrorBus(ErrorEventBus):
             return {}
 
     def _check_and_escalate_pattern(self, event: ErrorEvent) -> None:
+        if event.error_type in self.NON_RETRYABLE_CONFIG_ERRORS:
+            return
         with self._lock:
             self._error_history.append(event.error_type)
             if len(self._error_history) >= 3:
@@ -443,6 +452,12 @@ class IntelligentErrorBus(ErrorEventBus):
             return
 
         err_type = event.error_type or event.type
+        if err_type in self.NON_RETRYABLE_CONFIG_ERRORS:
+            logger.info(
+                f"[Self-Healing] Deterministic configuration error '{err_type}' is non-retryable; skipping healing loop."
+            )
+            return
+
         logger.info(f"[Self-Healing] Processing error event for healing: {err_type}")
 
         try:
