@@ -1,4 +1,4 @@
-# Stage 1: Runtime
+# Stage 1: Runtime & Verification Runner
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -11,13 +11,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl perl-base 
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir pytest pytest-asyncio pytest-cov pydantic fastapi httpx cryptography pyotp
+    && pip install --no-cache-dir pytest pytest-asyncio pytest-cov pydantic fastapi httpx cryptography pyotp bandit pip-audit
 
 COPY --chown=supremeai:supremeai . .
 RUN mkdir -p /app/data /app/uploads /app/logs /app/tmp && chown -R supremeai:supremeai /app/data /app/uploads /app/logs /app/tmp
 
 # =============================================================================
-# RENDER HEAVY CI BATTERY: Runs Pytest, Migration, RLS, & Secret checks in build
+# RENDER HEAVY CI BATTERY: Runs Full Pytest, Migration, RLS, Secret, & Compile checks
 # If any test fails, Render build terminates with failure and blocks the PR.
 # =============================================================================
 RUN chmod +x scripts/run_render_heavy_suite.sh && bash scripts/run_render_heavy_suite.sh

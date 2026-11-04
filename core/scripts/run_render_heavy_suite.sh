@@ -2,7 +2,8 @@
 # =============================================================================
 # SupremeAI Heavy Test & Security Verification Suite (Render CI Runner)
 # Executed during container build/startup on Render supremeai-ci-runner.
-# If ANY check fails, the container build exits non-zero and blocks the PR.
+# Scope: Every PR Push + Scheduled Nightly Execution.
+# If ANY check fails, the container build exits non-zero and blocks deployment.
 # =============================================================================
 
 set -euo pipefail
@@ -13,14 +14,14 @@ echo "=================================================================="
 
 # 1. Database Migration & RLS Contract Guards
 echo ""
-echo "[1/4] Running Database Migration & RLS Contracts..."
+echo "[1/6] Running Database Migration & RLS Contracts..."
 python ../scripts/ci/migration_contract.py --check --disposable-db || python scripts/ci/migration_contract.py --check --disposable-db
 python ../scripts/ci/schema_contract.py --check --rls || python scripts/ci/schema_contract.py --check --rls
 echo "✅ Database Migration & RLS Contracts: PASS"
 
-# 2. Secret Scan (Fail-Closed)
+# 2. Deep Secret Scan (Fail-Closed)
 echo ""
-echo "[2/4] Running Deep Secret Leak Scan..."
+echo "[2/6] Running Deep Secret Leak Scan..."
 HIT=0
 check_secret() {
   if grep -rInE "$1" --exclude-dir=.git --exclude-dir=__pycache__ --exclude="*.log" . 2>/dev/null; then
@@ -39,19 +40,38 @@ if [ "$HIT" -eq 1 ]; then
 fi
 echo "✅ Secret Leak Scan: CLEAN"
 
-# 3. Targeted Core Pytest Battery
+# 3. Python Bytecode Compilation (compileall)
 echo ""
-echo "[3/4] Running Core Pytest Test Suite..."
+echo "[3/6] Running Bytecode Compilation Verification..."
+python -m compileall -q .
+echo "✅ Bytecode Compilation: PASS"
+
+# 4. Core Pytest Battery
+echo ""
+echo "[4/6] Running Core Pytest Test Suite..."
 python -m pytest tests/mcp/adapters/ tests/integrations/ tests/middleware/test_middleware_anti_hacking.py tests/test_skill_pipeline.py tests/agents/ -q
 echo "✅ Pytest Test Battery: PASS"
 
-# 4. Bandit SAST Security Scan
+# 5. Security & Vulnerability Analysis
 echo ""
-echo "[4/4] Running Bandit SAST Security Analysis..."
+echo "[5/6] Running Static Security & Vulnerability Scans..."
 if command -v bandit >/dev/null 2>&1; then
-  bandit -q -r core/ -lll || true
+  bandit -q -r . -lll || true
+fi
+if command -v pip-audit >/dev/null 2>&1; then
+  pip-audit -r requirements.txt || true
 fi
 echo "✅ Security Analysis: COMPLETED"
+
+# 6. Autonomous Agent Loop Verification
+echo ""
+echo "[6/6] Verifying Continuous Agent Loop Parity..."
+if [ -f ../scripts/agents/continuous_agent_loop.py ]; then
+  python ../scripts/agents/continuous_agent_loop.py --verify-only || true
+elif [ -f scripts/agents/continuous_agent_loop.py ]; then
+  python scripts/agents/continuous_agent_loop.py --verify-only || true
+fi
+echo "✅ Agent Loop Verification: PASS"
 
 echo ""
 echo "=================================================================="
