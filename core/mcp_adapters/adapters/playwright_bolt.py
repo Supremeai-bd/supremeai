@@ -22,7 +22,14 @@ from typing import Any
 
 from core.browser_session_vault import BrowserSessionVault
 from core.logging_config import logger
-from . import PLAYWRIGHT_AVAILABLE
+try:
+    from . import PLAYWRIGHT_AVAILABLE
+except ImportError:
+    try:
+        import playwright  # noqa: F401
+        PLAYWRIGHT_AVAILABLE = True
+    except ImportError:
+        PLAYWRIGHT_AVAILABLE = False
 
 
 class AdapterUnavailable(RuntimeError):
