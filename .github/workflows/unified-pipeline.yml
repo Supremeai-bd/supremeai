@@ -181,8 +181,11 @@ jobs:
         env:
           RENDER_CORE_SERVICE_ID: ${{ vars.RENDER_CORE_SERVICE_ID }}
           RENDER_API_SERVICE_ID: ${{ vars.RENDER_API_SERVICE_ID }}
-          RENDER_BROWSER_SERVICE_ID: ${{ vars.RENDER_BROWSER_SERVICE_ID }}
+          RENDER_SCRAPER_SERVICE_ID: ${{ vars.RENDER_SCRAPER_SERVICE_ID }}
           RENDER_MCP_SERVICE_ID: ${{ vars.RENDER_MCP_SERVICE_ID }}
+          RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
+          RENDER_BRAIN_SERVICE_ID: ${{ vars.RENDER_BRAIN_SERVICE_ID }}
+          RENDER_CI_RUNNER_SERVICE_ID: ${{ vars.RENDER_CI_RUNNER_SERVICE_ID }}
         id: plan
         run: |
           python scripts/ci/plan_render_deploys.py \
