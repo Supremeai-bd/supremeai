@@ -202,6 +202,14 @@ class SettingsValidationMixin:
                 "admin API stays locked without it."
             )
 
+        def _secret_is_set(value: Any) -> bool:
+            if value is None:
+                return False
+            get_secret_value = getattr(value, "get_secret_value", None)
+            if callable(get_secret_value):
+                value = get_secret_value()
+            return bool(value)
+
         if self.env in {"production", "staging"}:
             _LLM_CRITICAL_KEYS = [
                 "GEMINI_API_KEY",
@@ -210,9 +218,18 @@ class SettingsValidationMixin:
                 "DEEPSEEK_API_KEY",
                 "OPENAI_API_KEY",
             ]
-            self._ensure_secrets_loaded()
-            available = [k for k in _LLM_CRITICAL_KEYS if self._cached_secrets.get(k)]
-            missing = [k for k in _LLM_CRITICAL_KEYS if not self._cached_secrets.get(k)]
+            # These integrations are optional at boot. Do not call a secret-loader
+            # method that is not part of Settings, or force a vault/network fetch
+            # while Pydantic is constructing the settings object. Check the
+            # already-loaded in-memory cache and process environment only.
+            cached_secrets = getattr(self, "_cached_secrets", {}) or {}
+            configured_llm_keys = {
+                key
+                for key in _LLM_CRITICAL_KEYS
+                if _secret_is_set(cached_secrets.get(key)) or _secret_is_set(os.getenv(key))
+            }
+            available = [k for k in _LLM_CRITICAL_KEYS if k in configured_llm_keys]
+            missing = [k for k in _LLM_CRITICAL_KEYS if k not in configured_llm_keys]
             if not available:
                 logger.warning(
                     "🚨 BOOT-TIME ALERT: কোনো LLM API key পাওয়া যায়নি! "
@@ -227,22 +244,29 @@ class SettingsValidationMixin:
                 logger.info(f"✅ BOOT-TIME: সব {len(available)} LLM API key সফলভাবে লোড হয়েছে।")
 
         if self.env in {"production", "staging"}:
-            stripe_key = self.stripe_api_key.get_secret_value() if self.stripe_api_key else ""
-            stripe_webhook = (
-                self.stripe_webhook_secret.get_secret_value() if self.stripe_webhook_secret else ""
-            )
-            if not stripe_key:
+            # Older Settings variants expose these as SecretStr properties;
+            # the current model may not. Optional billing secrets must never
+            # crash application startup when the properties are absent.
+            stripe_key_configured = _secret_is_set(
+                getattr(self, "stripe_api_key", None)
+            ) or _secret_is_set(os.getenv("STRIPE_API_KEY"))
+            stripe_webhook_configured = _secret_is_set(
+                getattr(self, "stripe_webhook_secret", None)
+            ) or _secret_is_set(os.getenv("STRIPE_WEBHOOK_SECRET"))
+            if not stripe_key_configured:
                 logger.warning(
                     "⚠️ Stripe API key missing in production/staging. Billing features will run in mock mode."
                 )
-            if not stripe_webhook:
+            if not stripe_webhook_configured:
                 logger.warning(
                     "⚠️ Stripe webhook secret missing in production/staging. Webhook validation disabled."
                 )
 
         if self.env == "production":
             missing = []
-            if not self.ci_webhook_secret:
+            if not _secret_is_set(getattr(self, "ci_webhook_secret", None)) and not _secret_is_set(
+                os.getenv("CI_WEBHOOK_SECRET")
+            ):
                 missing.append("CI_WEBHOOK_SECRET")
             if missing:
                 logger.warning(
@@ -264,8 +288,6 @@ class SettingsValidationMixin:
                 critical_infrastructure.append("SUPABASE_URL")
             if not getattr(self, "supabase_key", None):
                 critical_infrastructure.append("SUPABASE_KEY")
-            if not getattr(self, "firebase_service_account_json", None):
-                critical_infrastructure.append("FIREBASE_SERVICE_ACCOUNT_JSON")
             if not getattr(self, "encryption_key", None):
                 critical_infrastructure.append("ENCRYPTION_KEY")
             if critical_infrastructure:
@@ -280,8 +302,6 @@ class SettingsValidationMixin:
             missing: list[str] = []
             if not getattr(self, "encryption_key", None):
                 missing.append("ENCRYPTION_KEY")
-            if not getattr(self, "firebase_service_account_json", None):
-                missing.append("FIREBASE_SERVICE_ACCOUNT_JSON")
             if missing:
                 logger.warning(
                     f"⚠️ Missing local config vars: {', '.join(missing)}. Local/dev server may fail at runtime."
