@@ -11,7 +11,7 @@ Locked contract (issue #2719, founder directive: per-request client churn ×25+)
 import re
 from pathlib import Path
 
-import database.supabase_client as supabase_client_module
+import core.database.supabase_client as supabase_client_module
 from core.database.supabase_client import get_db, reset_db_singleton
 
 RUNTIME_SITES = [

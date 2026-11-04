@@ -1,3 +1,4 @@
+import inspect
 import asyncio
 import json
 import os
@@ -52,14 +53,27 @@ class RedisTaskQueue:
 
     async def _get_redis(self):
         if not self.redis:
-            import redis.asyncio as aioredis
+            try:
+                from core.cache.redis_manager import redis_manager
 
-            from core.config import settings
+                if hasattr(redis_manager, "get_managed_client"):
+                    mgr_client = redis_manager.get_managed_client()
+                    if inspect.isawaitable(mgr_client):
+                        self.redis = await mgr_client
+                    else:
+                        self.redis = mgr_client
+            except Exception:
+                self.redis = None
 
-            redis_url = getattr(settings, "redis_url", None) or os.environ.get(
-                "REDIS_URL", "redis://<your-redis-url>"
-            )
-            self.redis = aioredis.from_url(redis_url, decode_responses=True)
+            if not self.redis:
+                import redis.asyncio as aioredis
+
+                from core.config import settings
+
+                redis_url = getattr(settings, "redis_url", None) or os.environ.get(
+                    "REDIS_URL", "redis://<your-redis-url>"
+                )
+                self.redis = aioredis.from_url(redis_url, decode_responses=True)
         return self.redis
 
     def ensure_worker_started(self) -> None:

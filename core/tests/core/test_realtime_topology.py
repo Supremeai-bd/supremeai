@@ -66,7 +66,7 @@ class TestTaskCompletionNotifications:
     @pytest.mark.asyncio
     async def test_completion_publishes_to_live_dashboard_channel(self, monkeypatch):
         """The task-queue completion path publishes into the LIVE pubsub channel."""
-        import core.queue.task_queue as tq
+        import core.task_queue.task_queue as tq
         from core.messaging.pubsub import global_pubsub
 
         published: list[Any] = []

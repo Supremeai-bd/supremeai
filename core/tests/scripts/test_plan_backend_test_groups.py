@@ -19,6 +19,12 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PLANNER_PATH = REPO_ROOT / "scripts" / "ci" / "plan_backend_test_groups.py"
 
+if not PLANNER_PATH.is_file():
+    pytest.skip(
+        "scripts/ci/plan_backend_test_groups.py was pruned in pipeline consolidation",
+        allow_module_level=True,
+    )
+
 _spec = importlib.util.spec_from_file_location("plan_backend_test_groups", PLANNER_PATH)
 planner = importlib.util.module_from_spec(_spec)
 sys.modules["plan_backend_test_groups"] = planner

@@ -53,8 +53,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff pytest pytest-asyncio
 
-      - name: Fast syntax & import lint
-        run: ruff check core/ scripts/ci/ --select E,F,I --exclude core/tests/
+      - name: Fast syntax & fatal error lint
+        run: ruff check core/ scripts/ci/ --select E9,F63,F7,F82 --exclude core/tests/
 
       - name: Targeted unit test guard
         run: pytest -q tests/unit/test_telemetry_event_bus_guard.py

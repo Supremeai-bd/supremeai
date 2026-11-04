@@ -181,6 +181,9 @@ def _build_freshness() -> dict[str, Any]:
         "fresh": fresh,
         "reason": reason,
     }
+
+
+def _celery_alive() -> bool:
     proc: subprocess.Popen[bytes] | None = _state.get("celery_proc")
     return bool(proc and proc.poll() is None)
 

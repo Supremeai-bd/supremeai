@@ -87,10 +87,13 @@ def test_task_execute_with_context():
     }
 
     try:
+        from core.security import create_access_token
+
+        token = create_access_token({"sub": "test_user", "role": "admin"})
         response = client.post(
             "/task/execute",
             json=payload,
-            headers={"Authorization": "Bearer test-token"},
+            headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 200
         res_data = response.json()

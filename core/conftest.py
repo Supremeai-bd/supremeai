@@ -1,10 +1,18 @@
 # backend/conftest.py
 # Test configuration and fixtures for SupremeAI backend
 import asyncio
+import sys
+from pathlib import Path
 import os
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+_CORE_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _CORE_DIR.parent
+for _p in (str(_CORE_DIR), str(_REPO_ROOT)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 # ROOT-CAUSE FIX: pytest collection phase-এ tests/api/*.py, tests/core/*.py-র
 # অনেক ফাইল module-level-এই route/app মডিউল import করে, যেগুলো
@@ -94,3 +102,9 @@ def mock_external_apis():
 # pyproject.toml-এ asyncio_mode = "auto" সেট থাকায় pytest-asyncio নিজেই
 # event loop ম্যানেজ করে। manual event_loop fixture pytest-asyncio 0.21+ এ
 # DeprecationWarning দেয় এবং filterwarnings="error" এর কারণে টেস্ট ফেল করে।
+
+
+@pytest.fixture(scope="session")
+def override_setup_test_database():
+    """Session-scoped placeholder fixture for test database setup overrides."""
+    yield

@@ -766,14 +766,10 @@ class ProductionSecretVault:
 
 
     def _fetch_raw_secrets(self, environment: str | None = None) -> dict[str, str]:
-        """Fetch secrets via Infisical raw REST API (/api/v3/secrets/raw).
+        """Fetch secrets via SSOT Infisical raw REST API (/api/v3/secrets/raw).
 
-        Bypasses vendor blind-index SDK bug (issue #434).
+        Bypasses vendor blind-index SDK bug (issue #434, #478).
         """
-        import json
-        import urllib.parse
-        import urllib.request
-
         # Avoid spamming the raw API if already fetched within TTL
         now = time.monotonic()
         if getattr(self, "_raw_fetched_at", 0.0) and (now - self._raw_fetched_at) < CACHE_TTL_SECONDS:
@@ -784,65 +780,27 @@ class ProductionSecretVault:
         if not project:
             return {}
 
-        token = self.token
-        api_base = os.getenv("INFISICAL_API_URL", "https://app.infisical.com").rstrip("/")
-        if not token and self.client_id and self.client_secret:
-            try:
-                auth_payload = json.dumps({"clientId": self.client_id, "clientSecret": self.client_secret}).encode()
-                auth_req = urllib.request.Request(
-                    f"{api_base}/api/v1/auth/universal-auth/login",
-                    data=auth_payload,
-                    headers={"Content-Type": "application/json"},
-                    method="POST",
-                )
-                with urllib.request.urlopen(auth_req, timeout=INFISICAL_TIMEOUT) as auth_res:
-                    token = json.load(auth_res).get("accessToken")
-            except Exception as e:
-                logger.warning(f"Raw Infisical universal-auth login failed: {e}")
-                return {}
-
-        if not token:
-            return {}
-
-        workspace_id = project
         try:
-            ws_req = urllib.request.Request(
-                f"{api_base}/api/v1/workspace",
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-            )
-            with urllib.request.urlopen(ws_req, timeout=INFISICAL_TIMEOUT) as ws_res:
-                ws_data = json.load(ws_res)
-                for ws in ws_data.get("workspaces", []):
-                    if ws.get("id") == workspace_id or ws.get("slug") == workspace_id:
-                        workspace_id = ws.get("id")
-                        break
-        except Exception as e:
-            logger.debug(f"Unable to resolve Infisical workspace: {e}")
+            from core.security.infisical_loader import fetch_raw_infisical_secrets
 
-        try:
-            path = os.getenv("INFISICAL_SECRET_PATH", "/")
-            query = urllib.parse.urlencode({"workspaceId": workspace_id, "environment": env, "secretPath": path})
-            req = urllib.request.Request(
-                f"{api_base}/api/v3/secrets/raw?{query}",
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            result = fetch_raw_infisical_secrets(
+                project_id=project,
+                environment=env,
+                token=self.token,
+                client_id=self.client_id,
+                client_secret=self.client_secret,
+                timeout=INFISICAL_TIMEOUT,
             )
-            with urllib.request.urlopen(req, timeout=INFISICAL_TIMEOUT) as res:
-                data = json.load(res)
 
-            result: dict[str, str] = {}
             ttl = CACHE_TTL_SECONDS
-            for item in data.get("secrets", []):
-                k = item.get("secretKey")
-                v = item.get("secretValue")
-                if k and v is not None:
-                    result[k] = v
-                    self._cache[k] = _CacheEntry(v, ttl=ttl)
+            for k, v in result.items():
+                self._cache[k] = _CacheEntry(v, ttl=ttl)
 
             self._raw_fetched_at = now
             if result:
                 logger.info(
                     f"✅ Raw REST fetch complete: {len(result)} secrets loaded from Infisical "
-                    f"(env={env}, workspace={workspace_id})."
+                    f"(env={env}, workspace={project})."
                 )
                 if self._circuit_breaker_open:
                     self._close_circuit()
