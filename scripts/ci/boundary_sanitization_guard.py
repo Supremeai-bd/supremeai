@@ -170,6 +170,7 @@ APPROVED_SUBTREES = {
         "db_ssl.py",
         "config_fields.py",
         ".github",
+        "scripts",
     },
     ".semgrep": {
         "supremeai-invariants.yaml",
