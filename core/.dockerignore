@@ -4,7 +4,7 @@
 __pycache__
 *.pyc
 *.pyo
-tests/
+# tests/ - Required inside Render CI Runner image for heavy test execution
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
