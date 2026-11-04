@@ -43,7 +43,10 @@ def fail(message: str) -> int:
 
 
 def main() -> int:
-    api_key = os.environ.get("RENDER_API_KEY", "").strip()
+    key_env = os.environ.get("RENDER_API_KEY_ENV", "").strip()
+    api_key = os.environ.get(key_env, "").strip() if key_env else ""
+    if not api_key:
+        api_key = os.environ.get("RENDER_API_KEY", "").strip()
     service_id = os.environ.get("RENDER_SERVICE_ID", "").strip()
     expected = os.environ.get("EXPECTED_SHA", "").strip().lower()
     release_url = os.environ.get("RELEASE_URL", "").strip()

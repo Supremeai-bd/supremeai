@@ -47,7 +47,14 @@ OK_STATES = {"live"}
 
 def main() -> int:
     svc_id = os.environ.get("RENDER_SVC_ID", "").strip()
-    api_key = os.environ.get("RENDER_API_KEY", "").strip()
+    # Per-service API key: each Render service lives in its own account, so a
+    # single RENDER_API_KEY (paykari) cannot deploy the others (404 not found).
+    # The matrix carries api_key_env (e.g. RENDER_API_KEY_5); fall back to
+    # RENDER_API_KEY for legacy callers.
+    key_env = os.environ.get("RENDER_API_KEY_ENV", "").strip()
+    api_key = os.environ.get(key_env, "").strip() if key_env else ""
+    if not api_key:
+        api_key = os.environ.get("RENDER_API_KEY", "").strip()
 
     if not svc_id:
         print("Skipping Render deploy - service ID not set")

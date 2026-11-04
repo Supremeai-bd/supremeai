@@ -39,18 +39,22 @@ from pathlib import Path
 SERVICE_RULES = {
     "core": (
         "RENDER_CORE_SERVICE_ID",
+        "RENDER_API_KEY",
         ("core/", "requirements", "pyproject.toml", "Dockerfile", "scripts/lib/", "scripts/runtime/"),
     ),
     "api": (
         "RENDER_API_SERVICE_ID",
+        "RENDER_API_KEY_5",
         ("gateway/", "config/routing_policy", "render.yaml", "scripts/lib/"),
     ),
     "browser": (
         "RENDER_BROWSER_SERVICE_ID",
+        "RENDER_API_KEY",
         ("browser/", "render.yaml", "scripts/lib/"),
     ),
     "mcp": (
         "RENDER_MCP_SERVICE_ID",
+        "RENDER_API_KEY_4",
         ("infrastructure/mcp-control-plane/", "scripts/runtime/", "render.yaml"),
     ),
 }
@@ -94,10 +98,10 @@ def main() -> int:
         candidates = [
             (service, rule)
             for service, rule in services
-            if any(_matches(path, rule[1]) for path in files)
+            if any(_matches(path, rule[2]) for path in files)
         ]
 
-    for service, (env_name, _prefixes) in candidates:
+    for service, (env_name, api_key_env, _prefixes) in candidates:
         service_id = os.environ.get(env_name, "").strip()
         if not service_id:
             unregistered.append(f"{service}:{env_name}")
@@ -107,7 +111,7 @@ def main() -> int:
                 file=sys.stderr,
             )
         else:
-            selected.append({"service": service, "service_id": service_id})
+            selected.append({"service": service, "service_id": service_id, "api_key_env": api_key_env})
 
     matrix = json.dumps({"include": selected}, separators=(",", ":"))
     output = args.output or os.environ.get("GITHUB_OUTPUT", "")
