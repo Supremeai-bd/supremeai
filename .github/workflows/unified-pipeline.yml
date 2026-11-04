@@ -230,8 +230,12 @@ jobs:
           RENDER_API_KEY_ENV: ${{ matrix.api_key_env }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
           RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
           RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
           RENDER_API_KEY_5: ${{ secrets.RENDER_API_KEY_5 }}
+          RENDER_API_KEY_6: ${{ secrets.RENDER_API_KEY_6 }}
+          RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
           RENDER_SVC_ID: ${{ matrix.service_id }}
           RENDER_WAIT: "1"
           RENDER_WAIT_TIMEOUT_SECONDS: "600"
@@ -242,8 +246,12 @@ jobs:
           RENDER_API_KEY_ENV: ${{ matrix.api_key_env }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
           RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
           RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
           RENDER_API_KEY_5: ${{ secrets.RENDER_API_KEY_5 }}
+          RENDER_API_KEY_6: ${{ secrets.RENDER_API_KEY_6 }}
+          RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
           RENDER_SERVICE_ID: ${{ matrix.service_id }}
           EXPECTED_SHA: ${{ github.sha }}
           RELEASE_URL: ${{ vars.RENDER_CORE_RELEASE_URL }}

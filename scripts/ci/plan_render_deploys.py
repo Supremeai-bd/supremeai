@@ -47,15 +47,30 @@ SERVICE_RULES = {
         "RENDER_API_KEY_5",
         ("gateway/", "config/routing_policy", "render.yaml", "scripts/lib/"),
     ),
-    "browser": (
-        "RENDER_BROWSER_SERVICE_ID",
-        "RENDER_API_KEY",
-        ("browser/", "render.yaml", "scripts/lib/"),
+    "scraper": (
+        "RENDER_SCRAPER_SERVICE_ID",
+        "RENDER_API_KEY_3",
+        ("browser/", "core/", "render.yaml", "scripts/lib/", "scripts/runtime/"),
     ),
     "mcp": (
         "RENDER_MCP_SERVICE_ID",
         "RENDER_API_KEY_4",
         ("infrastructure/mcp-control-plane/", "scripts/runtime/", "render.yaml"),
+    ),
+    "worker": (
+        "RENDER_WORKER_SERVICE_ID",
+        "RENDER_API_KEY_2",
+        ("core/", "scripts/lib/", "scripts/runtime/"),
+    ),
+    "brain": (
+        "RENDER_BRAIN_SERVICE_ID",
+        "RENDER_API_KEY_6",
+        ("core/services/brain/", "core/", "scripts/lib/"),
+    ),
+    "ci-runner": (
+        "RENDER_CI_RUNNER_SERVICE_ID",
+        "RENDER_API_KEY_PAYKARI",
+        ("scripts/ci/", "scripts/ops/", "scripts/lib/"),
     ),
 }
 
