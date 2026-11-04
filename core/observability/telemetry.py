@@ -144,7 +144,7 @@ def setup_tracing(*args, **kwargs):
 import functools
 
 
-def trace_span(name, attributes=None):
+def trace_span(name, attributes=None, kind=None, **kwargs):
     """Flexible tracing helper usable as context manager or decorator."""
 
     class _SpanCM:

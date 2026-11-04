@@ -9,6 +9,9 @@ Handles GitHub PR/issue comment threads:
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import sys
 from typing import Any
 
 import httpx
@@ -22,6 +25,39 @@ router = APIRouter(prefix="/comment-ai", tags=["comment-thread-ai"])
 
 GITHUB_API = "https://api.github.com"
 _GITHUB_TOKEN = getattr(settings, "github_token", "")
+
+
+def _get_webhook_secret(secret_override: str | None = None) -> str:
+    if secret_override is not None:
+        return secret_override
+    mod = sys.modules.get("tools.comment_thread_ai")
+    if mod and hasattr(mod, "settings"):
+        val = getattr(mod.settings, "github_webhook_secret", None)
+        if val is not None:
+            return str(val)
+    return str(getattr(settings, "github_webhook_secret", "") or "")
+
+
+def _verify_signature(body: bytes, signature: str | None, secret: str | None = None) -> bool:
+    sec = _get_webhook_secret(secret)
+    if not sec:
+        raise HTTPException(status_code=503, detail="Webhook secret not configured")
+    if not signature:
+        raise HTTPException(status_code=401, detail="Missing X-Hub-Signature-256 header")
+    expected = "sha256=" + hmac.new(sec.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, expected):
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
+    return True
+
+
+@router.post("/webhook")
+async def handle_github_webhook(
+    request: Request,
+    x_hub_signature_256: str | None = Header(None, alias="X-Hub-Signature-256"),
+):
+    body = await request.body()
+    _verify_signature(body, x_hub_signature_256)
+    return {"status": "pong"}
 
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
