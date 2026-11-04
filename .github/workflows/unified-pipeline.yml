@@ -134,6 +134,9 @@ jobs:
             echo "::warning::RENDER_API_KEY_PAYKARI not available in context - skipping remote trigger"
           fi
 
+      # Plan: 99.99% autonomous operation. Auto-merge is allowed only after
+      # Tier 1 fast gates AND Tier 2 Render CI runner heavy suite both pass
+      # (success() guard). A failed Render check blocks the merge.
       - name: Autonomous Auto-Landing on Green CI (Squash Merge)
         if: github.event_name == 'pull_request' && success()
         env:
