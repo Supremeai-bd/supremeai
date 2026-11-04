@@ -32,7 +32,7 @@ GitHub webhook ──► /webhooks/github (HMAC sha256 over raw body, prod)
 
 ## Activation (owner-side, one time)
 
-1. **Repo webhook** on `Supremeai-bd/supremeai-open` →
+1. **Repo webhook** on `Supremeai-bd/supremeai` →
    URL `https://<tower-host>/webhooks/github`,
    content type `application/json`,
    secret = the value deployed as `GITHUB_WEBHOOK_SECRET`,
@@ -42,7 +42,7 @@ GitHub webhook ──► /webhooks/github (HMAC sha256 over raw body, prod)
    | Variable | Default | Meaning |
    |---|---|---|
    | `BRIDGE_INTAKE_ENABLED` | `false` | **fail-closed master switch** |
-   | `BRIDGE_INTAKE_REPO` | `Supremeai-bd/supremeai-open` | repo owning the workflow |
+   | `BRIDGE_INTAKE_REPO` | `Supremeai-bd/supremeai` | repo owning the workflow |
     | `BRIDGE_INTAKE_WORKFLOW` | `pipeline.yml` | dispatch target |
    | `BRIDGE_INTAKE_REF` | `main` | dispatch ref |
    | `BRIDGE_INTAKE_MIN_INTERVAL_MS` | `60000` | min spacing between dispatches |

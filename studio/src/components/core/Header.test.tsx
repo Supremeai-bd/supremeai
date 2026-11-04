@@ -39,7 +39,7 @@ describe("Header component", () => {
     fireEvent.click(searchBtn);
 
     expect(dispatchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "supremeai-open-command-palette" })
+      expect.objectContaining({ type: "supremeai-command-palette" })
     );
     dispatchSpy.mockRestore();
   });

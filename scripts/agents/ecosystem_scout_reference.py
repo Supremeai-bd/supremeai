@@ -68,7 +68,7 @@ PHASES: Final = (PHASE_1_EXTRACTION, PHASE_2_DISSECTION, PHASE_3_AUDIT, PHASE_4_
 #: an unknown satellite name is allowed by the schema, an EMPTY routing list
 #: is not).
 CANONICAL_SATELLITES: Final = (
-    "supremeai-open",
+    "supremeai",
     "supremeai-browser",
     "supremeai-agents",
     "supremeai-mcp-control-plane",
@@ -718,7 +718,7 @@ def replace_surgical(**kw: Any) -> SurgicalExtraction:
 
 def replace_takeaways(**kw: Any) -> ActionableTakeaways:
     base = ActionableTakeaways(
-        ("p",), ("r",), (SatelliteAction("supremeai-open", "replicate_pattern", "why"),)
+        ("p",), ("r",), (SatelliteAction("supremeai", "replicate_pattern", "why"),)
     )
     return ActionableTakeaways(**{**base.__dict__, **kw})
 

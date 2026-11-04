@@ -1,7 +1,7 @@
 # 🎨 SupremeAI Studio
 
 > **User-Facing React/Vite UI & Live Federation Command Surface**  
-> **Part of the [SupremeAI Federation](https://github.com/Supremeai-bd/supremeai-open)**
+> **Part of the [SupremeAI Federation](https://github.com/Supremeai-bd/supremeai)**
 
 ---
 
@@ -29,7 +29,7 @@ flowchart LR
     OPEN["🌍 SupremeAI Open<br/>(Public Embassy)"] -.->|Schemas & Contracts| STUDIO
 ```
 
-- **Contract SSOT:** Adheres strictly to [`dashboard.schema.json`](https://github.com/Supremeai-bd/supremeai-open/blob/main/api-schemas/dashboard.schema.json).
+- **Contract SSOT:** Adheres strictly to [`dashboard.schema.json`](https://github.com/Supremeai-bd/supremeai/blob/main/api-schemas/dashboard.schema.json).
 - **Public Boundary:** Exposes the UI and telemetry views without leaking proprietary core backend logic or private credentials.
 
 ---

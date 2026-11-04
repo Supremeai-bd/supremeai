@@ -37,7 +37,7 @@ const BOT_VERDICT: IntakeVerdictLike = {
   verdict: "APPLIED",
   task: "bridge-20261028-dedup-exact-key-r1",
   reason: "landed via PR #2149",
-  repo: "Supremeai-bd/supremeai-open",
+  repo: "Supremeai-bd/supremeai",
   pr: "#2149",
   at: "2026-10-28T19:04:11Z",
 };

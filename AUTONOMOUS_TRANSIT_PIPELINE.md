@@ -1,8 +1,8 @@
 1. Claim & Branch: Agent claims issue; webhook creates task branch; agent pushes only there.
-2. Webhook PR & CI: Webhook opens PR on supremeai-open; public CI passes -> auto-merges to main.
+2. Webhook PR & CI: Webhook opens PR on supremeai; public CI passes -> auto-merges to main.
 3. Bridge Barrier: Bridge does not exist before open:main merge; private intake ignores unmerged code.
 4. Dual Dispatch: On open:main merge, bridge dispatches code to target satellite and monorepo.
-5. Auto-Prune: Once target merges, webhook permanently deletes transit file from supremeai-open.
+5. Auto-Prune: Once target merges, webhook permanently deletes transit file from supremeai.
 6. No Claim No Push: Any push without active atomic claim on the issue is blocked fail-closed.
 7. No Push to Main: Direct push to main is strictly blocked across all federation repositories.
 8. No Agent Branching: Agents cannot create branches; unprovisioned branches are rejected.
@@ -13,7 +13,7 @@
 13. Queue Empty Prompt: If no issue exists -> Prompt: "Inspect codebase, load all AUDITOR rules, and run audit."
 14. Role Contract Routing: Issues matching other domains load exact role rules (ARCHITECT, REVIEWER, CI_FIXER).
 15. Continuous Reset: Upon task or audit completion, loop resets immediately to re-poll board with zero sleep.
-16. Self-Healing Board: All pipeline failures, merge conflicts, warnings, and audit findings across all repositories auto-create issues on supremeai-open.
+16. Self-Healing Board: All pipeline failures, merge conflicts, warnings, and audit findings across all repositories auto-create issues on supremeai.
 17. Deployment Strategy: On target repo merge, agent triggers manual deploy if immediate; otherwise scheduled auto-deploy runs 4x/day on diffs. Monorepo only receives merge sync.
 18. Unified Gateway Shield: `supremeai-api` is the single external proxy; all underlying providers (Gemini, Groq, OpenRouter, etc.) are strictly shielded behind it.
 19. Vault-Only Provider Keys: Provider credentials remain server-side in the vault; all direct third-party provider key references across federation projects are removed.
@@ -24,7 +24,7 @@
 24. Multi-Transport Protocol Autonomy: Agents autonomously select connection transport (`/mcp`, `/sse`, or `/json`) based on their environment and runtime capabilities.
 25. Scoped Dynamic Session URL: Connection endpoints follow `/{protocol}/{provider}/{user}/{datetime}`, ensuring zero collision across 100+ concurrent agents, instant DB traceability, and seamless role transitions.
 26. 3-Strike Quarantine: If an issue triggers 3 consecutive CI failures or unclaims, it auto-locks into `status:quarantine`, halting agent retries until admin triage.
-27. Institutional Memory & Zero-Residue Retirement: When features, specs, or legacy modules are retired, they are archived permanently into `Supremeai-bd/supremeai-archive` and cleanly pruned from both the active satellite and core monorepo (Zero Residue / Historical SSOT).
+27. Institutional Memory & Zero-Residue Retirement: When features, specs, or legacy modules are retired, they are archived permanently into `Supremeai-bd/supremeai` and cleanly pruned from both the active satellite and core monorepo (Zero Residue / Historical SSOT).
 
 ---
 
@@ -35,7 +35,7 @@
                            │
                            ▼
         ১. ইনগ্রেস (পাবলিক ট্রানজিট স্টেশন / Ephemeral Mailbox)
-           👉 Supremeai-bd/supremeai-open
+           👉 Supremeai-bd/supremeai
                            │
              ┌─────────────┴─────────────┐
              ▼                           ▼
@@ -50,7 +50,7 @@
                            │
                            ▼
            ৩. চূড়ান্ত আর্কাইভ (স্থায়ী প্রাতিষ্ঠানিক মেমোরি)
-              👉 Supremeai-bd/supremeai-archive
+              👉 Supremeai-bd/supremeai
                            │
            [ স্যাটেলাইট ও মনোরেপো থেকে মুছে সাফ (Zero Waste) ]
 ```

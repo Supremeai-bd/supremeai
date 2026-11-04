@@ -350,7 +350,7 @@ class RollingSchedule(unittest.TestCase):
             srt.assert_no_overlap(tuple(reversed(srt.ROLLING_SCHEDULE)))
 
     def test_27_canonical_repo_names(self):
-        self.assertEqual(srt.full_repo_name("open"), "Supremeai-bd/supremeai-open")
+        self.assertEqual(srt.full_repo_name("open"), "Supremeai-bd/supremeai")
         self.assertEqual(
             srt.full_repo_name("infra"), "Supremeai-bd/supremeai-infrastructure"
         )
@@ -402,7 +402,7 @@ class RollingSchedule(unittest.TestCase):
             parents={head: base},
             commit_files={head: ("docs/ledger/a.md",)},
         )
-        self.assertEqual(plan.target, "Supremeai-bd/supremeai-archive")
+        self.assertEqual(plan.target, "Supremeai-bd/supremeai")
         self.assertEqual(plan.satellite, "archive")
 
     def test_31_consolidation_fail_closed_paths(self):

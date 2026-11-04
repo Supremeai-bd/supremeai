@@ -5,7 +5,7 @@ import type { Theme } from "../../contexts/ThemeConstants";
 
 // বাংলা মন্তব্য: Header global search — CommandBar (⌘K) open করে। Shared event-driven trigger.
 const openCommandPalette = () => {
-  window.dispatchEvent(new CustomEvent('supremeai-open-command-palette'));
+  window.dispatchEvent(new CustomEvent('supremeai-command-palette'));
 };
 
 interface HeaderProps {

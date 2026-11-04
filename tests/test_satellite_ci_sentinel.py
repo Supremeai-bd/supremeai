@@ -103,7 +103,7 @@ class SseAndReport(unittest.TestCase):
 
     def test_roster_integrity(self):
         self.assertEqual(len(sentinel.SATELLITES), 6)
-        self.assertNotIn("supremeai-open", sentinel.SATELLITES)
+        self.assertNotIn("supremeai", sentinel.SATELLITES)
         self.assertEqual(sentinel.ORG, "Supremeai-bd")
 
     def test_report_shape_end_to_end(self):

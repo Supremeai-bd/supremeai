@@ -180,13 +180,13 @@ class TransplantGenerator(unittest.TestCase):
     def test_16_unsafe_paths_rejected(self):
         for path in ("/abs/path.py", "../escape.py", ""):
             with self.assertRaises(ex.ExtractionError, msg=path):
-                ex.generate_transplant_patch("supremeai-open", path, "x = 1\n")
+                ex.generate_transplant_patch("supremeai", path, "x = 1\n")
 
     def test_17_stub_reverified_at_transplant(self):
         with self.assertRaises(ex.ExtractionError):
-            ex.generate_transplant_patch("supremeai-open", "ok.py", "import requests\n")
+            ex.generate_transplant_patch("supremeai", "ok.py", "import requests\n")
         with self.assertRaises(ex.ExtractionError):
-            ex.generate_transplant_patch("supremeai-open", "bad.py", "def broken(:\n")
+            ex.generate_transplant_patch("supremeai", "bad.py", "def broken(:\n")
 
 
 class VendoredTreeGuard(unittest.TestCase):

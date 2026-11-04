@@ -65,10 +65,10 @@ def test_verdict_model_pins():
     assert mod.DEFAULT_AT_RISK_HOURS == 2.0
     # Satellite model (#1916 live false positive): the open repo constant and
     # the standard WO-template Target Repo extraction.
-    assert mod.OPEN_REPO == "Supremeai-bd/supremeai-open"
+    assert mod.OPEN_REPO == "Supremeai-bd/supremeai"
     assert mod.parse_target_repo(
         "### Target Repo\nSupremeai-bd/supremeai-browser\n") == "Supremeai-bd/supremeai-browser"
-    assert mod.parse_target_repo("### Target Repo\nSupremeai-bd/supremeai-open\n") == mod.OPEN_REPO
+    assert mod.parse_target_repo("### Target Repo\nSupremeai-bd/supremeai\n") == mod.OPEN_REPO
     assert mod.parse_target_repo("no section") is None  # fail-closed default
     assert mod.parse_target_repo(None) is None
     assert mod.parse_target_repo("") is None
@@ -163,7 +163,7 @@ def test_satellite_target_matrix():
 def test_refine_satellites_injectable():
     mod = _load_watchdog_module()
     sat_body = "### Target Repo\nSupremeai-bd/supremeai-browser\n"
-    open_body = "### Target Repo\nSupremeai-bd/supremeai-open\n"
+    open_body = "### Target Repo\nSupremeai-bd/supremeai\n"
     risk = {"number": 30, "verdict": "LANDING_AT_RISK",
             "slug": "(bridge-20261028-sat-lane)", "age_hours": 3.0}
     # Satellite body -> downgraded to SATELLITE_TARGET, age preserved for the report.

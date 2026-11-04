@@ -35,7 +35,7 @@ import {
  *       those rows; the default board keeps filtering them.
  */
 
-const REPO = "Supremeai-bd/supremeai-open";
+const REPO = "Supremeai-bd/supremeai";
 
 function issue(n: number, opts: { pr?: boolean; state?: string; labels?: unknown[] } = {}) {
   const row: Record<string, unknown> = {

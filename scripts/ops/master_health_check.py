@@ -99,7 +99,7 @@ ACTIVE_SATELLITES: list[str] = [
     "Supremeai-bd/supremeai-core",
     "Supremeai-bd/supremeai-browser",
     "Supremeai-bd/supremeai-vscode",
-    "Supremeai-bd/supremeai-open",
+    "Supremeai-bd/supremeai",
 ]
 
 

@@ -3,7 +3,7 @@
 federation_satellite_sync.py — Direct Federation Satellite & Monorepo Synchronizer.
 
 Mission:
-  When a commit or PR lands on `supremeai-open:main`, this script directly,
+  When a commit or PR lands on `supremeai:main`, this script directly,
   deterministically, and immediately pushes the scoped domain files into the
   respective target satellite repository's `main` branch (and the central monorepo).
 
@@ -33,16 +33,16 @@ if hasattr(sys.stdout, "reconfigure"):
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
-# Mapping of target repository to its source directory in supremeai-open
-# (slug -> relative source path in supremeai-open)
-# Mapping of active target satellite repository to its source directory in supremeai-open
+# Mapping of target repository to its source directory in supremeai
+# (slug -> relative source path in supremeai)
+# Mapping of active target satellite repository to its source directory in supremeai
 # Under Pure 3-Repository Topology SSOT (#5767), Studio is the sole active satellite UI desk.
 # Core, Gateway, Browser, VSCode are unified into Supremeai-bd/supremeai (Umbrella Monorepo SSOT).
 DOMAIN_MAP: dict[str, str] = {
     "Supremeai-bd/supremeai-studio": "studio",
 }
 
-# Historical archived satellites (permanently retired to supremeai-archive)
+# Historical archived satellites (permanently retired to supremeai)
 RETIRED_SATELLITES: frozenset[str] = frozenset({
     "Supremeai-bd/supremeai-core",
     "Supremeai-bd/supremeai-api",
@@ -91,7 +91,7 @@ PACKAGE_SHADOW_REFRESH_TARGETS: set[str] = set()
 # deliberate cloaking decision; the fail-closed default is empty.
 SATELLITE_CLOAK_ALLOWLIST: frozenset[str] = frozenset()
 
-# Mirrored contract files mapped from supremeai-open root to specific satellite destination paths:
+# Mirrored contract files mapped from supremeai root to specific satellite destination paths:
 # (source_rel_in_open, target_repo, target_rel_in_satellite)
 CONTRACT_MIRROR_PAIRS: list[tuple[str, str, str]] = [
     (
@@ -101,9 +101,9 @@ CONTRACT_MIRROR_PAIRS: list[tuple[str, str, str]] = [
     ),
 ]
 
-ARCHIVE_REPO = "Supremeai-bd/supremeai-archive"
+ARCHIVE_REPO = "Supremeai-bd/supremeai"
 # (#3524 collateral, #3629 lane, 2026-10-31) The founder-mandate docs migration
-# moved the whole docs/ tree — including docs/adrs/ — to supremeai-archive, so
+# moved the whole docs/ tree — including docs/adrs/ — to supremeai, so
 # every open-side mirror SOURCE below ceased to exist and the last pair went
 # permanently dead (its archive destination adrs/ADR-008-*.md is now the SSOT).
 # The stale pair made self_test() fail-closed on every run ("Archive mirror
@@ -124,7 +124,7 @@ DEFAULT_SENTINEL_PAIRS: list[dict[str, str]] = [
     },
 ]
 
-# Monorepo sync ignores: files in supremeai-open that should not overwrite monorepo root configs
+# Monorepo sync ignores: files in supremeai that should not overwrite monorepo root configs
 MONOREPO_EXCLUDES = {
     ".git",
     ".pytest_cache",
@@ -230,7 +230,7 @@ def compose_domain_tree(src: Path, dst: Path, domain: str, target_repo: str) -> 
     if not _composed_tree_nonempty(dst):
         print(
             f"::error::[#3649] Composition integrity gate for {target_repo}: mirror "
-            f"'{src.name}/' exists in supremeai-open but the composed satellite tree "
+            f"'{src.name}/' exists in supremeai but the composed satellite tree "
             f"'{dst.name}/' is EMPTY — refusing to commit/push a partial landing "
             "(root artifacts without the package tree) that would break the "
             "satellite's own build (Dockerfile COPY + import contract)."
@@ -311,7 +311,7 @@ def prune_domain_self_shadows(
     every satellite, permanently.
 
     1. Start-gate (fail-closed, both policies): if the mirror in
-       supremeai-open itself contains a top-level `<domain_name>/` directory,
+       supremeai itself contains a top-level `<domain_name>/` directory,
        raise — the contamination must be fixed in the open mirror before any
        sync can proceed.
     2. Satellite cleanup (policy="prune", the #1676 default): remove
@@ -329,7 +329,7 @@ def prune_domain_self_shadows(
         raise RuntimeError(
             f"#1676 self-shadow guard: mirror '{mirror_root.name}/{domain_name}/' contains "
             f"a top-level copy of its own domain name — remove the nested directory from "
-            f"the supremeai-open mirror before syncing {domain_name}."
+            f"the supremeai mirror before syncing {domain_name}."
         )
     if policy == "refresh_package":
         return []
@@ -457,7 +457,7 @@ def sync_satellite(
             # standard SupremeAI proprietary license notice", yet no pipeline ever
             # landed one here — the api satellite head carries no LICENSE at all
             # while the boundary mirror ships the SSOT notice at gateway/LICENSE
-            # (the root MIT of supremeai-open must never leak into this proprietary
+            # (the root MIT of supremeai must never leak into this proprietary
             # domain). gateway/LICENSE stays the single SSOT: mirror it
             # byte-identically on every sync so the satellite IP posture can never
             # drift from the boundary posture again (nearest-LICENSE rule,
@@ -748,7 +748,7 @@ def sync_archive(
     token: str,
     commit_msg: str,
 ) -> bool:
-    """Sync historical ADR records to cold storage satellite Supremeai-bd/supremeai-archive."""
+    """Sync historical ADR records to cold storage satellite Supremeai-bd/supremeai."""
     target_repo = ARCHIVE_REPO
     clone_url = f"https://x-access-token:{token}@github.com/{target_repo}.git"
 
@@ -1037,7 +1037,7 @@ def self_test() -> bool:
             f"Target repo {sat_repo} must exist in DOMAIN_MAP"
         )
         assert open_rel and sat_rel, "Mirror paths must be non-empty"
-    assert ARCHIVE_REPO == "Supremeai-bd/supremeai-archive"
+    assert ARCHIVE_REPO == "Supremeai-bd/supremeai"
     repo_root = Path(__file__).resolve().parent.parent.parent
     for src_rel, dst_rel in ARCHIVE_MIRROR_PAIRS:
         assert (repo_root / src_rel).exists(), (
@@ -1124,7 +1124,7 @@ def self_test() -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Synchronize supremeai-open changes directly to satellites."
+        description="Synchronize supremeai changes directly to satellites."
     )
     parser.add_argument(
         "--targets",

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 CONTRACT_VERSION = "agent-loop-contract/1"
-UPSTREAM_REPO = "Supremeai-bd/supremeai-open"
+UPSTREAM_REPO = "Supremeai-bd/supremeai"
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CADENCE_FILE = REPO_ROOT / "scripts" / "agents" / "agent_cadence.json"
 # #3573: the rotation-state file is NEW-NAMED — the old agent_cadence_state.json

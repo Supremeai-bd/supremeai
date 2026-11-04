@@ -5,7 +5,7 @@ Reference implementation of the **Hourly Staged Satellite Batching** tier and
 the **Emergency Blocker Fast-Lane** of the 4-Tier Federation Transit Pipeline:
 
     TIER 2 (hourly, cron `0 * * * *`):
-      Inspect commits landed on `supremeai-open:main` within the past hour,
+      Inspect commits landed on `supremeai:main` within the past hour,
       aggregate their diffs, map them to the designated federation satellites
       (ECOSYSTEM_MAP.md §3.1 routing matrix) and emit ONE consolidated batch
       plan per satellite — preventing micro-commit noise.
@@ -181,7 +181,7 @@ def is_urgent(labels) -> bool:
 
 @dataclass(frozen=True)
 class LandedCommit:
-    """One commit landed on `supremeai-open:main` (validated, immutable)."""
+    """One commit landed on `supremeai:main` (validated, immutable)."""
 
     sha: str
     files: tuple[str, ...]

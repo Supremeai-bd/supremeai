@@ -242,7 +242,7 @@ export function buildBridgePrBody(opts: BridgePrBodyOptions): string {
 /**
  * Bridge onboarding tools — the zero-credential front door for external agents.
  *
- * বাংলা মন্তব্য (#123): `Supremeai-bd/supremeai-open`-এ ঢুকা যেকোনো
+ * বাংলা মন্তব্য (#123): `Supremeai-bd/supremeai`-এ ঢুকা যেকোনো
  * এজেন্ট (ChatGPT Web, Claude Web, Mistral, Cursor, community) — কোনো প্রাইভেট
  * টোকেন ছাড়াই — টাওয়ারে সংযোগ করে সরাসরি দুটি জিনিস জানতে পারে:
  *   ১. কীভাবে কাজ করতে হবে (canonical onboarding contract — `bridge.guide`)
@@ -305,7 +305,7 @@ const SATELLITE_REPO_MAP: ReadonlyArray<{ anchor: string; repo: string }> = [
   { anchor: "core/", repo: "Supremeai-bd/supremeai" },
 ];
 
-/** Canonical Active Domain Anchor Hub Issue Numbers on Supremeai-bd/supremeai-open */
+/** Canonical Active Domain Anchor Hub Issue Numbers on Supremeai-bd/supremeai */
 export const DOMAIN_ANCHOR_HUBS: Record<string, number> = {
   "Supremeai-bd/supremeai-studio": 749,
   "Supremeai-bd/supremeai": 761,
@@ -583,7 +583,7 @@ const MAX_BODY_CHARS = 8_000;
 export function bridgeGuide() {
   return {
     mission:
-      "You are an external agent working from the PUBLIC repo Supremeai-bd/supremeai-open. " +
+      "You are an external agent working from the PUBLIC repo Supremeai-bd/supremeai. " +
       "Find work with bridge.work_queue, read the contract below, implement the smallest safe change, " +
       "and submit a Bridge Work Order. The tower lands approved work into the private repos through the " +
       "fail-closed bridge pipeline — you never need private credentials.",

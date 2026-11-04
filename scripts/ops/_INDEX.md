@@ -88,7 +88,7 @@ at the bottom — the generator preserves them verbatim on every regeneration.
 | File | Purpose |
 |---|---|
 | `bridge/bridge_intake.py` | bridge_intake.py — public→private work bridge (v1). |
-| `bridge/prune_merged_branches.sh` | prune_merged_branches.sh — post-merge head-branch housekeeping for Supremeai-bd/supremeai-open |
+| `bridge/prune_merged_branches.sh` | prune_merged_branches.sh — post-merge head-branch housekeeping for Supremeai-bd/supremeai |
 
 ## scripts/ci/  (228 scripts)
 
@@ -225,7 +225,7 @@ at the bottom — the generator preserves them verbatim on every regeneration.
 | `ci/merge_policy.py` | Deterministic policy loading, failure classification, and decision logging. |
 | `ci/merge_train_rollup.py` | Batch PR Consolidation Engine (Merge Train & Rollup Consolidator). |
 | `ci/migration_safety_diff.py` | Delegation shim for migration_safety_diff. |
-| `ci/mirror_issue_to_open.py` | scripts/ci/mirror_issue_to_open.py — Auto-Mirror CI Failures & Tasks to supremeai-open |
+| `ci/mirror_issue_to_open.py` | scripts/ci/mirror_issue_to_open.py — Auto-Mirror CI Failures & Tasks to supremeai |
 | `ci/mirror_parent_linker.py` | Mirror-claim issue → parent has-pr linker (#2894). |
 | `ci/mission_control_status.py` | mission_control_status.py — OS pillar: aggregate Guardian/Memory gate status. |
 | `ci/mission_passk.py` | Mission-suite pass^k harness — the first honest reliability scoreboard in CI. |

@@ -21,4 +21,4 @@ Update docs, schemas, examples, and integration contracts when implementation ch
 Reduces drift between code, tool descriptions, and actual behavior.
 
 ## Existing implementation
-api-schemas/ mirror and docs/ in supremeai-open. This skill provides the reusable procedure and metadata contract.
+api-schemas/ mirror and docs/ in supremeai. This skill provides the reusable procedure and metadata contract.

@@ -48,7 +48,7 @@ const EXEMPT: Record<string, ExemptEntry> = {
   },
   "test_memory_sidecar.ts": {
     reason:
-      "layout-dependent: hermetic core passes, but the real-fs assertion at line 43 requires backend/memory/mcp_server.py (private monorepo layout — absent in the public checkout), so it fails on supremeai-open main",
+      "layout-dependent: hermetic core passes, but the real-fs assertion at line 43 requires backend/memory/mcp_server.py (private monorepo layout — absent in the public checkout), so it fails on supremeai main",
     trackedBy: "#2612 sidecar diagnostics; re-home/fix via #98 follow-up",
   },
 };

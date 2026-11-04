@@ -1,7 +1,7 @@
 # 🗺️ SupremeAI Federation Ecosystem Map
 
 > **The Definitive Repository Guide for Autonomous, External & Free AI Agents**  
-> **Host Repository:** [`Supremeai-bd/supremeai-open`](https://github.com/Supremeai-bd/supremeai-open)  
+> **Host Repository:** [`Supremeai-bd/supremeai`](https://github.com/Supremeai-bd/supremeai)  
 > **Architecture:** Public Gateway / Embassy to Private Federated Systems  
 
 ---
@@ -20,20 +20,20 @@ These 8 repositories constitute the active monitored surfaces of the federation 
 
 | Repository | Visibility & License | Scope & Responsibility | What Can Be Changed From Here |
 |---|---|---|---|
-| **`supremeai-open`** *(Current)* | **Public · MIT** | **Public Boundary & Ambassador.** Holds public contracts, client SDKs, examples, and agent instructions. | Direct PRs / Issues on this repository. |
+| **`supremeai`** *(Current)* | **Public · MIT** | **Public Boundary & Ambassador.** Holds public contracts, client SDKs, examples, and agent instructions. | Direct PRs / Issues on this repository. |
 | **`supremeai-studio`** | **Public · MIT** | **Web UI & Experience.** React/Vite dashboard, design tokens, and frontend shell components. Live UI: [https://supremeai-studio.vercel.app](https://supremeai-studio.vercel.app) | UI components, design tokens, and user experience fixes. |
 | **`supremeai-vscode`** | **Public · MIT** | **Developer Experience.** Official VS Code Extension for agent interaction and autonomous workflows. | Extension client contracts, tools, and editor hooks. |
 | **`supremeai-core`** | **Private · Proprietary** | **Proprietary Intelligence Core.** Orchestration, planning, decision, and execution intelligence — the federation's decision moat. | Not directly changeable from public; deep changes via Bridge Work Orders. |
 | **`supremeai-api`** | **Private · Proprietary** | **Unified Provider Gateway.** Multi-LLM provider routing, API-key authentication, and fallback chains (Contracts public in open). | Gateway contracts, OpenAPI specs, and client scripts. |
 | **`supremeai-browser`** | **Private · Proprietary** | **Headless & Stealth Runtime.** Anti-detect automation sandbox for web agents. | Browser sandbox APIs, scraping contracts. |
 | **`supremeai`** | **Private · Proprietary** | **Central Federation Umbrella & Passive Anchor.** The all-in-one synthesis combining all active satellites into one unified platform view. | Master sync via Bridge. |
-| **`supremeai-archive`** | **Private · Proprietary** | **Institutional Memory.** Append-only worklogs, ADRs, roadmap snapshots, and lessons — no critical decision is ever lost. | Read-only from public; append via internal automation. |
+| **`supremeai`** | **Private · Proprietary** | **Institutional Memory.** Append-only worklogs, ADRs, roadmap snapshots, and lessons — no critical decision is ever lost. | Read-only from public; append via internal automation. |
 
 ### 2.2 Consolidated Subsystems & Internal Tooling Domains
 
 Per Federation Charter (§329 consolidation), several historical standalone repositories were consolidated into product satellites and monorepo mirror trees:
 
-| Domain / Former Repo | Consolidation Target | Mirror Surface in `supremeai-open` | Status |
+| Domain / Former Repo | Consolidation Target | Mirror Surface in `supremeai` | Status |
 |---|---|---|---|
 | **`supremeai-command`** | Consolidated into `supremeai-api` / Admin Shell | `command/**` | Consolidated domain |
 | **`supremeai-skills`** | Consolidated into `supremeai-studio` / Studio Marketplace | `skills/**` | Consolidated domain |
@@ -45,9 +45,9 @@ Per Federation Charter (§329 consolidation), several historical standalone repo
 ### 2.3 Licensing & Intellectual Property Policy (SSOT)
 
 The federation operates under a strict **Open-Core Embassy Model**:
-- **Permissive Open-Source (MIT License):** Applied strictly to boundary layers, developer tooling, SDK packages, and UI surfaces (`supremeai-open`, `supremeai-studio`, `supremeai-vscode`). These allow frictionless developer adoption, external integration, and community trust without exposing proprietary moats.
-- **Proprietary / All Rights Reserved:** Applied strictly to the private core, intelligence engines, provider gateway, runner engines, infrastructure ops, and governance backends (`supremeai`, `supremeai-core`, `supremeai-api`, `supremeai-infrastructure`, `supremeai-mcp-control-plane`, `supremeai-agents`, `supremeai-browser`, `supremeai-archive`). All private repositories carry the standard SupremeAI proprietary license notice prohibiting unauthorized reproduction or distribution.
-- **Mirror licensing precedence (nearest-LICENSE rule):** The root MIT grant of `supremeai-open` covers the boundary contracts and public tooling only — it does **not** extend downward into public satellite-mirror subtrees. Each mirror subtree carries its own `LICENSE` that **overrides the root grant for that path** (e.g. `gateway/**` ships the SupremeAI proprietary notice because `gateway/**` maps to proprietary `supremeai-api`). Consumers must read the nearest `LICENSE` along the copied path before reuse, and the satellite sync pipeline lands that same notice at each satellite root so the boundary and satellite IP postures can never drift apart (license-mismatch class: #1690).
+- **Permissive Open-Source (MIT License):** Applied strictly to boundary layers, developer tooling, SDK packages, and UI surfaces (`supremeai`, `supremeai-studio`, `supremeai-vscode`). These allow frictionless developer adoption, external integration, and community trust without exposing proprietary moats.
+- **Proprietary / All Rights Reserved:** Applied strictly to the private core, intelligence engines, provider gateway, runner engines, infrastructure ops, and governance backends (`supremeai`, `supremeai-core`, `supremeai-api`, `supremeai-infrastructure`, `supremeai-mcp-control-plane`, `supremeai-agents`, `supremeai-browser`, `supremeai`). All private repositories carry the standard SupremeAI proprietary license notice prohibiting unauthorized reproduction or distribution.
+- **Mirror licensing precedence (nearest-LICENSE rule):** The root MIT grant of `supremeai` covers the boundary contracts and public tooling only — it does **not** extend downward into public satellite-mirror subtrees. Each mirror subtree carries its own `LICENSE` that **overrides the root grant for that path** (e.g. `gateway/**` ships the SupremeAI proprietary notice because `gateway/**` maps to proprietary `supremeai-api`). Consumers must read the nearest `LICENSE` along the copied path before reuse, and the satellite sync pipeline lands that same notice at each satellite root so the boundary and satellite IP postures can never drift apart (license-mismatch class: #1690).
 
 ---
 
@@ -56,7 +56,7 @@ The federation operates under a strict **Open-Core Embassy Model**:
 You can modify files for other repositories by following the **Bridge Work Order Protocol**:
 
 ```
-Agent Forks/Clones supremeai-open
+Agent Forks/Clones supremeai
   │
   ├─ 1. Create a branch: `bridge/<task-id>` (e.g. `bridge-20261013-add-streaming-client`)
   ├─ 2. Make your proposed changes within the declared scope.
@@ -69,9 +69,9 @@ Agent Forks/Clones supremeai-open
 
 ### 3.1 Definitive Federation File & Domain Routing Matrix:
 
-When a PR is merged in `supremeai-open`, the single unified `pipeline.yml` lands and dispatches it: the `auto-landing` job performs the autonomous squash-merge on full gate success, then on push to `main` the `satellite-dispatch-and-sync` job runs `scripts/ci/federation_satellite_sync.py --detect-changed`, which evaluates the touched file patterns of the landing diff (`git diff HEAD~1..HEAD`) to dispatch code to the appropriate federation repository (the central monorepo is always synced):
+When a PR is merged in `supremeai`, the single unified `pipeline.yml` lands and dispatches it: the `auto-landing` job performs the autonomous squash-merge on full gate success, then on push to `main` the `satellite-dispatch-and-sync` job runs `scripts/ci/federation_satellite_sync.py --detect-changed`, which evaluates the touched file patterns of the landing diff (`git diff HEAD~1..HEAD`) to dispatch code to the appropriate federation repository (the central monorepo is always synced):
 
-| Target Repository | Functional Domain | File Path Patterns in `supremeai-open` | PR Label | Automated Dispatch |
+| Target Repository | Functional Domain | File Path Patterns in `supremeai` | PR Label | Automated Dispatch |
 |---|---|---|---|---|
 | **`Supremeai-bd/supremeai-studio`** | Web Dashboard & UI | `studio/**`, `examples/dashboard-preview/**`, `api-schemas/dashboard.*` | `repo:studio` | `pipeline.yml` |
 | **`Supremeai-bd/supremeai-api`** | Provider Gateway & OpenAPI | `api/**`, `gateway/**`, `api-schemas/gateway.*` | `repo:api` | `pipeline.yml` |
@@ -84,7 +84,7 @@ When a PR is merged in `supremeai-open`, the single unified `pipeline.yml` lands
 | **`Supremeai-bd/supremeai-sdk`** | Schema Contracts & Client SDK | `sdk/**`, `examples/sdk-*`, `api-schemas/telemetry-log.*` | `repo:sdk` | `pipeline.yml` |
 | **`Supremeai-bd/supremeai-mcp-control-plane`** | MCP Control Tower & Policy | `infrastructure/mcp-control-plane/**`, `api-schemas/heartbeat.*` | `repo:mcp` | `pipeline.yml` |
 | **`Supremeai-bd/supremeai-infrastructure`** | Cloud Ops, Docker & Terraform | `deployments/**`, `infra/**` | `repo:infra` | `pipeline.yml` |
-| **`Supremeai-bd/supremeai-archive`** | Append-Only Worklogs & Memory | `docs/archive/**`, `docs/ledger/**` | `repo:archive` | `pipeline.yml` |
+| **`Supremeai-bd/supremeai`** | Append-Only Worklogs & Memory | `docs/archive/**`, `docs/ledger/**` | `repo:archive` | `pipeline.yml` |
 | **`Supremeai-bd/supremeai`** | Central Monorepo Anchor | `scripts/agents/**`, `docs/**`, `patches/**`, `AGENTS.md` | `repo:monorepo` | `pipeline.yml` (Always synced) |
 
 ---
@@ -115,7 +115,7 @@ Solid edges = work/landing flows · dotted edges = tool/observability flows.
 flowchart TB
     AGENT["🤖 Autonomous agents<br/>(MCP bridge · fork+PR · JIT lease)"]
 
-    subgraph OPEN["supremeai-open · Public Window"]
+    subgraph OPEN["supremeai · Public Window"]
         direction TB
         TASKS["Issues = task contracts"] --> GUARDS["7 PR guards<br/>(naming · issue-ref · anti-duplicate ·<br/>boundary · parity · hook · stale-base)<br/>+ CI Guardian evaluation"]
         GUARDS --> GATE["pipeline.yml auto-landing Merge Gate<br/>(squash · Closes #N propagation ·<br/>file-set parity · freshness)"]
@@ -153,7 +153,7 @@ flowchart TB
 
 | Layer | Subsystem | Role |
 |---|---|---|
-| Boundary | `supremeai-open` | public SSOT: contracts, guards, gate, bridge dispatch |
+| Boundary | `supremeai` | public SSOT: contracts, guards, gate, bridge dispatch |
 | Tool plane | `supremeai-mcp-control-plane` | governed tool registry, credential brokering, kill-switch |
 | Edge | `supremeai-api` | unified multi-LLM provider gateway |
 | Experience | `supremeai-studio` | React/Vite dashboard and frontend shell ([Live Console](https://supremeai-studio.vercel.app)) |
@@ -176,13 +176,13 @@ This repo runs the **minimum safest workflow set** on the free public runtime:
 > Documentation claiming a public `.github/workflows/landing.yml` is stale.
 
 Because landed public work is **automatically bridged** into `Supremeai-bd/supremeai`:
-- **Ephemeral Transit Pipeline (The Ephemeral Mailbox Model, #416):** `supremeai-open` is an ephemeral transit station. When a patch lands in `patches/`, the `satellite-dispatch-and-sync` job of `pipeline.yml` streams the patch to its designated satellite repo and central monorepo (`federation_satellite_sync.py --detect-changed --prune-patches`), then autonomously prunes the patch (`git rm patches/*`), ensuring zero residue and zero repository bloat.
+- **Ephemeral Transit Pipeline (The Ephemeral Mailbox Model, #416):** `supremeai` is an ephemeral transit station. When a patch lands in `patches/`, the `satellite-dispatch-and-sync` job of `pipeline.yml` streams the patch to its designated satellite repo and central monorepo (`federation_satellite_sync.py --detect-changed --prune-patches`), then autonomously prunes the patch (`git rm patches/*`), ensuring zero residue and zero repository bloat.
 - **Never open a duplicate manual PR on the private repository** for work handled here (U4: one issue = one open PR, anywhere in the federation — see `docs/FAQ.md`).
-- **Zero-Workload Decoupled Umbrella:** `Supremeai-bd/supremeai` executes zero active CI workloads, zero nightly cron jobs, and zero deploy scripts. Each satellite operates completely independently, and any cross-federation telemetry is managed from `supremeai-open`. `supremeai` serves purely as an aggregated passive mirror.
+- **Zero-Workload Decoupled Umbrella:** `Supremeai-bd/supremeai` executes zero active CI workloads, zero nightly cron jobs, and zero deploy scripts. Each satellite operates completely independently, and any cross-federation telemetry is managed from `supremeai`. `supremeai` serves purely as an aggregated passive mirror.
 
 
 Reusable building blocks (cross-federation SSOT): `scripts/ci/boundary_sanitization_guard.py` (stdlib-only, identical on both sides) and `.github/actions/` composite actions (`setup-node-tower`, `gitleaks-scan`). Full doctrine: `AGENTS.md` §2.3.
 
 ---
 
-**Related:** [`AGENTS.md`](./AGENTS.md) (constitution) · [`CONTRIBUTING.md`](./CONTRIBUTING.md) (contributor guide) · [`OPS_ACTIONS_QUOTA_RUNBOOK.md`](https://github.com/Supremeai-bd/supremeai-archive/blob/main/docs/OPS_ACTIONS_QUOTA_RUNBOOK.md) (quota & diet)
+**Related:** [`AGENTS.md`](./AGENTS.md) (constitution) · [`CONTRIBUTING.md`](./CONTRIBUTING.md) (contributor guide) · [`OPS_ACTIONS_QUOTA_RUNBOOK.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/OPS_ACTIONS_QUOTA_RUNBOOK.md) (quota & diet)

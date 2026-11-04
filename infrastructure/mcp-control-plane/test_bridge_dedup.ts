@@ -36,7 +36,7 @@ const WO_2094_BODY = [
   "bridge/bridge-20261028-r47-index-pass8-2091-r2",
   "",
   "### Target Repo",
-  "Supremeai-bd/supremeai-open",
+  "Supremeai-bd/supremeai",
   "",
   "### Summary (what + why)",
   "docs(scout): radar-index freshness gate registration lane.",
@@ -78,8 +78,8 @@ check("field value whitespace tolerated", isWorkOrderForTaskId("t", "### Task ID
 
 // ─── 5. Query shape ─────────────────────────────────────────────────────────
 section("5. Step-0 query shape (quoted phrase, full-text, open issues)");
-const q = taskIdSearchQuery("Supremeai-bd/supremeai-open", NOVEL_R2);
-check("query scopes the open repo", q.startsWith("repo:Supremeai-bd/supremeai-open+is:issue+is:open+"), q);
+const q = taskIdSearchQuery("Supremeai-bd/supremeai", NOVEL_R2);
+check("query scopes the open repo", q.startsWith("repo:Supremeai-bd/supremeai+is:issue+is:open+"), q);
 check("taskId is phrase-quoted", q.includes(`%22${encodeURIComponent(NOVEL_R2)}%22`), q);
 check("no in:title (body Task ID field is authoritative)", !q.includes("in:title"), q);
 check("hyphen-split token-AND form is gone", !q.includes("+bridge-20261028"), q);

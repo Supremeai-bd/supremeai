@@ -203,7 +203,7 @@ class Rule9StaleExpiry(unittest.TestCase):
 
 class Rule16DedupGuard(unittest.TestCase):
     EV: ClassVar[dict[str, Any]] = {
-        "repo": "supremeai-open",
+        "repo": "supremeai",
         "kind": "ci_failure",
         "key": "guard-392",
     }
@@ -312,7 +312,7 @@ class Rule26ThreeStrikeQuarantine(unittest.TestCase):
 
 class CombinedPlan(unittest.TestCase):
     def test_26_report_plan_combines_rule16_and_rule26(self):
-        ev = {"repo": "supremeai-open", "kind": "probe_alert", "key": "gateway-401"}
+        ev = {"repo": "supremeai", "kind": "probe_alert", "key": "gateway-401"}
         plan = healer.report_plan(
             events=[ev],
             existing_issues=[],

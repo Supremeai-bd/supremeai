@@ -159,7 +159,7 @@ ALLOWLIST: dict[str, tuple[str, str]] = {
     ),
     # -- debt: live stale pointers, enumerated for the fast-follow sweep ----
     # বাংলা (#3524-অভিঘাত, 2026-10-31): #3524-এর archive-migration 473টি doc
-    # supremeai-archive-এ সরিয়েছে; সেই ২৩টি এন্ট্রি এখানে ghost ছিল (untracked) —
+    # supremeai-এ সরিয়েছে; সেই ২৩টি এন্ট্রি এখানে ghost ছিল (untracked) —
     # guard-এর নিজের self-test অদ্রব্য ("shipped ALLOWLIST has no stale entries")
     # সেগুলোর অপসারণ বাধ্য করে। debt-র‍্যাচেট অক্ষত: নতুন ফাইল কখনো এই শ্রেণিতে
     # যুক্ত হবে না; docs/AUTONOMY_LOOP_CONTRACT.md থাকছে (98e5815-এ পুনঃট্র্যাক্টেড,

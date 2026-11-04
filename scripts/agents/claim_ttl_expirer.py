@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """scripts/agents/claim_ttl_expirer.py — Smart Autonomous Claim Expirer (Internal System Agent).
 
-Monitors open issues on Supremeai-bd/supremeai-open for stale claims.
+Monitors open issues on Supremeai-bd/supremeai for stale claims.
 Invariants:
   - If an issue carries 'status:claimed' but has seen zero PRs or updates
     for > TTL_HOURS (default 3 hours), it releases the claim automatically.
@@ -43,7 +43,7 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-UPSTREAM_REPO = "Supremeai-bd/supremeai-open"
+UPSTREAM_REPO = "Supremeai-bd/supremeai"
 try:
     from scripts.ci.federation_anchors import ANCHOR_HUBS as _AH
     ANCHOR_HUBS = set(_AH.values())

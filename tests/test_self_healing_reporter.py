@@ -61,12 +61,12 @@ CI_FAILURE_FIXTURES = [
     # LABEL_PRIORITY[0] trigger that deterministically routes to ci-fixer
     # (watchdog mirror + self-healing reporter both emit it now).
     (
-        "fix(Supremeai-bd/supremeai-open): [ci-failure] Heal PR #480 checks (Stale-Base Guard)",
+        "fix(Supremeai-bd/supremeai): [ci-failure] Heal PR #480 checks (Stale-Base Guard)",
         [
             "bridge:queued",
             "P0-critical",
             "status:runway",
-            "repo:Supremeai-bd/supremeai-open",
+            "repo:Supremeai-bd/supremeai",
             "area:ci",
         ],
     ),
@@ -127,7 +127,7 @@ class Tier1RoleAndPriority(unittest.TestCase):
 class Tier2PayloadAndDedup(unittest.TestCase):
     def test_title_matches_wo_contract(self):
         t = shr.healing_title(
-            "Supremeai-bd/supremeai-open",
+            "Supremeai-bd/supremeai",
             480,
             ["Knowledge Sharing Guard", "Stale-Base Guard"],
         )
@@ -139,7 +139,7 @@ class Tier2PayloadAndDedup(unittest.TestCase):
     def test_payload_contains_branch_commit_log_and_labels(self):
         issue = shr.build_healing_issue(
             {
-                "repo": "Supremeai-bd/supremeai-open",
+                "repo": "Supremeai-bd/supremeai",
                 "number": 483,
                 "branch": "feat/dashboard-r2",
                 "head_sha": "deadbee",
@@ -154,7 +154,7 @@ class Tier2PayloadAndDedup(unittest.TestCase):
                 "bridge:queued",
                 "P1-high",
                 "status:runway",
-                "repo:Supremeai-bd/supremeai-open",
+                "repo:Supremeai-bd/supremeai",
                 "area:ci",
             ],
         )
@@ -170,7 +170,7 @@ class Tier2PayloadAndDedup(unittest.TestCase):
     def test_fingerprint_deterministic_and_collision_free(self):
         seen = set()
         for num in range(400, 900):  # 500 distinct pairs
-            fp = shr.dedup_fingerprint("Supremeai-bd/supremeai-open", num)
+            fp = shr.dedup_fingerprint("Supremeai-bd/supremeai", num)
             self.assertNotIn(fp, seen)
             seen.add(fp)
         self.assertEqual(

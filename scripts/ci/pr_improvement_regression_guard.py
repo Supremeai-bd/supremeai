@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """PR Improvement & Zero-Regression Evaluator — S07 (task #486).
 
-The definitive deterministic pre-merge gate for Supremeai-bd/supremeai-open
+The definitive deterministic pre-merge gate for Supremeai-bd/supremeai
 (wired into pipeline.yml as a PR gate and landing.yml as the final
 pre-squash barrier — integration hunks in docs/S07_PR_EVALUATOR_SPEC.md).
 A PR is certified only when BOTH hold:

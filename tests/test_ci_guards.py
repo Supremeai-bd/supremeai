@@ -301,7 +301,7 @@ class _GuardHarness:
     def materialize(self, script: str) -> str:
         """Substitute every `${{ }}` expression; fail closed if any remain."""
         script = script.replace(
-            "${{ github.repository }}", "Supremeai-bd/supremeai-open"
+            "${{ github.repository }}", "Supremeai-bd/supremeai"
         )
         script = script.replace("${{ secrets.GITHUB_TOKEN }}", "testtoken")
         script = script.replace(

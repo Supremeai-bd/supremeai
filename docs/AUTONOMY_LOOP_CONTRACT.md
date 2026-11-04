@@ -1,6 +1,6 @@
 ---
 id: autonomy-loop-contract
-title: "Autonomy Layer — Continuous Loop Integration Contract (supremeai-open)"
+title: "Autonomy Layer — Continuous Loop Integration Contract (supremeai)"
 document_role: reference
 status: active
 canonical: true

@@ -2,7 +2,7 @@
 """Federation Documentation Archival Engine.
 
 Moves historical, audit, workorder, and non-essential documentation out of
-active federation repositories into Supremeai-bd/supremeai-archive while
+active federation repositories into Supremeai-bd/supremeai while
 preserving strict 'MUST-HAVE' operational contracts in the active 7 repositories.
 """
 
@@ -15,11 +15,11 @@ import shutil
 import sys
 
 FEDERATION_ROOT = pathlib.Path(__file__).resolve().parents[2].parent
-ARCHIVE_REPO = FEDERATION_ROOT / "supremeai-archive"
+ARCHIVE_REPO = FEDERATION_ROOT / "supremeai"
 
 ACTIVE_REPOS = [
     "supremeai",
-    "supremeai-open",
+    "supremeai",
     "supremeai-studio",
     "supremeai-api",
     "supremeai-core",
@@ -27,7 +27,7 @@ ACTIVE_REPOS = [
     "supremeai-browser",
 ]
 
-ARCHIVE_BASE_URL = "https://github.com/Supremeai-bd/supremeai-archive/blob/main"
+ARCHIVE_BASE_URL = "https://github.com/Supremeai-bd/supremeai/blob/main"
 
 # Directories whose contents should be completely archived
 ARCHIVE_DIRECTORIES = [
@@ -97,7 +97,7 @@ def is_must_keep(rel_path: str) -> bool:
 
 
 def collect_archivable_files(repo_path: pathlib.Path) -> list[pathlib.Path]:
-    """Find all markdown and archive files eligible to move to supremeai-archive."""
+    """Find all markdown and archive files eligible to move to supremeai."""
     archivable: list[pathlib.Path] = []
     
     docs_dir = repo_path / "docs"
@@ -191,7 +191,7 @@ def clean_empty_directories(base_dir: pathlib.Path) -> None:
 
 
 def migrate(dry_run: bool = True) -> int:
-    """Migrate archivable documents across all active repos to supremeai-archive."""
+    """Migrate archivable documents across all active repos to supremeai."""
     if not ARCHIVE_REPO.is_dir():
         print(f"ERROR: Archive repo not found at {ARCHIVE_REPO}", file=sys.stderr)
         return 1
@@ -214,7 +214,7 @@ def migrate(dry_run: bool = True) -> int:
         for f in files:
             rel_to_repo = f.relative_to(repo_dir)
             
-            if repo_name in ("supremeai", "supremeai-open"):
+            if repo_name in ("supremeai", "supremeai"):
                 dest_file = ARCHIVE_REPO / rel_to_repo
             else:
                 dest_file = ARCHIVE_REPO / "docs" / "satellites" / repo_name / rel_to_repo
@@ -246,7 +246,7 @@ def migrate(dry_run: bool = True) -> int:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Migrate non-essential docs to supremeai-archive")
+    parser = argparse.ArgumentParser(description="Migrate non-essential docs to supremeai")
     parser.add_argument("--execute", action="store_true", help="Perform live migration and deletion")
     args = parser.parse_args()
 

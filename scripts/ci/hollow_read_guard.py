@@ -339,7 +339,7 @@ def tower_call(tool: str, arguments: dict, tower_url: str, timeout: float = 30.0
     raise RuntimeError("tower returned no SSE data payload")
 
 
-def run_live_probe(fetch, owner: str = "Supremeai-bd", repo: str = "supremeai-open") -> dict:
+def run_live_probe(fetch, owner: str = "Supremeai-bd", repo: str = "supremeai") -> dict:
     """Probe the roster planes with remedy assertions; evidence JSON out."""
     findings: list[dict] = []
 

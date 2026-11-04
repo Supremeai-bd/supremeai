@@ -195,7 +195,7 @@ export const DocsPage: React.FC = () => (
     </ol>
     <div className="flex flex-wrap gap-3">
       <Link to="/chat" className={infoCta}>Open guest chat</Link>
-      <a href="https://github.com/Supremeai-bd/supremeai-open/issues" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/80 px-5 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors">Report an issue on GitHub</a>
+      <a href="https://github.com/Supremeai-bd/supremeai/issues" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/80 px-5 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors">Report an issue on GitHub</a>
     </div>
   </div>
 );
@@ -209,7 +209,7 @@ export function PublicInfoPage(_props: { kind?: string }) {
       </header>
       <div className="flex flex-wrap gap-3">
         <Link to="/chat" className={infoCta}>Chat with SupremeAI</Link>
-        <a href="https://github.com/Supremeai-bd/supremeai-open/issues" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/80 px-5 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors">Open a GitHub issue</a>
+        <a href="https://github.com/Supremeai-bd/supremeai/issues" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/80 px-5 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors">Open a GitHub issue</a>
       </div>
     </div>
   );

@@ -53,7 +53,7 @@ const NO_SCHEDULE = (fn: () => void) => {
 function baseConfig(overrides: Partial<FederatedCiWatcherConfig> = {}): FederatedCiWatcherConfig {
   return {
     enabled: true,
-    reportRepo: "Supremeai-bd/supremeai-open",
+    reportRepo: "Supremeai-bd/supremeai",
     repos: [],
     maxIssuesPerHour: 6,
     dedupeTtlMs: 24 * 60 * 60 * 1000,
@@ -90,7 +90,7 @@ function normalizedGithub(payload: Record<string, any>, deliveryId = "d-1") {
   return globalEventNormalizer.normalizeGitHubEvent("workflow_run", payload, deliveryId);
 }
 
-const okIssueCreate: IssueCreateFn = async () => ({ ok: true, status: 201, issueUrl: "https://github.com/Supremeai-bd/supremeai-open/issues/999" });
+const okIssueCreate: IssueCreateFn = async () => ({ ok: true, status: 201, issueUrl: "https://github.com/Supremeai-bd/supremeai/issues/999" });
 const noJobs: JobsFetchFn = async () => ({ ok: true, status: 200, failedJobs: [] });
 
 // ── 1. Relevance policy ───────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ section("Explicit allowlist scope");
 {
   const svc = new FederatedCiWatcherService(baseConfig({ repos: ["Supremeai-bd/supremeai-api"] }), { now: makeClock().now, schedule: NO_SCHEDULE });
   check("explicit allowlist accepts listed repo (case-insensitive)", svc.isFederatedRepo("supremeai-bd/SUPREMEAI-API"));
-  check("explicit allowlist rejects same-org unlisted repo", !svc.isFederatedRepo("Supremeai-bd/supremeai-open"));
+  check("explicit allowlist rejects same-org unlisted repo", !svc.isFederatedRepo("Supremeai-bd/supremeai"));
 }
 
 // ── 3. Dedupe gates ───────────────────────────────────────────────────────────
@@ -217,7 +217,7 @@ section("Emission contract (title, labels, body = cross-repo task normalizer)");
   await svc.tick();
 
   check("issue opened", !!captured);
-  check("repo = reportRepo", captured.repo === "Supremeai-bd/supremeai-open");
+  check("repo = reportRepo", captured.repo === "Supremeai-bd/supremeai");
   check("title exact format per #199", captured.title === "fix(ci): workflow failure in Supremeai-bd/supremeai-api (CI #4242)", captured.title);
   check("labels carry core set + repo:<slug>", JSON.stringify(captured.labels) === JSON.stringify(["P1-high", "handoff:coder", "area:ci", "repo:supremeai-api"]), JSON.stringify(captured.labels));
   check("body contains run URL", captured.body.includes("https://github.com/Supremeai-bd/supremeai-api/actions/runs/4242"));
@@ -253,17 +253,17 @@ section("defaultCreateIssue: 422 fallback + token fail-closed (stubbed fetch)");
     if (parsed.labels.includes("repo:supremeai-api")) {
       return new Response("Label does not exist", { status: 422 });
     }
-    return new Response(JSON.stringify({ html_url: "https://github.com/Supremeai-bd/supremeai-open/issues/1", number: 1 }), { status: 201, headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify({ html_url: "https://github.com/Supremeai-bd/supremeai/issues/1", number: 1 }), { status: 201, headers: { "content-type": "application/json" } });
   }) as any;
   try {
     const res = await defaultCreateIssue(
-      { repo: "Supremeai-bd/supremeai-open", title: "t", body: "b", labels: ["P1-high", "handoff:coder", "area:ci", "repo:supremeai-api"] },
+      { repo: "Supremeai-bd/supremeai", title: "t", body: "b", labels: ["P1-high", "handoff:coder", "area:ci", "repo:supremeai-api"] },
       "tok",
     );
     check("two HTTP calls (422 then fallback)", calls.length === 2, `calls=${calls.length}`);
     check("second call dropped the repo:<slug> label", Array.isArray(calls[1]?.labels) && !calls[1].labels.some((l: string) => l.startsWith("repo:")));
     check("fallback result ok", res.ok && res.status === 201);
-    check("issueUrl and issueNumber captured", res.issueNumber === 1 && res.issueUrl === "https://github.com/Supremeai-bd/supremeai-open/issues/1");
+    check("issueUrl and issueNumber captured", res.issueNumber === 1 && res.issueUrl === "https://github.com/Supremeai-bd/supremeai/issues/1");
 
     const noToken = await defaultCreateIssue({ repo: "r/x", title: "t", body: "b", labels: ["a"] }, undefined);
     check("missing token → fail-closed (status 0, not ok)", !noToken.ok && noToken.status === 0);
@@ -286,10 +286,10 @@ section("linkSubIssue: link under anchor hub (stubbed fetch)");
     return new Response("Not found", { status: 404 });
   }) as any;
   try {
-    const linked = await linkSubIssue(100, "Supremeai-bd/supremeai-open", "tok");
+    const linked = await linkSubIssue(100, "Supremeai-bd/supremeai", "tok");
     check("linkSubIssue succeeds with 201", linked === true);
 
-    const noTok = await linkSubIssue(100, "Supremeai-bd/supremeai-open", undefined);
+    const noTok = await linkSubIssue(100, "Supremeai-bd/supremeai", undefined);
     check("linkSubIssue returns false without token", noTok === false);
   } finally {
     globalThis.fetch = origFetch;

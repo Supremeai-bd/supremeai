@@ -51,7 +51,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 DEFAULT_MANIFEST = Path("scripts/ci/satellite_sentinels.json")
-DEFAULT_OPEN_REPO = "Supremeai-bd/supremeai-open"
+DEFAULT_OPEN_REPO = "Supremeai-bd/supremeai"
 TOKEN_ENV_CHAIN = ["SAT_SYNC_PAT", "OPEN_SYNC_PAT", "GITHUB_TOKEN"]
 MAX_DIFF_HUNKS = 3
 MAX_DIFF_LINES = 40

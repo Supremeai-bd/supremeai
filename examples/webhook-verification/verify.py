@@ -104,7 +104,7 @@ def run_self_test(secret: str = "demo-webhook-signing-secret") -> None:
         payload = build_notification(
             event=event,
             message=message,
-            link="https://github.com/Supremeai-bd/supremeai-open/actions/runs/987654321",
+            link="https://github.com/Supremeai-bd/supremeai/actions/runs/987654321",
         )
         raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
         header_value = sign_payload(raw, secret)

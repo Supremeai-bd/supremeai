@@ -33,7 +33,7 @@ import { env } from "../lib/env.js";
 export interface BridgeIntakeConfig {
   /** Master switch — fail-closed. Armed only via BRIDGE_INTAKE_ENABLED=true. */
   enabled: boolean;
-  /** Repo owning the polling workflow (default: Supremeai-bd/supremeai-open). */
+  /** Repo owning the polling workflow (default: Supremeai-bd/supremeai). */
   repo: string;
   /** Workflow filename for the dispatch API (default: pipeline.yml). */
   workflow: string;

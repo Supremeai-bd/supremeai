@@ -69,7 +69,7 @@ Follow `references/delivery.md` for exact calls, limits and failure handling. In
 3. Report honestly which deliveries succeeded; if one tool is unavailable or errors, give the user the generated files instead of claiming success.
 
 ### 6. Reply to the user
-Reply in Bangla with technical terms in English. Keep it short: verdict, the 3 to 5 findings that matter most with the fix for each, what was delivered where, and anything the audit could not check (no axe, login not tested, site unreachable). If the user wants the fixes implemented, code changes go to `Supremeai-bd/supremeai-open` through the Tower bridge: call `bridge_guide` first and respect its diff caps and protected paths.
+Reply in Bangla with technical terms in English. Keep it short: verdict, the 3 to 5 findings that matter most with the fix for each, what was delivered where, and anything the audit could not check (no axe, login not tested, site unreachable). If the user wants the fixes implemented, code changes go to `Supremeai-bd/supremeai` through the Tower bridge: call `bridge_guide` first and respect its diff caps and protected paths.
 
 ## Reading the numbers
 Targets used for severity: LCP <= 2.5s, CLS <= 0.1, TTFB <= 800ms, FCP <= 3s, long-task blocking <= 300ms, DOM < 1500 nodes. Render free-tier backends often show high TTFB from cold starts; say that when TTFB is the outlier instead of blaming the frontend. A page that works on desktop but overflows horizontally on mobile is a responsive bug, not a performance one.

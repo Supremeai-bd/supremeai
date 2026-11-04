@@ -185,7 +185,7 @@ def write_outputs() -> None:
             "tool": {
                 "driver": {
                     "name": "autonomous-repo-audit",
-                    "informationUri": "https://github.com/SupremeAI-Open/supremeai-open"
+                    "informationUri": "https://github.com/SupremeAI-Open/supremeai"
                 }
             },
             "results": []

@@ -1,6 +1,6 @@
 # Architectural Comparison & Adoption Blueprint
 **Source Monorepo:** `SaifulHaqueNiloy/supremeai` (Reference Monolith, Commit `53ae2e1`, 4,281 files, ~22.1K AST Nodes)  
-**Target Federation:** `Supremeai-bd` Organization Repositories (`supremeai-core`, `supremeai-api`, `supremeai-studio`, `supremeai-open`, `supremeai-browser`, `supremeai-vscode`, `supremeai-archive`)  
+**Target Federation:** `Supremeai-bd` Organization Repositories (`supremeai-core`, `supremeai-api`, `supremeai-studio`, `supremeai`, `supremeai-browser`, `supremeai-vscode`, `supremeai`)  
 **Date:** November 3, 2026  
 **Status:** Canonical Adoption & Reconciliation Blueprint (Updated with 9-Repo Split Plan & Audit Comparison)  
 
@@ -23,11 +23,11 @@ This updated document serves as the Single Source of Truth (SSOT) synthesizing t
 | **`supremeai-core`** (#751) | Private | 1,699 | 1 | 9+ | Hidden reasoning moat, orchestration, memory, security, intelligence engines, database contracts | `backend/core/` (224), `backend/engine/` (13), `backend/agents/` (20), `backend/tests/` (726 split) |
 | **`supremeai-api`** (#750) | Private | 522 | 1 | 89 | API gateway, auth, tenant rate-limiting, quota, OpenAPI contracts, model routing | `backend/api/` (135), OpenAPI schemas, API tests |
 | **`supremeai-studio`** (#749) | Public | 787 | 2 | 135 | React/Vite UI, workspace shell, and Admin Cockpit | `apps/mission-control/` (110), `frontend/src/` (167), Storybook/a11y |
-| **`supremeai-open`** (#762) | Public | 710 | 1 | 80 | Public Task Board SSOT, Contributor Bridge, zero-dep SDKs, public specs | Public contracts, `packages/shared-types`, root developer DX |
+| **`supremeai`** (#762) | Public | 710 | 1 | 80 | Public Task Board SSOT, Contributor Bridge, zero-dep SDKs, public specs | Public contracts, `packages/shared-types`, root developer DX |
 | **`supremeai-vscode`** (#754) | Public | 3,406 | 1 | 1+ | VS Code extension, client desktop/mobile integration | `tools/vscode-extension/` (10), `client/supreme-node/` (4) |
 | **`supremeai-browser`** (#756) | Private | 72 | 1 | 6 | Browser automation runtime, stealth scraper, vision grounding | `backend/browser/`, stealth tests, anti-detect configs |
 | **`supremeai`** | Private | 4,591 | 2 | 440 | Central umbrella / Federation anchor & MCP Control Tower orchestration | MCP control plane (88), cross-repo integration tests |
-| **`supremeai-archive`** | Private | 892 | 0 | 2 | ADRs, lessons learned, historical decisions, migrated commit ledgers | `docs/architecture/`, `LESSONS_LEARNED.md`, retired modules |
+| **`supremeai`** | Private | 892 | 0 | 2 | ADRs, lessons learned, historical decisions, migrated commit ledgers | `docs/architecture/`, `LESSONS_LEARNED.md`, retired modules |
 
 ---
 
@@ -49,7 +49,7 @@ flowchart TD
         F_CORE["supremeai-core (#751)\n• Private Intelligence Moat\n• Tree-of-Thought & Debate Engine\n• Security Regression Suites"]
         F_API["supremeai-api (#750)\n• External Gateway & Model Router\n• Auth & Tenant Rate Limiter\n• OpenAPI Contracts"]
         F_STUDIO["supremeai-studio (#749)\n• Studio Shell + Cockpit Admin Surface\n• Storybook, a11y, Playwright E2E"]
-        F_OPEN["supremeai-open (#762)\n• Task Board SSOT & Contributor Bridge\n• SDK Types & Monorepo DX / Compose"]
+        F_OPEN["supremeai (#762)\n• Task Board SSOT & Contributor Bridge\n• SDK Types & Monorepo DX / Compose"]
         F_CI["Domain-Specific CI/CD Pipelines\n(Open preflight, Core pytest, Studio vitest)"]
     end
 
@@ -81,7 +81,7 @@ flowchart TD
 * **Monolith Asset:** 17 comprehensive workflows enforcing PR boundary validation, issue reference guards, main CI, merge gate evidence verification, dependency health checks, deploy train, and operational watchdogs.
 * **Federation Gap:** Satellites currently have only 1-2 workflows (e.g., `bridge-intake.yml`, `ops-maintenance.yml`). Verification is frequently fragmented across local agent runs.
 * **Adoption Directive (Domain CI Split):**
-  * **`supremeai-open`:** PR boundary guard, issue claim/reference guard, preflight lint, fast syntax check (<10s).
+  * **`supremeai`:** PR boundary guard, issue claim/reference guard, preflight lint, fast syntax check (<10s).
   * **`supremeai-core`:** Pytest matrix (3.11/3.12), security regression suites, database schema migration parity.
   * **`supremeai-api`:** Route contract tests, rate-limit / tenant isolation tests, OpenAPI spec validation.
   * **`supremeai-studio`:** Vitest unit tests, Playwright E2E flows, Storybook a11y, bundle size check.
@@ -124,8 +124,8 @@ flowchart TD
 * **Monolith Asset:** `packages/shared-types`, `packages/design-tokens`, profile-driven `docker-compose.yml` (`--profile local` vs `--profile full`).
 * **Federation Gap:** Satellite types are duplicated across TypeScript/Python boundaries; local environment setup requires running multiple decoupled servers manually.
 * **Adoption Directive:**
-  1. Host canonical shared TypeScript types and zero-dependency Python clients in `supremeai-open`.
-  2. Create a unified, profile-driven `docker-compose.yml` in `supremeai-open` orchestrating Core, Gateway, Studio, and MCP Tower.
+  1. Host canonical shared TypeScript types and zero-dependency Python clients in `supremeai`.
+  2. Create a unified, profile-driven `docker-compose.yml` in `supremeai` orchestrating Core, Gateway, Studio, and MCP Tower.
 
 ---
 
@@ -133,7 +133,7 @@ flowchart TD
 
 To uphold the Universal Invariants in `AGENTS.md`:
 1. **NO Blind Full Copy:** Never overwrite satellite codebases with raw monolithic directories.
-2. **NO Credential / Secret Leaks:** Never port `.env`, production secret registries, or provider API keys into public repositories (`supremeai-open`, `supremeai-studio`, `supremeai-vscode`).
+2. **NO Credential / Secret Leaks:** Never port `.env`, production secret registries, or provider API keys into public repositories (`supremeai`, `supremeai-studio`, `supremeai-vscode`).
 3. **NO Monolithic Re-coupling:** Satellite code must reside strictly within approved boundaries (`core/*`, `studio/*`, `gateway/*`, `browser/*`).
 4. **NO Test Erasure:** Never weaken or delete existing passing tests in the target to force compatibility with migrated code.
 
@@ -147,8 +147,8 @@ To uphold the Universal Invariants in `AGENTS.md`:
 | **Phase 2** | **Core Reasoning & Security Port** | Port `backend/core/` engines, debate/tree-of-thought, and security regression tests | `supremeai-core` | High / 3-4 Days |
 | **Phase 3** | **API Gateway & Route Contracts** | Port missing API routes, OpenAPI swagger specs, rate limiters, and contract tests | `supremeai-api` | Medium / 2 Days |
 | **Phase 4** | **Domain CI/CD Pipelines** | Implement domain-tailored workflows (PR preflight, Core pytest, Studio E2E) | All Satellites | High / 2-3 Days |
-| **Phase 5** | **DX, Shared Types & Compose** | Standardize `packages/shared-types` and local profile-based `docker-compose.yml` | `supremeai-open` | Low / 1-2 Days |
-| **Phase 6** | **Archive & Audit Ledger** | Record migrated commit hashes and rationale for retired modules in `archive` | `supremeai-archive` | Low / 1 Day |
+| **Phase 5** | **DX, Shared Types & Compose** | Standardize `packages/shared-types` and local profile-based `docker-compose.yml` | `supremeai` | Low / 1-2 Days |
+| **Phase 6** | **Archive & Audit Ledger** | Record migrated commit hashes and rationale for retired modules in `archive` | `supremeai` | Low / 1 Day |
 
 ---
 

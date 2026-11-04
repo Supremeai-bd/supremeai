@@ -28,7 +28,7 @@ function section(title: string): void {
   console.log(`\n── ${title} ──`);
 }
 
-const BASE = "https://api.github.com/repos/Supremeai-bd/supremeai-open";
+const BASE = "https://api.github.com/repos/Supremeai-bd/supremeai";
 
 function main(): void {
   section("A1 single-PR addressability: /pulls/{N} at any creation rank");

@@ -4,7 +4,7 @@
   "target": {
     "task_id": "task-30",
     "issue": "30",
-    "repository": "Supremeai-bd/supremeai-open",
+    "repository": "Supremeai-bd/supremeai",
     "task_type": "IMPLEMENT",
     "group": "schemas-contracts",
     "priority": "P1"

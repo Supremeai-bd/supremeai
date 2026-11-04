@@ -72,7 +72,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_FIXTURE = "scripts/ci/fixtures/tower_read_probe_fixture.txt"
-DEFAULT_REPO = "Supremeai-bd/supremeai-open"
+DEFAULT_REPO = "Supremeai-bd/supremeai"
 TOWER_CLIENT = REPO_ROOT / "scripts" / "agents" / "mcp_tower_client.py"
 
 # The suspect class: ANSI-SGR-ish sequences WITHOUT a required ESC byte.

@@ -48,7 +48,7 @@ class TestPRPatchRecorder(unittest.TestCase):
             "headRefName": "feat/studio-button",
             "baseRefName": "main",
             "state": "OPEN",
-            "url": "https://github.com/Supremeai-bd/supremeai-open/pull/100",
+            "url": "https://github.com/Supremeai-bd/supremeai/pull/100",
             "files": [{"path": "studio/src/Button.tsx", "additions": 10, "deletions": 0}],
         }
         content, warnings = format_patch_content(meta_ok, "diff --git a/test b/test\n+content\n")
@@ -64,7 +64,7 @@ class TestPRPatchRecorder(unittest.TestCase):
             "headRefName": "feat/wide",
             "baseRefName": "main",
             "state": "OPEN",
-            "url": "https://github.com/Supremeai-bd/supremeai-open/pull/101",
+            "url": "https://github.com/Supremeai-bd/supremeai/pull/101",
             "files": [
                 {"path": "studio/src/Button.tsx", "additions": 5, "deletions": 1},
                 {"path": "gateway/src/index.ts", "additions": 5, "deletions": 1},

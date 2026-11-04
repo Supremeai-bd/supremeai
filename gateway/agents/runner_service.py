@@ -221,7 +221,7 @@ async def _run_agent_task(task_id: str, req: TaskRequest) -> None:
 
         class EphemeralSubmission(SubmissionPort):
             def submit(self, title: str, body: str, head_branch: str) -> SubmissionResult:
-                return SubmissionResult(url=f"https://github.com/Supremeai-bd/supremeai-open/pulls/{task_id}")
+                return SubmissionResult(url=f"https://github.com/Supremeai-bd/supremeai/pulls/{task_id}")
 
         class EphemeralBoard(BoardPort):
             def recent_prs(self) -> list[dict[str, Any]]:

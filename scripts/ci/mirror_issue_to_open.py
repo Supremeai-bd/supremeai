@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-scripts/ci/mirror_issue_to_open.py — Auto-Mirror CI Failures & Tasks to supremeai-open
+scripts/ci/mirror_issue_to_open.py — Auto-Mirror CI Failures & Tasks to supremeai
 
 Mission:
   When a CI failure occurs or a CI/ops issue is opened in Supremeai-bd/supremeai,
-  autonomously format, sanitize, and publish it to Supremeai-bd/supremeai-open
+  autonomously format, sanitize, and publish it to Supremeai-bd/supremeai
   so external/public agents can claim and resolve it without private access.
 
 Invariants:
@@ -21,7 +21,7 @@ import sys
 import urllib.request
 import urllib.error
 
-OPEN_REPO = os.environ.get("OPEN_REPO", "Supremeai-bd/supremeai-open")
+OPEN_REPO = os.environ.get("OPEN_REPO", "Supremeai-bd/supremeai")
 CORE_REPO = os.environ.get("CORE_REPO", "Supremeai-bd/supremeai")
 
 SECRET_PATTERNS = [
@@ -233,7 +233,7 @@ Workflow **{workflow_name}** failed on branch `{head_branch}`.
         return False
 
 def main():
-    parser = argparse.ArgumentParser(description="Auto-mirror CI failures to supremeai-open")
+    parser = argparse.ArgumentParser(description="Auto-mirror CI failures to supremeai")
     parser.add_argument("--issue-number", type=int, help="Core issue number to mirror")
     parser.add_argument("--run-id", type=int, help="Workflow run ID to mirror")
     args = parser.parse_args()

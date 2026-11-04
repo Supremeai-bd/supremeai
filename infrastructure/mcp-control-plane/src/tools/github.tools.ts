@@ -217,7 +217,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
       annotations: { readOnlyHint: true, idempotentHint: true },
       inputSchema: {
         accountId: z.string().optional().describe("The account ID (e.g. 'github-primary')"),
-        repo: z.string().optional().describe("Target repository name (e.g. 'supremeai-open', 'supremeai-skills') or 'Supremeai-bd/<repo>'" + repoDefaultNote()),
+        repo: z.string().optional().describe("Target repository name (e.g. 'supremeai', 'supremeai-skills') or 'Supremeai-bd/<repo>'" + repoDefaultNote()),
         per_page: z.number().int().min(1).max(100).optional().describe(
           "GitHub-REST page-size, fully honored (#2614 live-verified): precedence per_page ?? limit ?? default 5, clamped to GitHub's 1..100 envelope. A 5-row response means params were dropped (e.g. camelCase perPage), not a page-lock — re-probe with per_page=100 before filing an outage"),
         limit: z.number().optional().describe("Number of runs to fetch (default: 5)"),
@@ -251,7 +251,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
       annotations: { readOnlyHint: true, idempotentHint: true },
       inputSchema: {
         accountId: z.string().optional().describe("The account ID (e.g. 'github-primary')"),
-        repo: z.string().optional().describe("Target repository name (e.g. 'supremeai-open', 'supremeai-skills') or 'Supremeai-bd/<repo>'" + repoDefaultNote()),
+        repo: z.string().optional().describe("Target repository name (e.g. 'supremeai', 'supremeai-skills') or 'Supremeai-bd/<repo>'" + repoDefaultNote()),
         runId: z.string().describe("The GitHub Actions run ID"),
       },
       outputSchema: targetEchoSchema,
@@ -283,7 +283,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
       annotations: { readOnlyHint: true, idempotentHint: true },
       inputSchema: {
         accountId: z.string().optional().describe("The account ID (e.g. 'github-primary')"),
-        repo: z.string().optional().describe("Target repository name (e.g. 'supremeai-open', 'supremeai-skills') or 'Supremeai-bd/<repo>'" + repoDefaultNote()),
+        repo: z.string().optional().describe("Target repository name (e.g. 'supremeai', 'supremeai-skills') or 'Supremeai-bd/<repo>'" + repoDefaultNote()),
       },
       outputSchema: targetEchoSchema,
     },
@@ -314,7 +314,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
       annotations: { readOnlyHint: true, idempotentHint: true },
       inputSchema: {
         accountId: z.string().optional().describe("The account ID (e.g. 'github-primary')"),
-        repo: z.string().optional().describe("Target repository name (e.g. 'supremeai-open', 'supremeai-skills', 'supremeai-command') or 'Supremeai-bd/<repo>'" + repoDefaultNote()),
+        repo: z.string().optional().describe("Target repository name (e.g. 'supremeai', 'supremeai-skills', 'supremeai-command') or 'Supremeai-bd/<repo>'" + repoDefaultNote()),
         path: z.string().describe("Relative path to the file (e.g. 'package.json', 'backend/main.py')"),
         ref: z.string().optional().describe("Branch, tag or commit SHA (default: 'main')"),
       },
@@ -347,7 +347,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
       annotations: { readOnlyHint: true, idempotentHint: true },
       inputSchema: {
         accountId: z.string().optional().describe("The account ID (e.g. 'github-primary')"),
-        repo: z.string().optional().describe("Target repository name (e.g. 'supremeai-open', 'supremeai-skills') or 'Supremeai-bd/<repo>'" + repoDefaultNote()),
+        repo: z.string().optional().describe("Target repository name (e.g. 'supremeai', 'supremeai-skills') or 'Supremeai-bd/<repo>'" + repoDefaultNote()),
         state: z.enum(["open", "closed", "all"]).optional().describe("PR state (default: 'open')"),
         per_page: z.number().int().min(1).max(100).optional().describe(
           "GitHub-REST page-size, fully honored (#2614 live-verified): precedence per_page ?? limit ?? default 5, clamped to GitHub's 1..100 envelope. A 5-row response means params were dropped (e.g. camelCase perPage), not a page-lock — re-probe with per_page=100 before filing an outage"),
@@ -392,7 +392,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
       annotations: { readOnlyHint: true, idempotentHint: true },
       inputSchema: {
         query: z.string().describe("Search query (code terms, symbol names, etc.)"),
-        repo: z.string().optional().describe("Optional target repo (e.g. 'supremeai-open'); omit to search the whole org"),
+        repo: z.string().optional().describe("Optional target repo (e.g. 'supremeai'); omit to search the whole org"),
         limit: z.number().int().min(1).max(30).optional().describe("Max results (default: 10)"),
       },
       outputSchema: targetEchoSearchSchema,
@@ -422,7 +422,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
       annotations: { readOnlyHint: true, idempotentHint: true },
       inputSchema: {
         query: z.string().describe("Search query (code terms, symbol names, etc.)"),
-        repo: z.string().optional().describe("Optional target repo (e.g. 'supremeai-open'); omit to search the whole org"),
+        repo: z.string().optional().describe("Optional target repo (e.g. 'supremeai'); omit to search the whole org"),
         limit: z.number().int().min(1).max(30).optional().describe("Max results (default: 10)"),
       },
       outputSchema: targetEchoSearchSchema,
@@ -447,18 +447,18 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
   server.registerTool(
     "github.create_issue",
     {
-      description: "Create a new issue in a SupremeAI repository (e.g. supremeai-open). Zero-credential self-serve for autonomous auditor/scout agents.",
+      description: "Create a new issue in a SupremeAI repository (e.g. supremeai). Zero-credential self-serve for autonomous auditor/scout agents.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
       inputSchema: {
         title: z.string().min(5).max(250).describe("Issue title"),
         body: z.string().min(10).describe("Issue description / markdown body"),
-        repo: z.string().optional().describe("Repository name (default: supremeai-open)"),
+        repo: z.string().optional().describe("Repository name (default: supremeai)"),
         labels: z.array(z.string()).optional().describe("Labels to apply (e.g. ['audit:finding', 'P1-major', 'status:unclaimed'])"),
       },
       outputSchema: targetEchoSchema,
     },
     async ({ title, body, repo, labels }) => {
-      const targetRepo = repo || "supremeai-open";
+      const targetRepo = repo || "supremeai";
       try {
         const result = await createIssue(targetRepo, title, body, labels);
         return {
@@ -525,7 +525,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
                   type: "text",
                   text: `PR #${pr_number} does not touch file matching '${file_path_filter}'.\nFiles modified in PR #${pr_number}: ${meta.files_changed.join(", ")}`,
                 }],
-                structuredContent: { targetRepo: "Supremeai-bd/supremeai-open", targetUrl: `https://github.com/Supremeai-bd/supremeai-open/pull/${pr_number}` },
+                structuredContent: { targetRepo: "Supremeai-bd/supremeai", targetUrl: `https://github.com/Supremeai-bd/supremeai/pull/${pr_number}` },
               };
             }
           }
@@ -545,7 +545,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
           headers["Authorization"] = `token ${token}`;
         }
 
-        const res = await fetch(`https://api.github.com/repos/Supremeai-bd/supremeai-open/pulls/${pr_number}`, {
+        const res = await fetch(`https://api.github.com/repos/Supremeai-bd/supremeai/pulls/${pr_number}`, {
           headers,
         });
 
@@ -554,7 +554,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
         } else if (res.status === 404) {
           return {
             isError: true,
-            content: [{ type: "text", text: `PR #${pr_number} not found on GitHub repository Supremeai-bd/supremeai-open` }],
+            content: [{ type: "text", text: `PR #${pr_number} not found on GitHub repository Supremeai-bd/supremeai` }],
           };
         } else {
           return {
@@ -596,7 +596,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
 
       return {
         content: [{ type: "text", text: outputLines.join("\n") }],
-        structuredContent: { targetRepo: "Supremeai-bd/supremeai-open", targetUrl: `https://github.com/Supremeai-bd/supremeai-open/pull/${pr_number}` },
+        structuredContent: { targetRepo: "Supremeai-bd/supremeai", targetUrl: `https://github.com/Supremeai-bd/supremeai/pull/${pr_number}` },
       };
     }
   );

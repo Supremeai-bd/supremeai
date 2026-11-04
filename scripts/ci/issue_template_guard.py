@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fail-Closed Issue Template & Contract Guard (#473).
 
-Validates issues on supremeai-open at intake so blank, placeholder, or
+Validates issues on supremeai at intake so blank, placeholder, or
 malformed entries never enter the queue. Zero-dependency, stdlib-only,
 deterministic, offline-testable reference implementation.
 

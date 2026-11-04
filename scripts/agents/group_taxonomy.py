@@ -69,7 +69,7 @@ FEDERATION_REPO_GROUPS: dict[str, str] = {
     "security": "Supremeai-bd/supremeai-security",
     "infra": "Supremeai-bd/supremeai-infra",
     "memory": "Supremeai-bd/supremeai-memory",
-    "gateway": "Supremeai-bd/supremeai-open",
+    "gateway": "Supremeai-bd/supremeai",
 }
 
 AI_INTELLIGENCE_GROUPS: tuple[str, ...] = (

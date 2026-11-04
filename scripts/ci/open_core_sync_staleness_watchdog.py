@@ -71,7 +71,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # #2756's live pair (both public — anonymous reads only, no token involved).
-DEFAULT_OPEN_REPO = "Supremeai-bd/supremeai-open"
+DEFAULT_OPEN_REPO = "Supremeai-bd/supremeai"
 DEFAULT_CORE_REPO = "Supremeai-bd/supremeai-core"
 DEFAULT_BRANCH = "main"
 # Above every observed healthy catch-up gap (max ~33h in landed sync history).
@@ -84,7 +84,7 @@ VERDICT_INCONCLUSIVE = "INCONCLUSIVE"
 
 TOWER = "https://supremeai-mcp-tower.onrender.com/mcp"
 
-USER_AGENT = "supremeai-open-core-sync-watchdog (zero-credential guard)"
+USER_AGENT = "supremeai-core-sync-watchdog (zero-credential guard)"
 
 
 def _head_from_commit_payload(data: dict):

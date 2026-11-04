@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """scripts/ci/federation_anchors.py — SSOT Registry for Federation Anchor Hubs.
 
-Defines the permanent Anchor Hub parent issues hosted on Supremeai-bd/supremeai-open.
+Defines the permanent Anchor Hub parent issues hosted on Supremeai-bd/supremeai.
 All automated CI failure reports, bridge sync work orders, rejections, and agent tasks
 attach strictly as Sub-Issues under their respective repository's Anchor Hub.
 
@@ -50,7 +50,7 @@ ANCHOR_HUBS: dict[str, int] = {
     "Supremeai-bd/supremeai-sdk": 757,
     "Supremeai-bd/supremeai-infrastructure": 758,
     "Supremeai-bd/supremeai-mcp-control-plane": 759,
-    "Supremeai-bd/supremeai-archive": 760,
+    "Supremeai-bd/supremeai": 760,
 # 1 Central Monorepo
     "Supremeai-bd/supremeai": 761,
 }
@@ -73,7 +73,7 @@ RETIRED_ANCHOR_HUBS: dict[str, int] = {
     "Supremeai-bd/supremeai-sdk": 757,
     "Supremeai-bd/supremeai-infrastructure": 758,
     "Supremeai-bd/supremeai-mcp-control-plane": 759,
-    "Supremeai-bd/supremeai-archive": 760,
+    "Supremeai-bd/supremeai": 760,
 }
 
 # Specialized Hubs
@@ -441,7 +441,7 @@ RETIRED_TO_ACTIVE: dict[str, str] = {
     "Supremeai-bd/supremeai-sdk": "Supremeai-bd/supremeai",
     "Supremeai-bd/supremeai-infrastructure": "Supremeai-bd/supremeai",
     "Supremeai-bd/supremeai-mcp-control-plane": "Supremeai-bd/supremeai",
-    "Supremeai-bd/supremeai-archive": "Supremeai-bd/supremeai",
+    "Supremeai-bd/supremeai": "Supremeai-bd/supremeai",
 }
 
 
@@ -581,7 +581,7 @@ def verify_live(token: str | None = None) -> int:
     """Verify against live GitHub API that active Anchor Hubs are open and retired anchors are closed."""
     tok = token or get_default_token()
     print(
-        "🔍 [verify-live] Verifying active and retired Anchor Hubs on Supremeai-bd/supremeai-open..."
+        "🔍 [verify-live] Verifying active and retired Anchor Hubs on Supremeai-bd/supremeai..."
     )
 
     # Zero-quota pre-flight: 14 anchor queries cannot fit inside a nearly-empty

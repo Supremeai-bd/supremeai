@@ -23,7 +23,7 @@ SATELLITE_REPOS = {
     "skills": "Supremeai-bd/supremeai-skills",
     "agents": "Supremeai-bd/supremeai-agents",
     "sdk": "Supremeai-bd/supremeai-sdk",
-    "archive": "Supremeai-bd/supremeai-archive",
+    "archive": "Supremeai-bd/supremeai",
     "infra": "Supremeai-bd/supremeai-infrastructure",
     "mcp": "Supremeai-bd/supremeai-mcp-control-plane",
 }

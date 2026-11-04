@@ -16,7 +16,7 @@ Pass the fields of `tower_payload.json` unchanged: `taskId`, `summary`, `files`,
 - The intake runs a secret scan (ghp_, github_pat_, sk-, AKIA, xox, AIza, PEM blocks, redis URLs) and rejects matching content. The builder redacts these, but if a submission is rejected, call `bridge_read_feedback` for the verdict, scrub the flagged text and resubmit once.
 - Reports land under `reports/frontend-audit/<site>/...`, which is outside the protected paths (`.github/`, `docs/ledger/`, `.env*`, `*credential*`, keys). Never move a report into those.
 - Reflection fields (`reflectionWhy`, `alternativesRejected`) are mandatory for the bridge; keep them.
-- The bridge opens a work-order branch and issue in `Supremeai-bd/supremeai-open`; it never merges to main. Tell the user the work-order/issue reference from the tool result.
+- The bridge opens a work-order branch and issue in `Supremeai-bd/supremeai`; it never merges to main. Tell the user the work-order/issue reference from the tool result.
 
 ## Optional: episodic memory for agents
 `memory_record_task`, `memory_remember_fact` and `memory_store_document` exist on the Tower but are proxied and may expose no parameter schema. Use them only if their schema is visible at call time, and store the compact `report.json` summary (counts + top findings), never raw network data. Otherwise skip.

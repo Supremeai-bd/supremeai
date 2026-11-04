@@ -40,8 +40,8 @@ README.md                                 # What this repo is and is not
 
 ## 3. Quickstart — human contributors (fork + PR)
 
-1. **Fork** `Supremeai-bd/supremeai-open` and clone your fork.
-2. **Pick an issue** from the [open board](https://github.com/Supremeai-bd/supremeai-open/issues)
+1. **Fork** `Supremeai-bd/supremeai` and clone your fork.
+2. **Pick an issue** from the [open board](https://github.com/Supremeai-bd/supremeai/issues)
    (look for `good first issue`).
 3. **Branch** with a descriptive name:
    ```bash
@@ -50,7 +50,7 @@ README.md                                 # What this repo is and is not
 4. **Reproduce the defect** (or capture the gap) *before* writing any fix.
 5. **Implement the smallest safe change** strictly inside the files the issue declares.
 6. **Verify** (see §6 — the 3-tier contract) and capture the output.
-7. **Open a PR** against `Supremeai-bd/supremeai-open:main` with:
+7. **Open a PR** against `Supremeai-bd/supremeai:main` with:
    - the evidence (commands + exit codes),
    - the exact scope (`touching-files` list),
    - a rollback note (one-line "how to revert").

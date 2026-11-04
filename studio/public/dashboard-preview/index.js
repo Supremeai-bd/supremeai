@@ -51,7 +51,7 @@ const SNAPSHOT = {
   },
   federation: {
     repos: [
-      { name: "supremeai-open", health: "healthy", ci_status: "passing", open_prs: 0, open_issues: 14, last_sync: "2026-10-16T07:58:00Z" },
+      { name: "supremeai", health: "healthy", ci_status: "passing", open_prs: 0, open_issues: 14, last_sync: "2026-10-16T07:58:00Z" },
       { name: "supremeai", health: "healthy", ci_status: "passing", open_prs: 0, open_issues: 16, last_sync: "2026-10-16T07:13:16Z" },
       { name: "supremeai-core", health: "healthy", ci_status: "passing", open_prs: 0, open_issues: 5, last_sync: "2026-10-16T07:00:00Z" },
       { name: "supremeai-mcp-control-plane", health: "healthy", ci_status: "passing", open_prs: 0, open_issues: 4, last_sync: "2026-10-16T07:10:00Z" },

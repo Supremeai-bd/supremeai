@@ -107,10 +107,10 @@ export const CommandBar: React.FC<CommandBarProps> = ({ isOpen: controlledOpen, 
     const handleOpenEvent = () => setInternalOpen(true);
 
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('supremeai-open-command-palette', handleOpenEvent);
+    window.addEventListener('supremeai-command-palette', handleOpenEvent);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('supremeai-open-command-palette', handleOpenEvent);
+      window.removeEventListener('supremeai-command-palette', handleOpenEvent);
     };
   }, [isOpen, controlledOpen, handleClose, filteredCommands, selectedCommand]);
 

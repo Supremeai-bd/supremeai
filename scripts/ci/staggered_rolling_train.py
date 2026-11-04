@@ -9,7 +9,7 @@ or run heavy private CI simultaneously (anti-stampede / anti-quota-burnout).
 
 Verbatim anti-contention schedule (issue #514 Tier 4):
 
-    Minute 0:   supremeai-open        ➔ supremeai
+    Minute 0:   supremeai        ➔ supremeai
     Minute 10:  supremeai-studio      ➔ supremeai
     Minute 20:  supremeai-browser     ➔ supremeai
     Minute 30:  supremeai-api         ➔ supremeai
@@ -17,7 +17,7 @@ Verbatim anti-contention schedule (issue #514 Tier 4):
     Minute 50:  supremeai-vscode      ➔ supremeai
     Minute 60:  supremeai-command     ➔ supremeai
     Minute 70:  supremeai-agents      ➔ supremeai
-    Minute 80:  supremeai-archive     ➔ supremeai
+    Minute 80:  supremeai     ➔ supremeai
     Minute 90:  supremeai-infra       ➔ supremeai
     Minute 100: supremeai-sdk         ➔ supremeai
 
@@ -100,7 +100,7 @@ def full_repo_name(satellite: str) -> str:
 
     Accepts the issue's `supremeai-infra` alias and normalizes it to the
     real `Supremeai-bd/supremeai-infrastructure`; `open` maps to the public
-    embassy `Supremeai-bd/supremeai-open`. Anything else fails closed.
+    embassy `Supremeai-bd/supremeai`. Anything else fails closed.
     """
     if not isinstance(satellite, str):
         raise TrainError(f"satellite must be a string; got {satellite!r}")
@@ -283,7 +283,7 @@ def self_test() -> bool:
         pass
 
     # canonical repo names (incl. the issue's supremeai-infra alias)
-    assert full_repo_name("open") == "Supremeai-bd/supremeai-open"
+    assert full_repo_name("open") == "Supremeai-bd/supremeai"
     assert full_repo_name("studio") == "Supremeai-bd/supremeai-studio"
     assert full_repo_name("infra") == "Supremeai-bd/supremeai-infrastructure"
     assert full_repo_name("supremeai-infra") == "Supremeai-bd/supremeai-infrastructure"
@@ -337,7 +337,7 @@ def self_test() -> bool:
         parents=parents,
         commit_files=commit_files,
     )
-    assert plan.target == "Supremeai-bd/supremeai-archive"
+    assert plan.target == "Supremeai-bd/supremeai"
     assert plan.shas == (head, mid)
     # conflict → fail closed
     try:
