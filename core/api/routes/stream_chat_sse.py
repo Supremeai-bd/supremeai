@@ -392,25 +392,23 @@ async def _event_stream(
 class ChatStreamRequest(BaseModel):
     """Payload for secure POST SSE chat streaming with backward compatible fields."""
 
-    prompt: str | None = Field(None, description="User prompt to stream")
-    message: str | None = Field(None, description="Legacy/UI alias for prompt")
-    task_type: str = Field("chat", description="Task type classification")
-    session_id: str | None = Field(None, description="Optional session or conversation ID")
-    sessionId: str | None = Field(None, description="Legacy/UI camelCase alias for session_id")
-    messages: list[dict] | None = Field(None, description="Optional list of historical messages")
+    prompt: str | None = Field(None, description="User prompt to stream", max_length=20000)
+    message: str | None = Field(None, description="Legacy/UI alias for prompt", max_length=20000)
+    task_type: str = Field("chat", description="Task type classification", pattern="^(chat|research|general|deep_research)$")
+    session_id: str | None = Field(None, description="Optional session or conversation ID", max_length=128)
+    sessionId: str | None = Field(None, description="Legacy/UI camelCase alias for session_id", max_length=128)
+    messages: list[dict] | None = Field(None, description="Optional list of historical messages", max_length=50)
     context: dict | None = Field(None, description="Optional editor or workspace context")
 
     @model_validator(mode="before")
     @classmethod
     def harmonize_contract(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            # Resolve prompt from message if prompt is missing
             if not data.get("prompt") and data.get("message"):
                 data["prompt"] = data["message"]
             elif not data.get("message") and data.get("prompt"):
                 data["message"] = data["prompt"]
 
-            # Resolve session_id from sessionId if missing
             if not data.get("session_id") and data.get("sessionId"):
                 data["session_id"] = data["sessionId"]
             elif not data.get("sessionId") and data.get("session_id"):
@@ -418,6 +416,10 @@ class ChatStreamRequest(BaseModel):
 
             if not data.get("prompt"):
                 raise ValueError("Either 'prompt' or 'message' must be provided.")
+            # Bounds check
+            prompt = data.get("prompt") or ""
+            if len(prompt) > 20000:
+                raise ValueError("Prompt exceeds maximum length of 20000 characters.")
         return data
 
 
