@@ -262,7 +262,7 @@ export function buildBridgePrBody(opts: BridgePrBodyOptions): string {
 
 /** The public front-door repository (env-overridable for tests/staging). */
 export function bridgeOpenRepo(): string {
-  return (process.env["BRIDGE_OPEN_REPO"] || "Supremeai-bd/supremeai-open").trim();
+  return (process.env["BRIDGE_OPEN_REPO"] || "Supremeai-bd/supremeai").trim();
 }
 
 /** The queue label upstream work orders carry in the open repo. */
