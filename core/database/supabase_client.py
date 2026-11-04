@@ -1196,10 +1196,16 @@ class SupabaseDB:
 
     # --- Usage Metrics ---
     def upsert_usage_metric(self, data: dict) -> Any | None:
-        if not self.client:
+        # Usage aggregation is a backend-only write path. The public client is
+        # subject to tenant RLS and does not carry app.current_tenant_id;
+        # using it makes every scheduled aggregation fail with 42501. Prefer
+        # the already-initialized service-role client, while retaining the
+        # public client as a local/degraded fallback.
+        client = self.service_client or self.client
+        if not client:
             return None
         try:
-            res = self.client.table("usage_metrics").upsert(data).execute()
+            res = client.table("usage_metrics").upsert(data).execute()
             return res.data[0] if res.data else None
         except Exception as e:
             logger.exception(f"Supabase operation error: {e}")

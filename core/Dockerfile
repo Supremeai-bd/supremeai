@@ -11,8 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl perl-base 
     && addgroup --system supremeai && adduser --system supremeai --ingroup supremeai
 
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir pytest pytest-asyncio pytest-cov pydantic fastapi httpx cryptography pyotp bandit pip-audit
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Fail the image build rather than production boot if SQLAlchemy's async
 # runtime dependency or required route packages are missing.

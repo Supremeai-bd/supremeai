@@ -5,7 +5,7 @@ WORKDIR /app
 # Requirements live at the satellite root (federation_satellite_sync.py maps
 # gateway/requirements.txt -> requirements.txt); single source, no flat copy.
 COPY requirements*.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt || pip install --no-cache-dir fastapi uvicorn httpx pydantic pyyaml
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY contracts/ contracts/
 COPY config/ config/
