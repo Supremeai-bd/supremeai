@@ -87,9 +87,11 @@ if render_token:
             svc = item["service"]
             if svc["name"] == "supremeai-backend-6nwi":
                 new_vars["RENDER_BACKUP_SVC_ID"] = svc["id"]
+                new_vars["RENDER_BACKUP_SERVICE_ID"] = svc["id"]
                 print(f"Render Backup SVC Found: {svc['id']}")
             if "worker" in svc["name"].lower() or svc["type"] == "background_worker":
                 new_vars["RENDER_WORKER_SVC_ID"] = svc["id"]
+                new_vars["RENDER_WORKER_SERVICE_ID"] = svc["id"]
                 print(f"Render Worker SVC Found: {svc['id']}")
     except Exception as e:  # noqa: BLE001
         print("Render Error:", e)

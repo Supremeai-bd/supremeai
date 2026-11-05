@@ -1062,6 +1062,8 @@ async def recheck_admin_render_account(
     admin_user: dict = Depends(get_current_admin),
 ):
     """Trigger manual recheck for a specific Render role."""
+    if not role or not role.strip():
+        raise HTTPException(status_code=400, detail="role must be non-empty")
     try:
         from services.render_preflight_service import RenderPreflightService
 

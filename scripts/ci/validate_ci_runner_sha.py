@@ -8,7 +8,7 @@ import os, json, sys, time, urllib.request
 
 PR_HEAD_SHA = os.environ.get("PR_HEAD_SHA", "").strip()
 RENDER_API_KEY = os.environ.get("RENDER_API_KEY", "").strip()
-RENDER_SVC_ID = os.environ.get("RENDER_SVC_ID", "").strip()
+RENDER_SVC_ID = (os.environ.get("RENDER_SERVICE_ID", "") or os.environ.get("RENDER_SVC_ID", "")).strip()
 
 if not PR_HEAD_SHA:
     print("::error::PR_HEAD_SHA is missing")

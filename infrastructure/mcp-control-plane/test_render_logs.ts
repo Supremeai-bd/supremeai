@@ -48,7 +48,7 @@ function expectThrows(name: string, fn: () => unknown, needle?: string): void {
 
 async function liveSmoke(): Promise<void> {
   const accountId = "render-primary";
-  const serviceId = process.env.RENDER_MCP_SVC_ID || process.env.RENDER_PRIMARY_SVC_ID || "";
+  const serviceId = process.env.RENDER_MCP_SERVICE_ID || process.env.RENDER_MCP_SVC_ID || process.env.RENDER_PRIMARY_SERVICE_ID || process.env.RENDER_PRIMARY_SVC_ID || "";
   if (!serviceId) {
     console.error("[live] Set RENDER_MCP_SVC_ID (or RENDER_PRIMARY_SVC_ID) to run the live smoke test.");
     return;

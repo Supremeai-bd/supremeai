@@ -209,7 +209,7 @@ jobs:
     concurrency:
       group: nightly-ops-deep-audit
       cancel-in-progress: false
-    name: 🧪 Heavy Analysis (deps, mutation, perf, duplication, full-audit)
+    name: 🔍 Deep Audit (deps, mutation, perf, duplication, full-audit)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -631,6 +631,7 @@ jobs:
           if-no-files-found: ignore
 
   platform-sweep:
+    name: 🧹 Platform Sweep (nightly, dispatch-only)
     # #67 Tier 3: dispatch-only (deep platform sweeps on demand)
     if: github.event_name == 'workflow_dispatch' && inputs.run_platform_sweep == true
     concurrency:
@@ -1399,6 +1400,7 @@ jobs:
           if-no-files-found: error
 
   db-retention:
+    name: 🗑️ DB Retention Prune (logs + learning store)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_db_retention == true) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
@@ -1486,7 +1488,7 @@ jobs:
     concurrency:
       group: nightly-ops-e2e-customer
       cancel-in-progress: true
-    name: 🎭 Customer Suite
+    name: 🎭 Customer E2E (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -1895,6 +1897,7 @@ jobs:
           echo "Open issues: [deploy-doctor label](https://github.com/${{ github.repository }}/issues?q=label%3Adeploy-doctor)" >> $GITHUB_STEP_SUMMARY
 
   branch-retention:
+    name: 🌿 Branch Retention Cleanup
     # #67 Tier 1: daily storage tidy (was Mon weekly)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_branch_retention == true) ||
@@ -2234,4 +2237,27 @@ jobs:
           else
             echo "KAGGLE_API_TOKENS not configured on runner; self-test verified."
           fi
+
+  secret-hygiene-guards:
+    name: "Secret and Naming Hygiene Guards"
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install PyYAML
+        run: python -m pip install --disable-pip-version-check pyyaml
+      - name: Workflow job name guard
+        run: python scripts/ci/workflow_job_name_guard.py --check
+      - name: Mirror drift guard (report-only)
+        run: python scripts/ci/mirror_drift_guard.py
+      - name: Secret hygiene guard (report-only)
+        run: python scripts/ci/secret_hygiene_guard.py --check
+      - name: Secret naming guard (report-only)
+        run: python scripts/ci/secret_naming_guard.py --check
+      - name: Secret graph regen guard (report-only)
+        run: python scripts/ci/secret_graph_regen.py --check
 

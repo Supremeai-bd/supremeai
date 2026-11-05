@@ -289,7 +289,7 @@ def probe_render(kv: dict) -> list[dict]:
                 ("worker", "RENDER_WORKER_SVC_ID", "RENDER_API_KEY_2"),
                 ("scraper", "RENDER_SCRAPER_SVC_ID", "RENDER_API_KEY_3")]
     for name, se, ke in services:
-        sid, akey = kv.get(se, ""), kv.get(ke, "")
+        sid, akey = kv.get(se, "") or kv.get(se.replace("_SVC_ID", "_SERVICE_ID"), ""), kv.get(ke, "")
         if not sid or not akey:
             out.append(mk("render", f"settings[{name}]", None,
                           f"{se}/{ke} নেই", category="CONFIG_MISSING"))

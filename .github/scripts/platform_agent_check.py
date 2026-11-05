@@ -177,7 +177,7 @@ def probe_render() -> None:
         )
         record("render", f"auth[{key_env}]", status == 200, f"HTTP {status}")
     for name, svc_env, key_env in services:
-        svc_id = os.environ.get(svc_env, "")
+        svc_id = os.environ.get(svc_env, "") or os.environ.get(svc_env.replace("_SVC_ID", "_SERVICE_ID"), "")
         api_key = os.environ.get(key_env, "")
         if not svc_id or not api_key:
             record("render", f"deploy[{name}]", None, f"{svc_env}/{key_env} not set")

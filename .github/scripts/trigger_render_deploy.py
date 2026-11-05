@@ -162,7 +162,9 @@ def main():
     # API-পথ শুধু তখনই চলবে যখন একটি service ID env-থেকে পাওয়া যায়; না পেলে
     # সৎভাবে skip করে webhook fallback-এ যাবে (নিচের guard)।
     primary_svc = (
-        os.environ.get("RENDER_SVC_ID", "").strip()
+        os.environ.get("RENDER_SERVICE_ID", "").strip()
+        or os.environ.get("RENDER_CORE_SERVICE_ID", "").strip()
+        or os.environ.get("RENDER_SVC_ID", "").strip()
         or os.environ.get("PRIMARY_SVC_ID", "").strip()
     )
     deploy_hook = os.environ.get("RENDER_DEPLOY_HOOK_URL", "").strip()

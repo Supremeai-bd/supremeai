@@ -126,13 +126,13 @@ jobs:
       - name: Trigger & Poll Render supremeai-ci-runner
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
-          RENDER_SVC_ID: ${{ vars.RENDER_CI_RUNNER_SERVICE_ID }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_CI_RUNNER_SERVICE_ID }}
           RENDER_WAIT: "1"
           RENDER_WAIT_TIMEOUT_SECONDS: "600"
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           test -n "$RENDER_API_KEY" || { echo "::error::Render CI runner credential (RENDER_API_KEY_PAYKARI) is missing"; exit 1; }
-          test -n "$RENDER_SVC_ID" || { echo "::error::Render CI runner service ID (RENDER_CI_RUNNER_SVC_ID) is missing"; exit 1; }
+          test -n "$RENDER_SERVICE_ID" || { echo "::error::Render CI runner service ID (RENDER_CI_RUNNER_SVC_ID) is missing"; exit 1; }
           test -n "$PR_HEAD_SHA" || { echo "::error::PR head SHA is missing"; exit 1; }
           python scripts/ci/render_trigger_deploy.py
           python scripts/ci/validate_ci_runner_sha.py
@@ -144,7 +144,7 @@ jobs:
           MCP_TOWER_AUTH_TOKEN: ${{ secrets.MCP_TOWER_AUTH_TOKEN }}
           EXPECTED_SHA: ${{ github.sha }}
           CI_RESULT: ${{ job.status }}
-          RENDER_SVC_ID: ${{ vars.RENDER_CI_RUNNER_SERVICE_ID }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_CI_RUNNER_SERVICE_ID }}
         run: python scripts/ci/publish_ci_attestation.py
 
       # Auto-merge is handled by the separate gated auto-merge job below.
@@ -268,7 +268,7 @@ jobs:
           RENDER_API_KEY_5: ${{ secrets.RENDER_API_KEY_5 }}
           RENDER_API_KEY_6: ${{ secrets.RENDER_API_KEY_6 }}
           RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
-          RENDER_SVC_ID: ${{ matrix.service_id }}
+          RENDER_SERVICE_ID: ${{ matrix.service_id }}
           RENDER_WAIT: "1"
           RENDER_WAIT_TIMEOUT_SECONDS: "600"
         run: python scripts/ci/render_trigger_deploy.py

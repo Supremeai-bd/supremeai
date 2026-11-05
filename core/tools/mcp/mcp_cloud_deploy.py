@@ -379,7 +379,7 @@ async def refresh_render_account_status_tool(account_role: str, force: bool = Fa
 
     svc = RenderPreflightService()
     api_key = _get_render_api_key()
-    svc_id = os.getenv("RENDER_PRIMARY_SVC_ID", "")
+    svc_id = os.getenv("RENDER_CORE_SERVICE_ID", os.getenv("RENDER_PRIMARY_SVC_ID", ""))
 
     result = svc.refresh_account_status(
         account_role=account_role,
