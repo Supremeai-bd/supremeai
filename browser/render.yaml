@@ -8,6 +8,16 @@ services:
     envVars:
       - key: GEMINI_PROFILE_DIR
         value: /tmp/profile
+      - key: INFISICAL_PROJECT_ID
+        sync: false
+      - key: INFISICAL_ENV
+        value: prod
+      - key: INFISICAL_CLIENT_ID
+        sync: false
+      - key: INFISICAL_CLIENT_SECRET
+        sync: false
+      - key: STEALTH_WEBHOOK_SECRET
+        sync: false
       # R56 option A agent-slice (#2262): the ghost-tower vault regenerates its
       # Fernet master key on every boot (VAULT_DIR ~/.supremeai_vault is
       # ephemeral — outside the /data/profile disk), so anything encrypted
@@ -20,4 +30,3 @@ services:
       # then and makes the next key generation the last one. Unset = rollback.
       - key: CREDENTIAL_MASTER_KEY
         sync: false
-    

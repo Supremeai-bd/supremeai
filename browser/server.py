@@ -1,8 +1,9 @@
 """SupremeAI Browser - Lightweight Gemini Cookie Relay Engine (~20MB RAM, $0 Cost).
 
-Connects directly to gemini.google.com session over HTTP using stored session cookies.
-Zero Headless Browser overhead, zero Playwright memory bloat.
-Runs seamlessly on Render Free Tier or local machine (port 8788). Refs #756.
+Connects directly to gemini.google.com session over HTTP using stored session cookies,
+with fast-fail $0 pure-HTTP fallback cascades (Duck.ai + Zero-Auth Pollinations OpenAI).
+Zero Headless Browser overhead, zero Playwright memory bloat on the chat path.
+Runs seamlessly on Render 512MB Free Tier or local machine (port 8788). Refs #756.
 """
 
 from __future__ import annotations
@@ -186,7 +187,7 @@ class GeminiCookieEngine:
 
         old_cookies = dict(self._infisical_cookies)
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            async with httpx.AsyncClient(timeout=10.0) as client:
                 login_resp = await client.post(
                     f"{base_url}/api/v1/auth/universal-auth/login",
                     json={"clientId": client_id, "clientSecret": client_secret},
@@ -358,7 +359,7 @@ class GeminiCookieEngine:
             raise HTTPException(status_code=503, detail="No Gemini cookies configured")
 
         proxy = await self.get_proxy()
-        client_kwargs = {"timeout": 45.0}
+        client_kwargs = {"timeout": 15.0}
         if proxy:
             client_kwargs["proxy"] = proxy
 
@@ -442,7 +443,7 @@ class GeminiCookieEngine:
             return None
         logger.info("Attempting Gemini API Key fallback response...")
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=15.0) as client:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
                 payload = {"contents": [{"parts": [{"text": prompt}]}]}
                 r = await client.post(url, json=payload)
@@ -464,13 +465,13 @@ relay_engine = GeminiCookieEngine()
 
 
 class DuckAiEngine:
-    """Duck.ai (DuckDuckGo AI Chat) headless & API relay ($0 cost, no account cookies required).
+    """Lightweight Pure-HTTP $0 Web AI Relay (Duck.ai + Zero-Auth Pollinations OpenAI fallback).
 
-    Duck.ai supports models including:
-    - gpt-4o-mini
-    - claude-3-haiku-20240307
-    - meta-llama/Llama-3.3-70B-Instruct-Turbo
-    - mistralai/Mixtral-8x7B-Instruct-v0.1
+    Designed strictly for Render 512MB Free Tier (~25MB total RAM):
+    - NEVER spawns Playwright or headless Chromium on the chat path.
+    - Tier 1 ($0): Duck.ai HTTP SSE stream with fast 6s timeout.
+    - Tier 2 ($0): Zero-auth OpenAI-compatible HTTP relay (text.pollinations.ai/openai)
+      when datacenter IPs are rate-limited by Duck.ai (~1.5-3s response).
     """
 
     MODEL_ALIASES: Dict[str, str] = {
@@ -493,10 +494,15 @@ class DuckAiEngine:
         if not model_name:
             return "gpt-4o-mini"
         cleaned = model_name.strip().lower()
-        return self.MODEL_ALIASES.get(cleaned, cleaned if "gpt-" in cleaned or "claude-" in cleaned or "llama" in cleaned or "mixtral" in cleaned else "gpt-4o-mini")
+        return self.MODEL_ALIASES.get(
+            cleaned,
+            cleaned
+            if "gpt-" in cleaned or "claude-" in cleaned or "llama" in cleaned or "mixtral" in cleaned
+            else "gpt-4o-mini",
+        )
 
     async def _fetch_vqd_token(self, client: httpx.AsyncClient) -> Optional[str]:
-        """Fetch fresh vqd session token from duckduckgo status endpoint."""
+        """Fetch fresh vqd session token from duckduckgo status endpoint (fast 4s timeout)."""
         now = time.time()
         if self._vqd_token and now < self._vqd_expiry:
             return self._vqd_token
@@ -511,7 +517,7 @@ class DuckAiEngine:
             "Origin": "https://duck.ai",
         }
         try:
-            resp = await client.get("https://duckduckgo.com/duckchat/v1/status", headers=headers)
+            resp = await client.get("https://duckduckgo.com/duckchat/v1/status", headers=headers, timeout=4.0)
             token = resp.headers.get("x-vqd-4")
             if token:
                 self._vqd_token = token
@@ -522,8 +528,43 @@ class DuckAiEngine:
 
         return None
 
+    async def _ask_zero_auth_http_relay(self, client: httpx.AsyncClient, prompt: str) -> Optional[str]:
+        """Zero-credential, pure-HTTP OpenAI-compatible $0 relay fallback (~2s latency, 0 extra RAM)."""
+        relay_url = os.getenv("FREE_HTTP_AI_RELAY_URL", "https://text.pollinations.ai/openai").strip()
+        if not relay_url:
+            return None
+        try:
+            resp = await client.post(
+                relay_url,
+                json={
+                    "model": "openai",
+                    "messages": [{"role": "user", "content": prompt}],
+                },
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "SupremeAI-Lightweight-Relay/2.0",
+                },
+                timeout=12.0,
+            )
+            if resp.status_code == 200:
+                try:
+                    data = resp.json()
+                    choices = data.get("choices") or []
+                    if choices and isinstance(choices[0], dict):
+                        msg = choices[0].get("message") or {}
+                        content = str(msg.get("content") or "").strip()
+                        if content:
+                            return content
+                except Exception:
+                    text = resp.text.strip()
+                    if text:
+                        return text
+        except Exception as exc:
+            logger.warning(f"[FreeHTTPRelay] Zero-auth HTTP relay failed: {exc}")
+        return None
+
     async def ask(self, prompt: str, model: Optional[str] = None) -> str:
-        """Query duck.ai directly. First tries lightweight HTTP with token, then falls back gracefully."""
+        """Query duck.ai via fast HTTP (6s cap), then fall back to zero-auth HTTP OpenAI relay."""
         target_model = self.resolve_model(model)
         headers = {
             "User-Agent": (
@@ -536,7 +577,7 @@ class DuckAiEngine:
             "Origin": "https://duck.ai",
         }
 
-        async with httpx.AsyncClient(timeout=25.0) as client:
+        async with httpx.AsyncClient(timeout=8.0) as client:
             token = await self._fetch_vqd_token(client)
             if token:
                 headers["x-vqd-4"] = token
@@ -545,14 +586,17 @@ class DuckAiEngine:
                     "messages": [{"role": "user", "content": prompt}],
                 }
                 try:
-                    resp = await client.post("https://duckduckgo.com/duckchat/v1/chat", headers=headers, json=payload)
+                    resp = await client.post(
+                        "https://duckduckgo.com/duckchat/v1/chat",
+                        headers=headers,
+                        json=payload,
+                        timeout=6.0,
+                    )
                     if resp.status_code == 200:
-                        # Update token if renewed
                         new_token = resp.headers.get("x-vqd-4")
                         if new_token:
                             self._vqd_token = new_token
                             self._vqd_expiry = time.time() + 600.0
-                        # Parse SSE stream text
                         reply_parts: list[str] = []
                         for line in resp.text.split("\n"):
                             line = line.strip()
@@ -574,39 +618,12 @@ class DuckAiEngine:
                 except Exception as exc:
                     logger.warning(f"[DuckAI] HTTP chat request failed: {exc}")
 
-        # If HTTP direct mode was blocked by bot check or challenge, try headless browser execution
-        try:
-            from playwright.async_api import async_playwright
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(
-                    headless=True,
-                    args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
-                )
-                context = await browser.new_context(
-                    user_agent=headers["User-Agent"]
-                )
-                page = await context.new_page()
-                await page.goto("https://duck.ai/chat", wait_until="networkidle")
-                await page.wait_for_timeout(1000)
-                ta = page.locator("textarea")
-                if await ta.count() > 0:
-                    await ta.fill(prompt)
-                    ask = page.get_by_role("button", name="Ask")
-                    if await ask.count() > 0:
-                        await ask.first.click()
-                    else:
-                        await page.keyboard.press("Enter")
-                    await page.wait_for_timeout(4000)
-                    text = await page.evaluate("() => document.body.innerText")
-                    lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
-                    await browser.close()
-                    if lines:
-                        return lines[-1]
-                await browser.close()
-        except Exception as exc:
-            logger.warning(f"[DuckAI] Playwright fallback failed: {exc}")
+            # Pure-HTTP $0 fallback (zero browser bloat, 512MB safe)
+            free_reply = await self._ask_zero_auth_http_relay(client, prompt)
+            if free_reply:
+                return free_reply
 
-        raise HTTPException(status_code=502, detail="Duck.ai upstream challenge or rate-limit encountered")
+        raise HTTPException(status_code=502, detail="Duck.ai and zero-auth HTTP relay encountered upstream challenge or timeout")
 
 
 duck_engine = DuckAiEngine()
@@ -631,7 +648,9 @@ async def health() -> Dict[str, Any]:
         "status": "healthy",
         "service": service_name,
         "browser_service": "supremeai-browser-cookie-relay",
-        "playwright_available": True,
+        "playwright_available": False,
+        "lightweight_http_mode": True,
+        "memory_budget_mb": 512,
         "max_concurrency": max_concurrency,
         "cookies_loaded": bool(cookies),
         "total_cookies": len(cookies),
@@ -675,7 +694,7 @@ async def api_chat(request: Request) -> Dict[str, Any]:
         try:
             reply = await relay_engine.ask(prompt.strip())
         except Exception as exc:
-            logger.warning(f"Gemini relay failed ({exc}); attempting Duck.ai fallback...")
+            logger.warning(f"Gemini relay failed ({exc}); attempting lightweight $0 HTTP fallback...")
             try:
                 reply = await duck_engine.ask(prompt.strip(), model="gpt-4o-mini")
                 source = "duck.ai (gpt-4o-mini fallback)"
@@ -711,7 +730,7 @@ async def chat_completions(req: ChatRequest, request: Request) -> JSONResponse:
         try:
             reply = await relay_engine.ask(prompt.strip())
         except Exception as exc:
-            logger.warning(f"Gemini relay failed ({exc}); falling back to Duck.ai...")
+            logger.warning(f"Gemini relay failed ({exc}); falling back to lightweight $0 HTTP relay...")
             try:
                 reply = await duck_engine.ask(prompt.strip(), model="gpt-4o-mini")
                 served_model = "duck-gpt-4o-mini"
@@ -746,7 +765,6 @@ async def chat_completions(req: ChatRequest, request: Request) -> JSONResponse:
             "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
         }
     )
-
 
 
 if __name__ == "__main__":

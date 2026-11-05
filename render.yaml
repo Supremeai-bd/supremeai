@@ -23,6 +23,10 @@ services:
         sync: false
       - key: INFISICAL_CLIENT_SECRET
         sync: false
+      - key: STEALTH_WEBHOOK_URL
+        sync: false
+      - key: STEALTH_WEBHOOK_SECRET
+        sync: false
       # Required by the core runtime if this service owns Redis-backed paths.
       # Provision the value through the approved secret manager; never commit
       # the secret value to this file.
@@ -42,6 +46,16 @@ services:
     envVars:
       - key: GEMINI_PROFILE_DIR
         value: /tmp/profile
+      - key: INFISICAL_PROJECT_ID
+        sync: false
+      - key: INFISICAL_ENV
+        value: prod
+      - key: INFISICAL_CLIENT_ID
+        sync: false
+      - key: INFISICAL_CLIENT_SECRET
+        sync: false
+      - key: STEALTH_WEBHOOK_SECRET
+        sync: false
       - key: CREDENTIAL_MASTER_KEY
         sync: false
 
