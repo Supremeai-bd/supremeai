@@ -1,4 +1,4 @@
-﻿"""M1-C â€” HITL hook tests (runs/hitl.py + service.request/resolve_approval).
+"""M1-C â€” HITL hook tests (runs/hitl.py + service.request/resolve_approval).
 
 The run-side HITL contract reuses the existing HITL manager shape
 (``suspend(target_resource, payload) -> record_id``). This suite proves:

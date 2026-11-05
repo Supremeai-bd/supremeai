@@ -191,7 +191,9 @@ class TestDispatchOptions:
         mw = self._mw(monkeypatch)
         request = make_request(method="OPTIONS")
         response = await mw.dispatch(request, call_next_handler)
-        assert response.headers["access-control-allow-origin"] == "*"
+        # No Origin header => no wildcard allow-origin (security: never reflect '*')
+        assert "access-control-allow-origin" not in response.headers
+        assert "access-control-allow-credentials" not in response.headers
         # default requested headers used when preflight header absent
         assert "X-API-Key" in response.headers["access-control-allow-headers"]
 

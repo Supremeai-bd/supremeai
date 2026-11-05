@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 
 from core.ecosystem.evolution_gate import (
     EvidenceReport,

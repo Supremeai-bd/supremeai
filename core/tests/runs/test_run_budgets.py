@@ -1,4 +1,4 @@
-﻿"""M1-B â€” budget enforcement tests (pure, offline).
+"""M1-B â€” budget enforcement tests (pure, offline).
 
 Covers the roadmap M1 budget contract: wall-clock / token / tool-call /
 retry â€” plain columns + pure enforcement helper, colibrÃ¬-free.

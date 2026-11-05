@@ -1,4 +1,4 @@
-﻿"""M1-B â€” Run service tests (lifecycle + budgets + retry + cancellation).
+"""M1-B â€” Run service tests (lifecycle + budgets + retry + cancellation).
 
 Dedicated sqlite+aiosqlite in-memory engine (missions-test pattern; the
 root conftest's autouse cleanup fixture requires a parseable DATABASE_URL

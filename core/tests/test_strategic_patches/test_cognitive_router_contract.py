@@ -1,4 +1,4 @@
-﻿"""Deterministic contract tests for the currently supported cognitive router."""
+"""Deterministic contract tests for the currently supported cognitive router."""
 
 import pytest
 

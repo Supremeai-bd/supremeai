@@ -1,4 +1,4 @@
-﻿"""AUD-2.8 / AUD-3.9 (P0) â€” Cross-tenant adversarial security tests.
+"""AUD-2.8 / AUD-3.9 (P0) â€” Cross-tenant adversarial security tests.
 
 These tests assert that user B cannot access, mutate, or replay user A's data,
 and that the HITL approval surface rejects replay/tampering/expiry attacks.

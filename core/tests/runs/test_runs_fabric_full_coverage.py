@@ -1,4 +1,4 @@
-﻿"""Runs fabric full coverage tests (#3268).
+"""Runs fabric full coverage tests (#3268).
 
 à¦¬à¦¾à¦‚à¦²à¦¾: à¦à¦‡ à¦Ÿà§‡à¦¸à§à¦Ÿà¦—à§à¦²à§‹ backend/runs/service.py à¦à¦° RunService à¦à¦¬à¦‚
 RunNotFound exception à¦à¦° coverage à¦¬à¦¾à¦¡à¦¼à¦¾à¦¯à¦¼à¥¤

@@ -1,4 +1,4 @@
-﻿"""M1-C â€” canonical Run API contract tests (/api/v1/runs).
+"""M1-C â€” canonical Run API contract tests (/api/v1/runs).
 
 Drives the REAL app through httpx ASGITransport with the conftest test-auth
 bypass environment (missions-test pattern): the runs tables are created on

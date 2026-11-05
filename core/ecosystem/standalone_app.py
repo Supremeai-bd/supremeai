@@ -181,11 +181,28 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_DEFAULT_ECOSYSTEM_ORIGINS = [
+    "https://supremeai.live",
+    "https://www.supremeai.live",
+    "https://app.supremeai.live",
+    "https://supremeai-studio.pages.dev",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+]
+_env_ecosystem_origins = [
+    o.strip()
+    for o in os.environ.get("ECOSYSTEM_CORS_ORIGINS", os.environ.get("CORS_ORIGINS", "")).split(",")
+    if o.strip() and o.strip() != "*"
+]
+_ALLOWED_ECOSYSTEM_ORIGINS = list(dict.fromkeys(_env_ecosystem_origins + _DEFAULT_ECOSYSTEM_ORIGINS))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_ALLOWED_ECOSYSTEM_ORIGINS,
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=[
         "Authorization",
         "Content-Type",
@@ -195,7 +212,7 @@ app.add_middleware(
         "apikey",
         "X-Ecosystem-Token",
     ],
-    expose_headers=["*"],
+    expose_headers=["X-Request-ID", "X-Correlation-ID", "Content-Length"],
 )
 
 

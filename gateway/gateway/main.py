@@ -3,7 +3,6 @@
 This module is a byte-identical copy retained for backward compatibility.
 Canonical production gateway is ``gateway.main`` (or ``gateway.service.app``).
 Do not add new routes here. Scheduled for removal after the deprecation window.
-"""
 
 Wire honesty: usage is echoed only when the provider reported it; ``model``
 names the endpoint that ACTUALLY served the request.
