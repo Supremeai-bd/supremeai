@@ -2238,3 +2238,26 @@ jobs:
             echo "KAGGLE_API_TOKENS not configured on runner; self-test verified."
           fi
 
+  secret-hygiene-guards:
+    name: "Secret and Naming Hygiene Guards"
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install PyYAML
+        run: python -m pip install --disable-pip-version-check pyyaml
+      - name: Workflow job name guard
+        run: python scripts/ci/workflow_job_name_guard.py --check
+      - name: Mirror drift guard (report-only)
+        run: python scripts/ci/mirror_drift_guard.py
+      - name: Secret hygiene guard (report-only)
+        run: python scripts/ci/secret_hygiene_guard.py --check
+      - name: Secret naming guard (report-only)
+        run: python scripts/ci/secret_naming_guard.py --check
+      - name: Secret graph regen guard (report-only)
+        run: python scripts/ci/secret_graph_regen.py --check
+
