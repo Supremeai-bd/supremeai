@@ -497,6 +497,12 @@ async function main(): Promise<void> {
 
     const server = await createMcpServer(memoryAdapter);
 
+    // Pre-warm the health snapshot cache asynchronously at boot so /health and
+    // status(scope="all") have immediate telemetry after deploy/restart.
+    import("./health/engine.js")
+      .then(({ globalHealthEngine }) => globalHealthEngine.runFullSweep())
+      .catch((err) => console.error("[HealthEngine] Initial boot sweep error:", err));
+
     if (mode === "stdio") {
       await startStdioServer(server);
     } else {

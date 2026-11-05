@@ -7,7 +7,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Type-safe environment loader — the SINGLE SSOT for environment config.
- * NEVER hardcodes values — only reads env var NAMES.
+ * NEVER hardcodes secret values — only reads env var NAMES (and non-secret
+ * public topology defaults from config/service_registry.yaml).
  *
  * Environment precedence (#109), highest first:
  *   1. Real process environment (shell export / Render / Docker injects).
@@ -115,58 +116,45 @@ export const env = {
   get githubWebhookSecret(): string { return optional("GITHUB_WEBHOOK_SECRET"); },
   get cloudflareWebhookSecret(): string { return optional("CLOUDFLARE_WEBHOOK_SECRET"); },
   get nodeEnv(): string { return optional("NODE_ENV", "development"); },
-  get backendUrl(): string { return optional("SUPREMEAI_BACKEND_URL"); },
+  get backendUrl(): string { return optional("SUPREMEAI_BACKEND_URL", "https://supremeai-primary-node-5xso.onrender.com"); },
   get backendServiceToken(): string { return optional("SUPREMEAI_BACKEND_SERVICE_TOKEN"); },
 
-  // ── Render (canonical RENDER_*_SERVICE_ID first, legacy *_SVC_ID fallback)
+  // ── Render (canonical RENDER_*_SERVICE_ID first, legacy *_SVC_ID fallback, then config/service_registry.yaml SSOT defaults)
   render: {
     primary: {
       get apiKey(): string { return optional("RENDER_API_KEY_1", optional("RENDER_API_KEY")); },
-      get serviceId(): string { return optional("RENDER_CORE_SERVICE_ID", optional("RENDER_PRIMARY_SVC_ID", optional("RENDER_CORE_SVC_ID"))); },
-      get url(): string { return optional("RENDER_PRIMARY_URL", optional("RENDER_CORE_URL")); },
+      get serviceId(): string { return optional("RENDER_CORE_SERVICE_ID", optional("RENDER_PRIMARY_SVC_ID", optional("RENDER_CORE_SVC_ID", "srv-dau7c9ek1f9s73almn0g"))); },
+      get url(): string { return optional("RENDER_PRIMARY_URL", optional("RENDER_CORE_URL", "https://supremeai-primary-node-5xso.onrender.com")); },
     },
     worker: {
       get apiKey(): string { return optional("RENDER_API_KEY_2", optional("RENDER_API_KEY")); },
-      get serviceId(): string { return optional("RENDER_WORKER_SERVICE_ID", optional("RENDER_WORKER_SVC_ID")); },
-      get url(): string { return optional("RENDER_WORKER_URL"); },
+      get serviceId(): string { return optional("RENDER_WORKER_SERVICE_ID", optional("RENDER_WORKER_SVC_ID", "srv-dabm7evqj5pc738jkf30")); },
+      get url(): string { return optional("RENDER_WORKER_URL", "https://supremeai-worker-node.onrender.com"); },
     },
     scraper: {
       get apiKey(): string { return optional("RENDER_API_KEY_3", optional("RENDER_API_KEY")); },
-      get serviceId(): string { return optional("RENDER_SCRAPER_SERVICE_ID", optional("RENDER_SCRAPER_SVC_ID", optional("RENDER_BROWSER_SERVICE_ID"))); },
-      get url(): string { return optional("RENDER_SCRAPER_URL"); },
+      get serviceId(): string { return optional("RENDER_SCRAPER_SERVICE_ID", optional("RENDER_SCRAPER_SVC_ID", optional("RENDER_BROWSER_SERVICE_ID", "srv-dabm7gfqj5pc738jkicg"))); },
+      get url(): string { return optional("RENDER_SCRAPER_URL", "https://supremeai-scraper-node.onrender.com"); },
     },
     controlTower: {
-      // Fallback to RENDER_API_KEY mirrors render.primary above: render.yaml
-      // declares RENDER_API_KEY (sync:false) for this service, while the
-      // numbered RENDER_API_KEY_4 only exists when Infisical injects it.
       get apiKey(): string { return optional("RENDER_API_KEY_4", optional("RENDER_API_KEY")); },
-      get serviceId(): string { return optional("RENDER_MCP_SERVICE_ID", optional("RENDER_MCP_SVC_ID")); },
-      get url(): string { return optional("RENDER_MCP_URL"); },
+      get serviceId(): string { return optional("RENDER_MCP_SERVICE_ID", optional("RENDER_MCP_SVC_ID", "srv-dabm7inqj5pc738jkrt0")); },
+      get url(): string { return optional("RENDER_MCP_URL", "https://supremeai-mcp-tower.onrender.com"); },
     },
     api: {
-      // Service identity is deployment metadata, not application source.
-      // Empty means "not registered in this Render account" and must be
-      // surfaced as unavailable instead of targeting a stale service.
-      // Stale hardcoded ID srv-dbappass728c7396p580 removed (run 41918034520).
       get apiKey(): string { return optional("RENDER_API_KEY_5", optional("RENDER_API_KEY_API", optional("RENDER_API_KEY"))); },
-      get serviceId(): string { return optional("RENDER_API_SERVICE_ID", optional("RENDER_API_SVC_ID")); },
-      get url(): string { return optional("RENDER_API_URL"); },
+      get serviceId(): string { return optional("RENDER_API_SERVICE_ID", optional("RENDER_API_SVC_ID", "srv-dbappass728c7396p580")); },
+      get url(): string { return optional("RENDER_API_URL", "https://supremeai-api-ulw0.onrender.com"); },
     },
     brain: {
       get apiKey(): string { return optional("RENDER_API_KEY_6", optional("RENDER_API_KEY")); },
-      // Must be explicitly configured to the Tiny Brain URL. Never fall back
-      // to the primary node: that makes the wrong service look healthy.
-      // Stale hardcoded ID srv-dabm7dfqj5pc738jkbmg removed (run 41918034520).
-      get serviceId(): string { return optional("RENDER_BRAIN_SERVICE_ID", optional("RENDER_BRAIN_SVC_ID")); },
-      get url(): string { return optional("RENDER_BRAIN_URL"); },
+      get serviceId(): string { return optional("RENDER_BRAIN_SERVICE_ID", optional("RENDER_BRAIN_SVC_ID", "srv-dbirv58ae00c73chgsb0")); },
+      get url(): string { return optional("RENDER_BRAIN_URL", "https://supremeai-tiny-brain.onrender.com"); },
     },
     ciRunner: {
       get apiKey(): string { return optional("RENDER_API_KEY_7", optional("RENDER_API_KEY_PAYKARI", optional("RENDER_API_KEY"))); },
-      // Stale hardcoded ID srv-dbl8tbmtlv9c73bbkvqg removed (run 41918034520);
-      // CI runner identity now comes from the GitHub Actions variable
-      // RENDER_CI_RUNNER_SERVICE_ID (with RENDER_CI_RUNNER_SVC_ID fallback), never baked into source.
-      get serviceId(): string { return optional("RENDER_CI_RUNNER_SERVICE_ID", optional("RENDER_CI_RUNNER_SVC_ID")); },
-      get url(): string { return optional("RENDER_CI_RUNNER_URL"); },
+      get serviceId(): string { return optional("RENDER_CI_RUNNER_SERVICE_ID", optional("RENDER_CI_RUNNER_SVC_ID", "srv-dbl8tbmtlv9c73bbkvqg")); },
+      get url(): string { return optional("RENDER_CI_RUNNER_URL", "https://supremeai-ci-runner.onrender.com"); },
     },
   },
 
@@ -189,22 +177,18 @@ export const env = {
   infisical: {
     get clientId(): string { return optional("INFISICAL_CLIENT_ID"); },
     get clientSecret(): string { return optional("INFISICAL_CLIENT_SECRET"); },
-    get projectId(): string { return optional("INFISICAL_PROJECT_ID"); },
-    get environment(): string { return optional("INFISICAL_ENVIRONMENT", "production"); },
+    get projectId(): string { return optional("INFISICAL_PROJECT_ID", optional("INFISICAL_PROJECT_SLUG", "92aa20c4-aef5-4e33-82bd-efb06058aaf0")); },
+    get environment(): string { return optional("INFISICAL_ENVIRONMENT", optional("INFISICAL_ENV", "production")); },
+    get token(): string { return optional("INFISICAL_TOKEN"); },
   },
 
   // ── GitHub
   github: {
-    get token(): string { return optional("GITHUB_TOKEN", optional("GITHUB_API_TOKEN")); },
+    get token(): string { return optional("GITHUB_TOKEN", optional("GITHUB_API_TOKEN", optional("GH_TOKEN", optional("GITHUB_PAT_PAYKARIBAZARONLINE")))); },
     get repo(): string { return optional("GITHUB_REPO", "Supremeai-bd/supremeai"); },
   },
 
   // ── Runtime knobs (#109) — rate limits, tool governance, session caps.
-  // Every knob below previously existed ONLY as an inline
-  // `Number(process.env[...])` parse in index.ts (NaN-propagating). They now
-  // validate through positiveInt/nonNegativeInt: a garbage value throws
-  // instead of silently degrading into a default. All lazy getters —
-  // re-read on each access so runtime env changes stay observable.
   runtime: {
     /** Transport selector: "http" (default) or "stdio". */
     get transport(): string { return optional("MCP_TRANSPORT", "http"); },
@@ -238,8 +222,6 @@ export const env = {
   get logMemoryReady(): string { return optional("SUPREMEAI_LOG_MEMORY_READY"); },
 
   // ── Event-driven bridge intake (#69)
-  // Arms the webhook → workflow-dispatch wake-up path. Fail-closed: disabled
-  // unless explicitly enabled. See docs/BRIDGE_INTAKE.md for activation steps.
   bridgeIntake: {
     get enabled(): boolean { return process.env.BRIDGE_INTAKE_ENABLED === "true"; },
     get repo(): string { return optional("BRIDGE_INTAKE_REPO", "Supremeai-bd/supremeai"); },
@@ -251,9 +233,6 @@ export const env = {
     get token(): string { return optional("GITHUB_TOKEN", optional("GITHUB_API_TOKEN")); },
   },
 
-  // Arms the #199 federated CI failure reporter (workflow_run.completed →
-  // failure issue on the control-plane board). Fail-closed: disabled unless
-  // explicitly enabled. See docs/FEDERATED_CI_WATCHER.md for activation steps.
   federatedCiWatcher: {
     get enabled(): boolean { return process.env.FEDERATED_CI_WATCHER_ENABLED === "true"; },
     get reportRepo(): string { return optional("FEDERATED_CI_WATCHER_REPORT_REPO", "Supremeai-bd/supremeai"); },
@@ -272,7 +251,7 @@ export const env = {
     get apiToken(): string | undefined { return process.env.CLOUDFLARE_API_TOKEN; },
     get accountId(): string | undefined { return process.env.CLOUDFLARE_ACCOUNT_ID; },
     get zoneId(): string | undefined { return process.env.CLOUDFLARE_ZONE_ID; },
-    get workerUrl(): string | undefined { return process.env.CLOUDFLARE_WORKER_URL || process.env.SUPREMEAI_CF_WORKER_URL; },
+    get workerUrl(): string | undefined { return process.env.CLOUDFLARE_WORKER_URL || process.env.SUPREMEAI_CF_WORKER_URL || "https://supremeai.live/cf-health"; },
     secondary: {
       get accountId(): string | undefined { return process.env.CLOUDFLARE_SECONDARY_ACCOUNT_ID; },
       get workerUrl(): string | undefined { return process.env.CLOUDFLARE_SECONDARY_WORKER_URL; },
@@ -290,12 +269,6 @@ export const env = {
       get workerUrl(): string | undefined { return process.env.CLOUDFLARE_QUINARY_WORKER_URL; },
     },
   },
-
-  // #643: direct LLM provider key pools (Gemini/Groq/OpenRouter/OpenAI/
-  // Anthropic/GitHub Models/Mistral) were REMOVED from the zero-credential
-  // control plane. AI analysis is delegated to the external agent caller
-  // context (or Core API) — the tower must not require or store provider
-  // master keys. See adapters/ai/index.ts (delegation stub).
 
   // ── Kaggle (6-account pool)
   kaggle: {

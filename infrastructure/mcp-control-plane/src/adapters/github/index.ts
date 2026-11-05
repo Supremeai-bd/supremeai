@@ -17,6 +17,10 @@ export function getAccountConfig(accountIdOrRepo?: string): { apiKey: string; ba
     process.env.GITHUB_PAT_PAYKARIBAZARONLINE ||
     process.env.GITHUB_TOKEN ||
     process.env.GH_TOKEN ||
+    process.env.GITHUB_PAT ||
+    process.env.OPEN_SYNC_PAT ||
+    process.env.SYNC_PAT ||
+    process.env.SELF_HEAL_PAT ||
     "";
   if (!apiKey) throw new Error(`Missing GitHub Token in env for target: ${target}`);
 

@@ -24,8 +24,8 @@ export class IncidentEngine {
   ): IncidentAlert | null {
     const oldStatus = oldSnap?.status || "healthy";
     
-    // No state change
-    if (oldStatus === newStatus) {
+    // No state change or unconfigured optional provider ("unknown")
+    if (oldStatus === newStatus || newStatus === "unknown") {
       return null;
     }
 

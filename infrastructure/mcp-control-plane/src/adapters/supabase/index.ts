@@ -7,7 +7,14 @@ function getSupabaseConfig(accountId: string) {
   if (!account) throw new Error(`Supabase account not found: ${accountId}`);
   if (!account.available) throw new Error(`Supabase account is not configured/available: ${accountId}`);
 
-  const apiKey = process.env[account.apiKeyRef];
+  const refs = [account.apiKeyRef, ...(account.apiKeyRefs ?? [])];
+  let apiKey = "";
+  for (const ref of refs) {
+    if (process.env[ref]) {
+      apiKey = process.env[ref]!;
+      break;
+    }
+  }
   const url = account.url;
   if (!apiKey || !url) throw new Error(`Missing Supabase URL or Key in env for: ${accountId}`);
   return { url, apiKey };

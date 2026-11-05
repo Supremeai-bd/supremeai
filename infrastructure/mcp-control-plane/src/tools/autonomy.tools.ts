@@ -10,8 +10,9 @@ export async function registerAutonomyTools(server: McpServer): Promise<void> {
     { readOnlyHint: true, idempotentHint: true },
     async () => {
       const enabled = globalKillSwitch.isAutonomyEnabled();
+      const mode = globalKillSwitch.getEffectiveMode();
       return {
-        content: [{ type: "text", text: `Autonomy is currently ${enabled ? "ENABLED ✅" : "DISABLED 🚨"}` }],
+        content: [{ type: "text", text: `Autonomy is currently ${enabled ? "ENABLED ✅" : "DISABLED 🚨"} (Mode: ${mode})` }],
       };
     }
   );

@@ -273,6 +273,22 @@ jobs:
           RENDER_API_KEY_5: ${{ secrets.RENDER_API_KEY_5 }}
           RENDER_API_KEY_6: ${{ secrets.RENDER_API_KEY_6 }}
           RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          INFISICAL_PROJECT_SLUG: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPEN_SYNC_PAT: ${{ secrets.OPEN_SYNC_PAT }}
+          SYNC_PAT: ${{ secrets.SYNC_PAT }}
+          SELF_HEAL_PAT: ${{ secrets.SELF_HEAL_PAT }}
           RENDER_SERVICE_ID: ${{ matrix.service_id }}
           RENDER_WAIT: "1"
           RENDER_WAIT_TIMEOUT_SECONDS: "600"

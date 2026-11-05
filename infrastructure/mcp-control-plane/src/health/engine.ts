@@ -25,6 +25,19 @@ export interface SweepReport {
   overallStatus: "healthy" | "degraded" | "down" | "unknown";
 }
 
+export const OPTIONAL_PROVIDERS = new Set([
+  "stripe",
+  "vercel",
+  "firecrawl",
+  "kaggle",
+  "qdrant",
+  "telegram",
+]);
+
+function isOptionalProvider(provider: string): boolean {
+  return OPTIONAL_PROVIDERS.has(provider) || provider.startsWith("ai-");
+}
+
 export class HealthEngine {
   private maxConsecutiveFailuresBeforeCircuitOpen = 3;
 
@@ -59,14 +72,32 @@ export class HealthEngine {
         impactedServices: globalDependencyGraph.getImpactedServices(provider), data,
       };
     } catch (err: any) {
+      const errMsg = String(err?.message || "Unknown error");
+      const unconfigured =
+        errMsg.includes("is not configured") ||
+        errMsg.includes("Missing ") ||
+        errMsg.includes("missing in tower env");
+      if (isOptionalProvider(provider) && unconfigured) {
+        return {
+          provider,
+          status: "unknown",
+          lastCheckMs: Date.now(),
+          checkedAt: new Date().toISOString(),
+          latencyMs: Date.now() - started,
+          consecutiveFailures: 0,
+          evidence: { kind: "provider_response", summary: "Optional provider not configured" },
+          impactedServices: [],
+          error: errMsg,
+        };
+      }
       const consecutiveFailures = (oldSnap?.consecutiveFailures || 0) + 1;
-      const timedOut = String(err?.message).includes("timeout");
+      const timedOut = errMsg.includes("timeout");
       const status = consecutiveFailures >= this.maxConsecutiveFailuresBeforeCircuitOpen ? "circuit_open" : "down";
       return {
         provider, status, lastCheckMs: Date.now(), checkedAt: new Date().toISOString(),
         latencyMs: Date.now() - started, consecutiveFailures,
         evidence: { kind: timedOut ? "timeout" : "error", summary: timedOut ? "Provider check timed out" : "Provider check failed" },
-        impactedServices: globalDependencyGraph.getImpactedServices(provider), error: err?.message || "Unknown error",
+        impactedServices: globalDependencyGraph.getImpactedServices(provider), error: errMsg,
       };
     }
   }
@@ -89,7 +120,28 @@ export class HealthEngine {
         if (!serviceId) {
           throw new Error("env.render.primary.serviceId is not configured — hardcoded fallback removed (#4091 topology hygiene)");
         }
-        const data: any = await getServiceHealth("render-primary", serviceId);
+        let data: any;
+        try {
+          data = await getServiceHealth("render-primary", serviceId);
+        } catch (err: any) {
+          const errMsg = String(err?.message || "");
+          if (
+            (errMsg.includes("Missing Render API Key") || errMsg.includes("is not configured/available")) &&
+            env.render.primary.url
+          ) {
+            const { httpRequest } = await import("../lib/http.js");
+            const healthUrl = `${env.render.primary.url.replace(/\/+$/, "")}/health`;
+            const res = await httpRequest(healthUrl, { timeoutMs: 8000, retries: 0 });
+            return {
+              status: res.ok ? "healthy" : "degraded",
+              url: healthUrl,
+              httpStatus: res.status,
+              latencyMs: res.latencyMs,
+              mode: "http_probe_fallback",
+            };
+          }
+          throw err;
+        }
         // #110 Part 3: deploy-status cross-reference. The adapter only returns
         // {service, lastDeployStatus} — no `status` field — so the engine's
         // generic mapping used to call a build_failed deploy "healthy".
@@ -131,13 +183,36 @@ export class HealthEngine {
       "github": async () => {
         const { getAccountConfig, githubHeaders } = await import("../adapters/github/index.js");
         const { httpRequest } = await import("../lib/http.js");
-        const { apiKey: token, baseUrl } = getAccountConfig("github-primary");
+        let token = "";
+        let baseUrl = `https://api.github.com/repos/${env.github.repo}`;
+        try {
+          const cfg = getAccountConfig("github-primary");
+          token = cfg.apiKey;
+          baseUrl = cfg.baseUrl;
+        } catch {
+          // Fall back to public unauthenticated probe if no token is present yet
+        }
+        const headers: Record<string, string> = token
+          ? githubHeaders(token)
+          : {
+              Accept: "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "SupremeAI-MCP-Control-Tower",
+            };
         const res = await httpRequest(baseUrl, {
-          headers: githubHeaders(token),
+          headers,
           timeoutMs: 6000,
           retries: 0,
         });
-        if (!res.ok) throw new Error(`GitHub API responded ${res.status}`);
+        if (!res.ok) {
+          if (!token && (res.status === 403 || res.status === 429)) {
+            return {
+              status: "degraded",
+              error: `GitHub unauthenticated API rate-limited (${res.status}) — configure GITHUB_TOKEN for authenticated quota`,
+            };
+          }
+          throw new Error(`GitHub API responded ${res.status}`);
+        }
         return res.data;
       },
       "supabase": () => getSupabaseHealth("supabase-primary"),
@@ -197,7 +272,9 @@ export class HealthEngine {
     const dependencyImpact = Object.fromEntries(
       Object.entries(snapshots).map(([provider, snapshot]) => [provider, snapshot.impactedServices])
     );
-    const statuses = Object.values(snapshots).map((snapshot) => snapshot.status);
+    const statuses = Object.entries(snapshots)
+      .filter(([provider, snapshot]) => !(isOptionalProvider(provider) && snapshot.status === "unknown"))
+      .map(([, snapshot]) => snapshot.status);
     const overallStatus = statuses.includes("down") || statuses.includes("circuit_open")
       ? "down" : statuses.includes("degraded") ? "degraded" : statuses.includes("unknown") ? "unknown" : "healthy";
     // Persist a sweep summary so full-sweep history is durable, not just incidents.

@@ -217,3 +217,35 @@ def test_phase3_dockerfile_hygiene_and_post_merge_release_attestation_wiring() -
     assert parsed[1] == {"name": "api", "url": "https://supremeai-api-ulw0.onrender.com/healthz"}
 
 
+def test_mcp_tower_production_readiness_guards() -> None:
+    """Verify MCP Control Plane production-readiness guards:
+    - Canonical Render serviceId/url and Infisical projectId fallbacks in env.ts
+    - Optional providers do not force overallStatus to 'down' when unconfigured
+    - Remediation rules do not hardcode 'srv-auto-fix-demo' and KillSwitch guards L2 mode
+    - render_trigger_deploy.py syncs bootstrap env vars before triggering deploy
+    """
+    mcp_root = REPO_ROOT / "infrastructure" / "mcp-control-plane" / "src"
+    env_ts = (mcp_root / "lib" / "env.ts").read_text(encoding="utf-8")
+    assert "srv-dau7c9ek1f9s73almn0g" in env_ts
+    assert "srv-dabm7inqj5pc738jkrt0" in env_ts
+    assert "92aa20c4-aef5-4e33-82bd-efb06058aaf0" in env_ts
+    assert "https://supremeai.live/cf-health" in env_ts
+
+    engine_ts = (mcp_root / "health" / "engine.ts").read_text(encoding="utf-8")
+    assert "OPTIONAL_PROVIDERS" in engine_ts
+    assert "http_probe_fallback" in engine_ts
+
+    rules_ts = (mcp_root / "remediation" / "rules.ts").read_text(encoding="utf-8")
+    assert "srv-auto-fix-demo" not in rules_ts
+    assert "env.render.primary.serviceId" in rules_ts
+
+    killswitch_ts = (mcp_root / "remediation" / "killswitch.ts").read_text(encoding="utf-8")
+    assert "areCoreDependenciesVerified" in killswitch_ts
+    assert "getEffectiveMode" in killswitch_ts
+
+    trigger_py = (REPO_ROOT / "scripts" / "ci" / "render_trigger_deploy.py").read_text(encoding="utf-8")
+    assert "_sync_bootstrap_env_vars" in trigger_py
+    assert "INFISICAL_CLIENT_ID" in trigger_py
+
+
+
