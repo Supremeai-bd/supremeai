@@ -209,7 +209,7 @@ jobs:
     concurrency:
       group: nightly-ops-deep-audit
       cancel-in-progress: false
-    name: 🧪 Heavy Analysis (deps, mutation, perf, duplication, full-audit)
+    name: 🔍 Deep Audit (deps, mutation, perf, duplication, full-audit)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -631,6 +631,7 @@ jobs:
           if-no-files-found: ignore
 
   platform-sweep:
+    name: 🧹 Platform Sweep (nightly, dispatch-only)
     # #67 Tier 3: dispatch-only (deep platform sweeps on demand)
     if: github.event_name == 'workflow_dispatch' && inputs.run_platform_sweep == true
     concurrency:
@@ -1399,6 +1400,7 @@ jobs:
           if-no-files-found: error
 
   db-retention:
+    name: 🗑️ DB Retention Prune (logs + learning store)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_db_retention == true) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
@@ -1486,7 +1488,7 @@ jobs:
     concurrency:
       group: nightly-ops-e2e-customer
       cancel-in-progress: true
-    name: 🎭 Customer Suite
+    name: 🎭 Customer E2E (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -1895,6 +1897,7 @@ jobs:
           echo "Open issues: [deploy-doctor label](https://github.com/${{ github.repository }}/issues?q=label%3Adeploy-doctor)" >> $GITHUB_STEP_SUMMARY
 
   branch-retention:
+    name: 🌿 Branch Retention Cleanup
     # #67 Tier 1: daily storage tidy (was Mon weekly)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_branch_retention == true) ||
