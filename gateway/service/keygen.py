@@ -77,9 +77,11 @@ def verify_key(key: str) -> dict | None:
         secret.encode(), payload.encode(), hashlib.sha256
     ).hexdigest()
 
-    # Support full 64-hex signature and legacy 12-hex transition safely
-    is_valid = hmac.compare_digest(provided_signature, full_sig) or (
-        len(provided_signature) == 12 and hmac.compare_digest(provided_signature, full_sig[:12])
+    # Only full HMAC-SHA256 signatures are accepted. Short legacy tags are
+    # intentionally rejected: a 48-bit MAC is not sufficient for production
+    # API-key authentication and must be rotated before re-enabling access.
+    is_valid = len(provided_signature) == len(full_sig) and hmac.compare_digest(
+        provided_signature, full_sig
     )
 
     if is_valid:
