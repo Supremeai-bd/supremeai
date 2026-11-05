@@ -204,3 +204,16 @@ def test_phase3_dockerfile_hygiene_and_post_merge_release_attestation_wiring() -
     assert "RELEASE_URL: ${{ matrix.release_url }}" in unified_wf
     assert "python scripts/ops/wiring_atlas.py --check" in unified_wf
 
+    # 4. render_canary.py must parse both quoted JSON and CLI-stripped unquoted RENDER_CANARY_URLS_JSON
+    from scripts.ci.render_canary import parse_canary_targets
+
+    unquoted = (
+        "[{name:primary,url:https://supremeai-primary-node-5xso.onrender.com/health/live},"
+        "{name:api,url:https://supremeai-api-ulw0.onrender.com/healthz}]"
+    )
+    parsed = parse_canary_targets(unquoted)
+    assert len(parsed) == 2
+    assert parsed[0] == {"name": "primary", "url": "https://supremeai-primary-node-5xso.onrender.com/health/live"}
+    assert parsed[1] == {"name": "api", "url": "https://supremeai-api-ulw0.onrender.com/healthz"}
+
+

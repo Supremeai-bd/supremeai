@@ -3,6 +3,8 @@
 
 Expected GitHub Actions variable:
   RENDER_CANARY_URLS_JSON='[{"name":"primary","url":"https://.../health/live"}]'
+  (Also tolerates PowerShell-stripped unquoted object syntax such as
+   '[{name:primary,url:https://.../health/live}]'.)
 
 An empty value is a hard failure. This prevents an old hard-coded list of
 non-existent services from masking which production services are authoritative.
@@ -12,10 +14,41 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
 import urllib.request
+from typing import Any
+
+
+def parse_canary_targets(raw: str) -> list[dict[str, Any]]:
+    """Parse RENDER_CANARY_URLS_JSON, tolerating unquoted keys/values when set via CLI."""
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    # Fallback: parse `{name:...,url:...}` items stripped of quotes by PowerShell/CLI
+    targets: list[dict[str, Any]] = []
+    for obj_match in re.finditer(r"\{([^{}]+)\}", raw):
+        body = obj_match.group(1)
+        item: dict[str, str] = {}
+        for pair in body.split(","):
+            if ":" not in pair:
+                continue
+            k, v = pair.split(":", 1)
+            key = k.strip().strip('"').strip("'")
+            val = v.strip().strip('"').strip("'")
+            if key:
+                item[key] = val
+        if "url" in item:
+            targets.append(item)
+    if targets:
+        return targets
+    raise ValueError(f"Unable to parse RENDER_CANARY_URLS_JSON: {raw!r}")
 
 
 def main() -> int:
@@ -24,8 +57,8 @@ def main() -> int:
         print("RENDER_CANARY_URLS_JSON is not configured; refusing an unverified canary.", file=sys.stderr)
         return 1
     try:
-        targets = json.loads(raw)
-    except json.JSONDecodeError as exc:
+        targets = parse_canary_targets(raw)
+    except ValueError as exc:
         print(f"Invalid RENDER_CANARY_URLS_JSON: {exc}", file=sys.stderr)
         return 1
     if not isinstance(targets, list) or not targets:
@@ -67,4 +100,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
