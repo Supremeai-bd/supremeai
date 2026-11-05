@@ -77,14 +77,14 @@ await RequestContextStore.run(anonCtx, async () => {
 
 // ─── ৩. Queue normalization (pure) ───────────────────────────────────────────
 const rawIssues = [
-  { number: 41, title: "docs: update client example", state: "open", html_url: "https://github.com/Supremeai-bd/supremeai-open/issues/41", created_at: "2026-10-12T10:00:00Z", labels: [{ name: "bridge:queued" }, "good first issue"], comments: 2 },
-  { number: 42, title: "test: client harness", state: "open", html_url: "https://github.com/Supremeai-bd/supremeai-open/issues/42", created_at: "2026-10-12T11:00:00Z", labels: [{ name: "bridge:queued" }], comments: 0 },
-  { number: 43, title: "PR thread, not a work order", state: "open", html_url: "https://github.com/Supremeai-bd/supremeai-open/pull/43", created_at: "2026-10-12T12:00:00Z", labels: [], pull_request: { url: "x" } },
-  { number: 44, title: "closed again", state: "closed", html_url: "https://github.com/Supremeai-bd/supremeai-open/issues/44", labels: [] },
-  { number: 45, title: "[Anchor Hub] Supremeai-bd/supremeai-studio", state: "open", html_url: "https://github.com/Supremeai-bd/supremeai-open/issues/45", labels: ["P1-high", "area:governance"] },
-  { number: 46, title: "[Federation Hub] CI Failures Desk", state: "open", html_url: "https://github.com/Supremeai-bd/supremeai-open/issues/46", labels: ["P1-high"] },
-  { number: 47, title: "failed work order", state: "open", html_url: "https://github.com/Supremeai-bd/supremeai-open/issues/47", labels: ["bridge:rejected"] },
-  { number: 48, title: "landed work order", state: "open", html_url: "https://github.com/Supremeai-bd/supremeai-open/issues/48", labels: ["bridge:landed"] },
+  { number: 41, title: "docs: update client example", state: "open", html_url: "https://github.com/Supremeai-bd/supremeai/issues/41", created_at: "2026-10-12T10:00:00Z", labels: [{ name: "bridge:queued" }, "good first issue"], comments: 2 },
+  { number: 42, title: "test: client harness", state: "open", html_url: "https://github.com/Supremeai-bd/supremeai/issues/42", created_at: "2026-10-12T11:00:00Z", labels: [{ name: "bridge:queued" }], comments: 0 },
+  { number: 43, title: "PR thread, not a work order", state: "open", html_url: "https://github.com/Supremeai-bd/supremeai/pull/43", created_at: "2026-10-12T12:00:00Z", labels: [], pull_request: { url: "x" } },
+  { number: 44, title: "closed again", state: "closed", html_url: "https://github.com/Supremeai-bd/supremeai/issues/44", labels: [] },
+  { number: 45, title: "[Anchor Hub] Supremeai-bd/supremeai-studio", state: "open", html_url: "https://github.com/Supremeai-bd/supremeai/issues/45", labels: ["P1-high", "area:governance"] },
+  { number: 46, title: "[Federation Hub] CI Failures Desk", state: "open", html_url: "https://github.com/Supremeai-bd/supremeai/issues/46", labels: ["P1-high"] },
+  { number: 47, title: "failed work order", state: "open", html_url: "https://github.com/Supremeai-bd/supremeai/issues/47", labels: ["bridge:rejected"] },
+  { number: 48, title: "landed work order", state: "open", html_url: "https://github.com/Supremeai-bd/supremeai/issues/48", labels: ["bridge:landed"] },
   null,
 ];
 
@@ -113,7 +113,7 @@ assert.ok(guide.contract.protectedPathsToAdminReview.includes(".github/"), "prot
 assert.ok(guide.contract.secretScanFamilies.includes("ghp_"), "secret-scan families documented");
 assert.equal(guide.contract.landingAuthority.includes("constitutional gates"), true, "landing authority documented");
 assert.equal(BRIDGE_QUEUE_LABEL, "bridge:queued", "queue label matches the bridge pipeline");
-assert.equal(bridgeOpenRepo(), "Supremeai-bd/supremeai-open", "default open repo is the public front door");
+assert.equal(bridgeOpenRepo(), "Supremeai-bd/supremeai", "default open repo is the public front door");
 
 // ─── ৫. Profiles: read-only bridge tools ride the curated surfaces ───────────
 for (const name of ["bridge_guide", "bridge_work_queue", "bridge_work_order"]) {
@@ -186,7 +186,7 @@ async function makeBridgeServer(): Promise<McpServer> {
       const call = await client.callTool({ name: "bridge_guide", arguments: {} });
       assert.notEqual((call as { isError?: boolean }).isError, true, "bridge.guide must execute for anonymous callers");
       const payload = JSON.parse((call as { content: Array<{ text: string }> }).content[0]!.text) as ReturnType<typeof bridgeGuide>;
-      assert.equal(payload.entrypoints.openRepo, "Supremeai-bd/supremeai-open");
+      assert.equal(payload.entrypoints.openRepo, "Supremeai-bd/supremeai");
       assert.ok(payload.contract.diffCaps.maxBytes > 0, "guide carries the operator contract");
     });
   } finally {

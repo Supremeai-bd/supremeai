@@ -6,7 +6,7 @@ CLI reads a JSON file (--input) of PR records and reports violations.
 
 PR record shape (all fields optional except number/repo):
   {
-    "repo": "Supremeai-bd/supremeai-open",
+    "repo": "Supremeai-bd/supremeai",
     "number": 123,
     "title": "...",
     "body": "PR description",

@@ -2,7 +2,7 @@
 """scripts/ci/federation_ci_watchdog.py — Federation-Wide CI Failure Watchdog & Open Queue Mirror.
 
 Automatically mirrors CI failures from all 12 SupremeAI federation repositories
-into the public task queue (`Supremeai-bd/supremeai-open`) as actionable agent
+into the public task queue (`Supremeai-bd/supremeai`) as actionable agent
 task contract issues.
 
 Supports:
@@ -58,7 +58,7 @@ except ImportError:
         link_sub_issue = None
         ACTIVE_ANCHOR_HUBS = {}
 
-OPEN_REPO = "Supremeai-bd/supremeai-open"
+OPEN_REPO = "Supremeai-bd/supremeai"
 
 # Lane classification (#1764): production incidents are failures on the
 # tracked branch. Everything else — GitHub PR merge-refs (`<N>/merge`, the
@@ -85,7 +85,7 @@ def pr_number_from_merge_ref(branch: str) -> int | None:
 
 
 FEDERATION_REPOS: tuple[str, ...] = (
-    "Supremeai-bd/supremeai-open",
+    "Supremeai-bd/supremeai",
     "Supremeai-bd/supremeai-command",
     "Supremeai-bd/supremeai-skills",
     "Supremeai-bd/supremeai-vscode",
@@ -349,7 +349,7 @@ def gh_api(
         return 0, {"error": str(e)}
 
 
-CI_FAILURE_ANCHOR = 762  # Default fallback anchor: supremeai-open (#762)
+CI_FAILURE_ANCHOR = 762  # Default fallback anchor: supremeai (#762)
 
 
 def check_existing_mirror(
@@ -717,7 +717,7 @@ def auto_resolve_fixed_incidents(token: str | None = None) -> tuple[int, int]:
     error_count = 0
     print("🔍 [watchdog] Checking open CI failure incidents for auto-resolution...")
 
-    # 1. Fetch all open issues in supremeai-open
+    # 1. Fetch all open issues in supremeai
     page = 1
     open_mirrors: list[dict[str, Any]] = []
     while True:
@@ -917,7 +917,7 @@ def self_test() -> int:
     assert len(FEDERATION_REPOS) == 12, (
         f"Expected 12 federation repos (including open, excluding supremeai + archive), got {len(FEDERATION_REPOS)}"
     )
-    assert "Supremeai-bd/supremeai-open" in FEDERATION_REPOS
+    assert "Supremeai-bd/supremeai" in FEDERATION_REPOS
     assert "Supremeai-bd/supremeai-command" in FEDERATION_REPOS
     assert "Supremeai-bd/supremeai-skills" in FEDERATION_REPOS
     assert "Supremeai-bd/supremeai-studio" in FEDERATION_REPOS
@@ -1092,16 +1092,16 @@ def self_test() -> int:
     assert "Lane Classification (PR-lane)" not in prod_body
 
     # PR-lane files honestly: P2-medium, never P0-critical, lane note present.
-    pr_labels = build_issue_labels("Supremeai-bd/supremeai-open", branch="1763/merge")
+    pr_labels = build_issue_labels("Supremeai-bd/supremeai", branch="1763/merge")
     assert "P2-medium" in pr_labels
     assert "P0-critical" not in pr_labels
     assert "status:runway" in pr_labels  # ci-fixer triage routing unchanged
     assert "repo:open" in pr_labels
     pr_body = build_issue_body(
-        repo="Supremeai-bd/supremeai-open",
+        repo="Supremeai-bd/supremeai",
         workflow_name="CI — Open Unified Pipeline",
         run_id=40595046266,
-        html_url="https://github.com/Supremeai-bd/supremeai-open/actions/runs/40595046266",
+        html_url="https://github.com/Supremeai-bd/supremeai/actions/runs/40595046266",
         branch="1763/merge",
         commit_sha="554e5015734f",
     )

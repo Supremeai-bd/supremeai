@@ -242,7 +242,7 @@ export const env = {
   // unless explicitly enabled. See docs/BRIDGE_INTAKE.md for activation steps.
   bridgeIntake: {
     get enabled(): boolean { return process.env.BRIDGE_INTAKE_ENABLED === "true"; },
-    get repo(): string { return optional("BRIDGE_INTAKE_REPO", "Supremeai-bd/supremeai-open"); },
+    get repo(): string { return optional("BRIDGE_INTAKE_REPO", "Supremeai-bd/supremeai"); },
     get workflow(): string { return optional("BRIDGE_INTAKE_WORKFLOW", "pipeline.yml"); },
     get ref(): string { return optional("BRIDGE_INTAKE_REF", "main"); },
     get minIntervalMs(): number { return parseInt(optional("BRIDGE_INTAKE_MIN_INTERVAL_MS", "60000"), 10) || 60000; },
@@ -256,7 +256,7 @@ export const env = {
   // explicitly enabled. See docs/FEDERATED_CI_WATCHER.md for activation steps.
   federatedCiWatcher: {
     get enabled(): boolean { return process.env.FEDERATED_CI_WATCHER_ENABLED === "true"; },
-    get reportRepo(): string { return optional("FEDERATED_CI_WATCHER_REPORT_REPO", "Supremeai-bd/supremeai-open"); },
+    get reportRepo(): string { return optional("FEDERATED_CI_WATCHER_REPORT_REPO", "Supremeai-bd/supremeai"); },
     /** Comma-separated explicit allowlist; empty → same-org-as-reportRepo policy. */
     get repos(): string[] {
       return optional("FEDERATED_CI_WATCHER_REPOS", "").split(",").map((s) => s.trim()).filter((s) => s.length > 0);

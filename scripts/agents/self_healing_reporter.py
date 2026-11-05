@@ -44,7 +44,7 @@ import re
 import subprocess
 import sys
 
-DEFAULT_REPO = "Supremeai-bd/supremeai-open"
+DEFAULT_REPO = "Supremeai-bd/supremeai"
 
 P0 = "P0-critical"
 P1 = "P1-high"

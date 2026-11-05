@@ -33,7 +33,7 @@ SATELLITE_REPO = "Supremeai-bd/supremeai-browser"
 
 import pytest
 if not SENTINELS_JSON.exists():
-    pytest.skip('Open-side sentinel contract only runs in supremeai-open', allow_module_level=True)
+    pytest.skip('Open-side sentinel contract only runs in supremeai', allow_module_level=True)
 
 
 def _mirror_entries() -> list[dict]:

@@ -27,7 +27,7 @@ if hasattr(sys.stdout, "reconfigure"):
     except (AttributeError, OSError):
         pass
 
-UPSTREAM_REPO = "Supremeai-bd/supremeai-open"
+UPSTREAM_REPO = "Supremeai-bd/supremeai"
 
 
 def run_cmd(args: list[str], cwd: Path | None = None) -> tuple[int, str, str]:
@@ -334,7 +334,7 @@ def main() -> int:
 
     print("======================================================================")
     print(" SupremeAI Auto Bridge PR Opener — Ingress Instant PR Automation")
-    print(" Target: Supremeai-bd/supremeai-open")
+    print(" Target: Supremeai-bd/supremeai")
     print("======================================================================")
 
     stranded = find_stranded_bridge_work_orders()

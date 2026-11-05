@@ -242,7 +242,7 @@ stdout contracts — tier evidence + exactly-once final marker — unchanged).
 The guard jobs in `.github/workflows/pipeline.yml` (branch-naming,
 issue-reference, anti-duplicate PR, boundary-sanitization, loop-contract-parity,
 ingress-hook, stale-base)
-run on every PR to `supremeai-open` — free, unlimited public Actions minutes — so invalid
+run on every PR to `supremeai` — free, unlimited public Actions minutes — so invalid
 contributions fail at the public boundary instead of burning the private
 repo's limited quota (Free org ≈ 2,000 min/month). The first three guards
 are zero-checkout (~5s each); the boundary and parity guards check out the
@@ -284,7 +284,7 @@ tree for content inspection (stdlib-only, still minutes-bounded):
 Agents consume the envelope, implement inside `scope.touching_files`, then
 submit **without intermediate filesystem drafts**:
 
-- **Pull request** (zero-credential): fork/branch → PR to `supremeai-open:main`
+- **Pull request** (zero-credential): fork/branch → PR to `supremeai:main`
   using `submission.pr_body_template` + issue reference.
 - **Bridge lane** (collaborator): push `bridge/<task-id>` branch to this repo →
   Bridge Work Order issue → private gate battery lands the change

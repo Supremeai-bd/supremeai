@@ -21,15 +21,15 @@ console.log("Starting hybrid repo access & organization discovery tests...");
 
 // 1. Verify organization registry configuration
 assert.equal(GITHUB_ORGANIZATION, "Supremeai-bd");
-assert.equal(CANONICAL_FEDERATION_REPOS.length, 8);
+assert.equal(CANONICAL_FEDERATION_REPOS.length, 6);
 assert.ok(CANONICAL_FEDERATION_REPOS.includes("supremeai"));
-assert.ok(CANONICAL_FEDERATION_REPOS.includes("supremeai-open"));
+assert.ok(CANONICAL_FEDERATION_REPOS.includes("supremeai"));
 assert.ok(CANONICAL_FEDERATION_REPOS.includes("supremeai-core"));
 assert.ok(CANONICAL_FEDERATION_REPOS.includes("supremeai-api"));
 assert.ok(CANONICAL_FEDERATION_REPOS.includes("supremeai-browser"));
 assert.ok(CANONICAL_FEDERATION_REPOS.includes("supremeai-studio"));
 assert.ok(CANONICAL_FEDERATION_REPOS.includes("supremeai-vscode"));
-assert.ok(CANONICAL_FEDERATION_REPOS.includes("supremeai-archive"));
+assert.ok(CANONICAL_FEDERATION_REPOS.includes("supremeai"));
 
 const initialTracked = getTrackedOrgRepos();
 assert.equal(initialTracked.length, 2);
@@ -75,12 +75,10 @@ assert.equal(browserConfig.baseUrl, "https://api.github.com/repos/Supremeai-bd/s
 
 // 4. Satellite classification
 assert.equal(isSatelliteRepo("supremeai"), false, "supremeai is core monorepo, not satellite");
-assert.equal(isSatelliteRepo("supremeai-open"), true);
 assert.equal(isSatelliteRepo("supremeai-studio"), true);
 assert.equal(isSatelliteRepo("supremeai-core"), true);
 assert.equal(isSatelliteRepo("supremeai-vscode"), true);
 assert.equal(isSatelliteRepo("supremeai-browser"), true);
-assert.equal(isSatelliteRepo("supremeai-archive"), true);
 assert.equal(SATELLITE_REPOS.has("supremeai-studio"), true);
 assert.equal(SATELLITE_REPOS.has("supremeai-browser"), true);
 
@@ -187,11 +185,9 @@ assert.ok(!agentAccs.some((a) => a.id === "github-primary"), "agent must NOT see
 assert.ok(!agentAccs.some((a) => a.id === "github-org-supremeai-bd"), "agent must NOT see github-org-supremeai-bd");
 assert.ok(!agentAccs.some((a) => a.id.includes("supremeai-api")), "agent must NOT see supremeai-api");
 assert.ok(!agentAccs.some((a) => a.id.includes("supremeai-core")), "agent must NOT see supremeai-core");
-assert.ok(!agentAccs.some((a) => a.id.includes("supremeai-archive")), "agent must NOT see supremeai-archive");
-assert.ok(!agentAccs.some((a) => a.id.includes("supremeai-open")), "agent must NOT see supremeai-open");
 assert.ok(agentAccs.some((a) => a.id.includes("supremeai-studio")), "agent must see supremeai-studio");
 
 const viewerAccs = getAccountsForRole("viewer");
 const viewerGhAccs = viewerAccs.filter((a) => a.provider === "github");
-assert.equal(viewerGhAccs.length, 0, "viewer sees no GitHub accounts (supremeai-open closed)");
+assert.equal(viewerGhAccs.length, 2, "viewer sees studio + experimental-lab GitHub accounts");
 console.log("All hybrid repo access & organization discovery tests passed successfully!");

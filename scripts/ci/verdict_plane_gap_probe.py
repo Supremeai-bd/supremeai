@@ -13,7 +13,7 @@ the gap worklist. This probe is that surface.
 Reconciliation model — WO-DRIVEN on purpose (r2, live lesson 2026-10-30):
 
 The `bridge:in-gates` WO rows are the gate plane's OWN canonical worklist:
-they survive PR-list window truncation (the supremeai-open list_prs window
+they survive PR-list window truncation (the supremeai list_prs window
 holds ~100 recent rows; the 2026-10-28 stalled pair #2354/#2386 had already
 aged OUT of it while their WOs stayed in-gates with dark verdicts — a
 PR-driven probe would have silently missed the exact class it exists for).
@@ -27,7 +27,7 @@ The PR plane and the mirror plane are ENRICHMENT reads, never the driver.
                     verdict + verdictHistory length. Probed ONLY for
                     in-gates candidates (cap 30); healthy steady state
                     probes a handful.
-  - PR plane      : open PRs of Supremeai-bd/supremeai-open (Tower
+  - PR plane      : open PRs of Supremeai-bd/supremeai (Tower
                     github.list_prs, repo passed EXPLICITLY — the R66 drift
                     class #2452/#2469 silently retargets the account default
                     monorepo when repo is omitted). Slug-joined as
@@ -110,7 +110,7 @@ except ImportError:  # pragma: no cover — package-style load (tests, CI runner
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TOWER = "https://supremeai-mcp-tower.onrender.com/mcp"
-OPEN_REPO = "Supremeai-bd/supremeai-open"
+OPEN_REPO = "Supremeai-bd/supremeai"
 MONOREPO = "Supremeai-bd/supremeai"
 
 SLUG_RE = re.compile(r"\(bridge-\d{8}-[a-z0-9][a-z0-9-]*\)")

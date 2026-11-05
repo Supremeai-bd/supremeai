@@ -43,10 +43,10 @@ def test_build_scoped_env_least_privilege():
         token="gh_test_token_123",
         agent_name="agent-coder-1",
         slot="agent-1",
-        repo="Supremeai-bd/supremeai-open",
+        repo="Supremeai-bd/supremeai",
         base_env={"INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET": "should_be_dropped", "CUSTOM_ALLOWED": "drop"},
     )
-    assert scoped["GH_REPO"] == "Supremeai-bd/supremeai-open"
+    assert scoped["GH_REPO"] == "Supremeai-bd/supremeai"
     assert scoped["AGENT_ROLE"] == "coder"
     assert scoped["AGENT_NAME"] == "agent-coder-1"
     assert scoped["AGENT_SLOT"] == "agent-1"

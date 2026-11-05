@@ -145,7 +145,7 @@ SLUG_RE = re.compile(r"\(bridge-\d{8}-[a-z0-9][a-z0-9-]*\)")
 TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 # The repo whose history/PR planes this guard reconciles against. A WO whose
 # body names ANY other Target Repo lands in that satellite (#1916 class).
-OPEN_REPO = "Supremeai-bd/supremeai-open"
+OPEN_REPO = "Supremeai-bd/supremeai"
 TARGET_REPO_RE = re.compile(r"^###\s+Target Repo\s*\n\s*(\S+)", re.MULTILINE)
 # Cap on per-WO body fetches during refinement (only at-risk candidates are
 # fetched; the common board has zero, so the steady-state cost is nil).
@@ -895,7 +895,7 @@ def self_test() -> list[tuple[str, bool, str]]:
                   parse_target_repo(sat_body) == "Supremeai-bd/supremeai-browser",
                   repr(parse_target_repo(sat_body))))
     cases.append(("parse_target_repo open repo", parse_target_repo(
-        "### Target Repo\nSupremeai-bd/supremeai-open\n") == OPEN_REPO, ""))
+        "### Target Repo\nSupremeai-bd/supremeai\n") == OPEN_REPO, ""))
     cases.append(("parse_target_repo absent -> None (fail-closed default)",
                   parse_target_repo("no section here") is None, ""))
     v = classify({"number": 17, "title": f"sat {slug_a} y", "createdAt": old},
@@ -948,7 +948,7 @@ def self_test() -> list[tuple[str, bool, str]]:
         return sat_body
 
     def _fetch_open(number):
-        return "### Target Repo\nSupremeai-bd/supremeai-open\n"
+        return "### Target Repo\nSupremeai-bd/supremeai\n"
 
     def _fetch_boom(number):
         raise RuntimeError("tower down")

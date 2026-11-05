@@ -4,7 +4,7 @@ contract_parity_guard.py — Autonomous Contract Parity & Byte-Hygiene Guard.
 
 Architecture & Constitutional Mission:
   Prevents cross-satellite contract drifts and byte mismatches before merge.
-  Validates that mirrored contract files in `supremeai-open` conform strictly to:
+  Validates that mirrored contract files in `supremeai` conform strictly to:
     1. Canonical interface symbols and AST structure.
     2. Strict LF line-endings (0 CRLF occurrences across text files).
     3. Valid YAML structure for OpenAPI schema surfaces.

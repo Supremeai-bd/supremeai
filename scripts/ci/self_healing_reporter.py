@@ -3,7 +3,7 @@
 
 Rule 16 — any CI failure / merge conflict / dead link / runtime probe alert
 across federation repositories becomes a dedup-guarded issue on
-supremeai-open: identical events never open duplicate issues.
+supremeai: identical events never open duplicate issues.
 
 Rule 26 — 3-strike quarantine: an issue that triggers 3 consecutive CI
 failures or unclaims locks into status:quarantine, halting agent retries
@@ -153,7 +153,7 @@ def report_plan(
 
 
 def _self_test() -> int:
-    ev = {"repo": "supremeai-open", "kind": "ci_failure", "key": "guard-392"}
+    ev = {"repo": "supremeai", "kind": "ci_failure", "key": "guard-392"}
     fp1 = fingerprint_event(ev)
     assert fp1 == fingerprint_event(dict(ev)), "fingerprint must be deterministic"
     assert fp1 != fingerprint_event({**ev, "kind": "dead_link"})

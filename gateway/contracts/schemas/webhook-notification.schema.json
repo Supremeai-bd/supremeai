@@ -47,7 +47,7 @@
       "service": "supremeai-mcp-tower",
       "severity": "error",
       "message": "tower-verify job failed on main at commit 3832c85 (typecheck: 2 errors)",
-      "link": "https://github.com/Supremeai-bd/supremeai-open/actions/runs/987654321",
+      "link": "https://github.com/Supremeai-bd/supremeai/actions/runs/987654321",
       "timestamp": "2026-10-15T23:07:00Z"
     }
   ]

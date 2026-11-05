@@ -10,7 +10,7 @@ zero-open-PRs clean state, so any stray issue or PR created on a satellite
 is flagged at the central board instead of orphaning work off-SSOT.
 
 Doctrine (single paragraph form):
-  1. supremeai-open is the SOLE public task board and front desk; satellites
+  1. supremeai is the SOLE public task board and front desk; satellites
      carry 0 open issues and 0 open PRs — permanently.
   2. Work enters satellites only through landing.yml / the bridge transit
      pipeline, never through satellite trackers.
@@ -62,7 +62,7 @@ import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-OPEN_REPO = "Supremeai-bd/supremeai-open"
+OPEN_REPO = "Supremeai-bd/supremeai"
 
 # ---------------------------------------------------------------------------
 # Satellite registry — verbatim from the #626 doctrine (12 satellites).
@@ -88,7 +88,7 @@ SATELLITE_REPO_NAMES: dict[str, str] = {
     "vscode": "supremeai-vscode",
     "browser": "supremeai-browser",
     "core": "supremeai-core",
-    "archive": "supremeai-archive",
+    "archive": "supremeai",
 }
 
 

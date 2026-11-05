@@ -94,7 +94,7 @@ OSS_TOKENS = frozenset(SPX for SPX in SPDX_ALLOWLIST if SPX != "LicenseRef-Propr
 # "" = the open repo root itself. The most specific surface prefix wins when
 # assigning a package.json to a surface.
 MIRROR_SURFACE_TABLE: list[tuple[str, str, str]] = [
-    ("", "supremeai-open", "MIT"),
+    ("", "supremeai", "MIT"),
     ("studio", "supremeai-studio", "MIT"),
     ("vscode", "supremeai-vscode", "MIT"),
     ("core", "supremeai-core", "PROPRIETARY"),
@@ -104,9 +104,9 @@ MIRROR_SURFACE_TABLE: list[tuple[str, str, str]] = [
     ("infrastructure/mcp-control-plane", "supremeai-mcp-control-plane", "PROPRIETARY"),
 ]
 
-# §2.3-declared repos with NO public mirror surface in supremeai-open — the
+# §2.3-declared repos with NO public mirror surface in supremeai — the
 # guard honestly skips these (it never guesses private repo state, per #1773).
-NO_MIRROR_REPOS = frozenset({"supremeai", "supremeai-agents", "supremeai-archive"})
+NO_MIRROR_REPOS = frozenset({"supremeai", "supremeai-agents", "supremeai"})
 
 MIN_MIT_REPOS = 3  # open, studio, vscode — fewer means the SSOT parse broke
 MIN_PROPRIETARY_REPOS = 5
@@ -251,7 +251,7 @@ def classify_findings(
                 return surface, repo, model
             if rel_path == surface or rel_path.startswith(surface + "/"):
                 return surface, repo, model
-        return "", "supremeai-open", "MIT"
+        return "", "supremeai", "MIT"
 
     # -- LICENSE/NOTICE presence + content-model marker per surface
     for surface, repo, model in MIRROR_SURFACE_TABLE:
@@ -370,11 +370,11 @@ def render_report(findings: list[dict], notes: list[str], exit_code: int) -> Non
 
 SSOT_FIXTURE = (
     "### 2.3 Licensing & Intellectual Property Policy (SSOT)\n"
-    "- **Permissive Open-Source (MIT License):** Applied to (`supremeai-open`, "
+    "- **Permissive Open-Source (MIT License):** Applied to (`supremeai`, "
     "`supremeai-studio`, `supremeai-vscode`).\n"
     "- **Proprietary / All Rights Reserved:** Applied to (`supremeai`, `supremeai-core`, "
     "`supremeai-api`, `supremeai-browser`, `supremeai-infrastructure`, "
-    "`supremeai-mcp-control-plane`, `supremeai-agents`, `supremeai-archive`).\n"
+    "`supremeai-mcp-control-plane`, `supremeai-agents`, `supremeai`).\n"
 )
 
 
@@ -383,7 +383,7 @@ def self_test() -> bool:
     # 1. SSOT parse: happy path + sanity floors.
     mapping, why = parse_ssot(SSOT_FIXTURE)
     assert mapping is not None, why
-    assert mapping["supremeai-open"] == "MIT" and mapping["supremeai-core"] == "PROPRIETARY"
+    assert mapping["supremeai"] == "MIT" and mapping["supremeai-core"] == "PROPRIETARY"
     assert len(mapping) == 11, f"expected 11 declared repos, got {len(mapping)}"
     print("  PASS | §2.3 parse: 3 MIT + 8 PROPRIETARY")
     # 2. Unparseable SSOT must be fail-closed, never a silent pass.
@@ -393,7 +393,7 @@ def self_test() -> bool:
     )
     broken = SSOT_FIXTURE.replace("- **Proprietary", "- **SomethingElse")
     assert parse_ssot(broken)[0] is None
-    both = SSOT_FIXTURE.replace("`supremeai-archive`", "`supremeai-open`")
+    both = SSOT_FIXTURE.replace("`supremeai`", "`supremeai`")
     assert parse_ssot(both)[0] is None, "a repo in both bullets must fail the parse"
     del ambiguous
     print("  PASS | unparseable/dual-declared SSOT -> fail-closed")
@@ -422,7 +422,7 @@ def self_test() -> bool:
         (root / "gateway").mkdir()
         (root / "gateway" / "LICENSE").write_text("MIT License\n", encoding="utf-8")
         # Root-surface manifest without a license field -> finding (the root
-        # itself is the supremeai-open MIT surface; valid manifests under
+        # itself is the supremeai MIT surface; valid manifests under
         # studio/ already cover the passing side).
         (root / "package.json").write_text('{"name":"root"}', encoding="utf-8")
         findings, notes = classify_findings(root, mapping)

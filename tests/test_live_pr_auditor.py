@@ -12,7 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 def _good_pr() -> dict:
     return {
-        "repo": "Supremeai-bd/supremeai-open",
+        "repo": "Supremeai-bd/supremeai",
         "number": 10,
         "draft": False,
         "body": "Closes #5\n## Reflection Evidence\n3-Tier Verify passed",

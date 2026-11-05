@@ -4,7 +4,7 @@
 
 This is an integration design, not a deployed change. At review time the SupremeAI MCP Tower exposed no skill-registration or MCP prompt-management tool in the available catalog. The current connector could read Tower/repository status and use the bridge submission API; that API creates a public work artifact. No code, issue, PR, or Tower configuration was changed by this package.
 
-The public SupremeAI README describes `supremeai-open` as the public agent front door, with `scripts/agents/continuous_agent_loop.py` and internal engines/schedulers/worker daemons in the core satellite. The internal runtime repository was not available to inspect, so the correct implementation target must be confirmed before coding. The MCP control plane also has separate source/licensing boundaries; do not assume that every path hosted in the public mirror is eligible for an external patch.
+The public SupremeAI README describes `supremeai` as the public agent front door, with `scripts/agents/continuous_agent_loop.py` and internal engines/schedulers/worker daemons in the core satellite. The internal runtime repository was not available to inspect, so the correct implementation target must be confirmed before coding. The MCP control plane also has separate source/licensing boundaries; do not assume that every path hosted in the public mirror is eligible for an external patch.
 
 ## Proposed architecture
 

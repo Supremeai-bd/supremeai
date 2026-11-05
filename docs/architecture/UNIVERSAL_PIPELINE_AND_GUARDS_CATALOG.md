@@ -3,7 +3,7 @@
 > **Document Type:** Architecture & Operational Specification  
 > **Target Repositories Audited:**  
 > 1. `SaifulHaqueNiloy/supremeai` (Upstream Monorepo SSOT)  
-> 2. `Supremeai-bd/supremeai-open` (Task Board SSOT & Embassy)  
+> 2. `Supremeai-bd/supremeai` (Task Board SSOT & Embassy)  
 > 3. `Supremeai-bd/supremeai` (Active Unified Monorepo)
 
 ---
@@ -104,9 +104,9 @@ flowchart TD
 
 ---
 
-## 🌐 3. Comprehensive Inventory from `Supremeai-bd/supremeai-open`
+## 🌐 3. Comprehensive Inventory from `Supremeai-bd/supremeai`
 
-`supremeai-open` acts as the public task board, embassy, and bridge ingestion hub. Its pipeline (`.github/workflows/pipeline.yml`) runs:
+`supremeai` acts as the public task board, embassy, and bridge ingestion hub. Its pipeline (`.github/workflows/pipeline.yml`) runs:
 
 1. **Federation CI Failure Ingress:**
    - `federation_ci_watchdog.py`: Captures cross-repo failures and assigns triage labels.

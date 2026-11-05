@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# prune_merged_branches.sh — post-merge head-branch housekeeping for Supremeai-bd/supremeai-open
+# prune_merged_branches.sh — post-merge head-branch housekeeping for Supremeai-bd/supremeai
 #
 # Bridge-able slice of issue #578 (branch-cleanup): the repository setting
 # delete_branch_on_merge and the .github/workflows/landing.yml post-merge fallback

@@ -124,7 +124,7 @@ def fetch_open_issues() -> list[dict[str, Any]]:
     """Fetch open issues via GitHub CLI or fallback."""
     cmd = [
         "gh", "issue", "list",
-        "--repo", "Supremeai-bd/supremeai-open",
+        "--repo", "Supremeai-bd/supremeai",
         "--state", "open",
         "--limit", "50",
         "--json", "number,title,labels,state"

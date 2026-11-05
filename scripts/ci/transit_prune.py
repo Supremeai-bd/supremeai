@@ -2,7 +2,7 @@
 """transit_prune.py — Ephemeral Transit Pipeline: auto-prune decision core.
 
 Pure, offline, dependency-free core for issue #416 (Ephemeral Transit Pipeline
-Doctrine / The Ephemeral Mailbox Model): supremeai-open's ``patches/`` folder
+Doctrine / The Ephemeral Mailbox Model): supremeai's ``patches/`` folder
 is a TRANSIT INBOX, not permanent storage. Once a transit patch is verified as
 dispatched to its satellite target (landing.yml), it must be removed so the
 public host stays pristine and zero-residue.
@@ -37,13 +37,13 @@ DEFAULT_DISPATCH_TARGETS = frozenset({
     "Supremeai-bd/supremeai",
     "Supremeai-bd/supremeai-agents",
     "Supremeai-bd/supremeai-api",
-    "Supremeai-bd/supremeai-archive",
+    "Supremeai-bd/supremeai",
     "Supremeai-bd/supremeai-browser",
     "Supremeai-bd/supremeai-command",
     "Supremeai-bd/supremeai-core",
     "Supremeai-bd/supremeai-infrastructure",
     "Supremeai-bd/supremeai-mcp-control-plane",
-    "Supremeai-bd/supremeai-open",
+    "Supremeai-bd/supremeai",
     "Supremeai-bd/supremeai-sdk",
     "Supremeai-bd/supremeai-skills",
     "Supremeai-bd/supremeai-studio",

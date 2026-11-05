@@ -28,7 +28,7 @@ import json
 import sys
 from urllib.parse import urlencode
 
-REPO = "Supremeai-bd/supremeai-open"
+REPO = "Supremeai-bd/supremeai"
 QUEUE_PAGE_SIZE = 100
 QUEUE_MAX_PAGES = 5
 QUEUE_LIMIT_MAX = 200

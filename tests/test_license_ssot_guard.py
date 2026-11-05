@@ -86,7 +86,7 @@ def test_live_ssot_parses_with_sanity_floors() -> None:
     assert mapping is not None, f"live §2.3 must parse: {why}"
     mit = {r for r, m in mapping.items() if m == "MIT"}
     prop = {r for r, m in mapping.items() if m == "PROPRIETARY"}
-    assert {"supremeai-open", "supremeai-studio", "supremeai-vscode"} <= mit
+    assert {"supremeai", "supremeai-studio", "supremeai-vscode"} <= mit
     assert {"supremeai-core", "supremeai-api", "supremeai-mcp-control-plane"} <= prop
     assert len(mapping) >= 8, "SSOT sanity floor: at least the 11 declared repos"
 
@@ -95,7 +95,7 @@ def test_unparseable_ssot_fail_closes() -> None:
     assert guard.parse_ssot("nothing relevant here")[0] is None
     assert guard.parse_ssot("")[0] is None
     both_bullets = (
-        "- **Permissive Open-Source (MIT License):** (`supremeai-open`, `supremeai-core`).\n"
+        "- **Permissive Open-Source (MIT License):** (`supremeai`, `supremeai-core`).\n"
         "- **Proprietary / All Rights Reserved:** (`supremeai-core`, `supremeai-api`).\n"
     )
     assert guard.parse_ssot(both_bullets)[0] is None, "dual declaration must fail"
@@ -140,11 +140,11 @@ def test_spdx_allowlist_is_pinned_and_dated() -> None:
 
 SSOT_FIXTURE = (
     "### 2.3 Licensing & Intellectual Property Policy (SSOT)\n"
-    "- **Permissive Open-Source (MIT License):** Applied to (`supremeai-open`, "
+    "- **Permissive Open-Source (MIT License):** Applied to (`supremeai`, "
     "`supremeai-studio`, `supremeai-vscode`).\n"
     "- **Proprietary / All Rights Reserved:** Applied to (`supremeai`, `supremeai-core`, "
     "`supremeai-api`, `supremeai-browser`, `supremeai-infrastructure`, "
-    "`supremeai-mcp-control-plane`, `supremeai-agents`, `supremeai-archive`).\n"
+    "`supremeai-mcp-control-plane`, `supremeai-agents`, `supremeai`).\n"
 )
 
 

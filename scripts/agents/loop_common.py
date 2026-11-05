@@ -15,7 +15,7 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-UPSTREAM_REPO = "Supremeai-bd/supremeai-open"
+UPSTREAM_REPO = "Supremeai-bd/supremeai"
 
 
 def log(icon: str, msg: str) -> None:

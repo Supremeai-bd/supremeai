@@ -47,7 +47,7 @@ GOLD_PEARL_MIN_LINES: Final = 20
 GOLD_PEARL_MAX_LINES: Final = 100
 
 CANONICAL_SATELLITES: Final = (
-    "supremeai-open",
+    "supremeai",
     "supremeai-browser",
     "supremeai-agents",
     "supremeai-mcp-control-plane",
@@ -648,9 +648,9 @@ def self_test() -> bool:
     assert patch.new_file is True and patch.byte_size > 0
     for bad in (
         ("unknown-sat", "a.ts", "x"),
-        ("supremeai-open", "/abs/path.ts", "x"),
-        ("supremeai-open", "../escape.ts", "x"),
-        ("supremeai-open", "ok.ts", "import requests\n"),
+        ("supremeai", "/abs/path.ts", "x"),
+        ("supremeai", "../escape.ts", "x"),
+        ("supremeai", "ok.ts", "import requests\n"),
     ):
         try:
             generate_transplant_patch(*bad)

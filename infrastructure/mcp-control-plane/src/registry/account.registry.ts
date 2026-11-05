@@ -361,7 +361,7 @@ export function buildAccountRegistry(): ProviderAccount[] {
 
 export const ADMIN_ONLY_GITHUB_REPOS = new Set([
   "supremeai",
-  "supremeai-archive",
+  "supremeai",
   "github-org-supremeai-bd",
 ]);
 
@@ -370,7 +370,7 @@ export const ADMIN_ONLY_GITHUB_REPOS = new Set([
  * - Admin & supremeadmin (rank >= 4): see all accounts (core monorepo, org monitor, satellites).
  * - Agent / repo_viewer (rank 2..3): see only open satellite repositories;
  *   core monorepo ('supremeai'), API gateway ('supremeai-api'), command bot, core, infra, and org monitor are strictly excluded.
- * - Viewer / guest / restricted_viewer (rank <= 1): only see public-safe SSOT repository ('supremeai-open' for GitHub).
+ * - Viewer / guest / restricted_viewer (rank <= 1): only see public-safe SSOT repository ('supremeai' for GitHub).
  */
 export function getAccountsForRole(role?: UserRole): ProviderAccount[] {
   const allAccounts = buildAccountRegistry();
@@ -402,9 +402,9 @@ export function getAccountsForRole(role?: UserRole): ProviderAccount[] {
       return false;
     }
 
-    // Guest viewer / restricted viewer: strictly only public SSOT repo supremeai-open
+    // Guest viewer / restricted viewer: strictly only public SSOT repo supremeai
     if (rank <= 1) {
-      return repoName === "supremeai-open" || account.id.includes("supremeai-open");
+      return repoName === "supremeai" || account.id.includes("supremeai");
     }
 
     return true;

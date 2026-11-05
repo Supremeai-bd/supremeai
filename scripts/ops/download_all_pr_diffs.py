@@ -26,7 +26,7 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-REPO = "Supremeai-bd/supremeai-open"
+REPO = "Supremeai-bd/supremeai"
 TARGET_DIR = Path(os.environ.get("PR_DIFF_DIR") or Path(__file__).resolve().parent.parent.parent / "docs" / "archive" / "merged_pr_diffs")
 MAX_WORKERS = 8
 

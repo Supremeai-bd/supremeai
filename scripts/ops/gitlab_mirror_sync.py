@@ -71,7 +71,7 @@ PROPRIETARY_REPOSITORIES: list[dict[str, str]] = [
         "desc": "Governed Tool Plane",
     },
     {
-        "name": "supremeai-archive",
+        "name": "supremeai",
         "tier": "Tier 2 (Memory)",
         "desc": "Institutional Memory & History",
     },

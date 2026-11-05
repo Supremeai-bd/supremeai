@@ -1,7 +1,7 @@
 # SupremeAI Open Foundation
 
 > **Open the implementation that teaches people how to use SupremeAI; keep private the implementation that reveals why SupremeAI performs better.**  
-> 🇧🇩 **বাংলা সংস্করণ:** [`docs/README.bn.md`](https://github.com/Supremeai-bd/supremeai-archive/blob/main/docs/README.bn.md)
+> 🇧🇩 **বাংলা সংস্করণ:** [`docs/README.bn.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/README.bn.md)
 
 This repository is the **public boundary** of the SupremeAI federation (roadmap §4.3 / Phase 8 foundation).
 It contains only artifacts that are useful *outside* SupremeAI's private intelligence:
@@ -9,20 +9,20 @@ It contains only artifacts that are useful *outside* SupremeAI's private intelli
 > [!IMPORTANT]
 > ### 🤖 AI Agent & MCP Contributor Quickstart (Where & How to Work)
 > If you are an external AI (Claude, Cursor, Antigravity, etc.) connecting via MCP Tower or GitHub:
-> 1. **Single Door for Work:** All tasks, bug reports, and PRs live exclusively in **`Supremeai-bd/supremeai-open`**. Satellite repositories maintain a strict 0 Issues / 0 PRs policy ([`FEDERATION_CHARTER.md`](https://github.com/Supremeai-bd/supremeai-archive/blob/main/docs/FEDERATION_CHARTER.md)).
+> 1. **Single Door for Work:** All tasks, bug reports, and PRs live exclusively in **`Supremeai-bd/supremeai`**. Satellite repositories maintain a strict 0 Issues / 0 PRs policy ([`FEDERATION_CHARTER.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/FEDERATION_CHARTER.md)).
 > 2. **Where to Write Code:** Edit the corresponding domain folders inside this repository (`studio/`, `command/`, `core/`, `vscode/`, etc.). Do NOT attempt to push directly to satellite repos.
-> 3. **Automated Dispatch & Zero Residue:** When your PR merges into `supremeai-open:main`, the automated bridge pipeline dispatches your changes to the target satellite repo and cleans up transit files automatically ([`AUTONOMOUS_TRANSIT_PIPELINE.md`](./AUTONOMOUS_TRANSIT_PIPELINE.md)).
+> 3. **Automated Dispatch & Zero Residue:** When your PR merges into `supremeai:main`, the automated bridge pipeline dispatches your changes to the target satellite repo and cleans up transit files automatically ([`AUTONOMOUS_TRANSIT_PIPELINE.md`](./AUTONOMOUS_TRANSIT_PIPELINE.md)).
 > 4. **Boundary Restrictions:** You do not need private credentials. Access to `supremeai` (core monorepo) is restricted to admin, and `supremeai-api` is air-gapped (ghost-cloaked). All other satellites are accessible via MCP.
 >
 > **MCP Tower call conventions (avoid argument/format errors):**
 > - Tool names are **wave-split** (2026-10-29/30 rename waves, #2493): the core github + bridge queue/order tools are **dotted** (`github.read_file`, `github.list_prs`, `github.workflow_runs`, `bridge.work_queue`, `bridge.work_order`) — their old snake_case forms are dead (-32602). The external-repo explorer family (`github_repo_tree`, `github_search_repos`, ...) and the claim/feedback family (`work_claim`, `bridge_read_feedback`, `bridge_work_renew`, `bridge_work_release`) stay **snake_case**. Never guess: probe `tools/list` first.
-> - Repo references must be **`owner/repo`** (e.g. `Supremeai-bd/supremeai-open`); a bare repo name returns "Invalid repo reference". On repo-resolving list tools pass `repo` explicitly — the omit-repo default resolves through the account registry and has silently drifted before (R66/#2447); every response echoes the resolved target as `targetRepo`/`targetUrl`, so verify it.
+> - Repo references must be **`owner/repo`** (e.g. `Supremeai-bd/supremeai`); a bare repo name returns "Invalid repo reference". On repo-resolving list tools pass `repo` explicitly — the omit-repo default resolves through the account registry and has silently drifted before (R66/#2447); every response echoes the resolved target as `targetRepo`/`targetUrl`, so verify it.
 > - Use the correct tool name + `owner/repo` form or the call fails.
 > - Bridge tools: `bridge_submit_patch` requires `taskId` (`bridge-YYYYMMDD-<slug>`), `summary`, `scopePaths` (1-30), `testsEvidence`, and `files` (each with `path`); pass `originalIssueNumber` so the root issue auto-closes on merge, and `closesOriginalIssue: true` only when a docs-only payload **IS** the resolution of that issue (receipt-closure convention #2485, `contract.receiptClosureConvention` in `bridge_guide`; default keeps the WO open via `Refs #N`). `work_claim` requires `issueNumber` (integer). `bridge.work_order`/`bridge_read_feedback` require `number` (issue number).
 
 ## 📐 Federation Architecture & Mathematical Repository Model
 
-> **Canonical Mathematical Blueprint:** [`docs/FEDERATION_MATHEMATICAL_MODEL_AND_INVENTORY.md`](https://github.com/Supremeai-bd/supremeai-archive/blob/main/docs/FEDERATION_MATHEMATICAL_MODEL_AND_INVENTORY.md) · [`docs/FEDERATION_CHARTER.md`](https://github.com/Supremeai-bd/supremeai-archive/blob/main/docs/FEDERATION_CHARTER.md)
+> **Canonical Mathematical Blueprint:** [`docs/FEDERATION_MATHEMATICAL_MODEL_AND_INVENTORY.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/FEDERATION_MATHEMATICAL_MODEL_AND_INVENTORY.md) · [`docs/FEDERATION_CHARTER.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/FEDERATION_CHARTER.md)
 
 ### 1. Mathematical Universe & Repository Set Model
 
@@ -30,7 +30,7 @@ It contains only artifacts that are useful *outside* SupremeAI's private intelli
 flowchart TD
     subgraph FEDERATION_UNIVERSE ["🌐 The Federation Universe (U)"]
         direction TB
-        OPEN["supremeai-open (Public Task Hub & Embassy)<br>Total = 635 Files<br>(261 U_open + 374 T_transit)"]
+        OPEN["supremeai (Public Task Hub & Embassy)<br>Total = 635 Files<br>(261 U_open + 374 T_transit)"]
         MONO["supremeai (Central Umbrella Monorepo)<br>Total = 2073 Files"]
         
         subgraph ACTIVE_SATS ["5 Active Product Satellites (Σ = 1384 Executable Files)"]
@@ -41,7 +41,7 @@ flowchart TD
             S_VSCODE["supremeai-vscode<br>(45 files · Extension & Tauri Desktop)"]
         end
 
-        ARCHIVE["supremeai-archive (Cold Storage)<br>Total = 57 Files (55 Unique Decommissioned Specs)"]
+        ARCHIVE["supremeai (Cold Storage)<br>Total = 57 Files (55 Unique Decommissioned Specs)"]
     end
 
     OPEN ==>|"Transit Mirrors (374 files)<br>Step 1: Direct Dispatch"| ACTIVE_SATS
@@ -63,7 +63,7 @@ flowchart TD
   - **$U_{\text{open}}$:** Public front door, CI guards, Federation Anchor Hub configs, and constitution. **Never dispatched to satellites.**
   - **$T_{\text{transit}}$:** Scoped mirror surfaces (`studio/*`, `gateway/*`, `browser/*`, `vscode/*`, `core/*`).
 - **Active Federation Surface:** $\mathbf{S_{\text{active}}} = S_{\text{studio}} \cup S_{\text{api}} \cup S_{\text{vscode}} \cup S_{\text{browser}} \cup S_{\text{core}}$
-- **The Blocked State Law:** Any file in `supremeai-open` not in $U_{\text{open}}$ represents an in-flight or blocked transit payload.
+- **The Blocked State Law:** Any file in `supremeai` not in $U_{\text{open}}$ represents an in-flight or blocked transit payload.
 
 ---
 
@@ -71,12 +71,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    PR["Autonomous PR / Patch Submission<br>(supremeai-open:main)"] --> GATES{"Constitutional Gates &<br>Verification Battery"}
+    PR["Autonomous PR / Patch Submission<br>(supremeai:main)"] --> GATES{"Constitutional Gates &<br>Verification Battery"}
     
     GATES -- "Pass" --> LAND["Autonomous Landing<br>(Squash Merge into main)"]
     GATES -- "Fail" --> REJECT["Fail-Closed Block & Feedback<br>(CI Incident Logged)"]
     
-    LAND --> STEP1["🌉 Bridge Step 1:<br>supremeai-open ➔ Active Target Satellite<br>(studio, api, browser, vscode, core)"]
+    LAND --> STEP1["🌉 Bridge Step 1:<br>supremeai ➔ Active Target Satellite<br>(studio, api, browser, vscode, core)"]
     
     STEP1 --> VERIFY1{"Satellite Ingestion<br>Verified?"}
     VERIFY1 -- "Yes" --> STEP2["🌉 Bridge Step 2:<br>Satellite ➔ Central Monorepo (supremeai)<br>(Full Product Parity Ingestion)"]
@@ -119,10 +119,10 @@ flowchart TD
 ```
 
 > Consuming the platform (not contributing)? Start at
-> [`docs/CONSUMERS.md`](https://github.com/Supremeai-bd/supremeai-archive/blob/main/docs/CONSUMERS.md) and the
+> [`docs/CONSUMERS.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/CONSUMERS.md) and the
 > [`api-schemas/gateway.openapi.yaml`](./api-schemas/gateway.openapi.yaml)
 > Gateway surface. Contributing? [`AGENTS.md`](./AGENTS.md) and
-> [`docs/ZERO_ADMIN_GUIDE.md`](https://github.com/Supremeai-bd/supremeai-archive/blob/main/docs/ZERO_ADMIN_GUIDE.md) are the entry points.
+> [`docs/ZERO_ADMIN_GUIDE.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/ZERO_ADMIN_GUIDE.md) are the entry points.
 
 ### 🌐 Live Federation Services
 
@@ -138,9 +138,9 @@ flowchart TD
 | `examples/gateway_client.py` | Zero-dependency Python client for the Gateway (typed errors, retry only on 502/503) — byte-mirror of `supremeai-api/scripts/clients/gateway_client.py` |
 | `docs/CONSUMERS.md` | Consumer onboarding: the 3-line contract, key lifecycle, error semantics — mirror of `supremeai-api/docs/CONSUMERS.md` |
 | `ECOSYSTEM_MAP.md` | **The Federation Ecosystem Map** — architecture directory for agents working across repos |
-| [`docs/FEDERATION_TAXONOMY_AND_LICENSING.md`](https://github.com/Supremeai-bd/supremeai-archive/blob/main/docs/FEDERATION_TAXONOMY_AND_LICENSING.md) | **Federation Taxonomy & Licensing SSOT** — 12 domain satellites, institutional memory, and the master umbrella model |
-| [`docs/AGENT_PORTAL_SPEC.md`](https://github.com/Supremeai-bd/supremeai-archive/blob/main/docs/AGENT_PORTAL_SPEC.md) | **Agent Portal & Federation Bridge architecture spec** (#23): two-repo relationship, the 3 submission pathways mapped to machinery, guard/gate/router map, clickable contract-schema references |
-| [`docs/FAQ.md`](https://github.com/Supremeai-bd/supremeai-archive/blob/main/docs/FAQ.md) | **Operational FAQ** (#23): symptom→cause→fix for every known validation-error class (naming, duplicates, boundary, stale-base, force-push, keyword propagation, env-skips) |
+| [`docs/FEDERATION_TAXONOMY_AND_LICENSING.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/FEDERATION_TAXONOMY_AND_LICENSING.md) | **Federation Taxonomy & Licensing SSOT** — 12 domain satellites, institutional memory, and the master umbrella model |
+| [`docs/AGENT_PORTAL_SPEC.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/AGENT_PORTAL_SPEC.md) | **Agent Portal & Federation Bridge architecture spec** (#23): two-repo relationship, the 3 submission pathways mapped to machinery, guard/gate/router map, clickable contract-schema references |
+| [`docs/FAQ.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/FAQ.md) | **Operational FAQ** (#23): symptom→cause→fix for every known validation-error class (naming, duplicates, boundary, stale-base, force-push, keyword propagation, env-skips) |
 | `AGENTS.md` | Agent entrypoint: autonomous work-submission loop, submission pathways, bridge lane |
 | `.github/workflows/pipeline.yml` | Unified validation & cron engine (#155): guards → Python 3.10–3.13 matrix + Tower TS verification + secret scan, plus the agent-loop dispatch job (`scripts/agents/continuous_agent_loop.py --pick-next`) — triggerable by manual `workflow_dispatch`; the */30 schedule is currently disabled per admin directive (AGENTS.md §0 8-step cycle; draft-only scheduled runs with explicit §10 no-op on empty board, PR submission opt-in via manual dispatch; event-driven intake via the MCP Tower, see `infrastructure/mcp-control-plane/docs/BRIDGE_INTAKE.md`) |
 | `.github/workflows/landing.yml` | Unified autonomous landing & bridge dispatch (#155): auto-squash-merge on full gate success, then the same run streams the landed patch reference into the private bridge queue |
@@ -170,7 +170,7 @@ source-of-truth, that check fails closed.
 
 ## 🤖 Continuous Agent Loop & Federation Roles
 
-`supremeai-open` acts as the **Public Face / Embassy** (`scripts/agents/continuous_agent_loop.py`), providing an open zero-dependency CLI entrypoint for any agent or contributor. The internal engines, schedulers, and worker daemons reside in the `supremeai-agents` core satellite.
+`supremeai` acts as the **Public Face / Embassy** (`scripts/agents/continuous_agent_loop.py`), providing an open zero-dependency CLI entrypoint for any agent or contributor. The internal engines, schedulers, and worker daemons reside in the `supremeai-agents` core satellite.
 
 > **Continuous Loop Core Doctrine:**
 > *"কার কী দায়িত্ব তা বুঝিয়ে দেওয়া, দায়িত্ব পালনের সময় কোন রুলস মানতে হবে আর কোনটা মানবে না তা বেঁধে দেওয়া, এবং কাজে লাঠি লাগবে নাকি ছুরি লাগবে (Weapon Provisioning) তা সুনির্দিষ্ট করে দেওয়াই Continuous Agent Loop-এর মূল কাজ।"*
@@ -221,7 +221,7 @@ mirror CI maintains the public artifacts above.
 
 ## Contributing
 
-New here? Start with **[`docs/CONTRIBUTING.md`](https://github.com/Supremeai-bd/supremeai-archive/blob/main/docs/CONTRIBUTING.md)** — the
+New here? Start with **[`docs/CONTRIBUTING.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/CONTRIBUTING.md)** — the
 zero-credential contributor guide covering both human (fork + PR) and autonomous-agent
 (8-step loop, MCP Tower lane) workflows, the 3-tier verification contract, scope caps,
 and a field-tested troubleshooting table. The governance contracts live in

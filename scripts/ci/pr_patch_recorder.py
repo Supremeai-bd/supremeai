@@ -160,7 +160,7 @@ def format_patch_content(meta: Dict[str, Any], diff_text: str) -> Tuple[str, Lis
     branch = meta.get("headRefName", "unknown")
     base = meta.get("baseRefName", "main")
     state = meta.get("state", "OPEN")
-    url = meta.get("url", f"https://github.com/Supremeai-bd/supremeai-open/pull/{pr_num}")
+    url = meta.get("url", f"https://github.com/Supremeai-bd/supremeai/pull/{pr_num}")
 
     raw_files = meta.get("files", [])
     file_paths = [f.get("path", "") for f in raw_files if isinstance(f, dict)]

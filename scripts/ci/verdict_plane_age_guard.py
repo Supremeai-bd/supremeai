@@ -69,7 +69,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 TAG = "[verdict-plane-age-guard]"
 DEFAULT_SLA_HOURS = 24.0
-DEFAULT_REPO = "Supremeai-bd/supremeai-open"
+DEFAULT_REPO = "Supremeai-bd/supremeai"
 REPO = os.environ.get("GH_REPO", DEFAULT_REPO)
 
 REQUIRED_FIELDS = ("number", "createdAt")

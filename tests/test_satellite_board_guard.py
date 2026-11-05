@@ -64,7 +64,7 @@ class RegistryDoctrineTest(unittest.TestCase):
 
     def test_03_private_monorepo_is_out_of_scope(self):
         self.assertNotIn("supremeai", sbg.SATELLITES)
-        self.assertNotIn("supremeai-open", sbg.SATELLITES)
+        self.assertNotIn("supremeai", sbg.SATELLITES)
 
 
 class VerdictLogicTest(unittest.TestCase):

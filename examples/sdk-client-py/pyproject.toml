@@ -19,8 +19,8 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Repository = "https://github.com/Supremeai-bd/supremeai-open"
-ConnectionGuide = "https://github.com/Supremeai-bd/supremeai-open/blob/main/docs/MCP_CONNECT.md"
+Repository = "https://github.com/Supremeai-bd/supremeai"
+ConnectionGuide = "https://github.com/Supremeai-bd/supremeai/blob/main/docs/MCP_CONNECT.md"
 
 [tool.setuptools]
 py-modules = ["client"]

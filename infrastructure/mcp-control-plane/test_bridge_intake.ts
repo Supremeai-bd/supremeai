@@ -28,7 +28,7 @@ function section(title: string): void {
 function baseConfig(overrides: Partial<BridgeIntakeConfig> = {}): BridgeIntakeConfig {
   return {
     enabled: true,
-    repo: "Supremeai-bd/supremeai-open",
+    repo: "Supremeai-bd/supremeai",
     workflow: "pipeline.yml",
     ref: "main",
     minIntervalMs: 0,
@@ -48,7 +48,7 @@ function issueEvent(action: string, overrides: Record<string, any> = {}): any {
     timestamp: new Date().toISOString(),
     payload: {
       action,
-      repository: { full_name: "Supremeai-bd/supremeai-open" },
+      repository: { full_name: "Supremeai-bd/supremeai" },
       sender: { login: "somehuman" },
       issue: { number: 77, title: "bridge work order" },
       ...overrides,
@@ -80,9 +80,9 @@ const d = (e: any) => svc2.decide(e);
 check("issues.opened accepted", d(issueEvent("opened")).accept);
 check("issues.labeled accepted", d(issueEvent("labeled")).accept);
 check("issues.closed dropped", !d(issueEvent("closed")).accept);
-check("pr.synchronize accepted", d({ ...issueEvent("opened"), type: "pull_request", payload: { action: "synchronize", repository: { full_name: "Supremeai-bd/supremeai-open" }, sender: { login: "dev" }, pull_request: { number: 9 } } }).accept);
-check("pr.closed dropped", !d({ ...issueEvent("opened"), type: "pull_request", payload: { action: "closed", repository: { full_name: "Supremeai-bd/supremeai-open" }, sender: { login: "dev" } } }).accept);
-check("comment.created accepted", d({ ...issueEvent("opened"), type: "issue_comment", payload: { action: "created", repository: { full_name: "Supremeai-bd/supremeai-open" }, sender: { login: "dev" }, issue: { number: 5 } } }).accept);
+check("pr.synchronize accepted", d({ ...issueEvent("opened"), type: "pull_request", payload: { action: "synchronize", repository: { full_name: "Supremeai-bd/supremeai" }, sender: { login: "dev" }, pull_request: { number: 9 } } }).accept);
+check("pr.closed dropped", !d({ ...issueEvent("opened"), type: "pull_request", payload: { action: "closed", repository: { full_name: "Supremeai-bd/supremeai" }, sender: { login: "dev" } } }).accept);
+check("comment.created accepted", d({ ...issueEvent("opened"), type: "issue_comment", payload: { action: "created", repository: { full_name: "Supremeai-bd/supremeai" }, sender: { login: "dev" }, issue: { number: 5 } } }).accept);
 check("push dropped", !d({ ...issueEvent("opened"), type: "push" }).accept);
 check("wrong repo dropped", !d(issueEvent("opened", { repository: { full_name: "evil/repo" } })).accept);
 check("missing repo dropped", !d(issueEvent("opened", { repository: undefined })).accept);

@@ -3,7 +3,7 @@ from pathlib import Path
 from service.pool import squad
 
 def test_discovery():
-    env_file = Path(r"f:\supremeai-open\.env")
+    env_file = Path(r"f:\supremeai\.env")
     if env_file.exists():
         with open(env_file, "r", encoding="utf-8", errors="ignore") as f:
             for line in f:

@@ -4,7 +4,7 @@
 চুক্তি (contract): scripts/bridge/README.md
 
 Public agents push patch branches (`bridge/<task-id>`) + Bridge Work Order issues
-to the PUBLIC repo (Supremeai-bd/supremeai-open). This script — running
+to the PUBLIC repo (Supremeai-bd/supremeai). This script — running
 INSIDE the private repo — fail-closed validates each order and, if clean,
 applies it as a gated private PR. Landing is decided ONLY by the constitutional
 gate chain; agents never touch the private repo directly.
@@ -31,7 +31,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-OPEN_REPO = "Supremeai-bd/supremeai-open"
+OPEN_REPO = "Supremeai-bd/supremeai"
 PRIVATE_REPO = "Supremeai-bd/supremeai"
 PRIVATE_MAIN = "main"
 
@@ -70,7 +70,7 @@ LABEL_PRIVATE_BRIDGE = "bridge"  # private intake issues carry this label
 
 MARKER_FMT = "<!-- bridge-task: {tid} -->"
 
-# Public (supremeai-open) label bootstrap (E6) — আগে শুধু private target repo-র
+# Public (supremeai) label bootstrap (E6) — আগে শুধু private target repo-র
 # `bridge` label ensure হতো। public repo-তে `bridge:queued`/`bridge:in-gates`/
 # `bridge:landed`/`bridge:rejected`/`bridge:admin-review` না থাকলে `set_labels`
 # HTTP 422 দেয় → `reject()` কমেন্ট দেওয়ার *পরে* ব্যর্থ → UNEXPECTED → issue

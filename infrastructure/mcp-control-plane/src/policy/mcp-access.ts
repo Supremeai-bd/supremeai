@@ -40,7 +40,7 @@ export const publicSafeCapabilities: readonly McpCapabilityMetadata[] = [
   { name: "system.health", kind: "tool", access: "safe", requiredScope: "health:read", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
   { name: "system.summary", kind: "tool", access: "safe", requiredScope: "system:read", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
   // #123: Bridge onboarding surface — the zero-credential front door for
-  // external agents working from `Supremeai-bd/supremeai-open`.
+  // external agents working from `Supremeai-bd/supremeai`.
   // #123 / S0.4: Bridge & Status onboarding surface — zero-credential front door
   { name: "status", kind: "tool", access: "safe", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
   { name: "bridge_work", kind: "tool", access: "safe", riskLevel: "R0", dataClassification: "public", approvalRequired: false },

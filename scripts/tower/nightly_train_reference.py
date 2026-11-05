@@ -62,7 +62,7 @@ CANONICAL_SATELLITES: Final = (
 )
 
 PROPRIETARY_MONOREPO: Final = "Supremeai-bd/supremeai"
-PUBLIC_EMBASSY: Final = "Supremeai-bd/supremeai-open"
+PUBLIC_EMBASSY: Final = "Supremeai-bd/supremeai"
 STUDIO_SATELLITE: Final = "Supremeai-bd/supremeai-studio"
 
 SATELLITE_FULL_NAMES: Final[Mapping[str, str]] = MappingProxyType(

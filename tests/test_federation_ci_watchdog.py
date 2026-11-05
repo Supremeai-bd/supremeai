@@ -117,7 +117,7 @@ class TestFederationCiWatchdog(unittest.TestCase):
     def test_federation_repos_count_and_composition(self):
         self.assertEqual(len(FEDERATION_REPOS), 12)
         expected = [
-            "Supremeai-bd/supremeai-open",
+            "Supremeai-bd/supremeai",
             "Supremeai-bd/supremeai-command",
             "Supremeai-bd/supremeai-skills",
             "Supremeai-bd/supremeai-vscode",
@@ -273,7 +273,7 @@ class TestLaneClassification(unittest.TestCase):
 
     def test_pr_lane_labels_file_honestly_as_p2(self):
         labels = build_issue_labels(
-            "Supremeai-bd/supremeai-open", branch="1763/merge"
+            "Supremeai-bd/supremeai", branch="1763/merge"
         )
         self.assertIn("P2-medium", labels)
         self.assertNotIn("P0-critical", labels)
@@ -301,7 +301,7 @@ class TestLaneClassification(unittest.TestCase):
 
     def test_pr_lane_body_names_pr_and_disclaims_production(self):
         body = build_issue_body(
-            repo="Supremeai-bd/supremeai-open",
+            repo="Supremeai-bd/supremeai",
             workflow_name="CI — Open Unified Pipeline",
             run_id=40595046266,
             html_url="u",
@@ -343,7 +343,7 @@ class TestLaneClassification(unittest.TestCase):
 
         with patch("scripts.ci.federation_ci_watchdog.label_pr_lane_failure", return_value=True) as mock_label:
             result = wd.mirror_failure(
-                repo="Supremeai-bd/supremeai-open",
+                repo="Supremeai-bd/supremeai",
                 workflow_name="CI — Open Unified Pipeline",
                 run_id=999999,
                 html_url="https://github.com/runs/999999",
@@ -351,7 +351,7 @@ class TestLaneClassification(unittest.TestCase):
             )
             self.assertTrue(result)
             mock_label.assert_called_once_with(
-                "Supremeai-bd/supremeai-open", 3921, 999999, "https://github.com/runs/999999", token=None
+                "Supremeai-bd/supremeai", 3921, 999999, "https://github.com/runs/999999", token=None
             )
 
 

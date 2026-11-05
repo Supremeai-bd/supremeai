@@ -45,7 +45,7 @@ import urllib.request
 from datetime import datetime, timezone
 
 TOWER = "https://supremeai-mcp-tower.onrender.com/mcp"
-OPEN_REPO = "Supremeai-bd/supremeai-open"
+OPEN_REPO = "Supremeai-bd/supremeai"
 
 # Strand SLA: an open non-draft PR older than this with no landing is a
 # strand candidate. 2.0h matches bridge_landing_watchdog's at-risk horizon;

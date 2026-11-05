@@ -1,7 +1,7 @@
 # SupremeAI Unified Client Hub (`supremeai-vscode`)
 
 Native client applications and developer workflows for SupremeAI.  
-Per [`ARCHITECTURE_PLAN.md`](https://github.com/Supremeai-bd/supremeai-open/blob/main/ARCHITECTURE_PLAN.md), this repository hosts all non-cloud client applications:
+Per [`ARCHITECTURE_PLAN.md`](https://github.com/Supremeai-bd/supremeai/blob/main/ARCHITECTURE_PLAN.md), this repository hosts all non-cloud client applications:
 
 | Subdirectory | Target Platform | Release Channel |
 |---|---|---|

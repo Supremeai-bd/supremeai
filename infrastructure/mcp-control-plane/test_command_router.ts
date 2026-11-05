@@ -53,7 +53,7 @@ check("command names case-normalized", !!c5 && c5.name === "verify");
 const pr1 = {
   merged: true,
   body: "fixes #12, Closes #34 and resolves OtherOrg/other-repo#56\nalso closes #12 again",
-  head: { ref: "contributor/issue-78", repo: { full_name: "Supremeai-bd/supremeai-open" } },
+  head: { ref: "contributor/issue-78", repo: { full_name: "Supremeai-bd/supremeai" } },
 };
 const linked1 = extractLinkedIssues(pr1);
 const nums1 = linked1.map((l) => `${l.repo || ""}#${l.number}`).sort();
@@ -87,12 +87,12 @@ function fakeFetch(responses: Map<string, { status: number }>, calls: string[]) 
 const callsA: string[] = [];
 const resA = await runLifecycleCleanup(
   {
-    repository: { full_name: "Supremeai-bd/supremeai-open" },
+    repository: { full_name: "Supremeai-bd/supremeai" },
     pull_request: {
       merged: true,
       number: 300,
       body: "Closes #321",
-      head: { ref: "contributor/issue-321", repo: { full_name: "Supremeai-bd/supremeai-open" } },
+      head: { ref: "contributor/issue-321", repo: { full_name: "Supremeai-bd/supremeai" } },
       base: { ref: "main" },
     },
   },
@@ -101,8 +101,8 @@ const resA = await runLifecycleCleanup(
     log: () => {},
     fetchImpl: fakeFetch(
       new Map([
-        ["PATCH https://api.github.com/repos/Supremeai-bd/supremeai-open/issues/321", { status: 200 }],
-        ["DELETE https://api.github.com/repos/Supremeai-bd/supremeai-open/git/refs/heads/contributor%2Fissue-321", { status: 204 }],
+        ["PATCH https://api.github.com/repos/Supremeai-bd/supremeai/issues/321", { status: 200 }],
+        ["DELETE https://api.github.com/repos/Supremeai-bd/supremeai/git/refs/heads/contributor%2Fissue-321", { status: 204 }],
       ]),
       callsA,
     ),
@@ -117,11 +117,11 @@ check("cleanup: PATCH then DELETE issued", callsA.length === 2 && callsA[0].star
 
 const resB = await runLifecycleCleanup(
   {
-    repository: { full_name: "Supremeai-bd/supremeai-open" },
+    repository: { full_name: "Supremeai-bd/supremeai" },
     pull_request: {
       merged: true,
       body: "Closes #400",
-      head: { ref: "feat/thing", repo: { full_name: "Supremeai-bd/supremeai-open" } },
+      head: { ref: "feat/thing", repo: { full_name: "Supremeai-bd/supremeai" } },
       base: { ref: "main" },
     },
   },
@@ -139,15 +139,15 @@ check(
 
 const resC = await runLifecycleCleanup(
   {
-    repository: { full_name: "Supremeai-bd/supremeai-open" },
+    repository: { full_name: "Supremeai-bd/supremeai" },
     pull_request: {
       merged: true,
       body: "Closes #500",
-      head: { ref: "main", repo: { full_name: "Supremeai-bd/supremeai-open" } },
+      head: { ref: "main", repo: { full_name: "Supremeai-bd/supremeai" } },
       base: { ref: "main" },
     },
   },
-  { token: "t", log: () => {}, fetchImpl: fakeFetch(new Map([["PATCH https://api.github.com/repos/Supremeai-bd/supremeai-open/issues/500", { status: 200 }]]), []) },
+  { token: "t", log: () => {}, fetchImpl: fakeFetch(new Map([["PATCH https://api.github.com/repos/Supremeai-bd/supremeai/issues/500", { status: 200 }]]), []) },
 );
 check(
   "cleanup: head branch main is PROTECTED from deletion",
@@ -157,7 +157,7 @@ check(
 
 const resD = await runLifecycleCleanup(
   {
-    repository: { full_name: "Supremeai-bd/supremeai-open" },
+    repository: { full_name: "Supremeai-bd/supremeai" },
     pull_request: { merged: true, body: "Closes #600", head: { ref: "feat/x" } },
   },
   { token: "", log: () => {}, fetchImpl: fakeFetch(new Map(), []) },

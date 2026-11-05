@@ -93,13 +93,13 @@ flowchart TD
 
 ## 3. স্বয়ংক্রিয় সিআই/সিডি ও ফেডারেশন ল্যান্ডিং (Satellite Auto-Sync)
 
-সুপ্রিমএআই ফেডারেশন আর্কিটেকচার (`AGENTS.md`) অনুযায়ী `supremeai-open` হলো ট্রানজিট হাব। কোড মার্জ হলে স্যাটেলাইটে স্বয়ংক্রিয়ভাবে ডিসপ্যাচ হয়:
+সুপ্রিমএআই ফেডারেশন আর্কিটেকচার (`AGENTS.md`) অনুযায়ী `supremeai` হলো ট্রানজিট হাব। কোড মার্জ হলে স্যাটেলাইটে স্বয়ংক্রিয়ভাবে ডিসপ্যাচ হয়:
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Dev as Developer / Agent
-    participant Open as Supremeai-bd/supremeai-open
+    participant Open as Supremeai-bd/supremeai
     participant SatAPI as Supremeai-bd/supremeai-api
     participant SatStudio as Supremeai-bd/supremeai-studio
     participant SatBrowser as Supremeai-bd/supremeai-browser

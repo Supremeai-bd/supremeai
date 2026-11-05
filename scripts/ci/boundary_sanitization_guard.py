@@ -4,7 +4,7 @@ boundary_sanitization_guard.py — Public/Private Boundary & Proprietary Logic
 Isolation Guard (#107, P0-critical, Layer 2 / infra-ops).
 
 গার্ডের মিশন (বাংলা):
-  supremeai-open হলো পাবলিক সারফেস। প্রোপ্রাইটারি ইন্টেলিজেন্স (supremeai-core
+  supremeai হলো পাবলিক সারফেস। প্রোপ্রাইটারি ইন্টেলিজেন্স (supremeai-core
   decision moat, private vault keys, internal system prompts, production
   credentials) কখনোই এই repo-তে commit/leak হতে পারবে না। এই গার্ড fail-closed
   ভাবে সেই বাউন্ডারি enforce করে — শুধুমাত্র approved public contracts, client

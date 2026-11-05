@@ -47,7 +47,7 @@ class TestFederationAnchors(unittest.TestCase):
             ("Supremeai-bd/supremeai-sdk", 757),
             ("Supremeai-bd/supremeai-infrastructure", 758),
             ("Supremeai-bd/supremeai-mcp-control-plane", 759),
-            ("Supremeai-bd/supremeai-open", 762),
+            ("Supremeai-bd/supremeai", 762),
         ]
         for repo, expected_num in satellites:
             with self.subTest(repo=repo):

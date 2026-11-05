@@ -25,7 +25,7 @@ metadata:
     language: bn
     zero-compute: "true"
   upstream:
-    issue: "https://github.com/Supremeai-bd/supremeai-open/issues/540"
+    issue: "https://github.com/Supremeai-bd/supremeai/issues/540"
     repository: Supremeai-bd/supremeai-command
     architecture: docs/VOICE_SERVICE_ARCHITECTURE.md
 

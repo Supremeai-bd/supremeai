@@ -21,7 +21,7 @@ from typing import Any, Dict
 
 REGISTRY_BASE = "https://registry.modelcontextprotocol.io"
 SCHEMA_URI = "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json"
-USER_AGENT = "SupremeAI-Tower-Publisher/1.0.0 (https://github.com/Supremeai-bd/supremeai-open; probe-lane)"
+USER_AGENT = "SupremeAI-Tower-Publisher/1.0.0 (https://github.com/Supremeai-bd/supremeai; probe-lane)"
 
 TOWER_SERVER_JSON: Dict[str, Any] = {
     "$schema": SCHEMA_URI,
@@ -31,7 +31,7 @@ TOWER_SERVER_JSON: Dict[str, Any] = {
     "version": "1.0.0",
     "websiteUrl": "https://supremeai.org",
     "repository": {
-        "url": "https://github.com/Supremeai-bd/supremeai-open",
+        "url": "https://github.com/Supremeai-bd/supremeai",
         "source": "github"
     },
     "remotes": [

@@ -10,7 +10,7 @@
  * The emitted issue body IS the cross-repo task normalizer (#199 part 2): any
  * CI failure raised anywhere in the federation is normalized into the standard
  * agent-task contract (Primary Group / Sub-Group / Priority / Task Group /
- * 3-Tier Verification Contract) on `Supremeai-bd/supremeai-open`.
+ * 3-Tier Verification Contract) on `Supremeai-bd/supremeai`.
  *
  * Design constraints (issue #199, mirroring the #69 bridge-intake doctrine):
  *  - NO second event bus / NO duplicate webhook endpoint: this module is a
@@ -31,7 +31,7 @@
  *  - Label resilience: `repo:<slug>` may not exist on the board yet — a 422
  *    from the Issues API falls back to the three always-present labels and
  *    notes the dropped label inside the issue body (board triage can relabel,
- *    e.g. `repo:supremeai-open` → `repo:open`).
+ *    e.g. `repo:supremeai` → `repo:open`).
  *  - Retry semantics: in-memory bounded retry with exponential backoff and a
  *    dead-letter state (no durable outbox — the reporter is advisory; GitHub
  *    redelivery and the next failing run provide natural reconciliation).
@@ -472,7 +472,7 @@ export const defaultCreateIssue: IssueCreateFn = async (req, token) => {
   if (res.status === 422 && req.labels.length > 1) {
     // A label (most likely repo:<slug>) does not exist on the board — retry
     // with the always-present core labels and note the drop in the body.
-    const note = `\n\n> ℹ️ Reporter note: the \`repo:<slug>\` label does not exist on this board yet — triage may want to add/relabel it (e.g. \`repo:open\` for \`Supremeai-bd/supremeai-open\`).`;
+    const note = `\n\n> ℹ️ Reporter note: the \`repo:<slug>\` label does not exist on this board yet — triage may want to add/relabel it (e.g. \`repo:open\` for \`Supremeai-bd/supremeai\`).`;
     const fallbackLabels = req.labels.filter((l) => !l.startsWith("repo:"));
     res = await attempt(fallbackLabels, req.body + note);
     let issueUrl: string | undefined;
