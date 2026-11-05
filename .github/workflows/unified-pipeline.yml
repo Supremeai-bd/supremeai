@@ -129,12 +129,13 @@ jobs:
           RENDER_SVC_ID: ${{ vars.RENDER_CI_RUNNER_SVC_ID }}
           RENDER_WAIT: "1"
           RENDER_WAIT_TIMEOUT_SECONDS: "600"
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [ -n "$RENDER_API_KEY" ] && [ -n "$RENDER_SVC_ID" ]; then
-            python scripts/ci/render_trigger_deploy.py
-          else
-            echo "::warning::RENDER_API_KEY_PAYKARI or RENDER_CI_RUNNER_SVC_ID not available in context - skipping remote trigger"
-          fi
+          test -n "$RENDER_API_KEY" || { echo "::error::Render CI runner credential (RENDER_API_KEY_PAYKARI) is missing"; exit 1; }
+          test -n "$RENDER_SVC_ID" || { echo "::error::Render CI runner service ID (RENDER_CI_RUNNER_SVC_ID) is missing"; exit 1; }
+          test -n "$PR_HEAD_SHA" || { echo "::error::PR head SHA is missing"; exit 1; }
+          python scripts/ci/render_trigger_deploy.py
+          python scripts/ci/validate_ci_runner_sha.py
 
       - name: Publish CI runner result to MCP Tower
         if: always()
@@ -146,18 +147,32 @@ jobs:
           RENDER_SVC_ID: ${{ vars.RENDER_CI_RUNNER_SVC_ID }}
         run: python scripts/ci/publish_ci_attestation.py
 
-      # Plan: 99.99% autonomous operation. Auto-merge is allowed only after
-      # Tier 1 fast gates AND Tier 2 Render CI runner heavy suite both pass
-      # (success() guard). A failed Render check blocks the merge.
-      - name: Autonomous Auto-Landing on Green CI (Squash Merge)
-        if: github.event_name == 'pull_request' && success()
+      # Auto-merge is handled by the separate gated auto-merge job below.
+      # This job only runs the heavy CI suite; merge requires all three tier jobs to succeed.
+
+  # =========================================================================
+  # STAGE 2b: AUTO-MERGE (separate gated job; only after all tier jobs pass)
+  # =========================================================================
+  auto-merge:
+    name: "Auto-Merge PR (gated)"
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    needs: [fast-gate, runtime-readiness, render-heavy-gate]
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Squash merge PR
+        if: >
+          needs.fast-gate.result == 'success' &&
+          needs.runtime-readiness.result == 'success' &&
+          needs.render-heavy-gate.result == 'success'
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          echo "🚀 Tier 1 and Tier 2 Render CI verification fully passed for PR #${PR_NUMBER}!"
-          echo "🛬 Autonomous Auto-Landing: Squashing and merging PR into main..."
-          gh pr merge "$PR_NUMBER" --squash --delete-branch || echo "::warning::Auto-merge failed or branch already merged."
+          echo "All tier gates passed for PR #${PR_NUMBER}; auto-landing."
+          gh pr merge "$PR_NUMBER" --squash --delete-branch
 
   # =========================================================================
   # STAGE 3: POST-MERGE PRODUCTION DEPLOY & CANARY (Only on Push to Main)
@@ -176,6 +191,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Render free-build quota preflight
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
+          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
+          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
+          RENDER_API_KEY_5: ${{ secrets.RENDER_API_KEY_5 }}
+          RENDER_API_KEY_6: ${{ secrets.RENDER_API_KEY_6 }}
+          RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
+          RENDER_ESTIMATED_BUILD_MINUTES: "20"
+        run: python scripts/ci/render_quota_preflight.py
 
       - name: Compute changed Render service matrix
         env:
