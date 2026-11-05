@@ -509,6 +509,19 @@ def _guest_rate_limit(request: Request) -> Tuple[bool, float]:
     dq.append(now)
     return True, 0.0
 
+# Operator telemetry requires a dedicated credential. Generic client API keys
+# (including signed ``sk-supreme-*`` keys) must never grant fleet visibility.
+# SUPREMEAI_SUPERADMIN_KEY and MCP_SUPERADMIN_KEY remain supported as explicit
+# rotation aliases for existing deployments.
+OPERATOR_KEYS = {
+    value.strip()
+    for value in (
+        os.getenv("SUPREMEAI_OPERATOR_KEY", ""),
+        os.getenv("SUPREMEAI_SUPERADMIN_KEY", ""),
+        os.getenv("MCP_SUPERADMIN_KEY", ""),
+    )
+    if value and value.strip()
+}
 SUPERADMIN_KEY = os.getenv("SUPREMEAI_SUPERADMIN_KEY", os.getenv("MCP_SUPERADMIN_KEY", "")).strip()
 
 
@@ -567,35 +580,22 @@ def _verify_client_auth(request: Request, x_supremeai_key: Optional[str] = None)
 
 
 def _require_operator_key(request: Request, x_supremeai_key: Optional[str] = None) -> bool:
-    """Strict credential gate for operator-grade surfaces (#1729).
+    """Authorize operator-only telemetry with a dedicated exact-match key.
 
-    Unlike _verify_client_auth this deliberately has NO guest pass-through:
-    _is_guest_cost_guard_signal trusts spoofable client headers (x-guest-mode,
-    Origin/Referer containing the Studio host, well-known demo tokens), which is
-    fine for chat-rate-limiting but must never gate operator fleet detail.
-    Fails closed: no key configured -> False (set SUPREMEAI_API_KEY / SUPREMEAI_API_KEYS
-    / SUPREMEAI_SUPERADMIN_KEY to enable operator access).
+    This is intentionally not backed by ``verify_key``: that verifier validates
+    ordinary client API keys and has no operator scope. Keeping the credential
+    separate makes the authorization boundary explicit and allows independent
+    rotation/revocation.
     """
     token = _extract_token(request, x_supremeai_key)
-    if not token:
+    if not token or not OPERATOR_KEYS:
         return False
-    if token.startswith("sk-supreme-"):
-        try:
-            if verify_key(token):
-                return True
-        except Exception:  # noqa: BLE001 - fail closed on keygen errors
-            return False
-    valid_keys = set()
-    master = os.getenv("SUPREMEAI_API_KEY", "").strip()
-    if master:
-        valid_keys.add(master)
-    pool_str = os.getenv("SUPREMEAI_API_KEYS", "").strip()
-    for k in pool_str.split(","):
-        if k.strip():
-            valid_keys.add(k.strip())
-    if SUPERADMIN_KEY:
-        valid_keys.add(SUPERADMIN_KEY)
-    return token in valid_keys
+    authorized = token in OPERATOR_KEYS
+    if authorized:
+        logger.info("operator telemetry authorized principal=operator scope=telemetry")
+    else:
+        logger.warning("operator telemetry denied principal=unknown scope=telemetry")
+    return authorized
 
 
 def _extract_user_id(request: Request) -> str:

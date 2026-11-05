@@ -280,15 +280,17 @@ jobs:
           echo "- SLO ladder (docs/operations/SLO_AND_ALERTS.md): target p95 < 1500 ms / p99 < 2000 ms, 5xx < 0.1% steady-state" >> "$GITHUB_STEP_SUMMARY"
           echo "- Gate plan: collect ≥ 14 nights of baselines → ratchet thresholds → remove continue-on-error" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Advisory security detectors
-        id: advisory_security_detectors
-        continue-on-error: true
+      - name: Blocking security detectors (P0/P1)
+        id: blocking_security_detectors
         run: |
-          python scripts/advanced_analysis/blocking_call_detector.py || echo "[WARN] Blocking calls found"
-          python scripts/advanced_analysis/bola_idor_detector.py || echo "[WARN] BOLA/IDOR pattern found"
-          python scripts/ci/webhook_signature_checker.py || echo "[WARN] Webhook signature gaps found"
-          python scripts/ci/rate_limit_endpoint_checker.py || echo "[WARN] Rate limit gaps found"
-          python scripts/ci/rls_rbac_auditor.py || echo "[WARN] RLS/RBAC gaps found"
+          set -euo pipefail
+          # These detectors are release gates. A finding must fail the job;
+          # warning-only fallbacks previously made the nightly audit falsely green.
+          python scripts/advanced_analysis/blocking_call_detector.py
+          python scripts/advanced_analysis/bola_idor_detector.py
+          python scripts/ci/webhook_signature_checker.py
+          python scripts/ci/rate_limit_endpoint_checker.py
+          python scripts/ci/rls_rbac_auditor.py
 
       # Dead-code detection (moved here from the deleted code-quality.yml; #67).
       # Continues-on-error: advisory until baseline ratchet lands (per Phase-4 plan).
@@ -2228,6 +2230,11 @@ jobs:
           python-version: "3.11"
 
       - name: Run Kaggle Empirical Learning Bridge
+        env:
+          # The bridge imports the repository's ``core`` package. Scheduled
+          # runners execute from the workspace root, but Python does not
+          # guarantee that root is on sys.path for scripts/ci entrypoints.
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           set -euo pipefail
           python scripts/ci/kaggle_learning_bridge.py --self-test
