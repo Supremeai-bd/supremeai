@@ -11,6 +11,11 @@ async function getAccessToken(): Promise<string> {
     return cachedToken;
   }
 
+  const directToken = env.infisical.token;
+  if (directToken) {
+    return directToken;
+  }
+
   const { clientId, clientSecret } = env.infisical;
   if (!clientId || !clientSecret) {
     throw new Error("Missing INFISICAL_CLIENT_ID or INFISICAL_CLIENT_SECRET");
@@ -36,6 +41,28 @@ async function getAccessToken(): Promise<string> {
     return token;
   }
   throw new Error("Failed to get Infisical access token");
+}
+
+async function resolveWorkspaceId(projectOrSlug: string, token: string): Promise<string> {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectOrSlug)) {
+    return projectOrSlug;
+  }
+  try {
+    const res = await httpRequest(`${INFISICAL_URL}/api/v1/workspace`, {
+      headers: bearerAuth(token),
+      timeoutMs: 8000,
+      retries: 0,
+    });
+    const workspaces = Array.isArray((res.data as any)?.workspaces) ? (res.data as any).workspaces : [];
+    for (const ws of workspaces) {
+      if (ws.id === projectOrSlug || ws.slug === projectOrSlug) {
+        return String(ws.id);
+      }
+    }
+  } catch {
+    // Fallback to raw value
+  }
+  return projectOrSlug;
 }
 
 /**
@@ -97,15 +124,17 @@ export async function auditSecrets(): Promise<unknown> {
     };
   }
 
+  const workspaceId = await resolveWorkspaceId(projectId, token);
+
   // Both probes run in parallel (with retries disabled) so the whole audit
   // stays inside the health engine's 15s sweep budget (health/engine.ts).
   const [rawSettled, standardSettled] = await Promise.allSettled([
-    httpRequest(`${INFISICAL_URL}/api/v3/secrets/raw?workspaceId=${projectId}&environment=${envSlug}&secretPath=/`, {
+    httpRequest(`${INFISICAL_URL}/api/v3/secrets/raw?workspaceId=${workspaceId}&environment=${envSlug}&secretPath=/`, {
       headers: bearerAuth(token),
       timeoutMs: 10000,
       retries: 0,
     }),
-    httpRequest(`${INFISICAL_URL}/api/v3/secrets?workspaceId=${projectId}&environment=${envSlug}&secretPath=/`, {
+    httpRequest(`${INFISICAL_URL}/api/v3/secrets?workspaceId=${workspaceId}&environment=${envSlug}&secretPath=/`, {
       headers: bearerAuth(token),
       timeoutMs: 10000,
       retries: 0,
@@ -151,9 +180,10 @@ export async function auditSecrets(): Promise<unknown> {
 export async function getSyncStatus(): Promise<unknown> {
   const { projectId } = env.infisical;
   const token = await getAccessToken();
+  const workspaceId = await resolveWorkspaceId(projectId, token);
 
   try {
-    const res = await httpRequest(`${INFISICAL_URL}/api/v1/workspace/${projectId}/integrations`, {
+    const res = await httpRequest(`${INFISICAL_URL}/api/v1/workspace/${workspaceId}/integrations`, {
       headers: bearerAuth(token),
       timeoutMs: 15000,
     });
@@ -172,16 +202,20 @@ export async function getSyncStatus(): Promise<unknown> {
  * Does not overwrite existing environment variables.
  */
 export async function pullSecretsIntoProcessEnv(): Promise<{ loaded: number; skipped: boolean }> {
-  const { clientId, clientSecret, projectId, environment } = env.infisical;
-  if (!clientId || !clientSecret || !projectId) {
+  const { clientId, clientSecret, projectId, environment, token: directToken } = env.infisical;
+  if ((!clientId || !clientSecret) && !directToken) {
+    return { loaded: 0, skipped: true };
+  }
+  if (!projectId) {
     return { loaded: 0, skipped: true };
   }
 
   try {
     const token = await getAccessToken();
-    const envSlug = environment === "production" ? "prod" : environment;
+    const workspaceId = await resolveWorkspaceId(projectId, token);
+    const envSlug = !environment || environment === "production" ? "prod" : environment;
     const res = await httpRequest(
-      `${INFISICAL_URL}/api/v3/secrets/raw?workspaceId=${projectId}&environment=${envSlug}&secretPath=/`,
+      `${INFISICAL_URL}/api/v3/secrets/raw?workspaceId=${workspaceId}&environment=${envSlug}&secretPath=/`,
       {
         headers: bearerAuth(token),
         timeoutMs: 20000,
@@ -205,4 +239,3 @@ export async function pullSecretsIntoProcessEnv(): Promise<{ loaded: number; ski
     return { loaded: 0, skipped: true };
   }
 }
-

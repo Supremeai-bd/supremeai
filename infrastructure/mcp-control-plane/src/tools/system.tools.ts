@@ -40,13 +40,21 @@ interface HealthProbe {
 function bearerFor(apiKeyRef: string): string | undefined {
   const primary = process.env[apiKeyRef];
   if (primary && primary.length > 0) return primary;
-  // GitHub accounts allow generic fallback names (same rule as the registry)
-  const alt = process.env["GITHUB_TOKEN"];
-  if (alt && alt.length > 0) return alt;
-  const ghToken = process.env["GH_TOKEN"];
-  if (ghToken && ghToken.length > 0) return ghToken;
-  const genericPat = process.env["GITHUB_PAT"];
-  if (genericPat && genericPat.length > 0) return genericPat;
+  for (const fallback of [
+    "GITHUB_PAT_PAYKARIBAZARONLINE",
+    "GITHUB_TOKEN",
+    "GH_TOKEN",
+    "GITHUB_PAT",
+    "OPEN_SYNC_PAT",
+    "SYNC_PAT",
+    "SELF_HEAL_PAT",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_KEY",
+    "SUPABASE_ANON_KEY",
+  ]) {
+    const val = process.env[fallback];
+    if (val && val.length > 0) return val;
+  }
   return undefined;
 }
 

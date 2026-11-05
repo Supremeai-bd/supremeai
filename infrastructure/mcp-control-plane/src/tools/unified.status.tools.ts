@@ -80,7 +80,8 @@ export async function registerUnifiedStatusTool(server: McpServer): Promise<void
         if (scope === "all" || scope === "autonomy") {
           result.autonomy = {
             enabled: globalKillSwitch.isAutonomyEnabled(),
-            mode: globalKillSwitch.isAutonomyEnabled() ? "L2 (Autonomous)" : "L0 (Emergency Stop / Read-Only)",
+            coreDependenciesVerified: globalKillSwitch.areCoreDependenciesVerified(),
+            mode: globalKillSwitch.getEffectiveMode(),
           };
         }
 

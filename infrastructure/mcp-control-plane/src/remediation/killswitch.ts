@@ -1,8 +1,30 @@
+import { buildAccountRegistry } from "../registry/account.registry.js";
+
 export class KillSwitchManager {
   private autonomyEnabled: boolean = true;
 
   public isAutonomyEnabled(): boolean {
     return this.autonomyEnabled;
+  }
+
+  /**
+   * Returns true only when core dependencies (Render, Supabase, Redis) are configured/available.
+   * Prevents blind L2 autonomous remediation when dependency visibility is degraded.
+   */
+  public areCoreDependenciesVerified(): boolean {
+    const accounts = buildAccountRegistry();
+    const coreIds = ["render-primary", "supabase-primary", "redis-primary"];
+    return coreIds.every((id) => accounts.find((a) => a.id === id)?.available === true);
+  }
+
+  public getEffectiveMode(): string {
+    if (!this.autonomyEnabled) {
+      return "L0 (Emergency Stop / Read-Only)";
+    }
+    if (!this.areCoreDependenciesVerified()) {
+      return "L1 (Guarded / Approval-Required — Core Dependency Unverified)";
+    }
+    return "L2 (Autonomous)";
   }
 
   public emergencyStop(): void {

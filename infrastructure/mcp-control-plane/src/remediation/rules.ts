@@ -2,6 +2,7 @@ import { IncidentAlert } from "../health/incident.js";
 import { ActionPlan } from "../actions/plan.js";
 import { buildRenderDeployAction } from "../adapters/render/actions.js";
 import { buildRedisFlushAction } from "../adapters/redis/actions.js";
+import { env } from "../lib/env.js";
 
 export interface RemediationRule {
   id: string;
@@ -16,8 +17,8 @@ export const builtInRules: RemediationRule[] = [
     description: "Restart Render service if it is DOWN or throwing 502/Timeout",
     confidence: 0.96, // Above 0.95 auto-execute threshold
     evaluate: (incident) => {
-      if (incident.provider === "render" && incident.type === "OUTAGE") {
-         return buildRenderDeployAction("srv-auto-fix-demo", false);
+      if (incident.provider === "render" && incident.type === "OUTAGE" && env.render.primary.serviceId) {
+         return buildRenderDeployAction(env.render.primary.serviceId, false);
       }
       return null;
     }

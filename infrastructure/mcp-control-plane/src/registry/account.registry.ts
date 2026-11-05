@@ -122,6 +122,19 @@ export async function refreshDiscoveredOrgRepos(): Promise<string[]> {
  * Adding a new account = add env vars + add entry here.
  */
 export function buildAccountRegistry(): ProviderAccount[] {
+  const hasAnyRenderKey =
+    isAvailable("RENDER_API_KEY") ||
+    isAvailable("RENDER_API_TOKEN") ||
+    isAvailable("RENDER_API_KEY_PAYKARI");
+
+  const hasAnyGithubToken =
+    isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") ||
+    isAvailable("GITHUB_TOKEN") ||
+    isAvailable("GH_TOKEN") ||
+    isAvailable("GITHUB_PAT") ||
+    isAvailable("OPEN_SYNC_PAT") ||
+    isAvailable("SYNC_PAT");
+
   return [
     // ── Render ──────────────────────────────────────────
     {
@@ -132,11 +145,11 @@ export function buildAccountRegistry(): ProviderAccount[] {
       environment: "production",
       capabilities: ["health", "logs", "deploy", "restart", "env_vars"],
       apiKeyRef: "RENDER_API_KEY_1",
-      apiKeyRefs: ["RENDER_API_KEY"],
+      apiKeyRefs: ["RENDER_API_KEY", "RENDER_API_TOKEN", "RENDER_API_KEY_PAYKARI"],
       url: env.render.primary.url,
       serviceId: env.render.primary.serviceId,
-      healthPath: "/health", // FastAPI core API public health check
-      available: isAvailable("RENDER_API_KEY_1") || isAvailable("RENDER_API_KEY"),
+      healthPath: "/health",
+      available: isAvailable("RENDER_API_KEY_1") || hasAnyRenderKey || Boolean(env.render.primary.url),
     },
     {
       id: "render-worker",
@@ -146,10 +159,11 @@ export function buildAccountRegistry(): ProviderAccount[] {
       environment: "production",
       capabilities: ["health", "logs", "deploy", "restart", "env_vars"],
       apiKeyRef: "RENDER_API_KEY_2",
+      apiKeyRefs: ["RENDER_API_KEY", "RENDER_API_TOKEN", "RENDER_API_KEY_PAYKARI"],
       url: env.render.worker.url,
       serviceId: env.render.worker.serviceId,
       healthPath: "/health",
-      available: isAvailable("RENDER_API_KEY_2"),
+      available: isAvailable("RENDER_API_KEY_2") || hasAnyRenderKey || Boolean(env.render.worker.url),
     },
     {
       id: "render-scraper",
@@ -159,10 +173,11 @@ export function buildAccountRegistry(): ProviderAccount[] {
       environment: "production",
       capabilities: ["health", "logs", "deploy", "restart", "env_vars"],
       apiKeyRef: "RENDER_API_KEY_3",
+      apiKeyRefs: ["RENDER_API_KEY", "RENDER_API_TOKEN", "RENDER_API_KEY_PAYKARI"],
       url: env.render.scraper.url,
       serviceId: env.render.scraper.serviceId,
       healthPath: "/health",
-      available: isAvailable("RENDER_API_KEY_3"),
+      available: isAvailable("RENDER_API_KEY_3") || hasAnyRenderKey || Boolean(env.render.scraper.url),
     },
     {
       id: "render-mcp",
@@ -172,15 +187,11 @@ export function buildAccountRegistry(): ProviderAccount[] {
       environment: "production",
       capabilities: ["health", "logs", "deploy", "restart", "env_vars"],
       apiKeyRef: "RENDER_API_KEY_4",
-      apiKeyRefs: ["RENDER_API_KEY"],
+      apiKeyRefs: ["RENDER_API_KEY", "RENDER_API_TOKEN", "RENDER_API_KEY_PAYKARI"],
       url: env.render.controlTower.url,
       serviceId: env.render.controlTower.serviceId,
-      healthPath: "/health", // control tower's own health endpoint
-      // render.yaml declares RENDER_API_KEY (sync:false) for this service;
-      // RENDER_API_KEY_4 may only exist if Infisical provides it explicitly.
-      // Without this fallback the tower was marked unavailable and every
-      // render.* tool failed even though a valid key was provisioned.
-      available: isAvailable("RENDER_API_KEY_4") || isAvailable("RENDER_API_KEY"),
+      healthPath: "/health",
+      available: isAvailable("RENDER_API_KEY_4") || hasAnyRenderKey || Boolean(env.render.controlTower.url),
     },
     {
       id: "render-api",
@@ -190,11 +201,11 @@ export function buildAccountRegistry(): ProviderAccount[] {
       environment: "production",
       capabilities: ["health", "logs", "deploy", "restart", "env_vars"],
       apiKeyRef: "RENDER_API_KEY_5",
-      apiKeyRefs: ["RENDER_API_KEY_API"],
+      apiKeyRefs: ["RENDER_API_KEY_API", "RENDER_API_KEY", "RENDER_API_TOKEN", "RENDER_API_KEY_PAYKARI"],
       url: env.render.api.url,
       serviceId: env.render.api.serviceId,
       healthPath: "/healthz",
-      available: isAvailable("RENDER_API_KEY_5") || isAvailable("RENDER_API_KEY_API"),
+      available: isAvailable("RENDER_API_KEY_5") || isAvailable("RENDER_API_KEY_API") || hasAnyRenderKey || Boolean(env.render.api.url),
     },
     {
       id: "render-brain",
@@ -204,10 +215,11 @@ export function buildAccountRegistry(): ProviderAccount[] {
       environment: "production",
       capabilities: ["health", "logs", "deploy", "restart", "env_vars"],
       apiKeyRef: "RENDER_API_KEY_6",
+      apiKeyRefs: ["RENDER_API_KEY", "RENDER_API_TOKEN", "RENDER_API_KEY_PAYKARI"],
       url: env.render.brain.url,
       serviceId: env.render.brain.serviceId,
       healthPath: "/health",
-      available: isAvailable("RENDER_API_KEY_6"),
+      available: isAvailable("RENDER_API_KEY_6") || hasAnyRenderKey || Boolean(env.render.brain.url),
     },
     {
       id: "render-ci-runner",
@@ -217,16 +229,14 @@ export function buildAccountRegistry(): ProviderAccount[] {
       environment: "production",
       capabilities: ["health", "logs", "deploy", "restart", "env_vars"],
       apiKeyRef: "RENDER_API_KEY_7",
-      apiKeyRefs: ["RENDER_API_KEY_PAYKARI", "RENDER_API_KEY"],
+      apiKeyRefs: ["RENDER_API_KEY_PAYKARI", "RENDER_API_KEY", "RENDER_API_TOKEN"],
       url: env.render.ciRunner.url,
       serviceId: env.render.ciRunner.serviceId,
       healthPath: "/health",
-      available: isAvailable("RENDER_API_KEY_7") || isAvailable("RENDER_API_KEY_PAYKARI") || isAvailable("RENDER_API_KEY"),
+      available: isAvailable("RENDER_API_KEY_7") || hasAnyRenderKey || Boolean(env.render.ciRunner.url),
     },
 
     // ── GitHub — SupremeAI Primary (Supremeai-bd/supremeai) ────────
-    // Note: SaifulHaqueNiloy/supremeai and the pre-migration personal e-commerce namespace
-    // are excluded. Only canonical SupremeAI ecosystem repositories are monitored.
     {
       id: "github-primary",
       provider: "github",
@@ -236,7 +246,7 @@ export function buildAccountRegistry(): ProviderAccount[] {
       capabilities: ["health", "logs", "metrics"],
       apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
       url: `https://api.github.com/repos/${GITHUB_ORGANIZATION}/supremeai`,
-      available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
+      available: hasAnyGithubToken,
     },
 
     // ── GitHub — Supremeai-bd Organization Level Monitor ──
@@ -249,7 +259,7 @@ export function buildAccountRegistry(): ProviderAccount[] {
       capabilities: ["health", "metrics"],
       apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
       url: `https://api.github.com/orgs/${GITHUB_ORGANIZATION}`,
-      available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
+      available: hasAnyGithubToken,
     },
 
     // ── GitHub — Supremeai-bd federation (Dynamic Org-Wide Auto-Discovery) ──
@@ -262,7 +272,7 @@ export function buildAccountRegistry(): ProviderAccount[] {
       capabilities: ["health", "logs", "metrics"] as Capability[],
       apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
       url: `https://api.github.com/repos/${GITHUB_ORGANIZATION}/${repoName}`,
-      available: isAvailable("GITHUB_PAT_PAYKARIBAZARONLINE") || isAvailable("GITHUB_TOKEN") || isAvailable("GH_TOKEN"),
+      available: hasAnyGithubToken,
     })),
 
     // ── Supabase ──────────────────────────────────────────
@@ -274,8 +284,13 @@ export function buildAccountRegistry(): ProviderAccount[] {
       environment: "production",
       capabilities: ["health", "metrics"],
       apiKeyRef: "SUPABASE_SERVICE_ROLE_KEY",
+      apiKeyRefs: ["SUPABASE_KEY", "SUPABASE_ANON_KEY"],
       url: env.supabase.url,
-      available: isAvailable("SUPABASE_SERVICE_ROLE_KEY"),
+      available:
+        isAvailable("SUPABASE_SERVICE_ROLE_KEY") ||
+        isAvailable("SUPABASE_KEY") ||
+        isAvailable("SUPABASE_ANON_KEY") ||
+        isAvailable("SUPABASE_DATABASE_URL"),
     },
 
     // ── Redis (Upstash) — Auto-Rotating Multi-Account Chain (#26) ────
@@ -293,7 +308,7 @@ export function buildAccountRegistry(): ProviderAccount[] {
         apiKeyRef: tokenRef,
         // Prefer the active account's REST URL (https, port 443)
         url: active?.restUrl || env.redis.restUrl || env.redis.url,
-        available: isAvailable(tokenRef) || isAvailable("UPSTASH_REDIS_REST_TOKEN") || isAvailable("REDIS_URL"),
+        available: Boolean(active?.restUrl || active?.tcpUrl) || isAvailable(tokenRef) || isAvailable("UPSTASH_REDIS_REST_TOKEN") || isAvailable("REDIS_URL"),
       };
     })(),
 
@@ -306,13 +321,15 @@ export function buildAccountRegistry(): ProviderAccount[] {
       environment: "production",
       capabilities: ["health", "metrics", "logs"],
       apiKeyRef: "CLOUDFLARE_API_TOKEN",
+      url: env.cloudflare.workerUrl,
       available:
         isAvailable("CLOUDFLARE_API_TOKEN") ||
         isAvailable("CLOUDFLARE_GLOBAL_API_KEY") ||
         isAvailable("CLOUDFLARE_SECONDARY_GLOBAL_API_KEY") ||
         isAvailable("CLOUDFLARE_TERTIARY_GLOBAL_API_KEY") ||
         isAvailable("CLOUDFLARE_QUATERNARY_GLOBAL_API_KEY") ||
-        isAvailable("CLOUDFLARE_QUINARY_GLOBAL_API_KEY"),
+        isAvailable("CLOUDFLARE_QUINARY_GLOBAL_API_KEY") ||
+        Boolean(env.cloudflare.workerUrl),
     },
 
     // ── Infisical ─────────────────────────────────────────
@@ -324,14 +341,9 @@ export function buildAccountRegistry(): ProviderAccount[] {
       environment: "production",
       capabilities: ["health", "secrets"],
       apiKeyRef: "INFISICAL_CLIENT_SECRET",
-      available: isAvailable("INFISICAL_CLIENT_SECRET"),
+      apiKeyRefs: ["INFISICAL_TOKEN"],
+      available: isAvailable("INFISICAL_CLIENT_SECRET") || isAvailable("INFISICAL_TOKEN"),
     },
-
-
-    // #643: direct LLM provider pools (gemini/groq/openrouter/mistral) were
-    // REMOVED from the zero-credential control plane — AI analysis is delegated
-    // to the external agent caller context (or Core API). No apiKeyRef for any
-    // LLM provider is required or stored in the tower runtime env anymore.
 
     // ── Kaggle ────────────────────────────────────────────
     {

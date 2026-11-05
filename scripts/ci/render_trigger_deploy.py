@@ -55,6 +55,29 @@ CANDIDATE_KEY_ENVS = (
     "RENDER_API_KEY",
 )
 
+BOOTSTRAP_ENV_SYNC_KEYS = (
+    "INFISICAL_CLIENT_ID",
+    "INFISICAL_CLIENT_SECRET",
+    "INFISICAL_PROJECT_ID",
+    "INFISICAL_PROJECT_SLUG",
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_KEY",
+    "CLOUDFLARE_API_TOKEN",
+    "CLOUDFLARE_ACCOUNT_ID",
+    "VERCEL_TOKEN",
+    "GEMINI_API_KEY",
+    "GROQ_API_KEY",
+    "OPENAI_API_KEY",
+    "RENDER_API_KEY_1",
+    "RENDER_API_KEY_2",
+    "RENDER_API_KEY_3",
+    "RENDER_API_KEY_4",
+    "RENDER_API_KEY_5",
+    "RENDER_API_KEY_6",
+    "RENDER_API_KEY_PAYKARI",
+)
+
 
 def _collect_candidate_keys(preferred_env: str) -> list[tuple[str, str]]:
     """Return deduplicated (env_name, key_value) pairs starting with preferred_env."""
@@ -70,6 +93,76 @@ def _collect_candidate_keys(preferred_env: str) -> list[tuple[str, str]]:
     return pairs
 
 
+def _resolve_owning_client(
+    svc_id: str, candidate_keys: list[tuple[str, str]]
+) -> tuple[str, RenderClient]:
+    """Probe candidate API keys via get_service(svc_id) to find the owning workspace key."""
+    for env_name, api_key in candidate_keys:
+        probe = RenderClient(api_key=api_key, service_id=svc_id)
+        try:
+            probe.get_service(svc_id)
+            return env_name, probe
+        except RenderApiError as exc:
+            if exc.status in (401, 403, 404):
+                continue
+            return env_name, probe
+        except Exception:  # noqa: BLE001
+            continue
+    first_env, first_key = candidate_keys[0]
+    return first_env, RenderClient(api_key=first_key, service_id=svc_id)
+
+
+def _sync_bootstrap_env_vars(client: RenderClient, svc_id: str) -> None:
+    """Merge non-empty CI bootstrap env vars into the Render service before deploy (zero secret logging)."""
+    desired: dict[str, str] = {}
+    for key in BOOTSTRAP_ENV_SYNC_KEYS:
+        val = os.environ.get(key, "").strip()
+        if val:
+            desired[key] = val
+    # Ensure generic RENDER_API_KEY and GITHUB_TOKEN are also populated if fallback keys exist
+    if not desired.get("RENDER_API_KEY") and client.api_key:
+        desired["RENDER_API_KEY"] = client.api_key
+    gh_pat = (
+        os.environ.get("OPEN_SYNC_PAT", "").strip()
+        or os.environ.get("SYNC_PAT", "").strip()
+        or os.environ.get("SELF_HEAL_PAT", "").strip()
+    )
+    if gh_pat:
+        desired["GITHUB_PAT_PAYKARIBAZARONLINE"] = gh_pat
+        desired["GITHUB_TOKEN"] = gh_pat
+
+    if not desired:
+        return
+
+    try:
+        current_items = client.get_env_vars(svc_id, limit=100)
+        merged: dict[str, str] = {}
+        for item in current_items:
+            ev = item.get("envVar", item) if isinstance(item, dict) else {}
+            k = ev.get("key")
+            v = ev.get("value")
+            if k and v is not None:
+                merged[str(k)] = str(v)
+
+        added_or_updated: list[str] = []
+        for k, v in desired.items():
+            if merged.get(k) != v:
+                merged[k] = v
+                added_or_updated.append(k)
+
+        if added_or_updated:
+            payload = [{"key": k, "value": v} for k, v in merged.items()]
+            client.update_env_vars(svc_id, payload)
+            print(
+                f"Synced {len(added_or_updated)} bootstrap env var key(s) on {svc_id}: "
+                f"{', '.join(sorted(added_or_updated))}"
+            )
+        else:
+            print(f"Bootstrap env vars on {svc_id} already up-to-date ({len(desired)} checked).")
+    except Exception as exc:  # noqa: BLE001
+        print(f"::warning::Bootstrap env var sync skipped on {svc_id}: {exc}")
+
+
 def main() -> int:
     svc_id = (os.environ.get("RENDER_SERVICE_ID", "") or os.environ.get("RENDER_SVC_ID", "")).strip()
     key_env = os.environ.get("RENDER_API_KEY_ENV", "").strip() or "RENDER_API_KEY"
@@ -83,9 +176,12 @@ def main() -> int:
         print("Skipping Render deploy - RENDER_API_KEY not set")
         return 0
 
-    key_idx = 0
-    active_env, api_key = candidate_keys[key_idx]
-    client = RenderClient(api_key=api_key, service_id=svc_id)
+    active_env, client = _resolve_owning_client(svc_id, candidate_keys)
+    _sync_bootstrap_env_vars(client, svc_id)
+    key_idx = next(
+        (idx for idx, (env_name, _) in enumerate(candidate_keys) if env_name == active_env),
+        0,
+    )
     commit_id = (
         os.environ.get("PR_HEAD_SHA", "").strip()
         or os.environ.get("EXPECTED_SHA", "").strip()

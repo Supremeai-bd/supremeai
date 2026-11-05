@@ -17,6 +17,11 @@ export class RemediationEngine {
       return;
     }
 
+    if (!globalKillSwitch.areCoreDependenciesVerified()) {
+      console.log(`[REMEDIATION] Skipping autonomous execution for ${incident.id} (${globalKillSwitch.getEffectiveMode()}).`);
+      return;
+    }
+
     console.log(`[REMEDIATION] Evaluating incident ${incident.id} on ${incident.provider}...`);
 
     for (const rule of builtInRules) {
