@@ -27,6 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from core.config import settings
+from core.utils.api_key_resolver import resolve_numbered_key
 from core.llm.llm_gateway import get_llm_gateway
 from core.llm.llm_gateway.errors import ProviderUnavailableError
 from core.logging_config import logger
@@ -226,10 +227,10 @@ class ModelRouter:
         # বাংলা: ডাইনামিক প্রোভাইডার পুল রেজোলিউশন ($0..N) — কোনো ভেন্ডর লক-ইন নেই (Issue #466)
         _configured_providers = {
             "gemini": bool(
-                getattr(settings, "gemini_api_key", None) or os.getenv("GEMINI_API_KEY")
+                getattr(settings, "gemini_api_key", None) or resolve_numbered_key("GEMINI_API_KEY")
             ),
             "openrouter": bool(
-                getattr(settings, "openrouter_api_key", None) or os.getenv("OPENROUTER_API_KEY")
+                getattr(settings, "openrouter_api_key", None) or resolve_numbered_key("OPENROUTER_API_KEY")
             ),
             "openai": bool(
                 getattr(settings, "openai_api_key", None) or os.getenv("OPENAI_API_KEY")
@@ -237,7 +238,7 @@ class ModelRouter:
             "mistral": bool(
                 getattr(settings, "mistral_api_key", None) or os.getenv("MISTRAL_API_KEY")
             ),
-            "groq": bool(getattr(settings, "groq_api_key", None) or os.getenv("GROQ_API_KEY")),
+            "groq": bool(getattr(settings, "groq_api_key", None) or resolve_numbered_key("GROQ_API_KEY")),
             "anthropic": bool(
                 getattr(settings, "anthropic_api_key", None) or os.getenv("ANTHROPIC_API_KEY")
             ),
