@@ -43,7 +43,7 @@ def fail(message: str) -> int:
 
 
 def main() -> int:
-    key_env = os.environ.get("RENDER_API_KEY_ENV", "").strip()
+    key_env = os.environ.get("RENDER_API_KEY_ENV", "").strip() or "RENDER_API_KEY"
     api_key = os.environ.get(key_env, "").strip() if key_env else ""
     if not api_key:
         api_key = os.environ.get("RENDER_API_KEY", "").strip()
