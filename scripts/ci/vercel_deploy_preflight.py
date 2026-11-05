@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+from core.utils.api_key_resolver import resolve_numbered_key
 import sys
 import urllib.error
 import urllib.request
@@ -29,7 +30,7 @@ def get_json(url: str, token: str) -> dict:
 
 
 def main() -> None:
-    token = os.getenv("VERCEL_TOKEN")
+    token = resolve_numbered_key("VERCEL_TOKEN")
     project_id = os.getenv("VERCEL_PROJECT_ID")
     team_id = os.getenv("VERCEL_ORG_ID") or os.getenv("VERCEL_TEAM_ID")
 

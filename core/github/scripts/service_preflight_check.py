@@ -30,6 +30,7 @@ GCP চেক: নিচে commented-out রাখা হয়েছে।
 """
 import json
 import os
+from core.utils.api_key_resolver import resolve_numbered_key
 import sys
 import urllib.error
 import urllib.request
@@ -263,7 +264,7 @@ def main() -> None:
     backup_svc_id       = os.environ.get("BACKUP_SVC_ID",  "srv-da35gg2bkg8c73fp1mu0")
     primary_svc_url     = os.environ.get("RENDER_PRIMARY_URL", "https://supremeai-backend-docker.onrender.com")
     backup_svc_url      = os.environ.get("RENDER_BACKUP_URL",  "https://supremeai-backend.onrender.com")
-    vercel_token        = os.environ.get("VERCEL_TOKEN", "")
+    vercel_token        = resolve_numbered_key("VERCEL_TOKEN") or ""
     firebase_sa         = os.environ.get("FIREBASE_SERVICE_ACCOUNT", "")
     mirror_token        = os.environ.get("MIRROR_REPO_TOKEN", "")
     # gcp_sa_key        = os.environ.get("GCP_SA_KEY", "")        # uncomment when GCP enabled

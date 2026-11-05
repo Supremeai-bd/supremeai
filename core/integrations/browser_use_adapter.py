@@ -27,6 +27,7 @@ browser-use (AI-agent browser automation) থেকে নেওয়া মূ
 from __future__ import annotations
 
 import os
+from core.utils.api_key_resolver import resolve_numbered_key
 import re
 from typing import Any
 
@@ -167,7 +168,7 @@ def _free_browse(task: str, max_steps: int) -> dict[str, Any]:
         steps.append(
             {"step": 2, "action": "Jina unavailable — trying Firecrawl", "status": "running"}
         )
-        fc_key = os.getenv("FIRECRAWL_API_KEY", "")
+        fc_key = resolve_numbered_key("FIRECRAWL_API_KEY") or ""
         if fc_key:
             fc = _firecrawl_scrape(url, fc_key)
             if fc["ok"]:
