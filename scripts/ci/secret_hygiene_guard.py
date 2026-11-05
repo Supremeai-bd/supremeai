@@ -3,7 +3,7 @@
 Checks:
   - test-secret isolation: production config files must not reference TEST_ONLY_/MOCK_/placeholder secrets
   - single-file secret references: warn for secrets referenced in only one file
-  - VITE_* env-var parity: frontend VITE_* keys should have a backend counterpart
+  - VITE_* env-var parity: frontend VITE_* keys are frontend-only by Vite convention (no backend counterpart expected)
   - .env.example hygiene: codebase secrets should be documented in .env.example
 
 Usage:
@@ -58,7 +58,9 @@ def check_single_file_secrets():
 
 
 def check_vite_parity():
-    findings = []
+    # VITE_* keys are frontend-only by Vite convention (import.meta.env.VITE_*).
+    # They are not expected to have backend counterparts; flagging them as
+    # parity issues is a false positive. Report them as informational only.
     vite_keys = set()
     for dirpath, _, files in os.walk("studio"):
         for fn in files:
@@ -67,20 +69,7 @@ def check_vite_parity():
                 for line in open(p, encoding="utf-8", errors="replace"):
                     for m in re.finditer(r"VITE_[A-Z0-9_]+", line):
                         vite_keys.add(m.group(0))
-    # backend counterparts (strip VITE_ prefix)
-    backend_keys = set()
-    for dirpath, _, files in os.walk("core"):
-        for fn in files:
-            if fn.endswith(".py"):
-                p = os.path.join(dirpath, fn)
-                for line in open(p, encoding="utf-8", errors="replace"):
-                    for m in re.finditer(r"\b[A-Z][A-Z0-9_]{3,}\b", line):
-                        backend_keys.add(m.group(0))
-    for vk in sorted(vite_keys):
-        bk = vk[len("VITE_"):]
-        if bk not in backend_keys:
-            findings.append(f"{vk} (backend counterpart {bk} not found)")
-    return findings, sorted(vite_keys)
+    return [], sorted(vite_keys)
 
 
 def check_env_example_hygiene():
@@ -147,11 +136,9 @@ def main():
     if single:
         print("   ", ", ".join(single[:20]), "..." if len(single) > 20 else "")
 
-    # 3. VITE parity
+    # 3. VITE (frontend-only by Vite convention)
     vite_findings, vite_keys = check_vite_parity()
-    print(f"== VITE_* keys: {len(vite_keys)}, parity issues: {len(vite_findings)}")
-    for x in vite_findings:
-        print("   ", x)
+    print(f"== VITE_* keys: {len(vite_keys)} (frontend-only, no parity check)")
 
     # 4. .env.example hygiene
     undocumented = check_env_example_hygiene()
