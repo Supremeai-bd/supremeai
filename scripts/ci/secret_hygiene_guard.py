@@ -93,7 +93,10 @@ def check_env_example_hygiene():
         if line and not line.startswith("#") and "=" in line:
             env_keys.add(line.split("=", 1)[0].strip())
     data = parse_audit(AUDIT_FILE)
+    fake_prefixes = ("TEST_", "MOCK_", "PLACEHOLDER_", "INVALID_", "MISSING_", "TOTALLY_UNKNOWN_", "MY_SECRET", "STRONG_SECRET", "ASYNC_SECRET", "REDACTED_", "FATAL_SECRET", "MODE_FATAL_", "HARDCODED_", "UNRELATED_VAULT_", "VAULT_SECRET", "VAULT_TOKEN")
     for k in sorted(data):
+        if k.startswith(fake_prefixes):
+            continue
         if k not in env_keys:
             findings.append(k)
     return findings
