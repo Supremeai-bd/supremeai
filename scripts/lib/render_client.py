@@ -149,11 +149,15 @@ class RenderClient:
         self,
         service_id: str | None = None,
         clear_cache: str = "do_not_clear",
+        commit_id: str | None = None,
     ) -> dict[str, Any]:
+        body = {"clearCache": clear_cache}
+        if commit_id:
+            body["commitId"] = commit_id
         return self._request(
             "POST",
             f"/services/{service_id or self.default_service_id}/deploys",
-            body={"clearCache": clear_cache},
+            body=body,
         )
 
     # ── Phase 2-C3 operations (remaining scripts migrate onto these) ──
