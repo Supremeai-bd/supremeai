@@ -126,7 +126,7 @@ jobs:
       - name: Trigger & Poll Render supremeai-ci-runner
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
-          RENDER_SVC_ID: ${{ vars.RENDER_CI_RUNNER_SVC_ID }}
+          RENDER_SVC_ID: ${{ vars.RENDER_CI_RUNNER_SERVICE_ID }}
           RENDER_WAIT: "1"
           RENDER_WAIT_TIMEOUT_SECONDS: "600"
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -144,7 +144,7 @@ jobs:
           MCP_TOWER_AUTH_TOKEN: ${{ secrets.MCP_TOWER_AUTH_TOKEN }}
           EXPECTED_SHA: ${{ github.sha }}
           CI_RESULT: ${{ job.status }}
-          RENDER_SVC_ID: ${{ vars.RENDER_CI_RUNNER_SVC_ID }}
+          RENDER_SVC_ID: ${{ vars.RENDER_CI_RUNNER_SERVICE_ID }}
         run: python scripts/ci/publish_ci_attestation.py
 
       # Auto-merge is handled by the separate gated auto-merge job below.
