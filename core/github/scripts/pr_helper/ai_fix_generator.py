@@ -64,6 +64,7 @@ GitHub Actions outputs (GITHUB_OUTPUT):
 """
 
 from __future__ import annotations
+from core.utils.api_key_resolver import resolve_numbered_key
 
 import argparse
 import ast
@@ -548,7 +549,7 @@ def generate_fixes(
 
     max_attempts: total fix attempts allowed per PR (issue safety: 2 default).
     """
-    gemini_key = gemini_key or os.getenv("GEMINI_API_KEY", "")
+    gemini_key = gemini_key or resolve_numbered_key("GEMINI_API_KEY")
     openai_key = openai_key or os.getenv("OPENAI_API_KEY", "")
     mistral_key = mistral_key or os.getenv("MISTRAL_API_KEY", "")
 

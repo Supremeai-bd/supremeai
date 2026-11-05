@@ -10,6 +10,7 @@ import httpx
 
 from core.monitoring.logging_config import logger
 from memory.episodic_memory import EpisodicMemory
+from core.utils.api_key_resolver import resolve_numbered_key
 
 
 class SelfReflectionLoop:
@@ -48,10 +49,10 @@ class SelfReflectionLoop:
         # Query LLM for deep reflection if API keys are available
         gem_keys = [
             k.strip()
-            for k in os.getenv("GEMINI_API_KEY", "").split(",")
+            for k in resolve_numbered_key("GEMINI_API_KEY").split(",")
             if k.strip().startswith("AIza")
         ]
-        groq_key = os.getenv("GROQ_API_KEY", "").strip()
+        groq_key = resolve_numbered_key("GROQ_API_KEY").strip()
 
         reflection_prompt = (
             f"Task: {task_prompt}\n"

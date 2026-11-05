@@ -48,6 +48,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from core.utils.api_key_resolver import resolve_numbered_key
 
 # ── Setup ──────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -334,7 +335,7 @@ class AICostFetcher(CostFetcher):
 
     async def fetch(self, days: int) -> list[CostRecord]:
         records: list[CostRecord] = []
-        openrouter_key = os.getenv("OPENROUTER_API_KEY")
+        openrouter_key = resolve_numbered_key("OPENROUTER_API_KEY")
         if openrouter_key:
             try:
                 async with httpx.AsyncClient(timeout=10) as client:

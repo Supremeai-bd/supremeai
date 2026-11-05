@@ -6,6 +6,7 @@ import sys
 
 from backend.skills.core_knowledge_qa import execute_tool
 from core.logging_config import logger
+from core.utils.api_key_resolver import resolve_numbered_key
 
 # লগিং কনফিগারেশন (যাতে কনসোলে আউটপুট সুন্দরভাবে দেখা যায় এবং লিন্টার পাস করে)
 logging.basicConfig(
@@ -71,6 +72,6 @@ def run_rag_rbac_matrix_test():
 
 
 if __name__ == "__main__":
-    if not os.getenv("GEMINI_API_KEY"):
+    if not resolve_numbered_key("GEMINI_API_KEY"):
         logger.warning("⚠️ GEMINI_API_KEY environment variable is not set!")
     run_rag_rbac_matrix_test()

@@ -1,3 +1,4 @@
+from core.utils.api_key_resolver import resolve_numbered_key
 #!/usr/bin/env python3
 # 🛡️ মাল্টি-মডেল কোড ভ্যালিডেটর — SupremeAI 2.0
 # বাংলা মন্তব্য: এটি এআই মডেল ও স্ট্যাটিক AST সিকিউরিটি অ্যানালাইসিসের মাধ্যমে কোডের নিরাপত্তা ও লজিক যাচাই করে
@@ -49,9 +50,9 @@ class MultiModelValidator:
         pool: list[tuple[str, str]] = []
 
         # 1. Budget Validator Candidate
-        if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
+        if resolve_numbered_key("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
             pool.append(("gemini/gemini-2.5-flash", "budget_validator"))
-        elif os.getenv("OPENROUTER_API_KEY"):
+        elif resolve_numbered_key("OPENROUTER_API_KEY"):
             pool.append(("openrouter/google/gemini-2.0-flash-001", "budget_validator"))
 
         # 2. Security Validator Candidate
@@ -63,9 +64,9 @@ class MultiModelValidator:
             pool.append(("mistral/mistral-small-latest", "security_validator"))
 
         # 3. Logic & Reasoning Validator Candidate
-        if os.getenv("GROQ_API_KEY"):
+        if resolve_numbered_key("GROQ_API_KEY"):
             pool.append(("groq/llama-3.3-70b-versatile", "logic_validator"))
-        elif os.getenv("OPENROUTER_API_KEY"):
+        elif resolve_numbered_key("OPENROUTER_API_KEY"):
             pool.append(
                 ("openrouter/meta-llama/llama-3.3-70b-instruct", "logic_validator")
             )

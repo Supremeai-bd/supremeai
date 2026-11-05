@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from typing import Protocol
+from core.utils.api_key_resolver import resolve_numbered_key
 
 
 class LLMProvider(Protocol):
@@ -119,7 +120,7 @@ def default_providers() -> list[LLMProvider]:
             )
         )
 
-    if os.getenv("GEMINI_API_KEY"):
+    if resolve_numbered_key("GEMINI_API_KEY"):
         providers.append(
             GeminiProvider(
                 name="gemini",

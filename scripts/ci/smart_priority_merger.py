@@ -33,6 +33,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from core.utils.api_key_resolver import resolve_numbered_key
 
 # বাংলা মন্তব্য: উইন্ডোজ এবং সিআই-তে ইউনিকোড/বাংলা আউটপুট নিশ্চিত করতে utf-8 রিকনফিগারেশন
 if hasattr(sys.stdout, "reconfigure"):
@@ -1130,7 +1131,7 @@ class AISentinelReviewer:
     def _providers(cls) -> List[Dict[str, str]]:
         """কনফিগার করা LLM প্রোভাইডার চেইন (Groq আগে — সুপারফাস্ট ফ্রি টায়ার)।"""
         providers: List[Dict[str, str]] = []
-        groq_key = os.getenv("GROQ_API_KEY") or ""
+        groq_key = resolve_numbered_key("GROQ_API_KEY") or ""
         if groq_key:
             providers.append(
                 {
@@ -1140,7 +1141,7 @@ class AISentinelReviewer:
                     "model": os.getenv("MERGE_TRAIN_GROQ_MODEL") or "llama-3.3-70b-versatile",
                 }
             )
-        gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
+        gemini_key = resolve_numbered_key("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
         if gemini_key:
             providers.append(
                 {
