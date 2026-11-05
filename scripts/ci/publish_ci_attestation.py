@@ -42,7 +42,8 @@ def main() -> int:
         "expected_sha": os.environ.get("EXPECTED_SHA", ""),
         "result": os.environ.get("CI_RESULT", "unknown"),
         "runner_service": os.environ.get(
-            "RENDER_SVC_ID", os.environ.get("RENDER_CI_RUNNER_SVC_ID", "")
+            "RENDER_SERVICE_ID",
+            os.environ.get("RENDER_SVC_ID", os.environ.get("RENDER_CI_RUNNER_SVC_ID", ""))
         ),
     }
     body = json.dumps(payload).encode("utf-8")
