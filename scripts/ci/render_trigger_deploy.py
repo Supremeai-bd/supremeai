@@ -64,7 +64,10 @@ def main() -> int:
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
-            body = client.trigger_deploy(svc_id)
+            commit_id = (os.environ.get("PR_HEAD_SHA", "").strip()
+                         or os.environ.get("EXPECTED_SHA", "").strip()
+                         or os.environ.get("GITHUB_SHA", "").strip()) or None
+            body = client.trigger_deploy(svc_id, commit_id=commit_id)
             print("Deploy triggered:", body)
             if not RENDER_WAIT:
                 return 0
