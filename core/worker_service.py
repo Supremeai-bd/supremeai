@@ -359,6 +359,27 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "service": "supremeai-worker"}
 
 
+@app.get("/release")
+async def release() -> dict[str, Any]:
+    """Safe unauthenticated release identity endpoint for deploy attestation."""
+    commit = (
+        os.getenv("RENDER_GIT_COMMIT")
+        or os.getenv("GIT_COMMIT")
+        or os.getenv("GITHUB_SHA")
+        or os.getenv("SUPREME_COMMIT_SHA")
+        or ""
+    ).strip()
+    if commit == "unknown":
+        commit = ""
+    return {
+        "service": os.getenv("RENDER_SERVICE_NAME") or "supremeai-worker",
+        "environment": os.getenv("RENDER_ENV") or os.getenv("ENV", "production"),
+        "commit": commit,
+        "build_id": os.getenv("RENDER_DEPLOY_ID") or os.getenv("RENDER_INSTANCE_ID") or "",
+        "role": ROLE,
+    }
+
+
 @app.get("/health/live")
 @app.get("/api/v1/health/live")
 async def liveness() -> JSONResponse:

@@ -160,9 +160,9 @@ services:
     service_id_aliases:
       - RENDER_CORE_SVC_ID
       - RENDER_PRIMARY_SVC_ID
-    canonical_api_key_env: RENDER_API_KEY
+    canonical_api_key_env: RENDER_API_KEY_1
     api_key_aliases:
-      - RENDER_API_KEY_1
+      - RENDER_API_KEY
     canonical_url_env: RENDER_PRIMARY_URL
     url_aliases:
       - RENDER_CORE_URL

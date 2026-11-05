@@ -144,7 +144,8 @@ def test_phase0_canonical_service_registry_and_ssot_alignment() -> None:
     # 2. Verify plan_render_deploys.py rules match canonical_service_id_env and canonical_api_key_env
     from scripts.ci.plan_render_deploys import SERVICE_ID_ALIASES, SERVICE_RULES
 
-    for svc_name, (env_id, api_key_env, _prefixes) in SERVICE_RULES.items():
+    for svc_name, rule in SERVICE_RULES.items():
+        env_id, api_key_env = rule[0], rule[1]
         assert svc_name in services, f"Planner service {svc_name} missing from service_registry.yaml"
         reg_svc = services[svc_name]
         assert reg_svc["canonical_service_id_env"] == env_id
@@ -178,3 +179,28 @@ def test_phase0_canonical_service_registry_and_ssot_alignment() -> None:
     render_canon = canon_reg["families"]["RENDER"]["canonical"]
     assert "RENDER_PRIMARY_SVC_ID" in render_canon["RENDER_CORE_SERVICE_ID"]
     assert "RENDER_BROWSER_SERVICE_ID" in render_canon["RENDER_SCRAPER_SERVICE_ID"]
+
+
+def test_phase3_dockerfile_hygiene_and_post_merge_release_attestation_wiring() -> None:
+    """Verify Phase 3 Dockerfile pin hygiene (zero gate-defeat '|| pip install')
+    and post-merge /release public-path + per-service release_url matrix wiring."""
+    # 1. /release must be in supremeai_public_paths so AuthMiddleware does not block attestation with 401
+    from core.config import Settings
+
+    public_paths = Settings.model_fields["supremeai_public_paths"].default
+    assert "/release" in public_paths
+    assert "/health/release" in public_paths
+
+    # 2. gateway/Dockerfile and gateway/gateway/Dockerfile must not contain '|| pip install' gate-defeat
+    gw_docker = (REPO_ROOT / "gateway" / "Dockerfile").read_text(encoding="utf-8")
+    assert "|| pip install" not in gw_docker
+    assert "COPY gateway/requirements.txt /app/requirements.txt" in gw_docker
+
+    gw_nested_docker = (REPO_ROOT / "gateway" / "gateway" / "Dockerfile").read_text(encoding="utf-8")
+    assert "|| pip install" not in gw_nested_docker
+
+    # 3. unified-pipeline.yml must pass matrix.release_url (not hardcoded RENDER_CORE_RELEASE_URL)
+    unified_wf = (REPO_ROOT / ".github" / "workflows" / "unified-pipeline.yml").read_text(encoding="utf-8")
+    assert "RELEASE_URL: ${{ matrix.release_url }}" in unified_wf
+    assert "python scripts/ops/wiring_atlas.py --check" in unified_wf
+

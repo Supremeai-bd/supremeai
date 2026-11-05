@@ -53,8 +53,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
-ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+# CORS — explicit trusted origins only (no wildcard with credentials)
+_raw_brain_origins = [
+    o.strip()
+    for o in os.getenv(
+        "CORS_ORIGINS",
+        "https://studio.supremeai.bd,https://supremeai-studio.vercel.app,http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
+    if o.strip() and o.strip() != "*"
+]
+ALLOWED_ORIGINS = _raw_brain_origins or ["https://studio.supremeai.bd"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -116,6 +124,23 @@ def health():
         "status": "healthy",
         "cache_size": len(DECISION_CACHE),
         "uptime": time.time(),
+    }
+
+
+@app.get("/release")
+def release():
+    commit = (
+        os.getenv("RENDER_GIT_COMMIT")
+        or os.getenv("GIT_COMMIT")
+        or os.getenv("GITHUB_SHA")
+        or os.getenv("COMMIT_SHA")
+        or ""
+    ).strip()
+    return {
+        "service": os.getenv("RENDER_SERVICE_NAME") or "supremeai-tiny-brain",
+        "environment": os.getenv("RENDER_ENV") or os.getenv("ENV", "production"),
+        "commit": commit,
+        "build_id": os.getenv("RENDER_DEPLOY_ID") or os.getenv("RENDER_INSTANCE_ID") or "",
     }
 
 

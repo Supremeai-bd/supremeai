@@ -13,9 +13,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Runtime deps only. Kept inline (no requirements.txt in this module yet)
-# and unpinned-major so the build survives free-tier cache windows.
-RUN pip install --no-cache-dir "fastapi>=0.115,<1" "uvicorn>=0.30,<1" "pydantic>=2,<3"
+# Runtime deps only — exact pinned closure (matches browser/requirements.txt)
+RUN pip install --no-cache-dir "fastapi==0.162.0" "uvicorn==0.54.0" "pydantic==2.14.1"
 
 COPY main.py ./
 

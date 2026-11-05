@@ -348,9 +348,11 @@ class SettingsFieldsMixin:
     supremeai_public_paths: str | list[str] = Field(
         default=[
             "/",
+            "/release",
             "/health",
             "/health/live",
             "/health/ready",
+            "/health/release",
             "/metrics",
             "/docs",
             "/redoc",
@@ -390,6 +392,7 @@ class SettingsFieldsMixin:
             # against those paths fell through to the auth middleware (401).
             "/api/v1/health/live",
             "/api/v1/health/ready",
+            "/api/v1/health/release",
             "/api/voice/stream_audio",
             "/api/billing/webhook/stripe",
             "/api/billing/webhook/sslcommerz",

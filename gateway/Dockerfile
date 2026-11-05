@@ -7,10 +7,11 @@ WORKDIR /app
 ARG RENDER_GIT_COMMIT=""
 ENV RENDER_GIT_COMMIT=${RENDER_GIT_COMMIT} GIT_COMMIT=${RENDER_GIT_COMMIT}
 
-# Requirements live at the satellite root (federation_satellite_sync.py maps
-# gateway/requirements.txt -> requirements.txt); single source, no flat copy.
-COPY requirements*.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt || pip install --no-cache-dir fastapi uvicorn
+# Requirements live at gateway/requirements.txt in monorepo root context (and
+# at requirements.txt when built from satellite root). Copy explicitly and fail
+# closed if dependency installation fails.
+COPY gateway/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY gateway/contracts/ contracts/
 COPY gateway/config/ config/

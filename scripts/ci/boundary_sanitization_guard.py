@@ -166,6 +166,8 @@ APPROVED_SUBTREES = {
         "main.py",
         "requirements.txt",
         "Dockerfile",
+        "Dockerfile.ci",
+        "docker",
         "LICENSE",
         "startup",
         "startup_validator.py",
