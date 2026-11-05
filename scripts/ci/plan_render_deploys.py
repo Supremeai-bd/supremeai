@@ -6,18 +6,24 @@ The script emits GitHub Actions output:
   has_services=true|false
   unregistered=service:env_name,...
 
-Service IDs are read from GitHub Actions variables, not committed source:
+Service IDs are read from GitHub Actions variables (preferring canonical
+`RENDER_*_SERVICE_ID` with compatibility fallback to legacy `RENDER_*_SVC_ID`),
+not committed source:
   RENDER_CORE_SERVICE_ID
   RENDER_API_SERVICE_ID
-  RENDER_BROWSER_SERVICE_ID
+  RENDER_SCRAPER_SERVICE_ID  (legacy alias: RENDER_BROWSER_SERVICE_ID)
   RENDER_MCP_SERVICE_ID
+  RENDER_WORKER_SERVICE_ID
+  RENDER_BRAIN_SERVICE_ID
+  RENDER_CI_RUNNER_SERVICE_ID
 
 Failure policy (run 41918034520 root cause):
-  A topology change (render.yaml, this planner) previously required EVERY
-  declared service ID to be configured, and failed the whole job when any one
-  was missing. That is fail-closed to the point of self-sabotage: the planner
-  could not run at all until an operator manually configured four variables,
-  so no deployment ever happened and the job stayed red.
+  A topology change (render.yaml, config/service_registry.yaml, this planner)
+  previously required EVERY declared service ID to be configured, and failed
+  the whole job when any one was missing. That is fail-closed to the point of
+  self-sabotage: the planner could not run at all until an operator manually
+  configured four variables, so no deployment ever happened and the job stayed
+  red.
 
   New policy: a missing ID is never a workflow failure. The affected service is
   marked UNREGISTERED and skipped from the deploy matrix, but the skip is
@@ -74,9 +80,35 @@ SERVICE_RULES = {
     ),
 }
 
+SERVICE_ID_ALIASES = {
+    "RENDER_CORE_SERVICE_ID": ("RENDER_CORE_SVC_ID", "RENDER_PRIMARY_SVC_ID"),
+    "RENDER_API_SERVICE_ID": ("RENDER_API_SVC_ID", "RENDER_SVC_ID"),
+    "RENDER_SCRAPER_SERVICE_ID": ("RENDER_SCRAPER_SVC_ID", "RENDER_BROWSER_SERVICE_ID"),
+    "RENDER_MCP_SERVICE_ID": ("RENDER_MCP_SVC_ID",),
+    "RENDER_WORKER_SERVICE_ID": ("RENDER_WORKER_SVC_ID",),
+    "RENDER_BRAIN_SERVICE_ID": ("RENDER_BRAIN_SVC_ID",),
+    "RENDER_CI_RUNNER_SERVICE_ID": ("RENDER_CI_RUNNER_SVC_ID",),
+}
+
 # Files that widen the contract: when any of these change, every declared
 # service must be re-verified even if its own paths did not change.
-TOPOLOGY_FILES = {"render.yaml", "scripts/ci/plan_render_deploys.py"}
+TOPOLOGY_FILES = {
+    "render.yaml",
+    "config/service_registry.yaml",
+    "core/config/service_topology.yaml",
+    "scripts/ci/plan_render_deploys.py",
+}
+
+
+def resolve_service_id(canonical_env: str) -> str:
+    val = os.environ.get(canonical_env, "").strip()
+    if val:
+        return val
+    for alias in SERVICE_ID_ALIASES.get(canonical_env, ()):
+        alias_val = os.environ.get(alias, "").strip()
+        if alias_val:
+            return alias_val
+    return ""
 
 
 def changed_files(base: str, head: str) -> list[str]:
@@ -117,7 +149,7 @@ def main() -> int:
         ]
 
     for service, (env_name, api_key_env, _prefixes) in candidates:
-        service_id = os.environ.get(env_name, "").strip()
+        service_id = resolve_service_id(env_name)
         if not service_id:
             unregistered.append(f"{service}:{env_name}")
             print(

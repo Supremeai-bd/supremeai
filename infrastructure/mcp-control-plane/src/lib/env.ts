@@ -118,21 +118,21 @@ export const env = {
   get backendUrl(): string { return optional("SUPREMEAI_BACKEND_URL"); },
   get backendServiceToken(): string { return optional("SUPREMEAI_BACKEND_SERVICE_TOKEN"); },
 
-  // ── Render (5 accounts)
+  // ── Render (canonical RENDER_*_SERVICE_ID first, legacy *_SVC_ID fallback)
   render: {
     primary: {
       get apiKey(): string { return optional("RENDER_API_KEY_1", optional("RENDER_API_KEY")); },
-      get serviceId(): string { return optional("RENDER_PRIMARY_SVC_ID", optional("RENDER_CORE_SERVICE_ID")); },
-      get url(): string { return optional("RENDER_PRIMARY_URL"); },
+      get serviceId(): string { return optional("RENDER_CORE_SERVICE_ID", optional("RENDER_PRIMARY_SVC_ID", optional("RENDER_CORE_SVC_ID"))); },
+      get url(): string { return optional("RENDER_PRIMARY_URL", optional("RENDER_CORE_URL")); },
     },
     worker: {
       get apiKey(): string { return optional("RENDER_API_KEY_2", optional("RENDER_API_KEY")); },
-      get serviceId(): string { return optional("RENDER_WORKER_SVC_ID", optional("RENDER_WORKER_SERVICE_ID")); },
+      get serviceId(): string { return optional("RENDER_WORKER_SERVICE_ID", optional("RENDER_WORKER_SVC_ID")); },
       get url(): string { return optional("RENDER_WORKER_URL"); },
     },
     scraper: {
       get apiKey(): string { return optional("RENDER_API_KEY_3", optional("RENDER_API_KEY")); },
-      get serviceId(): string { return optional("RENDER_SCRAPER_SVC_ID", optional("RENDER_SCRAPER_SERVICE_ID")); },
+      get serviceId(): string { return optional("RENDER_SCRAPER_SERVICE_ID", optional("RENDER_SCRAPER_SVC_ID", optional("RENDER_BROWSER_SERVICE_ID"))); },
       get url(): string { return optional("RENDER_SCRAPER_URL"); },
     },
     controlTower: {
@@ -140,7 +140,7 @@ export const env = {
       // declares RENDER_API_KEY (sync:false) for this service, while the
       // numbered RENDER_API_KEY_4 only exists when Infisical injects it.
       get apiKey(): string { return optional("RENDER_API_KEY_4", optional("RENDER_API_KEY")); },
-      get serviceId(): string { return optional("RENDER_MCP_SVC_ID", optional("RENDER_MCP_SERVICE_ID")); },
+      get serviceId(): string { return optional("RENDER_MCP_SERVICE_ID", optional("RENDER_MCP_SVC_ID")); },
       get url(): string { return optional("RENDER_MCP_URL"); },
     },
     api: {
@@ -149,7 +149,7 @@ export const env = {
       // surfaced as unavailable instead of targeting a stale service.
       // Stale hardcoded ID srv-dbappass728c7396p580 removed (run 41918034520).
       get apiKey(): string { return optional("RENDER_API_KEY_5", optional("RENDER_API_KEY_API", optional("RENDER_API_KEY"))); },
-      get serviceId(): string { return optional("RENDER_API_SVC_ID", optional("RENDER_API_SERVICE_ID")); },
+      get serviceId(): string { return optional("RENDER_API_SERVICE_ID", optional("RENDER_API_SVC_ID")); },
       get url(): string { return optional("RENDER_API_URL"); },
     },
     brain: {
@@ -157,15 +157,15 @@ export const env = {
       // Must be explicitly configured to the Tiny Brain URL. Never fall back
       // to the primary node: that makes the wrong service look healthy.
       // Stale hardcoded ID srv-dabm7dfqj5pc738jkbmg removed (run 41918034520).
-      get serviceId(): string { return optional("RENDER_BRAIN_SVC_ID", optional("RENDER_BRAIN_SERVICE_ID")); },
+      get serviceId(): string { return optional("RENDER_BRAIN_SERVICE_ID", optional("RENDER_BRAIN_SVC_ID")); },
       get url(): string { return optional("RENDER_BRAIN_URL"); },
     },
     ciRunner: {
       get apiKey(): string { return optional("RENDER_API_KEY_7", optional("RENDER_API_KEY_PAYKARI", optional("RENDER_API_KEY"))); },
       // Stale hardcoded ID srv-dbl8tbmtlv9c73bbkvqg removed (run 41918034520);
       // CI runner identity now comes from the GitHub Actions variable
-      // RENDER_CI_RUNNER_SVC_ID, never baked into source.
-      get serviceId(): string { return optional("RENDER_CI_RUNNER_SVC_ID", optional("RENDER_CI_RUNNER_SERVICE_ID")); },
+      // RENDER_CI_RUNNER_SERVICE_ID (with RENDER_CI_RUNNER_SVC_ID fallback), never baked into source.
+      get serviceId(): string { return optional("RENDER_CI_RUNNER_SERVICE_ID", optional("RENDER_CI_RUNNER_SVC_ID")); },
       get url(): string { return optional("RENDER_CI_RUNNER_URL"); },
     },
   },
@@ -173,8 +173,8 @@ export const env = {
   // ── Supabase
   supabase: {
     get url(): string { return optional("SUPABASE_URL"); },
-    get anonKey(): string { return optional("SUPABASE_KEY"); },
-    get serviceRoleKey(): string { return optional("SUPABASE_SERVICE_ROLE_KEY"); },
+    get anonKey(): string { return optional("SUPABASE_ANON_KEY", optional("SUPABASE_KEY")); },
+    get serviceRoleKey(): string { return optional("SUPABASE_SERVICE_ROLE_KEY", optional("SUPABASE_SERVICE_KEY")); },
     get dbUrl(): string { return optional("SUPABASE_DATABASE_URL"); },
   },
 
@@ -390,5 +390,3 @@ export function validateRuntimeKnobs(): void {
   void env.devtools.resultCapBytes;
   void env.runtime.sessionAdmissionIdleFloorMs;
 }
-
-

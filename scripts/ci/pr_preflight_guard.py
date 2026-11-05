@@ -2,6 +2,12 @@
 from __future__ import annotations
 import argparse, os, re, subprocess, sys, shutil, json as _json
 from pathlib import Path
+import contextlib
+
+if hasattr(sys.stdout, "reconfigure"):
+    with contextlib.suppress(Exception):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 BRANCH_RE = re.compile(r"^(feat|fix|chore|docs|ci|test|refactor|perf|bridge|hotfix)/[a-z0-9][a-z0-9._/-]*$")
 ISSUE_RE = re.compile(r"(Closes|Fixes|Refs|Resolves)\s+#\d+", re.IGNORECASE)

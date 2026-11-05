@@ -1,0 +1,301 @@
+# ============================================================================
+# SupremeAI Canonical Service Registry — Single Source of Truth (SSOT)
+# ============================================================================
+# Consolidates service identities, entrypoints, ports, health contracts,
+# canonical service ID / API key environment variables, legacy aliases, and
+# deploy watch-paths across `render.yaml`, `scripts/ci/plan_render_deploys.py`,
+# `core/config/service_topology.yaml`, and `infrastructure/mcp-control-plane`.
+#
+# Invariants:
+#   1. Canonical service ID env vars strictly use `RENDER_*_SERVICE_ID`.
+#   2. Legacy `RENDER_*_SVC_ID` aliases are compatibility-only.
+#   3. No secret values are ever stored here — only variable names and contracts.
+# ============================================================================
+schema_version: 1
+unknown_policy: conservative-backend
+
+noise:
+  exact:
+    - LICENSE
+    - CHANGELOG.md
+    - CODEOWNERS
+  prefixes:
+    - docs/
+    - tests/
+    - qa/
+    - scripts/
+    - .github/
+    - data/
+    - reports/
+    - knowledge/
+    - archives/
+    - config/
+  suffixes:
+    - ".md"
+
+services:
+  api:
+    render_name: supremeai-api
+    role: "Public API Gateway & Multi-LLM Provider Router"
+    platform: render
+    plan: free
+    memory_budget_mb: 512
+    estimated_ram_mb: 65
+    deploy_key: api
+    dockerfile: gateway/Dockerfile
+    docker_context: .
+    entrypoint: "uvicorn gateway.service.app:app --host 0.0.0.0 --port ${PORT:-8787}"
+    local_port: 8787
+    container_port: 8787
+    health_path: /healthz
+    readiness_path: /readyz
+    production_url: "https://supremeai-api-ulw0.onrender.com"
+    canonical_service_id_env: RENDER_API_SERVICE_ID
+    service_id_aliases:
+      - RENDER_API_SVC_ID
+      - RENDER_SVC_ID
+    canonical_api_key_env: RENDER_API_KEY_5
+    api_key_aliases:
+      - RENDER_API_KEY_API
+      - RENDER_API_KEY
+    canonical_url_env: RENDER_API_URL
+    url_aliases:
+      - SUPREMEAI_API_URL
+      - SUPREMEAI_GATEWAY_URL
+    watch_paths:
+      - "gateway/**"
+      - "config/routing_policy*"
+      - "render.yaml"
+      - "scripts/lib/**"
+
+  scraper:
+    render_name: supremeai-browser
+    service_family:
+      - scraper
+      - browser
+    role: "Lightweight Stealth Cookie & $0 Web Session Relay"
+    platform: render
+    plan: free
+    memory_budget_mb: 512
+    estimated_ram_mb: 35
+    deploy_key: scraper
+    dockerfile: browser/Dockerfile
+    docker_context: browser
+    entrypoint: "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"
+    local_port: 8788
+    container_port: 8080
+    health_path: /health
+    readiness_path: /health
+    production_url: "https://supremeai-scraper-node.onrender.com"
+    canonical_service_id_env: RENDER_SCRAPER_SERVICE_ID
+    service_id_aliases:
+      - RENDER_SCRAPER_SVC_ID
+      - RENDER_BROWSER_SERVICE_ID
+    canonical_api_key_env: RENDER_API_KEY_3
+    api_key_aliases:
+      - RENDER_API_KEY
+    canonical_url_env: RENDER_SCRAPER_URL
+    url_aliases:
+      - STEALTH_WEBHOOK_URL
+      - UPSTREAM_WEBHOOK_URL
+      - SUPREMEAI_WEB_RELAY_URL
+    watch_paths:
+      - "browser/**"
+      - "core/**"
+      - "render.yaml"
+      - "scripts/lib/**"
+      - "scripts/runtime/**"
+
+  mcp:
+    render_name: supremeai-mcp-tower
+    role: "MCP Control Plane & Governed Agent Single Door"
+    platform: render
+    plan: free
+    memory_budget_mb: 512
+    estimated_ram_mb: 90
+    deploy_key: mcp
+    root_dir: infrastructure/mcp-control-plane
+    dockerfile: infrastructure/mcp-control-plane/Dockerfile
+    entrypoint: "python scripts/runtime/infisical_bootstrap.py npm run start"
+    local_port: 3771
+    container_port: 3771
+    health_path: /health
+    readiness_path: /health
+    production_url: "https://supremeai-mcp-tower.onrender.com"
+    canonical_service_id_env: RENDER_MCP_SERVICE_ID
+    service_id_aliases:
+      - RENDER_MCP_SVC_ID
+    canonical_api_key_env: RENDER_API_KEY_4
+    api_key_aliases:
+      - RENDER_API_KEY
+    canonical_url_env: RENDER_MCP_URL
+    url_aliases:
+      - MCP_URL
+    watch_paths:
+      - "infrastructure/mcp-control-plane/**"
+      - "core/mcp_adapters/**"
+      - "backend/mcp_adapters/**"
+      - "mcp.json"
+      - "scripts/runtime/**"
+      - "render.yaml"
+
+  core:
+    render_name: supremeai-primary
+    role: "Primary Core Intelligence & Decision Runtime"
+    platform: render
+    plan: free
+    memory_budget_mb: 512
+    estimated_ram_mb: 140
+    deploy_key: core
+    dockerfile: core/Dockerfile
+    docker_context: core
+    entrypoint: "python main.py"
+    local_port: 8000
+    container_port: 8080
+    health_path: /health
+    liveness_path: /health/live
+    readiness_path: /health/ready
+    production_url: "https://supremeai-primary-node-5xso.onrender.com"
+    canonical_service_id_env: RENDER_CORE_SERVICE_ID
+    service_id_aliases:
+      - RENDER_CORE_SVC_ID
+      - RENDER_PRIMARY_SVC_ID
+    canonical_api_key_env: RENDER_API_KEY
+    api_key_aliases:
+      - RENDER_API_KEY_1
+    canonical_url_env: RENDER_PRIMARY_URL
+    url_aliases:
+      - RENDER_CORE_URL
+      - SUPREMEAI_BACKEND_URL
+      - USER_BACKEND_URL
+    watch_paths:
+      - "core/**"
+      - "backend/**"
+      - "requirements*"
+      - "pyproject.toml"
+      - "Dockerfile"
+      - "scripts/lib/**"
+      - "scripts/runtime/**"
+
+  worker:
+    render_name: supremeai-worker
+    role: "Async Background Task & Queue Worker"
+    platform: render
+    plan: free
+    memory_budget_mb: 512
+    estimated_ram_mb: 80
+    deploy_key: worker
+    dockerfile: core/services/worker/Dockerfile
+    entrypoint: "python core/services/worker/main.py"
+    local_port: 8080
+    container_port: 8080
+    health_path: /health
+    readiness_path: /health
+    production_url: "https://supremeai-worker-node.onrender.com"
+    canonical_service_id_env: RENDER_WORKER_SERVICE_ID
+    service_id_aliases:
+      - RENDER_WORKER_SVC_ID
+    canonical_api_key_env: RENDER_API_KEY_2
+    api_key_aliases:
+      - RENDER_API_KEY
+    canonical_url_env: RENDER_WORKER_URL
+    url_aliases: []
+    watch_paths:
+      - "core/**"
+      - "backend/**"
+      - "scripts/lib/**"
+      - "scripts/runtime/**"
+
+  brain:
+    render_name: supremeai-brain
+    role: "Dedicated Tiny AI Brain & Model Routing Node"
+    platform: render
+    plan: free
+    memory_budget_mb: 512
+    estimated_ram_mb: 95
+    deploy_key: brain
+    dockerfile: core/services/brain/Dockerfile
+    entrypoint: "python core/services/brain/main.py"
+    local_port: 8080
+    container_port: 8080
+    health_path: /health
+    readiness_path: /health
+    production_url: "https://supremeai-primary-node-5xso.onrender.com"
+    canonical_service_id_env: RENDER_BRAIN_SERVICE_ID
+    service_id_aliases:
+      - RENDER_BRAIN_SVC_ID
+    canonical_api_key_env: RENDER_API_KEY_6
+    api_key_aliases:
+      - RENDER_API_KEY
+    canonical_url_env: RENDER_BRAIN_URL
+    url_aliases: []
+    watch_paths:
+      - "core/services/brain/**"
+      - "core/**"
+      - "scripts/lib/**"
+
+  ci-runner:
+    render_name: supremeai-ci-runner
+    role: "Remote Heavy Verification & CI Offload Runner"
+    platform: render
+    plan: free
+    memory_budget_mb: 512
+    estimated_ram_mb: 110
+    deploy_key: ci-runner
+    canonical_service_id_env: RENDER_CI_RUNNER_SERVICE_ID
+    service_id_aliases:
+      - RENDER_CI_RUNNER_SVC_ID
+    canonical_api_key_env: RENDER_API_KEY_PAYKARI
+    api_key_aliases:
+      - RENDER_API_KEY_7
+      - RENDER_API_KEY
+    canonical_url_env: RENDER_CI_RUNNER_URL
+    url_aliases: []
+    watch_paths:
+      - "scripts/ci/**"
+      - "scripts/ops/**"
+      - "scripts/lib/**"
+
+  cloudflare:
+    render_name: cloudflare-studio-proxy
+    role: "Studio Edge Proxy, CORS Rewriter & 10m Keep-Warm Cron"
+    platform: cloudflare
+    deploy_key: cloudflare
+    entrypoint: "studio/infrastructure/cloudflare-studio-proxy/src/index.js"
+    health_path: /cf-health
+    keepwarm_path: /cf-keepwarm
+    production_url: "https://supremeai.live"
+    canonical_url_env: CLOUDFLARE_WORKER_URL
+    watch_paths:
+      - "infrastructure/**"
+      - "studio/infrastructure/cloudflare-studio-proxy/**"
+    exclude_paths:
+      - "infrastructure/mcp-control-plane/**"
+
+  frontend:
+    render_name: supremeai-studio
+    role: "User-Facing React/Vite Studio & Mission Control Cockpit"
+    platform: vercel
+    deploy_key: frontend
+    entrypoint: "studio/package.json"
+    local_port: 5173
+    preview_port: 3000
+    production_url: "https://supremeai-studio.vercel.app"
+    watch_paths:
+      - "studio/**"
+      - "frontend/**"
+      - "client/**"
+      - "apps/**"
+    exclude_paths:
+      - "studio/infrastructure/cloudflare-studio-proxy/**"
+
+  firebase:
+    render_name: supremeai-firebase
+    role: "Firebase Auth & Firestore Security Rules"
+    platform: firebase
+    deploy_key: firebase
+    watch_paths:
+      - "firebase/**"
+      - "firebase.template.json"
+      - ".firebaserc"
+

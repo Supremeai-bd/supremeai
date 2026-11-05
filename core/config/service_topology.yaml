@@ -35,25 +35,40 @@ services:
   core:
     platform: render
     deploy_key: core
+    canonical_service_id_env: RENDER_CORE_SERVICE_ID
     watch_paths:
+      - "core/**"
       - "backend/**"
 
   worker:
     platform: render
     deploy_key: worker
+    canonical_service_id_env: RENDER_WORKER_SERVICE_ID
     watch_paths:
+      - "core/**"
       - "backend/**"
+
+  api:
+    platform: render
+    deploy_key: api
+    canonical_service_id_env: RENDER_API_SERVICE_ID
+    watch_paths:
+      - "gateway/**"
+      - "config/routing_policy*"
 
   scraper:
     platform: render
     deploy_key: scraper
+    canonical_service_id_env: RENDER_SCRAPER_SERVICE_ID
     manual_only: true          # #2901: কেবল স্পষ্ট/manual সিদ্ধান্তে
     watch_paths: []
 
   mcp:
     platform: render
     deploy_key: mcp
+    canonical_service_id_env: RENDER_MCP_SERVICE_ID
     watch_paths:
+      - "core/mcp_adapters/**"
       - "backend/mcp_adapters/**"
       - "mcp.json"
       - "infrastructure/mcp-control-plane/**"   # #4246 live bug fix: আসল টাওয়ারের ঘর এখানেই
@@ -63,6 +78,7 @@ services:
     deploy_key: cloudflare
     watch_paths:
       - "infrastructure/**"
+      - "studio/infrastructure/cloudflare-studio-proxy/**"
     exclude_paths:
       - "infrastructure/mcp-control-plane/**"   # mcp-টাওয়ার পাথ cloudflare-কে আর ট্রিগার করবে না (#4246)
 
@@ -70,9 +86,12 @@ services:
     platform: vercel
     deploy_key: frontend
     watch_paths:
+      - "studio/**"
       - "frontend/**"
       - "client/**"
       - "apps/**"
+    exclude_paths:
+      - "studio/infrastructure/cloudflare-studio-proxy/**"
 
   firebase:
     platform: firebase

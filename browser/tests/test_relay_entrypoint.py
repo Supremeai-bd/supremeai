@@ -19,13 +19,25 @@ def test_main_app_structure() -> None:
 
 
 def test_health_check() -> None:
-    """Verify GET /health returns 200 OK and healthy status."""
+    """Verify GET /health returns 200 OK and 512MB lightweight HTTP status."""
     client = TestClient(main.app)
     resp = client.get("/health")
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "healthy"
     assert "supremeai-browser" in data.get("browser_service", data.get("service", ""))
+    assert data.get("lightweight_http_mode") is True
+    assert data.get("playwright_available") is False
+    assert data.get("memory_budget_mb") == 512
+
+
+def test_server_py_never_imports_playwright_on_chat_path() -> None:
+    """Guard: browser/server.py must stay 100% pure HTTP without Playwright Chromium bloat."""
+    server_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "server.py")
+    with open(server_path, encoding="utf-8") as fp:
+        src = fp.read()
+    assert "async_playwright" not in src
+    assert "chromium.launch" not in src
 
 
 def test_stealth_secret_auth_guard() -> None:
@@ -92,7 +104,7 @@ def test_duck_ai_routing_and_fallback() -> None:
         assert data["supremeai_engine"] == "dk"
         mock_duck.assert_called_once_with("test prompt", model="duck-gpt-4o-mini")
 
-    # 2. When Gemini fails, it seamlessly falls back to Duck.ai
+    # 2. When Gemini fails, it seamlessly falls back to Duck.ai / $0 HTTP relay
     with mock.patch.object(main.relay_engine, "ask", side_effect=Exception("Gemini cookie expired")):
         with mock.patch.object(main.duck_engine, "ask", return_value="fallback reply") as mock_fallback:
             resp = client.post(
@@ -105,3 +117,21 @@ def test_duck_ai_routing_and_fallback() -> None:
             assert data["model"] == "duck-gpt-4o-mini"
             assert data["supremeai_engine"] == "dk"
             mock_fallback.assert_called_once_with("prompt needing fallback", model="gpt-4o-mini")
+
+
+def test_duck_ai_zero_auth_http_fallback_when_vqd_blocked() -> None:
+    """Verify DuckAiEngine falls back to zero-auth HTTP relay when Duck.ai VQD token is blocked."""
+    client = TestClient(main.app)
+    with mock.patch.object(main.relay_engine, "ask", side_effect=Exception("No Gemini cookies configured")):
+        with mock.patch.object(main.duck_engine, "_fetch_vqd_token", return_value=None):
+            with mock.patch.object(
+                main.duck_engine, "_ask_zero_auth_http_relay", return_value="zero-auth $0 reply"
+            ) as mock_zero_auth:
+                resp = client.post(
+                    "/v1/chat/completions",
+                    json={"messages": [{"role": "user", "content": "Hello without cookies"}]},
+                )
+                assert resp.status_code == 200
+                data = resp.json()
+                assert data["choices"][0]["message"]["content"] == "zero-auth $0 reply"
+                mock_zero_auth.assert_called_once()

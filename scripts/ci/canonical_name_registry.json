@@ -1,17 +1,72 @@
 {
   "version": 1,
-  "description": "Canonical secret name registry. Aliases are legacy/variant names that should be migrated to the canonical name.",
+  "description": "Canonical secret and environment variable name registry. Aliases are legacy/variant names that should be migrated to the canonical name.",
   "families": {
     "RENDER": {
       "canonical": {
-        "RENDER_API_KEY": ["RENDER_API_KEY_1", "RENDER_API_KEY_2", "RENDER_API_KEY_3", "RENDER_API_KEY_4", "RENDER_API_KEY_5", "RENDER_API_KEY_6", "RENDER_API_KEY_7", "RENDER_API_KEY_PAYKARI", "RENDER_API_KEY_BACKUP", "RENDER_API_KEY_API", "RENDER_API_KEY_WEB", "RENDER_API_KEY_ENV", "RENDER_API_KEY_"],
-        "RENDER_CORE_SERVICE_ID": ["RENDER_CORE_SVC_ID"],
-        "RENDER_API_SERVICE_ID": ["RENDER_API_SVC_ID"],
-        "RENDER_BRAIN_SERVICE_ID": ["RENDER_BRAIN_SVC_ID"],
-        "RENDER_MCP_SERVICE_ID": ["RENDER_MCP_SVC_ID"],
-        "RENDER_SCRAPER_SERVICE_ID": ["RENDER_SCRAPER_SVC_ID"],
-        "RENDER_WORKER_SERVICE_ID": ["RENDER_WORKER_SVC_ID"],
-        "RENDER_CI_RUNNER_SERVICE_ID": ["RENDER_CI_RUNNER_SVC_ID"]
+        "RENDER_API_KEY": [
+          "RENDER_API_KEY_1",
+          "RENDER_API_KEY_2",
+          "RENDER_API_KEY_3",
+          "RENDER_API_KEY_4",
+          "RENDER_API_KEY_5",
+          "RENDER_API_KEY_6",
+          "RENDER_API_KEY_7",
+          "RENDER_API_KEY_PAYKARI",
+          "RENDER_API_KEY_BACKUP",
+          "RENDER_API_KEY_API",
+          "RENDER_API_KEY_WEB",
+          "RENDER_API_KEY_ENV",
+          "RENDER_API_KEY_",
+          "RENDER_API_TOKEN"
+        ],
+        "RENDER_CORE_SERVICE_ID": [
+          "RENDER_CORE_SVC_ID",
+          "RENDER_PRIMARY_SVC_ID"
+        ],
+        "RENDER_API_SERVICE_ID": [
+          "RENDER_API_SVC_ID",
+          "RENDER_SVC_ID"
+        ],
+        "RENDER_BRAIN_SERVICE_ID": [
+          "RENDER_BRAIN_SVC_ID"
+        ],
+        "RENDER_MCP_SERVICE_ID": [
+          "RENDER_MCP_SVC_ID"
+        ],
+        "RENDER_SCRAPER_SERVICE_ID": [
+          "RENDER_SCRAPER_SVC_ID",
+          "RENDER_BROWSER_SERVICE_ID"
+        ],
+        "RENDER_WORKER_SERVICE_ID": [
+          "RENDER_WORKER_SVC_ID"
+        ],
+        "RENDER_CI_RUNNER_SERVICE_ID": [
+          "RENDER_CI_RUNNER_SVC_ID"
+        ]
+      }
+    },
+    "STEALTH_WEBHOOK": {
+      "canonical": {
+        "STEALTH_WEBHOOK_URL": [
+          "UPSTREAM_WEBHOOK_URL",
+          "SUPREMEAI_WEB_RELAY_URL"
+        ],
+        "STEALTH_WEBHOOK_SECRET": [
+          "UPSTREAM_WEBHOOK_SECRET"
+        ]
+      }
+    },
+    "SUPABASE": {
+      "canonical": {
+        "SUPABASE_SERVICE_ROLE_KEY": [
+          "SUPABASE_SERVICE_KEY",
+          "SUPABASE_SECRET_KEY"
+        ],
+        "SUPABASE_ANON_KEY": [
+          "SUPABASE_KEY",
+          "SUPABASE_PUBLISHABLE_KEY"
+        ]
       }
     }
   }
