@@ -162,6 +162,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      - uses: actions/checkout@v4
       - name: Squash merge PR
         if: >
           needs.fast-gate.result == 'success' &&
@@ -172,7 +173,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           echo "All tier gates passed for PR #${PR_NUMBER}; auto-landing."
-          gh pr merge "$PR_NUMBER" --squash
+          gh pr merge "$PR_NUMBER" --squash --delete-branch
 
   # =========================================================================
   # STAGE 3: POST-MERGE PRODUCTION DEPLOY & CANARY (Only on Push to Main)
