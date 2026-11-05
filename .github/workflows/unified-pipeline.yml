@@ -172,7 +172,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           echo "All tier gates passed for PR #${PR_NUMBER}; auto-landing."
-          gh pr merge "$PR_NUMBER" --squash --delete-branch
+          gh pr merge "$PR_NUMBER" --squash
 
   # =========================================================================
   # STAGE 3: POST-MERGE PRODUCTION DEPLOY & CANARY (Only on Push to Main)
