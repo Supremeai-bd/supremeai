@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import core
 
 # Alias backend.* onto core.* so legacy "backend." imports keep working.

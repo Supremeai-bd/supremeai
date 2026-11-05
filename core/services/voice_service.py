@@ -8,6 +8,7 @@ import time
 from typing import Any
 
 from core.monitoring.logging_config import logger
+from core.utils.api_key_resolver import resolve_numbered_key
 
 # Issue #445 doctrine (real work or loud failure, never fabricated success):
 # the old implementation returned a FIXED Bengali transcript with confidence
@@ -85,7 +86,7 @@ class VoiceService:
             # (Groq -> OpenAI -> HuggingFace). Provider errors auto-switch to the
             # next configured provider (Issue #466 fallback chain).
             provider_chain: list[tuple[str, str]] = []
-            groq_key = os.getenv("GROQ_API_KEY") or getattr(_get_settings(), "groq_api_key", "")
+            groq_key = resolve_numbered_key("GROQ_API_KEY") or getattr(_get_settings(), "groq_api_key", "")
             if groq_key:
                 provider_chain.append(("groq", groq_key))
             openai_key = os.getenv("OPENAI_API_KEY") or getattr(
@@ -93,7 +94,7 @@ class VoiceService:
             )
             if openai_key:
                 provider_chain.append(("openai", openai_key))
-            gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+            gemini_key = resolve_numbered_key("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
             if gemini_key:
                 provider_chain.append(("gemini", gemini_key))
             hf_key = (

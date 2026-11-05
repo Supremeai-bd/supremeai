@@ -17,6 +17,8 @@ Stdlib-only, fail-soft, cross-platform (Linux/Windows/macOS).
 
 from __future__ import annotations
 
+from core.utils.api_key_resolver import resolve_numbered_key
+
 import argparse
 import base64
 import json
@@ -74,7 +76,7 @@ class KaggleLearningEngine:
         self.supabase_key = supabase_key or os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
         self.qdrant_url = qdrant_url or os.getenv("QDRANT_URL")
         self.qdrant_key = qdrant_key or os.getenv("QDRANT_API_KEY")
-        self.gemini_key = gemini_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        self.gemini_key = gemini_key or resolve_numbered_key("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
     def _kaggle_request(self, endpoint: str, data: Optional[dict] = None, method: str = "GET") -> Tuple[int, Any]:
         """Execute Kaggle API call rotating through the key pool on rate limits."""

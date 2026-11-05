@@ -3,6 +3,7 @@ import time
 from typing import Any
 
 from core.logging_config import logger
+from core.utils.api_key_resolver import resolve_numbered_key
 
 # AUDIT-FIX (#1693 HIGH): No deduplication key — same file patched repeatedly.
 # Per audit fix recommendation:
@@ -100,7 +101,7 @@ class AutoRemediation:
     """
 
     def __init__(self, gemini_api_key: str | None = None):
-        self.gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY", "")
+        self.gemini_api_key = gemini_api_key or resolve_numbered_key("GEMINI_API_KEY")
         # Allowed base dir is repo/backend (backend/core/resilience -> ../..)
         self._ALLOWED_BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
         # AUDIT-FIX (#1693): dedup state — {file_path: {"last_ts": float, "count": int}}

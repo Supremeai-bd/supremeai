@@ -144,35 +144,49 @@ jobs:
       - name: Build Desktop Web App
         run: npm run build --workspace=desktop
 
-      - name: Create Self-Signed Code Signing Certificate
-        shell: powershell
-        run: |
-          $certDir = Join-Path $PWD "desktop"
-          if (!(Test-Path $certDir)) { New-Item -ItemType Directory -Path $certDir -Force }
-          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=SupremeAI Technologies, O=SupremeAI, C=BD" -KeyUsage DigitalSignature -FriendlyName "SupremeAI Publisher" -CertStoreLocation "Cert:\CurrentUser\My" -NotAfter (Get-Date).AddYears(5)
-          $pwd = ConvertTo-SecureString -String "SupremeAI2026!" -Force -AsPlainText
-          $pfxPath = Join-Path $certDir "SupremeAI_Sign.pfx"
-          Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $pwd
-          Write-Host "Generated SupremeAI_Sign.pfx at $pfxPath"
-
       - name: Build Tauri NSIS Installer & Binary
         shell: cmd
         working-directory: desktop
         run: npx tauri build --config src-tauri/tauri.conf.json
 
-      - name: Sign Binaries and Installer (Anti-SmartScreen)
+      - name: Sign Binaries and Installer (Fail-Closed Release Signing)
         shell: powershell
+        env:
+          WINDOWS_PFX_BASE64: ${{ secrets.WINDOWS_PFX_BASE64 }}
+          WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
+          REQUIRE_RELEASE_SIGNING: ${{ startsWith(github.ref, 'refs/tags/') && 'true' || 'false' }}
         run: |
-          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
-          $pfx = Join-Path $PWD "desktop\SupremeAI_Sign.pfx"
-          if ($signtool -and (Test-Path $pfx)) {
-            Write-Host "Found signtool: $signtool"
-            Get-ChildItem -Path "desktop\src-tauri\target\release" -Include "*.exe","*.msi" -Recurse | ForEach-Object {
-              Write-Host "Signing: $($_.FullName)"
-              & $signtool sign /f $pfx /p "SupremeAI2026!" /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $_.FullName
+          $ErrorActionPreference = "Stop"
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_PFX_BASE64) -or [string]::IsNullOrWhiteSpace($env:WINDOWS_PFX_PASSWORD)) {
+            if ($env:REQUIRE_RELEASE_SIGNING -eq "true") {
+              Write-Error "Release signing failed: WINDOWS_PFX_BASE64 and WINDOWS_PFX_PASSWORD secrets are required for tagged releases."
+              exit 1
             }
-          } else {
-            Write-Host "SignTool or PFX not available, skipping sign step."
+            Write-Warning "Signing secrets not configured for non-tag build; skipping binary signing."
+            exit 0
+          }
+          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          if (-not $signtool) {
+            Write-Error "signtool.exe not found on runner."
+            exit 1
+          }
+          $pfx = Join-Path $RUNNER_TEMP "release-signing-cert.pfx"
+          try {
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_PFX_BASE64))
+            $binaries = Get-ChildItem -Path "desktop\src-tauri\target\release" -Include "*.exe","*.msi" -Recurse
+            if (-not $binaries) {
+              Write-Error "No release binaries found to sign."
+              exit 1
+            }
+            foreach ($bin in $binaries) {
+              Write-Host "Signing: $($bin.FullName)"
+              & $signtool sign /f $pfx /p $env:WINDOWS_PFX_PASSWORD /fd SHA256 /tr https://timestamp.digicert.com /td SHA256 $bin.FullName
+              if ($LASTEXITCODE -ne 0) { throw "signtool sign failed for $($bin.FullName)" }
+              & $signtool verify /pa /v $bin.FullName
+              if ($LASTEXITCODE -ne 0) { throw "signtool verify failed for $($bin.FullName)" }
+            }
+          } finally {
+            if (Test-Path $pfx) { Remove-Item -Path $pfx -Force -ErrorAction SilentlyContinue }
           }
 
       - name: Determine Desktop Version

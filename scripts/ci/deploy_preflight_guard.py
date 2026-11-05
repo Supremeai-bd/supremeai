@@ -344,7 +344,7 @@ def run_step2_secrets(required_keys: list[str] | None = None) -> tuple[bool, lis
     for key in check_keys:
         val = env.get(key, "").strip()
         if not val and key == "RENDER_API_KEY_5":
-            val = env.get("RENDER_API_KEY_API", "").strip()
+            val = (env.get("RENDER_API_KEY_API", "") or env.get("RENDER_API_KEY_5", "") or env.get("RENDER_API_KEY", "")).strip()
         if not val:
             # RENDER_API_KEY_5 may be optional if Gateway uses static webhook or direct deploy
             if key == "RENDER_API_KEY_5":

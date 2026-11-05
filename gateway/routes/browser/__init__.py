@@ -1,4 +1,4 @@
-﻿"""Browser router (``/api/browser``) â€” package layout.
+"""Browser router (``/api/browser``) â€” package layout.
 
 Formerly a single ~1,507-line module (api/routes/browser.py); now split into
 cohesive submodules. The public contract is unchanged:

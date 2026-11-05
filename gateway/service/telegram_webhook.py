@@ -6,6 +6,7 @@ the SupremeAI Gemini Engine / Dynamic Squad, formats executive briefs,
 and delivers responses with auto-chunking back to Telegram.
 """
 from __future__ import annotations
+from core.utils.api_key_resolver import resolve_numbered_key
 
 import logging
 import os
@@ -148,7 +149,7 @@ async def query_strategy_ai(prompt: str) -> str:
     gemini_pool = squad.pools.get("gemini") if squad else None
     healthy_gemini_slots = gemini_pool.healthy_slots if gemini_pool else []
     gemini_key = healthy_gemini_slots[0].key if healthy_gemini_slots else (
-        os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY_1") or os.getenv("GOOGLE_API_KEY")
+        resolve_numbered_key("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY_1") or os.getenv("GOOGLE_API_KEY")
     )
 
     if gemini_key:
@@ -175,7 +176,7 @@ async def query_strategy_ai(prompt: str) -> str:
     # B) Groq API Key (Ultra-low latency, ~200ms)
     groq_pool = squad.pools.get("groq") if squad else None
     healthy_groq_slots = groq_pool.healthy_slots if groq_pool else []
-    groq_key = healthy_groq_slots[0].key if healthy_groq_slots else os.getenv("GROQ_API_KEY")
+    groq_key = healthy_groq_slots[0].key if healthy_groq_slots else resolve_numbered_key("GROQ_API_KEY")
 
     if groq_key and forward_chat_completion:
         chat_payload = {

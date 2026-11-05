@@ -1,4 +1,4 @@
-﻿"""M06 P-A â€” run_scope + remediation-run_type hygiene tests.
+"""M06 P-A â€” run_scope + remediation-run_type hygiene tests.
 
 à¦¬à¦¾à¦‚à¦²à¦¾: flag-gated universal run à¦¤à§ˆà¦°à¦¿à¦° à¦šà§à¦•à§à¦¤à¦¿ â€” à¦«à§à¦²à§à¦¯à¦¾à¦—-à¦…à¦«à§‡ byte-à¦¨à¦¿à¦°à¦ªà§‡à¦•à§à¦·
 no-op, à¦«à§à¦²à§à¦¯à¦¾à¦—-à¦…à¦¨à§‡ à¦¸à¦®à§à¦ªà§‚à¦°à§à¦£ à¦²à¦¾à¦‡à¦«à¦¸à¦¾à¦‡à¦•à§‡à¦² (REQUESTEDâ†’â€¦â†’RUNNINGâ†’terminal),

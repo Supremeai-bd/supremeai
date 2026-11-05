@@ -87,21 +87,22 @@ class TrustedOriginMiddleware(BaseHTTPMiddleware):
     @property
     def allowed_origins(self) -> set[str]:
         allowed: set[str] = set()
-        allowed = allowed.union(USER_DEFAULT_TRUSTED_ORIGINS)
+        allowed = allowed.union(_load_origins("CORS_ORIGINS", USER_DEFAULT_TRUSTED_ORIGINS))
         configured_user = list(getattr(settings, "user_cors_origins", None) or [])
         if not configured_user:
             configured_user = list(getattr(settings, "cors_origins", None) or [])
         allowed = allowed.union(resolve_user_cors_origins(configured_user))
 
-        allowed = allowed.union(ADMIN_DEFAULT_TRUSTED_ORIGINS)
+        allowed = allowed.union(_load_origins("ADMIN_CORS_ORIGINS", ADMIN_DEFAULT_TRUSTED_ORIGINS))
         configured_admin = list(getattr(settings, "admin_cors_origins", None) or [])
         allowed = allowed.union(resolve_admin_cors_origins(configured_admin))
 
         try:
             env = str(getattr(settings, "env", "local") or "local").lower()
             if env == "local":
+                raw_cors = getattr(settings, "cors_origins", None) or []
                 allowed = allowed.union(
-                    {o for o in (settings.cors_origins or []) if "local" in o or "127." in o}
+                    {o for o in raw_cors if "local" in o or "127." in o}
                 )
         except Exception as exc:
             logger.warning(
@@ -125,9 +126,10 @@ class TrustedOriginMiddleware(BaseHTTPMiddleware):
                 "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH",
                 "Access-Control-Allow-Headers": requested_headers,
             }
-            if not origin or origin in allowed:
-                headers["Access-Control-Allow-Origin"] = origin or "*"
+            if origin and origin in allowed:
+                headers["Access-Control-Allow-Origin"] = origin
                 headers["Access-Control-Allow-Credentials"] = "true"
+                headers["Vary"] = "Origin"
             return JSONResponse(
                 status_code=status.HTTP_200_OK,
                 content={"status": "ok"},
@@ -135,7 +137,7 @@ class TrustedOriginMiddleware(BaseHTTPMiddleware):
             )
 
         public_paths = settings.supremeai_public_paths
-        if any(request.url.path == p or request.url.path.startswith(p) for p in public_paths):
+        if any(request.url.path == p or (p != "/" and request.url.path.startswith(p)) for p in public_paths):
             return await call_next(request)
 
         if getattr(settings, "is_origin_bypass_allowed", False) or _env in {

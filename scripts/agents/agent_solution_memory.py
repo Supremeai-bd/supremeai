@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 r"""SupremeAI â€” Collective Agent Memory & Problem-Solving Layer CLI.
 
 Implements the "Search Before Solving Â· Pave Before Leaving Â· Gap Before Guessing" workflow:

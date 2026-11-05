@@ -1,4 +1,4 @@
-﻿"""core.api package — register_router helper."""
+"""core.api package — register_router helper."""
 
 from __future__ import annotations
 

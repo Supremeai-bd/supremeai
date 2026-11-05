@@ -50,12 +50,15 @@ jobs:
         with:
           node-version: 20
           cache: "npm"
-        continue-on-error: true
 
       - name: Check extension syntax & lint
         run: |
           if [ -f package.json ]; then
-            npm ci --ignore-scripts || npm install || true
+            if [ -f package-lock.json ]; then
+              npm ci --ignore-scripts
+            else
+              npm install --ignore-scripts
+            fi
             if npm run | grep -q "lint"; then npm run lint; fi
           fi
           echo "✅ Extension checks complete."

@@ -126,12 +126,12 @@ export const env = {
       get url(): string { return optional("RENDER_PRIMARY_URL"); },
     },
     worker: {
-      get apiKey(): string { return optional("RENDER_API_KEY_2"); },
+      get apiKey(): string { return optional("RENDER_API_KEY_2", optional("RENDER_API_KEY")); },
       get serviceId(): string { return optional("RENDER_WORKER_SVC_ID", optional("RENDER_WORKER_SERVICE_ID")); },
       get url(): string { return optional("RENDER_WORKER_URL"); },
     },
     scraper: {
-      get apiKey(): string { return optional("RENDER_API_KEY_3"); },
+      get apiKey(): string { return optional("RENDER_API_KEY_3", optional("RENDER_API_KEY")); },
       get serviceId(): string { return optional("RENDER_SCRAPER_SVC_ID", optional("RENDER_SCRAPER_SERVICE_ID")); },
       get url(): string { return optional("RENDER_SCRAPER_URL"); },
     },
@@ -148,12 +148,12 @@ export const env = {
       // Empty means "not registered in this Render account" and must be
       // surfaced as unavailable instead of targeting a stale service.
       // Stale hardcoded ID srv-dbappass728c7396p580 removed (run 41918034520).
-      get apiKey(): string { return optional("RENDER_API_KEY_5", optional("RENDER_API_KEY_API")); },
+      get apiKey(): string { return optional("RENDER_API_KEY_5", optional("RENDER_API_KEY_API", optional("RENDER_API_KEY"))); },
       get serviceId(): string { return optional("RENDER_API_SVC_ID", optional("RENDER_API_SERVICE_ID")); },
       get url(): string { return optional("RENDER_API_URL"); },
     },
     brain: {
-      get apiKey(): string { return optional("RENDER_API_KEY_6"); },
+      get apiKey(): string { return optional("RENDER_API_KEY_6", optional("RENDER_API_KEY")); },
       // Must be explicitly configured to the Tiny Brain URL. Never fall back
       // to the primary node: that makes the wrong service look healthy.
       // Stale hardcoded ID srv-dabm7dfqj5pc738jkbmg removed (run 41918034520).

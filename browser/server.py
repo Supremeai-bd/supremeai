@@ -29,9 +29,26 @@ logger = logging.getLogger("supremeai-cookie-relay")
 
 app = FastAPI(title="SupremeAI Gemini Web Cookie Relay", version="2.0.0")
 
+_DEFAULT_BROWSER_ORIGINS = [
+    "https://supremeai.live",
+    "https://www.supremeai.live",
+    "https://app.supremeai.live",
+    "https://supremeai-studio.pages.dev",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+]
+_env_browser_origins = [
+    o.strip()
+    for o in os.environ.get("BROWSER_CORS_ORIGINS", os.environ.get("CORS_ORIGINS", "")).split(",")
+    if o.strip() and o.strip() != "*"
+]
+_ALLOWED_BROWSER_ORIGINS = list(dict.fromkeys(_env_browser_origins + _DEFAULT_BROWSER_ORIGINS))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_ALLOWED_BROWSER_ORIGINS,
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Stealth-Secret", "Accept", "Origin", "Referer"],

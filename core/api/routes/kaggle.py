@@ -1,3 +1,4 @@
+from core.utils.api_key_resolver import resolve_numbered_key
 """
 Kaggle Callback API
 Receives job completion notifications from Kaggle kernels.
@@ -95,7 +96,7 @@ async def ingest_distilled_knowledge(distilled: dict[str, Any]) -> bool:
     supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
     qdrant_url = os.getenv("QDRANT_URL")
     qdrant_key = os.getenv("QDRANT_API_KEY")
-    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    gemini_key = resolve_numbered_key("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
     now = datetime.now(timezone.utc).isoformat()
     exp_name = distilled.get("experiment", "kaggle_job")

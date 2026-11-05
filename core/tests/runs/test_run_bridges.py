@@ -1,4 +1,4 @@
-﻿"""M1-C â€” evidence bridges: missions + tool + MCP + automation as Runs.
+"""M1-C â€” evidence bridges: missions + tool + MCP + automation as Runs.
 
 Roadmap M1 exit criteria: "missions + one tool path + one MCP path
 observable as Runs in a test DB." This suite IS that exit evidence.

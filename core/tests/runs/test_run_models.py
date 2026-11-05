@@ -1,4 +1,4 @@
-﻿"""M1-A â€” canonical Run / RunEvent model tests (offline, sqlite in-memory).
+"""M1-A â€” canonical Run / RunEvent model tests (offline, sqlite in-memory).
 
 Dedicated sqlite+aiosqlite engine with ONLY the runs tables created (same
 pattern as tests/missions â€” the shared conftest ``db_engine`` runs

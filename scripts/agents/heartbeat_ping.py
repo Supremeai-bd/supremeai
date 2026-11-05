@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from core.utils.api_key_resolver import resolve_numbered_key
 import sys
 import time
 import urllib.error
@@ -181,7 +182,7 @@ def ping_once(args: argparse.Namespace) -> str:
             args.slot, args.agent_id or args.slot, mcp_url, api_key, args.client_label
         )
     url = args.url or os.environ.get("UPSTASH_REDIS_REST_URL", "")
-    token = args.token or os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
+    token = args.token or (resolve_numbered_key("UPSTASH_REDIS_REST_TOKEN") or "")
     if not (url and token):
         raise RuntimeError(
             "rest mode requires UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN "

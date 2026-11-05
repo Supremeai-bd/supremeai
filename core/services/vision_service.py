@@ -9,6 +9,7 @@ import time
 from typing import Any
 
 from core.monitoring.logging_config import logger
+from core.utils.api_key_resolver import resolve_numbered_key
 
 # Issue #444 doctrine (real work or loud failure, never fabricated success):
 # the old implementation returned one HARDCODED description ("Identified 3-tier
@@ -74,7 +75,7 @@ class VisionService:
                     "message": "No image bytes were provided for analysis.",
                 }
 
-            gemini_key = os.getenv("GEMINI_API_KEY") or getattr(
+            gemini_key = resolve_numbered_key("GEMINI_API_KEY") or getattr(
                 _get_settings(), "gemini_api_key", ""
             )
             if not gemini_key:

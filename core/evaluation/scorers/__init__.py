@@ -1,4 +1,4 @@
-﻿from .correctness import score_correctness
+from .correctness import score_correctness
 from .cost import score_cost
 from .latency import score_latency
 from .regression import score_regression

@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from core.config_cache import config_cache
+from core.utils.api_key_resolver import resolve_numbered_key
 
 # 🚀 Google modern SDK is optional during test/CI
 try:
@@ -16,7 +17,7 @@ except (ModuleNotFoundError, ImportError):  # pragma: no cover
 
 class MorphicAdapter:
     def __init__(self):
-        self.api_key = os.getenv("GEMINI_API_KEY")
+        self.api_key = resolve_numbered_key("GEMINI_API_KEY")
         if self.api_key and genai is not None:
             # নতুন SDK-তে Client ইনিশিয়ালাইজেশন ইন্টারফেস
             self.client = genai.Client(api_key=self.api_key)

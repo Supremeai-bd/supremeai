@@ -278,10 +278,15 @@ else:
 from gateway.middleware.correlation_id import CorrelationIdMiddleware  # noqa: E402
 app.add_middleware(CorrelationIdMiddleware)
 
+_cors_origin_regex = os.getenv(
+    "CORS_ORIGIN_REGEX",
+    r"^https?://(localhost|127\.0\.0\.1|([a-z0-9-]+\.)?supremeai-studio\.pages\.dev)(:[0-9]+)?$",
+).strip()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|.*\.pages\.dev|.*\.vercel\.app|.*\.workers\.dev)(:[0-9]+)?$",
+    allow_origin_regex=_cors_origin_regex or None,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=[

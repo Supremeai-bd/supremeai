@@ -33,6 +33,7 @@ import asyncio
 import json
 import logging
 import os
+from core.utils.api_key_resolver import resolve_numbered_key
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent / "backend"))
@@ -271,7 +272,7 @@ async def _check_redis_connections() -> int | None:
     except ImportError:
         # Fallback: REST API for Upstash
         try:
-            token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "")
+            token = resolve_numbered_key("UPSTASH_REDIS_REST_TOKEN") or ""
             if not token:
                 return None
             async with httpx.AsyncClient() as client:

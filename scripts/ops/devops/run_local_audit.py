@@ -1,3 +1,4 @@
+from core.utils.api_key_resolver import resolve_numbered_key
 # --- Merged from run_local_audit.py ---
 
 """
@@ -92,7 +93,7 @@ def run_local_audit(target_part: str = "PART_03_MULTI_DB_OUTBOX.md", provider: s
     if provider.lower() == "ollama":
         result = audit_file_with_ollama(target_file, model_name=model)
     elif provider.lower() == "gemini":
-        api_key = os.getenv("GEMINI_API_KEY", "")
+        api_key = resolve_numbered_key("GEMINI_API_KEY")
         if not api_key:
             print("Error: GEMINI_API_KEY environment variable not set.")
             return

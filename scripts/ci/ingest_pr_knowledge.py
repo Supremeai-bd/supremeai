@@ -18,6 +18,7 @@ Stdlib-only for core execution, fail-soft on network errors (never breaks merge 
 """
 
 from __future__ import annotations
+from core.utils.api_key_resolver import resolve_numbered_key
 
 import argparse
 import json
@@ -620,7 +621,7 @@ def run_ingest(
     supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
     qdrant_url = os.getenv("QDRANT_URL")
     qdrant_key = os.getenv("QDRANT_API_KEY")
-    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    gemini_key = resolve_numbered_key("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
     success = True
     if supabase_url and supabase_key:

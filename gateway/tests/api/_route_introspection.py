@@ -1,1 +1,1 @@
-﻿from .._route_introspection import *\n
+from .._route_introspection import *

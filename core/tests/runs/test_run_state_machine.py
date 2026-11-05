@@ -1,4 +1,4 @@
-﻿"""M1-A â€” canonical Run lifecycle state machine tests (pure, offline).
+"""M1-A â€” canonical Run lifecycle state machine tests (pure, offline).
 
 Covers:
 - the full happy-path lifecycle (user-approved verdict chain);

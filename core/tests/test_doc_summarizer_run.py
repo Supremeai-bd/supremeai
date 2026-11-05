@@ -7,6 +7,7 @@ import time
 
 from backend.skills.core_doc_summarizer import execute_tool
 from core.logging_config import logger
+from core.utils.api_key_resolver import resolve_numbered_key
 
 # প্রোডাকশন-গ্রেড লগিং সেটআপ
 logging.basicConfig(
@@ -66,6 +67,6 @@ def run_summarizer_benchmark_suite():
 
 
 if __name__ == "__main__":
-    if not os.getenv("GEMINI_API_KEY"):
+    if not resolve_numbered_key("GEMINI_API_KEY"):
         logger.warning("⚠️ GEMINI_API_KEY is missing from environment. API call will fail.")
     run_summarizer_benchmark_suite()

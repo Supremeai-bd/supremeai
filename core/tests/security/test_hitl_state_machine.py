@@ -1,4 +1,4 @@
-﻿"""AUD-4 (P0) HITL approval state machine regression tests.
+"""AUD-4 (P0) HITL approval state machine regression tests.
 
 Covers the hardening of backend/models/pending_tasks.py:
 - AUD-4.1 ownership/tenant binding persisted

@@ -1,4 +1,4 @@
-﻿# tests/test_strategic_patches/test_cognitive_router_react.py
+# tests/test_strategic_patches/test_cognitive_router_react.py
 """#2705 â€” CognitiveRouter ReAct-routing à¦šà§à¦•à§à¦¤à¦¿-à¦ªà¦°à§€à¦•à§à¦·à¦¾à¥¤
 
 à¦¬à¦¾à¦‚à¦²à¦¾ à¦®à¦¨à§à¦¤à¦¬à§à¦¯: complex à¦Ÿà¦¾à¦¸à§à¦• à¦à¦–à¦¨ routing_mode="react" + production execution-hint

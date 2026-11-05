@@ -10,6 +10,7 @@ import threading
 from pathlib import Path
 
 import litellm
+from core.utils.api_key_resolver import resolve_numbered_key
 
 # --- Merged from ai_scribe_historian.py ---
 
@@ -37,7 +38,7 @@ if settings is None:
         @property
         def gemini_api_key(self) -> str:
             # বাংলা মন্তব্য: সরাসরি পরিবেশ ভেরিয়েবল থেকে Gemini API কী পড়া হচ্ছে।
-            return os.environ.get("GEMINI_API_KEY", "")
+            return resolve_numbered_key("GEMINI_API_KEY")
 
         @property
         def gemini_model_name(self) -> str:

@@ -11,6 +11,7 @@ Dependencies:
 - `typing`: For type hinting to improve code readability and maintainability."""
 
 from __future__ import annotations
+from core.utils.api_key_resolver import resolve_numbered_key
 
 import os
 from typing import Any
@@ -61,7 +62,7 @@ def get_mcp_servers() -> dict[str, Any]:
             "command": "uvx",
             "args": ["gemini-cli-mcp"],
             "env": {
-                "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
+                "GEMINI_API_KEY": resolve_numbered_key("GEMINI_API_KEY"),
                 "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY", ""),
             },
             "allowed_paths": ["/api/v1/gateway"],
@@ -120,7 +121,7 @@ def get_mcp_servers() -> dict[str, Any]:
             "args": ["aider-mcp"],
             "env": {
                 "AIDER_API_KEY": os.getenv("AIDER_API_KEY", ""),
-                "OPENROUTER_API_KEY": os.getenv("OPENROUTER_API_KEY", ""),
+                "OPENROUTER_API_KEY": resolve_numbered_key("OPENROUTER_API_KEY"),
             },
             "allowed_paths": ["/api/v1/gateway"],
             "allowed_tools": [
@@ -166,8 +167,8 @@ def get_mcp_servers() -> dict[str, Any]:
             "command": "uvx",
             "args": ["devika-mcp-server"],
             "env": {
-                "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
-                "GROQ_API_KEY": os.getenv("GROQ_API_KEY", ""),
+                "GEMINI_API_KEY": resolve_numbered_key("GEMINI_API_KEY"),
+                "GROQ_API_KEY": resolve_numbered_key("GROQ_API_KEY"),
             },
             "allowed_paths": ["/api/v1/gateway"],
             "allowed_tools": [

@@ -47,7 +47,7 @@ OK_STATES = {"live"}
 
 def main() -> int:
     svc_id = (os.environ.get("RENDER_SERVICE_ID", "") or os.environ.get("RENDER_SVC_ID", "")).strip()
-    key_env = os.environ.get("RENDER_API_KEY_ENV", "").strip()
+    key_env = os.environ.get("RENDER_API_KEY_ENV", "").strip() or "RENDER_API_KEY"
     api_key = os.environ.get(key_env, "").strip() if key_env else ""
     if not api_key:
         api_key = os.environ.get("RENDER_API_KEY", "").strip()

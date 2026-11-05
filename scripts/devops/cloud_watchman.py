@@ -14,6 +14,7 @@ import concurrent.futures
 import json
 import logging
 import os
+from core.utils.api_key_resolver import resolve_numbered_key
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -407,7 +408,7 @@ def check_gcp(gcp_token: str | None, cache: dict) -> ServiceReport:
 
 def main(dry_run: bool = False, force: bool = False, output: str = "cloud_watchman_report.md"):
     # বাংলা মন্তব্য: ক্লাউড ওয়াচম্যান এর মূল অর্কেস্ট্রেশন ফাংশন।
-    vercel_token = os.getenv("VERCEL_TOKEN")
+    vercel_token = resolve_numbered_key("VERCEL_TOKEN")
     render_key = settings.render_api_key if hasattr(settings, "render_api_key") else os.getenv("RENDER_API_KEY")
     gcp_token = os.getenv("GCP_ACCESS_TOKEN")
 

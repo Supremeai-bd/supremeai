@@ -1,7 +1,8 @@
 """Build a central secret registry manifest from audit + vault reconcile data.
 
-Produces scripts/ci/secret_registry.json (a living manifest of all codebase secrets).
+Produces scripts/ci/env_registry.json (a living manifest of all codebase secrets).
 """
+import argparse
 import json
 import os
 import re
@@ -41,18 +42,16 @@ def load_canonical_aliases():
 
 
 def is_fake(k):
-    return k.startswith(("TEST_", "MOCK_", "PLACEHOLDER_", "INVALID_", "MISSING_", "TOTALLY_UNKNOWN_", "MY_SECRET", "STRONG_SECRET", "ASYNC_SECRET", "REDACTED_", "FATAL_SECRET", "MODE_FATAL_", "HARDCODED_", "UNRELATED_VAULT_", "VAULT_SECRET", "VAULT_TOKEN"))
+    return k.startswith(("TEST_", "MOCK_", "PLACEHOLDER_", "INVALID_", "MISSING_", "TOTALLY_UNKNOWN_",
+                        "MY_SECRET", "STRONG_SECRET", "ASYNC_SECRET", "REDACTED_", "FATAL_SECRET",
+                        "MODE_FATAL_", "HARDCODED_", "UNRELATED_VAULT_", "VAULT_SECRET", "VAULT_TOKEN"))
 
 
-def main():
-    if not os.path.exists(AUDIT):
-        print("audit file missing")
-        return 1
+def build_registry():
     audit = parse_audit(AUDIT)
     reconcile = json.load(open(RECONCILE, encoding="utf-8")) if os.path.exists(RECONCILE) else {}
     vault_keys = set(reconcile.get("vault", []))
     amap = load_canonical_aliases()
-
     registry = {}
     for k, d in audit.items():
         files = sorted(set(d["files"]))
@@ -65,9 +64,35 @@ def main():
             "canonical": amap.get(k, k),
             "is_alias": k in amap,
         }
+    return registry
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--check", action="store_true", help="verify registry in sync with audit")
+    args = parser.parse_args()
+
+    if not os.path.exists(AUDIT):
+        print("audit file missing; skipping")
+        return 0
+
+    registry = build_registry()
+
+    if args.check:
+        if not os.path.exists(OUT):
+            print("registry file missing")
+            return 1
+        cur = json.load(open(OUT, encoding="utf-8"))
+        if cur == registry:
+            print("OK: registry in sync (%d secrets)" % len(registry))
+            return 0
+        print("DRIFT: registry out of sync with audit")
+        print("  committed: %d secrets" % len(cur))
+        print("  rebuilt:   %d secrets" % len(registry))
+        return 1
 
     json.dump(registry, open(OUT, "w", encoding="utf-8"), indent=1, sort_keys=True)
-    print(f"registry written: {len(registry)} secrets -> {OUT}")
+    print("registry written: %d secrets -> %s" % (len(registry), OUT))
     print("in_vault:", sum(1 for v in registry.values() if v["in_vault"]))
     print("aliases:", sum(1 for v in registry.values() if v["is_alias"]))
     print("single-file:", sum(1 for v in registry.values() if v["file_count"] == 1))

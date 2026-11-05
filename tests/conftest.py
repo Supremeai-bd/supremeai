@@ -1,4 +1,4 @@
-﻿"""Shared pytest bootstrap: put the repo root on sys.path.
+"""Shared pytest bootstrap: put the repo root on sys.path.
 
 Without this, suites importing the ``scripts.*`` namespace package (e.g.
 ``from scripts.ci.federation_ci_watchdog import ...``) fail on clean CI

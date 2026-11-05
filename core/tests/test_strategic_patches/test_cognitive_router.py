@@ -1,4 +1,4 @@
-﻿# tests/test_strategic_patches/test_cognitive_router.py
+# tests/test_strategic_patches/test_cognitive_router.py
 """
 Tests for Cognitive Router v2.0 - Intent Decomposition & Task Orchestration
 ===========================================================================

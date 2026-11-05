@@ -43,6 +43,7 @@ import logging
 import os
 import sys
 from pathlib import Path
+from core.utils.api_key_resolver import resolve_numbered_key
 sys.path.append(str(Path(__file__).parent.parent.parent / "backend"))
 from core.config import settings
 from core.deployment_fallback_defaults import SCRAPER_URL_DEFAULT
@@ -318,10 +319,10 @@ class AIProviderCollector(MetricCollector):
         now = datetime.now()
 
         providers = [
-            ("openrouter", os.getenv("OPENROUTER_API_KEY")),
-            ("gemini", os.getenv("GEMINI_API_KEY")),
+            ("openrouter", resolve_numbered_key("OPENROUTER_API_KEY")),
+            ("gemini", resolve_numbered_key("GEMINI_API_KEY")),
             ("deepseek", os.getenv("DEEPSEEK_API_KEY")),
-            ("groq", os.getenv("GROQ_API_KEY")),
+            ("groq", resolve_numbered_key("GROQ_API_KEY")),
             ("nvidia", os.getenv("NVIDIA_API_KEY")),
         ]
 

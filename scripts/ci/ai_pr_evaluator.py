@@ -55,6 +55,7 @@
 """
 
 from __future__ import annotations
+from core.utils.api_key_resolver import resolve_numbered_key
 
 import argparse
 import datetime as _dt
@@ -686,13 +687,13 @@ def _llm_providers() -> list[dict[str, str]]:
     (AGENTS.md house doctrine)। CI-তে কী না থাকলে deterministic-evidence-ই সত্য।
     """
     providers: list[dict[str, str]] = []
-    if os.getenv("GROQ_API_KEY"):
+    if resolve_numbered_key("GROQ_API_KEY"):
         providers.append({
             "name": "groq", "key": os.environ["GROQ_API_KEY"],
             "url": "https://api.groq.com/openai/v1/chat/completions",
             "model": os.getenv("EVALUATOR_GROQ_MODEL") or "llama-3.3-70b-versatile",
         })
-    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
+    gemini_key = resolve_numbered_key("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
     if gemini_key:
         gem_model = os.getenv("EVALUATOR_GEMINI_MODEL") or "gemini-2.5-flash"
         providers.append({
@@ -701,7 +702,7 @@ def _llm_providers() -> list[dict[str, str]]:
                    f"{gem_model}:generateContent",
             "model": gem_model,
         })
-    if os.getenv("OPENROUTER_API_KEY"):
+    if resolve_numbered_key("OPENROUTER_API_KEY"):
         providers.append({
             "name": "openrouter", "key": os.environ["OPENROUTER_API_KEY"],
             "url": "https://openrouter.ai/api/v1/chat/completions",
