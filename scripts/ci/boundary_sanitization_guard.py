@@ -70,6 +70,7 @@ APPROVED_TOP_LEVEL_DIRS = {
     ".agents",  # Agent workspace customizations (rules, skills, minimal-elegance)
     ".semgrep",  # Semgrep semantic security rules and invariants configuration
     "api-schemas",
+    "config",  # Canonical service topology & deployment registry SSOT (issue #761)
     "docs",
     "evals",  # Golden eval suite — 100-case AI quality benchmark + offline runner (issue #1362)
     "examples",
@@ -149,6 +150,7 @@ APPROVED_SUBTREES = {
         "LICENSE",
     },
     "core": {
+        "config",
         "observability",
         "messaging",
         "security",
