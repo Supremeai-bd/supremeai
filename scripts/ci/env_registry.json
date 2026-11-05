@@ -1,0 +1,3448 @@
+{
+ "ADMIN_API_KEY": {
+  "canonical": "ADMIN_API_KEY",
+  "file_count": 1,
+  "files": [
+   "scripts/ops/security/secrets_rotation_manager.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 6
+ },
+ "ADMIN_ENDPOINT_TOKEN": {
+  "canonical": "ADMIN_ENDPOINT_TOKEN",
+  "file_count": 1,
+  "files": [
+   "scripts/ci/tenant_negative_battery.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "ADMIN_TOKEN": {
+  "canonical": "ADMIN_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/api/routes/ecosystem_admin.py",
+   "core/config_classification.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 10
+ },
+ "AIDER_API_KEY": {
+  "canonical": "AIDER_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/mcp_allowlist.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "ANTHROPIC_API_KEY": {
+  "canonical": "ANTHROPIC_API_KEY",
+  "file_count": 3,
+  "files": [
+   "api-schemas/fixtures/provider-registry.fixture.json",
+   "core/agents/syncguard/syncguard_agent.py",
+   "core/api/routes/ai_assignment.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 46
+ },
+ "API_KEY_SIGNING_SECRET": {
+  "canonical": "API_KEY_SIGNING_SECRET",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/config_classification.py",
+   "core/security/__init__.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 17
+ },
+ "ASYNC_SECRET": {
+  "canonical": "ASYNC_SECRET",
+  "file_count": 1,
+  "files": [
+   "core/tests/core/test_secret_vault.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 2
+ },
+ "BACKEND_METRICS_TOKEN": {
+  "canonical": "BACKEND_METRICS_TOKEN",
+  "file_count": 1,
+  "files": [
+   "infrastructure/monitoring/prometheus/secrets/README.md"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "BAI_API_KEY": {
+  "canonical": "BAI_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/api/routes/ai_assignment.py",
+   "core/brain/model_router.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 10
+ },
+ "BENGALI_CHARS_PER_TOKEN": {
+  "canonical": "BENGALI_CHARS_PER_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/i18n/bengali_text.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 9
+ },
+ "BRAIN_AUTH_TOKEN": {
+  "canonical": "BRAIN_AUTH_TOKEN",
+  "file_count": 1,
+  "files": [
+   "core/services/brain/main.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 5
+ },
+ "BRIDGE_DISPATCH_TOKEN": {
+  "canonical": "BRIDGE_DISPATCH_TOKEN",
+  "file_count": 2,
+  "files": [
+   "scripts/ci/mcp_access_policy_guard.py",
+   "studio/.github/workflows/upstream-sync.yml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "BRIDGE_INTAKE_TOKEN": {
+  "canonical": "BRIDGE_INTAKE_TOKEN",
+  "file_count": 1,
+  "files": [
+   "scripts/ci/boundary_sanitization_guard.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "BRIDGE_PUSH_TOKEN": {
+  "canonical": "BRIDGE_PUSH_TOKEN",
+  "file_count": 2,
+  "files": [
+   "scripts/ci/federation_satellite_sync.py",
+   "tests/test_federation_satellite_sync.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "BRIDGE_TOKEN": {
+  "canonical": "BRIDGE_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".github/scripts/constitution/tests/test_bridge_automation_contract.py",
+   "scripts/bridge/bridge_intake.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 6
+ },
+ "BROWSER_SERVICE_TOKEN": {
+  "canonical": "BROWSER_SERVICE_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/services/browser/main.py",
+   "gateway/services/browser/main.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "BYNARA_API_KEY": {
+  "canonical": "BYNARA_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/agents/syncguard/syncguard_agent.py",
+   "core/api/routes/ai_assignment.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 11
+ },
+ "CALLBACK_TOKEN": {
+  "canonical": "CALLBACK_TOKEN",
+  "file_count": 1,
+  "files": [
+   "core/kaggle_orchestrator.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "CEREBRAS_API_KEY": {
+  "canonical": "CEREBRAS_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 11
+ },
+ "CHATGPT_SESSION_TOKEN": {
+  "canonical": "CHATGPT_SESSION_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/tests/core/test_web_ai_session_bridge.py",
+   "core/web_ai_session_bridge.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "CHATGPT_WEB_TOKEN": {
+  "canonical": "CHATGPT_WEB_TOKEN",
+  "file_count": 1,
+  "files": [
+   "gateway/service/providers/web_session.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "CHAT_STREAM_TOKEN": {
+  "canonical": "CHAT_STREAM_TOKEN",
+  "file_count": 1,
+  "files": [
+   "studio/src/lib/componentEventBus.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "CI_WEBHOOK_SECRET": {
+  "canonical": "CI_WEBHOOK_SECRET",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "core/api/routes/ci_dashboard_api.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 19
+ },
+ "CLAUDE_API_KEY": {
+  "canonical": "CLAUDE_API_KEY",
+  "file_count": 2,
+  "files": [
+   "scripts/devops/_audit.py",
+   "scripts/ops/devops/_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "CLIENT_SECRET": {
+  "canonical": "CLIENT_SECRET",
+  "file_count": 2,
+  "files": [
+   "browser/ghost_tower/sync_cookies_to_infisical.py",
+   "gateway/.github/workflows/ci.yml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 30
+ },
+ "CLIENT_TOKEN": {
+  "canonical": "CLIENT_TOKEN",
+  "file_count": 1,
+  "files": [
+   "infrastructure/mcp-control-plane/PROVIDER_NEUTRAL_CONNECTIONS.md"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "CLINE_API_KEY": {
+  "canonical": "CLINE_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/mcp_allowlist.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "CLOUDFLARE_API_KEY": {
+  "canonical": "CLOUDFLARE_API_KEY",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "core/api/routes/capabilities.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 26
+ },
+ "CLOUDFLARE_API_TOKEN": {
+  "canonical": "CLOUDFLARE_API_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 92
+ },
+ "CLOUDFLARE_DNS_API_TOKEN": {
+  "canonical": "CLOUDFLARE_DNS_API_TOKEN",
+  "file_count": 1,
+  "files": [
+   "core/config_classification.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "CLOUDFLARE_GLOBAL_API_KEY": {
+  "canonical": "CLOUDFLARE_GLOBAL_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/config_classification.py",
+   "infrastructure/mcp-control-plane/src/registry/account.registry.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 8
+ },
+ "CLOUDFLARE_QUATERNARY_GLOBAL_API_KEY": {
+  "canonical": "CLOUDFLARE_QUATERNARY_GLOBAL_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/config_classification.py",
+   "infrastructure/mcp-control-plane/src/registry/account.registry.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 7
+ },
+ "CLOUDFLARE_QUINARY_GLOBAL_API_KEY": {
+  "canonical": "CLOUDFLARE_QUINARY_GLOBAL_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/config_classification.py",
+   "infrastructure/mcp-control-plane/src/registry/account.registry.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 7
+ },
+ "CLOUDFLARE_SECONDARY_GLOBAL_API_KEY": {
+  "canonical": "CLOUDFLARE_SECONDARY_GLOBAL_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/config_classification.py",
+   "infrastructure/mcp-control-plane/src/registry/account.registry.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 7
+ },
+ "CLOUDFLARE_TERTIARY_GLOBAL_API_KEY": {
+  "canonical": "CLOUDFLARE_TERTIARY_GLOBAL_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/config_classification.py",
+   "infrastructure/mcp-control-plane/src/registry/account.registry.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 7
+ },
+ "CLOUDFLARE_WEBHOOK_SECRET": {
+  "canonical": "CLOUDFLARE_WEBHOOK_SECRET",
+  "file_count": 1,
+  "files": [
+   "infrastructure/mcp-control-plane/src/lib/env.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "CLOUDFLARE_WORKERS_API_TOKEN": {
+  "canonical": "CLOUDFLARE_WORKERS_API_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "core/config_classification.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 7
+ },
+ "CODEIUM_API_KEY": {
+  "canonical": "CODEIUM_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/mcp_allowlist.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "COHERE_API_KEY": {
+  "canonical": "COHERE_API_KEY",
+  "file_count": 3,
+  "files": [
+   "core/brain/model_router.py",
+   "core/config_classification.py",
+   "core/security/secret_vault.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "CONTINUE_API_KEY": {
+  "canonical": "CONTINUE_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/mcp_allowlist.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "CUSTOMER_TOKEN": {
+  "canonical": "CUSTOMER_TOKEN",
+  "file_count": 2,
+  "files": [
+   "docs/runbooks/tenant_dogfood_runbook.md",
+   "scripts/ci/tenant_negative_battery.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 7
+ },
+ "DASHBOARD_API_KEY": {
+  "canonical": "DASHBOARD_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/github/scripts/ci_summary_v2.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "DASHSCOPE_API_KEY": {
+  "canonical": "DASHSCOPE_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/services/dynamic_ai/provider_registry.py",
+   "tests/test_provider_registry_lanes.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "DEEPINFRA_API_KEY": {
+  "canonical": "DEEPINFRA_API_KEY",
+  "file_count": 1,
+  "files": [
+   "gateway/dynamic_llm_router.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "DEEPSEEK_API_KEY": {
+  "canonical": "DEEPSEEK_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".github/scripts/platform_deep_audit.py",
+   "api-schemas/fixtures/provider-registry.fixture.json",
+   "core/agents/syncguard/syncguard_agent.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 36
+ },
+ "DEFAULT_BENGALI_CHARS_PER_TOKEN": {
+  "canonical": "DEFAULT_BENGALI_CHARS_PER_TOKEN",
+  "file_count": 1,
+  "files": [
+   "core/i18n/bengali_text.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 7
+ },
+ "DEPLOY_API_KEY": {
+  "canonical": "DEPLOY_API_KEY",
+  "file_count": 1,
+  "files": [
+   ".agents/skills/github-actions-debugger/SKILL.md"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "DEPLOY_TOKEN": {
+  "canonical": "DEPLOY_TOKEN",
+  "file_count": 2,
+  "files": [
+   "scripts/deploy/blue_green_deploy.py",
+   "scripts/ops/deploy/blue_green_deploy.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "DISCORD_BOT_TOKEN": {
+  "canonical": "DISCORD_BOT_TOKEN",
+  "file_count": 3,
+  "files": [
+   "core/security/secret_vault.py",
+   "scripts/devops/_audit.py",
+   "scripts/ops/devops/_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "DISPATCH_TOKEN": {
+  "canonical": "DISPATCH_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".github/workflows/ops-maintenance.yml",
+   "browser/.github/workflows/ci.yml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 17
+ },
+ "E2B_API_KEY": {
+  "canonical": "E2B_API_KEY",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "E2B_SECONDARY_API_KEY": {
+  "canonical": "E2B_SECONDARY_API_KEY",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "ECOSYSTEM_JWT_SECRET": {
+  "canonical": "ECOSYSTEM_JWT_SECRET",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/ecosystem/users.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "ELEVENLABS_API_KEY": {
+  "canonical": "ELEVENLABS_API_KEY",
+  "file_count": 3,
+  "files": [
+   "core/api/routes/capabilities.py",
+   "core/config_classification.py",
+   "core/services/voice_service.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 8
+ },
+ "FATAL_SECRET": {
+  "canonical": "FATAL_SECRET",
+  "file_count": 1,
+  "files": [
+   "scripts/ci/rejected_wo_rescue.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 1
+ },
+ "FIREBASE_TOKEN": {
+  "canonical": "FIREBASE_TOKEN",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "scripts/devops/_audit.py",
+   "scripts/ops/devops/_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "FIRECRAWL_API_KEY": {
+  "canonical": "FIRECRAWL_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 19
+ },
+ "GCP_ACCESS_TOKEN": {
+  "canonical": "GCP_ACCESS_TOKEN",
+  "file_count": 3,
+  "files": [
+   "core/config_classification.py",
+   "scripts/devops/cloud_watchman.py",
+   "scripts/ops/devops/cloud_watchman.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "GEMINI_API_KEY": {
+  "canonical": "GEMINI_API_KEY",
+  "file_count": 2,
+  "files": [
+   ".agents/skills/developing-genkit-js/references/setup.md",
+   ".agents/skills/developing-genkit-python/references/dev-workflow.md"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 143
+ },
+ "GEMINI_TOKEN": {
+  "canonical": "GEMINI_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/web_ai_session_bridge.py",
+   "gateway/service/providers/web_session.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "GEMINI_WEB_TOKEN": {
+  "canonical": "GEMINI_WEB_TOKEN",
+  "file_count": 1,
+  "files": [
+   "gateway/service/providers/web_session.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "GH_FALLBACK_TOKEN": {
+  "canonical": "GH_FALLBACK_TOKEN",
+  "file_count": 2,
+  "files": [
+   "scripts/ci/ai_pr_evaluator.py",
+   "scripts/ci/merge_gate.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "GH_TOKEN": {
+  "canonical": "GH_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   ".github/constitution/rules.yml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 290
+ },
+ "GITHUB_API_TOKEN": {
+  "canonical": "GITHUB_API_TOKEN",
+  "file_count": 3,
+  "files": [
+   "core/config_classification.py",
+   "infrastructure/mcp-control-plane/src/adapters/github/external.ts",
+   "infrastructure/mcp-control-plane/src/lib/env.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 7
+ },
+ "GITHUB_APP_PRIVATE_KEY": {
+  "canonical": "GITHUB_APP_PRIVATE_KEY",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "infrastructure/mcp-control-plane/src/adapters/github/app_token.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 14
+ },
+ "GITHUB_CLIENT_SECRET": {
+  "canonical": "GITHUB_CLIENT_SECRET",
+  "file_count": 3,
+  "files": [
+   "core/security/secret_vault.py",
+   "scripts/devops/_audit.py",
+   "scripts/ops/devops/_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "GITHUB_MODELS_API_KEY": {
+  "canonical": "GITHUB_MODELS_API_KEY",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "core/api/routes/ide_trio.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 10
+ },
+ "GITHUB_PAT": {
+  "canonical": "GITHUB_PAT",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "infrastructure/mcp-control-plane/src/tools/system.tools.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "GITHUB_PAT_ADMIN": {
+  "canonical": "GITHUB_PAT_ADMIN",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "scripts/ci/deploy_preflight_guard.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "GITHUB_PAT_AUTO_FIX": {
+  "canonical": "GITHUB_PAT_AUTO_FIX",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "GITHUB_PAT_NILOYJOY7": {
+  "canonical": "GITHUB_PAT_NILOYJOY7",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "GITHUB_PAT_PAYKARIBAZARONLINE": {
+  "canonical": "GITHUB_PAT_PAYKARIBAZARONLINE",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "infrastructure/mcp-control-plane/src/adapters/github/index.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 10
+ },
+ "GITHUB_PAT_REDACTED": {
+  "canonical": "GITHUB_PAT_REDACTED",
+  "file_count": 2,
+  "files": [
+   "scripts/ops/security/auto_find_blindspots.py",
+   "scripts/security/auto_find_blindspots.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "GITHUB_PAT_SECONDARY": {
+  "canonical": "GITHUB_PAT_SECONDARY",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "GITHUB_PAT_SUPREMEAIBD": {
+  "canonical": "GITHUB_PAT_SUPREMEAIBD",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "GITHUB_PAT_SUPREMEAIBD_OWNER": {
+  "canonical": "GITHUB_PAT_SUPREMEAIBD_OWNER",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "GITHUB_PERSONAL_ACCESS_TOKEN": {
+  "canonical": "GITHUB_PERSONAL_ACCESS_TOKEN",
+  "file_count": 3,
+  "files": [
+   "core/mcp_allowlist.py",
+   "infrastructure/mcp-control-plane/mcp_config.remote.json",
+   "mcp.json"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "GITHUB_PROBE_TOKEN": {
+  "canonical": "GITHUB_PROBE_TOKEN",
+  "file_count": 1,
+  "files": [
+   "scripts/ops/security/verify_token_rotation.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 6
+ },
+ "GITHUB_READONLY_TOKEN": {
+  "canonical": "GITHUB_READONLY_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".semgrep/supremeai-invariants.yaml",
+   "AGENTS.md"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 10
+ },
+ "GITHUB_TOKEN": {
+  "canonical": "GITHUB_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   ".github/actions/build-sign-image/action.yml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 494
+ },
+ "GITHUB_WEBHOOK_SECRET": {
+  "canonical": "GITHUB_WEBHOOK_SECRET",
+  "file_count": 3,
+  "files": [
+   "core/api/routes/pr_review_api.py",
+   "core/api/routes/webhooks_github.py",
+   "core/tests/missions/test_mission_failure_modes.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 7
+ },
+ "GITLAB_PAT": {
+  "canonical": "GITLAB_PAT",
+  "file_count": 2,
+  "files": [
+   ".github/scripts/platform_agent_check.py",
+   "core/github/scripts/platform_agent_check.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "GITLAB_PROJECT_ACCESS_TOKEN": {
+  "canonical": "GITLAB_PROJECT_ACCESS_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".github/scripts/platform_agent_check.py",
+   "core/github/scripts/platform_agent_check.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "GITLAB_TOKEN": {
+  "canonical": "GITLAB_TOKEN",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "scripts/devops/_audit.py",
+   "scripts/ops/devops/_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 5
+ },
+ "GITPOD_TOKEN": {
+  "canonical": "GITPOD_TOKEN",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "GLOBAL_API_KEY": {
+  "canonical": "GLOBAL_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py",
+   "core/github/scripts/platform_agent_check.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 5
+ },
+ "GOOGLE_AI_API_KEY": {
+  "canonical": "GOOGLE_AI_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/scripts/superai_free_tier_monitor.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "GOOGLE_API_KEY": {
+  "canonical": "GOOGLE_API_KEY",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 42
+ },
+ "GRAPHIPHY_API_KEY": {
+  "canonical": "GRAPHIPHY_API_KEY",
+  "file_count": 1,
+  "files": [
+   "infrastructure/mcp-control-plane/src/tools/graphify.tools.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "GRAPIPHY_API_KEY": {
+  "canonical": "GRAPIPHY_API_KEY",
+  "file_count": 1,
+  "files": [
+   "infrastructure/mcp-control-plane/src/tools/graphify.tools.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "GROQ_API_KEY": {
+  "canonical": "GROQ_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 79
+ },
+ "HARDCODED_SECRET": {
+  "canonical": "HARDCODED_SECRET",
+  "file_count": 1,
+  "files": [
+   "core/agents/code_vulnerability_scanner_agent.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 5
+ },
+ "HF_API_KEY": {
+  "canonical": "HF_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/agents/syncguard/syncguard_agent.py",
+   "core/brain/model_router.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 29
+ },
+ "HF_TOKEN": {
+  "canonical": "HF_TOKEN",
+  "file_count": 3,
+  "files": [
+   "core/config_classification.py",
+   "gateway/dynamic_llm_router.py",
+   "scripts/ai/model_version_manager.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "HUGGINGFACE_API_KEY": {
+  "canonical": "HUGGINGFACE_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/brain/model_router.py",
+   "core/config_classification.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 12
+ },
+ "HUGGINGFACE_TOKEN": {
+  "canonical": "HUGGINGFACE_TOKEN",
+  "file_count": 3,
+  "files": [
+   "core/config_classification.py",
+   "scripts/ai/model_version_manager.py",
+   "scripts/ops/ai/model_version_manager.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "INFISICAL_CLIENT_SECRET": {
+  "canonical": "INFISICAL_CLIENT_SECRET",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 194
+ },
+ "INFISICAL_GEMINI_COOKIES_SECRET": {
+  "canonical": "INFISICAL_GEMINI_COOKIES_SECRET",
+  "file_count": 1,
+  "files": [
+   "browser/server.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "INFISICAL_TOKEN": {
+  "canonical": "INFISICAL_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/github/scripts/supreme_ci.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 58
+ },
+ "INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET": {
+  "canonical": "INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET",
+  "file_count": 1,
+  "files": [
+   "tests/test_p0_autonomous_agent_bus.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "INTERNAL_API_KEY": {
+  "canonical": "INTERNAL_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/worker_service.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "INVALID_API_KEY": {
+  "canonical": "INVALID_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/performance_enhancer.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 2
+ },
+ "INVALID_TOKEN": {
+  "canonical": "INVALID_TOKEN",
+  "file_count": 1,
+  "files": [
+   "core/api/dependencies.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 1
+ },
+ "JIT_OTP_SECRET": {
+  "canonical": "JIT_OTP_SECRET",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "JULES_API_KEY": {
+  "canonical": "JULES_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "gateway/service/pool.py",
+   "gateway/tests/test_model_cascades.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 5
+ },
+ "JWT_SECRET": {
+  "canonical": "JWT_SECRET",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/config_classification.py",
+   "core/config_validation.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 53
+ },
+ "JWT_TOKEN": {
+  "canonical": "JWT_TOKEN",
+  "file_count": 1,
+  "files": [
+   "scripts/ci/master_secret_shield.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "KAGGLE_API_TOKEN": {
+  "canonical": "KAGGLE_API_TOKEN",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 10
+ },
+ "KLING_API_KEY": {
+  "canonical": "KLING_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/tools/media/video_generator.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "LANGSMITH_API_KEY": {
+  "canonical": "LANGSMITH_API_KEY",
+  "file_count": 3,
+  "files": [
+   "core/config_classification.py",
+   "core/decision_engine.py",
+   "core/tests/core/test_coverage_gaps.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "LAUNCHDARKLY_API_KEY": {
+  "canonical": "LAUNCHDARKLY_API_KEY",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 8
+ },
+ "LITELLM_API_KEY": {
+  "canonical": "LITELLM_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "scripts/ops/multi_model_validator.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "LLM_COST_PER_TOKEN": {
+  "canonical": "LLM_COST_PER_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/config_fields.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "LOAD_TEST_TOKEN": {
+  "canonical": "LOAD_TEST_TOKEN",
+  "file_count": 1,
+  "files": [
+   ".github/workflows/ops-maintenance.yml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 13
+ },
+ "LOVABLE_API_TOKEN": {
+  "canonical": "LOVABLE_API_TOKEN",
+  "file_count": 1,
+  "files": [
+   "core/mcp_adapters/adapters/lovable_adapter.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 5
+ },
+ "MANUS_API_KEY": {
+  "canonical": "MANUS_API_KEY",
+  "file_count": 1,
+  "files": [
+   "gateway/service/pool.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "MCP_ADMIN_KEY": {
+  "canonical": "MCP_ADMIN_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 42
+ },
+ "MCP_API_KEY": {
+  "canonical": "MCP_API_KEY",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   ".env.production.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 84
+ },
+ "MCP_TOWER_ADMIN_TOKEN": {
+  "canonical": "MCP_TOWER_ADMIN_TOKEN",
+  "file_count": 1,
+  "files": [
+   "scripts/ci/boundary_sanitization_guard.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "MCP_TOWER_AUTH_TOKEN": {
+  "canonical": "MCP_TOWER_AUTH_TOKEN",
+  "file_count": 1,
+  "files": [
+   ".github/workflows/unified-pipeline.yml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 16
+ },
+ "MCP_TOWER_TOKEN": {
+  "canonical": "MCP_TOWER_TOKEN",
+  "file_count": 1,
+  "files": [
+   "scripts/agents/mcp_presence_tracker.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "MERGE_PAT": {
+  "canonical": "MERGE_PAT",
+  "file_count": 2,
+  "files": [
+   ".github/workflows/ops-maintenance.yml",
+   ".semgrep/supremeai-invariants.yaml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 24
+ },
+ "MIRROR_REPO_TOKEN": {
+  "canonical": "MIRROR_REPO_TOKEN",
+  "file_count": 1,
+  "files": [
+   ".github/scripts/service_preflight_check.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 9
+ },
+ "MISSING_SECRET": {
+  "canonical": "MISSING_SECRET",
+  "file_count": 1,
+  "files": [
+   "core/tests/core/test_secret_vault.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 2
+ },
+ "MISSION_CONTROL_API_TOKEN": {
+  "canonical": "MISSION_CONTROL_API_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "studio/src/cockpit/README.md"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 10
+ },
+ "MISTRAL_API_KEY": {
+  "canonical": "MISTRAL_API_KEY",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 35
+ },
+ "MOCK_TOKEN": {
+  "canonical": "MOCK_TOKEN",
+  "file_count": 1,
+  "files": [
+   "gateway/tests/routes/test_admin_routes_full.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 30
+ },
+ "MODAL_TOKEN_SECRET": {
+  "canonical": "MODAL_TOKEN_SECRET",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "core/tests/tools/test_cloud_sandbox_full.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "MODE_FATAL_SECRET": {
+  "canonical": "MODE_FATAL_SECRET",
+  "file_count": 1,
+  "files": [
+   "scripts/ci/rejected_wo_rescue.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 5
+ },
+ "MOONSHOT_API_KEY": {
+  "canonical": "MOONSHOT_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/llm/llm_gateway/registry.py",
+   "core/services/dynamic_ai/provider_registry.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "MY_SECRET": {
+  "canonical": "MY_SECRET",
+  "file_count": 2,
+  "files": [
+   "core/tests/core/security/test_secret_vault_full.py",
+   "core/tests/core/test_secret_vault.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 9
+ },
+ "N8N_WEBHOOK_SECRET": {
+  "canonical": "N8N_WEBHOOK_SECRET",
+  "file_count": 1,
+  "files": [
+   "core/api/routes/n8n_webhooks.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 16
+ },
+ "NATS_TOKEN": {
+  "canonical": "NATS_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/docker/swarm-worker.Dockerfile"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 9
+ },
+ "NEON_API_KEY": {
+  "canonical": "NEON_API_KEY",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 46
+ },
+ "NETLIFY_API_KEY": {
+  "canonical": "NETLIFY_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "scripts/monitoring/cost_analyzer.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 5
+ },
+ "NEXTAUTH_SECRET": {
+  "canonical": "NEXTAUTH_SECRET",
+  "file_count": 2,
+  "files": [
+   "scripts/devops/config/rules.py",
+   "scripts/devops/config/validators.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 10
+ },
+ "NGROK_AUTH_TOKEN": {
+  "canonical": "NGROK_AUTH_TOKEN",
+  "file_count": 1,
+  "files": [
+   "core/scripts/kaggle_shadow_node.ipynb"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "NVIDIA_API_KEY": {
+  "canonical": "NVIDIA_API_KEY",
+  "file_count": 3,
+  "files": [
+   "core/brain/model_router.py",
+   "core/config_classification.py",
+   "core/security/secret_vault.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 10
+ },
+ "OLLAMA_API_KEY": {
+  "canonical": "OLLAMA_API_KEY",
+  "file_count": 3,
+  "files": [
+   "core/brain/model_router.py",
+   "core/config_classification.py",
+   "core/llm/llm_gateway/registry.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "OPENAI_API_KEY": {
+  "canonical": "OPENAI_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 94
+ },
+ "OPENHANDS_API_KEY": {
+  "canonical": "OPENHANDS_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/config_classification.py",
+   "core/mcp_allowlist.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 7
+ },
+ "OPENROUTER_API_KEY": {
+  "canonical": "OPENROUTER_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_deep_audit.py",
+   "api-schemas/fixtures/provider-registry.fixture.json"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 65
+ },
+ "OPEN_DISPATCH_TOKEN": {
+  "canonical": "OPEN_DISPATCH_TOKEN",
+  "file_count": 2,
+  "files": [
+   "browser/.github/workflows/ci.yml",
+   "core/.github/workflows/ci.yml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 6
+ },
+ "OPEN_SYNC_PAT": {
+  "canonical": "OPEN_SYNC_PAT",
+  "file_count": 2,
+  "files": [
+   ".github/workflows/ops-maintenance.yml",
+   ".semgrep/supremeai-invariants.yaml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 40
+ },
+ "ORACLE_CLOUD_API_KEY": {
+  "canonical": "ORACLE_CLOUD_API_KEY",
+  "file_count": 3,
+  "files": [
+   "core/config_classification.py",
+   "core/tests/core/test_mcp_servers_integration.py",
+   "core/tools/mcp/mcp_cloud_deploy.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 6
+ },
+ "PERPLEXITY_API_KEY": {
+  "canonical": "PERPLEXITY_API_KEY",
+  "file_count": 2,
+  "files": [
+   "gateway/service/pool.py",
+   "gateway/service/telegram_webhook.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "PII_TOKEN": {
+  "canonical": "PII_TOKEN",
+  "file_count": 1,
+  "files": [
+   "scripts/ci/pii_redaction_gap_probe.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "PINECONE_API_KEY": {
+  "canonical": "PINECONE_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/api/routes/cdc_webhooks.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 5
+ },
+ "PLACEHOLDER_PAT": {
+  "canonical": "PLACEHOLDER_PAT",
+  "file_count": 2,
+  "files": [
+   "scripts/devops/_audit.py",
+   "scripts/ops/devops/_audit.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 4
+ },
+ "PLANDEX_API_KEY": {
+  "canonical": "PLANDEX_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/mcp_allowlist.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "POSTHOG_API_KEY": {
+  "canonical": "POSTHOG_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/observability/posthog_client.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "PPLX_API_KEY": {
+  "canonical": "PPLX_API_KEY",
+  "file_count": 2,
+  "files": [
+   "gateway/service/pool.py",
+   "gateway/service/telegram_webhook.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "PYTHAGORA_API_KEY": {
+  "canonical": "PYTHAGORA_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/mcp_allowlist.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "QA_ADMIN_TOTP_SECRET": {
+  "canonical": "QA_ADMIN_TOTP_SECRET",
+  "file_count": 2,
+  "files": [
+   ".github/workflows/ops-maintenance.yml",
+   "tests/qa/playwright/admin/.auth/auth.setup.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 5
+ },
+ "QDRANT_API_KEY": {
+  "canonical": "QDRANT_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/api/routes/kaggle.py",
+   "core/config_classification.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 11
+ },
+ "RAILWAY_TOKEN": {
+  "canonical": "RAILWAY_TOKEN",
+  "file_count": 3,
+  "files": [
+   "core/config_classification.py",
+   "core/tests/core/test_mcp_servers_integration.py",
+   "core/tools/mcp/mcp_cloud_deploy.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 6
+ },
+ "REDACTED_SECRET": {
+  "canonical": "REDACTED_SECRET",
+  "file_count": 1,
+  "files": [
+   "scripts/ci/mirror_issue_to_open.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 1
+ },
+ "REDACTED_TOKEN": {
+  "canonical": "REDACTED_TOKEN",
+  "file_count": 3,
+  "files": [
+   "core/otp_router.py",
+   "core/tests/core/test_auth_jit_otp_flow.py",
+   "core/tests/services/test_otp_router.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 3
+ },
+ "REDIS_TOKEN": {
+  "canonical": "REDIS_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "core/config_classification.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "REFRESH_TOKEN": {
+  "canonical": "REFRESH_TOKEN",
+  "file_count": 1,
+  "files": [
+   ".agents/skills/markdown-mermaid-writing/references/diagrams/complex_examples.md"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "RENDER_API_KEY": {
+  "canonical": "RENDER_API_KEY",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   ".github/actions/render-deploy-status/action.yml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 304
+ },
+ "RENDER_API_KEY_": {
+  "canonical": "RENDER_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/api/routes/admin.py"
+  ],
+  "in_vault": false,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "RENDER_API_KEY_1": {
+  "canonical": "RENDER_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 34
+ },
+ "RENDER_API_KEY_2": {
+  "canonical": "RENDER_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 33
+ },
+ "RENDER_API_KEY_3": {
+  "canonical": "RENDER_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 33
+ },
+ "RENDER_API_KEY_4": {
+  "canonical": "RENDER_API_KEY",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py"
+  ],
+  "in_vault": true,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 41
+ },
+ "RENDER_API_KEY_5": {
+  "canonical": "RENDER_API_KEY",
+  "file_count": 1,
+  "files": [
+   ".github/workflows/unified-pipeline.yml"
+  ],
+  "in_vault": true,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 17
+ },
+ "RENDER_API_KEY_6": {
+  "canonical": "RENDER_API_KEY",
+  "file_count": 1,
+  "files": [
+   ".github/workflows/unified-pipeline.yml"
+  ],
+  "in_vault": true,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 11
+ },
+ "RENDER_API_KEY_7": {
+  "canonical": "RENDER_API_KEY",
+  "file_count": 2,
+  "files": [
+   "infrastructure/mcp-control-plane/src/lib/env.ts",
+   "infrastructure/mcp-control-plane/src/registry/account.registry.ts"
+  ],
+  "in_vault": false,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "RENDER_API_KEY_API": {
+  "canonical": "RENDER_API_KEY",
+  "file_count": 2,
+  "files": [
+   "infrastructure/mcp-control-plane/src/lib/env.ts",
+   "infrastructure/mcp-control-plane/src/registry/account.registry.ts"
+  ],
+  "in_vault": false,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 5
+ },
+ "RENDER_API_KEY_BACKUP": {
+  "canonical": "RENDER_API_KEY",
+  "file_count": 2,
+  "files": [
+   ".github/scripts/check-render-quota.py",
+   ".github/scripts/service_preflight_check.py"
+  ],
+  "in_vault": false,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 15
+ },
+ "RENDER_API_KEY_ENV": {
+  "canonical": "RENDER_API_KEY",
+  "file_count": 2,
+  "files": [
+   ".github/workflows/unified-pipeline.yml",
+   "scripts/ci/render_deploy_attestation.py"
+  ],
+  "in_vault": false,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "RENDER_API_KEY_PAYKARI": {
+  "canonical": "RENDER_API_KEY",
+  "file_count": 1,
+  "files": [
+   ".github/workflows/unified-pipeline.yml"
+  ],
+  "in_vault": true,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 16
+ },
+ "RENDER_API_KEY_WEB": {
+  "canonical": "RENDER_API_KEY",
+  "file_count": 1,
+  "files": [
+   "gateway/tests/test_admin_ramp.py"
+  ],
+  "in_vault": false,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "RENDER_API_SERVICE_ID": {
+  "canonical": "RENDER_API_SERVICE_ID",
+  "file_count": 2,
+  "files": [
+   ".github/workflows/unified-pipeline.yml",
+   "scripts/ci/plan_render_deploys.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "RENDER_API_SVC_ID": {
+  "canonical": "RENDER_API_SERVICE_ID",
+  "file_count": 1,
+  "files": [
+   "infrastructure/mcp-control-plane/src/lib/env.ts"
+  ],
+  "in_vault": true,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "RENDER_API_TOKEN": {
+  "canonical": "RENDER_API_TOKEN",
+  "file_count": 2,
+  "files": [
+   "infrastructure/mcp-control-plane/render.yaml",
+   "render.yaml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "RENDER_BACKUP_SVC_ID": {
+  "canonical": "RENDER_BACKUP_SVC_ID",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "scripts/security/generate_secrets.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "RENDER_BRAIN_SERVICE_ID": {
+  "canonical": "RENDER_BRAIN_SERVICE_ID",
+  "file_count": 2,
+  "files": [
+   ".github/workflows/unified-pipeline.yml",
+   "scripts/ci/plan_render_deploys.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "RENDER_BRAIN_SVC_ID": {
+  "canonical": "RENDER_BRAIN_SERVICE_ID",
+  "file_count": 1,
+  "files": [
+   "infrastructure/mcp-control-plane/src/lib/env.ts"
+  ],
+  "in_vault": true,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "RENDER_BROWSER_SERVICE_ID": {
+  "canonical": "RENDER_BROWSER_SERVICE_ID",
+  "file_count": 1,
+  "files": [
+   "scripts/ci/plan_render_deploys.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "RENDER_CI_RUNNER_SERVICE_ID": {
+  "canonical": "RENDER_CI_RUNNER_SERVICE_ID",
+  "file_count": 1,
+  "files": [
+   ".github/workflows/unified-pipeline.yml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 5
+ },
+ "RENDER_CI_RUNNER_SVC_ID": {
+  "canonical": "RENDER_CI_RUNNER_SERVICE_ID",
+  "file_count": 2,
+  "files": [
+   ".github/workflows/unified-pipeline.yml",
+   "infrastructure/mcp-control-plane/src/lib/env.ts"
+  ],
+  "in_vault": true,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "RENDER_CORE_SERVICE_ID": {
+  "canonical": "RENDER_CORE_SERVICE_ID",
+  "file_count": 2,
+  "files": [
+   ".github/workflows/unified-pipeline.yml",
+   "scripts/ci/plan_render_deploys.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "RENDER_IMAGE_SERVICE_ID": {
+  "canonical": "RENDER_IMAGE_SERVICE_ID",
+  "file_count": 2,
+  "files": [
+   "scripts/agents/rules_breaker.py",
+   "scripts/deploy/update_render_image.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "RENDER_MCP_SERVICE_ID": {
+  "canonical": "RENDER_MCP_SERVICE_ID",
+  "file_count": 2,
+  "files": [
+   ".github/workflows/unified-pipeline.yml",
+   "scripts/ci/plan_render_deploys.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "RENDER_MCP_SVC_ID": {
+  "canonical": "RENDER_MCP_SERVICE_ID",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 19
+ },
+ "RENDER_PREFLIGHT_TOKEN": {
+  "canonical": "RENDER_PREFLIGHT_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "scripts/ci/render_deploy_preflight.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "RENDER_PRIMARY_SVC_ID": {
+  "canonical": "RENDER_PRIMARY_SVC_ID",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 30
+ },
+ "RENDER_SCRAPER_SERVICE_ID": {
+  "canonical": "RENDER_SCRAPER_SERVICE_ID",
+  "file_count": 2,
+  "files": [
+   ".github/workflows/unified-pipeline.yml",
+   "scripts/ci/plan_render_deploys.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "RENDER_SCRAPER_SVC_ID": {
+  "canonical": "RENDER_SCRAPER_SERVICE_ID",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 17
+ },
+ "RENDER_SERVICE_ID": {
+  "canonical": "RENDER_SERVICE_ID",
+  "file_count": 1,
+  "files": [
+   ".github/scripts/verify-render-deploy.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 33
+ },
+ "RENDER_STAGING_SERVICE_ID": {
+  "canonical": "RENDER_STAGING_SERVICE_ID",
+  "file_count": 2,
+  "files": [
+   ".github/scripts/trigger_render_deploy.py",
+   "core/github/scripts/trigger_render_deploy.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "RENDER_SVC_ID": {
+  "canonical": "RENDER_SVC_ID",
+  "file_count": 3,
+  "files": [
+   ".github/actions/render-deploy-status/action.yml",
+   ".github/actions/render-deploy/action.yml",
+   ".github/scripts/trigger_render_deploy.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 23
+ },
+ "RENDER_WORKER_SERVICE_ID": {
+  "canonical": "RENDER_WORKER_SERVICE_ID",
+  "file_count": 2,
+  "files": [
+   ".github/workflows/unified-pipeline.yml",
+   "scripts/ci/plan_render_deploys.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "RENDER_WORKER_SVC_ID": {
+  "canonical": "RENDER_WORKER_SERVICE_ID",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": true,
+  "is_placeholder_or_test": false,
+  "refs": 18
+ },
+ "RESEND_API_KEY": {
+  "canonical": "RESEND_API_KEY",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 44
+ },
+ "REST_TOKEN": {
+  "canonical": "REST_TOKEN",
+  "file_count": 3,
+  "files": [
+   ".github/scripts/platform_agent_check.py",
+   ".github/scripts/platform_deep_audit.py",
+   "core/github/scripts/platform_agent_check.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "ROUTEME_API_KEY": {
+  "canonical": "ROUTEME_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "scripts/devops/_audit.py",
+   "scripts/ops/devops/_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "RUNPOD_API_KEY": {
+  "canonical": "RUNPOD_API_KEY",
+  "file_count": 3,
+  "files": [
+   "core/api/routes/capabilities.py",
+   "core/orchestration/cloud_sandbox_orchestrator.py",
+   "core/security/secret_vault.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 11
+ },
+ "RUNWAY_API_KEY": {
+  "canonical": "RUNWAY_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/tools/media/video_generator.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "SAFETY_API_KEY": {
+  "canonical": "SAFETY_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "scripts/ops/security/auto_vulnerability_scanner.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 5
+ },
+ "SAMBANOVA_API_KEY": {
+  "canonical": "SAMBANOVA_API_KEY",
+  "file_count": 1,
+  "files": [
+   "gateway/dynamic_llm_router.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "SAT_SYNC_PAT": {
+  "canonical": "SAT_SYNC_PAT",
+  "file_count": 2,
+  "files": [
+   "scripts/ci/federation_satellite_sync.py",
+   "scripts/ci/satellite_parity_gate.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 9
+ },
+ "SELF_HEAL_PAT": {
+  "canonical": "SELF_HEAL_PAT",
+  "file_count": 1,
+  "files": [
+   ".github/workflows/ops-maintenance.yml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 34
+ },
+ "SENDGRID_API_KEY": {
+  "canonical": "SENDGRID_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "scripts/ops/tenant/auto_tenant_health_report.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 15
+ },
+ "SENTRY_AUTH_TOKEN": {
+  "canonical": "SENTRY_AUTH_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/tools/mcp/mcp_observability.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "SESSION_SECRET": {
+  "canonical": "SESSION_SECRET",
+  "file_count": 2,
+  "files": [
+   "scripts/ops/security/auto_secret_rotate.py",
+   "scripts/security/auto_secret_rotate.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "SLACK_BOT_TOKEN": {
+  "canonical": "SLACK_BOT_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/mcp_allowlist.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "SLACK_TOKEN": {
+  "canonical": "SLACK_TOKEN",
+  "file_count": 1,
+  "files": [
+   "scripts/ci/master_secret_shield.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "STEALTH_WEBHOOK_SECRET": {
+  "canonical": "STEALTH_WEBHOOK_SECRET",
+  "file_count": 2,
+  "files": [
+   "browser/server.py",
+   "browser/tests/test_relay_entrypoint.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 11
+ },
+ "STRIPE_API_KEY": {
+  "canonical": "STRIPE_API_KEY",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 40
+ },
+ "STRIPE_WEBHOOK_SECRET": {
+  "canonical": "STRIPE_WEBHOOK_SECRET",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "core/api/routes/billing_api.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 47
+ },
+ "STRONG_SECRET": {
+  "canonical": "STRONG_SECRET",
+  "file_count": 1,
+  "files": [
+   "core/tests/core/test_admin_secret_policy.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 7
+ },
+ "SUPABASE_ACCESS_TOKEN": {
+  "canonical": "SUPABASE_ACCESS_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_agent_check.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 20
+ },
+ "SUPABASE_ANON_KEY": {
+  "canonical": "SUPABASE_ANON_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/api/routes/kaggle.py",
+   "core/api/routes/service_topology.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 23
+ },
+ "SUPABASE_KEY": {
+  "canonical": "SUPABASE_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".env.production.example",
+   ".github/scripts/platform_agent_check.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 57
+ },
+ "SUPABASE_PUBLISHABLE_KEY": {
+  "canonical": "SUPABASE_PUBLISHABLE_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "scripts/devops/_audit.py",
+   "scripts/ops/devops/_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "SUPABASE_SECRET_KEY": {
+  "canonical": "SUPABASE_SECRET_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "scripts/devops/_audit.py",
+   "scripts/ops/devops/_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "SUPABASE_SERVICE_KEY": {
+  "canonical": "SUPABASE_SERVICE_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/config_classification.py",
+   "core/config_fields.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 17
+ },
+ "SUPABASE_SERVICE_ROLE_KEY": {
+  "canonical": "SUPABASE_SERVICE_ROLE_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/workflows/ops-maintenance.yml",
+   "core/api/routes/kaggle.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 62
+ },
+ "SUPABASE_WEBHOOK_SECRET": {
+  "canonical": "SUPABASE_WEBHOOK_SECRET",
+  "file_count": 1,
+  "files": [
+   "core/api/routes/cdc_webhooks.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 18
+ },
+ "SUPREMEAI_ADMIN_BOOTSTRAP_SECRET": {
+  "canonical": "SUPREMEAI_ADMIN_BOOTSTRAP_SECRET",
+  "file_count": 1,
+  "files": [
+   "gateway/service/admin_auth.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "SUPREMEAI_ADMIN_SECRET": {
+  "canonical": "SUPREMEAI_ADMIN_SECRET",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/config_fields.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 14
+ },
+ "SUPREMEAI_ADMIN_TOTP_SECRET": {
+  "canonical": "SUPREMEAI_ADMIN_TOTP_SECRET",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "core/api/routes/admin_routes.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 16
+ },
+ "SUPREMEAI_API_KEY": {
+  "canonical": "SUPREMEAI_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".env.production.example",
+   ".semgrep/supremeai-invariants.yaml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 113
+ },
+ "SUPREMEAI_API_TOKEN": {
+  "canonical": "SUPREMEAI_API_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "core/config.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "SUPREMEAI_BACKEND_SERVICE_TOKEN": {
+  "canonical": "SUPREMEAI_BACKEND_SERVICE_TOKEN",
+  "file_count": 1,
+  "files": [
+   "infrastructure/mcp-control-plane/src/lib/env.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "SUPREMEAI_CORE_TOKEN": {
+  "canonical": "SUPREMEAI_CORE_TOKEN",
+  "file_count": 1,
+  "files": [
+   "scripts/ci/boundary_sanitization_guard.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "SUPREMEAI_GITHUB_TOKEN": {
+  "canonical": "SUPREMEAI_GITHUB_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/health/issue_filer.py",
+   "core/tests/core/health/test_issue_filer.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "SUPREMEAI_JWT_SECRET": {
+  "canonical": "SUPREMEAI_JWT_SECRET",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".env.production.example",
+   ".github/workflows/ops-maintenance.yml"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 68
+ },
+ "SUPREMEAI_SOLVER_API_KEY": {
+  "canonical": "SUPREMEAI_SOLVER_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/tools/solution_synthesizer/tools/solution_synthesizer.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "SUPREMEAI_TOKEN": {
+  "canonical": "SUPREMEAI_TOKEN",
+  "file_count": 1,
+  "files": [
+   "core/runner/agent_runner.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "SUPREMEAI_TOWER_TOKEN": {
+  "canonical": "SUPREMEAI_TOWER_TOKEN",
+  "file_count": 1,
+  "files": [
+   "mcp.json"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "SUPREMEAI_WORKER_TOKEN": {
+  "canonical": "SUPREMEAI_WORKER_TOKEN",
+  "file_count": 1,
+  "files": [
+   "browser/cloudflare-worker/src/index.js"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "SUPREME_EVAL_TOKEN": {
+  "canonical": "SUPREME_EVAL_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/evals/golden/run_eval.py",
+   "evals/golden/run_eval.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "TELEGRAM_BOT_TOKEN": {
+  "canonical": "TELEGRAM_BOT_TOKEN",
+  "file_count": 3,
+  "files": [
+   ".agents/skills/devtools-audit/references/run-in-your-system.md",
+   ".env.example",
+   ".github/scripts/platform_deep_audit.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 85
+ },
+ "TELEGRAM_TOKEN": {
+  "canonical": "TELEGRAM_TOKEN",
+  "file_count": 1,
+  "files": [
+   "browser/ghost_tower/cookie_sync_scheduler.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "TELEGRAM_WEBHOOK_SECRET": {
+  "canonical": "TELEGRAM_WEBHOOK_SECRET",
+  "file_count": 3,
+  "files": [
+   "core/api/routes/webhooks_ai.py",
+   "core/tests/missions/test_mission_failure_modes.py",
+   "core/tools/social/telegram_bot/router.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "TEST_ONLY_CI_WEBHOOK_SECRET": {
+  "canonical": "TEST_ONLY_CI_WEBHOOK_SECRET",
+  "file_count": 1,
+  "files": [
+   "core/tests/core/test_config.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 2
+ },
+ "TEST_ONLY_DEEPSEEK_API_KEY": {
+  "canonical": "TEST_ONLY_DEEPSEEK_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/tests/core/test_config.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 2
+ },
+ "TEST_ONLY_FIRECRAWL_API_KEY": {
+  "canonical": "TEST_ONLY_FIRECRAWL_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/tests/core/test_config.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 2
+ },
+ "TEST_ONLY_GEMINI_API_KEY": {
+  "canonical": "TEST_ONLY_GEMINI_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/tests/core/test_config.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 3
+ },
+ "TEST_ONLY_GROQ_API_KEY": {
+  "canonical": "TEST_ONLY_GROQ_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/tests/core/test_config.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 2
+ },
+ "TEST_ONLY_HF_API_KEY": {
+  "canonical": "TEST_ONLY_HF_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/tests/core/test_config.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 2
+ },
+ "TEST_ONLY_NVIDIA_API_KEY": {
+  "canonical": "TEST_ONLY_NVIDIA_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/tests/core/test_config.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 2
+ },
+ "TEST_ONLY_OPENROUTER_API_KEY": {
+  "canonical": "TEST_ONLY_OPENROUTER_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/tests/core/test_config.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 3
+ },
+ "TEST_ONLY_STRIPE_API_KEY": {
+  "canonical": "TEST_ONLY_STRIPE_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/tests/core/test_config.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 2
+ },
+ "TEST_ONLY_STRIPE_WEBHOOK_SECRET": {
+  "canonical": "TEST_ONLY_STRIPE_WEBHOOK_SECRET",
+  "file_count": 1,
+  "files": [
+   "core/tests/core/test_config.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 2
+ },
+ "TEST_SECRET": {
+  "canonical": "TEST_SECRET",
+  "file_count": 2,
+  "files": [
+   "core/tests/core/test_secret_vault_async_env_899.py",
+   "gateway/tests/routes/test_auth_endpoints_contract.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 6
+ },
+ "TOGETHER_AI_API_KEY": {
+  "canonical": "TOGETHER_AI_API_KEY",
+  "file_count": 1,
+  "files": [
+   "core/scripts/superai_free_tier_monitor.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "TOGETHER_API_KEY": {
+  "canonical": "TOGETHER_API_KEY",
+  "file_count": 3,
+  "files": [
+   "core/brain/model_router.py",
+   "core/config_classification.py",
+   "core/llm/llm_gateway/registry.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 7
+ },
+ "TOTALLY_UNKNOWN_SECRET": {
+  "canonical": "TOTALLY_UNKNOWN_SECRET",
+  "file_count": 1,
+  "files": [
+   "core/tests/core/security/test_secret_vault_full.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 1
+ },
+ "TOWER_ADMIN_TOKEN": {
+  "canonical": "TOWER_ADMIN_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/integrations/telegram_bot.py",
+   "core/integrations/telegram_config.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 9
+ },
+ "TOWER_AUTH_TOKEN": {
+  "canonical": "TOWER_AUTH_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/client/supreme-node/config.yaml",
+   "core/client/supreme-node/daemon.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 6
+ },
+ "TRIGGER_API_KEY": {
+  "canonical": "TRIGGER_API_KEY",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "TWILIO_AUTH_TOKEN": {
+  "canonical": "TWILIO_AUTH_TOKEN",
+  "file_count": 3,
+  "files": [
+   "core/config_classification.py",
+   "scripts/ops/testing/alert_manager.py",
+   "scripts/testing/alert_manager.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "UNRELATED_VAULT_SECRET": {
+  "canonical": "UNRELATED_VAULT_SECRET",
+  "file_count": 1,
+  "files": [
+   "tests/test_vault_failclosed.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 1
+ },
+ "UPSTASH_API_KEY": {
+  "canonical": "UPSTASH_API_KEY",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "UPSTASH_QUATERNARY_API_KEY": {
+  "canonical": "UPSTASH_QUATERNARY_API_KEY",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "UPSTASH_QUINARY_API_KEY": {
+  "canonical": "UPSTASH_QUINARY_API_KEY",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "UPSTASH_REDIS_QUATERNARY_REST_TOKEN": {
+  "canonical": "UPSTASH_REDIS_QUATERNARY_REST_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "infrastructure/mcp-control-plane/src/lib/redis_chain.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 18
+ },
+ "UPSTASH_REDIS_QUINARY_REST_TOKEN": {
+  "canonical": "UPSTASH_REDIS_QUINARY_REST_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "infrastructure/mcp-control-plane/src/lib/redis_chain.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 18
+ },
+ "UPSTASH_REDIS_REST_TOKEN": {
+  "canonical": "UPSTASH_REDIS_REST_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "core/config_classification.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 94
+ },
+ "UPSTASH_REDIS_SECONDARY_REST_TOKEN": {
+  "canonical": "UPSTASH_REDIS_SECONDARY_REST_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "infrastructure/mcp-control-plane/src/lib/redis_chain.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 18
+ },
+ "UPSTASH_REDIS_TERTIARY_REST_TOKEN": {
+  "canonical": "UPSTASH_REDIS_TERTIARY_REST_TOKEN",
+  "file_count": 2,
+  "files": [
+   ".env.example",
+   "infrastructure/mcp-control-plane/src/lib/redis_chain.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 22
+ },
+ "UPSTASH_REDIS_TOKEN": {
+  "canonical": "UPSTASH_REDIS_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "core/tests/core/test_zero_cost_phase1_queue.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 12
+ },
+ "UPSTASH_SECONDARY_API_KEY": {
+  "canonical": "UPSTASH_SECONDARY_API_KEY",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "UPSTASH_TERTIARY_API_KEY": {
+  "canonical": "UPSTASH_TERTIARY_API_KEY",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "UPSTASH_TOKEN": {
+  "canonical": "UPSTASH_TOKEN",
+  "file_count": 1,
+  "files": [
+   "core/scripts/superai_free_tier_monitor.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "UPSTREAM_WEBHOOK_SECRET": {
+  "canonical": "UPSTREAM_WEBHOOK_SECRET",
+  "file_count": 1,
+  "files": [
+   "gateway/service/app.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "UPTIMEROBOT_API_KEY": {
+  "canonical": "UPTIMEROBOT_API_KEY",
+  "file_count": 1,
+  "files": [
+   ".env.example"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "V0_API_KEY": {
+  "canonical": "V0_API_KEY",
+  "file_count": 3,
+  "files": [
+   "core/brain/model_router.py",
+   "core/config_classification.py",
+   "core/security/secret_vault.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "V0_TOKEN": {
+  "canonical": "V0_TOKEN",
+  "file_count": 1,
+  "files": [
+   "core/web_ai_session_bridge.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "VAULT_SECRET": {
+  "canonical": "VAULT_SECRET",
+  "file_count": 1,
+  "files": [
+   "scripts/ci/boundary_sanitization_guard.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 1
+ },
+ "VAULT_TOKEN": {
+  "canonical": "VAULT_TOKEN",
+  "file_count": 1,
+  "files": [
+   "scripts/ci/boundary_sanitization_guard.py"
+  ],
+  "in_vault": false,
+  "is_alias": false,
+  "is_placeholder_or_test": true,
+  "refs": 1
+ },
+ "VERCEL_OIDC_TOKEN": {
+  "canonical": "VERCEL_OIDC_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/agents/devops/multicloud_quota_monitor.py",
+   "core/config_classification.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "VERCEL_TOKEN": {
+  "canonical": "VERCEL_TOKEN",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   ".github/scripts/platform_deep_audit.py",
+   ".github/scripts/service_preflight_check.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 23
+ },
+ "VITE_FIREBASE_API_KEY": {
+  "canonical": "VITE_FIREBASE_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".env.example",
+   "core/config_classification.py",
+   "docs/specs/001-dynamic-production-configuration/contracts/config-contract.md"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "VITE_GITHUB_TOKEN": {
+  "canonical": "VITE_GITHUB_TOKEN",
+  "file_count": 1,
+  "files": [
+   "studio/src/lib/jarvis/handlers/search.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 6
+ },
+ "VITE_SUPREMEAI_API_KEY": {
+  "canonical": "VITE_SUPREMEAI_API_KEY",
+  "file_count": 1,
+  "files": [
+   "studio/src/components/chat/UnifiedChatPanel.tsx"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "VITE_UPSTASH_REDIS_REST_TOKEN": {
+  "canonical": "VITE_UPSTASH_REDIS_REST_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/config_classification.py",
+   "studio/src/lib/cache.manager.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "WEBHOOK_SECRET": {
+  "canonical": "WEBHOOK_SECRET",
+  "file_count": 1,
+  "files": [
+   "gateway/tests/routes/test_webhooks_github.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 4
+ },
+ "WEBSHARE_API_KEY": {
+  "canonical": "WEBSHARE_API_KEY",
+  "file_count": 2,
+  "files": [
+   "browser/server.py",
+   "gateway/SYSTEM_CHAT_AND_DEPLOYMENT_ARCHITECTURE.md"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "WHATSAPP_ACCESS_TOKEN": {
+  "canonical": "WHATSAPP_ACCESS_TOKEN",
+  "file_count": 3,
+  "files": [
+   "infrastructure/mcp-control-plane/src/adapters/notify/actions.ts",
+   "infrastructure/mcp-control-plane/src/adapters/notify/index.ts",
+   "infrastructure/mcp-control-plane/src/lib/env.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "WHATSAPP_API_KEY": {
+  "canonical": "WHATSAPP_API_KEY",
+  "file_count": 1,
+  "files": [
+   "infrastructure/mcp-control-plane/src/lib/env.ts"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 1
+ },
+ "WORKER_AUTH_TOKEN": {
+  "canonical": "WORKER_AUTH_TOKEN",
+  "file_count": 3,
+  "files": [
+   ".env.production.example",
+   "core/config_classification.py",
+   "core/worker_service.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 8
+ },
+ "XAI_API_KEY": {
+  "canonical": "XAI_API_KEY",
+  "file_count": 3,
+  "files": [
+   ".github/scripts/platform_deep_audit.py",
+   "core/github/scripts/platform_deep_audit.py",
+   "gateway/dynamic_llm_router.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 3
+ },
+ "ZAI_API_KEY": {
+  "canonical": "ZAI_API_KEY",
+  "file_count": 2,
+  "files": [
+   "core/services/dynamic_ai/provider_registry.py",
+   "tests/test_provider_registry_lanes.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ },
+ "ZCODE_MCP_TOKEN": {
+  "canonical": "ZCODE_MCP_TOKEN",
+  "file_count": 2,
+  "files": [
+   "core/external_agents/providers/zai.py",
+   "gateway/agents/external_agents/providers/zai.py"
+  ],
+  "in_vault": true,
+  "is_alias": false,
+  "is_placeholder_or_test": false,
+  "refs": 2
+ }
+}
