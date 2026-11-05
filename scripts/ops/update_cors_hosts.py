@@ -11,25 +11,25 @@ import time
 SERVICES = [
     {
         "role": "primary",
-        "id":   os.environ.get("RENDER_PRIMARY_SVC_ID", ""),
+        "id":   os.environ.get("RENDER_CORE_SERVICE_ID", os.environ.get("RENDER_PRIMARY_SVC_ID", "")),
         "url":  os.environ.get("RENDER_PRIMARY_URL",    ""),
         "key":  os.environ.get("RENDER_API_KEY_1",      os.environ.get("RENDER_API_KEY", "")),
     },
     {
         "role": "worker",
-        "id":   os.environ.get("RENDER_WORKER_SVC_ID",  ""),
+        "id":   os.environ.get("RENDER_WORKER_SERVICE_ID", os.environ.get("RENDER_WORKER_SVC_ID", "")),
         "url":  os.environ.get("RENDER_WORKER_URL",     ""),
         "key":  os.environ.get("RENDER_API_KEY_2",      ""),
     },
     {
         "role": "scraper",
-        "id":   os.environ.get("RENDER_SCRAPER_SVC_ID", ""),
+        "id":   os.environ.get("RENDER_SCRAPER_SERVICE_ID", os.environ.get("RENDER_SCRAPER_SVC_ID", "")),
         "url":  os.environ.get("RENDER_SCRAPER_URL",    ""),
         "key":  os.environ.get("RENDER_API_KEY_3",      ""),
     },
     {
         "role": "controlTower",
-        "id":   os.environ.get("RENDER_MCP_SVC_ID", ""),
+        "id":   os.environ.get("RENDER_MCP_SERVICE_ID", os.environ.get("RENDER_MCP_SVC_ID", "")),
         "url":  os.environ.get("RENDER_MCP_URL",    ""),
         "key":  os.environ.get("RENDER_API_KEY_4",  os.environ.get("RENDER_API_KEY", "")),
     },

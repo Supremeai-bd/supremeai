@@ -93,7 +93,7 @@ def main() -> int:
         return 1
 
     client = RenderClient(api_key=api_key)
-    service_id = args.service_id or os.environ.get("RENDER_SVC_ID")
+    service_id = args.service_id or os.environ.get("RENDER_SERVICE_ID") or os.environ.get("RENDER_SVC_ID")
 
     try:
         service = client.get_service(service_id)

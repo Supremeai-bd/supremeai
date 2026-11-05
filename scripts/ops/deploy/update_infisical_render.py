@@ -26,7 +26,7 @@ client = InfisicalClient(ClientSettings(
 ))
 
 key = 'RENDER_PRIMARY_SVC_ID'
-value = os.getenv("RENDER_PRIMARY_SVC_ID", "")
+value = os.getenv("RENDER_CORE_SERVICE_ID", os.getenv("RENDER_PRIMARY_SVC_ID", ""))
 if not value:
     raise RuntimeError("RENDER_PRIMARY_SVC_ID must be set in environment.")
 

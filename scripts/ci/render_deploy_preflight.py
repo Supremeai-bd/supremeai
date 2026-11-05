@@ -81,7 +81,7 @@ def account_config() -> list[dict[str, Any]]:
     ]
     accounts = []
     for role, svc_env, key_env in node_defs:
-        svc_id = os.getenv(svc_env)
+        svc_id = os.getenv(svc_env) or os.getenv(svc_env.replace("_SVC_ID", "_SERVICE_ID"))
         # Check fallback key names if specific numbered key not set
         key = os.getenv(key_env)
         if not key and role == "core":

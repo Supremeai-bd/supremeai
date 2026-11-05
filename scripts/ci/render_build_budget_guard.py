@@ -174,7 +174,7 @@ def run_guard(threshold: float = BUILD_MINUTE_THRESHOLD) -> dict[str, dict]:
         if not key and svc_cfg.get("fallback_key"):
             key = os.environ.get(svc_cfg["fallback_key"])
 
-        svc_id = os.environ.get(svc_cfg["svc_env"]) or svc_cfg["default_svc"]
+        svc_id = os.environ.get(svc_cfg["svc_env"]) or os.environ.get(svc_cfg["svc_env"].replace("_SVC_ID", "_SERVICE_ID")) or svc_cfg["default_svc"]
 
         print(f"\n[{role}] {name} (ID: {svc_id})")
         if not key:

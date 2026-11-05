@@ -307,6 +307,13 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         required_when="primary Render service automation enabled",
     ),
     ConfigSpec(
+        "RENDER_CORE_SERVICE_ID",
+        frozenset({ConfigClass.CONDITIONAL}),
+        frozenset({ConfigSource.ENV, ConfigSource.VAULT}),
+        frozenset({"ci"}),
+        required_when="primary Render service automation enabled (canonical name)",
+    ),
+    ConfigSpec(
         "CLOUDFLARE_API_TOKEN",
         frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
         frozenset({ConfigSource.ENV, ConfigSource.VAULT}),

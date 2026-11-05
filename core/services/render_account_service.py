@@ -43,7 +43,7 @@ class RenderAccountService:
             ("mcp", "RENDER_MCP_SVC_ID", "RENDER_API_KEY_4", 450.0, "free"),
         ]
         for role, svc_env, key_env, default_cap, plan in node_defs:
-            svc_id = os.getenv(svc_env)
+            svc_id = os.getenv(svc_env) or os.getenv(svc_env.replace("_SVC_ID", "_SERVICE_ID"))
             if svc_id:
                 accounts.append(
                     {

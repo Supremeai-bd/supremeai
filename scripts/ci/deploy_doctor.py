@@ -94,7 +94,7 @@ def get_env(name: str | None) -> str:
 def resolve_service_creds(svc: dict[str, Any]) -> tuple[str, str]:
     """Resolve API key + service ID with proper fallback chain."""
     api_key = get_env(svc["key_env"]) or get_env(svc.get("fallback_key_env"))
-    service_id = get_env(svc["svc_env"])
+    service_id = get_env(svc["svc_env"]) or get_env(svc["svc_env"].replace("_SVC_ID", "_SERVICE_ID"))
     return api_key, service_id
 
 
