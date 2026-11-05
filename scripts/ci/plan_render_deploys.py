@@ -45,38 +45,45 @@ from pathlib import Path
 SERVICE_RULES = {
     "core": (
         "RENDER_CORE_SERVICE_ID",
-        "RENDER_API_KEY",
+        "RENDER_API_KEY_1",
         ("core/", "requirements", "pyproject.toml", "Dockerfile", "scripts/lib/", "scripts/runtime/"),
+        "https://supremeai-primary-node-5xso.onrender.com/release",
     ),
     "api": (
         "RENDER_API_SERVICE_ID",
         "RENDER_API_KEY_5",
         ("gateway/", "config/routing_policy", "render.yaml", "scripts/lib/"),
+        "https://supremeai-api-ulw0.onrender.com/release",
     ),
     "scraper": (
         "RENDER_SCRAPER_SERVICE_ID",
         "RENDER_API_KEY_3",
         ("browser/", "core/", "render.yaml", "scripts/lib/", "scripts/runtime/"),
+        "https://supremeai-scraper-node.onrender.com/release",
     ),
     "mcp": (
         "RENDER_MCP_SERVICE_ID",
         "RENDER_API_KEY_4",
         ("infrastructure/mcp-control-plane/", "scripts/runtime/", "render.yaml"),
+        "https://supremeai-mcp-tower.onrender.com/release",
     ),
     "worker": (
         "RENDER_WORKER_SERVICE_ID",
         "RENDER_API_KEY_2",
         ("core/", "scripts/lib/", "scripts/runtime/"),
+        "https://supremeai-worker-node.onrender.com/release",
     ),
     "brain": (
         "RENDER_BRAIN_SERVICE_ID",
         "RENDER_API_KEY_6",
         ("core/services/brain/", "core/", "scripts/lib/"),
+        "https://supremeai-tiny-brain.onrender.com/release",
     ),
     "ci-runner": (
         "RENDER_CI_RUNNER_SERVICE_ID",
         "RENDER_API_KEY_PAYKARI",
         ("scripts/ci/", "scripts/ops/", "scripts/lib/"),
+        "",
     ),
 }
 
@@ -148,7 +155,13 @@ def main() -> int:
             if any(_matches(path, rule[2]) for path in files)
         ]
 
-    for service, (env_name, api_key_env, _prefixes) in candidates:
+    for service, rule in candidates:
+        env_name, api_key_env, _prefixes = rule[0], rule[1], rule[2]
+        default_release_url = rule[3] if len(rule) > 3 else ""
+        if service == "core":
+            release_url = os.environ.get("RENDER_CORE_RELEASE_URL", "").strip() or default_release_url
+        else:
+            release_url = default_release_url
         service_id = resolve_service_id(env_name)
         if not service_id:
             unregistered.append(f"{service}:{env_name}")
@@ -158,7 +171,14 @@ def main() -> int:
                 file=sys.stderr,
             )
         else:
-            selected.append({"service": service, "service_id": service_id, "api_key_env": api_key_env})
+            selected.append(
+                {
+                    "service": service,
+                    "service_id": service_id,
+                    "api_key_env": api_key_env,
+                    "release_url": release_url,
+                }
+            )
 
     matrix = json.dumps({"include": selected}, separators=(",", ":"))
     output = args.output or os.environ.get("GITHUB_OUTPUT", "")

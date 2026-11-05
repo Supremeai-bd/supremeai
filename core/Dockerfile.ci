@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir torch==2.4.1
 
 # ২. তারপর আমাদের প্রয়োজনীয় সেটআপটুলস ভার্সনটি এনফোর্স করুন
-RUN pip install --no-cache-dir setuptools==68.0.0 wheel
+RUN pip install --no-cache-dir setuptools==68.0.0 wheel==0.45.1
 
 # ৩. সবশেষে Whisper ইন্সটল করুন
 RUN pip install --no-cache-dir openai-whisper==20240930 --no-build-isolation

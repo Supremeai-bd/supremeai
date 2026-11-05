@@ -44,35 +44,108 @@ POLL_TIMEOUT_SECONDS = int(os.environ.get("RENDER_WAIT_TIMEOUT_SECONDS", "660"))
 FAIL_STATES = {"build_failed", "update_failed", "deactivated", "canceled"}
 OK_STATES = {"live"}
 
+CANDIDATE_KEY_ENVS = (
+    "RENDER_API_KEY_1",
+    "RENDER_API_KEY_2",
+    "RENDER_API_KEY_3",
+    "RENDER_API_KEY_4",
+    "RENDER_API_KEY_5",
+    "RENDER_API_KEY_6",
+    "RENDER_API_KEY_PAYKARI",
+    "RENDER_API_KEY",
+)
+
+
+def _collect_candidate_keys(preferred_env: str) -> list[tuple[str, str]]:
+    """Return deduplicated (env_name, key_value) pairs starting with preferred_env."""
+    seen: set[str] = set()
+    pairs: list[tuple[str, str]] = []
+    for env_name in (preferred_env, *CANDIDATE_KEY_ENVS):
+        if not env_name:
+            continue
+        val = os.environ.get(env_name, "").strip()
+        if val and val not in seen:
+            seen.add(val)
+            pairs.append((env_name, val))
+    return pairs
+
 
 def main() -> int:
     svc_id = (os.environ.get("RENDER_SERVICE_ID", "") or os.environ.get("RENDER_SVC_ID", "")).strip()
     key_env = os.environ.get("RENDER_API_KEY_ENV", "").strip() or "RENDER_API_KEY"
-    api_key = os.environ.get(key_env, "").strip() if key_env else ""
-    if not api_key:
-        api_key = os.environ.get("RENDER_API_KEY", "").strip()
+    candidate_keys = _collect_candidate_keys(key_env)
 
     if not svc_id:
         print("Skipping Render deploy - service ID not set")
         return 0
 
-    if not api_key:
+    if not candidate_keys:
         print("Skipping Render deploy - RENDER_API_KEY not set")
         return 0
 
+    key_idx = 0
+    active_env, api_key = candidate_keys[key_idx]
     client = RenderClient(api_key=api_key, service_id=svc_id)
+    commit_id = (
+        os.environ.get("PR_HEAD_SHA", "").strip()
+        or os.environ.get("EXPECTED_SHA", "").strip()
+        or os.environ.get("GITHUB_SHA", "").strip()
+    ) or None
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
-            commit_id = (os.environ.get("PR_HEAD_SHA", "").strip()
-                         or os.environ.get("EXPECTED_SHA", "").strip()
-                         or os.environ.get("GITHUB_SHA", "").strip()) or None
             body = client.trigger_deploy(svc_id, commit_id=commit_id)
-            print("Deploy triggered:", body)
+            print(f"Deploy triggered via {active_env}:", body)
             if not RENDER_WAIT:
                 return 0
             return wait_for_terminal_state(client, svc_id, body)
         except RenderApiError as exc:
+            err_body = (exc.body or "").lower()
+            if exc.status == 404 and "does not have a commit" in err_body and commit_id is not None:
+                print(
+                    f"::warning::Service {svc_id} does not index commit {commit_id}; "
+                    f"retrying deploy trigger at branch HEAD (commit_id=None)."
+                )
+                commit_id = None
+                try:
+                    body = client.trigger_deploy(svc_id, commit_id=None)
+                    print(f"Deploy triggered (branch HEAD) via {active_env}:", body)
+                    if not RENDER_WAIT:
+                        return 0
+                    return wait_for_terminal_state(client, svc_id, body)
+                except RenderApiError as inner_exc:
+                    exc = inner_exc
+                    err_body = (exc.body or "").lower()
+
+            if exc.status == 404 and "not found: service" in err_body:
+                matched_client = None
+                while key_idx + 1 < len(candidate_keys):
+                    key_idx += 1
+                    next_env, next_key = candidate_keys[key_idx]
+                    probe_client = RenderClient(api_key=next_key, service_id=svc_id)
+                    try:
+                        body = probe_client.trigger_deploy(svc_id, commit_id=commit_id)
+                        active_env = next_env
+                        client = probe_client
+                        matched_client = probe_client
+                        print(f"Deploy triggered after key discovery via {active_env}:", body)
+                        break
+                    except RenderApiError as probe_exc:
+                        probe_body = (probe_exc.body or "").lower()
+                        if probe_exc.status == 404 and "does not have a commit" in probe_body:
+                            body = probe_client.trigger_deploy(svc_id, commit_id=None)
+                            active_env = next_env
+                            client = probe_client
+                            matched_client = probe_client
+                            commit_id = None
+                            print(f"Deploy triggered (branch HEAD) after key discovery via {active_env}:", body)
+                            break
+                        continue
+                if matched_client is not None:
+                    if not RENDER_WAIT:
+                        return 0
+                    return wait_for_terminal_state(matched_client, svc_id, body)
+
             print(f"Attempt {attempt}/{MAX_ATTEMPTS} failed with HTTP {exc.status}: {exc.body or exc}")
             if attempt == MAX_ATTEMPTS:
                 return 1

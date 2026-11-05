@@ -2,9 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Upgrade pip and install minimal edge worker dependencies
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir nats-py pydantic litellm langchain
+# Install pinned minimal edge worker dependencies
+RUN pip install --no-cache-dir nats-py==2.9.0 pydantic==2.14.1 litellm==1.55.0 langchain==0.3.12
 
 # We assume the user maps or copies the core messaging and worker scripts here
 COPY core/nats_messaging.py ./core/

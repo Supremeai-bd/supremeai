@@ -21,6 +21,7 @@ on:
       - "vscode/**"
       - "infrastructure/**"
       - "scripts/**"
+      - "config/**"
       - "requirements*.txt"
       - "pyproject.toml"
       - "Dockerfile"
@@ -35,6 +36,7 @@ on:
       - "vscode/**"
       - "infrastructure/**"
       - "scripts/**"
+      - "config/**"
       - "requirements*.txt"
       - "pyproject.toml"
       - "Dockerfile"
@@ -72,13 +74,15 @@ jobs:
       - name: Install minimal dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest pytest-asyncio pydantic fastapi httpx
+          pip install ruff pytest pytest-asyncio pydantic fastapi httpx pyyaml
 
       - name: Fast fatal error & syntax lint
         run: ruff check core/ scripts/ci/ --select E9,F63,F7,F82 --exclude core/tests/
 
-      - name: Targeted unit test guard
-        run: pytest -q tests/unit/test_telemetry_event_bus_guard.py
+      - name: Targeted unit test guard & System Wiring Atlas check
+        run: |
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py
+          python scripts/ops/wiring_atlas.py --check
 
   runtime-readiness:
     name: "Tier 1: Runtime Readiness & Boundaries (<30s)"
@@ -209,6 +213,7 @@ jobs:
       - name: Compute changed Render service matrix
         env:
           RENDER_CORE_SERVICE_ID: ${{ vars.RENDER_CORE_SERVICE_ID }}
+          RENDER_CORE_RELEASE_URL: ${{ vars.RENDER_CORE_RELEASE_URL }}
           RENDER_API_SERVICE_ID: ${{ vars.RENDER_API_SERVICE_ID }}
           RENDER_SCRAPER_SERVICE_ID: ${{ vars.RENDER_SCRAPER_SERVICE_ID }}
           RENDER_MCP_SERVICE_ID: ${{ vars.RENDER_MCP_SERVICE_ID }}
@@ -286,7 +291,7 @@ jobs:
           RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
           RENDER_SERVICE_ID: ${{ matrix.service_id }}
           EXPECTED_SHA: ${{ github.sha }}
-          RELEASE_URL: ${{ vars.RENDER_CORE_RELEASE_URL }}
+          RELEASE_URL: ${{ matrix.release_url }}
         run: python scripts/ci/render_deploy_attestation.py
 
   verify-render-services:

@@ -659,6 +659,27 @@ async def health() -> Dict[str, Any]:
     }
 
 
+@app.get("/release")
+async def release() -> Dict[str, Any]:
+    commit = (
+        os.getenv("RENDER_GIT_COMMIT")
+        or os.getenv("GIT_COMMIT")
+        or os.getenv("GITHUB_SHA")
+        or os.getenv("COMMIT_SHA")
+        or ""
+    ).strip()
+    return {
+        "service": os.getenv("RENDER_SERVICE_NAME") or os.getenv("SERVICE_NAME", "supremeai-scraper"),
+        "environment": os.getenv("RENDER_ENV") or os.getenv("ENV", "production"),
+        "commit": commit,
+        "build_id": os.getenv("RENDER_DEPLOY_ID") or os.getenv("RENDER_INSTANCE_ID") or "",
+        "capabilities": {
+            "browser": "registered",
+            "lightweight_http_mode": True,
+        },
+    }
+
+
 def _verify_stealth_secret(request: Request) -> None:
     expected = os.getenv("STEALTH_WEBHOOK_SECRET", "").strip()
     if not expected:
