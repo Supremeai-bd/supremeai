@@ -13,6 +13,7 @@ import {
   getDownstreamServices,
   type ServiceDependencyReport,
 } from "../diagnostics/dependency_graph.js";
+import { verifyReleaseCandidate, type ReleaseCandidate } from "../diagnostics/release_verifier.js";
 
 type CheckStatus = EvidenceStatus;
 export type DiagnosticCheck = EvidenceCheck;
@@ -366,6 +367,7 @@ export async function diagnoseRelease(
   // Intent Specific Synthesis
   let rootCauseReport: Record<string, unknown> | null = null;
   let releaseVerdict: string | null = null;
+  let releaseCandidate: ReleaseCandidate | null = null;
   let incidentTimeline: Record<string, unknown> | null = null;
   let changeImpact: Record<string, unknown> | null = null;
 
@@ -383,6 +385,15 @@ export async function diagnoseRelease(
       truthMatrix.schemaParity !== "fail";
 
     releaseVerdict = isVerified ? "PROCEED_RELEASE_VERIFIED" : "REJECT_RELEASE_INTEGRITY_DRIFT";
+    releaseCandidate = await verifyReleaseCandidate(target.name, {
+      sourceCommit: intendedCommit,
+      runtimeCommit: deployedCommit ?? runtimeCommit,
+      ciRunId: ciCommit,
+      deploymentId: deploy.status === "fulfilled" ? deploy.value.id : null,
+      redisStatus: truthMatrix.dependencyHealth,
+      supabaseStatus: truthMatrix.schemaParity,
+      smokeStatus: truthMatrix.serviceHealth,
+    });
   }
 
   if (intent === "root_cause") {
@@ -517,6 +528,7 @@ export async function diagnoseRelease(
     },
     ...(rootCauseReport ? { rootCauseReport } : {}),
     ...(releaseVerdict ? { releaseVerdict } : {}),
+    ...(releaseCandidate ? { releaseCandidate } : {}),
     ...(incidentTimeline ? { incidentTimeline } : {}),
     ...(changeImpact ? { changeImpact } : {}),
     errors: [head, deploy, health, runtime, directHttp, logs, runs, depReport, schemaCheck]
@@ -551,6 +563,27 @@ export async function registerDiagnosticTools(server: McpServer): Promise<void> 
         return { content: [{ type: "text", text: JSON.stringify(redactSensitiveData(result), null, 2) }] };
       } catch (error) {
         return { isError: true, content: [{ type: "text", text: JSON.stringify({ status: "unknown", error: error instanceof Error ? error.message : "diagnostic failed" }) }] };
+      }
+    },
+  );
+
+  server.registerTool(
+    "system.verify_release",
+    {
+      description: "Computes an immutable ReleaseCandidate provenance record comparing GitHub source commit, Render deployed commit, Redis parity, Supabase schema parity, and smoke health.",
+      annotations: { readOnlyHint: true, idempotentHint: true },
+      inputSchema: {
+        service: z.string().default("api"),
+      },
+    },
+    async ({ service }) => {
+      const denial = assertDiagnosticAccess("system.verify_release", "agent");
+      if (denial) return { isError: true, content: [{ type: "text", text: denial }] };
+      try {
+        const rc = await verifyReleaseCandidate(service);
+        return { content: [{ type: "text", text: JSON.stringify(redactSensitiveData(rc), null, 2) }] };
+      } catch (error) {
+        return { isError: true, content: [{ type: "text", text: JSON.stringify({ status: "blocked", error: error instanceof Error ? error.message : "release verification failed" }) }] };
       }
     },
   );
