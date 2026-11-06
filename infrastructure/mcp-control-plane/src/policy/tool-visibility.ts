@@ -73,6 +73,8 @@ export type ToolProfile = "standard" | "chatgpt" | "readonly";
 export const STANDARD_CURATED_TOOLS: readonly string[] = [
   // unified observability & work hub (S0.4)
   "status",
+  "system_deep_health",
+  "agent_context_bootstrap",
   "bridge_work",
   "bridge_submit",
   // system / observability
