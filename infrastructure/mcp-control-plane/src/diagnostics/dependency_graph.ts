@@ -37,7 +37,17 @@ export interface ServiceDependencyReport {
 export const SERVICE_TOPOLOGY_MAP: Record<string, ServiceDependency[]> = {
   api: [
     { id: "supabase", name: "Supabase PostgREST & Database", type: "database", critical: true },
+    { id: "redis", name: "Redis Cache & PubSub", type: "cache", critical: false },
     { id: "core", name: "Primary Core Runtime Node", type: "internal_service", critical: false },
+    { id: "infisical", name: "Infisical Secret Vault", type: "external_provider", critical: false },
+    { id: "render", name: "Render Cloud Hosting", type: "external_provider", critical: true },
+  ],
+  "backend-api": [
+    { id: "supabase", name: "Supabase PostgREST & Database", type: "database", critical: true },
+    { id: "redis", name: "Redis Cache & PubSub", type: "cache", critical: false },
+    { id: "core", name: "Primary Core Runtime Node", type: "internal_service", critical: false },
+    { id: "infisical", name: "Infisical Secret Vault", type: "external_provider", critical: false },
+    { id: "render", name: "Render Cloud Hosting", type: "external_provider", critical: true },
   ],
   core: [
     { id: "supabase", name: "Supabase PostgREST & Database", type: "database", critical: true },
@@ -162,6 +172,36 @@ export async function probeDependency(dep: ServiceDependency): Promise<Dependenc
     }
   }
 
+  if (dep.type === "cache" && dep.id === "redis") {
+    try {
+      const { pingRedis } = await import("../adapters/redis/index.js");
+      const res = (await pingRedis()) as any;
+      const isHealthy = res && (res.status === "healthy" || res.ok === true || res.pong === true || res.ping === "PONG");
+      return {
+        id: dep.id,
+        name: dep.name,
+        type: dep.type,
+        critical: dep.critical,
+        status: isHealthy ? "pass" : "fail",
+        latencyMs: Date.now() - start,
+        details: typeof res === "object" ? res : { response: res },
+        error: isHealthy ? undefined : "Redis ping failed",
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isUnconfigured = msg.includes("not configured") || msg.includes("Missing Redis");
+      return {
+        id: dep.id,
+        name: dep.name,
+        type: dep.type,
+        critical: dep.critical,
+        status: isUnconfigured ? "unknown" : "fail",
+        latencyMs: Date.now() - start,
+        error: msg,
+      };
+    }
+  }
+
   if (dep.type === "external_provider") {
     // External providers are only "pass" when their credentials are configured.
     // Otherwise report unknown (no evidence) rather than a false green.
@@ -169,9 +209,13 @@ export async function probeDependency(dep: ServiceDependency): Promise<Dependenc
       render: "RENDER_API_KEY",
       github: "GITHUB_TOKEN",
       supabase: "SUPABASE_URL",
+      infisical: "INFISICAL_TOKEN",
     };
     const requiredKey = envKeyMap[dep.id];
-    const configured = requiredKey ? Boolean(process.env[requiredKey]) : false;
+    let configured = requiredKey ? Boolean(process.env[requiredKey]) : false;
+    if (dep.id === "infisical" && !configured) {
+      configured = Boolean(process.env["INFISICAL_CLIENT_SECRET"] || process.env["INFISICAL_CLIENT_ID"]);
+    }
     return {
       id: dep.id,
       name: dep.name,
@@ -199,8 +243,10 @@ export async function probeDependency(dep: ServiceDependency): Promise<Dependenc
  * Concurrently probe all dependencies for a given service.
  */
 export async function probeServiceDependencies(serviceName: string): Promise<ServiceDependencyReport> {
-  const deps = SERVICE_TOPOLOGY_MAP[serviceName] ?? [];
-  const downstream = getDownstreamServices(serviceName);
+  const resolved = resolveServiceTarget(serviceName);
+  const normalizedKey = resolved?.name || serviceName;
+  const deps = SERVICE_TOPOLOGY_MAP[normalizedKey] ?? SERVICE_TOPOLOGY_MAP[serviceName] ?? [];
+  const downstream = getDownstreamServices(normalizedKey);
 
   if (deps.length === 0) {
     return {

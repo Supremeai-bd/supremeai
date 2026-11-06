@@ -53,7 +53,7 @@ function resolveTarget(service: string): ServiceTarget | null {
       name: "backend-api",
       role: "Gateway",
       platform: "render",
-      renderAccountId: "render-primary",
+      renderAccountId: "render-api",
       renderServiceId: env.render.api.serviceId,
       runtimeUrl: env.render.api.url,
       healthPath: "/healthz",
@@ -66,7 +66,7 @@ function resolveTarget(service: string): ServiceTarget | null {
       name: "api",
       role: "Gateway",
       platform: "render",
-      renderAccountId: "render-primary",
+      renderAccountId: "render-api",
       renderServiceId: env.render.api.serviceId,
       runtimeUrl: env.render.api.url,
       healthPath: "/healthz",
@@ -345,17 +345,36 @@ export async function diagnoseRelease(
     if (truthMatrix.dependencyHealth === "fail") identifiedLayers.push("UPSTREAM_DEPENDENCY_FAILURE");
     if (truthMatrix.userJourneyHealth === "fail") identifiedLayers.push("RUNTIME_APPLICATION_EXCEPTION");
     if (truthMatrix.providerHealth === "fail") identifiedLayers.push("CLOUD_PROVIDER_OUTAGE");
+    if (truthMatrix.releaseIntegrity === "unknown" || deployedCommit === null || deploy.status === "rejected") {
+      identifiedLayers.push("UNVERIFIED_RELEASE_IDENTITY");
+    }
+
+    const primaryFailureLayer = identifiedLayers[0] || (checks.some((c) => c.status === "fail") ? "SYSTEM_DEGRADATION" : "NONE");
 
     rootCauseReport = {
-      primaryFailureLayer: identifiedLayers[0] || (checks.some((c) => c.status === "fail") ? "SYSTEM_DEGRADATION" : "NONE"),
+      primaryFailureLayer,
       contributingFactors: identifiedLayers,
-      remediationSummary: identifiedLayers.includes("RELEASE_COMMIT_MISMATCH")
+      remediationSummary: primaryFailureLayer === "RELEASE_COMMIT_MISMATCH"
         ? "Redeploy service to match latest tested git commit."
-        : identifiedLayers.includes("SCHEMA_PARITY_BREACH")
-          ? "Run missing database migrations against Supabase target."
-          : identifiedLayers.includes("UPSTREAM_DEPENDENCY_FAILURE")
-            ? "Restore failing upstream dependencies identified in dependency graph."
-            : "Inspect application error logs for unhandled stack traces.",
+        : primaryFailureLayer === "UNVERIFIED_RELEASE_IDENTITY"
+          ? "Verify Render service ID and account mapping. Ensure deployment metadata is accessible."
+          : primaryFailureLayer === "SCHEMA_PARITY_BREACH"
+            ? "Run missing database migrations against Supabase target."
+            : primaryFailureLayer === "UPSTREAM_DEPENDENCY_FAILURE"
+              ? "Restore failing upstream dependencies identified in dependency graph."
+              : primaryFailureLayer === "RUNTIME_APPLICATION_EXCEPTION"
+                ? "Inspect application error logs for unhandled stack traces."
+                : primaryFailureLayer === "CLOUD_PROVIDER_OUTAGE"
+                  ? "Escalate cloud provider outage or check service status."
+                  : "No critical failure layer isolated.",
+      blockingEvidence: (primaryFailureLayer === "UNVERIFIED_RELEASE_IDENTITY" || truthMatrix.releaseIntegrity === "unknown")
+        ? {
+            deployRejection: deploy.status === "rejected" ? String(deploy.reason) : null,
+            deployedCommit,
+            intendedCommit,
+            runtimeReleaseCommit: runtimeCommit,
+          }
+        : undefined,
     };
   }
 

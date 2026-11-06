@@ -262,6 +262,14 @@ export async function getServiceHealth(accountId: string, serviceId: string): Pr
     headers: bearerAuth(apiKey),
   });
 
+  if (!res.ok) {
+    const errorDetails =
+      typeof res.data === "object" && res.data !== null && "message" in res.data
+        ? (res.data as any).message
+        : JSON.stringify(res.data);
+    throw new Error(`Render service lookup failed for ${serviceId} (HTTP ${res.status}): ${errorDetails}`);
+  }
+
   // Try to fetch deploys to calculate last deploy status and monthly free build minutes usage
   let deployStatus = "unknown";
   let monthlyBuildMinutes = 0;

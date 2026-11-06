@@ -3,7 +3,7 @@ import { z } from "zod";
 
 interface ParityCheck {
   component: string;
-  status: "ok" | "drift" | "unconfigured" | "error";
+  status: "configuration_present" | "parity_verified" | "drift_detected" | "verification_failed" | "unconfigured";
   details: Record<string, unknown>;
 }
 
@@ -14,56 +14,59 @@ async function runParityAudit(): Promise<{ status: string; checks: ParityCheck[]
 
   checks.push({
     component: "render",
-    status: envValue("RENDER_API_KEY") ? "ok" : "unconfigured",
+    status: envValue("RENDER_API_KEY") ? "configuration_present" : "unconfigured",
     details: { note: "Render node SHA comparison requires RENDER_API_KEY" },
   });
 
   checks.push({
     component: "cloudflare",
-    status: envValue("CLOUDFLARE_API_TOKEN") ? "ok" : "unconfigured",
+    status: envValue("CLOUDFLARE_API_TOKEN") ? "configuration_present" : "unconfigured",
     details: { note: "Cloudflare deployment version inspection requires CLOUDFLARE_API_TOKEN" },
   });
 
   checks.push({
     component: "supabase",
-    status: envValue("SUPABASE_URL") ? "ok" : "unconfigured",
+    status: envValue("SUPABASE_URL") ? "configuration_present" : "unconfigured",
     details: { note: "Schema migration parity requires SUPABASE_URL" },
   });
 
   checks.push({
     component: "redis",
-    status: envValue("REDIS_URL") ? "ok" : "unconfigured",
+    status: envValue("REDIS_URL") ? "configuration_present" : "unconfigured",
     details: { note: "Queue backlog inspection requires REDIS_URL" },
   });
 
   checks.push({
     component: "infisical",
-    status: envValue("INFISICAL_TOKEN") ? "ok" : "unconfigured",
+    status: envValue("INFISICAL_TOKEN") ? "configuration_present" : "unconfigured",
     details: { note: "Secret completeness cross-reference requires INFISICAL_TOKEN" },
   });
 
   checks.push({
-    component: "github_satellites",
-    status: envValue("GITHUB_TOKEN") ? "ok" : "unconfigured",
+    component: "github_repositories",
+    status: envValue("GITHUB_TOKEN") ? "configuration_present" : "unconfigured",
     details: {
-      satellites: [
+      topology: "Pure 2-Repository Topology",
+      activeRepositories: [
+        "Supremeai-bd/supremeai",
+        "Supremeai-bd/supremeai-studio",
+      ],
+      retiredSatellites: [
         "supremeai-core",
         "supremeai-api",
         "supremeai-browser",
-        "supremeai-studio",
         "supremeai-vscode",
       ],
-      note: "Commit hash alignment requires GITHUB_TOKEN",
+      note: "Commit and PR parity tracked across the 2 active repositories. Historical satellites are archived and read-only.",
     },
   });
 
-  const hasDrift = checks.some((c) => c.status === "drift" || c.status === "error");
-  // `ok` previously meant only that credentials existed. That is not parity
-  // evidence and caused false-green audits. Until live commit/schema/secret
-  // comparisons are actually performed, report the result as unverified.
-  const hasUnverifiedChecks = checks.some((c) => c.status === "ok" || c.status === "unconfigured");
+  const hasDrift = checks.some((c) => c.status === "drift_detected" || c.status === "verification_failed");
+  // `configuration_present` indicates credentials exist, but live commit/schema/secret
+  // comparisons have not yet been evaluated end-to-end.
+  const hasUnverifiedChecks = checks.some((c) => c.status === "configuration_present" || c.status === "unconfigured");
   return {
-    status: hasDrift ? "drift_detected" : hasUnverifiedChecks ? "unverified" : "unknown",
+    status: hasDrift ? "drift_detected" : hasUnverifiedChecks ? "unverified" : "parity_verified",
     checks,
   };
 }
