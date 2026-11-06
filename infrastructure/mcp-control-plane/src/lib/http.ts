@@ -70,8 +70,8 @@ export async function httpRequest<T = unknown>(
       const latencyMs = Date.now() - start;
 
       let data: T;
-      const contentType = res.headers.get("content-type") ?? "";
-      if (contentType.includes("application/json")) {
+      const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+      if (contentType.includes("json")) {
         data = await res.json() as T;
       } else {
         data = (await res.text()) as unknown as T;

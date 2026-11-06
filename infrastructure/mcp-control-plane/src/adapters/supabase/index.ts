@@ -71,9 +71,21 @@ export async function getDatabaseSchema(accountId: string, table?: string): Prom
   if (!res.ok) {
     throw new Error(`Failed to fetch schema: ${JSON.stringify(res.data)}`);
   }
-  const spec = (res.data ?? {}) as any;
+  let spec: any = res.data ?? {};
+  if (typeof spec === "string") {
+    try {
+      spec = JSON.parse(spec);
+    } catch {
+      spec = {};
+    }
+  }
   const definitions = spec.definitions ?? spec.components?.schemas ?? {};
-  const tableNames = Object.keys(definitions).filter((k) => !k.startsWith("_"));
+  let tableNames = Object.keys(definitions).filter((k) => !k.startsWith("_"));
+  if (tableNames.length === 0 && spec.paths && typeof spec.paths === "object") {
+    tableNames = Object.keys(spec.paths)
+      .filter((p) => p.startsWith("/") && p !== "/" && !p.startsWith("/rpc/"))
+      .map((p) => p.slice(1));
+  }
   if (!table) {
     return { tables: tableNames };
   }

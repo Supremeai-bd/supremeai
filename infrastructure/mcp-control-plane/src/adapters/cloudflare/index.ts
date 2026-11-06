@@ -10,7 +10,10 @@ export async function getWorkerStatus(): Promise<unknown> {
   const start = Date.now();
   // Call the ping worker directly
   try {
-    const res = await httpRequest(env.cloudflare.workerUrl, { method: "GET" });
+    const res = await httpRequest(env.cloudflare.workerUrl, {
+      method: "GET",
+      headers: { "User-Agent": "SupremeAI-Control-Tower/1.0" },
+    });
     const probe = evaluateCloudflareProbe({
       providerReachable: res.ok,
       httpStatus: res.status,
