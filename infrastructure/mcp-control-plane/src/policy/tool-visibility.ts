@@ -225,9 +225,11 @@ export function toolListAccessError(toolName: string): string | null {
   if (callDenial) return callDenial;
 
   // Layer 2 — Role-based strict isolation:
-  const currentRole = RequestContextStore.get()?.role ?? "viewer";
-  if (currentRole === "viewer") {
-    // Unregistered/unauthenticated guests see ZERO tools
+  const currentCtx = RequestContextStore.get();
+  const currentRole = currentCtx?.role ?? "viewer";
+  const isAuthenticated = currentCtx?.authenticated === true;
+  if (currentRole === "viewer" && !isAuthenticated) {
+    // Unregistered/unauthenticated guests see ZERO tools (zero-trust default)
     return `Forbidden: unregistered clients cannot view or discover tools.`;
   }
 

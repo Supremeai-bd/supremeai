@@ -212,8 +212,8 @@ export function classifyToolCapability(name: string): McpCapabilityMetadata {
       approvalRequired: false,
     };
   }
-  // #48: Verified Slot administration — provisioning, suspension, rotation
-  // and audit reading are ADMIN-only (secret classification ⇒ rank ≥ 4).
+  // Verified Slot & Tenant administration — provisioning, suspension, rotation,
+  // tenant management, and audit reading are ADMIN-only (secret classification ⇒ rank ≥ 2).
   // slot_status is read-only slot telemetry (agent level, like agent_status).
   if (name === "slot_status") {
     return {
@@ -226,7 +226,7 @@ export function classifyToolCapability(name: string): McpCapabilityMetadata {
       approvalRequired: false,
     };
   }
-  if (name.startsWith("slot_")) {
+  if (name.startsWith("slot_") || name.startsWith("tenant_") || name === "client_register" || name === "client_list" || name === "client_role_set" || name === "client_profile_set") {
     return {
       name,
       kind: "tool",
