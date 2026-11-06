@@ -9,6 +9,9 @@ jobs:
     runs-on: [self-hosted, local-pc]
     timeout-minutes: 5
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Check Runner OS and Environment
         shell: powershell
         run: |
@@ -17,8 +20,7 @@ jobs:
           Write-Host "Host Name: $env:COMPUTERNAME"
           Write-Host "User Domain: $env:USERDOMAIN"
           Write-Host "OS: $((Get-CimInstance Win32_OperatingSystem).Caption)"
-          Write-Host "Python Path: $(Get-Command python -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)"
-          Write-Host "Git Path: $(Get-Command git -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)"
+          Write-Host "Current Directory: $(Get-Location)"
           Write-Host "=========================================="
 
       - name: Fast Unit Test Smoke Check
