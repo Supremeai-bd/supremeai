@@ -18,7 +18,7 @@ const RENDER_SERVICES = [
   { name: "primary", url: "https://supremeai-primary-node-5xso.onrender.com/health" },
   { name: "worker", url: "https://supremeai-worker-node.onrender.com/health" },
   { name: "scraper", url: "https://supremeai-scraper-node.onrender.com/health" },
-  { name: "brain", url: "https://supremeai-primary-node.onrender.com/health" },
+  { name: "brain", url: "https://supremeai-tiny-brain.onrender.com/health" },
 ];
 
 const CORS_HEADERS = {
