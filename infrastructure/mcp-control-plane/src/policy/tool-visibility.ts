@@ -143,6 +143,7 @@ export const STANDARD_CURATED_TOOLS: readonly string[] = [
   "bridge_read_feedback",
   "bridge_work_renew",
   "bridge_work_release",
+  "bridge_preflight_validate",
   // docs
   "docs_query",
   "docs_search",
@@ -176,6 +177,7 @@ const MUTATING_TOOLS: readonly string[] = [
   // #621: renew posts markers, release flips labels — both are lane writes
   "bridge_work_renew",
   "bridge_work_release",
+  "bridge_preflight_validate",
 ];
 
 export const TOOL_PROFILES: Record<ToolProfile, readonly string[]> = {

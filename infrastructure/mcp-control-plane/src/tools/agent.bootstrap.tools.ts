@@ -82,3 +82,4 @@ export async function registerAgentBootstrapTools(server: McpServer): Promise<vo
     }
   );
 }
+
