@@ -1,4 +1,27 @@
-﻿import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { isIP } from "node:net";
+import { redactSensitiveData } from "../diagnostics/redaction.js";
+
+/**
+ * Validate that an external dynamic tool URL is not targeting private, loopback, or metadata endpoints.
+ */
+function assertSafeDynamicUrl(raw: string): URL {
+  const parsed = new URL(raw);
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    throw new Error("Only HTTP(S) handler URLs are permitted for dynamic tools");
+  }
+  const hostname = parsed.hostname.toLowerCase();
+  if (
+    hostname === "localhost" ||
+    hostname.endsWith(".local") ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    (isIP(hostname) === 4 && (hostname.startsWith("10.") || hostname.startsWith("192.168.") || hostname.startsWith("169.254.")))
+  ) {
+    throw new Error("Private, loopback, or link-local targets are prohibited (SSRF guard)");
+  }
+  return parsed;
+}
 
 /**
  * Dynamic Tool Registry - Database-driven tool registration
@@ -129,24 +152,36 @@ async function executeDynamicTool(
   tool: ToolDefinition,
   args: Record<string, unknown>
 ): Promise<unknown> {
+  const MAX_PAYLOAD_BYTES = 500_000;
+  const payloadStr = JSON.stringify(args);
+  if (payloadStr.length > MAX_PAYLOAD_BYTES) {
+    throw new Error(`Dynamic tool payload exceeds 500KB limit (${payloadStr.length} bytes)`);
+  }
+
   switch (tool.handler_type) {
     case "http": {
       const config = tool.handler_config as { url: string; method?: string };
-      const response = await fetch(config.url, {
+      const safeUrl = assertSafeDynamicUrl(config.url);
+      const response = await fetch(safeUrl.toString(), {
         method: config.method || "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(args),
+        body: payloadStr,
+        signal: AbortSignal.timeout(15_000),
       });
-      return response.json();
+      const data = await response.json();
+      return redactSensitiveData(data);
     }
     case "webhook": {
       const config = tool.handler_config as { url: string };
-      const response = await fetch(config.url, {
+      const safeUrl = assertSafeDynamicUrl(config.url);
+      const response = await fetch(safeUrl.toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tool_id: tool.tool_id, args }),
+        signal: AbortSignal.timeout(15_000),
       });
-      return response.json();
+      const data = await response.json();
+      return redactSensitiveData(data);
     }
     default:
       return { error: "Unsupported handler type: " + tool.handler_type };
