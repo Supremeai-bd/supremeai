@@ -12,6 +12,13 @@ describe('canonical route policies', () => {
     expect(canAccessRoute('/admin/security', 'admin')).toBe(true);
   });
 
+  it('keeps internal telemetry routes inside the admin boundary', () => {
+    expect(getRoutePolicy('/cockpit')?.requiredRole).toBe('admin');
+    expect(getRoutePolicy('/telemetry')?.requiredRole).toBe('admin');
+    expect(canAccessRoute('/cockpit', 'user')).toBe(false);
+    expect(canAccessRoute('/telemetry', 'admin')).toBe(true);
+  });
+
   it('defers unknown permission data to the backend', () => {
     expect(canAccessRoute('/billing', 'user', [])).toBe(true);
     expect(canAccessRoute('/billing', 'user', ['profile.read'])).toBe(false);
