@@ -44,6 +44,25 @@ on:
   schedule:
     - cron: "23 2 * * *"
   workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: "Manually re-run and force production deployment"
+        required: false
+        default: false
+        type: boolean
+      target_service:
+        description: "Target service to deploy (all, core, api, worker, scraper, mcp, brain)"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - core
+          - api
+          - worker
+          - scraper
+          - mcp
+          - brain
 
 permissions:
   contents: read
@@ -179,12 +198,12 @@ jobs:
           gh pr merge "$PR_NUMBER" --squash --delete-branch
 
   # =========================================================================
-  # STAGE 3: POST-MERGE PRODUCTION DEPLOY & CANARY (Only on Push to Main)
+  # STAGE 3: POST-MERGE PRODUCTION DEPLOY & CANARY (Push to Main or Manual Dispatch)
   # Resolves 3-Tier priority: Local PC (0m) -> Render Free (500m) -> CI-Runner Backup
   # =========================================================================
   deploy-and-verify:
     name: "Post-Merge: Plan changed Render services"
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
