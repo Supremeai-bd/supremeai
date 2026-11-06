@@ -226,4 +226,12 @@ zero-credential contributor guide covering both human (fork + PR) and autonomous
 (8-step loop, MCP Tower lane) workflows, the 3-tier verification contract, scope caps,
 and a field-tested troubleshooting table. The governance contracts live in
 [`AGENTS.md`](./AGENTS.md) — the Single Door SSOT (the former AGENT_RULES.md was deleted by #1526).
+
+---
+
+## 🏗️ Architecture & Operations Blueprints
+
+- **Hybrid CI/CD Blueprint:** [`docs/architecture/HARNESS_GITHUB_HYBRID_CI_CD.md`](./docs/architecture/HARNESS_GITHUB_HYBRID_CI_CD.md) — The complete strategy for zero-cloud-quota continuous integration via GitHub Self-Hosted local compute, 24h+ opportunistic nightly maintenance, and Harness intelligent deployment verification.
+- **Agent Operating System:** [`docs/AGENT_OPERATING_SYSTEM.md`](./docs/AGENT_OPERATING_SYSTEM.md) — The continuous autonomous verification ladder and self-healing engine.
+- **Federation Architecture:** [`docs/FEDERATION_CHARTER.md`](./docs/FEDERATION_CHARTER.md) — The pure 2-repository SSOT topology.
 <!-- heartbeat: 2026103106 -->
