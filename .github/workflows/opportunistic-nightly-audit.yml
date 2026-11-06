@@ -1,0 +1,82 @@
+name: "Nightly Ops: Opportunistic 24h+ Audit"
+
+on:
+  schedule:
+    # Lightweight check every 2 hours (consumes 0 min quota) to evaluate if 24h elapsed and local runner is awake
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: "Force audit run immediately regardless of 24h timer"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: opportunistic-nightly-audit
+  cancel-in-progress: false
+
+jobs:
+  evaluate-audit-timing:
+    name: "Evaluate 24h+ Opportunistic Audit Window"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      audit_target: ${{ steps.check.outputs.audit_target }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check 24h Timer & Local Runner Status
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_RUN: ${{ inputs.force_run }}
+        run: |
+          if [ "$FORCE_RUN" = "true" ]; then
+            echo "Force run requested. Dispatching audit."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "audit_target=local-self-hosted" >> "$GITHUB_OUTPUT"
+          else
+            python scripts/ci/check_opportunistic_audit.py
+          fi
+
+  execute-audit-local:
+    name: "Run Opportunistic Audit (Local Self-Hosted)"
+    needs: evaluate-audit-timing
+    if: needs.evaluate-audit-timing.outputs.should_run == 'true' && needs.evaluate-audit-timing.outputs.audit_target == 'local-self-hosted'
+    runs-on: [self-hosted, local-pc]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Heavy Deep Audit & Vulnerability Sweep
+        shell: powershell
+        run: |
+          Write-Host "Executing 24h+ opportunistic audit locally on $env:COMPUTERNAME..."
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py
+          python scripts/ops/wiring_atlas.py --check
+          python scripts/ci/check_opportunistic_audit.py --record
+
+      - name: Publish Audit Attestation
+        shell: powershell
+        run: |
+          Write-Host "Audit completed successfully on local machine. Timestamp recorded."
+
+  execute-audit-cloud-fallback:
+    name: "Run Emergency Audit (Cloud Fallback)"
+    needs: evaluate-audit-timing
+    if: needs.evaluate-audit-timing.outputs.should_run == 'true' && needs.evaluate-audit-timing.outputs.audit_target == 'cloud-fallback'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run Cloud Emergency Audit
+        run: |
+          echo "Grace period exceeded (48h). Executing emergency audit on cloud."
+          python scripts/ci/check_opportunistic_audit.py --record

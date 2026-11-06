@@ -180,6 +180,7 @@ jobs:
 
   # =========================================================================
   # STAGE 3: POST-MERGE PRODUCTION DEPLOY & CANARY (Only on Push to Main)
+  # Resolves 3-Tier priority: Local PC (0m) -> Render Free (500m) -> CI-Runner Backup
   # =========================================================================
   deploy-and-verify:
     name: "Post-Merge: Plan changed Render services"
@@ -190,11 +191,21 @@ jobs:
       matrix: ${{ steps.plan.outputs.matrix }}
       has_services: ${{ steps.plan.outputs.has_services }}
       unregistered: ${{ steps.plan.outputs.unregistered }}
+      execution_tier: ${{ steps.tier.outputs.execution_tier }}
+      is_local_online: ${{ steps.tier.outputs.is_local_online }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Resolve 3-Tier Execution Priority
+        id: tier
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: python scripts/ci/resolve_execution_tier.py
 
       - name: Render free-build quota preflight
         env:
