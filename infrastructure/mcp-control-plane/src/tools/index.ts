@@ -38,6 +38,7 @@ import { registerUnifiedStatusTool } from "./unified.status.tools.js";
 import { registerParityTools } from "./parity.tools.js";
 import { registerDeepHealthTools } from "./deep.health.tools.js";
 import { registerAgentBootstrapTools } from "./agent.bootstrap.tools.js";
+import { registerHarnessTools } from "./harness.tools.js";
 
 /**
  * Registers all MCP tools with the server.
@@ -115,6 +116,9 @@ export async function registerAllTools(
 
   // ── Multi-Platform Parity & Drift Sentinel
   await registerParityTools(server);
+
+  // ── Harness CI/CD Orchestration & Verification Adapter
+  registerHarnessTools(server);
 
   // ── Deep Reality Check & Free-Tier Sentinel
   await registerDeepHealthTools(server);
