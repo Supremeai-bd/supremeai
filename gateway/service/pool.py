@@ -59,7 +59,7 @@ class ProviderKeyPool:
         found: List[Tuple[str, str]] = []
 
         for prefix in self.prefixes:
-            pattern = re.compile(rf"^{prefix}(?:_\d+)?$", re.IGNORECASE)
+            pattern = re.compile(rf"^{prefix}(?:_.*)?$", re.IGNORECASE)
             for env_name, env_val in os.environ.items():
                 val = env_val.strip().strip("'\"")
                 if pattern.match(env_name) and len(val) > 5:
@@ -139,6 +139,7 @@ class FederationSquad:
     DEFAULT_PROVIDER_ORDER = [
         "groq",
         "gemini",
+        "kilo",
         "perplexity",
         "openrouter",
         "openai",
@@ -151,6 +152,7 @@ class FederationSquad:
     PREFIX_MAP: Dict[str, List[str]] = {
         "groq": ["GROQ_API_KEY"],
         "gemini": ["GEMINI_API_KEY", "GOOGLE_API_KEY", "JULES_API_KEY"],
+        "kilo": ["KILO_API_KEY", "KILOCODE_API_KEY", "KILO_API_KEYS"],
         "perplexity": ["PERPLEXITY_API_KEY", "PPLX_API_KEY"],
         "openrouter": ["OPENROUTER_API_KEY"],
         "openai": ["OPENAI_API_KEY"],
