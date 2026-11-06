@@ -10,16 +10,27 @@ function assertSafeDynamicUrl(raw: string): URL {
   if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
     throw new Error("Only HTTP(S) handler URLs are permitted for dynamic tools");
   }
-  const hostname = parsed.hostname.toLowerCase();
-  if (
-    hostname === "localhost" ||
-    hostname.endsWith(".local") ||
-    hostname === "127.0.0.1" ||
-    hostname === "::1" ||
-    (isIP(hostname) === 4 && (hostname.startsWith("10.") || hostname.startsWith("192.168.") || hostname.startsWith("169.254.")))
-  ) {
-    throw new Error("Private, loopback, or link-local targets are prohibited (SSRF guard)");
-  }
+    const hostname = parsed.hostname.toLowerCase();
+    // Normalize bracketed IPv6
+    const host = hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+    const ipVer = isIP(host);
+    let isPrivate = false;
+    if (host === "localhost" || host.endsWith(".local") || host === "::1" || host === "0.0.0.0") {
+      isPrivate = true;
+    } else if (ipVer === 4) {
+      const parts = host.split(".").map((p) => Number(p));
+      if (parts[0] === 10) isPrivate = true;
+      else if (parts[0] === 192 && parts[1] === 168) isPrivate = true;
+      else if (parts[0] === 169 && parts[1] === 254) isPrivate = true;
+      else if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) isPrivate = true;
+      else if (parts[0] === 127) isPrivate = true;
+    } else if (ipVer === 6) {
+      // fc00::/7 (ULA) and fe80::/10 (link-local)
+      if (host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80")) isPrivate = true;
+    }
+    if (isPrivate) {
+      throw new Error("Private, loopback, or link-local targets are prohibited (SSRF guard)");
+    }
   return parsed;
 }
 

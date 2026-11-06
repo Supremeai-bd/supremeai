@@ -40,6 +40,7 @@ import { registerDeepHealthTools } from "./deep.health.tools.js";
 import { registerAgentBootstrapTools } from "./agent.bootstrap.tools.js";
 import { registerHarnessTools } from "./harness.tools.js";
 import { registerDiagnosticTools } from "./diagnostic.tools.js";
+import { registerPlanningTools } from "./planning.tools.js";
 
 /**
  * Registers all MCP tools with the server.
@@ -54,6 +55,9 @@ export async function registerAllTools(
 
   // ── Evidence-based release diagnosis (provider health is not release proof)
   await registerDiagnosticTools(server);
+
+  // ── DAG Execution Planning & Post-Action Verification Engine
+  await registerPlanningTools(server);
 
   // ── System Tools
   await registerSystemTools(server);
