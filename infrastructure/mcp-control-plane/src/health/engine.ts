@@ -116,21 +116,35 @@ export class HealthEngine {
     // হিসেবে ধরা পড়বে), বাকি providers স্বাভাবিক sweep চালিয়ে যাবে।
     const checks: Record<string, () => Promise<any>> = {
       "render": async () => {
-        const serviceId = env.render.primary.serviceId;
-        if (!serviceId) {
-          throw new Error("env.render.primary.serviceId is not configured — hardcoded fallback removed (#4091 topology hygiene)");
+        const { resolveServiceIdentity } = await import("../diagnostics/service_manifest.js");
+        const identity = resolveServiceIdentity("core");
+        if (!identity || !identity.serviceId || !identity.verified) {
+          return {
+            status: "degraded",
+            mode: "configuration_error",
+            error: `Render core service identity is invalid: ${identity?.verificationError || "missing service ID"}`,
+            identity,
+          };
         }
         let data: any;
         try {
-          data = await getServiceHealth("render-primary", serviceId);
+          data = await getServiceHealth(identity.accountId, identity.serviceId);
         } catch (err: any) {
           const errMsg = String(err?.message || "");
+          if (errMsg.includes("HTTP 404") || errMsg.includes("configuration_error") || errMsg.includes("not found")) {
+            return {
+              status: "degraded",
+              mode: "configuration_error",
+              error: `Render service ${identity.serviceId} configuration error (HTTP 404): service not found on account ${identity.accountId}`,
+              identity,
+            };
+          }
           if (
             (errMsg.includes("Missing Render API Key") || errMsg.includes("is not configured/available")) &&
-            env.render.primary.url
+            identity.runtimeUrl
           ) {
             const { httpRequest } = await import("../lib/http.js");
-            const healthUrl = `${env.render.primary.url.replace(/\/+$/, "")}/health`;
+            const healthUrl = `${identity.runtimeUrl.replace(/\/+$/, "")}${identity.healthPath}`;
             const res = await httpRequest(healthUrl, { timeoutMs: 8000, retries: 0 });
             return {
               status: res.ok ? "healthy" : "degraded",

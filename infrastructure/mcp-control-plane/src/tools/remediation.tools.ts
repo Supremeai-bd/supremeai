@@ -18,7 +18,7 @@ export async function registerRemediationTools(server: McpServer): Promise<void>
   server.registerTool(
     "system.execute",
     {
-      description: "Safe remediation gate: precondition checks + approval token + idempotency + post-action verification. Actions are plan-only unless a human approval token is supplied; never auto-executes without approval.",
+      description: "Safe remediation planning gate (plan-only): precondition checks + approval token + idempotency + post-action verification. Does NOT execute live restart/redeploy until an adapter is wired; returns executed:false.",
       annotations: { readOnlyHint: false, idempotentHint: false, destructiveHint: true },
       inputSchema: {
         action: z.enum(["restart", "redeploy", "rollback"]).default("restart"),
@@ -81,10 +81,14 @@ export async function registerRemediationTools(server: McpServer): Promise<void>
         // Execution is plan-only: no live restart/redeploy adapter is wired.
         // Record the intent and run post-action verification against current state.
         const result = {
-          status: "executed_plan_only",
+          status: "planned",
+          executed: false,
+          executionAdapter: null,
+          mode: "plan_only",
+          executionMode: "plan_only",
+          message: "Safe plan-only mode active: no destructive actions are applied without an approved live execution adapter.",
           action,
           service,
-          executionMode: "plan_only",
           note: "No live execution adapter is wired; remediation recorded and verified against current diagnostic state. Wire Render restart/redeploy adapter to enable live execution.",
           preconditions,
           approvalTokenFingerprint: (await import("../diagnostics/redaction.js")).fingerprintSecret(approvalToken),

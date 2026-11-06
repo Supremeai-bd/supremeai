@@ -143,15 +143,28 @@ async function firstRespondingClient(
   throw new Error(`All ${attempts.length} Redis account(s) failed: ${failures}`);
 }
 
-export async function pingRedis(): Promise<unknown> {
+export async function pingRedis(): Promise<{
+  status: "healthy" | "fail";
+  probe: string;
+  latencyMs: number;
+  account: string;
+  mode: string;
+  activePrimary: string;
+  chainSize: number;
+  attemptedAccounts: Array<{ account: string; mode: string; ok: boolean; error?: string }>;
+  chainStatus: unknown;
+}> {
   const start = Date.now();
   const { client, result, attempts } = await firstRespondingClient((c) => c.ping());
+  const probeString = typeof result === "string" ? result : JSON.stringify(result);
+  const isOk = probeString.toUpperCase().includes("PONG") || (result as any)?.status === "PONG";
   return {
-    mode: client.mode,
-    account: client.account,
-    activePrimary: getActiveRedisAccount().label,
-    status: result,
+    status: isOk ? "healthy" : "fail",
+    probe: probeString,
     latencyMs: Date.now() - start,
+    account: client.account,
+    mode: client.mode,
+    activePrimary: getActiveRedisAccount().label,
     chainSize: attempts.length,
     attemptedAccounts: attempts.map(({ account, mode, ok, error }) => ({ account, mode, ok, error })),
     chainStatus: quotaChainStatus(),

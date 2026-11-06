@@ -1,5 +1,6 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { type EvidenceCheck, type EvidenceStatus, fact } from "../diagnostics/evidence.js";
+import { resolveServiceIdentity } from "../diagnostics/service_manifest.js";
 
 export type PlanStepStatus = "pending" | "in_progress" | "completed" | "failed" | "skipped" | "rolled_back";
 
@@ -42,6 +43,16 @@ export interface ExecutionPlan {
   createdAt: string;
   executionWaves: string[][];
   steps: PlanStep[];
+  // Evidence binding (Fix 6): plan is tied to a specific diagnostic snapshot
+  evidenceHash?: string;
+  sourceCommit?: string | null;
+  serviceIdentity?: {
+    serviceId: string;
+    runtimeUrl: string;
+    verified: boolean;
+    verificationError?: string;
+  } | null;
+  failureLayerEvidence?: string;
 }
 
 /**
@@ -116,7 +127,11 @@ export function validateDAG(steps: PlanStep[]): DAGValidationResult {
 /**
  * Synthesizes a proven remediation DAG plan for a specific diagnostic failure layer.
  */
-export function generateRemediationPlan(service: string, failureLayer: string): ExecutionPlan {
+export function generateRemediationPlan(
+  service: string,
+  failureLayer: string,
+  diagnosticEvidence?: Record<string, unknown>,
+): ExecutionPlan {
   const planId = `plan-${randomUUID().slice(0, 8)}`;
   let steps: PlanStep[] = [];
 
@@ -250,6 +265,15 @@ export function generateRemediationPlan(service: string, failureLayer: string): 
 
   const dag = validateDAG(steps);
 
+  const identity = resolveServiceIdentity(service);
+  const evidenceHash = diagnosticEvidence
+    ? createHash("sha256").update(JSON.stringify(diagnosticEvidence)).digest("hex")
+    : null;
+  const sourceCommit =
+    (diagnosticEvidence?.latestWorkflowCommit as string | null | undefined) ??
+    (diagnosticEvidence?.intendedCommit as string | null | undefined) ??
+    null;
+
   return {
     planId,
     goal: `Remediate ${failureLayer} on service ${service}`,
@@ -259,6 +283,17 @@ export function generateRemediationPlan(service: string, failureLayer: string): 
     createdAt: new Date().toISOString(),
     executionWaves: dag.executionWaves,
     steps,
+    evidenceHash: evidenceHash ?? undefined,
+    sourceCommit,
+    serviceIdentity: identity
+      ? {
+          serviceId: identity.serviceId,
+          runtimeUrl: identity.runtimeUrl,
+          verified: identity.verified,
+          verificationError: identity.verificationError,
+        }
+      : null,
+    failureLayerEvidence: failureLayer,
   };
 }
 
@@ -269,6 +304,7 @@ export function createCustomPlan(
   goal: string,
   targetService?: string,
   rawSteps?: Partial<PlanStep>[],
+  diagnosticEvidence?: Record<string, unknown>,
 ): ExecutionPlan {
   const planId = `plan-${randomUUID().slice(0, 8)}`;
   const steps: PlanStep[] = (rawSteps || []).map((s, idx) => ({
@@ -295,6 +331,15 @@ export function createCustomPlan(
     throw new Error(`Invalid Plan DAG: ${dag.cycles?.join("; ")}`);
   }
 
+  const identity = targetService ? resolveServiceIdentity(targetService) : null;
+  const evidenceHash = diagnosticEvidence
+    ? createHash("sha256").update(JSON.stringify(diagnosticEvidence)).digest("hex")
+    : null;
+  const sourceCommit =
+    (diagnosticEvidence?.latestWorkflowCommit as string | null | undefined) ??
+    (diagnosticEvidence?.intendedCommit as string | null | undefined) ??
+    null;
+
   return {
     planId,
     goal,
@@ -304,6 +349,16 @@ export function createCustomPlan(
     createdAt: new Date().toISOString(),
     executionWaves: dag.executionWaves,
     steps,
+    evidenceHash: evidenceHash ?? undefined,
+    sourceCommit,
+    serviceIdentity: identity
+      ? {
+          serviceId: identity.serviceId,
+          runtimeUrl: identity.runtimeUrl,
+          verified: identity.verified,
+          verificationError: identity.verificationError,
+        }
+      : null,
   };
 }
 

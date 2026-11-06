@@ -86,7 +86,9 @@
     "test:github-pr-addressability": "tsx test_github_pr_addressability.ts",
     "test:diagnostic": "tsx test_system_diagnose.ts",
     "test:intelligent-foundation": "tsx test_system_diagnose.ts && tsx test_intelligent_foundation.ts",
-    "test:eval-intelligence": "tsx test_phase5_diagnostic_eval.ts"
+    "test:eval-intelligence": "tsx test_phase5_diagnostic_eval.ts",
+    "test:canonical-wiring": "tsx test_phase6_canonical_wiring.ts",
+    "test:canonical-resolver": "tsx test_canonical_resolver.ts"
   },
   "keywords": [
     "mcp",

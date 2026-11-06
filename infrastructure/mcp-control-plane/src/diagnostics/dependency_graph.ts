@@ -1,4 +1,4 @@
-import { resolveServiceTarget } from "./service_manifest.js";
+import { resolveServiceTarget, resolveServiceIdentity } from "./service_manifest.js";
 import { getHealth as getSupabaseHealth, getDatabaseSchema } from "../adapters/supabase/index.js";
 import { type EvidenceCheck, type EvidenceStatus, fact, confidenceFor } from "./evidence.js";
 
@@ -129,6 +129,18 @@ export async function probeDependency(dep: ServiceDependency): Promise<Dependenc
   }
 
   if (dep.type === "internal_service") {
+    const identity = resolveServiceIdentity(dep.id);
+    if (!identity || !identity.verified) {
+      return {
+        id: dep.id,
+        name: dep.name,
+        type: dep.type,
+        critical: dep.critical,
+        status: "unknown",
+        latencyMs: Date.now() - start,
+        error: `configuration_error: ${identity?.verificationError ?? "service identity not verified"}`,
+      };
+    }
     const target = resolveServiceTarget(dep.id);
     if (!target || !target.runtimeUrl) {
       return {
@@ -176,16 +188,25 @@ export async function probeDependency(dep: ServiceDependency): Promise<Dependenc
     try {
       const { pingRedis } = await import("../adapters/redis/index.js");
       const res = (await pingRedis()) as any;
-      const isHealthy = res && (res.status === "healthy" || res.ok === true || res.pong === true || res.ping === "PONG");
+      const normalizedStatus = String(res?.status ?? "").toUpperCase();
+      const normalizedProbe = String(res?.probe ?? res?.ping ?? "").toUpperCase();
+      const isHealthy =
+        normalizedStatus === "HEALTHY" ||
+        normalizedStatus === "PASS" ||
+        normalizedStatus === "PONG" ||
+        normalizedProbe === "PONG" ||
+        normalizedProbe.includes("PONG") ||
+        res?.ok === true ||
+        res?.pong === true;
       return {
         id: dep.id,
         name: dep.name,
         type: dep.type,
         critical: dep.critical,
         status: isHealthy ? "pass" : "fail",
-        latencyMs: Date.now() - start,
+        latencyMs: res?.latencyMs ?? (Date.now() - start),
         details: typeof res === "object" ? res : { response: res },
-        error: isHealthy ? undefined : "Redis ping failed",
+        error: isHealthy ? undefined : `Redis ping returned non-healthy response (${res?.status || res?.probe || "failed"})`,
       };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -310,18 +331,35 @@ export async function probeSchemaParity(serviceName: string): Promise<EvidenceCh
     };
   }
 
+  let projectRef = "unknown";
   try {
-    const schema = await getDatabaseSchema("supabase-primary") as { tables?: string[] };
+    const { env } = await import("../lib/env.js");
+    if (env.supabase.url) projectRef = new URL(env.supabase.url).hostname.split(".")[0];
+  } catch {
+    // ignore
+  }
+
+  try {
+    const schema = (await getDatabaseSchema("supabase-primary")) as { tables?: string[] };
     const tables = schema && Array.isArray(schema.tables) ? schema.tables : [];
 
     if (tables.length === 0) {
+      // Supabase reachable, but public schema has 0 exposed tables or credential cannot list schemas.
+      // Distinguish: Supabase HTTP 200 != correct project != migration parity.
+      // Do NOT conclude SCHEMA_BEHIND_CODE when project or schema target is unverified.
       return {
         name: "schema_parity",
-        status: "fail",
-        confidence: 0.85,
-        facts: [fact("supabase.schema", "fail", { tablesCount: 0 })],
-        explanation: "Database schema is empty or unreachable (SCHEMA_BEHIND_CODE).",
-        details: { tablesFound: 0, reason: "No tables found in public schema" },
+        status: "unknown",
+        confidence: 0.2,
+        facts: [fact("supabase.schema", "unknown", { tablesCount: 0, projectRef })],
+        explanation: `Supabase PostgREST returned 0 exposed tables for project '${projectRef}'. Schema verification is inconclusive without explicit database inspection.`,
+        details: {
+          tablesFound: 0,
+          reason: "No exposed tables returned by PostgREST schema introspection",
+          projectRef,
+          accountId: "supabase-primary",
+          verificationNote: "Supabase connectivity healthy != correct database project != migration parity. Verify SUPABASE_URL project ref matches expected target before running migrations.",
+        },
       };
     }
 
@@ -331,7 +369,7 @@ export async function probeSchemaParity(serviceName: string): Promise<EvidenceCh
 
     const status: EvidenceStatus = missing.length > 0 ? "fail" : "pass";
     const facts = [
-      fact("supabase.schema", status, { tablesFound: tables.length, missingCoreTables: missing }),
+      fact("supabase.schema", status, { tablesFound: tables.length, missingCoreTables: missing, projectRef }),
     ];
 
     return {
@@ -346,22 +384,33 @@ export async function probeSchemaParity(serviceName: string): Promise<EvidenceCh
         totalTables: tables.length,
         missingCoreTables: missing,
         tablesSample: tables.slice(0, 10),
+        projectRef,
       },
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     const isUnconfigured = msg.includes("not found") || msg.includes("Missing Supabase") || msg.includes("not configured");
-    const status: EvidenceStatus = isUnconfigured ? "unknown" : "fail";
+    const isPermission = /401|403|permission|unauthorized|forbidden|invalid api key/i.test(msg);
+    const status: EvidenceStatus = isUnconfigured || isPermission ? "unknown" : "fail";
 
     return {
       name: "schema_parity",
       status,
       confidence: 0.1,
-      facts: [fact("supabase.schema", status, undefined, msg)],
+      facts: [fact("supabase.schema", status, { projectRef }, msg)],
       explanation: isUnconfigured
-        ? "Supabase credentials unconfigured in current environment (unverified)."
-        : `Database schema inspection failed: ${msg}`,
-      details: { error: msg, unconfigured: isUnconfigured },
+        ? `Supabase credentials unconfigured for project '${projectRef}' (unverified).`
+        : isPermission
+          ? `Supabase schema inspection unauthorized for project '${projectRef}'. Verify SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY.`
+          : `Database schema inspection failed: ${msg}`,
+      details: {
+        error: msg,
+        unconfigured: isUnconfigured,
+        permissionDenied: isPermission,
+        accountId: "supabase-primary",
+        projectRef,
+        reason: isPermission ? "SUPABASE_CREDENTIAL_UNVERIFIED" : "SUPABASE_SCHEMA_PROBE_ERROR",
+      },
     };
   }
 }
