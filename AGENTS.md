@@ -137,7 +137,8 @@ Pre-submission checks (before creating PR):
 
 Landing & Merge Policy (Zero Failed-Merge Invariant):
 - Agents MUST NEVER call `gh pr merge --admin` to bypass CI status checks.
-- PRs MUST land autonomously via `🛬 Autonomous Auto-Landing` upon green verification across all guards and test suites.
+- PRs land autonomously via `🛬 Autonomous Auto-Landing` (Stage 2b in `.github/workflows/unified-pipeline.yml`) as soon as all 3 tier gates (`fast-gate`, `runtime-readiness`, and `render-heavy-gate`) pass green.
+- PR authors may also enable native GitHub auto-merge on PR creation: `gh pr merge <PR_NUMBER> --auto --squash --delete-branch`.
 - PR bodies MUST always contain `## Reflection Evidence`, `3-Tier Verify` (or `Test Evidence`), and `Closes #N` / `Refs #N` to satisfy the Tower Verification Signature Guard.
 
 When to use which:
