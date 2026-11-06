@@ -52,6 +52,8 @@ export function loadAuthoritativeServices(): Record<string, AuthoritativeService
   let inServices = false;
   let currentKey = "";
   let currentBlock: Record<string, string> = {};
+  let currentLists: Record<string, string[]> = {};
+  let currentListKey = "";
 
   function flush() {
     if (currentKey && currentBlock.render_name) {
@@ -73,9 +75,12 @@ export function loadAuthoritativeServices(): Record<string, AuthoritativeService
         releasePath: currentBlock.release_path || "/release",
         repo: currentBlock.source_repo || "Supremeai-bd/supremeai",
         branch: currentBlock.branch || "main",
+        watchPaths: currentLists.watch_paths || [],
       };
     }
     currentBlock = {};
+    currentLists = {};
+    currentListKey = "";
   }
 
   for (const line of lines) {
@@ -95,15 +100,31 @@ export function loadAuthoritativeServices(): Record<string, AuthoritativeService
       continue;
     }
 
-    if (currentKey && line.startsWith("    ")) {
-      const propMatch = line.trim().match(/^([a-zA-Z0-9_-]+):\s*(.*)$/);
-      if (propMatch) {
-        const key = propMatch[1];
-        let val = propMatch[2].trim();
-        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-          val = val.slice(1, -1);
+    if (currentKey) {
+      // Check for list item under current list key
+      const listItemMatch = line.match(/^\s{6,8}-\s*["']?(.*?)["']?\s*$/);
+      if (listItemMatch && currentListKey) {
+        if (!currentLists[currentListKey]) currentLists[currentListKey] = [];
+        currentLists[currentListKey].push(listItemMatch[1]);
+        continue;
+      }
+
+      if (line.startsWith("    ")) {
+        const propMatch = line.trim().match(/^([a-zA-Z0-9_-]+):\s*(.*)$/);
+        if (propMatch) {
+          const key = propMatch[1];
+          let val = propMatch[2].trim();
+          if (val === "" || val === "[]") {
+            currentListKey = key;
+            currentLists[key] = [];
+            continue;
+          }
+          currentListKey = "";
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+          }
+          currentBlock[key] = val;
         }
-        currentBlock[key] = val;
       }
     }
   }
