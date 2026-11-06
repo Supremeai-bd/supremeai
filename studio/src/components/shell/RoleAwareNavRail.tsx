@@ -6,8 +6,9 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { PanelLeft, PanelLeftClose } from 'lucide-react';
 import { getNavigationForContext, type NavEntry } from '../../config/navigationRegistry';
-import { useStore } from '../../store/useStore';
+import { useAuthStore } from '../../store/authStore';
 import { useWorkspaceSettings } from '../../hooks/useWorkspaceSettings';
+import { getCanonicalRole } from '../../auth/identity';
 import { useStore } from '../../store/useStore';
 
 export interface RoleAwareNavRailProps {

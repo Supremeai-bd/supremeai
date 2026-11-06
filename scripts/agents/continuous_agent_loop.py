@@ -53,6 +53,71 @@ except ImportError:
 
 DISPATCH_JOURNAL_RETENTION_SECONDS = ORPHAN_RELEASE_MINUTES * 60.0
 
+
+def run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
+    """Run a repository command through the injectable subprocess seam."""
+    return subprocess.run(cmd, **kwargs)
+
+
+def inject_strategic_memory(issue_number: int, task: dict[str, Any]) -> None:
+    """Inject relevant strategic red lines into a claimed issue, fail-safe."""
+    try:
+        from scripts.agents.agent_solution_memory import (
+            format_strategic_block,
+            search_strategic_memory,
+        )
+
+        title = str(task.get("title") or "").strip()
+        if not title:
+            result = run(
+                [
+                    "gh", "issue", "view", str(issue_number),
+                    "--repo", UPSTREAM_REPO, "--json", "title", "--jq", ".title",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode == 0:
+                title = (result.stdout or "").strip().strip('"')
+
+        labels = " ".join(
+            str(label.get("name", label)) if isinstance(label, dict) else str(label)
+            for label in (task.get("labels") or [])
+        )
+        query = f"{title} {labels}".strip()
+        if not query:
+            return
+
+        entries = search_strategic_memory(query, limit=5)
+        if not entries:
+            return
+
+        body = (
+            "🚫 **Strategic Memory Injection (#2691)** — relevant prior decisions "
+            "and red lines:\n\n"
+            f"{format_strategic_block(entries)}\n\n"
+            "_Source: `data/strategic_decisions.jsonl` · "
+            "`agent_solution_memory.py search-strategic`_"
+        )
+        result = run(
+            [
+                "gh", "issue", "comment", str(issue_number),
+                "--repo", UPSTREAM_REPO, "--body", body,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            print(
+                f"⚠️ Strategic memory comment failed for issue #{issue_number}: "
+                f"{result.stderr or 'unknown error'}",
+                file=sys.stderr,
+            )
+    except Exception as err:  # noqa: BLE001 — advisory integration is fail-safe
+        print(f"⚠️ Strategic memory injection skipped ({err})", file=sys.stderr)
+
 # #3738 twin-guard contract name: the born-duplicate demotion reads this runner's
 # dispatch journal as its in-flight signal (demotion-only — the filter removes a
 # duplicate dispatch, it never gates or delays a pick under the #3573 event-driven

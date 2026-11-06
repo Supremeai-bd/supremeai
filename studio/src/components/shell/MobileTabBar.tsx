@@ -17,6 +17,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { MoreHorizontal } from 'lucide-react';
 import { getNavigationForContext } from '../../config/navigationRegistry';
+import { useAuthStore } from '../../store/authStore';
 import { useStore } from '../../store/useStore';
 import { useWorkspaceSettings } from '../../hooks/useWorkspaceSettings';
 import { useMobileNav } from '../../hooks/useMobileNav';
