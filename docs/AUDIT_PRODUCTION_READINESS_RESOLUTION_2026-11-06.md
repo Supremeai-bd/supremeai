@@ -172,7 +172,7 @@ This addendum supersedes the broad **GO** wording above for release-gate purpose
 
 ### Recheck verdict
 
-**Conditional GO for the already-deployed code path, but not final production-readiness sign-off.** The original P0/P1 code fixes, merged Studio route boundary, clean production dependency audit, and live readiness path are confirmed. Final sign-off remains blocked by the complete post-merge nightly run, branch-protection/provenance evidence, tenant-isolation and restore evidence, authenticated production E2E, browser/accessibility QA, rollback/capacity sign-off, and pre-existing Studio build debt.
+**Conditional GO for the already-deployed code path, but not final production-readiness sign-off.** The original P0/P1 code fixes, merged Studio route boundary, clean production dependency audit, live readiness path, and complete post-merge Nightly Ops run are confirmed. Final sign-off remains blocked by branch-protection/provenance evidence, tenant-isolation and restore evidence, authenticated production E2E, browser/accessibility QA, rollback/capacity sign-off, and pre-existing Studio build debt.
 
 ---
 
