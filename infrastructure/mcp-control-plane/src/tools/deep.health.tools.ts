@@ -4,6 +4,7 @@ import { httpRequest } from "../lib/http.js";
 import { env } from "../lib/env.js";
 import { pingRedis } from "../adapters/redis/index.js";
 import { getServiceHealth } from "../adapters/render/index.js";
+import { resolveServiceTarget, toServiceRef } from "../diagnostics/service_manifest.js";
 
 /**
  * Deep Health & Free-Tier Sentinel Tool
@@ -70,8 +71,10 @@ export async function registerDeepHealthTools(server: McpServer): Promise<void> 
         const redisStart = Date.now();
         const redisRes: any = await pingRedis();
         const redisLatency = Date.now() - redisStart;
+        const isHealthy = redisRes?.status === "healthy" || String(redisRes?.probe).toUpperCase().includes("PONG");
         results.probes.redis = {
-          status: redisRes?.status === "PONG" ? "healthy" : "degraded",
+          status: isHealthy ? "healthy" : "degraded",
+          probe: redisRes?.probe ?? "PONG",
           latencyMs: redisLatency,
           mode: redisRes?.mode,
           activePrimary: redisRes?.activePrimary,
@@ -98,18 +101,21 @@ export async function registerDeepHealthTools(server: McpServer): Promise<void> 
         };
       }
 
-      // 3. Render Free-Tier Build Minutes & Cold-Start Probe
+      // 3. Render Free-Tier Build Minutes & Cold-Start Probe (Canonical Resolver SSOT)
       try {
-        const renderSvcId = env.render.controlTower.serviceId || env.render.primary.serviceId;
-        if (renderSvcId) {
-          // The control tower service belongs to the control-tower Render
-          // account; querying it with the primary account key returns a false
-          // 404 when the services are split across Render accounts.
-          const renderAccountId = env.render.controlTower.serviceId ? "render-mcp" : "render-primary";
+        const target = resolveServiceTarget("mcp") || resolveServiceTarget("api");
+        const serviceRef = target ? toServiceRef(target) : null;
+        const renderSvcId = target?.renderServiceId;
+        const renderAccountId = target?.renderAccountId || "render-mcp";
+
+        if (renderSvcId && !renderSvcId.startsWith("xxx")) {
           const rHealth: any = await getServiceHealth(renderAccountId, renderSvcId);
           const svc = rHealth?.service;
           results.probes.render = {
             status: svc?.status || "unknown",
+            canonicalServiceId: serviceRef?.canonicalServiceId ?? "mcp",
+            renderServiceId: renderSvcId,
+            renderAccountId,
             suspended: svc?.suspended === "suspended",
             autoDeploy: svc?.autoDeploy,
             monthlyBuildMinutesUsed: svc?.monthlyBuildMinutes,
@@ -128,6 +134,11 @@ export async function registerDeepHealthTools(server: McpServer): Promise<void> 
               );
             }
           }
+        } else {
+          results.probes.render = {
+            status: "configuration_error",
+            error: `Invalid or placeholder Render service ID: ${renderSvcId ?? "undefined"}`,
+          };
         }
       } catch (err) {
         results.probes.render = {
