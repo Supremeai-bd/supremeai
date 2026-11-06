@@ -20,33 +20,21 @@ It contains only artifacts that are useful *outside* SupremeAI's private intelli
 > - Use the correct tool name + `owner/repo` form or the call fails.
 > - Bridge tools: `bridge_submit_patch` requires `taskId` (`bridge-YYYYMMDD-<slug>`), `summary`, `scopePaths` (1-30), `testsEvidence`, and `files` (each with `path`); pass `originalIssueNumber` so the root issue auto-closes on merge, and `closesOriginalIssue: true` only when a docs-only payload **IS** the resolution of that issue (receipt-closure convention #2485, `contract.receiptClosureConvention` in `bridge_guide`; default keeps the WO open via `Refs #N`). `work_claim` requires `issueNumber` (integer). `bridge.work_order`/`bridge_read_feedback` require `number` (issue number).
 
-## 📐 Federation Architecture & Mathematical Repository Model
+## 📐 Federation Architecture & Pure 2-Repository Topology
 
-> **Canonical Mathematical Blueprint:** [`docs/FEDERATION_MATHEMATICAL_MODEL_AND_INVENTORY.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/FEDERATION_MATHEMATICAL_MODEL_AND_INVENTORY.md) · [`docs/FEDERATION_CHARTER.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/FEDERATION_CHARTER.md)
-
-### 1. Mathematical Universe & Repository Set Model
+The SupremeAI Federation operates under the **Pure 2-Repository Topology**:
+1. **`Supremeai-bd/supremeai`**: The Unified Monorepo SSOT containing Core, Gateway, Browser, VSCode, Studio Mirrors, Infrastructure, and MCP Control Plane. Single door for all PRs, issues, and CI workflows (`unified-pipeline.yml`).
+2. **`Supremeai-bd/supremeai-studio`**: The Public UI & Mission Control Cockpit (Vercel Web UI).
 
 ```mermaid
 flowchart TD
-    subgraph FEDERATION_UNIVERSE ["🌐 The Federation Universe (U)"]
+    subgraph FEDERATION_UNIVERSE ["🌐 SupremeAI Pure 2-Repository Topology"]
         direction TB
-        OPEN["supremeai (Public Task Hub & Embassy)<br>Total = 635 Files<br>(261 U_open + 374 T_transit)"]
-        MONO["supremeai (Central Umbrella Monorepo)<br>Total = 2073 Files"]
+        MONO["Supremeai-bd/supremeai<br>(Unified Monorepo SSOT & Control Tower)"]
+        STUDIO["Supremeai-bd/supremeai-studio<br>(Mission Control Cockpit · Vercel)"]
         
-        subgraph ACTIVE_SATS ["5 Active Product Satellites (Σ = 1384 Executable Files)"]
-            S_STUDIO["supremeai-studio<br>(643 files · Vercel Web UI)"]
-            S_API["supremeai-api<br>(490 files · Render Gateway & FastMCP)"]
-            S_CORE["supremeai-core<br>(146 files · DAG Decision Moat)"]
-            S_BROWSER["supremeai-browser<br>(60 files · Stealth Playwright)"]
-            S_VSCODE["supremeai-vscode<br>(45 files · Extension & Tauri Desktop)"]
-        end
-
-        ARCHIVE["supremeai (Cold Storage)<br>Total = 57 Files (55 Unique Decommissioned Specs)"]
+        MONO <-->|"Shared Components & Contract Sync"| STUDIO
     end
-
-    OPEN ==>|"Transit Mirrors (374 files)<br>Step 1: Direct Dispatch"| ACTIVE_SATS
-    ACTIVE_SATS ==>|"Step 2: Monorepo Ingestion"| MONO
-    ARCHIVE -.->|"Retired Architectural Delta<br>(Permanently removed from active repos)"| MONO
 
     classDef open fill:#1d76db,stroke:#fff,stroke-width:2px,color:#fff;
     classDef sats fill:#059669,stroke:#fff,stroke-width:2px,color:#fff;
