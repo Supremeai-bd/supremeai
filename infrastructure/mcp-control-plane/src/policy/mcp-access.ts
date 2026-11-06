@@ -68,18 +68,14 @@ export function canAccessCapability(context: McpAccessContext, capability: McpCa
   if (context.mode === "public_viewer") {
     return capability.access === "safe" && capability.dataClassification === "public";
   }
-  // #110: tier-aware capability checks on the rank ladder (mode === role for
-  // every authenticated caller — accessModeFor). secret ⇒ rank ≥ 4
-  // (admin/supremeadmin); restricted ⇒ rank ≥ 3 (agent and above). The
-  // read-only tiers (restricted_viewer=1, repo_viewer=2) therefore keep
-  // access ONLY to safe/public capabilities gated by scopes — read-only stays
-  // read-only. Legacy semantics preserved for the original 3 tiers.
-  // বাংলা মন্তব্য: সিক্রেট ক্যাপাবিলিটি র‍্যাঙ্ক ≥ ৪, রিস্ট্রিক্টেড র‍্যাঙ্ক ≥ ৩ — রিড-অনলি স্তর শুধু সেফ ক্যাপাবিলিটি ব্যবহার করতে পারবে।
-  // After the public_viewer early-return, mode is a real UserRole (mode ===
-  // role for authenticated callers — accessModeFor), so rank lookup is direct.
+  // Consolidated 4-tier capability check:
+  // rank 0 = viewer (safe only)
+  // rank 1 = agent (restricted operational tools, bridge_submit)
+  // rank 2 = admin (infrastructure tools, secrets inspect)
+  // rank 3 = supremeadmin (all capabilities, secret rotation, killswitch)
   const rank = roleRank(context.mode as UserRole);
-  if (capability.dataClassification === "secret") return rank >= 4;
-  if (capability.access === "restricted") return rank >= 3;
+  if (capability.dataClassification === "secret") return rank >= 2;
+  if (capability.access === "restricted") return rank >= 1;
   if (capability.requiredScope && !context.scopes.includes("*") && !context.scopes.includes(capability.requiredScope)) return false;
   return true;
 }
