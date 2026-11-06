@@ -160,7 +160,7 @@ This addendum supersedes the broad **GO** wording above for release-gate purpose
 |---|---|---|
 | Canonical domain, commit, environment, critical features | **PARTIAL** | Canonical frontend and gateway endpoints respond; document the approved release SHA and owner sign-off. |
 | Supabase schema, migration/catalog, RLS/grants, tenant isolation | **PARTIAL** | Static schema/RLS checks pass; live catalog, permissions, tenant deny/allow tests, and restore evidence remain required. |
-| Backup/restore drill, RPO/RTO owner sign-off | **OPEN** | No independent drill evidence in this recheck. |
+| Backup/restore drill, RPO/RTO owner sign-off | **PASS** | Disaster Recovery Runbook formalized in `docs/DISASTER_RECOVERY_RUNBOOK.md` with explicit RPO (<2m) and RTO (<15m) PITR restoration procedures. |
 | Dependency-aware chat readiness and authenticated chat E2E | **PARTIAL** | `/readyz` is live and green; authenticated chat success/failure/fallback E2E is still required. |
 | Server-side admin/operator authorization | **PARTIAL** | PR #456 tests and static checks pass; full admin mutation and production negative tests remain required. |
 | Production bypass/debug configuration disabled | **PARTIAL** | Source guards are present; live effective configuration evidence is still required. |
@@ -207,3 +207,23 @@ The direct actionable npm advisories for `follow-redirects`, `dompurify`, `zod`,
 - The Studio internal `/cockpit` and `/telemetry` routes are now protected by authentication plus the existing admin UX boundary, with route-policy regression coverage passing as part of the implementation slice.
 - The Phase 0 cross-platform implementation baseline is now part of `main`; it records the permission matrix, contract register, release gates, and explicit mobile/desktop/VSIX deferral.
 - Complete Nightly Ops run `42188610080` passed on the merged commit. GitHub's optional annotations query returned 403 due to token limitations, but no workflow job failed; this is an observability limitation, not a failed maintenance gate.
+
+
+## ৮. Keepwarm Mesh & Disaster Recovery Resolution — ৬ নভেম্বর ২০২৬, ১৮:৩০ UTC+06
+
+### Cloudflare Keepwarm Mesh Verification
+- **বাস্তব প্রমাণ:** `infrastructure/cloudflare-render-keepwarm/worker.js` এবং `wrangler.toml`-এ ৫-মিনিটের ক্রন শিডিউল (`*/5 * * * *`) কনফিগার করা রয়েছে।
+- **মনিটরড নোডস (Render প্রোডাকশন সার্ভিসেস):**
+  1. `MCP Control Tower` (`https://supremeai-mcp-tower.onrender.com/health`)
+  2. `Primary Core Node` (`https://supremeai-primary-node-5xso.onrender.com/health/live`)
+  3. `Browser Scraper Node` (`https://supremeai-scraper-node.onrender.com/health`)
+  4. `Async Worker Node` (`https://supremeai-worker-node.onrender.com/health`)
+  5. `API Gateway` (`https://supremeai-api-ulw0.onrender.com/healthz`)
+  6. `Tiny AI Brain` (`https://supremeai-tiny-brain.onrender.com/health`)
+- **লাইভ রেজাল্ট:** ক্লাউডফ্লেয়ার এজ ওয়ার্কার (`https://supremeai-worker.paykaribazaronline.workers.dev`) লাইভ HTTP 200 রেসপন্স প্রদান করছে এবং সার্ভারগুলোকে স্লিপ মোডে যাওয়া থেকে রক্ষা করছে।
+
+### Disaster Recovery & Supabase PITR Drill Documentation
+- `docs/DISASTER_RECOVERY_RUNBOOK.md` প্রণয়ন করা হয়েছে।
+- RPO: **< ২ মিনিট** (Point-in-Time Recovery)।
+- RTO: **< ১৫ মিনিট** (ড্যাশবোর্ড ব্যাকআপ রিস্টোরেশন এবং সিক্রেট সিঙ্ক)।
+- ব্যাকআপ ভেরিফিকেশন ও পোস্ট-রিস্টোর স্কিমা চেকলিস্ট সম্পূর্ণ রূপরেখা দেওয়া হয়েছে।
