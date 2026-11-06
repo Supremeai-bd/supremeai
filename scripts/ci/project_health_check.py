@@ -330,15 +330,26 @@ def check_localstorage_jwt(root: Path, report: Report):
     """Check frontend files for JWT tokens stored in localStorage."""
     ts_files = glob_recursive(root, ["*.ts", "*.tsx"])
     for f in ts_files:
+        # Test fixtures intentionally exercise legacy storage behavior and do
+        # not represent the shipped bundle. Comments/documentation may also
+        # mention a removed key; only executable production code is actionable.
+        relative = f.relative_to(root)
+        if (
+            any(part in {"test", "tests", "e2e", "__tests__"} for part in relative.parts)
+            or relative.name.endswith((".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx"))
+        ):
+            continue
         text = read_text(f)
         for i, line in enumerate(text.splitlines(), 1):
+            if line.lstrip().startswith(("//", "/*", "*", "*/")):
+                continue
             if "localStorage" in line and (
                 "jwt" in line.lower() or "token" in line.lower()
             ) and ("setItem" in line or "getItem" in line):
                 report.add(
                     "MEDIUM",
                     "jwt_in_localstorage",
-                    str(f.relative_to(root)),
+                    str(relative),
                     i,
                     "JWT/token stored in localStorage — vulnerable to XSS",
                     "Use httpOnly cookies or in-memory storage instead.",
