@@ -6,7 +6,7 @@
 //   /search issues <q>   -> issues+PRs in Supremeai-bd/supremeai (unauth OK)
 //   /search repos <q>    -> public repositories (unauth OK)
 //   /search code <q>     -> code search (needs a token: VITE_GITHUB_TOKEN
-//                           or localStorage 'supremeai_github_token')
+//                           or sessionStorage 'supremeai_github_token')
 //   /search <q>          -> defaults to issues
 //   github: <q>          -> alias for issues search
 //
@@ -32,8 +32,8 @@ interface SearchHit {
 function githubToken(): string {
   const env = (import.meta as unknown as { env?: Record<string, string> }).env || {};
   if (env.VITE_GITHUB_TOKEN) return env.VITE_GITHUB_TOKEN;
-  if (typeof localStorage !== 'undefined') {
-    try { return localStorage.getItem('supremeai_github_token') || ''; } catch { return ''; }
+  if (typeof sessionStorage !== 'undefined') {
+    try { return sessionStorage.getItem('supremeai_github_token') || ''; } catch { return ''; }
   }
   return '';
 }
@@ -59,7 +59,7 @@ async function ghFetch(url: string): Promise<{ status: number; items: SearchHit[
 }
 
 function rateLimitText(): string {
-  return 'GitHub search rate limit reached (free tier: ~10 searches/min unauthenticated). Wait a minute and retry, or set a free GitHub token in VITE_GITHUB_TOKEN / localStorage "supremeai_github_token" for 30 req/min.';
+  return 'GitHub search rate limit reached (free tier: ~10 searches/min unauthenticated). Wait a minute and retry, or set a free GitHub token in VITE_GITHUB_TOKEN / sessionStorage "supremeai_github_token" for 30 req/min.';
 }
 
 async function searchIssues(q: string): Promise<IntentResult> {
@@ -67,7 +67,7 @@ async function searchIssues(q: string): Promise<IntentResult> {
   const url = `https://api.github.com/search/issues?q=${encodeURIComponent(q)}+repo:${REPO}&per_page=5&sort=updated`;
   const { status, items } = await ghFetch(url);
   if (status === 403 || status === 429) return { text: rateLimitText(), via: 'jarvis:search' };
-  if (status === 401) return { text: 'GitHub rejected the configured token (401). Clear localStorage "supremeai_github_token" or fix VITE_GITHUB_TOKEN.', via: 'jarvis:search' };
+  if (status === 401) return { text: 'GitHub rejected the configured token (401). Clear sessionStorage "supremeai_github_token" or fix VITE_GITHUB_TOKEN.', via: 'jarvis:search' };
   if (status !== 200) return { text: `GitHub search failed (HTTP ${status}).`, via: 'jarvis:search' };
   if (items.length === 0) return { text: `No issues/PRs match "${q}" in ${REPO}.`, via: 'jarvis:search' };
   const lines = [`Issues/PRs matching "${q}" (${items.length} shown):`];
@@ -97,14 +97,14 @@ async function searchCode(q: string): Promise<IntentResult> {
   if (!q) return { text: 'Usage: /search code <query> — code search (token required, free GitHub PAT works).', via: 'jarvis:search' };
   if (!githubToken()) {
     return {
-      text: 'Code search needs a (free) GitHub token — GitHub requires auth for the code search API. Add VITE_GITHUB_TOKEN or run localStorage.setItem("supremeai_github_token", "ghp_...") once. Meanwhile /search issues and /search repos work without a token.',
+      text: 'Code search needs a (free) GitHub token — GitHub requires auth for the code search API. Add VITE_GITHUB_TOKEN or set sessionStorage "supremeai_github_token" for this browser session. Meanwhile /search issues and /search repos work without a token.',
       via: 'jarvis:search',
     };
   }
   const url = `https://api.github.com/search/code?q=${encodeURIComponent(q)}+repo:${REPO}&per_page=5`;
   const { status, items } = await ghFetch(url);
   if (status === 403 || status === 429) return { text: rateLimitText(), via: 'jarvis:search' };
-  if (status === 401) return { text: 'GitHub rejected the configured token (401). Replace localStorage "supremeai_github_token" with a fresh PAT.', via: 'jarvis:search' };
+  if (status === 401) return { text: 'GitHub rejected the configured token (401). Replace sessionStorage "supremeai_github_token" with a fresh PAT.', via: 'jarvis:search' };
   if (status !== 200) return { text: `GitHub code search failed (HTTP ${status}).`, via: 'jarvis:search' };
   if (items.length === 0) return { text: `No code matches "${q}" in ${REPO}.`, via: 'jarvis:search' };
   const lines = [`Code matching "${q}" (${items.length} shown):`];

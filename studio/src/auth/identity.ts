@@ -38,8 +38,7 @@ export function readAdminJwtClaims(): AdminJwtClaims | null {
   try {
     const token =
       getAdminToken() ||
-      sessionStorage.getItem(ADMIN_JWT_KEY) ||
-      localStorage.getItem(ADMIN_JWT_KEY);
+      sessionStorage.getItem(ADMIN_JWT_KEY);
     if (!token) return null;
     const part = token.split('.')[1];
     if (!part) return null;

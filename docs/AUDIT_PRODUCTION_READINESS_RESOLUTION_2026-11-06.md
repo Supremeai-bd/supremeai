@@ -173,3 +173,25 @@ This addendum supersedes the broad **GO** wording above for release-gate purpose
 ### Recheck verdict
 
 **Conditional GO for the already-deployed code path, but not final production-readiness sign-off.** The original P0/P1 code fixes and live readiness path are confirmed, while the red nightly operations run, HIGH CORS finding, token-storage review, missing branch-protection evidence, and incomplete runtime/browser/restore evidence keep the formal launch checklist open.
+
+---
+
+## ৬. Remediation update — ৬ নভেম্বর ২০২৬, ১১:২৫ UTC+06
+
+The actionable findings from the recheck have now been fixed in the follow-up changes:
+
+- `core/services/brain/main.py` no longer uses `allow_headers=["*"]` with credentialed CORS; it allows only `Accept`, `Authorization`, `Content-Type`, and `x-brain-token`.
+- Production Studio admin identity paths no longer read admin JWTs from `localStorage`; they use the session-first token accessor/session storage only.
+- The optional JARVIS GitHub search token is session-scoped instead of persisted in `localStorage`.
+- `scripts/ci/project_health_check.py` now ignores comments and test fixtures for the JWT-storage rule, preventing removed-code comments and intentional tests from creating false findings.
+- The Schedule Watchdog job now declares `actions: write` and prefers `SELF_HEAL_PAT` (falling back to `GITHUB_TOKEN`) for workflow listing, re-arm, and dispatch operations. This addresses the observed GitHub Actions API 403 caused by the prior read-only token scope.
+
+### Remediation validation
+
+- Project health scan: **clean** after excluding non-executable comments/test fixtures and removing the production localStorage token paths.
+- Focused gateway, readiness, and Kaggle suite: **16 passed**.
+- Python compilation: **passed** for the modified brain and watchdog code.
+- GitHub Actions YAML parse: **passed**; watchdog permissions are `actions: write` and `contents: read`.
+- Studio dependency installation completed, but the repository-wide Studio typecheck/build still fails on pre-existing unrelated errors (560 TypeScript errors across 133 files, including missing `src/data/*` modules and duplicate imports). This remains an open frontend baseline issue, not a regression from these security changes.
+
+The remaining formal gates are now limited to external or baseline items: branch-protection verification, Supabase backup/restore and tenant-isolation evidence, authenticated production E2E, browser QA, rollback/capacity sign-off, and the pre-existing Studio TypeScript/build debt. The code-level CORS, production token-storage, and watchdog permission findings are closed by the follow-up changes.

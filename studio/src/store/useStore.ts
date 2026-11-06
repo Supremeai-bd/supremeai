@@ -1,6 +1,7 @@
 import { create } from "zustand";
 // বাংলা মন্তব্য: raw fetch() সরিয়ে apiClient ব্যবহার — auth header সব request এ যাবে
 import { apiClient } from '../services/apiClient';
+import { getAdminToken } from '../services/tokenStorage';
 import { AppDefaults } from '../config/constants';
 import type { UnifiedChatMessage } from '../types/chat';
 
@@ -98,7 +99,7 @@ export const useStore = create<SupremeState>((set) => ({
   // ── 🛡️ Autonomous Gate Management Actions ────────────────────────
   fetchGateStatus: async () => {
     // বাংলা মন্তব্য: raw fetch() → apiClient — Authorization header এখন সব request এ যাচ্ছে
-    const adminToken = sessionStorage.getItem('supreme_admin_jwt') || localStorage.getItem('supreme_admin_jwt');
+    const adminToken = getAdminToken();
     if (!adminToken) {
       // 401 Error এড়াতে অ্যাডমিন টোকেন না থাকলে API কল করা থেকে বিরত থাকা হচ্ছে
       return;
