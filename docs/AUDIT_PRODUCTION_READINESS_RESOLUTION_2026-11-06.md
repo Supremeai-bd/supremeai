@@ -165,7 +165,7 @@ This addendum supersedes the broad **GO** wording above for release-gate purpose
 | Server-side admin/operator authorization | **PARTIAL** | PR #456 tests and static checks pass; full admin mutation and production negative tests remain required. |
 | Production bypass/debug configuration disabled | **PARTIAL** | Source guards are present; live effective configuration evidence is still required. |
 | CI required checks, branch protection, provenance, rollback | **PARTIAL** | Unified CI passed on merged `main` commit `6be236d1`; branch-protection API access returned 403 and rollback evidence remains open. |
-| Nightly Kaggle and operations cycle | **PARTIAL** | Kaggle and Schedule Watchdog steps passed in the post-permission verification run; the overall run was red on the then-unfixed dependency audit, so rerun the complete maintenance workflow on merged `main`. |
+| Nightly Kaggle and operations cycle | **PASS** | Complete Nightly Ops run `42188610080` passed on merged `main` commit `6be236d1`; dependency health, Kaggle bridge, Schedule Watchdog, hygiene guards, and all executed maintenance jobs were green. |
 | Browser, network, accessibility, mobile, performance QA | **OPEN** | Typecheck passed; build and browser QA were not completed in this environment. |
 | Capacity, availability, public exposure, rate limiting | **PARTIAL** | Rate-limit detector passed and live endpoints are healthy; plan/SLO and free single-instance acceptance require owner sign-off. |
 | P0/P1 ownership and closure evidence | **PARTIAL** | CORS, production token persistence, watchdog permission, dependency-path, and production dependency findings are closed and merged; remaining ownership work covers external restore/tenant-isolation evidence, frontend build debt, and issue triage. |
@@ -206,4 +206,4 @@ The direct actionable npm advisories for `follow-redirects`, `dompurify`, `zod`,
 - The unified CI/CD pipeline passed for that merged commit (workflow run `42187536075`).
 - The Studio internal `/cockpit` and `/telemetry` routes are now protected by authentication plus the existing admin UX boundary, with route-policy regression coverage passing as part of the implementation slice.
 - The Phase 0 cross-platform implementation baseline is now part of `main`; it records the permission matrix, contract register, release gates, and explicit mobile/desktop/VSIX deferral.
-- No new complete Nightly Ops run has yet been recorded on the merged commit. The next operational action is to dispatch that workflow on `main` and evaluate the complete result, not only the Schedule Watchdog child job.
+- Complete Nightly Ops run `42188610080` passed on the merged commit. GitHub's optional annotations query returned 403 due to token limitations, but no workflow job failed; this is an observability limitation, not a failed maintenance gate.
