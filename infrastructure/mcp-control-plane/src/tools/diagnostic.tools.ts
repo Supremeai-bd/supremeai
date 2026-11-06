@@ -273,8 +273,8 @@ export async function diagnoseRelease(
     ? (healthBody.service as Record<string, unknown>)
     : null;
   const isRenderConfigError =
-    (health.status === "rejected" && /404|configuration_error|not found/i.test(String(health.reason))) ||
-    (deploy.status === "rejected" && /404|configuration_error|not found/i.test(String(deploy.reason)));
+    (health.status === "rejected" && /404|401|403|unauthorized|forbidden|configuration_error|not found/i.test(String(health.reason))) ||
+    (deploy.status === "rejected" && /404|401|403|unauthorized|forbidden|configuration_error|not found/i.test(String(deploy.reason)));
 
   const healthStatus: CheckStatus = health.status === "rejected"
     ? (isRenderConfigError ? "unknown" : "fail")
