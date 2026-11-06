@@ -134,7 +134,7 @@ export function classifyToolCapability(name: string): McpCapabilityMetadata {
       approvalRequired: false,
     };
   }
-  if (name === "system_diagnose") {
+  if (name === "system_diagnose" || name === "system_deep_diagnose") {
     return {
       name,
       kind: "tool",

@@ -157,6 +157,7 @@ export const STANDARD_CURATED_TOOLS: readonly string[] = [
   "devtools_network_failures",
   "devtools_performance_trace",
   "system_parity_audit",
+  "system_deep_diagnose",
   // vector memory & search
   "qdrant_search",
   "qdrant_collections",

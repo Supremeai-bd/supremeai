@@ -43,6 +43,7 @@ import { registerDiagnosticTools } from "./diagnostic.tools.js";
 import { registerLearningTools } from "./learning.tools.js";
 import { registerRemediationTools } from "./remediation.tools.js";
 import { registerPlanningTools } from "./planning.tools.js";
+import { registerMasterDiagnoseTools } from "./master_diagnose.tools.js";
 
 /**
  * Registers all MCP tools with the server.
@@ -54,6 +55,9 @@ export async function registerAllTools(
 ): Promise<void> {
   // ── Unified Observability Hub (S0.4 status tool)
   await registerUnifiedStatusTool(server);
+
+  // ── Master Autonomous Diagnostic Orchestrator (system_deep_diagnose)
+  await registerMasterDiagnoseTools(server);
 
   // ── Evidence-based release diagnosis (provider health is not release proof)
   await registerDiagnosticTools(server);
