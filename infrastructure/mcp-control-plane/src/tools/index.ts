@@ -36,6 +36,8 @@ import type { MemorySubAdapter } from "../adapters/memory/index.js";
 
 import { registerUnifiedStatusTool } from "./unified.status.tools.js";
 import { registerParityTools } from "./parity.tools.js";
+import { registerDeepHealthTools } from "./deep.health.tools.js";
+import { registerAgentBootstrapTools } from "./agent.bootstrap.tools.js";
 
 /**
  * Registers all MCP tools with the server.
@@ -113,4 +115,10 @@ export async function registerAllTools(
 
   // ── Multi-Platform Parity & Drift Sentinel
   await registerParityTools(server);
+
+  // ── Deep Reality Check & Free-Tier Sentinel
+  await registerDeepHealthTools(server);
+
+  // ── Agent Rapid Bootstrap
+  await registerAgentBootstrapTools(server);
 }
