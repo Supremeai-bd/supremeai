@@ -2096,4 +2096,68 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
       }
     }
   );
+
+  // ── bridge_preflight_validate (#48: Agent Pre-Submission Validation)
+  server.tool(
+    "bridge_preflight_validate",
+    "Pre-validate a proposed patch or PR submission before calling bridge_submit. Checks reflection evidence, boundary invariants, file paths, and test wiring without modifying GitHub.",
+    {
+      files: z.array(z.object({
+        path: z.string().describe("Relative file path within repository"),
+        content: z.string().optional().describe("Full content if submitting full file"),
+        diff: z.string().optional().describe("Unified diff if submitting patch"),
+      })).describe("List of files intended to be modified"),
+      summary: z.string().describe("PR summary or description"),
+      reflectionWhy: z.string().optional().describe("Why this change is necessary"),
+      alternativesRejected: z.string().optional().describe("Alternatives explored and rejected"),
+    },
+    { readOnlyHint: true, idempotentHint: true },
+    async ({ files, summary, reflectionWhy, alternativesRejected }) => {
+      const issues: string[] = [];
+      const warnings: string[] = [];
+
+      // 1. Boundary & Root Shadowing Checks (Invariant 2)
+      const bannedRootPatterns = [/^src\//, /^packages\//, /^service\//];
+      for (const f of files) {
+        const cleanPath = f.path.replace(/^[/\\]+/, "");
+        if (bannedRootPatterns.some((pattern) => pattern.test(cleanPath))) {
+          issues.push(`Boundary violation: Code in root '${cleanPath}' is forbidden (Invariant 2: Satellites live in studio/*, core/*, etc).`);
+        }
+        if (!f.content && !f.diff) {
+          issues.push(`Missing content or diff for file: '${f.path}'`);
+        }
+      }
+
+      // 2. Reflection Evidence Check (Invariant 4)
+      if (!reflectionWhy || reflectionWhy.trim().length < 5) {
+        issues.push("Reflection evidence error: 'reflectionWhy' must explain the motivation clearly (>5 chars).");
+      }
+      if (!alternativesRejected || alternativesRejected.trim().length < 5) {
+        issues.push("Reflection evidence error: 'alternativesRejected' must detail rejected approaches (>5 chars).");
+      }
+
+      // 3. Test Wiring Guard (Invariant 4)
+      const codeFiles = files.filter(f => /\.(ts|js|py)$/.test(f.path) && !f.path.includes("test") && !f.path.includes("spec"));
+      const testFiles = files.filter(f => f.path.includes("test") || f.path.includes("spec") || f.path.startsWith("tests/"));
+      if (codeFiles.length > 0 && testFiles.length === 0) {
+        warnings.push("Test wiring warning: Code files modified without matching test additions or updates. Ensure test verification is documented.");
+      }
+
+      const isValid = issues.length === 0;
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            valid: isValid,
+            verdict: isValid ? "PREFLIGHT_PASS" : "PREFLIGHT_REJECTED",
+            issues,
+            warnings,
+            filesChecked: files.length,
+            readyForBridgeSubmit: isValid,
+          }, null, 2),
+        }],
+      };
+    }
+  );
 }

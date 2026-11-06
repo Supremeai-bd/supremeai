@@ -58,6 +58,7 @@ export const publicSafeCapabilities: readonly McpCapabilityMetadata[] = [
   { name: "bridge_read_feedback", kind: "tool", access: "safe", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
   { name: "bridge_work_renew", kind: "tool", access: "safe", riskLevel: "R1", dataClassification: "public", approvalRequired: false },
   { name: "bridge_work_release", kind: "tool", access: "safe", riskLevel: "R1", dataClassification: "public", approvalRequired: false },
+  { name: "bridge_preflight_validate", kind: "tool", access: "safe", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
   // Safe database schema discovery (anti-blindness)
   { name: "supabase.schema_inspect", kind: "tool", access: "safe", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
   { name: "db.schema_inspect", kind: "tool", access: "safe", riskLevel: "R0", dataClassification: "public", approvalRequired: false },
