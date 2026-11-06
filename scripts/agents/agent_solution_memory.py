@@ -343,8 +343,11 @@ def record_solution_gap(
         print(f"   Future Recommended Path: {future_path}")
         return True
     except Exception as err:
-        print(f"[WARN] Failed storing gap in episodic memory: {err}", file=sys.stderr)
-        return False
+        # EpisodicMemory is an optional runtime adapter.  Keep gap recording
+        # best-effort, matching record_solution, so a missing adapter does not
+        # report a valid gap submission as a command failure.
+        print(f"[WARN] Episodic gap storage skipped ({err}); continuing.", file=sys.stderr)
+        return True
 
 
 def verify_mcp() -> bool:
