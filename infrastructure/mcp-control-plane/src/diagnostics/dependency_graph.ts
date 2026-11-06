@@ -163,16 +163,24 @@ export async function probeDependency(dep: ServiceDependency): Promise<Dependenc
   }
 
   if (dep.type === "external_provider") {
-    // External providers are considered available if their environment keys exist
-    // Actual provider call errors will surface during adapter operations
+    // External providers are only "pass" when their credentials are configured.
+    // Otherwise report unknown (no evidence) rather than a false green.
+    const envKeyMap: Record<string, string> = {
+      render: "RENDER_API_KEY",
+      github: "GITHUB_TOKEN",
+      supabase: "SUPABASE_URL",
+    };
+    const requiredKey = envKeyMap[dep.id];
+    const configured = requiredKey ? Boolean(process.env[requiredKey]) : false;
     return {
       id: dep.id,
       name: dep.name,
       type: dep.type,
       critical: dep.critical,
-      status: "pass",
+      status: configured ? "pass" : "unknown",
       latencyMs: Date.now() - start,
-      details: { role: "external_provider" },
+      details: { role: "external_provider", credentialConfigured: configured, requiredEnv: requiredKey ?? null },
+      ...(configured ? {} : { error: `Missing ${requiredKey ?? "credentials"} for ${dep.id}` }),
     };
   }
 

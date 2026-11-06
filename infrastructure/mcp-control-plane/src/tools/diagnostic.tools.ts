@@ -245,7 +245,18 @@ export async function diagnoseRelease(
     typeof runtimeBody.commit === "string" ? runtimeBody.commit : typeof runtimeBody.commitSha === "string" ? runtimeBody.commitSha : null,
   ) : null;
   const runtimeStatus: CheckStatus = runtime.status === "fulfilled" && runtimeBody ? "pass" : "unknown";
-  const healthStatus: CheckStatus = health.status === "fulfilled" ? "pass" : "error";
+  // Provider health must reflect the actual service state, not just a successful
+  // adapter call. A resolved Render response whose service is suspended or missing
+  // is not healthy.
+  const healthBody = health.status === "fulfilled" ? (health.value as Record<string, unknown> | null) : null;
+  const serviceBody = healthBody && typeof healthBody.service === "object" && healthBody.service !== null
+    ? (healthBody.service as Record<string, unknown>)
+    : null;
+  const healthStatus: CheckStatus = health.status === "rejected"
+    ? "fail"
+    : serviceBody
+      ? (serviceBody.suspended === "suspended" ? "fail" : "pass")
+      : "unknown";
   const serviceHttpCheck: EvidenceCheck = directHttp.status === "fulfilled" ? directHttp.value : { name: "service_health", status: "error", details: { error: "Probe failed" } };
 
   const logResult: RenderLogsResult | null = logs.status === "fulfilled" ? logs.value : null;
@@ -269,7 +280,7 @@ export async function diagnoseRelease(
 
   // Construct 6-dimension Truth Matrix
   const truthMatrix: DiagnosticTruthMatrix = {
-    providerHealth: healthStatus === "pass" ? "pass" : healthStatus === "error" ? "fail" : "unknown",
+    providerHealth: healthStatus === "pass" ? "pass" : "fail",
     serviceHealth: serviceHttpCheck.status,
     releaseIntegrity: releaseCheck.status,
     dependencyHealth: depResult.overallStatus,
@@ -281,7 +292,19 @@ export async function diagnoseRelease(
     { name: "provider_health", status: healthStatus, details: health.status === "fulfilled" ? { observed: "Render API returned service data" } : { error: health.reason instanceof Error ? health.reason.message : "health lookup failed" } },
     serviceHttpCheck,
     { name: "intended_source", status: intendedCommit ? "pass" : "unknown", details: { repository: target.repo, branch: target.branch, commit: intendedCommit } },
-    { name: "ci_evidence", status: ciCommit ? (ciCommit === intendedCommit ? "pass" : "fail") : "unknown", details: { latestRunCommit: ciCommit, intendedCommit } },
+    {
+      name: "ci_evidence",
+      status: !ciCommit
+        ? "unknown"
+        : ci.conclusion !== "success"
+          ? "fail"
+          : intendedCommit && ciCommit !== intendedCommit
+            ? "fail"
+            : ci.branch && ci.branch !== target.branch
+              ? "fail"
+              : "pass",
+      details: { latestRunCommit: ciCommit, intendedCommit, conclusion: ci.conclusion, branch: ci.branch, targetBranch: target.branch },
+    },
     { name: "runtime_metadata", status: runtimeStatus, details: { url: `${target.runtimeUrl}/release`, commit: runtimeCommit } },
     { name: "recent_error_logs", status: userJourneyStatus, details: { count: logCount, window: logResult?.window ?? "15m" } },
     releaseCheck,
