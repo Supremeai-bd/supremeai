@@ -1,6 +1,6 @@
 {
   "name": "supremeai-mcp-control-plane",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "SupremeAI Unified MCP Control Tower \u2014 connects all services into a single AI-accessible interface",
   "type": "module",
   "main": "dist/index.js",
