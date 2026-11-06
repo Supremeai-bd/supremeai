@@ -164,15 +164,15 @@ This addendum supersedes the broad **GO** wording above for release-gate purpose
 | Dependency-aware chat readiness and authenticated chat E2E | **PARTIAL** | `/readyz` is live and green; authenticated chat success/failure/fallback E2E is still required. |
 | Server-side admin/operator authorization | **PARTIAL** | PR #456 tests and static checks pass; full admin mutation and production negative tests remain required. |
 | Production bypass/debug configuration disabled | **PARTIAL** | Source guards are present; live effective configuration evidence is still required. |
-| CI required checks, branch protection, provenance, rollback | **OPEN** | Unified CI passed, but nightly is red and branch-protection API access returned 403; resolve both. |
-| Nightly Kaggle and operations cycle | **OPEN** | Kaggle self-test/import path passes locally; latest nightly failed in Schedule Watchdog with API 403; rerun after fixing permissions. |
+| CI required checks, branch protection, provenance, rollback | **PARTIAL** | Unified CI passed on merged `main` commit `6be236d1`; branch-protection API access returned 403 and rollback evidence remains open. |
+| Nightly Kaggle and operations cycle | **PARTIAL** | Kaggle and Schedule Watchdog steps passed in the post-permission verification run; the overall run was red on the then-unfixed dependency audit, so rerun the complete maintenance workflow on merged `main`. |
 | Browser, network, accessibility, mobile, performance QA | **OPEN** | Typecheck passed; build and browser QA were not completed in this environment. |
 | Capacity, availability, public exposure, rate limiting | **PARTIAL** | Rate-limit detector passed and live endpoints are healthy; plan/SLO and free single-instance acceptance require owner sign-off. |
-| P0/P1 ownership and closure evidence | **OPEN** | New HIGH CORS finding and token-storage review remain open; 41 GitHub issues remain untriaged in this recheck. |
+| P0/P1 ownership and closure evidence | **PARTIAL** | CORS, production token persistence, watchdog permission, dependency-path, and production dependency findings are closed and merged; remaining ownership work covers external restore/tenant-isolation evidence, frontend build debt, and issue triage. |
 
 ### Recheck verdict
 
-**Conditional GO for the already-deployed code path, but not final production-readiness sign-off.** The original P0/P1 code fixes and live readiness path are confirmed, while the red nightly operations run, HIGH CORS finding, token-storage review, missing branch-protection evidence, and incomplete runtime/browser/restore evidence keep the formal launch checklist open.
+**Conditional GO for the already-deployed code path, but not final production-readiness sign-off.** The original P0/P1 code fixes, merged Studio route boundary, clean production dependency audit, and live readiness path are confirmed. Final sign-off remains blocked by the complete post-merge nightly run, branch-protection/provenance evidence, tenant-isolation and restore evidence, authenticated production E2E, browser/accessibility QA, rollback/capacity sign-off, and pre-existing Studio build debt.
 
 ---
 
@@ -199,3 +199,11 @@ The remaining formal gates are now limited to external or baseline items: branch
 The first live verification also exposed an unrelated workflow defect in the same maintenance bundle: **Dependency Health Scan** called `pnpm/action-setup` without a version and installed from the repository root, which has no root `package.json`. That job is now corrected to use the package-declared pnpm `9.15.4`, `studio/pnpm-lock.yaml`, and `working-directory: studio`. The checker now targets `studio` for pnpm and `core` for Poetry. The watchdog step passed in both live runs; the overall runs were red because dependency scanning then exposed real advisories.
 
 The direct actionable npm advisories for `follow-redirects`, `dompurify`, `zod`, `glob`, and `minimatch` are now closed through patched dependency versions/overrides. Build-only `style-dictionary` was moved to `devDependencies`, removing its unpatched `deepmerge` chain from the deployed production graph. The final production audit now reports **0 advisories: 0 low, 0 moderate, 0 high, 0 critical**.
+
+## ৭. Post-merge recheck — ৬ নভেম্বর ২০২৬, ১৪:৩৩ UTC+06
+
+- PR #460 is merged into `main` at `6be236d1`.
+- The unified CI/CD pipeline passed for that merged commit (workflow run `42187536075`).
+- The Studio internal `/cockpit` and `/telemetry` routes are now protected by authentication plus the existing admin UX boundary, with route-policy regression coverage passing as part of the implementation slice.
+- The Phase 0 cross-platform implementation baseline is now part of `main`; it records the permission matrix, contract register, release gates, and explicit mobile/desktop/VSIX deferral.
+- No new complete Nightly Ops run has yet been recorded on the merged commit. The next operational action is to dispatch that workflow on `main` and evaluate the complete result, not only the Schedule Watchdog child job.
