@@ -2137,6 +2137,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: read
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
@@ -2146,7 +2149,10 @@ jobs:
         run: pip install pyyaml
       - name: Watchdog sweep (re-arm dead cron + compensate missed slots)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The built-in token is read-only under some private-repository/org
+          # policies. Prefer the existing narrowly scoped self-heal token for
+          # workflow listing, re-arm, and dispatch operations.
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: python scripts/ci/schedule_watchdog.py
 
@@ -2185,11 +2191,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'pnpm'
+          cache-dependency-path: studio/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+        working-directory: studio
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -2267,4 +2277,3 @@ jobs:
         run: python scripts/ci/secret_naming_guard.py --check
       - name: Secret graph regen guard (report-only)
         run: python scripts/ci/secret_graph_regen.py --check
-

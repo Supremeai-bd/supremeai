@@ -68,7 +68,9 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    # Credentialed CORS must not reflect arbitrary request headers. These are
+    # the only headers used by this service's browser-facing API contract.
+    allow_headers=["Accept", "Authorization", "Content-Type", API_KEY_NAME],
 )
 
 

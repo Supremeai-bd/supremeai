@@ -222,7 +222,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     // localStorage entries are migrated (and swept) on first read.
     const token = getUserToken();
     const adminToken = typeof window !== 'undefined'
-      ? (sessionStorage.getItem('supreme_admin_jwt') || localStorage.getItem('supreme_admin_jwt'))
+      ? sessionStorage.getItem('supreme_admin_jwt')
       : null;
 
     if (!token) {

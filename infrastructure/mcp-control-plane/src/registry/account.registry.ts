@@ -204,7 +204,7 @@ export function buildAccountRegistry(): ProviderAccount[] {
       apiKeyRefs: ["RENDER_API_KEY_API", "RENDER_API_KEY", "RENDER_API_TOKEN", "RENDER_API_KEY_PAYKARI"],
       url: env.render.api.url,
       serviceId: env.render.api.serviceId,
-      healthPath: "/healthz",
+      healthPath: "/readyz",
       available: isAvailable("RENDER_API_KEY_5") || isAvailable("RENDER_API_KEY_API") || hasAnyRenderKey || Boolean(env.render.api.url),
     },
     {

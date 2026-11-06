@@ -86,7 +86,13 @@
     "onlyBuiltDependencies": [
       "esbuild",
       "protobufjs"
-    ]
+    ],
+    "overrides": {
+      "dompurify": "3.4.17",
+      "follow-redirects": "1.16.2",
+      "glob": "14.0.2",
+      "minimatch": "11.0.1"
+    }
   },
   "packageManager": "pnpm@9.15.4",
   "engines": {

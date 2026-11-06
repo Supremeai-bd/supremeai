@@ -25,6 +25,10 @@ export interface RoutePolicy {
 export const ROUTE_POLICIES: Record<string, RoutePolicy> = {
   // ── Admin context (step-up enforced inside AdminShell) ──
   '/admin': { requiredRole: 'admin', requiresStepUp: true },
+  // Internal telemetry is an operator surface. Until a distinct operator role
+  // contract exists, keep it inside the existing server-backed admin UX gate.
+  '/cockpit': { requiredRole: 'admin', requiresStepUp: true },
+  '/telemetry': { requiredRole: 'admin', requiresStepUp: true },
 
   // ── User context (authenticated user routes) ──
   '/workspace': { requiredRole: 'user' },
