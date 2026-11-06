@@ -327,11 +327,6 @@ export const env = {
     get slowRequestMs(): number { return positiveInt("DEVTOOLS_SLOW_REQUEST_MS", 1500); },
     get resultCapBytes(): number { return positiveInt("DEVTOOLS_RESULT_CAP_BYTES", 30000); },
   },
-
-  // ── Firebase
-  firebase: {
-    get serviceAccountJson(): string { return optional("FIREBASE_SERVICE_ACCOUNT_JSON"); },
-  },
 };
 
 export type Env = typeof env;
