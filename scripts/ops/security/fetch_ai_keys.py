@@ -38,6 +38,8 @@ INFISICAL_SECRETS_URL = "https://app.infisical.com/api/v3/secrets/raw"
 AI_KEY_NAMES = [
     "GROQ_API_KEY",
     "GEMINI_API_KEY",
+    "KILO_API_KEYS",
+    *[f"KILO_API_KEY_{i}" for i in range(1, 11)],
     "OPENROUTER_API_KEY",
     "OPENAI_API_KEY",
     "DEEPSEEK_API_KEY",

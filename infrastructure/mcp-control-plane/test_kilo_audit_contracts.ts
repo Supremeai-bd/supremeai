@@ -10,6 +10,11 @@ import {
 } from "./src/diagnostics/evidence.js";
 import { evaluateActionPolicy } from "./src/policy/permission_policy.js";
 import { verifyReleaseCandidate } from "./src/diagnostics/release_verifier.js";
+import {
+  buildCanonicalRedisKey,
+  encodeRedisPayload,
+  decodeRedisPayload,
+} from "./src/adapters/redis/codec.js";
 
 async function runTests() {
   console.log("=== Running Kilo-Org Audit Alignment Contract Tests ===");
@@ -140,6 +145,36 @@ async function runTests() {
   assert.equal(mismatchRc.finalStatus, "blocked");
   assert.equal(mismatchRc.smokeTestResult.errorClass, "commit_mismatch");
   console.log("  [PASS] 5. Immutable ReleaseCandidate Verifier (verified vs commit_mismatch blocked)");
+
+  // 6. Versioned Redis Codec & Corrupt Payload Quarantine
+  const redisKey = buildCanonicalRedisKey({
+    service: "backend-api",
+    namespace: "diagnostics",
+    entity: "release",
+    id: "latest",
+  });
+  assert.equal(redisKey, "supremeai:production:api:diagnostics:release:latest");
+
+  const encoded = encodeRedisPayload({ commit: "02bc6e79c", ok: true }, "ReleaseSnapshot", "api");
+  const decodedOk = decodeRedisPayload<{ commit: string; ok: boolean }>(encoded, "ReleaseSnapshot");
+  assert.equal(decodedOk.status, "ok");
+  if (decodedOk.status === "ok") {
+    assert.equal(decodedOk.payload.commit, "02bc6e79c");
+    assert.equal(decodedOk.envelope.canonicalServiceId, "api");
+  }
+
+  const corruptOutcome = decodeRedisPayload("{bad_json", "ReleaseSnapshot");
+  assert.equal(corruptOutcome.status, "quarantined");
+  if (corruptOutcome.status === "quarantined") {
+    assert.equal(corruptOutcome.reason, "CORRUPT_JSON");
+  }
+
+  const schemaMismatchOutcome = decodeRedisPayload(encoded, "DifferentSchema");
+  assert.equal(schemaMismatchOutcome.status, "quarantined");
+  if (schemaMismatchOutcome.status === "quarantined") {
+    assert.equal(schemaMismatchOutcome.reason, "SCHEMA_HASH_MISMATCH");
+  }
+  console.log("  [PASS] 6. Versioned Redis Codec round-trip & Corrupt Payload Quarantine verified");
 
   console.log("=== ALL KILO AUDIT CONTRACT TESTS PASSED ===");
 }
