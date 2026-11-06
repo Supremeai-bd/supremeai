@@ -14,20 +14,16 @@ You do not need credentials or access to private repositories. You can inspect p
 
 ---
 
-### 2.1 Active Monitored Federation Repositories (Live Probes & Targets)
+### 2.1 Active Federation Repositories (Pure 2-Repository Topology SSOT)
 
-These 8 repositories constitute the active monitored surfaces of the federation monitored by the MCP Control Tower:
+Per Constitution `AGENTS.md` and Charter, the SupremeAI Federation operates under the **Pure 2-Repository Topology**:
 
-| Repository | Visibility & License | Scope & Responsibility | What Can Be Changed From Here |
-|---|---|---|---|
-| **`supremeai`** *(Current)* | **Public · MIT** | **Public Boundary & Ambassador.** Holds public contracts, client SDKs, examples, and agent instructions. | Direct PRs / Issues on this repository. |
-| **`supremeai-studio`** | **Public · MIT** | **Web UI & Experience.** React/Vite dashboard, design tokens, and frontend shell components. Live UI: [https://supremeai-studio.vercel.app](https://supremeai-studio.vercel.app) | UI components, design tokens, and user experience fixes. |
-| **`supremeai-vscode`** | **Public · MIT** | **Developer Experience.** Official VS Code Extension for agent interaction and autonomous workflows. | Extension client contracts, tools, and editor hooks. |
-| **`supremeai-core`** | **Private · Proprietary** | **Proprietary Intelligence Core.** Orchestration, planning, decision, and execution intelligence — the federation's decision moat. | Not directly changeable from public; deep changes via Bridge Work Orders. |
-| **`supremeai-api`** | **Private · Proprietary** | **Unified Provider Gateway.** Multi-LLM provider routing, API-key authentication, and fallback chains (Contracts public in open). | Gateway contracts, OpenAPI specs, and client scripts. |
-| **`supremeai-browser`** | **Private · Proprietary** | **Headless & Stealth Runtime.** Anti-detect automation sandbox for web agents. | Browser sandbox APIs, scraping contracts. |
-| **`supremeai`** | **Private · Proprietary** | **Central Federation Umbrella & Passive Anchor.** The all-in-one synthesis combining all active satellites into one unified platform view. | Master sync via Bridge. |
-| **`supremeai`** | **Private · Proprietary** | **Institutional Memory.** Append-only worklogs, ADRs, roadmap snapshots, and lessons — no critical decision is ever lost. | Read-only from public; append via internal automation. |
+| Repository | Visibility & Role | Scope & Responsibility |
+|---|---|---|
+| **`Supremeai-bd/supremeai`** *(Current)* | **Primary Monorepo SSOT** | Unified Monorepo containing Core, Gateway, Browser, VSCode, Studio Mirrors, Infrastructure, and MCP Control Plane. Single door for all PRs, issues, and CI workflows (`unified-pipeline.yml`). |
+| **`Supremeai-bd/supremeai-studio`** | **Public UI Cockpit** | Official Public UI & Mission Control Cockpit (React/Vite). Live UI: [https://supremeai-studio.vercel.app](https://supremeai-studio.vercel.app). |
+
+*Note: Historical satellites (`supremeai-core`, `supremeai-api`, `supremeai-browser`, `supremeai-vscode`) remain permanently retired and frozen read-only.*
 
 ### 2.2 Consolidated Subsystems & Internal Tooling Domains
 
