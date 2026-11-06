@@ -364,8 +364,17 @@ export async function probeSchemaParity(serviceName: string): Promise<EvidenceCh
     }
 
     // Core expected tables across SupremeAI data model
-    const expectedCoreTables = ["tasks", "audit_logs", "agent_sessions", "system_events"];
-    const missing = expectedCoreTables.filter((t) => !tables.includes(t));
+    // Supports canonical entity names and their production table representations
+    const expectedCoreDomains = [
+      { domain: "audit_logs", candidates: ["audit_logs", "mcp_audit_events"] },
+      { domain: "agent_sessions", candidates: ["agent_sessions", "ecosystem_decision_memory"] },
+      { domain: "tasks", candidates: ["tasks", "task_records", "ecosystem_tasks", "operational_tasks", "scheduled_tasks"] },
+      { domain: "events", candidates: ["system_events", "system_incidents", "system_alerts", "outbox_events", "run_events"] },
+    ];
+
+    const missing = expectedCoreDomains
+      .filter((d) => !d.candidates.some((candidate) => tables.includes(candidate)))
+      .map((d) => d.domain);
 
     const status: EvidenceStatus = missing.length > 0 ? "fail" : "pass";
     const facts = [
