@@ -141,6 +141,14 @@ def test_phase0_canonical_service_registry_and_ssot_alignment() -> None:
     for required_svc in ("api", "scraper", "mcp", "core", "worker", "brain", "ci-runner", "cloudflare", "frontend", "firebase"):
         assert required_svc in services, f"Missing service {required_svc} in config/service_registry.yaml"
 
+    # The live Brain is maintained from the open-repo deployment source, not
+    # from the monorepo Render blueprint. Keep the registry truthful so a
+    # topology audit cannot silently route Brain checks to the primary API.
+    brain = services["brain"]
+    assert brain["source_repo"] == "Supremeai-bd/supremeai-open"
+    assert brain["production_url"] == "https://supremeai-tiny-brain.onrender.com"
+    assert brain["health_path"] == "/health"
+
     # 2. Verify plan_render_deploys.py rules match canonical_service_id_env and canonical_api_key_env
     from scripts.ci.plan_render_deploys import SERVICE_ID_ALIASES, SERVICE_RULES
 
