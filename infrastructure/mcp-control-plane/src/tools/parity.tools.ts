@@ -7,7 +7,13 @@ interface ParityCheck {
   details: Record<string, unknown>;
 }
 
-async function runParityAudit(): Promise<{ status: string; checks: ParityCheck[] }> {
+export interface ParityAuditResult {
+  status: string;
+  checks: ParityCheck[];
+  releaseGate?: "open" | "blocked";
+}
+
+async function runParityAudit(): Promise<ParityAuditResult> {
   const checks: ParityCheck[] = [];
 
   const envValue = (key: string): string | undefined => process.env[key];
@@ -68,6 +74,7 @@ async function runParityAudit(): Promise<{ status: string; checks: ParityCheck[]
   return {
     status: hasDrift ? "drift_detected" : hasUnverifiedChecks ? "unverified" : "parity_verified",
     checks,
+    releaseGate: hasDrift ? "blocked" : hasUnverifiedChecks ? "blocked" : "open",
   };
 }
 

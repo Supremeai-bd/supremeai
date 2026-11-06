@@ -1,5 +1,6 @@
 import { env } from "../../lib/env.js";
 import { httpRequest, bearerAuth } from "../../lib/http.js";
+import { evaluateCloudflareProbe } from "../../diagnostics/cloudflare-evidence.js";
 
 export async function getWorkerStatus(): Promise<unknown> {
   if (!env.cloudflare.workerUrl) {
@@ -10,15 +11,30 @@ export async function getWorkerStatus(): Promise<unknown> {
   // Call the ping worker directly
   try {
     const res = await httpRequest(env.cloudflare.workerUrl, { method: "GET" });
+    const probe = evaluateCloudflareProbe({
+      providerReachable: res.ok,
+      httpStatus: res.status,
+      body: res.data,
+      deployedCommit: (res.data as any)?.build?.deployed_commit ?? (res.data as any)?.commit ?? null,
+      expectedCommit: (res.data as any)?.build?.expected_commit ?? null,
+    });
     return {
-      status: res.ok ? "healthy" : "error",
+      status: probe.status,
+      httpStatus: res.status,
       workerResponse: res.data,
+      checks: probe.checks,
       latencyMs: Date.now() - start
     };
   } catch (e) {
+    const probe = evaluateCloudflareProbe({
+      providerReachable: false,
+      httpStatus: null,
+      body: (e as Error).message,
+    });
     return {
-      status: "error",
+      status: probe.status,
       message: (e as Error).message,
+      checks: probe.checks,
       latencyMs: Date.now() - start
     };
   }
