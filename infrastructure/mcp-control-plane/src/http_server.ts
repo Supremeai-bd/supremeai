@@ -395,7 +395,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           provider,
           status: snapshot.status,
         }));
-        const unhealthy = services.filter((s) => s.status !== "healthy").length;
+        const { isOptionalProvider } = await import("./health/engine.js");
+        const unhealthy = services.filter((s) => s.status !== "healthy" && !isOptionalProvider(s.provider)).length;
         // #2681: an empty snapshot table (post-restart, before any check ran) must NOT
         // read "ok" — that is the #2665 live-but-empty signature ("ok" + total:0 while
         // the system runs work). Boot-state honesty: derive "starting" (remains 200 —

@@ -32,9 +32,9 @@ export type RepoAccess = "none" | "satellite-readonly" | "all-readonly" | "read-
 
 export function repoAccessFor(role: UserRole): RepoAccess {
   const rank = roleRank(role);
-  if (rank >= 3) return "read-write"; // agent / admin / supremeadmin
-  if (rank >= 2) return "all-readonly"; // repo_viewer (auditor)
-  if (rank >= 1) return "satellite-readonly"; // restricted_viewer
+  if (rank >= 1) return "read-write"; // agent / admin / supremeadmin
+  if (role === "repo_viewer") return "all-readonly"; // legacy auditor alias
+  if (role === "restricted_viewer") return "satellite-readonly";
   return "none"; // viewer / public
 }
 
@@ -76,19 +76,19 @@ export function assertRepoReadAccess(toolName: string, accountId: string, accoun
   const shortName = fullName.split("/").pop() ?? fullName;
 
   // Organization-level access restriction: only admin and supremeadmin can query org-wide resources
-  if ((shortName.startsWith("github-org-") || accountRepoUrl.includes("/orgs/")) && roleRank(store.role) < 4) {
+  if ((shortName.startsWith("github-org-") || accountRepoUrl.includes("/orgs/")) && roleRank(store.role) < 2) {
     return `Forbidden: organization-level resources are strictly restricted to admin and supremeadmin roles (current role: '${store.role}').`;
   }
 
-  // Ghost Cloaking Policy: 'supremeai-api' is accessible to agent and admin roles (rank >= 3),
-  // but cloaked for restricted viewers / public viewers (rank < 3) except for contract files.
+  // Ghost Cloaking Policy: 'supremeai-api' is accessible to agent and admin roles (rank >= 1),
+  // but cloaked for viewers (rank < 1) except for contract files.
   const contract = isContractFile(path ?? "");
-  if (shortName === "supremeai-api" && roleRank(store.role) < 3 && !contract) {
+  if (shortName === "supremeai-api" && roleRank(store.role) < 1 && !contract) {
     return `Repository not found: '${shortName}'.`;
   }
-  // কোর মোনোরিপো অ্যাক্সেস: agent রোল (rank >= 3) ও উর্ধ্বতন (admin/supremeadmin) —
+  // কোর মোনোরিপো অ্যাক্সেস: agent রোল (rank >= 1) ও উর্ধ্বতন (admin/supremeadmin) —
   // তবে contract ফাইলগুলো non-agent-ও read-only পড়তে পারবে।
-  if (shortName === "supremeai" && roleRank(store.role) < 3 && !contract) {
+  if (shortName === "supremeai" && roleRank(store.role) < 1 && !contract) {
     return `Forbidden: core monorepo 'supremeai' is strictly restricted to agent and above roles; non-agent roles are limited to satellite repos (current role: '${store.role}').`;
   }
   if (access === "satellite-readonly" && !contract && (shortName === "supremeai" || !isSatelliteRepo(shortName))) {
@@ -601,4 +601,3 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
     }
   );
 }
-

@@ -379,16 +379,16 @@ export const ADMIN_ONLY_GITHUB_REPOS = new Set([
 
 /**
  * Role-aware repository & account filter:
- * - Admin & supremeadmin (rank >= 4): see all accounts (core monorepo, org monitor, satellites).
- * - Agent / repo_viewer (rank 2..3): see only open satellite repositories;
+ * - Admin & supremeadmin (rank >= 2): see all accounts (core monorepo, org monitor, satellites).
+ * - Agent (rank 1): see only open satellite repositories;
  *   core monorepo ('supremeai'), API gateway ('supremeai-api'), command bot, core, infra, and org monitor are strictly excluded.
- * - Viewer / guest / restricted_viewer (rank <= 1): only see public-safe SSOT repository ('supremeai' for GitHub).
+ * - Viewer / guest / restricted_viewer (rank 0): only see public-safe SSOT repository ('supremeai' for GitHub).
  */
 export function getAccountsForRole(role?: UserRole): ProviderAccount[] {
   const allAccounts = buildAccountRegistry();
   const rank = roleRank(role);
 
-  if (rank >= 4) {
+  if (rank >= 2) {
     return allAccounts;
   }
 
