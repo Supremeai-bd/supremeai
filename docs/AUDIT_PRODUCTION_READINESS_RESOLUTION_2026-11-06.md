@@ -128,3 +128,48 @@
 ## ৪. উপসংহার
 
 সকল P0 ও P1 আর্কিটেকচারাল এবং সিকিউরিটি ব্লকার সফলভাবে সমাধান করা হয়েছে। সিস্টেমটি বর্তমানে লাইভ ট্রাফিক গ্রহণের জন্য সম্পূর্ণ সুরক্ষিত এবং স্থিতিশীল।
+
+---
+
+## ৫. Recheck addendum — ৬ নভেম্বর ২০২৬, ১১:২১ UTC+06
+
+This addendum supersedes the broad **GO** wording above for release-gate purposes. The recheck covered current `origin/main` (`eb7df8c6`), the merged remediation from PR #456, live HTTP probes, repository security detectors, focused backend tests, frontend typecheck, workflow history, and GitHub repository controls available to the authenticated integration.
+
+### Evidence confirmed
+
+- **Canonical production endpoints:** `https://supremeai-a.web.app` returned HTTP 200. The gateway returned HTTP 200 from `/health` and HTTP 200 from `/readyz` with `{"status":"ready","chat_ready":true}` at the recheck time.
+- **Readiness monitoring:** `infrastructure/mcp-control-plane/src/registry/account.registry.ts` now points the gateway monitor to `/readyz`, so the dependency-aware probe is used instead of liveness-only `/healthz`.
+- **PR #456 remediation:** The operator-key boundary, full-length HMAC requirement, blocking security-detector configuration, Kaggle `PYTHONPATH` fix, and regression tests are present in main through merge commit `5e50347c`.
+- **Latest unified CI:** The unified pipeline on `eb7df8c6` completed successfully.
+- **Static security checks:** BOLA/IDOR, RLS/RBAC, webhook-signature, rate-limit, blocking-call, boundary-contract self-test, and schema-contract checks passed locally. The focused audit tests passed 2/2; readiness tests passed 11/11; Kaggle bridge tests passed 3/3.
+- **Kaggle import path:** `PYTHONPATH=. python scripts/ci/kaggle_learning_bridge.py --self-test` passed locally, and the workflow contains `PYTHONPATH: ${{ github.workspace }}`.
+
+### Unresolved or downgraded evidence
+
+- **Nightly operations is not green:** The latest nightly run on `5e50347c` failed in the Schedule Watchdog because its GitHub workflows API request returned HTTP 403. This is an operations/release-control blocker until the token scope/permission is corrected or the watchdog is explicitly redesigned and rerun successfully. A successful unified CI run does not close this nightly failure.
+- **High static finding — CORS:** `scripts/ci/project_health_check.py` still reports a HIGH finding at `core/services/brain/main.py:71` because `allow_headers=["*"]` is used with credentialed CORS. The trusted-origin list is explicit, but the allowed header list should be narrowed to the headers actually required by the service and then rescanned.
+- **Token persistence review remains open:** The same scan reports legacy/admin token reads from `localStorage`, including `studio/src/auth/identity.ts`, `studio/src/store/authStore.ts`, `studio/src/store/useStore.ts`, and `studio/src/services/adminTokenStore.ts`. Some findings are migration fallbacks or tests, and ordinary user tokens are now session/in-memory based, but the admin-token fallback still needs an explicit threat-model decision and production-path removal or compensating control.
+- **Branch protection evidence is unavailable:** GitHub returned HTTP 403 stating that branch protection/ruleset inspection requires GitHub Pro or a public repository. Required checks, review enforcement, stale-approval dismissal, and merge-queue policy therefore remain **UNKNOWN**, not PASSED.
+- **Full backend test evidence is incomplete in this sandbox:** core auth/RLS tests could not be collected because the available environment lacks the project’s `pytest-asyncio` and `sqlglot` dependencies. The static RLS/schema checks passed, but this is not equivalent to runtime tenant-isolation testing.
+- **Frontend build evidence is incomplete:** Studio TypeScript typecheck passed, but the production build could not run because `studio/node_modules` is absent (`vite: not found`). Browser console, accessibility, mobile, and performance traces remain unverified.
+- **Operational evidence remains external:** Supabase backup/PITR and restore drill, production tenant-isolation probes, authenticated chat E2E, capacity/SLO sign-off, rollback rehearsal, and owner/date assignment for open issues were not independently re-performed in this recheck.
+
+### Corrected go-live checklist
+
+| Checklist item | Status | Evidence / next action |
+|---|---|---|
+| Canonical domain, commit, environment, critical features | **PARTIAL** | Canonical frontend and gateway endpoints respond; document the approved release SHA and owner sign-off. |
+| Supabase schema, migration/catalog, RLS/grants, tenant isolation | **PARTIAL** | Static schema/RLS checks pass; live catalog, permissions, tenant deny/allow tests, and restore evidence remain required. |
+| Backup/restore drill, RPO/RTO owner sign-off | **OPEN** | No independent drill evidence in this recheck. |
+| Dependency-aware chat readiness and authenticated chat E2E | **PARTIAL** | `/readyz` is live and green; authenticated chat success/failure/fallback E2E is still required. |
+| Server-side admin/operator authorization | **PARTIAL** | PR #456 tests and static checks pass; full admin mutation and production negative tests remain required. |
+| Production bypass/debug configuration disabled | **PARTIAL** | Source guards are present; live effective configuration evidence is still required. |
+| CI required checks, branch protection, provenance, rollback | **OPEN** | Unified CI passed, but nightly is red and branch-protection API access returned 403; resolve both. |
+| Nightly Kaggle and operations cycle | **OPEN** | Kaggle self-test/import path passes locally; latest nightly failed in Schedule Watchdog with API 403; rerun after fixing permissions. |
+| Browser, network, accessibility, mobile, performance QA | **OPEN** | Typecheck passed; build and browser QA were not completed in this environment. |
+| Capacity, availability, public exposure, rate limiting | **PARTIAL** | Rate-limit detector passed and live endpoints are healthy; plan/SLO and free single-instance acceptance require owner sign-off. |
+| P0/P1 ownership and closure evidence | **OPEN** | New HIGH CORS finding and token-storage review remain open; 41 GitHub issues remain untriaged in this recheck. |
+
+### Recheck verdict
+
+**Conditional GO for the already-deployed code path, but not final production-readiness sign-off.** The original P0/P1 code fixes and live readiness path are confirmed, while the red nightly operations run, HIGH CORS finding, token-storage review, missing branch-protection evidence, and incomplete runtime/browser/restore evidence keep the formal launch checklist open.
