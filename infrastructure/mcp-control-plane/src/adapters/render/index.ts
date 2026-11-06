@@ -267,7 +267,10 @@ export async function getServiceHealth(accountId: string, serviceId: string): Pr
       typeof res.data === "object" && res.data !== null && "message" in res.data
         ? (res.data as any).message
         : JSON.stringify(res.data);
-    throw new Error(`Render service lookup failed for ${serviceId} (HTTP ${res.status}): ${errorDetails}`);
+    const is404 = res.status === 404;
+    throw new Error(
+      `Render service lookup failed for ${serviceId} (HTTP ${res.status}): ${is404 ? "configuration_error - " : ""}${errorDetails}`
+    );
   }
 
   // Try to fetch deploys to calculate last deploy status and monthly free build minutes usage
@@ -396,7 +399,10 @@ export async function getLatestDeploy(
     headers: bearerAuth(apiKey),
   });
   if (!res.ok || !Array.isArray(res.data) || res.data.length === 0) {
-    throw new Error(`Render deploy lookup failed for ${serviceId} (HTTP ${res.status})`);
+    const is404 = res.status === 404;
+    throw new Error(
+      `Render deploy lookup failed for ${serviceId} (HTTP ${res.status}): ${is404 ? "configuration_error" : "no deployments found"}`
+    );
   }
   const raw = res.data[0] && typeof res.data[0] === "object" ? res.data[0] as Record<string, unknown> : {};
   const deploy = raw.deploy && typeof raw.deploy === "object" ? raw.deploy as Record<string, unknown> : raw;

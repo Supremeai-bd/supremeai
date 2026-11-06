@@ -5,6 +5,7 @@ import { generateRemediationPlan, createCustomPlan, validateDAG, type PlanStep }
 import { verifyOutcome } from "../planning/verifier.js";
 import { savePlan, getPlan, listPlans, updatePlanStatus } from "../planning/plan_store.js";
 import { redactSensitiveData } from "../diagnostics/redaction.js";
+import { recordLearning } from "../learning/learning_gate.js";
 
 function assertPlanningAccess(toolName: string, minRole: UserRole): string | null {
   const store = RequestContextStore.get();
@@ -36,15 +37,25 @@ export async function registerPlanningTools(server: McpServer): Promise<void> {
         })).optional().describe("Custom plan steps (for create_custom or validate_dag)"),
         planId: z.string().optional().describe("Plan ID for get_plan / update_status"),
         status: z.enum(["draft", "approved", "in_progress", "completed", "failed", "rolled_back"]).optional().describe("New status for update_status"),
+        diagnosticEvidence: z.record(z.string(), z.unknown()).optional().describe("Optional diagnostic snapshot to bind to the plan (evidence hash + source commit)"),
       },
     },
-    async ({ action, service, failureLayer, goal, steps, planId, status }) => {
+    async ({ action, service, failureLayer, goal, steps, planId, status, diagnosticEvidence }) => {
       const denial = assertPlanningAccess("system.plan", "agent");
       if (denial) return { isError: true, content: [{ type: "text", text: denial }] };
 
       try {
         if (action === "generate_remediation") {
-          const plan = generateRemediationPlan(service, failureLayer || "RELEASE_COMMIT_MISMATCH");
+          let evidence = diagnosticEvidence;
+          if (!evidence) {
+            try {
+              const { diagnoseRelease } = await import("./diagnostic.tools.js");
+              evidence = (await diagnoseRelease(service, "root_cause")) as unknown as Record<string, unknown>;
+            } catch {
+              // fallback gracefully
+            }
+          }
+          const plan = generateRemediationPlan(service, failureLayer || "RELEASE_COMMIT_MISMATCH", evidence);
           savePlan(plan);
           return { content: [{ type: "text", text: JSON.stringify(redactSensitiveData(plan), null, 2) }] };
         }
@@ -61,7 +72,7 @@ export async function registerPlanningTools(server: McpServer): Promise<void> {
         }
 
         if (action === "create_custom") {
-          const plan = createCustomPlan(goal || `Custom plan for ${service}`, service, steps as any);
+          const plan = createCustomPlan(goal || `Custom plan for ${service}`, service, steps as any, diagnosticEvidence);
           savePlan(plan);
           return { content: [{ type: "text", text: JSON.stringify(redactSensitiveData(plan), null, 2) }] };
         }
@@ -114,6 +125,18 @@ export async function registerPlanningTools(server: McpServer): Promise<void> {
 
       try {
         const report = await verifyOutcome(target, service, expectedOutcome, facts as any);
+        if ((report as any).verdict === "verified") {
+          try {
+            recordLearning({
+              tier: "episodic",
+              fact: `Verified ${target} for ${service}: ${expectedOutcome}`,
+              evidence: { target, service, expectedOutcome, verdict: (report as any).verdict, confidence: (report as any).confidence },
+              verifiedBy: "system.verify",
+            });
+          } catch {
+            // best-effort; never fail verification due to memory
+          }
+        }
         return { content: [{ type: "text", text: JSON.stringify(redactSensitiveData(report), null, 2) }] };
       } catch (error) {
         return { isError: true, content: [{ type: "text", text: JSON.stringify({ error: error instanceof Error ? error.message : String(error) }) }] };

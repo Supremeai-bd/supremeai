@@ -5,7 +5,7 @@ import { getLatestDeploy, getServiceHealth, listLogs, type RenderLogsResult } fr
 import { getRepositoryHead, getWorkflowRuns } from "../adapters/github/index.js";
 import { RequestContextStore, roleRank, type UserRole } from "../policy/auth.context.js";
 import { aggregateStatus, confidenceFor, fact, type EvidenceCheck, type EvidenceStatus } from "../diagnostics/evidence.js";
-import { resolveServiceTarget, type AuthoritativeServiceTarget } from "../diagnostics/service_manifest.js";
+import { resolveServiceTarget, resolveServiceIdentity, type AuthoritativeServiceTarget } from "../diagnostics/service_manifest.js";
 import { redactSensitiveData } from "../diagnostics/redaction.js";
 import {
   probeServiceDependencies,
@@ -207,6 +207,25 @@ export async function diagnoseRelease(
   service: string,
   intent: DiagnosticIntent = "is_deploy_correct",
 ): Promise<Record<string, unknown>> {
+  const identity = resolveServiceIdentity(service);
+  if (identity && !identity.verified) {
+    return {
+      status: "configuration_error",
+      service,
+      intent,
+      truthMatrix: {
+        providerHealth: "unknown",
+        serviceHealth: "unknown",
+        releaseIntegrity: "unknown",
+        dependencyHealth: "unknown",
+        schemaParity: "unknown",
+        userJourneyHealth: "unknown",
+      },
+      findings: [{ severity: "high", code: "SERVICE_IDENTITY_INVALID", message: identity.verificationError ?? "Service identity could not be verified." }],
+      checks: [],
+    };
+  }
+
   const target = resolveTarget(service);
   if (!target) {
     return {
@@ -252,8 +271,12 @@ export async function diagnoseRelease(
   const serviceBody = healthBody && typeof healthBody.service === "object" && healthBody.service !== null
     ? (healthBody.service as Record<string, unknown>)
     : null;
+  const isRenderConfigError =
+    (health.status === "rejected" && /404|configuration_error|not found/i.test(String(health.reason))) ||
+    (deploy.status === "rejected" && /404|configuration_error|not found/i.test(String(deploy.reason)));
+
   const healthStatus: CheckStatus = health.status === "rejected"
-    ? "fail"
+    ? (isRenderConfigError ? "unknown" : "fail")
     : serviceBody
       ? (serviceBody.suspended === "suspended" ? "fail" : "pass")
       : "unknown";
@@ -280,7 +303,7 @@ export async function diagnoseRelease(
 
   // Construct 6-dimension Truth Matrix
   const truthMatrix: DiagnosticTruthMatrix = {
-    providerHealth: healthStatus === "pass" ? "pass" : "fail",
+    providerHealth: healthStatus === "pass" ? "pass" : isRenderConfigError ? "unknown" : "fail",
     serviceHealth: serviceHttpCheck.status,
     releaseIntegrity: releaseCheck.status,
     dependencyHealth: depResult.overallStatus,
@@ -289,7 +312,15 @@ export async function diagnoseRelease(
   };
 
   const checks: EvidenceCheck[] = [
-    { name: "provider_health", status: healthStatus, details: health.status === "fulfilled" ? { observed: "Render API returned service data" } : { error: health.reason instanceof Error ? health.reason.message : "health lookup failed" } },
+    {
+      name: "provider_health",
+      status: healthStatus,
+      details: health.status === "fulfilled"
+        ? { observed: "Render API returned service data" }
+        : isRenderConfigError
+          ? { error: "Render API returned 404: service not found on configured account", type: "configuration_error" }
+          : { error: health.reason instanceof Error ? health.reason.message : "health lookup failed" },
+    },
     serviceHttpCheck,
     { name: "intended_source", status: intendedCommit ? "pass" : "unknown", details: { repository: target.repo, branch: target.branch, commit: intendedCommit } },
     {
@@ -316,6 +347,22 @@ export async function diagnoseRelease(
     schemaParityCheck,
   ];
 
+  if (isRenderConfigError) {
+    checks.push({
+      name: "service_configuration",
+      status: "fail",
+      confidence: 0.95,
+      facts: [fact("render.service_lookup", "fail", { error: "Render returned HTTP 404: service not found on configured account" })],
+      explanation: `Render service lookup failed for '${target.renderServiceId}' on account '${target.renderAccountId}' (HTTP 404). Configuration error: invalid service ID mapping.`,
+      details: {
+        service: target.name,
+        accountId: target.renderAccountId,
+        serviceId: target.renderServiceId,
+        type: "configuration_error",
+      },
+    });
+  }
+
   // Intent Specific Synthesis
   let rootCauseReport: Record<string, unknown> | null = null;
   let releaseVerdict: string | null = null;
@@ -340,13 +387,19 @@ export async function diagnoseRelease(
 
   if (intent === "root_cause") {
     const identifiedLayers: string[] = [];
+    if (isRenderConfigError) {
+      identifiedLayers.push("CONFIGURATION_ERROR");
+      identifiedLayers.push("INVALID_SERVICE_ID_MAPPING");
+    }
     if (truthMatrix.releaseIntegrity === "fail") identifiedLayers.push("RELEASE_COMMIT_MISMATCH");
     if (truthMatrix.schemaParity === "fail") identifiedLayers.push("SCHEMA_PARITY_BREACH");
     if (truthMatrix.dependencyHealth === "fail") identifiedLayers.push("UPSTREAM_DEPENDENCY_FAILURE");
     if (truthMatrix.userJourneyHealth === "fail") identifiedLayers.push("RUNTIME_APPLICATION_EXCEPTION");
-    if (truthMatrix.providerHealth === "fail") identifiedLayers.push("CLOUD_PROVIDER_OUTAGE");
+    if (truthMatrix.providerHealth === "fail" && !isRenderConfigError) identifiedLayers.push("CLOUD_PROVIDER_OUTAGE");
     if (truthMatrix.releaseIntegrity === "unknown" || deployedCommit === null || deploy.status === "rejected") {
-      identifiedLayers.push("UNVERIFIED_RELEASE_IDENTITY");
+      if (!isRenderConfigError) {
+        identifiedLayers.push("UNVERIFIED_RELEASE_IDENTITY");
+      }
     }
 
     const primaryFailureLayer = identifiedLayers[0] || (checks.some((c) => c.status === "fail") ? "SYSTEM_DEGRADATION" : "NONE");
@@ -354,21 +407,24 @@ export async function diagnoseRelease(
     rootCauseReport = {
       primaryFailureLayer,
       contributingFactors: identifiedLayers,
-      remediationSummary: primaryFailureLayer === "RELEASE_COMMIT_MISMATCH"
-        ? "Redeploy service to match latest tested git commit."
-        : primaryFailureLayer === "UNVERIFIED_RELEASE_IDENTITY"
-          ? "Verify Render service ID and account mapping. Ensure deployment metadata is accessible."
-          : primaryFailureLayer === "SCHEMA_PARITY_BREACH"
-            ? "Run missing database migrations against Supabase target."
-            : primaryFailureLayer === "UPSTREAM_DEPENDENCY_FAILURE"
-              ? "Restore failing upstream dependencies identified in dependency graph."
-              : primaryFailureLayer === "RUNTIME_APPLICATION_EXCEPTION"
-                ? "Inspect application error logs for unhandled stack traces."
-                : primaryFailureLayer === "CLOUD_PROVIDER_OUTAGE"
-                  ? "Escalate cloud provider outage or check service status."
-                  : "No critical failure layer isolated.",
-      blockingEvidence: (primaryFailureLayer === "UNVERIFIED_RELEASE_IDENTITY" || truthMatrix.releaseIntegrity === "unknown")
+      remediationSummary: primaryFailureLayer === "CONFIGURATION_ERROR"
+        ? "Verify Render service ID and account mapping in environment or registry. The configured service ID was not found on the account."
+        : primaryFailureLayer === "RELEASE_COMMIT_MISMATCH"
+          ? "Redeploy service to match latest tested git commit."
+          : primaryFailureLayer === "UNVERIFIED_RELEASE_IDENTITY"
+            ? "Verify Render service ID and account mapping. Ensure deployment metadata is accessible."
+            : primaryFailureLayer === "SCHEMA_PARITY_BREACH"
+              ? "Run missing database migrations against Supabase target."
+              : primaryFailureLayer === "UPSTREAM_DEPENDENCY_FAILURE"
+                ? "Restore failing upstream dependencies identified in dependency graph."
+                : primaryFailureLayer === "RUNTIME_APPLICATION_EXCEPTION"
+                  ? "Inspect application error logs for unhandled stack traces."
+                  : primaryFailureLayer === "CLOUD_PROVIDER_OUTAGE"
+                    ? "Escalate cloud provider outage or check service status."
+                    : "No critical failure layer isolated.",
+      blockingEvidence: (primaryFailureLayer === "UNVERIFIED_RELEASE_IDENTITY" || primaryFailureLayer === "CONFIGURATION_ERROR" || truthMatrix.releaseIntegrity === "unknown")
         ? {
+            isRenderConfigError,
             deployRejection: deploy.status === "rejected" ? String(deploy.reason) : null,
             deployedCommit,
             intendedCommit,
