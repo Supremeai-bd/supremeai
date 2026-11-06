@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { env } from "../lib/env.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../../..");
@@ -26,7 +27,7 @@ export interface AuthoritativeServiceTarget {
  * Mirrors account.registry.ts Render accounts 1..6 and paykari.
  */
 const ACCOUNT_MAP: Record<string, string> = {
-  api: "render-primary",
+  api: "render-api",
   core: "render-primary",
   worker: "render-worker",
   scraper: "render-scraper",
@@ -60,8 +61,17 @@ export function loadAuthoritativeServices(): Record<string, AuthoritativeService
       const renderAccountId = ACCOUNT_MAP[currentKey] || "render-primary";
       const envIdVar = currentBlock.canonical_service_id_env;
       const envUrlVar = currentBlock.canonical_url_env;
-      const renderServiceId = (envIdVar ? process.env[envIdVar] : "") || currentBlock.render_service_id || "";
-      const runtimeUrl = (envUrlVar ? process.env[envUrlVar] : "") || currentBlock.production_url || "";
+      let renderServiceId = (envIdVar ? process.env[envIdVar] : "") || currentBlock.render_service_id || "";
+      let runtimeUrl = (envUrlVar ? process.env[envUrlVar] : "") || currentBlock.production_url || "";
+
+      if (!renderServiceId || !runtimeUrl) {
+        const envKey = currentKey === "ci-runner" ? "ciRunner" : currentKey === "mcp" ? "controlTower" : currentKey;
+        const envRenderObj = (env.render as Record<string, any>)?.[envKey];
+        if (envRenderObj) {
+          if (!renderServiceId && envRenderObj.serviceId) renderServiceId = envRenderObj.serviceId;
+          if (!runtimeUrl && envRenderObj.url) runtimeUrl = envRenderObj.url;
+        }
+      }
 
       result[currentKey] = {
         name: currentKey,

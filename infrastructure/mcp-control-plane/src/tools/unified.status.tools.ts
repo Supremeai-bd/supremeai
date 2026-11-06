@@ -7,6 +7,7 @@ import { globalHealthEngine } from "../health/engine.js";
 import { globalDependencyGraph } from "../health/dependency.js";
 import { listClients } from "../policy/client-registry.js";
 import { globalKillSwitch } from "../remediation/killswitch.js";
+import { redactSensitiveData } from "../diagnostics/redaction.js";
 
 /**
  * S0.4 / Unified Observability Hub: `status(scope, targetId?)`
@@ -85,11 +86,12 @@ export async function registerUnifiedStatusTool(server: McpServer): Promise<void
           };
         }
 
+        const sanitized = redactSensitiveData(result);
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(result, null, 2),
+              text: JSON.stringify(sanitized, null, 2),
             },
           ],
         };

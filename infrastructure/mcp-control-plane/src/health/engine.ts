@@ -213,7 +213,15 @@ export class HealthEngine {
           }
           throw new Error(`GitHub API responded ${res.status}`);
         }
-        return res.data;
+        const repoData = (res.data || {}) as Record<string, any>;
+        return {
+          status: "healthy",
+          repository: repoData.full_name || env.github.repo,
+          defaultBranch: repoData.default_branch || "main",
+          openIssuesCount: repoData.open_issues_count ?? 0,
+          pushedAt: repoData.pushed_at ?? null,
+          visibility: repoData.visibility ?? (repoData.private ? "private" : "public"),
+        };
       },
       "supabase": () => getSupabaseHealth("supabase-primary"),
       "redis": () => pingRedis(),

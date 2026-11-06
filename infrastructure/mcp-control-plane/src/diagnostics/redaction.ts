@@ -1,17 +1,43 @@
 import crypto from "node:crypto";
 
+const STRICT_DROP_KEYS = new Set([
+  "token",
+  "temp_clone_token",
+  "access_token",
+  "refresh_token",
+  "api_key",
+  "apikey",
+  "password",
+  "secret",
+  "authorization",
+  "cookie",
+  "credentials",
+  "private_key",
+  "client_secret",
+]);
+
+const ALLOWLISTED_NON_SECRET_KEYS = new Set([
+  "apikeyref",
+  "apikeyrefs",
+  "idempotencykey",
+  "deploykey",
+  "deploy_key",
+  "key",
+  "keys",
+  "requiredkey",
+  "requiredenv",
+]);
+
 const SENSITIVE_KEY_PATTERNS = [
   /token/i,
   /secret/i,
-  /key/i,
   /password/i,
   /passphrase/i,
-  /auth/i,
   /authorization/i,
   /cookie/i,
   /credential/i,
   /private/i,
-  /connection_string/i,
+  /connection.*string/i,
 ];
 
 /**
@@ -24,18 +50,20 @@ export function fingerprintSecret(value: string): string {
 }
 
 /**
- * Deep redaction walker for diagnostic results and logs.
- * Masks known secret keys and high-entropy values before passing to caller/LLM.
+ * Deep redaction walker for diagnostic results, health snapshots, and provider outputs.
+ * 1. Completely drops credential-bearing keys (temp_clone_token, access_token, etc.).
+ * 2. Fingerprints / masks remaining sensitive values.
+ * 3. Never leaks plaintext credentials to callers or LLM contexts.
  */
 export function redactSensitiveData<T>(input: T): T {
   if (input === null || input === undefined) return input;
 
   if (typeof input === "string") {
     // Detect raw bearer tokens, private keys or high-entropy tokens
-    if (/bearer\s+[a-zA-Z0-9_\-\.]{20,}/i.test(input)) {
-      return input.replace(/bearer\s+[a-zA-Z0-9_\-\.]{20,}/gi, "Bearer [REDACTED]") as unknown as T;
+    if (/bearer\s+[a-zA-Z0-9_\-\.]{15,}/i.test(input)) {
+      return input.replace(/bearer\s+[a-zA-Z0-9_\-\.]{15,}/gi, "Bearer [REDACTED]") as unknown as T;
     }
-    if (input.includes("-----BEGIN PRIVATE KEY-----")) {
+    if (input.includes("-----BEGIN PRIVATE KEY-----") || input.includes("-----BEGIN RSA PRIVATE KEY-----")) {
       return "[REDACTED PRIVATE KEY]" as unknown as T;
     }
     return input;
@@ -48,7 +76,19 @@ export function redactSensitiveData<T>(input: T): T {
   if (typeof input === "object") {
     const output: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
-      const isSensitive = SENSITIVE_KEY_PATTERNS.some((pattern) => pattern.test(k));
+      const lowerKey = k.toLowerCase().trim();
+
+      // Drop credential-bearing fields entirely
+      if (STRICT_DROP_KEYS.has(lowerKey)) {
+        continue;
+      }
+
+      if (ALLOWLISTED_NON_SECRET_KEYS.has(lowerKey)) {
+        output[k] = v;
+        continue;
+      }
+
+      const isSensitive = SENSITIVE_KEY_PATTERNS.some((pattern) => pattern.test(lowerKey));
       if (isSensitive && typeof v === "string" && v.length > 0) {
         output[k] = fingerprintSecret(v);
       } else {

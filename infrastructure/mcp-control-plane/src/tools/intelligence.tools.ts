@@ -85,8 +85,10 @@ export async function registerIntelligenceTools(server: McpServer): Promise<void
                 type: "text",
                 text: JSON.stringify(
                   {
-                    error: "graph.json not found. Run 'graphify extract .' or 'python scripts/ci/sync_graph_to_memory.py' first.",
-                    status: "not_indexed",
+                    status: "unavailable",
+                    error: "Code intelligence unavailable or stale: graph.json not found.",
+                    recommendation: "Run 'python scripts/ci/sync_graph_to_memory.py' or 'graphify extract .' to generate deterministic AST knowledge graph.",
+                    remediationCommand: "python scripts/ci/sync_graph_to_memory.py",
                   },
                   null,
                   2
