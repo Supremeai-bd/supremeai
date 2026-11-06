@@ -21,6 +21,7 @@ import type { UserRole } from "./auth.context.js";
 import { roleRank } from "./auth.context.js";
 import { autoRegisterGuestClient, isValidClientName, namedClientFromUrl } from "./auto-register.js";
 import { recordSlotAudit } from "./slot-audit.js";
+import { verifyTotp } from "./totp.js";
 
 /**
  * Verified Slot Architecture (issue #48).
@@ -368,7 +369,7 @@ export async function resolveSlotSession(
  * only: `x-mcp-slot-token` or `Authorization: Bearer <slot credential>`.
  */
 export function slotCredentialFromRequest(req: IncomingMessage): string | undefined {
-  const header = req.headers["x-mcp-slot-token"];
+  const header = req.headers["x-mcp-slot-token"] || req.headers["x-mcp-totp"];
   if (typeof header === "string" && header.trim()) return header.trim();
   const auth = req.headers.authorization ?? "";
   const match = /^Bearer\s+(.+)$/i.exec(auth);
@@ -417,9 +418,18 @@ function viewerFallback(
         resolvedRole = "agent";
         isAuthenticated = true;
       } else if (existingSlot.role === "admin" || existingSlot.role === "supremeadmin") {
-        // Case 3: Admin / Supremeadmin -> 2nd Step Auth required. Without credential, fail-closed to viewer.
-        resolvedRole = "viewer";
-        isAuthenticated = false;
+        // Case 3: Admin / Supremeadmin -> 2nd Step Auth required (Real-time TOTP token or valid slot token).
+        const totpSecret = process.env.SUPREMEAI_ADMIN_TOTP_SECRET || process.env.ADMIN_TOTP_SECRET;
+        const presentedTotp = (req.headers["x-mcp-totp"] as string | undefined)?.trim();
+        if (totpSecret && presentedTotp && verifyTotp(presentedTotp, totpSecret)) {
+          // TOTP Verified -> grant Admin/SupremeAdmin role!
+          resolvedRole = existingSlot.role;
+          isAuthenticated = true;
+        } else {
+          // Unauthenticated or invalid TOTP -> fail-closed to viewer
+          resolvedRole = "viewer";
+          isAuthenticated = false;
+        }
       }
     }
   }
