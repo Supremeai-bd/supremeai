@@ -368,6 +368,47 @@ export async function getEnvVarKeys(accountId: string, serviceId: string): Promi
   return envVars.map((item) => item.key).filter((k): k is string => typeof k === "string");
 }
 
+/**
+ * Fetch and normalize the latest Render deploy. Provider health alone is not
+ * release evidence; callers need the deployed commit and deploy timestamps.
+ */
+export async function getLatestDeploy(
+  accountId: string,
+  serviceId: string,
+): Promise<{
+  serviceId: string;
+  id: string | null;
+  status: string | null;
+  commitSha: string | null;
+  createdAt: string | null;
+  finishedAt: string | null;
+}> {
+  const apiKey = getApiKey(accountId);
+  const res = await httpRequest(`${BASE_URL}/services/${encodeURIComponent(serviceId)}/deploys?limit=1`, {
+    headers: bearerAuth(apiKey),
+  });
+  if (!res.ok || !Array.isArray(res.data) || res.data.length === 0) {
+    throw new Error(`Render deploy lookup failed for ${serviceId} (HTTP ${res.status})`);
+  }
+  const raw = res.data[0] && typeof res.data[0] === "object" ? res.data[0] as Record<string, unknown> : {};
+  const deploy = raw.deploy && typeof raw.deploy === "object" ? raw.deploy as Record<string, unknown> : raw;
+  const commit = deploy.commit && typeof deploy.commit === "object" ? deploy.commit as Record<string, unknown> : {};
+  return {
+    serviceId,
+    id: typeof deploy.id === "string" ? deploy.id : null,
+    status: typeof deploy.status === "string" ? deploy.status : null,
+    commitSha: typeof commit.id === "string"
+      ? commit.id
+      : typeof commit.sha === "string"
+        ? commit.sha
+        : typeof deploy.commitId === "string"
+          ? deploy.commitId
+          : null,
+    createdAt: typeof deploy.createdAt === "string" ? deploy.createdAt : null,
+    finishedAt: typeof deploy.finishedAt === "string" ? deploy.finishedAt : null,
+  };
+}
+
 export async function getServiceEnvVars(accountId: string, serviceId: string, keysOnly: boolean = false): Promise<unknown> {
   const apiKey = getApiKey(accountId);
   const res = await httpRequest(`${BASE_URL}/services/${serviceId}/env-vars?limit=50`, {

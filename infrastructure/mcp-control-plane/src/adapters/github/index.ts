@@ -49,6 +49,34 @@ export async function getWorkflowRuns(accountId: string, limit = 5): Promise<unk
   return res.data;
 }
 
+/** Return the commit currently at a repository branch. Read-only and explicit
+ * about the target repository; never fall back to an implicit repository. */
+export async function getRepositoryHead(
+  accountIdOrRepo: string,
+  branch = "main",
+): Promise<{ repository: string; branch: string; sha: string; url: string }> {
+  const { apiKey: token, baseUrl } = getAccountConfig(accountIdOrRepo);
+  const encodedBranch = encodeURIComponent(branch);
+  const res = await httpRequest(`${baseUrl}/commits/${encodedBranch}`, {
+    headers: githubHeaders(token),
+  });
+  if (!res.ok || !res.data || typeof res.data !== "object") {
+    const message = res.data && typeof res.data === "object" && "message" in res.data
+      ? String((res.data as Record<string, unknown>).message)
+      : `HTTP ${res.status}`;
+    throw new Error(`GitHub branch head lookup failed: ${message}`);
+  }
+  const data = res.data as Record<string, unknown>;
+  const sha = typeof data.sha === "string" ? data.sha : "";
+  if (!sha) throw new Error(`GitHub branch head response did not contain a SHA for ${branch}`);
+  return {
+    repository: baseUrl.replace("https://api.github.com/repos/", ""),
+    branch,
+    sha,
+    url: typeof data.html_url === "string" ? data.html_url : `${baseUrl}/commits/${encodedBranch}`,
+  };
+}
+
 export async function getFailedLogs(accountId: string, runId: string): Promise<unknown> {
   const { apiKey: token, baseUrl } = getAccountConfig(accountId);
   // Get jobs for the run

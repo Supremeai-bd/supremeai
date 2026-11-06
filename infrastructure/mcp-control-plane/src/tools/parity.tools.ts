@@ -58,7 +58,14 @@ async function runParityAudit(): Promise<{ status: string; checks: ParityCheck[]
   });
 
   const hasDrift = checks.some((c) => c.status === "drift" || c.status === "error");
-  return { status: hasDrift ? "drift_detected" : "ok", checks };
+  // `ok` previously meant only that credentials existed. That is not parity
+  // evidence and caused false-green audits. Until live commit/schema/secret
+  // comparisons are actually performed, report the result as unverified.
+  const hasUnverifiedChecks = checks.some((c) => c.status === "ok" || c.status === "unconfigured");
+  return {
+    status: hasDrift ? "drift_detected" : hasUnverifiedChecks ? "unverified" : "unknown",
+    checks,
+  };
 }
 
 export async function registerParityTools(server: McpServer): Promise<void> {
