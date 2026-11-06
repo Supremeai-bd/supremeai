@@ -7,6 +7,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { ArrowRight, FileImage, Trash2, UploadCloud } from 'lucide-react';
 import { WorkspaceLayout } from '../components/layout/WorkspaceLayout';
+import { ConfirmModal } from '../commandcenter/kit';
 import { useListResource } from '../hooks/useListResource';
 import { fileService, formatBytes, type StoredFile } from '../services/fileService';
 import { safeUrl } from '../lib/safeUrl';
@@ -42,6 +43,7 @@ export function FilesPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = useCallback(
@@ -73,6 +75,7 @@ export function FilesPage() {
       await loadFiles(); // honest failure — resync with server truth
     } finally {
       setDeletingId(null);
+      setConfirmDeleteId(null);
     }
   };
 
@@ -222,7 +225,7 @@ export function FilesPage() {
                         type="button"
                         data-testid={`file-delete-btn-${file.attachment_id}`}
                         aria-label={`Delete ${file.name}`}
-                        onClick={() => void handleDelete(file.attachment_id)}
+                        onClick={() => setConfirmDeleteId(file.attachment_id)}
                         disabled={deletingId === file.attachment_id}
                         className="rounded-md p-1.5 text-[var(--sa-ink-muted)] transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
                       >
@@ -235,6 +238,16 @@ export function FilesPage() {
             </ul>
           )}
         </section>
+        <ConfirmModal
+          open={!!confirmDeleteId}
+          title="Delete uploaded file"
+          message="This permanently removes the file from the workspace. Continue?"
+          confirmLabel="Delete file"
+          danger
+          loading={!!deletingId}
+          onCancel={() => setConfirmDeleteId(null)}
+          onConfirm={() => { if (confirmDeleteId) void handleDelete(confirmDeleteId); }}
+        />
       </div>
     </WorkspaceLayout>
   );

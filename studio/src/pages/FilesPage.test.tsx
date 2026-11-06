@@ -94,6 +94,8 @@ describe('FilesPage (ERR-B02)', () => {
     renderPage();
     await screen.findByTestId('file-card');
     await userEvent.click(screen.getByTestId('file-delete-btn-a1'));
+    expect(screen.getByText('This permanently removes the file from the workspace. Continue?')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete file' }));
 
     await waitFor(() => {
       expect(mockedService.deleteFile).toHaveBeenCalledWith('a1');
