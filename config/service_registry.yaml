@@ -210,7 +210,7 @@ services:
     render_name: supremeai-brain
     role: "Dedicated Tiny AI Brain & Model Routing Node"
     platform: render
-    source_repo: "Supremeai-bd/supremeai-open"
+    source_repo: "Supremeai-bd/supremeai"
     plan: free
     memory_budget_mb: 512
     estimated_ram_mb: 95
@@ -221,6 +221,7 @@ services:
     container_port: 8080
     health_path: /health
     readiness_path: /health
+    release_path: /release
     production_url: "https://supremeai-tiny-brain.onrender.com"
     canonical_service_id_env: RENDER_BRAIN_SERVICE_ID
     service_id_aliases:

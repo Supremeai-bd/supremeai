@@ -5,18 +5,13 @@ import { getLatestDeploy, getServiceHealth, listLogs } from "../adapters/render/
 import { getRepositoryHead, getWorkflowRuns } from "../adapters/github/index.js";
 import { RequestContextStore, roleRank, type UserRole } from "../policy/auth.context.js";
 import { aggregateStatus, confidenceFor, fact, type EvidenceCheck } from "../diagnostics/evidence.js";
+import { resolveServiceTarget, type AuthoritativeServiceTarget } from "../diagnostics/service_manifest.js";
+import { redactSensitiveData } from "../diagnostics/redaction.js";
 
 type CheckStatus = "pass" | "fail" | "unknown" | "error";
 export type DiagnosticCheck = EvidenceCheck;
 
-interface ServiceTarget {
-  name: string;
-  renderAccountId: string;
-  renderServiceId: string;
-  runtimeUrl: string;
-  repo: string;
-  branch: string;
-}
+interface ServiceTarget extends AuthoritativeServiceTarget {}
 
 function assertDiagnosticAccess(toolName: string, minRole: UserRole): string | null {
   const store = RequestContextStore.get();
@@ -27,22 +22,35 @@ function assertDiagnosticAccess(toolName: string, minRole: UserRole): string | n
 }
 
 function resolveTarget(service: string): ServiceTarget | null {
-  // Keep this first slice explicit and fail-closed. Do not silently map an
-  // unknown service to the core API or to the GitHub default repository.
+  // Use authoritative registry from config/service_registry.yaml first
+  const resolved = resolveServiceTarget(service);
+  if (resolved) return resolved;
+
+  // Fallback to minimal static defaults if registry is missing
   const targets: Record<string, ServiceTarget> = {
     "backend-api": {
       name: "backend-api",
+      role: "Gateway",
+      platform: "render",
       renderAccountId: "render-primary",
       renderServiceId: env.render.api.serviceId,
       runtimeUrl: env.render.api.url,
+      healthPath: "/healthz",
+      readinessPath: "/readyz",
+      releasePath: "/release",
       repo: env.github.repo,
       branch: "main",
     },
     api: {
       name: "api",
+      role: "Gateway",
+      platform: "render",
       renderAccountId: "render-primary",
       renderServiceId: env.render.api.serviceId,
       runtimeUrl: env.render.api.url,
+      healthPath: "/healthz",
+      readinessPath: "/readyz",
+      releasePath: "/release",
       repo: env.github.repo,
       branch: "main",
     },
@@ -228,7 +236,7 @@ export async function registerDiagnosticTools(server: McpServer): Promise<void> 
       if (denial) return { isError: true, content: [{ type: "text", text: denial }] };
       try {
         const result = await diagnoseRelease(service, intent);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(redactSensitiveData(result), null, 2) }] };
       } catch (error) {
         return { isError: true, content: [{ type: "text", text: JSON.stringify({ status: "unknown", error: error instanceof Error ? error.message : "diagnostic failed" }) }] };
       }

@@ -22,6 +22,7 @@ env.txt
 env.clean
 env.clean.txt
 env_*.txt
+config/mcp-clients.json
 
 service-account.json
 backend/service-account.json
