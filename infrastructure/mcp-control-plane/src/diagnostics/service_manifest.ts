@@ -434,3 +434,113 @@ export function resolveServiceIdentity(serviceName: string): ServiceIdentity | n
     registryPath: regPath,
   };
 }
+
+export interface ServiceRef {
+  canonicalServiceId: string;
+  providerId: string;
+  providerNativeId: string;
+  deploymentId?: string;
+  deploymentSha?: string;
+  environment: "development" | "staging" | "production";
+  tenantId?: string;
+  region?: string;
+  instanceId?: string;
+  capabilityVersion: string;
+}
+
+export interface DeploymentRef {
+  service: ServiceRef;
+  artifactDigest?: string;
+  runtimeCommit?: string;
+  schemaVersion?: string;
+  rolloutGeneration?: string;
+}
+
+/**
+ * Converts a service name or AuthoritativeServiceTarget into a canonical ServiceRef.
+ * Prevents ID drift across health probes, diagnostic graphs, and remediation gates.
+ */
+export function toServiceRef(
+  serviceOrTarget: string | AuthoritativeServiceTarget,
+  overrides: Partial<ServiceRef> = {},
+): ServiceRef | null {
+  const target =
+    typeof serviceOrTarget === "string"
+      ? resolveServiceTarget(serviceOrTarget)
+      : serviceOrTarget;
+  if (!target) return null;
+
+  return {
+    canonicalServiceId: target.name,
+    providerId: target.platform || "render",
+    providerNativeId: target.renderServiceId,
+    environment: overrides.environment ?? "production",
+    capabilityVersion: overrides.capabilityVersion ?? "v2",
+    ...overrides,
+  };
+}
+
+/**
+ * Builds an immutable DeploymentRef binding a canonical ServiceRef to runtime commit & schema state.
+ */
+export function toDeploymentRef(
+  serviceOrTarget: string | AuthoritativeServiceTarget | ServiceRef,
+  meta: Omit<DeploymentRef, "service"> = {},
+): DeploymentRef | null {
+  const serviceRef =
+    typeof serviceOrTarget === "object" && "canonicalServiceId" in serviceOrTarget
+      ? serviceOrTarget
+      : toServiceRef(serviceOrTarget);
+  if (!serviceRef) return null;
+
+  return {
+    service: serviceRef,
+    ...meta,
+  };
+}
+
+/**
+ * Detects duplicate providerNativeId or runtimeUrl collisions across the service catalog.
+ */
+export function detectCatalogCollisions(): Array<{
+  field: "providerNativeId" | "runtimeUrl";
+  value: string;
+  services: string[];
+}> {
+  const catalog = loadAuthoritativeServices();
+  const byNativeId = new Map<string, string[]>();
+  const byUrl = new Map<string, string[]>();
+
+  for (const [key, entry] of Object.entries(catalog)) {
+    if (entry.renderServiceId) {
+      const list = byNativeId.get(entry.renderServiceId) ?? [];
+      if (!list.includes(entry.name || key)) list.push(entry.name || key);
+      byNativeId.set(entry.renderServiceId, list);
+    }
+    if (entry.runtimeUrl) {
+      const normalizedUrl = entry.runtimeUrl.replace(/\/+$/, "").toLowerCase();
+      const list = byUrl.get(normalizedUrl) ?? [];
+      if (!list.includes(entry.name || key)) list.push(entry.name || key);
+      byUrl.set(normalizedUrl, list);
+    }
+  }
+
+  const collisions: Array<{
+    field: "providerNativeId" | "runtimeUrl";
+    value: string;
+    services: string[];
+  }> = [];
+
+  for (const [value, services] of byNativeId.entries()) {
+    if (services.length > 1) {
+      collisions.push({ field: "providerNativeId", value, services });
+    }
+  }
+  for (const [value, services] of byUrl.entries()) {
+    if (services.length > 1) {
+      collisions.push({ field: "runtimeUrl", value, services });
+    }
+  }
+
+  return collisions;
+}

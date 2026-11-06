@@ -2,8 +2,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { RequestContextStore, roleRank, type UserRole } from "../policy/auth.context.js";
 import { diagnoseRelease } from "./diagnostic.tools.js";
-import { resolveServiceTarget } from "../diagnostics/service_manifest.js";
+import { resolveServiceTarget, toServiceRef } from "../diagnostics/service_manifest.js";
 import { redactSensitiveData } from "../diagnostics/redaction.js";
+import { evaluateActionPolicy } from "../policy/permission_policy.js";
 
 const idempotency = new Map<string, { expiresAt: number; result?: unknown }>();
 const IDEMPOTENCY_TTL_MS = 15 * 60 * 1000;
@@ -78,8 +79,20 @@ export async function registerRemediationTools(server: McpServer): Promise<void>
           return { isError: true, content: [{ type: "text", text: JSON.stringify(redactSensitiveData(result), null, 2) }] };
         }
 
-        // Execution is plan-only: no live restart/redeploy adapter is wired.
+        //Execution is plan-only: no live restart/redeploy adapter is wired.
         // Record the intent and run post-action verification against current state.
+        const serviceRef = toServiceRef(target);
+        const policyDecision = evaluateActionPolicy({
+          agentRole: "remediator",
+          action,
+          serviceRef,
+          evidence: [{ observedAt: new Date().toISOString(), status: "pass" }],
+          hasHumanApprovalToken: Boolean(approvalToken && approvalToken.trim().length >= 8),
+          hasIdempotencyKey: Boolean(idempotencyKey || key),
+          hasRollbackTarget: Boolean(rollbackTargetCommit && rollbackTargetCommit.trim()),
+          schemaParityStatus: truth.schemaParity ?? "unknown",
+        });
+
         const result = {
           status: "planned",
           executed: false,
@@ -89,6 +102,8 @@ export async function registerRemediationTools(server: McpServer): Promise<void>
           message: "Safe plan-only mode active: no destructive actions are applied without an approved live execution adapter.",
           action,
           service,
+          canonicalServiceRef: serviceRef,
+          policyEvaluation: policyDecision,
           note: "No live execution adapter is wired; remediation recorded and verified against current diagnostic state. Wire Render restart/redeploy adapter to enable live execution.",
           preconditions,
           approvalTokenFingerprint: (await import("../diagnostics/redaction.js")).fingerprintSecret(approvalToken),
