@@ -86,6 +86,8 @@
     "test:github-pr-addressability": "tsx test_github_pr_addressability.ts",
     "test:diagnostic": "tsx test_system_diagnose.ts",
     "test:intelligent-foundation": "tsx test_system_diagnose.ts && tsx test_intelligent_foundation.ts",
+    "test:root-no-go-fix": "tsx test_root_no_go_fix.ts",
+    "test:release-gate": "pnpm run typecheck && pnpm run test:root-no-go-fix && pnpm run test:intelligent-foundation",
     "test:eval-intelligence": "tsx test_phase5_diagnostic_eval.ts",
     "test:canonical-wiring": "tsx test_phase6_canonical_wiring.ts",
     "test:canonical-resolver": "tsx test_canonical_resolver.ts"
