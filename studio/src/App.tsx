@@ -298,8 +298,26 @@ export const App: React.FC = () => {
               ))}
 
               {/* Operator / Internal Telemetry Cockpit */}
-              <Route path="/cockpit" element={<OperatorCockpit />} />
-              <Route path="/telemetry" element={<OperatorCockpit />} />
+              <Route
+                path="/cockpit"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard requiredRole="admin">
+                      <OperatorCockpit />
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/telemetry"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard requiredRole="admin">
+                      <OperatorCockpit />
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Honest 404 catch-all — never silently bounce to / */}
               <Route path="*" element={<ErrorPage code={404} />} />

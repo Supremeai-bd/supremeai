@@ -59,14 +59,15 @@ def main():
     # সিগনাল এটাই। dev-tree-র কিছু advisory-র কোনো patched version নেই
     # (braces/http-cache-semantics/node-forge <0.0.0) — সেগুলো আলাদা
     # ট্র্যাকিংয়ে (issue #3704), false-RED CI-signal নয়।
-    if not run_command("pnpm audit --prod", PROJECT_ROOT):
+    studio_dir = PROJECT_ROOT / "studio"
+    if not run_command("pnpm audit --prod", studio_dir):
         print("\n🚨 Node.js ইকোসিস্টেমে নিরাপত্তা ঝুঁকি পাওয়া গেছে!")
         overall_success = False
 
     # --- Python / Poetry Dependency Scan ---
     print("\n" + "="*60)
     print("🐍 Python (Poetry) ecosystem স্ক্যান করা হচ্ছে...")
-    backend_dir = PROJECT_ROOT / "backend"
+    backend_dir = PROJECT_ROOT / "core"
     # `poetry check` কমান্ডটি pyproject.toml এবং poetry.lock ফাইলের মধ্যে অসামঞ্জস্য পরীক্ষা করে।
     if not run_command("poetry check", backend_dir):
         print("\n🚨 Poetry dependency-তে অসামঞ্জস্য পাওয়া গেছে!")
