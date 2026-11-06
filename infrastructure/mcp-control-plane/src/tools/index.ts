@@ -39,6 +39,7 @@ import { registerParityTools } from "./parity.tools.js";
 import { registerDeepHealthTools } from "./deep.health.tools.js";
 import { registerAgentBootstrapTools } from "./agent.bootstrap.tools.js";
 import { registerHarnessTools } from "./harness.tools.js";
+import { registerDiagnosticTools } from "./diagnostic.tools.js";
 
 /**
  * Registers all MCP tools with the server.
@@ -50,6 +51,9 @@ export async function registerAllTools(
 ): Promise<void> {
   // ── Unified Observability Hub (S0.4 status tool)
   await registerUnifiedStatusTool(server);
+
+  // ── Evidence-based release diagnosis (provider health is not release proof)
+  await registerDiagnosticTools(server);
 
   // ── System Tools
   await registerSystemTools(server);

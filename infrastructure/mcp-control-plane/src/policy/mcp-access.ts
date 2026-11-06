@@ -134,6 +134,17 @@ export function classifyToolCapability(name: string): McpCapabilityMetadata {
       approvalRequired: false,
     };
   }
+  if (name === "system_diagnose") {
+    return {
+      name,
+      kind: "tool",
+      access: "restricted",
+      requiredScope: "system:read",
+      riskLevel: "R1",
+      dataClassification: "internal",
+      approvalRequired: false,
+    };
+  }
   // AUDIT-FIX (#1787): agent_status ও agent_heartbeat public_viewer-ও call করতে পারবে।
   // এগুলো read-only (agent_status) অথবা slot-validated write (agent_heartbeat —
   // validateSlot শুধু "agent-N" format চেক করে, কোনো privilege escalation নেই)।
