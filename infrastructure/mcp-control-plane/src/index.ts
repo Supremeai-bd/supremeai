@@ -500,8 +500,18 @@ async function main(): Promise<void> {
     // Pre-warm the health snapshot cache asynchronously at boot so /health and
     // status(scope="all") have immediate telemetry after deploy/restart.
     import("./health/engine.js")
-      .then(({ globalHealthEngine }) => globalHealthEngine.runFullSweep())
-      .catch((err) => console.error("[HealthEngine] Initial boot sweep error:", err));
+      .then(({ globalHealthEngine }) => {
+        globalHealthEngine.runFullSweep().catch((err) => console.error("[HealthEngine] Initial boot sweep error:", err));
+
+        // Recurring 5-minute health sweep to prevent stale health data and watchdog alarms
+        const recurringSweepTimer = setInterval(() => {
+          globalHealthEngine.runFullSweep().catch((err) => console.error("[HealthEngine] Periodic sweep error:", err));
+        }, 5 * 60 * 1000);
+        if (typeof recurringSweepTimer.unref === "function") {
+          recurringSweepTimer.unref();
+        }
+      })
+      .catch((err) => console.error("[HealthEngine] Initial boot sweep load error:", err));
 
     if (mode === "stdio") {
       await startStdioServer(server);

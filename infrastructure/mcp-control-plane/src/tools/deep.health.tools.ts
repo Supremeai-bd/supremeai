@@ -102,7 +102,11 @@ export async function registerDeepHealthTools(server: McpServer): Promise<void> 
       try {
         const renderSvcId = env.render.controlTower.serviceId || env.render.primary.serviceId;
         if (renderSvcId) {
-          const rHealth: any = await getServiceHealth("render-primary", renderSvcId);
+          // The control tower service belongs to the control-tower Render
+          // account; querying it with the primary account key returns a false
+          // 404 when the services are split across Render accounts.
+          const renderAccountId = env.render.controlTower.serviceId ? "render-mcp" : "render-primary";
+          const rHealth: any = await getServiceHealth(renderAccountId, renderSvcId);
           const svc = rHealth?.service;
           results.probes.render = {
             status: svc?.status || "unknown",

@@ -133,21 +133,36 @@ def _matches(path: str, prefixes) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base", required=True)
-    parser.add_argument("--head", required=True)
+    parser.add_argument("--base", required=False, default="")
+    parser.add_argument("--head", required=False, default="HEAD")
+    parser.add_argument("--force", action="store_true", default=False)
+    parser.add_argument("--targets", default="", help="Comma-separated target list or 'all'")
     parser.add_argument("--output", default="")
     args = parser.parse_args()
 
-    files = changed_files(args.base, args.head)
+    files: list[str] = []
+    if not args.force:
+        files = changed_files(args.base, args.head)
     topology_changed = any(path in TOPOLOGY_FILES for path in files)
 
     selected: list[dict[str, str]] = []
     unregistered: list[str] = []
 
     services = list(SERVICE_RULES.items())
-    if topology_changed:
-        # Widen: every declared service is a candidate, regardless of paths.
-        candidates = services
+
+    # Target filtering (for manual runs or selective forced deploys)
+    raw_targets = [t.strip().lower() for t in args.targets.split(",") if t.strip()]
+    is_all_targets = not raw_targets or "all" in raw_targets or "render-all" in raw_targets
+
+    if args.force or topology_changed:
+        # Candidate set is either all or specifically matched targets
+        if is_all_targets:
+            candidates = services
+        else:
+            candidates = [
+                (svc, rule) for svc, rule in services
+                if svc in raw_targets
+            ]
     else:
         candidates = [
             (service, rule)

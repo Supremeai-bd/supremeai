@@ -34,7 +34,7 @@ export const OPTIONAL_PROVIDERS = new Set([
   "telegram",
 ]);
 
-function isOptionalProvider(provider: string): boolean {
+export function isOptionalProvider(provider: string): boolean {
   return OPTIONAL_PROVIDERS.has(provider) || provider.startsWith("ai-");
 }
 
@@ -273,7 +273,7 @@ export class HealthEngine {
       Object.entries(snapshots).map(([provider, snapshot]) => [provider, snapshot.impactedServices])
     );
     const statuses = Object.entries(snapshots)
-      .filter(([provider, snapshot]) => !(isOptionalProvider(provider) && snapshot.status === "unknown"))
+      .filter(([provider, snapshot]) => !isOptionalProvider(provider) || snapshot.status === "healthy")
       .map(([, snapshot]) => snapshot.status);
     const overallStatus = statuses.includes("down") || statuses.includes("circuit_open")
       ? "down" : statuses.includes("degraded") ? "degraded" : statuses.includes("unknown") ? "unknown" : "healthy";

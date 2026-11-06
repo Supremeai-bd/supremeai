@@ -61,8 +61,12 @@ export async function getAuthUsers(accountId: string): Promise<unknown> {
 
 export async function getDatabaseSchema(accountId: string, table?: string): Promise<unknown> {
   const { url, apiKey } = getSupabaseConfig(accountId);
+  const headers = {
+    ...supabaseHeaders(apiKey),
+    Accept: "application/openapi+json, application/json",
+  };
   const res = await httpRequest(`${url}/rest/v1/`, {
-    headers: supabaseHeaders(apiKey),
+    headers,
   });
   if (!res.ok) {
     throw new Error(`Failed to fetch schema: ${JSON.stringify(res.data)}`);

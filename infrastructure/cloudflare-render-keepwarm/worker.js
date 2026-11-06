@@ -1,7 +1,7 @@
 /**
  * SupremeAI Render Keepwarm Mesh — Cloudflare Worker
  * 
- * Runs on a 5-minute cron schedule to keep all 6 Render production services alive,
+ * Runs on a 5-minute cron schedule to keep all 7 Render production services alive,
  * eliminating the 50-90s cold start latency on the Free tier.
  */
 
@@ -11,7 +11,8 @@ const TARGET_SERVICES = [
   { name: "Browser Scraper Node", url: "https://supremeai-scraper-node.onrender.com/health" },
   { name: "Async Worker Node", url: "https://supremeai-worker-node.onrender.com/health" },
   { name: "API Gateway", url: "https://supremeai-api-ulw0.onrender.com/healthz" },
-  { name: "Tiny AI Brain", url: "https://supremeai-tiny-brain.onrender.com/health" }
+  { name: "Tiny AI Brain", url: "https://supremeai-tiny-brain.onrender.com/health" },
+  { name: "CI Runner", url: "https://supremeai-ci-runner.onrender.com/" }
 ];
 
 export default {
