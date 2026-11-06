@@ -220,9 +220,18 @@ function profileForCurrentContext(): ToolProfile | undefined {
 export function toolListAccessError(toolName: string): string | null {
   // Layer 1 — the SAME call-path RBAC gate (#695). If the caller could not
   // execute the tool, it must never appear in their list (list ⊆ call).
+  // This guarantees that an `agent` or `viewer` NEVER even sees admin/supremeadmin tools!
   const callDenial = toolAccessError(toolName);
   if (callDenial) return callDenial;
-  // Layer 2 — the client's exposure profile (absent = full surface).
+
+  // Layer 2 — Role-based strict isolation:
+  const currentRole = RequestContextStore.get()?.role ?? "viewer";
+  if (currentRole === "viewer") {
+    // Unregistered/unauthenticated guests see ZERO tools
+    return `Forbidden: unregistered clients cannot view or discover tools.`;
+  }
+
+  // Layer 3 — the client's exposure profile (absent = full surface).
   const profile = profileForCurrentContext();
   if (!profile) return null;
   if (!TOOL_PROFILES[profile].includes(toolName)) {
