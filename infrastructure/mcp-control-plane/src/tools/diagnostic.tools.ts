@@ -1,15 +1,38 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { env } from "../lib/env.js";
-import { getLatestDeploy, getServiceHealth, listLogs } from "../adapters/render/index.js";
+import { getLatestDeploy, getServiceHealth, listLogs, type RenderLogsResult } from "../adapters/render/index.js";
 import { getRepositoryHead, getWorkflowRuns } from "../adapters/github/index.js";
 import { RequestContextStore, roleRank, type UserRole } from "../policy/auth.context.js";
-import { aggregateStatus, confidenceFor, fact, type EvidenceCheck } from "../diagnostics/evidence.js";
+import { aggregateStatus, confidenceFor, fact, type EvidenceCheck, type EvidenceStatus } from "../diagnostics/evidence.js";
 import { resolveServiceTarget, type AuthoritativeServiceTarget } from "../diagnostics/service_manifest.js";
 import { redactSensitiveData } from "../diagnostics/redaction.js";
+import {
+  probeServiceDependencies,
+  probeSchemaParity,
+  getDownstreamServices,
+  type ServiceDependencyReport,
+} from "../diagnostics/dependency_graph.js";
 
-type CheckStatus = "pass" | "fail" | "unknown" | "error";
+type CheckStatus = EvidenceStatus;
 export type DiagnosticCheck = EvidenceCheck;
+
+export interface DiagnosticTruthMatrix {
+  providerHealth: EvidenceStatus;
+  serviceHealth: EvidenceStatus;
+  releaseIntegrity: EvidenceStatus;
+  dependencyHealth: EvidenceStatus;
+  schemaParity: EvidenceStatus;
+  userJourneyHealth: EvidenceStatus;
+}
+
+export type DiagnosticIntent =
+  | "is_deploy_correct"
+  | "root_cause"
+  | "is_healthy"
+  | "release_verify"
+  | "incident_timeline"
+  | "change_impact";
 
 interface ServiceTarget extends AuthoritativeServiceTarget {}
 
@@ -22,11 +45,9 @@ function assertDiagnosticAccess(toolName: string, minRole: UserRole): string | n
 }
 
 function resolveTarget(service: string): ServiceTarget | null {
-  // Use authoritative registry from config/service_registry.yaml first
   const resolved = resolveServiceTarget(service);
   if (resolved) return resolved;
 
-  // Fallback to minimal static defaults if registry is missing
   const targets: Record<string, ServiceTarget> = {
     "backend-api": {
       name: "backend-api",
@@ -82,7 +103,7 @@ function extractLatestSuccessfulRun(
   };
 }
 
-function compareCommitEvidence(
+export function compareCommitEvidence(
   intended: string | null,
   deployed: string | null,
   runtime: string | null,
@@ -121,10 +142,11 @@ function compareCommitEvidence(
 }
 
 async function readRuntimeRelease(target: ServiceTarget): Promise<Record<string, unknown> | null> {
+  if (!target.runtimeUrl) return null;
   try {
-    const response = await fetch(`${target.runtimeUrl.replace(/\/$/, "")}/release`, {
+    const response = await fetch(`${target.runtimeUrl.replace(/\/$/, "")}${target.releasePath || "/release"}`, {
       headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(5_000),
+      signal: AbortSignal.timeout(4_000),
     });
     if (!response.ok) return null;
     const body = await response.json() as unknown;
@@ -134,9 +156,56 @@ async function readRuntimeRelease(target: ServiceTarget): Promise<Record<string,
   }
 }
 
+async function probeDirectHttpHealth(target: ServiceTarget): Promise<EvidenceCheck> {
+  if (!target.runtimeUrl) {
+    return {
+      name: "service_health",
+      status: "unknown",
+      confidence: 0.1,
+      facts: [fact("runtime.http", "unknown", undefined, "No runtime URL configured")],
+      explanation: "No runtime URL configured for service.",
+      details: { service: target.name },
+    };
+  }
+
+  const start = Date.now();
+  const url = `${target.runtimeUrl.replace(/\/$/, "")}${target.healthPath || "/health"}`;
+  try {
+    const response = await fetch(url, {
+      headers: { Accept: "application/json, text/plain, */*" },
+      signal: AbortSignal.timeout(4_000),
+    });
+    const latencyMs = Date.now() - start;
+    const isPassing = response.status < 400;
+    const status: EvidenceStatus = isPassing ? "pass" : "fail";
+    const facts = [fact("runtime.http", status, { status: response.status, latencyMs, url })];
+
+    return {
+      name: "service_health",
+      status,
+      confidence: confidenceFor(status, facts),
+      facts,
+      explanation: isPassing ? `Endpoint responded with HTTP ${response.status} in ${latencyMs}ms` : `Endpoint returned HTTP ${response.status}`,
+      details: { url, status: response.status, latencyMs },
+    };
+  } catch (err) {
+    const latencyMs = Date.now() - start;
+    const msg = err instanceof Error ? err.message : String(err);
+    const facts = [fact("runtime.http", "fail", undefined, msg)];
+    return {
+      name: "service_health",
+      status: "fail",
+      confidence: 0.85,
+      facts,
+      explanation: `HTTP probe failed: ${msg}`,
+      details: { url, error: msg, latencyMs },
+    };
+  }
+}
+
 export async function diagnoseRelease(
   service: string,
-  intent: "is_deploy_correct" | "root_cause" | "is_healthy" = "is_deploy_correct",
+  intent: DiagnosticIntent = "is_deploy_correct",
 ): Promise<Record<string, unknown>> {
   const target = resolveTarget(service);
   if (!target) {
@@ -144,18 +213,29 @@ export async function diagnoseRelease(
       status: "unknown",
       service,
       intent,
+      truthMatrix: {
+        providerHealth: "unknown",
+        serviceHealth: "unknown",
+        releaseIntegrity: "unknown",
+        dependencyHealth: "unknown",
+        schemaParity: "unknown",
+        userJourneyHealth: "unknown",
+      },
       findings: [{ severity: "high", code: "SERVICE_NOT_MAPPED", message: "No authoritative service mapping exists; no provider was queried." }],
       checks: [],
     };
   }
 
-  const [head, deploy, health, runtime, logs, runs] = await Promise.allSettled([
+  const [head, deploy, health, runtime, directHttp, logs, runs, depReport, schemaCheck] = await Promise.allSettled([
     getRepositoryHead(target.repo, target.branch),
     getLatestDeploy(target.renderAccountId, target.renderServiceId),
     getServiceHealth(target.renderAccountId, target.renderServiceId),
     readRuntimeRelease(target),
-    listLogs(target.renderAccountId, target.renderServiceId, { type: "app", level: "error", limit: 20 }),
+    probeDirectHttpHealth(target),
+    listLogs(target.renderAccountId, target.renderServiceId, { type: "app", level: "error", limit: 25 }),
     getWorkflowRuns(target.repo, 5),
+    probeServiceDependencies(target.name),
+    probeSchemaParity(target.name),
   ]);
 
   const intendedCommit = head.status === "fulfilled" ? shortSha(head.value.sha) : null;
@@ -166,36 +246,157 @@ export async function diagnoseRelease(
   ) : null;
   const runtimeStatus: CheckStatus = runtime.status === "fulfilled" && runtimeBody ? "pass" : "unknown";
   const healthStatus: CheckStatus = health.status === "fulfilled" ? "pass" : "error";
-  const logCount = logs.status === "fulfilled" ? logs.value.count : null;
+  const serviceHttpCheck: EvidenceCheck = directHttp.status === "fulfilled" ? directHttp.value : { name: "service_health", status: "error", details: { error: "Probe failed" } };
+
+  const logResult: RenderLogsResult | null = logs.status === "fulfilled" ? logs.value : null;
+  const logCount = logResult ? logResult.count : null;
   const ci = runs.status === "fulfilled" ? extractLatestSuccessfulRun(runs.value, intendedCommit) : { sha: null, conclusion: null, branch: null };
   const ciCommit = ci.sha;
 
+  const depResult: ServiceDependencyReport = depReport.status === "fulfilled"
+    ? depReport.value
+    : { service: target.name, overallStatus: "unknown", dependencies: [], impactedDownstreamServices: getDownstreamServices(target.name) };
+
+  const schemaParityCheck: EvidenceCheck = schemaCheck.status === "fulfilled"
+    ? schemaCheck.value
+    : { name: "schema_parity", status: "unknown", details: { error: "Schema parity check could not be executed" } };
+
+  const releaseCheck = compareCommitEvidence(intendedCommit, deployedCommit, runtimeCommit);
+
+  const userJourneyStatus: EvidenceStatus = logResult
+    ? (logCount && logCount > 0 ? "fail" : "pass")
+    : "unknown";
+
+  // Construct 6-dimension Truth Matrix
+  const truthMatrix: DiagnosticTruthMatrix = {
+    providerHealth: healthStatus === "pass" ? "pass" : healthStatus === "error" ? "fail" : "unknown",
+    serviceHealth: serviceHttpCheck.status,
+    releaseIntegrity: releaseCheck.status,
+    dependencyHealth: depResult.overallStatus,
+    schemaParity: schemaParityCheck.status,
+    userJourneyHealth: userJourneyStatus,
+  };
+
   const checks: EvidenceCheck[] = [
     { name: "provider_health", status: healthStatus, details: health.status === "fulfilled" ? { observed: "Render API returned service data" } : { error: health.reason instanceof Error ? health.reason.message : "health lookup failed" } },
+    serviceHttpCheck,
     { name: "intended_source", status: intendedCommit ? "pass" : "unknown", details: { repository: target.repo, branch: target.branch, commit: intendedCommit } },
     { name: "ci_evidence", status: ciCommit ? (ciCommit === intendedCommit ? "pass" : "fail") : "unknown", details: { latestRunCommit: ciCommit, intendedCommit } },
     { name: "runtime_metadata", status: runtimeStatus, details: { url: `${target.runtimeUrl}/release`, commit: runtimeCommit } },
-    { name: "recent_error_logs", status: logs.status === "fulfilled" ? (logCount && logCount > 0 ? "fail" : "pass") : "unknown", details: { count: logCount, window: "adapter default" } },
-    compareCommitEvidence(intendedCommit, deployedCommit, runtimeCommit),
+    { name: "recent_error_logs", status: userJourneyStatus, details: { count: logCount, window: logResult?.window ?? "15m" } },
+    releaseCheck,
+    {
+      name: "dependency_health",
+      status: depResult.overallStatus,
+      details: { dependencies: depResult.dependencies, downstreamImpact: depResult.impactedDownstreamServices },
+    },
+    schemaParityCheck,
   ];
 
-  // Intent is a policy selector, not decoration. A root-cause request must
-  // include temporal/log evidence; a release request must prove source→CI→deploy→runtime.
-  if (intent === "root_cause" && logs.status !== "fulfilled") {
-    checks.push({ name: "root_cause_evidence", status: "unknown", confidence: 0.1, facts: [fact("render.logs", "unknown", undefined, "runtime logs unavailable")], explanation: "Root cause cannot be proven without runtime evidence." });
-  }
+  // Intent Specific Synthesis
+  let rootCauseReport: Record<string, unknown> | null = null;
+  let releaseVerdict: string | null = null;
+  let incidentTimeline: Record<string, unknown> | null = null;
+  let changeImpact: Record<string, unknown> | null = null;
+
   if (intent === "is_deploy_correct" && ci.conclusion !== "success") {
     checks.push({ name: "ci_gate", status: "unknown", confidence: 0.1, facts: [fact("github.actions", "unknown", { conclusion: ci.conclusion, commit: ciCommit })], explanation: "No successful CI run for the intended commit was proven." });
+  }
+
+  if (intent === "release_verify") {
+    const isVerified =
+      truthMatrix.releaseIntegrity === "pass" &&
+      truthMatrix.serviceHealth === "pass" &&
+      ci.conclusion === "success" &&
+      truthMatrix.userJourneyHealth === "pass" &&
+      truthMatrix.dependencyHealth !== "fail" &&
+      truthMatrix.schemaParity !== "fail";
+
+    releaseVerdict = isVerified ? "PROCEED_RELEASE_VERIFIED" : "REJECT_RELEASE_INTEGRITY_DRIFT";
+  }
+
+  if (intent === "root_cause") {
+    const identifiedLayers: string[] = [];
+    if (truthMatrix.releaseIntegrity === "fail") identifiedLayers.push("RELEASE_COMMIT_MISMATCH");
+    if (truthMatrix.schemaParity === "fail") identifiedLayers.push("SCHEMA_PARITY_BREACH");
+    if (truthMatrix.dependencyHealth === "fail") identifiedLayers.push("UPSTREAM_DEPENDENCY_FAILURE");
+    if (truthMatrix.userJourneyHealth === "fail") identifiedLayers.push("RUNTIME_APPLICATION_EXCEPTION");
+    if (truthMatrix.providerHealth === "fail") identifiedLayers.push("CLOUD_PROVIDER_OUTAGE");
+
+    rootCauseReport = {
+      primaryFailureLayer: identifiedLayers[0] || (checks.some((c) => c.status === "fail") ? "SYSTEM_DEGRADATION" : "NONE"),
+      contributingFactors: identifiedLayers,
+      remediationSummary: identifiedLayers.includes("RELEASE_COMMIT_MISMATCH")
+        ? "Redeploy service to match latest tested git commit."
+        : identifiedLayers.includes("SCHEMA_PARITY_BREACH")
+          ? "Run missing database migrations against Supabase target."
+          : identifiedLayers.includes("UPSTREAM_DEPENDENCY_FAILURE")
+            ? "Restore failing upstream dependencies identified in dependency graph."
+            : "Inspect application error logs for unhandled stack traces.",
+    };
+  }
+
+  if (intent === "incident_timeline") {
+    const deployData = deploy.status === "fulfilled" ? deploy.value : null;
+    const deployCreated = deployData?.createdAt ? new Date(deployData.createdAt).getTime() : null;
+    const deployFinished = deployData?.finishedAt ? new Date(deployData.finishedAt).getTime() : null;
+
+    const errorEvents = (logResult?.logs || []).map((l) => {
+      const logTime = l.timestamp ? new Date(l.timestamp).getTime() : null;
+      let phase: "pre_deploy" | "during_deploy" | "post_deploy" | "unknown" = "unknown";
+      if (logTime && deployFinished) {
+        if (logTime > deployFinished) phase = "post_deploy";
+        else if (deployCreated && logTime < deployCreated) phase = "pre_deploy";
+        else phase = "during_deploy";
+      }
+      return {
+        timestamp: l.timestamp,
+        level: l.level,
+        phase,
+        message: l.message,
+      };
+    });
+
+    const postDeployErrors = errorEvents.filter((e) => e.phase === "post_deploy").length;
+    const preDeployErrors = errorEvents.filter((e) => e.phase === "pre_deploy").length;
+
+    incidentTimeline = {
+      deployCreatedAt: deployData?.createdAt ?? null,
+      deployFinishedAt: deployData?.finishedAt ?? null,
+      deployStatus: deployData?.status ?? null,
+      totalErrorsInWindow: errorEvents.length,
+      postDeployErrorCount: postDeployErrors,
+      preDeployErrorCount: preDeployErrors,
+      regressionCorrelation: postDeployErrors > 0 ? "HIGH_REGRESSION_CORRELATION" : "LOW_REGRESSION_CORRELATION",
+      events: errorEvents.slice(0, 15),
+    };
+  }
+
+  if (intent === "change_impact") {
+    changeImpact = {
+      service: target.name,
+      watchPaths: target.watchPaths || [],
+      downstreamDependents: depResult.impactedDownstreamServices,
+      blastRadiusAssessment: depResult.impactedDownstreamServices.length > 0
+        ? `High blast radius: changes affect ${depResult.impactedDownstreamServices.join(", ")}`
+        : "Isolated blast radius: no downstream internal services declared.",
+    };
   }
 
   const status = aggregateStatus(checks);
   const failed = checks.filter((check) => check.status === "fail");
   const findings = failed.map((check) => ({
-    severity: check.name === "release_integrity" ? "critical" : "high",
-    code: check.name === "release_integrity" ? "DEPLOYMENT_COMMIT_MISMATCH" : "DIAGNOSTIC_CHECK_FAILED",
+    severity: check.name === "release_integrity" || check.name === "schema_parity" ? "critical" : "high",
+    code: check.name === "release_integrity"
+      ? "DEPLOYMENT_COMMIT_MISMATCH"
+      : check.name === "schema_parity"
+        ? "SCHEMA_BEHIND_CODE"
+        : `${check.name.toUpperCase()}_FAILED`,
     message: check.name === "release_integrity"
       ? "Render may be healthy while the deployed/runtime commit differs from the intended release."
-      : `${check.name} failed`,
+      : check.name === "schema_parity"
+        ? "Database schema is missing core tables required by code models."
+        : `${check.name} failed diagnostic verification`,
     evidence: check.details,
   }));
 
@@ -205,6 +406,7 @@ export async function diagnoseRelease(
     repository: target.repo,
     branch: target.branch,
     intent,
+    truthMatrix,
     confidence: Math.min(...checks.map((check) => check.confidence ?? 0.8)),
     checks,
     findings,
@@ -213,8 +415,13 @@ export async function diagnoseRelease(
       latestWorkflowCommit: ciCommit,
       runtimeRelease: runtimeBody,
       recentErrorCount: logCount,
+      dependencies: depResult,
     },
-    errors: [head, deploy, health, runtime, logs, runs]
+    ...(rootCauseReport ? { rootCauseReport } : {}),
+    ...(releaseVerdict ? { releaseVerdict } : {}),
+    ...(incidentTimeline ? { incidentTimeline } : {}),
+    ...(changeImpact ? { changeImpact } : {}),
+    errors: [head, deploy, health, runtime, directHttp, logs, runs, depReport, schemaCheck]
       .filter((item): item is PromiseRejectedResult => item.status === "rejected")
       .map((item) => item.reason instanceof Error ? item.reason.message : "provider lookup failed"),
   };
@@ -224,10 +431,17 @@ export async function registerDiagnosticTools(server: McpServer): Promise<void> 
   server.registerTool(
     "system.diagnose",
     {
-      description: "Evidence-based deployment diagnosis: compares intended GitHub commit, CI, Render deploy, runtime release metadata, health, and recent errors. Healthy provider status alone never produces a healthy release verdict.",
+      description: "Evidence-based deployment & system diagnosis across 6 truth dimensions (providerHealth, serviceHealth, releaseIntegrity, dependencyHealth, schemaParity, userJourneyHealth). Supports intents: is_deploy_correct, root_cause, is_healthy, release_verify, incident_timeline, change_impact.",
       annotations: { readOnlyHint: true, idempotentHint: true },
       inputSchema: {
-        intent: z.enum(["is_deploy_correct", "root_cause", "is_healthy"]).default("is_deploy_correct"),
+        intent: z.enum([
+          "is_deploy_correct",
+          "root_cause",
+          "is_healthy",
+          "release_verify",
+          "incident_timeline",
+          "change_impact",
+        ]).default("is_deploy_correct"),
         service: z.string().default("backend-api"),
       },
     },
@@ -244,4 +458,4 @@ export async function registerDiagnosticTools(server: McpServer): Promise<void> 
   );
 }
 
-export { compareCommitEvidence, resolveTarget };
+export { resolveTarget };
