@@ -84,7 +84,8 @@
     "test:annotations-floor": "tsx test_annotations_floor.ts",
     "test:render-build-window": "tsx test_render_build_window.ts",
     "test:github-pr-addressability": "tsx test_github_pr_addressability.ts",
-    "test:diagnostic": "tsx test_system_diagnose.ts"
+    "test:diagnostic": "tsx test_system_diagnose.ts",
+    "test:intelligent-foundation": "tsx test_system_diagnose.ts && tsx test_intelligent_foundation.ts"
   },
   "keywords": [
     "mcp",
