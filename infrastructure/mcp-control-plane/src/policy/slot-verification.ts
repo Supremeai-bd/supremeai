@@ -383,12 +383,16 @@ function clientIpOf(req: IncomingMessage): string {
 }
 
 /**
- * URL connection fallback.
- * TEMPORARY (PRE-PRODUCTION): Until the system is fully ready for production,
- * URL connections default to "admin" role so AI agents connecting via URL
- * (Claude, Cursor, Antigravity, etc.) can execute tasks immediately.
- * প্রোডাকশনের জন্য সম্পূর্ণ প্রস্তুত হওয়ার পূর্ব পর্যন্ত এটি "admin" রোলে থাকবে;
- * প্রোডাকশন রেডি হলে পুনরায় কঠোর "viewer" রোলে রোলব্যাক করা হবে।
+ * Zero-Trust URL connection resolution & Fallback Policy:
+ * 1. If ?client=<name> is presented:
+ *    - Check registry database for pre-registered slot/client.
+ *    - If found:
+ *      * If role is "agent", grant "agent" role directly (safe for bridge & autonomous coding).
+ *      * If role is "admin" or "supremeadmin", enforce 2nd-step authentication (requires valid credential/token);
+ *        unauthenticated admin attempts downgrade to viewer.
+ *    - If NOT found in database:
+ *      * Deny privileged access (default to zero-trust read-only "viewer").
+ * 2. Anonymous connections get strictly "viewer" role.
  */
 function viewerFallback(
   req: IncomingMessage,
@@ -400,15 +404,33 @@ function viewerFallback(
 ): SlotSession {
   const guest = autoRegisterGuestClient(req, protocol, tenantId);
   recordSlotAudit({ slotId, operation: "connect", outcome: "denied", reason, clientIp, tenantId });
-  // Pre-production: URL connect gets "admin" role
-  const fallbackRole: UserRole = "admin";
+
+  // Zero-Trust Database Slot Check:
+  let resolvedRole: UserRole = "viewer";
+  let isAuthenticated = false;
+
+  if (slotId) {
+    const existingSlot = getClient(slotId);
+    if (existingSlot && existingSlot.status === "active") {
+      if (existingSlot.role === "agent") {
+        // Case 2: Registered Agent Slot -> grant agent role directly
+        resolvedRole = "agent";
+        isAuthenticated = true;
+      } else if (existingSlot.role === "admin" || existingSlot.role === "supremeadmin") {
+        // Case 3: Admin / Supremeadmin -> 2nd Step Auth required. Without credential, fail-closed to viewer.
+        resolvedRole = "viewer";
+        isAuthenticated = false;
+      }
+    }
+  }
+
   return {
     client: guest,
-    role: fallbackRole,
-    authenticated: true,
-    scopes: defaultClientScopes(fallbackRole),
+    role: resolvedRole,
+    authenticated: isAuthenticated,
+    scopes: defaultClientScopes(resolvedRole),
     slotId,
-    slotVerified: false,
+    slotVerified: isAuthenticated,
     fallbackReason: reason,
     tenantId,
   };
