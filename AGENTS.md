@@ -82,6 +82,14 @@ hybrid bridge contract. The following rules are non-negotiable:
 - **Credential Zero-Leak Rule:** No agent may print or expose GitHub tokens or
   secrets in plaintext in console output or prompt logs. Secrets are loaded
   from Infisical into memory only (`GITHUB_READONLY_TOKEN`).
+- **Render Service Health & Cold-Start Policy (Zero-Leniency Invariant):**
+  SupremeAI maintains a persistent, zero-cost Cloudflare Keep-Warm Mesh (`infrastructure/cloudflare-render-keepwarm/worker.js`)
+  pinging all service endpoints on a tight 5-minute schedule. Render free-tier instances
+  dormancy threshold is 15 minutes; with the keepwarm mesh active, **services MUST NEVER sleep or cold-start**.
+  AI agents (`platform-guardian`, `solver`, `inspector`, etc.) MUST NEVER excuse or dismiss a non-2xx
+  health check or read timeout as "স্বাভাবিক Render free tier cold-start". Any service reporting degraded,
+  read timeout, or 5xx MUST be treated as an **ACTIVE SYSTEM DEFECT / INCIDENT (ERROR)**, investigated for
+  underlying root causes (OOM, unhandled crash, route mismatch, or keepwarm failure), and escalated or remediated immediately.
 
 ### Tool Routing Contract
 
