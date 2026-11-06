@@ -249,13 +249,53 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
         headers: { Authorization: `Bearer ${token}` },
       });
       const verified = res.ok && res.data?.success === true;
+      if (!verified) {
+        return {
+          ...base,
+          url: "https://api.cloudflare.com/client/v4",
+          status: "degraded",
+          httpStatus: res.status,
+          latencyMs: res.latencyMs,
+          error: "Cloudflare token verify failed — invalid or expired",
+        };
+      }
+
+      // Also verify the configured worker route if present so a worker 404/500 is never reported as top-level healthy
+      if (svc.url && svc.url.startsWith("http") && !svc.url.includes("api.cloudflare.com")) {
+        try {
+          const workerRes = await httpRequest(svc.url, {
+            timeoutMs: 5000,
+            retries: 0,
+            headers: { "User-Agent": "SupremeAI-Control-Tower/1.0" },
+          });
+          if (!workerRes.ok) {
+            return {
+              ...base,
+              url: svc.url,
+              status: "degraded",
+              httpStatus: workerRes.status,
+              latencyMs: res.latencyMs + workerRes.latencyMs,
+              error: `Cloudflare API reachable, but worker endpoint ${svc.url} returned HTTP ${workerRes.status}`,
+            };
+          }
+        } catch (wErr) {
+          return {
+            ...base,
+            url: svc.url,
+            status: "degraded",
+            httpStatus: null,
+            latencyMs: res.latencyMs,
+            error: `Cloudflare API reachable, but worker endpoint ${svc.url} failed: ${(wErr as Error).message}`,
+          };
+        }
+      }
+
       return {
         ...base,
-        url: "https://api.cloudflare.com/client/v4",
-        status: verified ? "healthy" : "degraded",
+        url: svc.url || "https://api.cloudflare.com/client/v4",
+        status: "healthy",
         httpStatus: res.status,
         latencyMs: res.latencyMs,
-        ...(verified ? {} : { error: "Cloudflare token verify failed — invalid or expired" }),
       };
     } catch (err) {
       return { ...base, url: "https://api.cloudflare.com/client/v4", status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };

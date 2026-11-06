@@ -111,26 +111,57 @@ export async function registerDeepHealthTools(server: McpServer): Promise<void> 
         if (renderSvcId && !renderSvcId.startsWith("xxx")) {
           const rHealth: any = await getServiceHealth(renderAccountId, renderSvcId);
           const svc = rHealth?.service;
+          const isNotSuspended = svc?.suspended !== "suspended";
+          const lastDeployStatus = rHealth?.lastDeployStatus || "unknown";
+          const monthlyBuildMinutesUsed = rHealth?.monthlyBuildMinutes ?? svc?.monthlyBuildMinutes ?? 0;
+          const freeTierExhausted = Boolean(rHealth?.freeLimitExhausted ?? svc?.freeLimitExhausted);
+          const freeLimitRemaining = rHealth?.freeLimitRemaining ?? Math.max(0, 500 - monthlyBuildMinutesUsed);
+
+          // Probe live runtime health endpoint for complete ground-truth evidence
+          let runtimeHealthStatus: "healthy" | "degraded" | "unreachable" | "unknown" = "unknown";
+          let runtimeHttpStatus: number | null = null;
+          let runtimeLatencyMs: number | null = null;
+          const runtimeUrl = target?.runtimeUrl;
+          const healthPath = target?.healthPath || "/healthz";
+          if (runtimeUrl) {
+            try {
+              const rtStart = Date.now();
+              const rtRes = await httpRequest(`${runtimeUrl.replace(/\/$/, "")}${healthPath}`, { timeoutMs: 6000, retries: 1 });
+              runtimeHttpStatus = rtRes.status;
+              runtimeLatencyMs = Date.now() - rtStart;
+              runtimeHealthStatus = rtRes.ok ? "healthy" : "degraded";
+            } catch {
+              runtimeHealthStatus = "unreachable";
+            }
+          }
+
+          const isRenderLive = isNotSuspended && (lastDeployStatus === "live" || runtimeHealthStatus === "healthy");
           results.probes.render = {
-            status: svc?.status || "unknown",
+            status: isRenderLive ? "healthy" : !isNotSuspended ? "suspended" : lastDeployStatus !== "unknown" ? lastDeployStatus : runtimeHealthStatus,
             canonicalServiceId: serviceRef?.canonicalServiceId ?? "mcp",
             renderServiceId: renderSvcId,
             renderAccountId,
-            suspended: svc?.suspended === "suspended",
+            serviceExists: Boolean(svc?.id),
+            suspended: !isNotSuspended,
+            lastDeployStatus,
+            runtimeHealthStatus,
+            runtimeHttpStatus,
+            runtimeLatencyMs,
             autoDeploy: svc?.autoDeploy,
-            monthlyBuildMinutesUsed: svc?.monthlyBuildMinutes,
-            freeTierExhausted: svc?.freeLimitExhausted || false,
+            monthlyBuildMinutesUsed,
+            freeLimitRemaining,
+            freeTierExhausted,
           };
 
           if (includeFreeTierAudit) {
-            if (svc?.freeLimitExhausted) {
+            if (freeTierExhausted) {
               results.freeTierStatus.breaches.push(
                 "Render monthly 500 free build minutes are EXHAUSTED. Auto deploys will fail unless upgraded or month resets."
               );
               results.freeTierStatus.healthy = false;
-            } else if (svc?.monthlyBuildMinutes && svc.monthlyBuildMinutes > 400) {
+            } else if (monthlyBuildMinutesUsed > 400) {
               results.freeTierStatus.warnings.push(
-                `Render free build minutes at ${svc.monthlyBuildMinutes}/500 mins (>80% used).`
+                `Render free build minutes at ${monthlyBuildMinutesUsed}/500 mins (>80% used).`
               );
             }
           }
