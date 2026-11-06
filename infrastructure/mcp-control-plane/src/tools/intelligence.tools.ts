@@ -5,10 +5,21 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { isIP } from "node:net";
 
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../../..");
+
+function assertSafeAuditUrl(raw: string): URL {
+  const parsed = new URL(raw);
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") throw new Error("Only HTTP(S) audit targets are allowed");
+  const hostname = parsed.hostname.toLowerCase();
+  if (hostname === "localhost" || hostname.endsWith(".local") || hostname === "127.0.0.1" || hostname === "::1" || (isIP(hostname) === 4 && hostname.startsWith("10.")) || (isIP(hostname) === 4 && hostname.startsWith("192.168."))) {
+    throw new Error("Private or loopback audit targets are not allowed");
+  }
+  return parsed;
+}
 
 interface GraphNode {
   id: string;
@@ -149,9 +160,10 @@ export async function registerIntelligenceTools(server: McpServer): Promise<void
       url: z.string().url().describe("Target URL to audit, e.g. 'https://example.com'"),
       device: z.enum(["desktop", "mobile"]).optional().describe("Device viewport profile (default: desktop)"),
     },
-    { readOnlyHint: false, destructiveHint: false },
+    { readOnlyHint: true, idempotentHint: true },
     async ({ url, device }) => {
       try {
+        const safeUrl = assertSafeAuditUrl(url);
         let auditFallbackReason: string | undefined;
         const auditScript = path.join(REPO_ROOT, ".agents", "skills", "devtools-audit", "scripts", "audit.mjs");
         const reportScript = path.join(REPO_ROOT, ".agents", "skills", "devtools-audit", "scripts", "build_report.py");
@@ -164,7 +176,7 @@ export async function registerIntelligenceTools(server: McpServer): Promise<void
           try {
             await execFileAsync("node", [
               auditScript,
-              url,
+              safeUrl.toString(),
               "--out",
               rawPath,
               "--device",
@@ -179,7 +191,7 @@ export async function registerIntelligenceTools(server: McpServer): Promise<void
               "--out-dir",
               tempOutDir,
               "--label",
-              new URL(url).hostname,
+              safeUrl.hostname,
             ]);
 
             const reportJsonPath = path.join(tempOutDir, "report.json");
@@ -191,7 +203,7 @@ export async function registerIntelligenceTools(server: McpServer): Promise<void
                     type: "text",
                     text: JSON.stringify(
                       {
-                        target: url,
+                        target: safeUrl.toString(),
                         device: device || "desktop",
                         verdict: report.verdict,
                         counts: report.counts,
@@ -216,7 +228,7 @@ export async function registerIntelligenceTools(server: McpServer): Promise<void
 
         // Fast HTTP diagnostics fallback (guaranteed offline/minimal mode)
         const start = Date.now();
-        const resp = await fetch(url, { headers: { "User-Agent": "SupremeAI-DevTools-Audit/1.0" } });
+        const resp = await fetch(safeUrl, { headers: { "User-Agent": "SupremeAI-DevTools-Audit/1.0" }, signal: AbortSignal.timeout(20_000) });
         const latencyMs = Date.now() - start;
         const headers = Object.fromEntries(resp.headers.entries());
 

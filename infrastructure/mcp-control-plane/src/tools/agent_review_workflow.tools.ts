@@ -65,13 +65,22 @@ export async function registerAgentReviewWorkflowTools(server: McpServer): Promi
         if (previous) throw new Error("An identical workflow request is already running");
         const pending: { expiresAt: number; result?: unknown } = { expiresAt: now + IDEMPOTENCY_TTL_MS };
         activeRequests.set(key, pending);
-        const result = await backendRequest("/api/v1/agent_review_workflow/execute", {
-          prompt,
-          language,
-          ...((context ?? {}) as Record<string, unknown>),
-        });
-        pending.result = result;
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        try {
+          // Caller context is data, never a control-plane override. Keep the
+          // validated prompt/language authoritative even if context contains
+          // keys with the same names.
+          const result = await backendRequest("/api/v1/agent_review_workflow/execute", {
+            ...((context ?? {}) as Record<string, unknown>),
+            prompt,
+            language,
+          });
+          pending.result = result;
+          return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        } catch (error) {
+          // Failed attempts must not poison the idempotency key until TTL.
+          activeRequests.delete(key);
+          throw error;
+        }
       } catch (err) {
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }

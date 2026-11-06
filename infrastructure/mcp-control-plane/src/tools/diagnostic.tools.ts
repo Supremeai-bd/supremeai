@@ -4,13 +4,10 @@ import { env } from "../lib/env.js";
 import { getLatestDeploy, getServiceHealth, listLogs } from "../adapters/render/index.js";
 import { getRepositoryHead, getWorkflowRuns } from "../adapters/github/index.js";
 import { RequestContextStore, roleRank, type UserRole } from "../policy/auth.context.js";
+import { aggregateStatus, confidenceFor, fact, type EvidenceCheck } from "../diagnostics/evidence.js";
 
 type CheckStatus = "pass" | "fail" | "unknown" | "error";
-export interface DiagnosticCheck {
-  name: string;
-  status: CheckStatus;
-  details: Record<string, unknown>;
-}
+export type DiagnosticCheck = EvidenceCheck;
 
 interface ServiceTarget {
   name: string;
@@ -57,26 +54,53 @@ function shortSha(value: string | null | undefined): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function extractRunCommit(value: unknown): string | null {
+function extractLatestSuccessfulRun(
+  value: unknown,
+  intendedCommit: string | null,
+): { sha: string | null; conclusion: string | null; branch: string | null } {
   const root = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const runs = Array.isArray(root.workflow_runs) ? root.workflow_runs : Array.isArray(value) ? value : [];
-  const first = runs[0] && typeof runs[0] === "object" ? runs[0] as Record<string, unknown> : {};
-  return shortSha(typeof first.head_sha === "string" ? first.head_sha : typeof first.headSha === "string" ? first.headSha : null);
+  const candidates = runs.filter((run) => run && typeof run === "object") as Record<string, unknown>[];
+  const matching = candidates.find((run) => {
+    const sha = typeof run.head_sha === "string" ? run.head_sha : typeof run.headSha === "string" ? run.headSha : null;
+    const conclusion = String(run.conclusion ?? "").toLowerCase();
+    return (!intendedCommit || sha === intendedCommit) && conclusion === "success";
+  });
+  const first = matching ?? candidates[0] ?? {};
+  return {
+    sha: shortSha(typeof first.head_sha === "string" ? first.head_sha : typeof first.headSha === "string" ? first.headSha : null),
+    conclusion: typeof first.conclusion === "string" ? first.conclusion : null,
+    branch: typeof first.head_branch === "string" ? first.head_branch : typeof first.headBranch === "string" ? first.headBranch : null,
+  };
 }
 
 function compareCommitEvidence(
   intended: string | null,
   deployed: string | null,
   runtime: string | null,
-): DiagnosticCheck {
+): EvidenceCheck {
   if (!intended || !deployed) {
-    return { name: "release_integrity", status: "unknown", details: { intendedCommit: intended, deployedCommit: deployed, runtimeCommit: runtime, reason: "required commit evidence unavailable" } };
+    return {
+      name: "release_integrity",
+      status: "unknown",
+      confidence: 0.1,
+      facts: [fact("comparison", "unknown", undefined, "required commit evidence unavailable")],
+      details: { intendedCommit: intended, deployedCommit: deployed, runtimeCommit: runtime, reason: "required commit evidence unavailable" },
+    };
   }
   const deploymentMatches = intended === deployed;
   const runtimeMatches = !runtime || runtime === deployed;
+  const status: CheckStatus = deploymentMatches && runtimeMatches ? "pass" : "fail";
+  const facts = [
+    fact("github.intended", intended ? "pass" : "unknown", intended),
+    fact("render.deployed", deployed ? "pass" : "unknown", deployed),
+    ...(runtime ? [fact("runtime.release", "pass", runtime)] : []),
+  ];
   return {
     name: "release_integrity",
-    status: deploymentMatches && runtimeMatches ? "pass" : "fail",
+    status,
+    confidence: confidenceFor(status, facts),
+    facts,
     details: {
       intendedCommit: intended,
       deployedCommit: deployed,
@@ -102,12 +126,16 @@ async function readRuntimeRelease(target: ServiceTarget): Promise<Record<string,
   }
 }
 
-export async function diagnoseRelease(service: string): Promise<Record<string, unknown>> {
+export async function diagnoseRelease(
+  service: string,
+  intent: "is_deploy_correct" | "root_cause" | "is_healthy" = "is_deploy_correct",
+): Promise<Record<string, unknown>> {
   const target = resolveTarget(service);
   if (!target) {
     return {
       status: "unknown",
       service,
+      intent,
       findings: [{ severity: "high", code: "SERVICE_NOT_MAPPED", message: "No authoritative service mapping exists; no provider was queried." }],
       checks: [],
     };
@@ -128,12 +156,13 @@ export async function diagnoseRelease(service: string): Promise<Record<string, u
   const runtimeCommit = runtimeBody ? shortSha(
     typeof runtimeBody.commit === "string" ? runtimeBody.commit : typeof runtimeBody.commitSha === "string" ? runtimeBody.commitSha : null,
   ) : null;
-  const runtimeStatus = runtime.status === "fulfilled" && runtimeBody ? "pass" : "unknown";
-  const healthStatus = health.status === "fulfilled" ? "pass" : "error";
+  const runtimeStatus: CheckStatus = runtime.status === "fulfilled" && runtimeBody ? "pass" : "unknown";
+  const healthStatus: CheckStatus = health.status === "fulfilled" ? "pass" : "error";
   const logCount = logs.status === "fulfilled" ? logs.value.count : null;
-  const ciCommit = runs.status === "fulfilled" ? extractRunCommit(runs.value) : null;
+  const ci = runs.status === "fulfilled" ? extractLatestSuccessfulRun(runs.value, intendedCommit) : { sha: null, conclusion: null, branch: null };
+  const ciCommit = ci.sha;
 
-  const checks: DiagnosticCheck[] = [
+  const checks: EvidenceCheck[] = [
     { name: "provider_health", status: healthStatus, details: health.status === "fulfilled" ? { observed: "Render API returned service data" } : { error: health.reason instanceof Error ? health.reason.message : "health lookup failed" } },
     { name: "intended_source", status: intendedCommit ? "pass" : "unknown", details: { repository: target.repo, branch: target.branch, commit: intendedCommit } },
     { name: "ci_evidence", status: ciCommit ? (ciCommit === intendedCommit ? "pass" : "fail") : "unknown", details: { latestRunCommit: ciCommit, intendedCommit } },
@@ -142,9 +171,17 @@ export async function diagnoseRelease(service: string): Promise<Record<string, u
     compareCommitEvidence(intendedCommit, deployedCommit, runtimeCommit),
   ];
 
+  // Intent is a policy selector, not decoration. A root-cause request must
+  // include temporal/log evidence; a release request must prove source→CI→deploy→runtime.
+  if (intent === "root_cause" && logs.status !== "fulfilled") {
+    checks.push({ name: "root_cause_evidence", status: "unknown", confidence: 0.1, facts: [fact("render.logs", "unknown", undefined, "runtime logs unavailable")], explanation: "Root cause cannot be proven without runtime evidence." });
+  }
+  if (intent === "is_deploy_correct" && ci.conclusion !== "success") {
+    checks.push({ name: "ci_gate", status: "unknown", confidence: 0.1, facts: [fact("github.actions", "unknown", { conclusion: ci.conclusion, commit: ciCommit })], explanation: "No successful CI run for the intended commit was proven." });
+  }
+
+  const status = aggregateStatus(checks);
   const failed = checks.filter((check) => check.status === "fail");
-  const unknown = checks.filter((check) => check.status === "unknown");
-  const status = failed.length > 0 ? "critical" : unknown.length > 0 ? "unknown" : "healthy";
   const findings = failed.map((check) => ({
     severity: check.name === "release_integrity" ? "critical" : "high",
     code: check.name === "release_integrity" ? "DEPLOYMENT_COMMIT_MISMATCH" : "DIAGNOSTIC_CHECK_FAILED",
@@ -159,6 +196,8 @@ export async function diagnoseRelease(service: string): Promise<Record<string, u
     service: target.name,
     repository: target.repo,
     branch: target.branch,
+    intent,
+    confidence: Math.min(...checks.map((check) => check.confidence ?? 0.8)),
     checks,
     findings,
     evidence: {
@@ -184,11 +223,11 @@ export async function registerDiagnosticTools(server: McpServer): Promise<void> 
         service: z.string().default("backend-api"),
       },
     },
-    async ({ service }) => {
+    async ({ intent, service }) => {
       const denial = assertDiagnosticAccess("system.diagnose", "agent");
       if (denial) return { isError: true, content: [{ type: "text", text: denial }] };
       try {
-        const result = await diagnoseRelease(service);
+        const result = await diagnoseRelease(service, intent);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
         return { isError: true, content: [{ type: "text", text: JSON.stringify({ status: "unknown", error: error instanceof Error ? error.message : "diagnostic failed" }) }] };
