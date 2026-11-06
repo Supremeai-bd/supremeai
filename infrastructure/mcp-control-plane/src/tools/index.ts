@@ -40,6 +40,8 @@ import { registerDeepHealthTools } from "./deep.health.tools.js";
 import { registerAgentBootstrapTools } from "./agent.bootstrap.tools.js";
 import { registerHarnessTools } from "./harness.tools.js";
 import { registerDiagnosticTools } from "./diagnostic.tools.js";
+import { registerLearningTools } from "./learning.tools.js";
+import { registerRemediationTools } from "./remediation.tools.js";
 import { registerPlanningTools } from "./planning.tools.js";
 
 /**
@@ -55,6 +57,12 @@ export async function registerAllTools(
 
   // ── Evidence-based release diagnosis (provider health is not release proof)
   await registerDiagnosticTools(server);
+
+  // ── Learning & Memory Quality Gate (Phase 4)
+  await registerLearningTools(server);
+
+  // ── Safe Remediation (Phase 6)
+  await registerRemediationTools(server);
 
   // ── DAG Execution Planning & Post-Action Verification Engine
   await registerPlanningTools(server);
