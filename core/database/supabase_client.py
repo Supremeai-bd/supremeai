@@ -1737,4 +1737,22 @@ class SupabaseDB:
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
 
+_db_singleton: SupabaseDB | None = None
+
+
+def get_db() -> SupabaseDB:
+    """Return the process-wide lazy SupabaseDB singleton (#2719)."""
+    global _db_singleton
+    if _db_singleton is None:
+        _db_singleton = SupabaseDB()
+    return _db_singleton
+
+
+def reset_db_singleton() -> None:
+    """Clear the process-wide SupabaseDB singleton (test hook)."""
+    global _db_singleton
+    _db_singleton = None
+
+
 db = SupabaseDB()
+

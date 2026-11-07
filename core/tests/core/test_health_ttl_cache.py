@@ -20,7 +20,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-MODULE_PATH = REPO_ROOT / "backend" / "core" / "health_routes.py"
+MODULE_PATH = REPO_ROOT / "core" / "health_routes.py"
+if not MODULE_PATH.is_file():
+    MODULE_PATH = REPO_ROOT / "backend" / "core" / "health_routes.py"
 
 _spec = importlib.util.spec_from_file_location("health_routes_468", MODULE_PATH)
 health_routes = importlib.util.module_from_spec(_spec)

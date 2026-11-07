@@ -51,8 +51,15 @@ on:
     #   + silent-error + dast + constitution + self-audit
     # (Mon 17 3 * * 1 cron retired by #67 — its arms moved to Sunday Tier 2 / daily Tier 1)
     - cron: "0 3 * * 0"
+    # Daily 10:00 AM BDT (04:00 UTC) Automated Production Readiness & Health Report
+    - cron: "0 4 * * *"
   workflow_dispatch:
     inputs:
+      run_daily_health_report:
+        description: 'Run Daily 10:00 AM BDT Health & 5-Point Production Release Gate Report'
+        required: false
+        default: false
+        type: boolean
       run_deep_audit:
         description: 'Run deep-audit (heavy analysis) arm'
         required: false
@@ -341,7 +348,7 @@ jobs:
           SUPREMEAI_JWT_SECRET: "dummy-secret-32-chars-long-123456"
           SUPABASE_DATABASE_URL_WRITER: "postgresql://dummy:pass@localhost:5432/db"
           SUPABASE_URL: "https://dummy.supabase.co"
-          SUPABASE_SERVICE_ROLE_KEY: "dummy-service-role-key"
+          SUPABASE_SERVICE_ROLE_KEY: "example-service-role-key"
           REDIS_URL: "redis://localhost:6379/0"
           SUPREMEAI_BASE_URL: ${{ secrets.SUPREMEAI_BASE_URL }}
         run: |
@@ -2277,3 +2284,25 @@ jobs:
         run: python scripts/ci/secret_naming_guard.py --check
       - name: Secret graph regen guard (report-only)
         run: python scripts/ci/secret_graph_regen.py --check
+
+  daily-10am-bdt-health-report:
+    name: "🩺 Daily 10:00 AM BDT Health & Release Gate Report"
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.run_daily_health_report == true) ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 4 * * *')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run 5-Point Production Release Gate & Generate 10:00 AM BDT Report
+        run: |
+          mkdir -p ci-reports
+          python scripts/ci/production_release_gate.py --self-test
+          python scripts/ci/production_release_gate.py \
+            --check \
+            --json ci-reports/daily-health-report.json \
+            --markdown ci-reports/daily-health-report.md
+          cat ci-reports/daily-health-report.md >> "$GITHUB_STEP_SUMMARY"

@@ -3866,6 +3866,168 @@ def _detect_group(labels: Iterable[str]) -> str:
             return name
     return DEFAULT_GROUP
 
+
+_LOOP_TO_MATRIX_ROLE: dict[str, str] = {
+    "solver": "coder",
+    "coder": "coder",
+    "ci-fixer": "ci-fixer",
+    "auditor": "task-auditor",
+    "task-auditor": "task-auditor",
+    "federation-auditor": "federation-auditor",
+    "ecosystem-scout": "ecosystem-scout",
+    "human-eye": "human-eye",
+    "rules-breaker": "rules-breaker",
+    "platform-guardian": "platform-guardian",
+}
+
+
+def build_autonomy_brain_plan(
+    role: str,
+    task_id: str,
+    title: str,
+    body: str,
+    priority: str,
+    touching_files: list[str] | None = None,
+) -> dict[str, Any]:
+    """বাংলা: #106, #107, #108 — instruction_builder, smart_context_selector,
+    dynamic_router এবং autonomy_persistence-কে একত্রিত করে deterministic
+    autonomy_brain প্ল্যান তৈরি করে।"""
+    try:
+        try:
+            import autonomy_persistence as ap
+            import dynamic_router as dr
+            import instruction_builder as ib
+            import smart_context_selector as scs
+        except ImportError:
+            from scripts.agents import (
+                autonomy_persistence as ap,
+                dynamic_router as dr,
+                instruction_builder as ib,
+                smart_context_selector as scs,
+            )
+
+        matrix_role = _LOOP_TO_MATRIX_ROLE.get(role, "coder")
+        if matrix_role not in ib.ROLE_CONTRACTS:
+            matrix_role = "coder"
+        instruction = ib.build_instruction(matrix_role)
+
+        issue_tokens = max(64, (len(title or "") + len(body or "")) // 4)
+        policy = {
+            "token_budget": 16000,
+            "base_priority": 1.0,
+            "decay_factor": 0.85,
+            "strategy": scs.STRATEGY,
+        }
+        items: list[dict[str, Any]] = [
+            {
+                "kind": "constitution-doc",
+                "label": "AGENTS.md",
+                "tokens": 600,
+                "ref": {"path": "AGENTS.md"},
+            },
+            {
+                "kind": "issue-contract",
+                "label": f"{task_id}: {(title or 'adhoc')[:60]}",
+                "tokens": min(issue_tokens, 6000),
+            },
+        ]
+        scoped_added = False
+        for fpath in (touching_files or [])[:10]:
+            clean_path = str(fpath).strip().lstrip("/")
+            if clean_path and ".." not in clean_path.split("/"):
+                items.append(
+                    {
+                        "kind": "file-scope",
+                        "label": f"scope:{clean_path}",
+                        "tokens": 300,
+                        "ref": {"path": clean_path},
+                    }
+                )
+                scoped_added = True
+        if not scoped_added:
+            items.append(
+                {
+                    "kind": "file-scope",
+                    "label": "scope:scripts/agents/continuous_agent_loop.py",
+                    "tokens": 300,
+                    "ref": {"path": "scripts/agents/continuous_agent_loop.py"},
+                }
+            )
+        items.extend(
+            [
+                {
+                    "kind": "memory-ref",
+                    "label": "Agent episode memory anchor",
+                    "tokens": 200,
+                    "ref": {
+                        "memory": {
+                            "namespace": "agent-episodes",
+                            "document_id": f"ep-{task_id or 'adhoc'}",
+                        }
+                    },
+                },
+                {
+                    "kind": "adr-ref",
+                    "label": "ADR-001 — monorepo boundary invariant",
+                    "tokens": 200,
+                    "ref": {"adr_id": "ADR-001"},
+                },
+                {
+                    "kind": "knowledge-doc",
+                    "label": "docs/AGENT_OPERATING_SYSTEM.md",
+                    "tokens": 300,
+                    "ref": {"path": "docs/AGENT_OPERATING_SYSTEM.md"},
+                },
+                {
+                    "kind": "runtime-state",
+                    "label": f"loop-dispatch:{role}:{priority}",
+                    "tokens": 150,
+                },
+                {
+                    "kind": "transcript",
+                    "label": "loop-session-summary",
+                    "tokens": 100,
+                },
+            ]
+        )
+        assembly_payload = scs.assemble(policy, items, task_id=task_id or "task-adhoc")
+        assembly = assembly_payload["assembly"]
+
+        router_cfg = dr.load_fixture()
+        est_tokens = int(assembly.get("tokens_used", 1500))
+        norm_priority = "P1-high" if priority == "P1" else priority
+        route_plan = dr.plan_task(
+            router_cfg,
+            estimated_input_tokens=est_tokens,
+            priority_tag=norm_priority,
+        ).to_dict()
+
+        included_count = sum(
+            1
+            for layer in assembly.get("layers", [])
+            for it in layer.get("items", [])
+            if it.get("included")
+        )
+
+        return {
+            "instruction": instruction,
+            "context_assembly": {
+                "assembly_id": assembly["assembly_id"],
+                "total_tokens": assembly["tokens_used"],
+                "token_budget": policy["token_budget"],
+                "budget_clipped": assembly["budget_clipped"],
+                "included_count": included_count,
+            },
+            "route_plan": route_plan,
+            "persistence_contract": {
+                "router_contract": ap.ROUTER_CONTRACT,
+                "permissions_contract": ap.PERMISSIONS_CONTRACT,
+            },
+        }
+    except Exception as exc:
+        return {"status": "degraded", "reason": str(exc)}
+
+
 def build_task_envelope(
     issue: dict[str, Any] | None,
     group: str = "",
@@ -4018,6 +4180,14 @@ def build_task_envelope(
         envelope["board_note"] = board_note
     if lane_hint is None:
         envelope.pop("lane_hint", None)
+    envelope["autonomy_brain"] = build_autonomy_brain_plan(
+        role=role,
+        task_id=envelope["task_id"],
+        title=title,
+        body=body,
+        priority=envelope["priority"],
+        touching_files=envelope["scope"]["touching_files"],
+    )
     return {"task_envelope": envelope}
 
 def load_cadence_config(path: Path | None = None) -> dict[str, Any]:

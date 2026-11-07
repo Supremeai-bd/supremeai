@@ -33,7 +33,6 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
-
 DEFAULT_IGNORES = (
     "**/archive/**,"
     "**/node_modules/**,"
@@ -176,16 +175,56 @@ def clone_from_json(item: dict[str, Any]) -> Clone:
     )
 
 
-def load_report(path: Path) -> tuple[list[Clone], list[Clone]]:
+def _changed_files_against_base(base_ref: str, root: Path) -> set[str] | None:
+    for diff_spec in (f"{base_ref}...HEAD", base_ref):
+        res = subprocess.run(
+            ["git", "diff", "--name-only", diff_spec],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if res.returncode == 0:
+            return {
+                line.strip().replace("\\", "/")
+                for line in res.stdout.splitlines()
+                if line.strip()
+            }
+    return None
+
+
+def _rel_norm(path_str: str, root: Path) -> str:
+    p = Path(path_str)
+    try:
+        rel = p.resolve().relative_to(root.resolve())
+        return str(rel).replace("\\", "/")
+    except ValueError:
+        return path_str.replace("\\", "/").lstrip("./")
+
+
+def load_report(
+    path: Path,
+    changed_files: set[str] | None = None,
+    root: Path | None = None,
+) -> tuple[list[Clone], list[Clone]]:
     if not path.exists():
         raise RuntimeError(f"jscpd did not produce its JSON report: {path}")
     payload = json.loads(path.read_text(encoding="utf-8"))
     clones = [clone_from_json(item) for item in payload.get("duplicates", [])]
-    new_clones = [
+    raw_new = [
         clone_from_json(item)
         for item in payload.get("duplicates", [])
         if item.get("isNew") is True
     ]
+    if changed_files is not None and root is not None:
+        new_clones = [
+            c
+            for c in raw_new
+            if _rel_norm(c.file_a, root) in changed_files
+            or _rel_norm(c.file_b, root) in changed_files
+        ]
+    else:
+        new_clones = raw_new
     return clones, new_clones
 
 
@@ -236,7 +275,8 @@ def run_pass(
     ]
     completed = run_command(command, root)
     report_path = output_dir / f"{report_name}.json"
-    clones, new_clones = load_report(report_path)
+    changed_files = _changed_files_against_base(base_ref, root)
+    clones, new_clones = load_report(report_path, changed_files=changed_files, root=root)
     for clone in new_clones:
         emit_annotation(clone, name)
     return PassResult(

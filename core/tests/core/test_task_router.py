@@ -17,6 +17,7 @@ import unittest
 
 from core.task_router import (
     TaskRouter,
+    get_task_router,
     reset_task_router_for_tests,
 )
 
@@ -214,6 +215,16 @@ class TaskRouterCoreTest(unittest.TestCase):
         self.assertIsNone(again)
         with self.assertRaises(KeyError):
             await self.router._claim_specific("task-missing", node_id="pc-1")
+
+    async def test_get_task_router_wires_redis_when_available(self) -> None:
+        from unittest.mock import patch
+
+        reset_task_router_for_tests()
+        sentinel_redis = object()
+        with patch("core.cache.redis_manager.redis_manager") as mock_mgr:
+            mock_mgr.client = sentinel_redis
+            singleton = await get_task_router()
+            self.assertIs(singleton._redis, sentinel_redis)
 
 
 if __name__ == "__main__":

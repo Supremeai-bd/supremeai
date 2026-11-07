@@ -22,7 +22,7 @@ RUNTIME_SITES = [
     "api/routes/keys.py",
     "api/routes/conversations.py",
     "api/routes/chat_search.py",
-    "core/orchestration/capability_adapters.py",
+    "orchestration/capability_adapters.py",
 ]
 
 

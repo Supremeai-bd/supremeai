@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from api.deps import get_current_user_token
 from core.monitoring.logging_config import logger
-from database.supabase_client import SupabaseDB
+from database.supabase_client import get_db
 
 router = APIRouter(
     prefix="/api/chat/upload",
@@ -219,7 +219,7 @@ async def upload_chat_image(
 
     # Persist reference in DB
     try:
-        db = SupabaseDB()
+        db = get_db()
         await (
             db.client.table("chat_attachments")
             .insert(
@@ -333,7 +333,7 @@ async def serve_upload(
     if metadata is None:
         # Try loading from database
         try:
-            db = SupabaseDB()
+            db = get_db()
             resp = (
                 await db.client.table("chat_attachments")
                 .select("*")
@@ -392,7 +392,7 @@ async def delete_upload(
     metadata = _uploads.get(attachment_id)
     if metadata is None:
         try:
-            db = SupabaseDB()
+            db = get_db()
             resp = (
                 await db.client.table("chat_attachments")
                 .select("*")
@@ -430,7 +430,7 @@ async def delete_upload(
 
     # Delete from DB
     try:
-        db = SupabaseDB()
+        db = get_db()
         await db.client.table("chat_attachments").delete().eq("id", attachment_id).execute()
     except Exception as db_err:
         logger.warning(f"Failed to delete attachment from DB: {db_err}")

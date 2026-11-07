@@ -48,11 +48,33 @@ from .registry import _provider_key_pool, _resolve_litellm_target
 from .spend_meter import settle_gateway_spend
 
 
+UNATTRIBUTED_TENANT: str = "unattributed"
+
+
 def get_firestore_db(*args: Any, **kwargs: Any):
     """Package-split patch seam — see module docstring (task 4-a)."""
     from core.llm import llm_gateway as _package
 
     return _package.get_firestore_db(*args, **kwargs)
+
+
+async def enforce_preflight_budget(tenant_id: str | None, prompt_text: str) -> None:
+    """Enforce pre-flight budget check for named or unattributed tenants (#2732)."""
+    from core.cost_guard import cost_guard as _shared_cost_guard
+
+    est_tokens = max(1, len(prompt_text or "") // 4)
+    est_cost = max(0.0001, (est_tokens / 1000.0) * 0.002)
+    normalized = (tenant_id or "").strip().lower()
+    if not normalized or normalized in ("anonymous", UNATTRIBUTED_TENANT):
+        await _shared_cost_guard.check_unattributed_budget(est_cost)
+        return
+
+    db = get_firestore_db()
+    if db is None:
+        return
+    guard = CostGuard(db)
+    await guard.check_budget(str(tenant_id), est_cost)
+
 
 
 class CompletionMixin:

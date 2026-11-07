@@ -117,6 +117,8 @@ jobs:
           test -f scripts/ci/readiness_contract.py
           python scripts/ci/readiness_contract.py --self-test
           python scripts/ci/readiness_contract.py --check-required-names
+          python scripts/ci/production_release_gate.py --self-test
+          python scripts/ci/production_release_gate.py --check
 
       - name: Verify timeout and silent-failure policy
         run: |

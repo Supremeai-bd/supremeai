@@ -31,6 +31,7 @@ CAS-style atomic claim, lease/heartbeat, "Zero Zombie Tasks" failover —
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 import uuid
 from datetime import UTC, datetime
@@ -514,8 +515,14 @@ async def get_task_router() -> TaskRouter:
     if _router_singleton is None:
         async with _singleton_lock:
             if _router_singleton is None:
-                # বাংলা: Redis client ঐচ্ছিক — পরে MESH infra যোগ হলে wire করা হবে।
-                _router_singleton = TaskRouter()
+                # বাংলা: Redis client উপলব্ধ থাকলে স্বয়ংক্রিয়ভাবে যুক্ত করা হচ্ছে;
+                # নতুবা in-memory fallback সক্রিয় থাকবে।
+                redis_client: Any = None
+                with contextlib.suppress(Exception):
+                    from core.cache.redis_manager import redis_manager
+
+                    redis_client = redis_manager.client
+                _router_singleton = TaskRouter(redis_client=redis_client)
     return _router_singleton
 
 

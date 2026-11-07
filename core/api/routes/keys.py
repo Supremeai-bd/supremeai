@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 from core.monitoring.logging_config import logger
 from core.request_context import get_correlation_id
 from core.security.authentication.rbac import get_current_user_token as verify_token_dependency
-from database.supabase_client import SupabaseDB
+from database.supabase_client import get_db
 
 router = APIRouter(prefix="/keys", tags=["User Keys"])
 
@@ -219,7 +219,7 @@ async def create_or_update_key(key_data: KeyCreate, user: dict = Depends(verify_
     encrypted_key = encrypt_key(raw_key)
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    db = SupabaseDB()
+    db = get_db()
     try:
         response = (
             await db.client.table("user_keys")
@@ -264,7 +264,7 @@ async def list_keys(user: dict = Depends(verify_token_dependency)):
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
     try:
         response = (
             await db.client.table("user_keys")
@@ -292,7 +292,7 @@ async def delete_key(provider: str, user: dict = Depends(verify_token_dependency
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
     try:
         await (
             db.client.table("user_keys")
@@ -319,16 +319,16 @@ async def run_daily_key_recheck(user: dict = Depends(verify_token_dependency)):
     Rechecks user's registered keys. If a key expired or revoked, flips status to 'invalid'
     and user loses bonus quota. Returns summary of audited keys.
     """
-    user_id = user.get("sub") or user.get("user_id") or user.get("id")
-    if not user_id:
+    uid = str(user.get('sub') or user.get('user_id') or user.get('id') or '')
+    if not uid:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
     try:
         response = (
             await db.client.table("user_keys")
             .select("provider, encrypted_key, status")
-            .eq("user_id", str(user_id))
+            .eq('user_id', uid)
             .execute()
         )
     except Exception as e:
@@ -356,7 +356,7 @@ async def run_daily_key_recheck(user: dict = Depends(verify_token_dependency)):
                     "status": new_status,
                     "last_verified_at": now_iso,
                 })
-                .eq("user_id", str(user_id))
+                .eq('user_id', uid)
                 .eq("provider", provider)
                 .execute()
             )

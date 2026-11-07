@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from api.deps import get_current_user_token
 from core.monitoring.logging_config import logger
-from database.supabase_client import SupabaseDB
+from database.supabase_client import get_db
 
 router = APIRouter(
     prefix="/api/chat/search",
@@ -121,7 +121,7 @@ async def search_chats(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
     escaped_query = _escape_like(q)
     like_pattern = f"%{escaped_query}%"
 

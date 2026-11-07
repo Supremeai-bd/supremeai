@@ -26,6 +26,8 @@ from .messaging.event_bus import (
 
 
 class CostGuard:
+    UNATTRIBUTED_SPEND_KEY: str = "cost_guard:unattributed:daily_spend"
+
     def __init__(self, db: Any = None):
         self._db = db
         # টাস্ক রাউটারের বাজেট ট্র্যাকিংয়ের জন্য ডিফল্ট টিয়ার থ্রেশহোল্ড
@@ -201,6 +203,44 @@ class CostGuard:
                 import logging
 
                 logging.getLogger(__name__).exception(f"Silenced error: {e}")
+
+    async def check_unattributed_budget(self, estimated_cost: float) -> bool:
+        """Fail-closed daily cap enforcement for unattributed/anonymous inference (#2732)."""
+        from core.cache.redis_manager import redis_manager
+        from core.config import settings
+
+        cap = float(getattr(settings, "costguard_unattributed_daily_cap", 1.0) or 0.0)
+        if cap <= 0.0:
+            return True
+
+        try:
+            spent_raw = await redis_manager.get_cache(self.UNATTRIBUTED_SPEND_KEY)
+            spent = float(spent_raw) if spent_raw else 0.0
+        except Exception as exc:
+            logger.error(f"[CostGuard] Redis unavailable for unattributed budget check: {exc}")
+            raise HTTPException(
+                status_code=402,
+                detail="Payment Required: Unattributed budget verification unavailable.",
+            ) from exc
+
+        if spent + estimated_cost > cap:
+            raise HTTPException(
+                status_code=402,
+                detail="Payment Required: Unattributed daily budget exceeded.",
+            )
+
+        try:
+            await redis_manager.incrbyfloat(
+                self.UNATTRIBUTED_SPEND_KEY, estimated_cost, ex_seconds=86400
+            )
+        except Exception as exc:
+            logger.error(f"[CostGuard] Redis failed to accumulate unattributed spend: {exc}")
+            raise HTTPException(
+                status_code=402,
+                detail="Payment Required: Unattributed budget accounting unavailable.",
+            ) from exc
+
+        return True
 
 
 # CRITICAL FIX (Import Error & Backward Compatibility):

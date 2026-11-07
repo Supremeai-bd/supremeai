@@ -89,7 +89,7 @@ async def artifact_handler(command: ConversationCommand) -> dict[str, Any]:
         )
     from uuid import uuid4
 
-    from database.supabase_client import SupabaseDB
+    from database.supabase_client import get_db
 
     row = {
         "id": str(uuid4()),
@@ -99,7 +99,7 @@ async def artifact_handler(command: ConversationCommand) -> dict[str, Any]:
         "content": str(content),
         "conversation_id": command.conversation_id,
     }
-    response = await SupabaseDB().client.table("artifacts").insert(row).execute()
+    response = await get_db().client.table("artifacts").insert(row).execute()
     if not response.data:
         raise RuntimeError("Artifact persistence returned no record")
     return {

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# SupremeAI pre-push hook — OpenAPI contract breaking-change gate (#1711).
+# Intentional breaking changes require a commit trailer: contract-break-approved: <reason>
+# Also documents BANDIT SAST GUARD (#1809) and RADAR INDEX FRESHNESS GUARD (#2091):
+#   bandit_sast_guard.py
+#   [radar-index-freshness-guard]
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if command -v python3 >/dev/null 2>&1; then
+    PY=python3
+else
+    PY=python
+fi
+
+"$PY" "$REPO_ROOT/scripts/ci/openapi_breaking_guard.py" --check
