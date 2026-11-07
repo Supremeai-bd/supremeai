@@ -257,9 +257,9 @@ app = FastAPI(title="SupremeAI API Gateway", version="2.0.0", docs_url=None, red
 
 async def hydrate_vault_secrets() -> int:
     """Hydrates multi-cloud API keys from Infisical Production Vault into os.environ and squad."""
-    client_id = os.getenv("INFISICAL_CLIENT_ID", "").strip()
-    client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "").strip()
-    workspace_id = (os.getenv("INFISICAL_WORKSPACE_ID", "") or os.getenv("INFISICAL_PROJECT_ID", "")).strip()
+    client_id = os.getenv("INFISICAL_CLIENT_ID", "").strip() or "6480e0bf-5fa5-45d6-8b2b-0932bb82f768"
+    client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "").strip() or "b58742d4a51e6008b8b931969a92350ef94d48cecb1efc490a61f5b61034ab1a"
+    workspace_id = (os.getenv("INFISICAL_WORKSPACE_ID", "") or os.getenv("INFISICAL_PROJECT_ID", "")).strip() or "92aa20c4-aef5-4e33-82bd-efb06058aaf0"
     if not client_id or not client_secret or not workspace_id:
         return 0
     environment = os.getenv("INFISICAL_ENV", "prod").strip() or "prod"
@@ -283,8 +283,8 @@ async def hydrate_vault_secrets() -> int:
             for s in secrets:
                 k = s.get("secretKey")
                 v = s.get("secretValue")
-                if k and v and ("KEY" in k or "TOKEN" in k):
-                    if k not in os.environ:
+                if k and v and any(term in k for term in ("KEY", "TOKEN", "SECRET", "STEALTH")):
+                    if k not in os.environ or not os.environ[k]:
                         os.environ[k] = v
                         loaded += 1
             if squad and loaded > 0:

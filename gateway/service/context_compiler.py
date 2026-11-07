@@ -82,10 +82,7 @@ def resolve_sampling_knobs(*args, **kwargs) -> Dict[str, Any]:
     temperature = 0.2 if is_logic else 0.4
     return {
         "temperature": temperature,
-        "temp": temperature,
         "top_p": 0.9,
-        "frequency_penalty": 0.1,
-        "presence_penalty": 0.1,
         "max_tokens": kwargs.get("max_tokens", 4096),
     }
 
