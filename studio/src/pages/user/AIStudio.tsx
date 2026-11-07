@@ -147,10 +147,9 @@ const MobileEmptyState: React.FC<{
 export const AIStudio: React.FC = () => {
   const [input, setInput] = useState('');
   const [resumeConvId, setResumeConvId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'chat' | 'split' | 'preview' | 'mobile'>('split');
-  // CHAT LANDING (owner decision 2026-10-24): Chat is the landing tab with a
-  // local history sidebar (mainstream-AI pattern). Home and Prompt Library
-  // left the rail; users enable features from Settings/Profile.
+  const [activeTab, setActiveTab] = useState<'chat' | 'split' | 'preview' | 'mobile'>('chat');
+  // CHAT LANDING (owner decision 2026-11-07 / U-WO3): Chat Focused is the default landing tab
+  // with a local history sidebar (ChatGPT/Claude pattern). Split Cockpit is available as tab 2.
   const [history, setHistory] = useState<StoredConversationMeta[]>([]);
   useEffect(() => {
     setHistory(listStoredConversations());
@@ -215,19 +214,19 @@ export const AIStudio: React.FC = () => {
         <div className="flex items-center gap-4 text-xs font-medium">
           <button 
             type="button"
+            onClick={() => setActiveTab('chat')}
+            aria-pressed={activeTab === 'chat'}
+            className={`flex items-center gap-2 rounded-[var(--sa-radius-sm)] border px-3 py-2 text-xs transition-colors ${activeTab === 'chat' ? 'border-[var(--sa-primary)] bg-[var(--sa-primary-soft)] text-[var(--sa-primary)] font-semibold' : 'border-transparent text-[var(--sa-ink-muted)] hover:border-[var(--sa-border)] hover:bg-[var(--sa-surface-raised)] hover:text-[var(--sa-ink)]'}`}
+          >
+            <Bot size={14} /> Chat Focused
+          </button>
+          <button 
+            type="button"
             onClick={() => setActiveTab('split')}
             aria-pressed={activeTab === 'split'}
             className={`flex items-center gap-2 rounded-[var(--sa-radius-sm)] border px-3 py-2 text-xs transition-colors ${activeTab === 'split' ? 'border-[var(--sa-primary)] bg-[var(--sa-primary-soft)] text-[var(--sa-primary)] font-semibold' : 'border-transparent text-[var(--sa-ink-muted)] hover:border-[var(--sa-border)] hover:bg-[var(--sa-surface-raised)] hover:text-[var(--sa-ink)]'}`}
           >
             <Columns size={14} /> Split Cockpit (45/55)
-          </button>
-          <button 
-            type="button"
-            onClick={() => setActiveTab('chat')}
-            aria-pressed={activeTab === 'chat'}
-            className={`flex items-center gap-2 rounded-[var(--sa-radius-sm)] border px-3 py-2 text-xs transition-colors ${activeTab === 'chat' ? 'border-[var(--sa-primary)] bg-[var(--sa-primary-soft)] text-[var(--sa-primary)]' : 'border-transparent text-[var(--sa-ink-muted)] hover:border-[var(--sa-border)] hover:bg-[var(--sa-surface-raised)] hover:text-[var(--sa-ink)]'}`}
-          >
-            <Bot size={14} /> Chat Focused
           </button>
           <button 
             type="button"
