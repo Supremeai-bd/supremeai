@@ -2,6 +2,7 @@ import React from 'react';
 import { Activity, ShieldAlert, GitMerge, ServerCog, DollarSign, BrainCircuit, CheckCircle, ArrowUpRight, Zap, Database } from 'lucide-react';
 import { useMetrics, useThreatScan, useCIReports, useDashboardEvents } from '../../hooks/useDashboardData';
 
+// বাংলা (honest-data): CPU মেট্রিক absent হলে আগে 0% দেখাত (মিথ্যা স্বাস্থ্য-সংকেত) — এখন N/R আর বার গার্ডেড; অব্যবহৃত RPS ভেরিয়েবল বাদ।
 export default function Dashboard() {
   const { data: metrics } = useMetrics();
   const { data: threats } = useThreatScan();
@@ -9,8 +10,7 @@ export default function Dashboard() {
   const { data: events } = useDashboardEvents(5);
 
   const availability = metrics?.availability_percent;
-  const dashRps = metrics?.requests_per_second;
-  const safeCpu = metrics?.cpu_percent ?? metrics?.cpu_usage_percent ?? 0;
+  const safeCpu = metrics?.cpu_usage_percent ?? metrics?.cpu_percent ?? null; // FIX(honest-data): মেট্রিক absent মানে আগে 0% দেখাত — এখন N/R
   const activeIncidents = threats?.findings?.filter(t => t.severity === 'high' || t.severity === 'critical') || [];
   const activeDeployments = ciReports?.filter(c => c.status === 'running') || [];
 
@@ -91,10 +91,10 @@ export default function Dashboard() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-secondary">Global CPU Load</span>
-                    <span className="font-mono text-text">{safeCpu}%</span>
+                    <span className="font-mono text-text">{safeCpu != null ? `${safeCpu}%` : 'N/R'}</span>
                   </div>
                   <div className="w-full h-2 rounded-full surface-2 overflow-hidden">
-                    <div className={`h-full ${safeCpu > 80 ? 'bg-rose-500' : 'bg-accent-primary'}`} style={{ width: `${safeCpu}%` }}></div>
+                    {safeCpu != null ? <div className={`h-full ${safeCpu > 80 ? 'bg-rose-500' : 'bg-accent-primary'}`} style={{ width: `${safeCpu}%` }}></div> : <span className="text-[10px] font-mono text-muted">not reported</span>}
                   </div>
                 </div>
                 <div className="space-y-2">
