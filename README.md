@@ -257,7 +257,7 @@ and a field-tested troubleshooting table. The governance contracts live in
 
 ## 🏗️ Architecture & Operations Blueprints
 
-- **Hybrid CI/CD Blueprint:** [`docs/architecture/HARNESS_GITHUB_HYBRID_CI_CD.md`](./docs/architecture/HARNESS_GITHUB_HYBRID_CI_CD.md) — The complete strategy for zero-cloud-quota continuous integration via GitHub Self-Hosted local compute, 24h+ opportunistic nightly maintenance, and Harness intelligent deployment verification.
+- **Universal Lowest-Runtime CI/CD & Deployment SSOT:** [`docs/PR_TO_PRODUCTION_LIFECYCLE.md`](./docs/PR_TO_PRODUCTION_LIFECYCLE.md) — The single SSOT for zero-cloud-quota continuous integration via GitHub Self-Hosted local compute, 24h+ opportunistic nightly maintenance, Harness CD intelligent verification & auto-rollback, and 100% autonomous zero-touch auto-merge.
 - **Agent Operating System:** [`docs/AGENT_OPERATING_SYSTEM.md`](./docs/AGENT_OPERATING_SYSTEM.md) — The continuous autonomous verification ladder and self-healing engine.
 - **Federation Architecture:** [`docs/FEDERATION_CHARTER.md`](./docs/FEDERATION_CHARTER.md) — The pure 2-repository SSOT topology.
 <!-- heartbeat: 2026103106 -->
