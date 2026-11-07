@@ -1,6 +1,7 @@
 import { get } from 'svelte/store';
 import { config } from '$lib/stores';
 import { WEBUI_BASE_URL } from '$lib/constants';
+import { SOVEREIGN_MODELS } from '$lib/supremeai/models';
 import { convertOpenApiToToolPayload, resolveSchema } from '$lib/utils';
 import { normalizeTags } from '$lib/utils/tags';
 import { getOpenAIModelsDirect } from './openai';
@@ -179,7 +180,23 @@ export const getModels = async (
 		models = Object.values(modelsMap);
 	}
 
-	return models;
+	// SupremeAI Invariant: inject sovereign models so they always appear in the ModelSelector
+	const existingIds = new Set((models || []).map((m: any) => m.id));
+	const sovereignInjections = SOVEREIGN_MODELS.map((sm) => ({
+		id: sm.id,
+		name: sm.name,
+		owned_by: 'supremeai',
+		info: {
+			meta: {
+				description: sm.description,
+				badge: sm.badge,
+				tier: sm.tier,
+				latency: sm.latency
+			}
+		}
+	})).filter((m) => !existingIds.has(m.id));
+
+	return [...sovereignInjections, ...(models || [])];
 };
 
 export const unloadModel = async (token: string, model: string) => {
