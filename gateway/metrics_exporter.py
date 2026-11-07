@@ -7,9 +7,24 @@ text format when prometheus_client is unavailable (never raises).
 
 from __future__ import annotations
 
+import re
 import time
 from collections import defaultdict
 from typing import Any
+
+try:
+    from core.observability.metrics_registry import normalize_route_path
+except ImportError:
+    _UUID_RE = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+    _NUM_RE = re.compile(r"/(?:\d+)(?=/|$|\?)")
+
+    def normalize_route_path(path: str) -> str:
+        if not path:
+            return "/"
+        clean = path.split("?")[0]
+        clean = _UUID_RE.sub("{id}", clean)
+        clean = _NUM_RE.sub("/{id}", clean)
+        return clean
 
 try:
     from prometheus_client import (  # type: ignore[import-not-found]
@@ -47,13 +62,14 @@ _FALLBACK_LATENCY_COUNT: dict[tuple[str, str], int] = defaultdict(int)
 def record_request(method: str, path: str, status: int, duration_s: float) -> None:
     """Record a single request. Safe to call from middleware."""
     try:
+        norm_path = normalize_route_path(path)
         if _PROM_AVAILABLE:
-            _REQUESTS.labels(method=method, path=path, status=str(status)).inc()
-            _LATENCY.labels(method=method, path=path).observe(duration_s)
+            _REQUESTS.labels(method=method, path=norm_path, status=str(status)).inc()
+            _LATENCY.labels(method=method, path=norm_path).observe(duration_s)
         else:
-            _FALLBACK_COUNTS[(method, path, str(status))] += 1
-            _FALLBACK_LATENCY_SUM[(method, path)] += duration_s
-            _FALLBACK_LATENCY_COUNT[(method, path)] += 1
+            _FALLBACK_COUNTS[(method, norm_path, str(status))] += 1
+            _FALLBACK_LATENCY_SUM[(method, norm_path)] += duration_s
+            _FALLBACK_LATENCY_COUNT[(method, norm_path)] += 1
     except Exception:  # pragma: no cover - never break request path
         pass
 

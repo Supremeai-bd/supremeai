@@ -90,17 +90,31 @@ async def update_api_key_last_used(key_id: int) -> None:
 async def revoke_api_key(key_id: int) -> dict[str, Any] | None:
     pool = await get_db_pool()
     row = await pool.fetchrow(
-        "UPDATE api_keys SET revoked = TRUE, updated_at = $1 WHERE id = $2 RETURNING id, name, key_masked, revoked, updated_at",
+        "UPDATE api_keys SET revoked = TRUE, updated_at = $1 WHERE id = $2 RETURNING id, name, key_masked, key_hash, revoked, updated_at",
         now_epoch(),
         key_id,
     )
+    if row and row.get("key_hash"):
+        try:
+            from core.cache.redis_manager import redis_manager
+
+            await redis_manager.delete(f"apikey:{row['key_hash']}")
+        except Exception:
+            pass
     return dict(row) if row else None
 
 
 async def delete_api_key(key_id: int) -> bool:
     pool = await get_db_pool()
-    result = await pool.execute("DELETE FROM api_keys WHERE id = $1", key_id)
-    return result == "DELETE 1"
+    row = await pool.fetchrow("DELETE FROM api_keys WHERE id = $1 RETURNING key_hash", key_id)
+    if row and row.get("key_hash"):
+        try:
+            from core.cache.redis_manager import redis_manager
+
+            await redis_manager.delete(f"apikey:{row['key_hash']}")
+        except Exception:
+            pass
+    return row is not None
 
 
 async def rotate_api_key(
@@ -110,6 +124,7 @@ async def rotate_api_key(
     new_key_prefix: str,
 ) -> dict[str, Any] | None:
     pool = await get_db_pool()
+    old_row = await pool.fetchrow("SELECT key_hash FROM api_keys WHERE id = $1", key_id)
     row = await pool.fetchrow(
         """
         UPDATE api_keys SET key_hash = $1, key_masked = $2, key_prefix = $3, updated_at = $4, revoked = FALSE
@@ -122,6 +137,13 @@ async def rotate_api_key(
         now_epoch(),
         key_id,
     )
+    if old_row and old_row.get("key_hash"):
+        try:
+            from core.cache.redis_manager import redis_manager
+
+            await redis_manager.delete(f"apikey:{old_row['key_hash']}")
+        except Exception:
+            pass
     return dict(row) if row else None
 
 

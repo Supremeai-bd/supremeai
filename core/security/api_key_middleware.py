@@ -105,7 +105,7 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
         """Internal method to fetch API key from database."""
         pool = await get_db_pool()
         return await pool.fetchrow(
-            "SELECT id, key_hash, revoked, rate_limit_rps, rate_limit_window, expires_at, scopes FROM api_keys WHERE key_hash = $1 LIMIT 1",
+            "SELECT id, user_id, key_hash, revoked, rate_limit_rps, rate_limit_window, expires_at, scopes FROM api_keys WHERE key_hash = $1 LIMIT 1",
             key_hash,
         )
 
@@ -115,7 +115,13 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
         from core.config import settings as _settings
 
         path = request.url.path
-        if any(path.startswith(p) for p in _settings.supremeai_public_paths):
+
+        def _is_public(p: str) -> bool:
+            if p == "/":
+                return path == "/"
+            return path == p or path.startswith(p.rstrip("/") + "/")
+
+        if any(_is_public(p) for p in _settings.supremeai_public_paths):
             return await call_next(request)
 
         # IP-based sliding window rate limiter check
@@ -140,14 +146,34 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
             return JSONResponse(status_code=429, content={"detail": "IP rate limit exceeded"})
 
         api_key_header = request.headers.get("x-api-key")
+        if not api_key_header:
+            auth = request.headers.get("authorization", "")
+            if auth.startswith("Bearer "):
+                candidate = auth[7:].strip()
+                if candidate.startswith(self.prefix):
+                    api_key_header = candidate
+
         if not api_key_header or not api_key_header.startswith(self.prefix):
             return await call_next(request)
 
         if is_test_environment():
+            user_principal = {
+                "sub": "test_api_key_user",
+                "role": "api_key_user",
+                "tenant_id": None,
+                "scopes": ["*"],
+                "auth_type": "api_key",
+                "key_id": "test",
+            }
             request.state.api_key = {
                 "id": "test",
                 "masked": mask_api_key(api_key_header),
+                "scopes": ["*"],
+                "user_id": "test_api_key_user",
             }
+            request.state.user = user_principal
+            if hasattr(request, "scope") and isinstance(request.scope, dict):
+                request.scope["user"] = user_principal
             return await call_next(request)
 
         key_hash = hash_api_key(api_key_header)
@@ -166,10 +192,10 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
 
         rps = int(row.get("rate_limit_rps") or 6)
         window = int(row.get("rate_limit_window") or 60)
-        key_prefix = api_key_header[:12]
+        rate_limit_id = f"apikey:{row['id']}"
 
         try:
-            is_allowed = await self.limiter.acquire(key_prefix, limit=rps, window=window)
+            is_allowed = await self.limiter.acquire(rate_limit_id, limit=rps, window=window)
         except RuntimeError as exc:
             logger.critical(f"Rate limiter failed: {exc}")
             return JSONResponse(
@@ -180,23 +206,46 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
             logger.warning(f"Rate limit hit for API key: {row['id']}")
             return JSONResponse(status_code=429, content={"detail": "API key rate limit exceeded"})
 
+        user_id = str(row.get("user_id") or row["id"])
+        scopes = row.get("scopes", [])
         request.state.api_key = {
             "id": row["id"],
             "masked": mask_api_key(api_key_header),
-            "scopes": row.get("scopes", []),
+            "scopes": scopes,
+            "user_id": user_id,
         }
-
-        # Non-critical: usage tracking failure should not block the request
-        try:
-            await record_api_key_usage(
-                key_id=row["id"],
-                endpoint=request.url.path,
-                status_code=200,
-                latency_ms=0.0,
-                ip_address=str(request.client.host) if request.client else None,
-            )
-        except Exception:
-            logger.opt(exception=True).warning(f"Failed to record API key usage for {row['id']}")
+        user_principal = {
+            "sub": user_id,
+            "role": "api_key_user",
+            "tenant_id": None,
+            "scopes": scopes,
+            "auth_type": "api_key",
+            "key_id": row["id"],
+        }
+        request.state.user = user_principal
+        if hasattr(request, "scope") and isinstance(request.scope, dict):
+            request.scope["user"] = user_principal
 
         logger.info(f"API key authenticated: {request.state.api_key['masked']}")
-        return await call_next(request)
+
+        start_time = time.perf_counter()
+        status_code = 500
+        try:
+            response = await call_next(request)
+            status_code = getattr(response, "status_code", 200)
+            return response
+        except Exception as exc:
+            status_code = 500
+            raise exc
+        finally:
+            latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
+            try:
+                await record_api_key_usage(
+                    key_id=row["id"],
+                    endpoint=request.url.path,
+                    status_code=status_code,
+                    latency_ms=latency_ms,
+                    ip_address=str(request.client.host) if request.client else None,
+                )
+            except Exception:
+                logger.opt(exception=True).warning(f"Failed to record API key usage for {row['id']}")

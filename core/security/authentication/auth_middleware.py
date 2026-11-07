@@ -272,6 +272,15 @@ class AuthMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # API Key Principal check: If already authenticated via APIKeyAuthMiddleware (outer layer)
+        state = scope.get("state", {})
+        if state.get("api_key") or (
+            isinstance(scope.get("user"), dict)
+            and scope.get("user", {}).get("auth_type") == "api_key"
+        ):
+            await self.app(scope, receive, send)
+            return
+
         headers: Headers = scope.get("headers", [])
         # JWT-COOKIE-MIGRATION (issue #1668, ধাপ ২/২): Bearer header first
         # (existing clients), then the httpOnly access cookie, then the
