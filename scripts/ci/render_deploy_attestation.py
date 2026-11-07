@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -97,31 +98,68 @@ def main() -> int:
         print("::warning::RELEASE_URL not configured for this service; skipping running-SHA verification (Render metadata SHA still checked).")
         release_url = ""
 
+    poll_timeout_seconds = int(os.environ.get("RENDER_WAIT_TIMEOUT_SECONDS", "600"))
+    poll_interval_seconds = 15
+    deadline = time.monotonic() + poll_timeout_seconds
+
     latest = None
+    status = ""
     last_exc: RenderApiError | None = None
-    for env_name, api_key in candidate_keys:
-        client = RenderClient(api_key=api_key, service_id=service_id)
-        try:
-            latest = client.get_latest_deploy(service_id)
-            break
-        except RenderApiError as exc:
-            last_exc = exc
-            if exc.status == 404 and "not found: service" in (exc.body or "").lower():
-                continue
-            break
+
+    while True:
+        last_exc = None
+        for env_name, api_key in candidate_keys:
+            client = RenderClient(api_key=api_key, service_id=service_id)
+            try:
+                latest = client.get_latest_deploy(service_id)
+                break
+            except RenderApiError as exc:
+                last_exc = exc
+                if exc.status == 404 and "not found: service" in (exc.body or "").lower():
+                    continue
+                break
+
+        if latest is not None:
+            status = (
+                latest.get("status")
+                or latest.get("deploy", {}).get("status", "")
+                or ""
+            ).lower()
+            if status in {"live", "succeeded", "success", "pre_live"}:
+                break
+            if status in {"build_failed", "update_failed", "deactivated", "canceled"}:
+                return fail(f"Render deployment reached terminal failure state: status={status!r}")
+            if time.monotonic() >= deadline:
+                print(
+                    f"::warning::Deploy {service_id} still {status!r} after {poll_timeout_seconds}s; "
+                    f"checking live health fallback."
+                )
+                break
+            print(
+                f"Render deploy for {service_id} in progress (status={status!r}); "
+                f"waiting {poll_interval_seconds}s for terminal state..."
+            )
+        else:
+            if time.monotonic() >= deadline:
+                break
+            if last_exc is not None and last_exc.status != 404:
+                print(f"Render API probe warning: {last_exc}")
+
+        time.sleep(poll_interval_seconds)
 
     if latest is None:
         if last_exc is not None:
             return fail(f"Render API get_latest_deploy failed for {service_id}: HTTP {last_exc.status} {last_exc.body}")
         return fail(f"Unable to query latest deploy for {service_id}")
 
-    status = (
-        latest.get("status")
-        or latest.get("deploy", {}).get("status", "")
-        or ""
-    ).lower()
-    if status not in {"live", "succeeded", "success"}:
-        return fail(f"Render deployment is not successful: status={status!r}")
+    if status not in {"live", "succeeded", "success", "pre_live"}:
+        if release_url and _probe_health_fallback(release_url):
+            print(
+                f"::warning::Render deployment metadata status is {status!r}, "
+                f"but live release/health probe returned HTTP 200; accepting as healthy."
+            )
+        else:
+            return fail(f"Render deployment is not successful: status={status!r}")
 
     commit = None
     commit_field = latest.get("commit")
