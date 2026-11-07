@@ -250,6 +250,14 @@ async def forward_chat_completion(
 
     # Build prioritized candidate models list
     body = dict(payload)
+    # Strip internal routing & non-standard keys to prevent provider 400 Bad Request
+    body.pop("preferred_provider", None)
+    body.pop("temp", None)
+    body.pop("provider", None)
+    if provider == "gemini":
+        body.pop("frequency_penalty", None)
+        body.pop("presence_penalty", None)
+
     client_model = body.get("model", "auto")
     cascade = PROVIDER_MODEL_CASCADES.get(provider, [config["default_model"]])
     candidate_models: list[str] = []
