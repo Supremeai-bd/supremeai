@@ -254,6 +254,52 @@ STEALTH_WEBHOOK_TIMEOUT = float(os.getenv("STEALTH_WEBHOOK_TIMEOUT", "28.0"))
 
 app = FastAPI(title="SupremeAI API Gateway", version="2.0.0", docs_url=None, redoc_url=None, openapi_url=None)  # docs lockdown completion: the openapi_url default served the full route inventory (incl. admin route names) unauthenticated.
 
+
+async def hydrate_vault_secrets() -> int:
+    """Hydrates multi-cloud API keys from Infisical Production Vault into os.environ and squad."""
+    client_id = os.getenv("INFISICAL_CLIENT_ID", "").strip()
+    client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "").strip()
+    workspace_id = (os.getenv("INFISICAL_WORKSPACE_ID", "") or os.getenv("INFISICAL_PROJECT_ID", "")).strip()
+    if not client_id or not client_secret or not workspace_id:
+        return 0
+    environment = os.getenv("INFISICAL_ENV", "prod").strip() or "prod"
+    base_url = os.getenv("INFISICAL_API_URL", "https://app.infisical.com").rstrip("/")
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            login_resp = await client.post(
+                f"{base_url}/api/v1/auth/universal-auth/login",
+                json={"clientId": client_id, "clientSecret": client_secret},
+            )
+            login_resp.raise_for_status()
+            token = login_resp.json().get("accessToken")
+            if not token:
+                return 0
+            url = f"{base_url}/api/v3/secrets/raw"
+            params = {"workspaceId": workspace_id, "environment": environment, "secretPath": "/"}
+            resp = await client.get(url, params=params, headers={"Authorization": f"Bearer {token}"})
+            resp.raise_for_status()
+            secrets = resp.json().get("secrets", [])
+            loaded = 0
+            for s in secrets:
+                k = s.get("secretKey")
+                v = s.get("secretValue")
+                if k and v and ("KEY" in k or "TOKEN" in k):
+                    if k not in os.environ:
+                        os.environ[k] = v
+                        loaded += 1
+            if squad and loaded > 0:
+                squad.reload_squad()
+                logger.info(f"Hydrated {loaded} vault keys. Squad active with {squad.stats().get('total_healthy_keys', 0)} healthy keys.")
+            return loaded
+    except Exception as exc:
+        logger.warning(f"Startup Infisical hydration warning: {exc}")
+        return 0
+
+
+@app.on_event("startup")
+async def _on_startup():
+    await hydrate_vault_secrets()
+
 # CORS setup for Studio and web agents - Restricted origins (no wildcard with credentials)
 _default_cors = [
     "https://supremeai-studio.vercel.app",
@@ -1763,6 +1809,8 @@ async def _execute_chat_completion(
     # Completely preserves the SupremeAI Sole Identity doctrine.
     last_error = None
     if squad:
+        if squad.stats().get("total_healthy_keys", 0) == 0:
+            await hydrate_vault_secrets()
         candidates = squad.get_candidate_slots(preferred_provider) if squad else []
         if not candidates and preferred_provider not in (None, "auto"):
             candidates = squad.get_candidate_slots("auto")
