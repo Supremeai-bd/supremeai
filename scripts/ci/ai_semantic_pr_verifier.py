@@ -31,19 +31,12 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-# Try importing centralized key resolver; fall back gracefully if missing
-try:
-    from core.utils.api_key_resolver import resolve_numbered_key
-except ImportError:
-    def resolve_numbered_key(base: str, max_n: int = 10) -> str | None:
-        val = os.environ.get(base, "").strip()
-        if val:
-            return val
-        for i in range(2, max_n + 1):
-            val = os.environ.get(f"{base}_{i}", "").strip()
-            if val:
-                return val
-        return None
+# Add REPO_ROOT to sys.path so core is directly importable in CI
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from core.utils.api_key_resolver import resolve_numbered_key
 
 HIGH_RISK_PATTERNS = [
     r"^core/security/.*",
