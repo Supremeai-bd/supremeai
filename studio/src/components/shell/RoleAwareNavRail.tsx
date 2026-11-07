@@ -4,8 +4,8 @@
 
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { PanelLeft, PanelLeftClose } from 'lucide-react';
-import { getNavigationForContext, type NavEntry } from '../../config/navigationRegistry';
+import { PanelLeft, PanelLeftClose, ChevronDown, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { getNavigationForContext, USER_MORE_ENTRY_IDS, type NavEntry } from '../../config/navigationRegistry';
 import { useAuthStore } from '../../store/authStore';
 import { useWorkspaceSettings } from '../../hooks/useWorkspaceSettings';
 import { getCanonicalRole } from '../../auth/identity';
@@ -22,6 +22,7 @@ export interface RoleAwareNavRailProps {
 }
 
 export function RoleAwareNavRail({ context, collapsed, activeActionId, onAction, onToggleCollapsed }: RoleAwareNavRailProps) {
+  const [showMore, setShowMore] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const role = useAuthStore((state) => state.role);
@@ -30,6 +31,12 @@ export function RoleAwareNavRail({ context, collapsed, activeActionId, onAction,
   const serverNav = (useStore((state) => (state.systemConfig as any)?.navigation) as string[] | undefined);
   // 🛡️ ISSUE #496: ...
   const effectiveRole = context === 'admin' ? 'admin' : (role || getCanonicalRole());
+  const moreItems = React.useMemo(() => {
+    if (context !== 'user') return [];
+    const allUserGroups = getNavigationForContext('user', { role: effectiveRole, permissions, allowedViewerIds: USER_MORE_ENTRY_IDS });
+    return allUserGroups.flatMap((g) => g.items);
+  }, [context, effectiveRole, permissions]);
+
   const groups = getNavigationForContext(context, { role: effectiveRole, permissions, allowedViewerIds: serverNav }).map((group) => ({
     ...group,
     items: group.items.filter((item) => item.id !== 'nav-ide' || enabledModules.includes('code')),

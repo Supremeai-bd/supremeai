@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { apiClient } from '../../services/apiClient';
+import { ConfirmModal } from '../../commandcenter/kit';
 
 interface FixProposal {
   id: string;
@@ -17,16 +18,32 @@ interface OneClickPatchProps {
 
 export const OneClickPatch: React.FC<OneClickPatchProps> = ({ proposals, onPatchApplied }) => {
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [pendingPatchId, setPendingPatchId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleApplyPatch = async (id: string) => {
-    if (!window.confirm('Apply this self-heal patch? It modifies production code and cannot be undone automatically.')) {
-      return;
-    }
+  const handleApplyPatch = (id: string) => {
+    setPendingPatchId(id);
+  };
+
+  const executeApplyPatch = async () => {
+    if (!pendingPatchId) return;
+    const id = pendingPatchId;
+    setPendingPatchId(null);
     setApplyingId(id);
     setError(null);
     try {
       await apiClient.post(`/api/admin/fixes/apply`, { fixId: id });
+      // Record audit trail event for production patch
+      try {
+        await apiClient.post('/admin-api/audit', {
+          action: 'apply_patch',
+          target: id,
+          result: 'success',
+          timestamp: new Date().toISOString(),
+        });
+      } catch {
+        // Audit is best-effort on front-end
+      }
       onPatchApplied();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to apply patch.');
@@ -84,6 +101,14 @@ export const OneClickPatch: React.FC<OneClickPatchProps> = ({ proposals, onPatch
           </div>
         </div>
       ))}
+      <ConfirmModal
+        open={Boolean(pendingPatchId)}
+        title="Apply Self-Heal Patch"
+        message="This operation applies changes to production code. Review the diff carefully before proceeding."
+        confirmLabel="Apply Patch"
+        onCancel={() => setPendingPatchId(null)}
+        onConfirm={executeApplyPatch}
+      />
     </div>
   );
 };

@@ -11,6 +11,7 @@ import { ChatDockBar, type DockAction, type DockApp } from './ChatDockBar';
 // CSAT micro-survey; admin embeds that omit the prop stay pixel-identical.
 import { SatisfactionPulse } from '../feedback/SatisfactionPulse';
 import { useSmartVoice } from '../../hooks/useSmartVoice';
+import { apiClient } from '../../services/apiClient';
 
 // UNIFIED CHAT (Phase 1, 2026-10-24): the chat core (engine + panel UI) was
 // extracted from src/pages/PublicPages.tsx so guest, user and admin
@@ -380,6 +381,41 @@ export interface StoredConversationMeta {
   updatedAt: number;
 }
 
+
+/** U-WO1: Asynchronously fetch server-side conversations list for authenticated users */
+export async function fetchServerConversations(): Promise<StoredConversationMeta[]> {
+  try {
+    const data = await apiClient.get<Array<{ id: string; title: string | null; updated_at?: string; created_at?: string }> | { data?: Array<{ id: string; title: string | null; updated_at?: string; created_at?: string }> }>(
+      '/api/v1/conversations/?limit=30'
+    );
+    const rows = Array.isArray(data) ? data : (data?.data ?? []);
+    if (!rows.length) return [];
+    return rows.map((r) => ({
+      id: r.id,
+      title: (r.title || 'Untitled conversation').slice(0, 60),
+      updatedAt: r.updated_at ? Date.parse(r.updated_at) : (r.created_at ? Date.parse(r.created_at) : Date.now()),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/** U-WO1: Asynchronously fetch server-side session messages for an authenticated user */
+export async function fetchServerSessionMessages(sessionId: string): Promise<Array<{ role: 'user' | 'assistant'; text: string }>> {
+  try {
+    const res = await apiClient.get<Array<{ role: string; content?: string; text?: string }>>(
+      `/api/v1/conversations/${encodeURIComponent(sessionId)}/messages`
+    );
+    if (!Array.isArray(res) || !res.length) return [];
+    return res.map((m) => ({
+      role: (m.role?.toLowerCase() === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+      text: m.content || m.text || '',
+    })).filter((m) => m.text.trim().length > 0);
+  } catch {
+    return [];
+  }
+}
+
 /** List persisted conversations (newest first) for history sidebars. */
 export function listStoredConversations(): StoredConversationMeta[] {
   if (typeof localStorage === 'undefined') return [];
@@ -537,6 +573,20 @@ export function UnifiedChatPanel({
   dockApps,
   showSatisfactionPulse = false,
 }: UnifiedChatPanelProps) {
+  // U-WO1: Server-side conversation hydration when initialConversationId is provided
+  React.useEffect(() => {
+    if (!initialConversationId) return;
+    const local = loadStoredConversation(initialConversationId);
+    if (local.length === 0) {
+      void fetchServerSessionMessages(initialConversationId).then((serverMsgs) => {
+        if (serverMsgs.length > 0) {
+          setMessages(serverMsgs);
+          saveStoredConversation(initialConversationId, serverMsgs);
+        }
+      });
+    }
+  }, [initialConversationId]);
+
   const [messages, setMessages] = React.useState<{ role: 'user' | 'assistant'; text: string; via?: string; brand?: Brand }[]>(() =>
     initialConversationId ? loadStoredConversation(initialConversationId) : [],
   );
