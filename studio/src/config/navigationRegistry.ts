@@ -300,6 +300,17 @@ const SIMPLE_VIEWER_ENTRY_IDS = new Set([
   'nav-settings',
 ]);
 
+export const USER_MORE_ENTRY_IDS = [
+  'nav-projects',
+  'nav-knowledge',
+  'nav-prompt-library',
+  'nav-research',
+  'nav-activity',
+  'nav-scheduled-tasks',
+  'nav-marketplace',
+  'nav-billing',
+];
+
 export function getNavigationForContext(
   context: NavContext,
   options: NavFilterOptions = {}
