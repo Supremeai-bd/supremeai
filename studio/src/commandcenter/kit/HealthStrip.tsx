@@ -40,15 +40,21 @@ export function HealthStrip({ nodes, loading }: HealthStripProps) {
 
   return (
     <div className="flex flex-wrap gap-3 p-3 rounded-xl border border-[var(--sa-line)] bg-[var(--sa-bg-1)]">
-      {entries.map(([name, node]) => (
-        <div key={name} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--sa-bg-2)]">
-          <span className={`h-2 w-2 rounded-full ${STATUS_COLOR[node.status] || STATUS_COLOR.unknown}`} />
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--sa-text-0)]">{name}</span>
-          {node.latency !== undefined && (
-            <span className="text-[9px] font-mono text-[var(--sa-text-1)]">{node.latency}ms</span>
-          )}
-        </div>
-      ))}
+      {entries.map(([name, node]) => {
+        const statusKey = (node?.status ?? 'unknown') as string;
+        const colorClass = STATUS_COLOR[statusKey] || STATUS_COLOR.unknown;
+        const latencyVal = typeof node?.latency === 'number' ? `${node.latency}ms` : null;
+
+        return (
+          <div key={name} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--sa-bg-2)]">
+            <span className={`h-2 w-2 rounded-full ${colorClass}`} />
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--sa-text-0)]">{name}</span>
+            {latencyVal && (
+              <span className="text-[9px] font-mono text-[var(--sa-text-1)]">{latencyVal}</span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
