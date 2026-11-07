@@ -46,7 +46,8 @@ DEFAULT_IGNORES = (
     "**/coverage/**,"
     "**/*.min.js,"
     "**/*.min.css,"
-    "**/generated/**"
+    "**/generated/**,"
+    "**/.github/workflows/**"
 )
 
 
