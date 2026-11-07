@@ -319,8 +319,8 @@ async def run_daily_key_recheck(user: dict = Depends(verify_token_dependency)):
     Rechecks user's registered keys. If a key expired or revoked, flips status to 'invalid'
     and user loses bonus quota. Returns summary of audited keys.
     """
-    user_id = user.get("sub") or user.get("user_id") or user.get("id")
-    if not user_id:
+    uid = str(user.get('sub') or user.get('user_id') or user.get('id') or '')
+    if not uid:
         raise HTTPException(status_code=401, detail="Invalid token")
 
     db = get_db()
@@ -328,7 +328,7 @@ async def run_daily_key_recheck(user: dict = Depends(verify_token_dependency)):
         response = (
             await db.client.table("user_keys")
             .select("provider, encrypted_key, status")
-            .eq("user_id", str(user_id))
+            .eq('user_id', uid)
             .execute()
         )
     except Exception as e:
@@ -356,7 +356,7 @@ async def run_daily_key_recheck(user: dict = Depends(verify_token_dependency)):
                     "status": new_status,
                     "last_verified_at": now_iso,
                 })
-                .eq("user_id", str(user_id))
+                .eq('user_id', uid)
                 .eq("provider", provider)
                 .execute()
             )
