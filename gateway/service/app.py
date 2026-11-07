@@ -1387,27 +1387,50 @@ async def health_aggregation():
 
 @app.get("/v1/models")
 async def list_models():
-    """Returns available virtual models list."""
-    models_data = []
-    for provider, cfg in PROVIDER_CONFIGS.items():
-        pool = squad.pools.get(provider) if squad else None
-        healthy = len(pool.healthy_slots) if pool else 0
-        models_data.append({
-            "id": f"supremeai/{provider}",
+    """Returns available virtual models list (SupremeAI Sole Identity Tiers)."""
+    healthy_total = squad.stats()["total_healthy_keys"] if squad else 0
+    models_data = [
+        {
+            "id": "supremeai-webhook",
             "object": "model",
             "owned_by": "supremeai",
-            "provider": provider,
-            "default_target": cfg["default_model"],
-            "healthy_keys": healthy,
-        })
-    models_data.insert(0, {
-        "id": "auto",
-        "object": "model",
-        "owned_by": "supremeai",
-        "provider": "dynamic-squad",
-        "default_target": "auto-failover",
-        "healthy_keys": squad.stats()["total_healthy_keys"] if squad else 0,
-    })
+            "provider": "stealth-relay",
+            "default_target": "stealth-webhook-session",
+            "healthy_keys": 1,
+        },
+        {
+            "id": "supremeai-turbo",
+            "object": "model",
+            "owned_by": "supremeai",
+            "provider": "supremeai-fast",
+            "default_target": "blaze-turbo-failover",
+            "healthy_keys": 1,
+        },
+        {
+            "id": "supremeai-deep-research",
+            "object": "model",
+            "owned_by": "supremeai",
+            "provider": "supremeai-reasoning",
+            "default_target": "deep-reasoning-session",
+            "healthy_keys": 1,
+        },
+        {
+            "id": "supremeai-api",
+            "object": "model",
+            "owned_by": "supremeai",
+            "provider": "dynamic-squad",
+            "default_target": "multi-key-pool",
+            "healthy_keys": healthy_total,
+        },
+        {
+            "id": "auto",
+            "object": "model",
+            "owned_by": "supremeai",
+            "provider": "supremeai-adaptive",
+            "default_target": "auto-adaptive-router",
+            "healthy_keys": healthy_total + 1,
+        },
+    ]
     return {"object": "list", "data": models_data}
 
 
@@ -1443,8 +1466,29 @@ async def _execute_chat_completion(
 
     if requested_model.startswith("supremeai/"):
         preferred_provider = requested_model.split("/", 1)[1]
+    elif requested_model in ("supremeai-webhook", "supremeai/webhook"):
+        preferred_provider = "ghost_gemini"
+    elif requested_model in ("supremeai-turbo", "supremeai/turbo"):
+        preferred_provider = "ghost_gemini"
+    elif requested_model in ("supremeai-deep-research", "supremeai/deep-research"):
+        preferred_provider = "ghost_gemini"
+    elif requested_model in ("supremeai-api", "supremeai/api"):
+        preferred_provider = "auto"
     elif requested_model in PROVIDER_CONFIGS:
         preferred_provider = requested_model
+
+    # Normalize multimodal/structured content blocks (e.g. from Kilo Code/Roo Code/Cursor)
+    # into clean strings so downstream schemas and relays never fail with 422.
+    if isinstance(body.get("messages"), list):
+        for msg in body["messages"]:
+            if isinstance(msg, dict):
+                c = msg.get("content")
+                if isinstance(c, list):
+                    msg["content"] = "\n".join(
+                        part.get("text", "") if isinstance(part, dict) else str(part)
+                        for part in c
+                        if (isinstance(part, dict) and part.get("text")) or not isinstance(part, dict)
+                    )
 
     # Conversation-ID carry-over & persistence
     conv_id = (
@@ -1511,7 +1555,21 @@ async def _execute_chat_completion(
     # ═══════════════════════════════════════════════════════════════════════
     use_priority_1 = (
         bool(STEALTH_WEBHOOK_URL)
-        and (preferred_provider is None or preferred_provider in ("stealth", "ghost_gemini"))
+        and (
+            preferred_provider is None
+            or preferred_provider in ("stealth", "ghost_gemini", "web_session")
+            or requested_model in (
+                "auto",
+                "supremeai-webhook",
+                "supremeai/webhook",
+                "supremeai-turbo",
+                "supremeai/turbo",
+                "supremeai-deep-research",
+                "supremeai/deep-research",
+                "supremeai/ghost_gemini",
+                "supremeai/web_session",
+            )
+        )
     )
     if use_priority_1:
         w_status, w_response = None, None
