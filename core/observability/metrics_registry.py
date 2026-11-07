@@ -19,6 +19,7 @@ core/maintenance_pipeline.py keep resolving to the same objects.
 
 from __future__ import annotations
 
+import re
 import threading
 import time as _time
 from collections import deque
@@ -26,6 +27,36 @@ from typing import Any
 
 from core.config import settings
 from core.logging_config import logger
+
+# Route normalizer regexes for Prometheus cardinality and PII protection
+_UUID_REGEX = re.compile(
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
+_HEX_TOKEN_REGEX = re.compile(r"\b[0-9a-fA-F]{16,}\b")
+_NUMERIC_ID_REGEX = re.compile(r"/(?:\d+)(?=/|$|\?)")
+_RESOURCE_ID_REGEX = re.compile(
+    r"/(?:usr|user|task|sess|session|key|chatcmpl|msg|req)_[a-zA-Z0-9_\-]+(?=/|$|\?)",
+    re.IGNORECASE,
+)
+
+
+def normalize_route_path(path: str) -> str:
+    """Sanitize dynamic route segments to prevent Prometheus label cardinality explosion and PII leakage.
+
+    Transforms:
+    - /tasks/123e4567-e89b-12d3-a456-426614174000 -> /tasks/{id}
+    - /users/42/details -> /users/{id}/details
+    - /keys/key_abc123def456 -> /keys/{id}
+    - /reports/deadbeef0123456789abcdef -> /reports/{hash}
+    """
+    if not path:
+        return "/"
+    clean_path = path.split("?")[0]
+    clean_path = _UUID_REGEX.sub("{id}", clean_path)
+    clean_path = _RESOURCE_ID_REGEX.sub("/{id}", clean_path)
+    clean_path = _HEX_TOKEN_REGEX.sub("{hash}", clean_path)
+    clean_path = _NUMERIC_ID_REGEX.sub("/{id}", clean_path)
+    return clean_path
 
 # শেয়ার্ড ইউটিলিটি — Firestore ইনিশিয়ালাইজেশন কেন্দ্রীভূত
 from utils.firestore_helpers import get_firestore_db
@@ -145,17 +176,19 @@ def record_request(method: str, path: str, status: int) -> None:
     # is exhausted (issue #1430) and per-request Redis calls would worsen it.
     _note_request_outcome(status)
     if _PROMETHEUS_AVAILABLE:
+        norm_path = normalize_route_path(path)
         try:
-            http_requests_total.labels(method=method, endpoint=path, status=str(status)).inc()
-            supremeai_requests_total.labels(method=method, endpoint=path).inc()
+            http_requests_total.labels(method=method, endpoint=norm_path, status=str(status)).inc()
+            supremeai_requests_total.labels(method=method, endpoint=norm_path).inc()
         except Exception as exc:
             logger.debug(f"Failed to record request metrics: {exc}")
 
 
 def record_error(error_type: str, endpoint: str) -> None:
     if _PROMETHEUS_AVAILABLE:
+        norm_endpoint = normalize_route_path(endpoint)
         try:
-            error_total.labels(error_type=error_type, endpoint=endpoint).inc()
+            error_total.labels(error_type=error_type, endpoint=norm_endpoint).inc()
         except Exception as exc:
             logger.exception(f"Failed to record error metric: {exc}")
 
@@ -170,9 +203,10 @@ def record_request_duration(method: str, path: str, duration: float) -> None:
         logger.debug(f"Failed to record local latency log: {exc}")
 
     if _PROMETHEUS_AVAILABLE:
+        norm_path = normalize_route_path(path)
         try:
-            request_duration_seconds.labels(method=method, endpoint=path).observe(duration)
-            supremeai_response_seconds.labels(method=method, endpoint=path).observe(duration)
+            request_duration_seconds.labels(method=method, endpoint=norm_path).observe(duration)
+            supremeai_response_seconds.labels(method=method, endpoint=norm_path).observe(duration)
         except Exception as exc:
             logger.debug(f"Failed to record request duration metrics: {exc}")
 

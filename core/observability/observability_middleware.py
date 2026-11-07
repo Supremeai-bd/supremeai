@@ -6,6 +6,7 @@ import uuid
 
 from core.logging_config import logger
 from core.observability.metrics_registry import (
+    normalize_route_path,
     record_error,
     record_request,
     record_request_duration,
@@ -56,8 +57,12 @@ class ObservabilityMiddleware:
         authenticated_user = (
             getattr(request.state, "user", None) if hasattr(request, "state") else None
         )
+        if not authenticated_user and "user" in scope and isinstance(scope["user"], dict):
+            authenticated_user = scope["user"]
         if authenticated_user:
             user_id = authenticated_user.get("sub") or authenticated_user.get("user_id") or user_id
+            if not tenant_id or tenant_id == "unknown":
+                tenant_id = authenticated_user.get("tenant_id") or tenant_id
 
         # Use OpenTelemetry trace_id if available, otherwise generate or use header
         try:
@@ -92,12 +97,14 @@ class ObservabilityMiddleware:
                 message["headers"] = start_headers
             await send(message)
 
+        norm_path = normalize_route_path(path)
+
         try:
             with trace_span(
-                f"{method} {path}",
+                f"{method} {norm_path}",
                 attributes={
                     "http.method": method,
-                    "http.route": path,
+                    "http.route": norm_path,
                     "http.url": f"{scope.get('scheme', 'http')}://{scope.get('server', ('localhost', 80))[0]}{path}",
                     "trace_id": trace_id,
                     "enduser.id": user_id,
