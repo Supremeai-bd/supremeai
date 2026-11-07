@@ -240,10 +240,10 @@ export const DreamBuilderHero: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={() => navigate('/playground')}
+                    onClick={() => navigate('/chat')}
                     className="flex items-center gap-1.5 rounded-lg bg-cyan-500/20 px-3 py-1 font-semibold text-cyan-300 hover:bg-cyan-500/30 transition-all"
                   >
-                    <span>Launch in Sandbox</span>
+                    <span>Start in Live Chat</span>
                     <ArrowRight size={13} />
                   </button>
                 </div>

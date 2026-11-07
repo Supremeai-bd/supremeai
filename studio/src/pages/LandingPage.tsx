@@ -32,15 +32,21 @@ export const LandingHeader: React.FC = () => {
       </Link>
 
       <nav className="hidden md:flex items-center gap-6 text-sm text-slate-300">
-        <Link to="/playground" className="flex items-center gap-1.5 text-cyan-300 hover:text-cyan-200 transition-colors font-medium">
+        <Link to="/features" className="hover:text-cyan-300 transition-colors">
+          Features
+        </Link>
+        <Link to="/models" className="hover:text-cyan-300 transition-colors">
+          Models
+        </Link>
+        <Link to="/pricing" className="hover:text-cyan-300 transition-colors">
+          Pricing
+        </Link>
+        <Link to="/docs" className="hover:text-cyan-300 transition-colors">
+          Docs
+        </Link>
+        <Link to="/chat" className="flex items-center gap-1.5 text-cyan-300 hover:text-cyan-200 transition-colors font-medium">
           <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
-          <span>Guest Sandbox</span>
-        </Link>
-        <Link to="/chat" className="hover:text-cyan-300 transition-colors">
-          Live Assistant
-        </Link>
-        <Link to="/about" className="hover:text-cyan-300 transition-colors">
-          Our Vision
+          <span>Live Chat</span>
         </Link>
       </nav>
 
@@ -81,16 +87,22 @@ export const LandingHeader: React.FC = () => {
       {/* Mobile dropdown menu */}
       {menuOpen && (
         <nav className="absolute top-16 left-0 right-0 z-modal flex flex-col gap-1 border-b border-white/10 bg-slate-950/95 px-4 py-4 backdrop-blur-xl md:hidden">
-          <Link to="/playground" onClick={closeMenu} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-cyan-300 hover:bg-white/5 transition-colors">
+          <Link to="/features" onClick={closeMenu} className="rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:text-cyan-300 hover:bg-white/5 transition-colors">
+            Features
+          </Link>
+          <Link to="/models" onClick={closeMenu} className="rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:text-cyan-300 hover:bg-white/5 transition-colors">
+            Models
+          </Link>
+          <Link to="/pricing" onClick={closeMenu} className="rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:text-cyan-300 hover:bg-white/5 transition-colors">
+            Pricing
+          </Link>
+          <Link to="/docs" onClick={closeMenu} className="rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:text-cyan-300 hover:bg-white/5 transition-colors">
+            Docs
+          </Link>
+          <Link to="/chat" onClick={closeMenu} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-cyan-300 hover:bg-white/5 transition-colors font-medium">
             <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            <span>Guest Sandbox</span>
+            <span>Live Chat</span>
           </Link>
-          <Link to="/chat" onClick={closeMenu} className="rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:text-cyan-300 hover:bg-white/5 transition-colors">
-            Live Assistant
-          </Link>
-          <button type="button" onClick={() => navTo('/about')} className="rounded-lg px-3 py-2.5 text-left text-sm text-slate-300 hover:text-cyan-300 hover:bg-white/5 transition-colors">
-            Our Vision
-          </button>
           <div className="mt-2 flex flex-col gap-2 border-t border-white/10 pt-3">
             <button type="button" onClick={() => navTo('/login')} className="rounded-lg border border-white/10 px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/5 transition-colors">Sign In</button>
             <button type="button" onClick={() => navTo('/register')} className="rounded-lg bg-gradient-to-r from-cyan-500 to-indigo-600 px-3 py-2.5 text-sm font-semibold text-white shadow-md shadow-cyan-500/20 hover:opacity-95 transition-opacity">Get Started</button>
@@ -104,9 +116,6 @@ export const LandingHeader: React.FC = () => {
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [typedText, setTypedText] = useState('');
-  const [viewMode, setViewMode] = useState<'dream' | 'suite' | 'classic'>('dream');
-  const fullText = 'What is the current health status of my AI assistants?';
 
   useEffect(() => {
     if (!location.hash) return;
@@ -119,157 +128,40 @@ export const LandingPage: React.FC = () => {
     return () => window.clearTimeout(t);
   }, [location.hash]);
 
-  useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced) {
-      setTypedText(fullText);
-      return;
-    }
-    let index = 0;
-    const interval = setInterval(() => {
-      setTypedText(fullText.slice(0, index));
-      index = (index + 1) % (fullText.length + 15);
-    }, 75);
-    return () => clearInterval(interval);
-  }, []);
-
-  if (viewMode === 'dream') {
-    return (
-      <div className="relative min-h-screen w-full bg-[#080b12] text-slate-100 overflow-x-hidden">
-        <NeuralConstellationCanvas />
-        <LandingHeader />
-
-        {/* Living Dream Builder Interactive Hero */}
-        <div className="relative z-10 pb-16">
-          <DreamBuilderHero />
-        </div>
-      </div>
-    );
-  }
-
-  if (viewMode === 'suite') {
-    return (
-      <div className="relative min-h-screen w-full bg-[#080b12]">
-        {/* Quick view switch banner */}
-        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full border border-white/15 bg-slate-900/90 px-3 py-1.5 text-xs text-slate-300 shadow-xl backdrop-blur-md">
-          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>SupremeAI Live Suite</span>
-          <button
-            type="button"
-            onClick={() => setViewMode('dream')}
-            className="ml-2 rounded px-2 py-0.5 text-[11px] font-semibold text-cyan-400 hover:bg-white/10"
-          >
-            Vision View
-          </button>
-        </div>
-        <ConceptApp />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-purple-500/30">
+    <div className="relative min-h-screen w-full bg-[#080b12] text-slate-100 overflow-x-hidden">
+      <NeuralConstellationCanvas />
       <LandingHeader />
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden px-6 pt-20 pb-28 md:pt-32 md:pb-36">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(168,85,247,0.18)_0%,transparent_60%)] pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_60%,rgba(16,185,129,0.12)_0%,transparent_50%)] pointer-events-none" />
+      {/* Living Dream Builder Interactive Hero */}
+      <div className="relative z-10 pb-8">
+        <DreamBuilderHero />
+      </div>
 
-        <div className="mx-auto max-w-dash text-center relative z-10">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-mono text-emerald-300 mb-6 backdrop-blur-md">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Cosmic Architecture 2.0 Live
-          </div>
-
-          <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl md:text-7xl bg-gradient-to-b from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
-            Sovereign Intelligence.<br />Zero-Admin Federation.
-          </h1>
-
-          <p className="mx-auto mt-6 max-w-2xl text-base sm:text-lg text-slate-400 leading-relaxed">
-            Autonomous multi-model intelligence network with self-healing bridges, fail-closed security, and native provider consensus.
+      {/* Quick Entry Callout to Live Chat */}
+      <section className="relative z-10 border-t border-white/10 px-4 py-16 sm:px-6">
+        <div className="mx-auto max-w-4xl rounded-3xl border border-white/10 bg-slate-900/60 p-8 backdrop-blur-xl text-center">
+          <h2 className="text-2xl font-bold text-white sm:text-3xl">
+            Ready to experience sovereign intelligence?
+          </h2>
+          <p className="mt-3 text-slate-400 max-w-xl mx-auto">
+            Try our instant live assistant with zero setup. Ask questions, explore code, or build workflows directly in your browser.
           </p>
-
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button
-              type="button"
-              onClick={() => setViewMode('suite')}
-              className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-emerald-500 to-purple-600 px-6 py-3 font-semibold text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all"
-            >
-              Open Live Suite →
-            </button>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
             <button
               type="button"
               onClick={() => navigate('/chat')}
-              className="w-full sm:w-auto rounded-xl border border-white/10 bg-slate-900/80 px-6 py-3 font-semibold text-slate-200 hover:bg-slate-800 hover:text-white transition-all backdrop-blur-md"
+              className="rounded-xl bg-gradient-to-r from-emerald-500 via-cyan-500 to-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 hover:opacity-95 transition-opacity"
             >
-              Try Live Guest Chat
+              Start Free Guest Chat →
             </button>
-          </div>
-        </div>
-
-        {/* Live-typed demo */}
-        <div id="demo" className="mx-auto mt-16 max-w-3xl rounded-2xl border border-white/10 bg-slate-900/60 p-5 shadow-2xl backdrop-blur-xl">
-          <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
-            <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-rose-500/80" />
-              <span className="h-3 w-3 rounded-full bg-amber-500/80" />
-              <span className="h-3 w-3 rounded-full bg-emerald-500/80" />
-            </div>
-            <span className="text-xs font-mono text-slate-400">SupremeAI Native Relay</span>
-          </div>
-          <div className="space-y-3 font-mono text-sm">
-            <div className="rounded-xl bg-purple-950/40 border border-purple-500/20 p-3 text-purple-200">
-              <span className="text-xs text-purple-400 font-bold block mb-1">User</span>
-              {typedText}
-              <span className="inline-block w-2 h-4 bg-purple-400 ml-1 animate-pulse" />
-            </div>
-            <div className="rounded-xl bg-slate-800/50 border border-white/10 p-3 text-emerald-300">
-              <span className="text-xs text-emerald-400 font-bold block mb-1">SupremeAI Mesh</span>
-              ⚡ Active Satellites nominal. Consensus achieved across Gemini, Groq, and Mistral in 38ms.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Feature Cards */}
-      <section id="features" className="border-t border-white/10 px-6 py-24 bg-slate-950/50">
-        <div className="mx-auto max-w-dash">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-white">Engineered for Sovereign Resilience</h2>
-            <p className="mt-3 text-slate-400">Three pillars of the federated architecture</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-md hover:border-emerald-500/30 transition-all">
-              <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4 font-bold">
-                01
-              </div>
-              <h3 className="text-lg font-bold text-white">Understands Your Entire Federation</h3>
-              <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                Single-door public ingress with automated slice dispatch across the product satellites.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-md hover:border-purple-500/30 transition-all">
-              <div className="h-10 w-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 mb-4 font-bold">
-                02
-              </div>
-              <h3 className="text-lg font-bold text-white">Multi-Model Consensus & Auto-Healing</h3>
-              <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                Dynamically routes through 6 LLM providers with automatic player substitution and fail-closed security.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-md hover:border-cyan-500/30 transition-all">
-              <div className="h-10 w-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 mb-4 font-bold">
-                03
-              </div>
-              <h3 className="text-lg font-bold text-white">Zero Admin Overhead (&le; 0.01%)</h3>
-              <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                Autonomous CI gates, pre-push verification, and automated landing pipelines run 24/7.
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/features')}
+              className="rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-slate-200 hover:bg-white/10 transition-colors"
+            >
+              Explore All Features
+            </button>
           </div>
         </div>
       </section>

@@ -12,13 +12,11 @@ import { JarvisOnboardingModal } from '../components/jarvis/JarvisOnboardingModa
 // (Refs #861) ব্যবহার করা হচ্ছে; চ্যাট লজিক / webhook-only ম্যান্ডেট অপরিবর্তিত।
 
 export const publicLinks = [
-  // ROOT-CAUSE FIX (guest nav misdirection, 2026-10-23): 'Chat' pointed at '/'
-  // (the landing page) and Models/Features/Pricing/Docs pointed at duplicate
-  // GuestChat alias pages — every nav item dumped guests into the same chat.
-  // Chat now targets /chat; the duplicate alias links are removed from the nav
-  // (their routes remain for direct URLs / backward compatibility).
+  { to: '/features', label: 'Features' },
+  { to: '/models', label: 'Models' },
+  { to: '/pricing', label: 'Pricing' },
+  { to: '/docs', label: 'Docs' },
   { to: '/chat', label: 'Chat' },
-  { to: '/about', label: 'About' },
 ];
 
 export const capabilityItems = [
@@ -195,7 +193,7 @@ export const DocsPage: React.FC = () => (
     </ol>
     <div className="flex flex-wrap gap-3">
       <Link to="/chat" className={infoCta}>Open guest chat</Link>
-      <a href="https://github.com/Supremeai-bd/supremeai/issues" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/80 px-5 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors">Report an issue on GitHub</a>
+      <a href="https://github.com/Supremeai-bd/supremeai-open/issues" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/80 px-5 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors">Report an issue on GitHub</a>
     </div>
   </div>
 );
@@ -209,7 +207,7 @@ export function PublicInfoPage(_props: { kind?: string }) {
       </header>
       <div className="flex flex-wrap gap-3">
         <Link to="/chat" className={infoCta}>Chat with SupremeAI</Link>
-        <a href="https://github.com/Supremeai-bd/supremeai/issues" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/80 px-5 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors">Open a GitHub issue</a>
+        <a href="https://github.com/Supremeai-bd/supremeai-open/issues" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/80 px-5 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors">Open a GitHub issue</a>
       </div>
     </div>
   );
