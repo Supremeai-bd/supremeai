@@ -68,11 +68,15 @@ flowchart TD
   - `scripts/ci/silent_failure_guard.py`: Forbids swallowed exceptions (`except: pass`).
 
 ### Stage 2: Heavy Gate Verification (Tier 2)
-- **Runner:** Self-hosted runner (`supremeai-local-pc`).
+- **Runner:** Self-hosted runner (`supremeai-local-pc`) or fallback runner.
 - **Components:**
   - Full backend test suites across `core/` and `gateway/`.
   - Frontend typecheck and build validation for `studio/`.
   - Database schema safety and contract validation.
+
+### Stage 2b: Autonomous Auto-Merge (Gated)
+- **Role Isolation:** Autonomous agents only write code, verify locally, and open the Pull Request. Agents must never force-merge or bypass gates.
+- **Merge Condition:** The gated `auto-merge` job in `unified-pipeline.yml` executes natively once `fast-gate`, `runtime-readiness`, and `render-heavy-gate` (or fallback) pass 100%. No human or bot manual intervention is needed.
 
 ### Stage 3: Post-Merge Actions & Deployment
 - **Autonomous Federation:** `scripts/ci/federation_satellite_sync.py` mirrors frontend components to `supremeai-studio`.
