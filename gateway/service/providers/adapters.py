@@ -254,6 +254,8 @@ async def forward_chat_completion(
     body.pop("preferred_provider", None)
     body.pop("temp", None)
     body.pop("provider", None)
+    # Always request non-streaming JSON from upstream providers; gateway handles client SSE streaming
+    body["stream"] = False
     if provider == "gemini":
         body.pop("frequency_penalty", None)
         body.pop("presence_penalty", None)

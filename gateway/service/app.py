@@ -1864,14 +1864,33 @@ async def _execute_chat_completion(
                 # Streaming chunk generator for Kilo Code / IDEs
                 if body.get("stream"):
                     async def squad_stream_generator():
-                        words = chat_content.split(" ")
-                        for idx, word in enumerate(words):
-                            chunk_text = word + (" " if idx < len(words) - 1 else "")
-                            chunk_payload = _format_sse_chunk(
-                                response_data.get("id"), served_model, chunk_text, idx == len(words) - 1, response_data.get("supremeai")
-                            )
+                        msg_obj = choices[0]["message"] if choices and isinstance(choices[0], dict) and isinstance(choices[0].get("message"), dict) else {}
+                        tool_calls = msg_obj.get("tool_calls")
+                        if tool_calls:
+                            chunk_payload = {
+                                "id": response_data.get("id") or "chatcmpl-stream",
+                                "object": "chat.completion.chunk",
+                                "created": int(time.time()),
+                                "model": served_model,
+                                "choices": [
+                                    {
+                                        "index": 0,
+                                        "delta": {"role": "assistant", "tool_calls": tool_calls},
+                                        "finish_reason": "tool_calls",
+                                    }
+                                ],
+                                "supremeai": response_data.get("supremeai"),
+                            }
                             yield f"data: {json.dumps(chunk_payload)}\n\n"
-                            await asyncio.sleep(0.01)
+                        else:
+                            words = chat_content.split(" ") if chat_content else [""]
+                            for idx, word in enumerate(words):
+                                chunk_text = word + (" " if idx < len(words) - 1 else "")
+                                chunk_payload = _format_sse_chunk(
+                                    response_data.get("id"), served_model, chunk_text, idx == len(words) - 1, response_data.get("supremeai")
+                                )
+                                yield f"data: {json.dumps(chunk_payload)}\n\n"
+                                await asyncio.sleep(0.01)
                         yield "data: [DONE]\n\n"
 
                     return StreamingResponse(
