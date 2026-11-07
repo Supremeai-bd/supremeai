@@ -105,11 +105,6 @@ on:
         required: false
         default: false
         type: boolean
-      platform_deep_audit_dry_run:
-        description: '[platform-deep-audit] Dry-run (probe + report only, no GitHub issue writes) — recommended for the first validation run (#2712)'
-        required: false
-        default: false
-        type: boolean
       run_rate_limit_trend:
         description: 'Run rate-limit trend snapshot arm'
         required: false
@@ -172,21 +167,11 @@ on:
         required: false
         default: false
         type: boolean
-      stale_hours:
-        description: '[stale-mutex] কত ঘণ্টা পরে stale ধরা হবে (default: 24)'
-        required: false
-        default: '24'
-        type: string
       dry_run:
-        description: '[stale-mutex] Dry-run (label সরাবে না, শুধু রিপোর্ট করবে)'
+        description: 'Dry-run (simulate execution without state mutation)'
         required: false
         default: false
         type: boolean
-      db_retention_days:
-        description: '[db-retention] Days of evolution_logs to keep'
-        required: false
-        default: '30'
-        type: string
 
 # Least privilege: workflow-wide read-only; jobs carry their own overrides
 # (issues:write for issue-opening arms, contents:write for branch retention,
@@ -749,7 +734,7 @@ jobs:
           mkdir -p ci-reports
           python .github/scripts/platform_deep_audit.py \
             --json ci-reports/platform_deep_audit.json \
-            ${{ inputs.platform_deep_audit_dry_run == true && '--dry-run' || '' }}
+            ${{ inputs.dry_run == true && '--dry-run' || '' }}
 
       - name: Upload audit JSON
         if: always()
