@@ -145,7 +145,7 @@ def test_phase0_canonical_service_registry_and_ssot_alignment() -> None:
     # from the monorepo Render blueprint. Keep the registry truthful so a
     # topology audit cannot silently route Brain checks to the primary API.
     brain = services["brain"]
-    assert brain["source_repo"] == "Supremeai-bd/supremeai-open"
+    assert brain["source_repo"] == "Supremeai-bd/supremeai"
     assert brain["production_url"] == "https://supremeai-tiny-brain.onrender.com"
     assert brain["health_path"] == "/health"
 
