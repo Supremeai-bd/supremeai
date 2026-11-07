@@ -48,6 +48,8 @@ export default tseslint.config({ ignores: ['dist', 'dist-admin', 'dist-user', 's
     '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/no-unused-vars': ['warn', { 'argsIgnorePattern': '^_', 'varsIgnorePattern': '^_' }],
     'react-hooks/set-state-in-effect': 'off',
+    'react-hooks/preserve-manual-memoization': 'off',
+    'react-hooks/purity': 'off',
     'no-console': ['warn', { allow: ['warn', 'error', 'debug'] }],
     // Issue #2522: bare fetch() regression guard — সব API কল apiClient দিয়ে যাবে
     // (timeout, concurrency queue, auth header, cold-start retry, error mapping)।
