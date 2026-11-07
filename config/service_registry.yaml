@@ -277,12 +277,12 @@ services:
   frontend:
     render_name: supremeai-studio
     role: "User-Facing React/Vite Studio & Mission Control Cockpit"
-    platform: vercel
+    platform: cloudflare
     deploy_key: frontend
     entrypoint: "studio/package.json"
     local_port: 5173
     preview_port: 3000
-    production_url: "https://supremeai-studio.vercel.app"
+    production_url: "https://studio.supremeai.lat"
     watch_paths:
       - "studio/**"
       - "frontend/**"

@@ -43,9 +43,17 @@ export function JarvisAdminConsolePage() {
     setOrbState: () => {},
   });
 
-  // Probe local edge-tts server
+  // Probe local edge-tts server only in development/local environments
   useEffect(() => {
     let mounted = true;
+    const isLocal = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    if (!isLocal) {
+      setLocalVoiceActive(false);
+      return;
+    }
+
     const probe = async () => {
       try {
         // eslint-disable-next-line no-restricted-syntax -- localhost edge-tts daemon probe
