@@ -13,38 +13,8 @@ name: SupremeAI Unified CI/CD Pipeline
 
 on:
   pull_request:
-    paths:
-      - "core/**"
-      - "gateway/**"
-      - "browser/**"
-      - "studio/**"
-      - "vscode/**"
-      - "infrastructure/**"
-      - "scripts/**"
-      - "config/**"
-      - "docs/**"
-      - "*.md"
-      - "requirements*.txt"
-      - "pyproject.toml"
-      - "Dockerfile"
-      - "render.yaml"
   push:
     branches: [main]
-    paths:
-      - "core/**"
-      - "gateway/**"
-      - "browser/**"
-      - "studio/**"
-      - "vscode/**"
-      - "infrastructure/**"
-      - "scripts/**"
-      - "config/**"
-      - "docs/**"
-      - "*.md"
-      - "requirements*.txt"
-      - "pyproject.toml"
-      - "Dockerfile"
-      - "render.yaml"
   schedule:
     - cron: "23 2 * * *"
   workflow_dispatch:
