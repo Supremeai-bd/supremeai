@@ -55,7 +55,41 @@ flowchart TD
 
 ---
 
-### 2. 2-Step Cascading Bridge & Zero-Residue Lifecycle (#416)
+### 2. End-to-End PR-to-Production Lifecycle Architecture
+
+For complete end-to-end documentation of our deterministic multi-tier gates, automated landing, federation sync, and edge deployment, see [`docs/PR_TO_PRODUCTION_LIFECYCLE.md`](docs/PR_TO_PRODUCTION_LIFECYCLE.md).
+
+```mermaid
+flowchart TD
+    subgraph S1["1. PR Fast Validation (<60s)"]
+        PR["Developer Opens PR"] --> FastSafety["Tier 1: Fast Safety Gate"]
+        PR --> RuntimeReadiness["Tier 1: Runtime Readiness"]
+    end
+
+    subgraph S2["2. Heavy Verification (Local Self-Hosted Runner)"]
+        FastSafety --> HeavyGate["Tier 2: Heavy Test Battery (Local PC)"]
+        RuntimeReadiness --> HeavyGate
+        HeavyGate --> CorePytest["Full Backend Pytest Suite"]
+        HeavyGate --> Typecheck["TypeScript Typecheck (studio/)"]
+    end
+
+    subgraph S3["3. Autonomous Landing & Post-Merge Triggers"]
+        HeavyGate --> PRMerge["Squash Merge into main"]
+        PRMerge --> ResolveTargets["Plan Changed Render Services"]
+        PRMerge --> SatSync["Federation Satellite Sync"]
+        PRMerge --> EdgeDeploy["Deploy Cloudflare Edge Mesh"]
+        PRMerge --> VercelHook["Deploy Vercel Frontend Hook"]
+    end
+
+    subgraph S4["4. Production Deployment Matrix"]
+        ResolveTargets --> RenderTrigger["Trigger Render Backend Deploy"]
+        RenderTrigger --> CanaryVerify["Canary & Health Check Verification"]
+        SatSync --> StudioRepo["Sync to Supremeai-bd/supremeai-studio"]
+        StudioRepo --> CloudflarePages["Cloudflare Pages Live Edge Deploy"]
+    end
+```
+
+### 3. 2-Step Cascading Bridge & Zero-Residue Lifecycle (#416)
 
 ```mermaid
 flowchart TD
