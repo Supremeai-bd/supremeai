@@ -55,25 +55,45 @@ flowchart TD
 
 ---
 
-### 2. 2-Step Cascading Bridge & Zero-Residue Lifecycle (#416)
+### 2. Full PR-to-Production Lifecycle & Autonomous Delivery Pipeline
+
+Detailed technical implementation and service mapping are documented in [`docs/PR_TO_PRODUCTION_LIFECYCLE.md`](./docs/PR_TO_PRODUCTION_LIFECYCLE.md).
 
 ```mermaid
 flowchart TD
-    PR["Autonomous PR / Patch Submission<br>(supremeai:main)"] --> GATES{"Constitutional Gates &<br>Verification Battery"}
-    
-    GATES -- "Pass" --> LAND["Autonomous Landing<br>(Squash Merge into main)"]
-    GATES -- "Fail" --> REJECT["Fail-Closed Block & Feedback<br>(CI Incident Logged)"]
-    
-    LAND --> STEP1["🌉 Bridge Step 1:<br>supremeai ➔ Active Target Satellite<br>(studio, api, browser, vscode, core)"]
-    
-    STEP1 --> VERIFY1{"Satellite Ingestion<br>Verified?"}
-    VERIFY1 -- "Yes" --> STEP2["🌉 Bridge Step 2:<br>Satellite ➔ Central Monorepo (supremeai)<br>(Full Product Parity Ingestion)"]
-    
-    STEP2 --> VERIFY2{"Monorepo Sync<br>Verified?"}
-    
-    VERIFY2 -- "Verified Completed" --> PRUNE["🧹 Zero-Residue Auto-Prune (#416):<br>1. Delete ephemeral transit patch files<br>2. Delete bridge/* transit sync branches"]
-    
-    PRUNE --> CLEAN["✨ Clean Steady State<br>Open repo preserved at clean U_open boundary"]
+    subgraph PR_GATES ["পর্ব ১: PR ওপেনিং ও CI গেটস"]
+        PR["PR Opened in Monorepo"] --> F1["Tier 1: fast-gate (<30s)<br>(Ruff, Telemetry Bus Guard, Wiring Atlas)"]
+        PR --> F2["Tier 1: runtime-readiness (<30s)<br>(Readiness Contract, Timeout & Silent Failure Guards)"]
+        F1 & F2 --> H1["Tier 2: render-heavy-gate<br>(Local PC Runner [0 cloud mins] / Render Backup)<br>• 43 Auto Guards (SAST, CVE, Fuzz, OpenAPI)<br>• Full Compile Integrity<br>• Publish CI Attestation to MCP Tower"]
+    end
+
+    subgraph AUTO_LANDING ["পর্ব ২: অটোনোমাস ল্যান্ডিং"]
+        H1 --> AM["Autonomous Auto-Landing<br>(gh pr merge --squash --delete-branch)"]
+        AM --> M_MAIN["Landed on Monorepo main"]
+    end
+
+    subgraph POST_MERGE ["পর্ব ৩ & ৪: প্রোডাকশন ডিপ্লয়মেন্ট"]
+        M_MAIN --> Plan["Planning: Resolve 3-Tier Priority & Quota<br>Compute Changed Render Service Matrix"]
+        Plan --> RD["Deploy Render Services (core, api, mcp, worker)<br>Trigger Deploy ➔ Poll ➔ Verify Live Commit SHA ➔ Canary Probe"]
+        Plan --> CFW["Deploy Cloudflare Edge Mesh<br>Wrangler Keep-Warm Worker (5m ping) & Studio Proxy"]
+    end
+
+    subgraph FEDERATION ["পর্ব ৫: স্যাটেলাইট সিঙ্ক ও ক্লাউডফ্লেয়ার পেজেস"]
+        M_MAIN --> FSync["Federation Sync<br>(scripts/ci/federation_satellite_sync.py)"]
+        FSync --> SatPush["Pushed to Supremeai-bd/supremeai-studio:main"]
+        SatPush --> SatCI["Studio CI<br>(pnpm typecheck, pnpm lint, pnpm build)"]
+        SatCI --> CFPages["Cloudflare Pages Deploy<br>(pages-action@v1)"]
+        CFPages --> LIVE["🚀 Live at https://studio.supremeai.lat"]
+    end
+
+    subgraph HEAVY_RUNS ["পর্ব ৬: শিডিউলড ও ব্যাকগ্রাউন্ড হেভি রানস (Nightly & 24h)"]
+        Cron2h["প্রতি ২ ঘণ্টার ক্রোন চেক"] --> Opportunistic["Opportunistic 24h+ Audit<br>(local-pc জেগে থাকলে; 48h এ ক্লাউড ফলব্যাক)"]
+        Opportunistic --> DeepVulnerability["43+ Guard Suite, Fuzz Testing & Full Vulnerability Sweep"]
+
+        CronNightly["প্রতি রাত ৩:০০ টার ক্রোন"] --> NightlyOps["Nightly Ops & Maintenance<br>(ops-maintenance.yml)"]
+        NightlyOps --> T1_Daily["Daily: DB retention, Stale mutex cleanup, Rate limit monitor"]
+        NightlyOps --> T2_Weekly["Weekly (Sunday): Locust Load, DAST ZAP, Chaos Injection, Browser E2E"]
+    end
 ```
 
 ---

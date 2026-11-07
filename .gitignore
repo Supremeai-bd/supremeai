@@ -1,6 +1,9 @@
 # Rust artifacts
 src-tauri/target/
 
+# Local Agent instructions
+AGENTS.md
+
 # Frontend build artifacts
 dist/
 out/
