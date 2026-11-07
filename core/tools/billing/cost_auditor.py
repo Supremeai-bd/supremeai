@@ -1,7 +1,10 @@
 import os
 
 from core.monitoring.logging_config import logger
-from memory.sqlite_store import SQLiteMemoryStore
+try:
+    from core.memory.sqlite_store import SQLiteMemoryStore
+except ImportError:
+    from memory.sqlite_store import SQLiteMemoryStore
 
 
 class CostAuditor:

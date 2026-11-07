@@ -63,7 +63,7 @@ from pathlib import Path
 from typing import Any
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-ROOT = SCRIPT_DIR.parent  # project root (parent of scripts/)
+ROOT = SCRIPT_DIR.parent.parent  # project root (parent of scripts/ops/)
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -85,8 +85,7 @@ DEFAULT_EXCLUDE_DIRS = {
 }
 
 DEFAULT_SCAN_DIRS = [
-    "backend", "frontend/src", "apps", "packages", "shared", "tools",
-    "config", "configs", "scripts", "migrations",
+    "core", "gateway", "browser", "studio", "infrastructure", "scripts",
 ]
 
 MAX_FILE_BYTES = 600_000

@@ -21,12 +21,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-ROUTERS_FILE = ROOT / "backend" / "api" / "routers.py"
-BACKEND_SRC = ROOT / "backend"
-FRONTEND_SRC = ROOT / "frontend" / "src"
+ROUTERS_FILE = ROOT / "core" / "api" / "routers.py"
+CORE_SRC = ROOT / "core"
+STUDIO_SRC = ROOT / "studio" / "src"
 
 # যেসব prefix ফ্রন্টএন্ড-বেকএন্ড কন্ট্রাক্টের বাইরে (Firebase বিশেষ path ইত্যাদি)
-SKIP_FRONTEND_PREFIXES = ("/__/",)
+SKIP_FRONTEND_PREFIXES = ("/__/", "/api/placeholder")
 
 # রাউটার রেজিস্ট্রেশন পার্স: {"path": "module.path", "prefix": "/prefix", ...}
 _REG_PATTERN = re.compile(r'"path"\s*:\s*"([^"]+)"\s*,\s*"prefix"\s*:\s*"([^"]*)"')
@@ -60,25 +60,37 @@ def backend_routes() -> set[str]:
     """সমস্ত নিবন্ধিত রাউটার থেকে পূর্ণ HTTP path-এর সেট।"""
     routes: set[str] = set()
     for mod_path, prefix in parse_registered_routers():
-        rel = mod_path.replace(".", "/") + ".py"
-        mod_file = BACKEND_SRC / rel
-        if not mod_file.exists():
-            continue  # optional router অনুপস্থিত — optional হিসেবে গৃহীত
-        text = mod_file.read_text(encoding="utf-8", errors="ignore")
-        for path in _DECORATOR_PATTERN.findall(text):
-            if path.startswith("/"):
-                combined = prefix.rstrip("/") + path
-            else:
-                combined = prefix + "/" + path
-            routes.add(norm(combined))
+        rel = mod_path.replace(".", "/")
+        mod_file = CORE_SRC / (rel + ".py")
+        py_files: list[Path] = []
+        if mod_file.exists():
+            py_files = [mod_file]
+        else:
+            pkg_dir = CORE_SRC / rel
+            if pkg_dir.is_dir():
+                py_files = list(pkg_dir.glob("*.py"))
+            elif (CORE_SRC / rel / "__init__.py").exists():
+                py_files = [CORE_SRC / rel / "__init__.py"]
+
+        if not py_files:
+            continue
+
+        for target in py_files:
+            text = target.read_text(encoding="utf-8", errors="ignore")
+            for path in _DECORATOR_PATTERN.findall(text):
+                if path.startswith("/"):
+                    combined = prefix.rstrip("/") + path
+                else:
+                    combined = prefix + "/" + path
+                routes.add(norm(combined))
     return routes
 
 
 def frontend_calls() -> set[str]:
     """ফ্রন্টএন্ডে ব্যবহৃত API path-এর সেট।"""
     calls: set[str] = set()
-    src_files = [f for f in FRONTEND_SRC.rglob("*.ts") if "node_modules" not in f.parts and ".test." not in f.name and not f.name.endswith(".spec.ts")]
-    src_files += [f for f in FRONTEND_SRC.rglob("*.tsx") if "node_modules" not in f.parts and ".test." not in f.name and not f.name.endswith(".spec.tsx")]
+    src_files = [f for f in STUDIO_SRC.rglob("*.ts") if "node_modules" not in f.parts and ".test." not in f.name and not f.name.endswith(".spec.ts")]
+    src_files += [f for f in STUDIO_SRC.rglob("*.tsx") if "node_modules" not in f.parts and ".test." not in f.name and not f.name.endswith(".spec.tsx")]
     for f in src_files:
         text = f.read_text(encoding="utf-8", errors="ignore")
         for m in _FRONTEND_PATH_PATTERN.finditer(text):
