@@ -167,24 +167,24 @@ export default function Dashboard() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-text flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                    CI/CD Watcher
+                    <div className={`w-2 h-2 rounded-full ${activeDeployments.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-secondary'}`}></div>
+                    CI Pipeline Worker
                   </span>
-                  <span className="text-xs font-mono text-secondary">{activeDeployments.length > 0 ? 'Active' : 'Idle'}</span>
+                  <span className="text-xs font-mono text-secondary">{activeDeployments.length > 0 ? `${activeDeployments.length} Active` : 'Idle'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-text flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                    Infra Autoscaler
+                    <div className={`w-2 h-2 rounded-full ${metrics ? 'bg-emerald-500 animate-pulse' : 'bg-secondary'}`}></div>
+                    Telemetry Collector
                   </span>
-                  <span className="text-xs font-mono text-secondary">{metrics ? 'Monitoring' : 'Idle'}</span>
+                  <span className="text-xs font-mono text-secondary">{metrics ? 'Monitoring' : 'Standby'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-secondary flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-secondary"></div>
-                    Security Scanner
+                    <div className={`w-2 h-2 rounded-full ${activeIncidents.length > 0 ? 'bg-rose-500 animate-pulse' : 'bg-secondary'}`}></div>
+                    Security Sentinel
                   </span>
-                  <span className="text-xs font-mono text-secondary">{activeIncidents.length > 0 ? 'Reviewing' : 'Standby'}</span>
+                  <span className="text-xs font-mono text-secondary">{activeIncidents.length > 0 ? `${activeIncidents.length} Alert` : 'Standby'}</span>
                 </div>
               </div>
             </div>
