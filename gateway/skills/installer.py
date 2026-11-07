@@ -69,7 +69,7 @@ class SkillInstaller:
             raise ValueError("Invalid skill name.")
         if not _SKILL_NAME_PATTERN.match(name):
             raise ValueError("Skill name contains invalid characters.")
-        if ".." in name or name.startswith(("/", "\\")):
+        if ".." in name or name.startswith(("/", "/")):
             raise ValueError("Path traversal detected in skill name.")
         return name
 

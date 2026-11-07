@@ -1,20 +1,7 @@
-import csv
+"""core/skills/dynamic/csv_exporter.py — Re-export SSOT for skills.dynamic.csv_exporter.
 
+Canonical SSOT: skills/dynamic/csv_exporter
+Provides backward-compatibility for callers while eliminating duplicate logic.
+"""
 
-def run(data: list, filepath: str):
-    """Exports a list of dicts to a CSV file."""
-    if not data or not isinstance(data, list):
-        return {
-            "success": False,
-            "error": "Invalid data format. Expected list of dicts.",
-        }
-
-    try:
-        keys = data[0].keys()
-        with open(filepath, "w", newline="", encoding="utf-8") as f:
-            dict_writer = csv.DictWriter(f, fieldnames=keys)
-            dict_writer.writeheader()
-            dict_writer.writerows(data)
-        return {"success": True, "filepath": filepath, "rows_exported": len(data)}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+from skills.dynamic.csv_exporter import *  # noqa: F401, F403

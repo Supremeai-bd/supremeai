@@ -1,14 +1,7 @@
-def run(text: str, max_sentences: int = 3):
-    """Summarizes text by extracting the first few sentences."""
-    if not text:
-        return ""
-    # Simple sentence splitter
-    sentences = [s.strip() for s in text.replace("\n", " ").split(".") if s.strip()]
-    summary = ". ".join(sentences[:max_sentences])
-    if len(sentences) > max_sentences:
-        summary += "."
-    return {
-        "original_length": len(text),
-        "summary": summary,
-        "sentences_count": len(sentences),
-    }
+"""core/skills/dynamic/text_summarizer.py — Re-export SSOT for skills.dynamic.text_summarizer.
+
+Canonical SSOT: skills/dynamic/text_summarizer
+Provides backward-compatibility for callers while eliminating duplicate logic.
+"""
+
+from skills.dynamic.text_summarizer import *  # noqa: F401, F403
