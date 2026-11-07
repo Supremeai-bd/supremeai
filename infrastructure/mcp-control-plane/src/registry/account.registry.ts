@@ -96,9 +96,10 @@ export function getTrackedOrgRepos(): string[] {
  */
 export async function refreshDiscoveredOrgRepos(): Promise<string[]> {
   const token =
-    process.env["GITHUB_PAT_PAYKARIBAZARONLINE"] ||
     process.env["GITHUB_TOKEN"] ||
-    process.env["GH_TOKEN"];
+    process.env["GH_TOKEN"] ||
+    process.env["GITHUB_PAT"] ||
+    process.env["GITHUB_PAT_PAYKARIBAZARONLINE"];
   try {
     const res = await fetch(`https://api.github.com/orgs/${GITHUB_ORGANIZATION}/repos?per_page=100`, {
       headers: {
@@ -244,7 +245,8 @@ export function buildAccountRegistry(): ProviderAccount[] {
       role: "source-control",
       environment: "production",
       capabilities: ["health", "logs", "metrics"],
-      apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
+      apiKeyRef: "GITHUB_TOKEN",
+      apiKeyRefs: ["GH_TOKEN", "GITHUB_PAT", "GITHUB_PAT_PAYKARIBAZARONLINE", "OPEN_SYNC_PAT", "SYNC_PAT"],
       url: `https://api.github.com/repos/${GITHUB_ORGANIZATION}/supremeai`,
       available: hasAnyGithubToken,
     },
@@ -257,20 +259,22 @@ export function buildAccountRegistry(): ProviderAccount[] {
       role: "organization",
       environment: "production",
       capabilities: ["health", "metrics"],
-      apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
+      apiKeyRef: "GITHUB_TOKEN",
+      apiKeyRefs: ["GH_TOKEN", "GITHUB_PAT", "GITHUB_PAT_PAYKARIBAZARONLINE", "OPEN_SYNC_PAT", "SYNC_PAT"],
       url: `https://api.github.com/orgs/${GITHUB_ORGANIZATION}`,
       available: hasAnyGithubToken,
     },
 
     // ── GitHub — Supremeai-bd federation (Dynamic Org-Wide Auto-Discovery) ──
-    ...getTrackedOrgRepos().map((repoName) => ({
+    ...getTrackedOrgRepos().filter((repoName) => repoName !== "supremeai").map((repoName) => ({
       id: `github-pay-${repoName}`,
       provider: "github" as const,
       displayName: `GitHub Repo (${GITHUB_ORGANIZATION}/${repoName})`,
       role: "source-control",
       environment: "production" as const,
       capabilities: ["health", "logs", "metrics"] as Capability[],
-      apiKeyRef: "GITHUB_PAT_PAYKARIBAZARONLINE",
+      apiKeyRef: "GITHUB_TOKEN",
+      apiKeyRefs: ["GH_TOKEN", "GITHUB_PAT", "GITHUB_PAT_PAYKARIBAZARONLINE", "OPEN_SYNC_PAT", "SYNC_PAT"],
       url: `https://api.github.com/repos/${GITHUB_ORGANIZATION}/${repoName}`,
       available: hasAnyGithubToken,
     })),
