@@ -43,23 +43,31 @@ export function Timeline({ events, loading, limit = 20 }: TimelineProps) {
   return (
     <div className="p-3 rounded-xl border border-[var(--sa-line)] bg-[var(--sa-bg-1)]">
       <div className="relative space-y-3">
-        {items.map((event, idx) => (
-          <div key={idx} className="flex gap-3">
-            <div className="flex flex-col items-center">
-              <span className={`h-2 w-2 rounded-full mt-1.5 ${SEVERITY_COLOR[event.level] || SEVERITY_COLOR.info}`} />
-              {idx < items.length - 1 && <span className="w-px flex-1 bg-[var(--sa-line)]" />}
-            </div>
-            <div className="flex-1 pb-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-mono text-[var(--sa-text-1)]">
-                  {new Date(event.timestamp).toLocaleTimeString('bn-BD')}
-                </span>
-                <span className="text-[9px] font-mono uppercase text-[var(--sa-text-2)]">{event.source}</span>
+        {items.map((event, idx) => {
+          const levelKey = (event?.level ?? 'info') as string;
+          const colorClass = SEVERITY_COLOR[levelKey] || SEVERITY_COLOR.info;
+          const timeString = event?.timestamp ? new Date(event.timestamp).toLocaleTimeString('bn-BD') : '';
+          const sourceString = String(event?.source ?? '');
+          const messageString = String(event?.message ?? '');
+
+          return (
+            <div key={idx} className="flex gap-3">
+              <div className="flex flex-col items-center">
+                <span className={`h-2 w-2 rounded-full mt-1.5 ${colorClass}`} />
+                {idx < items.length - 1 && <span className="w-px flex-1 bg-[var(--sa-line)]" />}
               </div>
-              <p className="text-xs font-mono text-[var(--sa-text-0)] mt-0.5">{event.message}</p>
+              <div className="flex-1 pb-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-mono text-[var(--sa-text-1)]">
+                    {timeString}
+                  </span>
+                  <span className="text-[9px] font-mono uppercase text-[var(--sa-text-2)]">{sourceString}</span>
+                </div>
+                <p className="text-xs font-mono text-[var(--sa-text-0)] mt-0.5">{messageString}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
