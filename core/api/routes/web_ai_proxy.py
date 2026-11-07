@@ -239,7 +239,7 @@ async def parallel_chat_completions(payload: ParallelTasksRequest):
         return results
     except Exception as exc:
         logger.error(f"[WebAIProxy] Parallel execution error: {exc}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 class PromptEnhanceRequest(BaseModel):

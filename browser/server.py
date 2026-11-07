@@ -438,6 +438,8 @@ class GeminiCookieEngine:
             return reply
 
     async def _try_api_fallback(self, prompt: str) -> Optional[str]:
+        if os.getenv("ALLOW_EXTERNAL_FALLBACK", "").strip().lower() not in ("1", "true", "yes"):
+            return None
         api_key = os.getenv("GEMINI_API_KEY", "").strip()
         if not api_key:
             return None
@@ -683,6 +685,18 @@ async def release() -> Dict[str, Any]:
 def _verify_stealth_secret(request: Request) -> None:
     expected = os.getenv("STEALTH_WEBHOOK_SECRET", "").strip()
     if not expected:
+        # Fail-closed in production (Render) when the secret is unset; keep
+        # dev/test bypass so local runs and unit tests are not blocked.
+        is_prod = bool(
+            os.getenv("RENDER_SERVICE_NAME")
+            or os.getenv("RENDER")
+            or os.getenv("RENDER_ENV", "").strip().lower() in ("production", "prod")
+            or os.getenv("ENV", "").strip().lower() in ("production", "prod")
+        )
+        if is_prod:
+            raise HTTPException(
+                status_code=500, detail="STEALTH_WEBHOOK_SECRET is required in production"
+            )
         return
     incoming = (
         request.headers.get("X-Stealth-Secret")

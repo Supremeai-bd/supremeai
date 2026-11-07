@@ -147,7 +147,7 @@ jobs:
   # =========================================================================
   render-heavy-gate:
     name: "Tier 2: Heavy Test Battery (Local Self-Hosted)"
-    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.runtime-readiness.outputs.is_local_online == 'true'
+    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.runtime-readiness.outputs.is_local_online == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, local-pc]
     timeout-minutes: 15
     needs: [fast-gate, runtime-readiness]
@@ -227,7 +227,7 @@ jobs:
   # =========================================================================
   auto-merge:
     name: "Auto-Merge PR (gated)"
-    if: github.event_name == 'pull_request' && !cancelled()
+    if: github.event_name == 'pull_request' && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     needs: [fast-gate, runtime-readiness, render-heavy-gate, render-heavy-gate-fallback]
     permissions:
