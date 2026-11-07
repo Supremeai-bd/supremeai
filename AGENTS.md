@@ -119,9 +119,8 @@ NEVER use `git push --force` (blocked by branch protection).
 - pre-commit hook runs automatically on commit (branch naming, boundary, lint, parity)
 
 ### Landing & Merge Policy (Zero Failed-Merge Invariant):
-- Agents MUST NEVER call `gh pr merge --admin` to bypass CI status checks.
-- PRs land autonomously via `🛬 Autonomous Auto-Landing` as soon as all tier gates pass green.
-- PR authors may also enable native GitHub auto-merge on PR creation: `gh pr merge <PR_NUMBER> --auto --squash --delete-branch`.
+- Agents MUST NEVER call `gh pr merge` (or `gh pr merge --auto`) from the terminal upon PR creation. In private repositories on GitHub Free plans, native CLI auto-merge evaluates with 0 required checks and merges immediately before CI can run, completely bypassing test verification!
+- PRs MUST land EXCLUSIVELY via the in-workflow `🛬 Autonomous Auto-Landing` gate in `.github/workflows/unified-pipeline.yml`, which evaluates all Tier 1 and Tier 2 test results and executes `gh pr merge` ONLY when all gates are 100% green. If a single test fails, the merge is strictly skipped and blocked.
 - PR bodies MUST always contain `## Reflection Evidence`, `3-Tier Verify` (or `Test Evidence`), and issue linkage to satisfy the Tower Verification Signature Guard.
 
 ### Operational Modes & Task Routing:
