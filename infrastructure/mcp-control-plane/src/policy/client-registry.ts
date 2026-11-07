@@ -6,7 +6,7 @@ import { isValidToolProfile, type ToolProfile } from "./tool-visibility.js";
 import { createClientRegistryStore, type ClientRegistryStore, type PersistedClientRecord } from "./client-registry.store.js";
 
 export type ClientRole = UserRole;
-export const DEFAULT_GUEST_ROLE: ClientRole = "admin";
+export const DEFAULT_GUEST_ROLE: ClientRole = "viewer";
 export type ClientProtocol = "streamable-http" | "sse" | "stdio" | "custom";
 /**
  * #48: `suspended` is a first-class status — the fail-closed revocation state.
@@ -499,12 +499,10 @@ export function getOrCreateGuestClient(
     counter++;
   }
 
-  // TEMPORARY (PRE-PRODUCTION): Until the system is fully ready for production,
-  // URL-added/guest clients are automatically assigned the "admin" role so AI agents
-  // can execute tools and tasks without requiring manual admin approval.
-  // প্রোডাকশনের জন্য সম্পূর্ণ প্রস্তুত হওয়ার পূর্ব পর্যন্ত এটি "admin" রোলে থাকবে;
-  // প্রোডাকশন রেডি হলে পুনরায় কঠোর "viewer" রোলে ফিরিয়ে নেওয়া হবে।
-  const defaultGuestRole: ClientRole = "admin";
+  // Production Zero-Trust Default:
+  // URL-added/guest clients are strictly assigned the "viewer" role.
+  // Privileged tool execution requires database-verified agent slot or valid Bearer credentials.
+  const defaultGuestRole: ClientRole = "viewer";
 
   const token = `mcp_${randomBytes(32).toString("base64url")}`;
   const now = new Date().toISOString();

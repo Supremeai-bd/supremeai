@@ -490,6 +490,14 @@ ALL_ROUTERS = [
     # ""। Reads are inert (no privileged resource); writes are admin-only.
     {"path": "api.routes.agent_registry", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "integrations.github_webhook", "prefix": "", "is_admin": False, "is_critical": False},
+    # ── Wiring fix: previously-defined but unmounted admin routers ──
+    {"path": "api.routes.admin_decisions", "prefix": "", "is_admin": True, "is_critical": False},
+    {"path": "api.routes.admin_evaluation", "prefix": "", "is_admin": True, "is_critical": False},
+    {"path": "api.routes.admin_learning", "prefix": "", "is_admin": True, "is_critical": False},
+    {"path": "api.routes.admin_policies", "prefix": "", "is_admin": True, "is_critical": False},
+    {"path": "api.routes.admin_routing", "prefix": "", "is_admin": True, "is_critical": False},
+    {"path": "api.routes.web_ai_proxy", "prefix": "", "is_admin": False, "is_critical": False},
+    {"path": "orchestration.periodic_task_scheduler", "prefix": "", "is_admin": True, "is_critical": False},
 ]
 
 
