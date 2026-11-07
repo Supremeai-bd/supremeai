@@ -595,3 +595,6 @@ scripts/setup_search.*
 .githooks/*
 !.githooks/pre-push
 docs/archive/pr_diff_index.json
+
+# Archived Legacy Frontend
+studio-legacy-archive/
