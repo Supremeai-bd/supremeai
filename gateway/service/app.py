@@ -257,8 +257,9 @@ app = FastAPI(title="SupremeAI API Gateway", version="2.0.0", docs_url=None, red
 
 async def hydrate_vault_secrets() -> int:
     """Hydrates multi-cloud API keys from Infisical Production Vault into os.environ and squad."""
-    client_id = os.getenv("INFISICAL_CLIENT_ID", "").strip() or "6480e0bf-5fa5-45d6-8b2b-0932bb82f768"
-    client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "").strip() or "b58742d4a51e6008b8b931969a92350ef94d48cecb1efc490a61f5b61034ab1a"
+    import httpx
+    client_id = os.getenv("INFISICAL_CLIENT_ID", "").strip() or "9f2363cf-3cec-43f6-b155-a8625de19250"
+    client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "").strip() or "6ecfaac387a3ad65ed8237d25fdcb5bfcba7b6b69dafe797b63bcba02c066af0"
     workspace_id = (os.getenv("INFISICAL_WORKSPACE_ID", "") or os.getenv("INFISICAL_PROJECT_ID", "")).strip() or "92aa20c4-aef5-4e33-82bd-efb06058aaf0"
     if not client_id or not client_secret or not workspace_id:
         return 0
@@ -284,9 +285,8 @@ async def hydrate_vault_secrets() -> int:
                 k = s.get("secretKey")
                 v = s.get("secretValue")
                 if k and v and any(term in k for term in ("KEY", "TOKEN", "SECRET", "STEALTH")):
-                    if k not in os.environ or not os.environ[k]:
-                        os.environ[k] = v
-                        loaded += 1
+                    os.environ[k] = v
+                    loaded += 1
             if squad and loaded > 0:
                 squad.reload_squad()
                 logger.info(f"Hydrated {loaded} vault keys. Squad active with {squad.stats().get('total_healthy_keys', 0)} healthy keys.")
@@ -1809,7 +1809,7 @@ async def _execute_chat_completion(
     # Completely preserves the SupremeAI Sole Identity doctrine.
     last_error = None
     if squad:
-        if squad.stats().get("total_healthy_keys", 0) == 0:
+        if squad.stats().get("total_healthy_keys", 0) < 5:
             await hydrate_vault_secrets()
         candidates = squad.get_candidate_slots(preferred_provider) if squad else []
         if not candidates and preferred_provider not in (None, "auto"):
