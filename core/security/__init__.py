@@ -226,7 +226,7 @@ def create_access_token(data: dict) -> str:
         }
     )
     user_email = to_encode.get("sub")
-    role = "admin" if user_email in settings.admin_emails else "user"
+    role = to_encode.get("role") or ("admin" if user_email in settings.admin_emails else "user")
     to_encode.update({"role": role})
     encoded_jwt = jwt.encode(to_encode, _get_jwt_secret(), algorithm=ALGORITHM)
     return encoded_jwt
