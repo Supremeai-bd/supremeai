@@ -27,6 +27,31 @@ class SettingsFieldsMixin:
     redis_host: str = Field(default="localhost", validation_alias=AliasChoices("REDIS_HOST"))
     redis_port: int = Field(default=6379, validation_alias=AliasChoices("REDIS_PORT"))
     redis_password: SecretStr | None = Field(default=None, validation_alias=AliasChoices("REDIS_PASSWORD", "UPSTASH_REDIS_REST_TOKEN"))
+    @property
+    def upstash_redis_rest_pool(self) -> list[tuple[str, str]]:
+        """Configured Upstash REST accounts in deterministic priority order.
+
+        Resolve at access time so a vault/bootstrap layer can populate the
+        process environment after Settings construction. Empty and template
+        URLs are excluded, and secret values are never logged or serialized.
+        """
+        import os
+
+        prefixes = ("", "SECONDARY_", "TERTIARY_", "QUATERNARY_", "QUINARY_")
+        pool: list[tuple[str, str]] = []
+        for prefix in prefixes:
+            url = (os.getenv(f"UPSTASH_REDIS_{prefix}REST_URL") or "").strip().rstrip("/")
+            token = (os.getenv(f"UPSTASH_REDIS_{prefix}REST_TOKEN") or "").strip()
+            lowered_url = url.lower()
+            if url and token and "<your" not in lowered_url and "example.com" not in lowered_url:
+                pool.append((url, token))
+        return pool
+
+    @property
+    def upstash_redis_rest_pool_enabled(self) -> bool:
+        """Whether at least one usable Upstash REST account is configured."""
+        return bool(self.upstash_redis_rest_pool)
+
 
     supabase_service_key: SecretStr | None = Field(default=None, validation_alias=AliasChoices("SUPABASE_SERVICE_KEY", "SUPABASE_SERVICE_ROLE_KEY"))
 
