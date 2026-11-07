@@ -10,7 +10,7 @@ export default function Dashboard() {
 
   const availability = metrics?.availability_percent;
   const dashRps = metrics?.requests_per_second;
-  const safeCpu = metrics?.cpu_percent ?? metrics?.cpu_usage_percent;
+  const safeCpu = metrics?.cpu_percent ?? metrics?.cpu_usage_percent ?? 0;
   const activeIncidents = threats?.findings?.filter(t => t.severity === 'high' || t.severity === 'critical') || [];
   const activeDeployments = ciReports?.filter(c => c.status === 'running') || [];
 
