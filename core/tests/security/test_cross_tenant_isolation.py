@@ -28,7 +28,10 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 def _source_of(rel_path: str) -> str:
-    return (BACKEND_DIR / rel_path).read_text(encoding="utf-8")
+    candidate = BACKEND_DIR / rel_path
+    if not candidate.exists() and rel_path.startswith("core/"):
+        candidate = BACKEND_DIR / rel_path.removeprefix("core/")
+    return candidate.read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------

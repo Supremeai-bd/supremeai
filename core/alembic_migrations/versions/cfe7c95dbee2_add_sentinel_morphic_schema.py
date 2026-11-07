@@ -11,7 +11,14 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-import utils.uuid_gen
+try:
+    import utils.uuid_gen
+except ModuleNotFoundError:
+    from core import utils as _core_utils
+    import core.utils.uuid_gen as _uuid_gen
+
+    utils = _core_utils  # type: ignore[assignment]
+    utils.uuid_gen = _uuid_gen  # type: ignore[attr-defined]
 from alembic import op
 
 # revision identifiers, used by Alembic.

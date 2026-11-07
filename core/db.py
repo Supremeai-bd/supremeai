@@ -65,11 +65,13 @@ def _get_database_url() -> str:
     if not url:
         raise RuntimeError("Production database URL is required; SQLite fallback is disabled")
 
-    # Convert postgres:// to postgresql+asyncpg:// for async
+    # Convert postgres:// to postgresql+asyncpg:// and sqlite:// to sqlite+aiosqlite:// for async
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql+asyncpg://", 1)
     elif url.startswith("postgresql://") and "+asyncpg" not in url:
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif url.startswith("sqlite://") and "+aiosqlite" not in url:
+        url = url.replace("sqlite://", "sqlite+aiosqlite://", 1)
 
     return url
 

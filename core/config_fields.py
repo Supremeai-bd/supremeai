@@ -55,6 +55,23 @@ class SettingsFieldsMixin:
 
     supabase_service_key: SecretStr | None = Field(default=None, validation_alias=AliasChoices("SUPABASE_SERVICE_KEY", "SUPABASE_SERVICE_ROLE_KEY"))
 
+    stripe_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("STRIPE_API_KEY", "STRIPE_SECRET_KEY"),
+    )
+    stripe_webhook_secret: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("STRIPE_WEBHOOK_SECRET"),
+    )
+    hf_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("HF_API_KEY", "HUGGINGFACE_API_KEY"),
+    )
+    ci_webhook_secret: str = Field(
+        default="",
+        validation_alias=AliasChoices("CI_WEBHOOK_SECRET"),
+    )
+
     supabase_url: str | None = Field(default=None, validation_alias=AliasChoices("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"))
     supabase_key: SecretStr | None = Field(default=None, validation_alias=AliasChoices("SUPABASE_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_ANON_KEY"))
     supabase_service_role_key: SecretStr | None = Field(default=None, validation_alias=AliasChoices("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY"))

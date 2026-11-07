@@ -34,7 +34,7 @@ def setup_test_environment():
     """
     _SENTINEL = object()
     _keys = ("TESTING", "ENV", "DATABASE_URL", "REDIS_URL")
-    _defaults = ("True", "test", "sqlite:///./test.db", "redis://mocked-redis-url")
+    _defaults = ("True", "test", "sqlite:///./test.db", "redis://mocked-redis-url:6379")
 
     # Save originals before overriding
     originals = {k: os.environ.get(k, _SENTINEL) for k in _keys}

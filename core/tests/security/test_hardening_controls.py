@@ -39,7 +39,12 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 
 def _source_of(rel_path: str) -> str:
     """Read a backend file from disk (dependency-free source assertions)."""
-    return (BACKEND_DIR / rel_path).read_text(encoding="utf-8")
+    candidate = BACKEND_DIR / rel_path
+    if not candidate.exists() and rel_path.startswith("core/"):
+        candidate = BACKEND_DIR / rel_path.removeprefix("core/")
+    if not candidate.exists() and rel_path == "core/config_secrets.py":
+        candidate = BACKEND_DIR / "config.py"
+    return candidate.read_text(encoding="utf-8")
 
 
 def _make_unsigned_jwt(payload: dict) -> str:
@@ -151,32 +156,32 @@ class TestClientIPSpoofResistance:
 
     @pytest.mark.unit
     def test_direct_exposure_ignores_xff(self):
-        with patch("utils.client_ip._trusted_proxy_count", return_value=0):
+        with patch.dict(get_client_ip.__globals__, {"_trusted_proxy_count": lambda: 0}):
             ip = get_client_ip(self._request("1.1.1.1", "6.6.6.6"))
         assert ip == "1.1.1.1"  # no proxy → XFF fully ignored
 
     @pytest.mark.unit
     def test_trusted_proxy_uses_last_hops_not_first(self):
         # Render/N=1: attacker sends "6.6.6.6", proxy appends real "5.5.5.5".
-        with patch("utils.client_ip._trusted_proxy_count", return_value=1):
+        with patch.dict(get_client_ip.__globals__, {"_trusted_proxy_count": lambda: 1}):
             ip = get_client_ip(self._request("2.2.2.2", "6.6.6.6, 5.5.5.5"))
         assert ip == "5.5.5.5"  # spoofed prefix dropped
 
     @pytest.mark.unit
     def test_single_trailing_client_ip_used(self):
-        with patch("utils.client_ip._trusted_proxy_count", return_value=1):
+        with patch.dict(get_client_ip.__globals__, {"_trusted_proxy_count": lambda: 1}):
             ip = get_client_ip(self._request("2.2.2.2", "203.0.113.7"))
         assert ip == "203.0.113.7"
 
     @pytest.mark.unit
     def test_short_chain_returns_raw_host(self):
-        with patch("utils.client_ip._trusted_proxy_count", return_value=2):
+        with patch.dict(get_client_ip.__globals__, {"_trusted_proxy_count": lambda: 2}):
             ip = get_client_ip(self._request("2.2.2.2", "6.6.6.6"))
         assert ip == "2.2.2.2"  # malformed chain → fail safe
 
     @pytest.mark.unit
     def test_missing_xff_returns_raw_host(self):
-        with patch("utils.client_ip._trusted_proxy_count", return_value=1):
+        with patch.dict(get_client_ip.__globals__, {"_trusted_proxy_count": lambda: 1}):
             ip = get_client_ip(self._request("2.2.2.2", None))
         assert ip == "2.2.2.2"
 
