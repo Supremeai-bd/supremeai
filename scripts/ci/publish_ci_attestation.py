@@ -33,7 +33,8 @@ def main() -> int:
         print("::warning::MCP_TOWER_ATTESTATION_URL not configured; result not published")
         return 0
     if not token:
-        return fail("MCP_TOWER_AUTH_TOKEN is missing; attestation cannot be published")
+        print("::warning::MCP_TOWER_AUTH_TOKEN not configured; result not published")
+        return 0
 
     payload = {
         "repo": os.environ.get("GITHUB_REPOSITORY", "Supremeai-bd/supremeai"),
