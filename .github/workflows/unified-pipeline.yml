@@ -121,6 +121,11 @@ jobs:
       - name: Check public export allowlist
         run: python scripts/ci/public_surface_guard.py --manifest scripts/ci/public_surface_manifest.txt
 
+      - name: Anti-Duplication Regression Guard (Zero New Code Clones)
+        run: |
+          git fetch origin ${{ github.base_ref || 'main' }}:refs/remotes/origin/${{ github.base_ref || 'main' }} --depth=50
+          python scripts/ci/detect_new_duplicates.py --base-ref "origin/${{ github.base_ref || 'main' }}" --max-new 0
+
   # =========================================================================
   # STAGE 2: TIER 2 - LOCAL SELF-HOSTED & HEAVY GATE (PR & Nightly Schedule)
   # Executes heavy test suite on local PC runner (0 cloud mins), with Render runner as backup
