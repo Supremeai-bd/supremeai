@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { UnifiedChatPanel, listStoredConversations, type DockAction, type StoredConversationMeta } from '../../components/chat/UnifiedChatPanel';
+import { UnifiedChatPanel, listStoredConversations, fetchServerConversations, type DockAction, type StoredConversationMeta } from '../../components/chat/UnifiedChatPanel';
 import { Bot, Code, Columns, Globe, MessageSquarePlus, Smartphone, Sparkles } from 'lucide-react';
 import { JarvisLivingHologram } from '../../components/jarvis/JarvisLivingHologram';
 import { SplitStudioView } from '../../components/studio/SplitStudioView';
