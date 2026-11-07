@@ -91,11 +91,18 @@ class RedisTaskQueue:
 
     async def enqueue(self, task_type: str, payload: dict, user_id: str) -> str:
         if not redis_configured():
+            is_prod = os.getenv("ENVIRONMENT", "").strip().lower() in ("production", "prod") or bool(
+                os.getenv("RENDER") or os.getenv("RENDER_SERVICE_ID")
+            )
+            if is_prod:
+                raise RuntimeError(
+                    "task_queue_unavailable: Redis not configured in production; task cannot be accepted"
+                )
             logger.warning(
                 "TaskQueue.enqueue rejected: no real REDIS_URL configured "
                 "(task dropped — configure REDIS_URL to enable background tasks)"
             )
-            # Fail soft: returning an id keeps callers working, status stays 'pending'
+            # Fail soft in dev/test: returning an id keeps offline tests working
             return str(uuid.uuid4())
         redis = await self._get_redis()
         task_id = str(uuid.uuid4())

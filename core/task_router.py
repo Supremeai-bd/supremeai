@@ -342,6 +342,8 @@ class TaskRouter:
             if record.status != "leased" or record.lease_node_id != node_id:
                 raise PermissionError(f"task {task_id} is not leased by node {node_id!r}")
             now_epoch = self._now_epoch()
+            if record.lease_expires_epoch is not None and now_epoch > record.lease_expires_epoch:
+                raise PermissionError(f"task {task_id} lease expired (node {node_id!r})")
             record.lease_expires_epoch = now_epoch + lease_s
             record.lease_expires_at = datetime.fromtimestamp(
                 now_epoch + lease_s, tz=UTC
@@ -360,6 +362,9 @@ class TaskRouter:
                 raise KeyError(f"task_id {task_id!r} not found")
             if record.status != "leased" or record.lease_node_id != node_id:
                 raise PermissionError(f"task {task_id} is not leased by node {node_id!r}")
+            now_epoch = self._now_epoch()
+            if record.lease_expires_epoch is not None and now_epoch > record.lease_expires_epoch:
+                raise PermissionError(f"task {task_id} lease expired (node {node_id!r})")
             record.status = "done"
             record.result = result or {}
             record.error = None
@@ -379,6 +384,9 @@ class TaskRouter:
                 raise KeyError(f"task_id {task_id!r} not found")
             if record.status != "leased" or record.lease_node_id != node_id:
                 raise PermissionError(f"task {task_id} is not leased by node {node_id!r}")
+            now_epoch = self._now_epoch()
+            if record.lease_expires_epoch is not None and now_epoch > record.lease_expires_epoch:
+                raise PermissionError(f"task {task_id} lease expired (node {node_id!r})")
             record.error = error[:2000]
             record.updated_at = self._now_iso()
             if record.attempts >= record.max_attempts:
