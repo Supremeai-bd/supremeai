@@ -45,9 +45,9 @@ const VISION_PILLARS: VisionPillar[] = [
     tagline: 'Never worry about running out of hours in a day.',
     story: 'Your digital empire never rests. SupremeAI handles the heavy lifting, monitors every heartbeat, and keeps your services running at peak performance so you can focus on leading and dreaming bigger.',
     highlights: [
-      { label: 'System Resilience', value: '99.99%', hint: 'Autonomous 24/7 care' },
-      { label: 'Growth Multiplier', value: 'Limitless', hint: 'Ready for any scale' },
-      { label: 'Peace of Mind', value: 'Total', hint: 'Zero firefighting' },
+      { label: 'Platform Access', value: '100% Free', hint: 'Early access' },
+      { label: 'Model Fleet', value: 'Healthy', hint: 'Multi-model failover' },
+      { label: 'Setup Required', value: '0 Steps', hint: 'Guest chat in 1 click' },
     ],
     accentColor: '#10b981',
     gradient: 'from-emerald-500/20 via-teal-500/20 to-cyan-500/20',
@@ -137,7 +137,7 @@ export const DreamBuilderHero: React.FC = () => {
           className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/40 px-4 py-1.5 text-xs font-semibold text-cyan-300 backdrop-blur-md shadow-lg shadow-cyan-950/50"
         >
           <Sparkles size={14} className="text-cyan-400 animate-spin" style={{ animationDuration: '6s' }} />
-          <span>YOUR VISION · OUR ENGINE</span>
+          <span>ZERO SETUP · STREAMS DIRECTLY INTO LIVE CHAT</span>
           <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping" />
         </motion.div>
 
@@ -147,9 +147,9 @@ export const DreamBuilderHero: React.FC = () => {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="mt-6 text-3xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl"
         >
-          Build Your Dream.{' '}
+          Your intent, orchestrated by{' '}
           <span className="block bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-300 bg-clip-text text-transparent">
-            We Are Here To Make It True.
+            a living AI network.
           </span>
         </motion.h1>
 
@@ -159,8 +159,7 @@ export const DreamBuilderHero: React.FC = () => {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="mx-auto mt-5 max-w-2xl text-base text-slate-300 sm:text-lg sm:leading-relaxed"
         >
-          No complex jargon, no gatekeepers, and no limits on what you can build.
-          Step into a sovereign platform designed to turn your boldest ideas into living reality.
+          SupremeAI Studio turns a prompt into routed, streaming answers — multi-model failover, one cockpit, zero setup.
         </motion.p>
 
         {/* 🎯 Interactive Inspiration Chips */}
