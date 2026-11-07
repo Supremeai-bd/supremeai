@@ -129,7 +129,7 @@ jobs:
       - name: Check Local Self-Hosted Runner Status
         id: runner-check
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
         run: |
           python scripts/ci/resolve_execution_tier.py
     outputs:
@@ -223,7 +223,7 @@ jobs:
   # =========================================================================
   auto-merge:
     name: "Auto-Merge PR (gated)"
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && !cancelled()
     runs-on: ubuntu-24.04
     needs: [fast-gate, runtime-readiness, render-heavy-gate, render-heavy-gate-fallback]
     permissions:
@@ -237,7 +237,7 @@ jobs:
           needs.runtime-readiness.result == 'success' &&
           (needs.render-heavy-gate.result == 'success' || needs.render-heavy-gate-fallback.result == 'success')
         env:
-          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           echo "All required tier gates passed for PR #${PR_NUMBER}; auto-landing to main."
