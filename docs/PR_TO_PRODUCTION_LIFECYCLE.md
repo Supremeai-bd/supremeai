@@ -33,7 +33,7 @@ flowchart TD
         PRMerge --> ResolveTargets["Resolve Production Targets (scripts/ci/plan_render_deploys.py)"]
         PRMerge --> SatSync["Federation Sync (scripts/ci/federation_satellite_sync.py)"]
         PRMerge --> EdgeDeploy["Deploy Cloudflare Edge Mesh"]
-        PRMerge --> VercelHook["Deploy Vercel Frontend Hook"]
+        PRMerge --> StudioDeploy["Deploy Studio UI (studio/)"]
     end
 
     subgraph S4["4. Production Deployment Matrix"]
@@ -41,9 +41,7 @@ flowchart TD
         RenderTrigger --> PreflightAudit["Render Quota & Preflight Audit"]
         PreflightAudit --> LiveDeploy["Deploy Backend Services (API, Gateway, Agents)"]
         LiveDeploy --> CanaryVerify["Render Canary & Synthetic Health Verification"]
-        
-        SatSync --> StudioRepo["Sync to Supremeai-bd/supremeai-studio"]
-        StudioRepo --> CloudflarePages["Cloudflare Pages Build & Edge Deploy"]
+        StudioDeploy --> CloudflarePages["Cloudflare Pages / Vercel Edge Deploy"]
     end
 
     subgraph S5["5. Live Mesh & Keep-Warm Telemetry"]
@@ -79,9 +77,9 @@ flowchart TD
 - **Merge Condition:** The gated `auto-merge` job in `unified-pipeline.yml` executes natively once `fast-gate`, `runtime-readiness`, and `render-heavy-gate` (or fallback) pass 100%. No human or bot manual intervention is needed.
 
 ### Stage 3: Post-Merge Actions & Deployment
-- **Autonomous Federation:** `scripts/ci/federation_satellite_sync.py` mirrors frontend components to `supremeai-studio`.
+- **Single-Monorepo SSOT:** All builds and artifacts deploy directly from the unified monorepo.
 - **Target Resolution:** `scripts/ci/plan_render_deploys.py` identifies changed services to deploy only what changed.
-- **Edge Deployment:** Deploys Cloudflare Worker proxy and Vercel hooks.
+- **Edge Deployment:** Deploys Cloudflare Worker proxy and Studio frontend (`studio/`).
 
 ### Stage 4: Continuous Audits & Health Watchdog
 - Nightly and periodic health scans via `.github/workflows/ops-maintenance.yml` and `.github/workflows/opportunistic-nightly-audit.yml`.

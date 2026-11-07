@@ -20,20 +20,26 @@ It contains only artifacts that are useful *outside* SupremeAI's private intelli
 > - Use the correct tool name + `owner/repo` form or the call fails.
 > - Bridge tools: `bridge_submit_patch` requires `taskId` (`bridge-YYYYMMDD-<slug>`), `summary`, `scopePaths` (1-30), `testsEvidence`, and `files` (each with `path`); pass `originalIssueNumber` so the root issue auto-closes on merge, and `closesOriginalIssue: true` only when a docs-only payload **IS** the resolution of that issue (receipt-closure convention #2485, `contract.receiptClosureConvention` in `bridge_guide`; default keeps the WO open via `Refs #N`). `work_claim` requires `issueNumber` (integer). `bridge.work_order`/`bridge_read_feedback` require `number` (issue number).
 
-## 📐 Federation Architecture & Pure 2-Repository Topology
+## 📐 Architecture & Single Monorepo SSOT Topology
 
-The SupremeAI Federation operates under the **Pure 2-Repository Topology**:
-1. **`Supremeai-bd/supremeai`**: The Unified Monorepo SSOT containing Core, Gateway, Browser, VSCode, Studio Mirrors, Infrastructure, and MCP Control Plane. Single door for all PRs, issues, and CI workflows (`unified-pipeline.yml`).
-2. **`Supremeai-bd/supremeai-studio`**: The Public UI & Mission Control Cockpit (Vercel Web UI).
+The SupremeAI Federation operates under the **Pure Single Monorepo SSOT Topology**:
+1. **`Supremeai-bd/supremeai`**: The Single Door Unified Monorepo SSOT containing Core, Gateway, Browser, VSCode, Studio, Infrastructure, and MCP Control Plane. All PRs, issues, deployments, and CI workflows (`unified-pipeline.yml`) live exclusively here.
+2. **All Satellites Retired**: External satellite repositories (`supremeai-studio`, `supremeai-core`, `supremeai-api`, `supremeai-browser`, `supremeai-vscode`) are permanently retired, archived, and frozen read-only.
 
 ```mermaid
 flowchart TD
-    subgraph FEDERATION_UNIVERSE ["🌐 SupremeAI Pure 2-Repository Topology"]
+    subgraph FEDERATION_UNIVERSE ["🌐 SupremeAI Single Monorepo SSOT Topology"]
         direction TB
         MONO["Supremeai-bd/supremeai<br>(Unified Monorepo SSOT & Control Tower)"]
-        STUDIO["Supremeai-bd/supremeai-studio<br>(Mission Control Cockpit · Vercel)"]
+        CORE["core/<br>(Agent Intelligence & Workflows)"]
+        GATEWAY["gateway/<br>(API Gateway & Proxy Mesh)"]
+        STUDIO["studio/<br>(Public UI & Mission Control Cockpit)"]
+        INFRA["infrastructure/<br>(Edge Workers, Cloudflare, Render)"]
         
-        MONO <-->|"Shared Components & Contract Sync"| STUDIO
+        MONO --> CORE
+        MONO --> GATEWAY
+        MONO --> STUDIO
+        MONO --> INFRA
     end
 
     classDef open fill:#1d76db,stroke:#fff,stroke-width:2px,color:#fff;
@@ -76,16 +82,14 @@ flowchart TD
     subgraph S3["3. Autonomous Landing & Post-Merge Triggers"]
         HeavyGate --> PRMerge["Squash Merge into main"]
         PRMerge --> ResolveTargets["Plan Changed Render Services"]
-        PRMerge --> SatSync["Federation Satellite Sync"]
         PRMerge --> EdgeDeploy["Deploy Cloudflare Edge Mesh"]
-        PRMerge --> VercelHook["Deploy Vercel Frontend Hook"]
+        PRMerge --> VercelHook["Deploy Vercel / Cloudflare Studio Hook"]
     end
 
     subgraph S4["4. Production Deployment Matrix"]
         ResolveTargets --> RenderTrigger["Trigger Render Backend Deploy"]
         RenderTrigger --> CanaryVerify["Canary & Health Check Verification"]
-        SatSync --> StudioRepo["Sync to Supremeai-bd/supremeai-studio"]
-        StudioRepo --> CloudflarePages["Cloudflare Pages Live Edge Deploy"]
+        VercelHook --> CloudflarePages["Studio Live Edge Deploy (studio/)"]
     end
 ```
 

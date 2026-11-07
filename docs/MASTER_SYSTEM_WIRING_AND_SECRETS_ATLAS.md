@@ -1,7 +1,7 @@
 # SupremeAI Master System Wiring & Canonical Secrets Atlas
 
 > **Repository:** `Supremeai-bd/supremeai`  
-> **Topology:** Pure 2-Repository SSOT (`supremeai` + `supremeai-studio`)  
+> **Topology:** Pure Single Monorepo SSOT (`Supremeai-bd/supremeai`)  
 > **SSOT References:** `config/service_registry.yaml`, `scripts/ci/canonical_name_registry.json`, `INFISICAL_VAULT_SECRETS_INVENTORY.md`  
 > **Vault Platform:** Infisical Cloud (https://app.infisical.com)  
 > **Status:** Live & Production Ready  
