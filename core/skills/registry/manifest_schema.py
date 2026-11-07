@@ -1,7 +1,12 @@
-"""core/skills/registry/manifest_schema.py — Re-export SSOT for skills.registry.manifest_schema.
+"""core/skills/registry/manifest_schema.py — Re-export SSOT for skills.registry.manifest_schema."""
 
-Canonical SSOT: skills/registry/manifest_schema
-Provides backward-compatibility for callers while eliminating duplicate logic.
-"""
+from .. import _load_root_skill_module
 
-from skills.registry.manifest_schema import *  # noqa: F401, F403
+_ms = _load_root_skill_module("registry/manifest_schema.py", pkg="skills.registry")
+CapabilityDescriptor = _ms.CapabilityDescriptor
+ManifestError = _ms.ManifestError
+parse_cursor_plugin = _ms.parse_cursor_plugin
+parse_skill_md = _ms.parse_skill_md
+__all__ = ["CapabilityDescriptor", "ManifestError", "parse_cursor_plugin", "parse_skill_md"]
+
+

@@ -63,12 +63,10 @@ def _now_iso() -> str:
 def window_client(tmp_path: Path, monkeypatch):
     """Bare app + memory router; আসল SlidingWindowMemory (tmp sqlite) inject।"""
     import api.routes.memory as mem_mod
-    from core.api.dependencies import get_current_user_token
-    from core.memory.sliding_window import SlidingWindowMemory
+    from api.dependencies import get_current_user_token
+    from memory.sliding_window import SlidingWindowConfig, SlidingWindowMemory
 
     store = SlidingWindowMemory.__new__(SlidingWindowMemory)  # config default সহ
-    from core.memory.sliding_window import SlidingWindowConfig
-
     store.config = SlidingWindowConfig()
     store.db_path = str(tmp_path / "windows.db")
     store._init_db()
@@ -92,7 +90,7 @@ class TestSlidingWindowCrossAccountIsolation:
 
     def _seed_both_users(self, store, session_id: str) -> None:
         # বাংলা: দুই user-এর window route-এর নেমস্পেস-সহ আসল persist-এ বসাই
-        from core.api.routes.memory import _owned_window_session
+        from api.routes.memory import _owned_window_session
 
         assert store.persist(
             _owned_window_session(_user(USER_A), session_id),
@@ -158,7 +156,7 @@ class TestSlidingWindowCrossAccountIsolation:
     def test_two_users_default_session_mutual_exclusion(self, window_client):
         """নির্দিষ্ট session না দিলেও (default) দুই user একে অন্যকে দেখে না।"""
         store, as_user = window_client
-        from core.api.routes.memory import _owned_window_session
+        from api.routes.memory import _owned_window_session
 
         store.persist(
             _owned_window_session(_user(USER_A), "default"),
@@ -227,7 +225,7 @@ class _FakeTable:
 @pytest.fixture()
 def crud_client(monkeypatch):
     import api.routes.global_memory as gmod
-    from core.api.dependencies import get_current_user_token
+    from api.dependencies import get_current_user_token
 
     A_MEMORY_ID = str(uuid.uuid4())
     # A-র একটি memory row; B-র কিছু নেই
@@ -288,7 +286,7 @@ class TestGlobalMemoryCrudIsolation:
 def vector_client(monkeypatch):
     import api.routes.memory as mem_mod
     import services.memory_service as ms
-    from core.api.dependencies import get_current_user_token
+    from api.dependencies import get_current_user_token
 
     captured: dict[str, Any] = {}
 
@@ -425,17 +423,17 @@ class TestIsolationSourceContract:
     """#3155: route-গুলোতে owner-binding কোনো ভবিষ্যত refactor-এ নীরবে বাদ যাবে না।"""
 
     def test_memory_routes_use_owned_window_session(self):
-        from pathlib import Path
-
-        src = Path("api/routes/memory.py").read_text(encoding="utf-8")
+        src = (Path(__file__).resolve().parents[2] / "api/routes/memory.py").read_text(
+            encoding="utf-8"
+        )
         assert "_owned_window_session(user, session_id)" in src, (
             "GET/DELETE /api/memory/recall অবশ্যই user-scoped session ব্যবহার করবে (#3155)"
         )
 
     def test_vector_recall_passes_user_sub(self):
-        from pathlib import Path
-
-        src = Path("api/routes/memory.py").read_text(encoding="utf-8")
+        src = (Path(__file__).resolve().parents[2] / "api/routes/memory.py").read_text(
+            encoding="utf-8"
+        )
         assert 'user_id=user.get("sub")' in src, (
             "vector recall/save-এ owner sub বাঁধা থাকতে হবে (AUD-5.1)"
         )

@@ -1,7 +1,8 @@
-"""core/skills/schema.py — Re-export SSOT for skills.schema.
+"""core/skills/schema.py — Re-export SSOT for skills.schema."""
 
-Canonical SSOT: skills/schema
-Provides backward-compatibility for callers while eliminating duplicate logic.
-"""
+from . import _load_root_skill_module
 
-from skills.schema import *  # noqa: F401, F403
+_sc = _load_root_skill_module("schema.py")
+globals().update({k: v for k, v in vars(_sc).items() if not k.startswith("__")})
+
+

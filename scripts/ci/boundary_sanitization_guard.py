@@ -151,6 +151,12 @@ APPROVED_SUBTREES = {
     },
     "core": {
         "config",
+        "config.py",
+        "conftest.py",
+        "db.py",
+        "alembic_migrations",
+        "skills",
+        "tests",
         "observability",
         "messaging",
         "security",

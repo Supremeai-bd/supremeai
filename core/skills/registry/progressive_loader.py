@@ -1,7 +1,11 @@
-"""core/skills/registry/progressive_loader.py — Re-export SSOT for skills.registry.progressive_loader.
+"""core/skills/registry/progressive_loader.py — Re-export SSOT for skills.registry.progressive_loader."""
 
-Canonical SSOT: skills/registry/progressive_loader
-Provides backward-compatibility for callers while eliminating duplicate logic.
-"""
+from .. import _load_root_skill_module
 
-from skills.registry.progressive_loader import *  # noqa: F401, F403
+_pl = _load_root_skill_module("registry/progressive_loader.py", pkg="skills.registry")
+CURSOR_MANIFEST = _pl.CURSOR_MANIFEST
+SKILL_MD = _pl.SKILL_MD
+ProgressiveLoader = _pl.ProgressiveLoader
+__all__ = ["CURSOR_MANIFEST", "SKILL_MD", "ProgressiveLoader"]
+
+

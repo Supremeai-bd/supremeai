@@ -172,7 +172,7 @@ class Settings(BaseSettings, SettingsFieldsMixin, SettingsValidationMixin):
     @property
     def jwt_secret(self) -> str:
         """Resolve JWT secret from env, secret_vault, or non-production fallback."""
-        from core.secret_policy import resolve_jwt_secret_env
+        from core.secret_policy import JWT_SECRET_MIN_LENGTH, resolve_jwt_secret_env
 
         secret = resolve_jwt_secret_env()
         if not secret:
@@ -182,9 +182,16 @@ class Settings(BaseSettings, SettingsFieldsMixin, SettingsValidationMixin):
                 secret = get_secret_vault().get_secret("SUPREMEAI_JWT_SECRET", default="")
             except Exception:
                 secret = ""
+        if (self.env or "").lower() in ("production", "prod"):
+            if not secret or len(secret) < JWT_SECRET_MIN_LENGTH:
+                raise RuntimeError(
+                    f"Production JWT secret must be set and >= {JWT_SECRET_MIN_LENGTH} bytes"
+                )
+            self._jwt_secret_cache = secret
+            return secret
         if not secret:
             if not hasattr(self, "_jwt_secret_cache"):
-                if (self.env or "").lower() in ("production", "staging", "prod"):
+                if (self.env or "").lower() == "staging":
                     return ""
                 import secrets
 

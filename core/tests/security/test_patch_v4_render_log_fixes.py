@@ -257,8 +257,15 @@ def test_core_services_module_has_no_eager_singleton_assignments():
 
     import core
 
-    # Find services.py
-    services_path = Path(core.__file__).parent / "services.py"
+    # Find service_container.py (or services/__init__.py)
+    core_dir = (
+        Path(core.__file__).parent
+        if getattr(core, "__file__", None)
+        else Path(next(iter(core.__path__)))
+    )
+    services_path = core_dir / "service_container.py"
+    if not services_path.exists():
+        services_path = core_dir / "services" / "__init__.py"
     with open(services_path, encoding="utf-8") as f:
         source = f.read()
 
