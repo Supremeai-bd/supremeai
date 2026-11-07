@@ -234,14 +234,6 @@ def test_guard_self_test_suite_passes() -> None:
 # --------------------------------------------------------------------------- #
 
 if __name__ == "__main__":
-    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
-    failed = 0
-    for fn in fns:
-        try:
-            fn()
-            print(f"PASS | {fn.__name__}")
-        except AssertionError as exc:
-            failed += 1
-            print(f"FAIL | {fn.__name__}: {exc}")
-    print(f"\n{len(fns) - failed}/{len(fns)} tests passed")
-    sys.exit(1 if failed else 0)
+    import pytest
+
+    raise SystemExit(pytest.main([__file__, "-q"]))
