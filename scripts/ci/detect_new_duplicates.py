@@ -33,7 +33,6 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
-
 DEFAULT_IGNORES = (
     "**/archive/**,"
     "**/node_modules/**,"
@@ -177,16 +176,21 @@ def clone_from_json(item: dict[str, Any]) -> Clone:
 
 
 def _changed_files_against_base(base_ref: str, root: Path) -> set[str] | None:
-    res = subprocess.run(
-        ["git", "diff", "--name-only", f"{base_ref}...HEAD"],
-        cwd=root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if res.returncode != 0:
-        return None
-    return {line.strip().replace("\\", "/") for line in res.stdout.splitlines() if line.strip()}
+    for diff_spec in (f"{base_ref}...HEAD", base_ref):
+        res = subprocess.run(
+            ["git", "diff", "--name-only", diff_spec],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if res.returncode == 0:
+            return {
+                line.strip().replace("\\", "/")
+                for line in res.stdout.splitlines()
+                if line.strip()
+            }
+    return None
 
 
 def _rel_norm(path_str: str, root: Path) -> str:
