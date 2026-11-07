@@ -592,5 +592,6 @@ scripts/search_repo.*
 scripts/setup_search.*
 
 # Local Git Hooks & Archive Caches
-.githooks/
+.githooks/*
+!.githooks/pre-push
 docs/archive/pr_diff_index.json

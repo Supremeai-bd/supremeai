@@ -49,13 +49,14 @@ def client(monkeypatch, isolated_db) -> Iterator[TestClient]:
     monkeypatch.setenv("ADMIN_TOKEN", ADMIN_TOKEN)
     app = FastAPI()
     app.include_router(ecosystem_admin.router)
-    with TestClient(app) as c:
+    with TestClient(app, headers={"Authorization": f"Bearer {ADMIN_TOKEN}"}) as c:
         yield c
 
 
 @pytest.fixture()
-def static_token_only(monkeypatch) -> None:
+def static_token_only(monkeypatch, client: TestClient) -> None:
     """Force the static-token auth path by removing the JWT bypass."""
+    client.headers.pop("Authorization", None)
 
     def _no_jwt(_request):
         raise HTTPException(status_code=401, detail="no jwt in this test")

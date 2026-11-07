@@ -14,6 +14,22 @@ for _p in (str(_CORE_DIR), str(_REPO_ROOT)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+
+def _alias_core_package(pkg_name: str) -> None:
+    """Ensure `import <pkg_name>` and `import core.<pkg_name>` resolve to the same module."""
+    try:
+        import importlib
+
+        core_pkg = importlib.import_module(f"core.{pkg_name}")
+        sys.modules.setdefault(pkg_name, core_pkg)
+    except Exception:
+        pass
+
+
+_alias_core_package("models")
+_alias_core_package("database")
+
+
 # ROOT-CAUSE FIX: pytest collection phase-এ tests/api/*.py, tests/core/*.py-র
 # অনেক ফাইল module-level-এই route/app মডিউল import করে, যেগুলো
 # api/routes/api_keys.py-র মতো জায়গায় module-level singleton

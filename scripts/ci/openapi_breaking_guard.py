@@ -81,13 +81,17 @@ def run_cmd(
 ) -> tuple[int, str, str]:
     """Honest command runner modeled on the loop's run_cmd (never raises)."""
     try:
+        merged_env: dict | None = None
+        if env is not None:
+            merged_env = dict(os.environ)
+            merged_env.update(env)
         p = subprocess.run(
             cmd,
             cwd=str(cwd) if cwd else None,
             capture_output=True,
             timeout=timeout,
             check=False,
-            env=env,
+            env=merged_env,
         )
         out = p.stdout.decode("utf-8", errors="replace").strip()
         err = p.stderr.decode("utf-8", errors="replace").strip()
@@ -114,6 +118,30 @@ def _version_at_least(found: tuple[int, ...], minimum: tuple[int, ...]) -> bool:
     return pad(found) >= pad(minimum)
 
 
+def _resolve_differ_cmd(path_env: dict | None = None) -> list[str] | None:
+    search_path = path_env.get("PATH") if path_env is not None else None
+    binary = shutil.which(OASDIFF_BINARY, path=search_path)
+    if binary:
+        return [binary]
+    if path_env and "PATH" in path_env:
+        raw_path = path_env["PATH"]
+        entries = re.split(r"[;:] (?![/\\]) | (?<!^[A-Za-z])(?<![;:])[:;]", raw_path, flags=re.VERBOSE)
+        for entry in entries:
+            entry = entry.strip()
+            if not entry:
+                continue
+            cand = Path(entry) / OASDIFF_BINARY
+            if cand.is_file():
+                try:
+                    head = cand.read_text(encoding="utf-8", errors="replace").splitlines()[:1]
+                except Exception:
+                    head = []
+                if head and "python" in head[0].lower():
+                    return [sys.executable, str(cand)]
+                return [str(cand)]
+    return None
+
+
 def oasdiff_status(path_env: dict | None = None) -> tuple[str | None, str]:
     """Probe the pinned differ. Returns (version_string_or_None, reason).
 
@@ -121,10 +149,10 @@ def oasdiff_status(path_env: dict | None = None) -> tuple[str | None, str]:
     evidence: binary absent, or present but older than / unverifiable against
     OASDIFF_MIN_VERSION (a too-old differ could misclassify 3.1 revisions).
     """
-    binary = shutil.which(OASDIFF_BINARY, path=path_env.get("PATH") if path_env else None)
-    if not binary:
+    cmd_prefix = _resolve_differ_cmd(path_env)
+    if not cmd_prefix:
         return None, f"{OASDIFF_BINARY} binary not found on PATH (honest skip per #1711)"
-    code, out, err = run_cmd([binary, "--version"], timeout=15, env=path_env)
+    code, out, err = run_cmd([*cmd_prefix, "--version"], timeout=15, env=path_env)
     if code != 0:
         return None, f"{OASDIFF_BINARY} --version failed (exit {code}: {err or 'no stderr'})"
     parsed = _version_tuple(out)
@@ -213,9 +241,11 @@ def run_oasdiff_breaking(
         rev_file = Path(td) / "revision.yaml"
         base_file.write_text(base_content, encoding="utf-8")
         rev_file.write_text(rev_content, encoding="utf-8")
-        binary = shutil.which(OASDIFF_BINARY, path=path_env.get("PATH") if path_env else None)
+        cmd_prefix = _resolve_differ_cmd(path_env)
+        if not cmd_prefix:
+            return EXIT_PASS, [version_line, f"{OASDIFF_BINARY} could not run (binary not found) — honest skip"]
         code, out, err = run_cmd(
-            [binary, "breaking", str(base_file), str(rev_file)],
+            [*cmd_prefix, "breaking", str(base_file), str(rev_file)],
             timeout=120,
             env=path_env,
         )

@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 from api.deps import get_current_user_token
 from core.monitoring.logging_config import logger
-from database.supabase_client import SupabaseDB
+from database.supabase_client import get_db
 
 router = APIRouter(prefix="/api/share", tags=["Sharing"])
 
@@ -110,7 +110,7 @@ async def generate_share_link(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
 
     try:
         # Verify the conversation belongs to the user
@@ -192,7 +192,7 @@ async def get_shared_conversation(share_id: str):
     if cached is not None:
         # Increment view count asynchronously (best-effort)
         try:
-            db = SupabaseDB()
+            db = get_db()
             current_count = cached.get("view_count", 0)
             await (
                 db.client.table("shared_conversations")
@@ -217,7 +217,7 @@ async def get_shared_conversation(share_id: str):
             view_count=cached["view_count"],
         )
 
-    db = SupabaseDB()
+    db = get_db()
 
     try:
         # Fetch the share record
@@ -309,7 +309,7 @@ async def list_shared_conversations(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
 
     try:
         response = (
@@ -364,7 +364,7 @@ async def revoke_share(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
 
     try:
         # Verify ownership

@@ -1,5 +1,6 @@
 """Pydantic field declarations for SupremeAI settings."""
 
+import os
 from typing import Annotated, Any, ClassVar
 
 from pydantic import AliasChoices, Field, SecretStr
@@ -73,6 +74,16 @@ class SettingsFieldsMixin:
     )
 
     supabase_url: str | None = Field(default=None, validation_alias=AliasChoices("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"))
+
+    @property
+    def database_url(self) -> str:
+        """Database connection URL resolved from supabase_database_url or DATABASE_URL."""
+        raw = getattr(self, "supabase_database_url", None)
+        if raw:
+            val = raw.get_secret_value() if hasattr(raw, "get_secret_value") else str(raw)
+            if val.strip():
+                return val.strip()
+        return (os.getenv("DATABASE_URL") or os.getenv("SUPABASE_DB_URL") or "").strip()
     supabase_key: SecretStr | None = Field(default=None, validation_alias=AliasChoices("SUPABASE_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_ANON_KEY"))
     supabase_service_role_key: SecretStr | None = Field(default=None, validation_alias=AliasChoices("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY"))
     PROJECT_NAME: str = "SupremeAI 2.0"

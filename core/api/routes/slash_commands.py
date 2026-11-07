@@ -286,10 +286,10 @@ async def _handle_research(args: dict[str, Any], user_id: str) -> dict[str, Any]
 
 async def _handle_summarize(args: dict[str, Any], user_id: str) -> dict[str, Any]:
     """Summarize a conversation."""
-    from database.supabase_client import SupabaseDB
+    from database.supabase_client import get_db
 
     conversation_id = args.get("conversation_id")
-    db = SupabaseDB()
+    db = get_db()
 
     # If no conversation_id provided, get the most recent
     if not conversation_id:
@@ -435,11 +435,11 @@ async def _handle_think(args: dict[str, Any], user_id: str) -> dict[str, Any]:
 
 async def _handle_export(args: dict[str, Any], user_id: str) -> dict[str, Any]:
     """Export a conversation."""
-    from database.supabase_client import SupabaseDB
+    from database.supabase_client import get_db
 
     conversation_id = args.get("conversation_id")
     fmt = args.get("format", "markdown")
-    db = SupabaseDB()
+    db = get_db()
 
     if not conversation_id:
         convs = (
@@ -534,10 +534,10 @@ async def _handle_export(args: dict[str, Any], user_id: str) -> dict[str, Any]:
 
 async def _handle_clear(args: dict[str, Any], user_id: str) -> dict[str, Any]:
     """Clear a conversation's messages."""
-    from database.supabase_client import SupabaseDB
+    from database.supabase_client import get_db
 
     conversation_id = args.get("conversation_id")
-    db = SupabaseDB()
+    db = get_db()
 
     if not conversation_id:
         convs = (

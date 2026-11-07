@@ -236,7 +236,10 @@ markers = [
     "requires_redis: marks tests requiring redis",
     "e2e: marks tests as end-to-end tests",
     "security: marks tests as security tests",
-    "performance: marks tests as performance tests"
+    "performance: marks tests as performance tests",
+    "memory: marks tests for memory subsystems",
+    "auth: marks tests for authentication and authorization",
+    "slow: marks slow-running integration tests"
 ]
 filterwarnings = [
     "error",

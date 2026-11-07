@@ -21,7 +21,7 @@ from pydantic import BaseModel
 from core.monitoring.logging_config import logger
 from core.request_context import get_correlation_id
 from core.security.authentication.rbac import get_current_user_token as verify_token_dependency
-from database.supabase_client import SupabaseDB
+from database.supabase_client import get_db
 
 
 def _internal_error(e: Exception) -> HTTPException:
@@ -188,7 +188,7 @@ async def create_conversation(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
     try:
         response = (
             await db.client.table("conversations")
@@ -209,7 +209,7 @@ async def add_message(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
     try:
         # AUD-2.3/2.5: verify the requesting user actually owns the conversation
         # before writing into it. The service-role client used here bypasses RLS,

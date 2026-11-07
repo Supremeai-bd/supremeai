@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 from core.monitoring.logging_config import logger
 from core.request_context import get_correlation_id
 from core.security.authentication.rbac import get_current_user_token as verify_token_dependency
-from database.supabase_client import SupabaseDB
+from database.supabase_client import get_db
 
 router = APIRouter(prefix="/keys", tags=["User Keys"])
 
@@ -219,7 +219,7 @@ async def create_or_update_key(key_data: KeyCreate, user: dict = Depends(verify_
     encrypted_key = encrypt_key(raw_key)
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    db = SupabaseDB()
+    db = get_db()
     try:
         response = (
             await db.client.table("user_keys")
@@ -264,7 +264,7 @@ async def list_keys(user: dict = Depends(verify_token_dependency)):
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
     try:
         response = (
             await db.client.table("user_keys")
@@ -292,7 +292,7 @@ async def delete_key(provider: str, user: dict = Depends(verify_token_dependency
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
     try:
         await (
             db.client.table("user_keys")
@@ -323,7 +323,7 @@ async def run_daily_key_recheck(user: dict = Depends(verify_token_dependency)):
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
     try:
         response = (
             await db.client.table("user_keys")

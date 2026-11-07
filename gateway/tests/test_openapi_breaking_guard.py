@@ -38,6 +38,8 @@ import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if not (REPO_ROOT / "scripts" / "ci" / "openapi_breaking_guard.py").is_file():
+    REPO_ROOT = Path(__file__).resolve().parents[2]
 GUARD = REPO_ROOT / "scripts" / "ci" / "openapi_breaking_guard.py"
 CONTRACT = "api-schemas/gateway.openapi.yaml"
 TRAILER = "contract-break-approved:"

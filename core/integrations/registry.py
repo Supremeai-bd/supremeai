@@ -15,7 +15,10 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Optional
 
-from ..config import settings
+try:
+    from ..config import settings
+except (ImportError, ValueError):
+    from core.config import settings
 
 
 class IntegrationScope(StrEnum):

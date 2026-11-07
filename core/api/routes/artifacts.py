@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from api.deps import get_current_user_token
 from core.monitoring.logging_config import logger
-from database.supabase_client import SupabaseDB
+from database.supabase_client import get_db
 
 router = APIRouter(
     prefix="/api/artifacts",
@@ -129,7 +129,7 @@ async def create_artifact(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
 
     try:
         row = {
@@ -165,7 +165,7 @@ async def list_artifacts_by_conversation(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
 
     try:
         response = (
@@ -195,7 +195,7 @@ async def get_artifact(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
 
     try:
         response = (
@@ -231,7 +231,7 @@ async def update_artifact(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
 
     try:
         # Verify ownership and fetch current version
@@ -290,7 +290,7 @@ async def delete_artifact(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
 
     try:
         # Verify ownership
@@ -332,7 +332,7 @@ async def preview_artifact(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    db = SupabaseDB()
+    db = get_db()
 
     try:
         response = (

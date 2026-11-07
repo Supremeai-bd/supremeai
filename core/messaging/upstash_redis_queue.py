@@ -1,11 +1,40 @@
 from __future__ import annotations
 
+import os
+import time
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
 
 from core.config import settings
 from core.logging_config import logger
+
+
+class QuotaExhaustedError(RuntimeError):
+    """Raised when all configured Upstash Redis REST accounts are soft-capped or quota-exhausted."""
+
+
+def _quota_window() -> str:
+    raw = (os.getenv("UPSTASH_QUOTA_WINDOW", "monthly") or "monthly").strip().lower()
+    return "daily" if raw == "daily" else "monthly"
+
+
+def _next_utc_reset_epoch() -> float:
+    now = datetime.now(UTC)
+    tomorrow = datetime(now.year, now.month, now.day, tzinfo=UTC) + timedelta(days=1)
+    return tomorrow.timestamp() + 60.0
+
+
+def _next_quota_reset_epoch() -> float:
+    if _quota_window() == "daily":
+        return _next_utc_reset_epoch()
+    now = datetime.now(UTC)
+    if now.month == 12:
+        nxt = datetime(now.year + 1, 1, 1, tzinfo=UTC)
+    else:
+        nxt = datetime(now.year, now.month + 1, 1, tzinfo=UTC)
+    return nxt.timestamp() + 60.0
 
 
 class UpstashRedisQueue:
@@ -31,16 +60,50 @@ class UpstashRedisQueue:
             else None
         )
         self._active_pool_idx = 0
+        raw_cap = os.getenv("UPSTASH_QUOTA_SOFT_CAP") or os.getenv("UPSTASH_DAILY_SOFT_CAP")
+        try:
+            self._soft_cap_limit = int(raw_cap) if raw_cap is not None else 400_000
+        except ValueError:
+            self._soft_cap_limit = 400_000
+        self._day_bucket_until = _next_quota_reset_epoch()
+        self._window_counts: dict[str, int] = {}
+        self._softcap_accounts: dict[str, str] = {}
+        self._cooldown_accounts: dict[str, str] = {}
+        self._stats: dict[str, int] = {"softcap_shifts": 0, "quota_cooldowns": 0}
 
     @property
     def configured(self) -> bool:
         return bool(self._client)
+
+    def _rollover_if_needed(self) -> None:
+        now = time.time()
+        if now >= self._day_bucket_until:
+            self._day_bucket_until = _next_quota_reset_epoch()
+            self._window_counts.clear()
+            self._softcap_accounts.clear()
+            self._cooldown_accounts.clear()
+
+    def quota_status(self) -> dict[str, Any]:
+        self._rollover_if_needed()
+        counts = dict(self._window_counts)
+        return {
+            "window": _quota_window(),
+            "window_counts": counts,
+            "window_soft_cap": self._soft_cap_limit,
+            "daily_counts": counts,
+            "daily_soft_cap": self._soft_cap_limit,
+            "cooldown_accounts": dict(self._cooldown_accounts),
+            "softcap_accounts": dict(self._softcap_accounts),
+            "stats": dict(self._stats),
+        }
 
     def _request(self, *args: str) -> dict[str, Any]:
         if not self._client:
             raise RuntimeError(
                 "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are not configured"
             )
+
+        self._rollover_if_needed()
 
         # Issue #754 (MA-04): multi-account federation failover across all 5 Upstash instances
         pool = getattr(settings, "upstash_redis_rest_pool", [])
@@ -53,16 +116,44 @@ class UpstashRedisQueue:
             raise RuntimeError("No configured Upstash Redis REST endpoints available")
 
         last_err: Exception | None = None
+        skipped_by_quota = 0
+        reset_iso = datetime.fromtimestamp(self._day_bucket_until, UTC).isoformat()
+
         for i in range(len(endpoints)):
             idx = (self._active_pool_idx + i) % len(endpoints)
             target_url, target_token = endpoints[idx]
+
+            if target_url in self._cooldown_accounts:
+                skipped_by_quota += 1
+                continue
+
+            if self._soft_cap_limit > 0:
+                used = self._window_counts.get(target_url, 0)
+                if used >= self._soft_cap_limit:
+                    self._softcap_accounts.setdefault(target_url, reset_iso)
+                    self._stats["softcap_shifts"] = self._stats.get("softcap_shifts", 0) + 1
+                    skipped_by_quota += 1
+                    continue
+
             try:
                 response = self._client.post(
                     target_url,
                     headers={"Authorization": f"Bearer {target_token}"},
                     json=list(args),
                 )
+                status_code = getattr(response, "status_code", 200)
+                body_text = str(getattr(response, "text", "") or "").lower()
+                if status_code in (400, 402, 429) and (
+                    "limit exceeded" in body_text or "quota" in body_text
+                ):
+                    self._cooldown_accounts[target_url] = reset_iso
+                    self._stats["quota_cooldowns"] = self._stats.get("quota_cooldowns", 0) + 1
+                    skipped_by_quota += 1
                 response.raise_for_status()
+                self._window_counts[target_url] = self._window_counts.get(target_url, 0) + 1
+                if self._soft_cap_limit > 0 and self._window_counts[target_url] >= self._soft_cap_limit:
+                    if target_url not in self._softcap_accounts:
+                        self._softcap_accounts[target_url] = reset_iso
                 if idx != self._active_pool_idx:
                     self._active_pool_idx = idx
                 return response.json()
@@ -70,6 +161,10 @@ class UpstashRedisQueue:
                 last_err = exc
                 logger.warning(f"Upstash Redis REST instance {idx} failed ({exc}); failing over...")
 
+        if skipped_by_quota >= len(endpoints):
+            raise QuotaExhaustedError(
+                "All configured Upstash Redis REST accounts have reached their quota or soft-cap"
+            )
         if last_err:
             raise last_err
         return {}

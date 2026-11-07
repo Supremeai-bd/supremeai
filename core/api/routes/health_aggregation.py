@@ -4,12 +4,16 @@ Aggregates health status from all microservices and external dependencies.
 """
 
 import asyncio
+import hashlib
 import os
+import time
 from datetime import datetime
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
+from sqlalchemy import text
 
 from api.dependencies import get_current_admin
 from brain.model_registry import ModelRegistry
@@ -19,12 +23,23 @@ from core.health.uptime_tracker import (
     get_uptime_summary,
     record_check,
 )
+from core.messaging.event_bus import ErrorEvent, error_event_bus
 
 router = APIRouter(prefix="/admin-api", tags=["health"], dependencies=[Depends(get_current_admin)])
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MODELS
 # ══════════════════════════════════════════════════════════════════════════════
+
+
+class SchemaDriftStatus(BaseModel):
+    status: str = "skipped"  # ok, drift, error, skipped
+    fingerprint: str | None = None
+    baseline_fingerprint: str | None = None
+    tables: int = 0
+    columns: int = 0
+    detail: str = ""
+    probed_at: float = 0.0
 
 
 class ServiceHealth(BaseModel):
@@ -49,6 +64,176 @@ class HealthAggregationResponse(BaseModel):
     summary: dict[str, int]
     uptime_percentage: float
     alerts: list[str]
+    schema_drift: SchemaDriftStatus | None = None
+
+
+_SCHEMA_PROBE_TTL_SECONDS = 30.0
+_schema_state: dict[str, Any] = {
+    "baseline": None,
+    "fingerprint": None,
+    "status": "skipped",
+    "tables": 0,
+    "columns": 0,
+    "detail": "",
+    "probed_at": 0.0,
+    "alert_key": None,
+}
+
+
+def _fingerprint_rows(rows: list[tuple[str, str, str]]) -> str:
+    canonical = "\n".join(
+        f"{t}|{c}|{dt}" for t, c, dt in sorted((str(a), str(b), str(d)) for a, b, d in rows)
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
+
+async def _collect_schema_rows(session: Any) -> list[tuple[str, str, str]] | None:
+    bind = getattr(session, "bind", None)
+    dialect = getattr(getattr(bind, "dialect", None), "name", "")
+    if dialect == "postgresql":
+        query = (
+            "SELECT table_name, column_name, data_type FROM information_schema.columns "
+            "WHERE table_schema NOT IN ('pg_catalog', 'information_schema') "
+            "ORDER BY table_name, column_name"
+        )
+        res = await session.execute(text(query))
+        return [(str(r[0]), str(r[1]), str(r[2])) for r in res.fetchall()]
+    if dialect == "sqlite":
+        tbl_query = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        tbl_res = await session.execute(text(tbl_query))
+        rows: list[tuple[str, str, str]] = []
+        for (tbl_name,) in tbl_res.fetchall():
+            pragma_res = await session.execute(text(f'PRAGMA table_info("{tbl_name}")'))
+            for col in pragma_res.fetchall():
+                rows.append((str(tbl_name), str(col[1]), str(col[2])))
+        return rows
+    return None
+
+
+def _current_schema_status() -> SchemaDriftStatus:
+    return SchemaDriftStatus(
+        status=_schema_state["status"],
+        fingerprint=_schema_state["fingerprint"],
+        baseline_fingerprint=_schema_state["baseline"],
+        tables=_schema_state["tables"],
+        columns=_schema_state["columns"],
+        detail=_schema_state["detail"],
+        probed_at=_schema_state["probed_at"],
+    )
+
+
+async def probe_schema_drift(
+    *,
+    force: bool = False,
+    session_factory: Any = None,
+) -> SchemaDriftStatus:
+    now = time.monotonic()
+    if (
+        not force
+        and _schema_state["probed_at"] > 0.0
+        and (now - _schema_state["probed_at"]) < _SCHEMA_PROBE_TTL_SECONDS
+    ):
+        return _current_schema_status()
+
+    if session_factory is None:
+        from core.database import AsyncSessionLocal
+
+        session_factory = AsyncSessionLocal
+
+    try:
+        async with session_factory() as session:
+            bind = getattr(session, "bind", None)
+            dialect = getattr(getattr(bind, "dialect", None), "name", "unknown")
+            rows = await _collect_schema_rows(session)
+            if rows is None:
+                _schema_state.update(
+                    status="skipped",
+                    detail=f"unsupported dialect: {dialect}",
+                    probed_at=now,
+                )
+                return _current_schema_status()
+
+            fp = _fingerprint_rows(rows)
+            tables_count = len({r[0] for r in rows})
+            cols_count = len(rows)
+            baseline = _schema_state["baseline"]
+
+            if baseline is None:
+                baseline = fp
+                _schema_state["baseline"] = fp
+
+            if fp == baseline:
+                was_drift = _schema_state["alert_key"] is not None
+                _schema_state.update(
+                    status="ok",
+                    fingerprint=fp,
+                    tables=tables_count,
+                    columns=cols_count,
+                    detail="schema matches baseline",
+                    probed_at=now,
+                    alert_key=None,
+                )
+                if was_drift:
+                    error_event_bus.emit(
+                        ErrorEvent(
+                            module="health_aggregation",
+                            error_type="SCHEMA_DRIFT_RESOLVED",
+                            message=f"Schema drift resolved; matches baseline {baseline}",
+                            severity="INFO",
+                            resolved=True,
+                            context={"fingerprint": fp, "baseline": baseline},
+                        )
+                    )
+            else:
+                alert_key = f"drift:{baseline}->{fp}"
+                should_emit = _schema_state["alert_key"] != alert_key
+                _schema_state.update(
+                    status="drift",
+                    fingerprint=fp,
+                    tables=tables_count,
+                    columns=cols_count,
+                    detail=f"fingerprint {fp} != baseline {baseline}",
+                    probed_at=now,
+                    alert_key=alert_key,
+                )
+                if should_emit:
+                    error_event_bus.emit(
+                        ErrorEvent(
+                            module="health_aggregation",
+                            error_type="SCHEMA_DRIFT",
+                            message=f"Database schema drift detected: {fp} != {baseline}",
+                            severity="ERROR",
+                            resolved=False,
+                            context={
+                                "fingerprint": fp,
+                                "baseline": baseline,
+                                "remediation": "trigger connection-pool recycle and verify migrations",
+                            },
+                        )
+                    )
+    except Exception as exc:
+        err_msg = str(exc)
+        alert_key = f"error:{err_msg}"
+        should_emit = _schema_state["alert_key"] != alert_key
+        _schema_state.update(
+            status="error",
+            detail=err_msg,
+            probed_at=now,
+            alert_key=alert_key,
+        )
+        if should_emit:
+            error_event_bus.emit(
+                ErrorEvent(
+                    module="health_aggregation",
+                    error_type="SCHEMA_PROBE_FAILED",
+                    message=f"Schema drift probe failed: {err_msg}",
+                    severity="WARNING",
+                    resolved=False,
+                    context={"error": err_msg},
+                )
+            )
+
+    return _current_schema_status()
 
 
 class DependencyHealth(BaseModel):
