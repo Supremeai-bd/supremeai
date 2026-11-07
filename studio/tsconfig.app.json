@@ -34,6 +34,8 @@
     "src"
   ],
   "exclude": [
+    "src/cockpit/**",
+    "src/commandcenter/**",
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
     "src/**/*.spec.ts",
