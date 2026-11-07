@@ -245,8 +245,8 @@ jobs:
       - name: Feature Parity Sentinel (backend ⇄ frontend drift)
         id: parity_sentinel
         run: |
-          python scripts/feature_parity_sentinel.py \
-            --baseline scripts/feature_parity_baseline.json \
+          python scripts/ops/feature_parity_sentinel.py \
+            --baseline scripts/ops/feature_parity_baseline.json \
             --json ci-reports/feature-parity-report.json \
             --markdown ci-reports/feature-parity-report.md
 
@@ -345,8 +345,8 @@ jobs:
           REDIS_URL: "redis://localhost:6379/0"
           SUPREMEAI_BASE_URL: ${{ secrets.SUPREMEAI_BASE_URL }}
         run: |
-          chmod +x scripts/ci-full-audit.sh
-          ./scripts/ci-full-audit.sh
+          chmod +x scripts/ops/ci-full-audit.sh
+          ./scripts/ops/ci-full-audit.sh
 
       - name: Upload CI audit reports
         if: always()
@@ -1979,7 +1979,7 @@ jobs:
       with:
         python-version: '3.11'
     - name: Run silent error detector (regression gate)
-      run: "python3 scripts/detect_silent_errors.py \\\n  --scan-dirs backend frontend/src apps packages shared tools config configs scripts migrations \\\n  --baseline scripts/silent_errors_baseline.json\
+      run: "python3 scripts/ops/detect_silent_errors.py \\\n  --scan-dirs core gateway browser studio infrastructure scripts \\\n  --baseline scripts/ops/silent_errors_baseline.json\
         \ \\\n  --fail-on high \\\n  --json silent_errors_report.json \\\n  --markdown silent_errors_summary.md\n"
     - name: Upload report artifacts
       if: always()

@@ -9,18 +9,24 @@ from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-BACKEND = ROOT / "backend"
+CORE = ROOT / "core"
 
 
 def module_file(module_path: str) -> Path:
     relative = Path(*module_path.split("."))
-    package_file = BACKEND / relative / "__init__.py"
-    module_file = BACKEND / relative.with_suffix(".py")
-    return module_file if module_file.exists() else package_file
+    # Support both "api.routes..." (under core/) and direct modules
+    package_file = CORE / relative / "__init__.py"
+    mod_file = CORE / relative.with_suffix(".py")
+    if mod_file.exists():
+        return mod_file
+    if package_file.exists():
+        return package_file
+    # Check fallback without "api." prefix if needed
+    return mod_file
 
 
 def registry_entries() -> list[dict[str, object]]:
-    source = (BACKEND / "api" / "routers.py").read_text(encoding="utf-8")
+    source = (CORE / "api" / "routers.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
     for node in tree.body:
         if isinstance(node, ast.Assign) and any(

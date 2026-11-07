@@ -61,10 +61,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
-BACKEND_DIR = ROOT / "backend"
-FRONTEND_DIR = ROOT / "frontend"
-DEFAULT_BASELINE = ROOT / "scripts" / "feature_parity_baseline.json"
+ROOT = Path(__file__).resolve().parents[2]
+BACKEND_DIR = ROOT / "core"
+FRONTEND_DIR = ROOT / "studio"
+DEFAULT_BASELINE = ROOT / "scripts" / "ops" / "feature_parity_baseline.json"
 ROUTERS_REGISTRY = BACKEND_DIR / "api" / "routers.py"
 
 SEVERITY_ORDER = {"low": 0, "medium": 1, "high": 2}

@@ -10,7 +10,10 @@ from urllib.parse import urlparse
 
 from core.config import settings
 from core.secret_utils import unwrap_secret
-from memory.sqlite_store import SQLiteMemoryStore
+try:
+    from core.memory.sqlite_store import SQLiteMemoryStore
+except ImportError:
+    from memory.sqlite_store import SQLiteMemoryStore
 
 
 class SupabaseStore(SQLiteMemoryStore):
