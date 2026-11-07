@@ -98,6 +98,15 @@ jobs:
       - name: Check public export allowlist
         run: python scripts/ci/public_surface_guard.py --manifest scripts/ci/public_surface_manifest.txt
 
+      - name: AI Semantic PR Verification Gate (High-Risk Enforcement)
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/ci/ai_semantic_pr_verifier.py --pr "${{ github.event.pull_request.number }}"
+
       - name: Anti-Duplication Regression Guard (Zero New Code Clones)
         run: |
           git fetch origin ${{ github.base_ref || 'main' }}:refs/remotes/origin/${{ github.base_ref || 'main' }} --depth=50
@@ -197,6 +206,8 @@ jobs:
 
   # =========================================================================
   # STAGE 2b: AUTO-MERGE (separate gated job; only after all tier gates pass)
+  # Zero Early Landing Invariant: Main is NEVER triggered before PR tests pass 100%.
+  # If any tier gate fails, this job fails closed (exit 1) and blocks the merge.
   # =========================================================================
   auto-merge:
     name: "Auto-Merge PR (gated)"
@@ -208,16 +219,38 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      - name: Squash merge PR
-        if: >
-          needs.fast-gate.result == 'success' &&
-          needs.runtime-readiness.result == 'success' &&
-          (needs.render-heavy-gate.result == 'success' || needs.render-heavy-gate-fallback.result == 'success')
+      - name: Verify all tier gates and squash merge PR
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          FAST_RES: ${{ needs.fast-gate.result }}
+          READY_RES: ${{ needs.runtime-readiness.result }}
+          HEAVY_LOCAL: ${{ needs.render-heavy-gate.result }}
+          HEAVY_CLOUD: ${{ needs.render-heavy-gate-fallback.result }}
         run: |
-          echo "All required tier gates passed for PR #${PR_NUMBER}; auto-landing to main."
+          echo "=== Auto-Merge Pre-Landing Gate Evaluation ==="
+          echo "Tier 1 Fast Gate: $FAST_RES"
+          echo "Tier 1 Runtime Readiness: $READY_RES"
+          echo "Tier 2 Heavy Local Runner: $HEAVY_LOCAL"
+          echo "Tier 2 Heavy Cloud Runner: $HEAVY_CLOUD"
+
+          if [ "$FAST_RES" != "success" ]; then
+            echo "::error::Tier 1 Fast Safety Gate did not succeed (status: $FAST_RES). Auto-merge blocked."
+            exit 1
+          fi
+
+          if [ "$READY_RES" != "success" ]; then
+            echo "::error::Tier 1 Runtime Readiness Gate did not succeed (status: $READY_RES). Auto-merge blocked."
+            exit 1
+          fi
+
+          if [ "$HEAVY_LOCAL" != "success" ] && [ "$HEAVY_CLOUD" != "success" ]; then
+            echo "::error::Tier 2 Heavy Test Battery did not succeed (local: $HEAVY_LOCAL, cloud: $HEAVY_CLOUD). Auto-merge blocked."
+            exit 1
+          fi
+
+          echo "All required tier gates 100% green for PR #${PR_NUMBER}."
+          echo "Autonomous Auto-Landing: Squashing and landing to main now..."
           gh pr merge "$PR_NUMBER" --squash --delete-branch
 
   # =========================================================================
