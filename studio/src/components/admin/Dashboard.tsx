@@ -9,8 +9,8 @@ export default function Dashboard() {
   const { data: events } = useDashboardEvents(5);
 
   const availability = metrics?.availability_percent;
-  const dashRps = metrics?.requests_per_second ?? 0;
-  const safeCpu = metrics?.cpu_percent ?? metrics?.cpu_usage_percent ?? Math.min(100, Math.round((dashRps / 50) * 100));
+  const dashRps = metrics?.requests_per_second;
+  const safeCpu = metrics?.cpu_percent ?? metrics?.cpu_usage_percent;
   const activeIncidents = threats?.findings?.filter(t => t.severity === 'high' || t.severity === 'critical') || [];
   const activeDeployments = ciReports?.filter(c => c.status === 'running') || [];
 
@@ -146,15 +146,15 @@ export default function Dashboard() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center pb-4 border-b border-border">
                   <span className="text-secondary text-sm">LLM API Usage</span>
-                  <span className="text-text font-mono font-medium">$42.50</span>
+                  <span className="text-muted font-mono text-xs">not reported</span>
                 </div>
                 <div className="flex justify-between items-center pb-4 border-b border-border">
                   <span className="text-secondary text-sm">Compute Instances</span>
-                  <span className="text-text font-mono font-medium">$128.00</span>
+                  <span className="text-muted font-mono text-xs">not reported</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-text font-semibold">Total MTD</span>
-                  <span className="text-accent-primary font-mono font-bold">$170.50</span>
+                  <span className="text-muted font-mono text-xs">not reported</span>
                 </div>
               </div>
             </div>
@@ -170,21 +170,21 @@ export default function Dashboard() {
                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                     CI/CD Watcher
                   </span>
-                  <span className="text-xs font-mono text-emerald-400">Running</span>
+                  <span className="text-xs font-mono text-secondary">{activeDeployments.length > 0 ? 'Active' : 'Idle'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-text flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                     Infra Autoscaler
                   </span>
-                  <span className="text-xs font-mono text-emerald-400">Running</span>
+                  <span className="text-xs font-mono text-secondary">{metrics ? 'Monitoring' : 'Idle'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-secondary flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-secondary"></div>
                     Security Scanner
                   </span>
-                  <span className="text-xs font-mono text-secondary">Idle</span>
+                  <span className="text-xs font-mono text-secondary">{activeIncidents.length > 0 ? 'Reviewing' : 'Standby'}</span>
                 </div>
               </div>
             </div>
