@@ -8,12 +8,14 @@ Runs seamlessly on Render 512MB Free Tier or local machine (port 8788). Refs #75
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import gzip
 import json
 import logging
 import os
 import pathlib
+import random
 import re
 import sys
 import time
@@ -542,10 +544,25 @@ class DuckAiEngine:
         return None
 
     async def _ask_zero_auth_http_relay(self, client: httpx.AsyncClient, prompt: str) -> Optional[str]:
-        """Zero-credential, pure-HTTP OpenAI-compatible $0 relay fallback (~2s latency, 0 extra RAM)."""
+        """Zero-credential, pure-HTTP OpenAI-compatible $0 relay fallback (~1-2s latency, 0 extra RAM)."""
         relay_url = os.getenv("FREE_HTTP_AI_RELAY_URL", "https://text.pollinations.ai/openai").strip()
         if not relay_url:
             return None
+        stealth_headers = {
+            "Content-Type": "application/json",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json, text/event-stream, */*",
+            "Accept-Language": "en-US,en;q=0.9,bn;q=0.8",
+            "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+        }
         try:
             resp = await client.post(
                 relay_url,
@@ -553,11 +570,8 @@ class DuckAiEngine:
                     "model": "openai",
                     "messages": [{"role": "user", "content": prompt}],
                 },
-                headers={
-                    "Content-Type": "application/json",
-                    "User-Agent": "SupremeAI-Lightweight-Relay/2.0",
-                },
-                timeout=12.0,
+                headers=stealth_headers,
+                timeout=20.0,
             )
             if resp.status_code == 200:
                 try:
@@ -577,23 +591,37 @@ class DuckAiEngine:
         return None
 
     async def ask(self, prompt: str, model: Optional[str] = None) -> str:
-        """Query duck.ai via fast HTTP (6s cap), then fall back to zero-auth HTTP OpenAI relay."""
-        target_model = self.resolve_model(model)
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            ),
-            "Content-Type": "application/json",
-            "Accept": "text/event-stream",
-            "Referer": "https://duck.ai/",
-            "Origin": "https://duck.ai",
-        }
+        """Query zero-cost fast HTTP relay with human micro-jitter, then fall back to duck.ai."""
+        # 1. Human micro-jitter (50-150ms) to eliminate robotic machine cadence
+        await asyncio.sleep(random.uniform(0.05, 0.15))
 
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            # 2. Fast Zero-Auth HTTP Relay first (~1.0s latency)
+            free_reply = await self._ask_zero_auth_http_relay(client, prompt)
+            if free_reply:
+                return free_reply
+
+            # 3. Duck.ai SSE stream fallback
             token = await self._fetch_vqd_token(client)
             if token:
-                headers["x-vqd-4"] = token
+                target_model = self.resolve_model(model)
+                headers = {
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                    ),
+                    "Content-Type": "application/json",
+                    "Accept": "text/event-stream",
+                    "Referer": "https://duck.ai/",
+                    "Origin": "https://duck.ai",
+                    "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": '"Windows"',
+                    "sec-fetch-dest": "empty",
+                    "sec-fetch-mode": "cors",
+                    "sec-fetch-site": "same-site",
+                    "x-vqd-4": token,
+                }
                 payload = {
                     "model": target_model,
                     "messages": [{"role": "user", "content": prompt}],
@@ -603,7 +631,7 @@ class DuckAiEngine:
                         "https://duckduckgo.com/duckchat/v1/chat",
                         headers=headers,
                         json=payload,
-                        timeout=6.0,
+                        timeout=10.0,
                     )
                     if resp.status_code == 200:
                         new_token = resp.headers.get("x-vqd-4")
@@ -631,12 +659,7 @@ class DuckAiEngine:
                 except Exception as exc:
                     logger.warning(f"[DuckAI] HTTP chat request failed: {exc}")
 
-            # Pure-HTTP $0 fallback (zero browser bloat, 512MB safe)
-            free_reply = await self._ask_zero_auth_http_relay(client, prompt)
-            if free_reply:
-                return free_reply
-
-        raise HTTPException(status_code=502, detail="Duck.ai and zero-auth HTTP relay encountered upstream challenge or timeout")
+        raise HTTPException(status_code=502, detail="Stealth HTTP relay encountered upstream challenge or timeout")
 
 
 duck_engine = DuckAiEngine()
@@ -754,36 +777,69 @@ async def api_chat(request: Request) -> Dict[str, Any]:
     }
 
 
+def _format_stealth_chat_prompt(messages: list[ChatMessage]) -> str:
+    """Natural dialogue formatter with conversational deduplication and sliding window."""
+    if not messages:
+        return ""
+
+    cleaned: list[tuple[str, str]] = []
+    for m in messages:
+        c = (m.content or "").strip()
+        if not c:
+            continue
+        # Strip noisy IDE headers if present in historical context
+        if "<environment_details>" in c and len(messages) > 1:
+            c = re.sub(r"<environment_details>[\s\S]*?</environment_details>", "", c).strip()
+        if not c:
+            continue
+        role = (m.role or "user").strip().lower()
+        if cleaned and cleaned[-1][0] == role and cleaned[-1][1] == c:
+            continue
+        cleaned.append((role, c))
+
+    if not cleaned:
+        return ""
+
+    # If single turn, return directly
+    if len(cleaned) == 1 and cleaned[0][0] == "user":
+        return cleaned[0][1]
+
+    # Sliding window: keep up to last 6 turns to avoid bloated token context
+    window = cleaned[-6:]
+    dialogue: list[str] = []
+    for r, c in window:
+        prefix = "User" if r == "user" else "Assistant"
+        dialogue.append(f"{prefix}: {c}")
+
+    return "\n\n".join(dialogue)
+
+
 @app.post("/v1/chat/completions")
 async def chat_completions(req: ChatRequest, request: Request) -> JSONResponse:
     _verify_stealth_secret(request)
-    prompt = "\n".join(m.content for m in req.messages if m.role == "user")
+    prompt = _format_stealth_chat_prompt(req.messages)
+    if not prompt.strip():
+        prompt = "\n".join(m.content for m in req.messages if m.role == "user" and m.content and m.content.strip())
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="Missing user message in payload")
 
-    req_model = str(req.model or "gemini-web").strip().lower()
-    served_model = "gemini-web"
-    engine_code = "ge"
-    engine_label = "SupremeAI w.ge Turbo"
+    req_model = str(req.model or "auto").strip().lower()
+    served_model = "supremeai-fast"
+    engine_code = "dk"
+    engine_label = "SupremeAI w.dk Turbo"
 
-    if "duck" in req_model:
-        duck_target = duck_engine.resolve_model(req_model)
+    # Fast stealth HTTP path first (~1.0s latency)
+    try:
         reply = await duck_engine.ask(prompt.strip(), model=req_model)
-        served_model = f"duck-{duck_target}"
-        engine_code = "dk"
-        engine_label = f"SupremeAI w.dk ({duck_target})"
-    else:
+    except Exception as exc:
+        logger.warning(f"Fast HTTP relay failed ({exc}); attempting authenticated session fallback...")
         try:
             reply = await relay_engine.ask(prompt.strip())
-        except Exception as exc:
-            logger.warning(f"Gemini relay failed ({exc}); falling back to lightweight $0 HTTP relay...")
-            try:
-                reply = await duck_engine.ask(prompt.strip(), model="gpt-4o-mini")
-                served_model = "duck-gpt-4o-mini"
-                engine_code = "dk"
-                engine_label = "SupremeAI w.dk (gpt-4o-mini)"
-            except Exception:
-                raise exc
+            served_model = "gemini-web"
+            engine_code = "ge"
+            engine_label = "SupremeAI w.ge Turbo"
+        except Exception:
+            raise HTTPException(status_code=502, detail=f"Stealth relay fallback failed: {exc}")
 
     return JSONResponse(
         {
