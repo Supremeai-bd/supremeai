@@ -23,7 +23,7 @@ import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("supremeai-cookie-relay")
@@ -58,7 +58,18 @@ app.add_middleware(
 
 class ChatMessage(BaseModel):
     role: str
-    content: str
+    content: Any = ""
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def _coerce_content(cls, v: Any) -> str:
+        if isinstance(v, list):
+            return "\n".join(
+                part.get("text", "") if isinstance(part, dict) else str(part)
+                for part in v
+                if (isinstance(part, dict) and part.get("text")) or not isinstance(part, dict)
+            )
+        return str(v or "")
 
 
 class ChatRequest(BaseModel):
