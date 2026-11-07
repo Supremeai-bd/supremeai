@@ -665,42 +665,8 @@ class DuckAiEngine:
 duck_engine = DuckAiEngine()
 
 
-async def hydrate_browser_secrets() -> None:
-    """Hydrates critical credentials (GEMINI_API_KEY, STEALTH_WEBHOOK_SECRET) from Infisical."""
-    client_id = os.getenv("INFISICAL_CLIENT_ID", "").strip() or "6480e0bf-5fa5-45d6-8b2b-0932bb82f768"
-    client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "").strip() or "b58742d4a51e6008b8b931969a92350ef94d48cecb1efc490a61f5b61034ab1a"
-    workspace_id = (os.getenv("INFISICAL_WORKSPACE_ID", "") or os.getenv("INFISICAL_PROJECT_ID", "")).strip() or "92aa20c4-aef5-4e33-82bd-efb06058aaf0"
-    if not client_id or not client_secret or not workspace_id:
-        return
-    environment = os.getenv("INFISICAL_ENV", "prod").strip() or "prod"
-    base_url = os.getenv("INFISICAL_API_URL", "https://app.infisical.com").rstrip("/")
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            login_resp = await client.post(
-                f"{base_url}/api/v1/auth/universal-auth/login",
-                json={"clientId": client_id, "clientSecret": client_secret},
-            )
-            login_resp.raise_for_status()
-            token = login_resp.json().get("accessToken")
-            if not token:
-                return
-            url = f"{base_url}/api/v3/secrets/raw"
-            params = {"workspaceId": workspace_id, "environment": environment, "secretPath": "/"}
-            resp = await client.get(url, params=params, headers={"Authorization": f"Bearer {token}"})
-            resp.raise_for_status()
-            for s in resp.json().get("secrets", []):
-                k = s.get("secretKey")
-                v = s.get("secretValue")
-                if k in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "STEALTH_WEBHOOK_SECRET", "FREE_HTTP_AI_RELAY_URL"):
-                    if k not in os.environ or not os.environ[k]:
-                        os.environ[k] = v
-    except Exception as exc:
-        logger.warning(f"Browser secrets hydration warning: {exc}")
-
-
 @app.on_event("startup")
 async def on_startup():
-    await hydrate_browser_secrets()
     logger.info("Initializing Infisical cookie prefetch on startup...")
     try:
         await relay_engine.fetch_cookies_from_infisical()
