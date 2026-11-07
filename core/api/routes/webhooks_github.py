@@ -44,7 +44,7 @@ def _webhook_secret() -> str:
 
 
 def _allowed_repository() -> str:
-    return os.getenv("GITHUB_WEBHOOK_REPOSITORY", "SaifulHaqueNiloy/supremeai")
+    return os.getenv("GITHUB_WEBHOOK_REPOSITORY", "Supremeai-bd/supremeai")
 
 
 def _verify_signature(payload: bytes, signature_header: str | None) -> bool:
@@ -122,19 +122,18 @@ def _dedup_key(normalized: dict[str, Any], delivery_id: str) -> str:
     return f"supremeai:orchestrate:{issue_ref}:{normalized['event']}:{delivery_id}"
 
 
-async def _claim_delivery(key: str) -> bool:
+async def _claim_delivery(key: str) -> bool | None:
     """SETNX-style claim — True = first time seeing this delivery.
 
-    Upstash unavailable → dedup degrades (logged, fail-open for availability);
-    replay protection is best-effort, unlike signature verification which is
-    strictly fail-closed.
+    Returns None when the dedup store is unavailable so the caller can decide
+    fail-open vs fail-closed based on WEBHOOK_DEDUP_FAIL_CLOSED.
     """
     client = await redis_manager.get_client_async()
     if client is None:
         logger.warning(
             "[webhook-audit] dedup store unavailable — delivery processed without replay guard"
         )
-        return True
+        return None
     try:
         was_set = await client.set(key, "1", nx=True, ex=DEDUP_TTL_SECONDS)
         return bool(was_set)
@@ -142,7 +141,7 @@ async def _claim_delivery(key: str) -> bool:
         logger.warning(
             f"[webhook-audit] dedup store error ({exc}) — processing without replay guard"
         )
-        return True
+        return None
 
 
 @router.post("/github")
@@ -154,13 +153,17 @@ async def github_webhook(request: Request) -> JSONResponse:
 
     event = request.headers.get("X-GitHub-Event", "")
     delivery_id = request.headers.get("X-GitHub-Delivery", "")
-    action = request.headers.get("X-GitHub-Action")
 
     try:
         payload = json.loads(raw or b"{}")
     except ValueError:
         logger.error(f"[webhook-audit] REJECTED reason=invalid_json delivery={delivery_id}")
         return JSONResponse(status_code=422, content={"detail": "invalid JSON payload"})
+
+    # GitHub delivers the action inside the JSON payload; header is a fallback only.
+    action = (payload.get("action") if isinstance(payload, dict) else None) or request.headers.get(
+        "X-GitHub-Action"
+    )
 
     repo = (payload.get("repository") or {}).get("full_name", "")
     if repo != _allowed_repository():
@@ -182,7 +185,14 @@ async def github_webhook(request: Request) -> JSONResponse:
         )
 
     key = _dedup_key(normalized, delivery_id or "missing-delivery-id")
-    if not await _claim_delivery(key):
+    claim = await _claim_delivery(key)
+    if claim is None:
+        fail_closed = os.getenv("WEBHOOK_DEDUP_FAIL_CLOSED", "true").strip().lower() in ("1", "true", "yes")
+        if fail_closed:
+            return JSONResponse(
+                status_code=503, content={"detail": "dedup store unavailable", "dedup_key": key}
+            )
+    elif claim is False:
         logger.info(f"[webhook-audit] replay suppressed delivery={delivery_id} key={key}")
         return JSONResponse(status_code=200, content={"status": "duplicate", "dedup_key": key})
 

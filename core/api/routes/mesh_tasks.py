@@ -22,9 +22,11 @@ backend/core/task_router.py-তে — এখানে কেবল পাতল
 
 from __future__ import annotations
 
+import hmac
+import os
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
@@ -36,9 +38,68 @@ from core.task_router import (
     get_task_router,
 )
 
+def _verify_mesh_task_auth(request: Request) -> None:
+    """Internal node authentication for mesh task queue endpoints (audit fix).
+
+    Reuses the worker-service token model (WORKER_AUTH_TOKEN / INTERNAL_API_KEY /
+    SUPREMEAI_API_KEY) so mesh task control is no longer an unauthenticated
+    surface. Test environments may opt in via ALLOW_TEST_AUTH_BYPASS.
+    """
+    bypass_env_allowlist = ("dev", "development", "test", "local")
+    env_value = (os.getenv("ENV") or "").strip().lower()
+    if (
+        os.getenv("ALLOW_TEST_AUTH_BYPASS", "").lower() in ("true", "1")
+        and env_value in bypass_env_allowlist
+    ):
+        return
+
+    expected_tokens = [
+        t
+        for t in [
+            os.getenv("WORKER_AUTH_TOKEN"),
+            os.getenv("INTERNAL_API_KEY"),
+            os.getenv("SUPREMEAI_API_KEY"),
+        ]
+        if t
+    ]
+    if not expected_tokens:
+        try:
+            from core.config import settings
+
+            sec = getattr(settings, "supremeai_api_key", None)
+            if sec is not None and hasattr(sec, "get_secret_value"):
+                expected_tokens.append(sec.get_secret_value())
+        except Exception:
+            pass
+
+    if not expected_tokens:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Mesh task auth tokens not configured",
+        )
+
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+    elif request.headers.get("X-Worker-Token"):
+        token = request.headers["X-Worker-Token"].strip()
+    elif request.headers.get("X-API-Key"):
+        token = request.headers["X-API-Key"].strip()
+    elif request.headers.get("X-SupremeAI-Key"):
+        token = request.headers["X-SupremeAI-Key"].strip()
+
+    if not token or not any(hmac.compare_digest(token, et) for et in expected_tokens):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing mesh task auth token",
+        )
+
+
 router = APIRouter(
     prefix="/api/v1/mesh/tasks",
     tags=["mesh-tasks"],
+    dependencies=[Depends(_verify_mesh_task_auth)],
     # বাংলা: presence-এর মতোই pre-auth — task submit/claim প্রথম কল হতে পারে।
     # Per-task-type বিপজ্জনকতা HITL gate (MESH-4) এ যাচাই হবে; এখানে কেবল
     # queue state পরিচালিত হয়, privileged resource স্পর্শ করা হয় না।
