@@ -1553,6 +1553,26 @@ async def _execute_chat_completion(
     # Re-enabling requires an explicit, written ADMIN_DECISION issue from the
     # admin. Any PR that re-enables fallback without it must be rejected.
     # ═══════════════════════════════════════════════════════════════════════
+    def _format_sse_chunk(chunk_id: str, m_name: str, delta_text: str, is_final: bool, branding: Any) -> dict[str, Any]:
+        p = {
+            "id": chunk_id or "chatcmpl-stream",
+            "object": "chat.completion.chunk",
+            "created": int(time.time()),
+            "model": m_name,
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {"content": delta_text},
+                    "finish_reason": "stop" if is_final else None,
+                }
+            ],
+            "supremeai": branding,
+        }
+        if conv_id:
+            p["conversation_id"] = conv_id
+            p["session_id"] = conv_id
+        return p
+
     use_priority_1 = (
         bool(STEALTH_WEBHOOK_URL)
         and (
@@ -1713,23 +1733,9 @@ async def _execute_chat_completion(
                     words = chat_content.split(" ")
                     for idx, word in enumerate(words):
                         chunk_text = word + (" " if idx < len(words) - 1 else "")
-                        chunk_payload = {
-                            "id": w_response.get("id", "chatcmpl-stream"),
-                            "object": "chat.completion.chunk",
-                            "created": int(time.time()),
-                            "model": served_model,
-                            "choices": [
-                                {
-                                    "index": 0,
-                                    "delta": {"content": chunk_text},
-                                    "finish_reason": None if idx < len(words) - 1 else "stop",
-                                }
-                            ],
-                            "supremeai": w_response.get("supremeai"),
-                        }
-                        if conv_id:
-                            chunk_payload["conversation_id"] = conv_id
-                            chunk_payload["session_id"] = conv_id
+                        chunk_payload = _format_sse_chunk(
+                            w_response.get("id"), served_model, chunk_text, idx == len(words) - 1, w_response.get("supremeai")
+                        )
                         yield f"data: {json.dumps(chunk_payload)}\n\n"
                         await asyncio.sleep(0.012)
                     yield "data: [DONE]\n\n"
@@ -1813,23 +1819,9 @@ async def _execute_chat_completion(
                         words = chat_content.split(" ")
                         for idx, word in enumerate(words):
                             chunk_text = word + (" " if idx < len(words) - 1 else "")
-                            chunk_payload = {
-                                "id": response_data.get("id", "chatcmpl-stream"),
-                                "object": "chat.completion.chunk",
-                                "created": int(time.time()),
-                                "model": served_model,
-                                "choices": [
-                                    {
-                                        "index": 0,
-                                        "delta": {"content": chunk_text},
-                                        "finish_reason": None if idx < len(words) - 1 else "stop",
-                                    }
-                                ],
-                                "supremeai": response_data.get("supremeai"),
-                            }
-                            if conv_id:
-                                chunk_payload["conversation_id"] = conv_id
-                                chunk_payload["session_id"] = conv_id
+                            chunk_payload = _format_sse_chunk(
+                                response_data.get("id"), served_model, chunk_text, idx == len(words) - 1, response_data.get("supremeai")
+                            )
                             yield f"data: {json.dumps(chunk_payload)}\n\n"
                             await asyncio.sleep(0.01)
                         yield "data: [DONE]\n\n"
