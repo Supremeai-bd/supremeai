@@ -35,6 +35,13 @@ def _owned_checkpoint_key(user: dict, task_id: str) -> str:
     return f"{_checkpoint_prefix(user)}{task_id}"
 
 
+def _owned_window_session(user: dict, session_id: str) -> str:
+    """Namespace sliding-window storage by the authenticated owner."""
+    sub = str(user.get("sub") or "anonymous").strip()
+    safe = sub.replace(":", "_").replace("/", "_")
+    return f"u:{safe}:window:{session_id or 'default'}"
+
+
 def get_checkpoint() -> CheckpointResume:
     global _checkpoint
     if _checkpoint is None:
@@ -137,32 +144,44 @@ def clear_checkpoint(task_id: str, user: dict = Depends(get_current_user_token))
 
 
 @router.post("/chunk", response_model=ChunkResponse)
-def chunk_text(payload: ChunkRequest):
+def chunk_text(payload: ChunkRequest, user: dict = Depends(get_current_user_token)):
     config = SlidingWindowConfig(max_tokens=payload.max_tokens, overlap_ratio=payload.overlap_ratio)
     memory = SlidingWindowMemory(config=config)
-    windows = memory.chunk(payload.text, session_id=payload.session_id)
+    windows = memory.chunk(payload.text, session_id=_owned_window_session(user, payload.session_id))
     return ChunkResponse(session_id=payload.session_id, windows=windows)
 
 
 @router.post("/context", response_model=ContextResponse)
-def build_context(payload: ContextRequest):
+def build_context(payload: ContextRequest, user: dict = Depends(get_current_user_token)):
     config = SlidingWindowConfig()
     memory = SlidingWindowMemory(config=config)
     budget = payload.budget or config.max_tokens
-    context = memory.build_context(payload.documents, payload.query, payload.session_id, budget)
+    context = memory.build_context(
+        payload.documents,
+        payload.query,
+        _owned_window_session(user, payload.session_id),
+        budget,
+    )
     return ContextResponse(session_id=payload.session_id, context=context)
 
 
 @router.get("/recall", response_model=list[dict[str, Any]])
-def recall_memory(session_id: str = "default", limit: int = 20):
+def recall_memory(
+    session_id: str = "default",
+    limit: int = 20,
+    user: dict = Depends(get_current_user_token),
+):
     memory = get_window()
-    return memory.recall(session_id, limit=limit)
+    return memory.recall(_owned_window_session(user, session_id), limit=limit)
 
 
 @router.delete("/recall")
-def clear_memory(session_id: str = "default"):
+def clear_memory(
+    session_id: str = "default",
+    user: dict = Depends(get_current_user_token),
+):
     memory = get_window()
-    ok = memory.clear(session_id)
+    ok = memory.clear(_owned_window_session(user, session_id))
     if not ok:
         raise HTTPException(status_code=500, detail="Failed to clear memory")
     return {"status": "ok", "session_id": session_id}
