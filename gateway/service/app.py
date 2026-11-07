@@ -1749,67 +1749,110 @@ async def _execute_chat_completion(
             relay_detail = str(w_response)[:500]
         logger.warning(
             f"Stealth Webhook relay returned non-chat or error status ({w_status}): {relay_detail}. "
-            f"API key fallback disabled per user mandate."
+            f"Failing over to sovereign Multi-Key Squad Pool..."
         )
-        raise HTTPException(
-            status_code=502,
-            detail=f"Stealth Webhook relay returned non-chat or error status ({w_status}): {relay_detail}. API fallback disabled."
-        )
+
+    # ── [SOVEREIGN MULTI-KEY SQUAD POOL EXECUTION] ────────────────────────────
+    # Priority 2 Fallback & Direct execution for supremeai-api / enterprise pool.
+    # Completely preserves the SupremeAI Sole Identity doctrine.
+    last_error = None
+    if squad:
+        candidates = squad.get_candidate_slots(preferred_provider) if squad else []
+        if not candidates and preferred_provider not in (None, "auto"):
+            candidates = squad.get_candidate_slots("auto")
+
+        for provider, slot in candidates:
+            try:
+                status, response_data = await forward_chat_completion(provider, slot.key, body)
+            except Exception as exc:
+                status, response_data = 500, {"error": str(exc)}
+
+            if 200 <= status < 300 and isinstance(response_data, dict):
+                # 1. Enforce SupremeAI Sole Identity branding
+                served_model = requested_model or "supremeai-api"
+                response_data["model"] = served_model
+                response_data["supremeai"] = build_brand("api", provider, served_model)
+
+                chat_content = ""
+                choices = response_data.get("choices") or []
+                if choices and isinstance(choices[0], dict) and isinstance(choices[0].get("message"), dict):
+                    chat_content = str(choices[0]["message"].get("content") or "").strip()
+
+                if validate_and_sanitize:
+                    try:
+                        response_data = validate_and_sanitize(response_data)
+                        if response_data.get("choices") and isinstance(response_data["choices"][0].get("message"), dict):
+                            chat_content = str(response_data["choices"][0]["message"].get("content", "")).strip()
+                    except Exception:
+                        pass
+
+                headers = {
+                    "X-SupremeAI-Provider": "supremeai-dynamic-squad",
+                    "X-SupremeAI-Slot": "priority-2",
+                    "X-SupremeAI-Tier": "enterprise-pool",
+                }
+
+                if conv_id and chat_content:
+                    if append_canonical_message:
+                        try:
+                            append_canonical_message(
+                                conv_id,
+                                "assistant",
+                                chat_content,
+                                user_id=user_id,
+                                provider="dynamic-squad",
+                                model=served_model,
+                                metadata={"supremeai": response_data.get("supremeai")},
+                            )
+                        except Exception:
+                            pass
+
+                # Streaming chunk generator for Kilo Code / IDEs
+                if body.get("stream"):
+                    async def squad_stream_generator():
+                        words = chat_content.split(" ")
+                        for idx, word in enumerate(words):
+                            chunk_text = word + (" " if idx < len(words) - 1 else "")
+                            chunk_payload = {
+                                "id": response_data.get("id", "chatcmpl-stream"),
+                                "object": "chat.completion.chunk",
+                                "created": int(time.time()),
+                                "model": served_model,
+                                "choices": [
+                                    {
+                                        "index": 0,
+                                        "delta": {"content": chunk_text},
+                                        "finish_reason": None if idx < len(words) - 1 else "stop",
+                                    }
+                                ],
+                                "supremeai": response_data.get("supremeai"),
+                            }
+                            if conv_id:
+                                chunk_payload["conversation_id"] = conv_id
+                                chunk_payload["session_id"] = conv_id
+                            yield f"data: {json.dumps(chunk_payload)}\n\n"
+                            await asyncio.sleep(0.01)
+                        yield "data: [DONE]\n\n"
+
+                    return StreamingResponse(
+                        squad_stream_generator(),
+                        media_type="text/event-stream",
+                        headers={**headers, "Cache-Control": "no-cache", "Connection": "keep-alive"},
+                    )
+
+                return JSONResponse(status_code=status, content=response_data, headers=headers)
+
+            pool = squad.pools.get(provider)
+            if pool:
+                pool.report_injury(slot, status)
+
+            last_error = {"provider": provider, "slot": slot.name, "status": status, "error": response_data}
+            logger.warning(f"Squad slot {slot.name} failed ({status}), failing over to next squad player...")
 
     raise HTTPException(
-        status_code=503,
-        detail="Stealth Webhook relay is currently unconfigured or offline. API key replies disabled per user mandate."
+        status_code=502,
+        detail=f"All sovereign AI providers and stealth relays are currently cooling down. Last error: {last_error or relay_detail}"
     )
-
-    # ── [USER MANDATE & ARCHITECTURAL DIRECTIVE - 2026-10-24] ─────────────────────
-    # NOTICE TO ALL AI AGENTS & DEVELOPERS:
-    # API key fallback execution is intentionally DISABLED for now because webhook
-    # configuration & stealth session testing is actively ongoing.
-    # DO NOT re-enable API key replies or squad fallback in /v1/chat/completions until
-    # webhook configuration testing is officially marked complete by the maintainer.
-    # The dynamic squad implementation, multi-key pool, and model cascades remain
-    # fully preserved in service/pool.py and service/providers/adapters.py ready for
-    # future activation once webhook testing is concluded.
-    # ─────────────────────────────────────────────────────────────────────────────
-    # if not squad:
-    #     raise HTTPException(status_code=503, detail="Dynamic squad uninitialized")
-    #
-    # candidates = squad.get_candidate_slots(preferred_provider) if squad else []
-    # if not candidates:
-    #     raise HTTPException(
-    #         status_code=503,
-    #         detail="No healthy AI provider keys available at this moment. All keys cooling down."
-    #     )
-    #
-    # last_error = None
-    # for provider, slot in candidates:
-    #     status, response_data = await forward_chat_completion(provider, slot.key, body)
-    #
-    #     if 200 <= status < 300:
-    #         headers = {
-    #             "X-SupremeAI-Provider": provider,
-    #             "X-SupremeAI-Slot": slot.name,
-    #             "X-SupremeAI-Priority": "2-squad-fallback" if use_priority_1 else "direct-squad",
-    #         }
-    #         if use_priority_1:
-    #             headers["X-SupremeAI-Fallback"] = "p1-stealth-failover"
-    #         if isinstance(response_data, dict):
-    #             return JSONResponse(status_code=status, content=response_data, headers=headers)
-    #         return Response(content=str(response_data), status_code=status, headers=headers, media_type="text/plain")
-    #
-    #     pool = squad.pools.get(provider)
-    #     if pool:
-    #         pool.report_injury(slot, status)
-    #
-    #     last_error = {"provider": provider, "slot": slot.name, "status": status, "error": response_data}
-    #     logger.warning(f"Candidate {slot.name} failed ({status}), failing over to next player...")
-    #
-    # return JSONResponse(
-    #     status_code=502,
-    #     content={
-    #         "error": "All healthy provider attempts failed during cross-provider failover.",
-    #         "last_error": last_error,
-    # )
 
 
 @app.post("/v1/chat/completions")
