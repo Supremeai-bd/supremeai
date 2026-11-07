@@ -15,7 +15,7 @@
  */
 import React from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
-import "./styles/tokens.css";
+// Note: tokens.css is now imported canonically via index.css
 import { GlobalConfigInitializer } from "./components/core/GlobalConfigInitializer";
 import { setupGlobalFetchInterceptor } from "./utils/apiInterceptor";
 

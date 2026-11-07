@@ -1,6 +1,6 @@
 /* SupremeAI — Cosmic Design Tokens (Refs #855, #856) */
 :root {
-  --neon-purple: #bc13fe;
+  /* বাংলা: canonical --neon-purple (#A855F7) index.css/design-tokens-এ থাকবে; duplicate রঙ WO2b-এর পরেও রয়ে গিয়েছিল */
   --danger: #f43f5e;
   --aurora-green: #10b981;
   --aurora-purple: #a855f7;
