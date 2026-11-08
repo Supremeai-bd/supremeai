@@ -121,11 +121,11 @@ jobs:
     outputs:
       execution_tier: ${{ steps.runner-check.outputs.execution_tier }}
       is_local_online: ${{ steps.runner-check.outputs.is_local_online }}
+      render_quota_exhausted: ${{ steps.runner-check.outputs.render_quota_exhausted }}
 
   # =========================================================================
-  # STAGE 2: TIER 2 - HEAVY TEST BATTERY (Local PC Priority 1 -> Cloud Fallback Priority 2)
-  # Executes heavy test battery on local PC runner when online (0 cloud mins).
-  # If local PC is offline, falls back seamlessly to Cloud runner so PRs NEVER get stuck.
+  # STAGE 2: TIER 2 - HEAVY TEST BATTERY (4-Tier SSOT per PR_TO_PRODUCTION_LIFECYCLE.md)
+  # Priority 1: Local PC (0 cloud mins) -> Priority 2: Render CI Runner -> Priority 3: GitHub+Render Backend -> Priority 4: GitHub Emergency
   # =========================================================================
   render-heavy-gate:
     name: "Tier 2: Heavy Test Battery (Local Self-Hosted)"
@@ -163,9 +163,41 @@ jobs:
             Write-Host "Attestation script completed."
           }
 
+  render-heavy-gate-render-ci:
+    name: "Tier 2: Heavy Test Battery (Render CI Runner - Priority 2)"
+    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.runtime-readiness.outputs.is_local_online != 'true' && needs.runtime-readiness.outputs.execution_tier == 'render-ci-runner' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [fast-gate, runtime-readiness]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trigger Render CI Runner Service
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
+          RENDER_SERVICE_ID: "srv-dbl8tbmtlv9c73bbkvqg"
+          RENDER_WAIT: "1"
+          RENDER_WAIT_TIMEOUT_SECONDS: "900"
+        run: |
+          echo "Triggering Render CI Runner for heavy test battery..."
+          python scripts/ci/render_trigger_deploy.py
+
+      - name: Publish CI Attestation to MCP Tower
+        if: always()
+        env:
+          MCP_TOWER_ATTESTATION_URL: ${{ vars.MCP_TOWER_ATTESTATION_URL }}
+          MCP_TOWER_AUTH_TOKEN: ${{ secrets.MCP_TOWER_AUTH_TOKEN }}
+          EXPECTED_SHA: ${{ github.sha }}
+          CI_RESULT: ${{ job.status }}
+          RUNNER_TARGET: "render-ci-runner"
+        run: |
+          if [ -f scripts/ci/publish_ci_attestation.py ]; then
+            python scripts/ci/publish_ci_attestation.py || true
+          fi
+
   render-heavy-gate-fallback:
-    name: "Tier 2: Heavy Test Battery (Cloud Fallback)"
-    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (needs.runtime-readiness.outputs.is_local_online != 'true' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository))
+    name: "Tier 2: Heavy Test Battery (GitHub Ubuntu + Render Backend - Priority 3)"
+    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.runtime-readiness.outputs.is_local_online != 'true' && needs.runtime-readiness.outputs.execution_tier == 'github-ubuntu-render-backend' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [fast-gate, runtime-readiness]
@@ -184,7 +216,7 @@ jobs:
 
       - name: Run Full Unit & Component Guard Battery
         run: |
-          echo "Local runner offline. Running heavy battery on Cloud fallback runner..."
+          echo "Local runner offline. Render CI busy. Running heavy battery on GitHub Ubuntu (Priority 3)..."
           pytest -q tests/unit/test_telemetry_event_bus_guard.py
           python scripts/ops/wiring_atlas.py --check
 
@@ -198,7 +230,48 @@ jobs:
           MCP_TOWER_AUTH_TOKEN: ${{ secrets.MCP_TOWER_AUTH_TOKEN }}
           EXPECTED_SHA: ${{ github.sha }}
           CI_RESULT: ${{ job.status }}
-          RUNNER_TARGET: "cloud-fallback"
+          RUNNER_TARGET: "github-ubuntu-render-backend"
+        run: |
+          if [ -f scripts/ci/publish_ci_attestation.py ]; then
+            python scripts/ci/publish_ci_attestation.py || true
+          fi
+
+  render-heavy-gate-emergency:
+    name: "Tier 2: Heavy Test Battery (GitHub Ubuntu Emergency - Priority 4)"
+    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.runtime-readiness.outputs.is_local_online != 'true' && needs.runtime-readiness.outputs.execution_tier == 'github-ubuntu-emergency' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [fast-gate, runtime-readiness]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest pytest-asyncio pydantic fastapi httpx pyyaml
+
+      - name: Run Full Unit & Component Guard Battery
+        run: |
+          echo "EMERGENCY: Render quota exhausted. Running heavy battery on GitHub Ubuntu (Priority 4)..."
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py
+          python scripts/ops/wiring_atlas.py --check
+
+      - name: Fast Compile Integrity
+        run: python -m compileall -q core/ scripts/
+
+      - name: Publish CI Attestation to MCP Tower
+        if: always()
+        env:
+          MCP_TOWER_ATTESTATION_URL: ${{ vars.MCP_TOWER_ATTESTATION_URL }}
+          MCP_TOWER_AUTH_TOKEN: ${{ secrets.MCP_TOWER_AUTH_TOKEN }}
+          EXPECTED_SHA: ${{ github.sha }}
+          CI_RESULT: ${{ job.status }}
+          RUNNER_TARGET: "github-ubuntu-emergency"
         run: |
           if [ -f scripts/ci/publish_ci_attestation.py ]; then
             python scripts/ci/publish_ci_attestation.py || true
@@ -213,7 +286,7 @@ jobs:
     name: "Auto-Merge PR (gated)"
     if: github.event_name == 'pull_request' && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    needs: [fast-gate, runtime-readiness, render-heavy-gate, render-heavy-gate-fallback]
+    needs: [fast-gate, runtime-readiness, render-heavy-gate, render-heavy-gate-render-ci, render-heavy-gate-fallback, render-heavy-gate-emergency]
     permissions:
       contents: write
       pull-requests: write
@@ -226,13 +299,17 @@ jobs:
           FAST_RES: ${{ needs.fast-gate.result }}
           READY_RES: ${{ needs.runtime-readiness.result }}
           HEAVY_LOCAL: ${{ needs.render-heavy-gate.result }}
-          HEAVY_CLOUD: ${{ needs.render-heavy-gate-fallback.result }}
+          HEAVY_RENDER_CI: ${{ needs.render-heavy-gate-render-ci.result }}
+          HEAVY_PRIORITY3: ${{ needs.render-heavy-gate-fallback.result }}
+          HEAVY_PRIORITY4: ${{ needs.render-heavy-gate-emergency.result }}
         run: |
           echo "=== Auto-Merge Pre-Landing Gate Evaluation ==="
           echo "Tier 1 Fast Gate: $FAST_RES"
           echo "Tier 1 Runtime Readiness: $READY_RES"
           echo "Tier 2 Heavy Local Runner: $HEAVY_LOCAL"
-          echo "Tier 2 Heavy Cloud Runner: $HEAVY_CLOUD"
+          echo "Tier 2 Heavy Render CI Runner: $HEAVY_RENDER_CI"
+          echo "Tier 2 Heavy Priority 3 (GitHub+Render Backend): $HEAVY_PRIORITY3"
+          echo "Tier 2 Heavy Priority 4 (GitHub Emergency): $HEAVY_PRIORITY4"
 
           if [ "$FAST_RES" != "success" ]; then
             echo "::error::Tier 1 Fast Safety Gate did not succeed (status: $FAST_RES). Auto-merge blocked."
@@ -244,12 +321,34 @@ jobs:
             exit 1
           fi
 
-          if [ "$HEAVY_LOCAL" != "success" ] && [ "$HEAVY_CLOUD" != "success" ]; then
-            echo "::error::Tier 2 Heavy Test Battery did not succeed (local: $HEAVY_LOCAL, cloud: $HEAVY_CLOUD). Auto-merge blocked."
+          # At least one heavy tier must have succeeded (the one that was activated)
+          HEAVY_OK="false"
+          for res in "$HEAVY_LOCAL" "$HEAVY_RENDER_CI" "$HEAVY_PRIORITY3" "$HEAVY_PRIORITY4"; do
+            if [ "$res" = "success" ]; then
+              HEAVY_OK="true"
+              break
+            fi
+          done
+
+          # Also accept "skipped" for tiers that were not activated (they were not needed)
+          if [ "$HEAVY_OK" = "false" ]; then
+            # Check if all non-skipped results are skipped (meaning no tier ran - shouldn't happen)
+            ACTIVE_COUNT=0
+            for res in "$HEAVY_LOCAL" "$HEAVY_RENDER_CI" "$HEAVY_PRIORITY3" "$HEAVY_PRIORITY4"; do
+              if [ "$res" != "skipped" ]; then
+                ACTIVE_COUNT=$((ACTIVE_COUNT + 1))
+              fi
+            done
+            if [ "$ACTIVE_COUNT" -eq 0 ]; then
+              echo "::error::No heavy test tier was activated. Auto-merge blocked."
+              exit 1
+            fi
+            # If there was an active tier but none succeeded
+            echo "::error::Tier 2 Heavy Test Battery did not succeed (local: $HEAVY_LOCAL, render-ci: $HEAVY_RENDER_CI, p3: $HEAVY_PRIORITY3, p4: $HEAVY_PRIORITY4). Auto-merge blocked."
             exit 1
           fi
 
-          echo "All required tier gates 100% green for PR #${PR_NUMBER}."
+          echo "All required tier gates 100% green."
           echo "Autonomous Auto-Landing: Squashing and landing to main now..."
           gh pr merge "$PR_NUMBER" --squash --delete-branch
 
@@ -268,6 +367,7 @@ jobs:
       unregistered: ${{ steps.plan.outputs.unregistered }}
       execution_tier: ${{ steps.tier.outputs.execution_tier }}
       is_local_online: ${{ steps.tier.outputs.is_local_online }}
+      render_quota_exhausted: ${{ steps.tier.outputs.render_quota_exhausted }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
