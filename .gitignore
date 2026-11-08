@@ -138,6 +138,7 @@ tsconfig.app.tsbuildinfo
 # Rust target (ALL locations)
 **/target/
 **/Cargo.lock
+!studio/crypto/encryption/Cargo.lock
 
 # AI Context Exports
 context_export/
