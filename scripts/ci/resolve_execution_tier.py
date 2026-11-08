@@ -14,37 +14,11 @@ import json
 import os
 import sys
 import urllib.request
+from pathlib import Path
 
-
-def is_local_runner_online() -> bool:
-    """Check GitHub repository runner status via GitHub API."""
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    repo = os.environ.get("GITHUB_REPOSITORY", "Supremeai-bd/supremeai")
-
-    if not token:
-        return False
-
-    url = f"https://api.github.com/repos/{repo}/actions/runners"
-    req = urllib.request.Request(
-        url,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "SupremeAI-Runner-Dispatcher",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode())
-        runners = data.get("runners", [])
-        for runner in runners:
-            labels = [lbl.get("name") for lbl in runner.get("labels", [])]
-            if "local-pc" in labels and runner.get("status") == "online":
-                return True
-    except Exception as exc:
-        print(f"::warning::Failed to query GitHub runners API: {exc}")
-
-    return False
+# Reuse the canonical local-runner probe to avoid code duplication (Zero-Recurrence Invariant).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from check_opportunistic_audit import is_local_runner_online  # noqa: E402
 
 
 def get_render_quota_remaining() -> float:
@@ -69,8 +43,6 @@ def get_render_quota_remaining() -> float:
 
 def is_render_ci_worker_available() -> bool:
     """Check if the Render CI runner service is online and not busy."""
-    # The Render CI runner (srv-dbl8tbmtlv9c73bbkvqg) is considered available
-    # if the Render API key is configured. Actual busy-state is checked at dispatch.
     api_key = os.environ.get("RENDER_API_KEY_PAYKARI") or os.environ.get("RENDER_API_KEY")
     return bool(api_key)
 
