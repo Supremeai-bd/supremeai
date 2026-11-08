@@ -601,3 +601,5 @@ docs/archive/pr_diff_index.json
 studio-legacy-archive/
 
 !studio/src/lib/encryption/vendor/THIRD_PARTY_LICENSES.txt
+
+!studio/src/lib/supremeai/
