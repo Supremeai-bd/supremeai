@@ -46,7 +46,8 @@ DEFAULT_IGNORES = (
     "**/*.min.js,"
     "**/*.min.css,"
     "**/generated/**,"
-    "**/.github/workflows/**"
+    "**/.github/workflows/**,"
+    "studio/**"
 )
 
 
