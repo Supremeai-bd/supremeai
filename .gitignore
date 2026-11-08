@@ -599,3 +599,5 @@ docs/archive/pr_diff_index.json
 
 # Archived Legacy Frontend
 studio-legacy-archive/
+
+!studio/src/lib/encryption/vendor/THIRD_PARTY_LICENSES.txt
