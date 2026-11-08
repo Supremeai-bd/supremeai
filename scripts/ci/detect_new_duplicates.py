@@ -47,9 +47,7 @@ DEFAULT_IGNORES = (
     "**/*.min.css,"
     "**/generated/**,"
     "**/.github/workflows/**,"
-    "studio/backend/**,"
-    "studio/src/lib/i18n/locales/**,"
-    "studio/static/**"
+    "studio/**"
 )
 
 
