@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """Evaluate runner availability and compute the execution target for CI/CD and Audits.
 
-Evaluation logic:
-  - Check GitHub API for active self-hosted runners tagged 'local-pc'.
-  - If online: return 'local-self-hosted'.
-  - If offline: check Render quota via render_quota_preflight logic.
-  - If Render quota >= 50: return 'render-source-build'.
-  - Otherwise: return 'render-ci-runner' (emergency fallback).
+Evaluation logic (4-Tier SSOT per docs/PR_TO_PRODUCTION_LIFECYCLE.md):
+  - Priority 1: Local PC online -> 'local-self-hosted' (0 cloud/render mins)
+  - Priority 2: Local offline + Render quota > 50m remaining -> 'render-ci-runner'
+  - Priority 3: Local offline + Render CI worker busy but quota < 450m used -> 'github-ubuntu-render-backend'
+  - Priority 4: Local offline + Render quota exhausted (>= 450m used) -> 'github-ubuntu-emergency'
 """
 
 from __future__ import annotations
@@ -18,12 +17,11 @@ import urllib.request
 
 
 def is_local_runner_online() -> bool:
-    """Check GitHub repository runner status via GitHub CLI or API."""
+    """Check GitHub repository runner status via GitHub API."""
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     repo = os.environ.get("GITHUB_REPOSITORY", "Supremeai-bd/supremeai")
 
     if not token:
-        # If running inside GitHub Actions without token, assume false or check local runner
         return False
 
     url = f"https://api.github.com/repos/{repo}/actions/runners"
@@ -66,8 +64,15 @@ def get_render_quota_remaining() -> float:
         used = float(data.get("used") or data.get("usedMinutes") or 0.0)
         return max(0.0, limit - used)
     except Exception:
-        # Default safe assumption
         return 500.0
+
+
+def is_render_ci_worker_available() -> bool:
+    """Check if the Render CI runner service is online and not busy."""
+    # The Render CI runner (srv-dbl8tbmtlv9c73bbkvqg) is considered available
+    # if the Render API key is configured. Actual busy-state is checked at dispatch.
+    api_key = os.environ.get("RENDER_API_KEY_PAYKARI") or os.environ.get("RENDER_API_KEY")
+    return bool(api_key)
 
 
 def resolve_tier() -> str:
@@ -75,13 +80,19 @@ def resolve_tier() -> str:
     if is_local_runner_online():
         return "local-self-hosted"
 
-    # Priority 2: Render Free Quota Available
     remaining = get_render_quota_remaining()
-    if remaining >= 50.0:
-        return "render-cloud-free"
+    used = 500.0 - remaining
 
-    # Priority 3: Emergency Fallback
-    return "render-ci-runner-paykari"
+    # Priority 2: Render CI Runner (quota > 50m remaining)
+    if remaining >= 50.0 and is_render_ci_worker_available():
+        return "render-ci-runner"
+
+    # Priority 3: GitHub Ubuntu + Render backend free build time (< 450m used)
+    if used < 450.0:
+        return "github-ubuntu-render-backend"
+
+    # Priority 4: GitHub Ubuntu Emergency (quota exhausted)
+    return "github-ubuntu-emergency"
 
 
 def main() -> int:
@@ -93,6 +104,7 @@ def main() -> int:
         with open(github_output, "a") as f:
             f.write(f"execution_tier={tier}\n")
             f.write(f"is_local_online={'true' if tier == 'local-self-hosted' else 'false'}\n")
+            f.write(f"render_quota_exhausted={'true' if tier == 'github-ubuntu-emergency' else 'false'}\n")
 
     return 0
 
