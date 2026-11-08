@@ -1,6 +1,7 @@
 <script>
 	import { goto } from '$app/navigation';
 	import { WEBUI_NAME, config } from '$lib/stores';
+	import { getBackendConfig } from '$lib/apis';
 	import { onMount, getContext } from 'svelte';
 
 	const i18n = getContext('i18n');
@@ -10,6 +11,14 @@
 	onMount(async () => {
 		if ($config) {
 			await goto('/');
+			return;
+		}
+
+		const cfg = await getBackendConfig().catch(() => null);
+		if (cfg) {
+			await config.set(cfg);
+			await goto('/');
+			return;
 		}
 
 		loaded = true;
