@@ -437,10 +437,12 @@ jobs:
         contains(inputs.target_service, 'cloudflare')
       )
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -469,6 +471,21 @@ jobs:
             npx wrangler deploy || echo "Wrangler proxy deploy skipped or non-blocking"
           else
             echo "Cloudflare credentials not configured in secrets; skipping proxy deploy."
+          fi
+
+      - name: Build & Deploy Studio to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            cd studio
+            npm install --legacy-peer-deps
+            npm run build
+            npx wrangler pages deploy build --project-name=supremeai-studio --branch=main
+            echo "Successfully deployed new studio build to Cloudflare Pages (supremeai-studio.pages.dev)"
+          else
+            echo "Cloudflare credentials not configured in secrets; skipping Pages deploy."
           fi
 
   deploy-vercel:
