@@ -1547,7 +1547,42 @@ export const getBackendConfig = async () => {
 				// Probe also failed — genuine network/backend issue
 			}
 		}
-		throw error;
+
+		// SupremeAI Resilient Fallback:
+		// When running on Cloudflare Pages or when backend is unreachable/cold-starting,
+		// supply the sovereign Studio configuration so the UI boots cleanly without halting at /error.
+		console.warn('Backend /api/config unavailable; activating SupremeAI Sovereign Studio fallback');
+		return {
+			status: true,
+			name: 'SupremeAI Studio',
+			version: '2.0.0',
+			default_locale: 'en-US',
+			default_models: 'auto',
+			features: {
+				auth: false,
+				enable_websocket: false,
+				enable_signup: false,
+				enable_login_form: false,
+				enable_tool_servers: true,
+				enable_direct_connections: true,
+				enable_direct_integrations: true,
+				enable_community_sharing: false,
+				websocket_heartbeat_interval: 30
+			},
+			oauth: {
+				providers: {},
+				auto_redirect: false
+			},
+			ui: {
+				model_order_list: [
+					'auto',
+					'supremeai-turbo',
+					'supremeai-webhook',
+					'supremeai-deep-research',
+					'supremeai-api'
+				]
+			}
+		};
 	}
 
 	return res;
