@@ -46,7 +46,7 @@ def save_audit_timestamp(ts: float | None = None) -> None:
 
 
 def is_local_runner_online() -> bool:
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     repo = os.environ.get("GITHUB_REPOSITORY", "Supremeai-bd/supremeai")
     if not token:
         return False
