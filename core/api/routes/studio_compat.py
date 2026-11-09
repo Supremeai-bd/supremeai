@@ -2,18 +2,26 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
+
+import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
 
 from api.dependencies import get_current_user_token
 from api.routes.auth import (
+    ALGORITHM,
+    REFRESH_COOKIE_NAME,
+    AuthApiError,
+    _clear_auth_cookies,
+    _get_secret_key,
+    _token_from_header_or_cookie,
     create_access_token,
     create_refresh_token,
     _set_auth_cookies,
-    AuthApiError,
 )
 from core.config import settings
 from core.monitoring.logging_config import logger
+from core.security import revoke_token
 from database.supabase_client import db
 
 router = APIRouter(tags=["studio-compat"])
@@ -215,6 +223,42 @@ async def studio_sign_up(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration failed due to an internal error",
         ) from exc
+
+
+@router.post("/auths/signout")
+async def studio_sign_out(
+    request: Request,
+    response: Response,
+    token: str | None = Depends(_token_from_header_or_cookie),
+) -> dict[str, bool]:
+    """Studio-compatible signout. Clears auth cookies and best-effort revokes tokens.
+    Tolerates missing/invalid tokens so the frontend can always clear session state."""
+    _clear_auth_cookies(response)
+
+    async def _revoke(raw_token: str | None) -> None:
+        if not raw_token or jwt is None:
+            return
+        try:
+            payload = jwt.decode(raw_token, _get_secret_key(), algorithms=[ALGORITHM])
+        except Exception:
+            return
+        jti = payload.get("jti")
+        if not jti:
+            return
+        exp = payload.get("exp")
+        await revoke_token(
+            jti,
+            exp=int(exp) if isinstance(exp, (int, float)) else None,
+            is_admin=payload.get("role") in ("admin", "master_admin"),
+        )
+
+    try:
+        await _revoke(token)
+        await _revoke(request.cookies.get(REFRESH_COOKIE_NAME))
+    except Exception as exc:
+        logger.warning("Studio signout token revocation skipped: %s", exc)
+
+    return {"status": True}
 
 
 @router.get("/auths/")

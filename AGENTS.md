@@ -46,9 +46,12 @@ All agents enter, execute, and govern through exactly two unified pillars:
   13. **Universal 3-Tier Runner & Lowest-Runtime Constitution (Zero Cloud Waste for ALL Present & Future Workflows):**
       - **Single Universal Rule (Zero Rule Proliferation):** Whether there are 10, 10,000, or 1,000,000 similar workflows or tasks, all follow THIS EXACT SAME SINGLE RULE. We NEVER invent separate rules for separate workflows. If any genuine exception ever exists, that exception MUST be formally documented in `docs/PR_TO_PRODUCTION_LIFECYCLE.md` with explicit justification (what is the exception, and why).
       - **Zero Unchecked PR Invariant:** Every pull request without exception must trigger CI checks; merging a PR with 0 checks is strictly prohibited.
+      - **Universal Job 1 Hierarchy Check Invariant:** For ALL present and future GitHub Actions pipelines (PR CI, client release, ops maintenance, nightly audit, dependabot), the 4-level runner hierarchy check (`resolve_execution_tier.py`) MUST execute as **Job 1 (Stage 0)** (< 10s) before any heavy test or build job.
       - **Tier 1 (Priority 1 — Local-PC Native):** Any job taking > 30 seconds MUST query `resolve_execution_tier.py`. If `local-pc` is online, 90–95% of execution runs on the local Windows runner (`[self-hosted, local-pc]`). GitHub Cloud minutes spent = 0m.
       - **Tier 2 (Priority 2 — Render CI Runner):** If `local-pc` is offline/asleep, fallback dispatches to Render CI Runner pool.
       - **Tier 3 (Priority 3/4 — GitHub Cloud Fallback):** GitHub Actions Ubuntu runner is ONLY a safety-net fallback when both local-pc and Render are unavailable.
+      - **Tier 2 Sequence Lock:** Tier 2 heavy test batteries run strictly after Tier 1 fast safety gates pass, executing on the runner tier selected by Job 1.
+      - **Deployment Independence Invariant:** Post-merge CD and deployment jobs (`deploy-render-services`, `deploy-cloudflare`, `deploy-vercel`, `Harness CD`) run on GitHub Cloud (`ubuntu-latest`) via direct cloud API calls and DO NOT follow the local-pc/runner hierarchy.
       - **GitHub Cloud Action Window Cap (≤ 15-20 Seconds):** The GitHub Cloud job's responsibility is strictly limited to pre-flight trigger and auto-merge land. Consuming minutes on GitHub-hosted cloud runners when local or Render infrastructure is alive is a direct constitutional violation.
 
 - **MUST AVOID:**

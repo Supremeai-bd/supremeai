@@ -193,7 +193,32 @@ env:
   PYTHON_VERSION: '3.11'
 
 jobs:
+  # =========================================================================
+  # STAGE 0: 4-LEVEL RUNNER HIERARCHY PREFLIGHT (<10s)
+  # SSOT Invariant: Every pipeline must execute this check FIRST before any heavy job.
+  # Resolves Priority 1 (Local PC: 0m) -> Priority 2 (Render CI) -> Priority 3 -> Priority 4 (Emergency)
+  # =========================================================================
+  resolve-execution-tier:
+    name: "Tier 1: 4-Level Runner Hierarchy Preflight (<10s)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      execution_tier: ${{ steps.runner-check.outputs.execution_tier }}
+      is_local_online: ${{ steps.runner-check.outputs.is_local_online }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Check 4-Level Execution Hierarchy
+        id: runner-check
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/ci/resolve_execution_tier.py
+
   deep-audit:
+    needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_deep_audit == true) ||

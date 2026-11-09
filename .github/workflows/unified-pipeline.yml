@@ -41,11 +41,38 @@ concurrency:
 
 jobs:
   # =========================================================================
+  # STAGE 0: 4-LEVEL RUNNER HIERARCHY PREFLIGHT (<10s)
+  # SSOT Invariant: Every pipeline must execute this check FIRST before any other job.
+  # Resolves Priority 1 (Local PC: 0m) -> Priority 2 (Render CI) -> Priority 3 -> Priority 4 (Emergency)
+  # =========================================================================
+  resolve-execution-tier:
+    name: "Tier 1: 4-Level Runner Hierarchy Preflight (<10s)"
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      execution_tier: ${{ steps.runner-check.outputs.execution_tier }}
+      is_local_online: ${{ steps.runner-check.outputs.is_local_online }}
+      render_quota_exhausted: ${{ steps.runner-check.outputs.render_quota_exhausted }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check 4-Level Execution Hierarchy
+        id: runner-check
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/ci/resolve_execution_tier.py
+
+  # =========================================================================
   # STAGE 1: TIER 1 - MINIMAL FAST GATES (Only on Pull Request & Scheduled Audits)
   # Ultra-fast (~20-30s): Lint, boundary sanitization, readiness contract
   # =========================================================================
   fast-gate:
     name: "Tier 1: Fast Safety Gate (<30s)"
+    needs: [resolve-execution-tier]
     if: github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -72,6 +99,7 @@ jobs:
 
   runtime-readiness:
     name: "Tier 1: Runtime Readiness & Boundaries (<30s)"
+    needs: [resolve-execution-tier]
     if: github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -112,27 +140,16 @@ jobs:
           git fetch origin ${{ github.base_ref || 'main' }}:refs/remotes/origin/${{ github.base_ref || 'main' }} --depth=50
           python scripts/ci/detect_new_duplicates.py --base-ref "origin/${{ github.base_ref || 'main' }}" --max-new 0
 
-      - name: Check Local Self-Hosted Runner Status
-        id: runner-check
-        env:
-          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
-        run: |
-          python scripts/ci/resolve_execution_tier.py
-    outputs:
-      execution_tier: ${{ steps.runner-check.outputs.execution_tier }}
-      is_local_online: ${{ steps.runner-check.outputs.is_local_online }}
-      render_quota_exhausted: ${{ steps.runner-check.outputs.render_quota_exhausted }}
-
   # =========================================================================
   # STAGE 2: TIER 2 - HEAVY TEST BATTERY (4-Tier SSOT per PR_TO_PRODUCTION_LIFECYCLE.md)
   # Priority 1: Local PC (0 cloud mins) -> Priority 2: Render CI Runner -> Priority 3: GitHub+Render Backend -> Priority 4: GitHub Emergency
   # =========================================================================
   render-heavy-gate:
     name: "Tier 2: Heavy Test Battery (Local Self-Hosted)"
-    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.runtime-readiness.outputs.is_local_online == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, local-pc]
     timeout-minutes: 15
-    needs: [fast-gate, runtime-readiness]
+    needs: [resolve-execution-tier, fast-gate, runtime-readiness]
     steps:
       - uses: actions/checkout@v4
 
@@ -165,10 +182,10 @@ jobs:
 
   render-heavy-gate-render-ci:
     name: "Tier 2: Heavy Test Battery (Render CI Runner - Priority 2)"
-    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.runtime-readiness.outputs.is_local_online != 'true' && needs.runtime-readiness.outputs.execution_tier == 'render-ci-runner' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && needs.resolve-execution-tier.outputs.execution_tier == 'render-ci-runner' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    needs: [fast-gate, runtime-readiness]
+    needs: [resolve-execution-tier, fast-gate, runtime-readiness]
     steps:
       - uses: actions/checkout@v4
 
@@ -197,10 +214,10 @@ jobs:
 
   render-heavy-gate-fallback:
     name: "Tier 2: Heavy Test Battery (GitHub Ubuntu + Render Backend - Priority 3)"
-    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.runtime-readiness.outputs.is_local_online != 'true' && needs.runtime-readiness.outputs.execution_tier == 'github-ubuntu-render-backend' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && needs.resolve-execution-tier.outputs.execution_tier == 'github-ubuntu-render-backend' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    needs: [fast-gate, runtime-readiness]
+    needs: [resolve-execution-tier, fast-gate, runtime-readiness]
     steps:
       - uses: actions/checkout@v4
 
@@ -238,10 +255,10 @@ jobs:
 
   render-heavy-gate-emergency:
     name: "Tier 2: Heavy Test Battery (GitHub Ubuntu Emergency - Priority 4)"
-    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.runtime-readiness.outputs.is_local_online != 'true' && needs.runtime-readiness.outputs.execution_tier == 'github-ubuntu-emergency' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && needs.resolve-execution-tier.outputs.execution_tier == 'github-ubuntu-emergency' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    needs: [fast-gate, runtime-readiness]
+    needs: [resolve-execution-tier, fast-gate, runtime-readiness]
     steps:
       - uses: actions/checkout@v4
 
@@ -286,7 +303,7 @@ jobs:
     name: "Auto-Merge PR (gated)"
     if: github.event_name == 'pull_request' && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    needs: [fast-gate, runtime-readiness, render-heavy-gate, render-heavy-gate-render-ci, render-heavy-gate-fallback, render-heavy-gate-emergency]
+    needs: [resolve-execution-tier, fast-gate, runtime-readiness, render-heavy-gate, render-heavy-gate-render-ci, render-heavy-gate-fallback, render-heavy-gate-emergency]
     permissions:
       contents: write
       pull-requests: write
@@ -354,7 +371,8 @@ jobs:
 
   # =========================================================================
   # STAGE 3: POST-MERGE PRODUCTION DEPLOY & CANARY (Push to Main or Manual Dispatch)
-  # Resolves 3-Tier priority: Local PC (0m) -> Render Free (500m) -> CI-Runner Backup
+  # Constitutional Invariant: Deployments are 100% Cloud-Native API triggers
+  # (Render, Cloudflare, Vercel) and DO NOT follow the 3-Tier runner hierarchy.
   # =========================================================================
   deploy-and-verify:
     name: "Post-Merge: Plan changed Render services"
@@ -365,22 +383,11 @@ jobs:
       matrix: ${{ steps.plan.outputs.matrix }}
       has_services: ${{ steps.plan.outputs.has_services }}
       unregistered: ${{ steps.plan.outputs.unregistered }}
-      execution_tier: ${{ steps.tier.outputs.execution_tier }}
-      is_local_online: ${{ steps.tier.outputs.is_local_online }}
-      render_quota_exhausted: ${{ steps.tier.outputs.render_quota_exhausted }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Resolve 3-Tier Execution Priority
-        id: tier
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-        run: python scripts/ci/resolve_execution_tier.py
 
       - name: Render free-build quota preflight
         env:
