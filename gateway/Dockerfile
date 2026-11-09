@@ -24,7 +24,7 @@ COPY gateway/ gateway/
 
 # বাংলা: P2 — boot-এ vault-pull (infisical_bootstrap) চেষ্টা করবে, না পারলে সরাসরি uvicorn স্টার্ট হবে
 # এতে কোনো অবস্থাতেই Render কন্টেইনার update_failed বা ক্র্যাশ করবে না।
-COPY gateway/runtime/infisical_bootstrap.py runtime/infisical_bootstrap.py
+COPY scripts/runtime/infisical_bootstrap.py runtime/infisical_bootstrap.py
 
 EXPOSE 8787
 

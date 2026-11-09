@@ -21,29 +21,52 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MIGRATIONS_DIR = REPO_ROOT / "backend" / "database" / "migrations"
-ROUTES_DIR = REPO_ROOT / "backend" / "api" / "routes"
+MIGRATIONS_DIRS = [
+    REPO_ROOT / "core" / "alembic_migrations" / "versions",
+    REPO_ROOT / "core" / "database" / "migrations",
+    REPO_ROOT / "backend" / "database" / "migrations",
+]
+ROUTES_DIRS = [
+    REPO_ROOT / "core" / "api" / "routes",
+    REPO_ROOT / "gateway" / "service" / "routes",
+    REPO_ROOT / "backend" / "api" / "routes",
+]
 
 
 def audit_sql_migrations() -> list[str]:
     issues = []
-    if not MIGRATIONS_DIR.exists():
+    migration_files = []
+    for m_dir in MIGRATIONS_DIRS:
+        if m_dir.exists():
+            migration_files.extend(m_dir.glob("*.sql"))
+            migration_files.extend(m_dir.glob("*.py"))
+
+    if not migration_files:
         return issues
 
     created_tables = set()
     rls_enabled_tables = set()
     tables_with_policies = set()
 
-    for sql_file in sorted(MIGRATIONS_DIR.glob("*.sql")):
-        content = sql_file.read_text(encoding="utf-8", errors="ignore")
+    for file_path in sorted(migration_files):
+        content = file_path.read_text(encoding="utf-8", errors="ignore")
 
         # Find CREATE TABLE
         for match in re.finditer(r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?([a-zA-Z0-9_]+)", content, re.IGNORECASE):
             created_tables.add(match.group(1).lower())
 
+        # Alembic op.create_table('table_name'
+        for match in re.finditer(r"op\.create_table\(\s*['\"]([a-zA-Z0-9_]+)['\"]", content):
+            created_tables.add(match.group(1).lower())
+
         # Find ALTER TABLE ... ENABLE ROW LEVEL SECURITY
         for match in re.finditer(r"ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:public\.)?([a-zA-Z0-9_]+)\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY", content, re.IGNORECASE):
             rls_enabled_tables.add(match.group(1).lower())
+
+        # Alembic execute("ALTER TABLE ... ENABLE ROW LEVEL SECURITY")
+        for match in re.finditer(r"ENABLE\s+ROW\s+LEVEL\s+SECURITY", content, re.IGNORECASE):
+            for t_match in re.finditer(r"ALTER\s+TABLE\s+([a-zA-Z0-9_]+)", content, re.IGNORECASE):
+                rls_enabled_tables.add(t_match.group(1).lower())
 
         # Find CREATE POLICY ... ON <table>
         for match in re.finditer(r"CREATE\s+POLICY\s+[a-zA-Z0-9_]+\s+ON\s+(?:public\.)?([a-zA-Z0-9_]+)", content, re.IGNORECASE):
@@ -64,12 +87,15 @@ def audit_sql_migrations() -> list[str]:
 
 def audit_rbac_in_routes() -> list[str]:
     issues = []
-    if not ROUTES_DIR.exists():
+    admin_files = []
+    for r_dir in ROUTES_DIRS:
+        if r_dir.exists():
+            admin_files.extend(r_dir.glob("admin*.py"))
+
+    if not admin_files:
         return issues
 
-    # Admin routes must require admin or have role check
-    admin_routes_file = ROUTES_DIR / "admin.py"
-    if admin_routes_file.exists():
+    for admin_routes_file in admin_files:
         content = admin_routes_file.read_text(encoding="utf-8", errors="ignore")
         try:
             tree = ast.parse(content, filename=str(admin_routes_file))
