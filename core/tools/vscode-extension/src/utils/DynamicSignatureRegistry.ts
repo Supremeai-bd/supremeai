@@ -20,6 +20,10 @@ export class DynamicSignatureRegistry {
   }
 
   loadDefaultSignatures(): void {
+    // NOTE: *_RESPONSES below are OFFLINE FALLBACKS only (backend unavailable).
+    // They must never be presented as a live model response; callers should
+    // prefix them with OFFLINE_FALLBACK_LABEL.
+    this.signatures.set('OFFLINE_FALLBACK_LABEL', ['[Offline fallback — SupremeAI backend unavailable]']);
     this.signatures.set('GREETING_PATTERNS', [
       'hello', 'hi', 'hey', 'greetings', 'hola', 'good morning', 'good afternoon', 'good evening',
       'assalamualaikum', 'namaste', 'হ্যালো', 'হাই', 'নমস্কার', 'কেমন আছেন', 'শুভ সকাল'
