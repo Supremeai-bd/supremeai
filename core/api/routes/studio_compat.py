@@ -3,26 +3,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
 
-from api.dependencies import get_current_user_token
-from api.routes.auth import (
-    ALGORITHM,
-    REFRESH_COOKIE_NAME,
-    AuthApiError,
-    _clear_auth_cookies,
-    _get_secret_key,
-    _token_from_header_or_cookie,
-    create_access_token,
-    create_refresh_token,
-    _set_auth_cookies,
-)
-from core.config import settings
-from core.monitoring.logging_config import logger
-from core.security import revoke_token
-from database.supabase_client import db
+from core.api.dependencies import get_current_user_token
 
 router = APIRouter(tags=["studio-compat"])
 
@@ -68,6 +52,16 @@ async def studio_sign_in(
     body: StudioSignInRequest, request: Request, response: Response
 ) -> dict[str, Any]:
     """Sovereign signin endpoint for SupremeAI Studio frontend."""
+    from core.api.routes.auth import (
+        AuthApiError,
+        _set_auth_cookies,
+        create_access_token,
+        create_refresh_token,
+    )
+    from core.config import settings
+    from database.supabase_client import db
+    from core.monitoring.logging_config import logger
+
     correlation_id = getattr(request.state, "correlation_id", "")
     username = body.email.strip()
 
@@ -161,6 +155,15 @@ async def studio_sign_up(
     body: StudioSignUpRequest, request: Request, response: Response
 ) -> dict[str, Any]:
     """Sovereign signup endpoint for SupremeAI Studio frontend."""
+    from core.api.routes.auth import (
+        AuthApiError,
+        _set_auth_cookies,
+        create_access_token,
+        create_refresh_token,
+    )
+    from database.supabase_client import db
+    from core.monitoring.logging_config import logger
+
     correlation_id = getattr(request.state, "correlation_id", "")
     email = body.email.strip()
     name = body.name.strip()
@@ -172,6 +175,7 @@ async def studio_sign_up(
         )
 
     if not db.client:
+        logger.warning("Supabase client uninitialized during studio signup (correlation_id=%s)", correlation_id)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Authentication backend temporarily unavailable",
@@ -229,11 +233,26 @@ async def studio_sign_up(
 async def studio_sign_out(
     request: Request,
     response: Response,
-    token: str | None = Depends(_token_from_header_or_cookie),
 ) -> dict[str, bool]:
     """Studio-compatible signout. Clears auth cookies and best-effort revokes tokens.
     Tolerates missing/invalid tokens so the frontend can always clear session state."""
+    import jwt
+
+    from core.api.routes.auth import (
+        ALGORITHM,
+        REFRESH_COOKIE_NAME,
+        _clear_auth_cookies,
+        _get_secret_key,
+        _token_from_header_or_cookie,
+    )
+    from core.monitoring.logging_config import logger
+    from core.security import revoke_token
+
     _clear_auth_cookies(response)
+    token = await _token_from_header_or_cookie(request, None)
+    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    if token is None and auth_header and auth_header.lower().startswith("bearer "):
+        token = auth_header.split(" ", 1)[1].strip() or None
 
     async def _revoke(raw_token: str | None) -> None:
         if not raw_token or jwt is None:
@@ -279,6 +298,8 @@ async def studio_update_timezone(
     current_user: dict[str, Any] = Depends(get_current_user_token),
 ) -> dict[str, Any]:
     """Update user timezone preference."""
+    from core.monitoring.logging_config import logger
+
     user_id = current_user.get("sub")
     logger.info(f"User {user_id} timezone set to {body.timezone}")
     return {"status": "ok", "timezone": body.timezone}

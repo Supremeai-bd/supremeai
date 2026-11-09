@@ -22,12 +22,18 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
 import subprocess
 import sys
 import urllib.request
+
+if hasattr(sys.stdout, "reconfigure"):
+    with contextlib.suppress(Exception):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 from pathlib import Path
 from typing import Any
 
@@ -60,6 +66,18 @@ DIFF_CHAR_LIMIT = 8000
 LLM_TIMEOUT_SECONDS = 30
 
 
+def run_cmd(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+    """Execute subprocess safely with utf-8 encoding and replace error handling on all platforms."""
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+
+
 def is_high_risk_file(path: str) -> bool:
     """Return True if path matches any recognized high-risk boundary pattern."""
     normalized = path.replace("\\", "/").strip().lstrip("/")
@@ -77,19 +95,14 @@ def get_changed_files_from_git() -> list[str]:
     """Get list of changed files compared to origin/main or HEAD~1."""
     for base in ("origin/main", "main", "HEAD~1"):
         try:
-            res = subprocess.run(
-                ["git", "diff", "--name-only", f"{base}...HEAD"],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            res = run_cmd(["git", "diff", "--name-only", f"{base}...HEAD"])
             if res.returncode == 0 and res.stdout.strip():
                 return [f.strip() for f in res.stdout.splitlines() if f.strip()]
         except Exception:
             continue
     # Fallback to local unstaged/staged git diff
     try:
-        res = subprocess.run(["git", "diff", "--name-only", "HEAD"], capture_output=True, text=True, check=False)
+        res = run_cmd(["git", "diff", "--name-only", "HEAD"])
         if res.returncode == 0 and res.stdout.strip():
             return [f.strip() for f in res.stdout.splitlines() if f.strip()]
     except Exception:
@@ -97,21 +110,29 @@ def get_changed_files_from_git() -> list[str]:
     return []
 
 
-def get_diff_text(files: list[str]) -> str:
+def get_diff_text(files: list[str], pr_number: str | None = None) -> str:
     """Extract git diff text for specified files, truncated to limit."""
     diff_text = ""
-    for base in ("origin/main", "main", "HEAD~1"):
+    if pr_number:
         try:
-            cmd = ["git", "diff", f"{base}...HEAD", "--"] + files
-            res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            res = run_cmd(["gh", "pr", "diff", str(pr_number)])
             if res.returncode == 0 and res.stdout.strip():
                 diff_text = res.stdout
-                break
         except Exception:
-            continue
+            pass
+    if not diff_text:
+        for base in ("origin/main", "main", "HEAD~1"):
+            try:
+                cmd = ["git", "diff", f"{base}...HEAD", "--"] + files
+                res = run_cmd(cmd)
+                if res.returncode == 0 and res.stdout.strip():
+                    diff_text = res.stdout
+                    break
+            except Exception:
+                continue
     if not diff_text:
         try:
-            res = subprocess.run(["git", "diff", "HEAD", "--"] + files, capture_output=True, text=True, check=False)
+            res = run_cmd(["git", "diff", "HEAD", "--"] + files)
             if res.returncode == 0:
                 diff_text = res.stdout
         except Exception:
@@ -289,7 +310,7 @@ def main() -> int:
     if not files and args.pr:
         try:
             cmd = ["gh", "pr", "view", str(args.pr), "--json", "files", "-q", ".files[].path"]
-            res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            res = run_cmd(cmd)
             if res.returncode == 0:
                 files = [f.strip() for f in res.stdout.splitlines() if f.strip()]
         except Exception as exc:
@@ -304,11 +325,11 @@ def main() -> int:
 
     risk_level, risky_files = classify_pr_risk(files)
 
-    print("═══════════════════════════════════════════════════════════════════════")
-    print("🤖 SupremeAI AI Semantic PR Verification Gate")
-    print(f"📊 Risk Level: {risk_level}")
-    print(f"📁 Total Files Changed: {len(files)}")
-    print("═══════════════════════════════════════════════════════════════════════")
+    print("=======================================================================")
+    print("SupremeAI AI Semantic PR Verification Gate")
+    print(f"Risk Level: {risk_level}")
+    print(f"Total Files Changed: {len(files)}")
+    print("=======================================================================")
 
     # LOW RISK SHORT-CIRCUIT (Instant zero-quota pass)
     if risk_level == "LOW":
@@ -324,7 +345,7 @@ def main() -> int:
         print(f"   ... and {len(risky_files) - 10} more.")
 
     print("\n🔍 Extracting diff for semantic audit...")
-    diff = get_diff_text(risky_files)
+    diff = get_diff_text(risky_files, pr_number=str(args.pr) if args.pr else None)
     verdict = run_semantic_verification(risky_files, diff, title=f"PR #{args.pr or 'Local'}")
 
     print("───────────────────────────────────────────────────────────────────────")

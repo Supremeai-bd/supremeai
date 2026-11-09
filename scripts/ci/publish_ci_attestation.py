@@ -30,10 +30,10 @@ def main() -> int:
     url = os.environ.get("MCP_TOWER_ATTESTATION_URL", "").strip()
     token = os.environ.get("MCP_TOWER_AUTH_TOKEN", "").strip()
     if not url:
-        print("::warning::MCP_TOWER_ATTESTATION_URL not configured; result not published")
+        print("::notice::MCP_TOWER_ATTESTATION_URL not configured; CI attestation skipped")
         return 0
     if not token:
-        print("::warning::MCP_TOWER_AUTH_TOKEN not configured; result not published")
+        print("::notice::MCP_TOWER_AUTH_TOKEN not configured; CI attestation skipped")
         return 0
 
     payload = {
