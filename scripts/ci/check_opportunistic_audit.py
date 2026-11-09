@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""Evaluate whether the 24h+ opportunistic audit is due and whether local runner is available.
+"""Evaluate whether the 24h+ opportunistic audit is due.
 
-Rules:
-  - If <24h since last audit: skip.
-  - If >=24h and local runner is online: trigger audit on local runner.
-  - If >=48h (grace window expired): trigger emergency audit on cloud.
+Timing is handled here (24h/48h). Runner selection is delegated to the workflow
+SSOT preflight (scripts/ci/resolve_execution_tier.py) when --timing-only is used.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
@@ -23,7 +22,7 @@ AUDIT_MARKER_FILE = Path("config/ci/last_nightly_audit.json")
 def get_last_audit_timestamp() -> float:
     if AUDIT_MARKER_FILE.exists():
         try:
-            with open(AUDIT_MARKER_FILE, "r") as f:
+            with open(AUDIT_MARKER_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
             return float(data.get("timestamp", 0))
         except Exception:
@@ -34,7 +33,7 @@ def get_last_audit_timestamp() -> float:
 def save_audit_timestamp(ts: float | None = None) -> None:
     AUDIT_MARKER_FILE.parent.mkdir(parents=True, exist_ok=True)
     current = ts or time.time()
-    with open(AUDIT_MARKER_FILE, "w") as f:
+    with open(AUDIT_MARKER_FILE, "w", encoding="utf-8") as f:
         json.dump(
             {
                 "timestamp": current,
@@ -64,9 +63,6 @@ def is_local_runner_online() -> bool:
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
-        print(f"DEBUG: runner count={len(data.get('runners', []))}", file=sys.stderr)
-        for r in data.get("runners", []):
-            print(f"DEBUG: name={r.get('name')} status={r.get('status')} labels={[l.get('name') for l in r.get('labels', [])]}", file=sys.stderr)
         for runner in data.get("runners", []):
             labels = [lbl.get("name") for lbl in runner.get("labels", [])]
             if "local-pc" in labels and runner.get("status") == "online":

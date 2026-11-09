@@ -46,6 +46,9 @@ jobs:
     name: "Tier 1: 4-Level Runner Hierarchy Preflight (<10s)"
     runs-on: ubuntu-24.04
     timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: read
     outputs:
       execution_tier: ${{ steps.runner-check.outputs.execution_tier }}
       is_local_online: ${{ steps.runner-check.outputs.is_local_online }}
@@ -59,10 +62,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_CI_RUNNER_SERVICE_ID: ${{ vars.RENDER_CI_RUNNER_SERVICE_ID || 'srv-dbl8tbmtlv9c73bbkvqg' }}
         run: python scripts/ci/resolve_execution_tier.py
 
   detect-changes:
     name: "Detect Client Changes"
+    needs: [resolve-execution-tier]
     runs-on: ubuntu-24.04
     outputs:
       extension: ${{ steps.filter.outputs.extension }}
@@ -93,8 +100,8 @@ jobs:
 
   package-extension:
     name: "Package & Release Extension (.vsix)"
-    needs: detect-changes
-    if: needs.detect-changes.outputs.extension == 'true' || github.event.inputs.release_extension == 'true'
+    needs: [detect-changes, resolve-execution-tier]
+    if: (needs.detect-changes.outputs.extension == 'true' || github.event.inputs.release_extension == 'true') && needs.resolve-execution-tier.outputs.is_local_online != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
@@ -330,8 +337,8 @@ jobs:
 
   build-mobile:
     name: "Build & Release Mobile Client (Android .apk)"
-    needs: detect-changes
-    if: needs.detect-changes.outputs.mobile == 'true' || github.event.inputs.release_mobile == 'true'
+    needs: [detect-changes, resolve-execution-tier]
+    if: (needs.detect-changes.outputs.mobile == 'true' || github.event.inputs.release_mobile == 'true') && needs.resolve-execution-tier.outputs.is_local_online != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     defaults:

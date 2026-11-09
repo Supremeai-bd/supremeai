@@ -21,11 +21,31 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_opportunistic_audit import is_local_runner_online  # noqa: E402
 
 
+def _render_api_key() -> str | None:
+    for name in (
+        "RENDER_API_KEY_PAYKARI",
+        "RENDER_API_KEY",
+        "RENDER_API_KEY_1",
+        "RENDER_API_KEY_2",
+        "RENDER_API_KEY_3",
+        "RENDER_API_KEY_4",
+        "RENDER_API_KEY_5",
+        "RENDER_API_KEY_6",
+    ):
+        val = (os.environ.get(name) or "").strip()
+        if val:
+            return val
+    return None
+
+
 def get_render_quota_remaining() -> float:
     """Estimate remaining Render build minutes for primary account."""
-    api_key = os.environ.get("RENDER_API_KEY_PAYKARI") or os.environ.get("RENDER_API_KEY")
+    api_key = _render_api_key()
     if not api_key:
-        return 500.0
+        # Fail-safe: without quota visibility do not select Render CI runner;
+        # return low remaining so tier falls to GitHub fallback (P3/P4) rather
+        # than falsely claiming Priority 2 availability.
+        return 0.0
 
     try:
         req = urllib.request.Request(
@@ -37,14 +57,36 @@ def get_render_quota_remaining() -> float:
         limit = float(data.get("limit") or data.get("monthlyLimit") or 500.0)
         used = float(data.get("used") or data.get("usedMinutes") or 0.0)
         return max(0.0, limit - used)
-    except Exception:
-        return 500.0
+    except Exception as exc:
+        print(f"::warning::Render quota probe failed ({exc}); treating as unknown (no P2 selection)", file=sys.stderr)
+        return 0.0
 
 
 def is_render_ci_worker_available() -> bool:
-    """Check if the Render CI runner service is online and not busy."""
-    api_key = os.environ.get("RENDER_API_KEY_PAYKARI") or os.environ.get("RENDER_API_KEY")
-    return bool(api_key)
+    """Check if the Render CI runner service is reachable with valid credentials."""
+    api_key = _render_api_key()
+    svc_id = (os.environ.get("RENDER_CI_RUNNER_SERVICE_ID") or "srv-dbl8tbmtlv9c73bbkvqg").strip()
+    if not api_key or not svc_id:
+        return False
+    try:
+        req = urllib.request.Request(
+            f"https://api.render.com/v1/services/{svc_id}",
+            headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status >= 400:
+                return False
+            data = json.loads(resp.read().decode())
+        # Render service object may nest; best-effort liveness (suspended services are not usable).
+        obj = data.get("service", data) if isinstance(data, dict) else {}
+        if isinstance(obj, dict):
+            suspended = str(obj.get("suspended") or "").lower() in ("suspended", "true", "1")
+            if suspended:
+                return False
+        return True
+    except Exception as exc:
+        print(f"::warning::Render CI worker probe failed ({exc}); not selecting Priority 2", file=sys.stderr)
+        return False
 
 
 def resolve_tier() -> str:
