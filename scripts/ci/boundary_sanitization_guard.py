@@ -150,6 +150,7 @@ APPROVED_SUBTREES = {
         "LICENSE",
     },
     "core": {
+        "app_builder.py",
         "config",
         "config.py",
         "conftest.py",

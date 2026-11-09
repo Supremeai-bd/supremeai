@@ -56,6 +56,7 @@
 	const i18n = getContext('i18n');
 
 	let loaded = false;
+	let startupError: string | null = null;
 
 	let version;
 	let handledSettingsUrl = '';
@@ -70,7 +71,12 @@
 	};
 
 	const setUserSettings = async (cb?: () => Promise<void>) => {
-		const userSettings = await getUserSettings(localStorage.token);
+		let userSettings = null;
+		try {
+			userSettings = await getUserSettings(localStorage.token);
+		} catch (e) {
+			console.warn('Could not load user settings from server, using default interface settings:', e);
+		}
 
 		if (userSettings?.ui) {
 			settings.set(userSettings.ui);
@@ -271,8 +277,8 @@
 			]);
 		} catch (e) {
 			console.error('Failed to load user settings:', e);
+			startupError = e instanceof Error ? e.message : String(e);
 			toast.error($i18n.t('Failed to load Interface settings'));
-			return;
 		}
 
 		selectedTerminalId.set(
@@ -495,6 +501,31 @@
 				{#if loaded}
 					<main class="contents">
 						<div id="main-content" tabindex="-1" class="sr-only left-0 top-0"></div>
+						{#if startupError}
+							<div
+								class="absolute top-3 left-1/2 -translate-x-1/2 z-50 bg-red-950/90 border border-red-500/40 text-red-200 px-4 py-2 rounded-lg text-xs flex items-center gap-3 shadow-lg backdrop-blur-sm"
+							>
+								<span>Failed to connect to backend: {startupError}</span>
+								<button
+									type="button"
+									class="px-2 py-0.5 rounded bg-red-800 hover:bg-red-700 text-white font-medium transition"
+									on:click={() => location.reload()}
+								>
+									Retry
+								</button>
+								<button
+									type="button"
+									class="px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 font-medium transition"
+									on:click={async () => {
+										localStorage.removeItem('token');
+										await user.set(null);
+										await gotoAuth();
+									}}
+								>
+									Sign Out
+								</button>
+							</div>
+						{/if}
 						<slot />
 					</main>
 				{:else}

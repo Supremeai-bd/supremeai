@@ -414,6 +414,7 @@ class AuthMiddleware:
         # Attach user info to scope for downstream handlers
         user_data = {
             "sub": payload.get("sub"),
+            "email": payload.get("email"),
             "role": payload.get("role", "viewer"),
             "tenant_id": payload.get("tenant_id"),
         }
