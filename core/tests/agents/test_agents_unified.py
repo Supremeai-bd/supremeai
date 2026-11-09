@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 sys.modules.setdefault("google", MagicMock())
 sys.modules.setdefault("google.genai", MagicMock())
 
-import core.agents  # noqa: E402
+import core.agents as agents  # noqa: E402
 from core.agents.performance_guardian import AnomalyDetector  # noqa: E402
 from core.agents.vulnerability_prophet import (  # noqa: E402
     VulnerabilityPatternMatcher,

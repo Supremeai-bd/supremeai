@@ -13,7 +13,7 @@ from enum import StrEnum
 from typing import Any
 
 import psycopg2
-from mcp.server.fastmcp import FastMCP
+from core.tools.mcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.config import settings

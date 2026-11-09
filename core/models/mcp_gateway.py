@@ -72,7 +72,18 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
-class McpSlug(Base):
+class TimestampMixin:
+    """Standard audit timestamps for MCP gateway models."""
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
+    )
+
+
+class McpSlug(Base, TimestampMixin):
     """Vanity/alias subdomain slug mapped to a hub tenant."""
 
     __tablename__ = "mcp_slugs"
@@ -83,12 +94,6 @@ class McpSlug(Base):
     target_type: Mapped[str] = mapped_column(String(20), nullable=False, default="user")
     is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
-    )
 
     __table_args__ = (
         # Partial lookup index on Postgres (only ACTIVE slugs route traffic);
@@ -104,7 +109,7 @@ class McpSlug(Base):
         return f"<McpSlug slug={self.slug!r} tenant={self.tenant_id!r} status={self.status!r}>"
 
 
-class McpTenant(Base):
+class McpTenant(Base, TimestampMixin):
     """Hub tenancy + limits record for an EXISTING platform tenant.
 
     This is NOT a new account: ``id`` is the caller's existing tenant identity
@@ -129,18 +134,12 @@ class McpTenant(Base):
     allowed_categories: Mapped[list[Any]] = mapped_column(
         JSONType, nullable=False, default=lambda: list(DEFAULT_ALLOWED_CATEGORIES)
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
-    )
 
     def __repr__(self) -> str:
         return f"<McpTenant id={self.id!r} plan={self.plan!r} status={self.status!r}>"
 
 
-class McpClient(Base):
+class McpClient(Base, TimestampMixin):
     """Per-AI-client credential (Cursor, Claude, Gemini, VS Code, custom…).
 
     The bearer token is shown to the user EXACTLY ONCE at creation/rotation;
@@ -165,12 +164,6 @@ class McpClient(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
-    )
 
     __table_args__ = (
         # Partial UNIQUE index for live-token lookups (plan §3 + Task 7-d spec).

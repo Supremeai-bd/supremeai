@@ -78,7 +78,6 @@ services:
     deploy_key: cloudflare
     watch_paths:
       - "infrastructure/**"
-      - "studio/infrastructure/cloudflare-studio-proxy/**"
     exclude_paths:
       - "infrastructure/mcp-control-plane/**"   # mcp-টাওয়ার পাথ cloudflare-কে আর ট্রিগার করবে না (#4246)
 
@@ -90,8 +89,6 @@ services:
       - "frontend/**"
       - "client/**"
       - "apps/**"
-    exclude_paths:
-      - "studio/infrastructure/cloudflare-studio-proxy/**"
 
   firebase:
     platform: firebase
