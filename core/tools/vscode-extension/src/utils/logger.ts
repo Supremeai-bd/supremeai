@@ -20,9 +20,10 @@ export class Logger {
     // Patterns for redacting sensitive data
     private readonly redactPatterns = [
         /(Bearer\s+)[A-Za-z0-9\-\._~\+\/]+/gi, // Bearer tokens
-        /(api_key=)[A-Za-z0-9\-\._~\+\/]+/gi,  // API keys
+        /((?:api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|secret|authorization)=)[^&\s]+/gi, // query/form secrets
         /([A-Za-z0-9_]*password[A-Za-z0-9_]*\s*[:=]\s*)['"]?[^'"\s]+['"]?/gi, // Passwords
-        /([A-Za-z0-9_]*token[A-Za-z0-9_]*\s*[:=]\s*)['"]?[^'"\s]+['"]?/gi // Tokens
+        /([A-Za-z0-9_]*(?:token|secret)[A-Za-z0-9_]*\s*[:=]\s*)['"]?[^'"\s]+['"]?/gi, // Tokens/secrets
+        /()\b(?:sk-[A-Za-z0-9\-_]{16,}|gh[pousr]_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_\-]{35}|eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+)/g // raw key/JWT shapes
     ];
 
     private constructor() {

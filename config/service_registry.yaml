@@ -263,20 +263,19 @@ services:
     role: "Studio Edge Proxy, CORS Rewriter & 10m Keep-Warm Cron"
     platform: cloudflare
     deploy_key: cloudflare
-    entrypoint: "studio/infrastructure/cloudflare-studio-proxy/src/index.js"
+    entrypoint: "infrastructure/cloudflare-studio-proxy/src/index.js"
     health_path: /cf-health
     keepwarm_path: /cf-keepwarm
     production_url: "https://supremeai.live"
     canonical_url_env: CLOUDFLARE_WORKER_URL
     watch_paths:
       - "infrastructure/**"
-      - "studio/infrastructure/cloudflare-studio-proxy/**"
     exclude_paths:
       - "infrastructure/mcp-control-plane/**"
 
   frontend:
     render_name: supremeai-studio
-    role: "User-Facing React/Vite Studio & Mission Control Cockpit"
+    role: "User-Facing SvelteKit/Vite Studio & Mission Control Cockpit"
     platform: cloudflare
     deploy_key: frontend
     entrypoint: "studio/package.json"
@@ -289,7 +288,7 @@ services:
       - "client/**"
       - "apps/**"
     exclude_paths:
-      - "studio/infrastructure/cloudflare-studio-proxy/**"
+      - "infrastructure/cloudflare-studio-proxy/**"
 
   firebase:
     render_name: supremeai-firebase

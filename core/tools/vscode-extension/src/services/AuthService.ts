@@ -39,17 +39,27 @@ export class AuthService {
     if (this.secrets) {
       const storedToken = await this.secrets.get('supremeai.aiApiKey');
       if (storedToken) {
-        this.token = storedToken;
-        await vscode.commands.executeCommand('setContext', 'supremeai.authenticated', true);
-        this._onAuthStateChanged.fire(true);
+        // Revalidate persisted credentials; never trust a stored key blindly.
+        if (await this.verifyToken(storedToken)) {
+          this.token = storedToken;
+          await vscode.commands.executeCommand('setContext', 'supremeai.authenticated', true);
+          this._onAuthStateChanged.fire(true);
+        } else {
+          await this.secrets.delete('supremeai.aiApiKey');
+        }
       }
     }
   }
 
   private resolveBaseUrl(): string {
     let baseUrl = (this.config.backendUrl || '').trim().replace(/\/$/, '');
-    if (!baseUrl.startsWith('http')) {
+    if (!/^https?:\/\//i.test(baseUrl)) {
       baseUrl = `https://${baseUrl}`;
+    }
+    // Enforce HTTPS except for explicit localhost development.
+    const isLocal = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(baseUrl);
+    if (baseUrl.toLowerCase().startsWith('http://') && !isLocal) {
+      baseUrl = baseUrl.replace(/^http:\/\//i, 'https://');
     }
     return baseUrl;
   }
@@ -130,8 +140,6 @@ export class AuthService {
   public async completeLogin(token: string, user: Record<string, any>): Promise<void> {
     if (this.secrets) {
       await this.secrets.store('supremeai.aiApiKey', token);
-    } else {
-      await vscode.workspace.getConfiguration('supremeai').update('aiApiKey', token, true);
     }
     this.token = token;
     this.user = user;
@@ -185,7 +193,8 @@ export class AuthService {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        signal: AbortSignal.timeout(10000)
       });
       return response.ok;
     } catch (error) {
@@ -228,7 +237,9 @@ export class AuthService {
       const newKey = data.api_key ?? data.access_token;
       if (typeof newKey === 'string') {
         this.token = newKey;
-        await vscode.workspace.getConfiguration('supremeai').update('aiApiKey', newKey, true);
+        if (this.secrets) {
+          await this.secrets.store('supremeai.aiApiKey', newKey);
+        }
       }
       return this.token;
     } catch (error: any) {

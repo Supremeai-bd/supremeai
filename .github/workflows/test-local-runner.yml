@@ -4,8 +4,29 @@ on:
   workflow_dispatch:
 
 jobs:
+  resolve-execution-tier:
+    name: "Tier 1: 4-Level Runner Hierarchy Preflight (<10s)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      execution_tier: ${{ steps.runner-check.outputs.execution_tier }}
+      is_local_online: ${{ steps.runner-check.outputs.is_local_online }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Check 4-Level Execution Hierarchy
+        id: runner-check
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/ci/resolve_execution_tier.py
+
   test-local-runner:
     name: "Verify Local Self-Hosted Runner on Windows PC"
+    needs: [resolve-execution-tier]
+    if: needs.resolve-execution-tier.outputs.is_local_online == 'true'
     runs-on: [self-hosted, local-pc]
     timeout-minutes: 5
     steps:
