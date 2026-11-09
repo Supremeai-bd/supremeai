@@ -39,6 +39,7 @@ RETRY_DELAY_SECONDS = 10
 # existed; in-run terminal-state detection replaces it. Enabled by the
 # render-deploy-status composite via RENDER_WAIT=1.
 RENDER_WAIT = os.environ.get("RENDER_WAIT", "").strip().lower() in ("1", "true", "yes")
+REQUIRE_EXPECTED_SHA = os.environ.get("REQUIRE_EXPECTED_SHA", "").strip().lower() in ("1", "true", "yes")
 POLL_INTERVAL_SECONDS = 15
 POLL_TIMEOUT_SECONDS = int(os.environ.get("RENDER_WAIT_TIMEOUT_SECONDS", "660"))
 FAIL_STATES = {"build_failed", "update_failed", "deactivated", "canceled"}
@@ -77,6 +78,14 @@ BOOTSTRAP_ENV_SYNC_KEYS = (
     "RENDER_API_KEY_6",
     "RENDER_API_KEY_PAYKARI",
 )
+
+
+def _allow_ci_fallback() -> None:
+    """Mark only strict CI attempts without a valid result as eligible for fallback."""
+    output = os.environ.get("GITHUB_OUTPUT")
+    if REQUIRE_EXPECTED_SHA and output:
+        with open(output, "a", encoding="utf-8") as f:
+            f.write("fallback_allowed=true\n")
 
 
 def _collect_candidate_keys(preferred_env: str) -> list[tuple[str, str]]:
@@ -169,10 +178,18 @@ def main() -> int:
     candidate_keys = _collect_candidate_keys(key_env)
 
     if not svc_id:
+        if REQUIRE_EXPECTED_SHA:
+            print("::error::Strict CI deploy has no Render service ID; allow GitHub fallback.")
+            _allow_ci_fallback()
+            return 2
         print("Skipping Render deploy - service ID not set")
         return 0
 
     if not candidate_keys:
+        if REQUIRE_EXPECTED_SHA:
+            print("::error::Strict CI deploy has no Render API key; allow GitHub fallback.")
+            _allow_ci_fallback()
+            return 2
         print("Skipping Render deploy - RENDER_API_KEY not set")
         return 0
 
@@ -187,6 +204,10 @@ def main() -> int:
         or os.environ.get("EXPECTED_SHA", "").strip()
         or os.environ.get("GITHUB_SHA", "").strip()
     ) or None
+    if REQUIRE_EXPECTED_SHA and not commit_id:
+        print("::error::Strict CI deploy requires an expected commit SHA.")
+        _allow_ci_fallback()
+        return 2
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
@@ -194,10 +215,14 @@ def main() -> int:
             print(f"Deploy triggered via {active_env}:", body)
             if not RENDER_WAIT:
                 return 0
-            return wait_for_terminal_state(client, svc_id, body)
+            return wait_for_terminal_state(client, svc_id, body, require_deploy_id=REQUIRE_EXPECTED_SHA)
         except RenderApiError as exc:
             err_body = (exc.body or "").lower()
             if exc.status == 404 and "does not have a commit" in err_body and commit_id is not None:
+                if REQUIRE_EXPECTED_SHA:
+                    print(f"::error::Render CI service cannot build the required commit {commit_id}; refusing branch-HEAD fallback.")
+                    _allow_ci_fallback()
+                    return 2
                 print(
                     f"::warning::Service {svc_id} does not index commit {commit_id}; "
                     f"retrying deploy trigger at branch HEAD (commit_id=None)."
@@ -208,7 +233,7 @@ def main() -> int:
                     print(f"Deploy triggered (branch HEAD) via {active_env}:", body)
                     if not RENDER_WAIT:
                         return 0
-                    return wait_for_terminal_state(client, svc_id, body)
+                    return wait_for_terminal_state(client, svc_id, body, require_deploy_id=REQUIRE_EXPECTED_SHA)
                 except RenderApiError as inner_exc:
                     exc = inner_exc
                     err_body = (exc.body or "").lower()
@@ -229,6 +254,10 @@ def main() -> int:
                     except RenderApiError as probe_exc:
                         probe_body = (probe_exc.body or "").lower()
                         if probe_exc.status == 404 and "does not have a commit" in probe_body:
+                            if REQUIRE_EXPECTED_SHA:
+                                print(f"::error::Render CI service cannot build the required commit {commit_id}; refusing branch-HEAD fallback.")
+                                _allow_ci_fallback()
+                                return 2
                             body = probe_client.trigger_deploy(svc_id, commit_id=None)
                             active_env = next_env
                             client = probe_client
@@ -240,22 +269,26 @@ def main() -> int:
                 if matched_client is not None:
                     if not RENDER_WAIT:
                         return 0
-                    return wait_for_terminal_state(matched_client, svc_id, body)
+                    return wait_for_terminal_state(matched_client, svc_id, body, require_deploy_id=REQUIRE_EXPECTED_SHA)
 
             print(f"Attempt {attempt}/{MAX_ATTEMPTS} failed with HTTP {exc.status}: {exc.body or exc}")
             if attempt == MAX_ATTEMPTS:
-                return 1
+                _allow_ci_fallback()
+                return 2 if REQUIRE_EXPECTED_SHA else 1
             time.sleep(RETRY_DELAY_SECONDS)
         except Exception as exc:  # noqa: BLE001 - intentional retry-all policy
             print(f"Attempt {attempt}/{MAX_ATTEMPTS} unexpected transport error: {exc}")
             if attempt == MAX_ATTEMPTS:
-                return 1
+                _allow_ci_fallback()
+                return 2 if REQUIRE_EXPECTED_SHA else 1
             time.sleep(RETRY_DELAY_SECONDS)
 
     return 1
 
 
-def wait_for_terminal_state(client: "RenderClient", svc_id: str, trigger_body: dict) -> int:
+def wait_for_terminal_state(
+    client: RenderClient, svc_id: str, trigger_body: dict, *, require_deploy_id: bool = False
+) -> int:
     """Poll the triggered deploy to a terminal state (issue #1855).
 
     live -> 0. build_failed/update_failed/deactivated/canceled -> 1 (the enclosing
@@ -265,6 +298,10 @@ def wait_for_terminal_state(client: "RenderClient", svc_id: str, trigger_body: d
     """
     deploy_id = (trigger_body or {}).get("id")
     if not deploy_id:
+        if require_deploy_id:
+            print("::error::Deploy trigger response carried no id; strict CI cannot verify this deploy.")
+            _allow_ci_fallback()
+            return 2
         print("Deploy trigger response carried no id — cannot poll; treating as triggered (legacy behavior)")
         return 0
 
@@ -288,10 +325,15 @@ def wait_for_terminal_state(client: "RenderClient", svc_id: str, trigger_body: d
         time.sleep(POLL_INTERVAL_SECONDS)
 
     if last == "pre_live":
+        if require_deploy_id:
+            print("::error::Strict CI deploy did not reach live; allow GitHub fallback.")
+            _allow_ci_fallback()
+            return 2
         print(f"::warning::Deploy {deploy_id} still pre_live after {POLL_TIMEOUT_SECONDS}s — build finished, traffic promotion pending; treating as success.")
         return 0
     print(f"::error::Deploy {deploy_id} did not reach a terminal state within {POLL_TIMEOUT_SECONDS}s (last: {last}).")
-    return 1
+    _allow_ci_fallback()
+    return 2 if require_deploy_id else 1
 
 
 if __name__ == "__main__":

@@ -238,15 +238,21 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [resolve-execution-tier, fast-gate, runtime-readiness]
+    outputs:
+      fallback_allowed: ${{ steps.render-ci.outputs.fallback_allowed }}
     steps:
       - uses: actions/checkout@v5
 
       - name: Trigger Render CI Runner Service
+        id: render-ci
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
           RENDER_SERVICE_ID: "srv-dbl8tbmtlv9c73bbkvqg"
           RENDER_WAIT: "1"
           RENDER_WAIT_TIMEOUT_SECONDS: "900"
+          REQUIRE_EXPECTED_SHA: "1"
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_SHA: ${{ github.sha }}
         run: |
           echo "Triggering Render CI Runner for heavy test battery..."
           python scripts/ci/render_trigger_deploy.py
@@ -266,10 +272,10 @@ jobs:
 
   render-heavy-gate-fallback:
     name: "Tier 2: Heavy Test Battery (GitHub Ubuntu + Render Backend - Priority 3)"
-    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && needs.resolve-execution-tier.outputs.execution_tier == 'github-ubuntu-render-backend' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: always() && !cancelled() && needs.fast-gate.result == 'success' && needs.runtime-readiness.result == 'success' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && (needs.resolve-execution-tier.outputs.execution_tier == 'github-ubuntu-render-backend' || needs.render-heavy-gate-render-ci.outputs.fallback_allowed == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    needs: [resolve-execution-tier, fast-gate, runtime-readiness]
+    needs: [resolve-execution-tier, fast-gate, runtime-readiness, render-heavy-gate-render-ci]
     steps:
       - uses: actions/checkout@v5
 
@@ -353,7 +359,7 @@ jobs:
   # =========================================================================
   auto-merge:
     name: "Auto-Merge PR (gated)"
-    if: github.event_name == 'pull_request' && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository
+    if: always() && github.event_name == 'pull_request' && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     needs: [resolve-execution-tier, fast-gate, runtime-readiness, render-heavy-gate, render-heavy-gate-render-ci, render-heavy-gate-fallback, render-heavy-gate-emergency]
     permissions:
@@ -369,6 +375,7 @@ jobs:
           READY_RES: ${{ needs.runtime-readiness.result }}
           HEAVY_LOCAL: ${{ needs.render-heavy-gate.result }}
           HEAVY_RENDER_CI: ${{ needs.render-heavy-gate-render-ci.result }}
+          RENDER_CI_FALLBACK_ALLOWED: ${{ needs.render-heavy-gate-render-ci.outputs.fallback_allowed }}
           HEAVY_PRIORITY3: ${{ needs.render-heavy-gate-fallback.result }}
           HEAVY_PRIORITY4: ${{ needs.render-heavy-gate-emergency.result }}
         run: |
@@ -376,7 +383,7 @@ jobs:
           echo "Tier 1 Fast Gate: $FAST_RES"
           echo "Tier 1 Runtime Readiness: $READY_RES"
           echo "Tier 1+2 Heavy Local Runner: $HEAVY_LOCAL"
-          echo "Tier 2 Heavy Render CI Runner: $HEAVY_RENDER_CI"
+          echo "Tier 2 Heavy Render CI Runner: $HEAVY_RENDER_CI (fallback_allowed=$RENDER_CI_FALLBACK_ALLOWED)"
           echo "Tier 2 Heavy Priority 3 (GitHub+Render Backend): $HEAVY_PRIORITY3"
           echo "Tier 2 Heavy Priority 4 (GitHub Emergency): $HEAVY_PRIORITY4"
 
@@ -394,6 +401,11 @@ jobs:
               echo "::error::Tier 1 Runtime Readiness Gate did not succeed (status: $READY_RES). Auto-merge blocked."
               exit 1
             fi
+          fi
+
+          if [ "$HEAVY_RENDER_CI" = "failure" ] && [ "$RENDER_CI_FALLBACK_ALLOWED" != "true" ]; then
+            echo "::error::Tier 2 Heavy Render CI Runner failed without fallback eligibility. Auto-merge blocked."
+            exit 1
           fi
 
           # At least one heavy tier must have succeeded (the one that was activated)
