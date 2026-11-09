@@ -98,6 +98,18 @@ def test_studio_get_version(client: TestClient):
     assert "version" in resp.json()
 
 
+def test_studio_signout_without_token_clears_session(client: TestClient):
+    resp = client.post("/api/v1/auths/signout")
+    assert resp.status_code == 200
+    assert resp.json().get("status") is True
+
+
+def test_studio_signout_with_invalid_token_is_tolerated(client: TestClient):
+    resp = client.post("/api/v1/auths/signout", headers={"Authorization": "Bearer not-a-jwt"})
+    assert resp.status_code == 200
+    assert resp.json().get("status") is True
+
+
 def test_auths_index_has_no_mock_operator_fallback():
     auths_file = os.path.join("studio", "src", "lib", "apis", "auths", "index.ts")
     assert os.path.exists(auths_file)
