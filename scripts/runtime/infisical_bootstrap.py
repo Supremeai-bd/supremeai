@@ -18,21 +18,19 @@ DEFAULT_API = "https://app.infisical.com"
 DEFAULT_TIMEOUT = 15
 
 
-def request_json(
-    url: str,
-    *,
-    method: str = "GET",
-    payload: dict | None = None,
-    token: str | None = None,
-    timeout: int = DEFAULT_TIMEOUT,
+def _send_http_request(
+    target_url: str,
+    http_method: str = "GET",
+    json_body: dict | None = None,
+    auth_bearer: str | None = None,
 ) -> dict:
-    body = json.dumps(payload).encode("utf-8") if payload is not None else None
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    request = urllib.request.Request(url, data=body, headers=headers, method=method)
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        return json.load(response)
+    encoded = json.dumps(json_body).encode("utf-8") if json_body is not None else None
+    hdrs = {"Content-Type": "application/json"}
+    if auth_bearer:
+        hdrs["Authorization"] = f"Bearer {auth_bearer}"
+    req = urllib.request.Request(target_url, data=encoded, headers=hdrs, method=http_method)
+    with urllib.request.urlopen(req, timeout=DEFAULT_TIMEOUT) as resp:
+        return json.loads(resp.read().decode("utf-8"))
 
 
 def load_secrets() -> dict[str, str]:
@@ -49,10 +47,10 @@ def load_secrets() -> dict[str, str]:
         if not client_id or not client_secret:
             return {}
         try:
-            auth_res = request_json(
+            auth_res = _send_http_request(
                 f"{DEFAULT_API}/api/v1/auth/universal-auth/login",
-                method="POST",
-                payload={"clientId": client_id, "clientSecret": client_secret},
+                http_method="POST",
+                json_body={"clientId": client_id, "clientSecret": client_secret},
             )
             token = auth_res.get("accessToken")
         except Exception as exc:
@@ -64,7 +62,7 @@ def load_secrets() -> dict[str, str]:
 
     workspace_id = project
     try:
-        ws_res = request_json(f"{DEFAULT_API}/api/v1/workspace", token=token)
+        ws_res = _send_http_request(f"{DEFAULT_API}/api/v1/workspace", auth_bearer=token)
         for ws in ws_res.get("workspaces", []):
             if ws.get("id") == workspace_id or ws.get("slug") == workspace_id:
                 workspace_id = ws.get("id")
@@ -76,7 +74,7 @@ def load_secrets() -> dict[str, str]:
         {"workspaceId": workspace_id, "environment": environment, "secretPath": path}
     )
     try:
-        response = request_json(f"{DEFAULT_API}/api/v3/secrets/raw?{query}", token=token)
+        response = _send_http_request(f"{DEFAULT_API}/api/v3/secrets/raw?{query}", auth_bearer=token)
         secrets: dict[str, str] = {}
         for item in response.get("secrets", []):
             k = item.get("secretKey")

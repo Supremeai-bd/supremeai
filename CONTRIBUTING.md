@@ -14,7 +14,7 @@ walked end-to-end with nothing but a clone and Python 3.
 | File | Why |
 |------|-----|
 | [`AGENTS.md`](./AGENTS.md) | The three-pathway access model (MCP Tower / fork+PR / JIT lease) and the current board of open work |
-| [`docs/AGENT_LOOP_SPEC.md`](./docs/AGENT_LOOP_SPEC.md) | task-envelope-v1 contract, 8-tier verification, and the evidence-first doctrine that governs every change |
+| [`docs/AGENT_LOOP_SPEC.md`](./docs/AGENT_LOOP_SPEC.md) | task-envelope-v1 contract, 9-tier verification, and the evidence-first doctrine that governs every change |
 
 Every reviewer — and every automated gate — assumes you have read them. The
 short version:
@@ -32,7 +32,7 @@ infrastructure/mcp-control-plane/         # Source of the MCP Control Tower (Typ
 docs/                                     # Documentation (this file lives here)
 .github/ISSUE_TEMPLATE/                   # Task envelope + Bridge Work Order templates
 .github/actions/                          # Reusable composite actions (setup-node-tower, gitleaks-scan — #155)
-.github/workflows/pipeline.yml            # Unified validation: guards -> Python 3.10-3.13 matrix + Tower TS + secret scan + agent-loop cron
+.github/workflows/unified-pipeline.yml    # Single Unified CI/CD SSOT: Tier 1 fast gates + Tier 2 verification + auto-merge + deploy
 .github/workflows/landing.yml             # Unified autonomous landing: auto-merge -> bridge dispatch in the same run
 AGENTS.md                                  # Governance contract — Single Door SSOT (see §1)
 README.md                                 # What this repo is and is not
@@ -163,30 +163,15 @@ The bridge intake is **fail-closed** — it rejects rather than sanitizes:
 - **External agents never write to `main`.** Landing authority belongs to the
   constitutional gates only.
 
-## 8. Public boundary vs. private monorepo (Public-First SSOT, #155)
+## 8. Single Door Monorepo SSOT Topology (AGENTS.md Invariant 1)
 
-This repository is the **public SSOT**; `Supremeai-bd/supremeai` is the private
-SSOT for everything that needs private context. Landed public work is
-**automatically bridged** into the private monorepo by `landing.yml` — you
-never move it by hand.
+This repository (`Supremeai-bd/supremeai`) is the **Pure Single Monorepo SSOT** for the entire SupremeAI federation. All domain modules (`core/`, `gateway/`, `studio/`, `browser/`, `vscode/`, `infrastructure/`, `scripts/`) live inside this single monorepo. All historical external satellite repositories are permanently retired, archived, and frozen read-only.
 
-**Never in this repo (private exclusives):** proprietary core/backend logic,
-production secrets & vault keys, live database migrations, production
-deployment pipelines needing private context, and anything requiring private
-packages. The boundary is machine-enforced: `boundary_sanitization_guard.py`
-(pipeline.yml guard job) fail-closes on proprietary paths/content, and gitleaks
-fail-closes on credentials.
-
-**Zero-duplicate rule (federation doctrine — ECOSYSTEM_MAP.md):** because your merged public PR
-flows into the private repo automatically, **never open a duplicate manual PR
-on `Supremeai-bd/supremeai`** for work handled here. One issue = at most one
-open PR, anywhere in the federation.
-
-**Shift-left benefit:** branch naming, issue reference, anti-duplicate PR,
-the full Python 3.10–3.13 matrix, Tower TypeScript checks, secret scanning,
-boundary audits, docs/link checks and lint all run **here, for free** — so the
-private pipeline runs only what needs private context (integration smoke,
-deployment, bridge intake, ops maintenance). See `docs/OPS_ACTIONS_QUOTA_RUNBOOK.md`.
+- **Single Door for All Work:** Every task, PR, issue, and CI check resides 100% within `Supremeai-bd/supremeai`. Never attempt to file PRs or issues on retired satellite repositories.
+- **Domain Desks & Boundaries:** Edit files strictly within their domain folder (`studio/`, `gateway/`, `core/`, `browser/`, `vscode/`, `infrastructure/`). Cross-domain contamination is blocked by `boundary_sanitization_guard.py` in `unified-pipeline.yml`.
+- **Zero Duplicate PRs:** One task = at most one PR on `Supremeai-bd/supremeai`.
+- **Zero Direct Commits to Main:** All code must enter through PRs gated by the autonomous auto-landing checks in `.github/workflows/unified-pipeline.yml` or via the Tower's `bridge_submit` / `bridge_submit_patch` API.
+- **Universal 4-Level Runner Hierarchy:** Workflows execute on the 4-level runner tier (local-pc runner priority 1 -> Render CI priority 2 -> GitHub Cloud priority 3/4) to enforce Zero Cloud Waste. See [`docs/PR_TO_PRODUCTION_LIFECYCLE.md`](./docs/PR_TO_PRODUCTION_LIFECYCLE.md).
 
 ## 9. Branch, commit, and naming conventions
 

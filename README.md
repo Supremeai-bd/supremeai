@@ -1,18 +1,17 @@
-# SupremeAI Open Foundation
+# SupremeAI — Single Door Monorepo SSOT
 
-> **Open the implementation that teaches people how to use SupremeAI; keep private the implementation that reveals why SupremeAI performs better.**  
+> **The Single Door Monorepo SSOT for the SupremeAI Federation.**  
 > 🇧🇩 **বাংলা সংস্করণ:** [`docs/README.bn.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/README.bn.md)
 
-This repository is the **public boundary** of the SupremeAI federation (roadmap §4.3 / Phase 8 foundation).
-It contains only artifacts that are useful *outside* SupremeAI's private intelligence:
+This repository (`Supremeai-bd/supremeai`) is the **Single Door Monorepo SSOT** containing Core, Gateway, Browser, VSCode, Studio, Infrastructure, and the MCP Control Plane:
 
 > [!IMPORTANT]
 > ### 🤖 AI Agent & MCP Contributor Quickstart (Where & How to Work)
 > If you are an external AI (Claude, Cursor, Antigravity, etc.) connecting via MCP Tower or GitHub:
 > 1. **Single Door for Work:** All tasks, bug reports, and PRs live exclusively in **`Supremeai-bd/supremeai`**. Satellite repositories maintain a strict 0 Issues / 0 PRs policy ([`FEDERATION_CHARTER.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/FEDERATION_CHARTER.md)).
-> 2. **Where to Write Code:** Edit the corresponding domain folders inside this repository (`studio/`, `command/`, `core/`, `vscode/`, etc.). Do NOT attempt to push directly to satellite repos.
-> 3. **Automated Dispatch & Zero Residue:** When your PR merges into `supremeai:main`, the automated bridge pipeline dispatches your changes to the target satellite repo and cleans up transit files automatically ([`AUTONOMOUS_TRANSIT_PIPELINE.md`](./AUTONOMOUS_TRANSIT_PIPELINE.md)).
-> 4. **Boundary Restrictions:** You do not need private credentials. Access to `supremeai` (core monorepo) is restricted to admin, and `supremeai-api` is air-gapped (ghost-cloaked). All other satellites are accessible via MCP.
+> 2. **Where to Write Code:** Edit the corresponding domain folders inside this repository (`studio/`, `command/`, `core/`, `vscode/`, `gateway/`, `browser/`, `infrastructure/`, etc.). Do NOT attempt to push to retired satellite repos.
+> 3. **Autonomous Auto-Landing & Zero Cloud Waste:** When your PR passes all Tier 1 fast safety gates and Tier 2 verification, the in-workflow auto-landing gate merges your changes automatically ([`docs/PR_TO_PRODUCTION_LIFECYCLE.md`](./docs/PR_TO_PRODUCTION_LIFECYCLE.md)).
+> 4. **Universal Runner Hierarchy:** Verification executes on the 4-level runner tier (local-pc runner priority 1 -> Render CI priority 2 -> GitHub Cloud priority 3/4).
 >
 > **MCP Tower call conventions (avoid argument/format errors):**
 > - Tool names are **wave-split** (2026-10-29/30 rename waves, #2493): the core github + bridge queue/order tools are **dotted** (`github.read_file`, `github.list_prs`, `github.workflow_runs`, `bridge.work_queue`, `bridge.work_order`) — their old snake_case forms are dead (-32602). The external-repo explorer family (`github_repo_tree`, `github_search_repos`, ...) and the claim/feedback family (`work_claim`, `bridge_read_feedback`, `bridge_work_renew`, `bridge_work_release`) stay **snake_case**. Never guess: probe `tools/list` first.
