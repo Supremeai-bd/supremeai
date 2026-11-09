@@ -8,6 +8,7 @@ export const APP_NAME = 'Open WebUI';
 
 export const WEBUI_HOSTNAME = '';
 export const WEBUI_BASE_URL = '';
+export const EMOJI_ASSETS_BASE_URL = 'https://cdn.jsdelivr.net/gh/jdecked/twemoji@latest/assets/svg';
 export const WEBUI_API_BASE_URL = `${WEBUI_BASE_URL}/api/v1`;
 
 export const OLLAMA_API_BASE_URL = `${WEBUI_BASE_URL}/ollama`;
