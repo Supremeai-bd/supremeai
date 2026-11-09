@@ -239,7 +239,7 @@ stdout contracts — tier evidence + exactly-once final marker — unchanged).
 
 ## 5. Open Guards — shift-left on free public runtime
 
-The guard jobs in `.github/workflows/pipeline.yml` (branch-naming,
+The guard jobs in `.github/workflows/unified-pipeline.yml` (branch-naming,
 issue-reference, anti-duplicate PR, boundary-sanitization, loop-contract-parity,
 ingress-hook, stale-base)
 run on every PR to `supremeai` — free, unlimited public Actions minutes — so invalid

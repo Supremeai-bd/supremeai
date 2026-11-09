@@ -240,6 +240,13 @@ class CostFetcher:
             return "not_set"
         return self.api_key[:4] + "****" + self.api_key[-4:] if len(self.api_key) > 8 else "****"
 
+    async def _fetch_json(self, url: str) -> Any:
+        """Shared HTTP client with authentication and timeout handling."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+            response = await client.get(url, headers=headers)
+            return response.json() if response.status_code == 200 else None
+
 
 class RenderCostFetcher(CostFetcher):
     """Fetch Render service costs (free tier tracking)."""
@@ -247,26 +254,20 @@ class RenderCostFetcher(CostFetcher):
     async def fetch(self, days: int) -> list[CostRecord]:
         records: list[CostRecord] = []
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
-                resp = await client.get(
-                    "https://api.render.com/v1/services",
-                    headers=headers,
-                )
-                if resp.status_code == 200:
-                    services = resp.json()
-                    for svc in services:
-                        records.append(CostRecord(
-                            provider="render",
-                            service=svc.get("service", {}).get("name", "unknown"),
-                            date=datetime.now().strftime("%Y-%m-%d"),
-                            cost_usd=Decimal("0.00"),
-                            usage_unit="service_hours",
-                            usage_amount=720.0,
-                            region=svc.get("service", {}).get("region", "oregon"),
-                        ))
-                else:
-                    logger.warning(f"Render API returned {resp.status_code}, using fallback")
+            services = await self._fetch_json("https://api.render.com/v1/services")
+            if services and isinstance(services, list):
+                for svc in services:
+                    records.append(CostRecord(
+                        provider="render",
+                        service=svc.get("service", {}).get("name", "unknown"),
+                        date=datetime.now().strftime("%Y-%m-%d"),
+                        cost_usd=Decimal("0.00"),
+                        usage_unit="service_hours",
+                        usage_amount=720.0,
+                        region=svc.get("service", {}).get("region", "oregon"),
+                    ))
+            else:
+                logger.warning("Render API returned non-200 or empty, using fallback")
         except Exception as exc:
             logger.warning(f"Render fetch failed ({exc}), using fallback estimation")
         return records
@@ -278,24 +279,18 @@ class NetlifyCostFetcher(CostFetcher):
     async def fetch(self, days: int) -> list[CostRecord]:
         records: list[CostRecord] = []
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
-                resp = await client.get(
-                    "https://api.netlify.com/api/v1/sites",
-                    headers=headers,
-                )
-                if resp.status_code == 200:
-                    sites = resp.json()
-                    for site in sites:
-                        records.append(CostRecord(
-                            provider="netlify",
-                            service=f"site:{site.get('name', 'unknown')}",
-                            date=datetime.now().strftime("%Y-%m-%d"),
-                            cost_usd=Decimal("0.00"),
-                            usage_unit="bandwidth_gb",
-                            usage_amount=float(site.get("usage", {}).get("bandwidth", 0) or 0),
-                            region="global",
-                        ))
+            sites = await self._fetch_json("https://api.netlify.com/api/v1/sites")
+            if sites and isinstance(sites, list):
+                for site in sites:
+                    records.append(CostRecord(
+                        provider="netlify",
+                        service=f"site:{site.get('name', 'unknown')}",
+                        date=datetime.now().strftime("%Y-%m-%d"),
+                        cost_usd=Decimal("0.00"),
+                        usage_unit="bandwidth_gb",
+                        usage_amount=float(site.get("usage", {}).get("bandwidth", 0) or 0),
+                        region="global",
+                    ))
         except Exception as exc:
             logger.warning(f"Netlify fetch failed ({exc}), using fallback")
         return records
@@ -307,24 +302,18 @@ class SupabaseCostFetcher(CostFetcher):
     async def fetch(self, days: int) -> list[CostRecord]:
         records: list[CostRecord] = []
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
-                resp = await client.get(
-                    "https://api.supabase.com/v1/projects",
-                    headers=headers,
-                )
-                if resp.status_code == 200:
-                    projects = resp.json()
-                    for proj in projects:
-                        records.append(CostRecord(
-                            provider="supabase",
-                            service=f"db:{proj.get('name', 'unknown')}",
-                            date=datetime.now().strftime("%Y-%m-%d"),
-                            cost_usd=Decimal("0.00"),
-                            usage_unit="db_size_mb",
-                            usage_amount=float(proj.get("db_size", 0) or 0),
-                            region=proj.get("region", "us-east-1"),
-                        ))
+            projects = await self._fetch_json("https://api.supabase.com/v1/projects")
+            if projects and isinstance(projects, list):
+                for proj in projects:
+                    records.append(CostRecord(
+                        provider="supabase",
+                        service=f"db:{proj.get('name', 'unknown')}",
+                        date=datetime.now().strftime("%Y-%m-%d"),
+                        cost_usd=Decimal("0.00"),
+                        usage_unit="db_size_mb",
+                        usage_amount=float(proj.get("db_size", 0) or 0),
+                        region=proj.get("region", "us-east-1"),
+                    ))
         except Exception as exc:
             logger.warning(f"Supabase fetch failed ({exc}), using fallback")
         return records

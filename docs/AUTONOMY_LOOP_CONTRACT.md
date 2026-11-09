@@ -55,7 +55,7 @@ or hooks on these strings.
    security-breaker/browser-qa/planner/watcher) and execution of the task body within
    the declared Touching Files boundary.
 6. **Verify** — run the evidence-tier contract. The tier list is SSOT'd in
-   `docs/AGENT_LOOP_SPEC.md` §4 (currently 8 tiers; the count is derived, never
+   `docs/AGENT_LOOP_SPEC.md` §4 (currently 9 tiers; the count is derived, never
    hardcoded, and parity-enforced by `scripts/agents/check_loop_contract_parity.py`).
    A failing tier fails the cycle — no partial passes.
 7. **Record** — generate the submission record: a PR body embedding the task-contract

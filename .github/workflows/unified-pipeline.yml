@@ -135,6 +135,7 @@ jobs:
           python scripts/ci/readiness_contract.py --check-required-names
           python scripts/ci/production_release_gate.py --self-test
           python scripts/ci/production_release_gate.py --check
+          python scripts/agents/check_loop_contract_parity.py
 
       - name: Verify timeout and silent-failure policy
         run: |
@@ -200,6 +201,7 @@ jobs:
           python scripts/ci/timeout_policy_guard.py --check
           python scripts/ci/silent_failure_guard.py --check
           python scripts/ci/public_surface_guard.py --manifest scripts/ci/public_surface_manifest.txt
+          python scripts/agents/check_loop_contract_parity.py
 
       - name: Tier 1 — AI Semantic PR Verification Gate (High-Risk Enforcement)
         if: github.event_name == 'pull_request'

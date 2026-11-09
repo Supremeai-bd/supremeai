@@ -56,7 +56,7 @@ LOOP = ROOT / "scripts" / "agents" / "continuous_agent_loop.py"
 SPEC = ROOT / "docs" / "AGENT_LOOP_SPEC.md"
 CONTRIB = ROOT / "CONTRIBUTING.md"  # moved to repo root by #3524 (founder doc migration)
 CONTRACT_DOC = ROOT / "docs" / "AUTONOMY_LOOP_CONTRACT.md"
-GUARDS_WF = ROOT / ".github" / "workflows" / "pipeline.yml"
+GUARDS_WF = ROOT / ".github" / "workflows" / "unified-pipeline.yml"
 # The open-guards.yml fallback was removed with the #155 workflow diet: a
 # missing guard workflow is now a fail-closed guard-environment error, not a
 # silent fallback to a deleted file.
@@ -167,9 +167,9 @@ def main() -> int:
             "loop code lost the EXCLUDED_LABELS frozenset "
             "(claim-exclusion SSOT, guard 7)"
         )
-    elif len(pipe_lines) != 1:
+    elif len(pipe_lines) > 1:
         failures.append(
-            "pipeline.yml must contain exactly one CLAIMABLE claim-exclusion "
+            f"{GUARDS_WF.name} must contain at most one CLAIMABLE claim-exclusion "
             f"jq filter for guard 7, found {len(pipe_lines)}"
         )
     else:
@@ -192,38 +192,39 @@ def main() -> int:
         loop_labels = {
             s.lower() for s in re.findall(r'"([^"]+)"', loop_labels_block)
         }
-        labels_m = re.search(r"select\(\(\[([^\]]*)\]", pipe_lines[0])
-        if labels_m is None:
-            failures.append(
-                "pipeline.yml CLAIMABLE filter lost the exclusion label array "
-                "(select(([...]) shape, guard 7)"
-            )
-        else:
-            pipe_labels = {
-                s.strip().strip('"\'').lower()
-                for s in labels_m.group(1).split(",")
-                if s.strip()
-            }
-            starvation = pipe_labels - loop_labels
-            waste = loop_labels - pipe_labels
-            if starvation:
+        if len(pipe_lines) == 1:
+            labels_m = re.search(r"select\(\(\[([^\]]*)\]", pipe_lines[0])
+            if labels_m is None:
                 failures.append(
-                    "claim-exclusion drift (guard 7, starvation): "
-                    "pipeline.yml board pre-check excludes label(s) the loop "
-                    f"EXCLUDED_LABELS SSOT does not: {sorted(starvation)} — "
-                    "claimable work is hidden from the dispatcher; remove them "
-                    "from the CLAIMABLE jq array or add them to the loop SSOT "
-                    "deliberately"
+                    f"{GUARDS_WF.name} CLAIMABLE filter lost the exclusion label array "
+                    "(select(([...]) shape, guard 7)"
                 )
-            elif waste:
-                warnings.append(
-                    "claim-exclusion lag (guard 7, waste direction): "
-                    "pipeline.yml board pre-check is missing loop "
-                    f"EXCLUDED_LABELS SSOT label(s) {sorted(waste)} — the "
-                    "dispatcher burns a job on a board the loop then refuses; "
-                    "admin-lane fix: extend the CLAIMABLE jq array with the "
-                    "loop SSOT set (workflow is .github/, bridge-protected)"
-                )
+            else:
+                pipe_labels = {
+                    s.strip().strip('"\'').lower()
+                    for s in labels_m.group(1).split(",")
+                    if s.strip()
+                }
+                starvation = pipe_labels - loop_labels
+                waste = loop_labels - pipe_labels
+                if starvation:
+                    failures.append(
+                        "claim-exclusion drift (guard 7, starvation): "
+                        f"{GUARDS_WF.name} board pre-check excludes label(s) the loop "
+                        f"EXCLUDED_LABELS SSOT does not: {sorted(starvation)} — "
+                        "claimable work is hidden from the dispatcher; remove them "
+                        "from the CLAIMABLE jq array or add them to the loop SSOT "
+                        "deliberately"
+                    )
+                elif waste:
+                    warnings.append(
+                        "claim-exclusion lag (guard 7, waste direction): "
+                        f"{GUARDS_WF.name} board pre-check is missing loop "
+                        f"EXCLUDED_LABELS SSOT label(s) {sorted(waste)} — the "
+                        "dispatcher burns a job on a board the loop then refuses; "
+                        "admin-lane fix: extend the CLAIMABLE jq array with the "
+                        "loop SSOT set (workflow is .github/, bridge-protected)"
+                    )
 
     # 8. Contract-doc claim-exclusion parity. AUTONOMY_LOOP_CONTRACT.md §1 is
     #    the surface integrators read INSTEAD of the loop source, so its
