@@ -34,16 +34,17 @@ async function runTests() {
   assert.equal(sanitized.apiKeyRef, "infisical:RENDER_API_KEY_5", "Allowlisted non-secret metadata preserved");
   assert.equal(sanitized.status, "healthy", "Non-sensitive status must be preserved");
 
-  // 2. Parity Audit Pure 2-Repository Topology & State Model
+  // 2. Parity Audit Pure Single-Repository Monorepo SSOT Topology & State Model
   const parityReport = await runParityAudit();
   assert.ok(["unverified", "parity_verified", "drift_detected"].includes(parityReport.status));
   const githubCheck = parityReport.checks.find((c) => c.component === "github_repositories");
   assert.ok(githubCheck, "github_repositories check must exist");
   assert.ok(["configuration_present", "unconfigured", "parity_verified"].includes(githubCheck.status));
-  assert.equal((githubCheck.details as any).topology, "Pure 2-Repository Topology");
+  assert.equal((githubCheck.details as any).topology, "Pure Single-Repository Monorepo SSOT Topology");
   assert.ok(Array.isArray((githubCheck.details as any).activeRepositories));
   assert.ok((githubCheck.details as any).activeRepositories.includes("Supremeai-bd/supremeai"));
-  assert.ok((githubCheck.details as any).activeRepositories.includes("Supremeai-bd/supremeai-studio"));
+  assert.ok(!((githubCheck.details as any).activeRepositories.includes("Supremeai-bd/supremeai-studio")));
+  assert.ok((githubCheck.details as any).retiredSatellites.includes("supremeai-studio"));
 
   // 3. Service Manifest Account Resolution for API
   const apiTarget = resolveServiceTarget("api");

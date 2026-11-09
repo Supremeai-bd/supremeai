@@ -230,19 +230,19 @@ async function runParityAudit(): Promise<ParityAuditResult> {
     component: "github_repositories",
     status: intendedSha || envValue("GITHUB_TOKEN") ? "parity_verified" : "unconfigured",
     details: {
-      topology: "Pure 2-Repository Topology",
+      topology: "Pure Single-Repository Monorepo SSOT Topology",
       intendedMainCommit: intendedSha,
       activeRepositories: [
         "Supremeai-bd/supremeai",
-        "Supremeai-bd/supremeai-studio",
       ],
       retiredSatellites: [
+        "supremeai-studio",
         "supremeai-core",
         "supremeai-api",
         "supremeai-browser",
         "supremeai-vscode",
       ],
-      note: "Commit and PR parity tracked across the 2 active repositories. Historical satellites are archived and read-only.",
+      note: "Commit and PR parity tracked across Supremeai-bd/supremeai Single Monorepo SSOT. Historical satellites are archived and read-only.",
     },
   });
 

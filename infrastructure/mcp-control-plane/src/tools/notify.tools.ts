@@ -69,9 +69,8 @@ export async function registerNotifyTools(server: McpServer): Promise<void> {
         const autonomy = globalKillSwitch.isAutonomyEnabled() ? "🟢 ACTIVE (L2 Autonomous)" : "🛑 KILLED (L0 Read-Only)";
         reply = `🏰 *SupremeAI Control Tower Status*\n` +
           `• Autonomy: ${autonomy}\n` +
-          `• Topology: Pure 2-Repository Architecture (supremeai + supremeai-studio)\n` +
-          `• Primary Monorepo: Supremeai-bd/supremeai\n` +
-          `• Studio Cockpit: Supremeai-bd/supremeai-studio`;
+          `• Topology: Pure Single-Repository Monorepo SSOT (Supremeai-bd/supremeai)\n` +
+          `• Primary Monorepo: Supremeai-bd/supremeai`;
         action = "status";
       } else if (text.startsWith("/stop")) {
         globalKillSwitch.emergencyStop();

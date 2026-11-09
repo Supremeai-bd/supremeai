@@ -38,7 +38,7 @@ function isAvailable(envRef: string): boolean {
 
 /**
  * Canonical federation repositories under the Supremeai-bd organization
- * (SSOT: Pure 3-Repo Model - Umbrella, Studio, and Open Embassy).
+ * (SSOT: Pure Single Monorepo Model - Supremeai-bd/supremeai).
  * Historical satellites remain registered for test and historical account discovery compatibility.
  */
 export const CANONICAL_FEDERATION_REPOS = [
@@ -52,10 +52,10 @@ export const CANONICAL_FEDERATION_REPOS = [
 
 export const ACTIVE_FEDERATION_REPOS = [
   "supremeai",
-  "supremeai-studio",
 ] as const;
 
 export const ARCHIVED_FEDERATION_REPOS = [
+  "supremeai-studio",
   "supremeai-core",
   "supremeai-api",
   "supremeai-browser",
@@ -376,16 +376,14 @@ export function buildAccountRegistry(): ProviderAccount[] {
 }
 
 export const ADMIN_ONLY_GITHUB_REPOS = new Set([
-  "supremeai",
-  "supremeai",
   "github-org-supremeai-bd",
 ]);
 
 /**
  * Role-aware repository & account filter:
- * - Admin & supremeadmin (rank >= 2): see all accounts (core monorepo, org monitor, satellites).
- * - Agent (rank 1): see only open satellite repositories;
- *   core monorepo ('supremeai'), API gateway ('supremeai-api'), command bot, core, infra, and org monitor are strictly excluded.
+ * - Admin & supremeadmin (rank >= 2): see all accounts (primary monorepo, org monitor, satellites).
+ * - Agent (rank 1): see the primary monorepo SSOT repository ('supremeai') for autonomous task execution and bridge PRs.
+ *   Organization monitor is strictly restricted to admin.
  * - Viewer / guest / restricted_viewer (rank 0): only see public-safe SSOT repository ('supremeai' for GitHub).
  */
 export function getAccountsForRole(role?: UserRole): ProviderAccount[] {
@@ -404,10 +402,6 @@ export function getAccountsForRole(role?: UserRole): ProviderAccount[] {
     if (account.id === "github-org-supremeai-bd" || account.role === "organization") {
       return false;
     }
-    // Core monorepo: admin-only
-    if (account.id === "github-primary" || account.url?.endsWith("/supremeai")) {
-      return false;
-    }
 
     // Extract repo name
     const match = /\/repos\/([^/]+)\/([^/?#]+)/.exec(account.url ?? "");
@@ -418,9 +412,14 @@ export function getAccountsForRole(role?: UserRole): ProviderAccount[] {
       return false;
     }
 
-    // Guest viewer / restricted viewer: strictly only public SSOT repo supremeai
+    // Archived satellites must never be exposed as live accounts
+    if ((ARCHIVED_FEDERATION_REPOS as readonly string[]).includes(repoName)) {
+      return false;
+    }
+
+    // Agent and viewer: see primary monorepo SSOT repository ('supremeai')
     if (rank <= 1) {
-      return repoName === "supremeai" || account.id.includes("supremeai");
+      return repoName === "supremeai" || account.id === "github-primary";
     }
 
     return true;

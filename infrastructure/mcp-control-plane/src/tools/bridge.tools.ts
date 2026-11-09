@@ -291,13 +291,12 @@ export const BRIDGE_RECEIPT_LABEL = "bridge:receipt";
  */
 
 /**
- * Topology Architecture (Pure 3-Domain Model):
- * Studio frontend anchors route to Supremeai-bd/supremeai-studio.
- * All internal backend, core, gateway, browser, vscode, and infrastructure paths
- * route directly to Supremeai-bd/supremeai (the Umbrella monorepo).
+ * Topology Architecture (Pure Single-Repository Monorepo SSOT):
+ * All workspace domains (studio, infrastructure, gateway, browser, vscode, core)
+ * route directly to Supremeai-bd/supremeai (the Single Monorepo SSOT).
  */
 const SATELLITE_REPO_MAP: ReadonlyArray<{ anchor: string; repo: string }> = [
-  { anchor: "studio/", repo: "Supremeai-bd/supremeai-studio" },
+  { anchor: "studio/", repo: "Supremeai-bd/supremeai" },
   { anchor: "infrastructure/mcp-control-plane/", repo: "Supremeai-bd/supremeai" },
   { anchor: "gateway/", repo: "Supremeai-bd/supremeai" },
   { anchor: "browser/", repo: "Supremeai-bd/supremeai" },
@@ -307,7 +306,6 @@ const SATELLITE_REPO_MAP: ReadonlyArray<{ anchor: string; repo: string }> = [
 
 /** Canonical Active Domain Anchor Hub Issue Numbers on Supremeai-bd/supremeai */
 export const DOMAIN_ANCHOR_HUBS: Record<string, number> = {
-  "Supremeai-bd/supremeai-studio": 749,
   "Supremeai-bd/supremeai": 761,
 };
 
