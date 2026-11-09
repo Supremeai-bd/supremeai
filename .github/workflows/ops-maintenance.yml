@@ -572,6 +572,7 @@ jobs:
             }
 
   ai-safety:
+    needs: [resolve-execution-tier]
     # #67 Tier 3: dispatch-only (AI safety evaluations on demand)
     if: github.event_name == 'workflow_dispatch' && inputs.run_ai_safety == true
     concurrency:
@@ -616,6 +617,7 @@ jobs:
         run: python scripts/advanced_analysis/agent_loop_limiter_check.py
 
   mission-passk:
+    needs: [resolve-execution-tier]
     # #67 Tier 3: dispatch-only (PassK benchmarks on demand)
     if: github.event_name == 'workflow_dispatch' && inputs.run_passk == true
     concurrency:
@@ -756,6 +758,7 @@ jobs:
           if-no-files-found: ignore
 
   platform-sweep:
+    needs: [resolve-execution-tier]
     name: 🧹 Platform Sweep (nightly, dispatch-only)
     # #67 Tier 3: dispatch-only (deep platform sweeps on demand)
     if: github.event_name == 'workflow_dispatch' && inputs.run_platform_sweep == true
@@ -796,6 +799,7 @@ jobs:
         run: python .github/scripts/platform_agent_check.py
 
   vault-synth-check:
+    needs: [resolve-execution-tier]
     # Issue #72: check_infisical_vault_synth.py was dormant (merged but never wired
     # to any trigger). Synthetic early-warning guard for the Infisical RAW v3 vault
     # contract (#434): vault reachable via universal-auth, prod secret count sane
@@ -832,6 +836,7 @@ jobs:
   # overlap is safe because the script's existing_issue_for() does two-layer
   # dedup (fingerprint + platform/title) before opening any issue.
   platform-deep-audit:
+    needs: [resolve-execution-tier]
     name: 🧠 Platform Deep-Audit (vault-driven discovery + auto-issue)
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
@@ -877,6 +882,7 @@ jobs:
           retention-days: 14
 
   rate-limit-trend:
+    needs: [resolve-execution-tier]
     name: 📊 Rate Limit Trend Snapshot (daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_rate_limit_trend == true) ||
@@ -1013,6 +1019,7 @@ jobs:
           echo "Remaining: ${{ steps.check.outputs.remaining }}" >> $GITHUB_STEP_SUMMARY
 
   docs-garbage-sweep:
+    needs: [resolve-execution-tier]
     # ── #4176 Step 3: PR-independent main-tree Zero-Garbage monitoring ──────
     # PR-path gate (pr.yml → constitution.gates docs_garbage) শুধু PR-এর
     # changed-files দেখে — main-এ direct push হলে কোনো gate চলে না (প্রমাণ:
@@ -1063,6 +1070,7 @@ jobs:
           echo "**Remediation:** ফাইলটি \`docs/archive/\`-এ সরাও, অথবা rules.yml \`docs_garbage_policy.allowed_patterns\`-এ (approved PR-এ) যোগ করো, অথবা liability-audit-এ সিদ্ধান্ত নাও।" >> "$GITHUB_STEP_SUMMARY"
 
   stale-mutex:
+    needs: [resolve-execution-tier]
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_stale_mutex == true) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
@@ -1205,6 +1213,7 @@ jobs:
           echo "See job logs for details." >> $GITHUB_STEP_SUMMARY
 
   live-smoke:
+    needs: [resolve-execution-tier]
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_live_smoke == true) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
@@ -1525,6 +1534,7 @@ jobs:
           if-no-files-found: error
 
   db-retention:
+    needs: [resolve-execution-tier]
     name: 🗑️ DB Retention Prune (logs + learning store)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_db_retention == true) ||
@@ -1609,6 +1619,7 @@ jobs:
           PY
 
   e2e-customer:
+    needs: [resolve-execution-tier]
     if: github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0' # #67 Tier 2: weekly Sun off-peak (was daily)
     concurrency:
       group: nightly-ops-e2e-customer
@@ -1698,6 +1709,7 @@ jobs:
   # (Tier-1 load / Tier-2 chaos / Tier-3 browser-e2e / DB-pool health)
   # ────────────────────────────────────────────────────────────────────────────
   load-locust:
+    needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_load_locust == true) ||
@@ -1809,6 +1821,7 @@ jobs:
           retention-days: 7
 
   chaos-suite:
+    needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_chaos_suite == true) ||
@@ -1846,6 +1859,7 @@ jobs:
           tail -n 5 /tmp/chaos_output.txt >> "$GITHUB_STEP_SUMMARY"
 
   browser-e2e:
+    needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_browser_e2e == true) ||
@@ -1888,6 +1902,7 @@ jobs:
           tail -n 5 /tmp/browser_e2e_output.txt >> "$GITHUB_STEP_SUMMARY"
 
   db-pool-health:
+    needs: [resolve-execution-tier]
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_db_pool_health == true) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
@@ -1974,6 +1989,7 @@ jobs:
           PY
 
   deploy-doctor-fallback:
+    needs: [resolve-execution-tier]
     name: 🔍 Deploy Doctor (hourly fallback, 90m window)
     if: false # dormant by design (#67): cron absent from triggers since SCHEDULE DIET v4; 26th dispatch input would exceed GitHub's 25-input limit
     runs-on: ubuntu-latest
@@ -2022,6 +2038,7 @@ jobs:
           echo "Open issues: [deploy-doctor label](https://github.com/${{ github.repository }}/issues?q=label%3Adeploy-doctor)" >> $GITHUB_STEP_SUMMARY
 
   branch-retention:
+    needs: [resolve-execution-tier]
     name: 🌿 Branch Retention Cleanup
     # #67 Tier 1: daily storage tidy (was Mon weekly)
     if: >-
@@ -2089,6 +2106,7 @@ jobs:
           echo "Summary: deleted=${deleted} skipped=${skipped}"
 
   silent-error:
+    needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_silent_error == true) ||
@@ -2118,6 +2136,7 @@ jobs:
     timeout-minutes: 30
 
   dast:
+    needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_dast == true) ||
@@ -2176,6 +2195,7 @@ jobs:
           echo "- Post-scan IDOR/business-logic rules: tracked in SECURITY_AUDIT_MATRIX.md P8"
 
   constitution:
+    needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_constitution == true) ||
@@ -2206,6 +2226,7 @@ jobs:
         run: python -m unittest discover -s .github/scripts/constitution/tests -v
 
   self-audit:
+    needs: [resolve-execution-tier]
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_self_audit == true) ||
         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
@@ -2222,6 +2243,7 @@ jobs:
     timeout-minutes: 30
 
   workflow-runs-retention:
+    needs: [resolve-execution-tier]
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_workflow_runs_retention == true) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
@@ -2256,6 +2278,7 @@ jobs:
   # Watchdog & Cron Health (from schedule-watchdog.yml)
   # ---------------------------------------------------------------------------
   watchdog:
+    needs: [resolve-execution-tier]
     name: "⏰ Schedule Watchdog (cron self-heal)"
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -2283,6 +2306,7 @@ jobs:
   # Issue Template Conformance & Ops (from issue-ops.yml)
   # ---------------------------------------------------------------------------
   template-validate:
+    needs: [resolve-execution-tier]
     name: "📝 Issue Template Conformance"
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -2307,6 +2331,7 @@ jobs:
   # Dependency Health Scan (from dependency-health-check.yml)
   # ---------------------------------------------------------------------------
   dependency-scan:
+    needs: [resolve-execution-tier]
     name: "🩺 Dependency Health Scan"
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -2334,6 +2359,7 @@ jobs:
   # Kaggle Empirical Learning (consolidated nightly job)
   # ---------------------------------------------------------------------------
   kaggle-learning:
+    needs: [resolve-execution-tier]
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
@@ -2379,6 +2405,7 @@ jobs:
           fi
 
   secret-hygiene-guards:
+    needs: [resolve-execution-tier]
     name: "Secret and Naming Hygiene Guards"
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
@@ -2402,6 +2429,7 @@ jobs:
         run: python scripts/ci/secret_graph_regen.py --check
 
   daily-10am-bdt-health-report:
+    needs: [resolve-execution-tier]
     name: "🩺 Daily 10:00 AM BDT Health & Release Gate Report"
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.run_daily_health_report == true) ||

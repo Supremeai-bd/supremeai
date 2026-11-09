@@ -47,7 +47,7 @@ jobs:
   # =========================================================================
   resolve-execution-tier:
     name: "Tier 1: 4-Level Runner Hierarchy Preflight (<10s)"
-    if: github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'pull_request' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     outputs:
@@ -64,6 +64,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY_1 }}
+          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
+          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
+          RENDER_API_KEY_5: ${{ secrets.RENDER_API_KEY_5 }}
+          RENDER_API_KEY_6: ${{ secrets.RENDER_API_KEY_6 }}
+          RENDER_CI_RUNNER_SERVICE_ID: ${{ vars.RENDER_CI_RUNNER_SERVICE_ID || 'srv-dbl8tbmtlv9c73bbkvqg' }}
         run: python scripts/ci/resolve_execution_tier.py
 
   # =========================================================================
@@ -391,6 +400,9 @@ jobs:
           # Cloud fast-gate/runtime-readiness are intentionally skipped in that case.
           if [ "$HEAVY_LOCAL" = "success" ]; then
             echo "Local full-battery verification succeeded (Tier 1+2, 0 cloud mins)."
+          elif [ "$HEAVY_LOCAL" = "failure" ] || [ "$HEAVY_LOCAL" = "cancelled" ]; then
+            echo "::error::Tier 1+2 Local Self-Hosted full verification did not succeed (status: $HEAVY_LOCAL). Auto-merge blocked."
+            exit 1
           else
             # Cloud fallback path: require Tier 1 cloud gates.
             if [ "$FAST_RES" != "success" ]; then
@@ -443,6 +455,7 @@ jobs:
   # =========================================================================
   deploy-and-verify:
     name: "Post-Merge: Plan changed Render services"
+    needs: [resolve-execution-tier]
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true)
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -711,13 +724,26 @@ jobs:
       always() &&
       (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true)) &&
       (
-        github.event_name == 'push' ||
-        contains(inputs.target_service, 'all') ||
-        contains(inputs.target_service, 'vercel')
+        (github.event_name == 'push' && (
+          contains(join(github.event.commits.*.modified, ' '), 'studio/') ||
+          contains(join(github.event.commits.*.added, ' '), 'studio/') ||
+          contains(join(github.event.commits.*.removed, ' '), 'frontend/') ||
+          contains(join(github.event.commits.*.modified, ' '), 'frontend/') ||
+          contains(join(github.event.commits.*.added, ' '), 'frontend/') ||
+          contains(join(github.event.commits.*.modified, ' '), 'vercel') ||
+          contains(join(github.event.commits.*.added, ' '), 'vercel')
+        )) ||
+        (github.event_name == 'workflow_dispatch' && (
+          contains(inputs.target_service, 'all') ||
+          contains(inputs.target_service, 'vercel')
+        ))
       )
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
       - name: Trigger Vercel Deployment Preflight & API Check
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
