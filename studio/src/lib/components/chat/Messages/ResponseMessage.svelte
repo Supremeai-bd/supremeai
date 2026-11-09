@@ -64,7 +64,6 @@
 	import CodeExecutions from './CodeExecutions.svelte';
 	import ContentRenderer from './ContentRenderer.svelte';
 	import ContextCompactionLabel from './ContextCompactionLabel.svelte';
-	import { KokoroWorker } from '$lib/workers/KokoroWorker';
 	import FileItem from '$lib/components/common/FileItem.svelte';
 	import FollowUps from './ResponseMessage/FollowUps.svelte';
 	import { fade } from 'svelte/transition';
@@ -330,6 +329,7 @@
 
 			if ($settings.audio?.tts?.engine === 'browser-kokoro') {
 				if (!$TTSWorker) {
+					const { KokoroWorker } = await import('$lib/workers/KokoroWorker');
 					await TTSWorker.set(
 						new KokoroWorker({
 							dtype: $settings.audio?.tts?.engineConfig?.dtype ?? 'fp32'

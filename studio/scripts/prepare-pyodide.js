@@ -45,7 +45,8 @@ const pypiDepends = {
 
 import { loadPyodide } from 'pyodide';
 import { setGlobalDispatcher, ProxyAgent } from 'undici';
-import { writeFile, readFile, copyFile, readdir, rmdir, access, mkdir, rm } from 'fs/promises';
+import { writeFile, readFile, copyFile, readdir, access, mkdir, rm } from 'fs/promises';
+import { join } from 'path';
 
 /**
  * Loading network proxy configurations from the environment variables.
@@ -99,10 +100,10 @@ async function downloadPackages() {
 
 		if (pyodideVersion !== pyodidePackageVersion) {
 			console.log('Pyodide version mismatch, removing static/pyodide directory');
-			await rmdir('static/pyodide', { recursive: true });
+			await rm('static/pyodide', { recursive: true, force: true });
 		}
 	} catch (err) {
-		console.log('Pyodide package not found, proceeding with download.', err);
+		console.log('Pyodide package metadata not found, proceeding with preparation.', err?.message ?? err);
 	}
 
 	try {
@@ -137,9 +138,9 @@ async function downloadPackages() {
 
 async function copyPyodide() {
 	console.log('Copying Pyodide files into static directory');
-	// Copy all files from node_modules/pyodide to static/pyodide
-	for await (const entry of await readdir('node_modules/pyodide')) {
-		await copyFile(`node_modules/pyodide/${entry}`, `static/pyodide/${entry}`);
+	await mkdir('static/pyodide', { recursive: true });
+	for (const entry of await readdir('node_modules/pyodide')) {
+		await copyFile(join('node_modules/pyodide', entry), join('static/pyodide', entry));
 	}
 }
 
@@ -238,7 +239,26 @@ async function verifyBundledWheels() {
 	console.log('All listed packages are bundled');
 }
 
+async function isPyodidePrepared() {
+	try {
+		const lockPath = 'static/pyodide/pyodide-lock.json';
+		const lockData = JSON.parse(await readFile(lockPath, 'utf-8'));
+		const packageJson = JSON.parse(await readFile('package.json'));
+		const expected = packageJson.dependencies?.pyodide?.replace(/^[^0-9]*/, '') ?? '';
+		const installed = JSON.parse(await readFile('static/pyodide/package.json', 'utf-8'))
+			.version.replace(/^[^0-9]*/, '');
+		if (expected && installed !== expected) return false;
+		await access('static/pyodide/pyodide.asm.wasm');
+		return !!lockData?.packages && typeof lockData.packages === 'object';
+	} catch {
+		return false;
+	}
+}
+
 initNetworkProxyFromEnv();
+const force = process.env.FORCE_PYODIDE_PREPARE === '1' || process.env.FORCE_PYODIDE_PREPARE === 'true';
+const skip = process.env.SKIP_PYODIDE_PREPARE === '1' || process.env.SKIP_PYODIDE_PREPARE === 'true';
+
 if (process.env.USE_SLIM === 'true') {
 	// Rebuild generated assets so a previous full build cannot leave bundled wheels behind.
 	await rm('static/pyodide', { recursive: true, force: true });
@@ -249,12 +269,15 @@ if (process.env.USE_SLIM === 'true') {
 	const lockPath = 'static/pyodide/pyodide-lock.json';
 	const lockData = JSON.parse(await readFile(lockPath, 'utf-8'));
 	for (const pkg of Object.values(lockData.packages)) {
-		pkg.file_name = new URL(
-			pkg.file_name,
-			`https://cdn.jsdelivr.net/pyodide/v${version}/full/`
-		).href;
+		pkg.file_name = new URL(pkg.file_name, `https://cdn.jsdelivr.net/pyodide/v${version}/full/`)
+			.href;
 	}
 	await writeFile(lockPath, JSON.stringify(lockData, null, 2));
+	console.log('Pyodide slim assets prepared');
+} else if (skip) {
+	console.log('SKIP_PYODIDE_PREPARE is set; skipping Pyodide preparation');
+} else if (!force && (await isPyodidePrepared())) {
+	console.log('Pyodide assets already prepared; skipping (set FORCE_PYODIDE_PREPARE=1 to rebuild)');
 } else {
 	await downloadPackages();
 	await copyPyodide();
