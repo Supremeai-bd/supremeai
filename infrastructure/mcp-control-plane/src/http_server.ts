@@ -503,18 +503,17 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           writeJson(res, 401, { error: "Unauthorized: MCP Bearer token required" }, { "WWW-Authenticate": "Bearer" });
           return;
         }
-        let body = "";
+        let rawPayload = "";
         req.on("data", (chunk: Buffer) => {
-          body += chunk.toString();
-          if (body.length > MAX_REQUEST_BYTES) {
+          rawPayload += chunk.toString();
+          if (rawPayload.length > MAX_REQUEST_BYTES) {
             req.destroy();
-            writeJson(res, 413, { error: "Payload too large" });
-            return;
+            writeJson(res, 413, { error: "CI attestation payload exceeded maximum limit" });
           }
         });
         req.on("end", () => {
           try {
-            const input = JSON.parse(body || "{}");
+            const input = JSON.parse(rawPayload || "{}");
             const sha = String(input.expected_sha || "").trim();
             const repo = String(input.repo || "Supremeai-bd/supremeai").trim();
             if (!sha) {

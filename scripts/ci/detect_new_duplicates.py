@@ -47,6 +47,10 @@ DEFAULT_IGNORES = (
     "**/*.min.css,"
     "**/generated/**,"
     "**/.github/workflows/**,"
+    "**/package-lock.json,"
+    "**/*lock.json,"
+    "**/*lock.yaml,"
+    "**/*.lock,"
     # studio/** is third-party Open WebUI foundation (#557); vendored clones are excluded
     "studio/**"
 )
