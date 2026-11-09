@@ -29,10 +29,10 @@ export async function registerAgentBootstrapTools(server: McpServer): Promise<vo
 
       if (scope === "all" || scope === "topology") {
         summary.topology = {
-          model: "Pure 2-Repository Topology",
+          model: "Pure Single-Repository Monorepo SSOT Topology",
           primaryMonorepo: "Supremeai-bd/supremeai (Unified Monorepo SSOT: Core, Gateway, Browser, VSCode, Studio, Infrastructure)",
-          cockpitRepo: "Supremeai-bd/supremeai-studio (Public UI & Mission Control)",
           retiredSatellites: [
+            "supremeai-studio (Archived)",
             "supremeai-core (Archived)",
             "supremeai-api (Archived)",
             "supremeai-browser (Archived)",

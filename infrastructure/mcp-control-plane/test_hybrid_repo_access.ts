@@ -32,7 +32,7 @@ assert.ok(CANONICAL_FEDERATION_REPOS.includes("supremeai-vscode"));
 assert.ok(CANONICAL_FEDERATION_REPOS.includes("supremeai"));
 
 const initialTracked = getTrackedOrgRepos();
-assert.equal(initialTracked.length, 2);
+assert.equal(initialTracked.length, 1);
 
 // Org-level monitor account presence in registry
 const accounts = buildAccountRegistry();
@@ -181,13 +181,14 @@ assert.ok(adminAccs.some((a) => a.id === "github-primary"), "admin must see gith
 assert.ok(adminAccs.some((a) => a.id === "github-org-supremeai-bd"), "admin must see github-org-supremeai-bd");
 
 const agentAccs = getAccountsForRole("agent");
-assert.ok(!agentAccs.some((a) => a.id === "github-primary"), "agent must NOT see github-primary");
+assert.ok(agentAccs.some((a) => a.id === "github-primary"), "agent must see github-primary");
 assert.ok(!agentAccs.some((a) => a.id === "github-org-supremeai-bd"), "agent must NOT see github-org-supremeai-bd");
 assert.ok(!agentAccs.some((a) => a.id.includes("supremeai-api")), "agent must NOT see supremeai-api");
 assert.ok(!agentAccs.some((a) => a.id.includes("supremeai-core")), "agent must NOT see supremeai-core");
-assert.ok(agentAccs.some((a) => a.id.includes("supremeai-studio")), "agent must see supremeai-studio");
+assert.ok(!agentAccs.some((a) => a.id.includes("supremeai-studio")), "agent must NOT see supremeai-studio");
 
 const viewerAccs = getAccountsForRole("viewer");
 const viewerGhAccs = viewerAccs.filter((a) => a.provider === "github");
-assert.equal(viewerGhAccs.length, 2, "viewer sees studio + experimental-lab GitHub accounts");
+assert.ok(viewerGhAccs.some((a) => a.id === "github-primary"), "viewer must see github-primary");
+assert.ok(!viewerGhAccs.some((a) => a.id.includes("supremeai-studio")), "viewer must NOT see supremeai-studio");
 console.log("All hybrid repo access & organization discovery tests passed successfully!");

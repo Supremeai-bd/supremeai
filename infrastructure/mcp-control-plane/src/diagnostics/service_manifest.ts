@@ -179,7 +179,7 @@ export const CANONICAL_TOPOLOGY_DEFAULTS: Record<string, AuthoritativeServiceTar
     healthPath: "/release",
     readinessPath: "/release",
     releasePath: "/release",
-    repo: "Supremeai-bd/supremeai-studio",
+    repo: "Supremeai-bd/supremeai",
     branch: "main",
     watchPaths: ["studio/**", "src/**"],
     source: "default",
