@@ -13,7 +13,6 @@
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import VideoInputMenu from './CallOverlay/VideoInputMenu.svelte';
-	import { KokoroWorker } from '$lib/workers/KokoroWorker';
 	import { WEBUI_API_BASE_URL } from '$lib/constants';
 	import type { RealtimeCall } from '$lib/utils/realtime';
 	import VoiceAvatar from './CallOverlay/VoiceAvatar.svelte';
@@ -839,6 +838,7 @@
 
 		if ($settings.audio?.tts?.engine === 'browser-kokoro' && !$TTSWorker) {
 			try {
+				const { KokoroWorker } = await import('$lib/workers/KokoroWorker');
 				await TTSWorker.set(
 					new KokoroWorker({
 						dtype: $settings.audio?.tts?.engineConfig?.dtype ?? 'fp32'

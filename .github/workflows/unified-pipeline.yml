@@ -668,11 +668,12 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_COMMIT_SHA: ${{ github.sha }}
         run: |
           if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
             if [ -d infrastructure/cloudflare-render-keepwarm ]; then
               cd infrastructure/cloudflare-render-keepwarm
-              npx wrangler deploy || echo "Wrangler keepwarm deploy skipped or non-blocking"
+              npx wrangler deploy --var CF_COMMIT_SHA:${{ github.sha }} || echo "Wrangler keepwarm deploy skipped or non-blocking"
             else
               echo "keepwarm dir not found; skipping"
             fi
@@ -685,11 +686,12 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_COMMIT_SHA: ${{ github.sha }}
         run: |
           if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
             if [ -d infrastructure/cloudflare-studio-proxy ]; then
               cd infrastructure/cloudflare-studio-proxy
-              npx wrangler deploy || echo "Wrangler proxy deploy skipped or non-blocking"
+              npx wrangler deploy --var CF_COMMIT_SHA:${{ github.sha }} || echo "Wrangler proxy deploy skipped or non-blocking"
             else
               echo "studio proxy dir not found; skipping"
             fi

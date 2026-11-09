@@ -3,12 +3,13 @@ import { WEBUI_API_BASE_URL } from '$lib/constants';
 export const getGravatarUrl = async (token: string, email: string) => {
 	let error = null;
 
-	const res = await fetch(`${WEBUI_API_BASE_URL}/utils/gravatar?email=${email}`, {
-		method: 'GET',
+	const res = await fetch(`${WEBUI_API_BASE_URL}/utils/gravatar`, {
+		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
 			Authorization: `Bearer ${token}`
-		}
+		},
+		body: JSON.stringify({ email })
 	})
 		.then(async (res) => {
 			if (!res.ok) throw await res.json();

@@ -388,7 +388,7 @@ except Exception:
 
 # Code Interpreter
 
-ENABLE_CODE_EXECUTION = os.getenv('ENABLE_CODE_EXECUTION', 'True').lower() == 'true'
+ENABLE_CODE_EXECUTION = os.getenv('ENABLE_CODE_EXECUTION', 'False').lower() == 'true'
 
 CODE_EXECUTION_ENGINE = os.getenv('CODE_EXECUTION_ENGINE', 'pyodide')
 

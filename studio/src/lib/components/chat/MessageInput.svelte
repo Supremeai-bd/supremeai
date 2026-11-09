@@ -25,7 +25,6 @@
 
 	import { createPicker, getAuthToken } from '$lib/utils/google-drive-picker';
 	import { pickAndDownloadFile } from '$lib/utils/onedrive-file-picker';
-	import { KokoroWorker } from '$lib/workers/KokoroWorker';
 
 	const dispatch = createEventDispatcher();
 
@@ -2975,6 +2974,7 @@
 																if ($settings.audio?.tts?.engine === 'browser-kokoro') {
 																	// If the user has not initialized the TTS worker, initialize it
 																	if (!$TTSWorker) {
+																		const { KokoroWorker } = await import('$lib/workers/KokoroWorker');
 																		await TTSWorker.set(
 																			new KokoroWorker({
 																				dtype: $settings.audio?.tts?.engineConfig?.dtype ?? 'fp32'

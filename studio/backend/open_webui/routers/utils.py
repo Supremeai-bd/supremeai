@@ -18,6 +18,15 @@ log = logging.getLogger(__name__)
 router = APIRouter()
 
 
+class GravatarForm(BaseModel):
+    email: str
+
+
+@router.post('/gravatar')
+async def post_gravatar(form_data: GravatarForm, user=Depends(get_verified_user)):
+    return get_gravatar_url(form_data.email)
+
+
 @router.get('/gravatar')
 async def get_gravatar(email: str, user=Depends(get_verified_user)):
     return get_gravatar_url(email)
