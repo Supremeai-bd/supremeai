@@ -22,12 +22,18 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
 import subprocess
 import sys
 import urllib.request
+
+if hasattr(sys.stdout, "reconfigure"):
+    with contextlib.suppress(Exception):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 from pathlib import Path
 from typing import Any
 
@@ -304,11 +310,11 @@ def main() -> int:
 
     risk_level, risky_files = classify_pr_risk(files)
 
-    print("═══════════════════════════════════════════════════════════════════════")
-    print("🤖 SupremeAI AI Semantic PR Verification Gate")
-    print(f"📊 Risk Level: {risk_level}")
-    print(f"📁 Total Files Changed: {len(files)}")
-    print("═══════════════════════════════════════════════════════════════════════")
+    print("=======================================================================")
+    print("SupremeAI AI Semantic PR Verification Gate")
+    print(f"Risk Level: {risk_level}")
+    print(f"Total Files Changed: {len(files)}")
+    print("=======================================================================")
 
     # LOW RISK SHORT-CIRCUIT (Instant zero-quota pass)
     if risk_level == "LOW":
