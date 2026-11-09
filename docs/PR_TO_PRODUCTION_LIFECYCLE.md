@@ -27,6 +27,24 @@
 
 ---
 
+## ১.২ সার্বজনীন পাইপলাইন এক্সিকিউশন অর্ডার নীতি (Universal Job 1 Preflight Hierarchy Check Invariant)
+
+> **🔒 Universal Job 1 Hierarchy Check Invariant (বর্তমান ও ভবিষ্যৎ সকল পাইপলাইনের জন্য):**  
+> GitHub Actions-এ বর্তমানে বিদ্যমান এবং ভবিষ্যতে যত পাইপলাইন তৈরি করা হবে (PR CI/CD, Client Release, Ops Maintenance, Nightly Audit, Dependabot ইত্যাদি), সেগুলোতে এক্সিকিউশনের অর্ডার অপরিবর্তনীয়ভাবে নিচের ক্রম অনুসরণ করবে:
+> 
+> 1. **Job 1 (Stage 0): 4-Level Runner Hierarchy Preflight (`resolve_execution_tier.py`)**  
+>    - প্রতিটি পাইপলাইনের **প্রথম কাজ (Job 1)** হিসেবে সর্বদা `<10` সেকেন্ডে রানার অগ্রাধিকার যাচাই সম্পন্ন হবে (Priority 1: `[self-hosted, local-pc]` -> Priority 2: Render CI Runner -> Priority 3: GitHub Ubuntu + Render Backend -> Priority 4: GitHub Emergency)।
+> 2. **Job 2 (Stage 1): Tier 1 Fast Safety Gates (<30s)**  
+>    - সিনট্যাক্স, লিন্ট, বাউন্ডারি গার্ড ও স্যানিটেশন চেক দ্রুত সম্পন্ন হবে (`fast-gate`, `runtime-readiness`)।
+> 3. **Job 3 (Stage 2): Tier 2 Heavy Test Battery (কঠোর ক্রমানুসারে Tier 1-এর পরে)**  
+>    - হেভি টেস্ট ব্যাটারি বা বিল্ড কাজসমূহ **কঠোরভাবে Tier 1 Fast Safety Gate এবং Runtime Readiness ১০০% সবুজ হওয়ার পরে** শুরু হবে এবং Job 1 দ্বারা নির্ধারিত রানার টায়ারে এক্সিকিউট হবে।
+> 4. **Job 4 (Stage 3): 100% অটোনমাস অটো-মার্জ গেট (`auto-merge`)**  
+>    - সমস্ত গেট ১০০% সবুজ হলে অ্যাকশনস নিজে পিআর স্কোয়াশ মার্জ করবে।
+> 5. **ডিপ্লয়মেন্ট স্বাধীনতা (Deployment Independence Invariant):**  
+>    - প্রোডাকশন ডিপ্লয়মেন্ট (`deploy-render-services`, `deploy-cloudflare`, `deploy-vercel`, `Harness CD`) এই রানার হায়ারার্কি অনুসরণ করে না। ডিপ্লয়মেন্ট সবসময় সরাসরি ক্লাউড রানারে (`ubuntu-latest`) এপিআই কলের মাধ্যমে চলে।
+
+---
+
 ## ২. এন্ড-টু-এন্ড ৪-স্তরের এক্সিকিউশন ও ডিপ্লয়মেন্ট ফ্লোচার্ট
 
 ```mermaid
