@@ -21,24 +21,32 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MIGRATIONS_DIR = REPO_ROOT / "backend" / "database" / "migrations"
-ROUTES_DIR = REPO_ROOT / "backend" / "api" / "routes"
+# Canonical migration + route roots (legacy backend/ paths no longer exist,
+# which made this auditor silently pass on an empty scan).
+MIGRATIONS_DIRS = [
+    REPO_ROOT / "core" / "alembic_migrations" / "versions",
+    REPO_ROOT / "core" / "database" / "migrations",
+]
+ROUTES_DIR = REPO_ROOT / "core" / "api" / "routes"
 
 
 def audit_sql_migrations() -> list[str]:
     issues = []
-    if not MIGRATIONS_DIR.exists():
-        return issues
+    files = [f for d in MIGRATIONS_DIRS if d.exists() for f in sorted(d.glob("*")) if f.suffix in (".sql", ".py")]
+    if not files:
+        return ["SQL Schema Audit: no migration files found — auditor cannot verify RLS (fail-visible)."]
 
     created_tables = set()
     rls_enabled_tables = set()
     tables_with_policies = set()
 
-    for sql_file in sorted(MIGRATIONS_DIR.glob("*.sql")):
+    for sql_file in files:
         content = sql_file.read_text(encoding="utf-8", errors="ignore")
 
-        # Find CREATE TABLE
+        # Find CREATE TABLE / op.create_table
         for match in re.finditer(r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?([a-zA-Z0-9_]+)", content, re.IGNORECASE):
+            created_tables.add(match.group(1).lower())
+        for match in re.finditer(r"op\.create_table\(\s*['\"]([a-zA-Z0-9_]+)['\"]", content):
             created_tables.add(match.group(1).lower())
 
         # Find ALTER TABLE ... ENABLE ROW LEVEL SECURITY
