@@ -34,8 +34,9 @@ def check_issue_ref(text):
     return errs
 
 def check_boundary(files):
-    if not files: return []
-    r = run([sys.executable, "scripts/ci/boundary_sanitization_guard.py", "--files", *files])
+    existing = [f for f in files if Path(f).exists()]
+    if not existing: return []
+    r = run([sys.executable, "scripts/ci/boundary_sanitization_guard.py", "--files", *existing])
     return [l for l in (r.stdout+r.stderr).splitlines() if l.strip()] if r.returncode != 0 else []
 
 def check_lint(files):

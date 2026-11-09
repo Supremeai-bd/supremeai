@@ -1,22 +1,84 @@
 #!/usr/bin/env python3
 """Load production secrets from Infisical, then exec the service command."""
+
 from __future__ import annotations
 
+import json
 import os
 import sys
-from pathlib import Path
+import urllib.error
+import urllib.parse
+import urllib.request
 
-# Ensure repo root is on sys.path
-_repo_root = Path(__file__).resolve().parents[2]
-if str(_repo_root) not in sys.path:
-    sys.path.insert(0, str(_repo_root))
+API = "https://app.infisical.com"
 
-from core.security.infisical_loader import fetch_raw_infisical_secrets
+
+def request_json(
+    url: str,
+    *,
+    method: str = "GET",
+    payload: dict | None = None,
+    token: str | None = None,
+) -> dict:
+    body = json.dumps(payload).encode() if payload is not None else None
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(url, data=body, headers=headers, method=method)
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.load(response)
 
 
 def load_secrets() -> dict[str, str]:
-    secrets = fetch_raw_infisical_secrets()
-    if not secrets and os.environ.get("INFISICAL_PROJECT_ID") and os.environ.get("INFISICAL_ENV") == "prod":
+    project = os.environ.get("INFISICAL_PROJECT_ID")
+    environment = os.environ.get("INFISICAL_ENV", "prod")
+    path = os.environ.get("INFISICAL_SECRET_PATH", "/")
+    if not project or environment != "prod":
+        raise RuntimeError(
+            "Production Infisical bootstrap requires INFISICAL_PROJECT_ID and INFISICAL_ENV=prod"
+        )
+
+    token = os.environ.get("INFISICAL_TOKEN")
+    if not token:
+        client_id = os.environ.get("INFISICAL_CLIENT_ID")
+        client_secret = os.environ.get("INFISICAL_CLIENT_SECRET")
+        if not client_id or not client_secret:
+            raise RuntimeError("Infisical bootstrap credentials are missing")
+        token = request_json(
+            f"{API}/api/v1/auth/universal-auth/login",
+            method="POST",
+            payload={"clientId": client_id, "clientSecret": client_secret},
+        ).get("accessToken")
+    if not token:
+        raise RuntimeError("Infisical authentication returned no access token")
+
+    workspace_id = project
+    try:
+        ws_res = request_json(f"{API}/api/v1/workspace", token=token)
+        for ws in ws_res.get("workspaces", []):
+            if ws.get("id") == workspace_id or ws.get("slug") == workspace_id:
+                workspace_id = ws.get("id")
+                break
+    except (
+        urllib.error.URLError,
+        OSError,
+        TimeoutError,
+        ValueError,
+        KeyError,
+    ) as error:
+        print(f"Unable to resolve Infisical workspace: {error}", file=sys.stderr)
+
+    query = urllib.parse.urlencode(
+        {"workspaceId": workspace_id, "environment": environment, "secretPath": path}
+    )
+    response = request_json(f"{API}/api/v3/secrets/raw?{query}", token=token)
+    secrets = {}
+    for item in response.get("secrets", []):
+        key = item.get("secretKey")
+        value = item.get("secretValue")
+        if key and value:
+            secrets[key] = value
+    if not secrets:
         raise RuntimeError("Infisical returned no production secrets")
     return secrets
 

@@ -13,9 +13,9 @@ const API_ORIGIN = "https://supremeai-api-ulw0.onrender.com";
 
 // 6 Render nodes kept warm to eliminate 30-50s cold-start on free tiers
 const RENDER_SERVICES = [
-  { name: "api", url: "https://supremeai-api-ulw0.onrender.com/health" },
+  { name: "api", url: "https://supremeai-api-ulw0.onrender.com/healthz" },
   { name: "controlTower", url: "https://supremeai-mcp-tower.onrender.com/health" },
-  { name: "primary", url: "https://supremeai-primary-node-5xso.onrender.com/health" },
+  { name: "primary", url: "https://supremeai-primary-node-5xso.onrender.com/health/live" },
   { name: "worker", url: "https://supremeai-worker-node.onrender.com/health" },
   { name: "scraper", url: "https://supremeai-scraper-node.onrender.com/health" },
   { name: "brain", url: "https://supremeai-tiny-brain.onrender.com/health" },
@@ -106,13 +106,23 @@ export default {
 
     // 1. Health check endpoint
     if (url.pathname === "/cf-health") {
+      const deployedCommit = env?.CF_COMMIT_SHA || env?.GITHUB_SHA || "unknown";
+      const expectedCommit = env?.EXPECTED_COMMIT_SHA || deployedCommit;
+      const isConfigured = deployedCommit !== "unknown";
       return new Response(JSON.stringify({
         status: "healthy",
         edge: "cloudflare-dac-edge",
         origin: ORIGIN,
         api: API_ORIGIN,
-        commit: env?.CF_COMMIT_SHA || env?.GITHUB_SHA || "unknown",
+        commit: deployedCommit,
         version: env?.APP_VERSION || "1.0.0",
+        build: {
+          deployed_commit: deployedCommit,
+          expected_commit: expectedCommit,
+          build_time: env?.BUILD_TIME || new Date().toISOString(),
+          fresh: isConfigured && deployedCommit === expectedCommit,
+          reason: isConfigured ? "configured" : "not_configured"
+        },
         keepwarm: {
           cron: "*/10 * * * *",
           targets: RENDER_SERVICES.map((s) => s.name),
@@ -125,10 +135,20 @@ export default {
 
     // 1b. Release metadata endpoint (aligned with Pure 2-Repo runtime contract)
     if (url.pathname === "/release") {
+      const deployedCommit = env?.CF_COMMIT_SHA || env?.GITHUB_SHA || "unknown";
+      const expectedCommit = env?.EXPECTED_COMMIT_SHA || deployedCommit;
+      const isConfigured = deployedCommit !== "unknown";
       return new Response(JSON.stringify({
         service: "cloudflare-studio-proxy",
-        commit: env?.CF_COMMIT_SHA || env?.GITHUB_SHA || "unknown",
+        commit: deployedCommit,
         version: env?.APP_VERSION || "1.0.0",
+        build: {
+          deployed_commit: deployedCommit,
+          expected_commit: expectedCommit,
+          build_time: env?.BUILD_TIME || new Date().toISOString(),
+          fresh: isConfigured && deployedCommit === expectedCommit,
+          reason: isConfigured ? "configured" : "not_configured"
+        },
         timestamp: new Date().toISOString(),
       }), {
         headers: { "Content-Type": "application/json", ...CORS_HEADERS }

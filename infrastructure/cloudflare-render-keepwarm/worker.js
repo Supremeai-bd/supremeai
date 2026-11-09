@@ -11,8 +11,7 @@ const TARGET_SERVICES = [
   { name: "Browser Scraper Node", url: "https://supremeai-scraper-node.onrender.com/health" },
   { name: "Async Worker Node", url: "https://supremeai-worker-node.onrender.com/health" },
   { name: "API Gateway", url: "https://supremeai-api-ulw0.onrender.com/healthz" },
-  { name: "Tiny AI Brain", url: "https://supremeai-tiny-brain.onrender.com/health" },
-  { name: "CI Runner", url: "https://supremeai-ci-runner.onrender.com/" }
+  { name: "Tiny AI Brain", url: "https://supremeai-tiny-brain.onrender.com/health" }
 ];
 
 export default {
@@ -52,11 +51,23 @@ export default {
   },
 
   // HTTP Gateway for manual health check or status probing
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    const deployedCommit = env?.CF_COMMIT_SHA || env?.RELEASE_SHA || env?.COMMIT_SHA || env?.GITHUB_SHA || "unknown";
+    const expectedCommit = env?.EXPECTED_COMMIT_SHA || deployedCommit;
+    const isConfigured = deployedCommit !== "unknown";
+
     if (url.pathname === "/health" || url.pathname === "/healthz") {
       return new Response(JSON.stringify({
         status: "healthy",
-        service: "supremeai-render-keepwarm-mesh"
+        service: "supremeai-render-keepwarm-mesh",
+        commit: deployedCommit,
+        build: {
+          deployed_commit: deployedCommit,
+          expected_commit: expectedCommit,
+          fresh: isConfigured && deployedCommit === expectedCommit,
+          reason: isConfigured ? "configured" : "not_configured"
+        }
       }), {
         status: 200,
         headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
@@ -65,17 +76,24 @@ export default {
     if (url.pathname === "/release") {
       return new Response(JSON.stringify({
         service: "supremeai-render-keepwarm-mesh",
-        release: env.RELEASE_SHA || env.COMMIT_SHA || "unknown"
+        release: deployedCommit,
+        commit: deployedCommit,
+        build: {
+          deployed_commit: deployedCommit,
+          expected_commit: expectedCommit,
+          fresh: isConfigured && deployedCommit === expectedCommit,
+          reason: isConfigured ? "configured" : "not_configured"
+        }
       }), {
         status: 200,
         headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
       });
     }
-  async fetch(request, env, ctx) {
     return new Response(
       JSON.stringify({
         status: "active",
         service: "supremeai-render-keepwarm-mesh",
+        commit: deployedCommit,
         monitored_nodes: TARGET_SERVICES.length,
         schedule: "*/5 * * * *"
       }, null, 2),
