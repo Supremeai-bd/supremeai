@@ -20,7 +20,7 @@
 User / Client
     │
     ├── supremeai.live / Cloudflare Edge (0 MB RAM)
-    │       └── studio/infrastructure/cloudflare-studio-proxy/src/index.js
+    │       └── infrastructure/cloudflare-studio-proxy/src/index.js
     │             ├── Static / UI  ────────► Vercel Studio (https://supremeai-studio.vercel.app)
     │             ├── /v1/* Proxy  ────────► Render API Gateway (https://supremeai-api-ulw0.onrender.com)
     │             └── 10m Cron     ────────► /cf-keepwarm (pings all Render /health endpoints)
@@ -78,7 +78,7 @@ Separate Governed Control Plane:
 | `worker` | `supremeai-worker` | `core/services/worker/Dockerfile` → `main.py` | `8080` / `8080` (`$PORT`) | `/health` | `RENDER_WORKER_SERVICE_ID`<br>`RENDER_API_KEY_2` | **~80 MB / 512 MB** |
 | `brain` | `supremeai-brain` | `core/services/brain/Dockerfile` → `main.py` | `8080` / `8080` (`$PORT`) | `/health` | `RENDER_BRAIN_SERVICE_ID`<br>`RENDER_API_KEY_6` | **~95 MB / 512 MB** |
 | `ci-runner` | `supremeai-ci-runner` | Remote CI verification runner | Managed | `/health` | `RENDER_CI_RUNNER_SERVICE_ID`<br>`RENDER_API_KEY_PAYKARI` (`_7`) | **~110 MB / 512 MB** |
-| `cloudflare` | `cloudflare-studio-proxy` | `studio/infrastructure/cloudflare-studio-proxy/src/index.js` | Edge | `/cf-health`, `/cf-keepwarm` | `CLOUDFLARE_WORKER_URL`<br>`CLOUDFLARE_API_TOKEN` | **0 MB** *(Serverless Edge)* |
+| `cloudflare` | `cloudflare-studio-proxy` | `infrastructure/cloudflare-studio-proxy/src/index.js` | Edge | `/cf-health`, `/cf-keepwarm` | `CLOUDFLARE_WORKER_URL`<br>`CLOUDFLARE_API_TOKEN` | **0 MB** *(Serverless Edge)* |
 | `frontend` | `supremeai-studio` | `studio/package.json` (Vite / React) | `5173` / `3000` | Vercel Edge | `VERCEL_PROJECT_ID`<br>`VERCEL_TOKEN` | **0 MB** *(Static CDN)* |
 
 ---
@@ -141,7 +141,7 @@ Separate Governed Control Plane:
 | `core/services/brain/**` | `brain` | `RENDER_BRAIN_SERVICE_ID` | `RENDER_API_KEY_6` | Dedicated model/brain service |
 | `scripts/ci/**`, `scripts/ops/**` | `ci-runner` | `RENDER_CI_RUNNER_SERVICE_ID` | `RENDER_API_KEY_PAYKARI` | CI offload runner |
 | `studio/**` *(excluding cloudflare-studio-proxy)* | `frontend` | `VERCEL_PROJECT_ID` | `VERCEL_TOKEN` | Vercel Studio UI |
-| `studio/infrastructure/cloudflare-studio-proxy/**` | `cloudflare` | `CLOUDFLARE_WORKER_URL` | `CLOUDFLARE_API_TOKEN` | Edge Proxy & Keep-Warm Worker |
+| `infrastructure/cloudflare-studio-proxy/**` | `cloudflare` | `CLOUDFLARE_WORKER_URL` | `CLOUDFLARE_API_TOKEN` | Edge Proxy & Keep-Warm Worker |
 | `render.yaml`, `config/service_registry.yaml`, `plan_render_deploys.py` | **ALL Render Services** | All 7 IDs | All keys | Topology change widens verification to all services |
 
 ---
@@ -154,7 +154,7 @@ Separate Governed Control Plane:
 |---|---|---|
 | **১. Stealth Webhook URL বা Secret বদল** | ১. Infisical Vault: `STEALTH_WEBHOOK_URL`, `STEALTH_WEBHOOK_SECRET`<br>২. Render Dashboard (`supremeai-api` ও `supremeai-browser`)<br>৩. (Optional direct UI relay): `VITE_STEALTH_WEBHOOK_URL` | `python scripts/ops/wiring_atlas.py --impact STEALTH_WEBHOOK_URL`<br>`pytest gateway/tests/test_stealth_webhook.py browser/tests/test_relay_entrypoint.py` |
 | **২. নতুন Gemini Cookie আপডেট করা** | ১. Infisical Vault-এ `SUPREMEAI_GEMINI_COOKIES` (JSON বা gzip+base64) আপডেট করুন।<br>২. `supremeai-browser`-এ `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`, `INFISICAL_PROJECT_ID` সেট আছে কি না নিশ্চিত করুন। | `curl https://supremeai-scraper-node.onrender.com/health` ➔ `"cookies_loaded": true` |
-| **৩. কোনো Render Service-এর URL বা পোর্ট বদল** | ১. `config/service_registry.yaml`<br>২. `studio/infrastructure/cloudflare-studio-proxy/src/index.js` (`RENDER_SERVICES`)<br>৩. `render.yaml` ও সার্ভিসের নিজস্ব `Dockerfile`<br>৪. Infisical Vault-এ সংশ্লিষ্ট `RENDER_*_URL` | `python scripts/ops/wiring_atlas.py --check`<br>`pytest tests/security/test_code_review_remediation_guards.py` |
+| **৩. কোনো Render Service-এর URL বা পোর্ট বদল** | ১. `config/service_registry.yaml`<br>২. `infrastructure/cloudflare-studio-proxy/src/index.js` (`RENDER_SERVICES`)<br>৩. `render.yaml` ও সার্ভিসের নিজস্ব `Dockerfile`<br>৪. Infisical Vault-এ সংশ্লিষ্ট `RENDER_*_URL` | `python scripts/ops/wiring_atlas.py --check`<br>`pytest tests/security/test_code_review_remediation_guards.py` |
 | **৪. নতুন Render Service যোগ বা Service ID বদল** | ১. `config/service_registry.yaml`<br>২. `scripts/ci/plan_render_deploys.py` (`SERVICE_RULES`)<br>৩. `core/config/service_topology.yaml`<br>৪. `.github/workflows/unified-pipeline.yml` (`deploy-and-verify`)<br>৫. GitHub Actions Variables-এ `RENDER_<NAME>_SERVICE_ID` | `python scripts/ops/wiring_atlas.py --check` |
 | **৫. নতুন Frontend ডোমেইন বা CORS Origin যোগ** | ১. Infisical / Env: `CORS_ORIGINS`, `BROWSER_CORS_ORIGINS`, `ECOSYSTEM_CORS_ORIGINS`<br>২. `gateway/service/app.py`, `browser/server.py`, `core/security/origin_validator.py` | `pytest tests/security/test_code_review_remediation_guards.py` |
 | **৬. নতুন LLM Provider API Key যোগ** | ১. Infisical Vault-এ `<PROVIDER>_API_KEY` (বা `_1.._N`)<br>২. `gateway/service/providers/adapters.py` ও `gateway/service/pool.py`<br>৩. `scripts/ci/canonical_name_registry.json` | `python scripts/ops/wiring_atlas.py --impact <PROVIDER>_API_KEY` |

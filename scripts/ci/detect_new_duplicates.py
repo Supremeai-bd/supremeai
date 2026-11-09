@@ -47,6 +47,7 @@ DEFAULT_IGNORES = (
     "**/*.min.css,"
     "**/generated/**,"
     "**/.github/workflows/**,"
+    # studio/** is third-party Open WebUI foundation (#557); vendored clones are excluded
     "studio/**"
 )
 
