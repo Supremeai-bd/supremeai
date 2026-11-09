@@ -38,7 +38,26 @@ export default defineConfig({
 	},
 	build: {
 		target: 'es2022',
-		sourcemap: true
+		sourcemap: process.env.BUILD_SOURCEMAP === 'true',
+		rollupOptions: {
+			output: {
+				manualChunks(id) {
+					if (!id.includes('node_modules')) return undefined;
+					if (id.includes('three') || id.includes('@pixiv/three-vrm')) return 'vendor-3d';
+					if (id.includes('@huggingface/transformers') || id.includes('@mediapipe'))
+						return 'vendor-ai-vision';
+					if (id.includes('mermaid') || id.includes('vega') || id.includes('chart.js'))
+						return 'vendor-viz';
+					if (id.includes('pdfjs-dist') || id.includes('xlsx') || id.includes('mammoth'))
+						return 'vendor-docs';
+					if (id.includes('@codemirror') || id.includes('codemirror') || id.includes('shiki'))
+						return 'vendor-code-editor';
+					if (id.includes('@tiptap') || id.includes('prosemirror')) return 'vendor-rich-editor';
+					if (id.includes('@xterm') || id.includes('@novnc')) return 'vendor-terminal';
+					return undefined;
+				}
+			}
+		}
 	},
 	optimizeDeps: {
 		esbuildOptions: { target: 'es2022' }

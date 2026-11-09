@@ -22,6 +22,7 @@
 	} from './UsageChart.svelte';
 	import AnalyticsModelModal from './AnalyticsModelModal.svelte';
 	import SessionExplorer from './SessionExplorer.svelte';
+	import FrontendPulse from './FrontendPulse.svelte';
 	import ProfilePreview from '$lib/components/channel/Messages/Message/ProfilePreview.svelte';
 	import { WEBUI_API_BASE_URL } from '$lib/constants';
 	import { formatNumber } from '$lib/utils';
@@ -111,7 +112,7 @@
 		{ key: 'total_tokens', label: $i18n.t('Total') }
 	] as const;
 	let selectedLeaderboard = 'models';
-	let analyticsView: 'overview' | 'sessions' = 'overview';
+	let analyticsView: 'overview' | 'sessions' | 'pulse' = 'overview';
 	let dateRange: { start: number | null; end: number | null };
 	$: {
 		selectedPeriod;
@@ -408,9 +409,18 @@
 			on:click={() => (analyticsView = 'sessions')}>{$i18n.t('Sessions')}</button
 		>
 	{/if}
+	<button
+		type="button"
+		class="analytics-tab"
+		class:tab-selected={analyticsView === 'pulse'}
+		aria-pressed={analyticsView === 'pulse'}
+		on:click={() => (analyticsView = 'pulse')}>{$i18n.t('Frontend Pulse')}</button
+	>
 </div>
 
-{#if analyticsView === 'sessions'}
+{#if analyticsView === 'pulse'}
+	<FrontendPulse />
+{:else if analyticsView === 'sessions'}
 	{#if validRange && $config?.features?.enable_admin_chat_access}
 		<SessionExplorer scope={sessionScope} {modelNames} />
 	{:else if !validRange}<p class="py-10 text-center text-xs text-gray-500">

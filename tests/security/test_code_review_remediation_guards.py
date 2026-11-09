@@ -254,6 +254,104 @@ def test_mcp_tower_production_readiness_guards() -> None:
     trigger_py = (REPO_ROOT / "scripts" / "ci" / "render_trigger_deploy.py").read_text(encoding="utf-8")
     assert "_sync_bootstrap_env_vars" in trigger_py
     assert "INFISICAL_CLIENT_ID" in trigger_py
+    assert "REQUIRE_EXPECTED_SHA" in trigger_py
+    assert "_allow_ci_fallback" in trigger_py
+
+
+def test_render_trigger_deploy_strict_ci_sha_and_fallback_guard(monkeypatch, tmp_path) -> None:
+    """Verify strict CI mode (REQUIRE_EXPECTED_SHA=1) fails closed with exit 2 and
+    writes fallback_allowed=true when service ID, API key, or commit indexing is missing,
+    while terminal build_failed returns exit 1 without fallback_allowed."""
+    import importlib
+
+    import scripts.ci.render_trigger_deploy as rtd
+
+    gh_out = tmp_path / "github_output.txt"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(gh_out))
+    monkeypatch.setenv("REQUIRE_EXPECTED_SHA", "1")
+    monkeypatch.setenv("RENDER_WAIT", "1")
+    for k in rtd.CANDIDATE_KEY_ENVS:
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.delenv("RENDER_SERVICE_ID", raising=False)
+    monkeypatch.delenv("RENDER_SVC_ID", raising=False)
+    importlib.reload(rtd)
+
+    # 1. Missing service ID -> exit 2 + fallback_allowed=true
+    assert rtd.main() == 2
+    assert "fallback_allowed=true" in gh_out.read_text(encoding="utf-8")
+
+    # 2. Missing commit SHA -> exit 2 + fallback_allowed=true
+    gh_out.write_text("", encoding="utf-8")
+    monkeypatch.setenv("RENDER_SERVICE_ID", "srv-test")
+    monkeypatch.setenv("RENDER_API_KEY", "rnd_test")
+    monkeypatch.delenv("PR_HEAD_SHA", raising=False)
+    monkeypatch.delenv("EXPECTED_SHA", raising=False)
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    monkeypatch.setattr(rtd, "_resolve_owning_client", lambda svc_id, keys: ("RENDER_API_KEY", object()))
+    monkeypatch.setattr(rtd, "_sync_bootstrap_env_vars", lambda client, svc_id: None)
+    assert rtd.main() == 2
+    assert "fallback_allowed=true" in gh_out.read_text(encoding="utf-8")
+
+    # 3. Unindexed commit SHA (404 "does not have a commit") -> refuses branch-HEAD fallback, exit 2
+    gh_out.write_text("", encoding="utf-8")
+    monkeypatch.setenv("PR_HEAD_SHA", "deadbeef1234")
+
+    class _UnindexedCommitClient:
+        def trigger_deploy(self, svc_id: str, commit_id: str | None = None):
+            raise rtd.RenderApiError(
+                "Service does not have a commit deadbeef1234",
+                status=404,
+                body="Service does not have a commit deadbeef1234",
+            )
+
+    monkeypatch.setattr(
+        rtd, "_resolve_owning_client", lambda svc_id, keys: ("RENDER_API_KEY", _UnindexedCommitClient())
+    )
+    monkeypatch.setattr(rtd, "_sync_bootstrap_env_vars", lambda client, svc_id: None)
+    assert rtd.main() == 2
+    assert "fallback_allowed=true" in gh_out.read_text(encoding="utf-8")
+
+    # 4. Real build failure -> exit 1 and NO fallback_allowed
+    gh_out.write_text("", encoding="utf-8")
+
+    class _BuildFailedClient:
+        def get_deploy(self, deploy_id: str, svc_id: str):
+            return {"id": deploy_id, "status": "build_failed"}
+
+    assert (
+        rtd.wait_for_terminal_state(_BuildFailedClient(), "srv-test", {"id": "dep-123"}, require_deploy_id=True) == 1
+    )
+    assert gh_out.read_text(encoding="utf-8") == ""
+
+
+def test_studio_vite_chunk_splitting_and_frontend_pulse_guards() -> None:
+    """Verify studio Vite build chunk isolation, conditional sourcemaps, reduced-motion CSS,
+    and live FrontendPulse dashboard integration."""
+    vite_cfg = (REPO_ROOT / "studio" / "vite.config.ts").read_text(encoding="utf-8")
+    assert "process.env.BUILD_SOURCEMAP === 'true'" in vite_cfg
+    assert "manualChunks(id)" in vite_cfg
+    assert "'vendor-3d'" in vite_cfg
+    assert "'vendor-code-editor'" in vite_cfg
+    assert "'vendor-viz'" in vite_cfg
+
+    app_css = (REPO_ROOT / "studio" / "src" / "app.css").read_text(encoding="utf-8")
+    assert "prefers-reduced-motion: reduce" in app_css
+    assert ".pulse-score-ring" in app_css
+    assert ".pulse-budget-track" in app_css
+
+    pulse_svelte = (
+        REPO_ROOT / "studio" / "src" / "lib" / "components" / "admin" / "Analytics" / "FrontendPulse.svelte"
+    ).read_text(encoding="utf-8")
+    assert "PerformanceNavigationTiming" in pulse_svelte
+    assert "PerformanceResourceTiming" in pulse_svelte
+
+    dashboard_svelte = (
+        REPO_ROOT / "studio" / "src" / "lib" / "components" / "admin" / "Analytics" / "Dashboard.svelte"
+    ).read_text(encoding="utf-8")
+    assert "import FrontendPulse from './FrontendPulse.svelte';" in dashboard_svelte
+    assert "analyticsView === 'pulse'" in dashboard_svelte
+
+
 
 
 
