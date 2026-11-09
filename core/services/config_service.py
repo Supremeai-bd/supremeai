@@ -2,9 +2,12 @@ import asyncio
 import json
 import weakref
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
+try:
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
+except ImportError:
+    select = AsyncSession = Session = None  # type: ignore
 
 from core.monitoring.logging_config import logger
 from models.system_config import SystemConfig
