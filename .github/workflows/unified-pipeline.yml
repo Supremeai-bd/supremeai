@@ -55,8 +55,8 @@ jobs:
       is_local_online: ${{ steps.runner-check.outputs.is_local_online }}
       render_quota_exhausted: ${{ steps.runner-check.outputs.render_quota_exhausted }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Check 4-Level Execution Hierarchy
@@ -67,19 +67,21 @@ jobs:
         run: python scripts/ci/resolve_execution_tier.py
 
   # =========================================================================
-  # STAGE 1: TIER 1 - MINIMAL FAST GATES (Only on Pull Request & Scheduled Audits)
-  # Ultra-fast (~20-30s): Lint, boundary sanitization, readiness contract
+  # STAGE 1: TIER 1 - MINIMAL FAST GATES (Cloud fallback only)
+  # Zero Cloud Waste (SSOT): when local PC is online, fast-gate + readiness +
+  # heavy battery all run on the local self-hosted runner (0 cloud minutes).
+  # These cloud jobs run ONLY when local is offline/unavailable.
   # =========================================================================
   fast-gate:
-    name: "Tier 1: Fast Safety Gate (<30s)"
+    name: "Tier 1: Fast Safety Gate (<30s, cloud fallback)"
     needs: [resolve-execution-tier]
-    if: github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -98,17 +100,24 @@ jobs:
           python scripts/ops/wiring_atlas.py --check
 
   runtime-readiness:
-    name: "Tier 1: Runtime Readiness & Boundaries (<30s)"
+    name: "Tier 1: Runtime Readiness & Boundaries (<30s, cloud fallback)"
     needs: [resolve-execution-tier]
-    if: github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+
+      - name: Install readiness dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
 
       - name: Verify readiness contract
         run: |
@@ -145,28 +154,71 @@ jobs:
   # Priority 1: Local PC (0 cloud mins) -> Priority 2: Render CI Runner -> Priority 3: GitHub+Render Backend -> Priority 4: GitHub Emergency
   # =========================================================================
   render-heavy-gate:
-    name: "Tier 2: Heavy Test Battery (Local Self-Hosted)"
+    name: "Tier 1+2: Full Verification Battery (Local Self-Hosted, 0 cloud mins)"
     if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, local-pc]
-    timeout-minutes: 15
-    needs: [resolve-execution-tier, fast-gate, runtime-readiness]
+    timeout-minutes: 20
+    needs: [resolve-execution-tier]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
-      - name: Run Full Unit & Component Guard Battery
+      - name: Install verification dependencies
         shell: powershell
         run: |
-          Write-Host "Running heavy test battery on local self-hosted runner..."
+          python -m pip install --upgrade pip
+          pip install ruff pytest pytest-asyncio pydantic fastapi httpx pyyaml
+
+      - name: Tier 1 — Fast fatal error & syntax lint
+        shell: powershell
+        run: ruff check core/ scripts/ci/ --select E9,F63,F7,F82 --exclude core/tests/
+
+      - name: Tier 1 — Targeted unit guard & Wiring Atlas
+        shell: powershell
+        run: |
           pytest -q tests/unit/test_telemetry_event_bus_guard.py
           python scripts/ops/wiring_atlas.py --check
 
-      - name: Fast Compile Integrity
+      - name: Tier 1 — Runtime Readiness & Boundaries
         shell: powershell
         run: |
+          if (!(Test-Path scripts/ci/readiness_contract.py)) { throw "readiness_contract.py missing" }
+          python scripts/ci/readiness_contract.py --self-test
+          python scripts/ci/readiness_contract.py --check-required-names
+          python scripts/ci/production_release_gate.py --self-test
+          python scripts/ci/production_release_gate.py --check
+          python scripts/ci/timeout_policy_guard.py --check
+          python scripts/ci/silent_failure_guard.py --check
+          python scripts/ci/public_surface_guard.py --manifest scripts/ci/public_surface_manifest.txt
+
+      - name: Tier 1 — AI Semantic PR Verification Gate (High-Risk Enforcement)
+        if: github.event_name == 'pull_request'
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/ci/ai_semantic_pr_verifier.py --pr "${{ github.event.pull_request.number }}"
+
+      - name: Tier 1 — Anti-Duplication Regression Guard
+        shell: powershell
+        run: |
+          git fetch origin ${{ github.base_ref || 'main' }}:refs/remotes/origin/${{ github.base_ref || 'main' }} --depth=50
+          python scripts/ci/detect_new_duplicates.py --base-ref "origin/${{ github.base_ref || 'main' }}" --max-new 0
+
+      - name: Tier 2 — Heavy Test Battery & Compile Integrity
+        shell: powershell
+        run: |
+          Write-Host "Running full verification battery on local self-hosted runner (0 cloud mins)..."
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py
+          python scripts/ops/wiring_atlas.py --check
           python -m compileall -q core/ scripts/
 
       - name: Publish CI Attestation to MCP Tower
         if: always()
+        shell: powershell
         env:
           MCP_TOWER_ATTESTATION_URL: ${{ vars.MCP_TOWER_ATTESTATION_URL }}
           MCP_TOWER_AUTH_TOKEN: ${{ secrets.MCP_TOWER_AUTH_TOKEN }}
@@ -187,7 +239,7 @@ jobs:
     timeout-minutes: 20
     needs: [resolve-execution-tier, fast-gate, runtime-readiness]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Trigger Render CI Runner Service
         env:
@@ -219,9 +271,9 @@ jobs:
     timeout-minutes: 15
     needs: [resolve-execution-tier, fast-gate, runtime-readiness]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -260,9 +312,9 @@ jobs:
     timeout-minutes: 15
     needs: [resolve-execution-tier, fast-gate, runtime-readiness]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -308,7 +360,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Verify all tier gates and squash merge PR
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
@@ -323,19 +375,25 @@ jobs:
           echo "=== Auto-Merge Pre-Landing Gate Evaluation ==="
           echo "Tier 1 Fast Gate: $FAST_RES"
           echo "Tier 1 Runtime Readiness: $READY_RES"
-          echo "Tier 2 Heavy Local Runner: $HEAVY_LOCAL"
+          echo "Tier 1+2 Heavy Local Runner: $HEAVY_LOCAL"
           echo "Tier 2 Heavy Render CI Runner: $HEAVY_RENDER_CI"
           echo "Tier 2 Heavy Priority 3 (GitHub+Render Backend): $HEAVY_PRIORITY3"
           echo "Tier 2 Heavy Priority 4 (GitHub Emergency): $HEAVY_PRIORITY4"
 
-          if [ "$FAST_RES" != "success" ]; then
-            echo "::error::Tier 1 Fast Safety Gate did not succeed (status: $FAST_RES). Auto-merge blocked."
-            exit 1
-          fi
-
-          if [ "$READY_RES" != "success" ]; then
-            echo "::error::Tier 1 Runtime Readiness Gate did not succeed (status: $READY_RES). Auto-merge blocked."
-            exit 1
+          # Local path (Zero Cloud Waste): render-heavy-gate runs full Tier 1+2 on self-hosted.
+          # Cloud fast-gate/runtime-readiness are intentionally skipped in that case.
+          if [ "$HEAVY_LOCAL" = "success" ]; then
+            echo "Local full-battery verification succeeded (Tier 1+2, 0 cloud mins)."
+          else
+            # Cloud fallback path: require Tier 1 cloud gates.
+            if [ "$FAST_RES" != "success" ]; then
+              echo "::error::Tier 1 Fast Safety Gate did not succeed (status: $FAST_RES). Auto-merge blocked."
+              exit 1
+            fi
+            if [ "$READY_RES" != "success" ]; then
+              echo "::error::Tier 1 Runtime Readiness Gate did not succeed (status: $READY_RES). Auto-merge blocked."
+              exit 1
+            fi
           fi
 
           # At least one heavy tier must have succeeded (the one that was activated)
@@ -347,9 +405,7 @@ jobs:
             fi
           done
 
-          # Also accept "skipped" for tiers that were not activated (they were not needed)
           if [ "$HEAVY_OK" = "false" ]; then
-            # Check if all non-skipped results are skipped (meaning no tier ran - shouldn't happen)
             ACTIVE_COUNT=0
             for res in "$HEAVY_LOCAL" "$HEAVY_RENDER_CI" "$HEAVY_PRIORITY3" "$HEAVY_PRIORITY4"; do
               if [ "$res" != "skipped" ]; then
@@ -360,7 +416,6 @@ jobs:
               echo "::error::No heavy test tier was activated. Auto-merge blocked."
               exit 1
             fi
-            # If there was an active tier but none succeeded
             echo "::error::Tier 2 Heavy Test Battery did not succeed (local: $HEAVY_LOCAL, render-ci: $HEAVY_RENDER_CI, p3: $HEAVY_PRIORITY3, p4: $HEAVY_PRIORITY4). Auto-merge blocked."
             exit 1
           fi
@@ -385,7 +440,7 @@ jobs:
       unregistered: ${{ steps.plan.outputs.unregistered }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -458,7 +513,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Trigger and poll only the changed Render service
         env:
@@ -516,7 +571,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Smoke-check configured authoritative targets only
         env:
@@ -533,54 +588,92 @@ jobs:
       - run: echo "No deployable Render service changed; skipping Render build and deploy."
 
   deploy-cloudflare:
-    name: "Deploy Cloudflare Edge Mesh"
+    name: "Deploy Cloudflare Edge Mesh (path-filtered)"
     needs: deploy-and-verify
     if: |
       always() &&
       (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true)) &&
       (
-        github.event_name == 'push' ||
         contains(inputs.target_service, 'all') ||
-        contains(inputs.target_service, 'cloudflare')
+        contains(inputs.target_service, 'cloudflare') ||
+        contains(inputs.target_service, 'studio')
       )
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           lfs: true
+          fetch-depth: 0
+
+      - name: Detect Cloudflare-relevant changes
+        id: cf_changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHOULD_DEPLOY="false"
+          # Manual force or explicit cloudflare target always deploys
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && { [ "${{ inputs.force_deploy }}" = "true" ] || echo "${{ inputs.target_service || '' }}" | grep -qiE '(^|,)(all|cloudflare|studio)(,|$)'; }; then
+            SHOULD_DEPLOY="true"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.sha }}"
+            # Handle missing/zero base (new branch or force push edge)
+            if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+              CHANGED="$(git show --name-only --pretty='' "$HEAD" 2>/dev/null || true)"
+            else
+              CHANGED="$(git diff --name-only "$BASE" "$HEAD" 2>/dev/null || true)"
+            fi
+            if echo "$CHANGED" | grep -qE '^(studio/|infrastructure/cloudflare)'; then
+              SHOULD_DEPLOY="true"
+            fi
+          fi
+          echo "should_deploy=$SHOULD_DEPLOY" >> "$GITHUB_OUTPUT"
+          echo "Cloudflare deploy needed: $SHOULD_DEPLOY"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        if: steps.cf_changes.outputs.should_deploy == 'true'
+        uses: actions/setup-node@v5
         with:
           node-version: 22
 
       - name: Deploy Keep-Warm Worker
+        if: steps.cf_changes.outputs.should_deploy == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            cd infrastructure/cloudflare-render-keepwarm
-            npx wrangler deploy || echo "Wrangler keepwarm deploy skipped or non-blocking"
+            if [ -d infrastructure/cloudflare-render-keepwarm ]; then
+              cd infrastructure/cloudflare-render-keepwarm
+              npx wrangler deploy || echo "Wrangler keepwarm deploy skipped or non-blocking"
+            else
+              echo "keepwarm dir not found; skipping"
+            fi
           else
             echo "Cloudflare credentials not configured in secrets; skipping keepwarm worker deploy."
           fi
 
       - name: Deploy Studio Edge Proxy
+        if: steps.cf_changes.outputs.should_deploy == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            cd infrastructure/cloudflare-studio-proxy
-            npx wrangler deploy || echo "Wrangler proxy deploy skipped or non-blocking"
+            if [ -d infrastructure/cloudflare-studio-proxy ]; then
+              cd infrastructure/cloudflare-studio-proxy
+              npx wrangler deploy || echo "Wrangler proxy deploy skipped or non-blocking"
+            else
+              echo "studio proxy dir not found; skipping"
+            fi
           else
             echo "Cloudflare credentials not configured in secrets; skipping proxy deploy."
           fi
 
       - name: Build & Deploy Studio to Cloudflare Pages
+        if: steps.cf_changes.outputs.should_deploy == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -594,6 +687,10 @@ jobs:
           else
             echo "Cloudflare credentials not configured in secrets; skipping Pages deploy."
           fi
+
+      - name: Cloudflare deploy skipped (no relevant changes)
+        if: steps.cf_changes.outputs.should_deploy != 'true'
+        run: echo "No studio/ or infrastructure/cloudflare* changes detected; skipping Cloudflare deploy (0 cloud build mins)."
 
   deploy-vercel:
     name: "Deploy Vercel Frontend Hook"

@@ -481,7 +481,7 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
 
     app.include_router(task_router)
 
-    from api.routes.studio_compat import router as studio_compat_router
+    from core.api.routes.studio_compat import router as studio_compat_router
 
     app.include_router(studio_compat_router, prefix="/api/v1")
     app.include_router(studio_compat_router, prefix="/api")
