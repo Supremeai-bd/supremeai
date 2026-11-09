@@ -101,7 +101,7 @@ jobs:
   package-extension:
     name: "Package & Release Extension (.vsix)"
     needs: [detect-changes, resolve-execution-tier]
-    if: (needs.detect-changes.outputs.extension == 'true' || github.event.inputs.release_extension == 'true') && needs.resolve-execution-tier.outputs.is_local_online != 'true'
+    if: (needs.detect-changes.outputs.extension == 'true' || github.event.inputs.release_extension == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
@@ -338,7 +338,7 @@ jobs:
   build-mobile:
     name: "Build & Release Mobile Client (Android .apk)"
     needs: [detect-changes, resolve-execution-tier]
-    if: (needs.detect-changes.outputs.mobile == 'true' || github.event.inputs.release_mobile == 'true') && needs.resolve-execution-tier.outputs.is_local_online != 'true'
+    if: (needs.detect-changes.outputs.mobile == 'true' || github.event.inputs.release_mobile == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     defaults:

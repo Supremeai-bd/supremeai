@@ -149,6 +149,19 @@ def check_semgrep(files: list[str]) -> list[str]:
         pass
     return errs
 
+def check_runner_hierarchy(files: list[str]) -> list[str]:
+    has_wf = not files or any(f.replace("\\", "/").startswith(".github/workflows/") for f in files)
+    if not has_wf:
+        return []
+    repo_root = Path(__file__).resolve().parents[2]
+    guard_script = repo_root / "scripts" / "ci" / "runner_hierarchy_guard.py"
+    if not guard_script.is_file():
+        return []
+    r = run([sys.executable, str(guard_script), "--strict"])
+    if r.returncode != 0:
+        return [f"runner_hierarchy_guard failed: {line}" for line in (r.stdout + r.stderr).splitlines() if line.strip()]
+    return []
+
 def self_test():
     fails = 0
     if check_branch("feat/foo-bar"): fails+=1; print("FAIL branch-ok")
@@ -201,6 +214,7 @@ def main():
         errs += check_stale_base()
     errs += check_boundary(args.files)
     errs += check_lint(args.files)
+    errs += check_runner_hierarchy(args.files)
     errs += check_ast_regressions(args.files)
     if args.files:
         errs += check_semgrep(args.files)

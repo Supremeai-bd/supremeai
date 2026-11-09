@@ -44,7 +44,7 @@ def save_audit_timestamp(ts: float | None = None) -> None:
         )
 
 
-def is_local_runner_online() -> bool:
+def is_local_runner_online(timeout: float = 4.0) -> bool:
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     repo = os.environ.get("GITHUB_REPOSITORY", "Supremeai-bd/supremeai")
     if not token:
@@ -61,7 +61,7 @@ def is_local_runner_online() -> bool:
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode())
         for runner in data.get("runners", []):
             labels = [lbl.get("name") for lbl in runner.get("labels", [])]
