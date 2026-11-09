@@ -74,6 +74,8 @@ ALL_ROUTERS = [
         "is_critical": False,
     },
     {"path": "api.routes.auth", "prefix": "/api/v1", "is_admin": False, "is_critical": False},
+    {"path": "api.routes.studio_compat", "prefix": "/api/v1", "is_admin": False, "is_critical": False},
+    {"path": "api.routes.studio_compat", "prefix": "/api", "is_admin": False, "is_critical": False},
     {"path": "api.routes.onboarding", "prefix": "/api/v1", "is_admin": False, "is_critical": False},
     {
         "path": "api.routes.localization",

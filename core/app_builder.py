@@ -481,6 +481,10 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
 
     app.include_router(task_router)
 
+    from api.routers import register_all_routers
+
+    register_all_routers(app)
+
     # বাংলা মন্তব্ব্য: মেট্রিক্স এন্ডপয়েন্ট যোগ করা
     if settings.MONITORING_DETAILED:
         from fastapi.responses import PlainTextResponse

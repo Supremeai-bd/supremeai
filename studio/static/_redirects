@@ -1,14 +1,7 @@
-# SupremeAI Studio — Cloudflare Pages Edge Proxy Routing
-# 1. Config endpoint: serve local static sovereign JSON
+# SupremeAI Studio — Cloudflare Pages Static Route Definitions
+# 1. Sovereign config endpoint: serve local static sovereign JSON
 /api/config       /api/config.json                                                200
 /api/config/      /api/config.json                                                200
 
-# 2. OpenAI-compatible API routes to SupremeAI API Gateway (Render)
-/v1/*             https://supremeai-api-ulw0.onrender.com/v1/:splat               200
-
-# 3. Core API routes to SupremeAI Primary Node (Render)
-/api/*            https://supremeai-primary-node-5xso.onrender.com/api/:splat     200
-/oauth/*          https://supremeai-primary-node-5xso.onrender.com/oauth/:splat   200
-
-# 4. SPA Fallback
+# 2. SPA Fallback
 /*                /index.html                                                     200

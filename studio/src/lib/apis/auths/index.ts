@@ -94,29 +94,27 @@ export const getSessionUser = async (token: string) => {
 		credentials: 'include'
 	})
 		.then(async (res) => {
-			if (!res.ok) throw await res.json();
-			return res.json();
+			if (!res.ok) {
+				const contentType = res.headers.get('content-type') || '';
+				if (contentType.includes('application/json')) {
+					throw await res.json();
+				}
+				throw { detail: `HTTP ${res.status}: ${res.statusText}` };
+			}
+			const contentType = res.headers.get('content-type') || '';
+			if (contentType.includes('application/json')) {
+				return res.json();
+			}
+			throw { detail: 'Invalid response from server' };
 		})
 		.catch((err) => {
 			console.error(err);
-			error = err.detail || err;
+			error = err?.detail || err;
 			return null;
 		});
 
 	if (error) {
-		// SupremeAI Resilient Standalone Session Fallback
-		console.warn('Backend /auths/ unavailable; activating SupremeAI Operator session fallback');
-		return {
-			id: 'supremeai-operator',
-			email: 'operator@supremeai.com',
-			name: 'SupremeAI Operator',
-			role: 'admin',
-			profile_image_url: '/supremeai-mark.svg',
-			permissions: {
-				chat: { deletion: true, edit: true },
-				workspace: { models: true, knowledge: true, prompts: true, tools: true }
-			}
-		};
+		throw error;
 	}
 
 	return res;
@@ -336,31 +334,28 @@ export const userSignIn = async (email: string, password: string) => {
 		})
 	})
 		.then(async (res) => {
-			if (!res.ok) throw await res.json();
-			return res.json();
+			if (!res.ok) {
+				const contentType = res.headers.get('content-type') || '';
+				if (contentType.includes('application/json')) {
+					throw await res.json();
+				}
+				throw { detail: `HTTP ${res.status}: ${res.statusText}` };
+			}
+			const contentType = res.headers.get('content-type') || '';
+			if (contentType.includes('application/json')) {
+				return res.json();
+			}
+			throw { detail: 'Invalid response from server' };
 		})
 		.catch((err) => {
 			console.error(err);
 
-			error = err.detail || err;
+			error = err?.detail || err;
 			return null;
 		});
 
 	if (error) {
-		// SupremeAI Resilient Standalone Signin Fallback
-		console.warn('Backend /auths/signin unavailable; activating SupremeAI Operator login fallback');
-		return {
-			token: 'supremeai-session-token',
-			id: 'supremeai-operator',
-			email: email || 'operator@supremeai.com',
-			name: 'SupremeAI Operator',
-			role: 'admin',
-			profile_image_url: '/supremeai-mark.svg',
-			permissions: {
-				chat: { deletion: true, edit: true },
-				workspace: { models: true, knowledge: true, prompts: true, tools: true }
-			}
-		};
+		throw error;
 	}
 
 	return res;

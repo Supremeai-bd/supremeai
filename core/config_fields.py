@@ -417,6 +417,12 @@ class SettingsFieldsMixin:
             "/api/v1/auth/token",
             "/api/v1/auth/login",
             "/api/v1/auth/register",
+            "/api/v1/auths/signin",
+            "/api/v1/auths/signup",
+            "/api/models",
+            "/api/v1/models",
+            "/api/version",
+            "/api/v1/version",
             # Audit fix (this session): /auth/refresh authenticates via the
             # refresh-token JWT carried in the JSON body (type=refresh enforced,
             # fail-closed inside the endpoint). It must NOT be gated by the

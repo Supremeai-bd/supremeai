@@ -284,8 +284,18 @@ export const getUserSettings = async (token: string, raw = false) => {
 		}
 	})
 		.then(async (res) => {
-			if (!res.ok) throw await res.json();
-			return res.json();
+			if (!res.ok) {
+				const contentType = res.headers.get('content-type') || '';
+				if (contentType.includes('application/json')) {
+					throw await res.json();
+				}
+				throw { detail: `HTTP ${res.status}: ${res.statusText}` };
+			}
+			const contentType = res.headers.get('content-type') || '';
+			if (contentType.includes('application/json')) {
+				return res.json();
+			}
+			return {};
 		})
 		.catch((err) => {
 			console.error(err);
