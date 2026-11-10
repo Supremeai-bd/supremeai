@@ -10,7 +10,10 @@ Provides:
 
 from __future__ import annotations
 
-import jwt
+try:
+    import jwt
+except ImportError:
+    jwt = None  # type: ignore
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
