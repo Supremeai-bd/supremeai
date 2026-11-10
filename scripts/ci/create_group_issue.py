@@ -77,7 +77,7 @@ PR খোলার পূর্বে নিচের ৩টি স্তর স
 1. **Reflection Check (Grep):**
    `git grep -n "{search_symbol}"` (অপ্রয়োজনীয় রেফারেন্স বা ডেড কোড পরীক্ষা)
 2. **Boot Smoke Test:**
-   `python -c "import backend.main; print('Boot smoke passed')"`
+   `python -c "import core.main; print('Boot smoke passed')"`
 3. **Pytest Suite:**
    `{test_cmd}`
 

@@ -281,7 +281,7 @@ jobs:
         id: mutation_testing
         continue-on-error: true
         shell: powershell
-        run: python scripts/testing/mutation_testing.py --target backend/core/health_check.py --threshold 0
+        run: python scripts/testing/mutation_testing.py --target core/health_check.py --threshold 0 # wiring audit 2026-11-11: backend/ → core/
 
       - name: Performance Benchmark
         id: perf_benchmark
@@ -384,7 +384,7 @@ jobs:
         id: mutation_testing
         # Advisory (non-blocking): experimental mutation testing — publish visible failure summary, not green.
         continue-on-error: true
-        run: python scripts/testing/mutation_testing.py --target backend/core/health_check.py --threshold 0
+        run: python scripts/testing/mutation_testing.py --target core/health_check.py --threshold 0 # wiring audit 2026-11-11: backend/ → core/
 
       - name: Performance Benchmark
         id: perf_benchmark
@@ -2178,7 +2178,7 @@ jobs:
         uses: zaproxy/action-api-scan@472970930c47c2e1a7394c6b62c83b5f8e6b479a
         with:
           target: '${{ env.ZAP_TARGET }}'
-          spec: backend/API-swagger.yaml
+          spec: core/API-swagger.yaml # wiring audit 2026-11-11: backend/ → core/ (backend/ does not exist)
           fail_action: true # ⚠️ blocking gate
 
       - name: Upload ZAP reports (always)

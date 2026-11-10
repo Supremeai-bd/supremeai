@@ -106,6 +106,12 @@
 		const timer = setInterval(updateClock, 30000);
 		const unsub = artifactContents.subscribe((items) => {
 			artifactsList = items || [];
+			// Fix (wiring audit 2026-11-11): clamp the selected index when the
+			// artifact list shrinks — parity with SideBrowserPreview; without
+			// this a stale index renders an undefined artifact in srcdoc.
+			if (artifactsList.length > 0 && selectedArtifactIdx >= artifactsList.length) {
+				selectedArtifactIdx = artifactsList.length - 1;
+			}
 		});
 		return () => {
 			clearInterval(timer);

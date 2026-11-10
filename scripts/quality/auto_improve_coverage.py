@@ -18,7 +18,7 @@ sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "backend"))
 
 # বাংলা মন্তব্য:devops অটो কভারেজ ইমপ্রুভার ইম্পোর্ট করা হলো
-from backend.tools.devops.auto_coverage_improver import AutoCoverageImprover
+from core.tools.devops.auto_coverage_improver import AutoCoverageImprover
 
 
 def extract_source_directories(coverage_report_path):

@@ -36,7 +36,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 import backend.tools.security_tools.multi_account_rotator as rotator_mod
-from backend.tools.security_tools.multi_account_rotator import (
+from core.tools.security_tools.multi_account_rotator import (
     Account,
     MultiAccountRotator,
     Provider,

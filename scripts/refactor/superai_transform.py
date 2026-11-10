@@ -518,7 +518,7 @@ class SuperAITransformer:
 
         # Check 3: Import test
         success, _, _ = self.run_command(
-            "python -c \"from backend.core.cache import QueryCache; print('Cache OK')\""
+            "python -c \"from core.cache import QueryCache; print('Cache OK')\""
         )
         if success:
             self.log("✅ Cache module imports correctly", "SUCCESS")
@@ -526,7 +526,7 @@ class SuperAITransformer:
 
         # Check 4: Config validation
         success, _, _ = self.run_command(
-            "python -c \"from backend.core.config_validation import ConfigValidationMixin; print('Config OK')\""
+            "python -c \"from core.config_validation import ConfigValidationMixin; print('Config OK')\""
         )
         if success:
             self.log("✅ Config validation imports correctly", "SUCCESS")

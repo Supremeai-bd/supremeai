@@ -1,5 +1,5 @@
 # tests/test_adversarial_security.py
-from backend.agents.skill_ingestor import SkillIngestor
+from core.agents.skill_ingestor import SkillIngestor
 
 
 def test_static_ast_safety_catches_dangerous_calls():

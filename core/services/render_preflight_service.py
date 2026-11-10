@@ -16,8 +16,8 @@ from core.clients.render_api import render_get_json
 
 logger = logging.getLogger(__name__)
 
-from backend.core.contracts.redaction import redact as redact_secrets
-from backend.core.contracts.render_preflight_store import RenderPreflightStore
+from core.contracts.redaction import redact as redact_secrets
+from core.contracts.render_preflight_store import RenderPreflightStore
 
 
 def calculate_deploy_usage_minutes(deploys: list[dict[str, Any]]) -> float:

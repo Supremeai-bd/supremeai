@@ -22,7 +22,7 @@ from typing import Any
 import pytest
 
 import backend.services.render_preflight_service as rps
-from backend.core.contracts.render_preflight_store import RenderPreflightStore
+from core.contracts.render_preflight_store import RenderPreflightStore
 
 # ---------------------------------------------------------------------------
 # Helpers / fakes
@@ -608,7 +608,7 @@ def test_scheduled_rechecks_corrupt_recheck_does_not_abort_batch(service, store,
 
 
 def test_service_default_store_uses_registered_default(tmp_path, monkeypatch):
-    from backend.core.contracts import render_preflight_store as store_mod
+    from core.contracts import render_preflight_store as store_mod
 
     monkeypatch.setattr(store_mod, "DEFAULT_DB_PATH", tmp_path / "default.db")
     svc = rps.RenderPreflightService()

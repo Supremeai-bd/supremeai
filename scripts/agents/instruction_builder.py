@@ -39,7 +39,7 @@ except ImportError:  # package context (scripts.agents.… হিসেবে im
 # সাথে সাংগত্যপূর্ণ জেনেরিক লেবেল (প্রতিটি tier-এর বিশদ রোল-ভেদে contract["verification"]-এ)
 VALIDATION_TIERS: tuple[str, ...] = (
     "tier-1: reflection check (git grep dead-reference sweep)",
-    "tier-2: boot smoke (python -c \"import backend.main\")",
+    "tier-2: boot smoke (python -c \"import core.main\")",
     "tier-3: pytest suite green",
 )
 

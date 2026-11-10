@@ -13,14 +13,14 @@ class TestBehavioralScorer:
 
     def test_scorer_initialization(self):
         """Test scorer initializes with default weights."""
-        from backend.agents.churn_prophet import BehavioralScorer
+        from core.agents.churn_prophet import BehavioralScorer
 
         scorer = BehavioralScorer()
         assert scorer is not None
 
     def test_scorer_custom_weights(self):
         """Test scorer with custom weights."""
-        from backend.agents.churn_prophet import BehavioralScorer
+        from core.agents.churn_prophet import BehavioralScorer
 
         custom_weights = {"login_frequency": 0.5, "session_duration": 0.3, "feature_usage": 0.2}
         scorer = BehavioralScorer(weights=custom_weights)
@@ -29,7 +29,7 @@ class TestBehavioralScorer:
 
     def test_calculate_score(self):
         """Test score calculation."""
-        from backend.agents.churn_prophet import BehavioralScorer
+        from core.agents.churn_prophet import BehavioralScorer
 
         scorer = BehavioralScorer()
 
@@ -50,7 +50,7 @@ class TestUserSegment:
 
     def test_segment_regular_user(self):
         """Test regular user segmentation."""
-        from backend.agents.churn_prophet import BehavioralScorer
+        from core.agents.churn_prophet import BehavioralScorer
 
         scorer = BehavioralScorer()
 
@@ -70,7 +70,7 @@ class TestChurnRiskScore:
 
     def test_churn_risk_score_creation(self):
         """Test creating a churn risk score."""
-        from backend.agents.churn_prophet import ChurnRiskScore, RiskLevel, UserSegment
+        from core.agents.churn_prophet import ChurnRiskScore, RiskLevel, UserSegment
 
         score = ChurnRiskScore(
             user_id="test-user",
@@ -92,7 +92,7 @@ class TestRetentionStrategy:
 
     def test_strategy_initialization(self):
         """Test strategy initializes."""
-        from backend.agents.churn_prophet import RetentionStrategy, RiskLevel
+        from core.agents.churn_prophet import RetentionStrategy, RiskLevel
 
         strategy = RetentionStrategy(
             user_id="test-user",
@@ -122,7 +122,7 @@ class TestChurnProphet:
 
     def test_churn_prophet_initialization(self, mock_llm_router):
         """Test ChurnProphet initializes correctly."""
-        from backend.agents.churn_prophet import ChurnProphet
+        from core.agents.churn_prophet import ChurnProphet
 
         prophet = ChurnProphet(db=MagicMock())
         assert prophet is not None
@@ -130,7 +130,7 @@ class TestChurnProphet:
     @pytest.mark.asyncio
     async def test_analyze_user(self, mock_llm_router):
         """Test user analysis."""
-        from backend.agents.churn_prophet import ChurnProphet
+        from core.agents.churn_prophet import ChurnProphet
 
         mock_db_instance = AsyncMock()
         mock_collection = AsyncMock()
@@ -156,7 +156,7 @@ class TestChurnProphet:
     @pytest.mark.asyncio
     async def test_batch_analyze(self, mock_llm_router):
         """Test batch user analysis."""
-        from backend.agents.churn_prophet import ChurnProphet
+        from core.agents.churn_prophet import ChurnProphet
 
         mock_db_instance = AsyncMock()
         mock_cache = AsyncMock()
@@ -181,7 +181,7 @@ class TestChurnProphetIntegration:
 
     def test_get_churn_prophet_factory(self):
         """Test the get_churn_prophet factory function."""
-        from backend.agents.churn_prophet import get_churn_prophet
+        from core.agents.churn_prophet import get_churn_prophet
 
         # The factory function should exist
         assert callable(get_churn_prophet)

@@ -40,8 +40,10 @@ WORKDIR /app
 # to store git revision in build
 RUN apk add --no-cache git
 
-COPY package.json package-lock.json ./
-RUN npm ci --force
+# Fix (wiring audit 2026-11-11): studio has no package-lock.json (npm-install repo,
+# no lockfile committed), so `COPY package-lock.json` + `npm ci` always failed.
+COPY package.json ./
+RUN npm install --no-audit --no-fund --force
 
 COPY . .
 ENV APP_BUILD_HASH=${BUILD_HASH}

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services.integration_discovery import (
+from core.services.integration_discovery import (
     SSRFBlockedError,
     _assert_public_host,
     _is_blocked_ip,

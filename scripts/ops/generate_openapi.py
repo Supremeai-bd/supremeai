@@ -37,7 +37,7 @@ os.environ.setdefault("SUPABASE_KEY", "mock-key")
 try:
     from main import app
 except ImportError as e:
-    print(f"Failed to import FastAPI app from backend.main: {e}")
+    print(f"Failed to import FastAPI app from core.main: {e}")
     sys.exit(1)
 
 def generate_openapi():

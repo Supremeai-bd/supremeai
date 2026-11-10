@@ -31,8 +31,8 @@ import pytest
 from cryptography.fernet import Fernet, InvalidToken
 
 import backend.tools.social.teldrive_storage as tds
-from backend.tools.social.teldrive_storage import TelDriveCrypto, TelDriveStorage
-from backend.tools.social.telegram_bot import TelegramBotHandler
+from core.tools.social.teldrive_storage import TelDriveCrypto, TelDriveStorage
+from core.tools.social.telegram_bot import TelegramBotHandler
 
 
 def patch_get_db_session(monkeypatch, factory):

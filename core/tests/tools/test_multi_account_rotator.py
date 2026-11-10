@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from backend.tools.security_tools.multi_account_rotator import (
+from core.tools.security_tools.multi_account_rotator import (
     ALLOWED_PROVIDERS,
     Account,
     MultiAccountRotator,
@@ -94,7 +94,7 @@ def test_account_unavailable_when_quota_exhausted():
 
 
 def test_account_unavailable_while_rate_limited():
-    from backend.tools.security_tools.multi_account_rotator import utc_now
+    from core.tools.security_tools.multi_account_rotator import utc_now
 
     acc = make_account(reset_time=utc_now() + timedelta(minutes=5))
     assert acc.is_available() is False
@@ -138,7 +138,7 @@ def test_record_request_counts_success_and_failure():
 
 
 def test_record_rate_limit_sets_reset_window():
-    from backend.tools.security_tools.multi_account_rotator import utc_now
+    from core.tools.security_tools.multi_account_rotator import utc_now
 
     acc = make_account()
     before = utc_now()

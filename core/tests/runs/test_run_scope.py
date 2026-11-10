@@ -128,7 +128,7 @@ async def test_run_fabric_failure_never_blocks_host() -> None:
 
 
 async def test_observe_remediation_run_uses_valid_runtype() -> None:
-    from backend.ecosystem.federation_bridge import observe_remediation_run
+    from core.ecosystem.federation_bridge import observe_remediation_run
 
     class FakeRunService:
         def __init__(self):

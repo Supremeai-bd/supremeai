@@ -6,9 +6,11 @@
 # যতক্ষণ না risk-tiered label যাচাই হয়।
 version: 2
 updates:
-  # ─── Python (backend) ───
+  # ─── Python (core) ───
+  # Fix (wiring audit 2026-11-11): "/backend" no longer exists — the Python
+  # manifest lives at core/pyproject.toml, so pip updates were silently dead.
   - package-ecosystem: "pip"
-    directory: "/backend"
+    directory: "/core"
     schedule:
       interval: "weekly"
       day: "monday"

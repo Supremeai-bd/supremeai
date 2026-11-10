@@ -349,7 +349,7 @@ async def get_render_account_status_tool(account_role: str | None = None) -> str
     """
     রিটার্ন করে নির্দিষ্ট বা সমস্ত Render অ্যাকাউন্ট রোলের বর্তমান স্ট্যাটাস ও কোটা লিমিট।
     """
-    from backend.services.render_preflight_service import RenderPreflightService
+    from core.services.render_preflight_service import RenderPreflightService
 
     svc = RenderPreflightService()
     result = svc.get_account_status(account_role)
@@ -375,7 +375,7 @@ async def refresh_render_account_status_tool(account_role: str, force: bool = Fa
             {"error": "Admin authorization required for force refresh"}, ensure_ascii=False
         )
 
-    from backend.services.render_preflight_service import RenderPreflightService
+    from core.services.render_preflight_service import RenderPreflightService
 
     svc = RenderPreflightService()
     api_key = _get_render_api_key()
@@ -404,7 +404,7 @@ async def get_render_deploy_preflight_tool() -> str:
     """
     সমস্ত কনফিগার করা Render রোলের সামারি, ব্লকিং কারণ ও ডিপ্লয় অনুমতি রিটার্ন করে।
     """
-    from backend.services.render_preflight_service import RenderPreflightService
+    from core.services.render_preflight_service import RenderPreflightService
 
     svc = RenderPreflightService()
     result = svc.get_deploy_preflight()

@@ -34,7 +34,7 @@ try:
 except ImportError:  # pragma: no cover - depends on environment
     pd = None
 
-from backend.tools.localization.bengali_ocr_converter import (
+from core.tools.localization.bengali_ocr_converter import (
     batch_convert_images,
     convert_image_to_excel,
     extract_text_from_image,

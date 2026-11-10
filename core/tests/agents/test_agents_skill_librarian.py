@@ -16,14 +16,14 @@ class TestSkillLibrarian:
 
     def test_librarian_initialization(self):
         """Test SkillLibrarian initializes correctly."""
-        from backend.agents.skill_librarian import SkillLibrarian
+        from core.agents.skill_librarian import SkillLibrarian
 
         librarian = SkillLibrarian()
         assert librarian is not None
 
     def test_list_quarantine_queue(self):
         """Test listing quarantine queue."""
-        from backend.agents.skill_librarian import SkillLibrarian
+        from core.agents.skill_librarian import SkillLibrarian
 
         librarian = SkillLibrarian()
         result = librarian.list_quarantine_queue()
@@ -32,7 +32,7 @@ class TestSkillLibrarian:
 
     def test_process_approval_approve(self):
         """Test processing approval action."""
-        from backend.agents.skill_librarian import SkillLibrarian
+        from core.agents.skill_librarian import SkillLibrarian
 
         librarian = SkillLibrarian()
 
@@ -45,7 +45,7 @@ class TestSkillLibrarian:
 
     def test_process_approval_reject(self):
         """Test processing rejection action."""
-        from backend.agents.skill_librarian import SkillLibrarian
+        from core.agents.skill_librarian import SkillLibrarian
 
         librarian = SkillLibrarian()
 
@@ -55,7 +55,7 @@ class TestSkillLibrarian:
 
     def test_process_approval_with_patch(self):
         """Test processing approval with AI patch."""
-        from backend.agents.skill_librarian import SkillLibrarian
+        from core.agents.skill_librarian import SkillLibrarian
 
         librarian = SkillLibrarian()
 
@@ -84,14 +84,14 @@ class TestSkillGarbageCollector:
 
     def test_gc_initialization(self):
         """Test GC initializes correctly."""
-        from backend.agents.skill_gc import SkillGarbageCollector
+        from core.agents.skill_gc import SkillGarbageCollector
 
         gc = SkillGarbageCollector()
         assert gc is not None
 
     def test_run_daily_cleanup(self):
         """Test running daily cleanup."""
-        from backend.agents.skill_gc import SkillGarbageCollector
+        from core.agents.skill_gc import SkillGarbageCollector
 
         gc = SkillGarbageCollector()
 
@@ -105,14 +105,14 @@ class TestMorphicAdapter:
 
     def test_morphic_adapter_initialization(self):
         """Test MorphicAdapter initializes."""
-        from backend.agents.morphic_adapter import MorphicAdapter
+        from core.agents.morphic_adapter import MorphicAdapter
 
         adapter = MorphicAdapter()
         assert adapter is not None
 
     def test_get_system_prompt(self):
         """Test getting system prompt for morphic."""
-        from backend.agents.morphic_adapter import MorphicAdapter
+        from core.agents.morphic_adapter import MorphicAdapter
 
         adapter = MorphicAdapter()
         prompt = adapter._get_morphic_system_prompt()
@@ -122,7 +122,7 @@ class TestMorphicAdapter:
 
     def test_adapt_code_to_contract(self):
         """Test code adaptation to contract."""
-        from backend.agents.morphic_adapter import MorphicAdapter
+        from core.agents.morphic_adapter import MorphicAdapter
 
         adapter = MorphicAdapter()
 
