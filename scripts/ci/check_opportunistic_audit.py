@@ -44,29 +44,72 @@ def save_audit_timestamp(ts: float | None = None) -> None:
         )
 
 
-def is_local_runner_online() -> bool:
-    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+def _get_candidate_tokens() -> list[str]:
+    tokens: list[str] = []
+    # Collect candidate tokens from environment (PATs take precedence over default GITHUB_TOKEN)
+    env_keys = [
+        "OPEN_SYNC_PAT",
+        "SELF_HEAL_PAT",
+        "SYNC_PAT",
+        "OPEN_DISPATCH_TOKEN",
+        "GH_TOKEN",
+        "GITHUB_TOKEN",
+    ]
+    for key in env_keys:
+        val = (os.environ.get(key) or "").strip()
+        if val and val not in tokens:
+            tokens.append(val)
+
+    # Local development fallback via GitHub CLI if available
+    if not tokens:
+        try:
+            import subprocess
+            out = subprocess.check_output(["gh", "auth", "token"], text=True, stderr=subprocess.DEVNULL).strip()
+            if out:
+                tokens.append(out)
+        except Exception:
+            pass
+
+    return tokens
+
+
+def is_local_runner_online(timeout: float = 4.0) -> bool:
+    tokens = _get_candidate_tokens()
     repo = os.environ.get("GITHUB_REPOSITORY", "Supremeai-bd/supremeai")
-    if not token:
+    if not tokens:
         print("DEBUG: no token available", file=sys.stderr)
         return False
 
     url = f"https://api.github.com/repos/{repo}/actions/runners"
-    req = urllib.request.Request(
-        url,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "SupremeAI-Audit-Dispatcher",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode())
-        for runner in data.get("runners", []):
-            labels = [lbl.get("name") for lbl in runner.get("labels", [])]
-            if "local-pc" in labels and runner.get("status") == "online":
-                return True
-    except Exception as exc:
-        print(f"::warning::Failed to query GitHub runners API: {exc}", file=sys.stderr)
+
+    for token in tokens:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "SupremeAI-Audit-Dispatcher",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode())
+            for runner in data.get("runners", []):
+                labels = [lbl.get("name") for lbl in runner.get("labels", [])]
+                name = runner.get("name", "")
+                is_online = runner.get("status") == "online"
+                if is_online and ("local-pc" in labels or "self-hosted" in labels or "supremeai-local-pc" in name):
+                    return True
+            # A valid token may be able to query the repository without seeing
+            # the runner we need. Continue so later fallback tokens can still
+            # provide the required visibility.
+            continue
+        except urllib.error.HTTPError as http_err:
+            # 401/403: token lacks runner read permissions; try next candidate token
+            if http_err.code in (401, 403):
+                continue
+            print(f"::warning::GitHub runners API HTTP {http_err.code}: {http_err.reason}", file=sys.stderr)
+        except Exception as exc:
+            print(f"::warning::Failed to query GitHub runners API: {exc}", file=sys.stderr)
+
     return False
