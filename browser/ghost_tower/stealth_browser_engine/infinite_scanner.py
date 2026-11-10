@@ -2,8 +2,10 @@
 """Backward-compatible proxy pointing to canonical browser.runtime.infinite_scanner."""
 
 from browser.runtime.infinite_scanner import (  # noqa: F401
-    InfiniteScanner,
-    ScanResult,
+    SCROLL_AND_EXPAND_JS,
+    FeedExpander,
+    ScrollPlan,
+    ScrollStep,
 )
 
-__all__ = ["InfiniteScanner", "ScanResult"]
+__all__ = ["SCROLL_AND_EXPAND_JS", "FeedExpander", "ScrollPlan", "ScrollStep"]
