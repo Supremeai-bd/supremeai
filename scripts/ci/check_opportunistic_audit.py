@@ -100,8 +100,10 @@ def is_local_runner_online(timeout: float = 4.0) -> bool:
                 is_online = runner.get("status") == "online"
                 if is_online and ("local-pc" in labels or "self-hosted" in labels or "supremeai-local-pc" in name):
                     return True
-            # Successfully queried API but runner was not found or offline
-            return False
+            # A valid token may be able to query the repository without seeing
+            # the runner we need. Continue so later fallback tokens can still
+            # provide the required visibility.
+            continue
         except urllib.error.HTTPError as http_err:
             # 401/403: token lacks runner read permissions; try next candidate token
             if http_err.code in (401, 403):
