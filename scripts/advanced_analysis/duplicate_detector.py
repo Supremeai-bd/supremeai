@@ -146,35 +146,20 @@ def should_exclude(path: Path) -> bool:
 
 
 def collect_files() -> list[Path]:
-    """Collect all Python and TypeScript files to scan across monorepo domains."""
+    """Collect all Python and TypeScript files to scan."""
     files: list[Path] = []
-    py_roots = [
-        REPO_ROOT / "core",
-        REPO_ROOT / "gateway",
-        REPO_ROOT / "browser",
-        REPO_ROOT / "scripts",
-        REPO_ROOT / "skills",
-        REPO_ROOT / "backend",
-    ]
-    ts_roots = [
-        REPO_ROOT / "studio" / "src",
-        REPO_ROOT / "vscode",
-        REPO_ROOT / "infrastructure" / "mcp-control-plane" / "src",
-        REPO_ROOT / "frontend" / "src",
-    ]
 
-    for root_dir in py_roots:
-        if root_dir.exists():
-            for f in root_dir.rglob(PY_PATTERN):
+    if BACKEND_DIR.exists():
+        for pattern in [PY_PATTERN]:
+            for f in BACKEND_DIR.rglob(pattern):
                 if not should_exclude(f):
                     files.append(f)
 
-    for root_dir in ts_roots:
-        if root_dir.exists():
-            for pattern in [TS_PATTERN, TSX_PATTERN]:
-                for f in root_dir.rglob(pattern):
-                    if not should_exclude(f):
-                        files.append(f)
+    if FRONTEND_DIR.exists():
+        for pattern in [TS_PATTERN, TSX_PATTERN]:
+            for f in FRONTEND_DIR.rglob(pattern):
+                if not should_exclude(f):
+                    files.append(f)
 
     return files
 

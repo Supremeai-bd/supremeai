@@ -37,8 +37,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SEARCH_ROOTS = ("core", "gateway", "browser", "scripts", "skills", "backend")
-EXCLUDED_DIRS = {"__pycache__", "_archive", ".venv", "node_modules", ".git", "target", "dist", "build"}
+BACKEND = REPO_ROOT / "backend"
+EXCLUDED_DIRS = {"__pycache__", "_archive", ".venv", "node_modules"}
 TWIN_THRESHOLD = 0.85
 
 # Docstring/comment markers that identify a deprecated re-export shim/bridge.
@@ -56,29 +56,23 @@ _IMPORT_RE = re.compile(
 
 def iter_py_files() -> list[Path]:
     files: list[Path] = []
-    for root_name in SEARCH_ROOTS:
-        root_dir = REPO_ROOT / root_name
-        if not root_dir.is_dir():
+    for path in BACKEND.rglob("*.py"):
+        if any(part in EXCLUDED_DIRS for part in path.relative_to(BACKEND).parts):
             continue
-        for path in root_dir.rglob("*.py"):
-            if any(part in EXCLUDED_DIRS for part in path.parts):
-                continue
-            files.append(path)
+        files.append(path)
     return files
 
 
 def module_variants(path: Path) -> list[str]:
-    """Textual variants that may reference this module (dual import convention)."""
-    try:
-        rel = path.relative_to(REPO_ROOT).with_suffix("")
-        parts = rel.parts
-        dotted = ".".join(parts)
-        variants = [dotted]
-        if len(parts) > 1:
-            variants.append(".".join(parts[1:]))
-        return variants
-    except ValueError:
-        return [path.stem]
+    """Textual variants that may reference this module (dual import convention).
+
+    Backend runs with cwd=backend/, so production code imports both
+    ``backend.pkg.mod`` and ``pkg.mod``.
+    """
+    rel = path.relative_to(BACKEND).with_suffix("")
+    parts = rel.parts
+    dotted = ".".join(parts)
+    return [f"backend.{dotted}", dotted]
 
 
 def file_lines(path: Path) -> int:
