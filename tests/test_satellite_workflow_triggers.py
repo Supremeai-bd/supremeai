@@ -47,10 +47,9 @@ MIRROR_DOMAINS = ("browser", "core", "gateway", "studio", "vscode")
 MAIN_TRIGGER_LANES = frozenset(
     {
         "browser/.github/workflows/ci.yml",
-        "core/.github/workflows/ci.yml",
         "gateway/.github/workflows/ci.yml",
-        "studio/.github/workflows/pipeline.yml",
-        "studio/.github/workflows/upstream-sync.yml",
+        "studio/.github/workflows/backend.yaml",
+        "studio/.github/workflows/frontend.yaml",
         "vscode/.github/workflows/release.yml",
     }
 )
