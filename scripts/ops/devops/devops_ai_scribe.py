@@ -513,7 +513,7 @@ from chromadb.utils import embedding_functions
 
 # বাংলা মন্তব্য: ক্লিন ইমপোর্ট স্ট্রাকচার যাতে sys.path.insert হ্যাক এড়ানো যায়।
 try:
-    from backend.core.config import settings
+    from core.config import settings
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent / "backend"))
     from core.config import settings

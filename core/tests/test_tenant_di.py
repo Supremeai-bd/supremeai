@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 
-from backend.api.dependencies import get_tenant_db
+from core.api.dependencies import get_tenant_db
 
 
 def test_di():

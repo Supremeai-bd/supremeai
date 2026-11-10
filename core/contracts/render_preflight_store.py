@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from backend.core.contracts.redaction import redact as redact_secrets
+from core.contracts.redaction import redact as redact_secrets
 
 DEFAULT_DB_PATH = Path("data/render_preflight.db")
 

@@ -71,8 +71,8 @@ try:
     from core.llm.llm_gateway import get_llm_gateway
 except ImportError:
     try:
-        from backend.core.config import settings  # noqa: F401
-        from backend.core.llm.llm_gateway import get_llm_gateway
+        from core.config import settings  # noqa: F401
+        from core.llm.llm_gateway import get_llm_gateway
     except ImportError:
         # Running without backend installed — define stub for scripts that need it
         settings = None  # type: ignore[assignment]

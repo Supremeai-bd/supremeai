@@ -43,12 +43,12 @@ from loguru import logger
 # বাংলা মন্তব্য: sys.path হ্যাক এড়াতে ক্লিন ইমপোর্ট স্ট্রাকচার
 try:
     # বাংলা মন্তব্য (#2469 F401 sweep): unused `settings` import বাদ — বাকি দুটি ব্যবহৃত।
-    from backend.core.llm.llm_gateway import get_llm_gateway
-    from backend.database.tenant_db import TenantAwareFirestore
+    from core.llm.llm_gateway import get_llm_gateway
+    from core.database.tenant_db import TenantAwareFirestore
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-    from backend.core.llm.llm_gateway import get_llm_gateway
-    from backend.database.tenant_db import TenantAwareFirestore
+    from core.llm.llm_gateway import get_llm_gateway
+    from core.database.tenant_db import TenantAwareFirestore
 
 
 # ── Configuration ──────────────────────────────────────────────────────────

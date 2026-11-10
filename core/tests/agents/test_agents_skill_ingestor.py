@@ -13,7 +13,7 @@ class TestSkillIngestorStaticSafety:
         """Test that safe simple code passes validation."""
         # Import with mocked sandbox
         with patch("backend.agents.skill_ingestor.DockerSandbox"):
-            from backend.agents.skill_ingestor import SkillIngestor
+            from core.agents.skill_ingestor import SkillIngestor
 
             ingestor = SkillIngestor()
             safe_code = "def execute(payload): return {'result': payload}"
@@ -25,7 +25,7 @@ class TestSkillIngestorStaticSafety:
     def test_dangerous_subprocess_import(self):
         """Test that subprocess import is blocked."""
         with patch("backend.agents.skill_ingestor.DockerSandbox"):
-            from backend.agents.skill_ingestor import SkillIngestor
+            from core.agents.skill_ingestor import SkillIngestor
 
             ingestor = SkillIngestor()
             dangerous_code = "import subprocess; subprocess.Popen('echo malicious_payload_blocked')"
@@ -37,7 +37,7 @@ class TestSkillIngestorStaticSafety:
     def test_dangerous_os_system(self):
         """Test that os.system calls are blocked."""
         with patch("backend.agents.skill_ingestor.DockerSandbox"):
-            from backend.agents.skill_ingestor import SkillIngestor
+            from core.agents.skill_ingestor import SkillIngestor
 
             ingestor = SkillIngestor()
             dangerous_code = "import os; os.system('echo malicious_payload_blocked')"
@@ -48,7 +48,7 @@ class TestSkillIngestorStaticSafety:
     def test_dangerous_eval_call(self):
         """Test that eval calls are blocked."""
         with patch("backend.agents.skill_ingestor.DockerSandbox"):
-            from backend.agents.skill_ingestor import SkillIngestor
+            from core.agents.skill_ingestor import SkillIngestor
 
             ingestor = SkillIngestor()
             dangerous_code = 'result = eval(\'__import__("os").system("ls")\')'
@@ -59,7 +59,7 @@ class TestSkillIngestorStaticSafety:
     def test_dangerous_exec_call(self):
         """Test that exec calls are blocked."""
         with patch("backend.agents.skill_ingestor.DockerSandbox"):
-            from backend.agents.skill_ingestor import SkillIngestor
+            from core.agents.skill_ingestor import SkillIngestor
 
             ingestor = SkillIngestor()
             dangerous_code = "exec('import os; os.system(\"whoami\")')"
@@ -70,7 +70,7 @@ class TestSkillIngestorStaticSafety:
     def test_open_import_from_blocked(self):
         """Test that 'from os import' is blocked."""
         with patch("backend.agents.skill_ingestor.DockerSandbox"):
-            from backend.agents.skill_ingestor import SkillIngestor
+            from core.agents.skill_ingestor import SkillIngestor
 
             ingestor = SkillIngestor()
             dangerous_code = "from os import system; system('ls')"
@@ -81,7 +81,7 @@ class TestSkillIngestorStaticSafety:
     def test_safe_imports_allowed(self):
         """Test that safe imports are allowed."""
         with patch("backend.agents.skill_ingestor.DockerSandbox"):
-            from backend.agents.skill_ingestor import SkillIngestor
+            from core.agents.skill_ingestor import SkillIngestor
 
             ingestor = SkillIngestor()
             safe_code = "import json; import math; import re\ndef execute(payload): return json.dumps({'result': math.sqrt(16)})"
@@ -96,7 +96,7 @@ class TestSkillIngestorPathTraversal:
     def test_path_traversal_with_dotdot(self):
         """Test that path traversal attempts are blocked."""
         with patch("backend.agents.skill_ingestor.DockerSandbox"):
-            from backend.agents.skill_ingestor import SkillIngestor
+            from core.agents.skill_ingestor import SkillIngestor
 
             ingestor = SkillIngestor()
             # Skill IDs with path traversal should be blocked
@@ -131,10 +131,10 @@ class TestSkillIngestorIngestMCP:
         import io
         import zipfile as zipfile_mod
 
-        from backend.schemas.skill_index import SkillIndexManager
+        from core.schemas.skill_index import SkillIndexManager
 
         with patch("backend.agents.skill_ingestor.DockerSandbox"):
-            from backend.agents.skill_ingestor import SkillIngestor
+            from core.agents.skill_ingestor import SkillIngestor
 
             # Build a real in-memory zip so the checksum / zip-slip pipeline runs.
             buf = io.BytesIO()
@@ -193,14 +193,14 @@ class TestSkillIngestorHarvestedScanner:
     )
     def test_harvested_patterns_blocked(self, code):
         with patch("backend.agents.skill_ingestor.DockerSandbox"):
-            from backend.agents.skill_ingestor import SkillIngestor
+            from core.agents.skill_ingestor import SkillIngestor
 
             is_safe, _ = SkillIngestor().static_ast_safety_check(code)
             assert is_safe is False
 
     def test_safe_code_still_passes(self):
         with patch("backend.agents.skill_ingestor.DockerSandbox"):
-            from backend.agents.skill_ingestor import SkillIngestor
+            from core.agents.skill_ingestor import SkillIngestor
 
             code = "import json\ndef execute(p): return json.dumps(p)"
             assert SkillIngestor().static_ast_safety_check(code) == (True, "AST verified.")

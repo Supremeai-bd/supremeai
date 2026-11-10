@@ -1,14 +1,14 @@
 # SupremeAI — Single Door Monorepo SSOT
 
 > **The Single Door Monorepo SSOT for the SupremeAI Federation.**  
-> 🇧🇩 **বাংলা সংস্করণ:** [`docs/README.bn.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/README.bn.md)
+> <!-- Fix (wiring audit 2026-11-11): docs/README.bn.md does not exist — dead link removed. -->
 
 This repository (`Supremeai-bd/supremeai`) is the **Single Door Monorepo SSOT** containing Core, Gateway, Browser, VSCode, Studio, Infrastructure, and the MCP Control Plane:
 
 > [!IMPORTANT]
 > ### 🤖 AI Agent & MCP Contributor Quickstart (Where & How to Work)
 > If you are an external AI (Claude, Cursor, Antigravity, etc.) connecting via MCP Tower or GitHub:
-> 1. **Single Door for Work:** All tasks, bug reports, and PRs live exclusively in **`Supremeai-bd/supremeai`**. Satellite repositories maintain a strict 0 Issues / 0 PRs policy ([`FEDERATION_CHARTER.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/FEDERATION_CHARTER.md)).
+> 1. **Single Door for Work:** All tasks, bug reports, and PRs live exclusively in **`Supremeai-bd/supremeai`**. Satellite repositories maintain a strict 0 Issues / 0 PRs policy. <!-- Fix (wiring audit 2026-11-11): docs/FEDERATION_CHARTER.md does not exist — dead link removed. -->
 > 2. **Where to Write Code:** Edit the corresponding domain folders inside this repository (`studio/`, `command/`, `core/`, `vscode/`, `gateway/`, `browser/`, `infrastructure/`, etc.). Do NOT attempt to push to retired satellite repos.
 > 3. **Autonomous Auto-Landing & Zero Cloud Waste:** When your PR passes all Tier 1 fast safety gates and Tier 2 verification, the in-workflow auto-landing gate merges your changes automatically ([`docs/PR_TO_PRODUCTION_LIFECYCLE.md`](./docs/PR_TO_PRODUCTION_LIFECYCLE.md)).
 > 4. **Universal Runner Hierarchy:** Verification executes on the 4-level runner tier (local-pc runner priority 1 -> Render CI priority 2 -> GitHub Cloud priority 3/4).
@@ -169,7 +169,7 @@ flowchart TD
 | `AGENTS.md` | Agent entrypoint: autonomous work-submission loop, submission pathways, bridge lane |
 | `.github/workflows/unified-pipeline.yml` | Unified validation & cron engine (#155): guards → Python 3.10–3.13 matrix + Tower TS verification + secret scan, plus the agent-loop dispatch job (`scripts/agents/continuous_agent_loop.py --pick-next`) — triggerable by manual `workflow_dispatch`; the */30 schedule is currently disabled per admin directive (AGENTS.md §0 8-step cycle; draft-only scheduled runs with explicit §10 no-op on empty board, PR submission opt-in via manual dispatch; event-driven intake via the MCP Tower, see `infrastructure/mcp-control-plane/docs/BRIDGE_INTAKE.md`) |
 | `.github/workflows/unified-pipeline.yml (auto-merge job)` | Unified autonomous landing & bridge dispatch (#155): auto-squash-merge on full gate success, then the same run streams the landed patch reference into the private bridge queue |
-| `.github/ISSUE_TEMPLATE/bridge-work-order.yml` | Work-order template for bridge submissions (task id, patch branch, test evidence) |
+| `.github/ISSUE_TEMPLATE/agent_task.yml` | Agent task template (task group dropdown; <!-- wiring audit 2026-11-11: replaced dead bridge-work-order.yml reference -->) |
 | `LICENSE` | MIT |
 
 ## The one stable contract
@@ -258,5 +258,5 @@ and a field-tested troubleshooting table. The governance contracts live in
 
 - **Universal Lowest-Runtime CI/CD & Deployment SSOT:** [`docs/PR_TO_PRODUCTION_LIFECYCLE.md`](./docs/PR_TO_PRODUCTION_LIFECYCLE.md) — The single SSOT for zero-cloud-quota continuous integration via GitHub Self-Hosted local compute, 24h+ opportunistic nightly maintenance, Harness CD intelligent verification & auto-rollback, and 100% autonomous zero-touch auto-merge.
 - **Agent Operating System:** [`docs/AGENT_OPERATING_SYSTEM.md`](./docs/AGENT_OPERATING_SYSTEM.md) — The continuous autonomous verification ladder and self-healing engine.
-- **Federation Architecture:** [`docs/FEDERATION_CHARTER.md`](./docs/FEDERATION_CHARTER.md) — The pure 2-repository SSOT topology.
+- **Federation Architecture:** AGENTS.md + [`ECOSYSTEM_MAP.md`](./ECOSYSTEM_MAP.md) — The monorepo SSOT topology. <!-- wiring audit 2026-11-11: docs/FEDERATION_CHARTER.md does not exist — replaced with the repo-root ECOSYSTEM_MAP that does -->
 <!-- heartbeat: 2026103106 -->

@@ -83,8 +83,9 @@ reaches private CI. The registry below is byte-matched to the code's
    registry member wins (labels only; the minimal loop does no body scan).
 3. Default: `DEFAULT_GROUP` = `core`.
 
-`.github/ISSUE_TEMPLATE/agent-task.yml` carries the `task_group` dropdown that
+`.github/ISSUE_TEMPLATE/agent_task.yml` carries the `task_group` dropdown that
 must track this registry — keep the two in sync when the taxonomy changes.
+<!-- wiring audit 2026-11-11: filename fixed (agent-task.yml → agent_task.yml, the actual file). -->
 
 **Relationship to `AGENTS.md` (Single Door SSOT):** the constitution is
 `AGENTS.md` — the Single Door SSOT (the former `AGENT_RULES.md` was deleted by

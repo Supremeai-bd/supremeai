@@ -36,7 +36,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
-    from backend.core.config import settings
+    from core.config import settings
 except ImportError:
     settings = None  # type: ignore[assignment]
 

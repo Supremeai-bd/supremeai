@@ -636,31 +636,10 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       return;
     }
 
-    if (url === "/health/summary" || url === "/health/dashboard" || url === "/health/sweep") {
-      try {
-        const { globalHealthEngine } = await import("./health/engine.js");
-        const { globalHealthCache } = await import("./health/snapshot.js");
-        const { globalDependencyGraph } = await import("./health/dependency.js");
-        const isSweep = url === "/health/sweep";
-        const report = isSweep ? await globalHealthEngine.runFullSweep() : undefined;
-        const snapshots = report?.snapshots ?? globalHealthCache.getAllSnapshots();
-        const services = Object.entries(snapshots).map(([provider, snapshot]) => ({
-          provider,
-          status: snapshot.status,
-          checkedAt: snapshot.checkedAt,
-          latencyMs: snapshot.latencyMs,
-        }));
-        const payload = url === "/health/dashboard"
-          ? { snapshots, dependencies: globalDependencyGraph.getRawMap(), timestamp: new Date().toISOString() }
-          : { status: report?.overallStatus ?? (services.some((service) => service.status !== "healthy") ? "degraded" : "healthy"), serviceCount: services.length, unhealthyCount: services.filter((service) => service.status !== "healthy").length, services, timestamp: new Date().toISOString() };
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify(payload));
-      } catch {
-        res.writeHead(503, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ status: "unknown", error: "Health aggregation failed" }));
-      }
-      return;
-    }
+    // Removed (wiring audit 2026-11-11): a duplicated /health/{summary,dashboard,sweep}
+    // block that was unreachable — every URL is consumed by the specific handlers
+    // above with unconditional returns. The dead copy also lacked the production
+    // auth gates of the real handlers (auth-drift hazard if ever re-reached).
 
     if (url === "/health/ready") {
       try {

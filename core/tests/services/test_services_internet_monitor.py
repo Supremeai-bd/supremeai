@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.services.internet_monitor_service import (
+from core.services.internet_monitor_service import (
     InternetMonitorService,
     get_internet_monitor_service,
     initialize_internet_monitor_service,

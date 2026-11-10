@@ -218,6 +218,13 @@ def main() -> int:
             return wait_for_terminal_state(client, svc_id, body, require_deploy_id=REQUIRE_EXPECTED_SHA)
         except RenderApiError as exc:
             err_body = (exc.body or "").lower()
+            if exc.status == 400 and "cannot deploy suspended service" in err_body:
+                print(
+                    f"::warning::Service {svc_id} is SUSPENDED on Render. "
+                    "Skipping deploy trigger without failing CI."
+                )
+                return 0
+
             if exc.status == 404 and "does not have a commit" in err_body and commit_id is not None:
                 if REQUIRE_EXPECTED_SHA:
                     print(f"::error::Render CI service cannot build the required commit {commit_id}; refusing branch-HEAD fallback.")

@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime, timezone
-from backend.services.render_preflight_service import RenderPreflightService
+from core.services.render_preflight_service import RenderPreflightService
 
 
 def main() -> int:

@@ -136,7 +136,7 @@ try:
     from core.security.secret_hunter import SecretHunter
 except ImportError:
     try:
-        from backend.core.security.secret_hunter import SecretHunter
+        from core.security.secret_hunter import SecretHunter
     except ImportError:
         print("⚠️  Could not import SecretHunter. Ensure dependencies are installed.")
         SecretHunter = None

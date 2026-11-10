@@ -52,7 +52,7 @@ from loguru import logger
 
 # বাংলা মন্তব্য: sys.path হ্যাক এড়াতে ক্লিন ইমপোর্ট
 try:
-    from backend.core.config import settings
+    from core.config import settings
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 

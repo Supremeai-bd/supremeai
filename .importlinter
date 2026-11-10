@@ -25,8 +25,9 @@
 # fails, per the issue's own flip condition.
 #
 # Contract-inventory honesty (dated 2026-10-28, main d67298c):
-# - core's private top-level modules: core._monitoring_legacy, core._archive
-#   (verified: `ls core/_*.py` + `find core -maxdepth 2 -name "_*" -type d`).
+# - core's private top-level modules: core._monitoring_legacy
+#   (verified: `ls core/_*.py`; core._archive no longer exists — removed from the
+#   contract below, wiring audit 2026-11-11, import-linter errors on unresolvable modules).
 # - gateway exposes ZERO private top-level modules today, so the symmetric
 #   "core must not import gateway._*" contract is intentionally absent —
 #   there is nothing to protect yet. When a gateway._ module appears, add
@@ -61,7 +62,6 @@ source_modules =
     gateway
 forbidden_modules =
     core._monitoring_legacy
-    core._archive
 allow_indirect_imports = true
 
 # --- Contract 2: core.api consumes core.monitoring facade, not internals ---

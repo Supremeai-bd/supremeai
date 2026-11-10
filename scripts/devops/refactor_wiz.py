@@ -33,7 +33,7 @@ import litellm
 # --- Path Setup ---
 # বাংলা মন্তব্য: ক্লিন ইমপোর্ট স্ট্রাকচার এবং পাথ রেজোলিউশন নিশ্চিত করা হচ্ছে।
 try:
-    from backend.core.config import settings
+    from core.config import settings
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent / "backend"))
     sys.path.insert(0, str(Path(__file__).resolve().parent / "scripts"))

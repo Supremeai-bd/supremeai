@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # --- Path Setup ---
 # বাংলা মন্তব্য: পাথ সেটআপ এবং কোর কনফিগারেশন ইম্পোর্ট
 try:
-    from backend.core.config import settings
+    from core.config import settings
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent / "backend"))
     sys.path.insert(0, str(Path(__file__).resolve().parent / "scripts"))

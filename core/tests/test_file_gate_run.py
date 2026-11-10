@@ -3,7 +3,7 @@ import logging
 # tests/test_file_gate_run.py
 import sys
 
-from backend.sandbox.file_isolation_gate import FileIsolationGate
+from core.sandbox.file_isolation_gate import FileIsolationGate
 from core.logging_config import logger
 
 logging.basicConfig(

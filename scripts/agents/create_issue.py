@@ -246,7 +246,7 @@ P1-high (upstream prerequisite — এটি না মিটলে #{parent_iss
 
 ### 3-Tier Verification Contract
 1. Reflection Check: `git grep -n "<symbol>"`
-2. Boot Smoke Test: `python -c "import backend.main; print('Boot smoke passed')"`
+2. Boot Smoke Test: `python -c "import core.main; print('Boot smoke passed')"`
 3. Pytest Suite: `pytest <test_file_path> -v`
 
 ---
@@ -475,7 +475,7 @@ def format_discovery_body(
 
 ### 3-Tier Verification Contract
 1. Reflection Check: `git grep -n "<symbol>"`
-2. Boot Smoke Test: `python -c "import backend.main; print('Boot smoke passed')"`
+2. Boot Smoke Test: `python -c "import core.main; print('Boot smoke passed')"`
 3. Pytest Suite: `pytest <test_file_path> -v`
 
 ---

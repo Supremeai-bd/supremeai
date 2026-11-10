@@ -5,7 +5,7 @@ import os
 import sys
 import time
 
-from backend.skills.core_doc_summarizer import execute_tool
+from core.skills.core_doc_summarizer import execute_tool
 from core.logging_config import logger
 from core.utils.api_key_resolver import resolve_numbered_key
 

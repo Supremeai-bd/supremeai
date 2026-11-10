@@ -39,10 +39,10 @@ def run_scout(
 
     বাংলা: সম্পূর্ণ scout pipeline চালায় → list of recommendation dicts।
     """
-    from backend.ecosystem_scout.sources.github_trending import fetch_github_trending
-    from backend.ecosystem_scout.gap_analyzer import analyze_gaps_batch
-    from backend.ecosystem_scout.recommender import filter_recommendations, score_findings_batch
-    from backend.scout.dedup import ContentDeduplicator
+    from core.ecosystem_scout.sources.github_trending import fetch_github_trending
+    from core.ecosystem_scout.gap_analyzer import analyze_gaps_batch
+    from core.ecosystem_scout.recommender import filter_recommendations, score_findings_batch
+    from core.scout.dedup import ContentDeduplicator
 
     # Step 1: Fetch
     findings = fetch_github_trending(limit=limit, use_mock=use_mock)

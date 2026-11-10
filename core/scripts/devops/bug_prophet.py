@@ -34,7 +34,7 @@ import litellm
 # --- Path Setup (consistent with ai_scribe_historian.py) ---
 # বাংলা মন্তব্য: ক্লিন ইমপোর্ট স্ট্রাকচার এবং পাথ রেজোলিউশন নিশ্চিত করা হচ্ছে।
 try:
-    from backend.core.config import settings
+    from core.config import settings
 except ImportError:
     # বাংলা: এই ফলব্যাক পাথটি আগে ভুল ছিল — Path(__file__).parent মানে
     # scripts/devops/ ডিরেক্টরি, যেখানে backend/ সাবফোল্ডার আদৌ নেই। রিপো-রুট
@@ -732,7 +732,7 @@ import math
 # দেখা যাচ্ছিল)। উপরের config import-এর মতোই একই try/except fallback প্যাটার্ন এখানে
 # প্রয়োগ করা হলো।
 try:
-    from backend.core.messaging.event_bus import (
+    from core.messaging.event_bus import (
         ErrorContext,
         ErrorEvent,
         error_event_bus,

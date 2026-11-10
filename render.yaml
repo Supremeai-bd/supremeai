@@ -115,8 +115,14 @@ services:
         sync: false
       - key: MCP_ADMIN_KEY
         sync: false
-      - key: TOWER_AUTH_TOKEN
+      # Fix (wiring audit 2026-11-11): consumed by the tower's admin-slot TOTP gate
+      # (src/policy/slot-verification.ts) but missing from the blueprint — the 2nd-step
+      # admin factor could never be provisioned from here.
+      - key: SUPREMEAI_ADMIN_TOTP_SECRET
         sync: false
+      # Removed TOWER_AUTH_TOKEN (wiring audit): no tower code reads it; it is a
+      # satellite-side name (core/client/supreme-node/daemon.py). The server-side
+      # contract is MCP_API_KEY / MCP_ADMIN_KEY.
       - key: GH_TOKEN
         sync: false
       - key: GITHUB_TOKEN
