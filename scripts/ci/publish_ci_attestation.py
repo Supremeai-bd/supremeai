@@ -18,7 +18,9 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 import urllib.request
+from datetime import datetime, timezone
 
 
 def fail(message: str) -> int:
@@ -36,16 +38,21 @@ def main() -> int:
         print("::notice::MCP_TOWER_AUTH_TOKEN not configured; CI attestation skipped")
         return 0
 
+    now_epoch = time.time()
     payload = {
         "repo": os.environ.get("GITHUB_REPOSITORY", "Supremeai-bd/supremeai"),
         "workflow_run_id": os.environ.get("GITHUB_RUN_ID", ""),
         "workflow": os.environ.get("GITHUB_WORKFLOW", ""),
         "expected_sha": os.environ.get("EXPECTED_SHA", ""),
         "result": os.environ.get("CI_RESULT", "unknown"),
+        "runner_target": os.environ.get("RUNNER_TARGET", "unknown"),
+        "pr_number": os.environ.get("PR_NUMBER", ""),
         "runner_service": os.environ.get(
             "RENDER_SERVICE_ID",
             os.environ.get("RENDER_SVC_ID", os.environ.get("RENDER_CI_RUNNER_SERVICE_ID", os.environ.get("RENDER_CI_RUNNER_SVC_ID", "")))
         ),
+        "timestamp": now_epoch,
+        "iso": datetime.fromtimestamp(now_epoch, tz=timezone.utc).isoformat(),
     }
     body = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(

@@ -8,7 +8,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from agents.research_assistant import ResearchAssistant, ResearchSourceError
+try:
+    from core.agents.research_assistant import ResearchAssistant, ResearchSourceError
+except ImportError:
+    from agents.research_assistant import ResearchAssistant, ResearchSourceError
 from core.monitoring.logging_config import logger
 from core.security.authentication.rbac import get_current_user_token
 

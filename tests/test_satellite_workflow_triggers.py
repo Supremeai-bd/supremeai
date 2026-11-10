@@ -42,8 +42,9 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 # open->satellite sync plane, federation_satellite_sync.py sync_workflows).
 MIRROR_DOMAINS = ("browser", "core", "gateway", "studio", "vscode")
 
-# The six satellite CI lanes that demonstrably trigger on push-to-main
-# (19-run browser history + sibling satellite run histories, #3538).
+# The satellite CI lanes that demonstrably trigger on push-to-main
+# (browser, gateway, studio backend/frontend, vscode release). Note:
+# core/.github/workflows/ci.yml is legacy/disabled and omitted from active lanes.
 MAIN_TRIGGER_LANES = frozenset(
     {
         "browser/.github/workflows/ci.yml",

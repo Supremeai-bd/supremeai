@@ -13,9 +13,9 @@ const API_ORIGIN = "https://supremeai-api-ulw0.onrender.com";
 
 // 6 Render nodes kept warm to eliminate 30-50s cold-start on free tiers
 const RENDER_SERVICES = [
-  { name: "api", url: "https://supremeai-api-ulw0.onrender.com/healthz" },
+  { name: "api", url: "https://supremeai-api-ulw0.onrender.com/health" },
   { name: "controlTower", url: "https://supremeai-mcp-tower.onrender.com/health" },
-  { name: "primary", url: "https://supremeai-primary-node-5xso.onrender.com/health/live" },
+  { name: "primary", url: "https://supremeai-primary-node-5xso.onrender.com/health" },
   { name: "worker", url: "https://supremeai-worker-node.onrender.com/health" },
   { name: "scraper", url: "https://supremeai-scraper-node.onrender.com/health" },
   { name: "brain", url: "https://supremeai-tiny-brain.onrender.com/health" },
@@ -352,10 +352,8 @@ export default {
 
   // Cloudflare Cron Trigger (fires per [triggers] in wrangler.toml)
   async scheduled(event, env, ctx) {
-    // 1. Keep-warm ping across all 5 Render nodes (every 10m to defeat 15m idle timeout)
-    ctx.waitUntil(keepWarmAllServices());
-
-    // 2. Hourly Empirical Learning Sync (24x daily cadence)
+    // 1. Hourly Empirical Learning Sync (24x daily cadence)
+    // Note: Render keep-warm is dedicated to cloudflare-render-keepwarm/worker.js on a 5-min cron SSOT.
     // Runs at the top of each hour (minute 0-9)
     const minutes = new Date().getUTCMinutes();
     if (minutes < 10) {

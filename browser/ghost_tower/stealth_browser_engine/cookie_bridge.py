@@ -3,8 +3,10 @@
 
 from browser.runtime.cookie_bridge import (  # noqa: F401
     CookieBridge,
-    CookieBridgeError,
     CookieRecord,
+    WalledGardenViolation,
 )
 
-__all__ = ["CookieBridge", "CookieBridgeError", "CookieRecord"]
+CookieBridgeError = WalledGardenViolation
+
+__all__ = ["CookieBridge", "CookieRecord", "WalledGardenViolation", "CookieBridgeError"]

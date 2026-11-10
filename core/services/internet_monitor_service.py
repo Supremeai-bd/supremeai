@@ -7,7 +7,10 @@ Service to manage the lifecycle of the internet monitoring agent.
 import asyncio
 
 # Fixed import path - using absolute import from backend
-from agents.internet_monitor_agent import internet_monitor_agent
+try:
+    from core.agents.internet_monitor_agent import internet_monitor_agent
+except ImportError:
+    from agents.internet_monitor_agent import internet_monitor_agent
 from core.monitoring.logging_config import logger
 
 

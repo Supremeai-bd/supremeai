@@ -1,4 +1,4 @@
-﻿{
+{
     "schema_version":  "1.0",
     "description":  "Feature-parity retirement queue derived from feature_parity_baseline.json (baseline preserved).",
     "source_baseline":  "scripts/ops/feature_parity_baseline.json",

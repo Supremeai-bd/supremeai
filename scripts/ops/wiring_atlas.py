@@ -197,7 +197,7 @@ def build_atlas_report() -> dict[str, Any]:
         sys.path.insert(0, str(REPO_ROOT))
         from scripts.ci.plan_render_deploys import SERVICE_RULES
 
-        for planner_svc, (env_id, key_env, _prefixes) in SERVICE_RULES.items():
+        for planner_svc, (env_id, key_env, _prefixes, *_) in SERVICE_RULES.items():
             if planner_svc not in services_map:
                 drift_findings.append(
                     {

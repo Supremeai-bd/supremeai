@@ -13,7 +13,7 @@ import re
 from enum import StrEnum
 
 import httpx
-from mcp.server.fastmcp import FastMCP
+from core.tools.mcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.config import settings

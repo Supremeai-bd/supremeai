@@ -317,10 +317,11 @@ blackbox_mcp_settings.example.json
 dataconnect-generated/
 # Lock files (Using pnpm consistently)
 **/package-lock.json
-# Exception: MCP control plane uses npm (not pnpm) — its lockfile must be committed
+# Exception: MCP control plane and VSCode client hub use npm (not pnpm) — their lockfiles must be committed
 # so that `npm ci` in CI can reproduce the exact dependency tree.
 # NOTE: This negation must appear AFTER the wildcard rule (last-match-wins).
 !infrastructure/mcp-control-plane/package-lock.json
+!vscode/package-lock.json
 
 # Compiled function output
 infrastructure/firebase_functions/**/lib/
@@ -541,6 +542,7 @@ infisical*.json
 
 # Refactor and patch temporary outputs
 .refactor_patches/
+outputs/
 
 # Phase 8 runtime and baselines clutter
 .gemini/

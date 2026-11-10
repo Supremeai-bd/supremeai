@@ -602,10 +602,12 @@ class SettingsValidationMixin:
 
     def reload_env_vars(self) -> None:
         """Reload environment variables from .env for long-running processes."""
-        from dotenv import load_dotenv
-
-        load_dotenv(override=True)
-        logger.info("⚙️ [Config] Environment variables hot-reloaded successfully.")
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(override=True)
+            logger.info("⚙️ [Config] Environment variables hot-reloaded successfully.")
+        except ImportError:
+            logger.warning("⚙️ [Config] python-dotenv not installed; skipping hot-reload.")
 
 
 # ---------------------------------------------------------------------------

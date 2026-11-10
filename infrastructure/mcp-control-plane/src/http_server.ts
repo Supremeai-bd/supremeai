@@ -79,6 +79,21 @@ const SERVER_VERSION = "1.0.0";
 const MAX_REQUEST_BYTES = 1_048_576;
 const MCP_MANIFEST_URI = "control-tower://server/manifest";
 
+interface CiAttestationEntry {
+  repo: string;
+  workflow_run_id: string;
+  workflow: string;
+  expected_sha: string;
+  result: string;
+  runner_target: string;
+  runner_service?: string;
+  pr_number?: string;
+  timestamp: number;
+  iso: string;
+}
+const ciAttestationStore = new Map<string, CiAttestationEntry>();
+const MAX_ATTESTATIONS = 1000;
+
 function requestPath(req: IncomingMessage): string {
   return new URL(req.url ?? "/", `http://${req.headers.host || "localhost"}`).pathname;
 }
@@ -479,6 +494,75 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         writeJson(res, 503, { error: `Workforce telemetry unavailable: ${(err as Error).message}` });
       }
       return;
+    }
+
+    // ── CI Attestation SSOT: /api/ci/attestation (POST to record, GET to verify) ──
+    if (pathname === "/api/ci/attestation") {
+      if (req.method === "POST") {
+        if (!role && !isGlobalAdmin) {
+          writeJson(res, 401, { error: "Unauthorized: MCP Bearer token required" }, { "WWW-Authenticate": "Bearer" });
+          return;
+        }
+        let rawPayload = "";
+        req.on("data", (chunk: Buffer) => {
+          rawPayload += chunk.toString();
+          if (rawPayload.length > MAX_REQUEST_BYTES) {
+            req.destroy();
+            writeJson(res, 413, { error: "CI attestation payload exceeded maximum limit" });
+          }
+        });
+        req.on("end", () => {
+          try {
+            const input = JSON.parse(rawPayload || "{}");
+            const sha = String(input.expected_sha || "").trim();
+            const repo = String(input.repo || "Supremeai-bd/supremeai").trim();
+            if (!sha) {
+              writeJson(res, 400, { error: "expected_sha is required" });
+              return;
+            }
+            const record: CiAttestationEntry = {
+              repo,
+              workflow_run_id: String(input.workflow_run_id || ""),
+              workflow: String(input.workflow || ""),
+              expected_sha: sha,
+              result: String(input.result || "unknown"),
+              runner_target: String(input.runner_target || "unknown"),
+              runner_service: input.runner_service ? String(input.runner_service) : undefined,
+              pr_number: input.pr_number ? String(input.pr_number) : undefined,
+              timestamp: Number(input.timestamp) || Date.now() / 1000,
+              iso: String(input.iso || new Date().toISOString()),
+            };
+            if (ciAttestationStore.size >= MAX_ATTESTATIONS) {
+              const oldestKey = ciAttestationStore.keys().next().value;
+              if (oldestKey) ciAttestationStore.delete(oldestKey);
+            }
+            const key = `${repo}:${sha}`;
+            ciAttestationStore.set(key, record);
+            writeJson(res, 200, withTimestamp({ ok: true, stored: true, expected_sha: sha, repo }));
+          } catch (error) {
+            writeJson(res, 400, { error: (error as Error).message });
+          }
+        });
+        return;
+      }
+
+      if (req.method === "GET") {
+        const parsedUrl = new URL(req.url ?? "/", `http://${req.headers.host || "localhost"}`);
+        const sha = (parsedUrl.searchParams.get("sha") || "").trim();
+        const repo = (parsedUrl.searchParams.get("repo") || "Supremeai-bd/supremeai").trim();
+        if (!sha) {
+          writeJson(res, 400, { error: "sha parameter is required" });
+          return;
+        }
+        const key = `${repo}:${sha}`;
+        const attestation = ciAttestationStore.get(key);
+        if (!attestation) {
+          writeJson(res, 404, withTimestamp({ ok: false, error: "Attestation not found", sha, repo }));
+          return;
+        }
+        writeJson(res, 200, withTimestamp({ ok: true, attestation }));
+        return;
+      }
     }
 
     if (url === "/health/summary") {

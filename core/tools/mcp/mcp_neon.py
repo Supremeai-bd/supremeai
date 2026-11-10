@@ -5,19 +5,20 @@ MCP Server for Neon Serverless Postgres Integration in SupremeAI 2.0.
 সার্ভারলেস SQL কুয়েরি এক্সেকিউট এবং কম্পিউট এন্ডপয়েন্ট ম্যানেজ করার ক্ষমতা দেয়।
 """
 
-import json
-import os
-from enum import StrEnum
+# Neon Serverless Postgres MCP Driver Imports
 from typing import Any
-
+from enum import StrEnum
+import os
+import json
 import psycopg2
-from mcp.server.fastmcp import FastMCP
+
 from pydantic import BaseModel, ConfigDict, Field
-
-from core.config import settings
-from core.monitoring.logging_config import logger
 from utils.environment import is_admin_authorized
+from core.monitoring.logging_config import logger
+from core.config import settings
+from core.tools.mcp import FastMCP
 
+# Initialize FastMCP instance for Neon Serverless
 mcp = FastMCP("neon_mcp")
 
 CHARACTER_LIMIT = 25000
