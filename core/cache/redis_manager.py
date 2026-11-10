@@ -4,6 +4,8 @@
 event-loop blocking মুক্ত, fail-closed প্যাটার্ন অনুসরণ করে।
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import os
@@ -19,6 +21,11 @@ except ImportError:
         import aioredis
     except ImportError:
         aioredis = None
+
+if aioredis is None:
+    class _DummyAioredis:
+        Redis = Any
+    aioredis = _DummyAioredis()  # type: ignore
 
 # Import pybreaker for circuit breaker functionality as mentioned in audit report
 try:

@@ -62,7 +62,12 @@ jobs:
       - name: Check 4-Level Execution Hierarchy
         id: runner-check
         env:
-          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.OPEN_SYNC_PAT || secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.OPEN_DISPATCH_TOKEN || secrets.GITHUB_TOKEN }}
+          OPEN_SYNC_PAT: ${{ secrets.OPEN_SYNC_PAT }}
+          SELF_HEAL_PAT: ${{ secrets.SELF_HEAL_PAT }}
+          SYNC_PAT: ${{ secrets.SYNC_PAT }}
+          OPEN_DISPATCH_TOKEN: ${{ secrets.OPEN_DISPATCH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -98,7 +103,7 @@ jobs:
       - name: Install minimal dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy
+          pip install ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy redis
 
       - name: Fast fatal error & syntax lint
         run: ruff check core/ scripts/ci/ --select E9,F63,F7,F82 --exclude core/tests/
@@ -210,7 +215,7 @@ jobs:
         shell: powershell
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy
+          pip install ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy redis
 
       - name: Tier 1 — Fast fatal error & syntax lint
         shell: powershell
@@ -330,7 +335,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy
+          pip install ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy redis
 
       - name: Run Full Unit & Component Guard Battery
         run: |
@@ -371,7 +376,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy
+          pip install ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy redis
 
       - name: Run Full Unit & Component Guard Battery
         run: |
