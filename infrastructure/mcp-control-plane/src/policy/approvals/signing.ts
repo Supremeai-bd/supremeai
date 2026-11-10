@@ -22,11 +22,14 @@ function linkTtlMs(): number {
 }
 
 function approvalHmac(requestId: string, decision: string, exp: number): string {
-  // mcpAdminKey falls back to mcpApiKey in env.ts; an empty signing key would make
-  // signatures forgeable, so refuse to sign rather than sign with a weak secret.
-  const key = env.mcpAdminKey || env.mcpApiKey;
+  // Security hardening (audit 2026-11-11): approval links are signed ONLY with
+  // the admin key. The previous `env.mcpAdminKey || env.mcpApiKey` fallback let
+  // any agent-role caller (MCP_API_KEY) forge approval-link signatures for
+  // pending HITL actions and self-approve dangerous operations. Fail closed
+  // when MCP_ADMIN_KEY is unset instead of degrading to a weaker key.
+  const key = env.mcpAdminKey;
   if (!key) {
-    throw new Error("[approvals] Cannot sign approval link: MCP_ADMIN_KEY/MCP_API_KEY not configured");
+    throw new Error("[approvals] Cannot sign approval link: MCP_ADMIN_KEY not configured");
   }
   return createHmac("sha256", key).update(`approval:${requestId}:${decision}:${exp}`).digest("hex");
 }

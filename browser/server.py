@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import gzip
+import hmac
 import json
 import logging
 import os
@@ -188,9 +189,9 @@ class GeminiCookieEngine:
             self._cookies = self._infisical_cookies
             return self._infisical_cookies
 
-        client_id = os.getenv("INFISICAL_CLIENT_ID", "").strip() or "9f2363cf-3cec-43f6-b155-a8625de19250"
-        client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "").strip() or "6ecfaac387a3ad65ed8237d25fdcb5bfcba7b6b69dafe797b63bcba02c066af0"
-        workspace_id = (os.getenv("INFISICAL_WORKSPACE_ID", "") or os.getenv("INFISICAL_PROJECT_ID", "")).strip() or "92aa20c4-aef5-4e33-82bd-efb06058aaf0"
+        client_id = os.getenv("INFISICAL_CLIENT_ID")
+        client_secret = os.getenv("INFISICAL_CLIENT_SECRET")
+        workspace_id = os.getenv("INFISICAL_WORKSPACE_ID") or os.getenv("INFISICAL_PROJECT_ID")
         if not client_id or not client_secret or not workspace_id:
             return self.get_cookies()
 
@@ -736,7 +737,7 @@ def _verify_stealth_secret(request: Request) -> None:
         or request.headers.get("X-Webhook-Secret")
         or request.headers.get("Authorization", "").replace("Bearer ", "").strip()
     )
-    if incoming != expected:
+    if not hmac.compare_digest(incoming, expected):
         raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing stealth secret")
 
 

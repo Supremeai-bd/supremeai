@@ -402,14 +402,17 @@ export function defaultClientScopes(role: ClientRole): string[] {
 
 /**
  * #110: rank-ladder role check (replaces the flat 3-tier boolean chain).
- * Legacy required tiers map onto the rank scale (viewer=0, agent=3, admin=4)
- * so existing call sites keep identical semantics; the new read-only tiers
- * (restricted_viewer=1, repo_viewer=2) pass legacy-"viewer" requirements but
- * never legacy-"agent"/"admin" ones — read-only stays read-only.
+ * Required tiers map onto the 4-tier ROLE_RANK scale (auth.context.ts):
+ * viewer=0, agent=1, admin=2, supremeadmin=3. The previous legacy mapping
+ * (agent→3, admin→4) belonged to the retired 6-tier ladder and rejected every
+ * authenticated principal — roleAllows("agent","agent") was false, which 403'd
+ * keyed agents on /mcp while anonymous viewers passed (inverted policy).
+ * Read-only tiers (restricted_viewer, repo_viewer) are rank 0: they pass
+ * viewer requirements but never agent/admin ones — read-only stays read-only.
  * বাংলা মন্তব্য: র‍্যাঙ্ক-ল্যাডার চেক — নতুন রিড-অনলি স্তরগুলো viewer-স্তরের কাজ পারে কিন্তু agent/admin-স্তরের নয়।
  */
 export function roleAllows(role: ClientRole, required: "viewer" | "agent" | "admin") {
-  const requiredRank = required === "viewer" ? 0 : required === "agent" ? 3 : 4;
+  const requiredRank = required === "viewer" ? 0 : required === "agent" ? 1 : 2;
   return roleRank(role) >= requiredRank;
 }
 

@@ -185,10 +185,19 @@ async def get_register_options(req: RegisterOptionsRequest, request: Request):
     """Generates WebAuthn registration options for user or admin."""
     _clean_expired_challenges()
 
-    # Determine user identity from active session or request
-    user_id = req.user_id or "usr-" + secrets.token_hex(6)
-    email = req.email or f"{user_id}@supremeai.local"
-    role = req.role if req.role in ("admin", "master_admin") else "user"
+    # Security hardening (audit 2026-11-11): this endpoint is unauthenticated, so
+    # the request body must NEVER decide identity or privilege. Honoring
+    # req.user_id allowed passkey squatting on existing accounts (takeover via
+    # /login/verify), and honoring req.role minted anonymous admin credentials
+    # (login issues a 24h JWT carrying the stored role). Identity binding to a
+    # real session must be wired server-side before any user_id is accepted.
+    if getattr(req, "user_id", None):
+        logger.warning("Ignoring client-supplied user_id in passkey registration (untrusted)")
+    if getattr(req, "role", None):
+        logger.warning("Ignoring client-supplied role in passkey registration (untrusted)")
+    user_id = "usr-" + secrets.token_hex(6)
+    email = f"{user_id}@supremeai.local"
+    role = "user"
 
     challenge_bytes = secrets.token_bytes(32)
     challenge_b64 = _b64url_encode(challenge_bytes)

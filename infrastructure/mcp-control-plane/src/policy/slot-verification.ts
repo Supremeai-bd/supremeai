@@ -413,11 +413,14 @@ function viewerFallback(
   if (slotId) {
     const existingSlot = getClient(slotId);
     if (existingSlot && existingSlot.status === "active") {
-      if (existingSlot.role === "agent") {
-        // Case 2: Registered Agent Slot -> grant agent role directly
-        resolvedRole = "agent";
-        isAuthenticated = true;
-      } else if (existingSlot.role === "admin" || existingSlot.role === "supremeadmin") {
+      // Security hardening (audit 2026-11-11): the former "Case 2" branch granted
+      // the agent role to any caller who knew a slot/named URL — no credential
+      // required. The URL alone is NEVER authentication (module invariant, lines
+      // 36-38); slot names are guessable and named_<name> records are auto-created
+      // by anonymous visitors, so the old branch turned the URL into a permanent
+      // unauthenticated bearer capability. Elevation now requires either a real
+      // bearer token (handled in auth.context resolveRole) or admin TOTP below.
+      if (existingSlot.role === "admin" || existingSlot.role === "supremeadmin") {
         // Case 3: Admin / Supremeadmin -> 2nd Step Auth required (Real-time TOTP token or valid slot token).
         const totpSecret = process.env.SUPREMEAI_ADMIN_TOTP_SECRET || process.env.ADMIN_TOTP_SECRET;
         const presentedTotp = (req.headers["x-mcp-totp"] as string | undefined)?.trim();
@@ -431,6 +434,7 @@ function viewerFallback(
           isAuthenticated = false;
         }
       }
+      // Every other case (incl. registered agent slots): fail-closed viewer.
     }
   }
 

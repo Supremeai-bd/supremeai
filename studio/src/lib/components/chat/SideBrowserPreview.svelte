@@ -187,7 +187,7 @@
 						title="Proxied Live Web Content"
 						srcdoc={proxyHtml}
 						class="w-full flex-1 border-0 bg-white"
-						sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
+						sandbox="allow-scripts allow-forms allow-popups"
 					></iframe>
 				{:else}
 					<iframe
@@ -195,7 +195,7 @@
 						src={currentUrl}
 						title="Live SupremeAI Desktop Browser"
 						class="w-full flex-1 border-0 bg-white"
-						sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+						sandbox="allow-scripts allow-forms allow-popups allow-modals"
 						on:load={handleIframeLoad}
 					></iframe>
 				{/if}

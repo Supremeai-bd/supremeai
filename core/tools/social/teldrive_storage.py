@@ -35,7 +35,13 @@ class TelDriveCrypto:
         except Exception as exc:
             logger.debug(f"Could not read encryption_key from settings: {exc}")
         if not raw_key:
-            raw_key = os.getenv("ENCRYPTION_KEY", "supremeai-default-zero-cost-fernet-key-2026")
+            # Security hardening (audit 2026-11-11): the previous repo-committed
+            # default key silently encrypted every zero-knowledge object with a
+            # key that is public in the repository. Fail closed instead.
+            raise RuntimeError(
+                "ENCRYPTION_KEY is not configured (settings.encryption_key missing); "
+                "refusing to use the known public default key for zero-knowledge storage"
+            )
 
         # Derive 32-byte URL-safe base64 key
         digest = hashlib.sha256(raw_key.encode()).digest()

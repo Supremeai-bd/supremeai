@@ -55,7 +55,9 @@ def load_secrets() -> dict[str, str]:
             token = auth_res.get("accessToken")
         except Exception as exc:
             print(f"Infisical auth failed: {exc}", file=sys.stderr)
-            return {}
+            # Fail-closed hardening (audit 2026-11-11): a configured-but-broken
+            # vault must surface as a boot failure, not as a silent empty env.
+            raise
 
     if not token:
         return {}
@@ -84,7 +86,8 @@ def load_secrets() -> dict[str, str]:
         return secrets
     except Exception as exc:
         print(f"Infisical secret fetch error: {exc}", file=sys.stderr)
-        return {}
+        # Fail-closed hardening (audit 2026-11-11): propagate to main().
+        raise
 
 
 def main() -> int:
@@ -92,13 +95,30 @@ def main() -> int:
         print("Usage: infisical_bootstrap.py <command> [args...]", file=sys.stderr)
         return 2
 
+    project_configured = bool(os.environ.get("INFISICAL_PROJECT_ID"))
     try:
         secrets = load_secrets()
-        if secrets:
-            os.environ.update(secrets)
-            print(f"Infisical bootstrap: loaded {len(secrets)} secrets successfully", file=sys.stderr)
     except Exception as exc:
+        if project_configured and os.environ.get("INFISICAL_ALLOW_EMPTY") != "1":
+            print(
+                f"Infisical bootstrap FAILED while INFISICAL_PROJECT_ID is configured: {exc}; "
+                "refusing to start a hollow service (set INFISICAL_ALLOW_EMPTY=1 to override)",
+                file=sys.stderr,
+            )
+            return 1
         print(f"Infisical bootstrap bypassed (using container env): {exc}", file=sys.stderr)
+        secrets = {}
+
+    if secrets:
+        os.environ.update(secrets)
+        print(f"Infisical bootstrap: loaded {len(secrets)} secrets successfully", file=sys.stderr)
+    elif project_configured and os.environ.get("INFISICAL_ALLOW_EMPTY") != "1":
+        print(
+            "Infisical bootstrap: project configured but no secrets returned; "
+            "failing closed (set INFISICAL_ALLOW_EMPTY=1 to override)",
+            file=sys.stderr,
+        )
+        return 1
 
     os.execvp(sys.argv[1], sys.argv[1:])
     return 0
