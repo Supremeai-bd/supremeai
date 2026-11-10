@@ -258,9 +258,13 @@ app = FastAPI(title="SupremeAI API Gateway", version="2.0.0", docs_url=None, red
 async def hydrate_vault_secrets() -> int:
     """Hydrates multi-cloud API keys from Infisical Production Vault into os.environ and squad."""
     import httpx
-    client_id = os.getenv("INFISICAL_CLIENT_ID", "").strip() or "9f2363cf-3cec-43f6-b155-a8625de19250"
-    client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "").strip() or "6ecfaac387a3ad65ed8237d25fdcb5bfcba7b6b69dafe797b63bcba02c066af0"
-    workspace_id = (os.getenv("INFISICAL_WORKSPACE_ID", "") or os.getenv("INFISICAL_PROJECT_ID", "")).strip() or "92aa20c4-aef5-4e33-82bd-efb06058aaf0"
+    # Security hardening (audit 2026-11-11): vault credentials must never live in
+    # source. The previous literal fallbacks leaked a working universal-auth
+    # client_id/client_secret/workspace_id to anyone with repo read access.
+    # Missing env vars now simply skip vault hydration (fail-closed for secrets).
+    client_id = os.getenv("INFISICAL_CLIENT_ID", "").strip()
+    client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "").strip()
+    workspace_id = (os.getenv("INFISICAL_WORKSPACE_ID", "") or os.getenv("INFISICAL_PROJECT_ID", "")).strip()
     if not client_id or not client_secret or not workspace_id:
         return 0
     environment = os.getenv("INFISICAL_ENV", "prod").strip() or "prod"

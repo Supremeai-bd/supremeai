@@ -139,6 +139,8 @@ tsconfig.app.tsbuildinfo
 **/target/
 **/Cargo.lock
 !studio/crypto/encryption/Cargo.lock
+!core/**/Cargo.lock
+!backend/**/Cargo.lock
 
 # AI Context Exports
 context_export/

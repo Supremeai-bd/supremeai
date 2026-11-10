@@ -55,7 +55,13 @@ jobs:
       is_local_online: ${{ steps.runner-check.outputs.is_local_online }}
       render_quota_exhausted: ${{ steps.runner-check.outputs.render_quota_exhausted }}
     steps:
+      # SECURITY: resolve the tier from DEFAULT-BRANCH code, never the PR head.
+      # This job carries merge-capable PATs and Render API keys; a malicious PR
+      # could otherwise edit the very script it executes and exfiltrate them.
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.base_ref || github.ref }}
+          persist-credentials: false
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -182,6 +188,15 @@ jobs:
       - name: Check public export allowlist
         run: python scripts/ci/public_surface_guard.py --manifest scripts/ci/public_surface_manifest.txt
 
+      # SECURITY: run the verifier from the DEFAULT BRANCH so LLM provider
+      # keys are never handed to PR-head-modifiable code. It audits the PR via
+      # the GitHub API; only its own (trusted) code executes here.
+      - uses: actions/checkout@v5
+        if: github.event_name == 'pull_request'
+        with:
+          ref: ${{ github.base_ref }}
+          path: _verifier-base
+          persist-credentials: false
       - name: AI Semantic PR Verification Gate (High-Risk Enforcement)
         if: github.event_name == 'pull_request'
         env:
@@ -189,6 +204,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        working-directory: _verifier-base
         run: python scripts/ci/ai_semantic_pr_verifier.py --pr "${{ github.event.pull_request.number }}"
 
       - name: Anti-Duplication Regression Guard (Zero New Code Clones)

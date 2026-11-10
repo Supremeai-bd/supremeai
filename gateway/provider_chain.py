@@ -218,6 +218,7 @@ async def execute_chain(
     payload: bytes,
     *,
     attempt_fn: AttemptFn | None = None,
+    circuit_breaker: Any | None = None,
 ) -> AttemptResult:
     """Try endpoints in order; fail over ONLY on retryable outcomes.
 

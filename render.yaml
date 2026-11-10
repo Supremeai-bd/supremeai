@@ -66,9 +66,17 @@ services:
     autoDeploy: false
     rootDir: infrastructure/mcp-control-plane
     healthCheckPath: /health
-    buildCommand: npm install && npm run build
-    startCommand: python scripts/runtime/infisical_bootstrap.py npm run start
+    buildCommand: npm ci && npm run build
+    # Fix (audit 2026-11-11): the bootstrap lives at repo root, NOT under this
+    # rootDir — the previous relative path crashed start on fresh deploys with
+    # "can't open file". Fall back to plain start only if python3 is absent.
+    startCommand: sh -c 'if command -v python3 >/dev/null 2>&1; then python3 ../../scripts/runtime/infisical_bootstrap.py npm run start; else npm run start; fi'
     envVars:
+      # Fix (audit 2026-11-11): production gates (webhook HMAC verification,
+      # health-endpoint auth, admin-route fail-closed 503) are all conditioned on
+      # NODE_ENV === "production"; the node runtime image does not set it.
+      - key: NODE_ENV
+        value: production
       - key: MCP_API_KEY
         generateValue: true
       - key: SUPABASE_URL

@@ -382,11 +382,13 @@ jobs:
 
       - name: Mutation Testing
         id: mutation_testing
+        # Advisory (non-blocking): experimental mutation testing — publish visible failure summary, not green.
         continue-on-error: true
         run: python scripts/testing/mutation_testing.py --target backend/core/health_check.py --threshold 0
 
       - name: Performance Benchmark
         id: perf_benchmark
+        # Advisory (non-blocking): performance baselines — collect ≥14 nights of data before removing continue-on-error.
         continue-on-error: true
         run: python scripts/testing/performance_benchmark.py --target api
 
@@ -418,6 +420,7 @@ jobs:
       # Dead-code detection (moved here from the deleted code-quality.yml; #67).
       # Continues-on-error: advisory until baseline ratchet lands (per Phase-4 plan).
       - name: Backend dead-code scan (vulture)
+        # Advisory (non-blocking): dead-code reports — publish visible failure summary, not green.
         continue-on-error: true
         run: |
           pip install vulture
@@ -1854,7 +1857,7 @@ jobs:
         working-directory: ./backend
         run: |
           set -euo pipefail
-          poetry run pytest tests/chaos -m chaos --no-cov -q --timeout=60 -p no:cacheprovider 2>&1 | tee /tmp/chaos_output.txt
+          poetry run pytest backend/tests/chaos -m chaos --no-cov -q --timeout=60 -p no:cacheprovider 2>&1 | tee /tmp/chaos_output.txt
           echo "### 💉 Chaos Resilience Suite (Tier-2)" >> "$GITHUB_STEP_SUMMARY"
           tail -n 5 /tmp/chaos_output.txt >> "$GITHUB_STEP_SUMMARY"
 
@@ -1897,7 +1900,7 @@ jobs:
         working-directory: ./backend
         run: |
           set -euo pipefail
-          poetry run pytest tests/browser -m e2e --no-cov -q --timeout=120 -p no:cacheprovider 2>&1 | tee /tmp/browser_e2e_output.txt
+          poetry run pytest backend/tests/browser -m e2e --no-cov -q --timeout=120 -p no:cacheprovider 2>&1 | tee /tmp/browser_e2e_output.txt
           echo "### 🥁 Real-Browser E2E (Tier-3)" >> "$GITHUB_STEP_SUMMARY"
           tail -n 5 /tmp/browser_e2e_output.txt >> "$GITHUB_STEP_SUMMARY"
 

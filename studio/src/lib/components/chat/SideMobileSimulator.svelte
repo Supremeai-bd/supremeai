@@ -293,14 +293,14 @@
 									title="Virtual Mobile Browser Frame Proxied"
 									srcdoc={mobileProxyHtml}
 									class="w-full flex-1 border-0"
-									sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
+									sandbox="allow-scripts allow-forms allow-popups"
 								></iframe>
 							{:else}
 								<iframe
 									src={currentUrl}
 									title="Virtual Mobile Browser Frame"
 									class="w-full flex-1 border-0"
-									sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
+									sandbox="allow-scripts allow-forms allow-popups"
 								></iframe>
 							{/if}
 						</div>
