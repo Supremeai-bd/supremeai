@@ -6,6 +6,7 @@ import ast
 import json
 from pathlib import Path
 
+import pytest
 import yaml
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -332,7 +333,10 @@ def test_render_trigger_deploy_strict_ci_sha_and_fallback_guard(monkeypatch, tmp
 def test_studio_vite_chunk_splitting_and_frontend_pulse_guards() -> None:
     """Verify studio Vite build chunk isolation, conditional sourcemaps, reduced-motion CSS,
     and live FrontendPulse dashboard integration."""
-    vite_cfg = (REPO_ROOT / "studio" / "vite.config.ts").read_text(encoding="utf-8")
+    vite_path = REPO_ROOT / "studio" / "vite.config.ts"
+    if not vite_path.is_file():
+        pytest.skip("Legacy studio frontend retired to supremeai-archive; skipping studio Vite guards")
+    vite_cfg = vite_path.read_text(encoding="utf-8")
     assert "process.env.BUILD_SOURCEMAP === 'true'" in vite_cfg
     assert "manualChunks(id)" in vite_cfg
     assert "'vendor-3d'" in vite_cfg

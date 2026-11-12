@@ -51,6 +51,7 @@ DEFAULT_IGNORES = (
     "**/*lock.json,"
     "**/*lock.yaml,"
     "**/*.lock,"
+    "**/_verifier-base/**,"
     # studio/** is third-party Open WebUI foundation (#557); vendored clones are excluded
     "studio/**"
 )

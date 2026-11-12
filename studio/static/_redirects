@@ -1,7 +1,0 @@
-# SupremeAI Studio — Cloudflare Pages Static Route Definitions
-# 1. Sovereign config endpoint: serve local static sovereign JSON
-/api/config       /api/config.json                                                200
-/api/config/      /api/config.json                                                200
-
-# 2. SPA Fallback
-/*                /index.html                                                     200
