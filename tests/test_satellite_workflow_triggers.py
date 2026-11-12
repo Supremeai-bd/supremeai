@@ -40,17 +40,16 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 # Satellite mirror domains that carry their own .github/workflows (the
 # open->satellite sync plane, federation_satellite_sync.py sync_workflows).
-MIRROR_DOMAINS = ("browser", "core", "gateway", "studio", "vscode")
+# Note: studio is retired to supremeai-archive.
+MIRROR_DOMAINS = ("browser", "core", "gateway", "vscode")
 
 # The satellite CI lanes that demonstrably trigger on push-to-main
-# (browser, gateway, studio backend/frontend, vscode release). Note:
-# core/.github/workflows/ci.yml is legacy/disabled and omitted from active lanes.
+# (browser, gateway, vscode release). Note:
+# core/.github/workflows/ci.yml is legacy/disabled and studio is retired.
 MAIN_TRIGGER_LANES = frozenset(
     {
         "browser/.github/workflows/ci.yml",
         "gateway/.github/workflows/ci.yml",
-        "studio/.github/workflows/backend.yaml",
-        "studio/.github/workflows/frontend.yaml",
         "vscode/.github/workflows/release.yml",
     }
 )
