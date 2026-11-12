@@ -26,3 +26,9 @@ python-multipart>=0.0.18
 pyjwt[crypto]>=2.10.1
 infisical-python>=2.3.5
 sentry-sdk[fastapi]>=2.21.0
+# FIX (full audit 2026-11-13 F-003/F-004): imported UNGUARDED at module level by runtime
+# code paths (core/models/error_remediation.py -> autonoguard_engine, tools/gap_finder;
+# core/telemetry/__init__.py -> startup.agents chain) but were never declared.
+# Both are small, pure-Python, zero-config — declared here.
+tenacity>=8.2.3
+opentelemetry-sdk>=1.20.0

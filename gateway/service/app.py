@@ -626,7 +626,13 @@ def _verify_client_auth(request: Request, x_supremeai_key: Optional[str] = None)
     if not valid_keys:
         return os.getenv("ENVIRONMENT") == "development"
 
-    return token in valid_keys
+    # FIX (full audit 2026-11-13 F-006): `token in valid_keys` short-circuits on
+    # first-byte differences — a remote timing oracle on the static pool.
+    # Constant-time scan keeps the signed-key path (keygen.verify_key already
+    # uses hmac.compare_digest) consistent for static env keys.
+    import hmac as _hmac
+
+    return any(_hmac.compare_digest(token, k) for k in valid_keys)
 
 
 def _require_operator_key(request: Request, x_supremeai_key: Optional[str] = None) -> bool:

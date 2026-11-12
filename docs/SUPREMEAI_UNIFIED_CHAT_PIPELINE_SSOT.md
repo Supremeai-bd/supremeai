@@ -173,7 +173,7 @@ Any OpenAI-compatible tool, IDE extension, or custom client connects seamlessly 
 
 ### 7.1 Connection Details
 - **Base URL:** `https://supremeai-api-ulw0.onrender.com/v1`
-- **API Key:** `sk-supreme-studio-admin.unlimited.4774ac06eb55a4633870ac8bdd25ba72-47f8df2df685be6a731aaa9b06a0f17d3524778be733c6354574a1dd49404ebb`
+- **API Key:** `<ROTATED-REDACTED-see-AUDIT_REPORT-F-001>`
 - **Supported Models:** `auto`, `supremeai-turbo`, `supremeai-webhook`, `supremeai-deep-research`, `supremeai-api`
 - **Streaming:** Server-Sent Events (SSE) supported (`stream: true`)
 
@@ -181,7 +181,7 @@ Any OpenAI-compatible tool, IDE extension, or custom client connects seamlessly 
 ```bash
 curl -X POST https://supremeai-api-ulw0.onrender.com/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk-supreme-studio-admin.unlimited.4774ac06eb55a4633870ac8bdd25ba72-47f8df2df685be6a731aaa9b06a0f17d3524778be733c6354574a1dd49404ebb" \
+  -H "Authorization: Bearer <ROTATED-REDACTED-see-AUDIT_REPORT-F-001>" \
   -d '{
     "model": "auto",
     "messages": [{"role": "user", "content": "SupremeAI status check"}],

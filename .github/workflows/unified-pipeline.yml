@@ -227,9 +227,16 @@ jobs:
     timeout-minutes: 20
     needs: [resolve-execution-tier]
     steps:
+      # SECURITY (full audit 2026-11-13 F-002): this job runs on a PERSONAL machine
+      # (self-hosted). PR-head code must never execute with provider API keys in env
+      # or with a persisted GITHUB_TOKEN credential.
+      # - persist-credentials: false on every checkout
+      # - the AI verifier runs from a BASE-REF checkout (_verifier-base) so
+      #   LLM provider keys only execute trusted code, mirroring fast-gate pattern.
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Install verification dependencies
         shell: powershell
@@ -260,6 +267,16 @@ jobs:
           python scripts/ci/public_surface_guard.py --manifest scripts/ci/public_surface_manifest.txt
           python scripts/agents/check_loop_contract_parity.py
 
+      # SECURITY (full audit 2026-11-13 F-002): run the AI verifier from the DEFAULT
+      # BRANCH so LLM provider keys are never handed to PR-head-modifiable code on
+      # the self-hosted (personal) runner. It audits the PR via the GitHub API;
+      # only trusted base-ref code executes with secrets in env.
+      - uses: actions/checkout@v5
+        if: github.event_name == 'pull_request'
+        with:
+          ref: ${{ github.base_ref }}
+          path: _verifier-base
+          persist-credentials: false
       - name: Tier 1 — AI Semantic PR Verification Gate (High-Risk Enforcement)
         if: github.event_name == 'pull_request'
         shell: powershell
@@ -268,7 +285,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python scripts/ci/ai_semantic_pr_verifier.py --pr "${{ github.event.pull_request.number }}"
+        run: python _verifier-base/scripts/ci/ai_semantic_pr_verifier.py --pr "${{ github.event.pull_request.number }}"
 
       - name: Tier 1 — Anti-Duplication Regression Guard
         shell: powershell
@@ -288,8 +305,11 @@ jobs:
         if: always()
         shell: powershell
         env:
-          MCP_TOWER_ATTESTATION_URL: ${{ vars.MCP_TOWER_ATTESTATION_URL }}
-          MCP_TOWER_AUTH_TOKEN: ${{ secrets.MCP_TOWER_AUTH_TOKEN }}
+          # SECURITY (full audit 2026-11-13 F-002): MCP tower token is NOT handed to
+          # pull_request arm on the self-hosted job — PR-authored code could exfiltrate it.
+          # Trusted events (schedule/workflow_dispatch) still publish attestations.
+          MCP_TOWER_ATTESTATION_URL: ${{ github.event_name != 'pull_request' && vars.MCP_TOWER_ATTESTATION_URL || '' }}
+          MCP_TOWER_AUTH_TOKEN: ${{ github.event_name != 'pull_request' && secrets.MCP_TOWER_AUTH_TOKEN || '' }}
           EXPECTED_SHA: ${{ github.sha }}
           CI_RESULT: ${{ job.status }}
           RUNNER_TARGET: "local-self-hosted"
@@ -430,6 +450,12 @@ jobs:
     if: always() && github.event_name == 'pull_request' && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     needs: [resolve-execution-tier, fast-gate, runtime-readiness, render-heavy-gate, render-heavy-gate-render-ci, render-heavy-gate-fallback, render-heavy-gate-emergency]
+    # SECURITY (full audit 2026-11-13 F-002): review-free squash-merge with a write-scoped
+    # PAT allowed any same-repo PR that passes its own authored tests to land on main.
+    # Routing through a protected GitHub Environment with required reviewers restores the
+    # human gate. One-time setup: Repo Settings -> Environments -> create "production"
+    # -> add required reviewers. Until it exists this job waits (fail-closed).
+    environment: production
     permissions:
       contents: write
       pull-requests: write
