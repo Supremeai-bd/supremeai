@@ -592,7 +592,7 @@ class SettingsFieldsMixin:
     # consumer (startup/services.py::_init_redis) only enforces this in
     # env=production.
     redis_required_for_production: bool = Field(
-        default=True, validation_alias="REDIS_REQUIRED_FOR_PRODUCTION"
+        default=False, validation_alias="REDIS_REQUIRED_FOR_PRODUCTION"
     )
 
     # ── Self-Healing Config — env-driven ────────────────────────────────────
