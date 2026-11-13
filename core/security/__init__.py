@@ -30,9 +30,8 @@ try:
     import jwt
 except ImportError:
     jwt = None
-from fastapi import HTTPException, status
-
 from core.monitoring.logging_config import logger
+from fastapi import HTTPException, status
 
 # Fixed import path - using relative import instead of absolute
 from .enhanced_ast_scanner import SecurityIssue, SecurityScanner
@@ -207,6 +206,12 @@ def _get_jwt_secret() -> str:
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
+# বাংলা মন্তব্য (B4 — JWT issuer/audience verification): টোকেন শুধু আমাদের
+# নিজের ইস্যুয়ার ও API অডিয়েন্সের জন্য বৈধ — cross-service/foreign-audience
+# টোকেন রিপ্লে ঠেকাতে issue ও verify দুই দিকেই এই claim দুটি বাধ্যতামূলক।
+JWT_ISSUER = "supremeai"
+JWT_AUDIENCE = "supremeai-api"
+
 # API Key settings
 API_KEY_PREFIX = "sk-supreme"
 API_KEY_RANDOM_BYTES = 32
@@ -228,6 +233,9 @@ def create_access_token(data: dict) -> str:
     user_email = to_encode.get("sub")
     role = to_encode.get("role") or ("admin" if user_email in settings.admin_emails else "user")
     to_encode.update({"role": role})
+    # বাংলা মন্তব্য (B4): issuer/audience claim — verify_token()-এ বাধ্যতামূলক যাচাই হয়।
+    to_encode["iss"] = JWT_ISSUER
+    to_encode["aud"] = JWT_AUDIENCE
     encoded_jwt = jwt.encode(to_encode, _get_jwt_secret(), algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -447,7 +455,14 @@ async def verify_token_async(token: str) -> dict:
     (R2-01 fix: sync verify_token() লুপের ভেতর থেকে ডাকলে ৫ সেকেন্ড deadlock হতো।)
     """
     try:
-        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token,
+            _get_jwt_secret(),
+            algorithms=[ALGORITHM],
+            audience=JWT_AUDIENCE,
+            issuer=JWT_ISSUER,
+            options={"require": ["exp", "iss", "aud", "jti"]},
+        )
         jti = payload.get("jti")
         if jti and await is_token_revoked(jti, is_admin=_is_admin_claim(payload.get("role"))):
             raise HTTPException(
@@ -496,7 +511,14 @@ def _get_revocation_loop() -> asyncio.AbstractEventLoop:
 
 def verify_token(token: str) -> dict:
     try:
-        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token,
+            _get_jwt_secret(),
+            algorithms=[ALGORITHM],
+            audience=JWT_AUDIENCE,
+            issuer=JWT_ISSUER,
+            options={"require": ["exp", "iss", "aud", "jti"]},
+        )
         jti = payload.get("jti")
         if jti:
             token_is_admin = _is_admin_claim(payload.get("role"))

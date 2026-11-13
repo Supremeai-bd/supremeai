@@ -44,7 +44,7 @@ flowchart TD
     RunRenderCI --> AutoMerge
     FallbackGitHub --> AutoMerge
     
-    AutoMerge --> PostMergeDeploy["Post-Merge CD Orchestration (API-Only)\n• Cloudflare (Only if studio/** or cf changed)\n• Render (Only if services changed)\n• Vercel (Only if frontend changed)"]
+    AutoMerge --> PostMergeDeploy["Post-Merge CD Orchestration (API-Only)\n• Cloudflare (Only if cf/infrastructure changed; studio/ retired)\n• Render (Only if services changed)\n• Vercel (Only if frontend changed)"]
 ```
 
 ### ১.১ Universal Job 1 Hierarchy Check Invariant
@@ -64,7 +64,7 @@ flowchart TD
 
 ### ১.৩ Deployment Independence & Strict Path-Filter Invariant
 - ডিপ্লয়মেন্ট কখনো লোকাল পিসির ওপর নির্ভর করবে না; এটি সবসময় ক্লাউড API ট্রিগার (`ubuntu-latest`) হিসেবে পোস্ট-মার্জে চলবে।
-- **কঠোর Path-Filter:** যে সার্ভিসের কোড পরিবর্তিত হয়নি, তার ডিপ্লয়মেন্ট কখনো চলবে না। `studio/` পরিবর্তন না হলে Cloudflare Pages বিল্ড সম্পূর্ণ স্কিপ থাকবে (০ মিনিট)।
+- **কঠোর Path-Filter:** যে সার্ভিসের কোড পরিবর্তিত হয়নি, তার ডিপ্লয়মেন্ট কখনো চলবে না। `studio/` সারফেস অবসরপ্রাপ্ত (retired) — তাই এখন থেকে `infrastructure/cloudflare*` পরিবর্তন না হলে Cloudflare Pages বিল্ড সম্পূর্ণ স্কিপ থাকবে (০ মিনিট)।
 
 ---
 
@@ -113,7 +113,7 @@ flowchart LR
     
     CD_Gate --> DiffCheck{"What Changed in Commit?"}
     DiffCheck -- "core/** / gateway/**" --> DeployRender["Deploy Render Services (API Webhook)"]
-    DiffCheck -- "studio/** / cf/**" --> DeployCF["Deploy Cloudflare (Pages / Worker)"]
+    DiffCheck -- "cf/** / infrastructure/** (studio/** retired)" --> DeployCF["Deploy Cloudflare (Pages / Worker)"]
     DiffCheck -- "docs/** / .github/**" --> SkipAll["Skip Deploy (0s, 0 Cloud Mins)"]
 ```
 
@@ -129,7 +129,8 @@ flowchart LR
 5. **`auto-merge` (Stage 2):** `ubuntu-latest` (১০–১৫ সে.) — স্কোয়াশ মার্জ।
 6. **`deploy-cloudflare` (Stage 3):** `ubuntu-latest` — `paths:` ফিল্টার যুক্ত:
    ```yaml
-   if: contains(changed_files, 'studio/') || contains(changed_files, 'infrastructure/cloudflare')
+   # studio/ সারফেস অবসরপ্রাপ্ত (retired) — এখন শুধু Edge/Cloudflare infra বদলালে ডিপ্লয় চলবে
+   if: contains(changed_files, 'infrastructure/cloudflare')
    ```
    অন্যথায় সরাসরি স্কিপ।
 
@@ -198,7 +199,7 @@ flowchart LR
 ### গ্যাপ ২: Cloudflare Deploy-এ Path-Filter না থাকা ও ক্লাউডে ভারী বিল্ড
 - **সমস্যা:** `deploy-cloudflare` জবে কোনো `paths` গার্ড ছিল না। ফলে প্রতিটি পুশে GitHub Cloud রানার `npm install` এবং `npm run build` করেছে (৩-৪ মিনিট অপচয়)।
 - **সমাধান:**
-  1. `paths` ফিল্টার যুক্ত করা: শুধুমাত্র `studio/**` এবং `infrastructure/cloudflare*/**` পরিবর্তিত হলেই চলবে।
+  1. `paths` ফিল্টার যুক্ত করা: শুধুমাত্র `infrastructure/cloudflare*/**` পরিবর্তিত হলেই চলবে (`studio/**` সারফেস অবসরপ্রাপ্ত/retired, তাই আর কোনো স্টুডিও বিল্ড ট্রিগার নেই)।
   2. Cloudflare Pages-এর নেটিভ অটোমেটেড বিল্ড ব্যবহার করা (Cloudflare-এর নিজস্ব ফ্রি ক্লাউড), যাতে GitHub Actions-এ কোনো Nodejs বিল্ড রান করতে না হয়।
 
 ### গ্যাপ ৩: ডিপ্লয়মেন্ট জবের ক্লাউড ও লোকাল আইসোলেশন

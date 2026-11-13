@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -17,7 +17,7 @@ RUN poetry config virtualenvs.in-project true \
     && poetry install --no-interaction --no-ansi --only main,browser --no-root
 
 # Stage 2: Runtime — browser-ready image (Playwright + Chromium)
-FROM python:3.11-slim AS runtime
+FROM python:3.12-slim AS runtime
 
 WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \

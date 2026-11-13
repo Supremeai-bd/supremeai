@@ -25,7 +25,7 @@ from collections import Counter
 
 from fastapi.routing import APIRoute
 
-from tests.api._route_introspection import (
+from gateway.tests.api._route_introspection import (
     app_effective_routes,
     route_endpoint,
     route_methods,

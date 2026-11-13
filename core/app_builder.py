@@ -17,10 +17,19 @@ Critical Security Note: মিডলওয়্যার অর্ডার স
 import os
 import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
+
+# The legacy core modules use flat imports. Bootstrap their owning directory
+# in the factory itself, so ASGI entry points and root-level callers share the
+# same import contract instead of relying on pytest or the current directory.
+_core_dir = str(Path(__file__).resolve().parent)
+if _core_dir in sys.path:
+    sys.path.remove(_core_dir)
+sys.path.insert(0, _core_dir)
 
 from core.config import settings
 from core.monitoring.logging_config import logger, setup_logging
@@ -49,14 +58,6 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
     """
 
     # বাংলা মন্তব্ব্য: লেজি ইম্পোর্ট — মিডলওয়্যার ক্লাস শুধু create_app() কল করলেই লোড হবে
-    from fastapi.middleware.cors import CORSMiddleware
-
-    from api.middleware import (
-        RequestIdMiddleware,
-        ResponseStandardizationMiddleware,
-        SupremeContextMiddleware,
-        TenantExtractionMiddleware,
-    )
     from core.lifespan import app_lifespan
 
     # P0 (production docs exposure policy): gates /docs, /redoc and openapi.json.
@@ -78,6 +79,14 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
     from core.security.autonoguard_middleware import AutonoGuardMiddleware
     from core.security.origin_validator import TrustedOriginMiddleware
     from core.security.protection.honeypot import HoneypotMiddleware
+    from fastapi.middleware.cors import CORSMiddleware
+
+    from api.middleware import (
+        RequestIdMiddleware,
+        ResponseStandardizationMiddleware,
+        SupremeContextMiddleware,
+        TenantExtractionMiddleware,
+    )
     from middleware.chaos_injector import ChaosInjectorMiddleware
     from middleware.idempotency_middleware import IdempotencyMiddleware
 
@@ -89,6 +98,7 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
         from core.browser_session_manager import shutdown_browser_sessions
         from core.config_validator import print_config_summary, validate_config
         from core.health_routes import register_check, set_liveness
+
         from utils.platform_detect import DETECTED_PLATFORM, auto_set_platform_env
 
         if os.getenv("OPENAPI_GENERATION", "false").lower() == "true":
@@ -134,10 +144,9 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
             #      used against the ASYNC engine (asyncpg).
             # Failures were also swallowed silently — now logged server-side.
             try:
-                from sqlalchemy import text
-
                 from core.db import get_engine
                 from core.secret_utils import unwrap_secret
+                from sqlalchemy import text
 
                 engine = get_engine()
                 async with engine.connect() as conn:
@@ -454,9 +463,9 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
     # বাংলা মন্তব্ব্য: canonical browser session/action routes
     # Keep browser routes mounted explicitly so route discovery cannot depend on
     # the optional safe-import registry in api.routes.__init__.
-    from api.routes.browser import router as browser_router
+    from api import register_router
 
-    app.include_router(browser_router)
+    register_router(app, "api.routes.browser", optional=False)
 
     # Issue #1669: the iframe render proxy moves OFF the header-guarded router —
     # iframes cannot attach Authorization headers. Auth is now a single-use,
@@ -477,20 +486,16 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
 
     app.include_router(browser_public_router)
 
-    from core.api.routes.task import router as task_router
-
-    app.include_router(task_router)
-
-    from core.api.routes.studio_compat import router as studio_compat_router
-
-    app.include_router(studio_compat_router, prefix="/api/v1")
-    app.include_router(studio_compat_router, prefix="/api")
+    # Required in every service role. The registry reuses these mounts without
+    # importing another copy of the routes under core.api.routes.*.
+    register_router(app, "api.routes.task", optional=False)
+    register_router(app, "api.routes.studio_compat", prefix="/api/v1", optional=False)
+    register_router(app, "api.routes.studio_compat", prefix="/api", optional=False)
 
     # বাংলা মন্তব্ব্য: মেট্রিক্স এন্ডপয়েন্ট যোগ করা
     if settings.MONITORING_DETAILED:
-        from fastapi.responses import PlainTextResponse
-
         from core._monitoring_legacy import get_metrics_collector
+        from fastapi.responses import PlainTextResponse
 
         @app.get("/metrics", response_class=PlainTextResponse)
         async def metrics_endpoint():
@@ -630,4 +635,10 @@ build_app_shell = create_app
 
 def router_health_check(app: FastAPI | None = None, expected_count: int = 0) -> dict[str, Any]:
     """Helper to return health status of app routers."""
-    return {"status": "healthy", "expected_count": expected_count, "env": settings.env}
+    report = getattr(getattr(app, "state", None), "router_registration", None)
+    if report is None:
+        return {"status": "unknown", "expected_count": expected_count, "env": settings.env}
+    healthy = report["mounted"] == report["expected"] and not report["failures"]
+    if expected_count:
+        healthy = healthy and report["mounted"] == expected_count
+    return {"status": "healthy" if healthy else "degraded", "env": settings.env, **report}

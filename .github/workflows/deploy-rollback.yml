@@ -1,0 +1,241 @@
+name: "Deploy Rollback"
+
+# Manual, audited rollback lane for the three Render services declared in
+# render.yaml (autoDeploy is false everywhere, so a rollback is just a
+# deploy of a known-good commit SHA).
+#
+# This workflow deliberately does NOT reuse unified-pipeline.yml: a rollback
+# must not be planned from a diff, and it must fail closed if the requested
+# SHA cannot be built. Strict mode (REQUIRE_EXPECTED_SHA) is on, so Render's
+# "commit not indexed, fall back to branch HEAD" behavior is refused — a
+# rollback that silently deploys HEAD would be worse than no rollback.
+#
+# Runbook: docs/runbooks/rollback.md
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Render service to roll back"
+        required: true
+        type: choice
+        default: all
+        options:
+          - api
+          - browser
+          - mcp-tower
+          - all
+      target_sha:
+        description: "Known-good commit SHA to deploy (full 40-char SHA on main)"
+        required: true
+        type: string
+      reason:
+        description: "Rollback justification (recorded in the audit trail)"
+        required: true
+        type: string
+
+run-name: "Rollback ${{ inputs.service }} -> ${{ inputs.target_sha }} (@${{ github.actor }})"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-rollback
+  cancel-in-progress: false
+
+jobs:
+  resolve-targets:
+    name: "Resolve rollback targets"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      previous_sha: ${{ steps.previous.outputs.sha }}
+    steps:
+      - name: Validate target SHA format
+        env:
+          TARGET_SHA: ${{ inputs.target_sha }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$TARGET_SHA" | grep -Eq '^[0-9a-fA-F]{40}$'; then
+            echo "::error::target_sha must be a full 40-character commit SHA (got '${TARGET_SHA}')."
+            exit 1
+          fi
+          echo "Target SHA accepted: $TARGET_SHA"
+
+      - name: Record previous SHA (main HEAD at dispatch)
+        id: previous
+        env:
+          GITHUB_SHA_ENV: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          echo "sha=$GITHUB_SHA_ENV" >> "$GITHUB_OUTPUT"
+          echo "Previous SHA (main HEAD at dispatch): $GITHUB_SHA_ENV"
+
+      # Service IDs are resource identifiers, not credentials; they are
+      # resolved here so the matrix stays small. Preferred source is the
+      # RENDER_SERVICE_ID_* secret; the repository variables already used by
+      # plan_render_deploys.py are honored as fallbacks so this lane works
+      # with the current CI configuration.
+      - name: Build rollback matrix
+        id: matrix
+        env:
+          SERVICE: ${{ inputs.service }}
+          SVC_ID_API: ${{ secrets.RENDER_SERVICE_ID_API || vars.RENDER_API_SERVICE_ID }}
+          SVC_ID_BROWSER: ${{ secrets.RENDER_SERVICE_ID_BROWSER || vars.RENDER_SCRAPER_SERVICE_ID || vars.RENDER_BROWSER_SERVICE_ID }}
+          SVC_ID_MCP_TOWER: ${{ secrets.RENDER_SERVICE_ID_MCP_TOWER || vars.RENDER_MCP_SERVICE_ID }}
+        run: |
+          set -euo pipefail
+          case "$SERVICE" in
+            api|browser|mcp-tower) selected="$SERVICE" ;;
+            all) selected="api browser mcp-tower" ;;
+            *) echo "::error::Unsupported service '${SERVICE}'."; exit 1 ;;
+          esac
+
+          entries=""
+          for svc in $selected; do
+            case "$svc" in
+              api)
+                sid="$SVC_ID_API"
+                name="supremeai-api"
+                hint="RENDER_SERVICE_ID_API"
+                url="https://supremeai-api-ulw0.onrender.com/release"
+                ;;
+              browser)
+                sid="$SVC_ID_BROWSER"
+                name="supremeai-browser"
+                hint="RENDER_SERVICE_ID_BROWSER"
+                url="https://supremeai-scraper-node.onrender.com/release"
+                ;;
+              mcp-tower)
+                sid="$SVC_ID_MCP_TOWER"
+                name="supremeai-mcp-tower"
+                hint="RENDER_SERVICE_ID_MCP_TOWER"
+                url="https://supremeai-mcp-tower.onrender.com/release"
+                ;;
+            esac
+            if [ -z "$sid" ]; then
+              echo "::error::No Render service ID resolved for '${svc}'. Set secret ${hint} (or the matching repository variable)."
+              exit 1
+            fi
+            entries="${entries}${entries:+,}{\"service\":\"${svc}\",\"service_name\":\"${name}\",\"service_id\":\"${sid}\",\"release_url\":\"${url}\"}"
+          done
+
+          echo "matrix={\"include\":[${entries}]}" >> "$GITHUB_OUTPUT"
+          echo "Resolved rollback target(s): ${selected}"
+
+  rollback:
+    name: "Roll back ${{ matrix.service }}"
+    needs: resolve-targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Approval gate: deployments to production land only after the
+    # environment's required reviewers approve.
+    environment: production
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.resolve-targets.outputs.matrix) }}
+    concurrency:
+      group: rollback-${{ matrix.service }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout the target revision
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.target_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate that the target SHA is an ancestor of main
+        env:
+          TARGET_SHA: ${{ inputs.target_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --prune origin main
+
+          if ! git rev-parse --verify --quiet origin/main >/dev/null; then
+            echo "::error::Unable to resolve origin/main; refusing to validate ancestry against an unknown base."
+            exit 1
+          fi
+          if ! git cat-file -e "${TARGET_SHA}^{commit}" 2>/dev/null; then
+            echo "::error::Commit ${TARGET_SHA} does not exist in this repository."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$TARGET_SHA" origin/main; then
+            echo "::error::Commit ${TARGET_SHA} is not an ancestor of main; refusing to deploy an unmerged revision."
+            exit 1
+          fi
+          echo "Target ${TARGET_SHA} is on main ✓"
+
+      - name: Trigger the rollback deploy and poll to a terminal state
+        env:
+          RENDER_SERVICE_ID: ${{ matrix.service_id }}
+          EXPECTED_SHA: ${{ inputs.target_sha }}
+          REQUIRE_EXPECTED_SHA: "1"
+          RENDER_WAIT: "1"
+          RENDER_WAIT_TIMEOUT_SECONDS: "600"
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
+          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
+          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
+          RENDER_API_KEY_5: ${{ secrets.RENDER_API_KEY_5 }}
+          RENDER_API_KEY_6: ${{ secrets.RENDER_API_KEY_6 }}
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          INFISICAL_PROJECT_SLUG: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: python scripts/ci/render_trigger_deploy.py
+
+      - name: Verify the rollback landed (source revision, not only health)
+        env:
+          RENDER_SERVICE_ID: ${{ matrix.service_id }}
+          EXPECTED_SHA: ${{ inputs.target_sha }}
+          RELEASE_URL: ${{ matrix.release_url }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
+          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
+          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
+          RENDER_API_KEY_5: ${{ secrets.RENDER_API_KEY_5 }}
+          RENDER_API_KEY_6: ${{ secrets.RENDER_API_KEY_6 }}
+        run: python scripts/ci/render_deploy_attestation.py
+
+      - name: Post rollback summary
+        if: always()
+        env:
+          SERVICE: ${{ matrix.service }}
+          SERVICE_NAME: ${{ matrix.service_name }}
+          PREVIOUS_SHA: ${{ needs.resolve-targets.outputs.previous_sha }}
+          TARGET_SHA: ${{ inputs.target_sha }}
+          REASON: ${{ inputs.reason }}
+          OPERATOR: ${{ github.actor }}
+          OUTCOME: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          # Keep the summary table intact even if the reason contains pipes/newlines.
+          reason="$(printf '%s' "$REASON" | tr '\n' ' ' | tr '|' '/')"
+
+          {
+            echo "## Rollback: ${SERVICE_NAME} (\`${SERVICE}\`)"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Service | \`${SERVICE}\` (\`${SERVICE_NAME}\`) |"
+            echo "| Previous SHA (main HEAD at dispatch) | \`${PREVIOUS_SHA}\` |"
+            echo "| Rolled back to | \`${TARGET_SHA}\` |"
+            echo "| Reason | ${reason} |"
+            echo "| Operator | @${OPERATOR} |"
+            echo "| Outcome | ${OUTCOME} |"
+            echo ""
+            echo "Database migrations are NOT reverted by this workflow (see docs/runbooks/rollback.md)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::notice title=Rollback ${SERVICE} (${OUTCOME})::previous=${PREVIOUS_SHA} target=${TARGET_SHA} operator=@${OPERATOR} reason=${reason}"

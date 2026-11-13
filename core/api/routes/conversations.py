@@ -11,17 +11,17 @@ metadata-র জন্য Supabase `conversations` relational টেবিলে
 আগে: GET /conversations/ Supabase `conversations` টেবিল পড়ত — যেখানে
 চ্যাট flow কখনো লেখে না, তাই dashboard খালি দেখাত।
 """
-import asyncio
 
+import asyncio
 import re
 import uuid
-
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
 
 from core.monitoring.logging_config import logger
 from core.request_context import get_correlation_id
 from core.security.authentication.rbac import get_current_user_token as verify_token_dependency
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
+
 from database.supabase_client import get_db
 
 
@@ -90,9 +90,11 @@ def _get_vector_store():
         from core.secret_utils import unwrap_secret
 
         supabase_url = getattr(settings, "supabase_url", "") or ""
-        supabase_key = unwrap_secret(
-            getattr(settings, "supabase_service_role_key", "")
-        ) or unwrap_secret(getattr(settings, "supabase_anon_key", "")) or ""
+        supabase_key = (
+            unwrap_secret(getattr(settings, "supabase_service_role_key", ""))
+            or unwrap_secret(getattr(settings, "supabase_anon_key", ""))
+            or ""
+        )
         if not supabase_url or not supabase_key:
             return None
         return FreeTierOptimizedVectorStore(supabase_url=supabase_url, supabase_key=supabase_key)
@@ -191,10 +193,12 @@ async def create_conversation(
 
     db = get_db()
     try:
-        response = (
-            await asyncio.to_thread(lambda: db.client.table("conversations")
-            .insert({"user_id": user_id, "title": title or "New Conversation"})
-            .execute())
+        response = await asyncio.to_thread(
+            lambda: (
+                db.client.table("conversations")
+                .insert({"user_id": user_id, "title": title or "New Conversation"})
+                .execute()
+            )
         )
         return ConversationResponse(**response.data[0])
     except Exception as e:
@@ -215,34 +219,40 @@ async def add_message(
         # AUD-2.3/2.5: verify the requesting user actually owns the conversation
         # before writing into it. The service-role client used here bypasses RLS,
         # so the previous "database policy should ensure" assumption did not hold.
-        ownership = (
-            await asyncio.to_thread(lambda: db.client.table("conversations")
-            .select("id")
-            .eq("id", conversation_id)
-            .eq("user_id", user_id)
-            .execute())
+        ownership = await asyncio.to_thread(
+            lambda: (
+                db.client.table("conversations")
+                .select("id")
+                .eq("id", conversation_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
         )
         if not ownership.data:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
-        response = (
-            await asyncio.to_thread(lambda: db.client.table("messages")
-            .insert(
-                {
-                    "conversation_id": conversation_id,
-                    "role": message.role,
-                    "content": message.content,
-                }
+        response = await asyncio.to_thread(
+            lambda: (
+                db.client.table("messages")
+                .insert(
+                    {
+                        "conversation_id": conversation_id,
+                        "role": message.role,
+                        "content": message.content,
+                    }
+                )
+                .execute()
             )
-            .execute())
         )
 
         # Update conversation timestamp
-        await asyncio.to_thread(lambda: (
-            db.client.table("conversations")
-            .update({"updated_at": "now()"})
-            .eq("id", conversation_id)
-            .execute())
+        await asyncio.to_thread(
+            lambda: (
+                db.client.table("conversations")
+                .update({"updated_at": "now()"})
+                .eq("id", conversation_id)
+                .execute()
+            )
         )
 
         return MessageResponse(**response.data[0])

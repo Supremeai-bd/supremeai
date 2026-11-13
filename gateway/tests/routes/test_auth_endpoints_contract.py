@@ -21,6 +21,10 @@ from fastapi.testclient import TestClient
 # _get_secret_key patch করে টোকেন sign/verify করা হয়।
 TEST_SECRET = "test-jwt-secret-contract-2758"
 ALGORITHM = "HS256"
+# বাংলা মন্তব্য (B4): ইস্যুয়ার ও অডিয়েন্স claim এখন বাধ্যতামূলক — ফিক্সচার
+# টোকেনগুলোও বাস্তব টোকেনের মতো একই claim-সেট বহন করবে।
+TEST_ISSUER = "supremeai"
+TEST_AUDIENCE = "supremeai-api"
 
 
 # ---------------------------------------------------------------------------
@@ -81,6 +85,8 @@ def _access_token(
         "jti": jti,
         "iat": now,
         "exp": now + timedelta(minutes=exp_minutes),
+        "iss": TEST_ISSUER,
+        "aud": TEST_AUDIENCE,
     }
     return pyjwt.encode(payload, secret, algorithm=ALGORITHM)
 
@@ -106,6 +112,8 @@ def _refresh_token(
         "tfid": tfid,
         "iat": now,
         "exp": now + timedelta(days=7),
+        "iss": TEST_ISSUER,
+        "aud": TEST_AUDIENCE,
     }
     return pyjwt.encode(payload, secret, algorithm=ALGORITHM)
 
@@ -121,6 +129,8 @@ def _expired_access_token(secret: str) -> str:
         "jti": "jti-expired-0001",
         "iat": now - timedelta(minutes=70),
         "exp": now - timedelta(minutes=5),
+        "iss": TEST_ISSUER,
+        "aud": TEST_AUDIENCE,
     }
     return pyjwt.encode(payload, secret, algorithm=ALGORITHM)
 
@@ -414,6 +424,9 @@ class TestPasswordHashingAndLogin:
         tc, _app, _rev, _revoke = auth_app
         # বাংলা: conftest-এ ADMIN_EMAILS="test_admin@supremeai.com,admin@example.com"।
         admin_email = "test_admin@supremeai.com"
+        from api.routes.auth import settings
+
+        monkeypatch.setattr(settings, "admin_emails", [admin_email])
         mock_db.client.auth.sign_in_with_password.return_value.user.id = "admin-001"
         mock_db.client.auth.sign_in_with_password.return_value.user.app_metadata = {}
 

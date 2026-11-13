@@ -7,18 +7,18 @@ when available for document generation.
 """
 
 from __future__ import annotations
-import asyncio
 
+import asyncio
 import io
 from datetime import datetime
 from typing import Any
 
+from core.monitoring.logging_config import logger
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from api.deps import get_current_user_token
-from core.monitoring.logging_config import logger
 from database.supabase_client import db as supabase_db
 
 router = APIRouter(
@@ -57,12 +57,14 @@ async def _fetch_conversation(user_id: str, conversation_id: str) -> dict[str, A
         raise HTTPException(status_code=503, detail="Database is not available.")
 
     try:
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("conversations")
-            .select("*")
-            .eq("id", conversation_id)
-            .eq("user_id", user_id)
-            .execute())
+        resp = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("conversations")
+                .select("*")
+                .eq("id", conversation_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
         )
         rows = resp.data or []
         if not rows:
@@ -84,12 +86,14 @@ async def _fetch_messages(conversation_id: str) -> list[dict[str, Any]]:
         raise HTTPException(status_code=503, detail="Database is not available.")
 
     try:
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("messages")
-            .select("*")
-            .eq("conversation_id", conversation_id)
-            .order("created_at", desc=False)
-            .execute())
+        resp = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("messages")
+                .select("*")
+                .eq("conversation_id", conversation_id)
+                .order("created_at", desc=False)
+                .execute()
+            )
         )
         return resp.data or []
     except Exception as exc:

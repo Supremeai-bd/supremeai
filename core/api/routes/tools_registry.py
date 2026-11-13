@@ -1,8 +1,9 @@
 import asyncio
+
+from core.security.authentication.rbac import get_current_admin
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from core.security.authentication.rbac import get_current_admin
 from database.supabase_client import db
 
 router = APIRouter(
@@ -57,7 +58,9 @@ async def create_tool(payload: ToolCreate):
     if not db.client:
         raise HTTPException(status_code=503, detail="Database not configured")
     data = payload.dict()
-    res = await asyncio.to_thread(lambda: db.service_client.table("tools_registry").insert(data).execute())
+    res = await asyncio.to_thread(
+        lambda: db.service_client.table("tools_registry").insert(data).execute()
+    )
     return {"status": "success", "tool": res.data[0] if res.data else data}
 
 
@@ -68,7 +71,9 @@ async def update_tool(tool_id: str, payload: ToolUpdate):
     data = payload.dict(exclude_none=True)
     if not data:
         raise HTTPException(status_code=400, detail="No fields to update")
-    res = await asyncio.to_thread(lambda: db.service_client.table("tools_registry").update(data).eq("id", tool_id).execute())
+    res = await asyncio.to_thread(
+        lambda: db.service_client.table("tools_registry").update(data).eq("id", tool_id).execute()
+    )
     return {"status": "success", "tool": res.data[0] if res.data else None}
 
 
@@ -76,10 +81,12 @@ async def update_tool(tool_id: str, payload: ToolUpdate):
 async def delete_tool(tool_id: str):
     if not db.client:
         raise HTTPException(status_code=503, detail="Database not configured")
-    await asyncio.to_thread(lambda: (
-        db.service_client.table("tools_registry")
-        .update({"status": "archived"})
-        .eq("id", tool_id)
-        .execute())
+    await asyncio.to_thread(
+        lambda: (
+            db.service_client.table("tools_registry")
+            .update({"status": "archived"})
+            .eq("id", tool_id)
+            .execute()
+        )
     )
     return {"status": "success", "message": "Tool archived"}

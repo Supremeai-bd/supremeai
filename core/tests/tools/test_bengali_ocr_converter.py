@@ -23,7 +23,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import backend.tools.localization.bengali_ocr_converter as boc
+import core.tools.localization.bengali_ocr_converter as boc
 
 try:
     # CI parity: pandas is an optional dependency for this module (the owner's

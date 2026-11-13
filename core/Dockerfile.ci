@@ -1,6 +1,6 @@
 # STATUS NOTE (audit F-9): currently ORPHANED — no compose file, workflow or doc
 # references this Dockerfile. Verify intent before use; see production audit F-9.
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg libpq-dev build-essential git && rm -rf /var/lib/apt/lists/*

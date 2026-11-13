@@ -13,16 +13,16 @@ The unified master orchestrator coordinating:
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from adapters.business_adapter import BusinessAdapter
-from adapters.dev_adapter import DevAdapter
-from adapters.ux_adapter import UXAdapter
 from core.advanced_reasoning import AdvancedReasoningEngine, ReasoningChain
+from core.engine.self_reflection import SelfReflectionLoop
 from core.evolution_module import EvolutionModule, EvolutionResult
 from core.monitoring.logging_config import logger
+
 from evolution.auto_evolution_controller import AutoEvolutionController
 from learning.pattern_recognizer import PatternMatch, PatternRecognizer
 from services.dynamic_planner import DynamicPlanningEngine, TaskDAG, TaskNode
@@ -47,6 +47,7 @@ class SolutionResult:
     patterns: list[dict[str, Any]] = field(default_factory=list)
     evolution: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
+    reflection: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -62,164 +63,78 @@ class SolutionResult:
             "patterns": self.patterns,
             "evolution": self.evolution,
             "error": self.error,
+            "reflection": self.reflection,
         }
 
 
 # ── Domain Adapters Bridge ─────────────────────────────────────────────────────
 
 
+async def _request_completion(prompt: str, *, task_type: str, session_id: str) -> str:
+    """Use the supported gateway; failures must reach the self-healing boundary."""
+    from core.llm.llm_gateway import get_llm_gateway
+
+    gateway = get_llm_gateway()
+    if gateway is None:
+        raise RuntimeError("LLM gateway unavailable")
+    response = await gateway.acompletion(prompt=prompt, task_type=task_type, session_id=session_id)
+    text = None
+    if isinstance(response, dict):
+        if response.get("success") is not False:
+            text = response.get("text")
+    elif getattr(response, "choices", None):
+        text = getattr(getattr(response.choices[0], "message", None), "content", None)
+    if not isinstance(text, str) or not text.strip():
+        raise RuntimeError("LLM gateway returned no usable completion")
+    return text
+
+
 class BaseDomainAdapter:
-    """Base domain execution adapter."""
+    """Gateway-backed execution without the retired synthetic-success fallback."""
+
+    task_type = "general"
+    prompt_title = "General"
+    session_prefix = "general"
 
     async def execute_node(self, node: TaskNode, context: dict[str, Any]) -> Any:
-        return {"status": "executed", "node_id": node.id, "capability": node.capability}
+        prompt = (
+            f"Execute {self.prompt_title} Task: {node.description or node.name}\n"
+            f"Capability: {node.capability}\nContext: {json.dumps(context)[:500]}"
+        )
+        text = await _request_completion(
+            prompt, task_type=self.task_type, session_id=f"{self.session_prefix}_adapter_{node.id}"
+        )
+        return {
+            "status": "executed",
+            "node_id": node.id,
+            "capability": node.capability,
+            "result": text,
+            "llm_processed": True,
+        }
 
 
 class DevDomainAdapter(BaseDomainAdapter):
-    """Handles code architecture, defect localization, and AST safe patching using LLM."""
+    """Route development tasks through the coding gateway."""
 
-    def __init__(self, adapter: DevAdapter | None = None) -> None:
-        self.adapter = adapter or DevAdapter()
-
-    async def execute_node(self, node: TaskNode, context: dict[str, Any]) -> Any:
-        capability = node.capability
-
-        try:
-            import json
-
-            from core.llm.llm_gateway import get_llm_gateway
-
-            gateway = get_llm_gateway()
-            if gateway:
-                prompt = f"Execute Developer Task: {node.description or node.name}\nCapability: {capability}\nContext: {json.dumps(context)[:500]}"
-                resp = await gateway.acompletion(
-                    prompt=prompt,
-                    task_type="coding",
-                    session_id=f"dev_adapter_{node.id}",
-                )
-                text = ""
-                if isinstance(resp, dict) and resp.get("text"):
-                    text = resp["text"]
-                elif hasattr(resp, "choices") and resp.choices:
-                    text = resp.choices[0].message.content or ""
-
-                if text:
-                    return {
-                        "status": "executed",
-                        "node_id": node.id,
-                        "capability": capability,
-                        "result": text,
-                        "llm_processed": True,
-                    }
-        except Exception as exc:
-            logger.warning(f"DevDomainAdapter LLM execution failed: {exc}. Using fallback.")
-
-        res = await self.adapter.adapt(node.description or node.name, context)
-        return {
-            "status": "executed",
-            "node_id": node.id,
-            "capability": capability,
-            "result": res.adapted_solution,
-            "llm_processed": False,
-        }
+    task_type = "coding"
+    prompt_title = "Developer"
+    session_prefix = "dev"
 
 
 class BusinessDomainAdapter(BaseDomainAdapter):
-    """Handles financial analysis, cost optimization, and decision logic using LLM."""
+    """Route business analysis through the reasoning gateway."""
 
-    def __init__(self, adapter: BusinessAdapter | None = None) -> None:
-        self.adapter = adapter or BusinessAdapter()
-
-    async def execute_node(self, node: TaskNode, context: dict[str, Any]) -> Any:
-        capability = node.capability
-
-        try:
-            import json
-
-            from core.llm.llm_gateway import get_llm_gateway
-
-            gateway = get_llm_gateway()
-            if gateway:
-                prompt = f"Execute Business Task: {node.description or node.name}\nCapability: {capability}\nContext: {json.dumps(context)[:500]}"
-                resp = await gateway.acompletion(
-                    prompt=prompt,
-                    task_type="reasoning",
-                    session_id=f"business_adapter_{node.id}",
-                )
-                text = ""
-                if isinstance(resp, dict) and resp.get("text"):
-                    text = resp["text"]
-                elif hasattr(resp, "choices") and resp.choices:
-                    text = resp.choices[0].message.content or ""
-
-                if text:
-                    return {
-                        "status": "executed",
-                        "node_id": node.id,
-                        "capability": capability,
-                        "result": text,
-                        "llm_processed": True,
-                    }
-        except Exception as exc:
-            logger.warning(f"BusinessDomainAdapter LLM execution failed: {exc}. Using fallback.")
-
-        res = await self.adapter.adapt(node.description or node.name, context)
-        return {
-            "status": "executed",
-            "node_id": node.id,
-            "capability": capability,
-            "result": res.adapted_solution,
-            "llm_processed": False,
-        }
+    task_type = "reasoning"
+    prompt_title = "Business"
+    session_prefix = "business"
 
 
 class UXDomainAdapter(BaseDomainAdapter):
-    """Handles UI components, responsive layout, and accessibility tokens using LLM."""
+    """Route UX tasks through the vision gateway without claiming compliance."""
 
-    def __init__(self, adapter: UXAdapter | None = None) -> None:
-        self.adapter = adapter or UXAdapter()
-
-    async def execute_node(self, node: TaskNode, context: dict[str, Any]) -> Any:
-        capability = node.capability
-
-        try:
-            import json
-
-            from core.llm.llm_gateway import get_llm_gateway
-
-            gateway = get_llm_gateway()
-            if gateway:
-                prompt = f"Execute UX Task: {node.description or node.name}\nCapability: {capability}\nContext: {json.dumps(context)[:500]}"
-                resp = await gateway.acompletion(
-                    prompt=prompt,
-                    task_type="vision",
-                    session_id=f"ux_adapter_{node.id}",
-                )
-                text = ""
-                if isinstance(resp, dict) and resp.get("text"):
-                    text = resp["text"]
-                elif hasattr(resp, "choices") and resp.choices:
-                    text = resp.choices[0].message.content or ""
-
-                if text:
-                    return {
-                        "status": "executed",
-                        "node_id": node.id,
-                        "capability": capability,
-                        "result": text,
-                        "llm_processed": True,
-                    }
-        except Exception as exc:
-            logger.warning(f"UXDomainAdapter LLM execution failed: {exc}. Using fallback.")
-
-        res = await self.adapter.adapt(node.description or node.name, context)
-        return {
-            "status": "executed",
-            "node_id": node.id,
-            "capability": capability,
-            "result": res.adapted_solution,
-            "llm_processed": False,
-        }
+    task_type = "vision"
+    prompt_title = "UX"
+    session_prefix = "ux"
 
 
 # ── Living Engine Orchestrator ─────────────────────────────────────────────────
@@ -239,6 +154,7 @@ class LivingEngineOrchestrator:
         pattern_recognizer: PatternRecognizer | None = None,
         evolution_module: EvolutionModule | None = None,
         evolution_controller: AutoEvolutionController | None = None,
+        self_reflection: SelfReflectionLoop | None = None,
     ) -> None:
         self.memory_service = memory_service or global_memory_service
         self.intent_service = intent_service or IntentDecipheringService(
@@ -253,6 +169,12 @@ class LivingEngineOrchestrator:
         self.pattern_recognizer = pattern_recognizer or PatternRecognizer()
         self.evolution_module = evolution_module or EvolutionModule()
         self.evolution_controller = evolution_controller or AutoEvolutionController()
+        if self_reflection is None:
+            # Resolve lazily so dependency injection never instantiates the default loop.
+            from core.engine.self_reflection import SelfReflectionLoop
+
+            self_reflection = SelfReflectionLoop()
+        self.self_reflection = self_reflection
 
         # Domain Adapters
         self.adapters: dict[str, BaseDomainAdapter] = {
@@ -306,40 +228,22 @@ class LivingEngineOrchestrator:
                 if node.capability == "execute_dynamic_action":
                     spec = ToolSpec(name=f"dynamic_{node.id}", description=node.description)
 
-                    try:
-                        from core.llm.llm_gateway import get_llm_gateway
-
-                        gateway = get_llm_gateway()
-
-                        code = ""
-                        if gateway:
-                            prompt = (
-                                f"Write a Python function named dynamic_{node.id}() that achieves the following goal: '{intent.ultimate_goal}'. "
-                                f"Task description: {node.description}. "
-                                "Return a dictionary with a 'status' key and a 'result' key. "
-                                "Provide ONLY raw Python code, without markdown formatting or backticks, starting with the def statement."
-                            )
-                            resp = await gateway.acompletion(
-                                prompt=prompt,
-                                task_type="coding",
-                                session_id=f"tool_forge_{node.id}",
-                            )
-                            if isinstance(resp, dict) and resp.get("text"):
-                                code = resp["text"].strip()
-                            elif hasattr(resp, "choices") and resp.choices:
-                                code = (resp.choices[0].message.content or "").strip()
-
-                            if code.startswith("```python"):
-                                code = code[9:]
-                            if code.endswith("```"):
-                                code = code[:-3]
-                            code = code.strip()
-                    except Exception as exc:
-                        logger.warning(f"LivingEngine ToolForge LLM failed: {exc}")
-                        code = ""
-
-                    if not code:
-                        code = f"def dynamic_{node.id}(): return {{'status': 'completed', 'goal': '{intent.ultimate_goal}'}}"
+                    prompt = (
+                        f"Write a Python function named dynamic_{node.id}() that achieves the following goal: '{intent.ultimate_goal}'. "
+                        f"Task description: {node.description}. "
+                        "Return a dictionary with a 'status' key and a 'result' key. "
+                        "Provide ONLY raw Python code, without markdown formatting or backticks, starting with the def statement."
+                    )
+                    code = (
+                        await _request_completion(
+                            prompt, task_type="coding", session_id=f"tool_forge_{node.id}"
+                        )
+                    ).strip()
+                    if code.startswith("```python"):
+                        code = code[9:]
+                    if code.endswith("```"):
+                        code = code[:-3]
+                    code = code.strip()
 
                     tool = self.tool_forge.forge_tool(spec, code)
                     return self.tool_forge.execute_tool(tool, {})
@@ -398,12 +302,11 @@ class LivingEngineOrchestrator:
             logger.info(
                 f"LivingEngine: Task completed in {duration_ms:.1f}ms with fitness {fitness}"
             )
-            return solution
 
         except Exception as exc:
             duration_ms = (time.perf_counter() - start_time) * 1000.0
             logger.error(f"LivingEngine: Pipeline execution failed: {exc}")
-            return SolutionResult(
+            solution = SolutionResult(
                 success=False,
                 ultimate_goal=prompt,
                 domain="error",
@@ -411,3 +314,17 @@ class LivingEngineOrchestrator:
                 error=str(exc),
                 execution_time_ms=round(duration_ms, 2),
             )
+
+        try:
+            solution.reflection = await self.self_reflection.reflect(
+                task_prompt=prompt,
+                execution_output=json.dumps(solution.results, default=str),
+                is_success=solution.success,
+                error_details=solution.error or "",
+            )
+        except Exception as exc:
+            # Reflection is feedback, not execution evidence. Preserve the outcome
+            # and report unavailable feedback without manufacturing a critique.
+            solution.reflection = {"status": "unavailable", "error_type": type(exc).__name__}
+            logger.warning("LivingEngine reflection unavailable: %s", type(exc).__name__)
+        return solution

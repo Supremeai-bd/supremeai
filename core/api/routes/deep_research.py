@@ -16,12 +16,12 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+from core.monitoring.logging_config import logger
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from api.deps import get_current_user_token
-from core.monitoring.logging_config import logger
 from database.supabase_client import db as supabase_db
 
 router = APIRouter(
@@ -125,6 +125,7 @@ def _ensure_schema() -> None:
     try:
         # Schema managed by versioned migrations; exec_sql RPC not used.
         import logging
+
         logging.getLogger(__name__).info("deep_research schema assumed present via migrations")
     except asyncio.CancelledError:
         raise
@@ -605,16 +606,18 @@ async def deep_research_sync(
         if payload.conversation_id and supabase_db.client:
             try:
                 summary = report.get("summary", "")[:2000]
-                await asyncio.to_thread(lambda: (
-                    supabase_db.client.table("messages")
-                    .insert(
-                        {
-                            "conversation_id": payload.conversation_id,
-                            "role": "assistant",
-                            "content": f"[Deep Research: {report.get('title', '')}]\n\n{summary}",
-                        }
+                await asyncio.to_thread(
+                    lambda: (
+                        supabase_db.client.table("messages")
+                        .insert(
+                            {
+                                "conversation_id": payload.conversation_id,
+                                "role": "assistant",
+                                "content": f"[Deep Research: {report.get('title', '')}]\n\n{summary}",
+                            }
+                        )
+                        .execute()
                     )
-                    .execute())
                 )
             except Exception as exc:
                 logger.warning(f"Failed to attach research to conversation: {exc}")
@@ -760,13 +763,15 @@ async def list_research_history(
     _ensure_schema()
 
     try:
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("deep_research_sessions")
-            .select(HISTORY_SELECT_COLUMNS)
-            .eq("user_id", user_id)
-            .order("created_at", desc=True)
-            .limit(limit)
-            .execute())
+        resp = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("deep_research_sessions")
+                .select(HISTORY_SELECT_COLUMNS)
+                .eq("user_id", user_id)
+                .order("created_at", desc=True)
+                .limit(limit)
+                .execute()
+            )
         )
         return resp.data or []
     except Exception as exc:
@@ -791,12 +796,14 @@ async def get_research_report(
     _ensure_schema()
 
     try:
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("deep_research_sessions")
-            .select("*")
-            .eq("id", research_id)
-            .eq("user_id", user_id)
-            .execute())
+        resp = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("deep_research_sessions")
+                .select("*")
+                .eq("id", research_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
         )
         if not resp.data:
             raise HTTPException(status_code=404, detail="Research session not found.")

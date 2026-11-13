@@ -54,10 +54,22 @@ def _verify_signature(body: bytes, signature: str | None, secret: str | None = N
 async def handle_github_webhook(
     request: Request,
     x_hub_signature_256: str | None = Header(None, alias="X-Hub-Signature-256"),
+    x_github_event: str = Header(default="ping"),
 ):
+    """Authenticate GitHub deliveries before dispatching comment events."""
     body = await request.body()
     _verify_signature(body, x_hub_signature_256)
-    return {"status": "pong"}
+    if x_github_event == "ping":
+        return {"status": "pong"}
+    try:
+        payload = await request.json()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Expected a JSON object")
+    if x_github_event not in ("pull_request_review_comment", "issue_comment"):
+        return {"status": "ignored", "event": x_github_event}
+    return await _comment_ai.handle_github_webhook(payload)
 
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
@@ -425,25 +437,3 @@ async def summarize_thread(request: ThreadSummaryRequest):
 async def detect_stale(owner: str, repo: str, days: int = 7):
     """Find PRs with no activity in N days."""
     return await _comment_ai.detect_stale_prs(f"{owner}/{repo}", days)
-
-
-@router.post("/webhook")
-async def github_webhook(request: Request, x_github_event: str = Header(default="ping")):
-    """GitHub webhook receiver for PR comment events."""
-    if x_github_event == "ping":
-        return {"status": "pong"}
-    try:
-        payload = await request.json()
-    except Exception as e:
-        try:
-            import loguru
-
-            loguru.logger.error(f"Tool execution error: {e}")
-        except Exception as e:
-            logger.warning(f"Exception suppressed: {e}")
-        raise HTTPException(status_code=400, detail="Invalid JSON payload") from e
-
-    if x_github_event not in ("pull_request_review_comment", "issue_comment"):
-        return {"status": "ignored", "event": x_github_event}
-
-    return await _comment_ai.handle_github_webhook(payload)

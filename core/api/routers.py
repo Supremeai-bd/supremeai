@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
+
+from core.config import settings
+from core.logging_config import logger
 from fastapi import Depends, FastAPI
 
 from api import register_router
 from api.deps import get_current_user_token
-from core.config import settings
-from core.logging_config import logger
 
 # Unified declarative registry of all routers.
 # Format: {"path": str, "prefix": str, "is_admin": bool, "is_critical": bool}
@@ -73,8 +75,8 @@ ALL_ROUTERS = [
         "is_admin": False,
         "is_critical": False,
     },
-    {"path": "api.routes.auth", "prefix": "/api/v1", "is_admin": False, "is_critical": False},
-    {"path": "api.routes.auth", "prefix": "/api", "is_admin": False, "is_critical": False},
+    {"path": "api.routes.auth", "prefix": "/api/v1", "is_admin": False, "is_critical": True},
+    {"path": "api.routes.auth", "prefix": "/api", "is_admin": False, "is_critical": True},
     {"path": "api.routes.studio_compat", "prefix": "/api/v1", "is_admin": False, "is_critical": False},
     {"path": "api.routes.studio_compat", "prefix": "/api", "is_admin": False, "is_critical": False},
     {"path": "api.routes.onboarding", "prefix": "/api/v1", "is_admin": False, "is_critical": False},
@@ -290,7 +292,8 @@ ALL_ROUTERS = [
     {"path": "api.routes.public_config", "prefix": "/api", "is_admin": False, "is_critical": False},
     {"path": "api.routes.preferences", "prefix": "/api", "is_admin": False, "is_critical": False},
     {"path": "api.routes.simulator_admin", "prefix": "", "is_admin": True, "is_critical": False},
-    {"path": "api.routes.site_actions", "prefix": "", "is_admin": True, "is_critical": False},
+    # site_actions re-exports browser_action_registry's admin-gated router;
+    # the canonical entry above already mounts the same endpoints.
     {
         "path": "api.routes.hitl_admin",
         "prefix": "/api/v1/hitl",
@@ -531,6 +534,8 @@ def register_all_routers(app: FastAPI) -> None:
     mounted = 0
     from api import _registration_report
 
+    report_start = len(_registration_report)
+    skipped = 0
     for router_def in ALL_ROUTERS:
         path = router_def["path"]
         prefix = router_def["prefix"]
@@ -542,12 +547,15 @@ def register_all_routers(app: FastAPI) -> None:
         is_health_route = "health" in path or "service_topology" in path
 
         if current_role == "scraper" and not (is_scraper_route or is_health_route):
+            skipped += 1
             continue
 
         if current_role == "worker" and not is_health_route:
+            skipped += 1
             continue
 
         if current_role == "core" and is_scraper_route:
+            skipped += 1
             continue
 
         deps = [Depends(get_current_user_token)] if is_admin else None
@@ -570,7 +578,18 @@ def register_all_routers(app: FastAPI) -> None:
         logger.warning("Universal BYOC router not loaded: ENCRYPTION_KEY missing")
 
     # AUDIT-FF: স্ট���র্টআপে মাউন্ট-রিপোর্ট — সাইলেন্ট আনমাউন্ট এখন দৃশ্যমান।
-    failed = list(_registration_report)
+    failed = list(_registration_report[report_start:])
+    app.state.router_registration = {
+        "role": current_role,
+        "expected": registered,
+        "mounted": mounted,
+        "skipped": skipped,
+        "failures": [
+            {"module": entry["module"], "error_type": entry["error_type"]}
+            for entry in failed
+        ],
+    }
+    logger.info(f"router_registration={json.dumps(app.state.router_registration)}")
     logger.info(f"Router registration complete: mounted={mounted}/{registered} registry entries")
     if failed:
         logger.warning(

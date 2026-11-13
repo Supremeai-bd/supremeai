@@ -1,5 +1,6 @@
 # Stage 1: Runtime & Verification Runner
-FROM python:3.11-slim
+# Base interpreter is 3.12 to stay aligned with the CI runner toolchain.
+FROM python:3.12-slim
 
 WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \

@@ -10,23 +10,23 @@ Features:
 """
 
 from __future__ import annotations
-import asyncio
 
+import asyncio
 import base64
 import hashlib
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any, Optional
 
 import httpx
-from cryptography.fernet import Fernet
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from pydantic import BaseModel, Field
-
 from core.monitoring.logging_config import logger
 from core.request_context import get_correlation_id
 from core.security.authentication.rbac import get_current_user_token as verify_token_dependency
+from cryptography.fernet import Fernet
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel, Field
+
 from database.supabase_client import get_db
 
 router = APIRouter(prefix="/keys", tags=["User Keys"])
@@ -54,7 +54,7 @@ class KeyCreate(BaseModel):
 class KeyResponse(BaseModel):
     provider: str
     status: str = "active"
-    last_verified_at: Optional[str] = None
+    last_verified_at: str | None = None
     created_at: str
 
 
@@ -73,6 +73,7 @@ def decrypt_key(encrypted_key: str) -> str:
 
 
 # ─── Live Pre-flight Key Validator ──────────────────────────────────────────
+
 
 async def validate_provider_key(provider: str, api_key: str) -> tuple[bool, str]:
     """
@@ -200,6 +201,7 @@ async def validate_provider_key(provider: str, api_key: str) -> tuple[bool, str]
 
 # ─── API Routes ─────────────────────────────────────────────────────────────
 
+
 @router.post("/", response_model=KeyResponse)
 async def create_or_update_key(key_data: KeyCreate, user: dict = Depends(verify_token_dependency)):
     user_id = user.get("sub") or user.get("user_id") or user.get("id")
@@ -214,36 +216,42 @@ async def create_or_update_key(key_data: KeyCreate, user: dict = Depends(verify_
     if not is_valid:
         raise HTTPException(
             status_code=400,
-            detail=f"Key validation failed: {msg}. Please check your API key from the provider console."
+            detail=f"Key validation failed: {msg}. Please check your API key from the provider console.",
         )
 
     encrypted_key = encrypt_key(raw_key)
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.now(UTC).isoformat()
 
     db = get_db()
     try:
-        response = (
-            await asyncio.to_thread(lambda: db.client.table("user_keys")
-            .upsert(
-                {
-                    "user_id": str(user_id),
-                    "provider": provider,
-                    "encrypted_key": encrypted_key,
-                    "status": "active",
-                    "last_verified_at": now_iso,
-                    "created_at": now_iso,
-                },
-                on_conflict="user_id,provider",
+        response = await asyncio.to_thread(
+            lambda: (
+                db.client.table("user_keys")
+                .upsert(
+                    {
+                        "user_id": str(user_id),
+                        "provider": provider,
+                        "encrypted_key": encrypted_key,
+                        "status": "active",
+                        "last_verified_at": now_iso,
+                        "created_at": now_iso,
+                    },
+                    on_conflict="user_id,provider",
+                )
+                .execute()
             )
-            .execute())
         )
 
-        data = response.data[0] if response.data else {
-            "provider": provider,
-            "status": "active",
-            "last_verified_at": now_iso,
-            "created_at": now_iso,
-        }
+        data = (
+            response.data[0]
+            if response.data
+            else {
+                "provider": provider,
+                "status": "active",
+                "last_verified_at": now_iso,
+                "created_at": now_iso,
+            }
+        )
         return KeyResponse(
             provider=data["provider"],
             status=data.get("status", "active"),
@@ -267,11 +275,13 @@ async def list_keys(user: dict = Depends(verify_token_dependency)):
 
     db = get_db()
     try:
-        response = (
-            await asyncio.to_thread(lambda: db.client.table("user_keys")
-            .select("provider, status, last_verified_at, created_at")
-            .eq("user_id", str(user_id))
-            .execute())
+        response = await asyncio.to_thread(
+            lambda: (
+                db.client.table("user_keys")
+                .select("provider, status, last_verified_at, created_at")
+                .eq("user_id", str(user_id))
+                .execute()
+            )
         )
         return [
             KeyResponse(
@@ -295,12 +305,14 @@ async def delete_key(provider: str, user: dict = Depends(verify_token_dependency
 
     db = get_db()
     try:
-        await asyncio.to_thread(lambda: (
-            db.client.table("user_keys")
-            .delete()
-            .eq("user_id", str(user_id))
-            .eq("provider", provider.lower().strip())
-            .execute())
+        await asyncio.to_thread(
+            lambda: (
+                db.client.table("user_keys")
+                .delete()
+                .eq("user_id", str(user_id))
+                .eq("provider", provider.lower().strip())
+                .execute()
+            )
         )
         return {"status": "success", "message": f"{provider.upper()} key removed successfully."}
     except Exception as e:
@@ -314,30 +326,33 @@ async def delete_key(provider: str, user: dict = Depends(verify_token_dependency
 
 # ─── Daily Auto-Audit Worker Route ──────────────────────────────────────────
 
+
 @router.post("/audit/daily-recheck", response_model=list[KeyAuditResult])
 async def run_daily_key_recheck(user: dict = Depends(verify_token_dependency)):
     """
     Rechecks user's registered keys. If a key expired or revoked, flips status to 'invalid'
     and user loses bonus quota. Returns summary of audited keys.
     """
-    uid = str(user.get('sub') or user.get('user_id') or user.get('id') or '')
+    uid = str(user.get("sub") or user.get("user_id") or user.get("id") or "")
     if not uid:
         raise HTTPException(status_code=401, detail="Invalid token")
 
     db = get_db()
     try:
-        response = (
-            await asyncio.to_thread(lambda: db.client.table("user_keys")
-            .select("provider, encrypted_key, status")
-            .eq('user_id', uid)
-            .execute())
+        response = await asyncio.to_thread(
+            lambda: (
+                db.client.table("user_keys")
+                .select("provider, encrypted_key, status")
+                .eq("user_id", uid)
+                .execute()
+            )
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database fetch failed: {e}")
 
     rows = response.data or []
     audit_results: list[KeyAuditResult] = []
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.now(UTC).isoformat()
 
     for row in rows:
         provider = row["provider"]
@@ -351,22 +366,28 @@ async def run_daily_key_recheck(user: dict = Depends(verify_token_dependency)):
             new_status = "active" if is_valid else "invalid"
 
             # Update status in db
-            await asyncio.to_thread(lambda: (
-                db.client.table("user_keys")
-                .update({
-                    "status": new_status,
-                    "last_verified_at": now_iso,
-                })
-                .eq('user_id', uid)
-                .eq("provider", provider)
-                .execute())
+            await asyncio.to_thread(
+                lambda new_status=new_status, provider=provider: (
+                    db.client.table("user_keys")
+                    .update(
+                        {
+                            "status": new_status,
+                            "last_verified_at": now_iso,
+                        }
+                    )
+                    .eq("user_id", uid)
+                    .eq("provider", provider)
+                    .execute()
+                )
             )
 
             audit_results.append(
                 KeyAuditResult(
                     provider=provider,
                     status=new_status,
-                    message="Key is healthy and active" if is_valid else f"Revoked/Invalid: {reason}",
+                    message="Key is healthy and active"
+                    if is_valid
+                    else f"Revoked/Invalid: {reason}",
                 )
             )
         except Exception as ex:

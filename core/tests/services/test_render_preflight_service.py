@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-import backend.services.render_preflight_service as rps
+import core.services.render_preflight_service as rps
 from core.contracts.render_preflight_store import RenderPreflightStore
 
 # ---------------------------------------------------------------------------
