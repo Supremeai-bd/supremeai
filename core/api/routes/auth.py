@@ -239,10 +239,12 @@ class RegisterRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
+    token: str | None = None
     refresh_token: str | None = None
     token_type: str = "bearer"
     user_id: str
     role: str
+    user: dict[str, Any] | None = None
 
 
 class MeResponse(BaseModel):
@@ -332,11 +334,23 @@ async def login(body: LoginRequest, request: Request, response: Response):
                 logger.warning(f"Failed to register device fingerprint for {user_id}: {exc}")
 
         _set_auth_cookies(response, access_token, refresh_token)
+        user_dict = {
+            "id": user_id,
+            "name": getattr(body, "name", None) or (body.username or "").split("@")[0] or "User",
+            "email": body.username,
+            "role": primary_role,
+            "isAdminEligible": is_admin,
+            "adminUserId": user_id if is_admin else None,
+            "plan": "Enterprise" if is_admin else "Pro",
+            "createdAt": datetime.now(UTC).strftime("%Y-%m-%d"),
+        }
         return TokenResponse(
             access_token=access_token,
+            token=access_token,
             refresh_token=refresh_token,
             user_id=user_id,
             role=primary_role,
+            user=user_dict,
         )
     except HTTPException:
         # বাংলা: নিজে রেইজ করা HTTPException পুনরায় রেইজ করি — বাকি সব exception 500।
@@ -437,11 +451,23 @@ async def register(body: RegisterRequest, response: Response):
         access_token = create_access_token(token_data)
         refresh_token = create_refresh_token(token_data)
         _set_auth_cookies(response, access_token, refresh_token)
+        user_dict = {
+            "id": user_id,
+            "name": getattr(body, "name", None) or (body.username or "").split("@")[0] or "User",
+            "email": body.username,
+            "role": primary_role,
+            "isAdminEligible": is_admin,
+            "adminUserId": user_id if is_admin else None,
+            "plan": "Enterprise" if is_admin else "Pro",
+            "createdAt": datetime.now(UTC).strftime("%Y-%m-%d"),
+        }
         return TokenResponse(
             access_token=access_token,
+            token=access_token,
             refresh_token=refresh_token,
             user_id=user_id,
             role=primary_role,
+            user=user_dict,
         )
     except HTTPException:
         raise
