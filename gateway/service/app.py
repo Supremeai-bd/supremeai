@@ -2234,6 +2234,53 @@ async def delete_conversation_endpoint(
     return {"status": "deleted" if ok else "not_found", "id": conversation_id}
 
 
+@app.get("/api/v1/conversations/{conversation_id}/messages")
+@app.get("/v1/conversations/{conversation_id}/messages")
+@app.get("/api/v1/chat/conversations/{conversation_id}/messages")
+@app.get("/v1/chat/conversations/{conversation_id}/messages")
+async def list_conversation_messages(
+    conversation_id: str,
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """List ordered messages for a conversation (user-scoped)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    user_id = _extract_user_id(request)
+    conv = get_conversation(conversation_id, user_id=user_id) if get_conversation else None
+    if not conv:
+        raise HTTPException(status_code=404, detail=f"Conversation {conversation_id} not found")
+    return {"status": "ok", "conversation_id": conversation_id, "messages": conv.get("messages", []), "count": conv.get("message_count", 0)}
+
+
+@app.post("/api/v1/conversations/{conversation_id}/messages")
+@app.post("/v1/conversations/{conversation_id}/messages")
+@app.post("/api/v1/chat/conversations/{conversation_id}/messages")
+@app.post("/v1/chat/conversations/{conversation_id}/messages")
+async def append_conversation_message(
+    conversation_id: str,
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Append a message to a user-owned conversation (per-user scoped)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    role = str(body.get("role") or "user")
+    content = body.get("content")
+    if content is None or not str(content).strip():
+        raise HTTPException(status_code=400, detail="Message content is required")
+    user_id = _extract_user_id(request)
+    conv = get_conversation(conversation_id, user_id=user_id) if get_conversation else None
+    if not conv:
+        raise HTTPException(status_code=404, detail=f"Conversation {conversation_id} not found")
+    msg = add_message(conversation_id, role, str(content), user_id=user_id) if add_message else {"id": "", "conversation_id": conversation_id, "role": role, "content": str(content)}
+    return {"status": "ok", "message": msg}
+
+
 # ── Workspace Connections & Capability Discovery Endpoints ──────────────────
 
 @app.get("/api/v1/connections/my-workspace")
