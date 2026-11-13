@@ -544,3 +544,66 @@ export function detectCatalogCollisions(): Array<{
 
   return collisions;
 }
+
+/**
+ * Task 3.1 & 3.2 Free-Tier Safeguard:
+ * Detects if multiple Render services share the same Render Account ID or API Key,
+ * which would violate the Render 750h free-tier isolation policy.
+ */
+export function detectRenderAccountCollisions(): Array<{
+  renderAccountId: string;
+  services: string[];
+  violation: boolean;
+}> {
+  const catalog = loadAuthoritativeServices();
+  const byAccount = new Map<string, string[]>();
+
+  for (const [key, entry] of Object.entries(catalog)) {
+    if (entry.platform === "render" && entry.renderAccountId) {
+      const list = byAccount.get(entry.renderAccountId) ?? [];
+      const serviceName = entry.name || key;
+      if (!list.includes(serviceName)) list.push(serviceName);
+      byAccount.set(entry.renderAccountId, list);
+    }
+  }
+
+  const accountCollisions: Array<{
+    renderAccountId: string;
+    services: string[];
+    violation: boolean;
+  }> = [];
+
+  for (const [renderAccountId, services] of byAccount.entries()) {
+    if (services.length > 1) {
+      accountCollisions.push({
+        renderAccountId,
+        services,
+        violation: true,
+      });
+    }
+  }
+
+  return accountCollisions;
+}
+
+/**
+ * Audits complete Render Free-Tier 750h account isolation compliance.
+ */
+export function auditRenderFreeTierIsolation(): {
+  compliant: boolean;
+  accountsAllocated: number;
+  totalServices: number;
+  collisions: Array<{ renderAccountId: string; services: string[] }>;
+} {
+  const collisions = detectRenderAccountCollisions();
+  const catalog = loadAuthoritativeServices();
+  const renderServices = Object.values(catalog).filter((s) => s.platform === "render");
+  const uniqueAccounts = new Set(renderServices.map((s) => s.renderAccountId).filter(Boolean));
+
+  return {
+    compliant: collisions.length === 0,
+    accountsAllocated: uniqueAccounts.size,
+    totalServices: renderServices.length,
+    collisions: collisions.map((c) => ({ renderAccountId: c.renderAccountId, services: c.services })),
+  };
+}
