@@ -99,6 +99,17 @@ def mock_async_redis():
 @pytest.fixture(autouse=True)
 def mock_external_apis():
     """Mock external API calls to prevent network requests during tests."""
+    try:
+        import requests  # noqa: F401
+    except ImportError:
+        yield {
+            "get": MagicMock(),
+            "post": MagicMock(),
+            "put": MagicMock(),
+            "delete": MagicMock(),
+        }
+        return
+
     with (
         patch("requests.get") as mock_get,
         patch("requests.post") as mock_post,

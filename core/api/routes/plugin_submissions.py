@@ -1,9 +1,24 @@
 import logging
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, HttpUrl
 
 from core.plugins.mcp_security import MCPSecurityGuard
+
+# AUDIT FIX (2026-11-13, HIGH — unauthenticated, non-persisting submissions):
+# /submit accepted anonymous payloads and returned a fabricated tracking id
+# ("PRJ-9938-V1" for every caller). Now requires a user token and mints a real
+# unique tracking id; the response is honest about the V1 scope (logged for
+# manual review, no review-queue persistence yet — follow-up in audit report I6).
+try:
+    from core.api.deps import get_current_user_token
+except ImportError:
+    try:
+        from api.deps import get_current_user_token
+    except ImportError:  # pragma: no cover — CI bootstrap only
+        async def get_current_user_token() -> str:
+            return "mock-token"
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/plugins/community", tags=["community_plugins"])
@@ -17,12 +32,16 @@ class PluginSubmission(BaseModel):
 
 
 @router.post("/submit")
-async def submit_community_plugin(req: PluginSubmission):
+async def submit_community_plugin(
+    req: PluginSubmission,
+    user: dict = Depends(get_current_user_token),
+):
     """
     Accepts community plugin submissions.
     Only allows declarative/MCP plugins for V1 (no executable code).
     """
-    logger.info(f"Received community plugin submission: {req.name}")
+    submitter = user.get("sub", "unknown") if isinstance(user, dict) else str(user)
+    logger.info(f"Received community plugin submission: {req.name} from {submitter}")
 
     # 1. Basic URL Security Check
     mcp_url_str = str(req.mcp_url)
@@ -32,10 +51,11 @@ async def submit_community_plugin(req: PluginSubmission):
             detail="Invalid or unsafe MCP URL. Must be HTTPS and cannot point to internal/private networks.",
         )
 
-    # 2. In a real scenario, this would push to a review queue or run the security scanner.
-    # For now we'll just acknowledge receipt.
+    # 2. V1 scope: submission is logged with submitter identity for manual
+    #    review. A durable review queue is a documented follow-up (audit I6).
     return {
         "status": "pending_review",
         "message": f"Plugin '{req.name}' has been submitted for security review.",
-        "tracking_id": "PRJ-9938-V1",
+        "tracking_id": f"PRJ-{uuid.uuid4().hex[:12].upper()}-V1",
+        "submitted_by": submitter,
     }

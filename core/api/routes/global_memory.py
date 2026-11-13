@@ -6,6 +6,7 @@ list, create, update, delete, semantic search, sync, and stats.
 """
 
 from __future__ import annotations
+import asyncio
 
 from typing import Any, Literal
 
@@ -185,6 +186,18 @@ async def create_memory(
         raise HTTPException(status_code=500, detail="Failed to save memory.") from exc
 
 
+async def _assert_user_memory_exists(memory_id: str, user_id: str) -> None:
+    resp = await asyncio.to_thread(
+        lambda: supabase_db.client.table("ai_memory")
+        .select("id")
+        .eq("id", memory_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not resp.data:
+        raise HTTPException(status_code=404, detail="Memory not found.")
+
+
 @router.delete(
     "/{memory_id}",
     summary="Delete a specific memory",
@@ -202,17 +215,9 @@ async def delete_memory(
 
     try:
         # Verify ownership before deleting
-        resp = (
-            await supabase_db.client.table("ai_memory")
-            .select("id")
-            .eq("id", memory_id)
-            .eq("user_id", user_id)
-            .execute()
-        )
-        if not resp.data:
-            raise HTTPException(status_code=404, detail="Memory not found.")
+        await _assert_user_memory_exists(memory_id, user_id)
 
-        await supabase_db.client.table("ai_memory").delete().eq("id", memory_id).execute()
+        await asyncio.to_thread(lambda: supabase_db.client.table("ai_memory").delete().eq("id", memory_id).execute())
         return {"status": "deleted", "id": memory_id}
     except HTTPException:
         raise
@@ -273,24 +278,16 @@ async def update_memory(
 
     try:
         # Verify ownership
-        resp = (
-            await supabase_db.client.table("ai_memory")
-            .select("id")
-            .eq("id", memory_id)
-            .eq("user_id", user_id)
-            .execute()
-        )
-        if not resp.data:
-            raise HTTPException(status_code=404, detail="Memory not found.")
+        await _assert_user_memory_exists(memory_id, user_id)
 
         update_fields: dict[str, Any] = {"summary": payload.content}
         if payload.content_type is not None:
             # Merge content_type into existing metadata
             existing_resp = (
-                await supabase_db.client.table("ai_memory")
+                await asyncio.to_thread(lambda: supabase_db.client.table("ai_memory")
                 .select("metadata")
                 .eq("id", memory_id)
-                .execute()
+                .execute())
             )
             metadata: dict[str, Any] = {}
             if existing_resp.data and existing_resp.data[0].get("metadata"):
@@ -302,11 +299,11 @@ async def update_memory(
             metadata["content_type"] = payload.content_type
             update_fields["metadata"] = metadata
 
-        await (
+        await asyncio.to_thread(lambda: (
             supabase_db.client.table("ai_memory")
             .update(update_fields)
             .eq("id", memory_id)
-            .execute()
+            .execute())
         )
         return {"status": "updated", "id": memory_id}
     except HTTPException:
@@ -369,12 +366,12 @@ async def sync_memory(
     try:
         # Fetch recent messages
         resp = (
-            await supabase_db.client.table("messages")
+            await asyncio.to_thread(lambda: supabase_db.client.table("messages")
             .select("role, content")
             .eq("conversation_id", payload.conversation_id)
             .order("created_at", desc=False)
             .limit(payload.message_count)
-            .execute()
+            .execute())
         )
         messages = resp.data or []
         if not messages:
@@ -420,10 +417,10 @@ async def memory_stats(
         # JSON group-by নেই, RPC/DB function বানানো এই cycle-এর স্কোপে নেই),
         # তাই contract ঠিক রেখে সবচেয়ে ছোট fetch-ই honest সমাধান।
         resp = (
-            await supabase_db.client.table("ai_memory")
+            await asyncio.to_thread(lambda: supabase_db.client.table("ai_memory")
             .select("metadata, created_at", count="exact")
             .eq("user_id", user_id)
-            .execute()
+            .execute())
         )
         rows = resp.data or []
 

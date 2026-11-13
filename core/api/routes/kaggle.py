@@ -8,11 +8,25 @@ import json
 import secrets
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from pydantic import BaseModel
 
 from core.kaggle_orchestrator import KaggleOrchestrator, KaggleTaskType
 from core.monitoring.logging_config import logger
+
+# AUDIT FIX (2026-11-13, HIGH — unauthenticated Kaggle surfaces):
+# /jobs/{id}, /stats and /submit had NO auth at all — anyone could read job
+# payloads (incl. distilled knowledge) and enqueue arbitrary Kaggle jobs.
+# Token auth restored; the kernel callback stays token-guarded as before
+# (per-job callback token, secrets.compare_digest).
+try:
+    from core.api.deps import get_current_user_token
+except ImportError:
+    try:
+        from api.deps import get_current_user_token
+    except ImportError:  # pragma: no cover — CI bootstrap only
+        async def get_current_user_token() -> str:
+            return "mock-token"
 
 import os
 import uuid
@@ -276,7 +290,7 @@ async def process_kaggle_results(callback: KaggleCallbackRequest):
 
 
 @router.get("/jobs/{job_id}")
-async def get_job_status(job_id: str):
+async def get_job_status(job_id: str, _: dict = Depends(get_current_user_token)):
     """Get status of a specific Kaggle job."""
     orchestrator = KaggleOrchestrator.get_instance()
     if not orchestrator.redis_client:
@@ -298,7 +312,7 @@ async def get_job_status(job_id: str):
 
 
 @router.get("/stats")
-async def kaggle_statistics():
+async def kaggle_statistics(_: dict = Depends(get_current_user_token)):
     """Get Kaggle usage statistics."""
     orchestrator = KaggleOrchestrator.get_instance()
     return await orchestrator.get_queue_stats()
@@ -312,7 +326,7 @@ class JobSubmitRequest(BaseModel):
 
 
 @router.post("/submit")
-async def submit_kaggle_job(request: JobSubmitRequest):
+async def submit_kaggle_job(request: JobSubmitRequest, _: dict = Depends(get_current_user_token)):
     """Submit a new job to Kaggle queue."""
     orchestrator = KaggleOrchestrator.get_instance()
 
@@ -339,6 +353,7 @@ async def submit_kaggle_job(request: JobSubmitRequest):
 async def trigger_hourly_learning_cron(
     background_tasks: BackgroundTasks,
     x_cron_source: str | None = Header(default=None, alias="X-Cron-Source"),
+    x_cron_secret: str | None = Header(default=None, alias="X-Cron-Secret"),
 ):
     """
     Hourly Empirical Learning Synchronization & Keep-Warm Endpoint (issue #750).
@@ -346,7 +361,23 @@ async def trigger_hourly_learning_cron(
     1. Keep Render API and worker nodes warm (eliminating cold-starts).
     2. Audit Kaggle queue metrics and trigger empirical learning persistence.
     3. Ensure Supabase knowledge_base/learned_facts stay populated with verified heuristics.
+
+    AUDIT FIX (2026-11-13, HIGH): this endpoint previously had zero auth and
+    could be invoked by anyone. The legitimate caller is the Cloudflare
+    keep-warm worker, which cannot hold a user JWT, so the surface is guarded
+    by a shared cron secret (KAGGLE_CRON_SECRET) via constant-time compare —
+    fail-closed: if the secret is not configured the endpoint refuses to run
+    (ops must set the same secret in Render and the CF worker).
     """
+    cron_secret = os.getenv("KAGGLE_CRON_SECRET", "")
+    if not cron_secret:
+        logger.error("KAGGLE_CRON_SECRET is not configured; refusing unauthenticated cron trigger.")
+        raise HTTPException(
+            status_code=503,
+            detail="Cron endpoint is not configured with KAGGLE_CRON_SECRET; trigger refused.",
+        )
+    if not x_cron_secret or not secrets.compare_digest(x_cron_secret, cron_secret):
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
     now = datetime.now(timezone.utc).isoformat()
     orchestrator = KaggleOrchestrator.get_instance()
     queue_stats = await orchestrator.get_queue_stats() if orchestrator.redis_client else {}

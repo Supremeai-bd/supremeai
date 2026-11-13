@@ -11,6 +11,7 @@ metadata-র জন্য Supabase `conversations` relational টেবিলে
 আগে: GET /conversations/ Supabase `conversations` টেবিল পড়ত — যেখানে
 চ্যাট flow কখনো লেখে না, তাই dashboard খালি দেখাত।
 """
+import asyncio
 
 import re
 import uuid
@@ -191,9 +192,9 @@ async def create_conversation(
     db = get_db()
     try:
         response = (
-            await db.client.table("conversations")
+            await asyncio.to_thread(lambda: db.client.table("conversations")
             .insert({"user_id": user_id, "title": title or "New Conversation"})
-            .execute()
+            .execute())
         )
         return ConversationResponse(**response.data[0])
     except Exception as e:
@@ -215,17 +216,17 @@ async def add_message(
         # before writing into it. The service-role client used here bypasses RLS,
         # so the previous "database policy should ensure" assumption did not hold.
         ownership = (
-            await db.client.table("conversations")
+            await asyncio.to_thread(lambda: db.client.table("conversations")
             .select("id")
             .eq("id", conversation_id)
             .eq("user_id", user_id)
-            .execute()
+            .execute())
         )
         if not ownership.data:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
         response = (
-            await db.client.table("messages")
+            await asyncio.to_thread(lambda: db.client.table("messages")
             .insert(
                 {
                     "conversation_id": conversation_id,
@@ -233,15 +234,15 @@ async def add_message(
                     "content": message.content,
                 }
             )
-            .execute()
+            .execute())
         )
 
         # Update conversation timestamp
-        await (
+        await asyncio.to_thread(lambda: (
             db.client.table("conversations")
             .update({"updated_at": "now()"})
             .eq("id", conversation_id)
-            .execute()
+            .execute())
         )
 
         return MessageResponse(**response.data[0])

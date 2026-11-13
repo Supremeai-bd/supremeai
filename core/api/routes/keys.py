@@ -10,6 +10,7 @@ Features:
 """
 
 from __future__ import annotations
+import asyncio
 
 import base64
 import hashlib
@@ -222,7 +223,7 @@ async def create_or_update_key(key_data: KeyCreate, user: dict = Depends(verify_
     db = get_db()
     try:
         response = (
-            await db.client.table("user_keys")
+            await asyncio.to_thread(lambda: db.client.table("user_keys")
             .upsert(
                 {
                     "user_id": str(user_id),
@@ -234,7 +235,7 @@ async def create_or_update_key(key_data: KeyCreate, user: dict = Depends(verify_
                 },
                 on_conflict="user_id,provider",
             )
-            .execute()
+            .execute())
         )
 
         data = response.data[0] if response.data else {
@@ -267,10 +268,10 @@ async def list_keys(user: dict = Depends(verify_token_dependency)):
     db = get_db()
     try:
         response = (
-            await db.client.table("user_keys")
+            await asyncio.to_thread(lambda: db.client.table("user_keys")
             .select("provider, status, last_verified_at, created_at")
             .eq("user_id", str(user_id))
-            .execute()
+            .execute())
         )
         return [
             KeyResponse(
@@ -294,12 +295,12 @@ async def delete_key(provider: str, user: dict = Depends(verify_token_dependency
 
     db = get_db()
     try:
-        await (
+        await asyncio.to_thread(lambda: (
             db.client.table("user_keys")
             .delete()
             .eq("user_id", str(user_id))
             .eq("provider", provider.lower().strip())
-            .execute()
+            .execute())
         )
         return {"status": "success", "message": f"{provider.upper()} key removed successfully."}
     except Exception as e:
@@ -326,10 +327,10 @@ async def run_daily_key_recheck(user: dict = Depends(verify_token_dependency)):
     db = get_db()
     try:
         response = (
-            await db.client.table("user_keys")
+            await asyncio.to_thread(lambda: db.client.table("user_keys")
             .select("provider, encrypted_key, status")
             .eq('user_id', uid)
-            .execute()
+            .execute())
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database fetch failed: {e}")
@@ -350,7 +351,7 @@ async def run_daily_key_recheck(user: dict = Depends(verify_token_dependency)):
             new_status = "active" if is_valid else "invalid"
 
             # Update status in db
-            await (
+            await asyncio.to_thread(lambda: (
                 db.client.table("user_keys")
                 .update({
                     "status": new_status,
@@ -358,7 +359,7 @@ async def run_daily_key_recheck(user: dict = Depends(verify_token_dependency)):
                 })
                 .eq('user_id', uid)
                 .eq("provider", provider)
-                .execute()
+                .execute())
             )
 
             audit_results.append(

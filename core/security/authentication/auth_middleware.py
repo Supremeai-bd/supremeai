@@ -269,6 +269,36 @@ class AuthMiddleware:
         path = scope.get("path", "")
 
         if _is_public_path(path) or (is_test_environment() and settings.is_bypass_allowed):
+            # AUDIT FIX (2026-11-13, HIGH — hybrid public/authenticated paths):
+            # Public-path requests used to pass through with NO user context at
+            # all, so owner-checked routes mounted on a public prefix (e.g. the
+            # public share-link surface /api/share/* — checklist F13) saw
+            # request.state.user missing and route dependencies such as
+            # get_current_user_token always answered 401, even with a perfectly
+            # valid Bearer token. That same gap is why two SSE paths needed an
+            # ad-hoc special case earlier (AUD-2.1 fix, see config_fields.py).
+            # Best-effort decode: if a token IS present we populate the identity
+            # context, but we NEVER reject public traffic — no token, bad token
+            # or revoked jti on a public path all fall through to the app, and
+            # routes that require auth still enforce it themselves.
+            try:
+                pub_headers: Headers = scope.get("headers", [])
+                pub_token = (
+                    _get_bearer_token(pub_headers)
+                    or _get_cookie_token(scope)
+                    or _get_token_from_query(scope)
+                )
+                if pub_token:
+                    pub_payload = _decode_jwt(pub_token)
+                    if pub_payload:
+                        if "state" not in scope:
+                            scope["state"] = {}
+                        scope["state"]["user"] = pub_payload
+                        scope["user"] = pub_payload
+            except Exception as pub_decode_err:  # never break public traffic
+                logger.debug(
+                    f"Public-path best-effort auth decode skipped: {pub_decode_err}"
+                )
             await self.app(scope, receive, send)
             return
 

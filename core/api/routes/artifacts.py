@@ -5,6 +5,7 @@ Supports HTML, React, SVG, Mermaid, and generic code artifacts.
 """
 
 from __future__ import annotations
+import asyncio
 
 from enum import StrEnum
 from typing import Any
@@ -112,6 +113,34 @@ class ArtifactDeleteResponse(BaseModel):
     artifact_id: str
 
 
+# ---------- Internal Helpers ----------
+
+
+def _get_auth_user_id(user: dict) -> str:
+    user_id = user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return user_id
+
+
+async def _get_owned_artifact(
+    artifact_id: str,
+    user_id: str,
+    select_cols: str = "*",
+    check_owner: bool = True,
+) -> dict[str, Any]:
+    db = get_db()
+    res = await asyncio.to_thread(
+        lambda: db.client.table("artifacts").select(select_cols).eq("id", artifact_id).execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    record = res.data[0]
+    if check_owner and record.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="You do not own this artifact")
+    return record
+
+
 # ---------- Routes ----------
 
 
@@ -140,7 +169,7 @@ async def create_artifact(
             "conversation_id": payload.conversation_id,
         }
 
-        response = await db.client.table("artifacts").insert(row).execute()
+        response = await asyncio.to_thread(lambda: db.client.table("artifacts").insert(row).execute())
 
         if not response.data:
             raise HTTPException(status_code=500, detail="Failed to create artifact")
@@ -169,14 +198,14 @@ async def list_artifacts_by_conversation(
 
     try:
         response = (
-            await db.client.table("artifacts")
+            await asyncio.to_thread(lambda: db.client.table("artifacts")
             .select(
                 "id, conversation_id, user_id, title, artifact_type, version, is_pinned, created_at, updated_at"
             )
             .eq("conversation_id", conversation_id)
             .eq("user_id", user_id)
             .order("updated_at", desc=True)
-            .execute()
+            .execute())
         )
 
         return [ArtifactListItem(**row) for row in response.data]
@@ -191,25 +220,11 @@ async def get_artifact(
     user: dict = Depends(get_current_user_token),
 ):
     """Retrieve a single artifact by its ID."""
-    user_id = user.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    db = get_db()
+    user_id = _get_auth_user_id(user)
 
     try:
-        response = (
-            await db.client.table("artifacts")
-            .select("*")
-            .eq("id", artifact_id)
-            .eq("user_id", user_id)
-            .execute()
-        )
-
-        if not response.data:
-            raise HTTPException(status_code=404, detail="Artifact not found")
-
-        return ArtifactResponse(**response.data[0])
+        record = await _get_owned_artifact(artifact_id, user_id, select_cols="*")
+        return ArtifactResponse(**record)
     except HTTPException:
         raise
     except Exception as e:
@@ -227,28 +242,12 @@ async def update_artifact(
 
     Automatically increments the ``version`` counter on every update.
     """
-    user_id = user.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
+    user_id = _get_auth_user_id(user)
     db = get_db()
 
     try:
-        # Verify ownership and fetch current version
-        existing = (
-            await db.client.table("artifacts")
-            .select("id, user_id, version")
-            .eq("id", artifact_id)
-            .execute()
-        )
-
-        if not existing.data:
-            raise HTTPException(status_code=404, detail="Artifact not found")
-
-        if existing.data[0]["user_id"] != user_id:
-            raise HTTPException(status_code=403, detail="You do not own this artifact")
-
-        current_version = existing.data[0]["version"]
+        existing = await _get_owned_artifact(artifact_id, user_id, select_cols="id, user_id, version")
+        current_version = existing["version"]
 
         # Build update payload (only include non-None fields)
         update_fields: dict[str, Any] = {
@@ -264,7 +263,7 @@ async def update_artifact(
             update_fields["is_pinned"] = payload.is_pinned
 
         response = (
-            await db.client.table("artifacts").update(update_fields).eq("id", artifact_id).execute()
+            await asyncio.to_thread(lambda: db.client.table("artifacts").update(update_fields).eq("id", artifact_id).execute())
         )
 
         if not response.data:
@@ -286,25 +285,12 @@ async def delete_artifact(
     user: dict = Depends(get_current_user_token),
 ):
     """Delete an artifact. Only the owner can delete their artifacts."""
-    user_id = user.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
+    user_id = _get_auth_user_id(user)
     db = get_db()
 
     try:
-        # Verify ownership
-        existing = (
-            await db.client.table("artifacts").select("id, user_id").eq("id", artifact_id).execute()
-        )
-
-        if not existing.data:
-            raise HTTPException(status_code=404, detail="Artifact not found")
-
-        if existing.data[0]["user_id"] != user_id:
-            raise HTTPException(status_code=403, detail="You do not own this artifact")
-
-        await db.client.table("artifacts").delete().eq("id", artifact_id).execute()
+        await _get_owned_artifact(artifact_id, user_id, select_cols="id, user_id")
+        await asyncio.to_thread(lambda: db.client.table("artifacts").delete().eq("id", artifact_id).execute())
 
         logger.info(f"Artifact deleted: {artifact_id}")
 
@@ -328,27 +314,12 @@ async def preview_artifact(
     For React artifacts, wraps the content in an HTML page that bootstraps
     React via a CDN script tag.
     """
-    user_id = user.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    db = get_db()
+    user_id = _get_auth_user_id(user)
 
     try:
-        response = (
-            await db.client.table("artifacts")
-            .select("id, user_id, artifact_type, content")
-            .eq("id", artifact_id)
-            .execute()
+        artifact = await _get_owned_artifact(
+            artifact_id, user_id, select_cols="id, user_id, artifact_type, content"
         )
-
-        if not response.data:
-            raise HTTPException(status_code=404, detail="Artifact not found")
-
-        artifact = response.data[0]
-
-        if artifact["user_id"] != user_id:
-            raise HTTPException(status_code=403, detail="You do not own this artifact")
 
         artifact_type = artifact["artifact_type"]
         content = artifact["content"]

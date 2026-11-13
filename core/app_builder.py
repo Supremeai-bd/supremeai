@@ -509,6 +509,23 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
     # লিগ্যাসি অ্যালায়েস: পুরনো /api/v1/health পাথও একই রাউটার এক্সপোজ করে।
     app.include_router(health_router, prefix="/api/v1/health")
 
+    # AUDIT FIX (2026-11-13, CRITICAL — router-registry dead code):
+    # register_all_routers() (core/api/routers.py) defined the full unified
+    # API surface (~168 routers: auth, chat, agents, missions, billing,
+    # knowledge, admin, ...) but had ZERO production callers — create_app()
+    # mounted only browser/task/studio_compat/health. Every registry route
+    # answered 404 on the canonical core.app while the OpenAPI artifact kept
+    # advertising them. Guard test: gateway/tests/test_router_mount_hygiene.py.
+    # The registry is service-role aware (scraper/worker/core filtering) and
+    # fail-fast on missing critical routers, so calling it here is safe.
+    try:
+        from core.api.routers import register_all_routers
+
+        register_all_routers(app)
+    except Exception as exc:  # fail-visible, never fail-silent
+        logger.error(f"Unified router registry failed to mount: {exc}")
+        raise
+
     @app.api_route("/", methods=["GET", "HEAD"])
     async def root():
         """পাবলিক রুট এন্ডপয়েন্ট — বেসিক সার্ভিস তথ্য এবং হেলথ চেক লিংক দেয়।"""

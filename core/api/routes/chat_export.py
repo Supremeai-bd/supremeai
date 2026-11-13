@@ -7,6 +7,7 @@ when available for document generation.
 """
 
 from __future__ import annotations
+import asyncio
 
 import io
 from datetime import datetime
@@ -57,11 +58,11 @@ async def _fetch_conversation(user_id: str, conversation_id: str) -> dict[str, A
 
     try:
         resp = (
-            await supabase_db.client.table("conversations")
+            await asyncio.to_thread(lambda: supabase_db.client.table("conversations")
             .select("*")
             .eq("id", conversation_id)
             .eq("user_id", user_id)
-            .execute()
+            .execute())
         )
         rows = resp.data or []
         if not rows:
@@ -84,11 +85,11 @@ async def _fetch_messages(conversation_id: str) -> list[dict[str, Any]]:
 
     try:
         resp = (
-            await supabase_db.client.table("messages")
+            await asyncio.to_thread(lambda: supabase_db.client.table("messages")
             .select("*")
             .eq("conversation_id", conversation_id)
             .order("created_at", desc=False)
-            .execute()
+            .execute())
         )
         return resp.data or []
     except Exception as exc:

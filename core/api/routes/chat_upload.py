@@ -220,7 +220,7 @@ async def upload_chat_image(
     # Persist reference in DB
     try:
         db = get_db()
-        await (
+        await asyncio.to_thread(lambda: (
             db.client.table("chat_attachments")
             .insert(
                 {
@@ -232,7 +232,7 @@ async def upload_chat_image(
                     "file_size": len(content),
                 }
             )
-            .execute()
+            .execute())
         )
     except Exception as db_err:
         logger.warning(f"DB insert for attachment failed (non-critical): {db_err}")
@@ -314,6 +314,29 @@ async def list_uploads(user: dict = Depends(get_current_user_token)):
     return {"items": items, "total": len(items)}
 
 
+async def _resolve_attachment_metadata(attachment_id: str, cache_on_load: bool = False) -> dict | None:
+    metadata = _uploads.get(attachment_id)
+    if metadata is not None:
+        return metadata
+
+    try:
+        db = get_db()
+        resp = await asyncio.to_thread(
+            lambda: db.client.table("chat_attachments").select("*").eq("id", attachment_id).execute()
+        )
+        if resp.data:
+            metadata = resp.data[0]
+            if cache_on_load:
+                _uploads[attachment_id] = metadata
+            return metadata
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception(f"Silenced error: {e}")
+    return None
+
+
 @router.get("/{attachment_id}")
 async def serve_upload(
     attachment_id: str,
@@ -327,29 +350,7 @@ async def serve_upload(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    # Look up in-memory registry first
-    metadata = _uploads.get(attachment_id)
-
-    if metadata is None:
-        # Try loading from database
-        try:
-            db = get_db()
-            resp = (
-                await db.client.table("chat_attachments")
-                .select("*")
-                .eq("id", attachment_id)
-                .execute()
-            )
-            if resp.data:
-                metadata = resp.data[0]
-                _uploads[attachment_id] = metadata
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            import logging
-
-            logging.getLogger(__name__).exception(f"Silenced error: {e}")
-
+    metadata = await _resolve_attachment_metadata(attachment_id, cache_on_load=True)
     if metadata is None:
         raise HTTPException(status_code=404, detail="Attachment not found")
 
@@ -389,25 +390,7 @@ async def delete_upload(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    metadata = _uploads.get(attachment_id)
-    if metadata is None:
-        try:
-            db = get_db()
-            resp = (
-                await db.client.table("chat_attachments")
-                .select("*")
-                .eq("id", attachment_id)
-                .execute()
-            )
-            if resp.data:
-                metadata = resp.data[0]
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            import logging
-
-            logging.getLogger(__name__).exception(f"Silenced error: {e}")
-
+    metadata = await _resolve_attachment_metadata(attachment_id, cache_on_load=False)
     if metadata is None:
         raise HTTPException(status_code=404, detail="Attachment not found")
 
@@ -431,7 +414,7 @@ async def delete_upload(
     # Delete from DB
     try:
         db = get_db()
-        await db.client.table("chat_attachments").delete().eq("id", attachment_id).execute()
+        await asyncio.to_thread(lambda: db.client.table("chat_attachments").delete().eq("id", attachment_id).execute())
     except Exception as db_err:
         logger.warning(f"Failed to delete attachment from DB: {db_err}")
 

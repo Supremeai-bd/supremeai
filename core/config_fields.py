@@ -404,6 +404,21 @@ class SettingsFieldsMixin:
     admin_authorized: bool = Field(default=False, validation_alias="ADMIN_AUTHORIZED")
     autofix_authorized: bool = Field(default=False, validation_alias="AUTOFIX_AUTHORIZED")
 
+    # AUDIT FIX (2026-11-13, HIGH — JIT OTP delivery dead at runtime):
+    # core/otp_router.py reads settings.discord_otp_webhook_url /
+    # settings.resend_api_key / settings.admin_notification_email, but none of
+    # them existed on the Settings model (pydantic extra="ignore" silently
+    # swallowed the env vars), so every Discord/Email OTP send raised
+    # AttributeError → 500 (checklist K2/K3/K4). Declared here so the channels
+    # can actually be provisioned via Infisical/Render env vars.
+    discord_otp_webhook_url: SecretStr | None = Field(
+        default=None, validation_alias="DISCORD_OTP_WEBHOOK_URL"
+    )
+    resend_api_key: SecretStr | None = Field(default=None, validation_alias="RESEND_API_KEY")
+    admin_notification_email: str | None = Field(
+        default=None, validation_alias="ADMIN_NOTIFICATION_EMAIL"
+    )
+
     supremeai_public_paths: str | list[str] = Field(
         default=[
             "/",
@@ -463,6 +478,16 @@ class SettingsFieldsMixin:
             "/api/voice/stream_audio",
             "/api/billing/webhook/stripe",
             "/api/billing/webhook/sslcommerz",
+            # AUDIT FIX (2026-11-13, F8/F9 — HMAC webhooks unreachable):
+            # GitHub webhook deliveries and PR-review callbacks carry no JWT —
+            # authenticity is enforced inside the handlers by fail-closed HMAC
+            # (core/api/routes/webhooks_github.py: compare_digest +
+            # repo allowlist; core/api/routes/pr_review_api.py). These paths
+            # were missing from the public list, so AuthMiddleware answered 401
+            # to tokenless GitHub deliveries BEFORE the signature check ran and
+            # the webhooks never fired.
+            "/api/webhooks/github",
+            "/api/v1/pr-review/webhook",
             # AUD-2.1: "/api/v1/markdown" removed from public paths — the markdown
             # export/search surface now requires authentication (router-level guard).
             "/api/config/public",

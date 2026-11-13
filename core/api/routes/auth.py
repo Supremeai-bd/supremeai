@@ -814,9 +814,22 @@ async def verify_2fa_endpoint(payload: Verify2FaRequest) -> dict[str, Any]:
     if not code:
         raise HTTPException(status_code=422, detail="Verification code is required")
 
-    # In dev or test environments, allow valid 6-digit codes or check against admin secret
-    secret = os.getenv("SUPREMEAI_ADMIN_TOTP_SECRET") or "JBSWY3DPEHPK3PXP"
-    is_valid = check_totp(code, secret) or code == "849201"
+    # AUDIT FIX (2026-11-13, CRITICAL — hardcoded 2FA backdoor):
+    # The previous code fell back to a public hardcoded TOTP secret
+    # ("JBSWY3DPEHPK3PXP" — the canonical RFC 6238 test key) and accepted the
+    # universal code "849201" on this public endpoint. Anyone could mint a
+    # 7-day trusted-device window without ever possessing the admin's
+    # authenticator. Fail closed instead: no configured secret → 503.
+    secret = os.getenv("SUPREMEAI_ADMIN_TOTP_SECRET")
+    if not secret:
+        logger.error(
+            "SUPREMEAI_ADMIN_TOTP_SECRET is not configured; refusing 2FA verification."
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Two-factor verification is not configured. Set SUPREMEAI_ADMIN_TOTP_SECRET.",
+        )
+    is_valid = check_totp(code, secret)
 
     if not is_valid:
         raise HTTPException(
