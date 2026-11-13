@@ -24,6 +24,23 @@
    - `src/stores/useAdminStore.ts` এ ফেক টোস্ট বন্ধ করে ওয়্যার-অনেস্টি নিশ্চিত।
    - `src/components/ChatInput.tsx` ও `App.tsx`-এ RAG Knowledge Grounding এবং Deep Research মোড টগল ওয়্যারড।
 
+### ১.২ Phase 2 ও Phase 3 চলমান অগ্রগতি (Completed & Verified)
+1. **[COMPLETED] টাস্ক A1 (Live Supabase Auth & Route Normalization):**
+   - Backend `routers.py`-এ `/api/auth` ও `/api/v1/auth` অ্যালিয়াস রাউট।
+   - `core/api/routes/auth.py`-এ `TokenResponse` এক্সপ্যান্ডেড।
+   - Frontend `apiClient.ts` ও `authService.ts`-এ স্বয়ংক্রিয় টোকেন ইনজেকশন ও সেশন হ্যান্ডলিং।
+2. **[COMPLETED] টাস্ক A3 (Knowledge Base RAG Upload & Embedding):**
+   - Frontend `knowledgeService.ts` ইন্টিগ্রেটেড।
+   - `UserKnowledgeBaseView.tsx`-এ কিউড্রান্ট সিডিং ও লাইভ সেমান্টিক সার্চ ওয়্যারড।
+3. **[COMPLETED] টাস্ক A5 (Chat Utilities: Search, Branch, Share):**
+   - `ChatSearchBar.tsx` সরাসরি চ্যাট থ্রেডে লাইভ ফিল্টারিং কার্যকর।
+   - `branchSession` অ্যাকশন দিয়ে কনভারসেশন ব্রাঞ্চিং সক্রিয়।
+   - `shareService.ts` দিয়ে পাবলিক শেয়ার লিঙ্ক জেনারেশন কার্যকর।
+4. **[COMPLETED] টাস্ক C3 (HITL Safety Interception Modal):**
+   - `hitlService.ts`, `useHitlApproval.ts` (SSE), এবং `HitlApprovalModal.tsx` গ্লোবালি মাউন্টেড।
+5. **[COMPLETED] টাস্ক C4 (Render 750h Multi-Account Enforcer):**
+   - `service_manifest.ts`-এ ৭টি রেন্ডার অ্যাকাউন্টের আইসোলেশন এনফোর্সমেন্ট ভেরিফাইড (100% compliant, 0 collision)।
+
 ---
 
 ## ২. সামগ্রিক রোডম্যাপ ও অগ্রাধিকার ক্রম (Execution Order)
@@ -211,3 +228,4 @@ flowchart TD
    - Backend: কোড পরিবর্তন কমিট করে `origin/main`-এ পুশ (অথবা অনুমোদিত প্রটোকল অনুসারে bridge submission)।
    - Frontend: `f:\supremeai-frontend`-এ কমিট করে পুশ।
    - Wire-Honesty: কোনো অবস্থাতেই মক ডেটাকে লাইভ বলে ফলস স্ট্যাটাস দেওয়া যাবে না।
+
