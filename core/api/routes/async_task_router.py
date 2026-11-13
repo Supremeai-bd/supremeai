@@ -1,12 +1,35 @@
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
 from core.monitoring.logging_config import logger
 from core.orchestration.agent_orchestrator import async_task_manager
 
-router = APIRouter(prefix="/api/task", tags=["async-task"])
+# AUDIT FIX (2026-11-13, HIGH — task results readable by anyone):
+# /api/task/{task_id} and /api/task/_stats had no auth dependency — any caller
+# (even anonymous) could poll arbitrary task ids and read their results, and
+# _stats exposed pool internals. Router-level token auth restored. Note:
+# per-task OWNERSHIP still needs the TaskRecord user linkage (tracked as
+# follow-up in the audit report, E10) — this change stops anonymous reads.
+try:
+    from core.api.deps import get_current_admin, get_current_user_token
+except ImportError:
+    try:
+        from api.deps import get_current_admin, get_current_user_token
+    except ImportError:  # pragma: no cover — CI bootstrap only
+        async def get_current_user_token() -> str:
+            return "mock-token"
+
+        async def get_current_admin() -> str:
+            return "mock-admin"
+
+
+router = APIRouter(
+    prefix="/api/task",
+    tags=["async-task"],
+    dependencies=[Depends(get_current_user_token)],
+)
 
 
 class TaskResponse(BaseModel):
@@ -43,5 +66,6 @@ def get_task_status(task_id: str, request: Request) -> TaskResponse:
 
 
 @router.get("/_stats")
-def get_task_stats() -> dict[str, Any]:
+def get_task_stats(_: dict = Depends(get_current_admin)) -> dict[str, Any]:
+    """Pool statistics — admin-only (AUDIT FIX 2026-11-13: was unauthenticated)."""
     return async_task_manager.get_stats()

@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
@@ -32,13 +33,15 @@ async def get_usage_metrics(
         return {"items": [], "total": 0}
     try:
         query = (
-            await db.client.table("usage_metrics").select("*").eq("tenant_id", user["tenant_id"])
+            # AUDIT FIX (2026-11-13): sync-Supabase await bug (Issue #1473
+            # pattern) — builder must not be awaited; execute in worker thread.
+            db.client.table("usage_metrics").select("*").eq("tenant_id", user["tenant_id"])
         )
         if start:
             query = query.gte("metric_date", start)
         if end:
             query = query.lte("metric_date", end)
-        res = query.order("metric_date", desc=True).limit(limit).execute()
+        res = await asyncio.to_thread(lambda: query.order("metric_date", desc=True).limit(limit).execute())
         return {"items": res.data or [], "total": len(res.data or [])}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -54,7 +57,7 @@ async def upsert_usage_metric(
     try:
         data = payload.dict()
         data["tenant_id"] = user["tenant_id"]
-        res = await db.client.table("usage_metrics").upsert(data).execute()
+        res = await asyncio.to_thread(lambda: db.client.table("usage_metrics").upsert(data).execute())
         return {"status": "success", "metric": res.data[0] if res.data else data}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

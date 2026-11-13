@@ -4,6 +4,7 @@ Validates user's initial setup: API keys, preferred model, first chat confirmati
 """
 
 from __future__ import annotations
+import asyncio
 
 import pathlib
 import time
@@ -159,10 +160,10 @@ async def get_onboarding_status(user_id: str) -> dict[str, Any]:
 
         if db.client:
             res = (
-                await db.client.table("user_preferences")
+                await asyncio.to_thread(lambda: db.client.table("user_preferences")
                 .select("*")
                 .eq("user_id", user_id)
-                .execute()
+                .execute())
             )
             if res.data:
                 prefs = res.data[0]
@@ -190,7 +191,7 @@ async def reset_onboarding(user_id: str) -> dict[str, str]:
         from database.supabase_client import db
 
         if db.client:
-            await db.client.table("user_preferences").delete().eq("user_id", user_id).execute()
+            await asyncio.to_thread(lambda: db.client.table("user_preferences").delete().eq("user_id", user_id).execute())
     except Exception as exc:
         logger.warning(f"Failed to reset onboarding state for {user_id}: {exc}")
     return {"status": "reset", "user_id": user_id}

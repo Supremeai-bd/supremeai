@@ -5,6 +5,7 @@ Supports HTML, React, SVG, Mermaid, and generic code artifacts.
 """
 
 from __future__ import annotations
+import asyncio
 
 from enum import StrEnum
 from typing import Any
@@ -140,7 +141,7 @@ async def create_artifact(
             "conversation_id": payload.conversation_id,
         }
 
-        response = await db.client.table("artifacts").insert(row).execute()
+        response = await asyncio.to_thread(lambda: db.client.table("artifacts").insert(row).execute())
 
         if not response.data:
             raise HTTPException(status_code=500, detail="Failed to create artifact")
@@ -169,14 +170,14 @@ async def list_artifacts_by_conversation(
 
     try:
         response = (
-            await db.client.table("artifacts")
+            await asyncio.to_thread(lambda: db.client.table("artifacts")
             .select(
                 "id, conversation_id, user_id, title, artifact_type, version, is_pinned, created_at, updated_at"
             )
             .eq("conversation_id", conversation_id)
             .eq("user_id", user_id)
             .order("updated_at", desc=True)
-            .execute()
+            .execute())
         )
 
         return [ArtifactListItem(**row) for row in response.data]
@@ -199,11 +200,11 @@ async def get_artifact(
 
     try:
         response = (
-            await db.client.table("artifacts")
+            await asyncio.to_thread(lambda: db.client.table("artifacts")
             .select("*")
             .eq("id", artifact_id)
             .eq("user_id", user_id)
-            .execute()
+            .execute())
         )
 
         if not response.data:
@@ -236,10 +237,10 @@ async def update_artifact(
     try:
         # Verify ownership and fetch current version
         existing = (
-            await db.client.table("artifacts")
+            await asyncio.to_thread(lambda: db.client.table("artifacts")
             .select("id, user_id, version")
             .eq("id", artifact_id)
-            .execute()
+            .execute())
         )
 
         if not existing.data:
@@ -264,7 +265,7 @@ async def update_artifact(
             update_fields["is_pinned"] = payload.is_pinned
 
         response = (
-            await db.client.table("artifacts").update(update_fields).eq("id", artifact_id).execute()
+            await asyncio.to_thread(lambda: db.client.table("artifacts").update(update_fields).eq("id", artifact_id).execute())
         )
 
         if not response.data:
@@ -295,7 +296,7 @@ async def delete_artifact(
     try:
         # Verify ownership
         existing = (
-            await db.client.table("artifacts").select("id, user_id").eq("id", artifact_id).execute()
+            await asyncio.to_thread(lambda: db.client.table("artifacts").select("id, user_id").eq("id", artifact_id).execute())
         )
 
         if not existing.data:
@@ -304,7 +305,7 @@ async def delete_artifact(
         if existing.data[0]["user_id"] != user_id:
             raise HTTPException(status_code=403, detail="You do not own this artifact")
 
-        await db.client.table("artifacts").delete().eq("id", artifact_id).execute()
+        await asyncio.to_thread(lambda: db.client.table("artifacts").delete().eq("id", artifact_id).execute())
 
         logger.info(f"Artifact deleted: {artifact_id}")
 
@@ -336,10 +337,10 @@ async def preview_artifact(
 
     try:
         response = (
-            await db.client.table("artifacts")
+            await asyncio.to_thread(lambda: db.client.table("artifacts")
             .select("id, user_id, artifact_type, content")
             .eq("id", artifact_id)
-            .execute()
+            .execute())
         )
 
         if not response.data:

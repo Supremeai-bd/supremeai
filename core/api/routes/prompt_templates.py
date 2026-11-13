@@ -381,14 +381,20 @@ async def list_templates(
 
     try:
         query = (
-            await supabase_db.client.table("prompt_templates")
+            # AUDIT FIX (2026-11-13): sync-Supabase await bug (Issue #1473
+            # pattern) — builder must not be awaited; execute in worker thread.
+            supabase_db.client.table("prompt_templates")
             .select("*")
             .or_(f"is_builtin.eq.true,user_id.eq.{user_id}")
         )
         if category:
             query = query.eq("category", category)
 
-        resp = query.order("is_builtin", desc=True).order("usage_count", desc=True).execute()
+        resp = await asyncio.to_thread(
+            lambda: query.order("is_builtin", desc=True)
+            .order("usage_count", desc=True)
+            .execute()
+        )
         return [_row_to_template(r) for r in (resp.data or [])]
     except Exception as exc:
         logger.error(f"list_templates failed for user {user_id}: {exc}")
@@ -424,7 +430,7 @@ async def create_template(
             "is_builtin": False,
             "usage_count": 0,
         }
-        resp = await supabase_db.client.table("prompt_templates").insert(row).execute()
+        resp = await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates").insert(row).execute())
         if not resp.data:
             raise HTTPException(status_code=500, detail="Template creation returned no data.")
         return _row_to_template(resp.data[0])
@@ -455,11 +461,11 @@ async def get_template(
 
     try:
         resp = (
-            await supabase_db.client.table("prompt_templates")
+            await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates")
             .select("*")
             .eq("id", template_id)
             .or_(f"is_builtin.eq.true,user_id.eq.{user_id}")
-            .execute()
+            .execute())
         )
         if not resp.data:
             raise HTTPException(status_code=404, detail="Template not found.")
@@ -491,10 +497,10 @@ async def update_template(
     try:
         # Verify ownership and that it is not builtin
         existing = (
-            await supabase_db.client.table("prompt_templates")
+            await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates")
             .select("id, is_builtin, user_id")
             .eq("id", template_id)
-            .execute()
+            .execute())
         )
         if not existing.data:
             raise HTTPException(status_code=404, detail="Template not found.")
@@ -517,10 +523,10 @@ async def update_template(
             update_fields["variables"] = [v.model_dump() for v in payload.variables]
 
         resp = (
-            await supabase_db.client.table("prompt_templates")
+            await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates")
             .update(update_fields)
             .eq("id", template_id)
-            .execute()
+            .execute())
         )
         if not resp.data:
             raise HTTPException(status_code=500, detail="Update returned no data.")
@@ -549,10 +555,10 @@ async def delete_template(
 
     try:
         existing = (
-            await supabase_db.client.table("prompt_templates")
+            await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates")
             .select("id, is_builtin, user_id")
             .eq("id", template_id)
-            .execute()
+            .execute())
         )
         if not existing.data:
             raise HTTPException(status_code=404, detail="Template not found.")
@@ -562,7 +568,7 @@ async def delete_template(
         if row.get("user_id") != user_id:
             raise HTTPException(status_code=403, detail="Not authorized to delete this template.")
 
-        await supabase_db.client.table("prompt_templates").delete().eq("id", template_id).execute()
+        await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates").delete().eq("id", template_id).execute())
         return {"status": "deleted", "id": template_id}
     except HTTPException:
         raise
@@ -592,11 +598,11 @@ async def use_template(
 
     try:
         resp = (
-            await supabase_db.client.table("prompt_templates")
+            await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates")
             .select("*")
             .eq("id", template_id)
             .or_(f"is_builtin.eq.true,user_id.eq.{user_id}")
-            .execute()
+            .execute())
         )
         if not resp.data:
             raise HTTPException(status_code=404, detail="Template not found.")
@@ -613,11 +619,11 @@ async def use_template(
 
         # Atomically increment usage_count
         new_count = (row.get("usage_count") or 0) + 1
-        await (
+        await asyncio.to_thread(lambda: (
             supabase_db.client.table("prompt_templates")
             .update({"usage_count": new_count, "updated_at": datetime.now(UTC).isoformat()})
             .eq("id", template_id)
-            .execute()
+            .execute())
         )
 
         return {

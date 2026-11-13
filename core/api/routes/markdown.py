@@ -1,3 +1,4 @@
+import asyncio
 import time
 import uuid
 from typing import Any
@@ -61,7 +62,7 @@ async def run_export_task(job_id: str, payload: MarkdownExportRequest):
         # Try to save to Supabase history
         try:
             if supabase_db.client:
-                await (
+                await asyncio.to_thread(lambda: (
                     supabase_db.client.table("markdown_exports")
                     .insert(
                         {
@@ -72,7 +73,7 @@ async def run_export_task(job_id: str, payload: MarkdownExportRequest):
                             "timestamp": time.time(),
                         }
                     )
-                    .execute()
+                    .execute())
                 )
         except Exception as exc:
             # বল মনতবয: history টবল এখনও তর হয়ন থাকল একসপর্ট বযর্থ কর যাব ন;
@@ -189,12 +190,12 @@ async def get_history(user: dict = Depends(get_current_user_token)):
     try:
         if supabase_db.client:
             res = (
-                await supabase_db.client.table("markdown_exports")
+                await asyncio.to_thread(lambda: supabase_db.client.table("markdown_exports")
                 .select("*")
                 .eq("user_id", user_id)
                 .order("timestamp", desc=True)
                 .limit(50)
-                .execute()
+                .execute())
             )
             if res.data:
                 return {"status": "success", "history": res.data}

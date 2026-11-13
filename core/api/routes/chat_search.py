@@ -132,12 +132,12 @@ async def search_chats(
         # --- Search conversation titles ---
         try:
             title_results = (
-                await db.client.table("conversations")
+                await asyncio.to_thread(lambda: db.client.table("conversations")
                 .select("id, title")
                 .eq("user_id", user_id)
                 .ilike("title", like_pattern)
                 .order("updated_at", desc=True)
-                .execute()
+                .execute())
             )
 
             for row in title_results.data:
@@ -160,7 +160,7 @@ async def search_chats(
         try:
             # First get all conversation IDs for this user
             conv_ids_resp = (
-                await db.client.table("conversations").select("id").eq("user_id", user_id).execute()
+                await asyncio.to_thread(lambda: db.client.table("conversations").select("id").eq("user_id", user_id).execute())
             )
 
             user_conv_ids = [r["id"] for r in conv_ids_resp.data]
@@ -170,12 +170,12 @@ async def search_chats(
                 # Supabase RPC or filter by conversation_id list
                 # Use ilike on content
                 message_results = (
-                    await db.client.table("messages")
+                    await asyncio.to_thread(lambda: db.client.table("messages")
                     .select("id, conversation_id, role, content, created_at")
                     .ilike("content", like_pattern)
                     .order("created_at", desc=True)
                     .limit(limit * 3)  # Fetch more to have room for dedup
-                    .execute()
+                    .execute())
                 )
 
                 for row in message_results.data:
@@ -197,10 +197,10 @@ async def search_chats(
                         else:
                             try:
                                 conv_resp = (
-                                    await db.client.table("conversations")
+                                    await asyncio.to_thread(lambda: db.client.table("conversations")
                                     .select("title")
                                     .eq("id", conv_id)
-                                    .execute()
+                                    .execute())
                                 )
                                 title = conv_resp.data[0]["title"] if conv_resp.data else None
                             except asyncio.CancelledError:

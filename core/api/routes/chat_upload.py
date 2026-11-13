@@ -220,7 +220,7 @@ async def upload_chat_image(
     # Persist reference in DB
     try:
         db = get_db()
-        await (
+        await asyncio.to_thread(lambda: (
             db.client.table("chat_attachments")
             .insert(
                 {
@@ -232,7 +232,7 @@ async def upload_chat_image(
                     "file_size": len(content),
                 }
             )
-            .execute()
+            .execute())
         )
     except Exception as db_err:
         logger.warning(f"DB insert for attachment failed (non-critical): {db_err}")
@@ -335,10 +335,10 @@ async def serve_upload(
         try:
             db = get_db()
             resp = (
-                await db.client.table("chat_attachments")
+                await asyncio.to_thread(lambda: db.client.table("chat_attachments")
                 .select("*")
                 .eq("id", attachment_id)
-                .execute()
+                .execute())
             )
             if resp.data:
                 metadata = resp.data[0]
@@ -394,10 +394,10 @@ async def delete_upload(
         try:
             db = get_db()
             resp = (
-                await db.client.table("chat_attachments")
+                await asyncio.to_thread(lambda: db.client.table("chat_attachments")
                 .select("*")
                 .eq("id", attachment_id)
-                .execute()
+                .execute())
             )
             if resp.data:
                 metadata = resp.data[0]
@@ -431,7 +431,7 @@ async def delete_upload(
     # Delete from DB
     try:
         db = get_db()
-        await db.client.table("chat_attachments").delete().eq("id", attachment_id).execute()
+        await asyncio.to_thread(lambda: db.client.table("chat_attachments").delete().eq("id", attachment_id).execute())
     except Exception as db_err:
         logger.warning(f"Failed to delete attachment from DB: {db_err}")
 

@@ -20,13 +20,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 try:
-    from core.api.deps import get_current_user_token
+    from core.api.deps import get_current_admin, get_current_user_token
 except ImportError:
     try:
-        from api.deps import get_current_user_token
+        from api.deps import get_current_admin, get_current_user_token
     except ImportError:
         async def get_current_user_token() -> str:
             return "mock-token"
+
+        async def get_current_admin() -> str:
+            return "mock-admin"
 
 router = APIRouter(prefix="/api/mcp-tower", tags=["mcp-tower"])
 
@@ -207,7 +210,13 @@ _RENDER_SVC_MAP = {
 
 
 @router.post("/reboot")
-async def reboot(body: dict, _: str = Depends(get_current_user_token)) -> dict:
+async def reboot(
+    body: dict,
+    # AUDIT FIX (2026-11-13, HIGH — privilege escalation): rebooting a Render
+    # production service is an infrastructure control; it was reachable by ANY
+    # authenticated user. Admin-only now.
+    _: dict = Depends(get_current_admin),
+) -> dict:
     service_id = (body or {}).get("serviceId")
     if not service_id:
         raise HTTPException(status_code=400, detail="serviceId required")
@@ -241,7 +250,7 @@ async def reboot(body: dict, _: str = Depends(get_current_user_token)) -> dict:
 
 
 @router.post("/reboot-all")
-async def reboot_all(_: str = Depends(get_current_user_token)) -> dict:
+async def reboot_all(_: dict = Depends(get_current_admin)) -> dict:
     services = await _fetch_services()
     return {"services": services}
 

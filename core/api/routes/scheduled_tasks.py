@@ -224,7 +224,7 @@ async def execute_task_and_record(task: dict[str, Any], user_id: str) -> dict[st
         "started_at": now,
     }
     exec_resp = (
-        await supabase_db.client.table("scheduled_task_executions").insert(exec_row).execute()
+        await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_task_executions").insert(exec_row).execute())
     )
     exec_id = exec_resp.data[0]["id"] if exec_resp.data else str(uuid.uuid4())
 
@@ -242,7 +242,7 @@ async def execute_task_and_record(task: dict[str, Any], user_id: str) -> dict[st
     completed_at = datetime.now(UTC).isoformat()
 
     # Update execution record
-    await (
+    await asyncio.to_thread(lambda: (
         supabase_db.client.table("scheduled_task_executions")
         .update(
             {
@@ -253,11 +253,11 @@ async def execute_task_and_record(task: dict[str, Any], user_id: str) -> dict[st
             }
         )
         .eq("id", exec_id)
-        .execute()
+        .execute())
     )
 
     # Update task's last_run fields
-    await (
+    await asyncio.to_thread(lambda: (
         supabase_db.client.table("scheduled_tasks")
         .update(
             {
@@ -267,13 +267,13 @@ async def execute_task_and_record(task: dict[str, Any], user_id: str) -> dict[st
             }
         )
         .eq("id", task_id)
-        .execute()
+        .execute())
     )
 
     # Optionally append result as a message to the linked conversation
     if task.get("conversation_id") and result_text:
         try:
-            await (
+            await asyncio.to_thread(lambda: (
                 supabase_db.client.table("messages")
                 .insert(
                     {
@@ -282,7 +282,7 @@ async def execute_task_and_record(task: dict[str, Any], user_id: str) -> dict[st
                         "content": f"[Scheduled Task: {task['title']}]\n\n{result_text}",
                     }
                 )
-                .execute()
+                .execute())
             )
         except Exception as msg_exc:
             # বাংলা মন্তব্য: conversation-append ঐচ্ছিক পরিণতি — মূল নির্বাহ-ফল
@@ -348,7 +348,7 @@ async def create_scheduled_task(
             "created_at": now,
             "updated_at": now,
         }
-        resp = await supabase_db.client.table("scheduled_tasks").insert(row).execute()
+        resp = await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks").insert(row).execute())
         if not resp.data:
             raise HTTPException(status_code=500, detail="Task creation returned no data.")
         return _row_to_task(resp.data[0])
@@ -376,11 +376,11 @@ async def list_scheduled_tasks(
 
     try:
         resp = (
-            await supabase_db.client.table("scheduled_tasks")
+            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
             .select("*")
             .eq("user_id", user_id)
             .order("created_at", desc=True)
-            .execute()
+            .execute())
         )
         return [_row_to_task(r) for r in (resp.data or [])]
     except Exception as exc:
@@ -411,10 +411,10 @@ async def list_execution_history(
             task_ids = [task_id]
         else:
             tasks_resp = (
-                await supabase_db.client.table("scheduled_tasks")
+                await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
                 .select("id")
                 .eq("user_id", user_id)
-                .execute()
+                .execute())
             )
             task_ids = [r["id"] for r in (tasks_resp.data or [])]
 
@@ -424,12 +424,12 @@ async def list_execution_history(
         # Build filter: task_id.in.(id1,id2,...)
         # Supabase .in_ expects a column name and a list
         query = (
-            await supabase_db.client.table("scheduled_task_executions")
+            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_task_executions")
             .select("*")
             .in_("task_id", task_ids)
             .order("started_at", desc=True)
             .limit(limit)
-            .execute()
+            .execute())
         )
         return [_row_to_execution(r) for r in (query.data or [])]
     except Exception as exc:
@@ -455,11 +455,11 @@ async def get_scheduled_task(
 
     try:
         resp = (
-            await supabase_db.client.table("scheduled_tasks")
+            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
             .select("*")
             .eq("id", task_id)
             .eq("user_id", user_id)
-            .execute()
+            .execute())
         )
         if not resp.data:
             raise HTTPException(status_code=404, detail="Scheduled task not found.")
@@ -491,11 +491,11 @@ async def update_scheduled_task(
     try:
         # Verify ownership
         existing = (
-            await supabase_db.client.table("scheduled_tasks")
+            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
             .select("id")
             .eq("id", task_id)
             .eq("user_id", user_id)
-            .execute()
+            .execute())
         )
         if not existing.data:
             raise HTTPException(status_code=404, detail="Scheduled task not found.")
@@ -517,10 +517,10 @@ async def update_scheduled_task(
             update_fields["is_active"] = payload.is_active
 
         resp = (
-            await supabase_db.client.table("scheduled_tasks")
+            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
             .update(update_fields)
             .eq("id", task_id)
-            .execute()
+            .execute())
         )
         if not resp.data:
             raise HTTPException(status_code=500, detail="Update returned no data.")
@@ -549,16 +549,16 @@ async def delete_scheduled_task(
 
     try:
         existing = (
-            await supabase_db.client.table("scheduled_tasks")
+            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
             .select("id")
             .eq("id", task_id)
             .eq("user_id", user_id)
-            .execute()
+            .execute())
         )
         if not existing.data:
             raise HTTPException(status_code=404, detail="Scheduled task not found.")
 
-        await supabase_db.client.table("scheduled_tasks").delete().eq("id", task_id).execute()
+        await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks").delete().eq("id", task_id).execute())
         return {"status": "deleted", "id": task_id}
     except HTTPException:
         raise
@@ -587,11 +587,11 @@ async def run_scheduled_task(
     try:
         # Fetch task
         task_resp = (
-            await supabase_db.client.table("scheduled_tasks")
+            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
             .select("*")
             .eq("id", task_id)
             .eq("user_id", user_id)
-            .execute()
+            .execute())
         )
         if not task_resp.data:
             raise HTTPException(status_code=404, detail="Scheduled task not found.")
@@ -625,11 +625,11 @@ async def toggle_scheduled_task(
 
     try:
         existing = (
-            await supabase_db.client.table("scheduled_tasks")
+            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
             .select("id, is_active")
             .eq("id", task_id)
             .eq("user_id", user_id)
-            .execute()
+            .execute())
         )
         if not existing.data:
             raise HTTPException(status_code=404, detail="Scheduled task not found.")
@@ -638,10 +638,10 @@ async def toggle_scheduled_task(
         now = datetime.now(UTC).isoformat()
 
         resp = (
-            await supabase_db.client.table("scheduled_tasks")
+            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
             .update({"is_active": new_state, "updated_at": now})
             .eq("id", task_id)
-            .execute()
+            .execute())
         )
         if not resp.data:
             raise HTTPException(status_code=500, detail="Toggle returned no data.")

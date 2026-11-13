@@ -605,7 +605,7 @@ async def deep_research_sync(
         if payload.conversation_id and supabase_db.client:
             try:
                 summary = report.get("summary", "")[:2000]
-                await (
+                await asyncio.to_thread(lambda: (
                     supabase_db.client.table("messages")
                     .insert(
                         {
@@ -614,7 +614,7 @@ async def deep_research_sync(
                             "content": f"[Deep Research: {report.get('title', '')}]\n\n{summary}",
                         }
                     )
-                    .execute()
+                    .execute())
                 )
             except Exception as exc:
                 logger.warning(f"Failed to attach research to conversation: {exc}")
@@ -761,12 +761,12 @@ async def list_research_history(
 
     try:
         resp = (
-            await supabase_db.client.table("deep_research_sessions")
+            await asyncio.to_thread(lambda: supabase_db.client.table("deep_research_sessions")
             .select(HISTORY_SELECT_COLUMNS)
             .eq("user_id", user_id)
             .order("created_at", desc=True)
             .limit(limit)
-            .execute()
+            .execute())
         )
         return resp.data or []
     except Exception as exc:
@@ -792,11 +792,11 @@ async def get_research_report(
 
     try:
         resp = (
-            await supabase_db.client.table("deep_research_sessions")
+            await asyncio.to_thread(lambda: supabase_db.client.table("deep_research_sessions")
             .select("*")
             .eq("id", research_id)
             .eq("user_id", user_id)
-            .execute()
+            .execute())
         )
         if not resp.data:
             raise HTTPException(status_code=404, detail="Research session not found.")

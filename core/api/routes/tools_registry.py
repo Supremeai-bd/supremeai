@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
@@ -41,10 +42,13 @@ async def list_tools(
 ):
     if not db.client:
         raise HTTPException(status_code=503, detail="Database not configured")
-    query = await db.service_client.table("tools_registry").select("*").eq("status", status)
+    # AUDIT FIX (2026-11-13): sync-Supabase await bug (Issue #1473 pattern) —
+    # the query builder must NOT be awaited; the deferred .execute() runs in a
+    # worker thread instead.
+    query = db.service_client.table("tools_registry").select("*").eq("status", status)
     if category:
         query = query.eq("category", category)
-    res = query.range(offset, offset + limit - 1).execute()
+    res = await asyncio.to_thread(lambda: query.range(offset, offset + limit - 1).execute())
     return {"items": res.data or [], "total": len(res.data or [])}
 
 
@@ -53,7 +57,7 @@ async def create_tool(payload: ToolCreate):
     if not db.client:
         raise HTTPException(status_code=503, detail="Database not configured")
     data = payload.dict()
-    res = await db.service_client.table("tools_registry").insert(data).execute()
+    res = await asyncio.to_thread(lambda: db.service_client.table("tools_registry").insert(data).execute())
     return {"status": "success", "tool": res.data[0] if res.data else data}
 
 
@@ -64,7 +68,7 @@ async def update_tool(tool_id: str, payload: ToolUpdate):
     data = payload.dict(exclude_none=True)
     if not data:
         raise HTTPException(status_code=400, detail="No fields to update")
-    res = await db.service_client.table("tools_registry").update(data).eq("id", tool_id).execute()
+    res = await asyncio.to_thread(lambda: db.service_client.table("tools_registry").update(data).eq("id", tool_id).execute())
     return {"status": "success", "tool": res.data[0] if res.data else None}
 
 
@@ -72,10 +76,10 @@ async def update_tool(tool_id: str, payload: ToolUpdate):
 async def delete_tool(tool_id: str):
     if not db.client:
         raise HTTPException(status_code=503, detail="Database not configured")
-    await (
+    await asyncio.to_thread(lambda: (
         db.service_client.table("tools_registry")
         .update({"status": "archived"})
         .eq("id", tool_id)
-        .execute()
+        .execute())
     )
     return {"status": "success", "message": "Tool archived"}
