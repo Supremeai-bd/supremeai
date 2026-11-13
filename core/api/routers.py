@@ -266,6 +266,12 @@ ALL_ROUTERS = [
         "is_admin": False,
         "is_critical": False,
     },
+    {
+        "path": "api.routes.conversations",
+        "prefix": "/api",
+        "is_admin": False,
+        "is_critical": False,
+    },
     # ---- Critical Routes ----
     {"path": "api.routes.llm_gateway_routes", "prefix": "", "is_admin": False, "is_critical": True},
     {"path": "api.routes.knowledge", "prefix": "/api", "is_admin": False, "is_critical": True},
