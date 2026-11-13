@@ -607,3 +607,6 @@ studio-legacy-archive/
 !studio/src/lib/encryption/vendor/THIRD_PARTY_LICENSES.txt
 
 !studio/src/lib/supremeai/
+
+# Qoder IDE artifacts
+.qoder/
