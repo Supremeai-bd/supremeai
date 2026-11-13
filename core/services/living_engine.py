@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from core.advanced_reasoning import AdvancedReasoningEngine, ReasoningChain
@@ -50,21 +50,7 @@ class SolutionResult:
     reflection: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "success": self.success,
-            "ultimate_goal": self.ultimate_goal,
-            "domain": self.domain,
-            "execution_order": self.execution_order,
-            "results": self.results,
-            "verification": self.verification,
-            "fitness_score": self.fitness_score,
-            "execution_time_ms": self.execution_time_ms,
-            "reasoning": self.reasoning,
-            "patterns": self.patterns,
-            "evolution": self.evolution,
-            "error": self.error,
-            "reflection": self.reflection,
-        }
+        return asdict(self)
 
 
 # ── Domain Adapters Bridge ─────────────────────────────────────────────────────

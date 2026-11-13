@@ -447,6 +447,17 @@ async def revoke_all_user_sessions(user_id: str) -> int:
         return 0
 
 
+def _decode_jwt_payload(token: str) -> dict:
+    return jwt.decode(
+        token,
+        _get_jwt_secret(),
+        algorithms=[ALGORITHM],
+        audience=JWT_AUDIENCE,
+        issuer=JWT_ISSUER,
+        options={"require": ["exp", "iss", "aud", "jti"]},
+    )
+
+
 async def verify_token_async(token: str) -> dict:
     """Non-blocking async token verification.
 
@@ -455,14 +466,7 @@ async def verify_token_async(token: str) -> dict:
     (R2-01 fix: sync verify_token() লুপের ভেতর থেকে ডাকলে ৫ সেকেন্ড deadlock হতো।)
     """
     try:
-        payload = jwt.decode(
-            token,
-            _get_jwt_secret(),
-            algorithms=[ALGORITHM],
-            audience=JWT_AUDIENCE,
-            issuer=JWT_ISSUER,
-            options={"require": ["exp", "iss", "aud", "jti"]},
-        )
+        payload = _decode_jwt_payload(token)
         jti = payload.get("jti")
         if jti and await is_token_revoked(jti, is_admin=_is_admin_claim(payload.get("role"))):
             raise HTTPException(
@@ -511,14 +515,7 @@ def _get_revocation_loop() -> asyncio.AbstractEventLoop:
 
 def verify_token(token: str) -> dict:
     try:
-        payload = jwt.decode(
-            token,
-            _get_jwt_secret(),
-            algorithms=[ALGORITHM],
-            audience=JWT_AUDIENCE,
-            issuer=JWT_ISSUER,
-            options={"require": ["exp", "iss", "aud", "jti"]},
-        )
+        payload = _decode_jwt_payload(token)
         jti = payload.get("jti")
         if jti:
             token_is_admin = _is_admin_claim(payload.get("role"))

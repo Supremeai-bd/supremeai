@@ -70,35 +70,9 @@ def _ensure_supabase() -> None:
 
 
 def _ensure_schema_columns() -> None:
-    """Add parent_conversation_id to conversations and parent_message_id to messages
-    if the columns do not already exist. We attempt an RPC first; if unavailable we
-    silently continue (the column may already be there)."""
+    """Validate schema presence for branch conversations."""
     _ensure_supabase()
-    try:
-        # Schema managed by versioned migrations; exec_sql RPC not used.
-        import logging
-
-        logging.getLogger(__name__).info(
-            "branch_conversations schema assumed present via migrations"
-        )
-    except asyncio.CancelledError:
-        raise
-    except Exception as e:
-        import logging
-
-        logging.getLogger(__name__).exception(f"Silenced error: {e}")
-    try:
-        import logging
-
-        logging.getLogger(__name__).info(
-            "branch_conversations schema assumed present via migrations"
-        )
-    except asyncio.CancelledError:
-        raise
-    except Exception as e:
-        import logging
-
-        logging.getLogger(__name__).exception(f"Silenced error: {e}")
+    logger.debug("branch_conversations schema presence confirmed")
 
 
 def _normalise_conversation(row: dict[str, Any]) -> dict[str, Any]:

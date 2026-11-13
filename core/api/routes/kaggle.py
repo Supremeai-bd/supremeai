@@ -157,14 +157,14 @@ async def ingest_distilled_knowledge(distilled: dict[str, Any]) -> bool:
         )
 
     for alt in distilled.get("causal_mechanism", {}).get("why_alternatives_failed", []):
-        alt_text = alt if isinstance(alt, str) else json.dumps(alt)
+        entry_detail = alt if isinstance(alt, str) else json.dumps(alt)
         facts.append(
-            {
-                "id": str(uuid.uuid4()),
-                "content": f"[Kaggle Alternative Rejection Reason]: {alt_text}",
-                "tags": ["kaggle_learning", "rejected_alternative"],
-                "created_at": now,
-            }
+            dict(
+                id=str(uuid.uuid4()),
+                content=f"[Kaggle Empirical Rejection]: {entry_detail}",
+                tags=["kaggle_learning", "rejected_alternative"],
+                created_at=now,
+            )
         )
 
     try:

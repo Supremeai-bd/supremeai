@@ -122,17 +122,6 @@ def _ensure_schema() -> None:
         return
     if not supabase_db.client:
         raise HTTPException(status_code=503, detail="Database is not available.")
-    try:
-        # Schema managed by versioned migrations; exec_sql RPC not used.
-        import logging
-
-        logging.getLogger(__name__).info("deep_research schema assumed present via migrations")
-    except asyncio.CancelledError:
-        raise
-    except Exception as e:
-        import logging
-
-        logging.getLogger(__name__).exception(f"Silenced error: {e}")
     _research_bootstrapped = True
 
 
