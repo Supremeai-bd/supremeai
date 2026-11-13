@@ -229,6 +229,24 @@ async def branch_conversation(
         raise HTTPException(status_code=500, detail="Failed to branch conversation.") from exc
 
 
+async def _fetch_user_conversations(
+    user_id: str,
+    select_cols: str = "*",
+    parent_conversation_id: str | None = None,
+) -> list[dict[str, Any]]:
+    _ensure_schema_columns()
+    _ensure_supabase()
+
+    def _query():
+        q = supabase_db.client.table("conversations").select(select_cols).eq("user_id", user_id)
+        if parent_conversation_id is not None:
+            q = q.eq("parent_conversation_id", parent_conversation_id)
+        return q.order("created_at", desc=False).execute()
+
+    resp = await asyncio.to_thread(_query)
+    return [_normalise_conversation(r) for r in (resp.data or [])]
+
+
 @router.get(
     "/{conversation_id}/branches",
     response_model=list[dict[str, Any]],
@@ -244,19 +262,12 @@ async def list_branches(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token.")
 
-    _ensure_schema_columns()
-    _ensure_supabase()
-
     try:
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("conversations")
-            .select("*")
-            .eq("parent_conversation_id", conversation_id)
-            .eq("user_id", user_id)
-            .order("created_at", desc=False)
-            .execute())
+        return await _fetch_user_conversations(
+            user_id,
+            select_cols="*",
+            parent_conversation_id=conversation_id,
         )
-        return [_normalise_conversation(r) for r in (resp.data or [])]
     except Exception as exc:
         logger.error(f"list_branches failed for {conversation_id}: {exc}")
         raise HTTPException(status_code=500, detail="Failed to list branches.") from exc
@@ -277,18 +288,11 @@ async def get_conversation_tree(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token.")
 
-    _ensure_schema_columns()
-    _ensure_supabase()
-
     try:
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("conversations")
-            .select("id, title, parent_conversation_id, created_at, updated_at")
-            .eq("user_id", user_id)
-            .order("created_at", desc=False)
-            .execute())
+        return await _fetch_user_conversations(
+            user_id,
+            select_cols="id, title, parent_conversation_id, created_at, updated_at",
         )
-        return [_normalise_conversation(r) for r in (resp.data or [])]
     except Exception as exc:
         logger.error(f"get_conversation_tree failed for user {user_id}: {exc}")
         raise HTTPException(status_code=500, detail="Failed to fetch conversation tree.") from exc

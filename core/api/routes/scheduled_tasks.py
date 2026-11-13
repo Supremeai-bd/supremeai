@@ -437,6 +437,20 @@ async def list_execution_history(
         raise HTTPException(status_code=500, detail="Failed to fetch execution history.") from exc
 
 
+async def _get_user_task_record(task_id: str, user_id: str, select_cols: str = "*") -> dict[str, Any]:
+    _ensure_schema()
+    resp = await asyncio.to_thread(
+        lambda: supabase_db.client.table("scheduled_tasks")
+        .select(select_cols)
+        .eq("id", task_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not resp.data:
+        raise HTTPException(status_code=404, detail="Scheduled task not found.")
+    return resp.data[0]
+
+
 @router.get(
     "/{task_id}",
     response_model=dict[str, Any],
@@ -451,19 +465,9 @@ async def get_scheduled_task(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token.")
 
-    _ensure_schema()
-
     try:
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
-            .select("*")
-            .eq("id", task_id)
-            .eq("user_id", user_id)
-            .execute())
-        )
-        if not resp.data:
-            raise HTTPException(status_code=404, detail="Scheduled task not found.")
-        return _row_to_task(resp.data[0])
+        row = await _get_user_task_record(task_id, user_id, select_cols="*")
+        return _row_to_task(row)
     except HTTPException:
         raise
     except Exception as exc:
@@ -486,19 +490,8 @@ async def update_scheduled_task(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token.")
 
-    _ensure_schema()
-
     try:
-        # Verify ownership
-        existing = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
-            .select("id")
-            .eq("id", task_id)
-            .eq("user_id", user_id)
-            .execute())
-        )
-        if not existing.data:
-            raise HTTPException(status_code=404, detail="Scheduled task not found.")
+        await _get_user_task_record(task_id, user_id, select_cols="id")
 
         update_fields: dict[str, Any] = {"updated_at": datetime.now(UTC).isoformat()}
         if payload.title is not None:
@@ -545,19 +538,8 @@ async def delete_scheduled_task(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token.")
 
-    _ensure_schema()
-
     try:
-        existing = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
-            .select("id")
-            .eq("id", task_id)
-            .eq("user_id", user_id)
-            .execute())
-        )
-        if not existing.data:
-            raise HTTPException(status_code=404, detail="Scheduled task not found.")
-
+        await _get_user_task_record(task_id, user_id, select_cols="id")
         await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks").delete().eq("id", task_id).execute())
         return {"status": "deleted", "id": task_id}
     except HTTPException:
@@ -582,23 +564,8 @@ async def run_scheduled_task(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token.")
 
-    _ensure_schema()
-
     try:
-        # Fetch task
-        task_resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
-            .select("*")
-            .eq("id", task_id)
-            .eq("user_id", user_id)
-            .execute())
-        )
-        if not task_resp.data:
-            raise HTTPException(status_code=404, detail="Scheduled task not found.")
-        task = task_resp.data[0]
-
-        # M22 P-A: manual-run ও due-sweep এখন একই শেয়ার্ড নির্বাহ-পথ ব্যবহার করে —
-        # ফলে ইতিহাস-রেকর্ড, last_run_* এবং conversation-append-এর অর্থ দুই পথে এক।
+        task = await _get_user_task_record(task_id, user_id, select_cols="*")
         return await execute_task_and_record(task, user_id)
     except HTTPException:
         raise
@@ -621,20 +588,9 @@ async def toggle_scheduled_task(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token.")
 
-    _ensure_schema()
-
     try:
-        existing = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
-            .select("id, is_active")
-            .eq("id", task_id)
-            .eq("user_id", user_id)
-            .execute())
-        )
-        if not existing.data:
-            raise HTTPException(status_code=404, detail="Scheduled task not found.")
-
-        new_state = not existing.data[0].get("is_active", True)
+        existing = await _get_user_task_record(task_id, user_id, select_cols="id, is_active")
+        new_state = not existing.get("is_active", True)
         now = datetime.now(UTC).isoformat()
 
         resp = (

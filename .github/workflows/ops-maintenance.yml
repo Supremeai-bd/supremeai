@@ -53,6 +53,8 @@ on:
     - cron: "0 3 * * 0"
     # Daily 10:00 AM BDT (04:00 UTC) Automated Production Readiness & Health Report
     - cron: "0 4 * * *"
+    # 2-hourly opportunistic 24h+ audit window check
+    - cron: "0 */2 * * *"
   workflow_dispatch:
     inputs:
       run_daily_health_report:
@@ -158,6 +160,16 @@ on:
         type: boolean
       run_db_pool_health:
         description: 'Run DB/pool health probe arm (pgBouncer/quota report)'
+        required: false
+        default: false
+        type: boolean
+      run_opportunistic_audit:
+        description: 'Run 24h+ opportunistic deep audit & wiring atlas check'
+        required: false
+        default: false
+        type: boolean
+      run_test_local_runner:
+        description: 'Verify and smoke-test Local Self-Hosted Runner on Windows PC'
         required: false
         default: false
         type: boolean
@@ -2453,3 +2465,94 @@ jobs:
             --json ci-reports/daily-health-report.json \
             --markdown ci-reports/daily-health-report.md
           cat ci-reports/daily-health-report.md >> "$GITHUB_STEP_SUMMARY"
+
+  test-local-runner:
+    needs: [resolve-execution-tier]
+    name: "Verify Local Self-Hosted Runner on Windows PC"
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.run_test_local_runner == true) &&
+      needs.resolve-execution-tier.outputs.is_local_online == 'true'
+    runs-on: [self-hosted, local-pc]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+
+      - name: Check Runner OS and Environment
+        shell: powershell
+        run: |
+          Write-Host "=========================================="
+          Write-Host "Hello from SupremeAI Local Self-Hosted Runner!"
+          Write-Host "Host Name: $env:COMPUTERNAME"
+          Write-Host "User Domain: $env:USERDOMAIN"
+          Write-Host "OS: $((Get-CimInstance Win32_OperatingSystem).Caption)"
+          Write-Host "Current Directory: $(Get-Location)"
+          Write-Host "=========================================="
+
+      - name: Fast Unit Test Smoke Check
+        shell: powershell
+        run: |
+          python -V
+          pytest --version
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py
+
+  evaluate-opportunistic-audit:
+    needs: [resolve-execution-tier]
+    name: "Evaluate 24h+ Opportunistic Audit Window"
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.run_opportunistic_audit == true) ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 */2 * * *')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check 24h Timer
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_RUN: ${{ inputs.run_opportunistic_audit }}
+        run: |
+          if [ "$FORCE_RUN" = "true" ]; then
+            echo "Force run requested. Dispatching audit."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            python scripts/ci/check_opportunistic_audit.py --timing-only
+          fi
+
+  execute-opportunistic-audit-local:
+    needs: [resolve-execution-tier, evaluate-opportunistic-audit]
+    name: "Run Opportunistic Audit (Local Self-Hosted, 0 cloud mins)"
+    if: needs.evaluate-opportunistic-audit.outputs.should_run == 'true' && needs.resolve-execution-tier.outputs.is_local_online == 'true'
+    runs-on: [self-hosted, local-pc]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run Heavy Deep Audit & Vulnerability Sweep
+        shell: powershell
+        run: |
+          Write-Host "Executing 24h+ opportunistic audit locally on $env:COMPUTERNAME..."
+          if (Test-Path .venv\Scripts\pytest.exe) { .\.venv\Scripts\pytest.exe -q tests/unit/test_telemetry_event_bus_guard.py } else { pytest -q tests/unit/test_telemetry_event_bus_guard.py }
+          python scripts/ops/wiring_atlas.py --check
+          python scripts/ci/check_opportunistic_audit.py --record
+      - name: Publish Audit Attestation
+        shell: powershell
+        run: Write-Host "Audit completed successfully on local machine. Timestamp recorded."
+
+  execute-opportunistic-audit-cloud-fallback:
+    needs: [resolve-execution-tier, evaluate-opportunistic-audit]
+    name: "Run Emergency Audit (Cloud Fallback, SSOT tier)"
+    if: needs.evaluate-opportunistic-audit.outputs.should_run == 'true' && needs.resolve-execution-tier.outputs.is_local_online != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Run Cloud Emergency Audit
+        run: |
+          echo "Local offline / tier fallback. Executing emergency audit on cloud (tier=${{ needs.resolve-execution-tier.outputs.execution_tier }})."
+          python scripts/ci/check_opportunistic_audit.py --record
+

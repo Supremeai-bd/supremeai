@@ -186,6 +186,18 @@ async def create_memory(
         raise HTTPException(status_code=500, detail="Failed to save memory.") from exc
 
 
+async def _assert_user_memory_exists(memory_id: str, user_id: str) -> None:
+    resp = await asyncio.to_thread(
+        lambda: supabase_db.client.table("ai_memory")
+        .select("id")
+        .eq("id", memory_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not resp.data:
+        raise HTTPException(status_code=404, detail="Memory not found.")
+
+
 @router.delete(
     "/{memory_id}",
     summary="Delete a specific memory",
@@ -203,15 +215,7 @@ async def delete_memory(
 
     try:
         # Verify ownership before deleting
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("ai_memory")
-            .select("id")
-            .eq("id", memory_id)
-            .eq("user_id", user_id)
-            .execute())
-        )
-        if not resp.data:
-            raise HTTPException(status_code=404, detail="Memory not found.")
+        await _assert_user_memory_exists(memory_id, user_id)
 
         await asyncio.to_thread(lambda: supabase_db.client.table("ai_memory").delete().eq("id", memory_id).execute())
         return {"status": "deleted", "id": memory_id}
@@ -274,15 +278,7 @@ async def update_memory(
 
     try:
         # Verify ownership
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("ai_memory")
-            .select("id")
-            .eq("id", memory_id)
-            .eq("user_id", user_id)
-            .execute())
-        )
-        if not resp.data:
-            raise HTTPException(status_code=404, detail="Memory not found.")
+        await _assert_user_memory_exists(memory_id, user_id)
 
         update_fields: dict[str, Any] = {"summary": payload.content}
         if payload.content_type is not None:

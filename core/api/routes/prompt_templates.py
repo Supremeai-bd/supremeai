@@ -441,6 +441,41 @@ async def create_template(
         raise HTTPException(status_code=500, detail="Failed to create template.") from exc
 
 
+async def _get_accessible_template_row(template_id: str, user_id: str) -> dict[str, Any]:
+    _bootstrap_schema()
+    _seed_builtins()
+    _ensure_supabase()
+
+    resp = await asyncio.to_thread(
+        lambda: supabase_db.client.table("prompt_templates")
+        .select("*")
+        .eq("id", template_id)
+        .or_(f"is_builtin.eq.true,user_id.eq.{user_id}")
+        .execute()
+    )
+    if not resp.data:
+        raise HTTPException(status_code=404, detail="Template not found.")
+    return resp.data[0]
+
+
+async def _assert_editable_custom_template(template_id: str, user_id: str, action: str = "modify") -> dict[str, Any]:
+    _ensure_supabase()
+    existing = await asyncio.to_thread(
+        lambda: supabase_db.client.table("prompt_templates")
+        .select("id, is_builtin, user_id")
+        .eq("id", template_id)
+        .execute()
+    )
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Template not found.")
+    row = existing.data[0]
+    if row.get("is_builtin"):
+        raise HTTPException(status_code=403, detail=f"Cannot {action} a builtin template.")
+    if row.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail=f"Not authorized to {action} this template.")
+    return row
+
+
 @router.get(
     "/{template_id}",
     response_model=dict[str, Any],
@@ -455,21 +490,9 @@ async def get_template(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token.")
 
-    _bootstrap_schema()
-    _seed_builtins()
-    _ensure_supabase()
-
     try:
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates")
-            .select("*")
-            .eq("id", template_id)
-            .or_(f"is_builtin.eq.true,user_id.eq.{user_id}")
-            .execute())
-        )
-        if not resp.data:
-            raise HTTPException(status_code=404, detail="Template not found.")
-        return _row_to_template(resp.data[0])
+        row = await _get_accessible_template_row(template_id, user_id)
+        return _row_to_template(row)
     except HTTPException:
         raise
     except Exception as exc:
@@ -492,23 +515,8 @@ async def update_template(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token.")
 
-    _ensure_supabase()
-
     try:
-        # Verify ownership and that it is not builtin
-        existing = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates")
-            .select("id, is_builtin, user_id")
-            .eq("id", template_id)
-            .execute())
-        )
-        if not existing.data:
-            raise HTTPException(status_code=404, detail="Template not found.")
-        row = existing.data[0]
-        if row.get("is_builtin"):
-            raise HTTPException(status_code=403, detail="Cannot modify a builtin template.")
-        if row.get("user_id") != user_id:
-            raise HTTPException(status_code=403, detail="Not authorized to update this template.")
+        await _assert_editable_custom_template(template_id, user_id, action="modify")
 
         update_fields: dict[str, Any] = {"updated_at": datetime.now(UTC).isoformat()}
         if payload.name is not None:
@@ -551,23 +559,8 @@ async def delete_template(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token.")
 
-    _ensure_supabase()
-
     try:
-        existing = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates")
-            .select("id, is_builtin, user_id")
-            .eq("id", template_id)
-            .execute())
-        )
-        if not existing.data:
-            raise HTTPException(status_code=404, detail="Template not found.")
-        row = existing.data[0]
-        if row.get("is_builtin"):
-            raise HTTPException(status_code=403, detail="Cannot delete a builtin template.")
-        if row.get("user_id") != user_id:
-            raise HTTPException(status_code=403, detail="Not authorized to delete this template.")
-
+        await _assert_editable_custom_template(template_id, user_id, action="delete")
         await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates").delete().eq("id", template_id).execute())
         return {"status": "deleted", "id": template_id}
     except HTTPException:
@@ -592,22 +585,8 @@ async def use_template(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token.")
 
-    _bootstrap_schema()
-    _seed_builtins()
-    _ensure_supabase()
-
     try:
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates")
-            .select("*")
-            .eq("id", template_id)
-            .or_(f"is_builtin.eq.true,user_id.eq.{user_id}")
-            .execute())
-        )
-        if not resp.data:
-            raise HTTPException(status_code=404, detail="Template not found.")
-
-        row = resp.data[0]
+        row = await _get_accessible_template_row(template_id, user_id)
         variables = row.get("variables") or []
         if isinstance(variables, str):
             try:
