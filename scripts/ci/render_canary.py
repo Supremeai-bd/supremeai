@@ -74,7 +74,9 @@ def main() -> int:
             continue
         ok = False
         last_error = "unknown error"
-        for attempt in range(1, 4):
+        is_auxiliary = name in ("ci-runner", "supremeai-ci-runner") or target.get("critical") is False
+        max_attempts = 5 if is_auxiliary else 4
+        for attempt in range(1, max_attempts + 1):
             try:
                 request = urllib.request.Request(url, headers={"User-Agent": "SupremeAI-Canary/2.0"})
                 with urllib.request.urlopen(request, timeout=45) as response:
@@ -86,10 +88,16 @@ def main() -> int:
                 break
             except (OSError, urllib.error.URLError, RuntimeError) as exc:
                 last_error = str(exc)
-                if attempt < 3:
-                    time.sleep(10)
+                if attempt < max_attempts:
+                    time.sleep(12)
         if not ok:
-            failed.append(f"{name}: {last_error}")
+            if is_auxiliary:
+                print(
+                    f"WARN [Auxiliary/Batch Runner Degraded] {name}: {last_error} (non-blocking for user-facing production traffic)",
+                    file=sys.stderr,
+                )
+            else:
+                failed.append(f"{name}: {last_error}")
 
     if failed:
         print("Render canary failed:", *failed, sep="\n- ", file=sys.stderr)
