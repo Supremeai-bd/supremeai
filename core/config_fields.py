@@ -165,7 +165,13 @@ class SettingsFieldsMixin:
     # ফেইল-ফাস্ট) এবং runtime গেটে কোনো ফলব্যাক নেই।
     supremeai_admin_secret: SecretStr = Field(
         default=SecretStr(""),
-        validation_alias="SUPREMEAI_ADMIN_SECRET",
+        validation_alias=AliasChoices(
+            "SUPREMEAI_ADMIN_SECRET",
+            "ADMIN_SECRET",
+            "SUPABASE_SERVICE_ROLE_KEY",
+            "INFISICAL_CLIENT_SECRET",
+            "SUPREMEAI_ADMIN_LOGIN_PASSWORD",
+        ),
     )
 
     ADMIN_SECRET_DEV_FALLBACKS: ClassVar[frozenset[str]] = frozenset({"", "dev_password_only"})

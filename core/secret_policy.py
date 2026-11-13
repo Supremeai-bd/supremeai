@@ -53,4 +53,7 @@ def resolve_jwt_secret_env() -> str:
             JWT_SECRET_ENV,
         )
         return legacy
+    fallback = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    if fallback.strip() and len(fallback.strip()) >= JWT_SECRET_MIN_LENGTH:
+        return fallback.strip()
     return ""
