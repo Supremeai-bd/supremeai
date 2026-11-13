@@ -24,7 +24,7 @@
    - `src/stores/useAdminStore.ts` এ ফেক টোস্ট বন্ধ করে ওয়্যার-অনেস্টি নিশ্চিত।
    - `src/components/ChatInput.tsx` ও `App.tsx`-এ RAG Knowledge Grounding এবং Deep Research মোড টগল ওয়্যারড।
 
-### ১.২ Phase 2 ও Phase 3 চলমান অগ্রগতি (Completed & Verified)
+### ১.২ Phase 2, Phase 3 ও Phase 4 চলমান অগ্রগতি (Completed & Verified)
 1. **[COMPLETED] টাস্ক A1 (Live Supabase Auth & Route Normalization):**
    - Backend `routers.py`-এ `/api/auth` ও `/api/v1/auth` অ্যালিয়াস রাউট।
    - `core/api/routes/auth.py`-এ `TokenResponse` এক্সপ্যান্ডেড।
@@ -36,10 +36,28 @@
    - `ChatSearchBar.tsx` সরাসরি চ্যাট থ্রেডে লাইভ ফিল্টারিং কার্যকর।
    - `branchSession` অ্যাকশন দিয়ে কনভারসেশন ব্রাঞ্চিং সক্রিয়।
    - `shareService.ts` দিয়ে পাবলিক শেয়ার লিঙ্ক জেনারেশন কার্যকর।
-4. **[COMPLETED] টাস্ক C3 (HITL Safety Interception Modal):**
+4. **[COMPLETED] টাস্ক A6 (Conversations Multi-Device Sync):**
+   - `conversationService.ts` এবং `useChatStore.ts` ব্যাকগ্রাউন্ড ডুয়েল-রাইট সিঙ্ক সক্রিয়।
+   - Backend `core/api/routers.py`-এ `/api/conversations` অ্যালিয়াস রাউটিং পিনড।
+5. **[COMPLETED] টাস্ক A4 (Graph Tab & Skill Hierarchy Visualization):**
+   - Frontend `WorkspaceGraphTab.tsx` ও `graphService.ts` যুক্ত।
+   - সার্কুলার লেআউট, নোড ইনস্পেক্টর, ক্যাটাগরি ফিল্টার এবং পাথ-সলভার ইন্টিগ্রেটেড।
+6. **[COMPLETED] টাস্ক A2 (Admin 2FA Security Modal & Backend Endpoint):**
+   - Backend `core/api/routes/auth.py`-এ `POST /verify-2fa` TOTP এবং FIDO2 বায়োমেট্রিক অ্যাসার্শন হ্যান্ডলার মাউন্টেড।
+   - Frontend `AdminTwoFactorModal.tsx` ওয়্যারড।
+7. **[COMPLETED] টাস্ক C3 (HITL Safety Interception Modal):**
    - `hitlService.ts`, `useHitlApproval.ts` (SSE), এবং `HitlApprovalModal.tsx` গ্লোবালি মাউন্টেড।
-5. **[COMPLETED] টাস্ক C4 (Render 750h Multi-Account Enforcer):**
+8. **[COMPLETED] টাস্ক C4 (Render 750h Multi-Account Enforcer):**
    - `service_manifest.ts`-এ ৭টি রেন্ডার অ্যাকাউন্টের আইসোলেশন এনফোর্সমেন্ট ভেরিফাইড (100% compliant, 0 collision)।
+9. **[COMPLETED] টাস্ক C1 (Autonomous Browser Operator Takeover & Live Screencast):**
+   - Backend `/api/browser/automation/*` Playwright সেশন এবং অ্যাকশন ক্যাস্কেড সংযুক্ত।
+   - Frontend `browserService.ts` এবং `WorkspaceBrowserTab.tsx`-এ অপারেটর টেকওভার HUD, পজ/রেজিউম, ম্যানুয়াল ক্লিক/টাইপ এবং লাইভ স্ক্রিনকাস্ট ফ্রেম ভিউয়ার ওয়্যারড।
+10. **[COMPLETED] টাস্ক D1 (Deep Research Report Viewer & Pipeline Integration):**
+    - Backend `core/api/routes/deep_research.py` (`POST /api/research/deep`) এর সাথে ফ্রন্টএন্ড `researchService.ts` ও `ResearchReportViewer.tsx` সংযুক্ত।
+    - চ্যাটে `isDeepResearchActive` টগল থাকলে স্ট্রাকচার্ড এক্সিকিউটিভ সামারি, সেকশন ও সাইটেশন রিপোর্ট প্রদর্শন।
+11. **[COMPLETED] টাস্ক D5 (Real Token Meter Cockpit & Live Wallet Telemetry):**
+    - Backend `/api/billing/wallet` এবং `/api/billing/analytics` থেকে লাইভ মেট্রিক্স ফেচ করার জন্য `usageService.ts` তৈরি।
+    - `UsageView.tsx`-এ লাইভ ওয়ালেট ব্যালেন্স, মোট স্পেন্ড, এজ ক্যাশ সেভিংস এবং ৭ দিনের ট্রাফিক ভেলোসিটি চার্ট সংযুক্ত।
 
 ---
 
