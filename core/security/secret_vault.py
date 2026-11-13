@@ -142,7 +142,15 @@ class ProductionSecretVault:
 
     def __init__(self) -> None:
         self.env = os.getenv("ENV", "local").lower()
-        self.project_id = os.getenv("INFISICAL_PROJECT_ID")
+        self.project_id = (
+            os.getenv("INFISICAL_PROJECT_ID")
+            or (
+                "92aa20c4-aef5-4e33-82bd-efb06058aaf0"
+                if os.getenv("INFISICAL_PROJECT_SLUG") == "supreme-ai-p-n-fr"
+                else os.getenv("INFISICAL_PROJECT_SLUG")
+            )
+            or "92aa20c4-aef5-4e33-82bd-efb06058aaf0"
+        )
         self.client_id = os.getenv("INFISICAL_CLIENT_ID")
         self.client_secret = os.getenv("INFISICAL_CLIENT_SECRET")
         self.token = os.getenv("INFISICAL_TOKEN")

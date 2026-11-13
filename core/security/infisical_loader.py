@@ -97,7 +97,16 @@ def fetch_raw_infisical_secrets(
 
     Single source of truth for both boot-time container execution and runtime vault.
     """
-    project = project_id or os.environ.get("INFISICAL_PROJECT_ID")
+    project = (
+        project_id
+        or os.environ.get("INFISICAL_PROJECT_ID")
+        or (
+            "92aa20c4-aef5-4e33-82bd-efb06058aaf0"
+            if os.environ.get("INFISICAL_PROJECT_SLUG") == "supreme-ai-p-n-fr"
+            else os.environ.get("INFISICAL_PROJECT_SLUG")
+        )
+        or "92aa20c4-aef5-4e33-82bd-efb06058aaf0"
+    )
     if not project:
         return {}
 
