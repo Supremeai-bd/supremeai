@@ -18,7 +18,9 @@ assembly are exercised for real.
 from __future__ import annotations
 
 import base64
+import gzip
 import hashlib
+import importlib
 import json
 import os
 import re
@@ -30,9 +32,12 @@ from types import SimpleNamespace
 import pytest
 from cryptography.fernet import Fernet, InvalidToken
 
-import backend.tools.social.teldrive_storage as tds
 from core.tools.social.teldrive_storage import TelDriveCrypto, TelDriveStorage
 from core.tools.social.telegram_bot import TelegramBotHandler
+
+# Flat sibling imports can replace the parent package's social attribute.
+# Resolve the canonical module directly so patches target the tested classes.
+tds = importlib.import_module(TelDriveStorage.__module__)
 
 
 def patch_get_db_session(monkeypatch, factory):
@@ -210,35 +215,30 @@ class TestKeyDerivation:
         token = fernet.encrypt(b"m")
         assert expected.decrypt(token) == b"m"
 
-    def test_raising_property_falls_back_to_env(self, monkeypatch):
+    def test_raising_settings_property_fails_closed_even_with_env(self, monkeypatch):
         monkeypatch.setenv("ENCRYPTION_KEY", "env-fallback-key")
         swap_settings(monkeypatch, ExplodingKeySettings())
-        fernet = TelDriveCrypto._get_fernet()
-        expected = Fernet(derive_key("env-fallback-key"))
-        token = fernet.encrypt(b"m")
-        assert expected.decrypt(token) == b"m"
+        with pytest.raises(RuntimeError, match="ENCRYPTION_KEY is not configured"):
+            TelDriveCrypto._get_fernet()
 
-    def test_empty_key_falls_back_to_env(self, monkeypatch):
+    def test_empty_settings_key_fails_closed_even_with_env(self, monkeypatch):
         monkeypatch.setenv("ENCRYPTION_KEY", "env-after-empty-key")
         swap_settings(monkeypatch, EmptyKeySettings())
-        fernet = TelDriveCrypto._get_fernet()
-        expected = Fernet(derive_key("env-after-empty-key"))
-        token = fernet.encrypt(b"m")
-        assert expected.decrypt(token) == b"m"
+        with pytest.raises(RuntimeError, match="ENCRYPTION_KEY is not configured"):
+            TelDriveCrypto._get_fernet()
 
-    def test_no_env_uses_builtin_default_key(self, monkeypatch):
+    def test_no_env_refuses_builtin_default_key(self, monkeypatch):
         monkeypatch.delenv("ENCRYPTION_KEY", raising=False)
         swap_settings(monkeypatch, EmptyKeySettings())
-        fernet = TelDriveCrypto._get_fernet()
-        expected = Fernet(derive_key(DEFAULT_KEY_SENTINEL))
-        token = fernet.encrypt(b"m")
-        assert expected.decrypt(token) == b"m"
+        with pytest.raises(RuntimeError, match="refusing to use the known public default key"):
+            TelDriveCrypto.encrypt_bytes(b"must-not-use-public-key")
 
-    def test_default_key_stable_across_calls(self, monkeypatch):
+    def test_legacy_public_key_ciphertext_is_not_implicitly_decrypted(self, monkeypatch):
         monkeypatch.delenv("ENCRYPTION_KEY", raising=False)
         swap_settings(monkeypatch, EmptyKeySettings())
-        token = TelDriveCrypto.encrypt_bytes(b"stable")
-        assert TelDriveCrypto.decrypt_bytes(token) == b"stable"
+        legacy = Fernet(derive_key(DEFAULT_KEY_SENTINEL)).encrypt(gzip.compress(b"legacy"))
+        with pytest.raises(RuntimeError, match="ENCRYPTION_KEY is not configured"):
+            TelDriveCrypto.decrypt_bytes(legacy)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -258,7 +258,7 @@ class TestConstruction:
         # uses: teldrive_storage imports `from tools.social.telegram_bot import
         # TelegramBotHandler` (top-level `tools` package) which under pytest is
         # a DISTINCT class object from `backend.tools.social.telegram_bot`.
-        from core.tools.social.telegram_bot import TelegramBotHandler as TopLevelHandler
+        from tools.social.telegram_bot import TelegramBotHandler as TopLevelHandler
 
         monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
         storage = TelDriveStorage()

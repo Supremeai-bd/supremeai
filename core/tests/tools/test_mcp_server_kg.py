@@ -38,6 +38,7 @@ import json
 import sys
 import types as pytypes
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -575,15 +576,24 @@ class TestUnknownToolDispatch:
 
 
 # =============================================================================
-# MCP Tower gap-3 (#927) — agent mailbox tools retired in Step-2.3
+# MCP Tower gap-3 (#927) — active mailbox dispatch contract
 # =============================================================================
 
 
 class TestAgentMailboxTools:
-    """Prove mailbox tools return graceful retired responses (issue #2276, Step-2.3)."""
+    """Exercise the active MCP API against an isolated real AgentMailbox."""
 
-    async def test_retired_mailbox_tools(self) -> None:
-        # বাংলা মন্তব্য: [Step-2.3] ইন-মেমোরি মেইলবক্স অবসরে যাওয়ার পর MCP কল যাতে ক্র্যাশ না করে তা যাচাই।
+    @pytest.fixture
+    def mailbox(self, monkeypatch: pytest.MonkeyPatch, audit_spy: AuditRecorder):
+        from core import agent_mailbox
+
+        mailbox = agent_mailbox.AgentMailbox()
+        monkeypatch.setattr(agent_mailbox, "get_agent_mailbox", AsyncMock(return_value=mailbox))
+        # Audit persistence is a separate contract; never touch the shared database here.
+        monkeypatch.setattr(mcp_server, "_audit_chain_append", AsyncMock())
+        return mailbox
+
+    async def test_send_inbox_ack_and_subscribe(self, mailbox, audit_spy: AuditRecorder) -> None:
         sent = _json(
             await mcp_server.handle_call_tool(
                 "agent_send",
@@ -592,38 +602,117 @@ class TestAgentMailboxTools:
                     "from_agent": "planner-1",
                     "to_agent": "coder-1",
                     "body": {"task": "build"},
+                    "ttl_seconds": 60,
                 },
             )
         )
-        assert sent["status"] == "retired"
+        assert sent["message_id"].startswith("msg-")
+        assert sent["tenant_id"] == "tenant-927"
+        assert sent["from_agent"] == "planner-1"
+        assert sent["to_agent"] == "coder-1"
+        assert sent["body"] == {"task": "build"}
+        assert sent["acked"] is False
+        assert sent["expires_at_epoch"] - sent["created_at_epoch"] == 60
+        assert await mailbox.count("tenant-927") == 1
 
-        inbox = _json(
+        inbox_args = {"tenant_id": "tenant-927", "agent_id": "coder-1"}
+        inbox = _json(await mcp_server.handle_call_tool("agent_inbox", inbox_args))
+        assert inbox == {**inbox_args, "count": 1, "messages": [sent]}
+
+        ack_args = {**inbox_args, "message_id": sent["message_id"]}
+        acked = _json(await mcp_server.handle_call_tool("agent_ack", ack_args))
+        assert acked["message_id"] == sent["message_id"]
+        assert acked["acked"] is True
+        assert acked["acked_by"] == "coder-1"
+        assert acked["acked_at"]
+        assert _json(await mcp_server.handle_call_tool("agent_ack", ack_args)) == acked
+        unread = _json(
+            await mcp_server.handle_call_tool("agent_inbox", {**inbox_args, "unread_only": True})
+        )
+        assert unread["count"] == 0
+        assert unread["messages"] == []
+
+        sub_args = {**inbox_args, "topics": ["deploy-events"]}
+        sub = _json(await mcp_server.handle_call_tool("topic_subscribe", sub_args))
+        assert sub == {"status": "ok", **sub_args}
+        assert await mailbox.subscriptions(agent_id="coder-1", tenant_id="tenant-927") == [
+            "deploy-events"
+        ]
+        assert [call["tool"] for call in audit_spy.calls] == [
+            "agent_send",
+            "agent_inbox",
+            "agent_ack",
+            "agent_ack",
+            "agent_inbox",
+            "topic_subscribe",
+        ]
+        mcp_server._audit_chain_append.assert_awaited()
+
+    @pytest.mark.parametrize("tool", ["agent_send", "agent_inbox", "agent_ack", "topic_subscribe"])
+    @pytest.mark.parametrize("tenant_id", ["", "default"])
+    async def test_mailbox_requires_explicit_tenant(self, mailbox, tool, tenant_id):
+        result = _json(await mcp_server.handle_call_tool(tool, {"tenant_id": tenant_id}))
+        assert result == {"error": "tenant_id is required"}
+        assert await mailbox.count() == 0
+        mcp_server._audit_chain_append.assert_not_awaited()
+
+    async def test_tenant_and_recipient_isolation(self, mailbox):
+        sent = _json(
             await mcp_server.handle_call_tool(
-                "agent_inbox", {"tenant_id": "tenant-927", "agent_id": "coder-1"}
+                "agent_send",
+                {"tenant_id": "tenant-a", "from_agent": "planner", "to_agent": "coder"},
             )
         )
-        assert inbox["count"] == 0
-        assert inbox["status"] == "retired"
+        for tenant, agent in [("tenant-b", "coder"), ("tenant-a", "other")]:
+            args = {"tenant_id": tenant, "agent_id": agent}
+            inbox = _json(await mcp_server.handle_call_tool("agent_inbox", args))
+            assert inbox["count"] == 0
+            assert inbox["messages"] == []
+            error = _text(
+                await mcp_server.handle_call_tool(
+                    "agent_ack", {**args, "message_id": sent["message_id"]}
+                )
+            )
+            assert "Error gathering graph context:" in error
+            assert (
+                "cross-tenant ack denied" in error
+                if tenant == "tenant-b"
+                else "not the recipient" in error
+            )
+        stored = await mailbox.inbox(agent_id="coder", tenant_id="tenant-a")
+        assert len(stored) == 1
+        assert stored[0].acked is False
 
-        acked = _json(
+    async def test_subscription_gates_role_and_topic_broadcast(self, mailbox):
+        args = {"tenant_id": "tenant-927", "agent_id": "coder-1", "role": "coder"}
+        sent = _json(
             await mcp_server.handle_call_tool(
-                "agent_ack",
+                "agent_send",
                 {
                     "tenant_id": "tenant-927",
-                    "message_id": "msg-123",
-                    "agent_id": "coder-1",
+                    "from_agent": "planner-1",
+                    "to_agent": "*",
+                    "to_role": "coder",
+                    "topic": "deploy-events",
+                    "body": {"revision": "fixture"},
                 },
             )
         )
-        assert acked["status"] == "acknowledged"
-
-        sub = _json(
-            await mcp_server.handle_call_tool(
-                "topic_subscribe",
-                {"tenant_id": "tenant-927", "agent_id": "coder-1", "topics": ["deploy-events"]},
+        assert _json(await mcp_server.handle_call_tool("agent_inbox", args))["count"] == 0
+        sub_args = {"tenant_id": "tenant-927", "agent_id": "coder-1", "topics": ["deploy-events"]}
+        await mcp_server.handle_call_tool("topic_subscribe", sub_args)
+        sub = _json(await mcp_server.handle_call_tool("topic_subscribe", sub_args))
+        assert sub["topics"] == ["deploy-events"]
+        inbox = _json(await mcp_server.handle_call_tool("agent_inbox", args))
+        assert inbox["messages"] == [sent]
+        assert inbox["count"] == 1
+        for changes in [{"role": "tester"}, {"tenant_id": "tenant-other"}, {"agent_id": "coder-2"}]:
+            assert (
+                _json(await mcp_server.handle_call_tool("agent_inbox", {**args, **changes}))[
+                    "count"
+                ]
+                == 0
             )
-        )
-        assert sub["status"] == "retired"
 
 
 # =============================================================================

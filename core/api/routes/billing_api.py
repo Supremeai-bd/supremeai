@@ -6,7 +6,10 @@ import uuid
 from decimal import Decimal
 
 import httpx
-import stripe
+try:
+    import stripe
+except ImportError:
+    stripe = None
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,8 +43,11 @@ if _raw_stripe_key and not _raw_stripe_key.startswith(
         "keep working without it."
     )
     _raw_stripe_key = None
-stripe.api_key = _raw_stripe_key
-STRIPE_ENABLED = bool(_raw_stripe_key)
+if stripe is not None:
+    stripe.api_key = _raw_stripe_key
+    STRIPE_ENABLED = bool(_raw_stripe_key)
+else:
+    STRIPE_ENABLED = False
 STRIPE_WEBHOOK_SECRET = getattr(settings, "stripe_webhook_secret", None)
 
 SSLCOMMERZ_VALIDATION_URL = "https://securepay.sslcommerz.com/validator/api/validationserverAPI.php"
@@ -333,9 +339,15 @@ async def stripe_webhook(request: Request, session: AsyncSession = Depends(get_d
             detail="Missing Stripe webhook secret or signature header",
         )
 
+    if stripe is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Stripe is not installed or available",
+        )
+
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
-    except stripe.error.SignatureVerificationError as e:
+    except getattr(stripe, "error", Exception).SignatureVerificationError if hasattr(stripe, "error") else Exception as e:
         logger.warning("Invalid Stripe signature detected. Dropping request.")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature"

@@ -114,6 +114,7 @@ docs/audits/*
 # VS Code and IDE
 .vscode/
 .idea/
+.qoder/
 *.swp
 *.swo
 

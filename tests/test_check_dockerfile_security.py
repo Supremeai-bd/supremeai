@@ -236,11 +236,25 @@ def test_repo_baseline_matches_live_surface():
     # The JSON report carries drift/shrinkable; at landing both must be empty.
     assert report["drift"] == {}, report["drift"]
     assert report["shrinkable"] == [], report["shrinkable"]
-    # Baseline content sanity: 13 prod files, 14 refs, scout numbers (#2084).
-    assert len(doc["unpinned_froms"]) == 13
-    assert sum(len(v) for v in doc["unpinned_froms"].values()) == 14
+    # The shrink-only floor tracks the actual surface, not historical fleet counts.
+    surface = cds.collect_from_surface(cds.find_dockerfiles(REPO_ROOT))
+    live = {rel: info["unpinned"] for rel, info in surface.items() if info["unpinned"]}
+    assert doc["unpinned_froms"] == live
+    assert report["live_unpinned_files"] == len(live)
+    assert report["live_unpinned_refs"] == sum(len(refs) for refs in live.values())
     assert "docs/devcontainer" not in json.dumps(doc["unpinned_froms"])
     assert "core/ecosystem" not in json.dumps(doc["unpinned_froms"])
+
+
+@pytest.mark.parametrize(
+    "path", ["core/services/brain/Dockerfile", "core/services/worker/swarm-worker.Dockerfile"]
+)
+def test_new_image_surfaces_pin_python_312(path):
+    froms = cds.parse_froms((REPO_ROOT / path).read_text(encoding="utf-8"))
+    assert len(froms) == 1
+    ref = froms[0][1]
+    assert ref.startswith("python:3.12-slim@sha256:")
+    assert cds.classify_image(ref) == "digest"
 
 
 def test_self_test_hermetic_green():

@@ -46,7 +46,7 @@ from gateway.config import (
     Endpoint,
     parse_routing_policy,
 )
-from gateway.main import create_app
+from gateway.main import create_app, relay_stream
 from gateway.provider_chain import (
     AttemptResult,
     ProviderChainExhausted,
@@ -619,6 +619,34 @@ def test_sse_chain_exhausted_before_stream():
     assert frames[0][0] == "error"
     assert json.loads(frames[0][1])["error"]["code"] == "chain_exhausted"
     assert frames[-1] == ("done", "[DONE]")
+
+
+@pytest.mark.asyncio
+async def test_sse_client_disconnect_closes_upstream_iterator():
+    """B6: abandoning the SSE stream mid-flight must close the provider iterator."""
+    cfg = base_config()
+    upstream_closed = asyncio.Event()
+
+    def gap_stream_fn(endpoint: Endpoint, payload: bytes):
+        async def gen():
+            try:
+                yield {
+                    "type": "chunk",
+                    "delta": {"content": "partial"},
+                    "finish_reason": None,
+                }
+                await asyncio.sleep(30)  # provider would keep streaming
+            finally:
+                upstream_closed.set()
+
+        return gen()
+
+    stream = relay_stream(cfg.chains["auto"], b"{}", "cmpl-b6", gap_stream_fn)
+    first = await stream.__anext__()
+    assert "chat.completion.chunk" in first
+
+    await stream.aclose()  # client disconnect / response teardown
+    assert upstream_closed.is_set(), "upstream provider iterator was left open"
 
 
 # ---------------------------------------------------------------------------

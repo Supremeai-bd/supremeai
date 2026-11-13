@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from tests.api._route_introspection import (
+from gateway.tests.api._route_introspection import (
     app_effective_routes,
     route_methods,
     route_module_name,

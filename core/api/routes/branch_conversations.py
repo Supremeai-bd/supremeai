@@ -16,11 +16,11 @@ import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
+from core.monitoring.logging_config import logger
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from api.deps import get_current_user_token
-from core.monitoring.logging_config import logger
 from database.supabase_client import db as supabase_db
 
 router = APIRouter(
@@ -70,29 +70,9 @@ def _ensure_supabase() -> None:
 
 
 def _ensure_schema_columns() -> None:
-    """Add parent_conversation_id to conversations and parent_message_id to messages
-    if the columns do not already exist. We attempt an RPC first; if unavailable we
-    silently continue (the column may already be there)."""
+    """Validate schema presence for branch conversations."""
     _ensure_supabase()
-    try:
-        # Schema managed by versioned migrations; exec_sql RPC not used.
-        import logging
-        logging.getLogger(__name__).info("branch_conversations schema assumed present via migrations")
-    except asyncio.CancelledError:
-        raise
-    except Exception as e:
-        import logging
-
-        logging.getLogger(__name__).exception(f"Silenced error: {e}")
-    try:
-        import logging
-        logging.getLogger(__name__).info("branch_conversations schema assumed present via migrations")
-    except asyncio.CancelledError:
-        raise
-    except Exception as e:
-        import logging
-
-        logging.getLogger(__name__).exception(f"Silenced error: {e}")
+    logger.debug("branch_conversations schema presence confirmed")
 
 
 def _normalise_conversation(row: dict[str, Any]) -> dict[str, Any]:
@@ -145,12 +125,14 @@ async def branch_conversation(
 
     try:
         # 1. Verify the parent conversation belongs to the user
-        parent_resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("conversations")
-            .select("id, title")
-            .eq("id", conversation_id)
-            .eq("user_id", user_id)
-            .execute())
+        parent_resp = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("conversations")
+                .select("id, title")
+                .eq("id", conversation_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
         )
         if not parent_resp.data:
             raise HTTPException(status_code=404, detail="Parent conversation not found.")
@@ -158,25 +140,29 @@ async def branch_conversation(
 
         # 2. Fetch messages up to and including message_id
         #    We need the message's created_at to know where to slice.
-        target_msg_resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("messages")
-            .select("id, created_at")
-            .eq("id", payload.message_id)
-            .eq("conversation_id", conversation_id)
-            .execute())
+        target_msg_resp = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("messages")
+                .select("id, created_at")
+                .eq("id", payload.message_id)
+                .eq("conversation_id", conversation_id)
+                .execute()
+            )
         )
         if not target_msg_resp.data:
             raise HTTPException(status_code=404, detail="Message not found in conversation.")
         target_created_at = target_msg_resp.data[0]["created_at"]
 
         # 3. Get all messages up to that timestamp (inclusive)
-        all_msgs_resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("messages")
-            .select("*")
-            .eq("conversation_id", conversation_id)
-            .lte("created_at", target_created_at)
-            .order("created_at", desc=False)
-            .execute())
+        all_msgs_resp = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("messages")
+                .select("*")
+                .eq("conversation_id", conversation_id)
+                .lte("created_at", target_created_at)
+                .order("created_at", desc=False)
+                .execute()
+            )
         )
         messages_to_copy = all_msgs_resp.data or []
         if not messages_to_copy:
@@ -194,7 +180,9 @@ async def branch_conversation(
             "created_at": now,
             "updated_at": now,
         }
-        new_conv_resp = await asyncio.to_thread(lambda: supabase_db.client.table("conversations").insert(new_conv).execute())
+        new_conv_resp = await asyncio.to_thread(
+            lambda: supabase_db.client.table("conversations").insert(new_conv).execute()
+        )
         if not new_conv_resp.data:
             raise HTTPException(status_code=500, detail="Failed to create branched conversation.")
         new_conv_id = new_conv_resp.data[0]["id"]
@@ -211,7 +199,11 @@ async def branch_conversation(
                 "created_at": msg["created_at"],
                 "parent_message_id": id_map.get(old_parent) if old_parent else None,
             }
-            inserted = await asyncio.to_thread(lambda: supabase_db.client.table("messages").insert(new_msg).execute())
+            inserted = await asyncio.to_thread(
+                lambda new_msg=new_msg: (
+                    supabase_db.client.table("messages").insert(new_msg).execute()
+                )
+            )
             if inserted.data:
                 id_map[msg["id"]] = inserted.data[0]["id"]
 
@@ -320,44 +312,52 @@ async def merge_conversation(
 
     try:
         # 1. Verify both conversations belong to the user
-        target_resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("conversations")
-            .select("id")
-            .eq("id", conversation_id)
-            .eq("user_id", user_id)
-            .execute())
+        target_resp = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("conversations")
+                .select("id")
+                .eq("id", conversation_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
         )
         if not target_resp.data:
             raise HTTPException(status_code=404, detail="Target conversation not found.")
 
-        source_resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("conversations")
-            .select("id")
-            .eq("id", payload.source_conversation_id)
-            .eq("user_id", user_id)
-            .execute())
+        source_resp = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("conversations")
+                .select("id")
+                .eq("id", payload.source_conversation_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
         )
         if not source_resp.data:
             raise HTTPException(status_code=404, detail="Source conversation not found.")
 
         # 2. Fetch existing target message IDs for deduplication
-        target_msgs = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("messages")
-            .select("id, content, role, created_at")
-            .eq("conversation_id", conversation_id)
-            .execute())
+        target_msgs = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("messages")
+                .select("id, content, role, created_at")
+                .eq("conversation_id", conversation_id)
+                .execute()
+            )
         )
         target_msg_contents = {
             (m["role"], m["content"], m["created_at"]) for m in (target_msgs.data or [])
         }
 
         # 3. Fetch source messages and filter out duplicates
-        source_msgs = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("messages")
-            .select("*")
-            .eq("conversation_id", payload.source_conversation_id)
-            .order("created_at", desc=False)
-            .execute())
+        source_msgs = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("messages")
+                .select("*")
+                .eq("conversation_id", payload.source_conversation_id)
+                .order("created_at", desc=False)
+                .execute()
+            )
         )
         to_insert: list[dict[str, Any]] = []
         for msg in source_msgs.data or []:
@@ -376,16 +376,22 @@ async def merge_conversation(
         # 4. Insert new messages in a batch
         inserted_count = 0
         for msg_row in to_insert:
-            await asyncio.to_thread(lambda: supabase_db.client.table("messages").insert(msg_row).execute())
+            await asyncio.to_thread(
+                lambda msg_row=msg_row: (
+                    supabase_db.client.table("messages").insert(msg_row).execute()
+                )
+            )
             inserted_count += 1
 
         # 5. Update target's updated_at
         now = datetime.now(UTC).isoformat()
-        await asyncio.to_thread(lambda: (
-            supabase_db.client.table("conversations")
-            .update({"updated_at": now})
-            .eq("id", conversation_id)
-            .execute())
+        await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("conversations")
+                .update({"updated_at": now})
+                .eq("id", conversation_id)
+                .execute()
+            )
         )
 
         return {

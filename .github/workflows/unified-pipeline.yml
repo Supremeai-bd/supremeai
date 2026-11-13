@@ -112,7 +112,7 @@ jobs:
           pip install ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy redis pyjwt requests
 
       - name: Fast fatal error & syntax lint
-        run: ruff check core/ scripts/ci/ --select E9,F63,F7,F82 --exclude core/tests/
+        run: ruff check core/ gateway/ scripts/ci/ --select E9,F63,F7,F82 --exclude core/tests/
 
       - name: Critical Security & Architecture Guards Suite
         run: |
@@ -124,13 +124,11 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            studio:
-              - 'studio/**'
             vscode:
               - 'vscode/**'
 
       - name: Setup Node.js (for Subsystems)
-        if: steps.filter.outputs.studio == 'true' || steps.filter.outputs.vscode == 'true'
+        if: steps.filter.outputs.vscode == 'true'
         uses: actions/setup-node@v5
         with:
           node-version: 20
@@ -142,14 +140,6 @@ jobs:
           npm ci
           npm run compile --workspace=extension
           npm test --workspace=extension
-
-      - name: Studio Frontend Smoke Check
-        if: steps.filter.outputs.studio == 'true'
-        working-directory: studio
-        run: |
-          node -e "JSON.parse(require('fs').readFileSync('tsconfig.json', 'utf8'))"
-          if [ -f package-lock.json ]; then npm ci --ignore-scripts || npm install --force; fi
-          npm run check || echo "Studio check passed with warnings"
 
   runtime-readiness:
     name: "Tier 1: Runtime Readiness & Boundaries (<30s, cloud fallback)"
@@ -238,34 +228,50 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
       - name: Install verification dependencies
         shell: powershell
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy redis pyjwt requests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pip install -r core/requirements.txt -r gateway/requirements.txt ruff pytest pytest-asyncio pytest-cov pytest-timeout pytest-mock aiosqlite fakeredis "mcp>=1.28.1,<2"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Tier 1 — Fast fatal error & syntax lint
         shell: powershell
-        run: ruff check core/ scripts/ci/ --select E9,F63,F7,F82 --exclude core/tests/
+        run: ruff check core/ gateway/ scripts/ci/ --select E9,F63,F7,F82 --exclude core/tests/
 
       - name: Tier 1 — Critical Security & Architecture Guards Suite
         shell: powershell
         run: |
           pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ops/wiring_atlas.py --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Tier 1 — Runtime Readiness & Boundaries
         shell: powershell
         run: |
           if (!(Test-Path scripts/ci/readiness_contract.py)) { throw "readiness_contract.py missing" }
           python scripts/ci/readiness_contract.py --self-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ci/readiness_contract.py --check-required-names
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ci/production_release_gate.py --self-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ci/production_release_gate.py --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ci/timeout_policy_guard.py --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ci/silent_failure_guard.py --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ci/public_surface_guard.py --manifest scripts/ci/public_surface_manifest.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/agents/check_loop_contract_parity.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       # SECURITY (full audit 2026-11-13 F-002): run the AI verifier from the DEFAULT
       # BRANCH so LLM provider keys are never handed to PR-head-modifiable code on
@@ -291,15 +297,20 @@ jobs:
         shell: powershell
         run: |
           git fetch origin ${{ github.base_ref || 'main' }}:refs/remotes/origin/${{ github.base_ref || 'main' }} --depth=50
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ci/detect_new_duplicates.py --base-ref "origin/${{ github.base_ref || 'main' }}" --max-new 0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Tier 2 — Heavy Test Battery & Compile Integrity
         shell: powershell
         run: |
           Write-Host "Running full verification battery on local self-hosted runner (0 cloud mins)..."
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ops/wiring_atlas.py --check
-          python -m compileall -q core/ scripts/
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m compileall -q core/ gateway/ scripts/
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Publish CI Attestation to MCP Tower
         if: always()
@@ -375,16 +386,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy redis pyjwt requests
+          python -m pip install -r core/requirements.txt -r gateway/requirements.txt ruff pytest pytest-asyncio pytest-cov pytest-timeout pytest-mock aiosqlite fakeredis "mcp>=1.28.1,<2"
 
       - name: Run Full Unit & Component Guard Battery
         run: |
           echo "Local runner offline. Render CI busy. Running heavy battery on GitHub Ubuntu (Priority 3)..."
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py
           python scripts/ops/wiring_atlas.py --check
 
       - name: Fast Compile Integrity
-        run: python -m compileall -q core/ scripts/
+        run: python -m compileall -q core/ gateway/ scripts/
 
       - name: Publish CI Attestation to MCP Tower
         if: always()
@@ -416,16 +427,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy redis pyjwt requests
+          python -m pip install -r core/requirements.txt -r gateway/requirements.txt ruff pytest pytest-asyncio pytest-cov pytest-timeout pytest-mock aiosqlite fakeredis "mcp>=1.28.1,<2"
 
       - name: Run Full Unit & Component Guard Battery
         run: |
           echo "EMERGENCY: Render quota exhausted. Running heavy battery on GitHub Ubuntu (Priority 4)..."
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py
           python scripts/ops/wiring_atlas.py --check
 
       - name: Fast Compile Integrity
-        run: python -m compileall -q core/ scripts/
+        run: python -m compileall -q core/ gateway/ scripts/
 
       - name: Publish CI Attestation to MCP Tower
         if: always()

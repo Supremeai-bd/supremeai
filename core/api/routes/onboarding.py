@@ -4,17 +4,16 @@ Validates user's initial setup: API keys, preferred model, first chat confirmati
 """
 
 from __future__ import annotations
-import asyncio
 
+import asyncio
 import pathlib
 import time
 from typing import Any
 
 import httpx
+from core.monitoring.logging_config import logger
 from fastapi import APIRouter
 from pydantic import BaseModel
-
-from core.monitoring.logging_config import logger
 
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 
@@ -159,11 +158,10 @@ async def get_onboarding_status(user_id: str) -> dict[str, Any]:
         from database.supabase_client import db
 
         if db.client:
-            res = (
-                await asyncio.to_thread(lambda: db.client.table("user_preferences")
-                .select("*")
-                .eq("user_id", user_id)
-                .execute())
+            res = await asyncio.to_thread(
+                lambda: (
+                    db.client.table("user_preferences").select("*").eq("user_id", user_id).execute()
+                )
             )
             if res.data:
                 prefs = res.data[0]
@@ -191,7 +189,11 @@ async def reset_onboarding(user_id: str) -> dict[str, str]:
         from database.supabase_client import db
 
         if db.client:
-            await asyncio.to_thread(lambda: db.client.table("user_preferences").delete().eq("user_id", user_id).execute())
+            await asyncio.to_thread(
+                lambda: (
+                    db.client.table("user_preferences").delete().eq("user_id", user_id).execute()
+                )
+            )
     except Exception as exc:
         logger.warning(f"Failed to reset onboarding state for {user_id}: {exc}")
     return {"status": "reset", "user_id": user_id}

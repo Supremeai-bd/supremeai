@@ -1,10 +1,9 @@
 import logging
 import uuid
 
+from core.plugins.mcp_security import MCPSecurityGuard
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, HttpUrl
-
-from core.plugins.mcp_security import MCPSecurityGuard
 
 # AUDIT FIX (2026-11-13, HIGH — unauthenticated, non-persisting submissions):
 # /submit accepted anonymous payloads and returned a fabricated tracking id
@@ -16,9 +15,11 @@ try:
 except ImportError:
     try:
         from api.deps import get_current_user_token
-    except ImportError:  # pragma: no cover — CI bootstrap only
-        async def get_current_user_token() -> str:
-            return "mock-token"
+    except ImportError:
+        # AUDIT FIX (N1): fail CLOSED. A permissive "mock-token" stub here made
+        # anonymous community plugin submissions reachable whenever the auth
+        # module could not be imported.
+        raise
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/plugins/community", tags=["community_plugins"])

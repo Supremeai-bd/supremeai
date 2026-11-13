@@ -3,11 +3,11 @@ import time
 import uuid
 from typing import Any
 
+from core.monitoring.logging_config import logger
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
 from api.deps import get_current_user_token
-from core.monitoring.logging_config import logger
 from database.supabase_client import db as supabase_db
 from tools.knowledge.codebase_exporter import export_codebase_to_markdown
 
@@ -62,18 +62,20 @@ async def run_export_task(job_id: str, payload: MarkdownExportRequest):
         # Try to save to Supabase history
         try:
             if supabase_db.client:
-                await asyncio.to_thread(lambda: (
-                    supabase_db.client.table("markdown_exports")
-                    .insert(
-                        {
-                            "job_id": job_id,
-                            "repo_url": payload.clone_url or "local",
-                            "time_range": f"{payload.time_since or ''} to {payload.time_until or ''}",
-                            "status": "completed",
-                            "timestamp": time.time(),
-                        }
+                await asyncio.to_thread(
+                    lambda: (
+                        supabase_db.client.table("markdown_exports")
+                        .insert(
+                            {
+                                "job_id": job_id,
+                                "repo_url": payload.clone_url or "local",
+                                "time_range": f"{payload.time_since or ''} to {payload.time_until or ''}",
+                                "status": "completed",
+                                "timestamp": time.time(),
+                            }
+                        )
+                        .execute()
                     )
-                    .execute())
                 )
         except Exception as exc:
             # বল মনতবয: history টবল এখনও তর হয়ন থাকল একসপর্ট বযর্থ কর যাব ন;
@@ -189,13 +191,15 @@ async def get_history(user: dict = Depends(get_current_user_token)):
     history = []
     try:
         if supabase_db.client:
-            res = (
-                await asyncio.to_thread(lambda: supabase_db.client.table("markdown_exports")
-                .select("*")
-                .eq("user_id", user_id)
-                .order("timestamp", desc=True)
-                .limit(50)
-                .execute())
+            res = await asyncio.to_thread(
+                lambda: (
+                    supabase_db.client.table("markdown_exports")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .order("timestamp", desc=True)
+                    .limit(50)
+                    .execute()
+                )
             )
             if res.data:
                 return {"status": "success", "history": res.data}

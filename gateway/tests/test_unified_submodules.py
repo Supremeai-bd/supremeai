@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from gateway.main import create_app
-from tests.test_streaming_gateway import base_config
+from gateway.tests.test_streaming_gateway import base_config
 
 
 def test_unified_submodules_health():

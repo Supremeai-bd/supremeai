@@ -1,4 +1,5 @@
 from core.utils.api_key_resolver import resolve_numbered_key
+
 """
 Kaggle Callback API
 Receives job completion notifications from Kaggle kernels.
@@ -8,11 +9,10 @@ import json
 import secrets
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
-from pydantic import BaseModel
-
 from core.kaggle_orchestrator import KaggleOrchestrator, KaggleTaskType
 from core.monitoring.logging_config import logger
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
+from pydantic import BaseModel
 
 # AUDIT FIX (2026-11-13, HIGH — unauthenticated Kaggle surfaces):
 # /jobs/{id}, /stats and /submit had NO auth at all — anyone could read job
@@ -24,13 +24,15 @@ try:
 except ImportError:
     try:
         from api.deps import get_current_user_token
-    except ImportError:  # pragma: no cover — CI bootstrap only
-        async def get_current_user_token() -> str:
-            return "mock-token"
+    except ImportError:
+        # AUDIT FIX (N1): fail CLOSED. A permissive "mock-token" stub here made
+        # every guarded endpoint anonymously reachable whenever the auth module
+        # could not be imported (kaggle job payloads, knowledge distillation).
+        raise
 
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import httpx
 
@@ -50,12 +52,19 @@ class KaggleCallbackRequest(BaseModel):
 
 def distill_kaggle_callback_knowledge(callback: KaggleCallbackRequest) -> dict[str, Any]:
     """Extract causal cognitive intelligence from Kaggle callback results (Dual-Brain Architecture)."""
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     result = callback.result or {}
 
     if callback.status == "success":
-        task_name = result.get("experiment_name") or result.get("task") or f"kaggle-job-{callback.job_id[:8]}"
-        hypothesis = result.get("hypothesis") or "Dual-brain capability optimization (self-healing coding & customer reasoning)"
+        task_name = (
+            result.get("experiment_name")
+            or result.get("task")
+            or f"kaggle-job-{callback.job_id[:8]}"
+        )
+        hypothesis = (
+            result.get("hypothesis")
+            or "Dual-brain capability optimization (self-healing coding & customer reasoning)"
+        )
         why_worked = result.get("why_it_worked")
         if not why_worked:
             loss = result.get("loss")
@@ -112,7 +121,7 @@ async def ingest_distilled_knowledge(distilled: dict[str, Any]) -> bool:
     qdrant_key = os.getenv("QDRANT_API_KEY")
     gemini_key = resolve_numbered_key("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     exp_name = distilled.get("experiment", "kaggle_job")
     key = f"kaggle-{uuid.uuid4().hex[:8]}"
 
@@ -138,21 +147,25 @@ async def ingest_distilled_knowledge(distilled: dict[str, Any]) -> bool:
     facts = []
     for rule in distilled.get("distilled_heuristics_for_agents", []):
         tag = "empirical_heuristic" if distilled.get("status") == "success" else "anti_pattern"
-        facts.append({
-            "id": str(uuid.uuid4()),
-            "content": f"[Kaggle Empirical Rule]: {rule}",
-            "tags": ["kaggle_learning", tag, "system_rule"],
-            "created_at": now,
-        })
+        facts.append(
+            {
+                "id": str(uuid.uuid4()),
+                "content": f"[Kaggle Empirical Rule]: {rule}",
+                "tags": ["kaggle_learning", tag, "system_rule"],
+                "created_at": now,
+            }
+        )
 
     for alt in distilled.get("causal_mechanism", {}).get("why_alternatives_failed", []):
-        alt_text = alt if isinstance(alt, str) else json.dumps(alt)
-        facts.append({
-            "id": str(uuid.uuid4()),
-            "content": f"[Kaggle Alternative Rejection Reason]: {alt_text}",
-            "tags": ["kaggle_learning", "rejected_alternative"],
-            "created_at": now,
-        })
+        entry_detail = alt if isinstance(alt, str) else json.dumps(alt)
+        facts.append(
+            dict(
+                id=str(uuid.uuid4()),
+                content=f"[Kaggle Empirical Rejection]: {entry_detail}",
+                tags=["kaggle_learning", "rejected_alternative"],
+                created_at=now,
+            )
+        )
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -181,10 +194,13 @@ async def ingest_distilled_knowledge(distilled: dict[str, Any]) -> bool:
                     f"Heuristics: {json.dumps(distilled.get('distilled_heuristics_for_agents'))}"
                 )
                 gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={gemini_key}"
-                emb_res = await client.post(gemini_url, json={
-                    "content": {"parts": [{"text": semantic_text[:8000]}]},
-                    "outputDimensionality": 768,
-                })
+                emb_res = await client.post(
+                    gemini_url,
+                    json={
+                        "content": {"parts": [{"text": semantic_text[:8000]}]},
+                        "outputDimensionality": 768,
+                    },
+                )
                 if emb_res.status_code == 200:
                     vals = emb_res.json().get("embedding", {}).get("values")
                     if vals:
@@ -203,7 +219,9 @@ async def ingest_distilled_knowledge(distilled: dict[str, Any]) -> bool:
                             },
                         }
                         await client.put(q_url, json={"points": [point]}, headers=q_headers)
-                        logger.info(f"🔮 Upserted Kaggle distillation '{exp_name}' into Qdrant supremeai_memory")
+                        logger.info(
+                            f"🔮 Upserted Kaggle distillation '{exp_name}' into Qdrant supremeai_memory"
+                        )
     except Exception as exc:
         logger.warning(f"⚠️ Non-blocking Kaggle memory ingestion notice: {exc}")
         return False
@@ -378,7 +396,7 @@ async def trigger_hourly_learning_cron(
         )
     if not x_cron_secret or not secrets.compare_digest(x_cron_secret, cron_secret):
         raise HTTPException(status_code=401, detail="Invalid cron secret")
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     orchestrator = KaggleOrchestrator.get_instance()
     queue_stats = await orchestrator.get_queue_stats() if orchestrator.redis_client else {}
 
@@ -396,8 +414,7 @@ async def trigger_hourly_learning_cron(
 async def _sync_hourly_empirical_tick(queue_stats: dict[str, Any]):
     """Background task to record hourly learning cadence and cognitive heartbeats."""
     try:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         logger.info(f"⏰ Hourly empirical learning sync tick completed at {now}")
     except Exception as exc:
         logger.warning(f"Hourly empirical learning tick error: {exc}")
-

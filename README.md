@@ -3,13 +3,13 @@
 > **The Single Door Monorepo SSOT for the SupremeAI Federation.**  
 > <!-- Fix (wiring audit 2026-11-11): docs/README.bn.md does not exist — dead link removed. -->
 
-This repository (`Supremeai-bd/supremeai`) is the **Single Door Monorepo SSOT** containing Core, Gateway, Browser, VSCode, Studio, Infrastructure, and the MCP Control Plane:
+This repository (`Supremeai-bd/supremeai`) is the **Single Door Monorepo SSOT** containing Core, Gateway, Browser, VSCode, Infrastructure, and the MCP Control Plane (the former `studio/` frontend surface is retired):
 
 > [!IMPORTANT]
 > ### 🤖 AI Agent & MCP Contributor Quickstart (Where & How to Work)
 > If you are an external AI (Claude, Cursor, Antigravity, etc.) connecting via MCP Tower or GitHub:
 > 1. **Single Door for Work:** All tasks, bug reports, and PRs live exclusively in **`Supremeai-bd/supremeai`**. Satellite repositories maintain a strict 0 Issues / 0 PRs policy. <!-- Fix (wiring audit 2026-11-11): docs/FEDERATION_CHARTER.md does not exist — dead link removed. -->
-> 2. **Where to Write Code:** Edit the corresponding domain folders inside this repository (`studio/`, `command/`, `core/`, `vscode/`, `gateway/`, `browser/`, `infrastructure/`, etc.). Do NOT attempt to push to retired satellite repos.
+> 2. **Where to Write Code:** Edit the corresponding domain folders inside this repository (`command/`, `core/`, `vscode/`, `gateway/`, `browser/`, `infrastructure/`, etc.). Do NOT attempt to push to retired satellite repos. Note: the `studio/` frontend surface is retired — do not add new work there.
 > 3. **Autonomous Auto-Landing & Zero Cloud Waste:** When your PR passes all Tier 1 fast safety gates and Tier 2 verification, the in-workflow auto-landing gate merges your changes automatically ([`docs/PR_TO_PRODUCTION_LIFECYCLE.md`](./docs/PR_TO_PRODUCTION_LIFECYCLE.md)).
 > 4. **Universal Runner Hierarchy:** Verification executes on the 4-level runner tier (local-pc runner priority 1 -> Render CI priority 2 -> GitHub Cloud priority 3/4).
 >
@@ -22,7 +22,7 @@ This repository (`Supremeai-bd/supremeai`) is the **Single Door Monorepo SSOT** 
 ## 📐 Architecture & Single Monorepo SSOT Topology
 
 The SupremeAI Federation operates under the **Pure Single Monorepo SSOT Topology**:
-1. **`Supremeai-bd/supremeai`**: The Single Door Unified Monorepo SSOT containing Core, Gateway, Browser, VSCode, Studio, Infrastructure, and MCP Control Plane. All PRs, issues, deployments, and CI workflows (`unified-pipeline.yml`) live exclusively here.
+1. **`Supremeai-bd/supremeai`**: The Single Door Unified Monorepo SSOT containing Core, Gateway, Browser, VSCode, Infrastructure, and MCP Control Plane. The former `studio/` frontend surface is retired. All PRs, issues, deployments, and CI workflows (`unified-pipeline.yml`) live exclusively here.
 2. **All Satellites Retired**: External satellite repositories (`supremeai-studio`, `supremeai-core`, `supremeai-api`, `supremeai-browser`, `supremeai-vscode`) are permanently retired, archived, and frozen read-only.
 
 ```mermaid
@@ -32,7 +32,7 @@ flowchart TD
         MONO["Supremeai-bd/supremeai<br>(Unified Monorepo SSOT & Control Tower)"]
         CORE["core/<br>(Agent Intelligence & Workflows)"]
         GATEWAY["gateway/<br>(API Gateway & Proxy Mesh)"]
-        STUDIO["studio/<br>(Public UI & Mission Control Cockpit)"]
+        STUDIO["studio/<br>(Retired — archived and read-only)"]
         INFRA["infrastructure/<br>(Edge Workers, Cloudflare, Render)"]
         
         MONO --> CORE
@@ -54,8 +54,8 @@ flowchart TD
 #### Core Set Equations:
 - **Public Boundary Partition:** $\mathbf{Open} = T_{\text{transit}} \cup U_{\text{open}} \quad \text{where } T_{\text{transit}} \cap U_{\text{open}} = \emptyset$
   - **$U_{\text{open}}$:** Public front door, CI guards, Federation Anchor Hub configs, and constitution. **Never dispatched to satellites.**
-  - **$T_{\text{transit}}$:** Scoped mirror surfaces (`studio/*`, `gateway/*`, `browser/*`, `vscode/*`, `core/*`).
-- **Active Federation Surface:** $\mathbf{S_{\text{active}}} = S_{\text{studio}} \cup S_{\text{api}} \cup S_{\text{vscode}} \cup S_{\text{browser}} \cup S_{\text{core}}$
+  - **$T_{\text{transit}}$:** Scoped mirror surfaces (`gateway/*`, `browser/*`, `vscode/*`, `core/*`); the former `studio/*` surface is retired.
+- **Active Federation Surface:** $\mathbf{S_{\text{active}}} = S_{\text{api}} \cup S_{\text{vscode}} \cup S_{\text{browser}} \cup S_{\text{core}}$ (the former $S_{\text{studio}}$ surface is retired)
 - **The Blocked State Law:** Any file in `supremeai` not in $U_{\text{open}}$ represents an in-flight or blocked transit payload.
 
 ---
@@ -75,20 +75,20 @@ flowchart TD
         FastSafety --> HeavyGate["Tier 2: Heavy Test Battery (Local PC)"]
         RuntimeReadiness --> HeavyGate
         HeavyGate --> CorePytest["Full Backend Pytest Suite"]
-        HeavyGate --> Typecheck["TypeScript Typecheck (studio/)"]
+        HeavyGate --> Typecheck["TypeScript Typecheck (studio/ — retired)"]
     end
 
     subgraph S3["3. Autonomous Landing & Post-Merge Triggers"]
         HeavyGate --> PRMerge["Squash Merge into main"]
         PRMerge --> ResolveTargets["Plan Changed Render Services"]
         PRMerge --> EdgeDeploy["Deploy Cloudflare Edge Mesh"]
-        PRMerge --> VercelHook["Deploy Vercel / Cloudflare Studio Hook"]
+        PRMerge --> VercelHook["Deploy Vercel / Cloudflare Studio Hook (studio/ — retired)"]
     end
 
     subgraph S4["4. Production Deployment Matrix"]
         ResolveTargets --> RenderTrigger["Trigger Render Backend Deploy"]
         RenderTrigger --> CanaryVerify["Canary & Health Check Verification"]
-        VercelHook --> CloudflarePages["Studio Live Edge Deploy (studio/)"]
+        VercelHook --> CloudflarePages["Studio Live Edge Deploy (studio/ — retired)"]
     end
 ```
 
@@ -101,7 +101,7 @@ flowchart TD
     GATES -- "Pass" --> LAND["Autonomous Landing<br>(Squash Merge into main)"]
     GATES -- "Fail" --> REJECT["Fail-Closed Block & Feedback<br>(CI Incident Logged)"]
     
-    LAND --> STEP1["🌉 Bridge Step 1:<br>supremeai ➔ Active Target Satellite<br>(studio, api, browser, vscode, core)"]
+    LAND --> STEP1["🌉 Bridge Step 1:<br>supremeai ➔ Active Target Satellite<br>(api, browser, vscode, core; studio retired)"]
     
     STEP1 --> VERIFY1{"Satellite Ingestion<br>Verified?"}
     VERIFY1 -- "Yes" --> STEP2["🌉 Bridge Step 2:<br>Satellite ➔ Central Monorepo (supremeai)<br>(Full Product Parity Ingestion)"]
@@ -119,7 +119,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    subgraph ALL_SATS ["🌐 6 Active Domain Federation Repositories (Studio, API, Core, Browser, VSCode, Open)"]
+    subgraph ALL_SATS ["🌐 6 Domain Federation Repositories (Studio — retired, API, Core, Browser, VSCode, Open)"]
         RUNS["GitHub Actions Workflow Runs"]
     end
 
@@ -132,7 +132,7 @@ flowchart TD
     INGEST --> DOMAIN_ANCHOR["🎯 Linked directly under Target Domain Anchor Hub<br>(#749, #750, #751, #754, #756, #762)"]
     
     subgraph BOARD ["Golden 6-Domain Anchor Hubs SSOT (gh issue list --search 'no:parent is:open')"]
-        H749["#749 Studio UI"]
+        H749["#749 Studio UI (retired)"]
         H750["#750 API Gateway"]
         H751["#751 Core Moat"]
         H754["#754 VSCode Client"]
@@ -153,7 +153,7 @@ flowchart TD
 
 | Service | Live URL | Description |
 |---|---|---|
-| **SupremeAI Studio (Web UI)** | [https://supremeai-studio.vercel.app](https://supremeai-studio.vercel.app) | User-facing React/Vite console interface and agent workspace |
+| **SupremeAI Studio (Web UI) — retired** | [https://supremeai-studio.vercel.app](https://supremeai-studio.vercel.app) | Former user-facing React/Vite console interface and agent workspace (surface retired; archived read-only) |
 | **MCP Control Tower** | [`https://supremeai-mcp-tower.onrender.com`](https://supremeai-mcp-tower.onrender.com) | Remote Streamable HTTP (`/mcp`) & SSE (`/sse`) tool plane |
 | **API Gateway** | [`https://supremeai-api-ulw0.onrender.com`](https://supremeai-api-ulw0.onrender.com) | Unified OpenAI-compatible multi-LLM provider gateway |
 
@@ -161,7 +161,7 @@ flowchart TD
 |---|---|
 | `api-schemas/gateway.openapi.yaml` | **The stable SupremeAI API Gateway surface** (OpenAI-compatible `/v1/chat/completions`) — byte-mirror of `supremeai-api/contracts/openapi.yaml` |
 | `examples/gateway_client.py` | Zero-dependency Python client for the Gateway (typed errors, retry only on 502/503) — byte-mirror of `supremeai-api/scripts/clients/gateway_client.py` |
-| `docs/CONSUMERS.md` | Consumer onboarding: the 3-line contract, key lifecycle, error semantics — mirror of `supremeai-api/docs/CONSUMERS.md` |
+| `docs/CONSUMERS.md` | Consumer registry: known internal/external API consumers, endpoint patterns, auth methods, and signature-verified webhook endpoints |
 | `ECOSYSTEM_MAP.md` | **The Federation Ecosystem Map** — architecture directory for agents working across repos |
 | [`docs/FEDERATION_TAXONOMY_AND_LICENSING.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/FEDERATION_TAXONOMY_AND_LICENSING.md) | **Federation Taxonomy & Licensing SSOT** — 12 domain satellites, institutional memory, and the master umbrella model |
 | [`docs/AGENT_PORTAL_SPEC.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/AGENT_PORTAL_SPEC.md) | **Agent Portal & Federation Bridge architecture spec** (#23): two-repo relationship, the 3 submission pathways mapped to machinery, guard/gate/router map, clickable contract-schema references |

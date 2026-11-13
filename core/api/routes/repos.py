@@ -1,4 +1,5 @@
 import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
@@ -83,12 +84,14 @@ async def update_repo(repo_id: str, payload: RepoUpdate, user: dict = Depends(ge
     data = payload.dict(exclude_none=True)
     if not data:
         raise HTTPException(status_code=400, detail="No fields to update")
-    res = (
-        await asyncio.to_thread(lambda: db.client.table("github_repos")
-        .update(data)
-        .eq("id", repo_id)
-        .eq("tenant_id", user["tenant_id"])
-        .execute())
+    res = await asyncio.to_thread(
+        lambda: (
+            db.client.table("github_repos")
+            .update(data)
+            .eq("id", repo_id)
+            .eq("tenant_id", user["tenant_id"])
+            .execute()
+        )
     )
     return {"status": "success", "repo": res.data[0] if res.data else None}
 
@@ -97,11 +100,13 @@ async def update_repo(repo_id: str, payload: RepoUpdate, user: dict = Depends(ge
 async def delete_repo(repo_id: str, user: dict = Depends(get_project_admin)):
     if not db.client:
         raise HTTPException(status_code=503, detail="Database not configured")
-    await asyncio.to_thread(lambda: (
-        db.client.table("github_repos")
-        .update({"status": "archived"})
-        .eq("id", repo_id)
-        .eq("tenant_id", user["tenant_id"])
-        .execute())
+    await asyncio.to_thread(
+        lambda: (
+            db.client.table("github_repos")
+            .update({"status": "archived"})
+            .eq("id", repo_id)
+            .eq("tenant_id", user["tenant_id"])
+            .execute()
+        )
     )
     return {"status": "success", "message": "Repo archived"}

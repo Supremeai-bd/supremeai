@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import asyncio
 
+from core.monitoring.logging_config import logger
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from api.deps import get_current_user_token
-from core.monitoring.logging_config import logger
 from database.supabase_client import get_db
 
 router = APIRouter(
@@ -131,13 +131,15 @@ async def search_chats(
     try:
         # --- Search conversation titles ---
         try:
-            title_results = (
-                await asyncio.to_thread(lambda: db.client.table("conversations")
-                .select("id, title")
-                .eq("user_id", user_id)
-                .ilike("title", like_pattern)
-                .order("updated_at", desc=True)
-                .execute())
+            title_results = await asyncio.to_thread(
+                lambda: (
+                    db.client.table("conversations")
+                    .select("id, title")
+                    .eq("user_id", user_id)
+                    .ilike("title", like_pattern)
+                    .order("updated_at", desc=True)
+                    .execute()
+                )
             )
 
             for row in title_results.data:
@@ -159,8 +161,10 @@ async def search_chats(
         # --- Search message content ---
         try:
             # First get all conversation IDs for this user
-            conv_ids_resp = (
-                await asyncio.to_thread(lambda: db.client.table("conversations").select("id").eq("user_id", user_id).execute())
+            conv_ids_resp = await asyncio.to_thread(
+                lambda: (
+                    db.client.table("conversations").select("id").eq("user_id", user_id).execute()
+                )
             )
 
             user_conv_ids = [r["id"] for r in conv_ids_resp.data]
@@ -169,13 +173,15 @@ async def search_chats(
                 # Search messages across all user conversations
                 # Supabase RPC or filter by conversation_id list
                 # Use ilike on content
-                message_results = (
-                    await asyncio.to_thread(lambda: db.client.table("messages")
-                    .select("id, conversation_id, role, content, created_at")
-                    .ilike("content", like_pattern)
-                    .order("created_at", desc=True)
-                    .limit(limit * 3)  # Fetch more to have room for dedup
-                    .execute())
+                message_results = await asyncio.to_thread(
+                    lambda: (
+                        db.client.table("messages")
+                        .select("id, conversation_id, role, content, created_at")
+                        .ilike("content", like_pattern)
+                        .order("created_at", desc=True)
+                        .limit(limit * 3)  # Fetch more to have room for dedup
+                        .execute()
+                    )
                 )
 
                 for row in message_results.data:
@@ -196,11 +202,13 @@ async def search_chats(
                             title = results_map[conv_id].title
                         else:
                             try:
-                                conv_resp = (
-                                    await asyncio.to_thread(lambda: db.client.table("conversations")
-                                    .select("title")
-                                    .eq("id", conv_id)
-                                    .execute())
+                                conv_resp = await asyncio.to_thread(
+                                    lambda conv_id=conv_id: (
+                                        db.client.table("conversations")
+                                        .select("title")
+                                        .eq("id", conv_id)
+                                        .execute()
+                                    )
                                 )
                                 title = conv_resp.data[0]["title"] if conv_resp.data else None
                             except asyncio.CancelledError:

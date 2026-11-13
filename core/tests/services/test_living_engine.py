@@ -1,9 +1,49 @@
 # backend/tests/services/test_living_engine.py
-from unittest.mock import MagicMock
+import importlib
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from core.services.living_engine import LivingEngineOrchestrator
+
+
+@pytest.fixture(autouse=True)
+def isolated_gateway_and_reflection(monkeypatch):
+    gateway_module = importlib.import_module("core.llm.llm_gateway")
+
+    async def complete(**kwargs):
+        if kwargs.get("session_id", "").startswith("tool_forge_"):
+            return {"text": "def run(): return {'status': 'completed', 'result': 10}"}
+        return {"text": "Provider fixture result"}
+
+    gateway = SimpleNamespace(acompletion=AsyncMock(side_effect=complete))
+    monkeypatch.setattr(gateway_module, "get_llm_gateway", lambda: gateway)
+    reflection_module = importlib.import_module("core.engine.self_reflection")
+
+    async def reflect(**kwargs):
+        return {
+            "is_correct": kwargs["is_success"],
+            "bottleneck_analysis": kwargs.get("error_details", ""),
+            "future_prevention_strategy": "Fixture recommendation",
+        }
+
+    monkeypatch.setattr(
+        reflection_module,
+        "SelfReflectionLoop",
+        lambda: SimpleNamespace(reflect=AsyncMock(side_effect=reflect)),
+    )
+    return gateway
+
+
+@pytest.fixture
+def isolated_tool_execution(monkeypatch):
+    # Orchestration tests do not execute generated code. A separate test proves
+    # the real executor's default-deny gate remains in force.
+    from core.services import living_engine
+
+    execute = MagicMock(return_value={"status": "completed", "result": 10})
+    monkeypatch.setattr(living_engine.ToolForgeService, "execute_tool", execute)
+    return execute
 
 
 @pytest.fixture
@@ -16,7 +56,7 @@ def mock_memory():
 
 
 @pytest.mark.asyncio
-async def test_living_engine_solves_bengali_bugfix_demand(mock_memory):
+async def test_living_engine_solves_bengali_bugfix_demand(mock_memory, isolated_tool_execution):
     orchestrator = LivingEngineOrchestrator(memory_service=mock_memory)
     prompt = "ডাটাবেস কানেকশন ক্র্যাশ করছে, এটা ঠিক করো"
 
@@ -30,7 +70,9 @@ async def test_living_engine_solves_bengali_bugfix_demand(mock_memory):
 
 
 @pytest.mark.asyncio
-async def test_living_engine_solves_performance_optimization_demand(mock_memory):
+async def test_living_engine_solves_performance_optimization_demand(
+    mock_memory, isolated_tool_execution
+):
     orchestrator = LivingEngineOrchestrator(memory_service=mock_memory)
     prompt = "API response latency is slow, optimize query caching"
 
@@ -42,7 +84,7 @@ async def test_living_engine_solves_performance_optimization_demand(mock_memory)
 
 
 @pytest.mark.asyncio
-async def test_living_engine_solves_rbac_security_demand(mock_memory):
+async def test_living_engine_solves_rbac_security_demand(mock_memory, isolated_tool_execution):
     orchestrator = LivingEngineOrchestrator(memory_service=mock_memory)
     prompt = "Add RBAC role access guards to all unprotected routes"
 
@@ -53,7 +95,7 @@ async def test_living_engine_solves_rbac_security_demand(mock_memory):
 
 
 @pytest.mark.asyncio
-async def test_living_engine_solves_dynamic_synthesis_demand(mock_memory):
+async def test_living_engine_solves_dynamic_synthesis_demand(mock_memory, isolated_tool_execution):
     orchestrator = LivingEngineOrchestrator(memory_service=mock_memory)
     prompt = "Create a custom calculation for user discounts"
 
@@ -72,7 +114,7 @@ async def test_living_engine_solves_dynamic_synthesis_demand(mock_memory):
 
 
 @pytest.mark.asyncio
-async def test_solution_carries_self_critique_reflection(mock_memory):
+async def test_solution_carries_self_critique_reflection(mock_memory, isolated_tool_execution):
     """সফল সমাধানের পরেও self-critique চলে এবং ফলাফল solution.reflection-এ বসে।"""
     orchestrator = LivingEngineOrchestrator(memory_service=mock_memory)
     solution = await orchestrator.solve_unpredictable_demand(
@@ -89,11 +131,11 @@ async def test_solution_carries_self_critique_reflection(mock_memory):
 
 
 @pytest.mark.asyncio
-async def test_self_reflection_loop_invoked_on_demand(mock_memory):
+async def test_self_reflection_loop_invoked_on_demand(mock_memory, isolated_tool_execution):
     """SelfReflectionLoop.reflect() আসলেই production path থেকে invoke হয় (spy)।"""
     from unittest.mock import AsyncMock
 
-    from engine.self_reflection import SelfReflectionLoop
+    from core.engine.self_reflection import SelfReflectionLoop
 
     spy_loop = SelfReflectionLoop()
     spy_loop.reflect = AsyncMock(
@@ -133,3 +175,46 @@ async def test_failure_path_still_reflects(mock_memory):
     assert solution.success is False
     assert solution.reflection, "ব্যর্থতাতেও reflection থাকতে হবে"
     assert solution.reflection.get("is_correct") is False
+
+
+@pytest.mark.asyncio
+async def test_dynamic_synthesis_respects_default_deny_gate(mock_memory, monkeypatch):
+    monkeypatch.delenv("SUPREMEAI_ALLOW_INPROCESS_CODEGEN", raising=False)
+    orchestrator = LivingEngineOrchestrator(memory_service=mock_memory)
+    solution = await orchestrator.solve_unpredictable_demand("Create a user discount calculator")
+    assert solution.success is False
+    assert solution.error
+    assert "SUPREMEAI_ALLOW_INPROCESS_CODEGEN" in solution.error
+
+
+@pytest.mark.asyncio
+async def test_provider_failure_never_becomes_pipeline_success(
+    mock_memory, isolated_gateway_and_reflection, isolated_tool_execution
+):
+    isolated_gateway_and_reflection.acompletion.side_effect = RuntimeError("Provider unavailable")
+    orchestrator = LivingEngineOrchestrator(memory_service=mock_memory)
+    solution = await orchestrator.solve_unpredictable_demand("Fix a database connection bug")
+    assert solution.success is False
+    assert "Provider unavailable" in solution.error
+    isolated_tool_execution.assert_not_called()
+    assert solution.reflection["is_correct"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("pipeline_fails", [False, True])
+async def test_unavailable_reflection_preserves_execution_outcome(
+    mock_memory, isolated_tool_execution, pipeline_fails
+):
+    reflection = SimpleNamespace(reflect=AsyncMock(side_effect=RuntimeError("Private detail")))
+    planner = None
+    if pipeline_fails:
+        planner = SimpleNamespace(plan_task=AsyncMock(side_effect=RuntimeError("planner failed")))
+    orchestrator = LivingEngineOrchestrator(
+        memory_service=mock_memory, planning_engine=planner, self_reflection=reflection
+    )
+    solution = await orchestrator.solve_unpredictable_demand("Create a discount calculator")
+    assert solution.success is not pipeline_fails
+    assert solution.reflection == {"status": "unavailable", "error_type": "RuntimeError"}
+    assert "Private detail" not in str(solution.to_dict())
+    reflection.reflect.assert_awaited_once()
+    assert reflection.reflect.await_args.kwargs["is_success"] is solution.success

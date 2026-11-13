@@ -1,5 +1,5 @@
 # বাংলা: পাতলা গেটওয়ে ইমেজ — কোনো secret ইমেজ-স্তরে নয়, সব runtime-env
-FROM python:3.11-slim
+FROM python:3.12-slim
 WORKDIR /app
 
 # Render injects RENDER_GIT_COMMIT as a build arg for Docker services.

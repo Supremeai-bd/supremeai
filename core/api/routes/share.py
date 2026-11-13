@@ -12,11 +12,11 @@ import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from core.monitoring.logging_config import logger
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from api.deps import get_current_user_token
-from core.monitoring.logging_config import logger
 from database.supabase_client import get_db
 
 router = APIRouter(prefix="/api/share", tags=["Sharing"])
@@ -114,12 +114,14 @@ async def generate_share_link(
 
     try:
         # Verify the conversation belongs to the user
-        conv_response = (
-            await asyncio.to_thread(lambda: db.client.table("conversations")
-            .select("id, user_id, title")
-            .eq("id", payload.conversation_id)
-            .eq("user_id", user_id)
-            .execute())
+        conv_response = await asyncio.to_thread(
+            lambda: (
+                db.client.table("conversations")
+                .select("id, user_id, title")
+                .eq("id", payload.conversation_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
         )
 
         if not conv_response.data:
@@ -128,12 +130,14 @@ async def generate_share_link(
             )
 
         # Check for existing share for this conversation
-        existing = (
-            await asyncio.to_thread(lambda: db.client.table("shared_conversations")
-            .select("share_id, expires_at")
-            .eq("conversation_id", payload.conversation_id)
-            .eq("user_id", user_id)
-            .execute())
+        existing = await asyncio.to_thread(
+            lambda: (
+                db.client.table("shared_conversations")
+                .select("share_id, expires_at")
+                .eq("conversation_id", payload.conversation_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
         )
 
         if existing.data:
@@ -151,19 +155,21 @@ async def generate_share_link(
         share_id = _generate_share_id()
         expires_at = (datetime.now(UTC) + timedelta(days=30)).isoformat()
 
-        await asyncio.to_thread(lambda: (
-            db.client.table("shared_conversations")
-            .insert(
-                {
-                    "share_id": share_id,
-                    "conversation_id": payload.conversation_id,
-                    "user_id": user_id,
-                    "is_public": True,
-                    "view_count": 0,
-                    "expires_at": expires_at,
-                }
+        await asyncio.to_thread(
+            lambda: (
+                db.client.table("shared_conversations")
+                .insert(
+                    {
+                        "share_id": share_id,
+                        "conversation_id": payload.conversation_id,
+                        "user_id": user_id,
+                        "is_public": True,
+                        "view_count": 0,
+                        "expires_at": expires_at,
+                    }
+                )
+                .execute()
             )
-            .execute())
         )
 
         logger.info(f"Share link generated: {share_id} for conversation {payload.conversation_id}")
@@ -194,11 +200,13 @@ async def get_shared_conversation(share_id: str):
         try:
             db = get_db()
             current_count = cached.get("view_count", 0)
-            await asyncio.to_thread(lambda: (
-                db.client.table("shared_conversations")
-                .update({"view_count": current_count + 1})
-                .eq("share_id", share_id)
-                .execute())
+            await asyncio.to_thread(
+                lambda: (
+                    db.client.table("shared_conversations")
+                    .update({"view_count": current_count + 1})
+                    .eq("share_id", share_id)
+                    .execute()
+                )
             )
             cached["view_count"] = current_count + 1
         except asyncio.CancelledError:
@@ -221,12 +229,14 @@ async def get_shared_conversation(share_id: str):
 
     try:
         # Fetch the share record
-        share_response = (
-            await asyncio.to_thread(lambda: db.client.table("shared_conversations")
-            .select("*")
-            .eq("share_id", share_id)
-            .eq("is_public", True)
-            .execute())
+        share_response = await asyncio.to_thread(
+            lambda: (
+                db.client.table("shared_conversations")
+                .select("*")
+                .eq("share_id", share_id)
+                .eq("is_public", True)
+                .execute()
+            )
         )
 
         if not share_response.data:
@@ -242,11 +252,13 @@ async def get_shared_conversation(share_id: str):
         conversation_id = share["conversation_id"]
 
         # Fetch conversation
-        conv_response = (
-            await asyncio.to_thread(lambda: db.client.table("conversations")
-            .select("id, title")
-            .eq("id", conversation_id)
-            .execute())
+        conv_response = await asyncio.to_thread(
+            lambda: (
+                db.client.table("conversations")
+                .select("id, title")
+                .eq("id", conversation_id)
+                .execute()
+            )
         )
 
         if not conv_response.data:
@@ -384,7 +396,11 @@ async def revoke_share(
             )
 
         # Delete the share
-        await asyncio.to_thread(lambda: db.client.table("shared_conversations").delete().eq("share_id", share_id).execute())
+        await asyncio.to_thread(
+            lambda: (
+                db.client.table("shared_conversations").delete().eq("share_id", share_id).execute()
+            )
+        )
 
         # Clear cache
         _share_cache.pop(share_id, None)
