@@ -24,7 +24,7 @@ import hmac
 from typing import Any, Optional, Tuple
 import uuid
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
@@ -1344,6 +1344,17 @@ async def studio_auth_me(request: Request):
         "role": role,
         "permissions": ["admin", "read", "write", "execute", "vault", "planner"] if role == "admin" else ["read", "write"],
     }
+
+
+@app.post("/api/v1/auth/logout")
+@app.post("/v1/auth/logout")
+@app.post("/api/auth/logout")
+@app.post("/auth/logout")
+async def studio_auth_logout(response: Response):
+    """Stateless logout: the client discards the bearer token; the server
+    acknowledges and clears any trusted-browser cookie."""
+    response.delete_cookie("supreme_admin_trusted_browser", path="/")
+    return {"status": "ok", "message": "Logged out. Discard the bearer token client-side."}
 
 
 @app.get("/api/health-aggregation")
