@@ -22,6 +22,8 @@ suite drives it fully offline via fastapi.testclient.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import json
 import time
 import uuid
@@ -225,93 +227,113 @@ async def relay_stream(
     """
     created = int(time.time())
     served_by: str | None = None
-    for endpoint in chain:
-        opened = False
-        try:
-            async for event in stream_fn(endpoint, payload):
-                if event["type"] == "chunk":
-                    if not opened:
-                        opened = True
-                        served_by = f"{endpoint.provider}/{endpoint.model}"
-                    yield sse_frame(
-                        SSE_CHUNK_EVENT,
-                        openai_chunk(
-                            completion_id,
-                            created,
-                            served_by,
-                            event.get("delta"),
-                            event.get("finish_reason"),
-                        ),
-                    )
-                elif event["type"] == "error":
-                    if not opened:
-                        # pre-first-chunk provider failure → failover, no wire noise
-                        break
-                    yield sse_frame(
-                        SSE_ERROR_EVENT,
-                        json.dumps(
-                            {
-                                "error": {
-                        "message": sanitize_error_message(
-                            event.get("message", "provider stream failed")
-                        ),
-                                    "type": "api_error",
-                                    "param": None,
-                                    "code": "provider_stream_error",
-                                    "served_by": served_by,
+    upstream: Any = None
+    try:
+        for endpoint in chain:
+            opened = False
+            if upstream is not None:
+                # previous endpoint produced no client-visible output → release
+                # its provider iterator before moving down the chain
+                with contextlib.suppress(Exception):
+                    await upstream.aclose()
+                upstream = None
+            try:
+                upstream = stream_fn(endpoint, payload).__aiter__()
+                async for event in upstream:
+                    if event["type"] == "chunk":
+                        if not opened:
+                            opened = True
+                            served_by = f"{endpoint.provider}/{endpoint.model}"
+                        yield sse_frame(
+                            SSE_CHUNK_EVENT,
+                            openai_chunk(
+                                completion_id,
+                                created,
+                                served_by,
+                                event.get("delta"),
+                                event.get("finish_reason"),
+                            ),
+                        )
+                    elif event["type"] == "error":
+                        if not opened:
+                            # pre-first-chunk provider failure → failover, no wire noise
+                            break
+                        yield sse_frame(
+                            SSE_ERROR_EVENT,
+                            json.dumps(
+                                {
+                                    "error": {
+                                        "message": sanitize_error_message(
+                                            event.get(
+                                                "message", "provider stream failed"
+                                            )
+                                        ),
+                                        "type": "api_error",
+                                        "param": None,
+                                        "code": "provider_stream_error",
+                                        "served_by": served_by,
+                                    }
                                 }
-                            }
-                        ),
-                    )
+                            ),
+                        )
+                        return
+                if opened:
+                    # clean provider EOF → terminal
+                    yield sse_frame(SSE_DONE_EVENT, "[DONE]")
                     return
-            if opened:
-                # clean provider EOF → terminal
-                yield sse_frame(SSE_DONE_EVENT, "[DONE]")
-                return
-            continue  # provider failed before any chunk → next endpoint
-        except (
-            OSError,
-            RuntimeError,
-            ValueError,
-            TimeoutError,
-            ConnectionError,
-            json.JSONDecodeError,
-            UnicodeDecodeError,
-        ) as exc:
-            if not opened:
-                continue  # pre-first-chunk failure → failover to next endpoint
-            yield sse_frame(
-                SSE_ERROR_EVENT,
-                json.dumps(
-                    {
-                        "error": {
-                            "message": sanitize_error_message(
-                            f"provider stream interrupted: {exc}"
-                        )[:300],
-                            "type": "api_error",
-                            "param": None,
-                            "code": "provider_stream_interrupted",
-                            "served_by": served_by,
+                continue  # provider failed before any chunk → next endpoint
+            except (
+                OSError,
+                RuntimeError,
+                ValueError,
+                TimeoutError,
+                ConnectionError,
+                json.JSONDecodeError,
+                UnicodeDecodeError,
+            ) as exc:
+                if not opened:
+                    continue  # pre-first-chunk failure → failover to next endpoint
+                yield sse_frame(
+                    SSE_ERROR_EVENT,
+                    json.dumps(
+                        {
+                            "error": {
+                                "message": sanitize_error_message(
+                                    f"provider stream interrupted: {exc}"
+                                )[:300],
+                                "type": "api_error",
+                                "param": None,
+                                "code": "provider_stream_interrupted",
+                                "served_by": served_by,
+                            }
                         }
+                    ),
+                )
+                return
+        # exhausted before any chunk
+        yield sse_frame(
+            SSE_ERROR_EVENT,
+            json.dumps(
+                {
+                    "error": {
+                        "message": "all providers in the chain failed before streaming began",
+                        "type": "api_error",
+                        "param": None,
+                        "code": "chain_exhausted",
                     }
-                ),
-            )
-            return
-    # exhausted before any chunk
-    yield sse_frame(
-        SSE_ERROR_EVENT,
-        json.dumps(
-            {
-                "error": {
-                    "message": "all providers in the chain failed before streaming began",
-                    "type": "api_error",
-                    "param": None,
-                    "code": "chain_exhausted",
                 }
-            }
-        ),
-    )
-    yield sse_frame(SSE_DONE_EVENT, "[DONE]")
+            ),
+        )
+        yield sse_frame(SSE_DONE_EVENT, "[DONE]")
+    except asyncio.CancelledError:
+        # Client disconnected — unwind through finally, then propagate
+        raise
+    finally:
+        # Always release the upstream provider iterator (normal EOF, mid-stream
+        # error, client disconnect/cancellation) so no provider stream leaks.
+        if upstream is not None:
+            with contextlib.suppress(Exception):
+                await upstream.aclose()
 
 
 def parse_completion_response(result: AttemptResult) -> dict[str, Any]:

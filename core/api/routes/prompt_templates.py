@@ -12,11 +12,11 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
+from core.monitoring.logging_config import logger
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from api.deps import get_current_user_token
-from core.monitoring.logging_config import logger
 from database.supabase_client import db as supabase_db
 
 router = APIRouter(
@@ -278,6 +278,7 @@ def _bootstrap_schema() -> None:
     try:
         # Schema managed by versioned migrations; exec_sql RPC not used.
         import logging
+
         logging.getLogger(__name__).info("prompt_templates schema assumed present via migrations")
     except asyncio.CancelledError:
         raise
@@ -391,9 +392,7 @@ async def list_templates(
             query = query.eq("category", category)
 
         resp = await asyncio.to_thread(
-            lambda: query.order("is_builtin", desc=True)
-            .order("usage_count", desc=True)
-            .execute()
+            lambda: query.order("is_builtin", desc=True).order("usage_count", desc=True).execute()
         )
         return [_row_to_template(r) for r in (resp.data or [])]
     except Exception as exc:
@@ -430,7 +429,9 @@ async def create_template(
             "is_builtin": False,
             "usage_count": 0,
         }
-        resp = await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates").insert(row).execute())
+        resp = await asyncio.to_thread(
+            lambda: supabase_db.client.table("prompt_templates").insert(row).execute()
+        )
         if not resp.data:
             raise HTTPException(status_code=500, detail="Template creation returned no data.")
         return _row_to_template(resp.data[0])
@@ -447,24 +448,30 @@ async def _get_accessible_template_row(template_id: str, user_id: str) -> dict[s
     _ensure_supabase()
 
     resp = await asyncio.to_thread(
-        lambda: supabase_db.client.table("prompt_templates")
-        .select("*")
-        .eq("id", template_id)
-        .or_(f"is_builtin.eq.true,user_id.eq.{user_id}")
-        .execute()
+        lambda: (
+            supabase_db.client.table("prompt_templates")
+            .select("*")
+            .eq("id", template_id)
+            .or_(f"is_builtin.eq.true,user_id.eq.{user_id}")
+            .execute()
+        )
     )
     if not resp.data:
         raise HTTPException(status_code=404, detail="Template not found.")
     return resp.data[0]
 
 
-async def _assert_editable_custom_template(template_id: str, user_id: str, action: str = "modify") -> dict[str, Any]:
+async def _assert_editable_custom_template(
+    template_id: str, user_id: str, action: str = "modify"
+) -> dict[str, Any]:
     _ensure_supabase()
     existing = await asyncio.to_thread(
-        lambda: supabase_db.client.table("prompt_templates")
-        .select("id, is_builtin, user_id")
-        .eq("id", template_id)
-        .execute()
+        lambda: (
+            supabase_db.client.table("prompt_templates")
+            .select("id, is_builtin, user_id")
+            .eq("id", template_id)
+            .execute()
+        )
     )
     if not existing.data:
         raise HTTPException(status_code=404, detail="Template not found.")
@@ -530,11 +537,13 @@ async def update_template(
         if payload.variables is not None:
             update_fields["variables"] = [v.model_dump() for v in payload.variables]
 
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates")
-            .update(update_fields)
-            .eq("id", template_id)
-            .execute())
+        resp = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("prompt_templates")
+                .update(update_fields)
+                .eq("id", template_id)
+                .execute()
+            )
         )
         if not resp.data:
             raise HTTPException(status_code=500, detail="Update returned no data.")
@@ -561,7 +570,14 @@ async def delete_template(
 
     try:
         await _assert_editable_custom_template(template_id, user_id, action="delete")
-        await asyncio.to_thread(lambda: supabase_db.client.table("prompt_templates").delete().eq("id", template_id).execute())
+        await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("prompt_templates")
+                .delete()
+                .eq("id", template_id)
+                .execute()
+            )
+        )
         return {"status": "deleted", "id": template_id}
     except HTTPException:
         raise
@@ -598,11 +614,13 @@ async def use_template(
 
         # Atomically increment usage_count
         new_count = (row.get("usage_count") or 0) + 1
-        await asyncio.to_thread(lambda: (
-            supabase_db.client.table("prompt_templates")
-            .update({"usage_count": new_count, "updated_at": datetime.now(UTC).isoformat()})
-            .eq("id", template_id)
-            .execute())
+        await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("prompt_templates")
+                .update({"usage_count": new_count, "updated_at": datetime.now(UTC).isoformat()})
+                .eq("id", template_id)
+                .execute()
+            )
         )
 
         return {

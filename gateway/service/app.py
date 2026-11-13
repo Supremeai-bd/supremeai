@@ -18,11 +18,10 @@ from datetime import datetime, timezone
 import json
 import logging
 import os
-import secrets
 import socket
 import time
 import hmac
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 import uuid
 
 from fastapi import FastAPI, Header, HTTPException, Request
@@ -50,7 +49,7 @@ except ImportError:  # pragma: no cover - package-relative fallback
     )
 
 try:
-    from service.keygen import verify_key
+    from service.keygen import generate_key, get_signing_secret, verify_key
     try:
         from service.pool import squad
     except ImportError:
@@ -65,10 +64,25 @@ try:
     from service.telegram_webhook import telegram_router
 except ImportError:
     try:
-        from gateway.service.keygen import verify_key
+        from gateway.service.keygen import generate_key, get_signing_secret, verify_key
     except ImportError:
         def verify_key(key: str) -> dict | None:  # type: ignore[no-redef]
             return None
+
+        def generate_key(client_name: str = "client", quota: str = "standard") -> str:  # type: ignore[no-redef]
+            """Fail-closed stub: without keygen nothing can sign a token."""
+            raise RuntimeError(
+                "keygen unavailable (neither service.keygen nor "
+                "gateway.service.keygen is importable): refusing to issue an "
+                "unsigned API token"
+            )
+
+        def get_signing_secret() -> str:  # type: ignore[no-redef]
+            """Fail-closed stub: no signing secret is resolvable without keygen."""
+            raise RuntimeError(
+                "keygen unavailable (neither service.keygen nor "
+                "gateway.service.keygen is importable): no signing secret"
+            )
     try:
         from gateway.service.pool import squad
     except ImportError:
@@ -528,12 +542,30 @@ def _is_verified_guest(request: Request, token: Optional[str]) -> bool:
     return False
 
 
+def _issue_signed_token(client_name: str, quota: str) -> str:
+    """Issue a keygen-signed token, failing closed when keygen is unusable.
+
+    Token issuance is never degraded: an unsigned/placeholder value (e.g. a
+    ``sess_<hex>`` string or an empty string) cannot be verified by
+    ``verify_key`` and would silently hand the caller a useless credential.
+    A keygen failure is surfaced as a 503 so the misconfiguration is visible.
+    """
+    try:
+        return generate_key(client_name=client_name, quota=quota)
+    except Exception as exc:  # keygen failure is surfaced as 503, never swallowed
+        logger.error(
+            "[auth] token issuance failed for client=%s: %s",
+            client_name,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=503, detail="Token issuance is temporarily unavailable"
+        ) from exc
+
+
 def _issue_guest_token(ttl_seconds: int = 300) -> str:
     """Issue a signed, short-lived guest token (HMAC via service.keygen)."""
-    try:
-        return generate_key(client_name="guest", quota="guest")
-    except Exception:  # noqa: BLE001 - never let guest issuance break the gateway
-        return ""
+    return _issue_signed_token(client_name="guest", quota="guest")
 
 
 def _guest_rate_limit(request: Request) -> Tuple[bool, float]:
@@ -1120,12 +1152,8 @@ async def studio_auth_login(request: Request):
     # admin email + exact env password/hash match is accepted.
     # Registered user accounts authenticate against the durable users table.
     if email == admin_email and _verify_password(password):
-        # Generate stateless signed API token
-        try:
-            from service.keygen import generate_key
-            token = generate_key(client_name="studio-admin", quota="unlimited")
-        except Exception:
-            token = f"sess_{secrets.token_hex(16)}"
+        # Generate stateless signed API token (fail-closed: no unsigned fallback).
+        token = _issue_signed_token(client_name="studio-admin", quota="unlimited")
 
         user_id = "usr-admin-primary" if email == admin_email else f"usr-{int(time.time())}"
         role = "admin" if email == admin_email else "user"
@@ -1154,11 +1182,10 @@ async def studio_auth_login(request: Request):
         except Exception:  # noqa: BLE001 - storage failure must not leak internals
             user = None
         if user:
-            try:
-                from service.keygen import generate_key
-                token = generate_key(client_name=f"usr-{user['user_id']}", quota="standard")
-            except Exception:
-                token = f"sess_{secrets.token_hex(16)}"
+            # Fail-closed: a keygen failure is an error response, not a session.
+            token = _issue_signed_token(
+                client_name=f"usr-{user['user_id']}", quota="standard"
+            )
             return {
                 "token": token,
                 "access_token": token,
@@ -1216,6 +1243,17 @@ async def studio_auth_register(request: Request):
             headers={"Retry-After": str(int(retry_after) + 1)},
         )
 
+    # Fail-closed preflight: never persist an account we cannot hand a signed
+    # token to. Without this, a keygen outage would answer 503 *after* the user
+    # row is written, and the caller's retry would be rejected as a duplicate.
+    try:
+        get_signing_secret()
+    except Exception as exc:  # keygen misconfiguration is surfaced as 503, never swallowed
+        logger.error("[register] keygen unavailable: %s", type(exc).__name__)
+        raise HTTPException(
+            status_code=503, detail="Token issuance is temporarily unavailable"
+        ) from exc
+
     try:
         record = create_user(email=email, password=password, name=name, role="user")
     except ValueError as exc:
@@ -1224,11 +1262,10 @@ async def studio_auth_register(request: Request):
         logger.warning("[register] persistence failed for %s: %s", email, type(exc).__name__)
         raise HTTPException(status_code=503, detail="Registration is temporarily unavailable")
 
-    try:
-        from service.keygen import generate_key
-        token = generate_key(client_name=f"usr-{record['user_id']}", quota="standard")
-    except Exception:  # noqa: BLE001 - token issuance must not break registration
-        token = ""
+    # Fail-closed: never return a registration payload whose token cannot be
+    # verified. The persisted account itself stays valid and usable once the
+    # signing secret is restored.
+    token = _issue_signed_token(client_name=f"usr-{record['user_id']}", quota="standard")
 
     return {
         "token": token,

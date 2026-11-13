@@ -15,11 +15,11 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any, Literal
 
+from core.monitoring.logging_config import logger
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from api.deps import get_current_user_token
-from core.monitoring.logging_config import logger
 from database.supabase_client import db as supabase_db
 
 router = APIRouter(
@@ -75,6 +75,7 @@ def _ensure_schema() -> None:
         # Schema is managed by versioned migrations (scripts.db guard); exec_sql
         # RPC is intentionally not used (see schema_contract.yaml).
         import logging
+
         logging.getLogger(__name__).info("scheduled_tasks schema assumed present via migrations")
     except asyncio.CancelledError:
         raise
@@ -223,8 +224,8 @@ async def execute_task_and_record(task: dict[str, Any], user_id: str) -> dict[st
         "status": "running",
         "started_at": now,
     }
-    exec_resp = (
-        await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_task_executions").insert(exec_row).execute())
+    exec_resp = await asyncio.to_thread(
+        lambda: supabase_db.client.table("scheduled_task_executions").insert(exec_row).execute()
     )
     exec_id = exec_resp.data[0]["id"] if exec_resp.data else str(uuid.uuid4())
 
@@ -242,47 +243,53 @@ async def execute_task_and_record(task: dict[str, Any], user_id: str) -> dict[st
     completed_at = datetime.now(UTC).isoformat()
 
     # Update execution record
-    await asyncio.to_thread(lambda: (
-        supabase_db.client.table("scheduled_task_executions")
-        .update(
-            {
-                "status": status,
-                "result": result_text[:5000] if result_text else None,
-                "error": error_text[:2000] if error_text else None,
-                "completed_at": completed_at,
-            }
+    await asyncio.to_thread(
+        lambda: (
+            supabase_db.client.table("scheduled_task_executions")
+            .update(
+                {
+                    "status": status,
+                    "result": result_text[:5000] if result_text else None,
+                    "error": error_text[:2000] if error_text else None,
+                    "completed_at": completed_at,
+                }
+            )
+            .eq("id", exec_id)
+            .execute()
         )
-        .eq("id", exec_id)
-        .execute())
     )
 
     # Update task's last_run fields
-    await asyncio.to_thread(lambda: (
-        supabase_db.client.table("scheduled_tasks")
-        .update(
-            {
-                "last_run_at": completed_at,
-                "last_run_status": status,
-                "updated_at": completed_at,
-            }
+    await asyncio.to_thread(
+        lambda: (
+            supabase_db.client.table("scheduled_tasks")
+            .update(
+                {
+                    "last_run_at": completed_at,
+                    "last_run_status": status,
+                    "updated_at": completed_at,
+                }
+            )
+            .eq("id", task_id)
+            .execute()
         )
-        .eq("id", task_id)
-        .execute())
     )
 
     # Optionally append result as a message to the linked conversation
     if task.get("conversation_id") and result_text:
         try:
-            await asyncio.to_thread(lambda: (
-                supabase_db.client.table("messages")
-                .insert(
-                    {
-                        "conversation_id": task["conversation_id"],
-                        "role": "assistant",
-                        "content": f"[Scheduled Task: {task['title']}]\n\n{result_text}",
-                    }
+            await asyncio.to_thread(
+                lambda: (
+                    supabase_db.client.table("messages")
+                    .insert(
+                        {
+                            "conversation_id": task["conversation_id"],
+                            "role": "assistant",
+                            "content": f"[Scheduled Task: {task['title']}]\n\n{result_text}",
+                        }
+                    )
+                    .execute()
                 )
-                .execute())
             )
         except Exception as msg_exc:
             # বাংলা মন্তব্য: conversation-append ঐচ্ছিক পরিণতি — মূল নির্বাহ-ফল
@@ -348,7 +355,9 @@ async def create_scheduled_task(
             "created_at": now,
             "updated_at": now,
         }
-        resp = await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks").insert(row).execute())
+        resp = await asyncio.to_thread(
+            lambda: supabase_db.client.table("scheduled_tasks").insert(row).execute()
+        )
         if not resp.data:
             raise HTTPException(status_code=500, detail="Task creation returned no data.")
         return _row_to_task(resp.data[0])
@@ -375,12 +384,14 @@ async def list_scheduled_tasks(
     _ensure_schema()
 
     try:
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
-            .select("*")
-            .eq("user_id", user_id)
-            .order("created_at", desc=True)
-            .execute())
+        resp = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("scheduled_tasks")
+                .select("*")
+                .eq("user_id", user_id)
+                .order("created_at", desc=True)
+                .execute()
+            )
         )
         return [_row_to_task(r) for r in (resp.data or [])]
     except Exception as exc:
@@ -410,11 +421,13 @@ async def list_execution_history(
         if task_id:
             task_ids = [task_id]
         else:
-            tasks_resp = (
-                await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
-                .select("id")
-                .eq("user_id", user_id)
-                .execute())
+            tasks_resp = await asyncio.to_thread(
+                lambda: (
+                    supabase_db.client.table("scheduled_tasks")
+                    .select("id")
+                    .eq("user_id", user_id)
+                    .execute()
+                )
             )
             task_ids = [r["id"] for r in (tasks_resp.data or [])]
 
@@ -423,13 +436,15 @@ async def list_execution_history(
 
         # Build filter: task_id.in.(id1,id2,...)
         # Supabase .in_ expects a column name and a list
-        query = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_task_executions")
-            .select("*")
-            .in_("task_id", task_ids)
-            .order("started_at", desc=True)
-            .limit(limit)
-            .execute())
+        query = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("scheduled_task_executions")
+                .select("*")
+                .in_("task_id", task_ids)
+                .order("started_at", desc=True)
+                .limit(limit)
+                .execute()
+            )
         )
         return [_row_to_execution(r) for r in (query.data or [])]
     except Exception as exc:
@@ -437,14 +452,18 @@ async def list_execution_history(
         raise HTTPException(status_code=500, detail="Failed to fetch execution history.") from exc
 
 
-async def _get_user_task_record(task_id: str, user_id: str, select_cols: str = "*") -> dict[str, Any]:
+async def _get_user_task_record(
+    task_id: str, user_id: str, select_cols: str = "*"
+) -> dict[str, Any]:
     _ensure_schema()
     resp = await asyncio.to_thread(
-        lambda: supabase_db.client.table("scheduled_tasks")
-        .select(select_cols)
-        .eq("id", task_id)
-        .eq("user_id", user_id)
-        .execute()
+        lambda: (
+            supabase_db.client.table("scheduled_tasks")
+            .select(select_cols)
+            .eq("id", task_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
     )
     if not resp.data:
         raise HTTPException(status_code=404, detail="Scheduled task not found.")
@@ -509,11 +528,13 @@ async def update_scheduled_task(
         if payload.is_active is not None:
             update_fields["is_active"] = payload.is_active
 
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
-            .update(update_fields)
-            .eq("id", task_id)
-            .execute())
+        resp = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("scheduled_tasks")
+                .update(update_fields)
+                .eq("id", task_id)
+                .execute()
+            )
         )
         if not resp.data:
             raise HTTPException(status_code=500, detail="Update returned no data.")
@@ -540,7 +561,9 @@ async def delete_scheduled_task(
 
     try:
         await _get_user_task_record(task_id, user_id, select_cols="id")
-        await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks").delete().eq("id", task_id).execute())
+        await asyncio.to_thread(
+            lambda: supabase_db.client.table("scheduled_tasks").delete().eq("id", task_id).execute()
+        )
         return {"status": "deleted", "id": task_id}
     except HTTPException:
         raise
@@ -593,11 +616,13 @@ async def toggle_scheduled_task(
         new_state = not existing.get("is_active", True)
         now = datetime.now(UTC).isoformat()
 
-        resp = (
-            await asyncio.to_thread(lambda: supabase_db.client.table("scheduled_tasks")
-            .update({"is_active": new_state, "updated_at": now})
-            .eq("id", task_id)
-            .execute())
+        resp = await asyncio.to_thread(
+            lambda: (
+                supabase_db.client.table("scheduled_tasks")
+                .update({"is_active": new_state, "updated_at": now})
+                .eq("id", task_id)
+                .execute()
+            )
         )
         if not resp.data:
             raise HTTPException(status_code=500, detail="Toggle returned no data.")

@@ -20,10 +20,10 @@ Per Constitution `AGENTS.md` and Charter, the SupremeAI Federation operates unde
 
 | Repository | Visibility & Role | Scope & Responsibility |
 |---|---|---|
-| **`Supremeai-bd/supremeai`** *(Current)* | **Primary Monorepo SSOT** | Unified Monorepo containing Core, Gateway, Browser, VSCode, Studio Mirrors, Infrastructure, and MCP Control Plane. Single door for all PRs, issues, and CI workflows (`unified-pipeline.yml`). |
-| **`Supremeai-bd/supremeai-studio`** | **Public UI Cockpit** | Official Public UI & Mission Control Cockpit (React/Vite). Live UI: [https://supremeai-studio.vercel.app](https://supremeai-studio.vercel.app). |
+| **`Supremeai-bd/supremeai`** *(Current)* | **Primary Monorepo SSOT** | Unified Monorepo containing Core, Gateway, Browser, VSCode, Studio Mirrors (retired), Infrastructure, and MCP Control Plane. Single door for all PRs, issues, and CI workflows (`unified-pipeline.yml`). |
+| **`Supremeai-bd/supremeai-studio`** *(retired)* | **Public UI Cockpit — retired** | Former official Public UI & Mission Control Cockpit (React/Vite). Permanently retired, archived, and frozen read-only: the `studio/` surface is no longer maintained in this monorepo. Archived console: [https://supremeai-studio.vercel.app](https://supremeai-studio.vercel.app). |
 
-*Note: Historical satellites (`supremeai-core`, `supremeai-api`, `supremeai-browser`, `supremeai-vscode`) remain permanently retired and frozen read-only.*
+*Note: Historical satellites (`supremeai-studio`, `supremeai-core`, `supremeai-api`, `supremeai-browser`, `supremeai-vscode`) remain permanently retired and frozen read-only. The `studio/` frontend surface is retired — no new work lands there.*
 
 ### 2.2 Consolidated Subsystems & Internal Tooling Domains
 
@@ -34,7 +34,7 @@ Per Federation Charter (§329 consolidation), several historical standalone repo
 | **`supremeai-command`** | Consolidated into `supremeai-api` / Admin Shell | `command/**` | Consolidated domain |
 | **`supremeai-skills`** | Consolidated into `supremeai-studio` / Studio Marketplace | `skills/**` | Consolidated domain |
 | **`supremeai-agents`** | Consolidated into `supremeai-core` / Agent Loops | `agents/**`, `runner/**` | Consolidated domain |
-| **`supremeai-sdk`** | Consolidated into `studio/packages/shared-services` | `sdk/**`, `api-schemas/**` | Consolidated contracts |
+| **`supremeai-sdk`** | Consolidated into `sdk/**` + `api-schemas/**` (historic home `studio/packages/shared-services` retired with Studio) | `sdk/**`, `api-schemas/**` | Consolidated contracts |
 | **`supremeai-infrastructure`** | Consolidated into Core Monorepo Infrastructure | `infrastructure/**`, `infra/**` | Internal ops |
 | **`supremeai-mcp-control-plane`** | MCP Control Tower & Policy Plane | `infrastructure/mcp-control-plane/**` | Governed control plane |
 
@@ -69,7 +69,7 @@ When a PR is merged in `supremeai`, the single unified `pipeline.yml` lands and 
 
 | Target Repository | Functional Domain | File Path Patterns in `supremeai` | PR Label | Automated Dispatch |
 |---|---|---|---|---|
-| **`Supremeai-bd/supremeai-studio`** | Web Dashboard & UI | `studio/**`, `examples/dashboard-preview/**`, `api-schemas/dashboard.*` | `repo:studio` | `pipeline.yml` |
+| **`Supremeai-bd/supremeai-studio`** *(retired — no active dispatch)* | Web Dashboard & UI (retired) | `studio/**` (retired surface — no new work), `examples/dashboard-preview/**`, `api-schemas/dashboard.*` | `repo:studio` | `pipeline.yml` (no-op for the retired surface) |
 | **`Supremeai-bd/supremeai-api`** | Provider Gateway & OpenAPI | `api/**`, `gateway/**`, `api-schemas/gateway.*` | `repo:api` | `pipeline.yml` |
 | **`Supremeai-bd/supremeai-core`** | Intelligence Models & Planners | `core/**`, `api-schemas/task-router.*` | `repo:core` | `pipeline.yml` |
 | **`Supremeai-bd/supremeai-command`** | Telegram & Remote Dispatch | `command/**`, `handlers/telegram*`, `api-schemas/command.*` | `repo:command` | `pipeline.yml` |
@@ -129,7 +129,7 @@ flowchart TB
         direction TB
         API["supremeai-api · Gateway<br/>(OpenAI-compatible surface)"]
         CORE["supremeai-core · decision moat"]
-        STUDIO["supremeai-studio · Studio UI"]
+        STUDIO["supremeai-studio · Studio UI (retired)"]
     end
 
     AGENT --> TASKS
@@ -152,7 +152,7 @@ flowchart TB
 | Boundary | `supremeai` | public SSOT: contracts, guards, gate, bridge dispatch |
 | Tool plane | `supremeai-mcp-control-plane` | governed tool registry, credential brokering, kill-switch |
 | Edge | `supremeai-api` | unified multi-LLM provider gateway |
-| Experience | `supremeai-studio` | React/Vite dashboard and frontend shell ([Live Console](https://supremeai-studio.vercel.app)) |
+| Experience (retired) | `supremeai-studio` | Former React/Vite dashboard and frontend shell — retired and frozen read-only ([archived console](https://supremeai-studio.vercel.app)) |
 | Core | `supremeai-core` | orchestration, planning, decision, execution intelligence |
 
 ### 6.2 Automation topology

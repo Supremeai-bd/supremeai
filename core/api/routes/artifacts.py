@@ -5,17 +5,17 @@ Supports HTML, React, SVG, Mermaid, and generic code artifacts.
 """
 
 from __future__ import annotations
-import asyncio
 
+import asyncio
 from enum import StrEnum
 from typing import Any
 
+from core.monitoring.logging_config import logger
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator
 
 from api.deps import get_current_user_token
-from core.monitoring.logging_config import logger
 from database.supabase_client import get_db
 
 router = APIRouter(
@@ -169,7 +169,9 @@ async def create_artifact(
             "conversation_id": payload.conversation_id,
         }
 
-        response = await asyncio.to_thread(lambda: db.client.table("artifacts").insert(row).execute())
+        response = await asyncio.to_thread(
+            lambda: db.client.table("artifacts").insert(row).execute()
+        )
 
         if not response.data:
             raise HTTPException(status_code=500, detail="Failed to create artifact")
@@ -197,15 +199,17 @@ async def list_artifacts_by_conversation(
     db = get_db()
 
     try:
-        response = (
-            await asyncio.to_thread(lambda: db.client.table("artifacts")
-            .select(
-                "id, conversation_id, user_id, title, artifact_type, version, is_pinned, created_at, updated_at"
+        response = await asyncio.to_thread(
+            lambda: (
+                db.client.table("artifacts")
+                .select(
+                    "id, conversation_id, user_id, title, artifact_type, version, is_pinned, created_at, updated_at"
+                )
+                .eq("conversation_id", conversation_id)
+                .eq("user_id", user_id)
+                .order("updated_at", desc=True)
+                .execute()
             )
-            .eq("conversation_id", conversation_id)
-            .eq("user_id", user_id)
-            .order("updated_at", desc=True)
-            .execute())
         )
 
         return [ArtifactListItem(**row) for row in response.data]
@@ -246,7 +250,9 @@ async def update_artifact(
     db = get_db()
 
     try:
-        existing = await _get_owned_artifact(artifact_id, user_id, select_cols="id, user_id, version")
+        existing = await _get_owned_artifact(
+            artifact_id, user_id, select_cols="id, user_id, version"
+        )
         current_version = existing["version"]
 
         # Build update payload (only include non-None fields)
@@ -262,8 +268,10 @@ async def update_artifact(
         if payload.is_pinned is not None:
             update_fields["is_pinned"] = payload.is_pinned
 
-        response = (
-            await asyncio.to_thread(lambda: db.client.table("artifacts").update(update_fields).eq("id", artifact_id).execute())
+        response = await asyncio.to_thread(
+            lambda: (
+                db.client.table("artifacts").update(update_fields).eq("id", artifact_id).execute()
+            )
         )
 
         if not response.data:
@@ -290,7 +298,9 @@ async def delete_artifact(
 
     try:
         await _get_owned_artifact(artifact_id, user_id, select_cols="id, user_id")
-        await asyncio.to_thread(lambda: db.client.table("artifacts").delete().eq("id", artifact_id).execute())
+        await asyncio.to_thread(
+            lambda: db.client.table("artifacts").delete().eq("id", artifact_id).execute()
+        )
 
         logger.info(f"Artifact deleted: {artifact_id}")
 

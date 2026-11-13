@@ -1,10 +1,9 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel
-
 from core.monitoring.logging_config import logger
 from core.orchestration.agent_orchestrator import async_task_manager
+from fastapi import APIRouter, Depends, Request
+from pydantic import BaseModel
 
 # AUDIT FIX (2026-11-13, HIGH — task results readable by anyone):
 # /api/task/{task_id} and /api/task/_stats had no auth dependency — any caller
@@ -17,12 +16,12 @@ try:
 except ImportError:
     try:
         from api.deps import get_current_admin, get_current_user_token
-    except ImportError:  # pragma: no cover — CI bootstrap only
-        async def get_current_user_token() -> str:
-            return "mock-token"
-
-        async def get_current_admin() -> str:
-            return "mock-admin"
+    except ImportError:
+        # AUDIT FIX (N1): fail CLOSED. These "mock-token"/"mock-admin" stubs made
+        # the whole /api/task router (this module applies the auth dependency at
+        # ROUTER level) anonymously reachable whenever the auth module could not
+        # be imported.
+        raise
 
 
 router = APIRouter(

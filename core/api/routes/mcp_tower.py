@@ -9,7 +9,6 @@ directly (session handshake + CORS), so Core API acts as the bridge:
 from __future__ import annotations
 
 import asyncio
-
 import json
 import os
 from datetime import UTC, datetime
@@ -25,15 +24,16 @@ except ImportError:
     try:
         from api.deps import get_current_admin, get_current_user_token
     except ImportError:
-        async def get_current_user_token() -> str:
-            return "mock-token"
-
-        async def get_current_admin() -> str:
-            return "mock-admin"
+        # AUDIT FIX (N1): fail CLOSED. These "mock-token"/"mock-admin" stubs made
+        # the MCP Control Tower proxy (live telemetry + admin actions) reachable
+        # anonymously whenever the auth module could not be imported.
+        raise
 
 router = APIRouter(prefix="/api/mcp-tower", tags=["mcp-tower"])
 
-TOWER_URL = os.getenv("MCP_TOWER_URL", os.getenv("RENDER_MCP_URL", "https://supremeai-mcp-tower.onrender.com/mcp"))
+TOWER_URL = os.getenv(
+    "MCP_TOWER_URL", os.getenv("RENDER_MCP_URL", "https://supremeai-mcp-tower.onrender.com/mcp")
+)
 TOWER_TOKEN = os.getenv("MCP_TOWER_TOKEN", os.getenv("MCP_API_KEY", ""))
 RENDER_API_KEY = os.getenv("RENDER_API_KEY", "")
 RENDER_MCP_SERVICE_ID = os.getenv("RENDER_MCP_SERVICE_ID", os.getenv("RENDER_MCP_SVC_ID", ""))
@@ -75,7 +75,11 @@ async def _call_tower_tool(name: str, arguments: dict[str, Any] | None = None) -
             headers["mcp-session-id"] = session_id
         # 2. initialized notification
         try:
-            await client.post(base, json={"jsonrpc": "2.0", "method": "notifications/initialized"}, headers=headers)
+            await client.post(
+                base,
+                json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+                headers=headers,
+            )
         except Exception:
             pass
         # 3. tools/call
@@ -147,7 +151,9 @@ def _map_service(svc: dict[str, Any], checked_at: str) -> dict[str, Any]:
         "displayName": svc.get("displayName", sid),
         "category": _category(sid),
         "port": 0,
-        "status": status if status in ("healthy", "degraded", "unhealthy", "rebooting") else "unhealthy",
+        "status": status
+        if status in ("healthy", "degraded", "unhealthy", "rebooting")
+        else "unhealthy",
         "uptime": "—",
         "latencyMs": latency if isinstance(latency, (int, float)) else 0,
         "cpuPercent": 0,
@@ -205,7 +211,10 @@ _RENDER_SVC_MAP = {
     # Brain / Tiny Brain
     "render-brain": (("RENDER_BRAIN_SERVICE_ID", "RENDER_BRAIN_SVC_ID"), "RENDER_API_KEY_6"),
     # CI Runner
-    "render-ci-runner": (("RENDER_CI_RUNNER_SERVICE_ID", "RENDER_CI_RUNNER_SVC_ID"), "RENDER_API_KEY_PAYKARI"),
+    "render-ci-runner": (
+        ("RENDER_CI_RUNNER_SERVICE_ID", "RENDER_CI_RUNNER_SVC_ID"),
+        "RENDER_API_KEY_PAYKARI",
+    ),
 }
 
 
@@ -236,7 +245,10 @@ async def reboot(
                 async with httpx.AsyncClient(timeout=30.0) as client:
                     r = await client.post(
                         f"https://api.render.com/v1/services/{rid}/restart",
-                        headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Accept": "application/json",
+                        },
                     )
                     r.raise_for_status()
             except Exception as exc:

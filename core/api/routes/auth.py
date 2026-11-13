@@ -5,6 +5,12 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
+from core.cache.redis_manager import redis_manager
+from core.config import settings
+from core.errors.error_bus import with_error_bus
+from core.monitoring.logging_config import logger
+from core.security import JWT_AUDIENCE, JWT_ISSUER, is_token_revoked, revoke_token
+from core.security.authentication.rbac import UserContext
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt import PyJWTError as JWTError
@@ -13,12 +19,6 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 # বাংলা: A5/A6 (admin users) রুটের জন্য admin guard — circular import এড়াতে
 # এটি lazy নয়, dependencies মডিউল core-only তাই এখানে safe।
 from api.dependencies import get_current_admin
-from core.cache.redis_manager import redis_manager
-from core.config import settings
-from core.errors.error_bus import with_error_bus
-from core.monitoring.logging_config import logger
-from core.security import is_token_revoked, revoke_token
-from core.security.authentication.rbac import UserContext
 from database.supabase_client import db
 
 try:
@@ -130,6 +130,10 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
             "iat": now,
             "jti": to_encode.get("jti") or f"jti-{_uuid.uuid4().hex[:16]}",
             "type": "access",
+            # বাংলা মন্তব্য (B4): issuer/audience claim — core.security-এর স্ট্রিক্ট
+            # verify_token()/AuthMiddleware এখন এগুলো বাধ্যতামূলক যাচাই করে।
+            "iss": JWT_ISSUER,
+            "aud": JWT_AUDIENCE,
         }
     )
     return jwt.encode(to_encode, _get_secret_key(), algorithm=ALGORITHM)
@@ -153,6 +157,10 @@ def create_refresh_token(data: dict) -> str:
             # stolen token শনাক্ত করতে reuse detection-এ ব্যবহৃত হয়
             "tfid": data.get("tfid") or f"tfid-{_uuid.uuid4().hex[:12]}",
             "jti": f"jti-{_uuid.uuid4().hex[:16]}",
+            # বাংলা মন্তব্য (B4): refresh token-এও একই issuer/audience —
+            # access-এ রূপান্তরের সময় claim-সেট সামঞ্জস্যপূর্ণ থাকে।
+            "iss": JWT_ISSUER,
+            "aud": JWT_AUDIENCE,
         }
     )
     return jwt.encode(to_encode, _get_secret_key(), algorithm=ALGORITHM)
@@ -165,7 +173,16 @@ async def optional_current_user(
     if not token or jwt is None:
         return None
     try:
-        payload = jwt.decode(token, _get_secret_key(), algorithms=[ALGORITHM])
+        # বাংলা মন্তব্য (B4): ইস্যু করা টোকেনে `aud` claim থাকে — PyJWT অনুপস্থিত
+        # `audience` প্যারামিটারে সেই টোকেন রিজেক্ট করে, তাই একই iss/aud যাচাই এখানেও জরুরি।
+        payload = jwt.decode(
+            token,
+            _get_secret_key(),
+            algorithms=[ALGORITHM],
+            audience=JWT_AUDIENCE,
+            issuer=JWT_ISSUER,
+            options={"require": ["exp", "iss", "aud", "jti"]},
+        )
         # বাংলা: type=access অথবা role=admin (admin step-up token) ছাড়া অন্য টোকেন (যেমন refresh) ব্যবহার রোধ।
         token_type = payload.get("type")
         if token_type is not None and token_type != "access":
@@ -504,7 +521,14 @@ async def refresh_token_endpoint(body: RefreshRequest, request: Request, respons
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token missing"
         )
     try:
-        payload = jwt.decode(refresh_token_value, _get_secret_key(), algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            refresh_token_value,
+            _get_secret_key(),
+            algorithms=[ALGORITHM],
+            audience=JWT_AUDIENCE,
+            issuer=JWT_ISSUER,
+            options={"require": ["exp", "iss", "aud", "jti"]},
+        )
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
@@ -644,7 +668,14 @@ async def logout(
     if not token or jwt is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     try:
-        payload = jwt.decode(token, _get_secret_key(), algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token,
+            _get_secret_key(),
+            algorithms=[ALGORITHM],
+            audience=JWT_AUDIENCE,
+            issuer=JWT_ISSUER,
+            options={"require": ["exp", "iss", "aud", "jti"]},
+        )
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
@@ -666,7 +697,14 @@ async def logout(
     refresh_token_value = request.cookies.get(REFRESH_COOKIE_NAME) if request else None
     if refresh_token_value:
         try:
-            r_payload = jwt.decode(refresh_token_value, _get_secret_key(), algorithms=[ALGORITHM])
+            r_payload = jwt.decode(
+                refresh_token_value,
+                _get_secret_key(),
+                algorithms=[ALGORITHM],
+                audience=JWT_AUDIENCE,
+                issuer=JWT_ISSUER,
+                options={"require": ["exp", "iss", "aud", "jti"]},
+            )
             r_jti = r_payload.get("jti")
             r_exp = r_payload.get("exp")
             if r_jti:
@@ -794,6 +832,7 @@ async def verify_2fa_endpoint(payload: Verify2FaRequest) -> dict[str, Any]:
     """
     import os
     import time
+
     from api.routes.admin_routes import check_totp
 
     now_ms = int(time.time() * 1000)
@@ -822,9 +861,7 @@ async def verify_2fa_endpoint(payload: Verify2FaRequest) -> dict[str, Any]:
     # authenticator. Fail closed instead: no configured secret → 503.
     secret = os.getenv("SUPREMEAI_ADMIN_TOTP_SECRET")
     if not secret:
-        logger.error(
-            "SUPREMEAI_ADMIN_TOTP_SECRET is not configured; refusing 2FA verification."
-        )
+        logger.error("SUPREMEAI_ADMIN_TOTP_SECRET is not configured; refusing 2FA verification.")
         raise HTTPException(
             status_code=503,
             detail="Two-factor verification is not configured. Set SUPREMEAI_ADMIN_TOTP_SECRET.",
@@ -842,4 +879,3 @@ async def verify_2fa_endpoint(payload: Verify2FaRequest) -> dict[str, Any]:
         "trustedUntil": trusted_until,
         "method": "totp",
     }
-

@@ -4,6 +4,8 @@
 
 import hashlib
 import hmac
+import importlib
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI, HTTPException
@@ -102,3 +104,64 @@ def test_webhook_endpoint_flow(monkeypatch):
         headers={"X-GitHub-Event": "ping", "X-Hub-Signature-256": sig},
     )
     assert response.status_code == 503
+
+
+@pytest.mark.parametrize("event", ["issue_comment", "pull_request_review_comment"])
+def test_signed_comment_event_reaches_processor(monkeypatch, event):
+    module = importlib.import_module(_verify_signature.__module__)
+    process = AsyncMock(return_value={"status": "processed"})
+    monkeypatch.setattr(ctai, "settings", _SettingsStub(SECRET))
+    monkeypatch.setattr(module._comment_ai, "handle_github_webhook", process)
+    app = FastAPI()
+    app.include_router(router)
+    body = b'{"action":"created","comment":{"body":"@supremeai fix this"}}'
+    with TestClient(app) as client:
+        response = client.post(
+            "/comment-ai/webhook",
+            content=body,
+            headers={"X-GitHub-Event": event, "X-Hub-Signature-256": _calc_signature(body)},
+        )
+    assert response.status_code == 200
+    assert response.json() == {"status": "processed"}
+    process.assert_awaited_once_with(
+        {"action": "created", "comment": {"body": "@supremeai fix this"}}
+    )
+
+
+def test_webhook_has_one_post_owner():
+    owners = [
+        route
+        for route in router.routes
+        if route.path == "/comment-ai/webhook" and "POST" in route.methods
+    ]
+    assert len(owners) == 1
+
+
+@pytest.mark.parametrize(
+    "body,signature,event,status",
+    [
+        (b"{}", None, "issue_comment", 401),
+        (b"{}", "sha256=wrong", "issue_comment", 401),
+        (b"not-json", "valid", "issue_comment", 400),
+        (b"[]", "valid", "issue_comment", 400),
+        (b"{}", "valid", "push", 200),
+    ],
+)
+def test_webhook_rejects_or_ignores_without_processing(monkeypatch, body, signature, event, status):
+    module = importlib.import_module(_verify_signature.__module__)
+    process = AsyncMock()
+    monkeypatch.setattr(ctai, "settings", _SettingsStub(SECRET))
+    monkeypatch.setattr(module._comment_ai, "handle_github_webhook", process)
+    app = FastAPI()
+    app.include_router(router)
+    headers = {"X-GitHub-Event": event}
+    if signature is not None:
+        headers["X-Hub-Signature-256"] = (
+            _calc_signature(body) if signature == "valid" else signature
+        )
+    with TestClient(app) as client:
+        response = client.post("/comment-ai/webhook", content=body, headers=headers)
+    assert response.status_code == status
+    if event == "push":
+        assert response.json() == {"status": "ignored", "event": "push"}
+    process.assert_not_awaited()

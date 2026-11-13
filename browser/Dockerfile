@@ -1,5 +1,5 @@
 # SupremeAI Browser - lightweight Gemini cookie relay (no browser, ~30MB RAM)
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 

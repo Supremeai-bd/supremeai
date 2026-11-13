@@ -11,11 +11,12 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import jwt
+from core.config import settings
+from core.monitoring.logging_config import logger
+from core.security import JWT_AUDIENCE, JWT_ISSUER
 from jwt import ExpiredSignatureError
 from jwt import PyJWTError as JWTError
 
-from core.config import settings
-from core.monitoring.logging_config import logger
 from utils.environment import is_test_environment
 
 ASGIScope = dict[str, Any]
@@ -149,7 +150,9 @@ def _decode_jwt(token: str) -> dict[str, Any] | None:
             token,
             settings.jwt_secret,
             algorithms=["HS256"],
-            options={"verify_exp": True},
+            audience=JWT_AUDIENCE,
+            issuer=JWT_ISSUER,
+            options={"verify_exp": True, "require": ["exp", "iss", "aud", "jti"]},
         )
         # বাংলা: access type চেক — refresh টোকেন অ্যাক্সেস হিসেবে ব্যবহার রোধ।
         if payload.get("type") == "refresh":
