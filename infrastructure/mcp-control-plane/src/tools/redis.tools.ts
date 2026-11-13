@@ -111,15 +111,13 @@ export async function registerRedisTools(server: McpServer): Promise<void> {
 
   server.tool(
     "redis.rotation_status",
-    "Inspect the Upstash Redis auto-rotation chain status, active primary, and quota cooldowns (#26).",
+    "Inspect the Upstash Redis auto-rotation chain status, active primary, quota cooldowns, and aggregated 2.5M fleet capacity.",
     {},
     { readOnlyHint: true, idempotentHint: true },
     async () => {
       try {
-        const { quotaChainStatus, getActiveRedisAccount, nextQuotaResetEpochMs } = await import("../lib/redis_chain.js");
-        const active = getActiveRedisAccount();
-        const chain = quotaChainStatus();
-        const nextReset = new Date(nextQuotaResetEpochMs()).toISOString();
+        const { getFleetQuotaSummary } = await import("../lib/redis_chain.js");
+        const fleetSummary = getFleetQuotaSummary();
         return {
           content: [
             {
@@ -127,10 +125,8 @@ export async function registerRedisTools(server: McpServer): Promise<void> {
               text: JSON.stringify(
                 {
                   autoRotateEnabled: true,
-                  activePrimary: active.label,
                   quotaWindow: process.env.UPSTASH_QUOTA_WINDOW || "monthly",
-                  nextGlobalResetAt: nextReset,
-                  chain,
+                  ...fleetSummary,
                 },
                 null,
                 2

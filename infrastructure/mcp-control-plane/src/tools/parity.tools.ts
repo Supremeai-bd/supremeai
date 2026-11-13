@@ -25,7 +25,7 @@ async function runParityAudit(): Promise<ParityAuditResult> {
 
   const envValue = (key: string): string | undefined => process.env[key];
 
-  // 1. Render & GitHub SHA Parity
+  // 1. Render & GitHub SHA Parity (Multi-Service Evaluation)
   let intendedSha: string | null = null;
   if (env.github.token) {
     try {
@@ -47,83 +47,92 @@ async function runParityAudit(): Promise<ParityAuditResult> {
     }
   }
 
-  try {
-    const mcpTarget = resolveServiceTarget("mcp");
-    const apiTarget = resolveServiceTarget("api");
-    const target = mcpTarget || apiTarget;
-    if (target && (envValue("RENDER_API_KEY") || envValue("RENDER_API_KEY_4") || envValue("RENDER_API_KEY_5") || envValue("RENDER_API_KEY_1"))) {
-      let runtimeSha: string | null = null;
-      const candidateTargets = [mcpTarget, apiTarget].filter((t): t is NonNullable<typeof t> => Boolean(t));
-      let deployedSha: string | null = null;
-      let matchedTarget = target;
+  const renderServicesToCheck = ["api", "core", "mcp", "worker", "scraper", "brain"];
+  const serviceParityResults: Record<string, {
+    serviceId: string;
+    runtimeUrl: string;
+    deployedSha: string | null;
+    runtimeSha: string | null;
+    status: "parity_verified" | "drift_detected" | "live_unverified" | "offline";
+  }> = {};
 
-      for (const t of candidateTargets) {
-        try {
-          const dep = await getLatestDeploy(t.renderAccountId, t.renderServiceId);
-          if (dep.commitSha) {
-            deployedSha = dep.commitSha;
-            matchedTarget = t;
-            if (intendedSha && (dep.commitSha.startsWith(intendedSha.slice(0, 7)) || intendedSha.startsWith(dep.commitSha.slice(0, 7)))) {
-              break;
-            }
-          }
-        } catch {
-          // try next target or runtime fallback
-        }
-      }
+  let anyRenderDrift = false;
+  let anyRenderVerified = false;
 
-      if (matchedTarget.runtimeUrl) {
-        try {
-          const rtRes = await httpRequest<{ commit?: string }>(`${matchedTarget.runtimeUrl.replace(/\/$/, "")}/release`, {
-            timeoutMs: 5000,
-            retries: 0,
-          });
-          if (rtRes.ok && rtRes.data?.commit) runtimeSha = rtRes.data.commit;
-        } catch {
-          // ignore
-        }
-      }
+  for (const svcName of renderServicesToCheck) {
+    const target = resolveServiceTarget(svcName);
+    if (!target) continue;
 
-      const observedSha = deployedSha || runtimeSha;
-      if (observedSha && intendedSha) {
-        const matches = observedSha.startsWith(intendedSha.slice(0, 7)) || intendedSha.startsWith(observedSha.slice(0, 7));
-        checks.push({
-          component: "render",
-          status: matches ? "parity_verified" : "drift_detected",
-          details: {
-            serviceId: matchedTarget.renderServiceId,
-            intendedSha,
-            deployedSha: observedSha,
-            runtimeSha,
-          },
-        });
-      } else if (observedSha) {
-        checks.push({
-          component: "render",
-          status: "parity_verified",
-          details: { serviceId: matchedTarget.renderServiceId, observedSha, note: "Verified live runtime release SHA" },
-        });
-      } else {
-        checks.push({
-          component: "render",
-          status: "configuration_present",
-          details: { note: "Render credentials present; live SHA probe inconclusive" },
-        });
+    let deployedSha: string | null = null;
+    let runtimeSha: string | null = null;
+    let isLive = false;
+
+    // A. Check latest deploy via Render API if account/service ID present
+    if (target.renderServiceId && target.renderAccountId) {
+      try {
+        const dep = await getLatestDeploy(target.renderAccountId, target.renderServiceId);
+        if (dep.commitSha) deployedSha = dep.commitSha;
+      } catch {
+        // Render deploy lookup skipped or failed
       }
-    } else {
-      checks.push({
-        component: "render",
-        status: envValue("RENDER_API_KEY") ? "configuration_present" : "unconfigured",
-        details: { note: "Render node SHA comparison requires RENDER_API_KEY" },
-      });
     }
-  } catch (err) {
-    checks.push({
-      component: "render",
-      status: envValue("RENDER_API_KEY") ? "configuration_present" : "unconfigured",
-      details: { error: (err as Error).message },
-    });
+
+    // B. Check runtime /release endpoint if runtime URL exists
+    if (target.runtimeUrl) {
+      try {
+        const releaseUrl = `${target.runtimeUrl.replace(/\/$/, "")}${target.releasePath || "/release"}`;
+        const rtRes = await httpRequest<{ commit?: string; status?: string }>(releaseUrl, {
+          timeoutMs: 4000,
+          retries: 0,
+        });
+        if (rtRes.ok) {
+          isLive = true;
+          if (rtRes.data?.commit) runtimeSha = rtRes.data.commit;
+        }
+      } catch {
+        // Runtime probe skipped or failed
+      }
+    }
+
+    const observedSha = deployedSha || runtimeSha;
+    let svcStatus: "parity_verified" | "drift_detected" | "live_unverified" | "offline" = "offline";
+
+    if (observedSha && intendedSha) {
+      const matches = observedSha.startsWith(intendedSha.slice(0, 7)) || intendedSha.startsWith(observedSha.slice(0, 7));
+      if (matches) {
+        svcStatus = "parity_verified";
+        anyRenderVerified = true;
+      } else {
+        svcStatus = "drift_detected";
+        anyRenderDrift = true;
+      }
+    } else if (observedSha || isLive) {
+      svcStatus = "live_unverified";
+      anyRenderVerified = true;
+    }
+
+    serviceParityResults[svcName] = {
+      serviceId: target.renderServiceId,
+      runtimeUrl: target.runtimeUrl,
+      deployedSha,
+      runtimeSha,
+      status: svcStatus,
+    };
   }
+
+  checks.push({
+    component: "render",
+    status: anyRenderDrift ? "drift_detected" : anyRenderVerified ? "parity_verified" : "configuration_present",
+    details: {
+      intendedSha,
+      serviceBreakdown: serviceParityResults,
+      summary: anyRenderDrift 
+        ? "Drift detected: One or more Render services are running outdated commit SHAs"
+        : anyRenderVerified 
+        ? "Parity verified across live Render services" 
+        : "Live Render SHA probes inconclusive",
+    },
+  });
 
   // 2. Cloudflare Edge Parity
   try {

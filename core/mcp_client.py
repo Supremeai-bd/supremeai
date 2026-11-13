@@ -141,13 +141,12 @@ class ControlTowerClient:
 
         from mcp import StdioServerParameters
         from mcp.client.session import ClientSession
-        from mcp.client.sse import sse_client
         from mcp.client.stdio import stdio_client
 
         self._exit_stack = contextlib.AsyncExitStack()
 
         if self.use_sse:
-            url = os.environ.get("RENDER_MCP_URL")
+            url = os.environ.get("RENDER_MCP_URL") or os.environ.get("MCP_TOWER_URL", "")
             if not url:
                 from core.config import settings
 
@@ -155,13 +154,30 @@ class ControlTowerClient:
                     url = "http://localhost:3771"  # is_local()
                 else:
                     raise ValueError("RENDER_MCP_URL must be set in production environments.")
-            sse_url = f"{url}/mcp"
+            tower_url = url.rstrip("/")
+            if not tower_url.endswith("/mcp"):
+                tower_url = tower_url + "/mcp"
             # Optional API Key if control tower is secured
-            api_key = os.environ.get("MCP_API_KEY", "")
+            api_key = os.environ.get("MCP_API_KEY", "") or os.environ.get("MCP_TOWER_TOKEN", "")
             headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
-            logger.info(f"Connecting to MCP Control Tower (SSE) at {sse_url}")
-            self._client_ctx = sse_client(sse_url, headers=headers)
+            # Prefer Streamable HTTP (Tower's native transport); fall back to SSE.
+            try:
+                from mcp.client.streamable_http import streamable_http_client
+
+                import httpx
+
+                http_client = httpx.AsyncClient(headers=headers, timeout=30.0)
+                await self._exit_stack.enter_async_context(http_client)
+
+                logger.info(f"Connecting to MCP Control Tower (Streamable HTTP) at {tower_url}")
+                self._client_ctx = streamable_http_client(tower_url, http_client=http_client)
+            except Exception as exc:
+                logger.warning(f"Streamable HTTP unavailable ({exc}); falling back to SSE")
+                from mcp.client.sse import sse_client
+
+                logger.info(f"Connecting to MCP Control Tower (SSE) at {tower_url}")
+                self._client_ctx = sse_client(tower_url, headers=headers)
         else:
             # Local Stdio Connection (Assumes running in the same codebase)
             script_path = os.path.join(

@@ -359,6 +359,8 @@ ALL_ROUTERS = [
     {"path": "api.routes.service_topology", "prefix": "", "is_admin": True, "is_critical": False},
     # Canonical browser-facing broker for service discovery and health.
     {"path": "api.routes.control_plane", "prefix": "", "is_admin": False, "is_critical": True},
+    # MCP Control Tower live telemetry proxy (frontend AdminMcpTowerView).
+    {"path": "api.routes.mcp_tower", "prefix": "", "is_admin": False, "is_critical": False},
     {
         "path": "api.routes.intelligence_insights",
         "prefix": "",

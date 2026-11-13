@@ -338,6 +338,76 @@ export function quotaChainStatus(nowMs: number = Date.now()): { label: string; c
   });
 }
 
+export interface FleetQuotaSummary {
+  fleetTotalCapacity: number;
+  fleetUsedCommands: number;
+  fleetRemainingCommands: number;
+  fleetUsedPercent: number;
+  activeAccountsCount: number;
+  coolingAccountsCount: number;
+  activePrimary: string;
+  fleetStatus: "healthy" | "warn" | "critical" | "exhausted";
+  nextGlobalResetAt: string;
+  chain: ReturnType<typeof quotaChainStatus>;
+}
+
+/**
+ * 2.5M Aggregated Multi-Account Fleet Quota Summary.
+ * Calculates total fleet-wide consumption and remaining budget across all
+ * 5 Upstash accounts (Primary -> Quinary), preventing single-account false
+ * exhaustion alarms.
+ */
+export function getFleetQuotaSummary(nowMs: number = Date.now()): FleetQuotaSummary {
+  const chain = quotaChainStatus(nowMs);
+  const perAccountLimit = upstashCommandLimit();
+  const fleetTotalCapacity = chain.length * perAccountLimit;
+  
+  let fleetUsedCommands = 0;
+  let coolingAccountsCount = 0;
+  let activeAccountsCount = 0;
+
+  for (const account of chain) {
+    const isCooling = Boolean(account.cooldownUntil);
+    const used = account.usage?.estimatedCommands ?? (isCooling ? perAccountLimit : 0);
+    fleetUsedCommands += Math.min(used, perAccountLimit);
+    if (isCooling) {
+      coolingAccountsCount++;
+    } else {
+      activeAccountsCount++;
+    }
+  }
+
+  const fleetRemainingCommands = Math.max(0, fleetTotalCapacity - fleetUsedCommands);
+  const fleetUsedPercent = fleetTotalCapacity > 0 
+    ? Math.round((fleetUsedCommands / fleetTotalCapacity) * 10000) / 100 
+    : 0;
+
+  let fleetStatus: FleetQuotaSummary["fleetStatus"] = "healthy";
+  if (activeAccountsCount === 0 || fleetUsedPercent >= 99) {
+    fleetStatus = "exhausted";
+  } else if (fleetUsedPercent >= (quotaCritPct() || 95)) {
+    fleetStatus = "critical";
+  } else if (fleetUsedPercent >= (quotaWarnPct() || 80)) {
+    fleetStatus = "warn";
+  }
+
+  const activePrimary = chain.find((c) => c.isActivePrimary)?.label ?? "none";
+  const nextReset = new Date(nextQuotaResetEpochMs(nowMs)).toISOString();
+
+  return {
+    fleetTotalCapacity,
+    fleetUsedCommands,
+    fleetRemainingCommands,
+    fleetUsedPercent,
+    activeAccountsCount,
+    coolingAccountsCount,
+    activePrimary,
+    fleetStatus,
+    nextGlobalResetAt: nextReset,
+    chain,
+  };
+}
+
 // ── Preemptive rotation registry (#646 — 480k soft threshold) ───────────────
 // বাংলা মন্তব্য: আগে পুরো পলিসি ছিল reactive — 500k সিলিং ভাঙার পর error body
 // দেখে cooldown (#26/#2613)। কিন্তু সিলিং ভাঙা **সেই একটি কল** তবুও fail করত
