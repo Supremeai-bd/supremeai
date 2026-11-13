@@ -22,18 +22,7 @@
 - Enhanced troubleshooting guide with router mount failure scenarios
 - Updated architecture diagrams to reflect centralized router registry pattern
 
-## Table of Contents
-1. [Introduction](#introduction)
-2. [Project Structure](#project-structure)
-3. [Core Components](#core-components)
-4. [Architecture Overview](#architecture-overview)
-5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-
-## Introduction
+## Introduction (REST API Catalog)
 This document provides comprehensive REST API documentation for the gateway endpoints exposed by the SupremeAI system. It covers authentication, rate limiting, HTTP methods, URL patterns, request/response schemas, validation rules, error responses, pagination and content negotiation where applicable, retry strategies, and security/access control per endpoint group: chat completions, agent management, model operations, browser automation, memory access, and community plugin submissions.
 
 The gateway implements an OpenAI-compatible surface for model listing and chat completions, while additional feature routers expose specialized agent capabilities, memory operations, browser action registry administration, and community plugin submission workflows. The central router registry controls which routes are mounted and whether they require admin-level authentication at the router level.

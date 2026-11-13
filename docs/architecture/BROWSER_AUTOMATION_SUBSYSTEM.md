@@ -14,18 +14,7 @@
 - [cookie_bridge.py](../../browser/runtime/cookie_bridge.py)
 </cite>
 
-## Table of Contents
-1. [Introduction](#introduction)
-2. [Project Structure](#project-structure)
-3. [Core Components](#core-components)
-4. [Architecture Overview](#architecture-overview)
-5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-
-## Introduction
+## Introduction (Browser Automation)
 This document explains the SupremeAI Browser Automation service, focusing on headless browser architecture, session management, stealth capabilities, cookie handling, authentication flows, content extraction, DOM manipulation, and operational configuration. It also covers anti-detection measures, fingerprinting protection, proxy settings, resource limits, common automation tasks, error handling, debugging techniques, performance optimization, scaling considerations, and monitoring approaches.
 
 The service provides two complementary paths:
@@ -375,7 +364,7 @@ Auto --> SP["stealth_profile.py"]
 Auto --> CB["cookie_bridge.py"]
 ```
 
-**Diagram sources**
+**Diagram sources (dependency view)**
 - [main.py:21-97](../../browser/main.py#L21-L97)
 - [server.py:34-59](../../browser/server.py#L34-L59)
 - [web_scraper.py:76-146](../../browser/web_scraper.py#L76-L146)
@@ -387,15 +376,7 @@ Auto --> CB["cookie_bridge.py"]
 - [cookie_bridge.py:54-91](../../browser/runtime/cookie_bridge.py#L54-L91)
 
 **Section sources**
-- [main.py:21-97](../../browser/main.py#L21-L97)
-- [server.py:34-59](../../browser/server.py#L34-L59)
-- [web_scraper.py:76-146](../../browser/web_scraper.py#L76-L146)
-- [autonomous_browser.py:39-54](../../browser/autonomous_browser.py#L39-L54)
-- [playwright_manager.py:24-57](../../browser/playwright_manager.py#L24-L57)
-- [browser_session_manager.py:49-89](../../browser/browser_session_manager.py#L49-L89)
-- [browser_session.py:56-78](../../browser/browser_session.py#L56-L78)
-- [stealth_profile.py:55-85](../../browser/runtime/stealth_profile.py#L55-L85)
-- [cookie_bridge.py:54-91](../../browser/runtime/cookie_bridge.py#L54-L91)
+- See Diagram sources (dependency view) above.
 
 ## Performance Considerations
 - Lightweight HTTP mode avoids headless browser overhead, suitable for constrained environments like Render free tiers.

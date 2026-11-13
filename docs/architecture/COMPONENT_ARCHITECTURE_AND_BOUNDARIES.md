@@ -13,18 +13,7 @@
 - [browser/main.py](../../browser/main.py)
 </cite>
 
-## Table of Contents
-1. [Introduction](#introduction)
-2. [Project Structure](#project-structure)
-3. [Core Components](#core-components)
-4. [Architecture Overview](#architecture-overview)
-5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-
-## Introduction
+## Introduction (Component Architecture)
 This document explains SupremeAI’s component architecture and service boundaries across the Core engine, API Gateway, Browser automation, and Client applications. It documents separation of concerns, contract interfaces, dependency injection patterns, module isolation strategies, plugin architecture for skills/providers/extensions, request flows, event propagation, state synchronization, microservices-in-monorepo organization, shared libraries, cross-cutting concerns (logging, metrics, security), startup sequence, service registration, and health checks.
 
 The repository is a single monorepo SSOT containing Core, Gateway, Browser, Studio, Infrastructure, and MCP Control Plane. The public boundary surface is intentionally minimal: clients interact with a stable Gateway contract while internal engines, providers, and browser automation remain behind well-defined service boundaries.

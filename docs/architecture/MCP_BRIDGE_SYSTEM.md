@@ -15,18 +15,7 @@
 - [scripts/tower/tool_consolidation_reference.py](../../scripts/tower/tool_consolidation_reference.py)
 </cite>
 
-## Table of Contents
-1. [Introduction](#introduction)
-2. [Project Structure](#project-structure)
-3. [Core Components](#core-components)
-4. [Architecture Overview](#architecture-overview)
-5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-
-## Introduction
+## Introduction (MCP Bridge)
 This document explains the MCP bridge system that enables external agent communication with SupremeAI’s internal orchestration and work queue. It covers:
 - Bridge architecture and message translation layers
 - Protocol adapters for JSON-RPC 2.0, Streamable HTTP, and SSE
@@ -83,12 +72,7 @@ C1 --> P1
 - [core/mcp_allowlist.py:216-237](../../core/mcp_allowlist.py#L216-L237)
 
 **Section sources**
-- [core/mcp_client.py:128-231](../../core/mcp_client.py#L128-L231)
-- [core/brain/mcp_client.py:23-162](../../core/brain/mcp_client.py#L23-L162)
-- [core/api/routes/mcp_tower.py:31-117](../../core/api/routes/mcp_tower.py#L31-L117)
-- [core/external_agents/channels/mcp_channel.py:188-251](../../core/external_agents/channels/mcp_channel.py#L188-L251)
-- [core/mcp_policy.py:121-218](../../core/mcp_policy.py#L121-L218)
-- [core/mcp_allowlist.py:216-237](../../core/mcp_allowlist.py#L216-L237)
+- See Diagram sources above.
 
 ## Core Components
 - ControlTowerClient: Connects to the MCP Control Tower using Streamable HTTP or SSE; wraps session lifecycle and tool calls; logs runs via observe_run.
@@ -105,12 +89,7 @@ Key responsibilities:
 - Telemetry exposure and streaming
 
 **Section sources**
-- [core/mcp_client.py:128-231](../../core/mcp_client.py#L128-L231)
-- [core/brain/mcp_client.py:23-162](../../core/brain/mcp_client.py#L23-L162)
-- [core/api/routes/mcp_tower.py:31-117](../../core/api/routes/mcp_tower.py#L31-L117)
-- [core/external_agents/channels/mcp_channel.py:188-251](../../core/external_agents/channels/mcp_channel.py#L188-L251)
-- [core/mcp_policy.py:121-218](../../core/mcp_policy.py#L121-L218)
-- [core/mcp_allowlist.py:216-237](../../core/mcp_allowlist.py#L216-L237)
+- See Diagram sources above.
 
 ## Architecture Overview
 The bridge composes multiple layers:
