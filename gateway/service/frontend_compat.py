@@ -380,7 +380,15 @@ async def fe_llm_latency():
 @router.post("/api/admin/auth/verify")
 async def fe_admin_auth_verify(request: Request):
     body = await request.json()
-    return {"verified": body.get("passkey") == "admin", "status": "ok"}
+    passkey = str(body.get("passkey") or "").strip()
+    expected_keys = {
+        os.getenv("ADMIN_PASSKEY", "").strip(),
+        os.getenv("SUPREMEAI_ADMIN_LOGIN_PASSWORD", "").strip(),
+        os.getenv("MCP_ADMIN_KEY", "").strip(),
+        "admin",
+    }
+    expected_keys.discard("")
+    return {"verified": passkey in expected_keys, "status": "ok"}
 
 
 @router.get("/api/admin/config")
@@ -676,7 +684,13 @@ async def fe_projects_delete(pid: str):
     return {"status": "ok"}
 import os, json, urllib.request, urllib.error
 
-_GH_TOKEN = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN") or ""
+_GH_TOKEN = (
+    os.getenv("GITHUB_TOKEN")
+    or os.getenv("GH_TOKEN")
+    or os.getenv("GITHUB_PAT_ADMIN")
+    or os.getenv("SUPREMEAI_GITHUB_TOKEN")
+    or ""
+)
 _GH_REPO = os.getenv("GITHUB_REPO", "Supremeai-bd/supremeai")
 
 
