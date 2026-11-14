@@ -35,10 +35,23 @@ class KeySlot:
     total_calls: int = 0
     total_errors: int = 0
     verified_model: Optional[str] = None
+    ewma_latency_ms: float = 0.0
 
     @property
     def is_healthy(self) -> bool:
         return time.time() >= self.cooldown_until
+
+
+def _is_valid_secret(val: str) -> bool:
+    """Filter out dummy/placeholder values commonly populated in unconfigured vaults."""
+    if not val or len(val) < 8:
+        return False
+    low = val.lower()
+    if low in ("dummy", "unset", "none", "placeholder", "changeme", "undefined", "null"):
+        return False
+    if set(low) == {"x"} or low.startswith("x*"):
+        return False
+    return True
 
 
 class ProviderKeyPool:
@@ -62,7 +75,7 @@ class ProviderKeyPool:
             pattern = re.compile(rf"^{prefix}(?:_.*)?$", re.IGNORECASE)
             for env_name, env_val in os.environ.items():
                 val = env_val.strip().strip("'\"")
-                if pattern.match(env_name) and len(val) > 5:
+                if pattern.match(env_name) and _is_valid_secret(val):
                     # Exclude config vars like _MODEL, _BASE_URL, _URL
                     if not any(env_name.upper().endswith(s) for s in ["_MODEL", "_BASE_URL", "_URL"]):
                         if (env_name, val) not in found:
@@ -75,7 +88,7 @@ class ProviderKeyPool:
             if pool_val and "," in pool_val:
                 for idx, token in enumerate(pool_val.split(",")):
                     t = token.strip().strip("'\"")
-                    if len(t) > 5:
+                    if _is_valid_secret(t):
                         entry_name = f"{pool_env}_POOL_{idx+1}"
                         if not any(f[1] == t for f in found):
                             found.append((entry_name, t))
@@ -100,14 +113,30 @@ class ProviderKeyPool:
         return [s for s in self.slots if s.cooldown_until <= now]
 
     def get_next_key(self) -> Optional[KeySlot]:
-        """Round-robin selection across currently healthy keys."""
+        """Latency-aware round-robin selection across currently healthy keys."""
         healthy = self.healthy_slots
         if not healthy:
             return None
-        self._index = (self._index + 1) % len(healthy)
-        slot = healthy[self._index]
+
+        # Prefer untested healthy keys first via round-robin; for tested keys, prioritize lowest EWMA latency
+        untested = [s for s in healthy if s.ewma_latency_ms <= 0]
+        if untested:
+            self._index = (self._index + 1) % len(untested)
+            slot = untested[self._index]
+        else:
+            sorted_healthy = sorted(healthy, key=lambda s: s.ewma_latency_ms)
+            slot = sorted_healthy[0]
+
         slot.total_calls += 1
         return slot
+
+    def report_success(self, slot: KeySlot, latency_ms: float = 0.0):
+        """Record successful call latency using Exponential Moving Average."""
+        if latency_ms > 0:
+            if slot.ewma_latency_ms <= 0:
+                slot.ewma_latency_ms = float(latency_ms)
+            else:
+                slot.ewma_latency_ms = (slot.ewma_latency_ms * 0.7) + (float(latency_ms) * 0.3)
 
     def report_injury(self, slot: KeySlot, status_code: int):
         """Mark a key injured and put it on the cooldown bench."""
@@ -139,12 +168,11 @@ class FederationSquad:
     DEFAULT_PROVIDER_ORDER = [
         "groq",
         "gemini",
-        "kilo",
+        "sambanova",
         "perplexity",
         "openrouter",
         "openai",
         "mistral",
-        "manus",
         "v0",
         "huggingface",
     ]
@@ -152,6 +180,7 @@ class FederationSquad:
     PREFIX_MAP: Dict[str, List[str]] = {
         "groq": ["GROQ_API_KEY"],
         "gemini": ["GEMINI_API_KEY", "GOOGLE_API_KEY", "JULES_API_KEY"],
+        "sambanova": ["SAMBANOVA_API_KEY"],
         "kilo": ["KILO_API_KEY", "KILOCODE_API_KEY", "KILO_API_KEYS"],
         "perplexity": ["PERPLEXITY_API_KEY", "PPLX_API_KEY"],
         "openrouter": ["OPENROUTER_API_KEY"],
@@ -183,10 +212,13 @@ class FederationSquad:
         for name, pool in self.pools.items():
             healthy = pool.healthy_slots
             cooldown_count = len(pool.slots) - len(healthy)
+            tested = [s.ewma_latency_ms for s in healthy if s.ewma_latency_ms > 0]
+            avg_lat = round(sum(tested) / len(tested), 2) if tested else 0.0
             summary["providers"][name] = {
                 "total": len(pool.slots),
                 "healthy": len(healthy),
                 "cooling_down": cooldown_count,
+                "avg_latency_ms": avg_lat,
             }
             summary["total_keys"] += len(pool.slots)
             summary["total_healthy_keys"] += len(healthy)
@@ -210,6 +242,12 @@ class FederationSquad:
                 if slot:
                     candidates.append((p, slot))
         return candidates
+
+    def report_success(self, provider: str, slot: KeySlot, latency_ms: float = 0.0):
+        """Record successful completion latency for the given slot."""
+        pool = self.pools.get(provider)
+        if pool:
+            pool.report_success(slot, latency_ms)
 
 
 # Singleton squad instance

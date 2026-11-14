@@ -80,6 +80,10 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "base_url": os.getenv("PERPLEXITY_BASE_URL", "https://api.perplexity.ai"),
         "default_model": os.getenv("PERPLEXITY_MODEL", "sonar"),
     },
+    "sambanova": {
+        "base_url": os.getenv("SAMBANOVA_BASE_URL", "https://api.sambanova.ai/v1"),
+        "default_model": os.getenv("SAMBANOVA_MODEL", "Meta-Llama-3.3-70B-Instruct"),
+    },
     "ghost_gemini": {
         "base_url": os.getenv("GHOST_TOWER_URL", "http://127.0.0.1:8788"),
         "default_model": "gemini-web",
@@ -135,6 +139,10 @@ PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
     "v0": [
         "v0-web",
         "v0-preview",
+    ],
+    "sambanova": [
+        "Meta-Llama-3.3-70B-Instruct",
+        "Meta-Llama-3.1-8B-Instruct",
     ],
 }
 
@@ -236,6 +244,7 @@ async def forward_chat_completion(
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
+        "Accept-Encoding": "gzip, deflate, br",
         "User-Agent": "SupremeAI-Gateway/2.0",
     }
 
@@ -354,6 +363,7 @@ async def forward_stealth_webhook(
 
     headers = {
         "Content-Type": "application/json",
+        "Accept-Encoding": "gzip, deflate, br",
         "User-Agent": "SupremeAI-Stealth-Gateway/2.0",
     }
     if secret:
@@ -440,16 +450,22 @@ def _get_stealth_client() -> httpx.AsyncClient:
                 return _STEALTH_CLIENT
         except AttributeError:
             _STEALTH_CLIENT = None
+    limits = httpx.Limits(
+        max_connections=500,
+        max_keepalive_connections=100,
+        keepalive_expiry=60.0,
+    )
+    timeout = httpx.Timeout(28.0, connect=5.0)
     try:
         client = httpx.AsyncClient(
-            timeout=httpx.Timeout(28.0, connect=5.0),
-            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+            timeout=timeout,
+            limits=limits,
             http2=True,
         )
     except Exception:
         client = httpx.AsyncClient(
-            timeout=httpx.Timeout(28.0, connect=5.0),
-            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+            timeout=timeout,
+            limits=limits,
         )
     # Only cache real clients (fakes used in tests lack is_closed).
     if hasattr(client, "is_closed"):

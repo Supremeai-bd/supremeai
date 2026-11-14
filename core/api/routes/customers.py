@@ -11,6 +11,7 @@ both mock and live modes.
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import uuid
 from datetime import UTC, datetime

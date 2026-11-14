@@ -11,10 +11,6 @@ services:
     dockerContext: .
     healthCheckPath: /healthz
     envVars:
-      - key: GATEWAY_CONFIG
-        value: config/routing_policy.example.json
-      - key: GATEWAY_USAGE_LOG
-        value: /tmp/supremeai_api_usage.jsonl
       - key: INFISICAL_PROJECT_ID
         sync: false
       - key: INFISICAL_ENV
