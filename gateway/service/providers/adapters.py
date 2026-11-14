@@ -279,9 +279,23 @@ async def forward_chat_completion(
     # Build prioritized candidate models list
     body = dict(payload)
     # Strip internal routing & non-standard keys to prevent provider 400 Bad Request
-    body.pop("preferred_provider", None)
-    body.pop("temp", None)
-    body.pop("provider", None)
+    # (e.g. OpenRouter rejects requests containing both "prompt" and "messages")
+    for non_openai_key in (
+        "preferred_provider",
+        "temp",
+        "provider",
+        "prompt",
+        "message",
+        "session_id",
+        "conversation_id",
+        "task_type",
+        "deepResearch",
+        "userContext",
+        "language_pref",
+        "response_style",
+        "mode",
+    ):
+        body.pop(non_openai_key, None)
     # Always request non-streaming JSON from upstream providers; gateway handles client SSE streaming
     body["stream"] = False
     if provider == "gemini":
