@@ -54,7 +54,7 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     "groq": {
         "base_url": os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
-        "default_model": os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b"),
+        "default_model": os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
     },
     "openrouter": {
         "base_url": os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
@@ -98,51 +98,58 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
 # the adapter seamlessly tries the next model in sequence without failing the client request.
 PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
     "groq": [
-        "qwen/qwen3.8-27b",
-        "openai/gpt-oss-120b",
-        "openai/gpt-oss-20b",
-        "allam-2-7b",
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
+        "llama3-70b-8192",
+        "llama3-8b-8192",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it",
     ],
     "gemini": [
         "gemini-2.5-flash",
-        "gemini-flash-latest",
         "gemini-2.5-flash-lite",
         "gemini-2.5-pro",
         "gemini-1.5-flash-latest",
+        "gemini-1.5-flash",
         "gemini-1.5-pro-latest",
+        "gemini-1.5-pro",
         "gemini-2.0-flash",
-    ],
-    "perplexity": [
-        "sonar",
-        "sonar-pro",
-        "sonar-reasoning",
     ],
     "openrouter": [
         "nvidia/nemotron-3.5-lightning:free",
-        "cohere/north-mini-code:free",
-        "dots-studio/dots-3-note-preview:free",
-        "poolside/laguna-s-2.1:free",
-        "liquid/lfm-2.5-2.6b:free",
         "meta-llama/llama-3.3-70b-instruct:free",
+        "google/gemini-2.0-flash-exp:free",
+        "qwen/qwen-2.5-coder-32b-instruct:free",
+        "meta-llama/llama-3.1-8b-instruct:free",
+        "mistralai/mistral-7b-instruct:free",
     ],
     "mistral": [
-        "mistral-small-latest",
         "open-mistral-7b",
-        "mistral-medium-latest",
+        "open-mixtral-8x7b",
+        "open-mixtral-8x22b",
+        "mistral-small-latest",
+    ],
+    "sambanova": [
+        "Meta-Llama-3.3-70B-Instruct",
+        "Meta-Llama-3.1-8B-Instruct",
+        "Qwen2.5-72B-Instruct",
     ],
     "openai": [
         "gpt-4o-mini",
         "gpt-4o",
     ],
+    "huggingface": [
+        "meta-llama/Llama-3.2-3B-Instruct",
+        "meta-llama/Llama-3.3-70B-Instruct",
+        "Qwen/Qwen2.5-Coder-32B-Instruct",
+    ],
+    "perplexity": [
+        "sonar",
+        "sonar-pro",
+    ],
     "v0": [
         "v0-web",
         "v0-preview",
-    ],
-    "sambanova": [
-        "Meta-Llama-3.3-70B-Instruct",
-        "Meta-Llama-3.1-8B-Instruct",
     ],
 }
 
