@@ -194,17 +194,26 @@ class AppRegressionPins(unittest.TestCase):
         calls = {
             ast.unparse(n.func) for n in ast.walk(fn) if isinstance(n, ast.Call)
         }
+        # Neither legacy nor current guest helper may grant operator access.
         self.assertNotIn("_is_guest_request", calls, "operator gate must not call guest pass-through")
+        self.assertNotIn("_is_verified_guest", calls, "operator gate must not call guest pass-through")
         body_src = ast.unparse(fn)
-        self.assertIn("verify_key", body_src)
-        self.assertIn("SUPREMEAI_API_KEY", body_src)
+        # The operator gate is deliberately NOT backed by verify_key / client API
+        # keys (see its docstring): it must exact-match the dedicated OPERATOR_KEYS
+        # credential set so client keys can never read fleet telemetry.
+        self.assertIn("OPERATOR_KEYS", body_src)
 
     def test_guest_mode_still_serves_chat(self):
         # The guest pass-through must remain for the chat surface (scope discipline):
-        # _verify_client_auth keeps its _is_guest_request branch.
+        # _verify_client_auth keeps a server-issued signed-guest branch
+        # (_is_verified_guest; historically _is_guest_request).
         fn = self.handlers.get("_verify_client_auth")
         self.assertIsNotNone(fn)
-        self.assertIn("_is_guest_request", ast.unparse(fn))
+        body_src = ast.unparse(fn)
+        self.assertTrue(
+            "_is_verified_guest" in body_src or "_is_guest_request" in body_src,
+            "_verify_client_auth lost its signed-guest branch",
+        )
 
 
 if __name__ == "__main__":
