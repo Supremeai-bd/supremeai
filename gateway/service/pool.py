@@ -174,8 +174,8 @@ class FederationSquad:
 
     # Discovery set only. get_candidate_slots ranks all healthy keys by score.
     DEFAULT_PROVIDER_ORDER = [
-        "groq", "gemini", "sambanova", "perplexity", "openrouter", "openai",
-        "mistral", "v0", "huggingface",
+        "groq", "gemini", "openrouter", "sambanova", "mistral", "perplexity", "openai",
+        "v0", "huggingface",
     ]
 
     PREFIX_MAP: Dict[str, List[str]] = {
