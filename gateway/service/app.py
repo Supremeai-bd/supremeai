@@ -1712,7 +1712,7 @@ async def _execute_chat_completion(
                 messages=body.get("messages", []),
                 conversation_id=conv_id,
                 user_id=user_id,
-                language_pref=body.get("language_pref", "bn"),
+                language_pref=body.get("language_pref") or body.get("language") or "bn",
                 response_style=body.get("response_style", "technical-architect"),
             )
         except Exception as exc:
