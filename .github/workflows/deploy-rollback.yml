@@ -126,6 +126,7 @@ jobs:
 
   rollback:
     name: "Roll back ${{ matrix.service }}"
+    # hierarchy-exception: manual emergency rollback workflow
     needs: resolve-targets
     runs-on: ubuntu-latest
     timeout-minutes: 25

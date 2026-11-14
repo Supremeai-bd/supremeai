@@ -17,6 +17,7 @@ permissions:
 jobs:
   garak-bootstrap:
     name: "Weekly LLM red-team lane (garak toolchain + probe inventory)"
+    # hierarchy-exception: weekly garak red-team schedule lane (isolated toolchain validation)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
