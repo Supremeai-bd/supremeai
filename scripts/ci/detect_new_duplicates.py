@@ -53,7 +53,9 @@ DEFAULT_IGNORES = (
     "**/*.lock,"
     "**/_verifier-base/**,"
     # studio/** is third-party Open WebUI foundation (#557); vendored clones are excluded
-    "studio/**"
+    "studio/**,"
+    # core/github/** is governance mirror (#549, plan_duplicate_refactors.py)
+    "core/github/**"
 )
 
 
