@@ -35,6 +35,15 @@ def purge_identity_bleed(text: Any) -> str:
         s = re.sub(pat, repl, s, flags=re.IGNORECASE)
     for brand in IDENTITY_BRANDS:
         s = re.sub(r"\b" + re.escape(brand) + r"\b", "SupremeAI", s, flags=re.IGNORECASE)
+    # Brand transliteration / phonetic hallucination fixes
+    bengali_brand_corruptions = [
+        (r"সুপার\s*মাই\s*আই", "সুপ্রিম এআই"),
+        (r"সুপারমাইআই", "সুপ্রিম এআই"),
+        (r"সুপার\s*এআই", "সুপ্রিম এআই"),
+        (r"সুপার\s*মি\s*আই", "সুপ্রিম এআই"),
+    ]
+    for pat, repl in bengali_brand_corruptions:
+        s = re.sub(pat, repl, s)
     return s
 
 
