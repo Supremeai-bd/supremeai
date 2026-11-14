@@ -206,20 +206,27 @@ def init_engine() -> None:
         logger.error(
             f"Failed to create DB engine for '{_async_url}': {exc}. Falling back to SQLite in-memory."
         )
-        fallback_url = "sqlite+aiosqlite:///:memory:"
-        _engine_instance = create_async_engine(
-            fallback_url,
-            echo=False,
-            poolclass=StaticPool,
-            connect_args={"check_same_thread": False},
-        )
-        _attach_query_listeners(_engine_instance)
-        _session_maker_instance = async_sessionmaker(
-            bind=_engine_instance,
-            class_=AsyncSession,
-            expire_on_commit=False,
-            autoflush=False,
-        )
+        try:
+            fallback_url = "sqlite+aiosqlite:///:memory:"
+            _engine_instance = create_async_engine(
+                fallback_url,
+                echo=False,
+                poolclass=StaticPool,
+                connect_args={"check_same_thread": False},
+            )
+            _attach_query_listeners(_engine_instance)
+            _session_maker_instance = async_sessionmaker(
+                bind=_engine_instance,
+                class_=AsyncSession,
+                expire_on_commit=False,
+                autoflush=False,
+            )
+        except Exception as fb_exc:
+            logger.warning(
+                f"SQLite fallback engine could not be initialized (aiosqlite missing?): {fb_exc}"
+            )
+            _engine_instance = None
+            _session_maker_instance = None
 
 
 # ── Internal accessor (resolves lazy init for intra-module use) ──────────────
