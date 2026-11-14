@@ -142,6 +142,7 @@ APPROVED_SUBTREES = {
         "workflows",
         "actions",
         "PULL_REQUEST_TEMPLATE.md",
+        "scripts",
     },  # actions/ (reusable composite actions, #155 Federation Workflow Diet)
     "infrastructure": {
         "mcp-control-plane",
@@ -184,6 +185,7 @@ APPROVED_SUBTREES = {
         "task_queue",
         "task_router.py",
         ".github",
+        "github",
         "scripts",
         "context_engine",
         "contracts",

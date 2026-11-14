@@ -67,6 +67,14 @@ KNOWN_AI_HOSTS = {
     "OPENROUTER_API_KEY": "https://openrouter.ai/api/v1/models",
 }
 
+# বাংলা মন্তব্য: যে সকল এআই হোস্ট বর্তমানে নিষ্ক্রিয় বা ডিকমিশন করা হয়েছে,
+# সেগুলোর স্টেল কী ভল্টে থাকলেও প্রোব স্কিপ হবে (Groq/OpenRouter/Cerebras/Mistral স্ট্যাক ব্যবহৃত হয়)।
+DECOMMISSIONED_AI_HOSTS = {
+    "XAI_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "GOOGLE_API_KEY",
+}
+
 # বাংলা মন্তব্য: কোন vault-key প্যাটার্ন কোন প্রোব গ্রাস করবে (discovery-তে consumed হিসেবে চিহ্নিত)
 CONSUMED_KEY_HINTS = [
     r"^UPSTASH_", r"^RENDER_", r"^SUPABASE_", r"^VERCEL_", r"^CLOUDFLARE_",
@@ -476,6 +484,8 @@ def probe_kaggle(kv: dict) -> list[dict]:
 def probe_ai_hosts(kv: dict) -> list[dict]:
     out = []
     for key_name, url in KNOWN_AI_HOSTS.items():
+        if key_name in DECOMMISSIONED_AI_HOSTS:
+            continue
         key = kv.get(key_name, "")
         if not key:
             continue
@@ -491,7 +501,7 @@ def probe_ai_hosts(kv: dict) -> list[dict]:
     # একটি নীরবে মরলে অন্যটি ঢেকে যাবে না (#2713-এর অসম্পূর্ণ অংশ)।
     gemini = kv.get("GEMINI_API_KEY", "")
     google = kv.get("GOOGLE_API_KEY", "")
-    if google:
+    if google and "GOOGLE_API_KEY" not in DECOMMISSIONED_AI_HOSTS:
         st, body = http("GET", f"https://generativelanguage.googleapis.com/v1beta/models",
                         {"x-goog-api-key": google, "Referer": GOOGLE_PROBE_REFERER})
         if st == 200:
@@ -499,7 +509,7 @@ def probe_ai_hosts(kv: dict) -> list[dict]:
         else:
             cat, note = classify("google", "models", st, body)
             out.append(mk("google", "models", False, f"HTTP {st}: {body[:140]}", category=cat, note=note))
-    if gemini:
+    if gemini and "GEMINI_API_KEY" not in DECOMMISSIONED_AI_HOSTS:
         st, body = http("GET", f"https://generativelanguage.googleapis.com/v1beta/models",
                         {"x-goog-api-key": gemini, "Referer": GOOGLE_PROBE_REFERER})
         if st == 200:
