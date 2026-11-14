@@ -17,8 +17,8 @@ from typing import Any
 EXCLUDED_DIRS = {".git", "node_modules", ".venv", "venv", "dist", "build", "coverage", ".next", ".turbo", "target", "__pycache__"}
 TEXT_EXTS = {".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".md", ".txt", ".sql", ".sh", ".ps1", ".html", ".css", ".scss"}
 SECRET_NAME_RE = re.compile(r"(^|[_.-])(SECRET|TOKEN|PASSWORD|API[_-]?KEY|PRIVATE[_-]?KEY|ACCESS[_-]?KEY|AUTH[_-]?TOKEN)([_.-]|$)", re.IGNORECASE)
-SECRET_VALUE_RE = re.compile(r"(?i)(api[_-]?key|secret|token|password|private[_-]?key)\\s*[=:]\\s*[\"']?[A-Za-z0-9_./+=:-]{16,}")
-TODO_RE = re.compile(r"\\b(TODO|FIXME|HACK|XXX|BUG|TEMP)\\b", re.IGNORECASE)
+SECRET_VALUE_RE = re.compile(r"(?i)(api[_-]?key|secret|token|password|private[_-]?key)\s*[=:]\s*[\"']?[A-Za-z0-9_./+=:-]{16,}")
+TODO_RE = re.compile(r"\b(TODO|FIXME|HACK|XXX|BUG|TEMP)\b", re.IGNORECASE)
 
 @dataclass
 class Finding:
@@ -114,8 +114,8 @@ class Miner:
             self.add("ci", "high", "No GitHub Actions workflows detected", ".github/workflows", "No workflow YAML files found", "Builds, tests, security and deployment may not be reproducible.", "Add separate concern-focused workflows or a consolidated pipeline with explicit quality gates.", ["github-actions"])
         content = "\n".join(self.text(p) for p in workflows)
         checks = {
-            "test": r"(^|[\\s_-])(pytest|vitest|jest|npm run test|pnpm .*test|yarn .*test)",
-            "lint": r"(^|[\\s_-])(eslint|ruff|flake8|mypy|lint)",
+            "test": r"(^|[\s_-])(pytest|vitest|jest|npm run test|pnpm .*test|yarn .*test)",
+            "lint": r"(^|[\s_-])(eslint|ruff|flake8|mypy|lint)",
             "security": r"(trivy|semgrep|codeql|bandit|pip-audit|npm audit|pnpm audit|snyk)",
             "build": r"(npm run build|pnpm .*build|yarn .*build|docker build|poetry build)",
         }
@@ -136,7 +136,7 @@ class Miner:
             try: p.stat().st_size
             except OSError: continue
             text = self.text(p)
-            lines = text.count("\\n") + (1 if text else 0)
+            lines = text.count("\n") + (1 if text else 0)
             loc.append((lines, p))
             todo[self.rel(p)] = len(TODO_RE.findall(text))
             if lines > 1000:
