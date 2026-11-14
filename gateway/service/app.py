@@ -66,6 +66,7 @@ try:
         forward_chat_completion,
         forward_stealth_webhook,
         normalize_stealth_url,
+        stream_chat_completion_events,
     )
     from service.providers.web_session import web_bridge
     from service.telegram_webhook import telegram_router
@@ -104,6 +105,7 @@ except ImportError:
             forward_chat_completion,
             forward_stealth_webhook,
             normalize_stealth_url,
+            stream_chat_completion_events,
         )
     except ImportError:
         try:
@@ -112,6 +114,7 @@ except ImportError:
                 forward_chat_completion,
                 forward_stealth_webhook,
                 normalize_stealth_url,
+                stream_chat_completion_events,
             )
         except ImportError:
             PROVIDER_CONFIGS = {}  # type: ignore[assignment]
@@ -121,6 +124,10 @@ except ImportError:
                 return 503, {"error": "adapters unavailable"}
             def normalize_stealth_url(url: str) -> str:  # type: ignore[no-redef]
                 return ""
+            def stream_chat_completion_events(*a, **k):  # type: ignore[no-redef]
+                async def _unavailable():
+                    yield ("error", {"error": "adapters unavailable"})
+                return _unavailable()
     try:
         from gateway.service.providers.web_session import web_bridge
     except ImportError:
@@ -385,9 +392,12 @@ else:
 from gateway.middleware.correlation_id import CorrelationIdMiddleware  # noqa: E402
 app.add_middleware(CorrelationIdMiddleware)
 
+# Audit P1-12 fix: plain http is only trusted for local development hosts.
+# pages.dev origins (including every Cloudflare preview subdomain) must use
+# https — preview URLs served over http can no longer exchange credentials.
 _cors_origin_regex = os.getenv(
     "CORS_ORIGIN_REGEX",
-    r"^https?://(localhost|127\.0\.0\.1|([a-z0-9-]+\.)?supremeai-studio\.pages\.dev)(:[0-9]+)?$",
+    r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$|^https://([a-z0-9-]+\.)?supremeai-studio\.pages\.dev$",
 ).strip()
 
 app.add_middleware(
@@ -450,6 +460,20 @@ except ImportError:
 
 if admin_auth_router is not None:
     app.include_router(admin_auth_router)
+
+# Frontend compatibility (admin dashboard full coverage)
+try:
+    from service.frontend_compat import router as fe_compat_router
+except ImportError:
+    try:
+        from gateway.service.frontend_compat import router as fe_compat_router
+    except ImportError:
+        try:
+            from gateway.frontend_compat import router as fe_compat_router
+        except ImportError:
+            fe_compat_router = None
+if fe_compat_router is not None:
+    app.include_router(fe_compat_router)
 
 # Native Passkey / WebAuthn Biometric Router (Fingerprint/TouchID/FaceID)
 try:
@@ -607,8 +631,27 @@ def _issue_signed_token(client_name: str, quota: str) -> str:
 
 
 def _issue_guest_token(ttl_seconds: int = 300) -> str:
-    """Issue a signed, short-lived guest token (HMAC via service.keygen)."""
-    return _issue_signed_token(client_name="guest", quota="guest")
+    """Issue a signed, short-lived guest token (HMAC via service.keygen).
+
+    The TTL is embedded in the token payload as an ``.exp`` claim so the
+    credential is statelessly rejected once expired (see keygen.verify_key).
+    """
+    return _issue_signed_token_with_ttl(client_name="guest", quota="guest", ttl_seconds=ttl_seconds)
+
+
+def _issue_signed_token_with_ttl(client_name: str, quota: str, ttl_seconds: int) -> str:
+    """Issue a keygen-signed token with an embedded expiry, failing closed."""
+    try:
+        return generate_key(client_name=client_name, quota=quota, ttl_seconds=ttl_seconds)
+    except Exception as exc:  # keygen failure is surfaced as 503, never swallowed
+        logger.error(
+            "[auth] token issuance failed for client=%s: %s",
+            client_name,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=503, detail="Token issuance is temporarily unavailable"
+        ) from exc
 
 
 def _guest_rate_limit(request: Request) -> Tuple[bool, float]:
@@ -1152,6 +1195,55 @@ async def stream_preferences(
 async def live_probe():
     """Live heartbeat probe for Studio."""
     return {"status": "alive", "timestamp": int(time.time())}
+
+
+@app.post("/api/v1/auth/guest")
+@app.post("/api/v1/guest/token")
+async def issue_guest_trial_token(request: Request):
+    """Self-serve guest trial (audit P0-6 fix): issues a signed, short-TTL
+    trial token with per-IP rate limiting — no signup required.
+
+    The token is an HMAC-signed ``sk-supreme-guest-*`` key with an embedded
+    ``.exp`` claim; it authenticates via ``_is_verified_guest`` and is
+    throttled by the guest cost guard on every chat request. Disable by
+    setting ``GUEST_TRIAL_ENABLED=0``.
+    """
+    if os.getenv("GUEST_TRIAL_ENABLED", "1").strip().lower() in ("0", "false", "no"):
+        raise HTTPException(status_code=404, detail="Guest trial is disabled")
+
+    allowed, retry_after = _guest_rate_limit(request)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Guest trial rate limit exceeded. Retry after {int(retry_after)}s.",
+            headers={"Retry-After": str(int(retry_after) + 1)},
+        )
+
+    try:
+        ttl = max(60, min(int(os.getenv("GUEST_TOKEN_TTL_SECONDS", "3600")), 86400))
+    except ValueError:
+        ttl = 3600
+    token = _issue_guest_token(ttl_seconds=ttl)
+
+    response = JSONResponse(
+        {
+            "status": "ok",
+            "access_token": token,
+            "token_type": "bearer",
+            "expires_in": ttl,
+            "class": "guest",
+            "message": "Trial access granted. Attach this token as a Bearer token or X-SupremeAI-Key header.",
+        }
+    )
+    response.set_cookie(
+        _GUEST_COOKIE,
+        token,
+        max_age=ttl,
+        httponly=True,
+        samesite="lax",
+        secure=os.getenv("ENVIRONMENT", "").strip().lower() == "production",
+    )
+    return response
 
 
 @app.post("/api/v1/auth/login")
@@ -1986,6 +2078,94 @@ async def _execute_chat_completion(
         for provider, slot in candidates:
             slot.total_calls += 1
             call_start = time.monotonic()
+
+            # Audit P0-5 fix: TRUE streaming. When the client asks for SSE, live-
+            # proxy upstream chunks via stream_chat_completion_events (internal
+            # model cascade included) instead of buffering the whole reply and
+            # re-simulating it word-by-word with asyncio.sleep(0.01).
+            if body.get("stream"):
+                stream_served_model = requested_model or "supremeai-api"
+                stream_brand = build_brand("api", provider, stream_served_model)
+                stream_chunk_id = f"chatcmpl-stream-{int(time.time() * 1000)}"
+
+                async def squad_true_stream_generator():
+                    acc: list = []
+                    started = False
+                    try:
+                        async for kind, data in stream_chat_completion_events(provider, slot.key, body, slot=slot):
+                            if kind == "status":
+                                started = True
+                                call_latency = (time.monotonic() - call_start) * 1000
+                                if squad:
+                                    squad.report_success(provider, slot, call_latency)
+                                _adaptive_routes["api-pool"].record(call_latency, success=True)
+                                continue
+                            if kind == "event":
+                                tool_calls = data.get("tool_calls")
+                                text = data.get("delta") or ""
+                                finish = data.get("finish_reason")
+                                if tool_calls:
+                                    chunk_payload = {
+                                        "id": stream_chunk_id,
+                                        "object": "chat.completion.chunk",
+                                        "created": int(time.time()),
+                                        "model": stream_served_model,
+                                        "choices": [
+                                            {
+                                                "index": 0,
+                                                "delta": {"role": "assistant", "tool_calls": tool_calls},
+                                                "finish_reason": "tool_calls",
+                                            }
+                                        ],
+                                        "supremeai": stream_brand,
+                                    }
+                                    yield f"data: {json.dumps(chunk_payload)}\n\n"
+                                elif text:
+                                    acc.append(text)
+                                    chunk_payload = _format_sse_chunk(
+                                        stream_chunk_id, stream_served_model, text, bool(finish), stream_brand
+                                    )
+                                    yield f"data: {json.dumps(chunk_payload)}\n\n"
+                                continue
+                            if kind == "error" and not started:
+                                # Total provider/model failure before any content:
+                                # surface an honest SSE error instead of a fake stream.
+                                yield f"data: {json.dumps({'error': data.get('error', 'Upstream stream failed'), 'supremeai': stream_brand})}\n\n"
+                                break
+                        full_text = "".join(acc)
+                        if conv_id and full_text and append_canonical_message:
+                            try:
+                                append_canonical_message(
+                                    conv_id,
+                                    "assistant",
+                                    full_text,
+                                    user_id=user_id,
+                                    provider="dynamic-squad",
+                                    model=stream_served_model,
+                                    metadata={"supremeai": stream_brand, "stream": True},
+                                )
+                            except Exception:
+                                pass
+                        if acc:
+                            yield f"data: {json.dumps(_format_sse_chunk(stream_chunk_id, stream_served_model, '', True, stream_brand))}\n\n"
+                        yield "data: [DONE]\n\n"
+                    except Exception as exc:  # noqa: BLE001 - never crash a live stream silently
+                        logger.warning("[stream] true-stream generator failed: %s", type(exc).__name__)
+                        yield f"data: {json.dumps({'error': 'Stream interrupted', 'supremeai': stream_brand})}\n\n"
+                        yield "data: [DONE]\n\n"
+
+                return StreamingResponse(
+                    squad_true_stream_generator(),
+                    media_type="text/event-stream",
+                    headers={
+                        "X-SupremeAI-Provider": "supremeai-dynamic-squad",
+                        "X-SupremeAI-Slot": "adaptive-route",
+                        "X-SupremeAI-Tier": "free-tier-adaptive",
+                        "Cache-Control": "no-cache",
+                        "X-Accel-Buffering": "no",
+                    },
+                )
+
             try:
                 status, response_data = await forward_chat_completion(provider, slot.key, body, slot=slot)
             except Exception as exc:
@@ -2036,43 +2216,9 @@ async def _execute_chat_completion(
                             pass
 
                 # Streaming chunk generator for Kilo Code / IDEs
-                if body.get("stream"):
-                    async def squad_stream_generator():
-                        msg_obj = choices[0]["message"] if choices and isinstance(choices[0], dict) and isinstance(choices[0].get("message"), dict) else {}
-                        tool_calls = msg_obj.get("tool_calls")
-                        if tool_calls:
-                            chunk_payload = {
-                                "id": response_data.get("id") or "chatcmpl-stream",
-                                "object": "chat.completion.chunk",
-                                "created": int(time.time()),
-                                "model": served_model,
-                                "choices": [
-                                    {
-                                        "index": 0,
-                                        "delta": {"role": "assistant", "tool_calls": tool_calls},
-                                        "finish_reason": "tool_calls",
-                                    }
-                                ],
-                                "supremeai": response_data.get("supremeai"),
-                            }
-                            yield f"data: {json.dumps(chunk_payload)}\n\n"
-                        else:
-                            words = chat_content.split(" ") if chat_content else [""]
-                            for idx, word in enumerate(words):
-                                chunk_text = word + (" " if idx < len(words) - 1 else "")
-                                chunk_payload = _format_sse_chunk(
-                                    response_data.get("id"), served_model, chunk_text, idx == len(words) - 1, response_data.get("supremeai")
-                                )
-                                yield f"data: {json.dumps(chunk_payload)}\n\n"
-                                await asyncio.sleep(0.01)
-                        yield "data: [DONE]\n\n"
-
-                    return StreamingResponse(
-                        squad_stream_generator(),
-                        media_type="text/event-stream",
-                        headers={**headers, "Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-                    )
-
+                # (Audit P0-5: removed the fake word-by-word re-simulation —
+                # streaming clients are now served by the live upstream proxy
+                # branch above, before any buffering happens.)
                 if _cache_key and response_cache is not None:
                     asyncio.create_task(response_cache.set(_cache_key, response_data))
                 return JSONResponse(status_code=status, content=response_data, headers=headers)
@@ -2610,25 +2756,52 @@ async def restore_tool_card(
 
 
 @app.get("/api/v1/telemetry/latency")
-async def get_latency_telemetry():
-    """Real-time provider latency, key pool health, and multi-tier cache telemetry."""
+async def get_latency_telemetry(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Real-time provider latency, key pool health, and multi-tier cache telemetry.
+
+    Audit P1-7 fix: this endpoint previously exposed the full provider pool
+    (77 keys + per-provider health) without authentication. Operator telemetry
+    now requires operator-class credentials and public responses only carry
+    aggregate counters — never raw key material or supplier topology.
+    """
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized: operator telemetry requires a valid key")
+    squad_stats = squad.stats() if squad else {"total_providers": 0, "total_keys": 0, "total_healthy_keys": 0}
+    # Redact supplier internals: expose aggregate health only (audit P1-7).
+    squad_stats = {
+        k: v for k, v in squad_stats.items()
+        if k not in ("providers", "keys", "key_details", "per_provider")
+    }
     return {
         "status": "ok",
-        "squad": squad.stats() if squad else {"total_providers": 0, "total_keys": 0, "total_healthy_keys": 0},
+        "squad": squad_stats,
         "cache": response_cache.stats() if response_cache else {"l1_size": 0, "hits": 0, "misses": 0},
         "routes": {k: {"latency_ms": v.latency_ms, "failures": v.failures, "remaining": v.remaining} for k, v in _adaptive_routes.items()},
     }
 
 
 @app.get("/api/v1/hitl/pending")
-async def get_hitl_pending():
-    """Gateway-level HITL pending approvals list."""
+async def get_hitl_pending(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Gateway-level HITL pending approvals list (auth-gated: audit P1-8)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing key")
     return {"status": "ok", "pending": [], "count": 0}
 
 
 @app.get("/api/platform/config")
-async def get_platform_config():
-    """Gateway-level platform configuration for Studio UI."""
+async def get_platform_config(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Gateway-level platform configuration for Studio UI (auth-gated: audit P1-8)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing key")
     return {
         "status": "ok",
         "environment": os.getenv("ENVIRONMENT", "production"),
@@ -2643,8 +2816,13 @@ async def get_platform_config():
 
 
 @app.get("/api/mcp-tower/services")
-async def get_mcp_tower_services():
-    """Gateway-level MCP Tower service registry summary."""
+async def get_mcp_tower_services(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Gateway-level MCP Tower service registry summary (auth-gated: audit P1-8)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing key")
     return {
         "status": "ok",
         "services": [
@@ -2655,8 +2833,13 @@ async def get_mcp_tower_services():
 
 
 @app.get("/api/v1/stream/hitl")
-async def stream_hitl_events():
-    """SSE stream for HITL approval events (keep-alive heartbeat)."""
+async def stream_hitl_events(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """SSE stream for HITL approval events (keep-alive heartbeat; auth-gated: audit P1-8)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing key")
     async def event_gen():
         yield "event: connected\ndata: {\"status\": \"connected\"}\n\n"
     return StreamingResponse(event_gen(), media_type="text/event-stream")

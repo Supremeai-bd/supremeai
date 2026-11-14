@@ -215,7 +215,6 @@ class SettingsValidationMixin:
                 "GEMINI_API_KEY",
                 "OPENROUTER_API_KEY",
                 "GROQ_API_KEY",
-                "DEEPSEEK_API_KEY",
                 "OPENAI_API_KEY",
             ]
             # These integrations are optional at boot. Do not call a secret-loader

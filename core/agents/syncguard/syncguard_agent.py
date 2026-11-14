@@ -60,7 +60,6 @@ class SyncGuardAgent:
             "GROQ_API_KEY",
             "MISTRAL_API_KEY",
             "ANTHROPIC_API_KEY",
-            "DEEPSEEK_API_KEY",
             "HF_API_KEY",
             "BYNARA_API_KEY",
         ]

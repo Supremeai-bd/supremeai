@@ -28,6 +28,11 @@ services:
       # the secret value to this file.
       - key: UPSTASH_REDIS_REST_URL
         sync: false
+      # Audit P1-27 fix: the gateway previously received only the URL — Redis
+      # caching silently no-oped without the token (the tower service already
+      # passes both).
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
 
   - type: web
     name: supremeai-browser

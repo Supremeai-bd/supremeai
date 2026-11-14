@@ -10,14 +10,46 @@ import threading
 import time
 import uuid
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("supremeai.memory_store")
 
-_DB_PATH = os.getenv(
-    "SUPREMEAI_CANONICAL_DB_PATH",
-    os.path.join(tempfile.gettempdir(), "supremeai_canonical.db"),
-)
+
+def _resolve_db_path() -> str:
+    """Audit P1-20 fix: memory must survive container restarts.
+
+    Resolution order:
+      1. ``SUPREMEAI_CANONICAL_DB_PATH`` explicit override (unchanged).
+      2. ``SUPREMEAI_DATA_DIR`` (mount a Render persistent disk here).
+      3. ``./data/`` relative to the service working directory — persists
+         across deploys whenever the platform keeps the workspace, and is
+         volume-mountable on Render.
+      ``/tmp`` is now the LAST fallback only (previous default), since a
+      tmpfs wipe destroys every conversation and user memory.
+    """
+    explicit = os.getenv("SUPREMEAI_CANONICAL_DB_PATH", "").strip()
+    if explicit:
+        return explicit
+    candidates = []
+    data_dir = os.getenv("SUPREMEAI_DATA_DIR", "").strip()
+    if data_dir:
+        candidates.append(Path(data_dir) / "supremeai_canonical.db")
+    candidates.append(Path.cwd() / "data" / "supremeai_canonical.db")
+    candidates.append(Path(tempfile.gettempdir()) / "supremeai_canonical.db")
+    for candidate in candidates:
+        try:
+            candidate.parent.mkdir(parents=True, exist_ok=True)
+            probe = candidate.parent / ".write_probe"
+            probe.touch()
+            probe.unlink()
+            return str(candidate)
+        except OSError:
+            continue
+    return str(candidates[-1])
+
+
+_DB_PATH = _resolve_db_path()
 _LOCK = threading.RLock()
 _MEM = {
     "conversations": {},

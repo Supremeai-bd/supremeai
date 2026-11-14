@@ -501,6 +501,13 @@ def create_app(
         from admin_auth import router as admin_auth_router
     app.include_router(admin_auth_router)
 
+    # ---- Frontend compatibility endpoints (admin dashboard full coverage) ----
+    try:
+        from .frontend_compat import router as fe_compat_router
+    except (ImportError, ModuleNotFoundError):
+        from frontend_compat import router as fe_compat_router
+    app.include_router(fe_compat_router)
+
     # ---- health (no auth, OpenAPI security: []) ----
     @app.get("/health")
     @app.get("/healthz")

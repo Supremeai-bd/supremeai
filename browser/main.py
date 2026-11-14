@@ -42,8 +42,45 @@ try:
         from services.scraper.security import is_safe_url
         from services.scraper.web_scraper import WebScraper
 
-    from fastapi import HTTPException
+    from fastapi import HTTPException, Request
     from pydantic import BaseModel
+
+    def _verify_scraper_secret(request: Request) -> None:
+        """Audit P1-13 fix: scraper routes are unauthenticated by design today.
+
+        Every scraper route now requires the shared webhook secret (same
+        credential as the stealth relay) — failing closed on any production
+        host and allowing a local dev/test bypass only. This prevents an
+        anonymous caller from driving the headless browser once the
+        Dockerfile copy step ships these modules publicly.
+        """
+        try:  # reuse the relay engine's shared check when available
+            from server import _verify_stealth_secret  # type: ignore
+
+            _verify_stealth_secret(request)
+            return
+        except ImportError:
+            pass
+        expected = os.getenv("STEALTH_WEBHOOK_SECRET", "").strip()
+        is_prod = bool(
+            os.getenv("RENDER_SERVICE_NAME")
+            or os.getenv("RENDER")
+            or os.getenv("RENDER_ENV", "").strip().lower() in ("production", "prod")
+            or os.getenv("ENV", "").strip().lower() in ("production", "prod")
+        )
+        if not expected:
+            if is_prod:
+                raise HTTPException(status_code=500, detail="STEALTH_WEBHOOK_SECRET is required in production")
+            return
+        import hmac as _hmac
+
+        incoming = (
+            request.headers.get("X-Stealth-Secret")
+            or request.headers.get("X-Webhook-Secret")
+            or request.headers.get("Authorization", "").replace("Bearer ", "").strip()
+        )
+        if not _hmac.compare_digest(incoming, expected):
+            raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing stealth secret")
 
     MAX_CONCURRENCY = int(os.getenv("SCRAPER_MAX_CONCURRENCY", "3"))
     TIMEOUT_SECONDS = int(os.getenv("SCRAPER_TIMEOUT_SECONDS", "45"))
@@ -60,7 +97,8 @@ try:
         initial_url: str | None = None
 
     @app.post("/scrape", tags=["scraper"])
-    async def scrape(request: ScrapeRequest):
+    async def scrape(request: ScrapeRequest, raw_request: Request):
+        _verify_scraper_secret(raw_request)
         if not request.url:
             raise HTTPException(status_code=400, detail="URL is required")
         if not is_safe_url(request.url):
@@ -71,7 +109,8 @@ try:
         return await asyncio.to_thread(_scraper.fetch_page, request.url)
 
     @app.post("/browse", tags=["scraper"])
-    async def browse(request: BrowseRequest):
+    async def browse(request: BrowseRequest, raw_request: Request):
+        _verify_scraper_secret(raw_request)
         if not request.url:
             raise HTTPException(status_code=400, detail="URL is required")
         if not is_safe_url(request.url):
@@ -87,7 +126,8 @@ try:
         )
 
     @app.post("/recipe", tags=["scraper"])
-    async def recipe(request: RecipeRequest):
+    async def recipe(request: RecipeRequest, raw_request: Request):
+        _verify_scraper_secret(raw_request)
         if request.initial_url and not is_safe_url(request.initial_url):
             raise HTTPException(
                 status_code=400, detail="SSRF check failed: Unauthorized internal access"

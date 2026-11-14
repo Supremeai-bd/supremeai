@@ -1,0 +1,46 @@
+# Archive lessons 2026-10 (planner-lane guard, L-003 entry) + audit
+# AUDIT_2026-10-28-federation-parity-license-drift (file:/// pointer drift).
+name: governance-guards
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  planner-lane-guard:
+    name: "Planner branches may not land PRs (lesson 2026-09-27)"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Block planner-* source branches from landing
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          case "$HEAD_REF" in
+            planner-*|planner/*)
+              echo "::error::'Allowed scope != authority to land': planner lane branches ($HEAD_REF) must not open landing PRs. Route work through the coder lane."
+              exit 1
+              ;;
+            *) echo "Source branch $HEAD_REF is not planner-scoped — OK." ;;
+          esac
+
+  governance-pointer-hygiene:
+    name: "Governance docs must not cite unreachable file:// paths"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Grep docs/ for file:// references
+        run: |
+          if grep -rn "file:///" docs/ --include="*.md" --include="*.json" >/tmp/hits.txt 2>/dev/null; then
+            echo "::error::Governance documents contain file:/// references — audit-undecidable pointers. Use repo-relative or network-verifiable paths."
+            cat /tmp/hits.txt | head -20
+            exit 1
+          fi
+          echo "No file:// pointer drift in docs/."

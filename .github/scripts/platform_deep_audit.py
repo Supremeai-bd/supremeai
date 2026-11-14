@@ -63,7 +63,6 @@ KNOWN_AI_HOSTS = {
     "CEREBRAS_API_KEY": "https://api.cerebras.ai/v1/models",
     "MISTRAL_API_KEY": "https://api.mistral.ai/v1/models",
     "XAI_API_KEY": "https://api.x.ai/v1/models",
-    "DEEPSEEK_API_KEY": "https://api.deepseek.com/v1/models",
     "OPENROUTER_API_KEY": "https://openrouter.ai/api/v1/models",
 }
 

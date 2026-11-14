@@ -53,3 +53,33 @@ def test_evaluate_options():
     data = res.json()
     assert data["selected_option"] == "fix database connection issue"
     assert data["confidence"] > 0.5
+
+
+def test_pr_risk_endpoint_low_risk():
+    payload = {
+        "pr_number": 999,
+        "files": ["gateway/service/app.py"],
+        "diff_stats": {"additions": 10, "deletions": 2},
+        "ci_test_status": "100%_PASS"
+    }
+    res = client.post("/v1/brain/pr-risk", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["verdict"] == "AUTO_MERGE"
+    assert data["risk_level"] == "LOW"
+    assert data["confidence"] >= 0.90
+
+
+def test_pr_risk_endpoint_high_risk_failed_ci():
+    payload = {
+        "pr_number": 999,
+        "files": ["gateway/service/app.py"],
+        "diff_stats": {"additions": 10, "deletions": 2},
+        "ci_test_status": "FAILED"
+    }
+    res = client.post("/v1/brain/pr-risk", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["verdict"] == "HUMAN_REVIEW"
+    assert data["risk_level"] == "HIGH"
+

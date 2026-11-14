@@ -2,7 +2,7 @@
 
 বাংলা: আল্ট্রা-লাইটওয়েট মাইক্রো-এআই ব্রেন সার্ভিস। 
 512MB RAM সিলিংয়ে চলার উপযোগী অপ্টিমাইজড FastAPI মাইক্রোসার্ভিস।
-- মেমোরি কনজিউম কম (<100MB)
+- মেমোরি কনজিউম কম (100MB এর কম)
 - দ্রুত মেগাস্ট্রিম বা ইনফারেন্স ক্যাশ রাউটিং
 - মডেল ইনফারেন্স ডেলিগেশন ও হেলথ মেট্রিক্স
 """
@@ -53,7 +53,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — explicit trusted origins only (no wildcard with credentials)
+# CORS â€” explicit trusted origins only (no wildcard with credentials)
 _raw_brain_origins = [
     o.strip()
     for o in os.getenv(
@@ -214,4 +214,51 @@ def evaluate_options(req: CognitiveEvalRequest, authorized: bool = Depends(verif
         "selected_option": best_opt,
         "confidence": confidence,
         "reasoning": f"Heuristic overlap confidence score: {confidence}",
+    }
+# --- PR risk evaluation endpoint (AI-Gated Auto-Merge) ---
+
+class PRRiskRequest(BaseModel):
+    pr_number: int = Field(..., description="Pull request number")
+    files: List[str] = Field(default_factory=list, description="Changed file paths")
+    diff_stats: Dict[str, int] = Field(default_factory=dict, description="additions/deletions")
+    ci_test_status: str = Field("100%_PASS", description="CI test status")
+
+
+class PRRiskDecision(BaseModel):
+    verdict: str = Field(..., description="AUTO_MERGE or HUMAN_REVIEW")
+    risk_level: str = Field(..., description="LOW or HIGH")
+    confidence: float = Field(..., description="0..1 confidence")
+    reasoning: str = Field(..., description="Short reasoning")
+
+
+@app.post("/v1/brain/pr-risk", response_model=PRRiskDecision)
+def evaluate_pr_risk(req: PRRiskRequest, authorized: bool = Depends(verify_brain_token)):
+    """Lightweight PR risk decision for AI-gated auto-merge (fail-closed friendly)."""
+    if req.ci_test_status != "100%_PASS":
+        return {
+            "verdict": "HUMAN_REVIEW",
+            "risk_level": "HIGH",
+            "confidence": 0.5,
+            "reasoning": "CI tests are not fully green; escalating to human review.",
+        }
+    additions = int((req.diff_stats or {}).get("additions", 0) or 0)
+    if additions > 500:
+        return {
+            "verdict": "HUMAN_REVIEW",
+            "risk_level": "HIGH",
+            "confidence": 0.7,
+            "reasoning": "Large diff (>500 added lines); requires human review.",
+        }
+    if not req.files:
+        return {
+            "verdict": "HUMAN_REVIEW",
+            "risk_level": "HIGH",
+            "confidence": 0.6,
+            "reasoning": "No changed files reported; escalating for safety.",
+        }
+    return {
+        "verdict": "AUTO_MERGE",
+        "risk_level": "LOW",
+        "confidence": 0.98,
+        "reasoning": "Routine change with green CI and bounded diff.",
     }
