@@ -252,7 +252,6 @@ async def forward_chat_completion(
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
-        "Accept-Encoding": "gzip, deflate, br",
         "User-Agent": "SupremeAI-Gateway/2.0",
     }
 
@@ -387,7 +386,6 @@ async def forward_stealth_webhook(
 
     headers = {
         "Content-Type": "application/json",
-        "Accept-Encoding": "gzip, deflate, br",
         "User-Agent": "SupremeAI-Stealth-Gateway/2.0",
     }
     if secret:

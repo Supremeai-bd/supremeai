@@ -1988,7 +1988,9 @@ async def _execute_chat_completion(
     # Completely preserves the SupremeAI Sole Identity doctrine.
     last_error = None
     if squad:
-        candidates = adaptive_candidates
+        candidates = squad.get_candidate_slots(preferred_provider) if squad else []
+        if not candidates and preferred_provider not in (None, "auto"):
+            candidates = squad.get_candidate_slots("auto")
 
         for provider, slot in candidates:
             slot.total_calls += 1
