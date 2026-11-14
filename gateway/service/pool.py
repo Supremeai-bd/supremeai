@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-from .adaptive_routing import RouteSnapshot, route_score
+from .adaptive_routing import RouteSnapshot, is_valid_secret, route_score
 
 logger = logging.getLogger("supremeai.pool")
 
@@ -43,17 +43,6 @@ class KeySlot:
             time.time() >= self.cooldown_until
             and (self.remaining_free is None or self.remaining_free > 0)
         )
-
-
-def _is_valid_secret(val: str) -> bool:
-    if not val or len(val) < 8:
-        return False
-    low = val.lower()
-    if low in ("dummy", "unset", "none", "placeholder", "changeme", "undefined", "null"):
-        return False
-    if set(low) == {"x"} or low.startswith("x*"):
-        return False
-    return True
 
 
 class ProviderKeyPool:
@@ -85,7 +74,7 @@ class ProviderKeyPool:
             pattern = re.compile(rf"^{prefix}(?:_.*)?$", re.IGNORECASE)
             for env_name, env_val in os.environ.items():
                 val = env_val.strip().strip("'\"")
-                if pattern.match(env_name) and _is_valid_secret(val):
+                if pattern.match(env_name) and is_valid_secret(val):
                     if not any(env_name.upper().endswith(s) for s in ("_MODEL", "_BASE_URL", "_URL")):
                         if (env_name, val) not in found:
                             found.append((env_name, val))
@@ -96,7 +85,7 @@ class ProviderKeyPool:
             if pool_val and "," in pool_val:
                 for idx, token in enumerate(pool_val.split(",")):
                     token = token.strip().strip("'\"")
-                    if _is_valid_secret(token) and not any(item[1] == token for item in found):
+                    if is_valid_secret(token) and not any(item[1] == token for item in found):
                         found.append((f"{pool_env}_POOL_{idx + 1}", token))
 
         found.sort(key=lambda item: item[0])

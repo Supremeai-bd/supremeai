@@ -11,6 +11,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+def is_valid_secret(value: str) -> bool:
+    """Reject empty/placeholder credentials before they enter a provider pool."""
+    if not value or len(value) < 8:
+        return False
+    low = value.lower()
+    if low in ("dummy", "unset", "none", "placeholder", "changeme", "undefined", "null"):
+        return False
+    return set(low) != {"x"} and not low.startswith("x*")
+
+
 @dataclass(frozen=True)
 class RouteSnapshot:
     """A point-in-time route view used for one selection decision."""

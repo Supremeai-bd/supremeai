@@ -306,6 +306,8 @@ _adaptive_routes = {
         limit=_optional_int_env("SUPREMEAI_API_FREE_LIMIT"),
     ),
 }
+_last_vault_hydration_at = 0.0
+_vault_hydration_interval = max(15.0, float(os.getenv("VAULT_HYDRATION_INTERVAL_SECONDS", "60")))
 
 app = FastAPI(title="SupremeAI API Gateway", version="2.0.0", docs_url=None, redoc_url=None, openapi_url=None)  # docs lockdown completion: the openapi_url default served the full route inventory (incl. admin route names) unauthenticated.
 
@@ -1734,7 +1736,18 @@ async def _execute_chat_completion(
                 headers={"X-SupremeAI-Cache": "HIT", "X-SupremeAI-Provider": "response-cache"},
             )
 
+    global _last_vault_hydration_at
     adaptive_candidates = squad.get_candidate_slots(preferred_provider) if squad else []
+    # Vault hydration is a cold-path repair, not a per-request dependency. The
+    # old code fetched the entire secret set whenever fewer than five keys were
+    # healthy, adding a network round-trip to every degraded request. Refresh
+    # at most once per interval and immediately rebuild the candidate view.
+    if squad and not adaptive_candidates and (time.monotonic() - _last_vault_hydration_at) >= _vault_hydration_interval:
+        _last_vault_hydration_at = time.monotonic()
+        await hydrate_vault_secrets()
+        adaptive_candidates = squad.get_candidate_slots(preferred_provider)
+        if not adaptive_candidates and preferred_provider not in (None, "auto"):
+            adaptive_candidates = squad.get_candidate_slots("auto")
     if not adaptive_candidates and preferred_provider not in (None, "auto") and squad:
         adaptive_candidates = squad.get_candidate_slots("auto")
     api_remaining = [slot.remaining_free for _, slot in adaptive_candidates if slot.remaining_free is not None]
@@ -1950,8 +1963,6 @@ async def _execute_chat_completion(
     # Completely preserves the SupremeAI Sole Identity doctrine.
     last_error = None
     if squad:
-        if squad.stats().get("total_healthy_keys", 0) < 5:
-            await hydrate_vault_secrets()
         candidates = adaptive_candidates
 
         for provider, slot in candidates:

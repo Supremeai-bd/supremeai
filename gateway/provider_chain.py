@@ -20,6 +20,7 @@ from typing import Any
 import httpx
 
 from .config import Endpoint
+from .service.adaptive_routing import is_valid_secret
 
 # Provider outcomes that justify failing over to the next endpoint.
 FAILOVER_STATUS = frozenset({429, 500, 502, 503, 504})
@@ -147,16 +148,6 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
                     api_key = v.split(",")[0].strip()
                     break
 
-    def _is_valid_key(val: str) -> bool:
-        if not val or len(val) < 8:
-            return False
-        low = val.lower()
-        if low in ("dummy", "unset", "none", "placeholder", "changeme", "undefined", "null"):
-            return False
-        if set(low) == {"x"} or low.startswith("x*"):
-            return False
-        return True
-
     # Collect all available keys for this provider (primary + pool + numbered suffixes)
     # so a 429/401 on one key rotates to the next instead of failing over the whole provider.
     _POOL_ENV = {
@@ -169,7 +160,7 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
         "deepseek": ["DEEPSEEK_API_KEY"],
     }
     keys: list[str] = []
-    if api_key and _is_valid_key(api_key):
+    if api_key and is_valid_secret(api_key):
         keys.append(api_key)
     # SUPREMEAI_PROVIDER_KEY_<P> may itself be a comma pool.
     raw_pool = os.environ.get(f"SUPREMEAI_PROVIDER_KEY_{provider.upper()}", "")
