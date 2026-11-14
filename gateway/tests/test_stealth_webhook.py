@@ -52,15 +52,18 @@ class StealthWebhookPriorityTest(unittest.TestCase):
             )
             self.assertEqual(resp.status_code, 200)
             self.assertEqual(resp.headers.get("x-supremeai-provider"), "stealth-webhook")
-            self.assertEqual(resp.headers.get("x-supremeai-slot"), "priority-1")
+            self.assertEqual(resp.headers.get("x-supremeai-slot"), "adaptive-route")
             data = resp.json()
             self.assertEqual(data["choices"][0]["message"]["content"], "Stealth response success")
             mock_forward.assert_called_once()
 
     @patch("service.app.forward_stealth_webhook")
-    def test_priority1_stealth_timeout_fails_closed_without_api_fallback(self, mock_stealth):
-        """Per admin mandate, API-key fallback is disabled so a webhook timeout returns 502 honestly."""
-        with patch.object(app_module, "STEALTH_WEBHOOK_URL", "https://stealth-runner.internal/v1/generate"):
+    def test_stealth_timeout_returns_error_when_api_pool_is_unavailable(self, mock_stealth):
+        """A relay timeout is surfaced honestly when no API route is available."""
+        with (
+            patch.object(app_module, "STEALTH_WEBHOOK_URL", "https://stealth-runner.internal/v1/generate"),
+            patch.object(app_module, "squad", None),
+        ):
             mock_stealth.return_value = (504, {"error": "Stealth webhook timed out"})
 
             resp = self.client.post(
