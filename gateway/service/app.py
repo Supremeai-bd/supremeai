@@ -54,6 +54,13 @@ try:
         from service.pool import squad
     except ImportError:
         squad = None  # type: ignore[assignment]
+    try:
+        from service.cache import response_cache
+    except ImportError:
+        try:
+            from gateway.service.cache import response_cache
+        except ImportError:
+            response_cache = None  # type: ignore[assignment]
     from service.providers.adapters import (
         PROVIDER_CONFIGS,
         forward_chat_completion,
@@ -1677,6 +1684,23 @@ async def _execute_chat_completion(
             p["session_id"] = conv_id
         return p
 
+    if not STEALTH_WEBHOOK_URL and requested_model in ("supremeai/ghost_gemini", "supremeai/web_session"):
+        raise HTTPException(
+            status_code=503,
+            detail="Stealth Webhook relay is currently unconfigured or offline. API key replies disabled per user mandate."
+        )
+
+    _cache_key: Optional[str] = None
+    if response_cache is not None and response_cache.is_cacheable(body, dict(request.headers)):
+        _cache_key = response_cache.build_key(body)
+        cached_resp = await response_cache.get(_cache_key)
+        if cached_resp is not None:
+            return JSONResponse(
+                status_code=200,
+                content=cached_resp,
+                headers={"X-SupremeAI-Cache": "HIT", "X-SupremeAI-Provider": "response-cache"},
+            )
+
     use_priority_1 = (
         bool(STEALTH_WEBHOOK_URL)
         and (
@@ -1874,12 +1898,16 @@ async def _execute_chat_completion(
             candidates = squad.get_candidate_slots("auto")
 
         for provider, slot in candidates:
+            call_start = time.monotonic()
             try:
                 status, response_data = await forward_chat_completion(provider, slot.key, body)
             except Exception as exc:
                 status, response_data = 500, {"error": str(exc)}
+            call_latency = (time.monotonic() - call_start) * 1000
 
             if 200 <= status < 300 and isinstance(response_data, dict):
+                if squad:
+                    squad.report_success(provider, slot, call_latency)
                 # 1. Enforce SupremeAI Sole Identity branding
                 served_model = requested_model or "supremeai-api"
                 response_data["model"] = served_model
@@ -1957,6 +1985,8 @@ async def _execute_chat_completion(
                         headers={**headers, "Cache-Control": "no-cache", "Connection": "keep-alive"},
                     )
 
+                if _cache_key and response_cache is not None:
+                    asyncio.create_task(response_cache.set(_cache_key, response_data))
                 return JSONResponse(status_code=status, content=response_data, headers=headers)
 
             pool = squad.pools.get(provider)
@@ -1968,7 +1998,7 @@ async def _execute_chat_completion(
 
     raise HTTPException(
         status_code=502,
-        detail=f"All sovereign AI providers and stealth relays are currently cooling down. Last error: {last_error or relay_detail}"
+        detail=f"All sovereign AI providers and stealth relays are currently cooling down. Last error: {relay_detail or last_error}"
     )
 
 
@@ -2488,3 +2518,13 @@ async def restore_tool_card(
     patch = {"action": "unhide_tool", "tool_id": tool_id}
     res = save_user_preferences(user_id=user_id, patch_data=patch) if save_user_preferences else {"user_id": user_id}
     return {"status": "ok", "action": "restored", "tool_id": tool_id, "user_preferences": res}
+
+
+@app.get("/api/v1/telemetry/latency")
+async def get_latency_telemetry():
+    """Real-time provider latency, key pool health, and multi-tier cache telemetry."""
+    return {
+        "status": "ok",
+        "squad": squad.stats() if squad else {"total_providers": 0, "total_keys": 0, "total_healthy_keys": 0},
+        "cache": response_cache.stats() if response_cache else {"l1_size": 0, "hits": 0, "misses": 0},
+    }
