@@ -50,6 +50,8 @@ ALLOWED_PROVIDERS: frozenset[str] = frozenset(
         "mistral",
         "deepseek",
         "web",
+        "perplexity",
+        "manus",
     }
 )
 
@@ -103,7 +105,8 @@ class GatewayConfig:
                 # Resolve a bare model name to a chain prioritising that model.
                 for endpoints in self.chains.values():
                     for idx, ep in enumerate(endpoints):
-                        if ep.model == model:
+                        ep_bare = ep.model.split("/", 1)[-1] if "/" in ep.model else ep.model
+                        if ep.model == model or ep_bare == model:
                             # Reorder: requested model first, then the rest.
                             reordered = (ep,) + endpoints[:idx] + endpoints[idx + 1 :]
                             return reordered

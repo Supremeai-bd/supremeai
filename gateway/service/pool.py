@@ -18,7 +18,7 @@ from .adaptive_routing import RouteSnapshot, is_valid_secret, route_score
 
 logger = logging.getLogger("supremeai.pool")
 
-COOLDOWN_RATE_LIMIT = 60
+COOLDOWN_RATE_LIMIT = 300  # 5 minutes per plan
 COOLDOWN_SERVER_ERROR = 30
 COOLDOWN_AUTH_ERROR = 600
 

@@ -1778,35 +1778,25 @@ async def _execute_chat_completion(
     api_remaining = [slot.remaining_free for _, slot in adaptive_candidates if slot.remaining_free is not None]
     if api_remaining:
         _adaptive_routes["api-pool"].remaining = sum(api_remaining)
-    explicit_stealth = preferred_provider in ("stealth", "ghost_gemini", "web_session") or requested_model in (
-        "supremeai/ghost_gemini", "supremeai/web_session"
+    # ═══════════════════════════════════════════════════════════════════════
+    # Dynamic Route Arbiter & Multi-Provider Decision Engine
+    # Evaluates latency targets (spark: 1.5s, core: 1.8s, reason/deep: 2.0-2.5s)
+    # and balances quota and speed without hardcoded priority bias.
+    # ═══════════════════════════════════════════════════════════════════════
+    from gateway.service.route_arbiter import route_arbiter, RoutingDecision
+    route_arbiter.squad = squad
+
+    decision: RoutingDecision = route_arbiter.choose_best_route(
+        requested_model=requested_model,
+        preferred_provider=preferred_provider,
+        adaptive_routes=_adaptive_routes,
+        stealth_available=bool(STEALTH_WEBHOOK_URL),
     )
-    selected_route = choose_route([
-        _adaptive_routes["stealth-webhook"].snapshot(available=bool(STEALTH_WEBHOOK_URL)),
-        _adaptive_routes["api-pool"].snapshot(available=bool(adaptive_candidates)),
-    ])
-    use_priority_1 = (
-        bool(STEALTH_WEBHOOK_URL)
-        and (explicit_stealth or selected_route == "stealth-webhook")
-        and requested_model not in ("supremeai-api", "supremeai/api")
-        and (
-            preferred_provider is None
-            or preferred_provider in ("stealth", "ghost_gemini", "web_session")
-            or requested_model in (
-                "auto",
-                "supremeai-webhook",
-                "supremeai/webhook",
-                "supremeai-web",
-                "supremeai/web",
-                "supremeai-turbo",
-                "supremeai/turbo",
-                "supremeai-deep-research",
-                "supremeai/deep-research",
-                "supremeai/ghost_gemini",
-                "supremeai/web_session",
-            )
-        )
-    )
+
+    use_priority_1 = decision.route_type == "stealth-webhook"
+    candidates = decision.candidate_slots or []
+    if not candidates and squad and requested_model not in ("supremeai-web", "supremeai/web"):
+        candidates = squad.get_candidate_slots("auto")
     if use_priority_1:
         w_status, w_response = None, None
         start_time = time.time()
@@ -1988,7 +1978,8 @@ async def _execute_chat_completion(
     # Completely preserves the SupremeAI Sole Identity doctrine.
     last_error = None
     if squad:
-        candidates = squad.get_candidate_slots(preferred_provider) if squad else []
+        if not candidates:
+            candidates = decision.candidate_slots or squad.get_candidate_slots(preferred_provider) or []
         if not candidates and preferred_provider not in (None, "auto"):
             candidates = squad.get_candidate_slots("auto")
 
