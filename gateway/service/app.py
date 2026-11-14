@@ -2088,7 +2088,7 @@ async def _execute_chat_completion(
 
             pool = squad.pools.get(provider)
             if pool:
-                pool.report_injury(slot, status)
+                pool.report_injury(slot, status, call_latency)
             _adaptive_routes["api-pool"].record(call_latency, success=False)
 
             last_error = {"provider": provider, "slot": slot.name, "status": status, "error": response_data}

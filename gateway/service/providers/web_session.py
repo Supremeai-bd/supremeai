@@ -49,6 +49,14 @@ HEALTH_SUCCESS_DELTA = 1
 HEALTH_FAIL_DELTA = -5
 HEALTH_RATELIMIT_DELTA = -20
 
+WEB_PROVIDER_BASELINE_LATENCY_MS: Dict[str, float] = {
+    "gemini": 300.0,
+    "chatgpt": 400.0,
+    "grok": 350.0,
+    "perplexity": 600.0,
+    "claude": 500.0,
+}
+
 
 class WebSessionAccount:
     """Represents a single Web AI Session (e.g. Gemini Web, ChatGPT Web)."""
@@ -78,6 +86,8 @@ class WebSessionAccount:
         cap, window = RATE_LIMITS.get(provider, (30, 3600.0))
         self.rate_limit_cap = cap
         self.rate_limit_window = window
+        # EWMA latency for fastest-first rotation
+        self.ewma_latency_ms = WEB_PROVIDER_BASELINE_LATENCY_MS.get(provider, 500.0)
 
     @property
     def is_available(self) -> bool:
@@ -101,15 +111,25 @@ class WebSessionAccount:
     def _record_request(self):
         self._request_timestamps.append(time.time())
 
-    def mark_success(self):
+    def mark_success(self, latency_ms: float = 0.0):
         self.total_requests += 1
         self.last_used = time.time()
         self.health_score = min(100, self.health_score + HEALTH_SUCCESS_DELTA)
         self._record_request()
+        if latency_ms > 0:
+            if self.ewma_latency_ms <= 0:
+                self.ewma_latency_ms = float(latency_ms)
+            else:
+                self.ewma_latency_ms = (self.ewma_latency_ms * 0.7) + (float(latency_ms) * 0.3)
 
-    def mark_injury(self, status_code: int = 429, cooldown_seconds: float = 60.0):
+    def mark_injury(self, status_code: int = 429, cooldown_seconds: float = 60.0, latency_ms: float = 0.0):
         self.failed_requests += 1
         self.last_used = time.time()
+        if latency_ms > 0:
+            if self.ewma_latency_ms <= 0:
+                self.ewma_latency_ms = float(latency_ms)
+            else:
+                self.ewma_latency_ms = (self.ewma_latency_ms * 0.7) + (float(latency_ms) * 0.3)
         delta = HEALTH_RATELIMIT_DELTA if status_code == 429 else HEALTH_FAIL_DELTA
         self.health_score = max(0, self.health_score + delta)
         if self.health_score < HEALTH_COOLDOWN_THRESHOLD:
@@ -275,8 +295,8 @@ class WebSessionBridge:
             available = [acc for acc in available if acc.provider == provider]
         if not available:
             return None
-        # Least-busy + healthiest first (health desc, then last_used asc, then total_requests asc)
-        available.sort(key=lambda a: (-a.health_score, a.last_used, a.total_requests))
+        # Least-busy + healthiest + fastest first (health desc, latency asc, last_used asc, total_requests asc)
+        available.sort(key=lambda a: (-a.health_score, a.ewma_latency_ms, a.last_used, a.total_requests))
         return available[0]
 
     def _build_headers(self, service: str) -> Dict[str, str]:

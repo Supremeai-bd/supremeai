@@ -22,6 +22,23 @@ COOLDOWN_RATE_LIMIT = 60
 COOLDOWN_SERVER_ERROR = 30
 COOLDOWN_AUTH_ERROR = 600
 
+# Baseline (ms) latency seed for providers so rotation is latency-aware before
+# any real measurement exists. Lower = faster. Unknown providers default 500.
+PROVIDER_BASELINE_LATENCY_MS: dict[str, float] = {
+    "groq": 120.0,
+    "gemini": 250.0,
+    "google": 250.0,
+    "openrouter": 600.0,
+    "sambanova": 400.0,
+    "mistral": 300.0,
+    "perplexity": 700.0,
+    "openai": 800.0,
+    "v0": 500.0,
+    "huggingface": 900.0,
+    "kilo": 200.0,
+    "manus": 500.0,
+}
+
 
 @dataclass
 class KeySlot:
@@ -93,8 +110,9 @@ class ProviderKeyPool:
 
         found.sort(key=lambda item: item[0])
         limit = self._configured_free_limit()
+        baseline = PROVIDER_BASELINE_LATENCY_MS.get(self.provider.lower(), 500.0)
         self.slots = [
-            KeySlot(name=name, key=value, provider=self.provider, free_limit=limit, remaining_free=limit)
+            KeySlot(name=name, key=value, provider=self.provider, free_limit=limit, remaining_free=limit, ewma_latency_ms=baseline)
             for name, value in found
         ]
         self._index = 0
@@ -149,9 +167,16 @@ class ProviderKeyPool:
         if slot.remaining_free is not None:
             slot.remaining_free = max(0, slot.remaining_free - 1)
 
-    def report_injury(self, slot: KeySlot, status_code: int):
+    def report_injury(self, slot: KeySlot, status_code: int, latency_ms: float = 0.0):
         slot.total_errors += 1
         slot.consecutive_failures += 1
+        if latency_ms > 0:
+            # Slow/failed attempts raise the latency estimate so the slot is
+            # deprioritised for future fastest-first rotation.
+            if slot.ewma_latency_ms <= 0:
+                slot.ewma_latency_ms = float(latency_ms)
+            else:
+                slot.ewma_latency_ms = (slot.ewma_latency_ms * 0.7) + (float(latency_ms) * 0.3)
         if status_code == 429:
             duration, reason = COOLDOWN_RATE_LIMIT, "rate_limit"
         elif status_code in (401, 403):
@@ -173,9 +198,11 @@ class FederationSquad:
     """Master orchestrator for all discovered provider key pools."""
 
     # Discovery set only. get_candidate_slots ranks all healthy keys by score.
+    # Note: huggingface is excluded from active squad discovery because its serverless
+    # inference router now strictly requires paid Inference Provider credits or warm endpoints.
     DEFAULT_PROVIDER_ORDER = [
         "groq", "gemini", "openrouter", "sambanova", "mistral", "perplexity", "openai",
-        "v0", "huggingface",
+        "v0",
     ]
 
     PREFIX_MAP: Dict[str, List[str]] = {

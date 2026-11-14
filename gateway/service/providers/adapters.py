@@ -116,6 +116,7 @@ PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
         "gemini-2.0-flash",
     ],
     "openrouter": [
+        "openrouter/free",
         "nvidia/nemotron-3.5-lightning:free",
         "meta-llama/llama-3.3-70b-instruct:free",
         "google/gemini-2.0-flash-exp:free",
