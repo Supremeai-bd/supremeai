@@ -607,8 +607,27 @@ def _issue_signed_token(client_name: str, quota: str) -> str:
 
 
 def _issue_guest_token(ttl_seconds: int = 300) -> str:
-    """Issue a signed, short-lived guest token (HMAC via service.keygen)."""
-    return _issue_signed_token(client_name="guest", quota="guest")
+    """Issue a signed, short-lived guest token (HMAC via service.keygen).
+
+    The TTL is embedded in the token payload as an ``.exp`` claim so the
+    credential is statelessly rejected once expired (see keygen.verify_key).
+    """
+    return _issue_signed_token_with_ttl(client_name="guest", quota="guest", ttl_seconds=ttl_seconds)
+
+
+def _issue_signed_token_with_ttl(client_name: str, quota: str, ttl_seconds: int) -> str:
+    """Issue a keygen-signed token with an embedded expiry, failing closed."""
+    try:
+        return generate_key(client_name=client_name, quota=quota, ttl_seconds=ttl_seconds)
+    except Exception as exc:  # keygen failure is surfaced as 503, never swallowed
+        logger.error(
+            "[auth] token issuance failed for client=%s: %s",
+            client_name,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=503, detail="Token issuance is temporarily unavailable"
+        ) from exc
 
 
 def _guest_rate_limit(request: Request) -> Tuple[bool, float]:
@@ -1152,6 +1171,55 @@ async def stream_preferences(
 async def live_probe():
     """Live heartbeat probe for Studio."""
     return {"status": "alive", "timestamp": int(time.time())}
+
+
+@app.post("/api/v1/auth/guest")
+@app.post("/api/v1/guest/token")
+async def issue_guest_trial_token(request: Request):
+    """Self-serve guest trial (audit P0-6 fix): issues a signed, short-TTL
+    trial token with per-IP rate limiting — no signup required.
+
+    The token is an HMAC-signed ``sk-supreme-guest-*`` key with an embedded
+    ``.exp`` claim; it authenticates via ``_is_verified_guest`` and is
+    throttled by the guest cost guard on every chat request. Disable by
+    setting ``GUEST_TRIAL_ENABLED=0``.
+    """
+    if os.getenv("GUEST_TRIAL_ENABLED", "1").strip().lower() in ("0", "false", "no"):
+        raise HTTPException(status_code=404, detail="Guest trial is disabled")
+
+    allowed, retry_after = _guest_rate_limit(request)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Guest trial rate limit exceeded. Retry after {int(retry_after)}s.",
+            headers={"Retry-After": str(int(retry_after) + 1)},
+        )
+
+    try:
+        ttl = max(60, min(int(os.getenv("GUEST_TOKEN_TTL_SECONDS", "3600")), 86400))
+    except ValueError:
+        ttl = 3600
+    token = _issue_guest_token(ttl_seconds=ttl)
+
+    response = JSONResponse(
+        {
+            "status": "ok",
+            "access_token": token,
+            "token_type": "bearer",
+            "expires_in": ttl,
+            "class": "guest",
+            "message": "Trial access granted. Attach this token as a Bearer token or X-SupremeAI-Key header.",
+        }
+    )
+    response.set_cookie(
+        _GUEST_COOKIE,
+        token,
+        max_age=ttl,
+        httponly=True,
+        samesite="lax",
+        secure=os.getenv("ENVIRONMENT", "").strip().lower() == "production",
+    )
+    return response
 
 
 @app.post("/api/v1/auth/login")
@@ -2660,4 +2728,3 @@ async def stream_hitl_events():
     async def event_gen():
         yield "event: connected\ndata: {\"status\": \"connected\"}\n\n"
     return StreamingResponse(event_gen(), media_type="text/event-stream")
-    }
