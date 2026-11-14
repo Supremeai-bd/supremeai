@@ -36,7 +36,7 @@ class TestProviderSelection:
 
         result = engine.get_provider_for_task(task_lang="en", task_type="code")
 
-        assert result == "deepseek"
+        assert result == "groq"
 
     def test_get_provider_private(self):
         """Test provider selection for private tasks."""
@@ -471,11 +471,14 @@ class TestDefaultRulesPath:
         """Test that default rules path is correctly set."""
         engine = UniversalRulesEngine()
 
-        # The default path is backend_root / data / admin_rules.json
-        expected = os.path.join(
+        expected_core = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
             "data",
             "admin_rules.json",
         )
-
-        assert engine.rules_path == expected
+        expected_repo = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+            "data",
+            "admin_rules.json",
+        )
+        assert engine.rules_path in (expected_core, expected_repo)

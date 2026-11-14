@@ -200,7 +200,7 @@ class UniversalRulesEngine:
             # ── NEW: Provider routing rules - কোন AI কখন ব্যবহার হবে ──
             "provider_routing": {
                 "bangla_provider": "moonshot",
-                "code_provider": "deepseek",
+                "code_provider": "groq",
                 "fallback_provider": "together_ai",
                 "private_provider": "ollama",
                 "quota_alert_percent": 80,
@@ -379,7 +379,7 @@ class UniversalRulesEngine:
             return routing.get("bangla_provider", "moonshot")
         # Code বা Math → DeepSeek
         if task_type in ("code", "math", "technical"):
-            return routing.get("code_provider", "deepseek")
+            return routing.get("code_provider", "groq")
         # Private/Offline → Ollama
         if task_type == "private":
             return routing.get("private_provider", "ollama")

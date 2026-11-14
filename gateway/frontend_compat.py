@@ -674,3 +674,108 @@ async def fe_projects_create(request: Request):
 async def fe_projects_delete(pid: str):
     _projects_store.pop(pid, None)
     return {"status": "ok"}
+import os, json, urllib.request, urllib.error
+
+_GH_TOKEN = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN") or ""
+_GH_REPO = os.getenv("GITHUB_REPO", "Supremeai-bd/supremeai")
+
+
+def _gh(method, path, body=None):
+    url = f"https://api.github.com{path}"
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(url, data=data, method=method)
+    req.add_header("Accept", "application/vnd.github+json")
+    if _GH_TOKEN:
+        req.add_header("Authorization", f"Bearer {_GH_TOKEN}")
+    req.add_header("X-GitHub-Api-Version", "2022-11-28")
+    if data is not None:
+        req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            raw = resp.read().decode()
+            return resp.status, (json.loads(raw) if raw else {})
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode() if e.fp else ""
+        try:
+            return e.code, json.loads(raw) if raw else {"error": raw}
+        except Exception:
+            return e.code, {"error": raw}
+    except Exception as e:
+        return 502, {"error": str(e)}
+
+
+@router.get("/api/admin/github/runs")
+async def gh_runs():
+    status, data = _gh("GET", f"/repos/{_GH_REPO}/actions/runs?per_page=10")
+    runs = []
+    for r in (data.get("workflow_runs") if isinstance(data, dict) else []) or []:
+        runs.append({
+            "id": r.get("id"),
+            "name": r.get("name"),
+            "status": r.get("status"),
+            "conclusion": r.get("conclusion"),
+            "html_url": r.get("html_url"),
+            "created_at": r.get("created_at"),
+            "head_branch": r.get("head_branch"),
+        })
+    return {"runs": runs, "status_code": status, "token_configured": bool(_GH_TOKEN)}
+
+
+@router.post("/api/admin/github/runs/{run_id}/rerun")
+async def gh_rerun(run_id: str):
+    status, data = _gh("POST", f"/repos/{_GH_REPO}/actions/runs/{run_id}/rerun-failed-jobs")
+    return {"run_id": run_id, "status_code": status, "result": data}
+
+
+@router.post("/api/admin/github/runs/{run_id}/cancel")
+async def gh_cancel(run_id: str):
+    status, data = _gh("POST", f"/repos/{_GH_REPO}/actions/runs/{run_id}/cancel")
+    return {"run_id": run_id, "status_code": status, "result": data}
+
+
+@router.post("/api/admin/github/workflows/{workflow_id}/dispatch")
+async def gh_dispatch(workflow_id: str, request: Request):
+    body = await request.json()
+    payload = {"ref": body.get("ref", "main")}
+    status, data = _gh("POST", f"/repos/{_GH_REPO}/actions/workflows/{workflow_id}/dispatches", payload)
+    return {"workflow_id": workflow_id, "status_code": status, "result": data}
+
+
+@router.get("/api/admin/github/pulls")
+async def gh_pulls():
+    status, data = _gh("GET", f"/repos/{_GH_REPO}/pulls?state=open&per_page=20")
+    pulls = []
+    if isinstance(data, list):
+        for p in data:
+            pulls.append({
+                "number": p.get("number"),
+                "title": p.get("title"),
+                "head": p.get("head", {}).get("ref"),
+                "base": p.get("base", {}).get("ref"),
+                "html_url": p.get("html_url"),
+                "user": p.get("user", {}).get("login"),
+            })
+    return {"pulls": pulls, "status_code": status, "token_configured": bool(_GH_TOKEN)}
+
+
+@router.post("/api/admin/github/pulls/{pr_number}/approve")
+async def gh_approve(pr_number: str, request: Request):
+    body = await request.json() if False else {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    payload = {"event": "APPROVE", "body": body.get("body", "Approved via SupremeAI admin dashboard")}
+    status, data = _gh("POST", f"/repos/{_GH_REPO}/pulls/{pr_number}/reviews", payload)
+    return {"pr": pr_number, "status_code": status, "result": data}
+
+
+@router.post("/api/admin/github/pulls/{pr_number}/merge")
+async def gh_merge(pr_number: str, request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    payload = {"merge_method": body.get("merge_method", "squash")}
+    status, data = _gh("PUT", f"/repos/{_GH_REPO}/pulls/{pr_number}/merge", payload)
+    return {"pr": pr_number, "status_code": status, "result": data}

@@ -142,10 +142,7 @@ PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
     ],
     "kilo": [
         "auto",
-        "anthropic/claude-sonnet-4.6",
-        "openai/gpt-5.4",
         "google/gemini-2.5-flash",
-        "deepseek/deepseek-v3.2",
     ],
     "openai": [
         "gpt-4o-mini",

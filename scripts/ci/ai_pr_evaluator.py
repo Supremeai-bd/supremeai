@@ -69,7 +69,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
-REPO = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
+REPO = os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GH_REPO") or "Supremeai-bd/supremeai"
 RULES_PATH = Path(__file__).resolve().parents[2] / ".github" / "constitution" / "rules.yml"
 
 # ── Policy SSOT (rules.yml ai_pr_evaluation_policy) + DEFAULT fallback ────────
@@ -1143,3 +1143,211 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# ── AI-gated auto-merge risk classifier (#AI-GATED-AUTO-MERGE) ──────────────
+
+def _normalize_path_str(path: Any) -> str:
+    return str(path or "").replace("\\", "/").strip().lstrip("/").lower()
+
+
+def _paths_from_files(files: Any) -> list[str]:
+    out: list[str] = []
+    if files is None:
+        return out
+    if isinstance(files, str):
+        return [files]
+    if isinstance(files, dict):
+        for key in ("path", "filename", "name", "file"):
+            if files.get(key):
+                return [str(files[key])]
+        return out
+    if isinstance(files, (list, tuple, set)):
+        for item in files:
+            if isinstance(item, str):
+                out.append(item)
+            elif isinstance(item, dict):
+                p = item.get("path") or item.get("filename") or item.get("name") or item.get("file")
+                if p:
+                    out.append(str(p))
+    return out
+
+
+def _diff_text_from(diff: Any, files: Any) -> str:
+    if isinstance(diff, str):
+        return diff
+    if isinstance(diff, (list, tuple)):
+        return "\n".join(str(x) for x in diff)
+    # fall back to patches embedded in files
+    patches: list[str] = []
+    for f in (files or []):
+        if isinstance(f, dict) and f.get("patch"):
+            patches.append(str(f["patch"]))
+    return "\n".join(patches)
+
+
+def _parse_confidence_value(val: Any) -> float | None:
+    if val is None or isinstance(val, bool):
+        return None
+    if isinstance(val, (int, float)):
+        v = float(val)
+        if v > 1 and v <= 100:
+            v = v / 100.0
+        return v
+    if isinstance(val, str):
+        s = val.strip().lower()
+        if s.endswith("%"):
+            s = s[:-1].strip()
+        mapping = {"low": 0.95, "medium": 0.7, "high": 0.3}
+        if s in mapping:
+            return mapping[s]
+        try:
+            v = float(s)
+            if v > 1 and v <= 100:
+                v = v / 100.0
+            return v
+        except ValueError:
+            return None
+    return None
+
+
+def _extract_confidence(metadata: dict) -> float | None:
+    if not isinstance(metadata, dict):
+        return None
+    keys = ("ai_confidence", "confidence", "llm_confidence", "model_confidence",
+            "risk_confidence", "score", "ai_score")
+    for key in keys:
+        parsed = _parse_confidence_value(metadata.get(key))
+        if parsed is not None:
+            return parsed
+    for nested_key in ("llm_review", "ai", "evaluation", "verdict"):
+        nested = metadata.get(nested_key)
+        if isinstance(nested, dict):
+            for key in keys:
+                parsed = _parse_confidence_value(nested.get(key))
+                if parsed is not None:
+                    return parsed
+            rr = nested.get("regression_risk")
+            if isinstance(rr, str) and rr.lower() in ("low", "medium", "high"):
+                return {"low": 0.95, "medium": 0.7, "high": 0.3}[rr.lower()]
+    rr = metadata.get("regression_risk")
+    if isinstance(rr, str) and rr.lower() in ("low", "medium", "high"):
+        return {"low": 0.95, "medium": 0.7, "high": 0.3}[rr.lower()]
+    return None
+
+
+def _is_high_risk_path(path: Any) -> bool:
+    p = _normalize_path_str(path)
+    if not p:
+        return False
+    base = p.rsplit("/", 1)[-1]
+    if p.startswith(".github/workflows/"):
+        return True
+    if p.startswith("infrastructure/supabase/"):
+        return True
+    if p.startswith("migrations/"):
+        return True
+    if p.startswith("gateway/middleware/"):
+        return True
+    if p == "gateway/service/keygen.py":
+        return True
+    if "liquibase" in p:
+        return True
+    if p.startswith("scripts/ci/render_") and p.endswith(".py"):
+        return True
+    if p.startswith("scripts/ci/ai_") and p.endswith(".py"):
+        return True
+    if base == "render.yaml":
+        return True
+    if p.startswith("core/database/migrations/"):
+        return True
+    if p.startswith("liquibase/"):
+        return True
+    if base == "admin_auth.py":
+        return True
+    if base.startswith(".env"):
+        return True
+    if "infisical" in p:
+        return True
+    if any(k in p for k in ("payment", "billing", "quota", "rate_limit", "rate-limit")):
+        return True
+    if "auth" in base or "/auth/" in p or "permission" in p or "keygen" in base:
+        return True
+    tamper = {
+        "scripts/ci/ai_auto_approver.py",
+        "scripts/ci/ai_pr_evaluator.py",
+        "scripts/ci/ai_semantic_pr_verifier.py",
+        ".github/workflows/unified-pipeline.yml",
+    }
+    if p in tamper:
+        return True
+    if p.endswith((".yml", ".yaml")) and any(k in p for k in ("schema", "migration", "liquibase", "changelog")):
+        return True
+    if p.endswith(".sql") and any(k in p for k in ("migration", "schema")):
+        return True
+    return False
+
+
+def _has_secret_pattern(text: str) -> bool:
+    if not text:
+        return False
+    for _name, pattern in SECRET_PATTERNS:
+        if re.search(pattern, text):
+            return True
+    if re.search(r"(?i)(api[_-]?key|secret|password|bearer|token)\s*[:=]\s*['\"][A-Za-z0-9_\-\.]{20,}['\"]", text):
+        return True
+    return False
+
+
+def classify_pr_risk(files=None, diff=None, metadata=None) -> str:
+    """Return 'LOW' or 'HIGH' risk classification for a PR.
+
+    Deterministic fence rules (paths, secrets, confidence, size) plus optional
+    metadata hints. Backend AI pool assessment is layered by callers when needed.
+    """
+    metadata = metadata if isinstance(metadata, dict) else {}
+    if files is None:
+        files = metadata.get("files") or metadata.get("changed_files") or metadata.get("paths") or []
+    paths = _paths_from_files(files)
+    # also pull paths from metadata if files was empty
+    if not paths:
+        for key in ("changed_files", "paths", "files"):
+            val = metadata.get(key)
+            if isinstance(val, list):
+                paths = _paths_from_files(val)
+                if paths:
+                    break
+    diff_text = _diff_text_from(diff, files)
+    if not diff_text:
+        diff_text = _diff_text_from(None, files)
+
+    for path in paths:
+        if _is_high_risk_path(path):
+            return "HIGH"
+    if _has_secret_pattern(diff_text):
+        return "HIGH"
+    conf = _extract_confidence(metadata)
+    if conf is not None and conf < 0.9:
+        return "HIGH"
+    changed_count = metadata.get("changedFiles") or metadata.get("changed_files") or metadata.get("changedFilesCount")
+    try:
+        if changed_count is not None and int(changed_count) > 50:
+            return "HIGH"
+    except (TypeError, ValueError):
+        pass
+    if len(paths) > 50:
+        return "HIGH"
+    # diff size floor (500+ added lines)
+    additions = metadata.get("additions") or metadata.get("additionsCount")
+    # also from diff_stats
+    if isinstance(metadata.get("diff_stats"), dict):
+        additions = metadata["diff_stats"].get("additions", additions)
+    try:
+        if additions is not None and int(additions) > 500:
+            return "HIGH"
+    except (TypeError, ValueError):
+        pass
+    risk_hint = str(metadata.get("risk_level") or metadata.get("risk") or "").upper()
+    if risk_hint == "HIGH":
+        return "HIGH"
+    return "LOW"
