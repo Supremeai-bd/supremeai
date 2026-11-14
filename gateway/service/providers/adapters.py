@@ -226,6 +226,7 @@ async def forward_chat_completion(
     provider: str,
     api_key: str,
     payload: Dict[str, Any],
+    slot: Any = None,
     timeout: float = 60.0
 ) -> Tuple[int, Dict[str, Any] | str]:
     """
@@ -272,11 +273,18 @@ async def forward_chat_completion(
     client_model = body.get("model", "auto")
     cascade = PROVIDER_MODEL_CASCADES.get(provider, [config["default_model"]])
     candidate_models: list[str] = []
+    preferred_slot_model = getattr(slot, "preferred_model", None) if slot else None
+    unsupported_set = getattr(slot, "unsupported_models", set()) if slot else set()
+    supported_set = getattr(slot, "supported_models", set()) if slot else set()
+    if preferred_slot_model and preferred_slot_model not in candidate_models:
+        candidate_models.append(preferred_slot_model)
 
     if client_model and client_model not in ("auto", "default", "") and not str(client_model).startswith("supremeai/"):
         candidate_models.append(str(client_model))
 
     for m in cascade:
+        if m in unsupported_set and m not in supported_set:
+            continue
         if m not in candidate_models:
             candidate_models.append(m)
 
@@ -296,6 +304,10 @@ async def forward_chat_completion(
 
                 # Success path (2xx)
                 if 200 <= status_code < 300:
+                    if slot and hasattr(slot, "supported_models"):
+                        slot.supported_models.add(model_name)
+                        slot.preferred_model = model_name
+                        slot.unsupported_models.discard(model_name)
                     if isinstance(data, dict) and "model" not in data:
                         data["model"] = model_name
                     return status_code, data
@@ -308,6 +320,11 @@ async def forward_chat_completion(
 
                 # Auto-downgrade on quota exhaustion, missing model slug, or temporary overload
                 if status_code in (404, 400, 429, 503):
+                    if status_code in (404, 400) and slot and hasattr(slot, "unsupported_models"):
+                        slot.unsupported_models.add(model_name)
+                        slot.supported_models.discard(model_name)
+                        if getattr(slot, "preferred_model", None) == model_name:
+                            slot.preferred_model = next(iter(slot.supported_models), None)
                     logger.warning(
                         f"[{provider}] Model {model_name} returned {status_code}; "
                         f"cascading to next available model..."

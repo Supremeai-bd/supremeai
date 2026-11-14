@@ -1994,7 +1994,7 @@ async def _execute_chat_completion(
             slot.total_calls += 1
             call_start = time.monotonic()
             try:
-                status, response_data = await forward_chat_completion(provider, slot.key, body)
+                status, response_data = await forward_chat_completion(provider, slot.key, body, slot=slot)
             except Exception as exc:
                 status, response_data = 500, {"error": str(exc)}
             call_latency = (time.monotonic() - call_start) * 1000

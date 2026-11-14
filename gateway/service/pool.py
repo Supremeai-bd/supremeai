@@ -11,7 +11,7 @@ import logging
 import os
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from .adaptive_routing import RouteSnapshot, is_valid_secret, route_score
@@ -36,6 +36,9 @@ class KeySlot:
     free_limit: Optional[int] = None
     remaining_free: Optional[int] = None
     consecutive_failures: int = 0
+    supported_models: set[str] = field(default_factory=set)
+    unsupported_models: set[str] = field(default_factory=set)
+    preferred_model: Optional[str] = None
 
     @property
     def is_healthy(self) -> bool:
@@ -121,6 +124,20 @@ class ProviderKeyPool:
                 failures=slot.consecutive_failures,
             )),
         )
+
+    def report_model_capability(self, slot: KeySlot, model: str, success: bool, status_code: int = 200):
+        if not model:
+            return
+        clean_m = str(model).strip()
+        if success:
+            slot.supported_models.add(clean_m)
+            slot.preferred_model = clean_m
+            slot.unsupported_models.discard(clean_m)
+        elif status_code in (404, 400):
+            slot.unsupported_models.add(clean_m)
+            slot.supported_models.discard(clean_m)
+            if slot.preferred_model == clean_m:
+                slot.preferred_model = next(iter(slot.supported_models), None)
 
     def report_success(self, slot: KeySlot, latency_ms: float = 0.0):
         if latency_ms > 0:
@@ -224,6 +241,11 @@ class FederationSquad:
             reverse=True,
         )
         return ranked
+
+    def report_model_capability(self, provider: str, slot: KeySlot, model: str, success: bool, status_code: int = 200):
+        pool = self.pools.get(provider)
+        if pool:
+            pool.report_model_capability(slot, model, success, status_code)
 
     def report_success(self, provider: str, slot: KeySlot, latency_ms: float = 0.0):
         pool = self.pools.get(provider)
