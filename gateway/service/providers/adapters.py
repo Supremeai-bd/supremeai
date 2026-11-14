@@ -84,6 +84,10 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "base_url": os.getenv("SAMBANOVA_BASE_URL", "https://api.sambanova.ai/v1"),
         "default_model": os.getenv("SAMBANOVA_MODEL", "Meta-Llama-3.3-70B-Instruct"),
     },
+    "kilo": {
+        "base_url": os.getenv("KILO_BASE_URL", "https://api.kilo.ai/api/gateway"),
+        "default_model": os.getenv("KILO_MODEL", "auto"),
+    },
     "ghost_gemini": {
         "base_url": os.getenv("GHOST_TOWER_URL", "http://127.0.0.1:8788"),
         "default_model": "gemini-web",
@@ -134,6 +138,13 @@ PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
         "Meta-Llama-3.3-70B-Instruct",
         "Meta-Llama-3.1-8B-Instruct",
         "Qwen2.5-72B-Instruct",
+    ],
+    "kilo": [
+        "auto",
+        "anthropic/claude-sonnet-4.6",
+        "openai/gpt-5.4",
+        "google/gemini-2.5-flash",
+        "deepseek/deepseek-v3.2",
     ],
     "openai": [
         "gpt-4o-mini",

@@ -38,12 +38,12 @@ MODEL_LATENCY_THRESHOLDS_MS: Dict[str, float] = {
 
 # Per-model preferred provider cascades
 MODEL_PROVIDER_CASCADES: Dict[str, List[str]] = {
-    "supreme-spark": ["groq", "sambanova", "gemini", "openrouter"],
-    "supreme-reason": ["gemini", "openrouter", "groq", "mistral"],
-    "supreme-deep": ["openrouter", "gemini", "groq", "mistral"],
-    "supreme-core": ["groq", "gemini", "openrouter", "sambanova", "mistral"],
+    "supreme-spark": ["groq", "kilo", "sambanova", "gemini", "openrouter"],
+    "supreme-reason": ["gemini", "kilo", "openrouter", "groq", "mistral"],
+    "supreme-deep": ["openrouter", "kilo", "gemini", "groq", "mistral"],
+    "supreme-core": ["groq", "kilo", "gemini", "openrouter", "sambanova", "mistral"],
     "supremeai-web": ["ghost_gemini", "web_session", "stealth"],
-    "supremeai-api": ["groq", "gemini", "openrouter", "sambanova", "mistral", "openai"],
+    "supremeai-api": ["groq", "kilo", "gemini", "openrouter", "sambanova", "mistral", "openai"],
 }
 
 

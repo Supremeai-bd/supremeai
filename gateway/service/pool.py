@@ -201,7 +201,7 @@ class FederationSquad:
     # Note: huggingface is excluded from active squad discovery because its serverless
     # inference router now strictly requires paid Inference Provider credits or warm endpoints.
     DEFAULT_PROVIDER_ORDER = [
-        "groq", "gemini", "openrouter", "sambanova", "mistral", "perplexity", "openai",
+        "groq", "gemini", "openrouter", "kilo", "sambanova", "mistral", "perplexity", "openai",
         "v0",
     ]
 
