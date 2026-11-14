@@ -2843,3 +2843,4 @@ async def stream_hitl_events(
     async def event_gen():
         yield "event: connected\ndata: {\"status\": \"connected\"}\n\n"
     return StreamingResponse(event_gen(), media_type="text/event-stream")
+
