@@ -461,6 +461,20 @@ except ImportError:
 if admin_auth_router is not None:
     app.include_router(admin_auth_router)
 
+# Frontend compatibility (admin dashboard full coverage)
+try:
+    from service.frontend_compat import router as fe_compat_router
+except ImportError:
+    try:
+        from gateway.service.frontend_compat import router as fe_compat_router
+    except ImportError:
+        try:
+            from gateway.frontend_compat import router as fe_compat_router
+        except ImportError:
+            fe_compat_router = None
+if fe_compat_router is not None:
+    app.include_router(fe_compat_router)
+
 # Native Passkey / WebAuthn Biometric Router (Fingerprint/TouchID/FaceID)
 try:
     from service.passkey_auth import router as passkey_auth_router
