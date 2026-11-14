@@ -136,7 +136,7 @@ async def probe_schema_drift(
         return _current_schema_status()
 
     if session_factory is None:
-        from core.database import AsyncSessionLocal
+        from core.database.session import AsyncSessionLocal
 
         session_factory = AsyncSessionLocal
 
