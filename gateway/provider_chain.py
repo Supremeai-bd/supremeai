@@ -166,12 +166,12 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
     raw_pool = os.environ.get(f"SUPREMEAI_PROVIDER_KEY_{provider.upper()}", "")
     for part in raw_pool.split(","):
         part = part.strip()
-        if _is_valid_key(part) and part not in keys:
+        if is_valid_secret(part) and part not in keys:
             keys.append(part)
     for env_name in _POOL_ENV.get(provider, []):
         for part in os.environ.get(env_name, "").split(","):
             part = part.strip()
-            if _is_valid_key(part) and part not in keys:
+            if is_valid_secret(part) and part not in keys:
                 keys.append(part)
 
     # Dynamic numbered suffixes (e.g. GEMINI_API_KEY_2..12, GROQ_API_KEY_2..11, OPENROUTER_API_KEY_2..9)
@@ -185,7 +185,7 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
             if rgx.match(env_k) and not any(env_k.upper().endswith(s) for s in ["_MODEL", "_BASE_URL", "_URL"]):
                 for part in env_v.strip().strip("'\"").split(","):
                     part = part.strip()
-                    if _is_valid_key(part) and part not in keys:
+                    if is_valid_secret(part) and part not in keys:
                         keys.append(part)
 
     if not api_base or not keys:
