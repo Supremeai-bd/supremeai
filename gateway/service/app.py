@@ -71,6 +71,10 @@ try:
     from service.telegram_webhook import telegram_router
 except ImportError:
     try:
+        from gateway.service.cache import response_cache
+    except ImportError:
+        response_cache = None  # type: ignore[assignment]
+    try:
         from gateway.service.keygen import generate_key, get_signing_secret, verify_key
     except ImportError:
         def verify_key(key: str) -> dict | None:  # type: ignore[no-redef]
@@ -1510,6 +1514,14 @@ async def list_models():
             "healthy_keys": 1,
         },
         {
+            "id": "supremeai-web",
+            "object": "model",
+            "owned_by": "supremeai",
+            "provider": "stealth-relay",
+            "default_target": "stealth-webhook-session",
+            "healthy_keys": 1,
+        },
+        {
             "id": "supremeai-turbo",
             "object": "model",
             "owned_by": "supremeai",
@@ -1577,7 +1589,7 @@ async def _execute_chat_completion(
 
     if requested_model.startswith("supremeai/"):
         preferred_provider = requested_model.split("/", 1)[1]
-    elif requested_model in ("supremeai-webhook", "supremeai/webhook"):
+    elif requested_model in ("supremeai-webhook", "supremeai/webhook", "supremeai-web", "supremeai/web"):
         preferred_provider = "ghost_gemini"
     elif requested_model in ("supremeai-turbo", "supremeai/turbo"):
         preferred_provider = "ghost_gemini"
@@ -1691,6 +1703,7 @@ async def _execute_chat_completion(
         )
 
     _cache_key: Optional[str] = None
+    relay_detail = None
     if response_cache is not None and response_cache.is_cacheable(body, dict(request.headers)):
         _cache_key = response_cache.build_key(body)
         cached_resp = await response_cache.get(_cache_key)
@@ -1703,6 +1716,7 @@ async def _execute_chat_completion(
 
     use_priority_1 = (
         bool(STEALTH_WEBHOOK_URL)
+        and requested_model not in ("supremeai-api", "supremeai/api")
         and (
             preferred_provider is None
             or preferred_provider in ("stealth", "ghost_gemini", "web_session")
@@ -1710,6 +1724,8 @@ async def _execute_chat_completion(
                 "auto",
                 "supremeai-webhook",
                 "supremeai/webhook",
+                "supremeai-web",
+                "supremeai/web",
                 "supremeai-turbo",
                 "supremeai/turbo",
                 "supremeai-deep-research",
