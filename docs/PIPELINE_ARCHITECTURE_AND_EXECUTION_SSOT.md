@@ -229,7 +229,7 @@ flowchart LR
 2. **`ops-maintenance.yml` অপটিমাইজেশন:**
    - `deep-audit` এবং ভারী সিকিউরিটি স্ক্যানগুলোকে `resolve-execution-tier`-এর ফলাফলের সাথে ডাইনামিক্যালি বাইন্ড করা।
 3. **SSOT আর্কিটেকচার নথিবদ্ধকরণ:**
-   - এই সম্পূর্ণ মাস্টার ব্লুপ্রিন্টটি রিপোজিটরির স্থায়ী ডকুমেন্ট হিসেবে [`docs/PIPELINE_ARCHITECTURE_AND_EXECUTION_SSOT.md`](file:///f:/supremeai/docs/PIPELINE_ARCHITECTURE_AND_EXECUTION_SSOT.md)-এ সংরক্ষণ করা হলো।
+   - এই সম্পূর্ণ মাস্টার ব্লুপ্রিন্টটি রিপোজিটরির স্থায়ী ডকুমেন্ট হিসেবে `docs/PIPELINE_ARCHITECTURE_AND_EXECUTION_SSOT.md`-এ সংরক্ষণ করা হলো।
 
 ---
 *SupremeAI Sovereign Autonomous Architecture — Approved and codified for zero cloud waste.*
