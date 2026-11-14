@@ -15,6 +15,22 @@ from tools.graph_service import GraphService
 
 # বাংলা মন্তব্য: নলেজ গ্রাফের জন্য একটি অফিসিয়াল MCP সার্ভার ইনিশিয়ালাইজ করা হচ্ছে
 app = Server("supremeai-knowledge-graph")
+
+# Compatibility shims for FastMCP decorators on low-level Server
+if not hasattr(app, "list_tools"):
+    def _list_tools_decorator():
+        def decorator(fn):
+            return fn
+        return decorator
+    app.list_tools = _list_tools_decorator  # type: ignore[attr-defined]
+
+if not hasattr(app, "call_tool"):
+    def _call_tool_decorator():
+        def decorator(fn):
+            return fn
+        return decorator
+    app.call_tool = _call_tool_decorator  # type: ignore[attr-defined]
+
 graph_service = GraphService()
 
 

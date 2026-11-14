@@ -25,7 +25,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from core.tests.conftest import (
+from core.conftest import (
     TEST_ACCESS_TOKEN_EXPIRE_MINUTES,
     TEST_ALGORITHM,
     TEST_SECRET_KEY,

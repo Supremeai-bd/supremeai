@@ -245,31 +245,35 @@ class TestListTools:
         ]
         for tool in tools:
             assert tool.description
-            assert tool.inputSchema["type"] == "object"
+            schema = getattr(tool, "inputSchema", getattr(tool, "input_schema", {}))
+            assert schema["type"] == "object"
 
     async def test_required_fields_match_contract(self) -> None:
+        def _schema(tool: Any) -> dict[str, Any]:
+            return getattr(tool, "inputSchema", getattr(tool, "input_schema", {}))
+
         tools = {t.name: t for t in await mcp_server.handle_list_tools()}
-        assert tools["find_optimal_learning_path"].inputSchema["required"] == [
+        assert _schema(tools["find_optimal_learning_path"])["required"] == [
             "start_skill",
             "end_skill",
         ]
-        assert tools["refresh_render_account_status"].inputSchema["required"] == ["account_role"]
+        assert _schema(tools["refresh_render_account_status"])["required"] == ["account_role"]
         # optional knobs are advertised
-        assert "force" in tools["refresh_render_account_status"].inputSchema["properties"]
-        assert "account_role" in tools["get_render_account_status"].inputSchema["properties"]
+        assert "force" in _schema(tools["refresh_render_account_status"])["properties"]
+        assert "account_role" in _schema(tools["get_render_account_status"])["properties"]
         # graph tools expose empty property sets
-        assert tools["get_skill_dependencies"].inputSchema["properties"] == {}
-        assert tools["get_render_deploy_preflight"].inputSchema["properties"] == {}
+        assert _schema(tools["get_skill_dependencies"])["properties"] == {}
+        assert _schema(tools["get_render_deploy_preflight"])["properties"] == {}
         # MESH-6 (#926): task-queue tool contracts
-        assert tools["mesh_dispatch_task"].inputSchema["required"] == ["task_type", "title"]
-        assert tools["mesh_release_task"].inputSchema["required"] == ["task_id"]
+        assert _schema(tools["mesh_dispatch_task"])["required"] == ["task_type", "title"]
+        assert _schema(tools["mesh_release_task"])["required"] == ["task_id"]
         # task_status-এ task_id optional — queue snapshot mode
-        assert "required" not in tools["mesh_task_status"].inputSchema
+        assert "required" not in _schema(tools["mesh_task_status"])
         # MCP Tower gap-3 (#927): mailbox tool contracts
-        assert tools["agent_send"].inputSchema["required"] == ["from_agent", "to_agent"]
-        assert tools["agent_inbox"].inputSchema["required"] == ["agent_id"]
-        assert tools["agent_ack"].inputSchema["required"] == ["message_id", "agent_id"]
-        assert tools["topic_subscribe"].inputSchema["required"] == ["agent_id", "topics"]
+        assert _schema(tools["agent_send"])["required"] == ["from_agent", "to_agent"]
+        assert _schema(tools["agent_inbox"])["required"] == ["agent_id"]
+        assert _schema(tools["agent_ack"])["required"] == ["message_id", "agent_id"]
+        assert _schema(tools["topic_subscribe"])["required"] == ["agent_id", "topics"]
 
 
 # =============================================================================

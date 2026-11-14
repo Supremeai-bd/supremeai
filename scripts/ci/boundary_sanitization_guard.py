@@ -170,6 +170,7 @@ APPROVED_SUBTREES = {
         "search.py",
         "multi_platform_orchestrator.py",
         "worker_service.py",
+        "task_contract.py",
         "main.py",
         "requirements.txt",
         "Dockerfile",

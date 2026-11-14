@@ -24,7 +24,7 @@ from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from core.tests.conftest import (
+from core.conftest import (
     CustomAssertions,
     sample_admin_data,
     sample_agent_create_request,

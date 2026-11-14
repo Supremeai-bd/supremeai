@@ -1,6 +1,6 @@
 import pytest
 
-from core.task_queue.task_contract import TaskEnvelope, TaskState, canonical_payload
+from core.task_contract import TaskEnvelope, TaskState, canonical_payload
 
 
 def test_deduplication_is_tenant_scoped_and_stable():
