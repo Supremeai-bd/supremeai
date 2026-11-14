@@ -157,8 +157,8 @@ flowchart TD
 ---
 
 ## 🛡️ 5. Current Production Verification State
-- **GitHub Workflow File:** [`.github/workflows/unified-pipeline.yml`](file:///f:/supremeai/.github/workflows/unified-pipeline.yml) (Single SSOT).
-- **Render Heavy Battery Script:** [`core/scripts/run_render_heavy_suite.sh`](file:///f:/supremeai/core/scripts/run_render_heavy_suite.sh).
+- **GitHub Workflow File:** [`.github/workflows/unified-pipeline.yml`] (Single SSOT).
+- **Render Heavy Battery Script:** [`core/scripts/run_render_heavy_suite.sh`].
 - **Active Render Runner:** `supremeai-ci-runner` (`srv-dbl8tbmtlv9c73bbkvqg`) under `paykaribazaronline` workspace.
 - **Verification Result:** Fully operational, fast, and quota-protected.
 
