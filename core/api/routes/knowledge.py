@@ -4,7 +4,7 @@ API Endpoints for Knowledge Base Interaction.
 
 import json
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -350,3 +350,135 @@ async def learning_stats(
         ],
         "total": len(signals),
     }
+
+
+# =========================================================================
+# User Knowledge Documents Management API (Workspace grounding sync)
+# =========================================================================
+
+_USER_KNOWLEDGE_DOCS: list[dict[str, Any]] = [
+    {
+        "id": "doc_arch_01",
+        "title": "SupremeAI Core Architecture Spec v2.4.md",
+        "type": "markdown",
+        "sizeBytes": 142000,
+        "tokenCount": 28400,
+        "chunkCount": 32,
+        "status": "indexed",
+        "lastIndexed": "Today at 09:15",
+        "isGroundingActive": True,
+        "contentPreview": "# SupremeAI Core Architecture\nHigh-throughput agent orchestration layer...",
+    },
+    {
+        "id": "doc_mcp_02",
+        "title": "Model Context Protocol (MCP) Integration Guide.pdf",
+        "type": "pdf",
+        "sizeBytes": 420000,
+        "tokenCount": 64200,
+        "chunkCount": 74,
+        "status": "indexed",
+        "lastIndexed": "Yesterday",
+        "isGroundingActive": True,
+        "contentPreview": "MCP specification compliance guidelines: JSON-RPC stdio and SSE transport protocols...",
+    },
+    {
+        "id": "doc_code_03",
+        "title": "Supremeai-bd/supremeai Service Handlers.ts",
+        "type": "code",
+        "sizeBytes": 88400,
+        "tokenCount": 19800,
+        "chunkCount": 24,
+        "status": "indexed",
+        "lastIndexed": "3 days ago",
+        "isGroundingActive": False,
+        "contentPreview": "TypeScript microservice definitions for auth-token-prober, sse-stream-broker...",
+    },
+    {
+        "id": "doc_audit_04",
+        "title": "Security Hardening & RBAC Rules.md",
+        "type": "markdown",
+        "sizeBytes": 54000,
+        "tokenCount": 11200,
+        "chunkCount": 14,
+        "status": "indexed",
+        "lastIndexed": "4 days ago",
+        "isGroundingActive": True,
+        "contentPreview": "Zero-trust principle enforcement, fail-closed auth guards, sanitization policies...",
+    },
+]
+
+
+class KnowledgeDocCreate(BaseModel):
+    title: str = Field(..., min_length=1)
+    type: str = Field(default="markdown")
+    sizeBytes: int = Field(default=1024)
+    tokenCount: int = Field(default=250)
+    chunkCount: int = Field(default=1)
+    status: str = Field(default="indexed")
+    isGroundingActive: bool = Field(default=True)
+    contentPreview: str = Field(default="")
+
+
+class KnowledgeDocUpdate(BaseModel):
+    isGroundingActive: bool | None = None
+    title: str | None = None
+    status: str | None = None
+
+
+@router.get("/api/user/knowledge", tags=["User Knowledge"])
+@router.get("/api/v1/user/knowledge", tags=["User Knowledge"])
+async def get_user_knowledge_docs() -> dict[str, Any]:
+    """Retrieve workspace user knowledge documents."""
+    return {"documents": list(_USER_KNOWLEDGE_DOCS)}
+
+
+@router.post("/api/user/knowledge", tags=["User Knowledge"])
+@router.post("/api/v1/user/knowledge", tags=["User Knowledge"])
+async def create_user_knowledge_doc(payload: KnowledgeDocCreate) -> dict[str, Any]:
+    """Index and add a new user knowledge document."""
+    import time
+    new_doc: dict[str, Any] = {
+        "id": f"doc_{int(time.time() * 1000)}",
+        "title": payload.title,
+        "type": payload.type,
+        "sizeBytes": payload.sizeBytes,
+        "tokenCount": payload.tokenCount,
+        "chunkCount": payload.chunkCount,
+        "status": payload.status,
+        "lastIndexed": "Just now",
+        "isGroundingActive": payload.isGroundingActive,
+        "contentPreview": payload.contentPreview or payload.title,
+    }
+    _USER_KNOWLEDGE_DOCS.insert(0, new_doc)
+    return {"success": True, "document": new_doc, "documents": list(_USER_KNOWLEDGE_DOCS)}
+
+
+@router.patch("/api/user/knowledge/{doc_id}", tags=["User Knowledge"])
+@router.patch("/api/v1/user/knowledge/{doc_id}", tags=["User Knowledge"])
+async def update_user_knowledge_doc(doc_id: str, payload: KnowledgeDocUpdate) -> dict[str, Any]:
+    """Toggle grounding or update knowledge document status."""
+    for doc in _USER_KNOWLEDGE_DOCS:
+        if doc["id"] == doc_id:
+            if payload.isGroundingActive is not None:
+                doc["isGroundingActive"] = payload.isGroundingActive
+            if payload.title is not None:
+                doc["title"] = payload.title
+            if payload.status is not None:
+                doc["status"] = payload.status
+            doc["lastIndexed"] = "Just now"
+            return {"success": True, "document": doc}
+
+    raise HTTPException(status_code=404, detail=f"Knowledge document '{doc_id}' not found")
+
+
+@router.delete("/api/user/knowledge/{doc_id}", tags=["User Knowledge"])
+@router.delete("/api/v1/user/knowledge/{doc_id}", tags=["User Knowledge"])
+async def delete_user_knowledge_doc(doc_id: str) -> dict[str, Any]:
+    """Remove a user knowledge document from grounding."""
+    global _USER_KNOWLEDGE_DOCS
+    initial_len = len(_USER_KNOWLEDGE_DOCS)
+    _USER_KNOWLEDGE_DOCS = [d for d in _USER_KNOWLEDGE_DOCS if d["id"] != doc_id]
+    if len(_USER_KNOWLEDGE_DOCS) == initial_len:
+        raise HTTPException(status_code=404, detail=f"Knowledge document '{doc_id}' not found")
+    return {"success": True, "documents": list(_USER_KNOWLEDGE_DOCS)}
+
