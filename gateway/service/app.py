@@ -385,9 +385,12 @@ else:
 from gateway.middleware.correlation_id import CorrelationIdMiddleware  # noqa: E402
 app.add_middleware(CorrelationIdMiddleware)
 
+# Audit P1-12 fix: plain http is only trusted for local development hosts.
+# pages.dev origins (including every Cloudflare preview subdomain) must use
+# https — preview URLs served over http can no longer exchange credentials.
 _cors_origin_regex = os.getenv(
     "CORS_ORIGIN_REGEX",
-    r"^https?://(localhost|127\.0\.0\.1|([a-z0-9-]+\.)?supremeai-studio\.pages\.dev)(:[0-9]+)?$",
+    r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$|^https://([a-z0-9-]+\.)?supremeai-studio\.pages\.dev$",
 ).strip()
 
 app.add_middleware(
@@ -2678,25 +2681,52 @@ async def restore_tool_card(
 
 
 @app.get("/api/v1/telemetry/latency")
-async def get_latency_telemetry():
-    """Real-time provider latency, key pool health, and multi-tier cache telemetry."""
+async def get_latency_telemetry(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Real-time provider latency, key pool health, and multi-tier cache telemetry.
+
+    Audit P1-7 fix: this endpoint previously exposed the full provider pool
+    (77 keys + per-provider health) without authentication. Operator telemetry
+    now requires operator-class credentials and public responses only carry
+    aggregate counters — never raw key material or supplier topology.
+    """
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized: operator telemetry requires a valid key")
+    squad_stats = squad.stats() if squad else {"total_providers": 0, "total_keys": 0, "total_healthy_keys": 0}
+    # Redact supplier internals: expose aggregate health only (audit P1-7).
+    squad_stats = {
+        k: v for k, v in squad_stats.items()
+        if k not in ("providers", "keys", "key_details", "per_provider")
+    }
     return {
         "status": "ok",
-        "squad": squad.stats() if squad else {"total_providers": 0, "total_keys": 0, "total_healthy_keys": 0},
+        "squad": squad_stats,
         "cache": response_cache.stats() if response_cache else {"l1_size": 0, "hits": 0, "misses": 0},
         "routes": {k: {"latency_ms": v.latency_ms, "failures": v.failures, "remaining": v.remaining} for k, v in _adaptive_routes.items()},
     }
 
 
 @app.get("/api/v1/hitl/pending")
-async def get_hitl_pending():
-    """Gateway-level HITL pending approvals list."""
+async def get_hitl_pending(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Gateway-level HITL pending approvals list (auth-gated: audit P1-8)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing key")
     return {"status": "ok", "pending": [], "count": 0}
 
 
 @app.get("/api/platform/config")
-async def get_platform_config():
-    """Gateway-level platform configuration for Studio UI."""
+async def get_platform_config(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Gateway-level platform configuration for Studio UI (auth-gated: audit P1-8)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing key")
     return {
         "status": "ok",
         "environment": os.getenv("ENVIRONMENT", "production"),
@@ -2711,8 +2741,13 @@ async def get_platform_config():
 
 
 @app.get("/api/mcp-tower/services")
-async def get_mcp_tower_services():
-    """Gateway-level MCP Tower service registry summary."""
+async def get_mcp_tower_services(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Gateway-level MCP Tower service registry summary (auth-gated: audit P1-8)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing key")
     return {
         "status": "ok",
         "services": [
@@ -2723,8 +2758,13 @@ async def get_mcp_tower_services():
 
 
 @app.get("/api/v1/stream/hitl")
-async def stream_hitl_events():
-    """SSE stream for HITL approval events (keep-alive heartbeat)."""
+async def stream_hitl_events(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """SSE stream for HITL approval events (keep-alive heartbeat; auth-gated: audit P1-8)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing key")
     async def event_gen():
         yield "event: connected\ndata: {\"status\": \"connected\"}\n\n"
     return StreamingResponse(event_gen(), media_type="text/event-stream")
