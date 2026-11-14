@@ -541,8 +541,17 @@ jobs:
           fi
 
           echo "All required tier gates 100% green."
-          echo "Autonomous Auto-Landing: Squashing and landing to main now..."
-          gh pr merge "$PR_NUMBER" --squash --delete-branch
+          echo "Autonomous Auto-Landing: queueing squash landing to main (--auto)..."
+          # Auto-landing policy (archive workorder bridge-20261028-auto-landing-policy):
+          # every gate is green here, so a policy-blocked PR (e.g. branch protection
+          # delay) must QUEUE with --auto instead of false-failing the lane. Bare
+          # merges caused incident #1549 and are banned.
+          if gh pr merge "$PR_NUMBER" --auto --squash --delete-branch; then
+            echo "PR #$PR_NUMBER queued for autonomous auto-landing."
+          else
+            echo "::error::Auto-merge queueing failed for PR #$PR_NUMBER."
+            exit 1
+          fi
 
   # =========================================================================
   # STAGE 3: POST-MERGE PRODUCTION DEPLOY & CANARY (Push to Main or Manual Dispatch)
@@ -857,3 +866,30 @@ jobs:
           else
             echo "VERCEL_TOKEN not provided; skipping Vercel trigger."
           fi
+
+  # =========================================================================
+  # Golden-Eval Regression Gate (archive workorder bridge-20261028-golden-eval-gate,
+  # issue #1362 item 3). Ported verbatim from the workorder's pipeline.yml patch —
+  # this repo's release entrypoint is unified-pipeline.yml.
+  # =========================================================================
+  golden-eval-harness:
+    name: "G-GoldenEval harness — scorer self-test + fixture mechanics (#1362)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scorer self-test (must stay deterministic)
+        run: python evals/golden/run_eval.py --self-test
+      - name: Fixture mechanics run (calibration subset, honest coverage label)
+        run: python evals/golden/run_eval.py
+
+  golden-eval-gate:
+    name: "G-GoldenEval — 90% quality regression gate (#1362)"
+    runs-on: ubuntu-latest
+    needs: [golden-eval-harness]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Live golden eval (90% threshold, fail-closed)
+        env:
+          SUPREME_EVAL_ENDPOINT: ${{ secrets.SUPREME_EVAL_ENDPOINT }}
+          SUPREME_EVAL_TOKEN: ${{ secrets.SUPREME_EVAL_TOKEN }}
+        run: python evals/golden/run_eval.py --provider http --min-accuracy 0.90
