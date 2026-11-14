@@ -264,6 +264,13 @@ class TestProviderChain(unittest.TestCase):
         self.assertEqual(hits[0]["text"], "Autonomous multi-agent orchestration")
         self.assertGreater(hits[0]["score"], 0.0)
 
+    def test_gateway_service_app_compilation(self):
+        import py_compile
+        app_path = REPO_ROOT / "gateway" / "service" / "app.py"
+        compiled = py_compile.compile(str(app_path), doraise=True)
+        self.assertIsNotNone(compiled)
+
+
 
 if __name__ == "__main__":
     unittest.main()
