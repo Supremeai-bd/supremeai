@@ -23,6 +23,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.customer import Customer, CustomerCreate, CustomerUpdate
 
 try:
+    from api.routes.live_broadcaster import broadcaster
+except ImportError:
+    try:
+        from core.api.routes.live_broadcaster import broadcaster
+    except ImportError:
+        broadcaster = None
+
+try:
     from database.session import get_db_session
 except ImportError:
     try:
@@ -287,6 +295,11 @@ async def _create_customer_impl(payload: CustomerCreate) -> dict[str, Any]:
         "isDeveloperEligible": payload.is_developer_eligible,
     }
     _MEMORY_CUSTOMERS.insert(0, record)
+    if broadcaster is not None:
+        try:
+            asyncio.create_task(broadcaster.broadcast_customer_updated(record))
+        except Exception:
+            pass
     return record
 
 
@@ -303,6 +316,11 @@ async def _update_customer_impl(customer_id: str, payload: CustomerUpdate) -> di
         if v is not None:
             record[k] = v
     record["lastActive"] = "Just now"
+    if broadcaster is not None:
+        try:
+            asyncio.create_task(broadcaster.broadcast_customer_updated(record))
+        except Exception:
+            pass
     return record
 
 
@@ -315,6 +333,11 @@ async def _delete_customer_impl(customer_id: str) -> bool:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Customer with ID '{customer_id}' not found",
         )
+    if broadcaster is not None:
+        try:
+            asyncio.create_task(broadcaster.broadcast("customer_deleted", {"id": customer_id}))
+        except Exception:
+            pass
     return True
 
 

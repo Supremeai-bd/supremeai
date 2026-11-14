@@ -512,6 +512,7 @@ ALL_ROUTERS = [
     {"path": "api.routes.admin_routing", "prefix": "", "is_admin": True, "is_critical": False},
     {"path": "api.routes.web_ai_proxy", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.customers", "prefix": "", "is_admin": False, "is_critical": False},
+    {"path": "api.routes.live_broadcaster", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "orchestration.periodic_task_scheduler", "prefix": "", "is_admin": True, "is_critical": False},
 ]
 
