@@ -13,10 +13,11 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+import json
 import logging
 import os
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, AsyncIterator, Dict, Optional, Tuple
 from urllib.parse import urlsplit
 import httpx
 
@@ -386,6 +387,151 @@ async def forward_chat_completion(
                 return 502, {"error": f"Connection error to {provider}: {str(exc)}"}
 
     return last_status, last_data
+
+
+async def stream_chat_completion_events(
+    provider: str,
+    api_key: str,
+    payload: Dict[str, Any],
+    slot: Any = None,
+    timeout: float = 60.0,
+) -> AsyncIterator[Tuple[str, Any]]:
+    """True upstream SSE streaming with in-flight model cascade (audit P0-5 fix).
+
+    Yields tuples:
+      ("status", {"status": 200, "model": <model>})  once, on first successful stream
+      ("event",  {"delta": str, "finish_reason": ..., "tool_calls": ..., "model": ...})
+      ("done",   None)                                on clean upstream [DONE]
+      ("error",  {"error": ...})                      on total failure (no status was yielded)
+
+    Mirrors forward_chat_completion's cascade: 400/402/404/429/503 on a model
+    cascades to the next candidate; 401/403 and connection errors fail fast.
+    """
+    config = PROVIDER_CONFIGS.get(provider)
+    if not config:
+        yield ("error", {"error": f"Unknown provider: {provider}"})
+        return
+
+    base_url = config["base_url"].rstrip("/")
+    url = f"{base_url}/chat/completions"
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "User-Agent": "SupremeAI-Gateway/2.0",
+        "Accept": "text/event-stream",
+    }
+    if provider == "openrouter":
+        headers["HTTP-Referer"] = (
+            os.getenv("OPENROUTER_REFERER")
+            or os.getenv("RENDER_EXTERNAL_URL")
+            or "https://supremeai-api-ulw0.onrender.com"
+        )
+        headers["X-Title"] = "SupremeAI Gateway"
+
+    body = dict(payload)
+    for non_openai_key in (
+        "preferred_provider", "temp", "provider", "prompt", "message",
+        "session_id", "conversation_id", "task_type", "deepResearch",
+        "userContext", "language_pref", "response_style", "mode",
+    ):
+        body.pop(non_openai_key, None)
+    body["stream"] = True
+    if provider == "gemini":
+        body.pop("frequency_penalty", None)
+        body.pop("presence_penalty", None)
+
+    client_model = body.get("model", "auto")
+    cascade = list(PROVIDER_MODEL_CASCADES.get(provider, [config["default_model"]]))
+    candidate_models: list[str] = []
+    preferred_slot_model = getattr(slot, "preferred_model", None) if slot else None
+    unsupported_set = getattr(slot, "unsupported_models", set()) if slot else set()
+    supported_set = getattr(slot, "supported_models", set()) if slot else set()
+    if preferred_slot_model and preferred_slot_model not in candidate_models:
+        candidate_models.append(preferred_slot_model)
+    if (
+        client_model
+        and client_model not in ("auto", "default", "")
+        and not str(client_model).startswith("supremeai/")
+        and not str(client_model).startswith("supreme-")
+        and not str(client_model).startswith("supremeai-")
+        and (str(client_model) in cascade or provider == "openrouter")
+    ):
+        if str(client_model) not in candidate_models:
+            candidate_models.append(str(client_model))
+    for m in cascade:
+        if m in unsupported_set and m not in supported_set:
+            continue
+        if m not in candidate_models:
+            candidate_models.append(m)
+
+    async with _pooled_http_client(timeout) as client:
+        for model_name in candidate_models:
+            body["model"] = model_name
+            try:
+                async with client.stream("POST", url, json=body, headers=headers) as response:
+                    status_code = response.status_code
+                    if status_code in (400, 402, 404, 429, 503):
+                        await response.aread()
+                        if status_code == 402:
+                            logger.warning(f"[{provider}] Model {model_name} requested payment (402); skipping paid tier.")
+                        else:
+                            logger.warning(
+                                f"[{provider}] Model {model_name} returned {status_code}; cascading to next available model..."
+                            )
+                        continue
+                    if 200 <= status_code < 300:
+                        if slot and hasattr(slot, "supported_models"):
+                            slot.supported_models.add(model_name)
+                            slot.preferred_model = model_name
+                            slot.unsupported_models.discard(model_name)
+                        yield ("status", {"status": 200, "model": model_name})
+                        async for line in response.aiter_lines():
+                            line = line.strip()
+                            if not line.startswith("data:"):
+                                continue
+                            data_str = line[5:].strip()
+                            if data_str == "[DONE]":
+                                yield ("done", None)
+                                return
+                            try:
+                                chunk = json.loads(data_str)
+                            except Exception:  # noqa: BLE001 - skip malformed keep-alive lines
+                                continue
+                            if not isinstance(chunk, dict):
+                                continue
+                            chs = chunk.get("choices") or []
+                            if not chs or not isinstance(chs[0], dict):
+                                continue
+                            delta = chs[0].get("delta") or {}
+                            content = delta.get("content") or ""
+                            finish_reason = chs[0].get("finish_reason")
+                            tool_calls = delta.get("tool_calls")
+                            if content or finish_reason or tool_calls:
+                                yield (
+                                    "event",
+                                    {
+                                        "delta": content,
+                                        "finish_reason": finish_reason,
+                                        "tool_calls": tool_calls,
+                                        "model": model_name,
+                                    },
+                                )
+                        yield ("done", None)
+                        return
+                    # Fatal auth/other errors: do not loop other models with same key
+                    await response.aread()
+                    logger.warning(f"[{provider}] Model {model_name} returned {status_code}; aborting stream.")
+                    yield ("error", {"error": f"Provider {provider} returned {status_code}"})
+                    return
+            except httpx.TimeoutException:
+                logger.warning(f"[{provider}] Model {model_name} timed out after {timeout}s; trying next model...")
+                continue
+            except httpx.RequestError as exc:
+                yield ("error", {"error": f"Connection error to {provider}: {str(exc)}"})
+                return
+
+    yield ("error", {"error": f"No models available for provider {provider}"})
 
 
 async def forward_stealth_webhook(

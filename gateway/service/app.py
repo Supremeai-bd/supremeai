@@ -66,6 +66,7 @@ try:
         forward_chat_completion,
         forward_stealth_webhook,
         normalize_stealth_url,
+        stream_chat_completion_events,
     )
     from service.providers.web_session import web_bridge
     from service.telegram_webhook import telegram_router
@@ -104,6 +105,7 @@ except ImportError:
             forward_chat_completion,
             forward_stealth_webhook,
             normalize_stealth_url,
+            stream_chat_completion_events,
         )
     except ImportError:
         try:
@@ -112,6 +114,7 @@ except ImportError:
                 forward_chat_completion,
                 forward_stealth_webhook,
                 normalize_stealth_url,
+                stream_chat_completion_events,
             )
         except ImportError:
             PROVIDER_CONFIGS = {}  # type: ignore[assignment]
@@ -121,6 +124,10 @@ except ImportError:
                 return 503, {"error": "adapters unavailable"}
             def normalize_stealth_url(url: str) -> str:  # type: ignore[no-redef]
                 return ""
+            def stream_chat_completion_events(*a, **k):  # type: ignore[no-redef]
+                async def _unavailable():
+                    yield ("error", {"error": "adapters unavailable"})
+                return _unavailable()
     try:
         from gateway.service.providers.web_session import web_bridge
     except ImportError:
@@ -2057,6 +2064,94 @@ async def _execute_chat_completion(
         for provider, slot in candidates:
             slot.total_calls += 1
             call_start = time.monotonic()
+
+            # Audit P0-5 fix: TRUE streaming. When the client asks for SSE, live-
+            # proxy upstream chunks via stream_chat_completion_events (internal
+            # model cascade included) instead of buffering the whole reply and
+            # re-simulating it word-by-word with asyncio.sleep(0.01).
+            if body.get("stream"):
+                stream_served_model = requested_model or "supremeai-api"
+                stream_brand = build_brand("api", provider, stream_served_model)
+                stream_chunk_id = f"chatcmpl-stream-{int(time.time() * 1000)}"
+
+                async def squad_true_stream_generator():
+                    acc: list = []
+                    started = False
+                    try:
+                        async for kind, data in stream_chat_completion_events(provider, slot.key, body, slot=slot):
+                            if kind == "status":
+                                started = True
+                                call_latency = (time.monotonic() - call_start) * 1000
+                                if squad:
+                                    squad.report_success(provider, slot, call_latency)
+                                _adaptive_routes["api-pool"].record(call_latency, success=True)
+                                continue
+                            if kind == "event":
+                                tool_calls = data.get("tool_calls")
+                                text = data.get("delta") or ""
+                                finish = data.get("finish_reason")
+                                if tool_calls:
+                                    chunk_payload = {
+                                        "id": stream_chunk_id,
+                                        "object": "chat.completion.chunk",
+                                        "created": int(time.time()),
+                                        "model": stream_served_model,
+                                        "choices": [
+                                            {
+                                                "index": 0,
+                                                "delta": {"role": "assistant", "tool_calls": tool_calls},
+                                                "finish_reason": "tool_calls",
+                                            }
+                                        ],
+                                        "supremeai": stream_brand,
+                                    }
+                                    yield f"data: {json.dumps(chunk_payload)}\n\n"
+                                elif text:
+                                    acc.append(text)
+                                    chunk_payload = _format_sse_chunk(
+                                        stream_chunk_id, stream_served_model, text, bool(finish), stream_brand
+                                    )
+                                    yield f"data: {json.dumps(chunk_payload)}\n\n"
+                                continue
+                            if kind == "error" and not started:
+                                # Total provider/model failure before any content:
+                                # surface an honest SSE error instead of a fake stream.
+                                yield f"data: {json.dumps({'error': data.get('error', 'Upstream stream failed'), 'supremeai': stream_brand})}\n\n"
+                                break
+                        full_text = "".join(acc)
+                        if conv_id and full_text and append_canonical_message:
+                            try:
+                                append_canonical_message(
+                                    conv_id,
+                                    "assistant",
+                                    full_text,
+                                    user_id=user_id,
+                                    provider="dynamic-squad",
+                                    model=stream_served_model,
+                                    metadata={"supremeai": stream_brand, "stream": True},
+                                )
+                            except Exception:
+                                pass
+                        if acc:
+                            yield f"data: {json.dumps(_format_sse_chunk(stream_chunk_id, stream_served_model, '', True, stream_brand))}\n\n"
+                        yield "data: [DONE]\n\n"
+                    except Exception as exc:  # noqa: BLE001 - never crash a live stream silently
+                        logger.warning("[stream] true-stream generator failed: %s", type(exc).__name__)
+                        yield f"data: {json.dumps({'error': 'Stream interrupted', 'supremeai': stream_brand})}\n\n"
+                        yield "data: [DONE]\n\n"
+
+                return StreamingResponse(
+                    squad_true_stream_generator(),
+                    media_type="text/event-stream",
+                    headers={
+                        "X-SupremeAI-Provider": "supremeai-dynamic-squad",
+                        "X-SupremeAI-Slot": "adaptive-route",
+                        "X-SupremeAI-Tier": "free-tier-adaptive",
+                        "Cache-Control": "no-cache",
+                        "X-Accel-Buffering": "no",
+                    },
+                )
+
             try:
                 status, response_data = await forward_chat_completion(provider, slot.key, body, slot=slot)
             except Exception as exc:
@@ -2107,43 +2202,9 @@ async def _execute_chat_completion(
                             pass
 
                 # Streaming chunk generator for Kilo Code / IDEs
-                if body.get("stream"):
-                    async def squad_stream_generator():
-                        msg_obj = choices[0]["message"] if choices and isinstance(choices[0], dict) and isinstance(choices[0].get("message"), dict) else {}
-                        tool_calls = msg_obj.get("tool_calls")
-                        if tool_calls:
-                            chunk_payload = {
-                                "id": response_data.get("id") or "chatcmpl-stream",
-                                "object": "chat.completion.chunk",
-                                "created": int(time.time()),
-                                "model": served_model,
-                                "choices": [
-                                    {
-                                        "index": 0,
-                                        "delta": {"role": "assistant", "tool_calls": tool_calls},
-                                        "finish_reason": "tool_calls",
-                                    }
-                                ],
-                                "supremeai": response_data.get("supremeai"),
-                            }
-                            yield f"data: {json.dumps(chunk_payload)}\n\n"
-                        else:
-                            words = chat_content.split(" ") if chat_content else [""]
-                            for idx, word in enumerate(words):
-                                chunk_text = word + (" " if idx < len(words) - 1 else "")
-                                chunk_payload = _format_sse_chunk(
-                                    response_data.get("id"), served_model, chunk_text, idx == len(words) - 1, response_data.get("supremeai")
-                                )
-                                yield f"data: {json.dumps(chunk_payload)}\n\n"
-                                await asyncio.sleep(0.01)
-                        yield "data: [DONE]\n\n"
-
-                    return StreamingResponse(
-                        squad_stream_generator(),
-                        media_type="text/event-stream",
-                        headers={**headers, "Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-                    )
-
+                # (Audit P0-5: removed the fake word-by-word re-simulation —
+                # streaming clients are now served by the live upstream proxy
+                # branch above, before any buffering happens.)
                 if _cache_key and response_cache is not None:
                     asyncio.create_task(response_cache.set(_cache_key, response_data))
                 return JSONResponse(status_code=status, content=response_data, headers=headers)
