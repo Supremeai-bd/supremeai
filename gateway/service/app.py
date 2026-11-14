@@ -1538,7 +1538,39 @@ async def list_models():
     healthy_total = squad.stats()["total_healthy_keys"] if squad else 0
     models_data = [
         {
-            "id": "supremeai-webhook",
+            "id": "supreme-core",
+            "object": "model",
+            "owned_by": "supremeai",
+            "provider": "adaptive-hybrid",
+            "default_target": "flagship-intelligence-router",
+            "healthy_keys": healthy_total + 1,
+        },
+        {
+            "id": "supreme-spark",
+            "object": "model",
+            "owned_by": "supremeai",
+            "provider": "ultra-low-latency",
+            "default_target": "sub-second-api-blaze",
+            "healthy_keys": healthy_total + 1,
+        },
+        {
+            "id": "supreme-reason",
+            "object": "model",
+            "owned_by": "supremeai",
+            "provider": "deep-reasoning",
+            "default_target": "pro-compute-analytical",
+            "healthy_keys": healthy_total + 1,
+        },
+        {
+            "id": "supreme-deep",
+            "object": "model",
+            "owned_by": "supremeai",
+            "provider": "agentic-orchestration",
+            "default_target": "large-context-deep-engine",
+            "healthy_keys": healthy_total + 1,
+        },
+        {
+            "id": "supremeai-web",
             "object": "model",
             "owned_by": "supremeai",
             "provider": "stealth-relay",
@@ -1546,7 +1578,15 @@ async def list_models():
             "healthy_keys": 1,
         },
         {
-            "id": "supremeai-web",
+            "id": "supremeai-api",
+            "object": "model",
+            "owned_by": "supremeai",
+            "provider": "dynamic-squad",
+            "default_target": "multi-key-pool",
+            "healthy_keys": healthy_total,
+        },
+        {
+            "id": "supremeai-webhook",
             "object": "model",
             "owned_by": "supremeai",
             "provider": "stealth-relay",
@@ -1560,22 +1600,6 @@ async def list_models():
             "provider": "supremeai-fast",
             "default_target": "blaze-turbo-failover",
             "healthy_keys": 1,
-        },
-        {
-            "id": "supremeai-deep-research",
-            "object": "model",
-            "owned_by": "supremeai",
-            "provider": "supremeai-reasoning",
-            "default_target": "deep-reasoning-session",
-            "healthy_keys": 1,
-        },
-        {
-            "id": "supremeai-api",
-            "object": "model",
-            "owned_by": "supremeai",
-            "provider": "dynamic-squad",
-            "default_target": "multi-key-pool",
-            "healthy_keys": healthy_total,
         },
         {
             "id": "auto",
@@ -1618,17 +1642,18 @@ async def _execute_chat_completion(
 
     requested_model = body.get("model", "auto")
     preferred_provider = None
-
     if requested_model.startswith("supremeai/"):
         preferred_provider = requested_model.split("/", 1)[1]
-    elif requested_model in ("supremeai-webhook", "supremeai/webhook", "supremeai-web", "supremeai/web"):
+    elif requested_model in ("supremeai-web", "supremeai/web", "supremeai-webhook", "supremeai/webhook"):
         preferred_provider = "ghost_gemini"
-    elif requested_model in ("supremeai-turbo", "supremeai/turbo"):
-        preferred_provider = "ghost_gemini"
-    elif requested_model in ("supremeai-deep-research", "supremeai/deep-research"):
-        preferred_provider = "ghost_gemini"
+    elif requested_model in ("supreme-spark", "supremeai-fast"):
+        preferred_provider = "groq" if (squad and squad.pools.get("groq") and squad.pools["groq"].healthy_slots) else "gemini"
+    elif requested_model in ("supreme-reason", "supremeai-reasoning"):
+        preferred_provider = "gemini"
     elif requested_model in ("supremeai-api", "supremeai/api"):
         preferred_provider = "auto"
+    elif requested_model in ("supreme-core", "supreme-deep", "supremeai-turbo", "auto"):
+        preferred_provider = None
     elif requested_model in PROVIDER_CONFIGS:
         preferred_provider = requested_model
 
@@ -1939,7 +1964,7 @@ async def _execute_chat_completion(
                 return StreamingResponse(
                     stream_generator(),
                     media_type="text/event-stream",
-                    headers={**headers, "Cache-Control": "no-cache", "Connection": "keep-alive"},
+                    headers={**headers, "Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
                 )
 
             return JSONResponse(status_code=w_status, content=w_response, headers=headers)
@@ -2052,7 +2077,7 @@ async def _execute_chat_completion(
                     return StreamingResponse(
                         squad_stream_generator(),
                         media_type="text/event-stream",
-                        headers={**headers, "Cache-Control": "no-cache", "Connection": "keep-alive"},
+                        headers={**headers, "Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
                     )
 
                 if _cache_key and response_cache is not None:
