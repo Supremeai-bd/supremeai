@@ -2075,22 +2075,29 @@ async def _execute_chat_completion(
         if not candidates and preferred_provider not in (None, "auto"):
             candidates = squad.get_candidate_slots("auto")
 
-        for provider, slot in candidates:
-            slot.total_calls += 1
-            call_start = time.monotonic()
+        # Audit P0-5 fix: TRUE streaming. When the client asks for SSE, live-
+        # proxy upstream chunks via stream_chat_completion_events (internal
+        # model cascade included) instead of buffering the whole reply and
+        # re-simulating it word-by-word with asyncio.sleep(0.01).
+        # Multi-provider failover: if candidate 0 fails before producing any tokens,
+        # seamlessly fail over to candidate 1..N in the squad.
+        if body.get("stream") and candidates:
+            stream_served_model = requested_model or "supremeai-api"
+            stream_chunk_id = f"chatcmpl-stream-{int(time.time() * 1000)}"
 
-            # Audit P0-5 fix: TRUE streaming. When the client asks for SSE, live-
-            # proxy upstream chunks via stream_chat_completion_events (internal
-            # model cascade included) instead of buffering the whole reply and
-            # re-simulating it word-by-word with asyncio.sleep(0.01).
-            if body.get("stream"):
-                stream_served_model = requested_model or "supremeai-api"
-                stream_brand = build_brand("api", provider, stream_served_model)
-                stream_chunk_id = f"chatcmpl-stream-{int(time.time() * 1000)}"
+            async def squad_true_stream_generator():
+                acc: list = []
+                started = False
+                last_stream_err = "Upstream stream failed"
+                last_brand = build_brand("api", candidates[0][0], stream_served_model)
 
-                async def squad_true_stream_generator():
-                    acc: list = []
-                    started = False
+                for provider, slot in candidates:
+                    slot.total_calls += 1
+                    call_start = time.monotonic()
+                    stream_brand = build_brand("api", provider, stream_served_model)
+                    last_brand = stream_brand
+                    candidate_failed_before_start = False
+
                     try:
                         async for kind, data in stream_chat_completion_events(provider, slot.key, body, slot=slot):
                             if kind == "status":
@@ -2127,44 +2134,76 @@ async def _execute_chat_completion(
                                     )
                                     yield f"data: {json.dumps(chunk_payload)}\n\n"
                                 continue
-                            if kind == "error" and not started:
-                                # Total provider/model failure before any content:
-                                # surface an honest SSE error instead of a fake stream.
-                                yield f"data: {json.dumps({'error': data.get('error', 'Upstream stream failed'), 'supremeai': stream_brand})}\n\n"
-                                break
-                        full_text = "".join(acc)
-                        if conv_id and full_text and append_canonical_message:
-                            try:
-                                append_canonical_message(
-                                    conv_id,
-                                    "assistant",
-                                    full_text,
-                                    user_id=user_id,
-                                    provider="dynamic-squad",
-                                    model=stream_served_model,
-                                    metadata={"supremeai": stream_brand, "stream": True},
-                                )
-                            except Exception:
-                                pass
-                        if acc:
-                            yield f"data: {json.dumps(_format_sse_chunk(stream_chunk_id, stream_served_model, '', True, stream_brand))}\n\n"
-                        yield "data: [DONE]\n\n"
-                    except Exception as exc:  # noqa: BLE001 - never crash a live stream silently
-                        logger.warning("[stream] true-stream generator failed: %s", type(exc).__name__)
-                        yield f"data: {json.dumps({'error': 'Stream interrupted', 'supremeai': stream_brand})}\n\n"
-                        yield "data: [DONE]\n\n"
+                            if kind == "error":
+                                if not started:
+                                    candidate_failed_before_start = True
+                                    last_stream_err = data.get("error", "Upstream stream failed")
+                                    call_latency = (time.monotonic() - call_start) * 1000
+                                    pool = squad.pools.get(provider) if squad else None
+                                    if pool:
+                                        pool.report_injury(slot, 500, call_latency)
+                                    _adaptive_routes["api-pool"].record(call_latency, success=False)
+                                    logger.warning(
+                                        f"[stream] Provider {provider} slot {slot.name} failed before stream start: {last_stream_err}. "
+                                        f"Failing over to next squad player..."
+                                    )
+                                    break
+                                else:
+                                    logger.warning(f"[stream] Provider {provider} failed mid-stream.")
+                                    break
 
-                return StreamingResponse(
-                    squad_true_stream_generator(),
-                    media_type="text/event-stream",
-                    headers={
-                        "X-SupremeAI-Provider": "supremeai-dynamic-squad",
-                        "X-SupremeAI-Slot": "adaptive-route",
-                        "X-SupremeAI-Tier": "free-tier-adaptive",
-                        "Cache-Control": "no-cache",
-                        "X-Accel-Buffering": "no",
-                    },
-                )
+                        if started:
+                            break
+                        if candidate_failed_before_start:
+                            continue
+
+                    except Exception as exc:  # noqa: BLE001 - never crash a live stream silently
+                        logger.warning("[stream] candidate %s failed: %s", provider, type(exc).__name__)
+                        if started:
+                            yield f"data: {json.dumps({'error': 'Stream interrupted', 'supremeai': stream_brand})}\n\n"
+                            yield "data: [DONE]\n\n"
+                            return
+                        continue
+
+                if not started:
+                    # Total squad failure before any content was yielded:
+                    yield f"data: {json.dumps({'error': last_stream_err, 'supremeai': last_brand})}\n\n"
+                    yield "data: [DONE]\n\n"
+                    return
+
+                full_text = "".join(acc)
+                if conv_id and full_text and append_canonical_message:
+                    try:
+                        append_canonical_message(
+                            conv_id,
+                            "assistant",
+                            full_text,
+                            user_id=user_id,
+                            provider="dynamic-squad",
+                            model=stream_served_model,
+                            metadata={"supremeai": last_brand, "stream": True},
+                        )
+                    except Exception:
+                        pass
+                if acc:
+                    yield f"data: {json.dumps(_format_sse_chunk(stream_chunk_id, stream_served_model, '', True, last_brand))}\n\n"
+                yield "data: [DONE]\n\n"
+
+            return StreamingResponse(
+                squad_true_stream_generator(),
+                media_type="text/event-stream",
+                headers={
+                    "X-SupremeAI-Provider": "supremeai-dynamic-squad",
+                    "X-SupremeAI-Slot": "adaptive-route",
+                    "X-SupremeAI-Tier": "free-tier-adaptive",
+                    "Cache-Control": "no-cache",
+                    "X-Accel-Buffering": "no",
+                },
+            )
+
+        for provider, slot in candidates:
+            slot.total_calls += 1
+            call_start = time.monotonic()
 
             try:
                 status, response_data = await forward_chat_completion(provider, slot.key, body, slot=slot)

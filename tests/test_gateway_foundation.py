@@ -157,6 +157,17 @@ class TestRateLimiter(unittest.TestCase):
 
 
 class TestProviderChain(unittest.TestCase):
+    @staticmethod
+    def _run_chain(endpoints, attempt_fn, payload=b'{"messages":[]}'):
+        return asyncio.run(
+            execute_chain(
+                endpoints,
+                payload,
+                attempt_fn=attempt_fn,
+                circuit_breaker=CircuitBreaker(),
+            )
+        )
+
     def test_execute_chain_first_success(self):
         ep1 = Endpoint(provider="groq", model="llama-3.1-8b-instant")
         ep2 = Endpoint(provider="gemini", model="gemini-1.5-flash")
@@ -170,14 +181,7 @@ class TestProviderChain(unittest.TestCase):
                 latency_ms=45,
             )
 
-        res = asyncio.run(
-            execute_chain(
-                (ep1, ep2),
-                b'{"messages":[]}',
-                attempt_fn=fake_attempt,
-                circuit_breaker=CircuitBreaker(),
-            )
-        )
+        res = self._run_chain((ep1, ep2), fake_attempt)
         self.assertEqual(res.status, 200)
         self.assertEqual(res.endpoint.provider, "groq")
 
@@ -202,14 +206,7 @@ class TestProviderChain(unittest.TestCase):
                 latency_ms=150,
             )
 
-        res = asyncio.run(
-            execute_chain(
-                (ep1, ep2),
-                b'{"messages":[]}',
-                attempt_fn=fake_attempt,
-                circuit_breaker=CircuitBreaker(),
-            )
-        )
+        res = self._run_chain((ep1, ep2), fake_attempt)
         self.assertEqual(res.status, 200)
         self.assertEqual(res.endpoint.provider, "gemini")
 
@@ -270,6 +267,67 @@ class TestProviderChain(unittest.TestCase):
         compiled = py_compile.compile(str(app_path), doraise=True)
         self.assertIsNotNone(compiled)
 
+    def test_groq_active_model_cascade(self):
+        from gateway.service.providers.adapters import PROVIDER_MODEL_CASCADES
+
+        groq_cascade = PROVIDER_MODEL_CASCADES.get("groq", [])
+        self.assertIn("llama-3.3-70b-versatile", groq_cascade)
+        self.assertIn("llama-3.1-8b-instant", groq_cascade)
+        # Verify decommissioned models are purged
+        for decommissioned in ("llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"):
+            self.assertNotIn(decommissioned, groq_cascade)
+
+    def test_stream_chat_completion_resets_empty_unsupported_set(self):
+        from gateway.service.pool import KeySlot
+        from gateway.service.providers.adapters import (
+            PROVIDER_MODEL_CASCADES,
+            stream_chat_completion_events,
+        )
+
+        groq_cascade = PROVIDER_MODEL_CASCADES["groq"]
+        # Simulate slot where all cascade models were marked unsupported
+        slot = KeySlot(
+            name="test-slot",
+            key="gsk-dummy-key",
+            provider="groq",
+            unsupported_models=set(groq_cascade),
+        )
+
+        async def _test():
+            events = []
+            # With fake invalid key and mocked endpoint, it will attempt the reset default/first cascade model
+            async for kind, data in stream_chat_completion_events("groq", slot.key, {"model": "auto"}, slot=slot):
+                events.append((kind, data))
+                break  # just observe initiation or immediate attempt
+            # unsupported_models must have been cleared from deadlock
+            self.assertNotEqual(len(slot.unsupported_models), len(groq_cascade))
+
+        asyncio.run(_test())
+
+
+
+    def test_fe_verify_2fa_totp_rejection_and_acceptance(self):
+        import os
+        from unittest.mock import AsyncMock, patch
+        from gateway.service.admin_auth import generate_totp_secret
+        from gateway.service.frontend_compat import fe_verify_2fa
+
+        secret = generate_totp_secret()
+        with patch.dict(os.environ, {"SUPREMEAI_ADMIN_TOTP_SECRET": secret}):
+            # 1. Invalid code rejected
+            req_bad = AsyncMock()
+            req_bad.json = AsyncMock(return_value={"token": "000000"})
+            res_bad = asyncio.run(fe_verify_2fa(req_bad))
+            self.assertEqual(res_bad.status_code, 401)
+
+            # 2. Valid code accepted
+            from gateway.tests.test_admin_auth import _compute_totp
+            valid_code = _compute_totp(secret)
+            req_good = AsyncMock()
+            req_good.json = AsyncMock(return_value={"token": valid_code, "trustFor7Days": True})
+            res_good = asyncio.run(fe_verify_2fa(req_good))
+            self.assertTrue(res_good.get("verified"))
+            self.assertIsNotNone(res_good.get("trustedUntil"))
 
 
 if __name__ == "__main__":

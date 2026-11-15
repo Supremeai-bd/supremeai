@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """SupremeAI Tiny Brain PR Guard — AI-Gated Auto-Merge client.
 
 Tier 1: deterministic hard guard (forbidden paths + diff size floor).
@@ -14,6 +14,7 @@ import json
 import os
 import sys
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -32,6 +33,27 @@ except Exception:  # noqa: BLE001
     except Exception:  # noqa: BLE001
         classify_pr_risk = None
 
+try:
+    from ai_auto_approver import (
+        approve_pending_deployment,
+        fetch_pr,
+        post_pr_comment,
+        real_api,
+    )
+except Exception:  # noqa: BLE001
+    try:
+        from scripts.ci.ai_auto_approver import (
+            approve_pending_deployment,
+            fetch_pr,
+            post_pr_comment,
+            real_api,
+        )
+    except Exception:  # noqa: BLE001
+        approve_pending_deployment = None
+        fetch_pr = None
+        post_pr_comment = None
+        real_api = None
+
 REPO = os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GH_REPO") or "Supremeai-bd/supremeai"
 DIFF_SIZE_FLOOR = 500
 FORBIDDEN_PATH_PREFIXES = (
@@ -47,21 +69,16 @@ FORBIDDEN_PATH_PREFIXES = (
 FORBIDDEN_PATH_EXACT = {"gateway/service/keygen.py", "admin_auth.py", "render.yaml"}
 
 
-def real_api(endpoint: str, method: str = "GET", payload: Any = None) -> Any:
-    token = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
-    req = urllib.request.Request(
-        f"https://api.github.com/{endpoint.lstrip('/')}",
-        data=json.dumps(payload).encode() if payload is not None else None,
-        method=method,
-        headers={
-            "Authorization": f"token {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        raw = resp.read().decode()
-    return json.loads(raw) if raw.strip() else None
+if real_api is None:
+    import urllib.request
+
+    def real_api(endpoint: str, method: str = "GET", payload: Any = None) -> Any:
+        tok = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
+        h = {"Authorization": f"token {tok}", "Accept": "application/vnd.github+json"}
+        r = urllib.request.Request(f"https://api.github.com/{endpoint.lstrip('/')}", headers=h, method=method)
+        with urllib.request.urlopen(r, timeout=30) as s:
+            t = s.read().decode()
+        return json.loads(t) if t.strip() else None
 
 
 Api = Callable[[str, str, Any], Any]
@@ -109,33 +126,17 @@ def tier1_violations(files: Any, diff_stats: dict | None = None) -> list[str]:
     return violations
 
 
+_imported_fetch_pr = fetch_pr
+
+
 def fetch_pr(pr_number: int, api: Api = real_api) -> dict:
+    if _imported_fetch_pr is not None and _imported_fetch_pr is not fetch_pr:
+        return _imported_fetch_pr(pr_number, api=api)
     pr = api(f"repos/{REPO}/pulls/{pr_number}") or {}
     if not isinstance(pr, dict):
         pr = {}
-    files = None
-    try:
-        files = api(f"repos/{REPO}/pulls/{pr_number}/files?per_page=100")
-    except Exception:  # noqa: BLE001
-        files = None
-    if isinstance(files, list):
-        pr.setdefault("files", files)
-    else:
-        pr.setdefault("files", pr.get("files") or [])
-    if "statusCheckRollup" not in pr:
-        sha = (pr.get("head") or {}).get("sha")
-        if sha:
-            try:
-                data = api(f"repos/{REPO}/commits/{sha}/check-runs?per_page=100") or {}
-                runs = data.get("check_runs", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
-                pr["statusCheckRollup"] = [
-                    {"name": c.get("name", "?"),
-                     "conclusion": (str(c.get("conclusion")).upper() if c.get("conclusion") is not None else None)
-                     if c.get("status") == "completed" else None}
-                    for c in (runs or [])
-                ]
-            except Exception:  # noqa: BLE001
-                pr["statusCheckRollup"] = []
+    files = api(f"repos/{REPO}/pulls/{pr_number}/files?per_page=100") if api else []
+    pr["files"] = files if isinstance(files, list) else []
     return pr
 
 
@@ -172,47 +173,60 @@ def call_tiny_brain(pr_number: int, files: list[str], diff_stats: dict, ci_statu
         return None
 
 
-def _production_environment_id(api: Api = real_api) -> int | None:
-    try:
-        data = api(f"repos/{REPO}/environments")
-        envs = data.get("environments", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
-        for env in envs or []:
-            if isinstance(env, dict) and env.get("name") == "production":
-                return env.get("id")
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        data = api(f"repos/{REPO}/environments/production")
-        if isinstance(data, dict):
-            return data.get("id")
-    except Exception:  # noqa: BLE001
-        pass
-    return None
+def register_hitl_request(
+    pr_number: int,
+    run_id: int | None,
+    reason: str,
+    violations: list[str],
+    pr: dict[str, Any],
+    gateway_url: str | None = None,
+) -> bool:
+    url_base = gateway_url or os.environ.get("GATEWAY_URL", "https://supremeai-api.onrender.com")
+    url = f"{url_base.rstrip('/')}/api/v1/hitl/register"
+    title = str(pr.get("title") or f"PR #{pr_number}")
+    user = pr.get("user")
+    author = user.get("login") if isinstance(user, dict) else "unknown"
+    head_sha = ""
+    if isinstance(pr.get("head"), dict):
+        head_sha = pr["head"].get("sha", "")
 
-
-def approve_pending_deployment(run_id: int, api: Api = real_api, comment: str | None = None) -> bool:
-    env_id = _production_environment_id(api)
-    ids = [env_id] if env_id is not None else []
-    payload = {"environment_ids": ids, "state": "approved",
-               "comment": comment or "Tiny Brain: Low risk PR verified & approved."}
+    payload = {
+        "id": f"pr-{pr_number}",
+        "action_name": f"Auto-Merge Review Required for PR #{pr_number}",
+        "command": f"gh pr merge {pr_number} --auto --squash",
+        "module": "ci/tiny_brain_guard",
+        "severity": "high",
+        "context": {
+            "pr_number": pr_number,
+            "run_id": run_id,
+            "title": title,
+            "author": author,
+            "reason": reason,
+            "violations": violations,
+            "head_sha": head_sha,
+        },
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "pending",
+    }
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=body, method="POST")
+    req.add_header("Content-Type", "application/json")
+    admin_key = os.environ.get("SUPREMEAI_ADMIN_KEY") or os.environ.get("MCP_ADMIN_KEY") or ""
+    if admin_key:
+        req.add_header("X-SupremeAI-Key", admin_key)
+        req.add_header("Authorization", f"Bearer {admin_key}")
     try:
-        api(f"repos/{REPO}/actions/runs/{run_id}/pending_deployments", "POST", payload)
-        return True
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def post_pr_comment(pr_number: int, body: str, api: Api = real_api) -> bool:
-    try:
-        api(f"repos/{REPO}/issues/{pr_number}/comments", "POST", {"body": body})
-        return True
-    except Exception:  # noqa: BLE001
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return resp.status in (200, 201)
+    except Exception as e:
+        print(f"Note: HITL registration on Gateway ({url}) skipped or deferred: {e}", file=sys.stderr)
         return False
 
 
 def evaluate(pr_number: int, run_id: int | None = None, api: Api = real_api,
              brain_url: str | None = None, brain_token: str | None = None,
-             dry_run: bool = False) -> dict[str, Any]:
+             dry_run: bool = False,
+             gateway_url: str | None = None) -> dict[str, Any]:
     url = brain_url or os.environ.get("TINY_BRAIN_URL", "https://supremeai-tiny-brain.onrender.com")
     token = brain_token if brain_token is not None else os.environ.get("BRAIN_AUTH_TOKEN")
     pr = fetch_pr(pr_number, api)
@@ -224,16 +238,19 @@ def evaluate(pr_number: int, run_id: int | None = None, api: Api = real_api,
 
     violations = tier1_violations(paths, diff_stats)
     if violations:
+        reason_msg = f"tier1_forbidden ({', '.join(violations[:3])})"
         if not dry_run:
             post_pr_comment(pr_number, "🚨 **Human Review Required (Major Decision Detected)**: "
                             f"PR touches sensitive domain ({', '.join(violations[:3])}). "
                             "Escalated to @SaifulHaqueNiloy and @paykaribazaronline.", api)
+            register_hitl_request(pr_number, run_id, reason_msg, violations, pr, gateway_url)
         return {"pr": pr_number, "verdict": "HUMAN_REVIEW", "risk": "HIGH",
                 "reason": "tier1_forbidden", "violations": violations}
 
     if ci_status != "100%_PASS":
         if not dry_run:
             post_pr_comment(pr_number, "⏳ Tiny Brain: CI not fully green; holding auto-approval.", api)
+            register_hitl_request(pr_number, run_id, "CI not fully green", [], pr, gateway_url)
         return {"pr": pr_number, "verdict": "HUMAN_REVIEW", "risk": "HIGH",
                 "reason": "ci_not_green"}
 
@@ -241,7 +258,8 @@ def evaluate(pr_number: int, run_id: int | None = None, api: Api = real_api,
     if not decision:
         # fail-closed
         if not dry_run:
-            post_pr_comment(pr_number, "⚠️ Tiny Brain unreachable; failing closed to human review.", api)
+            post_pr_comment(pr_number, "⚠️  Tiny Brain unreachable; failing closed to human review.", api)
+            register_hitl_request(pr_number, run_id, "Tiny Brain service unreachable (fail-closed)", [], pr, gateway_url)
         return {"pr": pr_number, "verdict": "HUMAN_REVIEW", "risk": "HIGH",
                 "reason": "brain_unreachable"}
 
@@ -261,21 +279,29 @@ def evaluate(pr_number: int, run_id: int | None = None, api: Api = real_api,
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="SupremeAI Tiny Brain PR Guard")
-    parser.add_argument("--pr", type=int, required=True)
-    parser.add_argument("--run-id", type=int, default=None, dest="run_id")
-    parser.add_argument("--repo", default=None)
-    parser.add_argument("--brain-url", default=None, dest="brain_url")
-    parser.add_argument("--brain-token", default=None, dest="brain_token")
-    parser.add_argument("--dry-run", action="store_true", dest="dry_run")
-    parser.add_argument("--json", action="store_true", dest="as_json")
-    args = parser.parse_args(argv)
+    ap = argparse.ArgumentParser(description="SupremeAI Tiny Brain PR Guard")
+    ap.add_argument("--pr", type=int, required=True, help="Target PR number")
+    ap.add_argument("--run-id", type=int, default=None, dest="run_id")
+    ap.add_argument("--repo", default=None, help="Target repository override")
+    ap.add_argument("--brain-url", default=None, dest="brain_url")
+    ap.add_argument("--brain-token", default=None, dest="brain_token")
+    ap.add_argument("--gateway-url", default=None, dest="gateway_url")
+    ap.add_argument("--dry-run", action="store_true", dest="dry_run")
+    ap.add_argument("--json", action="store_true", dest="as_json")
+    opts = ap.parse_args(argv)
 
-    global REPO
-    if args.repo:
-        REPO = args.repo
+    if opts.repo:
+        globals()["REPO"] = opts.repo
 
-    result = evaluate(args.pr, args.run_id, real_api, args.brain_url, args.brain_token, args.dry_run)
+    result = evaluate(
+        pr_number=opts.pr,
+        run_id=opts.run_id,
+        api=real_api,
+        brain_url=opts.brain_url,
+        brain_token=opts.brain_token,
+        dry_run=opts.dry_run,
+        gateway_url=opts.gateway_url,
+    )
     # Emit GitHub Actions output for downstream job gating
     gh_out = os.environ.get("GITHUB_OUTPUT")
     if gh_out:
@@ -284,7 +310,7 @@ def main(argv: list[str] | None = None) -> int:
                 fh.write("is_low_risk={}\n".format("true" if result.get("verdict") == "AUTO_MERGE" else "false"))
         except Exception:  # noqa: BLE001
             pass
-    if args.as_json:
+    if opts.as_json:
         print(json.dumps(result))
     else:
         print(f"PR #{result['pr']}: verdict={result['verdict']} risk={result.get('risk')}")

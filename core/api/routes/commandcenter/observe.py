@@ -40,7 +40,7 @@ def get_health():
         "gcp": {"status": "unknown"},
         "railway": {"status": "unknown"},
         "render": {"status": "unknown"},
-        "overall_health_percent": 0,
+        "overall_health_percent": None,
     }
 
 

@@ -84,9 +84,18 @@ class DynamicRouteArbiter:
             )
 
         if model_clean in ("supremeai-api", "supremeai/api"):
-            candidates = self.squad.get_candidate_slots(preferred_provider) if self.squad else []
-            if not candidates:
-                candidates = self.squad.get_candidate_slots("auto") if self.squad else []
+            candidates: List[Tuple[str, KeySlot]] = []
+            seen_slot_names = set()
+            if self.squad and preferred_provider and preferred_provider not in ("auto", "stealth"):
+                for p, s in self.squad.get_candidate_slots(preferred_provider):
+                    if s.name not in seen_slot_names:
+                        candidates.append((p, s))
+                        seen_slot_names.add(s.name)
+            if self.squad:
+                for p, s in self.squad.get_candidate_slots("auto"):
+                    if s.name not in seen_slot_names:
+                        candidates.append((p, s))
+                        seen_slot_names.add(s.name)
             return RoutingDecision(
                 route_type="api-pool",
                 target_latency_ms=target_latency,
@@ -94,36 +103,57 @@ class DynamicRouteArbiter:
                 candidate_slots=candidates,
             )
 
-        # 2. Per-model ordered candidate slots
+        # 2. Per-model ordered candidate slots with multi-provider failover
         allowed_providers = MODEL_PROVIDER_CASCADES.get(model_clean)
         candidates: List[Tuple[str, KeySlot]] = []
 
         if self.squad:
+            seen_slot_names = set()
+            primary_candidates: List[Tuple[str, KeySlot]] = []
+            fallback_candidates: List[Tuple[str, KeySlot]] = []
+
+            # Primary: if preferred_provider specified, queue its candidate slots first
             if preferred_provider and preferred_provider not in ("auto", "stealth"):
-                candidates = self.squad.get_candidate_slots(preferred_provider)
-            elif allowed_providers:
-                # Rank allowed providers according to adaptive route_score
-                for prov in allowed_providers:
-                    candidates.extend(self.squad.get_candidate_slots(prov))
-            else:
-                candidates = self.squad.get_candidate_slots("auto")
+                for prov, slot in self.squad.get_candidate_slots(preferred_provider):
+                    if slot.name not in seen_slot_names:
+                        primary_candidates.append((prov, slot))
+                        seen_slot_names.add(slot.name)
+
+            # Secondary / Fallbacks: cascade across allowed_providers and full federation squad
+            provider_sequence = allowed_providers or ["groq", "gemini", "openrouter", "sambanova", "mistral", "kilo"]
+            for prov in provider_sequence:
+                if prov == preferred_provider:
+                    continue
+                for prov_item, slot in self.squad.get_candidate_slots(prov):
+                    if slot.name not in seen_slot_names:
+                        fallback_candidates.append((prov_item, slot))
+                        seen_slot_names.add(slot.name)
+
+            # Tertiary: add any other healthy squad auto slots
+            for prov_item, slot in self.squad.get_candidate_slots("auto"):
+                if slot.name not in seen_slot_names:
+                    fallback_candidates.append((prov_item, slot))
+                    seen_slot_names.add(slot.name)
+
+            # Score and rank primary and fallback groups independently
+            sort_key = lambda item: route_score(
+                RouteSnapshot(
+                    name=item[1].name,
+                    latency_ms=item[1].ewma_latency_ms,
+                    remaining=item[1].remaining_free,
+                    limit=item[1].free_limit,
+                    failures=item[1].consecutive_failures,
+                ),
+                latency_target_ms=target_latency,
+            )
+            primary_candidates = sorted(primary_candidates, key=sort_key, reverse=True)
+            fallback_candidates = sorted(fallback_candidates, key=sort_key, reverse=True)
+
+            candidates = primary_candidates + fallback_candidates
 
         # Re-sort all candidate slots by route_score using model's latency threshold
         if candidates:
-            candidates = sorted(
-                candidates,
-                key=lambda item: route_score(
-                    RouteSnapshot(
-                        name=item[1].name,
-                        latency_ms=item[1].ewma_latency_ms,
-                        remaining=item[1].remaining_free,
-                        limit=item[1].free_limit,
-                        failures=item[1].consecutive_failures,
-                    ),
-                    latency_target_ms=target_latency,
-                ),
-                reverse=True,
-            )
+            candidates = sorted(candidates, key=sort_key, reverse=True)
 
         # 3. Dynamic route competition between Stealth Webhook and API Key Pool
         stealth_route = adaptive_routes.get("stealth-webhook")

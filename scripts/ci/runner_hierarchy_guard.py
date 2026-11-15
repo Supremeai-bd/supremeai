@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Enforce Universal 4-Level Runner Hierarchy guard (constitutional, warn-only default)."""
 from __future__ import annotations
 import argparse, re

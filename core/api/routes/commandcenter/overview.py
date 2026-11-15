@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -12,27 +14,24 @@ router = APIRouter(
 
 
 class OverviewResponse(BaseModel):
-    active_agents: int
-    active_tasks: int
-    requests_per_second: float
-    latency_p95_ms: float
-    error_rate: float
-    cost_per_hour: float
-    health_percent: float
+    active_agents: Optional[int] = None
+    active_tasks: Optional[int] = None
+    requests_per_second: Optional[float] = None
+    latency_p95_ms: Optional[float] = None
+    error_rate: Optional[float] = None
+    cost_per_hour: Optional[float] = None
+    health_percent: Optional[float] = None
+    status: str = "stub"
+    note: str = (
+        "Command Center overview is not yet backed by live telemetry; "
+        "all numeric fields are intentionally null rather than fabricated zeros."
+    )
 
 
 @router.get("/overview", response_model=OverviewResponse)
 async def get_overview():
     try:
-        return OverviewResponse(
-            active_agents=0,
-            active_tasks=0,
-            requests_per_second=0.0,
-            latency_p95_ms=0.0,
-            error_rate=0.0,
-            cost_per_hour=0.0,
-            health_percent=100.0,
-        )
+        return OverviewResponse(status="stub")
     except Exception as exc:
         logger.error(f"Command center overview failed: {exc}")
         raise HTTPException(status_code=503, detail="Overview unavailable") from exc

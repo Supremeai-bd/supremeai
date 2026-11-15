@@ -1,4 +1,4 @@
-﻿"""Unit tests for SupremeAI Tiny Brain PR Guard."""
+"""Unit tests for SupremeAI Tiny Brain PR Guard."""
 from __future__ import annotations
 
 import sys
@@ -86,6 +86,11 @@ class TestTinyBrainGuard(unittest.TestCase):
             guard.call_tiny_brain = orig
         self.assertEqual(r["verdict"], "HUMAN_REVIEW")
         self.assertEqual(r["reason"], "brain_unreachable")
+
+    def test_register_hitl_request(self) -> None:
+        pr = {"title": "Test PR", "user": {"login": "testuser"}, "head": {"sha": "123456"}}
+        res = guard.register_hitl_request(42, 999, "Test Reason", ["path/x.py"], pr, "http://invalid-endpoint-for-test.local")
+        self.assertFalse(res)
 
 
 if __name__ == "__main__":

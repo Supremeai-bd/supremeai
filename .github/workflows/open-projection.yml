@@ -28,6 +28,7 @@ env:
 
 jobs:
   project:
+    name: "Public Projection Sync (private -> supremeai-open)"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout private live main

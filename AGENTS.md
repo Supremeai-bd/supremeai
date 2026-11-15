@@ -118,11 +118,15 @@ Do not switch branches, rebase, merge, commit, push, or create a worktree as an 
 
 - For schema, persistence, permissions/RLS, configuration, or API changes, include the migration/configuration/wiring and verification needed for the end-to-end behavior in the same cohesive change.
 
-- Use targeted patches for existing files. Replace a whole file only when the task genuinely requires a full rewrite and the current content has been reviewed and preserved where relevant.
+- When a change reveals a broken dependency, stale workaround, or obsolete code/test, remove or repair the underlying cause instead of preserving the symptom. Do not add compensating tests, markers, or config to mask a missing import, misconfiguration, or stale path; verify existing configuration and conventions before adding new ones.
+
+- Prefer deleting obsolete code/tests over keeping them alongside new replacements; if removal breaks dependents, fix the dependents at their root rather than retaining the obsolete item.
 
 ### 4.2 Tests are protection, not obstacles
 
 - Never delete, disable, skip, weaken, or loosen a relevant passing test merely to make a gate green.
+
+- Do not add tests, markers, or configuration solely to make a failing suite pass when the failure is environmental or configuration-related. Fix the root cause or report the concrete blocker instead.
 
 - When fixing a confirmed defect, add or update focused regression coverage that fails before the fix and passes after it, where practical.
 
