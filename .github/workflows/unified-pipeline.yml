@@ -993,7 +993,7 @@ jobs:
   # and workflow + render YAML validation.
   # =========================================================================
   syntax-and-governance-gate:
-    name: "Tier 1: Syntax & Governance Guards (<15s)"
+    name: "Tier 1: Syntax & Governance Checks (<15s)"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
