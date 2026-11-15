@@ -699,7 +699,31 @@ _CP_STUBS = [
 
 @router.get("/api/admin/control-plane/overview")
 async def cp_overview():
-    return {"status": "ok", "data": {}}
+    pending_count = len([t for t in _pending_hitl.values() if t.get("status") == "pending"])
+    return {
+        "status": "ok",
+        "safetyMode": "dry-run-hitl",
+        "mcpEndpoint": "/api/mcp-tower",
+        "backendGateway": "/api/v1",
+        "pendingHitlCount": pending_count,
+        "activeTakeoversCount": 0,
+        "unclaimedBridgeCount": 0,
+        "latestGithubCommit": {
+            "sha": "c5aea09",
+            "message": "feat(gateway): groq live model cascade & multi-candidate streaming failover",
+            "author": "SupremeAI",
+            "date": "2026-11-15T15:30:00Z",
+            "provenance": "verified-git-remote",
+        },
+        "latestDiagnose": {
+            "id": "diag-auto",
+            "timestamp": "2026-11-15T15:30:00Z",
+            "overallStatus": "healthy",
+            "provenance": "verified-git-remote",
+            "layers": [],
+        },
+        "data": {},
+    }
 
 
 @router.get("/api/admin/control-plane/safety-mode")
