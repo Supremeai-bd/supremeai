@@ -290,7 +290,7 @@ jobs:
       - name: Auto Vulnerability Scanner (deps + code + SBOM)
         id: vuln_scanner
         shell: powershell
-        run: python scripts/security/auto_vulnerability_scanner.py --scan-deps --scan-code --generate-sbom
+        run: python scripts/ops/security/auto_vulnerability_scanner.py --scan-deps --scan-code --generate-sbom
 
       - name: Mutation Testing
         id: mutation_testing
@@ -393,7 +393,7 @@ jobs:
 
       - name: Auto Vulnerability Scanner (deps + code + SBOM)
         id: vuln_scanner
-        run: python scripts/security/auto_vulnerability_scanner.py --scan-deps --scan-code --generate-sbom
+        run: python scripts/ops/security/auto_vulnerability_scanner.py --scan-deps --scan-code --generate-sbom
 
       - name: Mutation Testing
         id: mutation_testing

@@ -34,13 +34,25 @@ except Exception:  # noqa: BLE001
         classify_pr_risk = None
 
 try:
-    from ai_auto_approver import approve_pending_deployment, post_pr_comment
+    from ai_auto_approver import (
+        approve_pending_deployment,
+        fetch_pr,
+        post_pr_comment,
+        real_api,
+    )
 except Exception:  # noqa: BLE001
     try:
-        from scripts.ci.ai_auto_approver import approve_pending_deployment, post_pr_comment
+        from scripts.ci.ai_auto_approver import (
+            approve_pending_deployment,
+            fetch_pr,
+            post_pr_comment,
+            real_api,
+        )
     except Exception:  # noqa: BLE001
         approve_pending_deployment = None
+        fetch_pr = None
         post_pr_comment = None
+        real_api = None
 
 REPO = os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GH_REPO") or "Supremeai-bd/supremeai"
 DIFF_SIZE_FLOOR = 500
@@ -57,21 +69,16 @@ FORBIDDEN_PATH_PREFIXES = (
 FORBIDDEN_PATH_EXACT = {"gateway/service/keygen.py", "admin_auth.py", "render.yaml"}
 
 
-def real_api(endpoint: str, method: str = "GET", payload: Any = None) -> Any:
-    token = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
-    req = urllib.request.Request(
-        f"https://api.github.com/{endpoint.lstrip('/')}",
-        data=json.dumps(payload).encode() if payload is not None else None,
-        method=method,
-        headers={
-            "Authorization": f"token {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        raw = resp.read().decode()
-    return json.loads(raw) if raw.strip() else None
+if real_api is None:
+    import urllib.request
+
+    def real_api(endpoint: str, method: str = "GET", payload: Any = None) -> Any:
+        tok = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
+        h = {"Authorization": f"token {tok}", "Accept": "application/vnd.github+json"}
+        r = urllib.request.Request(f"https://api.github.com/{endpoint.lstrip('/')}", headers=h, method=method)
+        with urllib.request.urlopen(r, timeout=30) as s:
+            t = s.read().decode()
+        return json.loads(t) if t.strip() else None
 
 
 Api = Callable[[str, str, Any], Any]
@@ -119,33 +126,17 @@ def tier1_violations(files: Any, diff_stats: dict | None = None) -> list[str]:
     return violations
 
 
+_imported_fetch_pr = fetch_pr
+
+
 def fetch_pr(pr_number: int, api: Api = real_api) -> dict:
+    if _imported_fetch_pr is not None and _imported_fetch_pr is not fetch_pr:
+        return _imported_fetch_pr(pr_number, api=api)
     pr = api(f"repos/{REPO}/pulls/{pr_number}") or {}
     if not isinstance(pr, dict):
         pr = {}
-    files = None
-    try:
-        files = api(f"repos/{REPO}/pulls/{pr_number}/files?per_page=100")
-    except Exception:  # noqa: BLE001
-        files = None
-    if isinstance(files, list):
-        pr.setdefault("files", files)
-    else:
-        pr.setdefault("files", pr.get("files") or [])
-    if "statusCheckRollup" not in pr:
-        sha = (pr.get("head") or {}).get("sha")
-        if sha:
-            try:
-                data = api(f"repos/{REPO}/commits/{sha}/check-runs?per_page=100") or {}
-                runs = data.get("check_runs", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
-                pr["statusCheckRollup"] = [
-                    {"name": c.get("name", "?"),
-                     "conclusion": (str(c.get("conclusion")).upper() if c.get("conclusion") is not None else None)
-                     if c.get("status") == "completed" else None}
-                    for c in (runs or [])
-                ]
-            except Exception:  # noqa: BLE001
-                pr["statusCheckRollup"] = []
+    files = api(f"repos/{REPO}/pulls/{pr_number}/files?per_page=100") if api else []
+    pr["files"] = files if isinstance(files, list) else []
     return pr
 
 

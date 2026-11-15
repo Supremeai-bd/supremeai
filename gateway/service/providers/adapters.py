@@ -234,6 +234,44 @@ def normalize_stealth_url(url: str) -> str:
 
 
 
+def _resolve_candidate_models(
+    provider: str,
+    config: dict[str, Any],
+    slot: Any,
+    client_model: str,
+) -> list[str]:
+    cascade = list(PROVIDER_MODEL_CASCADES.get(provider, [config["default_model"]]))
+    candidate_models: list[str] = []
+    preferred_slot_model = getattr(slot, "preferred_model", None) if slot else None
+    unsupported_set = getattr(slot, "unsupported_models", set()) if slot else set()
+    supported_set = getattr(slot, "supported_models", set()) if slot else set()
+    if preferred_slot_model and preferred_slot_model not in candidate_models:
+        candidate_models.append(preferred_slot_model)
+
+    if (
+        client_model
+        and client_model not in ("auto", "default", "")
+        and not str(client_model).startswith("supremeai/")
+        and not str(client_model).startswith("supreme-")
+        and not str(client_model).startswith("supremeai-")
+        and (str(client_model) in cascade or provider == "openrouter")
+    ):
+        if str(client_model) not in candidate_models:
+            candidate_models.append(str(client_model))
+
+    for m in cascade:
+        if m in unsupported_set and m not in supported_set:
+            continue
+        if m not in candidate_models:
+            candidate_models.append(m)
+
+    if not candidate_models:
+        if slot and hasattr(slot, "unsupported_models"):
+            slot.unsupported_models.clear()
+        candidate_models = [config.get("default_model")] if config.get("default_model") else cascade[:2]
+    return candidate_models
+
+
 @asynccontextmanager
 async def _pooled_http_client(timeout: float = 28.0):
     """Yield the shared pooled httpx client (connection reuse)."""
@@ -301,37 +339,7 @@ async def forward_chat_completion(
         body.pop("presence_penalty", None)
 
     client_model = body.get("model", "auto")
-    cascade = list(PROVIDER_MODEL_CASCADES.get(provider, [config["default_model"]]))
-    candidate_models: list[str] = []
-    preferred_slot_model = getattr(slot, "preferred_model", None) if slot else None
-    unsupported_set = getattr(slot, "unsupported_models", set()) if slot else set()
-    supported_set = getattr(slot, "supported_models", set()) if slot else set()
-    if preferred_slot_model and preferred_slot_model not in candidate_models:
-        candidate_models.append(preferred_slot_model)
-
-    # Only forward client_model if it is a vendor-native model or if provider handles open routing (e.g. OpenRouter).
-    # Never forward abstract sovereign aliases ("supremeai-*", "supreme-*") to raw provider endpoints (like HuggingFace/Groq).
-    if (
-        client_model
-        and client_model not in ("auto", "default", "")
-        and not str(client_model).startswith("supremeai/")
-        and not str(client_model).startswith("supreme-")
-        and not str(client_model).startswith("supremeai-")
-        and (str(client_model) in cascade or provider == "openrouter")
-    ):
-        if str(client_model) not in candidate_models:
-            candidate_models.append(str(client_model))
-
-    for m in cascade:
-        if m in unsupported_set and m not in supported_set:
-            continue
-        if m not in candidate_models:
-            candidate_models.append(m)
-
-    if not candidate_models:
-        if slot and hasattr(slot, "unsupported_models"):
-            slot.unsupported_models.clear()
-        candidate_models = [config.get("default_model")] if config.get("default_model") else cascade[:2]
+    candidate_models = _resolve_candidate_models(provider, config, slot, client_model)
 
     last_status = 500
     last_data: Any = {"error": f"No models available for provider {provider}"}
@@ -444,33 +452,7 @@ async def stream_chat_completion_events(
         body.pop("presence_penalty", None)
 
     client_model = body.get("model", "auto")
-    cascade = list(PROVIDER_MODEL_CASCADES.get(provider, [config["default_model"]]))
-    candidate_models: list[str] = []
-    preferred_slot_model = getattr(slot, "preferred_model", None) if slot else None
-    unsupported_set = getattr(slot, "unsupported_models", set()) if slot else set()
-    supported_set = getattr(slot, "supported_models", set()) if slot else set()
-    if preferred_slot_model and preferred_slot_model not in candidate_models:
-        candidate_models.append(preferred_slot_model)
-    if (
-        client_model
-        and client_model not in ("auto", "default", "")
-        and not str(client_model).startswith("supremeai/")
-        and not str(client_model).startswith("supreme-")
-        and not str(client_model).startswith("supremeai-")
-        and (str(client_model) in cascade or provider == "openrouter")
-    ):
-        if str(client_model) not in candidate_models:
-            candidate_models.append(str(client_model))
-    for m in cascade:
-        if m in unsupported_set and m not in supported_set:
-            continue
-        if m not in candidate_models:
-            candidate_models.append(m)
-
-    if not candidate_models:
-        if slot and hasattr(slot, "unsupported_models"):
-            slot.unsupported_models.clear()
-        candidate_models = [config.get("default_model")] if config.get("default_model") else cascade[:2]
+    candidate_models = _resolve_candidate_models(provider, config, slot, client_model)
 
     async with _pooled_http_client(timeout) as client:
         for model_name in candidate_models:

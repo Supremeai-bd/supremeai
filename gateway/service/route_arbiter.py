@@ -153,20 +153,7 @@ class DynamicRouteArbiter:
 
         # Re-sort all candidate slots by route_score using model's latency threshold
         if candidates:
-            candidates = sorted(
-                candidates,
-                key=lambda item: route_score(
-                    RouteSnapshot(
-                        name=item[1].name,
-                        latency_ms=item[1].ewma_latency_ms,
-                        remaining=item[1].remaining_free,
-                        limit=item[1].free_limit,
-                        failures=item[1].consecutive_failures,
-                    ),
-                    latency_target_ms=target_latency,
-                ),
-                reverse=True,
-            )
+            candidates = sorted(candidates, key=sort_key, reverse=True)
 
         # 3. Dynamic route competition between Stealth Webhook and API Key Pool
         stealth_route = adaptive_routes.get("stealth-webhook")

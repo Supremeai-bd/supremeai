@@ -157,6 +157,17 @@ class TestRateLimiter(unittest.TestCase):
 
 
 class TestProviderChain(unittest.TestCase):
+    @staticmethod
+    def _run_chain(endpoints, attempt_fn, payload=b'{"messages":[]}'):
+        return asyncio.run(
+            execute_chain(
+                endpoints,
+                payload,
+                attempt_fn=attempt_fn,
+                circuit_breaker=CircuitBreaker(),
+            )
+        )
+
     def test_execute_chain_first_success(self):
         ep1 = Endpoint(provider="groq", model="llama-3.1-8b-instant")
         ep2 = Endpoint(provider="gemini", model="gemini-1.5-flash")
@@ -170,14 +181,7 @@ class TestProviderChain(unittest.TestCase):
                 latency_ms=45,
             )
 
-        res = asyncio.run(
-            execute_chain(
-                (ep1, ep2),
-                b'{"messages":[]}',
-                attempt_fn=fake_attempt,
-                circuit_breaker=CircuitBreaker(),
-            )
-        )
+        res = self._run_chain((ep1, ep2), fake_attempt)
         self.assertEqual(res.status, 200)
         self.assertEqual(res.endpoint.provider, "groq")
 
@@ -202,14 +206,7 @@ class TestProviderChain(unittest.TestCase):
                 latency_ms=150,
             )
 
-        res = asyncio.run(
-            execute_chain(
-                (ep1, ep2),
-                b'{"messages":[]}',
-                attempt_fn=fake_attempt,
-                circuit_breaker=CircuitBreaker(),
-            )
-        )
+        res = self._run_chain((ep1, ep2), fake_attempt)
         self.assertEqual(res.status, 200)
         self.assertEqual(res.endpoint.provider, "gemini")
 
