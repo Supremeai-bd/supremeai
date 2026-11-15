@@ -38,12 +38,12 @@ def test_provider_cascades_defined():
     assert "sonar" in PROVIDER_MODEL_CASCADES["perplexity"]
 
     # Verify Groq contains live verified models
-    assert "qwen/qwen3.8-27b" in PROVIDER_MODEL_CASCADES["groq"]
-    assert "openai/gpt-oss-120b" in PROVIDER_MODEL_CASCADES["groq"]
+    assert "llama-3.3-70b-versatile" in PROVIDER_MODEL_CASCADES["groq"]
+    assert "llama-3.1-8b-instant" in PROVIDER_MODEL_CASCADES["groq"]
 
     # Verify Gemini contains live verified models
     assert "gemini-2.5-flash" in PROVIDER_MODEL_CASCADES["gemini"]
-    assert "gemini-flash-latest" in PROVIDER_MODEL_CASCADES["gemini"]
+    assert "gemini-2.5-flash-lite" in PROVIDER_MODEL_CASCADES["gemini"]
 
     # Verify Cerebras is strictly excluded (per user mandate)
     assert "cerebras" not in PROVIDER_MODEL_CASCADES
@@ -58,7 +58,7 @@ async def test_in_flight_model_cascade_on_404():
         model = json.get("model")
         call_history.append(model)
         mock_resp = MagicMock()
-        if model == "qwen/qwen3.8-27b":
+        if model == "llama-3.3-70b-versatile":
             mock_resp.status_code = 404
             mock_resp.json.return_value = {"error": "model_not_found"}
             mock_resp.text = '{"error": "model_not_found"}'
@@ -78,8 +78,8 @@ async def test_in_flight_model_cascade_on_404():
         )
         assert status == 200
         assert isinstance(data, dict)
-        assert data.get("model") == "openai/gpt-oss-120b"
-        assert call_history == ["qwen/qwen3.8-27b", "openai/gpt-oss-120b"]
+        assert data.get("model") == "llama-3.1-8b-instant"
+        assert call_history == ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
 
 
 @pytest.mark.asyncio
@@ -110,7 +110,7 @@ async def test_skip_paid_tier_on_402():
             payload={"messages": [{"role": "user", "content": "hi"}]},
         )
         assert status == 200
-        assert data.get("model") == "gemini-flash-latest"
+        assert data.get("model") == "gemini-2.5-flash-lite"
 
 
 def test_jules_key_included_in_gemini_pool(monkeypatch):
@@ -124,6 +124,31 @@ def test_jules_key_included_in_gemini_pool(monkeypatch):
     slot_names = [s.name for s in gemini_pool.slots]
     assert "GEMINI_API_KEY" in slot_names
     assert "JULES_API_KEY" in slot_names
+
+
+def test_route_arbiter_multi_provider_failover_inclusion(monkeypatch):
+    """When preferred_provider is groq, candidate_slots must include fallbacks (e.g. gemini)."""
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test1234567890")
+    monkeypatch.setenv("GEMINI_API_KEY", "AIzaSyTest1234567890")
+
+    from gateway.service.route_arbiter import DynamicRouteArbiter
+
+    arbiter = DynamicRouteArbiter()
+    squad = FederationSquad()
+    arbiter.squad = squad
+
+    decision = arbiter.choose_best_route(
+        requested_model="supreme-core",
+        preferred_provider="groq",
+        adaptive_routes={},
+        stealth_available=False,
+    )
+    providers = [prov for prov, _ in decision.candidate_slots]
+    assert "groq" in providers
+    assert "gemini" in providers
+    # groq must be first, gemini must follow as seamless failover
+    assert providers[0] == "groq"
+    assert providers[1] == "gemini"
 
 
 if __name__ == "__main__":

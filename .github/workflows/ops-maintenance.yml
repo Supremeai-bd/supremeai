@@ -1719,12 +1719,12 @@ jobs:
           pnpm exec playwright test -c qa/playwright.config.qa.ts --project=setup-customer --project=customer
 
       - name: Generate QA Report + Release Gate
-        if: always() && steps.auth_check.outputs.skip != 'true'
+        if: always() && steps.auth_check.outcome == 'success' && steps.auth_check.outputs.skip != 'true'
         run: bun qa/scripts/generate-report.ts --results qa/results/results.json --out qa/results/report.md
 
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always() && steps.auth_check.outputs.skip != 'true'
+        if: always() && steps.auth_check.outcome == 'success' && steps.auth_check.outputs.skip != 'true'
         with:
           name: qa-customer-results
           path: |
