@@ -57,7 +57,10 @@ jobs:
           secs = api(f"https://app.infisical.com/api/v3/secrets/raw?workspaceId={os.environ['INFISICAL_PROJECT_ID']}&environment=prod&recursive=true",
                      tok=res["accessToken"])
           kv = {s["secretKey"].upper(): s.get("secretValue") or "" for s in secs.get("secrets", [])}
-          app_id, pem = kv["AGENT_PLATFORM_APP_ID"], kv["AGENT_PLATFORM_PRIVATE_KEY"]
+          app_id = kv.get("AGENT_PLATFORM_APP_ID") or kv.get("GITHUB_APP_ID") or os.environ.get("AGENT_PLATFORM_APP_ID") or os.environ.get("GITHUB_APP_ID")
+          pem = kv.get("AGENT_PLATFORM_PRIVATE_KEY") or kv.get("GITHUB_APP_PRIVATE_KEY") or os.environ.get("AGENT_PLATFORM_PRIVATE_KEY") or os.environ.get("GITHUB_APP_PRIVATE_KEY")
+          if not app_id or not pem:
+              raise KeyError("Missing App ID or Private Key in Infisical vault (checked AGENT_PLATFORM_APP_ID and GITHUB_APP_ID)")
           now = int(time.time())
           jwt_tok = pyjwt.encode({"iat": now-60, "exp": now+540, "iss": str(app_id)}, pem, algorithm="RS256")
           insts = api("https://api.github.com/app/installations", tok=jwt_tok)
