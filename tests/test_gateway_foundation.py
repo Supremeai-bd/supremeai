@@ -270,6 +270,43 @@ class TestProviderChain(unittest.TestCase):
         compiled = py_compile.compile(str(app_path), doraise=True)
         self.assertIsNotNone(compiled)
 
+    def test_groq_active_model_cascade(self):
+        from gateway.service.providers.adapters import PROVIDER_MODEL_CASCADES
+
+        groq_cascade = PROVIDER_MODEL_CASCADES.get("groq", [])
+        self.assertIn("llama-3.3-70b-versatile", groq_cascade)
+        self.assertIn("llama-3.1-8b-instant", groq_cascade)
+        # Verify decommissioned models are purged
+        for decommissioned in ("llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"):
+            self.assertNotIn(decommissioned, groq_cascade)
+
+    def test_stream_chat_completion_resets_empty_unsupported_set(self):
+        from gateway.service.pool import KeySlot
+        from gateway.service.providers.adapters import (
+            PROVIDER_MODEL_CASCADES,
+            stream_chat_completion_events,
+        )
+
+        groq_cascade = PROVIDER_MODEL_CASCADES["groq"]
+        # Simulate slot where all cascade models were marked unsupported
+        slot = KeySlot(
+            name="test-slot",
+            key="gsk-dummy-key",
+            provider="groq",
+            unsupported_models=set(groq_cascade),
+        )
+
+        async def _test():
+            events = []
+            # With fake invalid key and mocked endpoint, it will attempt the reset default/first cascade model
+            async for kind, data in stream_chat_completion_events("groq", slot.key, {"model": "auto"}, slot=slot):
+                events.append((kind, data))
+                break  # just observe initiation or immediate attempt
+            # unsupported_models must have been cleared from deadlock
+            self.assertNotEqual(len(slot.unsupported_models), len(groq_cascade))
+
+        asyncio.run(_test())
+
 
 
 if __name__ == "__main__":

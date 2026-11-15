@@ -105,10 +105,10 @@ PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
     "groq": [
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
-        "llama3-70b-8192",
-        "llama3-8b-8192",
-        "mixtral-8x7b-32768",
-        "gemma2-9b-it",
+        "qwen-2.5-32b",
+        "deepseek-r1-distill-llama-70b",
+        "llama-3.2-3b-preview",
+        "llama-3.2-1b-preview",
     ],
     "gemini": [
         "gemini-2.5-flash",
@@ -328,6 +328,11 @@ async def forward_chat_completion(
         if m not in candidate_models:
             candidate_models.append(m)
 
+    if not candidate_models:
+        if slot and hasattr(slot, "unsupported_models"):
+            slot.unsupported_models.clear()
+        candidate_models = [config.get("default_model")] if config.get("default_model") else cascade[:2]
+
     last_status = 500
     last_data: Any = {"error": f"No models available for provider {provider}"}
 
@@ -461,6 +466,11 @@ async def stream_chat_completion_events(
             continue
         if m not in candidate_models:
             candidate_models.append(m)
+
+    if not candidate_models:
+        if slot and hasattr(slot, "unsupported_models"):
+            slot.unsupported_models.clear()
+        candidate_models = [config.get("default_model")] if config.get("default_model") else cascade[:2]
 
     async with _pooled_http_client(timeout) as client:
         for model_name in candidate_models:
