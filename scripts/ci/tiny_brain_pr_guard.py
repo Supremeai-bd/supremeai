@@ -33,6 +33,15 @@ except Exception:  # noqa: BLE001
     except Exception:  # noqa: BLE001
         classify_pr_risk = None
 
+try:
+    from ai_auto_approver import approve_pending_deployment, post_pr_comment
+except Exception:  # noqa: BLE001
+    try:
+        from scripts.ci.ai_auto_approver import approve_pending_deployment, post_pr_comment
+    except Exception:  # noqa: BLE001
+        approve_pending_deployment = None
+        post_pr_comment = None
+
 REPO = os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GH_REPO") or "Supremeai-bd/supremeai"
 DIFF_SIZE_FLOOR = 500
 FORBIDDEN_PATH_PREFIXES = (
@@ -173,44 +182,6 @@ def call_tiny_brain(pr_number: int, files: list[str], diff_stats: dict, ci_statu
         return None
 
 
-def _production_environment_id(api: Api = real_api) -> int | None:
-    try:
-        data = api(f"repos/{REPO}/environments")
-        envs = data.get("environments", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
-        for env in envs or []:
-            if isinstance(env, dict) and env.get("name") == "production":
-                return env.get("id")
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        data = api(f"repos/{REPO}/environments/production")
-        if isinstance(data, dict):
-            return data.get("id")
-    except Exception:  # noqa: BLE001
-        pass
-    return None
-
-
-def approve_pending_deployment(run_id: int, api: Api = real_api, comment: str | None = None) -> bool:
-    env_id = _production_environment_id(api)
-    ids = [env_id] if env_id is not None else []
-    payload = {"environment_ids": ids, "state": "approved",
-               "comment": comment or "Tiny Brain: Low risk PR verified & approved."}
-    try:
-        api(f"repos/{REPO}/actions/runs/{run_id}/pending_deployments", "POST", payload)
-        return True
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def post_pr_comment(pr_number: int, body: str, api: Api = real_api) -> bool:
-    try:
-        api(f"repos/{REPO}/issues/{pr_number}/comments", "POST", {"body": body})
-        return True
-    except Exception:  # noqa: BLE001
-        return False
-
-
 def register_hitl_request(
     pr_number: int,
     run_id: int | None,
@@ -317,29 +288,28 @@ def evaluate(pr_number: int, run_id: int | None = None, api: Api = real_api,
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="SupremeAI Tiny Brain PR Guard")
-    parser.add_argument("--pr", type=int, required=True)
-    parser.add_argument("--run-id", type=int, default=None, dest="run_id")
-    parser.add_argument("--repo", default=None)
-    parser.add_argument("--brain-url", default=None, dest="brain_url")
-    parser.add_argument("--brain-token", default=None, dest="brain_token")
-    parser.add_argument("--gateway-url", default=None, dest="gateway_url")
-    parser.add_argument("--dry-run", action="store_true", dest="dry_run")
-    parser.add_argument("--json", action="store_true", dest="as_json")
-    args = parser.parse_args(argv)
+    ap = argparse.ArgumentParser(description="SupremeAI Tiny Brain PR Guard")
+    ap.add_argument("--pr", type=int, required=True, help="Target PR number")
+    ap.add_argument("--run-id", type=int, default=None, dest="run_id")
+    ap.add_argument("--repo", default=None, help="Target repository override")
+    ap.add_argument("--brain-url", default=None, dest="brain_url")
+    ap.add_argument("--brain-token", default=None, dest="brain_token")
+    ap.add_argument("--gateway-url", default=None, dest="gateway_url")
+    ap.add_argument("--dry-run", action="store_true", dest="dry_run")
+    ap.add_argument("--json", action="store_true", dest="as_json")
+    opts = ap.parse_args(argv)
 
-    global REPO
-    if args.repo:
-        REPO = args.repo
+    if opts.repo:
+        globals()["REPO"] = opts.repo
 
     result = evaluate(
-        args.pr,
-        args.run_id,
-        real_api,
-        args.brain_url,
-        args.brain_token,
-        args.dry_run,
-        args.gateway_url,
+        pr_number=opts.pr,
+        run_id=opts.run_id,
+        api=real_api,
+        brain_url=opts.brain_url,
+        brain_token=opts.brain_token,
+        dry_run=opts.dry_run,
+        gateway_url=opts.gateway_url,
     )
     # Emit GitHub Actions output for downstream job gating
     gh_out = os.environ.get("GITHUB_OUTPUT")
@@ -349,7 +319,7 @@ def main(argv: list[str] | None = None) -> int:
                 fh.write("is_low_risk={}\n".format("true" if result.get("verdict") == "AUTO_MERGE" else "false"))
         except Exception:  # noqa: BLE001
             pass
-    if args.as_json:
+    if opts.as_json:
         print(json.dumps(result))
     else:
         print(f"PR #{result['pr']}: verdict={result['verdict']} risk={result.get('risk')}")

@@ -130,44 +130,52 @@ async def fe_hitl_pending():
     return [r for r in _pending_hitl.values() if r.get("status") == "pending"]
 
 
+def _fetch_pending_environment_ids(run_id: str | int) -> list[int]:
+    status, payload = _gh("GET", f"/repos/{_GH_REPO}/actions/runs/{run_id}/pending_deployments")
+    if status != 200 or not isinstance(payload, list):
+        return []
+    ids: list[int] = []
+    for item in payload:
+        target = item.get("environment") if isinstance(item, dict) else None
+        if isinstance(target, dict) and target.get("id"):
+            ids.append(target["id"])
+    return ids
+
+
+def _decide_github_deployment(run_id: str | int, state: str, comment: str) -> dict[str, Any] | None:
+    env_ids = _fetch_pending_environment_ids(run_id)
+    if not env_ids:
+        return None
+    status, res = _gh(
+        "POST",
+        f"/repos/{_GH_REPO}/actions/runs/{run_id}/pending_deployments",
+        {
+            "environment_ids": env_ids,
+            "state": state,
+            "comment": comment,
+        },
+    )
+    return {"status": status, "response": res}
+
+
+def _submit_github_pr_review(pr_number: int | str, event: str, body: str) -> dict[str, Any]:
+    status, res = _gh("POST", f"/repos/{_GH_REPO}/pulls/{pr_number}/reviews", {"event": event, "body": body})
+    return {"status": status, "response": res}
+
+
 @router.post("/api/v1/hitl/approve/{rid}")
 async def fe_hitl_approve(rid: str, request: Request = None):
     record = _pending_hitl.get(rid)
     ctx = record.get("context", {}) if record else {}
-    pr_number = ctx.get("pr_number")
-    run_id = ctx.get("run_id")
-
     gh_results: dict[str, Any] = {}
-    if run_id:
-        st, deploys = _gh("GET", f"/repos/{_GH_REPO}/actions/runs/{run_id}/pending_deployments")
-        env_ids = []
-        if st == 200 and isinstance(deploys, list):
-            for item in deploys:
-                env = item.get("environment") or {}
-                if env.get("id"):
-                    env_ids.append(env.get("id"))
-        if env_ids:
-            st2, res2 = _gh(
-                "POST",
-                f"/repos/{_GH_REPO}/actions/runs/{run_id}/pending_deployments",
-                {
-                    "environment_ids": env_ids,
-                    "state": "approved",
-                    "comment": "Approved by Admin via SupremeAI Admin Dashboard (1-click approval)",
-                },
-            )
-            gh_results["deployment_approval"] = {"status": st2, "response": res2}
 
-    if pr_number:
-        st3, res3 = _gh(
-            "POST",
-            f"/repos/{_GH_REPO}/pulls/{pr_number}/reviews",
-            {
-                "event": "APPROVE",
-                "body": "✅ Approved by Admin via SupremeAI Admin Dashboard (1-click approval).",
-            },
-        )
-        gh_results["pr_review"] = {"status": st3, "response": res3}
+    if ctx.get("run_id"):
+        dep = _decide_github_deployment(ctx["run_id"], "approved", "Approved by Admin via SupremeAI Admin Dashboard (1-click approval)")
+        if dep:
+            gh_results["deployment_approval"] = dep
+
+    if ctx.get("pr_number"):
+        gh_results["pr_review"] = _submit_github_pr_review(ctx["pr_number"], "APPROVE", "✅ Approved by Admin via SupremeAI Admin Dashboard (1-click approval).")
 
     if record:
         record["status"] = "approved"
@@ -195,40 +203,15 @@ async def fe_hitl_reject(rid: str, request: Request = None):
 
     record = _pending_hitl.get(rid)
     ctx = record.get("context", {}) if record else {}
-    pr_number = ctx.get("pr_number")
-    run_id = ctx.get("run_id")
-
     gh_results: dict[str, Any] = {}
-    if run_id:
-        st, deploys = _gh("GET", f"/repos/{_GH_REPO}/actions/runs/{run_id}/pending_deployments")
-        env_ids = []
-        if st == 200 and isinstance(deploys, list):
-            for item in deploys:
-                env = item.get("environment") or {}
-                if env.get("id"):
-                    env_ids.append(env.get("id"))
-        if env_ids:
-            st2, res2 = _gh(
-                "POST",
-                f"/repos/{_GH_REPO}/actions/runs/{run_id}/pending_deployments",
-                {
-                    "environment_ids": env_ids,
-                    "state": "rejected",
-                    "comment": f"Rejected by Admin via Dashboard: {reason}",
-                },
-            )
-            gh_results["deployment_rejection"] = {"status": st2, "response": res2}
 
-    if pr_number:
-        st3, res3 = _gh(
-            "POST",
-            f"/repos/{_GH_REPO}/pulls/{pr_number}/reviews",
-            {
-                "event": "REQUEST_CHANGES",
-                "body": f"❌ Auto-Merge rejected by Admin via Dashboard: {reason}",
-            },
-        )
-        gh_results["pr_review"] = {"status": st3, "response": res3}
+    if ctx.get("run_id"):
+        dep = _decide_github_deployment(ctx["run_id"], "rejected", f"Rejected by Admin via Dashboard: {reason}")
+        if dep:
+            gh_results["deployment_rejection"] = dep
+
+    if ctx.get("pr_number"):
+        gh_results["pr_review"] = _submit_github_pr_review(ctx["pr_number"], "REQUEST_CHANGES", f"❌ Auto-Merge rejected by Admin via Dashboard: {reason}")
 
     if record:
         record["status"] = "rejected"
