@@ -858,8 +858,42 @@ async def cp_cron_trigger(cid: str):
     return {"id": cid, "status": "triggered"}# appended endpoints
 @router.post("/api/auth/verify-2fa")
 async def fe_verify_2fa(request: Request):
-    body = await request.json()
-    return {"verified": True, "status": "ok"}
+    try:
+        from .admin_auth import check_totp
+    except ImportError:
+        try:
+            from service.admin_auth import check_totp
+        except ImportError:
+            from gateway.service.admin_auth import check_totp
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    code = str(body.get("token") or body.get("otp") or "").strip()
+    secret = (
+        os.getenv("SUPREMEAI_ADMIN_TOTP_SECRET")
+        or os.getenv("ADMIN_TOTP_SECRET")
+    )
+    if not secret:
+        return JSONResponse(
+            status_code=503,
+            content={"verified": False, "error": "Two-factor verification secret is not configured on gateway."}
+        )
+    if not code or not check_totp(code, secret):
+        return JSONResponse(
+            status_code=401,
+            content={"verified": False, "error": "Invalid 2-Step Verification code. Please enter the current 6-digit Authenticator code."}
+        )
+    now_ms = int(time.time() * 1000)
+    trusted_until = (now_ms + (7 * 86400 * 1000)) if body.get("trustFor7Days") else None
+    return {
+        "verified": True,
+        "status": "ok",
+        "trustedUntil": trusted_until,
+        "message": "TOTP verified successfully",
+    }
 
 
 @router.get("/api/mock")

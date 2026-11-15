@@ -309,5 +309,29 @@ class TestProviderChain(unittest.TestCase):
 
 
 
+    def test_fe_verify_2fa_totp_rejection_and_acceptance(self):
+        import os
+        from unittest.mock import AsyncMock, patch
+        from gateway.service.admin_auth import generate_totp_secret
+        from gateway.service.frontend_compat import fe_verify_2fa
+
+        secret = generate_totp_secret()
+        with patch.dict(os.environ, {"SUPREMEAI_ADMIN_TOTP_SECRET": secret}):
+            # 1. Invalid code rejected
+            req_bad = AsyncMock()
+            req_bad.json = AsyncMock(return_value={"token": "000000"})
+            res_bad = asyncio.run(fe_verify_2fa(req_bad))
+            self.assertEqual(res_bad.status_code, 401)
+
+            # 2. Valid code accepted
+            from gateway.tests.test_admin_auth import _compute_totp
+            valid_code = _compute_totp(secret)
+            req_good = AsyncMock()
+            req_good.json = AsyncMock(return_value={"token": valid_code, "trustFor7Days": True})
+            res_good = asyncio.run(fe_verify_2fa(req_good))
+            self.assertTrue(res_good.get("verified"))
+            self.assertIsNotNone(res_good.get("trustedUntil"))
+
+
 if __name__ == "__main__":
     unittest.main()
