@@ -14,6 +14,7 @@ import json
 import os
 import sys
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -210,9 +211,60 @@ def post_pr_comment(pr_number: int, body: str, api: Api = real_api) -> bool:
         return False
 
 
+def register_hitl_request(
+    pr_number: int,
+    run_id: int | None,
+    reason: str,
+    violations: list[str],
+    pr: dict[str, Any],
+    gateway_url: str | None = None,
+) -> bool:
+    url_base = gateway_url or os.environ.get("GATEWAY_URL", "https://supremeai-api.onrender.com")
+    url = f"{url_base.rstrip('/')}/api/v1/hitl/register"
+    title = str(pr.get("title") or f"PR #{pr_number}")
+    user = pr.get("user")
+    author = user.get("login") if isinstance(user, dict) else "unknown"
+    head_sha = ""
+    if isinstance(pr.get("head"), dict):
+        head_sha = pr["head"].get("sha", "")
+
+    payload = {
+        "id": f"pr-{pr_number}",
+        "action_name": f"Auto-Merge Review Required for PR #{pr_number}",
+        "command": f"gh pr merge {pr_number} --auto --squash",
+        "module": "ci/tiny_brain_guard",
+        "severity": "high",
+        "context": {
+            "pr_number": pr_number,
+            "run_id": run_id,
+            "title": title,
+            "author": author,
+            "reason": reason,
+            "violations": violations,
+            "head_sha": head_sha,
+        },
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "pending",
+    }
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=body, method="POST")
+    req.add_header("Content-Type", "application/json")
+    admin_key = os.environ.get("SUPREMEAI_ADMIN_KEY") or os.environ.get("MCP_ADMIN_KEY") or ""
+    if admin_key:
+        req.add_header("X-SupremeAI-Key", admin_key)
+        req.add_header("Authorization", f"Bearer {admin_key}")
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return resp.status in (200, 201)
+    except Exception as e:
+        print(f"Note: HITL registration on Gateway ({url}) skipped or deferred: {e}", file=sys.stderr)
+        return False
+
+
 def evaluate(pr_number: int, run_id: int | None = None, api: Api = real_api,
              brain_url: str | None = None, brain_token: str | None = None,
-             dry_run: bool = False) -> dict[str, Any]:
+             dry_run: bool = False,
+             gateway_url: str | None = None) -> dict[str, Any]:
     url = brain_url or os.environ.get("TINY_BRAIN_URL", "https://supremeai-tiny-brain.onrender.com")
     token = brain_token if brain_token is not None else os.environ.get("BRAIN_AUTH_TOKEN")
     pr = fetch_pr(pr_number, api)
@@ -224,16 +276,19 @@ def evaluate(pr_number: int, run_id: int | None = None, api: Api = real_api,
 
     violations = tier1_violations(paths, diff_stats)
     if violations:
+        reason_msg = f"tier1_forbidden ({', '.join(violations[:3])})"
         if not dry_run:
             post_pr_comment(pr_number, "🚨 **Human Review Required (Major Decision Detected)**: "
                             f"PR touches sensitive domain ({', '.join(violations[:3])}). "
                             "Escalated to @SaifulHaqueNiloy and @paykaribazaronline.", api)
+            register_hitl_request(pr_number, run_id, reason_msg, violations, pr, gateway_url)
         return {"pr": pr_number, "verdict": "HUMAN_REVIEW", "risk": "HIGH",
                 "reason": "tier1_forbidden", "violations": violations}
 
     if ci_status != "100%_PASS":
         if not dry_run:
             post_pr_comment(pr_number, "⏳ Tiny Brain: CI not fully green; holding auto-approval.", api)
+            register_hitl_request(pr_number, run_id, "CI not fully green", [], pr, gateway_url)
         return {"pr": pr_number, "verdict": "HUMAN_REVIEW", "risk": "HIGH",
                 "reason": "ci_not_green"}
 
@@ -241,7 +296,8 @@ def evaluate(pr_number: int, run_id: int | None = None, api: Api = real_api,
     if not decision:
         # fail-closed
         if not dry_run:
-            post_pr_comment(pr_number, "⚠️ Tiny Brain unreachable; failing closed to human review.", api)
+            post_pr_comment(pr_number, "⚠️  Tiny Brain unreachable; failing closed to human review.", api)
+            register_hitl_request(pr_number, run_id, "Tiny Brain service unreachable (fail-closed)", [], pr, gateway_url)
         return {"pr": pr_number, "verdict": "HUMAN_REVIEW", "risk": "HIGH",
                 "reason": "brain_unreachable"}
 
@@ -267,6 +323,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", default=None)
     parser.add_argument("--brain-url", default=None, dest="brain_url")
     parser.add_argument("--brain-token", default=None, dest="brain_token")
+    parser.add_argument("--gateway-url", default=None, dest="gateway_url")
     parser.add_argument("--dry-run", action="store_true", dest="dry_run")
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args(argv)
@@ -275,7 +332,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.repo:
         REPO = args.repo
 
-    result = evaluate(args.pr, args.run_id, real_api, args.brain_url, args.brain_token, args.dry_run)
+    result = evaluate(
+        args.pr,
+        args.run_id,
+        real_api,
+        args.brain_url,
+        args.brain_token,
+        args.dry_run,
+        args.gateway_url,
+    )
     # Emit GitHub Actions output for downstream job gating
     gh_out = os.environ.get("GITHUB_OUTPUT")
     if gh_out:
