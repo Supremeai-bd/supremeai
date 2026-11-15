@@ -987,6 +987,68 @@ jobs:
           fi
 
   # =========================================================================
+  # STAGE 1: SYNTAX & GOVERNANCE GATES (<15s)
+  # Consolidated from syntax-gate.yml and governance-guards.yml
+  # Enforces planner-lane protection, docs pointer hygiene, python compile check,
+  # and workflow + render YAML validation.
+  # =========================================================================
+  syntax-and-governance-gate:
+    name: "Tier 1: Syntax & Governance Guards (<15s)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Planner branches may not land PRs (lesson 2026-09-27)
+        if: github.event_name == 'pull_request'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          case "$HEAD_REF" in
+            planner-*|planner/*)
+              echo "::error::'Allowed scope != authority to land': planner lane branches ($HEAD_REF) must not open landing PRs. Route work through the coder lane."
+              exit 1
+              ;;
+            *) echo "Source branch $HEAD_REF is not planner-scoped — OK." ;;
+          esac
+
+      - name: Governance docs must not cite unreachable file:// paths
+        run: |
+          if grep -rn "file:///" docs/ --include="*.md" --include="*.json" >/tmp/hits.txt 2>/dev/null; then
+            echo "::error::Governance documents contain file:/// references — audit-undecidable pointers. Use repo-relative or network-verifiable paths."
+            cat /tmp/hits.txt | head -20
+            exit 1
+          fi
+          echo "No file:// pointer drift in docs/."
+
+      - name: Compile-check every deploy-critical Python path
+        run: |
+          set -e
+          python -m compileall -q -f gateway core browser scripts
+          echo "All Python deploy paths compile."
+
+      - name: Validate workflow + service YAML
+        run: |
+          pip install pyyaml --quiet
+          python - <<'PY'
+          import pathlib, sys, yaml
+          bad = []
+          files = list(pathlib.Path('.github/workflows').glob('*.yml')) + list(pathlib.Path('.').glob('render.yaml'))
+          for f in files:
+              try:
+                  yaml.safe_load(f.read_text(encoding='utf-8'))
+              except Exception as exc:
+                  bad.append(f"{f}: {exc}")
+          if bad:
+              print("\n".join(bad)); sys.exit(1)
+          print(f"{len(files)} YAML files valid.")
+          PY
+
+  # =========================================================================
   # Golden-Eval Regression Gate (archive workorder bridge-20261028-golden-eval-gate,
   # issue #1362 item 3). Ported verbatim from the workorder's pipeline.yml patch —
   # this repo's release entrypoint is unified-pipeline.yml.

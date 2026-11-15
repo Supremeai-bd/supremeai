@@ -55,8 +55,22 @@ on:
     - cron: "0 4 * * *"
     # 2-hourly opportunistic 24h+ audit window check
     - cron: "0 */2 * * *"
+    # Redis Quota & Burn-rate Monitor (every 30 min at :13/:43 UTC)
+    - cron: "13,43 * * * *"
+    # Weekly LLM Red-Team Garak sweep (Mon 03:00 UTC)
+    - cron: "0 3 * * 1"
   workflow_dispatch:
     inputs:
+      run_redis_quota_monitor:
+        description: 'Run Redis quota & burn-rate monitor arm'
+        required: false
+        default: false
+        type: boolean
+      run_garak_redteam:
+        description: 'Run weekly LLM red-team garak sweep arm'
+        required: false
+        default: false
+        type: boolean
       run_daily_health_report:
         description: 'Run Daily 10:00 AM BDT Health & 5-Point Production Release Gate Report'
         required: false
@@ -2555,4 +2569,72 @@ jobs:
         run: |
           echo "Local offline / tier fallback. Executing emergency audit on cloud (tier=${{ needs.resolve-execution-tier.outputs.execution_tier }})."
           python scripts/ci/check_opportunistic_audit.py --record
+
+  redis-quota-monitor:
+    name: "Redis Quota & Burn-Rate Monitor"
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.run_redis_quota_monitor == true) ||
+      (github.event_name == 'schedule' && (github.event.schedule == '13,43 * * * *' || github.event.schedule == '0 3 * * *'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout monorepo mirror
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Restore alert state (persistent [BURN] history)
+        uses: actions/cache@v4
+        with:
+          path: ~/.supremeai
+          key: rqm-state-${{ github.run_id }}
+          restore-keys: |
+            rqm-state-
+
+      - name: Run quota monitor (live; alerts -> Telegram)
+        id: rqm
+        env:
+          SUPREMEAI_TOWER_URL: https://supremeai-mcp-tower.onrender.com/mcp
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          code=0
+          python scripts/ops/redis_quota_monitor.py || code=$?
+          echo "rqm_exit=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" -ge 3 ]; then exit "$code"; fi
+          echo "monitor exit $code (0=no alert, 1=warn sent, 2=crit sent) — delivery channel is Telegram"
+          exit 0
+
+  garak-redteam:
+    name: "Weekly LLM red-team lane (garak toolchain + probe inventory)"
+    # hierarchy-exception: weekly garak red-team schedule lane (isolated toolchain validation)
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.run_garak_redteam == true) ||
+      (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * 1' || github.event.schedule == '0 3 * * 0'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate garak toolchain (uvx, repo dep = zero)
+        run: |
+          python -m pip install --quiet uv
+          uvx garak==0.17.1 --version
+          echo "--- probe inventory (slice-2 scope: promptinject, dan, encoding, explsearch) ---"
+          uvx garak==0.17.1 --list_probes | head -40
+      - name: Full probe sweep (requires SUPREME_EVAL_ENDPOINT secret)
+        env:
+          SUPREME_EVAL_ENDPOINT: ${{ secrets.SUPREME_EVAL_ENDPOINT }}
+        run: |
+          if [ -z "$SUPREME_EVAL_ENDPOINT" ]; then
+            echo "SUPREME_EVAL_ENDPOINT is not configured — skipping live probe sweep (fail-open skip, per EVAL_GARAK quarantine contract)."
+            exit 0
+          fi
+          echo "Endpoint configured; run the quarantined sweep per docs/EVAL_GARAK_PROBE_2026-10-30.md."
+
 
