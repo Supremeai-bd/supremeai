@@ -187,17 +187,6 @@ on:
         required: false
         default: false
         type: boolean
-      # ── passthrough inputs (verbatim source semantics) ──
-      skip_issue:
-        description: 'Skip auto-creating a GitHub issue on failure (deep-aact/pass^k arms)'
-        required: false
-        default: false
-        type: boolean
-      dry_run:
-        description: 'Dry-run (simulate execution without state mutation)'
-        required: false
-        default: false
-        type: boolean
 
 # Least privilege: workflow-wide read-only; jobs carry their own overrides
 # (issues:write for issue-opening arms, contents:write for branch retention,

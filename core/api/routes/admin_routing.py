@@ -142,3 +142,26 @@ async def classify_action_endpoint(
         "tier": tier.value,
         "requires_approval": tier == RoutingTier.ADMIN_ONLY,
     }
+
+
+@router.get("/live-state")
+async def get_dual_pool_live_state(
+    _admin: Any = Depends(get_current_admin),
+) -> dict[str, Any]:
+    """Return live 6-model Dual-Pool priority ranking, key-pool health, and switch events."""
+    from gateway.dual_pool_priority_router import get_dual_pool_router
+
+    return get_dual_pool_router().get_live_telemetry()
+
+
+@router.post("/recheck")
+async def force_dual_pool_recheck(
+    _admin: Any = Depends(get_current_admin),
+) -> dict[str, Any]:
+    """Trigger an immediate background recheck of all 6 models and return updated telemetry."""
+    import asyncio
+    from gateway.dual_pool_priority_router import get_dual_pool_router, live_http_probe
+
+    r = get_dual_pool_router()
+    await asyncio.to_thread(r.run_background_recheck, live_http_probe)
+    return r.get_live_telemetry()
