@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """SupremeAI Tiny Brain PR Guard — AI-Gated Auto-Merge client.
 
 Tier 1: deterministic hard guard (forbidden paths + diff size floor).

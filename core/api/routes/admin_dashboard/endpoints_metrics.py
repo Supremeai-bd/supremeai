@@ -150,11 +150,7 @@ async def get_providers():
                     "status": status,
                     "latency_ms": round(cfg.avg_latency_ms) if cfg.avg_latency_ms else None,
                     # আসল পরিমাপ না থাকলে null — আর কাল্পনিক ধারাবাহিকতা নয়
-                    "latency_history": (
-                        [round(cfg.avg_latency_ms)] * 7
-                        if cfg.avg_latency_ms and total_calls > 0
-                        else None
-                    ),
+            "latency_history": None,  # No real per-provider time series; do not fabricate sparklines
                     "api_key_valid": has_key
                     and (_perm_status is None or cfg.status != _perm_status),
                     "rate_limit_remaining": None,  # রিয়েল-টাইম হেডার না পড়া পর্যন্ত unknown

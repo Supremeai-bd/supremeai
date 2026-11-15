@@ -275,6 +275,24 @@ async def admin_config_v1(admin: dict = Depends(get_current_admin)) -> dict[str,
     return get_config()
 
 
+@router.get("/admin/feature-flags")
+async def admin_feature_flags_v1(admin: dict = Depends(get_current_admin)) -> dict[str, Any]:
+    """Alias of /admin-api/feature-flags (real Supabase-backed flags)."""
+    from api.routes.admin_dashboard.endpoints_flags import get_feature_flags
+
+    return get_feature_flags()
+
+
+@router.post("/admin/feature-flags")
+async def admin_feature_flags_create_v1(
+    payload: dict[str, Any], admin: dict = Depends(get_current_admin)
+) -> dict[str, Any]:
+    """Alias of POST /admin-api/feature-flags (upsert)."""
+    from api.routes.admin_dashboard.endpoints_flags import create_feature_flag
+
+    return create_feature_flag(payload)
+
+
 @router.get("/admin/audit")
 async def admin_audit_v1(
     limit: int = Query(default=100, ge=1, le=500),

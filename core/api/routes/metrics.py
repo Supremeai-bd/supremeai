@@ -108,7 +108,15 @@ async def get_realtime_metrics():
     import time
     from datetime import UTC, datetime
 
-    report = await metrics_engine.calculate_system_roi()
+    from core.observability.metrics_registry import get_window_metrics
+
+    window = get_window_metrics()
+    latency_sorted = sorted(metrics_engine.latency_history)
+    p95_ms = None
+    if latency_sorted:
+        idx = min(len(latency_sorted) - 1, max(0, round(95 / 100 * (len(latency_sorted) - 1))))
+        p95_ms = round(latency_sorted[idx] * 1000.0, 1)
+
     return {
         "status": "ok",
         "timestamp": datetime.now(UTC).isoformat(),
@@ -116,19 +124,29 @@ async def get_realtime_metrics():
         "metrics": [
             {
                 "name": "requests_per_minute",
-                "value": report.get("financial_metrics", {}).get("estimated_usd_saved", 0),
+                "value": round(window["requests_per_second"] * 60.0, 3),
+                "unit": "requests/min",
+                "window_seconds": window["window_seconds"],
             },
             {
                 "name": "error_rate",
-                "value": report.get("security_metrics", {}).get(
-                    "duplicate_executions_prevented", 0
-                ),
+                "value": window["error_rate"],
+                "unit": "percent",
+                "window_seconds": window["window_seconds"],
+            },
+            {
+                "name": "latency_p95",
+                "value": p95_ms,
+                "unit": "ms",
             },
             {
                 "name": "cache_hit_rate",
-                "value": report.get("financial_metrics", {}).get("api_cost_reduction_ratio", "0%"),
+                "value": None,
+                "unit": "percent",
+                "note": "Not measured; previous value was a cost-reduction ratio mislabeled as cache hit rate.",
             },
         ],
+        "window": window,
     }
 
 

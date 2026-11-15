@@ -220,6 +220,15 @@ def main():
     if args.self_test:
         self_test()
 
+    endpoint = os.environ.get("SUPREME_EVAL_ENDPOINT", "").strip()
+    if args.provider == "http":
+        if not endpoint:
+            print("exit 2: --provider http requires SUPREME_EVAL_ENDPOINT env var", file=sys.stderr)
+            sys.exit(2)
+        if not endpoint.startswith(("http://", "https://")):
+            print("exit 2: SUPREME_EVAL_ENDPOINT must be an absolute HTTP(S) URL", file=sys.stderr)
+            sys.exit(2)
+
     suite = load_json(args.suite, "suite")
     meta = suite.get("meta") or {}
     cases = suite.get("cases")
@@ -255,12 +264,12 @@ def main():
             response, lat_ms, cost = fixtures[cid], None, None
         else:
             try:
-                response, lat_ms, cost = http_call(os.environ["SUPREME_EVAL_ENDPOINT"], prompt)
-            except KeyError:
-                print("exit 2: --provider http requires SUPREME_EVAL_ENDPOINT env var", file=sys.stderr)
-                sys.exit(2)
+                response, lat_ms, cost = http_call(endpoint, prompt)
             except Exception as e:
-                response, lat_ms, cost = f"__PROVIDER_ERROR__: {e}", None, None
+                status = getattr(e, "code", None)
+                detail = f"HTTP {status}" if status is not None else type(e).__name__
+                print(f"exit 2: live provider request failed for case {cid}: {detail}", file=sys.stderr)
+                sys.exit(2)
         if isinstance(lat_ms, int):
             latencies.append(lat_ms)
         if cost is not None:

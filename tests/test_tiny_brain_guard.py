@@ -1,4 +1,4 @@
-﻿"""Unit tests for SupremeAI Tiny Brain PR Guard."""
+"""Unit tests for SupremeAI Tiny Brain PR Guard."""
 from __future__ import annotations
 
 import sys

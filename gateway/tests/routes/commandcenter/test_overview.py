@@ -36,7 +36,8 @@ def test_commandcenter_overview_success():
     assert "active_agents" in data
     assert "active_tasks" in data
     assert "health_percent" in data
-    assert data["health_percent"] == 100.0
+    assert data["health_percent"] is None
+    assert data.get("status") == "stub"
 
 
 def test_commandcenter_overview_forbidden():
