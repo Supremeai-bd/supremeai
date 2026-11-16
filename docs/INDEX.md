@@ -7,12 +7,12 @@ This repository (`Supremeai-bd/supremeai`) maintains an ultra-light, active docu
 ## 🗄️ Historical Archive Repository
 
 All archived documentation is preserved with full git history in:
-👉 **[Supremeai-bd/supremeai](https://github.com/Supremeai-bd/supremeai)**
+👉 **[Supremeai-bd/supremeai-archive](https://github.com/Supremeai-bd/supremeai-archive)**
 
-### What lives in `supremeai`:
+### What lives in `supremeai-archive`:
 - **Historical Worklogs & Transits:** `docs/bridge/` (Agent execution receipts and bridge orders)
-- **Historical ADRs & Audits:** `adrs/`, `docs/archive/docs/audit_reports/`
-- **Legacy Roadmaps & Plans:** `docs/archive/docs/plans/`, `roadmap-snapshots/`
+- **Historical ADRs & Audits:** `adrs/`, `docs/reports/`, `docs/audit_reports/`
+- **Legacy Roadmaps & Plans:** `docs/plans/`, `legacy-specs/`, `roadmap-snapshots/` (e.g. `FRONTEND_PERFECTION_PLAN.md`, `SOCIAL_MEDIA_AUTOMATION_PLAN.md`, `SUPREMEAI_DESKTOP_ANDROID_PLAN.md`, `ARCHITECTURAL_COMPARISON_AND_ADOPTION_BLUEPRINT.md`)
 - **Retired Satellite Snapshots:** `satellites/` (`supremeai-core`, `supremeai-api`, `supremeai-browser`, `supremeai-vscode`)
 - **Blueprints & Research:** `docs/research/`
 

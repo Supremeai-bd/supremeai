@@ -15,10 +15,9 @@ import shutil
 import sys
 
 FEDERATION_ROOT = pathlib.Path(__file__).resolve().parents[2].parent
-ARCHIVE_REPO = FEDERATION_ROOT / "supremeai"
+ARCHIVE_REPO = FEDERATION_ROOT / "supremeai-archive"
 
 ACTIVE_REPOS = [
-    "supremeai",
     "supremeai",
     "supremeai-studio",
     "supremeai-api",
@@ -27,7 +26,7 @@ ACTIVE_REPOS = [
     "supremeai-browser",
 ]
 
-ARCHIVE_BASE_URL = "https://github.com/Supremeai-bd/supremeai/blob/main"
+ARCHIVE_BASE_URL = "https://github.com/Supremeai-bd/supremeai-archive/blob/main"
 
 # Directories whose contents should be completely archived
 ARCHIVE_DIRECTORIES = [
@@ -42,9 +41,47 @@ ARCHIVE_DIRECTORIES = [
     "docs/pr_archive",
     "docs/jules",
     "docs/devcontainer",
-    "docs/security",
     "archive",
 ]
+
+# Explicit files that MUST NOT be archived under any circumstance
+MUST_KEEP_FILES = {
+    "README.md",
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "LICENSE",
+    "SECURITY.md",
+    "CHANGELOG.md",
+    "ECOSYSTEM_MAP.md",
+    "docs/INDEX.md",
+    "docs/CONSUMERS.md",
+    "docs/AGENT_OPERATING_SYSTEM.md",
+    "docs/AGENT_LOOP_SPEC.md",
+    "docs/AUTONOMY_LOOP_CONTRACT.md",
+    "docs/LOOP_ALIGNMENT.md",
+    "docs/PR_TO_PRODUCTION_LIFECYCLE.md",
+    "docs/PIPELINE_ARCHITECTURE_AND_EXECUTION_SSOT.md",
+    "docs/SUPREMEAI_UNIFIED_CHAT_PIPELINE_SSOT.md",
+    "docs/DISASTER_RECOVERY_RUNBOOK.md",
+    "docs/ENVIRONMENT_SECRETS_RUNBOOK.md",
+    "docs/SYSTEM_WIRING_ATLAS.md",
+    "docs/MCP_TOWER_ROLE_INTEGRATION.md",
+    "docs/SCOUT_RADAR_INDEX.md",
+    "docs/CODEBASE_AUDIT_CHECKLIST.md",
+    "docs/DATABASE_AUDIT_CHECKLIST.md",
+    "docs/PRODUCTION_READINESS_CHECKLIST.md",
+    "docs/SECURITY.md",
+}
+
+# Explicit archivable historical documents in docs/ root
+EXPLICIT_ARCHIVABLE_DOCS = {
+    "docs/FRONTEND_PERFECTION_PLAN.md",
+    "docs/SOCIAL_MEDIA_AUTOMATION_PLAN.md",
+    "docs/SUPREMEAI_DESKTOP_ANDROID_PLAN.md",
+    "docs/ARCHITECTURAL_COMPARISON_AND_ADOPTION_BLUEPRINT.md",
+    "docs/architecture/REMAINING_PHASES_IMPL_PLAN.md",
+    "docs/architecture/FEATURE_PARITY_RETIREMENT_QUEUE.md",
+}
 
 # Specific loose files under docs/ to archive
 ARCHIVE_DOCS_LOOSE_PREFIXES = (
@@ -76,21 +113,22 @@ ARCHIVE_DOCS_LOOSE_PREFIXES = (
 
 def is_must_keep(rel_path: str) -> bool:
     """Check if relative path matches any must-keep pattern."""
-    if rel_path in {"README.md", "AGENTS.md", "CONTRIBUTING.md", "LICENSE", "SECURITY.md"}:
-        return True
-    if rel_path.lower() in {"readme.md", "agents.md", "license", "security.md"}:
-        return True
-        
-    if rel_path in {"docs/AGENT_OPERATING_SYSTEM.md", "docs/AGENT_LOOP_SPEC.md", "docs/ARCHITECTURE.md", "docs/SCOUT_RADAR_INDEX.md"}:
+    norm = rel_path.replace("\\", "/")
+    if norm in MUST_KEEP_FILES or norm.lower() in {f.lower() for f in MUST_KEEP_FILES}:
         return True
 
-    if rel_path.startswith("docs/specs/") or rel_path.startswith("docs/runbooks/"):
+    if norm.startswith("docs/specs/") or norm.startswith("docs/runbooks/") or norm.startswith("docs/operations/"):
         return True
 
-    if rel_path.startswith(".agents/skills/") or rel_path.startswith("skills/"):
+    if norm.startswith(".agents/") or norm.startswith("skills/"):
         return True
 
-    if rel_path.startswith("infrastructure/mcp-control-plane/docs/"):
+    if norm.startswith("infrastructure/"):
+        return True
+
+    if norm.startswith("docs/architecture/"):
+        if norm in EXPLICIT_ARCHIVABLE_DOCS:
+            return False
         return True
 
     return False
@@ -107,19 +145,18 @@ def collect_archivable_files(repo_path: pathlib.Path) -> list[pathlib.Path]:
                 full_path = pathlib.Path(root) / file
                 rel_path = full_path.relative_to(repo_path).as_posix()
                 
-                if is_must_keep(rel_path):
+                if is_must_keep(rel_path) or full_path.name == ".gitkeep":
                     continue
                 
                 in_archive_dir = any(rel_path.startswith(f"{ad}/") or rel_path == ad for ad in ARCHIVE_DIRECTORIES)
                 
-                if not in_archive_dir and full_path.parent == docs_dir:
-                    fname = full_path.name
-                    if any(fname.startswith(prefix) for prefix in ARCHIVE_DOCS_LOOSE_PREFIXES) or "BN" in fname or "bn" in fname:
+                if not in_archive_dir:
+                    if rel_path in EXPLICIT_ARCHIVABLE_DOCS:
                         archivable.append(full_path)
-                    elif fname.endswith(".json") and fname != "audit-process.json":
-                        archivable.append(full_path)
-                    elif fname not in {"AGENT_OPERATING_SYSTEM.md", "AGENT_LOOP_SPEC.md", "ARCHITECTURE.md"}:
-                        archivable.append(full_path)
+                    elif full_path.parent == docs_dir:
+                        fname = full_path.name
+                        if any(fname.startswith(prefix) for prefix in ARCHIVE_DOCS_LOOSE_PREFIXES) or "BN" in fname or "bn" in fname:
+                            archivable.append(full_path)
                 elif in_archive_dir:
                     archivable.append(full_path)
 
@@ -206,6 +243,14 @@ def migrate(dry_run: bool = True) -> int:
         if not repo_dir.is_dir():
             print(f"[-] Skipping {repo_name} (directory does not exist)")
             continue
+
+        if not dry_run and ARCHIVE_REPO.resolve() == repo_dir.resolve():
+            print(
+                f"FATAL SAFETY ERROR: ARCHIVE_REPO ({ARCHIVE_REPO}) is identical to repo_dir ({repo_dir}). "
+                "Aborting to prevent data loss!",
+                file=sys.stderr,
+            )
+            return 1
 
         files = collect_archivable_files(repo_dir)
         archivable_rels = {f.relative_to(repo_dir).as_posix() for f in files}
