@@ -1752,6 +1752,9 @@ async def _execute_chat_completion(
                 headers={"Retry-After": str(int(retry_after) + 1)},
             )
 
+    requested_model = body.get("model") or "supreme-spark"
+    preferred_provider = None
+
     # Vision/image input detection -> route to vision-capable model
     has_image = False
     for m in (body.get("messages") or []):
@@ -1766,9 +1769,8 @@ async def _execute_chat_completion(
     if has_image:
         preferred_provider = "gemini"
         requested_model = "gemini-2.5-flash"
-
-    # Optional: let dual-pool priority router influence preferred provider (soft switch)
-    if not has_image:
+    else:
+        # Optional: let dual-pool priority router influence preferred provider (soft switch)
         try:
             from gateway.dual_pool_priority_router import get_dual_pool_router
             _dual_pick = get_dual_pool_router().select_best_model(requested_model or "general")
@@ -1780,24 +1782,24 @@ async def _execute_chat_completion(
                     preferred_provider = _mapped
         except Exception:  # noqa: BLE001
             pass
-    if requested_model.startswith("supremeai/"):
-        preferred_provider = requested_model.split("/", 1)[1]
-    elif requested_model in ("supremeai-web", "supremeai/web", "supremeai-webhook", "supremeai/webhook"):
-        preferred_provider = "ghost_gemini"
-    elif requested_model in ("supreme-spark", "supremeai-fast"):
-        preferred_provider = "groq" if (squad and squad.pools.get("groq") and squad.pools["groq"].healthy_slots) else "gemini"
-    elif requested_model in ("supreme-reason", "supremeai-reasoning"):
-        preferred_provider = "gemini"
-    elif requested_model in ("supremeai-api", "supremeai/api"):
-        preferred_provider = "auto"
-    elif requested_model in ("supreme-core", "supreme-deep", "supremeai-turbo", "auto"):
-        preferred_provider = None
-    elif requested_model in PROVIDER_CONFIGS:
-        preferred_provider = requested_model
+        if requested_model.startswith("supremeai/"):
+            preferred_provider = requested_model.split("/", 1)[1]
+        elif requested_model in ("supremeai-web", "supremeai/web", "supremeai-webhook", "supremeai/webhook"):
+            preferred_provider = "ghost_gemini"
+        elif requested_model in ("supreme-spark", "supremeai-fast"):
+            preferred_provider = "groq" if (squad and squad.pools.get("groq") and squad.pools["groq"].healthy_slots) else "gemini"
+        elif requested_model in ("supreme-reason", "supremeai-reasoning"):
+            preferred_provider = "gemini"
+        elif requested_model in ("supremeai-api", "supremeai/api"):
+            preferred_provider = "auto"
+        elif requested_model in ("supreme-core", "supreme-deep", "supremeai-turbo", "auto"):
+            preferred_provider = None
+        elif requested_model in PROVIDER_CONFIGS:
+            preferred_provider = requested_model
 
     # Normalize multimodal/structured content blocks (e.g. from Kilo Code/Roo Code/Cursor)
     # into clean strings so downstream schemas and relays never fail with 422.
-    if isinstance(body.get("messages"), list):
+    if not has_image and isinstance(body.get("messages"), list):
         for msg in body["messages"]:
             if isinstance(msg, dict):
                 c = msg.get("content")
