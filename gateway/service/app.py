@@ -1732,7 +1732,7 @@ async def _execute_chat_completion(
                 headers={"Retry-After": str(int(retry_after) + 1)},
             )
 
-    requested_model = body.get("model", "auto")
+    requested_model = body.get("model") or "supreme-spark"
     preferred_provider = None
     if requested_model.startswith("supremeai/"):
         preferred_provider = requested_model.split("/", 1)[1]
@@ -1876,7 +1876,10 @@ async def _execute_chat_completion(
     # and balances quota and speed without hardcoded priority bias.
     # ═══════════════════════════════════════════════════════════════════════
     from gateway.service.route_arbiter import route_arbiter, RoutingDecision
+    from gateway.dual_pool_priority_router import get_dual_pool_router
     route_arbiter.squad = squad
+    dual_router = get_dual_pool_router()
+    dual_pick = dual_router.select_best_model(requested_model or "general")
 
     decision: RoutingDecision = route_arbiter.choose_best_route(
         requested_model=requested_model,
@@ -1902,6 +1905,16 @@ async def _execute_chat_completion(
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"Priority-1 Web Relay attempt exception: {exc}")
             w_status, w_response = 500, None
+
+        if dual_pick is not None:
+            elapsed_ms = (time.time() - start_time) * 1000.0
+            dual_router.report_outcome(
+                dual_pick[0].model_id,
+                dual_pick[1].alias,
+                success=(w_status == 200 and w_response is not None),
+                latency_ms=elapsed_ms,
+                status_code=w_status or 500,
+            )
 
         # Auto-wrap raw {"reply": "..."} payloads if received
         if isinstance(w_response, dict) and "reply" in w_response and "choices" not in w_response and str(w_response["reply"]).strip():
