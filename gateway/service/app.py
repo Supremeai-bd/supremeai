@@ -283,6 +283,11 @@ logging.getLogger().addHandler(log_ring_buffer)
 STEALTH_WEBHOOK_URL = os.getenv("STEALTH_WEBHOOK_URL", os.getenv("UPSTREAM_WEBHOOK_URL", "")).strip()
 STEALTH_WEBHOOK_SECRET = os.getenv("STEALTH_WEBHOOK_SECRET", os.getenv("UPSTREAM_WEBHOOK_SECRET", "")).strip()
 STEALTH_WEBHOOK_TIMEOUT = float(os.getenv("STEALTH_WEBHOOK_TIMEOUT", "8.0"))
+# Overall end-to-end budget for provider failover before the first token. Bounds
+# worst-case client wait even if an upstream hangs (per-model timeout is 6s and a
+# slot can cascade several models). Only guards time-to-first-token; once a stream
+# has started it is never cut. Override with CHAT_ROUTE_DEADLINE_S.
+CHAT_ROUTE_DEADLINE_S = float(os.getenv("CHAT_ROUTE_DEADLINE_S", "15"))
 
 try:
     from service.adaptive_routing import RouteState, choose_route
@@ -2138,8 +2143,15 @@ async def _execute_chat_completion(
                 started = False
                 last_stream_err = "Upstream stream failed"
                 last_brand = build_brand("api", candidates[0][0], stream_served_model)
+                route_deadline = time.monotonic() + CHAT_ROUTE_DEADLINE_S
 
                 for provider, slot in candidates:
+                    if not started and time.monotonic() > route_deadline:
+                        logger.warning(
+                            "[stream] Route deadline (%.0fs) exceeded before first token; stopping failover.",
+                            CHAT_ROUTE_DEADLINE_S,
+                        )
+                        break
                     slot.total_calls += 1
                     call_start = time.monotonic()
                     stream_brand = build_brand("api", provider, stream_served_model)
@@ -2260,7 +2272,14 @@ async def _execute_chat_completion(
                 },
             )
 
+        route_deadline = time.monotonic() + CHAT_ROUTE_DEADLINE_S
         for provider, slot in candidates:
+            if time.monotonic() > route_deadline:
+                logger.warning(
+                    "Route deadline (%.0fs) exceeded; stopping provider failover.",
+                    CHAT_ROUTE_DEADLINE_S,
+                )
+                break
             slot.total_calls += 1
             call_start = time.monotonic()
 

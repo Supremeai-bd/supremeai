@@ -112,24 +112,22 @@ PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
         "llama-3.2-3b-preview",
         "llama-3.2-1b-preview",
     ],
+    # 2026-11-16: gemini-1.5-* and gemini-2.0-flash were retired (HTTP 404 on the
+    # OpenAI-compat surface). Keeping them made every quota-limited key cascade
+    # through ~6 dead models (~500-700ms each) before failing — the root cause of
+    # multi-second "hi" latency. Cascade now lists only live, verified models.
     "gemini": [
         "gemini-2.5-flash",
         "gemini-2.5-flash-lite",
         "gemini-2.5-pro",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro-latest",
-        "gemini-1.5-pro",
-        "gemini-2.0-flash",
     ],
+    # 2026-11-16: 5 of 7 openrouter free slugs below were removed from the free
+    # catalog (HTTP 404). Each dead slug cost a wasted ~500ms round-trip per key.
+    # Replaced with live free models verified against /api/v1/models.
     "openrouter": [
         "openrouter/free",
         "nvidia/nemotron-3.5-lightning:free",
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "google/gemini-2.0-flash-exp:free",
-        "qwen/qwen-2.5-coder-32b-instruct:free",
-        "meta-llama/llama-3.1-8b-instruct:free",
-        "mistralai/mistral-7b-instruct:free",
+        "nvidia/nemotron-3.5-super-vl:free",
     ],
     "mistral": [
         "open-mistral-7b",
