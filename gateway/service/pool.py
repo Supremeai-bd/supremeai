@@ -37,6 +37,7 @@ PROVIDER_BASELINE_LATENCY_MS: dict[str, float] = {
     "huggingface": 900.0,
     "kilo": 200.0,
     "manus": 500.0,
+    "routesme": 700.0,
 }
 
 
@@ -199,13 +200,21 @@ class FederationSquad:
     """Master orchestrator for all discovered provider key pools."""
 
     # Discovery set only. get_candidate_slots ranks all healthy keys by score.
-    # Note: huggingface is excluded from active squad discovery because its serverless
-    # inference router now strictly requires paid Inference Provider credits or warm endpoints.
+    # 2026-11-16: huggingface re-enabled as a last-resort free-tier fallback. The
+    #   free-model discovery loop (free_model_discovery.py) probes /models per key
+    #   with max_tokens=1 and keeps only models that actually return 200 on the free
+    #   tier (402 -> model skipped, 401/403 -> key benched). That makes the old
+    #   "serverless router needs paid credits / wrong model format -> 400" failure
+    #   self-healing instead of requiring the whole provider to be hard-excluded.
+    #   HF's 900ms latency baseline ranks it after the faster providers, so it only
+    #   serves once groq/gemini/openrouter/kilo/sambanova/mistral/perplexity/openai
+    #   are exhausted or cooling down.
     # 2026-11-16: "v0" removed — v0 chat/completions returns 404 for all keys (Premium plan
     # required); keeping it only added a wasted round-trip per request. Config retained for
     # explicit preferred_provider="v0" with a premium key.
     DEFAULT_PROVIDER_ORDER = [
         "groq", "gemini", "openrouter", "kilo", "sambanova", "mistral", "perplexity", "openai",
+        "huggingface", "routesme",
     ]
 
     PREFIX_MAP: Dict[str, List[str]] = {
@@ -220,6 +229,7 @@ class FederationSquad:
         "manus": ["MANUS_API_KEY", "MANUS_API_KEYS"],
         "v0": ["V0_API_KEY"],
         "huggingface": ["HF_API_KEY", "HUGGINGFACE_API_KEY"],
+        "routesme": ["ROUTEME_API_KEY"],
     }
 
     def __init__(self):

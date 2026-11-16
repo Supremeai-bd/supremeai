@@ -109,7 +109,7 @@ class DualPoolPriorityRouter:
                 provider="gemini",
                 pool="supremeai-api",
                 capabilities=("spark", "general", "design"),
-                active_model_name="gemini-2.5-flash",
+                active_model_name="gemini-flash-lite-latest",
                 latency_ms=950.0,
                 keys=self._scan_keys(("GEMINI_API_KEY", "GOOGLE_API_KEY"), src),
             ),
@@ -321,10 +321,10 @@ def get_dual_pool_router() -> DualPoolPriorityRouter:
 def _probe_url_for(model: PoolModelEntry, slot: KeySlot, secret: str) -> tuple[str, dict[str, str], bytes | None]:
     if model.provider == "gemini":
         body = json.dumps({"contents": [{"parts": [{"text": "ping"}]}], "generationConfig": {"maxOutputTokens": 1}}).encode("utf-8")
-        return f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={secret}", {"Content-Type": "application/json"}, body
+        return f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key={secret}", {"Content-Type": "application/json"}, body
     if model.provider == "openrouter_kilo":
         if slot.env_key.startswith("KILO"):
-            return "https://api.kilocode.ai/api/openrouter/models", {"Authorization": f"Bearer {secret}"}, None
+            return "https://api.kilo.ai/api/gateway/models", {"Authorization": f"Bearer {secret}"}, None
         return "https://openrouter.ai/api/v1/models", {"Authorization": f"Bearer {secret}"}, None
     if model.provider == "groq_cerebras":
         if slot.env_key.startswith("CEREBRAS"):

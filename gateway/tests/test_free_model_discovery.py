@@ -28,23 +28,23 @@ async def _validate_with(slot, fetch, probe):
 
 @pytest.mark.asyncio
 async def test_402_on_paid_model_does_not_kill_key():
-    """kilo: efficient->402 must be skipped; free->200 must be chosen; key stays alive."""
+    """kilo: paid model->402 must be skipped; concrete :free model->200 must be chosen; key stays alive."""
     slot = _slot()
 
     async def fake_fetch(provider, base_url, api_key):
-        return ["kilo-auto/efficient", "kilo-auto/free"]
+        return ["kilo-auto/efficient", "nvidia/nemotron-3.5-lightning:free"]
 
     async def fake_probe(provider, base_url, api_key, model):
         if model == "kilo-auto/efficient":
             return (False, 120.0, 402)   # paid model -> skip, not dead
-        return (True, 90.0, 200)          # free model -> works
+        return (True, 90.0, 200)          # concrete free model -> works
 
     await _validate_with(slot, fake_fetch, fake_probe)
 
     assert slot.cooldown_until == 0.0, "key must NOT be cooled down (402 != dead)"
-    assert slot.preferred_model == "kilo-auto/free"
-    assert "kilo-auto/free" in slot.discovered_models
-    assert "kilo-auto/efficient" in slot.unsupported_models
+    assert slot.preferred_model == "nvidia/nemotron-3.5-lightning:free"
+    assert "nvidia/nemotron-3.5-lightning:free" in slot.discovered_models
+    assert "kilo-auto/efficient" not in slot.discovered_models
 
 
 @pytest.mark.asyncio
@@ -84,6 +84,17 @@ async def test_401_marks_key_dead():
 
     assert slot.cooldown_until > 0, "401 must mark the key dead"
     assert slot.discovered_models == []
+
+
+def test_extract_free_aggregator_model_excludes_paid_and_meta_routers():
+    """Paid models, meta-routers (kilo-auto/free, openrouter/free), and non-chat models must be excluded."""
+    assert fmd._extract_free_aggregator_model({"id": "kilo-auto/free", "pricing": {"prompt": "0", "completion": "0"}}) is None
+    assert fmd._extract_free_aggregator_model({"id": "openrouter/free", "pricing": {"prompt": "0", "completion": "0"}}) is None
+    assert fmd._extract_free_aggregator_model({"id": "kilo-auto/efficient", "pricing": {"prompt": "0.001", "completion": "0.002"}}) is None
+    assert fmd._extract_free_aggregator_model({"id": "anthropic/claude-opus-5.5", "pricing": {"prompt": "0.015", "completion": "0.075"}}) is None
+    assert fmd._extract_free_aggregator_model({"id": "google/lyria-3-pro-preview", "pricing": {"prompt": "0", "completion": "0"}}) is None
+    assert fmd._extract_free_aggregator_model({"id": "nvidia/nemotron-3.5-lightning:free", "pricing": {"prompt": "0", "completion": "0"}}) == "nvidia/nemotron-3.5-lightning:free"
+    assert fmd._extract_free_aggregator_model("cohere/north-mini-code:free") == "cohere/north-mini-code:free"
 
 
 if __name__ == "__main__":

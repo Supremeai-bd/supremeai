@@ -384,6 +384,21 @@ class ProviderRegistry:
                 "priority": 31,  # after existing free lanes; no inflation above primaries
             },
             {
+                "provider_id": "routesme",
+                "display_name": "RoutesMe (Free Tier)",
+                "api_key_env_var": "ROUTEME_API_KEY",
+                "base_url": "https://routesme.online/v1",
+                "models": [
+                    {"id": "GLM-5.3-Flash", "name": "GLM 5.3 Flash", "tier": "economy", "specialty": "general"},
+                    {"id": "Step-5-preview", "name": "Step 5 Preview", "tier": "economy", "specialty": "general"},
+                    {"id": "Deepseek-v4.1-flash", "name": "DeepSeek V4.1 Flash", "tier": "economy", "specialty": "reasoning"},
+                ],
+                "rpm_limit": 60,
+                "rpd_limit": 10000,
+                "is_free_tier": True,
+                "priority": 32,
+            },
+            {
                 "provider_id": "zai",
                 "display_name": "Z.ai (GLM)",
                 "api_key_env_var": "ZAI_API_KEY",

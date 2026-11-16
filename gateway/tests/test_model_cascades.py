@@ -47,10 +47,13 @@ def test_provider_cascades_defined():
     # gemini-flash-lite-latest is the current free-tier top pick (2.5-flash hits quota 429)
     assert PROVIDER_MODEL_CASCADES["gemini"][0] == "gemini-flash-lite-latest"
 
-    # Verify Kilo uses the free auto-router, not the paid "auto" (which 402s)
+    # Verify Kilo and OpenRouter use concrete `:free` models and exclude blind meta-routers & paid models
     assert "kilo" in PROVIDER_MODEL_CASCADES
-    assert PROVIDER_MODEL_CASCADES["kilo"][0] == "kilo-auto/free"
+    assert PROVIDER_MODEL_CASCADES["kilo"][0] == "nvidia/nemotron-3.5-lightning:free"
     assert "auto" not in PROVIDER_MODEL_CASCADES["kilo"]
+    assert "kilo-auto/free" not in PROVIDER_MODEL_CASCADES["kilo"]
+    assert "kilo-auto/efficient" not in PROVIDER_MODEL_CASCADES["kilo"]
+    assert "openrouter/free" not in PROVIDER_MODEL_CASCADES["openrouter"]
 
     # Verify Cerebras is strictly excluded (per user mandate)
     assert "cerebras" not in PROVIDER_MODEL_CASCADES

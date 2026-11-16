@@ -51,7 +51,7 @@ def _mask_host(url: str) -> str:
 PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     "gemini": {
         "base_url": os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai"),
-        "default_model": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        "default_model": os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest"),
     },
     "groq": {
         "base_url": os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
@@ -87,7 +87,23 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     "kilo": {
         "base_url": os.getenv("KILO_BASE_URL", "https://api.kilo.ai/api/gateway"),
-        "default_model": os.getenv("KILO_MODEL", "kilo-auto/free"),
+        "default_model": os.getenv("KILO_MODEL", "nvidia/nemotron-3.5-lightning:free"),
+    },
+    "routeme": {
+        "base_url": os.getenv("ROUTEME_BASE_URL", "https://routesme.online/v1"),
+        "default_model": os.getenv("ROUTEME_FREE_MODEL", os.getenv("ROUTEME_MODEL", "GLM-5.3-Flash")),
+    },
+    "routesme": {
+        "base_url": os.getenv("ROUTEME_BASE_URL", "https://routesme.online/v1"),
+        "default_model": os.getenv("ROUTEME_FREE_MODEL", os.getenv("ROUTEME_MODEL", "GLM-5.3-Flash")),
+    },
+    "bynara": {
+        "base_url": os.getenv("BYNARA_BASE_URL", "https://router.bynara.id/v1"),
+        "default_model": os.getenv("BYNARA_FREE_MODEL", "agnes-2.5-flash"),
+    },
+    "bai": {
+        "base_url": os.getenv("BAI_BASE_URL", "https://api.b.ai/v1"),
+        "default_model": os.getenv("BAI_FREE_MODEL", "qwen3.8-flash"),
     },
     "ghost_gemini": {
         "base_url": os.getenv("GHOST_TOWER_URL", "http://127.0.0.1:8788"),
@@ -98,6 +114,15 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "default_model": "web-session-auto",
     },
 }
+
+# Meta-routers ("kilo-auto/free", "openrouter/free") and paid auto-routers ("kilo-auto/efficient")
+# are strictly excluded so aggregators only route to verified, deterministic `:free` models.
+EXCLUDED_META_OR_PAID_MODELS: frozenset[str] = frozenset({
+    "kilo-auto/free",
+    "openrouter/free",
+    "kilo-auto/efficient",
+    "auto",
+})
 
 # Exhaustive zero-waste model cascades: if top model hits quota/limit (429) or is unavailable (404/400),
 # the adapter seamlessly tries the next model in sequence without failing the client request.
@@ -123,13 +148,15 @@ PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
         "gemini-2.5-pro",
         "gemini-flash-latest",
     ],
-    # 2026-11-16: 5 of 7 openrouter free slugs below were removed from the free
-    # catalog (HTTP 404). Each dead slug cost a wasted ~500ms round-trip per key.
-    # Replaced with live free models verified against /api/v1/models.
+    # 2026-11-16: Concrete `:free` models verified against /api/v1/models (excluding
+    # blind meta-router "openrouter/free" and retired 404 slugs).
     "openrouter": [
-        "openrouter/free",
         "nvidia/nemotron-3.5-lightning:free",
         "nvidia/nemotron-3.5-super-vl:free",
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+        "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "cohere/north-mini-code:free",
+        "baidu/ernie-5.5-flash-preview:free",
     ],
     "mistral": [
         "open-mistral-7b",
@@ -142,9 +169,15 @@ PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
         "Meta-Llama-3.1-8B-Instruct",
         "Qwen2.5-72B-Instruct",
     ],
+    # Concrete `:free` models verified on Kilo gateway (excluding "kilo-auto/free"
+    # meta-router and paid "kilo-auto/efficient").
     "kilo": [
-        "kilo-auto/free",
-        "kilo-auto/efficient",
+        "nvidia/nemotron-3.5-lightning:free",
+        "nvidia/nemotron-3.5-super-vl:free",
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+        "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "cohere/north-mini-code:free",
+        "baidu/ernie-5.5-flash-preview:free",
     ],
     "openai": [
         "gpt-4o-mini",
@@ -162,6 +195,17 @@ PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
     "v0": [
         "v0-1.0-md",
         "v0-1.5-md",
+    ],
+    # RoutesMe (routesme.online) — OpenAI-compatible free aggregator. "GLM-5.3-Flash"
+    # and "Step-5-preview" verified HTTP 200 with the deployment key (2026-11-17).
+    "routesme": [
+        "GLM-5.3-Flash",
+        "Step-5-preview",
+        "GLM5.3",
+        "Deepseek-v4.1-flash",
+        "Kimi-k3",
+        "Minimax-M3",
+        "Step-3.7-Flash",
     ],
 }
 
@@ -245,17 +289,23 @@ def _resolve_candidate_models(
     cascade = list(PROVIDER_MODEL_CASCADES.get(provider, [config["default_model"]]))
     discovered = getattr(slot, "discovered_models", None) if slot else None
     if discovered:
-        cascade = list(discovered)
+        cascade = [m for m in discovered if str(m).lower() not in EXCLUDED_META_OR_PAID_MODELS]
     candidate_models: list[str] = []
     preferred_slot_model = getattr(slot, "preferred_model", None) if slot else None
     unsupported_set = getattr(slot, "unsupported_models", set()) if slot else set()
     supported_set = getattr(slot, "supported_models", set()) if slot else set()
-    if preferred_slot_model and preferred_slot_model not in candidate_models:
+    if (
+        preferred_slot_model
+        and str(preferred_slot_model).lower() not in EXCLUDED_META_OR_PAID_MODELS
+        and preferred_slot_model not in unsupported_set
+        and preferred_slot_model not in candidate_models
+    ):
         candidate_models.append(preferred_slot_model)
 
     if (
         client_model
         and client_model not in ("auto", "default", "")
+        and str(client_model).lower() not in EXCLUDED_META_OR_PAID_MODELS
         and not str(client_model).startswith("supremeai/")
         and not str(client_model).startswith("supreme-")
         and not str(client_model).startswith("supremeai-")
@@ -265,6 +315,8 @@ def _resolve_candidate_models(
             candidate_models.append(str(client_model))
 
     for m in cascade:
+        if str(m).lower() in EXCLUDED_META_OR_PAID_MODELS:
+            continue
         if m in unsupported_set and m not in supported_set:
             continue
         if m not in candidate_models:
@@ -273,7 +325,11 @@ def _resolve_candidate_models(
     if not candidate_models:
         if slot and hasattr(slot, "unsupported_models"):
             slot.unsupported_models.clear()
-        candidate_models = [config.get("default_model")] if config.get("default_model") else cascade[:2]
+        default_m = config.get("default_model")
+        if default_m and str(default_m).lower() not in EXCLUDED_META_OR_PAID_MODELS:
+            candidate_models = [default_m]
+        else:
+            candidate_models = [m for m in cascade if str(m).lower() not in EXCLUDED_META_OR_PAID_MODELS][:2]
     return candidate_models
 
 
@@ -370,8 +426,13 @@ async def forward_chat_completion(
                         data["model"] = model_name
                     return status_code, data
 
-                # Skip paid tiers if requested payment (402)
+                # Skip paid tiers if requested payment (402) and blacklist this paid model on the slot
                 if status_code == 402:
+                    if slot and hasattr(slot, "unsupported_models"):
+                        slot.unsupported_models.add(model_name)
+                        slot.supported_models.discard(model_name)
+                        if getattr(slot, "preferred_model", None) == model_name:
+                            slot.preferred_model = next(iter(slot.supported_models), None)
                     logger.warning(f"[{provider}] Model {model_name} requested payment (402); skipping paid tier.")
                     last_status, last_data = status_code, data
                     continue
@@ -468,6 +529,11 @@ async def stream_chat_completion_events(
                     status_code = response.status_code
                     if status_code in (400, 402, 404, 429, 503):
                         await response.aread()
+                        if status_code in (400, 402, 404) and slot and hasattr(slot, "unsupported_models"):
+                            slot.unsupported_models.add(model_name)
+                            slot.supported_models.discard(model_name)
+                            if getattr(slot, "preferred_model", None) == model_name:
+                                slot.preferred_model = next(iter(slot.supported_models), None)
                         if status_code == 402:
                             logger.warning(f"[{provider}] Model {model_name} requested payment (402); skipping paid tier.")
                         else:
