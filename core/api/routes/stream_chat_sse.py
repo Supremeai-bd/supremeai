@@ -32,6 +32,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import time
 from collections.abc import AsyncIterator
 from enum import Enum, auto
 from typing import Any
@@ -93,6 +95,12 @@ legacy_router = APIRouter(tags=["SSE Chat Stream (Legacy)"])
 
 HEARTBEAT_SECONDS = 15
 MAX_CHUNK_SIZE = 8192  # 8KB max per SSE data frame
+
+# Phase-1 (core): bound the Auto-RAG enrichment and time-to-first-token so a slow
+# embedding/DB call or a slow model cannot stall the whole response. Enrichment is
+# an enhancement (never a dependency) → on timeout we fall back to the raw prompt.
+ENRICHMENT_TIMEOUT_S = float(os.getenv("ENRICHMENT_TIMEOUT_S", "2.5"))
+SSE_FIRST_TOKEN_TIMEOUT_S = float(os.getenv("SSE_FIRST_TOKEN_TIMEOUT_S", "20"))
 
 
 class StreamState(Enum):
@@ -192,6 +200,7 @@ class SafeSSEGenerator:
     async def __call__(self) -> AsyncIterator[str]:
         """Main generator method - yields properly formatted SSE events."""
         self.state = StreamState.CONNECTED
+        call_start = time.monotonic()
 
         # Emit connected event first
         yield self._make_event("connected", {"user_id": self.user_id})
@@ -200,18 +209,32 @@ class SafeSSEGenerator:
         # বাংলা: স্ট্রিমিং শুরুর আগে ব্যবহারকারীর অতীত প্রাসঙ্গিক স্মৃতি
         # pgvector থেকে recall করে prompt-এর শুরুতে যুক্ত করা হয়।
         # কোনো ব্যর্থতায় মূল প্রম্পট অপরিবর্তিত থাকে (graceful degradation)।
+        _enrich_start = time.monotonic()
         try:
-            enriched = await auto_rag_injector.enrich_system_prompt(
-                system_prompt=self.prompt,
-                user_query=self._original_prompt,
-                user_id=self.user_id,
-                tenant_id=self.tenant_id,
-                session_id=self.session_id,
+            enriched = await asyncio.wait_for(
+                auto_rag_injector.enrich_system_prompt(
+                    system_prompt=self.prompt,
+                    user_query=self._original_prompt,
+                    user_id=self.user_id,
+                    tenant_id=self.tenant_id,
+                    session_id=self.session_id,
+                ),
+                timeout=ENRICHMENT_TIMEOUT_S,
             )
             if enriched != self.prompt:
                 self.prompt = enriched
+        except asyncio.TimeoutError:
+            logger.info(
+                f"[SSE] Auto-RAG enrichment exceeded {ENRICHMENT_TIMEOUT_S:.1f}s; using raw prompt "
+                f"(user={self.user_id})"
+            )
         except Exception as rag_exc:  # pragma: no cover - defensive
             logger.debug(f"[SSE] Auto-RAG injection skipped: {rag_exc}")
+        finally:
+            logger.info(
+                f"[SSE] enrichment_ms={int((time.monotonic() - _enrich_start) * 1000)} "
+                f"user={self.user_id}"
+            )
 
         try:
             # Try streaming path first. The streaming path is an async generator,
@@ -264,6 +287,11 @@ class SafeSSEGenerator:
             yield self._make_event(
                 "error", {"error": str(e), "error_type": type(e).__name__, "user_id": self.user_id}
             )
+        finally:
+            logger.info(
+                f"[SSE] total_ms={int((time.monotonic() - call_start) * 1000)} "
+                f"user={self.user_id} state={self.state.name}"
+            )
 
     async def _try_streaming_path(self) -> AsyncIterator[str]:
         """
@@ -292,7 +320,34 @@ class SafeSSEGenerator:
                 self.state = StreamState.ERROR
                 return
 
-            async for raw_chunk in response_stream:
+            stream_iter = response_stream.__aiter__()
+            _ft_start = time.monotonic()
+            first_token_ms: int | None = None
+            while True:
+                if first_token_ms is None:
+                    try:
+                        raw_chunk = await asyncio.wait_for(
+                            stream_iter.__anext__(), timeout=SSE_FIRST_TOKEN_TIMEOUT_S
+                        )
+                    except StopAsyncIteration:
+                        break
+                    except asyncio.TimeoutError:
+                        logger.warning(
+                            f"[SSE] First-token timeout ({SSE_FIRST_TOKEN_TIMEOUT_S}s) — no token from model "
+                            f"(user={self.user_id}); failing stream"
+                        )
+                        self.state = StreamState.ERROR
+                        try:
+                            await response_stream.aclose()  # type: ignore[attr-defined]
+                        except Exception:  # noqa: BLE001
+                            pass
+                        return
+                else:
+                    try:
+                        raw_chunk = await stream_iter.__anext__()
+                    except StopAsyncIteration:
+                        break
+
                 # Check heartbeat timing
                 now = asyncio.get_event_loop().time()
                 if now - self._last_heartbeat > HEARTBEAT_SECONDS:
@@ -302,6 +357,11 @@ class SafeSSEGenerator:
                 # Sanitize and emit (both token and delta for 100% frontend contract compatibility)
                 sanitized = self._sanitize_chunk(raw_chunk)
                 if sanitized:
+                    if first_token_ms is None:
+                        first_token_ms = int((time.monotonic() - _ft_start) * 1000)
+                        logger.info(
+                            f"[SSE] first_token_ms={first_token_ms} user={self.user_id}"
+                        )
                     self._emitted_tokens = True
                     yield self._make_event(
                         "token",
