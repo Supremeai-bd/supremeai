@@ -82,7 +82,7 @@ def is_local_runner_online(timeout: float = 4.0) -> bool:
 
     url = f"https://api.github.com/repos/{repo}/actions/runners"
 
-    for token in tokens:
+    for idx, token in enumerate(tokens, start=1):
         req = urllib.request.Request(
             url,
             headers={
@@ -91,6 +91,7 @@ def is_local_runner_online(timeout: float = 4.0) -> bool:
                 "User-Agent": "SupremeAI-Audit-Dispatcher",
             },
         )
+        print(f"::debug::Probing GitHub runners API with candidate token #{idx}", file=sys.stderr)
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 data = json.loads(resp.read().decode())

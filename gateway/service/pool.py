@@ -56,6 +56,7 @@ class KeySlot:
     supported_models: set[str] = field(default_factory=set)
     unsupported_models: set[str] = field(default_factory=set)
     preferred_model: Optional[str] = None
+    discovered_models: List[str] = field(default_factory=list)
 
     @property
     def is_healthy(self) -> bool:

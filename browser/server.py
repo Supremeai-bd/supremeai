@@ -373,7 +373,7 @@ class GeminiCookieEngine:
             raise HTTPException(status_code=503, detail="No Gemini cookies configured")
 
         proxy = await self.get_proxy()
-        client_kwargs = {"timeout": 15.0}
+        client_kwargs = {"timeout": 10.0}
         if proxy:
             client_kwargs["proxy"] = proxy
 
@@ -478,6 +478,7 @@ class GeminiCookieEngine:
 
 
 relay_engine = GeminiCookieEngine()
+_engine_latency: dict[str, float] = {"duck": 500.0, "gemini": 1500.0}
 
 
 class DuckAiEngine:
@@ -572,7 +573,7 @@ class DuckAiEngine:
                     "messages": [{"role": "user", "content": prompt}],
                 },
                 headers=stealth_headers,
-                timeout=20.0,
+                timeout=6.0,
             )
             if resp.status_code == 200:
                 try:
@@ -692,6 +693,16 @@ async def health() -> Dict[str, Any]:
         "total_cookies": len(cookies),
         "infisical_configured": bool(os.getenv("INFISICAL_CLIENT_ID") and os.getenv("INFISICAL_CLIENT_SECRET")),
         "timestamp": time.time(),
+    }
+
+
+@app.get("/models")
+async def models() -> Dict[str, Any]:
+    return {
+        "data": [
+            {"id": "duck", "latency_ms": _engine_latency.get("duck", 0.0)},
+            {"id": "gemini-web", "latency_ms": _engine_latency.get("gemini", 0.0)},
+        ]
     }
 
 
@@ -828,18 +839,32 @@ async def chat_completions(req: ChatRequest, request: Request) -> JSONResponse:
     engine_code = "dk"
     engine_label = "SupremeAI w.dk Turbo"
 
-    # Fast stealth HTTP path first (~1.0s latency)
-    try:
-        reply = await duck_engine.ask(prompt.strip(), model=req_model)
-    except Exception as exc:
-        logger.warning(f"Fast HTTP relay failed ({exc}); attempting authenticated session fallback...")
+    # Latency-aware engine selection (fastest first), with fallback
+    engine_order = sorted(("duck", "gemini"), key=lambda name: _engine_latency.get(name, 9999.0))
+    last_exc = None
+    for engine_name in engine_order:
         try:
-            reply = await relay_engine.ask(prompt.strip())
-            served_model = "gemini-web"
-            engine_code = "ge"
-            engine_label = "SupremeAI w.ge Turbo"
-        except Exception:
-            raise HTTPException(status_code=502, detail=f"Stealth relay fallback failed: {exc}")
+            start = time.time()
+            if engine_name == "duck":
+                reply = await duck_engine.ask(prompt.strip(), model=req_model)
+                served_model = "supremeai-fast"
+                engine_code = "dk"
+                engine_label = "SupremeAI w.dk Turbo"
+            else:
+                reply = await relay_engine.ask(prompt.strip())
+                served_model = "gemini-web"
+                engine_code = "ge"
+                engine_label = "SupremeAI w.ge Turbo"
+            latency = (time.time() - start) * 1000.0
+            _engine_latency[engine_name] = (_engine_latency.get(engine_name, latency) * 0.7) + (latency * 0.3)
+            last_exc = None
+            break
+        except Exception as exc:
+            last_exc = exc
+            logger.warning(f"{engine_name} relay failed ({exc}); trying next engine...")
+            continue
+    if last_exc is not None:
+        raise HTTPException(status_code=502, detail=f"Stealth relay fallback failed: {last_exc}")
 
     return JSONResponse(
         {
