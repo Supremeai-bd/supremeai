@@ -243,6 +243,9 @@ def _resolve_candidate_models(
     client_model: str,
 ) -> list[str]:
     cascade = list(PROVIDER_MODEL_CASCADES.get(provider, [config["default_model"]]))
+    discovered = getattr(slot, "discovered_models", None) if slot else None
+    if discovered:
+        cascade = list(discovered)
     candidate_models: list[str] = []
     preferred_slot_model = getattr(slot, "preferred_model", None) if slot else None
     unsupported_set = getattr(slot, "unsupported_models", set()) if slot else set()
@@ -284,7 +287,7 @@ async def forward_chat_completion(
     api_key: str,
     payload: Dict[str, Any],
     slot: Any = None,
-    timeout: float = 12.0
+    timeout: float = 6.0
 ) -> Tuple[int, Dict[str, Any] | str]:
     """
     Forwards an OpenAI-format chat completion request to the chosen provider.
@@ -350,7 +353,7 @@ async def forward_chat_completion(
         for model_name in candidate_models:
             body["model"] = model_name
             try:
-                response = await client.post(url, json=body, headers=headers)
+                response = await client.post(url, json=body, headers=headers, timeout=timeout)
                 status_code = response.status_code
                 try:
                     data = response.json()
@@ -406,7 +409,7 @@ async def stream_chat_completion_events(
     api_key: str,
     payload: Dict[str, Any],
     slot: Any = None,
-    timeout: float = 8.0,
+    timeout: float = 6.0,
 ) -> AsyncIterator[Tuple[str, Any]]:
     """True upstream SSE streaming with in-flight model cascade (audit P0-5 fix).
 

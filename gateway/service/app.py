@@ -282,7 +282,7 @@ logging.getLogger().addHandler(log_ring_buffer)
 # Priority-1 Stealth Webhook & Web Session Configuration
 STEALTH_WEBHOOK_URL = os.getenv("STEALTH_WEBHOOK_URL", os.getenv("UPSTREAM_WEBHOOK_URL", "")).strip()
 STEALTH_WEBHOOK_SECRET = os.getenv("STEALTH_WEBHOOK_SECRET", os.getenv("UPSTREAM_WEBHOOK_SECRET", "")).strip()
-STEALTH_WEBHOOK_TIMEOUT = float(os.getenv("STEALTH_WEBHOOK_TIMEOUT", "5.0"))
+STEALTH_WEBHOOK_TIMEOUT = float(os.getenv("STEALTH_WEBHOOK_TIMEOUT", "8.0"))
 
 try:
     from service.adaptive_routing import RouteState, choose_route
@@ -370,6 +370,13 @@ async def _on_startup():
     # Proactive background health & latency probe: keeps top-rank model warm & pre-ranked in memory
     from gateway.dual_pool_priority_router import start_background_recheck_loop
     asyncio.create_task(start_background_recheck_loop(interval_seconds=120.0))
+    # Root-level free-model discovery: per-key /models + micro-probe + dead-key pruning
+    try:
+        from gateway.service.free_model_discovery import run_discovery, discovery_loop
+        asyncio.create_task(run_discovery(squad))
+        asyncio.create_task(discovery_loop(squad, interval_seconds=900.0))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("free-model discovery startup failed: %s", exc)
 
 # CORS setup for Studio and web agents - Restricted origins (no wildcard with credentials)
 _default_cors = [
@@ -1737,6 +1744,19 @@ async def _execute_chat_completion(
 
     requested_model = body.get("model") or "supreme-spark"
     preferred_provider = None
+
+    # Optional: let dual-pool priority router influence preferred provider (soft switch)
+    try:
+        from gateway.dual_pool_priority_router import get_dual_pool_router
+        _dual_pick = get_dual_pool_router().select_best_model(requested_model or "general")
+        if _dual_pick:
+            _m, _slot = _dual_pick
+            _prov_map = {"groq_cerebras": "groq", "gemini": "gemini", "openrouter_kilo": "openrouter"}
+            _mapped = _prov_map.get(getattr(_m, "provider", ""))
+            if _mapped:
+                preferred_provider = _mapped
+    except Exception:  # noqa: BLE001
+        pass
     if requested_model.startswith("supremeai/"):
         preferred_provider = requested_model.split("/", 1)[1]
     elif requested_model in ("supremeai-web", "supremeai/web", "supremeai-webhook", "supremeai/webhook"):
@@ -1780,12 +1800,12 @@ async def _execute_chat_completion(
     if conv_id and last_user_msg:
         if append_canonical_message:
             try:
-                append_canonical_message(conv_id, "user", str(last_user_msg), user_id=user_id)
+                await asyncio.to_thread(append_canonical_message, conv_id, "user", str(last_user_msg), user_id=user_id)
             except Exception as exc:
                 logger.warning(f"Canonical memory store error (user msg): {exc}")
         if add_message:
             try:
-                add_message(conv_id, "user", str(last_user_msg), user_id=user_id)
+                await asyncio.to_thread(add_message, conv_id, "user", str(last_user_msg), user_id=user_id)
             except Exception as exc:
                 logger.warning(f"Legacy storage error (user msg): {exc}")
 
@@ -1803,7 +1823,8 @@ async def _execute_chat_completion(
                     if k not in body or body[k] is None:
                         body[k] = v
 
-            body["messages"] = compile_chat_context(
+            body["messages"] = await asyncio.to_thread(
+                compile_chat_context,
                 messages=body.get("messages", []),
                 conversation_id=conv_id,
                 user_id=user_id,
@@ -2023,7 +2044,8 @@ async def _execute_chat_completion(
                 if chat_content:
                     if append_canonical_message:
                         try:
-                            append_canonical_message(
+                            await asyncio.to_thread(
+                                append_canonical_message,
                                 conv_id,
                                 "assistant",
                                 chat_content,
@@ -2036,7 +2058,8 @@ async def _execute_chat_completion(
                             logger.warning(f"Canonical memory store error (assistant msg): {exc}")
                     if add_message:
                         try:
-                            add_message(
+                            await asyncio.to_thread(
+                                add_message,
                                 conv_id,
                                 "assistant",
                                 chat_content,
@@ -2159,6 +2182,11 @@ async def _execute_chat_completion(
                                     if pool:
                                         pool.report_injury(slot, 500, call_latency)
                                     _adaptive_routes["api-pool"].record(call_latency, success=False)
+                                    try:
+                                        from gateway.service.free_model_discovery import validate_slot
+                                        asyncio.create_task(validate_slot(slot))
+                                    except Exception:  # noqa: BLE001
+                                        pass
                                     logger.warning(
                                         f"[stream] Provider {provider} slot {slot.name} failed before stream start: {last_stream_err}. "
                                         f"Failing over to next squad player..."
@@ -2190,7 +2218,8 @@ async def _execute_chat_completion(
                 full_text = "".join(acc)
                 if conv_id and full_text and append_canonical_message:
                     try:
-                        append_canonical_message(
+                        await asyncio.to_thread(
+                            append_canonical_message,
                             conv_id,
                             "assistant",
                             full_text,
@@ -2227,6 +2256,13 @@ async def _execute_chat_completion(
                 status, response_data = 500, {"error": str(exc)}
             call_latency = (time.monotonic() - call_start) * 1000
 
+            if status in (401, 402, 403, 429):
+                try:
+                    from gateway.service.free_model_discovery import validate_slot
+                    asyncio.create_task(validate_slot(slot))
+                except Exception:  # noqa: BLE001
+                    pass
+
             if 200 <= status < 300 and isinstance(response_data, dict):
                 if squad:
                     squad.report_success(provider, slot, call_latency)
@@ -2258,7 +2294,8 @@ async def _execute_chat_completion(
                 if conv_id and chat_content:
                     if append_canonical_message:
                         try:
-                            append_canonical_message(
+                            await asyncio.to_thread(
+                                append_canonical_message,
                                 conv_id,
                                 "assistant",
                                 chat_content,
@@ -2437,7 +2474,15 @@ async def generate_ui_component(
 
 # ── MCP Control Tower & Superadmin Management Surface ────────────────────────
 
-@app.get("/admin/squad/status")
+@app.get("/admin/router/live-state")
+async def admin_router_live_state(request: Request, x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key")):
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        from gateway.dual_pool_priority_router import get_dual_pool_router
+        return get_dual_pool_router().get_live_telemetry()
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(exc))
 async def admin_squad_status(
     x_superadmin_key: Optional[str] = Header(None, alias="X-Superadmin-Key")
 ):
