@@ -288,6 +288,53 @@ STEALTH_WEBHOOK_TIMEOUT = float(os.getenv("STEALTH_WEBHOOK_TIMEOUT", "8.0"))
 # slot can cascade several models). Only guards time-to-first-token; once a stream
 # has started it is never cut. Override with CHAT_ROUTE_DEADLINE_S.
 CHAT_ROUTE_DEADLINE_S = float(os.getenv("CHAT_ROUTE_DEADLINE_S", "15"))
+# Phase-1 fix (2026-11): rank/failover on time-to-first *text token*, not headers.
+# A provider is only marked started/successful once the first text/tool_calls delta
+# arrives; until then a per-candidate first-token timeout lets us cancel a slow
+# upstream and try the next healthy candidate before forwarding anything downstream.
+CHAT_CONNECT_TIMEOUT_S = float(os.getenv("CHAT_CONNECT_TIMEOUT_S", "8"))
+CHAT_FIRST_TOKEN_TIMEOUT_S = float(os.getenv("CHAT_FIRST_TOKEN_TIMEOUT_S", "8"))
+
+
+async def _aiter_stream_first_token(
+    stream_iter,
+    *,
+    connect_timeout_s: float,
+    first_token_timeout_s: float,
+):
+    """Yield ``(kind, data)`` from ``stream_iter``, enforcing time-to-first-token.
+
+    * Before the first ``("status")`` item: apply ``connect_timeout_s``.
+    * After status, until the first ``("event")`` carrying text or tool_calls:
+      apply ``first_token_timeout_s``; once that token arrives the stream is
+      committed and items are yielded without an extra timeout.
+    * Raise ``asyncio.TimeoutError`` if the first token does not arrive in time, so
+      the caller can fail over to the next candidate before forwarding anything
+      downstream (headers alone are not treated as success).
+    """
+    deadline: float | None = None
+    committed = False
+    while True:
+        try:
+            if committed:
+                item = await stream_iter.__anext__()
+            elif deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise asyncio.TimeoutError()
+                item = await asyncio.wait_for(stream_iter.__anext__(), timeout=remaining)
+            else:
+                item = await asyncio.wait_for(stream_iter.__anext__(), timeout=connect_timeout_s)
+        except StopAsyncIteration:
+            return
+        kind, data = item
+        if kind == "status":
+            deadline = time.monotonic() + first_token_timeout_s
+        elif kind == "event" and not committed:
+            if (data.get("delta") or "") or data.get("tool_calls"):
+                committed = True
+                deadline = None
+        yield kind, data
 
 try:
     from service.adaptive_routing import RouteState, choose_route
@@ -2173,19 +2220,36 @@ async def _execute_chat_completion(
                     last_brand = stream_brand
                     candidate_failed_before_start = False
 
+                    header_at: float | None = None
+                    stream_iter = stream_chat_completion_events(provider, slot.key, body, slot=slot).__aiter__()
                     try:
-                        async for kind, data in stream_chat_completion_events(provider, slot.key, body, slot=slot):
+                        async for kind, data in _aiter_stream_first_token(
+                            stream_iter,
+                            connect_timeout_s=CHAT_CONNECT_TIMEOUT_S,
+                            first_token_timeout_s=CHAT_FIRST_TOKEN_TIMEOUT_S,
+                        ):
                             if kind == "status":
-                                started = True
-                                call_latency = (time.monotonic() - call_start) * 1000
-                                if squad:
-                                    squad.report_success(provider, slot, call_latency)
-                                _adaptive_routes["api-pool"].record(call_latency, success=True)
+                                header_at = time.monotonic()
                                 continue
                             if kind == "event":
                                 tool_calls = data.get("tool_calls")
                                 text = data.get("delta") or ""
                                 finish = data.get("finish_reason")
+                                if not started and (text or tool_calls):
+                                    started = True
+                                    first_token_ms = (time.monotonic() - call_start) * 1000
+                                    header_ms = (header_at - call_start) * 1000 if header_at is not None else -1.0
+                                    if squad:
+                                        squad.report_success(provider, slot, first_token_ms)
+                                    _adaptive_routes["api-pool"].record(first_token_ms, success=True)
+                                    logger.info(
+                                        "[stream] first token provider=%s slot=%s model=%s header_ms=%.0f first_token_ms=%.0f",
+                                        provider,
+                                        slot.name,
+                                        body.get("model"),
+                                        header_ms,
+                                        first_token_ms,
+                                    )
                                 if tool_calls:
                                     chunk_payload = {
                                         "id": stream_chunk_id,
@@ -2236,18 +2300,39 @@ async def _execute_chat_completion(
                                 else:
                                     logger.warning(f"[stream] Provider {provider} failed mid-stream.")
                                     break
-
-                        if started:
-                            break
-                        if candidate_failed_before_start:
+                    except asyncio.TimeoutError:
+                        if not started:
+                            call_latency = (time.monotonic() - call_start) * 1000
+                            logger.warning(
+                                "[stream] First-token timeout (%.1fs) provider=%s slot=%s model=%s; failing over.",
+                                CHAT_FIRST_TOKEN_TIMEOUT_S,
+                                provider,
+                                slot.name,
+                                body.get("model"),
+                            )
+                            pool = squad.pools.get(provider) if squad else None
+                            if pool:
+                                pool.report_injury(slot, 504, call_latency)
+                            _adaptive_routes["api-pool"].record(call_latency, success=False)
                             continue
-
+                        logger.warning("[stream] Provider %s stream read timed out mid-stream.", provider)
+                        break
                     except Exception as exc:  # noqa: BLE001 - never crash a live stream silently
                         logger.warning("[stream] candidate %s failed: %s", provider, type(exc).__name__)
                         if started:
                             yield f"data: {json.dumps({'error': 'Stream interrupted', 'supremeai': stream_brand})}\n\n"
                             yield "data: [DONE]\n\n"
                             return
+                        continue
+                    finally:
+                        try:
+                            await stream_iter.aclose()
+                        except Exception:  # noqa: BLE001
+                            pass
+
+                    if started:
+                        break
+                    if candidate_failed_before_start:
                         continue
 
                 if not started:
