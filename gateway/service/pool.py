@@ -201,9 +201,11 @@ class FederationSquad:
     # Discovery set only. get_candidate_slots ranks all healthy keys by score.
     # Note: huggingface is excluded from active squad discovery because its serverless
     # inference router now strictly requires paid Inference Provider credits or warm endpoints.
+    # 2026-11-16: "v0" removed — v0 chat/completions returns 404 for all keys (Premium plan
+    # required); keeping it only added a wasted round-trip per request. Config retained for
+    # explicit preferred_provider="v0" with a premium key.
     DEFAULT_PROVIDER_ORDER = [
         "groq", "gemini", "openrouter", "kilo", "sambanova", "mistral", "perplexity", "openai",
-        "v0",
     ]
 
     PREFIX_MAP: Dict[str, List[str]] = {

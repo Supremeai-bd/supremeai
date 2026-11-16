@@ -62,9 +62,10 @@ PROVIDER_BASE_URLS = {
     "openrouter": "https://openrouter.ai/api/v1",
     "openai": "https://api.openai.com/v1",
     "mistral": "https://api.mistral.ai/v1",
-    "huggingface": "https://router.huggingface.co/hf-inference/v1",
+    "huggingface": "https://router.huggingface.co/v1",
     "sambanova": "https://api.sambanova.ai/v1",
     "kilo": "https://api.kilo.ai/api/gateway",
+    "v0": "https://api.v0.dev/v1",
 }
 
 
@@ -193,7 +194,12 @@ async def validate_slot(slot: Any) -> None:
 
     passing: List[Tuple[str, float]] = []
     dead_key = False
-    for model in ids[:3]:
+    # Probe free/preferred models first so an aggregator's paid entries (e.g. kilo's
+    # "kilo-auto/efficient") do not shadow the working free model behind them.
+    def _free_rank(m: str) -> int:
+        return 0 if ("free" in m.lower()) else 1
+    ids = sorted(ids, key=_free_rank)
+    for model in ids[:6]:
         ok, latency, status = await _probe_model(provider, base_url, api_key, model)
         if ok:
             passing.append((model, latency))
@@ -202,9 +208,12 @@ async def validate_slot(slot: Any) -> None:
             except Exception:  # noqa: BLE001
                 pass
         else:
-            if status in (401, 402, 403):
+            if status in (401, 403):
                 dead_key = True
                 break
+            # 402 (payment required) means THIS model is paid, not that the key is
+            # dead — aggregators like kilo expose paid + free models side by side,
+            # so we skip the paid model and keep probing for a free one.
             try:
                 slot.unsupported_models.add(model)
             except Exception:  # noqa: BLE001
@@ -230,6 +239,8 @@ async def validate_slot(slot: Any) -> None:
         logger.info("discovered %d free models for %s/%s (best=%s, %.0fms)", len(models), provider, getattr(slot, "name", "?"), models[0], passing[0][1])
     else:
         slot.discovered_models = []
+        slot.cooldown_until = time.time() + 3600.0
+        slot.consecutive_failures = (getattr(slot, "consecutive_failures", 0) or 0) + 1
 
 
 async def run_discovery(squad: Any) -> None:

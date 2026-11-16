@@ -44,6 +44,13 @@ def test_provider_cascades_defined():
     # Verify Gemini contains live verified models
     assert "gemini-2.5-flash" in PROVIDER_MODEL_CASCADES["gemini"]
     assert "gemini-2.5-flash-lite" in PROVIDER_MODEL_CASCADES["gemini"]
+    # gemini-flash-lite-latest is the current free-tier top pick (2.5-flash hits quota 429)
+    assert PROVIDER_MODEL_CASCADES["gemini"][0] == "gemini-flash-lite-latest"
+
+    # Verify Kilo uses the free auto-router, not the paid "auto" (which 402s)
+    assert "kilo" in PROVIDER_MODEL_CASCADES
+    assert PROVIDER_MODEL_CASCADES["kilo"][0] == "kilo-auto/free"
+    assert "auto" not in PROVIDER_MODEL_CASCADES["kilo"]
 
     # Verify Cerebras is strictly excluded (per user mandate)
     assert "cerebras" not in PROVIDER_MODEL_CASCADES
@@ -54,7 +61,7 @@ async def test_in_flight_model_cascade_on_404():
     """If top model returns 404, adapter must automatically try the next model in cascade."""
     call_history = []
 
-    async def mock_post(url, json=None, headers=None):
+    async def mock_post(url, json=None, headers=None, **kwargs):
         model = json.get("model")
         call_history.append(model)
         mock_resp = MagicMock()
@@ -87,11 +94,11 @@ async def test_skip_paid_tier_on_402():
     """If a model returns 402 Payment Required, adapter skips paid tier and cascades."""
     call_history = []
 
-    async def mock_post(url, json=None, headers=None):
+    async def mock_post(url, json=None, headers=None, **kwargs):
         model = json.get("model")
         call_history.append(model)
         mock_resp = MagicMock()
-        if model == "gemini-2.5-flash":
+        if model == "gemini-flash-lite-latest":
             mock_resp.status_code = 402
             mock_resp.json.return_value = {"error": "Payment required"}
             mock_resp.text = '{"error": "Payment required"}'
