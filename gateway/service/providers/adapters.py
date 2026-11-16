@@ -70,12 +70,12 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "default_model": os.getenv("MISTRAL_MODEL", "mistral-small-latest"),
     },
     "huggingface": {
-        "base_url": os.getenv("HF_BASE_URL", "https://router.huggingface.co/hf-inference/v1"),
+        "base_url": os.getenv("HF_BASE_URL", "https://router.huggingface.co/v1"),
         "default_model": os.getenv("HF_MODEL", "meta-llama/Llama-3.2-3B-Instruct"),
     },
     "v0": {
         "base_url": os.getenv("V0_BASE_URL", "https://api.v0.dev/v1"),
-        "default_model": os.getenv("V0_MODEL", "v0-web"),
+        "default_model": os.getenv("V0_MODEL", "v0-1.0-md"),
     },
     "perplexity": {
         "base_url": os.getenv("PERPLEXITY_BASE_URL", "https://api.perplexity.ai"),
@@ -87,7 +87,7 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     "kilo": {
         "base_url": os.getenv("KILO_BASE_URL", "https://api.kilo.ai/api/gateway"),
-        "default_model": os.getenv("KILO_MODEL", "auto"),
+        "default_model": os.getenv("KILO_MODEL", "kilo-auto/free"),
     },
     "ghost_gemini": {
         "base_url": os.getenv("GHOST_TOWER_URL", "http://127.0.0.1:8788"),
@@ -117,9 +117,11 @@ PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
     # through ~6 dead models (~500-700ms each) before failing — the root cause of
     # multi-second "hi" latency. Cascade now lists only live, verified models.
     "gemini": [
-        "gemini-2.5-flash",
+        "gemini-flash-lite-latest",
         "gemini-2.5-flash-lite",
+        "gemini-2.5-flash",
         "gemini-2.5-pro",
+        "gemini-flash-latest",
     ],
     # 2026-11-16: 5 of 7 openrouter free slugs below were removed from the free
     # catalog (HTTP 404). Each dead slug cost a wasted ~500ms round-trip per key.
@@ -141,8 +143,8 @@ PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
         "Qwen2.5-72B-Instruct",
     ],
     "kilo": [
-        "auto",
-        "google/gemini-2.5-flash",
+        "kilo-auto/free",
+        "kilo-auto/efficient",
     ],
     "openai": [
         "gpt-4o-mini",
@@ -158,8 +160,8 @@ PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
         "sonar-pro",
     ],
     "v0": [
-        "v0-web",
-        "v0-preview",
+        "v0-1.0-md",
+        "v0-1.5-md",
     ],
 }
 
