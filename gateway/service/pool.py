@@ -51,6 +51,7 @@ class KeySlot:
     total_errors: int = 0
     verified_model: Optional[str] = None
     ewma_latency_ms: float = 0.0
+    ewma_first_token_ms: float = 0.0
     free_limit: Optional[int] = None
     remaining_free: Optional[int] = None
     consecutive_failures: int = 0
@@ -58,6 +59,16 @@ class KeySlot:
     unsupported_models: set[str] = field(default_factory=set)
     preferred_model: Optional[str] = None
     discovered_models: List[str] = field(default_factory=list)
+
+    @property
+    def rank_latency_ms(self) -> float:
+        """Latency used for fastest-first ranking: time-to-first-token when known.
+
+        Streaming calls report their first-text-token latency into
+        ``ewma_first_token_ms``; until a slot has served one we fall back to the
+        general ``ewma_latency_ms`` so a fresh slot still ranks sensibly.
+        """
+        return self.ewma_first_token_ms or self.ewma_latency_ms
 
     @property
     def is_healthy(self) -> bool:
@@ -138,7 +149,7 @@ class ProviderKeyPool:
             healthy,
             key=lambda slot: route_score(RouteSnapshot(
                 name=slot.name,
-                latency_ms=slot.ewma_latency_ms,
+                latency_ms=slot.rank_latency_ms,
                 remaining=slot.remaining_free,
                 limit=slot.free_limit,
                 failures=slot.consecutive_failures,
@@ -159,12 +170,17 @@ class ProviderKeyPool:
             if slot.preferred_model == clean_m:
                 slot.preferred_model = next(iter(slot.supported_models), None)
 
-    def report_success(self, slot: KeySlot, latency_ms: float = 0.0):
+    def report_success(self, slot: KeySlot, latency_ms: float = 0.0, first_token_ms: float | None = None):
         if latency_ms > 0:
             if slot.ewma_latency_ms <= 0:
                 slot.ewma_latency_ms = float(latency_ms)
             else:
                 slot.ewma_latency_ms = (slot.ewma_latency_ms * 0.7) + (float(latency_ms) * 0.3)
+        if first_token_ms is not None and first_token_ms > 0:
+            if slot.ewma_first_token_ms <= 0:
+                slot.ewma_first_token_ms = float(first_token_ms)
+            else:
+                slot.ewma_first_token_ms = (slot.ewma_first_token_ms * 0.7) + (float(first_token_ms) * 0.3)
         slot.consecutive_failures = 0
         if slot.remaining_free is not None:
             slot.remaining_free = max(0, slot.remaining_free - 1)
@@ -179,6 +195,10 @@ class ProviderKeyPool:
                 slot.ewma_latency_ms = float(latency_ms)
             else:
                 slot.ewma_latency_ms = (slot.ewma_latency_ms * 0.7) + (float(latency_ms) * 0.3)
+            if slot.ewma_first_token_ms <= 0:
+                slot.ewma_first_token_ms = float(latency_ms)
+            else:
+                slot.ewma_first_token_ms = (slot.ewma_first_token_ms * 0.7) + (float(latency_ms) * 0.3)
         if status_code == 429:
             duration, reason = COOLDOWN_RATE_LIMIT, "rate_limit"
         elif status_code in (401, 403):
@@ -273,7 +293,7 @@ class FederationSquad:
             candidates,
             key=lambda item: route_score(RouteSnapshot(
                 name=item[1].name,
-                latency_ms=item[1].ewma_latency_ms,
+                latency_ms=item[1].rank_latency_ms,
                 remaining=item[1].remaining_free,
                 limit=item[1].free_limit,
                 failures=item[1].consecutive_failures,
@@ -287,10 +307,10 @@ class FederationSquad:
         if pool:
             pool.report_model_capability(slot, model, success, status_code)
 
-    def report_success(self, provider: str, slot: KeySlot, latency_ms: float = 0.0):
+    def report_success(self, provider: str, slot: KeySlot, latency_ms: float = 0.0, first_token_ms: float | None = None):
         pool = self.pools.get(provider)
         if pool:
-            pool.report_success(slot, latency_ms)
+            pool.report_success(slot, latency_ms, first_token_ms=first_token_ms)
 
 
 squad = FederationSquad()
