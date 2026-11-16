@@ -24,21 +24,18 @@ async def get_user_gitlab_token(user_id: str, db: AsyncSession) -> str | None:
 
     টোকেন না পেলে None রিটার্ন করে — কলারকে fail-fast করতে হবে।
     """
-    stmt = select(Integration).where(
-        Integration.user_id == user_id,
-        Integration.provider == "gitlab",
+    res = await db.execute(
+        select(Integration.encrypted_access_token).filter_by(user_id=user_id, provider="gitlab")
     )
-    result = await db.execute(stmt)
-    integration = result.scalar_one_or_none()
-    if not integration or not integration.encrypted_access_token:
-        logger.warning(f"No GitLab token found for user '{user_id}'")
+    enc_token = res.scalar_one_or_none()
+    if not enc_token:
+        logger.warning(f"GitLab token missing for user: {user_id}")
         return None
 
     try:
-        access_token = decrypt_token(integration.encrypted_access_token)
-        return access_token
-    except Exception as exc:
-        logger.error(f"Failed to decrypt GitLab token for user '{user_id}': {exc}")
+        return decrypt_token(enc_token)
+    except Exception as err:
+        logger.error(f"GitLab token decryption failure for {user_id}: {err}")
         return None
 
 

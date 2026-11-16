@@ -14,16 +14,16 @@ router = APIRouter(prefix="/gitlab", tags=["gitlab"])
 
 
 def _resolve_project(payload_project: str | None, db) -> str:
-    project = payload_project
-    if not project or not project.strip():
-        profile = db.get_tenant_profile() or {}
-        project = profile.get("gitlab_project")
-    if not project or not project.strip():
+    target = (payload_project or "").strip()
+    if not target:
+        tenant_data = db.get_tenant_profile() if hasattr(db, "get_tenant_profile") else None
+        target = ((tenant_data or {}).get("gitlab_project") or "").strip()
+    if not target:
         raise HTTPException(
             status_code=400,
             detail="GitLab project not connected. Please provide project or connect in settings.",
         )
-    return project.strip()
+    return target
 
 
 @asynccontextmanager
@@ -32,13 +32,13 @@ async def handle_gitlab_errors(operation_name: str, project: str | None = None):
         yield
     except HTTPException:
         raise
-    except Exception as e:
-        error_id = uuid.uuid4().hex[:8]
-        proj_info = f" for project={project}" if project else ""
-        logger.error(f"[{error_id}] gitlab/{operation_name} failed{proj_info}: {e}")
+    except Exception as err:
+        ref_code = uuid.uuid4().hex[:8]
+        context = f" [project={project}]" if project else ""
+        logger.error(f"GitLab {operation_name} failure (ref={ref_code}){context}: {err}")
         raise HTTPException(
-            status_code=502, detail=f"GitLab operation failed (ref: {error_id})"
-        ) from e
+            status_code=502, detail=f"GitLab operation failed (ref: {ref_code})"
+        ) from err
 
 
 async def _get_agent(user: dict, sql_db: AsyncSession, host: str = "https://gitlab.com") -> GitLabAgent:

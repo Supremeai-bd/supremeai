@@ -5,25 +5,29 @@ import pytest
 from core.tools.devops.gitlab_agent import GitLabAgent
 
 
+def _build_mock_client(response_data: dict, status_code: int = 200, method: str = "get") -> AsyncMock:
+    resp = MagicMock()
+    resp.status_code = status_code
+    resp.json.return_value = response_data
+    resp.raise_for_status = MagicMock()
+
+    client = AsyncMock()
+    setattr(client, method, AsyncMock(return_value=resp))
+    client.__aenter__ = AsyncMock(return_value=client)
+    client.__aexit__ = AsyncMock(return_value=None)
+    return client
+
+
 @pytest.mark.asyncio
 async def test_gitlab_agent_project_connect():
     """connect_project retrieves project metadata successfully."""
     agent = GitLabAgent(token="glpat-mock123")
-
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {
+    mock_client = _build_mock_client({
         "id": 12345,
         "path_with_namespace": "myorg/myproject",
         "default_branch": "main",
         "web_url": "https://gitlab.com/myorg/myproject",
-    }
-    mock_resp.raise_for_status = MagicMock()
-
-    mock_client = AsyncMock()
-    mock_client.get = AsyncMock(return_value=mock_resp)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+    })
 
     with patch("core.tools.devops.gitlab_agent.httpx.AsyncClient", return_value=mock_client):
         res = await agent.connect_project("myorg/myproject")
@@ -37,22 +41,13 @@ async def test_gitlab_agent_project_connect():
 async def test_gitlab_agent_analyze():
     """analyze_project pulls issues and metadata."""
     agent = GitLabAgent(token="glpat-mock123")
-
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {
+    mock_client = _build_mock_client({
         "id": 12345,
         "open_issues_count": 7,
         "default_branch": "main",
         "visibility": "private",
         "web_url": "https://gitlab.com/myorg/myproject",
-    }
-    mock_resp.raise_for_status = MagicMock()
-
-    mock_client = AsyncMock()
-    mock_client.get = AsyncMock(return_value=mock_resp)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+    })
 
     with patch("core.tools.devops.gitlab_agent.httpx.AsyncClient", return_value=mock_client):
         res = await agent.analyze_project("myorg/myproject")
@@ -66,19 +61,15 @@ async def test_gitlab_agent_analyze():
 async def test_gitlab_agent_create_mr():
     """create_mr successfully calls GitLab merge_requests endpoint."""
     agent = GitLabAgent(token="glpat-mock123")
-
-    mock_resp = MagicMock()
-    mock_resp.status_code = 201
-    mock_resp.json.return_value = {
-        "id": 999,
-        "iid": 42,
-        "web_url": "https://gitlab.com/myorg/myproject/-/merge_requests/42",
-    }
-
-    mock_client = AsyncMock()
-    mock_client.post = AsyncMock(return_value=mock_resp)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client = _build_mock_client(
+        {
+            "id": 999,
+            "iid": 42,
+            "web_url": "https://gitlab.com/myorg/myproject/-/merge_requests/42",
+        },
+        status_code=201,
+        method="post",
+    )
 
     with patch("core.tools.devops.gitlab_agent.httpx.AsyncClient", return_value=mock_client):
         res = await agent.create_mr(

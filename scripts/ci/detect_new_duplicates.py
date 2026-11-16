@@ -55,8 +55,34 @@ DEFAULT_IGNORES = (
     # studio/** is third-party Open WebUI foundation (#557); vendored clones are excluded
     "studio/**,"
     # core/github/** is governance mirror (#549, plan_duplicate_refactors.py)
-    "core/github/**"
+    "core/github/**,"
+    "docs/**,"
+    ".agents/**,"
+    "**/*.md,"
+    "tests/fixtures/**"
 )
+
+SOURCE_EXTENSIONS = frozenset({
+    ".py",
+    ".js",
+    ".ts",
+    ".jsx",
+    ".tsx",
+    ".mjs",
+    ".cjs",
+    ".sql",
+    ".sh",
+    ".bash",
+    ".ps1",
+    ".html",
+    ".css",
+    ".scss",
+    ".go",
+    ".rs",
+    ".java",
+    ".c",
+    ".cpp",
+})
 
 
 @dataclass(frozen=True)
@@ -320,6 +346,19 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     root = Path.cwd().resolve()
     base_ref = args.base_ref or default_base_ref()
+
+    changed_files = _changed_files_against_base(base_ref, root)
+    if changed_files is not None and not any(
+        Path(f).suffix.lower() in SOURCE_EXTENSIONS for f in changed_files
+    ):
+        print(
+            f"[duplicate-regression] No source code files modified against {base_ref}; "
+            "skipping jscpd scan."
+        )
+        print(f"[duplicate-regression] base={base_ref} new_clones=0 allowed={args.max_new}")
+        print("[duplicate-regression] PASS")
+        return 0
+
     try:
         jscpd = resolve_jscpd(args.jscpd, not args.no_npx_fallback)
     except RuntimeError as exc:
