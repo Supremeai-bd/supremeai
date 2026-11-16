@@ -32,6 +32,7 @@ _ROUTER_DEFINITIONS: list[tuple[str, str, str]] = [
     ("task_router", ".task", "router"),
     ("email_router", ".email", "router"),
     ("github_router", ".github", "router"),
+    ("gitlab_router", ".gitlab", "router"),
     ("internal_router", ".internal", "router"),
     ("config_router", ".config_routes", "router"),
     ("sso_router", ".sso", "router"),

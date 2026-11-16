@@ -89,6 +89,7 @@ ALL_ROUTERS = [
     {"path": "api.routes.analytics", "prefix": "/api/v1", "is_admin": False, "is_critical": False},
     {"path": "api.routes.email", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.github", "prefix": "", "is_admin": False, "is_critical": False},
+    {"path": "api.routes.gitlab", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.config_routes", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.cognitive", "prefix": "/api/v1", "is_admin": False, "is_critical": False},
     {

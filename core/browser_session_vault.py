@@ -134,6 +134,21 @@ class BrowserSessionVault:
         last_login = record.get("last_login", 0)
         return bool(last_login) and (time.time() - float(last_login)) < ttl_seconds
 
+    def list_services(self) -> list[dict[str, Any]]:
+        """ভল্টে সংরক্ষিত সমস্ত সার্ভিসের তালিকা (বৈধতা স্ট্যাটাস সহ)।"""
+        services: list[dict[str, Any]] = []
+        if not self.vault_path.exists():
+            return services
+        for p in self.vault_path.glob("*.json.enc"):
+            service_name = p.name[:-9]  # strip '.json.enc'
+            valid = self.is_session_valid(service_name)
+            services.append({
+                "service": service_name,
+                "valid": valid,
+                "saved_at": p.stat().st_mtime,
+            })
+        return services
+
     def forget(self, service: str) -> bool:
         """সেশন মুছে দাও (logout/rotate) — মুছেছিল কিনা রিটার্ন।"""
         path = self._service_file(service)

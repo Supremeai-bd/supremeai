@@ -60,7 +60,11 @@ class BrowserSessionManager:
         self._paused_owners: set[str] = set()
 
     async def create(
-        self, owner_id: str, label: str = "Browser session", saved_url: str | None = None
+        self,
+        owner_id: str,
+        label: str = "Browser session",
+        saved_url: str | None = None,
+        storage_state: dict[str, Any] | None = None,
     ) -> BrowserSession:
         if not owner_id:
             raise ValueError("owner_id is required")
@@ -70,7 +74,10 @@ class BrowserSessionManager:
         await self._slots.acquire()
         try:
             browser = await get_global_browser()
-            context = await browser.new_context(viewport={"width": 1280, "height": 800})
+            context_opts: dict[str, Any] = {"viewport": {"width": 1280, "height": 800}}
+            if storage_state:
+                context_opts["storage_state"] = storage_state
+            context = await browser.new_context(**context_opts)
             page = await context.new_page()
             session = BrowserSession(
                 id=f"bs_{uuid.uuid4().hex}",
