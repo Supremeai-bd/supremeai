@@ -2240,7 +2240,7 @@ async def _execute_chat_completion(
                                     first_token_ms = (time.monotonic() - call_start) * 1000
                                     header_ms = (header_at - call_start) * 1000 if header_at is not None else -1.0
                                     if squad:
-                                        squad.report_success(provider, slot, first_token_ms)
+                                        squad.report_success(provider, slot, first_token_ms, first_token_ms=first_token_ms)
                                     _adaptive_routes["api-pool"].record(first_token_ms, success=True)
                                     logger.info(
                                         "[stream] first token provider=%s slot=%s model=%s header_ms=%.0f first_token_ms=%.0f",

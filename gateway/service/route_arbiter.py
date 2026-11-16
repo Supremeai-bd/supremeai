@@ -152,7 +152,7 @@ class DynamicRouteArbiter:
             sort_key = lambda item: route_score(
                 RouteSnapshot(
                     name=item[1].name,
-                    latency_ms=item[1].ewma_latency_ms,
+                    latency_ms=item[1].rank_latency_ms,
                     remaining=item[1].remaining_free,
                     limit=item[1].free_limit,
                     failures=item[1].consecutive_failures,

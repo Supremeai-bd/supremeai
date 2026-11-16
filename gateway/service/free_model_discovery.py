@@ -352,6 +352,8 @@ async def hydrate_slots_from_redis(squad: Any) -> None:
                     slot.consecutive_failures = int(state["consecutive_failures"])
                 if "ewma_latency_ms" in state:
                     slot.ewma_latency_ms = float(state["ewma_latency_ms"])
+                if "ewma_first_token_ms" in state:
+                    slot.ewma_first_token_ms = float(state["ewma_first_token_ms"])
                 if "discovered_models" in state:
                     slot.discovered_models = list(state["discovered_models"])
                 if "preferred_model" in state:
@@ -371,6 +373,7 @@ async def persist_slot(slot: Any) -> None:
         "cooldown_until": getattr(slot, "cooldown_until", 0.0),
         "consecutive_failures": getattr(slot, "consecutive_failures", 0),
         "ewma_latency_ms": getattr(slot, "ewma_latency_ms", 0.0),
+        "ewma_first_token_ms": getattr(slot, "ewma_first_token_ms", 0.0),
         "discovered_models": getattr(slot, "discovered_models", []),
         "preferred_model": getattr(slot, "preferred_model", None),
         "supported_models": list(getattr(slot, "supported_models", set()) or []),
