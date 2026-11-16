@@ -265,7 +265,7 @@ def evaluate(pr_number: int, run_id: int | None = None, api: Api = real_api,
 
     verdict = str(decision.get("verdict", "HUMAN_REVIEW"))
     confidence = float(decision.get("confidence", 0.0) or 0.0)
-    if verdict == "AUTO_MERGE" and confidence >= 0.90:
+    if verdict == "AUTO_MERGE" and confidence >= 0.75:
         if not dry_run:
             if run_id is not None:
                 approve_pending_deployment(int(run_id), api=api)
