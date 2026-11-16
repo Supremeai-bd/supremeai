@@ -158,6 +158,8 @@ async def validate_slot(slot: Any) -> None:
         except Exception:  # noqa: BLE001
             base_url = ""
     if not base_url:
+        base_url = _os.getenv(f"{provider.upper()}_BASE_URL", "") or _os.getenv(f"{provider.upper()}_API_BASE_URL", "")
+    if not base_url:
         return
 
     api_key = getattr(slot, "key", "")
@@ -259,3 +261,47 @@ async def discovery_loop(squad: Any, interval_seconds: float = 900.0) -> None:
         except Exception as exc:  # noqa: BLE001
             logger.debug("discovery loop error: %s", exc)
         await asyncio.sleep(interval_seconds)
+
+async def hydrate_slots_from_redis(squad: Any) -> None:
+    if squad is None:
+        return
+    pools = getattr(squad, "pools", {}) or {}
+    for pool in pools.values():
+        for slot in getattr(pool, "slots", []) or []:
+            provider = getattr(slot, "provider", "")
+            key = "supremeai:slot:" + provider + ":" + getattr(slot, "name", "")
+            state = await _redis_get(key)
+            if not isinstance(state, dict):
+                continue
+            try:
+                if "cooldown_until" in state:
+                    slot.cooldown_until = float(state["cooldown_until"])
+                if "consecutive_failures" in state:
+                    slot.consecutive_failures = int(state["consecutive_failures"])
+                if "ewma_latency_ms" in state:
+                    slot.ewma_latency_ms = float(state["ewma_latency_ms"])
+                if "discovered_models" in state:
+                    slot.discovered_models = list(state["discovered_models"])
+                if "preferred_model" in state:
+                    slot.preferred_model = state["preferred_model"]
+                if "supported_models" in state:
+                    slot.supported_models = set(state["supported_models"])
+                if "unsupported_models" in state:
+                    slot.unsupported_models = set(state["unsupported_models"])
+            except Exception:
+                continue
+
+
+async def persist_slot(slot: Any) -> None:
+    provider = getattr(slot, "provider", "")
+    key = "supremeai:slot:" + provider + ":" + getattr(slot, "name", "")
+    state = {
+        "cooldown_until": getattr(slot, "cooldown_until", 0.0),
+        "consecutive_failures": getattr(slot, "consecutive_failures", 0),
+        "ewma_latency_ms": getattr(slot, "ewma_latency_ms", 0.0),
+        "discovered_models": getattr(slot, "discovered_models", []),
+        "preferred_model": getattr(slot, "preferred_model", None),
+        "supported_models": list(getattr(slot, "supported_models", set()) or []),
+        "unsupported_models": list(getattr(slot, "unsupported_models", set()) or []),
+    }
+    await _redis_set(key, state, ttl=86400)

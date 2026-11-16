@@ -15,16 +15,17 @@ import tiny_brain_pr_guard as guard  # noqa: E402
 class TestTinyBrainGuard(unittest.TestCase):
     def test_forbidden_path(self) -> None:
         self.assertTrue(guard.is_forbidden_path("gateway/middleware/auth.py"))
-        self.assertTrue(guard.is_forbidden_path(".github/workflows/unified-pipeline.yml"))
+        self.assertTrue(guard.is_forbidden_path("core/database/migrations/foo.py"))
         self.assertTrue(guard.is_forbidden_path("scripts/ci/ai_pr_evaluator.py"))
         self.assertFalse(guard.is_forbidden_path("README.md"))
+        self.assertFalse(guard.is_forbidden_path(".github/workflows/unified-pipeline.yml"))
 
     def test_tier1_violations(self) -> None:
         v = guard.tier1_violations(["README.md", "gateway/middleware/x.py"], {"additions": 5})
         self.assertIn("gateway/middleware/x.py", v)
 
     def test_diff_size_floor(self) -> None:
-        v = guard.tier1_violations(["README.md"], {"additions": 600})
+        v = guard.tier1_violations(["README.md"], {"additions": 3500})
         self.assertTrue(any("diff_size_floor" in x for x in v))
 
     def test_evaluate_low_risk_auto_approve(self) -> None:

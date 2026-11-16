@@ -190,7 +190,7 @@ export default {
          }
 
          const apiController = new AbortController();
-         const apiTimeout = setTimeout(() => apiController.abort(), 15000);
+         const apiTimeout = setTimeout(() => apiController.abort(), 30000);
          const apiResp = await fetch(apiUrl.toString(), {
            method: request.method,
            headers: forwardHeaders,
