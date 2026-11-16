@@ -6,7 +6,7 @@ generic per-session action executor. Routes register on the shared
 ``router`` in the original file order (see package ``__init__.py``).
 """
 
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -226,3 +226,142 @@ async def resume_automation(user: dict = Depends(get_current_user_token)):
         raise HTTPException(status_code=401, detail="Authenticated owner required")
     session_manager.resume_owner(owner_id)
     return {"status": "active"}
+
+
+class VaultSyncRequest(BaseModel):
+    service: str = Field(min_length=1, max_length=120)
+    cookies: list[dict[str, Any]] = Field(default_factory=list)
+    local_storage: dict[str, Any] = Field(default_factory=dict)
+    label: str | None = None
+
+
+class ScheduledExecutionRequest(BaseModel):
+    service: str = Field(min_length=1, max_length=120)
+    url: str = Field(min_length=1, max_length=2048)
+    actions: list[dict[str, Any]] = Field(default_factory=list)
+
+
+def _get_owner_vault(owner_id: str):
+    import os
+    import re
+    from pathlib import Path
+    from core.browser_session_vault import BrowserSessionVault
+
+    clean_owner = re.sub(r"[^a-zA-Z0-9_\-]", "_", owner_id or "default")
+    vault_base = Path(os.getenv("VAULT_DIR", "data/browser_vaults"))
+    owner_path = vault_base / clean_owner
+    owner_path.mkdir(parents=True, exist_ok=True)
+    return BrowserSessionVault(owner_path)
+
+
+@router.post("/automation/vault/sync")
+async def sync_vault_session(
+    payload: VaultSyncRequest,
+    user: dict = Depends(get_current_user_token),
+):
+    owner_id = str(user.get("sub") or "")
+    if not owner_id:
+        raise HTTPException(status_code=401, detail="Authenticated owner required")
+    from core.browser_session_vault import SessionVaultError
+
+    try:
+        vault = _get_owner_vault(owner_id)
+        vault.save_session(payload.service, payload.cookies, payload.local_storage)
+        return {
+            "status": "success",
+            "service": payload.service,
+            "cookies_count": len(payload.cookies),
+            "valid": True,
+        }
+    except SessionVaultError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/automation/vault/services")
+async def list_vault_services(user: dict = Depends(get_current_user_token)):
+    owner_id = str(user.get("sub") or "")
+    if not owner_id:
+        raise HTTPException(status_code=401, detail="Authenticated owner required")
+    try:
+        vault = _get_owner_vault(owner_id)
+        return {"services": vault.list_services()}
+    except Exception as exc:
+        return {"services": [], "error": str(exc)}
+
+
+@router.delete("/automation/vault/services/{service}")
+async def delete_vault_service(service: str, user: dict = Depends(get_current_user_token)):
+    owner_id = str(user.get("sub") or "")
+    if not owner_id:
+        raise HTTPException(status_code=401, detail="Authenticated owner required")
+    try:
+        vault = _get_owner_vault(owner_id)
+        forgotten = vault.forget(service)
+        if not forgotten:
+            raise HTTPException(status_code=404, detail=f"Service '{service}' not found in vault")
+        return {"status": "success", "service": service}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/automation/vault/execute")
+async def execute_scheduled_task(
+    payload: ScheduledExecutionRequest,
+    user: dict = Depends(get_current_user_token),
+):
+    owner_id = str(user.get("sub") or "")
+    if not owner_id:
+        raise HTTPException(status_code=401, detail="Authenticated owner required")
+    from core.security import is_safe_url
+    if not is_safe_url(payload.url):
+        raise HTTPException(status_code=400, detail="Unsafe URL requested")
+
+    vault = _get_owner_vault(owner_id)
+    storage_state = None
+    if vault.is_session_valid(payload.service):
+        try:
+            storage_state = vault.load_state(payload.service)
+        except Exception as load_err:
+            from core.monitoring.logging_config import logger
+            logger.warning(f"Failed to load storage_state for {payload.service}: {load_err}")
+
+    # Launch isolated session with injected storage_state
+    session = await session_manager.create(
+        owner_id=owner_id,
+        label=f"Scheduled: {payload.service}",
+        saved_url=payload.url,
+        storage_state=storage_state,
+    )
+
+    results: list[dict[str, Any]] = []
+    try:
+        await session.page.goto(payload.url, wait_until="domcontentloaded", timeout=30_000)
+        results.append({"action": "navigate", "url": session.page.url, "success": True})
+
+        for act in payload.actions:
+            action_name = act.get("action", "")
+            if action_name in {"content", "extract"}:
+                text = await session.page.locator("body").inner_text(timeout=15_000)
+                results.append({"action": action_name, "content": text[:5000], "success": True})
+            elif action_name == "click" and act.get("selector"):
+                await session.page.locator(act["selector"]).click(timeout=15_000)
+                results.append({"action": "click", "selector": act["selector"], "success": True})
+            elif action_name == "screenshot":
+                img = await session.page.screenshot(type="png")
+                import base64
+                results.append({"action": "screenshot", "image": base64.b64encode(img).decode("ascii")})
+
+        page_title = await session.page.title()
+        return {
+            "status": "success",
+            "service": payload.service,
+            "title": page_title,
+            "final_url": session.page.url,
+            "results": results,
+            "session_authenticated": storage_state is not None,
+        }
+    finally:
+        await session_manager.close(session.id, owner_id)
+
