@@ -48,28 +48,8 @@ def _render_api_key() -> str | None:
 
 
 def get_render_quota_remaining() -> tuple[float, bool]:
-    """Return (remaining_minutes, known). known=False on probe failure/missing key."""
-    api_key = _render_api_key()
-    if not api_key:
-        print("::warning::Render quota key missing; treating quota as unknown (no P2)", file=sys.stderr)
-        return QUOTA_UNKNOWN_REMAINING, False
-
-    try:
-        req = urllib.request.Request(
-            "https://api.render.com/v1/billing/usage",
-            headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
-        )
-        with urllib.request.urlopen(req, timeout=PROBE_TIMEOUT_S) as resp:
-            data = json.loads(resp.read().decode())
-        limit = float(data.get("limit") or data.get("monthlyLimit") or RENDER_FREE_MONTHLY_LIMIT_MINS)
-        used = float(data.get("used") or data.get("usedMinutes") or 0.0)
-        return max(0.0, limit - used), True
-    except Exception as exc:
-        print(
-            f"::warning::Render quota probe failed ({exc}); quota unknown (no P2, prefer P3 over P4)",
-            file=sys.stderr,
-        )
-        return QUOTA_UNKNOWN_REMAINING, False
+    """Return (remaining_minutes, known). known=False always — Render has no public billing/usage API."""
+    return QUOTA_UNKNOWN_REMAINING, False
 
 
 def is_render_ci_worker_available() -> bool:

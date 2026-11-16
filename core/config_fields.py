@@ -68,6 +68,10 @@ class SettingsFieldsMixin:
         default="",
         validation_alias=AliasChoices("HF_API_KEY", "HUGGINGFACE_API_KEY"),
     )
+    routeme_api_key: str = Field(
+        default="",
+        validation_alias="ROUTEME_API_KEY",
+    )
     ci_webhook_secret: str = Field(
         default="",
         validation_alias=AliasChoices("CI_WEBHOOK_SECRET"),

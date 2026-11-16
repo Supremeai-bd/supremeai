@@ -66,7 +66,80 @@ PROVIDER_BASE_URLS = {
     "sambanova": "https://api.sambanova.ai/v1",
     "kilo": "https://api.kilo.ai/api/gateway",
     "v0": "https://api.v0.dev/v1",
+    "routeme": "https://routesme.online/v1",
+    "routesme": "https://routesme.online/v1",
+    "bynara": "https://router.bynara.id/v1",
+    "bai": "https://api.b.ai/v1",
 }
+
+# Meta-routers ("kilo-auto/free", "openrouter/free") blindly delegate model choice
+# upstream (often picking slow/rate-limited models), and "kilo-auto/efficient" is paid (402).
+# Always exclude them so discovery ranks concrete, deterministic `:free` models.
+META_ROUTER_EXCLUDES = frozenset({
+    "kilo-auto/free",
+    "openrouter/free",
+    "kilo-auto/efficient",
+    "auto",
+    "default",
+})
+
+NON_CHAT_MODEL_MARKERS = (
+    "lyria",
+    "whisper",
+    "tts",
+    "embedding",
+    "moderation",
+    "dall-e",
+    "flux",
+    "imagen",
+)
+
+
+def _is_zero_price(val: Any) -> bool:
+    if val is None or val == "":
+        return False
+    try:
+        return float(val) == 0.0
+    except (TypeError, ValueError):
+        return False
+
+
+def _extract_free_aggregator_model(item: Any) -> str | None:
+    """Return model ID only if it is a concrete, zero-cost chat model (never paid or meta-router)."""
+    if isinstance(item, str):
+        mid = item.strip()
+        low = mid.lower()
+        if not mid or low in META_ROUTER_EXCLUDES:
+            return None
+        if any(marker in low for marker in NON_CHAT_MODEL_MARKERS):
+            return None
+        if mid.endswith(":free") or "free" in low:
+            return mid
+        return None
+
+    if not isinstance(item, dict):
+        return None
+
+    mid = str(item.get("id") or item.get("model") or item.get("name") or "").strip()
+    low = mid.lower()
+    if not mid or low in META_ROUTER_EXCLUDES:
+        return None
+    if any(marker in low for marker in NON_CHAT_MODEL_MARKERS):
+        return None
+
+    pricing = item.get("pricing")
+    if isinstance(pricing, dict) and ("prompt" in pricing or "completion" in pricing):
+        # Strict paid-model avoidance: if prompt or completion cost is non-zero, reject immediately.
+        if not (_is_zero_price(pricing.get("prompt")) and _is_zero_price(pricing.get("completion"))):
+            return None
+        # Also require explicit `:free` or `free` tag so non-chat zero-priced previews don't slip in.
+        if mid.endswith(":free") or "free" in low:
+            return mid
+        return None
+
+    if mid.endswith(":free") or "free" in low:
+        return mid
+    return None
 
 
 async def _fetch_model_ids(provider: str, base_url: str, api_key: str) -> List[str]:
@@ -94,43 +167,25 @@ async def _fetch_model_ids(provider: str, base_url: str, api_key: str) -> List[s
                 name = str(m.get("name", "")).split("/")[-1]
                 if name:
                     ids.append(name)
-    elif provider == "openrouter":
-        for m in (data.get("data", []) if isinstance(data, dict) else []):
-            mid = m.get("id")
-            pricing = m.get("pricing") or {}
-            is_free = (
-                (str(pricing.get("prompt", "")) == "0" and str(pricing.get("completion", "")) == "0")
-                or (isinstance(mid, str) and mid.endswith(":free"))
-            )
-            if mid and is_free:
-                ids.append(str(mid))
+    elif provider in ("openrouter", "kilo"):
+        raw_items = data.get("data", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+        for m in raw_items:
+            free_id = _extract_free_aggregator_model(m)
+            if free_id:
+                ids.append(free_id)
     else:
         for m in (data.get("data", []) if isinstance(data, dict) else []):
             mid = m.get("id")
-            if mid:
+            if mid and str(mid).strip().lower() not in META_ROUTER_EXCLUDES:
                 ids.append(str(mid))
-    if provider == "kilo":
-        # Kilo may expose an aggregator; accept any returned model ids.
-        for m in (data.get("data", []) if isinstance(data, dict) else []):
-            mid = m.get("id") or m.get("model") or m.get("name")
-            if mid:
-                ids.append(str(mid))
-        # also support list responses
-        if not ids and isinstance(data, list):
-            for item in data:
-                if isinstance(item, str):
-                    ids.append(item)
-                elif isinstance(item, dict):
-                    mid = item.get("id") or item.get("model") or item.get("name")
-                    if mid:
-                        ids.append(str(mid))
-        seen = set()
-        out = []
-        for mid in ids:
-            if mid not in seen:
-                seen.add(mid)
-                out.append(mid)
-        return out[:8]
+
+    seen = set()
+    out: List[str] = []
+    for mid in ids:
+        if mid not in seen:
+            seen.add(mid)
+            out.append(mid)
+    return out
 
 
 async def _probe_model(provider: str, base_url: str, api_key: str, model: str) -> Tuple[bool, float, int]:
@@ -194,12 +249,18 @@ async def validate_slot(slot: Any) -> None:
 
     passing: List[Tuple[str, float]] = []
     dead_key = False
-    # Probe free/preferred models first so an aggregator's paid entries (e.g. kilo's
-    # "kilo-auto/efficient") do not shadow the working free model behind them.
+    # Probe explicit `:free` models first so an aggregator's paid entries (e.g. kilo's
+    # "kilo-auto/efficient") or meta-routers do not shadow concrete working free models.
     def _free_rank(m: str) -> int:
-        return 0 if ("free" in m.lower()) else 1
+        low = m.lower()
+        if low.endswith(":free"):
+            return 0
+        if "free" in low and low not in META_ROUTER_EXCLUDES:
+            return 1
+        return 2
+
     ids = sorted(ids, key=_free_rank)
-    for model in ids[:6]:
+    for model in ids[:8]:
         ok, latency, status = await _probe_model(provider, base_url, api_key, model)
         if ok:
             passing.append((model, latency))

@@ -252,6 +252,9 @@ class ModelRouter:
                 getattr(settings, "bynara_api_key", None) or os.getenv("BYNARA_API_KEY")
             ),
             "bai": bool(getattr(settings, "bai_api_key", None) or os.getenv("BAI_API_KEY")),
+            "routesme": bool(
+                getattr(settings, "routeme_api_key", None) or os.getenv("ROUTEME_API_KEY")
+            ),
             "v0": bool(getattr(settings, "v0_api_key", None) or os.getenv("V0_API_KEY")),
             "together": bool(
                 getattr(settings, "together_api_key", None) or os.getenv("TOGETHER_API_KEY")
