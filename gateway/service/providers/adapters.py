@@ -103,6 +103,8 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
 # the adapter seamlessly tries the next model in sequence without failing the client request.
 PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
     "groq": [
+        "qwen/qwen3.8-27b",
+        "openai/gpt-oss-20b",
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
         "qwen-2.5-32b",
