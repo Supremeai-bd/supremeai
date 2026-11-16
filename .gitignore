@@ -245,7 +245,6 @@ desktop.ini
 .actrc
 .blackboxrules
 .gemini/
-.kilo/
 .ollama/
 .cache/
 *.tsbuildinfo
@@ -309,12 +308,17 @@ firebase.json
 !/requirements*.txt
 !/requirements*.lock
 !/ruff.toml
+!/pytest.ini
+!/VERSION
 
 # ------------------------------------------------------------------------------
 # ROOT ALLOWLIST: Official Monorepo Top-Level Directories (Unlocks Layer 3)
 # ------------------------------------------------------------------------------
 !/.agents/
 !/.github/
+!/.kilo/
+/.kilo/*
+!/.kilo/kilo.jsonc
 !/.semgrep/
 !/api-schemas/
 !/apps/
