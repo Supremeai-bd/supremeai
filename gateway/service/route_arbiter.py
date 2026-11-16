@@ -26,6 +26,7 @@ logger = logging.getLogger("supremeai.arbiter")
 # Per-model latency thresholds from architectural plan
 MODEL_LATENCY_THRESHOLDS_MS: Dict[str, float] = {
     "supreme-spark": 1500.0,
+    "supremeai-spark": 1500.0,
     "supremeai-fast": 1500.0,
     "supreme-core": 1800.0,
     "supreme-reason": 2000.0,
@@ -39,6 +40,7 @@ MODEL_LATENCY_THRESHOLDS_MS: Dict[str, float] = {
 # Per-model preferred provider cascades
 MODEL_PROVIDER_CASCADES: Dict[str, List[str]] = {
     "supreme-spark": ["groq", "kilo", "sambanova", "gemini", "openrouter"],
+    "supremeai-spark": ["groq", "kilo", "sambanova", "gemini", "openrouter"],
     "supreme-reason": ["gemini", "kilo", "openrouter", "groq", "mistral"],
     "supreme-deep": ["openrouter", "kilo", "gemini", "groq", "mistral"],
     "supreme-core": ["groq", "kilo", "gemini", "openrouter", "sambanova", "mistral"],
