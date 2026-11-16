@@ -15,7 +15,46 @@ from typing import Any, Dict, List, Tuple
 
 import httpx
 
+import json as _json
+import os as _os
+
 logger = logging.getLogger("supremeai.free_model_discovery")
+
+
+async def _redis_get(key: str) -> Any:
+    url = _os.getenv("UPSTASH_REDIS_REST_URL", "").rstrip("/")
+    token = _os.getenv("UPSTASH_REDIS_REST_TOKEN", "").strip()
+    if not url or not token:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"{url}/get/{key}", headers={"Authorization": f"Bearer {token}"})
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            raw = data.get("result")
+            if not raw:
+                return None
+            return _json.loads(raw)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+async def _redis_set(key: str, value: Any, ttl: int = 900) -> None:
+    url = _os.getenv("UPSTASH_REDIS_REST_URL", "").rstrip("/")
+    token = _os.getenv("UPSTASH_REDIS_REST_TOKEN", "").strip()
+    if not url or not token:
+        return
+    try:
+        payload = _json.dumps(value)
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(
+                f"{url}/set/{key}",
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                json={"value": payload, "ex": ttl},
+            )
+    except Exception:  # noqa: BLE001
+        pass
 
 PROVIDER_BASE_URLS = {
     "gemini": "https://generativelanguage.googleapis.com/v1beta/openai",
@@ -122,6 +161,21 @@ async def validate_slot(slot: Any) -> None:
         return
 
     api_key = getattr(slot, "key", "")
+    cache_key = f"supremeai:discovery:{provider}:{getattr(slot, 'name', '')}"
+    cached = await _redis_get(cache_key)
+    if isinstance(cached, dict) and cached.get("models"):
+        slot.discovered_models = list(cached["models"])
+        slot.preferred_model = slot.discovered_models[0] if slot.discovered_models else getattr(slot, "preferred_model", None)
+        try:
+            slot.ewma_latency_ms = float(cached.get("latency", slot.ewma_latency_ms or 0.0))
+        except (TypeError, ValueError):
+            pass
+        try:
+            slot.supported_models.update(slot.discovered_models)
+        except Exception:  # noqa: BLE001
+            pass
+        return
+
     ids = await _fetch_model_ids(provider, base_url, api_key)
     if not ids:
         # fallback to configured default
@@ -170,6 +224,7 @@ async def validate_slot(slot: Any) -> None:
             slot.supported_models.update(models)
         except Exception:  # noqa: BLE001
             pass
+        await _redis_set(cache_key, {"models": models, "latency": passing[0][1]}, ttl=900)
         logger.info("discovered %d free models for %s/%s (best=%s, %.0fms)", len(models), provider, getattr(slot, "name", "?"), models[0], passing[0][1])
     else:
         slot.discovered_models = []
