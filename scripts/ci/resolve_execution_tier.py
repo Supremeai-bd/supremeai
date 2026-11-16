@@ -25,6 +25,9 @@ from check_opportunistic_audit import is_local_runner_online  # noqa: E402
 PROBE_TIMEOUT_S = 4.0
 PROBE_BUDGET_S = 7.0
 QUOTA_UNKNOWN_REMAINING = 120.0  # transient probe failure: avoid P4 jump, still block P2 unless worker+quota known safe
+RENDER_FREE_MONTHLY_LIMIT_MINS = 500.0  # Render free tier monthly build minutes
+RENDER_QUOTA_REMAINING_P2_MINS = 50.0  # min remaining minutes required to select Priority 2 (render-ci-runner)
+RENDER_QUOTA_MAX_USED_P3_MINS = 450.0  # max used minutes to still allow Priority 3 (github-ubuntu-render-backend)
 
 
 def _render_api_key() -> str | None:
@@ -58,7 +61,7 @@ def get_render_quota_remaining() -> tuple[float, bool]:
         )
         with urllib.request.urlopen(req, timeout=PROBE_TIMEOUT_S) as resp:
             data = json.loads(resp.read().decode())
-        limit = float(data.get("limit") or data.get("monthlyLimit") or 500.0)
+        limit = float(data.get("limit") or data.get("monthlyLimit") or RENDER_FREE_MONTHLY_LIMIT_MINS)
         used = float(data.get("used") or data.get("usedMinutes") or 0.0)
         return max(0.0, limit - used), True
     except Exception as exc:
@@ -132,11 +135,11 @@ def resolve_tier() -> str:
     used = 500.0 - remaining
 
     # Priority 2: Render CI Runner (quota > 50m remaining AND known)
-    if quota_known and remaining >= 50.0 and worker_ok:
+    if quota_known and remaining >= RENDER_QUOTA_REMAINING_P2_MINS and worker_ok:
         return "render-ci-runner"
 
     # Priority 3: GitHub Ubuntu + Render backend free build time (< 450m used) or quota unknown (prefer P3 over P4)
-    if used < 450.0 or not quota_known:
+    if used < RENDER_QUOTA_MAX_USED_P3_MINS or not quota_known:
         return "github-ubuntu-render-backend"
 
     # Priority 4: GitHub Ubuntu Emergency (quota exhausted, known)
