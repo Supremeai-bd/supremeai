@@ -367,6 +367,9 @@ async def hydrate_vault_secrets() -> int:
 @app.on_event("startup")
 async def _on_startup():
     await hydrate_vault_secrets()
+    # Proactive background health & latency probe: keeps top-rank model warm & pre-ranked in memory
+    from gateway.dual_pool_priority_router import start_background_recheck_loop
+    asyncio.create_task(start_background_recheck_loop(interval_seconds=120.0))
 
 # CORS setup for Studio and web agents - Restricted origins (no wildcard with credentials)
 _default_cors = [

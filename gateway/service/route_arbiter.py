@@ -122,7 +122,18 @@ class DynamicRouteArbiter:
                         seen_slot_names.add(slot.name)
 
             # Secondary / Fallbacks: cascade across allowed_providers and full federation squad
-            provider_sequence = allowed_providers or ["groq", "gemini", "openrouter", "sambanova", "mistral", "kilo"]
+            provider_sequence = list(allowed_providers or ["groq", "gemini", "openrouter", "sambanova", "mistral", "kilo"])
+            try:
+                from gateway.dual_pool_priority_router import get_dual_pool_router
+                active_pick = get_dual_pool_router().select_best_model(model_clean)
+                if active_pick:
+                    top_prov = active_pick[0].provider
+                    target_prov = "groq" if "groq" in top_prov else ("gemini" if "gemini" in top_prov else ("openrouter" if "openrouter" in top_prov else None))
+                    if target_prov and target_prov in provider_sequence:
+                        provider_sequence.remove(target_prov)
+                        provider_sequence.insert(0, target_prov)
+            except Exception:
+                pass
             for prov in provider_sequence:
                 if prov == preferred_provider:
                     continue
