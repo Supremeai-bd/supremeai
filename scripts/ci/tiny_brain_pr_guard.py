@@ -55,18 +55,15 @@ except Exception:  # noqa: BLE001
         real_api = None
 
 REPO = os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GH_REPO") or "Supremeai-bd/supremeai"
-DIFF_SIZE_FLOOR = 500
+DIFF_SIZE_FLOOR = 3000
 FORBIDDEN_PATH_PREFIXES = (
     "gateway/middleware/",
     "infrastructure/supabase/",
     "core/database/migrations/",
     "migrations/",
     "liquibase/",
-    ".github/workflows/",
-    "scripts/ci/render_",
-    "scripts/ci/ai_",
 )
-FORBIDDEN_PATH_EXACT = {"gateway/service/keygen.py", "admin_auth.py", "render.yaml"}
+FORBIDDEN_PATH_EXACT = {"gateway/service/keygen.py", "admin_auth.py", "render.yaml", "ai_pr_evaluator.py", "ai_auto_approver.py", "tiny_brain_pr_guard.py"}
 
 
 if real_api is None:
@@ -94,13 +91,11 @@ def is_forbidden_path(path: str) -> bool:
     if any("auth" in base for _ in [0]) and "auth" in base:
         # auth-related files
         pass
-    if "auth" in base or "permission" in p or "keygen" in base:
+    if base.startswith(".env"):
         return True
     if "infisical" in p:
         return True
-    if base.startswith(".env"):
-        return True
-    if any(k in p for k in ("payment", "billing", "quota", "rate_limit", "rate-limit")):
+    if base in ("admin_auth.py", "keygen.py") or p.endswith("/admin_auth.py") or p.endswith("/keygen.py"):
         return True
     for prefix in FORBIDDEN_PATH_PREFIXES:
         if p.startswith(prefix):

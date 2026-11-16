@@ -367,7 +367,12 @@ async def hydrate_vault_secrets() -> int:
 @app.on_event("startup")
 async def _on_startup():
     await hydrate_vault_secrets()
-    # Proactive background health & latency probe: keeps top-rank model warm & pre-ranked in memory
+    try:
+        from gateway.service.free_model_discovery import hydrate_slots_from_redis
+        await hydrate_slots_from_redis(squad)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("slot hydration failed: %s", exc)
+    # Proactive background health & latency probe
     from gateway.dual_pool_priority_router import start_background_recheck_loop
     asyncio.create_task(start_background_recheck_loop(interval_seconds=120.0))
     # Root-level free-model discovery: per-key /models + micro-probe + dead-key pruning
@@ -1914,6 +1919,10 @@ async def _execute_chat_completion(
 
     use_priority_1 = decision.route_type == "stealth-webhook"
     candidates = decision.candidate_slots or []
+    # Hard/soft router mode
+    router_mode = os.getenv("ROUTER_MODE", "soft").strip().lower()
+    if router_mode == "hard" and preferred_provider:
+        candidates = [c for c in candidates if c[0] == preferred_provider] or candidates
     if not candidates and squad and requested_model not in ("supremeai-web", "supremeai/web"):
         candidates = squad.get_candidate_slots("auto")
     if use_priority_1:
@@ -2181,6 +2190,11 @@ async def _execute_chat_completion(
                                     pool = squad.pools.get(provider) if squad else None
                                     if pool:
                                         pool.report_injury(slot, 500, call_latency)
+                                    try:
+                                        from gateway.service.free_model_discovery import persist_slot
+                                        asyncio.create_task(persist_slot(slot))
+                                    except Exception:  # noqa: BLE001
+                                        pass
                                     _adaptive_routes["api-pool"].record(call_latency, success=False)
                                     try:
                                         from gateway.service.free_model_discovery import validate_slot
@@ -2266,6 +2280,11 @@ async def _execute_chat_completion(
             if 200 <= status < 300 and isinstance(response_data, dict):
                 if squad:
                     squad.report_success(provider, slot, call_latency)
+                    try:
+                        from gateway.service.free_model_discovery import persist_slot
+                        asyncio.create_task(persist_slot(slot))
+                    except Exception:  # noqa: BLE001
+                        pass
                 _adaptive_routes["api-pool"].record(call_latency, success=True)
                 # 1. Enforce SupremeAI Sole Identity branding
                 served_model = requested_model or "supremeai-api"
@@ -2483,6 +2502,28 @@ async def admin_router_live_state(request: Request, x_supremeai_key: Optional[st
         return get_dual_pool_router().get_live_telemetry()
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(exc))
+@app.get("/admin/router/live-stream")
+async def admin_router_live_stream(request: Request, x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key")):
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    async def event_generator():
+        from gateway.dual_pool_priority_router import get_dual_pool_router
+        router = get_dual_pool_router()
+        while True:
+            if await request.is_disconnected():
+                break
+            try:
+                payload = router.get_live_telemetry()
+                yield f"data: {json.dumps(payload)}\n\n"
+            except Exception as exc:  # noqa: BLE001
+                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+            await asyncio.sleep(2.0)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.get("/admin/squad/status")
 async def admin_squad_status(
     x_superadmin_key: Optional[str] = Header(None, alias="X-Superadmin-Key")
 ):
