@@ -26,6 +26,7 @@ import contextlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import urllib.request
@@ -41,8 +42,6 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-from core.utils.api_key_resolver import resolve_numbered_key
 
 HIGH_RISK_PATTERNS = [
     r"^core/security/.*",
@@ -113,7 +112,7 @@ def get_changed_files_from_git() -> list[str]:
 def get_diff_text(files: list[str], pr_number: str | None = None) -> str:
     """Extract git diff text for specified files, truncated to limit."""
     diff_text = ""
-    if pr_number:
+    if pr_number and shutil.which("gh"):
         try:
             res = run_cmd(["gh", "pr", "diff", str(pr_number)])
             if res.returncode == 0 and res.stdout.strip():
@@ -152,41 +151,62 @@ def scan_regex_secrets(diff: str) -> list[str]:
     return hits
 
 
+def _iter_numbered_keys(base: str, max_n: int = 10) -> list[str]:
+    """Return all non-empty values among base and base_2..base_max_n (deduped, ordered)."""
+    keys: list[str] = []
+    for name in [base] + [f"{base}_{i}" for i in range(2, max_n + 1)]:
+        val = os.environ.get(name, "").strip()
+        if val and val not in keys:
+            keys.append(val)
+    return keys
+
+
 def _get_api_providers() -> list[dict[str, str]]:
-    """Return available LLM providers in rotation order."""
+    """Return available LLM providers in rotation order.
+
+    Each provider key is emitted as its own entry so a rate-limited/blocked key
+    (429/403) fails over to the next numbered key instead of aborting the whole
+    provider. ``EVALUATOR_MAX_KEYS_PER_PROVIDER`` caps keys tried per provider.
+    """
     providers: list[dict[str, str]] = []
-    
+    try:
+        max_keys = max(1, int(os.environ.get("EVALUATOR_MAX_KEYS_PER_PROVIDER", "3")))
+    except ValueError:
+        max_keys = 3
+
     # 1. Gemini
-    gemini_key = resolve_numbered_key("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if gemini_key:
-        model = os.environ.get("EVALUATOR_GEMINI_MODEL", "gemini-2.5-flash")
+    gemini_keys = _iter_numbered_keys("GEMINI_API_KEY")
+    if not gemini_keys:
+        google = os.environ.get("GOOGLE_API_KEY", "").strip()
+        if google:
+            gemini_keys = [google]
+    gemini_model = os.environ.get("EVALUATOR_GEMINI_MODEL", "gemini-2.5-flash")
+    for key in gemini_keys[:max_keys]:
         providers.append({
             "name": "gemini",
-            "key": gemini_key,
-            "url": f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-            "model": model,
+            "key": key,
+            "url": f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent",
+            "model": gemini_model,
         })
-        
+
     # 2. Groq
-    groq_key = resolve_numbered_key("GROQ_API_KEY")
-    if groq_key:
-        model = os.environ.get("EVALUATOR_GROQ_MODEL", "llama-3.3-70b-versatile")
+    groq_model = os.environ.get("EVALUATOR_GROQ_MODEL", "llama-3.3-70b-versatile")
+    for key in _iter_numbered_keys("GROQ_API_KEY")[:max_keys]:
         providers.append({
             "name": "groq",
-            "key": groq_key,
+            "key": key,
             "url": "https://api.groq.com/openai/v1/chat/completions",
-            "model": model,
+            "model": groq_model,
         })
 
     # 3. OpenAI
-    openai_key = resolve_numbered_key("OPENAI_API_KEY")
-    if openai_key:
-        model = os.environ.get("EVALUATOR_OPENAI_MODEL", "gpt-4o-mini")
+    openai_model = os.environ.get("EVALUATOR_OPENAI_MODEL", "gpt-4o-mini")
+    for key in _iter_numbered_keys("OPENAI_API_KEY")[:max_keys]:
         providers.append({
             "name": "openai",
-            "key": openai_key,
+            "key": key,
             "url": "https://api.openai.com/v1/chat/completions",
-            "model": model,
+            "model": openai_model,
         })
 
     return providers
@@ -223,7 +243,10 @@ def call_llm_provider(provider: dict[str, str], prompt: str) -> str | None:
             return data["candidates"][0]["content"]["parts"][0]["text"]
         return data["choices"][0]["message"]["content"]
     except Exception as exc:
-        print(f"::warning::LLM provider {provider['name']} call failed: {exc}")
+        # Per-key failures are expected on free-tier keys (429/403); emit at debug
+        # level so the default log stays clean. A single summary is printed by the
+        # caller only when every key across every provider is exhausted.
+        print(f"::debug::LLM provider {provider['name']} call failed: {exc}")
         return None
 
 
@@ -287,7 +310,10 @@ def run_semantic_verification(files: list[str], diff: str, title: str = "") -> d
             return parsed
 
     # 4. Deterministic Fallback if LLM unavailable
-    print("::warning::No LLM provider keys reachable; using deterministic security validation.")
+    print(
+        f"::warning::No LLM provider keys reachable ({len(providers)} key(s) tried across "
+        "gemini/groq/openai); using deterministic security validation."
+    )
     verdict_approved = bool(not secret_hits)
     return {
         "approved": verdict_approved,
@@ -307,14 +333,14 @@ def main() -> int:
     args = parser.parse_args()
 
     files = args.files or []
-    if not files and args.pr:
+    if not files and args.pr and shutil.which("gh"):
         try:
             cmd = ["gh", "pr", "view", str(args.pr), "--json", "files", "-q", ".files[].path"]
             res = run_cmd(cmd)
             if res.returncode == 0:
                 files = [f.strip() for f in res.stdout.splitlines() if f.strip()]
         except Exception as exc:
-            print(f"::warning::Unable to query PR files via gh CLI: {exc}")
+            print(f"::debug::Unable to query PR files via gh CLI: {exc}")
 
     if not files:
         files = get_changed_files_from_git()
