@@ -282,7 +282,7 @@ logging.getLogger().addHandler(log_ring_buffer)
 # Priority-1 Stealth Webhook & Web Session Configuration
 STEALTH_WEBHOOK_URL = os.getenv("STEALTH_WEBHOOK_URL", os.getenv("UPSTREAM_WEBHOOK_URL", "")).strip()
 STEALTH_WEBHOOK_SECRET = os.getenv("STEALTH_WEBHOOK_SECRET", os.getenv("UPSTREAM_WEBHOOK_SECRET", "")).strip()
-STEALTH_WEBHOOK_TIMEOUT = float(os.getenv("STEALTH_WEBHOOK_TIMEOUT", "28.0"))
+STEALTH_WEBHOOK_TIMEOUT = float(os.getenv("STEALTH_WEBHOOK_TIMEOUT", "5.0"))
 
 try:
     from service.adaptive_routing import RouteState, choose_route

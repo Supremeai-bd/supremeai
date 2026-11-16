@@ -179,18 +179,17 @@ class DynamicRouteArbiter:
         score_stealth = route_score(stealth_snap, latency_target_ms=target_latency)
         score_api = route_score(api_snap, latency_target_ms=target_latency)
 
-        # If spark or latency-sensitive, prioritize lower latency
-        allow_stealth = model_clean in ("supreme-spark", "supreme-core", "supreme-reason", "supreme-deep", "auto")
-        if preferred_provider in ("stealth", "ghost_gemini", "web_session"):
+        # Prioritize high-speed streaming API pool when healthy candidates exist.
+        # Stealth webhook is reserved for explicit web requests or total API pool exhaustion.
+        allow_stealth = bool(stealth_available and model_clean not in ("supremeai-api", "supremeai/api"))
+        if preferred_provider in ("stealth", "ghost_gemini", "web_session") or model_clean in ("supremeai-web", "supremeai/web"):
             route_type = "stealth-webhook"
-        elif not stealth_available:
+        elif candidates:
             route_type = "api-pool"
-        elif not candidates:
+        elif stealth_available:
             route_type = "stealth-webhook"
-        elif score_api >= score_stealth:
-            route_type = "api-pool"
         else:
-            route_type = "stealth-webhook"
+            route_type = "api-pool"
 
         return RoutingDecision(
             route_type=route_type,
