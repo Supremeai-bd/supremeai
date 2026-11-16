@@ -284,7 +284,7 @@ async def forward_chat_completion(
     api_key: str,
     payload: Dict[str, Any],
     slot: Any = None,
-    timeout: float = 60.0
+    timeout: float = 12.0
 ) -> Tuple[int, Dict[str, Any] | str]:
     """
     Forwards an OpenAI-format chat completion request to the chosen provider.
@@ -406,7 +406,7 @@ async def stream_chat_completion_events(
     api_key: str,
     payload: Dict[str, Any],
     slot: Any = None,
-    timeout: float = 60.0,
+    timeout: float = 8.0,
 ) -> AsyncIterator[Tuple[str, Any]]:
     """True upstream SSE streaming with in-flight model cascade (audit P0-5 fix).
 
@@ -460,7 +460,8 @@ async def stream_chat_completion_events(
         for model_name in candidate_models:
             body["model"] = model_name
             try:
-                async with client.stream("POST", url, json=body, headers=headers) as response:
+                stream_timeout = httpx.Timeout(timeout, connect=4.0)
+                async with client.stream("POST", url, json=body, headers=headers, timeout=stream_timeout) as response:
                     status_code = response.status_code
                     if status_code in (400, 402, 404, 429, 503):
                         await response.aread()

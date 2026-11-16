@@ -173,7 +173,17 @@ class DualPoolPriorityRouter:
     def select_best_model(self, task_type: str = "general") -> tuple[PoolModelEntry, KeySlot] | None:
         """Zero-overhead selection from the pre-ranked Priority List (exact task-fit first)."""
         now = self._clock()
-        task = task_type.lower().strip()
+        raw_task = task_type.lower().strip()
+        if "spark" in raw_task or "fast" in raw_task:
+            task = "spark"
+        elif "reason" in raw_task or "deep" in raw_task:
+            task = "reasoning"
+        elif "design" in raw_task or "web" in raw_task:
+            task = "design"
+        elif "general" in raw_task or "core" in raw_task:
+            task = "general"
+        else:
+            task = raw_task
         fallback: tuple[PoolModelEntry, KeySlot] | None = None
         for m in self._models:
             if m.status in ("RATE_LIMITED", "OFFLINE"):
@@ -231,6 +241,21 @@ class DualPoolPriorityRouter:
 
         self._recompute_ranks()
 
+        # Cross-router bridge: sync true latency and health directly to FederationSquad
+        try:
+            from gateway.service.pool import squad
+            if squad:
+                env_secret = os.getenv(slot.env_key) if slot else ""
+                for prov_name, p_pool in squad.pools.items():
+                    for s in p_pool.slots:
+                        if s.name == key_alias or (env_secret and s.key == env_secret):
+                            if success and status_code == 200:
+                                squad.report_success(prov_name, s, latency_ms)
+                            else:
+                                p_pool.report_injury(s, status_code, latency_ms)
+        except Exception:
+            pass
+
     def run_background_recheck(self, probe_fn: ProbeFn) -> None:
         """Periodically probes models; recovered models automatically climb back to the top."""
         now = self._clock()
@@ -247,12 +272,7 @@ class DualPoolPriorityRouter:
             if ok:
                 if discovered_model:
                     m.active_model_name = discovered_model
-                was_demoted = m.status in ("RATE_LIMITED", "LATENCY_SPIKE", "OFFLINE")
-                m.latency_ms = round(latency_ms, 1)
-                m.status = "STANDBY"
-                m.reason = f"Recovered ({m.latency_ms}ms)" if was_demoted else f"Healthy ({m.latency_ms}ms)"
-                if was_demoted:
-                    self._record_event(f"{m.model_id} recovered ({m.latency_ms}ms) -> re-ranked")
+                self.report_outcome(m.model_id, slot.alias, True, latency_ms, status_code)
             else:
                 self.report_outcome(m.model_id, slot.alias, False, latency_ms, status_code)
         self._recompute_ranks()
@@ -298,41 +318,55 @@ def get_dual_pool_router() -> DualPoolPriorityRouter:
     return _ROUTER_SINGLETON
 
 
-def _probe_url_for(model: PoolModelEntry, slot: KeySlot, secret: str) -> tuple[str, dict[str, str]]:
+def _probe_url_for(model: PoolModelEntry, slot: KeySlot, secret: str) -> tuple[str, dict[str, str], bytes | None]:
     if model.provider == "gemini":
-        return f"https://generativelanguage.googleapis.com/v1beta/models?key={secret}", {}
+        body = json.dumps({"contents": [{"parts": [{"text": "ping"}]}], "generationConfig": {"maxOutputTokens": 1}}).encode("utf-8")
+        return f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={secret}", {"Content-Type": "application/json"}, body
     if model.provider == "openrouter_kilo":
         if slot.env_key.startswith("KILO"):
-            return "https://api.kilocode.ai/api/openrouter/models", {"Authorization": f"Bearer {secret}"}
-        return "https://openrouter.ai/api/v1/models", {"Authorization": f"Bearer {secret}"}
+            return "https://api.kilocode.ai/api/openrouter/models", {"Authorization": f"Bearer {secret}"}, None
+        return "https://openrouter.ai/api/v1/models", {"Authorization": f"Bearer {secret}"}, None
     if model.provider == "groq_cerebras":
         if slot.env_key.startswith("CEREBRAS"):
-            return "https://api.cerebras.ai/v1/models", {"Authorization": f"Bearer {secret}"}
-        return "https://api.groq.com/openai/v1/models", {"Authorization": f"Bearer {secret}"}
+            return "https://api.cerebras.ai/v1/models", {"Authorization": f"Bearer {secret}"}, None
+        model_name = model.active_model_name or "qwen/qwen3.8-27b"
+        body = json.dumps({"model": model_name, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1}).encode("utf-8")
+        return "https://api.groq.com/openai/v1/chat/completions", {"Authorization": f"Bearer {secret}", "Content-Type": "application/json"}, body
     if model.pool == "supremeai-web":
         url = os.getenv("STEALTH_WEBHOOK_URL", "").strip()
+        if not url:
+            return "", {}, None
         headers = {"X-Stealth-Secret": os.getenv("STEALTH_WEBHOOK_SECRET", "")}
-        return (url.rstrip("/") + "/health") if url else ("", {}), headers
-    return "", {}
+        return (url.rstrip("/") + "/health"), headers, None
+    return "", {}, None
 
 
 def live_http_probe(model: PoolModelEntry, slot: KeySlot, timeout: float = 5.0) -> tuple[bool, float, int, str | None]:
-    """Real HTTP live probe for `/models` or stealth webhook health + latency."""
+    """Real HTTP live probe with 1-token chat completion for real inference latency."""
     secret = os.getenv(slot.env_key, "").strip()
     if not secret:
+        if model.pool == "supremeai-web":
+            return True, model.latency_ms, 200, None
         return False, model.latency_ms, 401, None
-    url, headers = _probe_url_for(model, slot, secret)
+    url, headers, body = _probe_url_for(model, slot, secret)
     if not url:
+        if model.pool == "supremeai-web":
+            return True, model.latency_ms, 200, None
         return False, model.latency_ms, 0, None
 
     started = time.monotonic()
-    req = urllib.request.Request(url, headers={"User-Agent": "SupremeAI-Prober/1.0", **headers})
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={"User-Agent": "SupremeAI-Prober/1.0", **headers},
+        method="POST" if body else "GET",
+    )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             latency_ms = round((time.monotonic() - started) * 1000.0, 1)
             status = getattr(resp, "status", 200)
             discovered: str | None = None
-            if model.provider == "openrouter_kilo" and status == 200:
+            if model.provider == "openrouter_kilo" and status == 200 and not body:
                 data = json.loads(resp.read().decode("utf-8", errors="ignore") or "{}")
                 for item in data.get("data", []):
                     mid = item.get("id", "")
@@ -341,7 +375,24 @@ def live_http_probe(model: PoolModelEntry, slot: KeySlot, timeout: float = 5.0) 
                         break
             return 200 <= status < 300, latency_ms, status, discovered
     except urllib.error.HTTPError as exc:
-        return False, round((time.monotonic() - started) * 1000.0, 1), exc.code, None
+        latency_ms = round((time.monotonic() - started) * 1000.0, 1)
+        if body and exc.code in (400, 404):
+            fallback_url = (
+                f"https://generativelanguage.googleapis.com/v1beta/models?key={secret}"
+                if model.provider == "gemini"
+                else "https://api.groq.com/openai/v1/models"
+            )
+            fallback_headers = {} if model.provider == "gemini" else {"Authorization": f"Bearer {secret}"}
+            try:
+                fallback_req = urllib.request.Request(
+                    fallback_url,
+                    headers={"User-Agent": "SupremeAI-Prober/1.0", **fallback_headers},
+                )
+                with urllib.request.urlopen(fallback_req, timeout=timeout) as f_resp:
+                    return 200 <= getattr(f_resp, "status", 200) < 300, latency_ms, f_resp.status, None
+            except Exception:
+                pass
+        return False, latency_ms, exc.code, None
     except Exception:
         return False, round((time.monotonic() - started) * 1000.0, 1), 0, None
 

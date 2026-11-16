@@ -29,40 +29,50 @@ function buildMetadata(env) {
   };
 }
 
+async function pingServices() {
+  const startedAt = Date.now();
+  const results = await Promise.allSettled(
+    TARGET_SERVICES.map(async (target) => {
+      const nodeStart = Date.now();
+      try {
+        const res = await fetch(target.url, {
+          method: "GET",
+          headers: {
+            "User-Agent": "SupremeAI-Keepwarm-Mesh/1.0 (+https://supremeai.org)",
+            "Accept": "application/json, text/plain, */*"
+          },
+          signal: AbortSignal.timeout(15000)
+        });
+        return {
+          name: target.name,
+          url: target.url,
+          status: res.status,
+          latency_ms: Date.now() - nodeStart,
+          ok: res.ok
+        };
+      } catch (err) {
+        return {
+          name: target.name,
+          url: target.url,
+          error: err.message || String(err),
+          latency_ms: Date.now() - nodeStart,
+          ok: false
+        };
+      }
+    })
+  );
+  const elapsedMs = Date.now() - startedAt;
+  return {
+    elapsed_ms: elapsedMs,
+    nodes: results.map((r) => (r.status === "fulfilled" ? r.value : { error: String(r.reason), ok: false }))
+  };
+}
+
 export default {
   // Scheduled Cron Event (every 5 minutes)
   async scheduled(event, env, ctx) {
-    const startedAt = Date.now();
-    
-    const results = await Promise.allSettled(
-      TARGET_SERVICES.map(async (target) => {
-        try {
-          const res = await fetch(target.url, {
-            method: "GET",
-            headers: {
-              "User-Agent": "SupremeAI-Keepwarm-Mesh/1.0 (+https://supremeai.org)",
-              "Accept": "application/json, text/plain, */*"
-            },
-            signal: AbortSignal.timeout(15000)
-          });
-          return {
-            name: target.name,
-            url: target.url,
-            status: res.status,
-            ok: res.ok
-          };
-        } catch (err) {
-          return {
-            name: target.name,
-            url: target.url,
-            error: err.message || String(err)
-          };
-        }
-      })
-    );
-
-    const elapsedMs = Date.now() - startedAt;
-    console.log(`[Keepwarm Mesh] Executed in ${elapsedMs}ms:`, JSON.stringify(results));
+    const outcome = await pingServices();
+    console.log(`[Keepwarm Mesh] Executed in ${outcome.elapsed_ms}ms:`, JSON.stringify(outcome.nodes));
   },
 
   // HTTP Gateway for health check or status probing
@@ -75,6 +85,22 @@ export default {
         status: 200,
         headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
       });
+    }
+
+    if (url.pathname === "/ping" || url.pathname === "/trigger") {
+      const outcome = await pingServices();
+      return new Response(
+        JSON.stringify({
+          status: "warmed",
+          ...meta,
+          total_duration_ms: outcome.elapsed_ms,
+          services: outcome.nodes
+        }, null, 2),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
+        }
+      );
     }
 
     if (url.pathname === "/release") {
