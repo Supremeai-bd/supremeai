@@ -35,7 +35,7 @@ RENDER_API_BASE = "https://api.render.com/v1"
 
 # ঐতিহাসিক primary service — ৯টি পুরনো script-এ hardcoded ছিল; এখন এক জায়গায়।
 # Override: RENDER_SERVICE_ID env var।
-DEFAULT_PRIMARY_SERVICE_ID = "srv-dau7c9ek1f9s73almn0g"
+DEFAULT_PRIMARY_SERVICE_ID = "srv-da666f8u01pc739bm3t0"
 
 
 class RenderApiError(RuntimeError):
