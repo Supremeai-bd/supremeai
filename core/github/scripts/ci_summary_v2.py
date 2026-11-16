@@ -35,9 +35,9 @@ Based on: Original ci_smart_summary.py by SaifulHaqueNiloy
 Usage in GitHub Actions:
   - name: 📊 Enhanced CI Summary v2
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Generate Smart Summary
         run: |
           python3 .github/scripts/ci_summary_v2.py \

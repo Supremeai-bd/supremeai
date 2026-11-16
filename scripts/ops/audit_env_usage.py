@@ -70,6 +70,23 @@ SCAN_EXTS = {'.py', '.js', '.ts', '.tsx', '.jsx', '.yaml', '.yml'}
 
 REGISTRY_PATH = os.path.join(os.path.dirname(__file__), '..', 'secrets_registry.yaml')
 
+# বাংলা: secrets_registry.yaml আর্কাইভে সরানো হয়েছে (commit 9c6597633)। পুরনো
+# path আর নেই — তাই একাধিক candidate জায়গা খুঁজে দেখা হবে, না পেলে graceful skip।
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+_REGISTRY_CANDIDATES = [
+    REGISTRY_PATH,
+    os.path.join(_REPO_ROOT, 'secrets_registry.yaml'),
+    os.path.join(_REPO_ROOT, 'docs', 'archive', 'docs', 'legacy-root', 'secrets_registry.yaml'),
+]
+
+
+def resolve_registry_path() -> str | None:
+    """বাংলা: প্রথম বিদ্যমান secrets_registry.yaml candidate ফেরত দেয়।"""
+    for candidate in _REGISTRY_CANDIDATES:
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
 
 def scan_used_keys(root: str) -> set[str]:
     """বাংলা: রিকার্সিভ ভাবে কোড scan করে ব্যবহৃত env var নাম সংগ্রহ করে।"""
@@ -91,11 +108,12 @@ def scan_used_keys(root: str) -> set[str]:
     return found
 
 
-def load_registry(path: str) -> dict:
+def load_registry(path: str | None) -> dict:
     """বাংলা: secrets_registry.yaml থেকে key -> {env: criticality} ম্যাপ লোড করে।"""
-    if not os.path.exists(path):
-        print(f"::error::Registry ফাইল পাওয়া যায়নি: {path}")
-        sys.exit(1)
+    if not path or not os.path.exists(path):
+        print(f"::warning::secrets_registry.yaml পাওয়া যায়নি — drift check এড়িয়ে যাওয়া হলো "
+              f"(registry archived/removed; advisory skip, CI fail নয়)।")
+        return {}
     with open(path, 'r', encoding='utf-8') as fh:
         data = yaml.safe_load(fh)
     registry: dict[str, dict] = {}
@@ -142,8 +160,13 @@ def main() -> int:
 
     # বাংলা: Hybrid Infisical Migration dummy skip সরানো হয়েছে — এখন আসল চেক চলবে
 
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    registry = load_registry(REGISTRY_PATH)
+    # বাংলা: repo root = scripts/ops/ এর দুই ধাপ উপরে (আগে ভুলভাবে scripts/ হিসebe হতো)
+    root = _REPO_ROOT
+    registry = load_registry(resolve_registry_path())
+    if not registry:
+        # বাংলা: registry অনুপস্থিত — drift check অর্থহীন, তাই advisory PASS (fail নয়)
+        print(f"✅ SKIP [env={target_env}]: secrets_registry.yaml অনুপস্থিত — drift check এড়িয়ে যাওয়া হলো।")
+        return 0
     used_keys = scan_used_keys(root)
 
     # বাংলা: শুধু সেই key গুলোই check করব যা (কোডে ব্যবহৃত) AND (registry-তে ওই env-এর entry আছে)

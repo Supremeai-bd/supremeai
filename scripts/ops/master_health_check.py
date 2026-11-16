@@ -24,6 +24,7 @@ import argparse
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -595,6 +596,176 @@ def self_test() -> int:
 # ---------------------------------------------------------------------------
 
 
+def _load_env_subset(env_path: Path, keys: list[str]) -> dict[str, str]:
+    """Extract only the requested KEY=VALUE pairs from .env (stdlib, quote-aware).
+
+    Deliberately line-based: multiline PEM blocks are ignored because we only ever
+    ask for single-line URLs/hosts. No secret values are returned to callers
+    beyond what is needed to open a connection.
+    """
+    out: dict[str, str] = {}
+    try:
+        text = env_path.read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return out
+    for key in keys:
+        m = re.search(rf"^{re.escape(key)}\s*=(.*)$", text, re.MULTILINE)
+        if not m:
+            continue
+        val = m.group(1).strip()
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in ('"', "'"):
+            val = val[1:-1]
+        if val:
+            out[key] = val
+    return out
+
+
+def deep_dependency_probe(timeout: float = 8.0) -> list[ServiceHealthResult]:
+    """Opt-in deep probe for stateful dependencies the HTTP sweep cannot see.
+
+    Covers the three failure classes observed in the 2026-11-16 full audit:
+      * Supabase Postgres (pooler/direct) reachability
+      * Redis primary reachability
+      * Customer domains (supremeai.live / studio.supremeai.lat) DNS resolution
+
+    Fail-closed: an unreachable dependency is reported DEGRADED/UNREACHABLE so it
+    surfaces in the ACTION PLAN instead of failing silently at runtime.
+    """
+    results: list[ServiceHealthResult] = []
+    env = _load_env_subset(REPO_ROOT / ".env", [
+        "SUPABASE_DATABASE_URL_POOLER", "DATABASE_URL", "SUPABASE_DATABASE_URL",
+        "REDIS_URL",
+    ])
+
+    # ── Postgres ─────────────────────────────────────────────────────────
+    # Authoritative source = the production app's own readiness. An agent's
+    # local network (IPv6-only pooler, ISP port blocks, local TLS proxies) can
+    # make libpq time out even while the DB is perfectly healthy in prod, so a
+    # local psycopg2 failure must NOT be reported as a production outage.
+    prod_ok, _prod_code, _prod_ms, prod_payload, _prod_err = probe_http_endpoint(
+        "https://supremeai-primary-node-5xso.onrender.com/health",
+        timeout=max(timeout, 25.0),
+    )
+    db_check = None
+    if isinstance(prod_payload, dict):
+        for chk in prod_payload.get("checks", []) or []:
+            if isinstance(chk, dict) and chk.get("name") == "database":
+                db_check = chk
+                break
+    if db_check:
+        db_status = db_check.get("status")
+        results.append(ServiceHealthResult(
+            service_id="supabase-postgres", name="Supabase Postgres (pooler)",
+            category="stateful_dependency",
+            status="healthy" if db_status == "healthy" else "degraded",
+            latency_ms=int(db_check.get("latency_ms") or 0),
+            details={"source": "prod primary /health database check"},
+            error=db_check.get("error"),
+        ))
+    elif prod_ok:
+        # prod reachable but no explicit database check block — treat as healthy
+        results.append(ServiceHealthResult(
+            service_id="supabase-postgres", name="Supabase Postgres (pooler)",
+            category="stateful_dependency", status="healthy", latency_ms=0,
+            details={"source": "prod primary /health (no db block; assumed healthy)"},
+        ))
+    else:
+        # Last resort: local psycopg2 (only when the prod probe itself failed)
+        db_url = env.get("SUPABASE_DATABASE_URL_POOLER") or env.get("DATABASE_URL")
+        if db_url:
+            t0 = time.time()
+            try:
+                import psycopg2  # noqa: PLC0415
+
+                conn = psycopg2.connect(db_url, connect_timeout=int(timeout), sslmode="require")
+                cur = conn.cursor()
+                cur.execute("SELECT 1;")
+                cur.fetchone()
+                cur.close()
+                conn.close()
+                results.append(ServiceHealthResult(
+                    service_id="supabase-postgres", name="Supabase Postgres (pooler)",
+                    category="stateful_dependency", status="healthy",
+                    latency_ms=int((time.time() - t0) * 1000),
+                    details={"source": "local psycopg2 (prod probe unavailable)"},
+                ))
+            except Exception as exc:
+                results.append(ServiceHealthResult(
+                    service_id="supabase-postgres", name="Supabase Postgres (pooler)",
+                    category="stateful_dependency", status="degraded",
+                    latency_ms=int((time.time() - t0) * 1000),
+                    error=f"local probe only (prod probe failed): {type(exc).__name__}",
+                    details={"source": "local psycopg2; prod probe unavailable"},
+                ))
+        else:
+            results.append(ServiceHealthResult(
+                service_id="supabase-postgres", name="Supabase Postgres (pooler)",
+                category="stateful_dependency", status="skipped", latency_ms=0,
+                error="prod /health unreachable and no SUPABASE_DATABASE_URL_POOLER configured",
+            ))
+
+    # ── Redis primary ────────────────────────────────────────────────────
+    redis_url = env.get("REDIS_URL")
+    if redis_url:
+        t0 = time.time()
+        try:
+            import redis  # noqa: PLC0415
+
+            client = redis.from_url(redis_url, socket_connect_timeout=timeout,
+                                    socket_timeout=timeout, decode_responses=True)
+            pong = client.ping()
+            results.append(ServiceHealthResult(
+                service_id="redis-primary", name="Redis Primary",
+                category="stateful_dependency",
+                status="healthy" if pong else "degraded",
+                latency_ms=int((time.time() - t0) * 1000),
+                details={"url_env": "REDIS_URL"},
+            ))
+        except ImportError:
+            results.append(ServiceHealthResult(
+                service_id="redis-primary", name="Redis Primary",
+                category="stateful_dependency", status="skipped", latency_ms=0,
+                error="redis lib not installed",
+            ))
+        except Exception as exc:
+            results.append(ServiceHealthResult(
+                service_id="redis-primary", name="Redis Primary",
+                category="stateful_dependency", status="unreachable",
+                latency_ms=int((time.time() - t0) * 1000),
+                error=str(exc)[:160],
+            ))
+    else:
+        results.append(ServiceHealthResult(
+            service_id="redis-primary", name="Redis Primary",
+            category="stateful_dependency", status="skipped", latency_ms=0,
+            error="no REDIS_URL configured",
+        ))
+
+    # ── Customer domains (DNS) ───────────────────────────────────────────
+    import socket  # noqa: PLC0415
+
+    for domain in ("supremeai.live", "studio.supremeai.lat"):
+        t0 = time.time()
+        try:
+            infos = socket.getaddrinfo(domain, 443, proto=socket.IPPROTO_TCP)
+            addrs = sorted({i[4][0] for i in infos})
+            results.append(ServiceHealthResult(
+                service_id=f"domain-{domain}", name=f"Domain {domain}",
+                category="edge_domain", status="healthy",
+                latency_ms=int((time.time() - t0) * 1000),
+                details={"resolved": addrs[:3]},
+            ))
+        except Exception as exc:
+            results.append(ServiceHealthResult(
+                service_id=f"domain-{domain}", name=f"Domain {domain}",
+                category="edge_domain", status="unreachable",
+                latency_ms=int((time.time() - t0) * 1000),
+                error=f"DNS: {exc}",
+            ))
+
+    return results
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="SupremeAI Master Health Engine + Federation CI Sweep",
@@ -604,6 +775,7 @@ Modes:
   (default)   Infrastructure sweep — Render nodes, Tower, Federation anchors
   --ci-sweep  Federation CI sweep — local guards + satellite GitHub CI status
   --full      Both sweeps (infra + CI)  <-- recommended for agent auto-fix
+  --deep      Also probe stateful deps (Supabase Postgres, Redis, customer domains)
 
 Agent workflow:
   python scripts/ops/master_health_check.py --full
@@ -615,6 +787,7 @@ Agent workflow:
     parser.add_argument("--self-test", action="store_true", help="Offline contract self-test")
     parser.add_argument("--ci-sweep", action="store_true", help="Run CI guards + satellite GitHub CI check")
     parser.add_argument("--full", action="store_true", help="Run infra + CI sweep combined")
+    parser.add_argument("--deep", action="store_true", help="Probe Supabase Postgres, Redis and customer domains")
     parser.add_argument("--heal", action="store_true", help="Auto-heal: sweep full health and trigger agent loop on top priority failure")
     args = parser.parse_args(argv)
 
@@ -626,8 +799,27 @@ Agent workflow:
     guards: list[GuardResult] = []
     satellites: list[SatelliteCIResult] = []
 
-    if args.full or args.heal or not args.ci_sweep:
+    if args.deep and report is None:
         report = discover_and_evaluate(timeout=args.timeout)
+        report.services.extend(deep_dependency_probe(timeout=args.timeout))
+        # recompute overall status to include deep deps
+        unreachable = sum(1 for s in report.services if s.status == "unreachable")
+        degraded = sum(1 for s in report.services if s.status == "degraded")
+        healthy = sum(1 for s in report.services if s.status == "healthy")
+        report.total_services = len(report.services)
+        report.healthy_count = healthy
+        report.degraded_count = degraded
+        report.unreachable_count = unreachable
+        if unreachable > 0:
+            report.overall_status = "down" if unreachable >= (report.total_services // 2) else "degraded"
+        elif degraded > 0:
+            report.overall_status = "degraded"
+        else:
+            report.overall_status = "healthy"
+
+    if args.full or args.heal or (not args.ci_sweep and not args.deep):
+        if report is None:
+            report = discover_and_evaluate(timeout=args.timeout)
 
     if args.ci_sweep or args.full or args.heal:
         guards, satellites = run_ci_sweep(token=token)

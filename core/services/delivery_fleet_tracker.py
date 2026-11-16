@@ -294,18 +294,6 @@ class DeliveryFleetTracker:
         return {"order_id": order_id, "status": order.get("status")}
 
 
-# Singleton
-_tracker_instance: RiderTracker | None = None
-
-
-def get_rider_tracker() -> RiderTracker:
-    """Get or create the singleton RiderTracker instance."""
-    global _tracker_instance
-    if _tracker_instance is None:
-        _tracker_instance = RiderTracker()
-    return _tracker_instance
-
-
 # Canonical alias for backward compatibility
 RiderTracker = DeliveryFleetTracker
 

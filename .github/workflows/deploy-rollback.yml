@@ -46,7 +46,7 @@ concurrency:
 jobs:
   resolve-targets:
     name: "Resolve rollback targets"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
@@ -128,7 +128,7 @@ jobs:
     name: "Roll back ${{ matrix.service }}"
     # hierarchy-exception: manual emergency rollback workflow
     needs: resolve-targets
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     # Approval gate: deployments to production land only after the
     # environment's required reviewers approve.

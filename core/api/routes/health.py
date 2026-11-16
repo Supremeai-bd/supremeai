@@ -16,7 +16,6 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from core.cache import get_cache
 from core.cache.redis_manager import redis_manager
 from core.db_schema_gate import check_schema_status, production_schema_incompatible
 from core.degraded_mode import db_degraded
@@ -38,6 +37,29 @@ class HealthStatus(BaseModel):
 
 
 _start_time = time.time()
+
+# ── Health-probe TTL caches (quota guard) ───────────────────────────────────
+# Render/uptime monitors probe /health and /readyz every few seconds on every
+# service; an uncached live PING/SELECT per probe is needless load and, on the
+# shared free-tier Upstash account, burns the 500k command budget. Cache each
+# probe result for a short, env-tunable TTL so N probes within the window share
+# one command. ``(expires_at_epoch, status)`` tuples.
+_DB_PROBE_CACHE: tuple[float, str] | None = None
+_REDIS_PROBE_CACHE: tuple[float, str] | None = None
+
+
+def _db_probe_ttl() -> float:
+    try:
+        return max(5.0, float(os.getenv("HEALTH_DB_CACHE_TTL", "15")))
+    except ValueError:
+        return 15.0
+
+
+def _redis_probe_ttl() -> float:
+    try:
+        return max(10.0, float(os.getenv("HEALTH_REDIS_CACHE_TTL", "60")))
+    except ValueError:
+        return 60.0
 
 
 @router.get("/health")
@@ -232,26 +254,71 @@ async def agents_health_check(agent_filter: AgentHealthFilter | None = None):
 
 
 async def _check_database() -> str:
-    """Check database connectivity."""
+    """Check database connectivity (short-TTL cached — see _DB_PROBE_CACHE).
+
+    Render/UptimeRobot probe /health & /readyz every few seconds on every
+    service. An uncached ``SELECT 1`` per probe is needless DB load; cache the
+    result for ``HEALTH_DB_CACHE_TTL`` seconds (default 15) so N probes within
+    the window share one check. 15s keeps readiness fail-closed honest while
+    removing the probe storm.
+    """
+    global _DB_PROBE_CACHE
+    now = time.time()
+    if _DB_PROBE_CACHE is not None and _DB_PROBE_CACHE[0] > now:
+        return _DB_PROBE_CACHE[1]
     try:
         from database.session import engine
 
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-        return "healthy"
+        status = "healthy"
     except (SQLAlchemyError, OSError, TimeoutError):
         logger.warning("Database health check failed", exc_info=True)
-        return "unhealthy"
+        status = "unhealthy"
+    _DB_PROBE_CACHE = (now + _db_probe_ttl(), status)
+    return status
 
 
 async def _check_redis() -> str:
-    """Check Redis connectivity."""
+    """Check Redis connectivity via the failover-aware manager (TTL cached).
+
+    Root-cause fix (quota + correctness):
+      * Previously this called ``get_cache()._redis`` — but ``get_cache()``
+        returns ``SimpleCacheProxy``, which has **no** ``_redis`` attribute, so
+        every probe raised ``AttributeError`` → was caught → ALWAYS reported
+        "unhealthy". That made ``/health`` return a false 503 on every service
+        that uses the deep health route, and spammed an exception per probe.
+      * Now we go through ``redis_manager.get_client_async()`` — the SAME
+        failover-aware client every consumer uses — so health checks rotate
+        across the Upstash account chain instead of hammering a dead primary.
+      * The result is cached for ``HEALTH_REDIS_CACHE_TTL`` seconds (default 60)
+        so frequent Render/uptime probes share ONE command instead of one per
+        probe. This is the quota guard: health checks can never burn the free
+        tier budget by themselves.
+      * A configured-but-exhausted Redis (quota/budget breaker open) reports
+        "degraded" (NOT "unhealthy") so an optional cache outage cannot trigger
+        a Render restart loop; only a real connection failure is "unhealthy".
+    """
+    global _REDIS_PROBE_CACHE
+    now = time.time()
+    if _REDIS_PROBE_CACHE is not None and _REDIS_PROBE_CACHE[0] > now:
+        return _REDIS_PROBE_CACHE[1]
+
+    status = "not_configured"
     try:
-        cache = get_cache()
-        if cache._redis:
-            await cache._redis.ping()
-            return "healthy"
-        return "not_configured"
+        client = await redis_manager.get_client_async()
+        if client is not None:
+            await client.ping()
+            status = "healthy"
+        elif not (getattr(redis_manager, "url", "") or ""):
+            status = "not_configured"
+        else:
+            # Configured but currently unavailable (quota/budget breaker open).
+            # Optional cache outage → degraded, not a hard outage (no 503 loop).
+            status = "degraded"
     except Exception:
         logger.warning("Redis health check failed", exc_info=True)
-        return "unhealthy"
+        status = "unhealthy"
+
+    _REDIS_PROBE_CACHE = (now + _redis_probe_ttl(), status)
+    return status

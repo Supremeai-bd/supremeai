@@ -424,8 +424,15 @@ def check_secret_leaks(root: Path, report: Report):
     ]
     src_files = glob_recursive(root, ["*.py", "*.ts", "*.tsx", "*.yml", "*.yaml",
                                        "*.json", "*.js"])
+    # Files whose legitimate purpose is to contain secret *patterns* (redaction,
+    # secret-scanning, sanitization). A literal like "-----BEGIN PRIVATE KEY-----"
+    # in these is a detection pattern, not a leaked credential — never flag them.
+    _PATTERN_SOURCE_MARKERS = ("redaction", "sanitiz", "secret_scanner",
+                               "secret_mask", "secret_redact", "scrub")
     for f in src_files:
         if any(x in str(f).lower() for x in ["/tests/", "test_", "/examples/", "sample_", "dummy", "sa_admin.json"]):
+            continue
+        if any(marker in str(f).lower() for marker in _PATTERN_SOURCE_MARKERS):
             continue
         text = read_text(f)
         for i, line in enumerate(text.splitlines(), 1):
@@ -434,6 +441,10 @@ def check_secret_leaks(root: Path, report: Report):
                     # skip test/mock values
                     if any(w in line.lower() for w in
                            ["mock", "test", "example", "dummy", "fake"]):
+                        continue
+                    # skip detection-pattern literals inside string comparisons
+                    # (e.g. input.includes("-----BEGIN PRIVATE KEY-----")).
+                    if re.search(r"\.(includes|startsWith|endsWith|indexOf|test|match|search)\s*\(", line):
                         continue
                     report.add(
                         "CRITICAL",

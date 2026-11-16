@@ -10,7 +10,6 @@ Browser orchestration (_wait_for_verification, perform_autonomous_signup) needs 
 Playwright DOM and stays out of scope here by design.
 """
 
-import asyncio
 import json
 from datetime import timedelta
 from types import SimpleNamespace
@@ -307,7 +306,7 @@ def test_create_provider_if_missing_rejects_unknown(rotator):
 
 def test_create_provider_if_missing_uses_config_cache(rotator, monkeypatch):
     monkeypatch.setattr(
-        "backend.tools.security_tools.multi_account_rotator.config_cache.get",
+        "core.tools.security_tools.multi_account_rotator.config_cache.get",
         lambda key, default=None: {
             "provider_base_url_groq": "https://api.groq.com/openai/v1",
             "provider_models_groq": ["llama3-70b-8192"],
@@ -642,7 +641,7 @@ def test_system_status_counts(rotator):
 
 
 def test_get_rotator_is_singleton(tmp_path, monkeypatch):
-    import backend.tools.security_tools.multi_account_rotator as mod
+    import core.tools.security_tools.multi_account_rotator as mod
 
     monkeypatch.chdir(tmp_path)  # default config_file would otherwise land in CWD
     original = mod.rotator
@@ -656,7 +655,7 @@ def test_get_rotator_is_singleton(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_main_exits_early_without_test_keys(tmp_path, monkeypatch):
-    import backend.tools.security_tools.multi_account_rotator as mod
+    import core.tools.security_tools.multi_account_rotator as mod
 
     monkeypatch.chdir(tmp_path)
     # pydantic Settings rejects unknown attrs — swap the whole settings object

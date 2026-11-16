@@ -699,7 +699,7 @@ jobs:
     name: "Post-Merge: Plan changed Render services"
     needs: [resolve-execution-tier]
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
@@ -770,7 +770,7 @@ jobs:
     name: "Deploy changed Render services"
     needs: deploy-and-verify
     if: needs.deploy-and-verify.outputs.has_services == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -834,7 +834,7 @@ jobs:
     name: "Verify changed Render services"
     needs: [deploy-and-verify, deploy-render-services]
     if: needs.deploy-and-verify.outputs.has_services == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout Code
@@ -850,7 +850,7 @@ jobs:
     name: "No Render deploy required"
     needs: deploy-and-verify
     if: needs.deploy-and-verify.outputs.has_services != 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - run: echo "No deployable Render service changed; skipping Render build and deploy."
 
@@ -865,7 +865,7 @@ jobs:
         contains(inputs.target_service, 'cloudflare') ||
         contains(inputs.target_service, 'studio')
       )
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout Code
@@ -986,7 +986,7 @@ jobs:
           contains(inputs.target_service, 'vercel')
         ))
       )
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
@@ -1012,10 +1012,10 @@ jobs:
   # =========================================================================
   syntax-and-governance-gate:
     name: "Tier 1: Syntax & Governance Checks (<15s)"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-python@v5
         with:
@@ -1073,9 +1073,9 @@ jobs:
   # =========================================================================
   golden-eval-harness:
     name: "G-GoldenEval harness — scorer self-test + fixture mechanics (#1362)"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Scorer self-test (must stay deterministic)
         run: python evals/golden/run_eval.py --self-test
       - name: Fixture mechanics run (calibration subset, honest coverage label)
@@ -1083,10 +1083,10 @@ jobs:
 
   golden-eval-gate:
     name: "G-GoldenEval — 90% quality regression gate (#1362)"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [golden-eval-harness]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Live golden eval (90% threshold, fail-closed)
         env:
           SUPREME_EVAL_ENDPOINT: ${{ secrets.SUPREME_EVAL_ENDPOINT }}

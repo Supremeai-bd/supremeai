@@ -239,12 +239,6 @@ async def release_takeover(session_id: str, request: Request) -> dict:
     return {"status": "released", "session_id": session_id}
 
 
-def release_takeover(session_id: str, request: Request) -> dict:
-    """HTTP endpoint: Admin releases a session takeover."""
-    _require_admin(request)
-    return {"status": "released", "session_id": session_id}
-
-
 def get_takeover_status(session_id: str, request: Request) -> dict:
     """HTTP endpoint: Get current takeover status for a session."""
     _require_admin(request)

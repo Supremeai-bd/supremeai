@@ -711,14 +711,6 @@ class DataTrendAnomalyAgent:
 _insight_mage_instance: InsightMage | None = None
 
 
-def get_insight_mage(db: TenantAwareFirestore | None = None) -> InsightMage:
-    """Get or create the singleton InsightMage instance."""
-    global _insight_mage_instance
-    if _insight_mage_instance is None:
-        _insight_mage_instance = InsightMage(db=db)
-    return _insight_mage_instance
-
-
 # Canonical alias for backward compatibility
 InsightMage = DataTrendAnomalyAgent
 

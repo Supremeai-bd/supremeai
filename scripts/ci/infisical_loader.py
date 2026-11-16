@@ -72,6 +72,7 @@ def resolve_workspace_id(token: str, raw_value: str) -> str:
     2. Match by 'id' (UUID) or 'slug'.
     3. If the list call fails or no match, use the raw value as-is (might already be a UUID).
     """
+    raw_value = raw_value.strip("\"'")
     try:
         ws_res = call(f"{API}/api/v1/workspace", token=token)
         workspaces: list[dict[str, Any]] = ws_res.get("workspaces", [])

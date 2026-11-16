@@ -208,7 +208,7 @@ class TestDetectDuplicateFunctions:
         with (
             patch.object(detector, "_normalize", return_value="same_norm"),
             patch(
-                "backend.tools.code.code_smell_detector.ast.dump",
+                "core.tools.code.code_smell_detector.ast.dump",
                 side_effect=lambda node: "same",
             ),
         ):
@@ -420,7 +420,7 @@ class TestAnalyzeRadon:
                     "radon.metrics": fake_metrics,
                 },
             ),
-            patch("backend.tools.code.code_smell_detector.ast.parse") as mock_parse,
+            patch("core.tools.code.code_smell_detector.ast.parse") as mock_parse,
         ):
             mock_parse.return_value = ast.parse("def foo():\n    return 1\n")
             detector._analyze_radon(str(f), None, 10)
