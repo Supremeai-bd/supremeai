@@ -1752,21 +1752,34 @@ async def _execute_chat_completion(
                 headers={"Retry-After": str(int(retry_after) + 1)},
             )
 
-    requested_model = body.get("model") or "supreme-spark"
-    preferred_provider = None
+    # Vision/image input detection -> route to vision-capable model
+    has_image = False
+    for m in (body.get("messages") or []):
+        content = m.get("content") if isinstance(m, dict) else None
+        if isinstance(content, list):
+            for part in content:
+                if isinstance(part, dict) and (part.get("type") == "image_url" or "image" in str(part.get("type", ""))):
+                    has_image = True
+                    break
+        if has_image:
+            break
+    if has_image:
+        preferred_provider = "gemini"
+        requested_model = "gemini-2.5-flash"
 
     # Optional: let dual-pool priority router influence preferred provider (soft switch)
-    try:
-        from gateway.dual_pool_priority_router import get_dual_pool_router
-        _dual_pick = get_dual_pool_router().select_best_model(requested_model or "general")
-        if _dual_pick:
-            _m, _slot = _dual_pick
-            _prov_map = {"groq_cerebras": "groq", "gemini": "gemini", "openrouter_kilo": "openrouter"}
-            _mapped = _prov_map.get(getattr(_m, "provider", ""))
-            if _mapped:
-                preferred_provider = _mapped
-    except Exception:  # noqa: BLE001
-        pass
+    if not has_image:
+        try:
+            from gateway.dual_pool_priority_router import get_dual_pool_router
+            _dual_pick = get_dual_pool_router().select_best_model(requested_model or "general")
+            if _dual_pick:
+                _m, _slot = _dual_pick
+                _prov_map = {"groq_cerebras": "groq", "gemini": "gemini", "openrouter_kilo": "openrouter"}
+                _mapped = _prov_map.get(getattr(_m, "provider", ""))
+                if _mapped:
+                    preferred_provider = _mapped
+        except Exception:  # noqa: BLE001
+            pass
     if requested_model.startswith("supremeai/"):
         preferred_provider = requested_model.split("/", 1)[1]
     elif requested_model in ("supremeai-web", "supremeai/web", "supremeai-webhook", "supremeai/webhook"):
