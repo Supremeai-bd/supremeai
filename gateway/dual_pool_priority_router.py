@@ -100,7 +100,7 @@ class DualPoolPriorityRouter:
                 provider="groq_cerebras",
                 pool="supremeai-api",
                 capabilities=("spark", "general"),
-                active_model_name="llama-3.3-70b",
+                active_model_name="qwen/qwen3.8-27b",
                 latency_ms=380.0,
                 keys=self._scan_keys(("CEREBRAS_API_KEY", "GROQ_API_KEY"), src),
             ),

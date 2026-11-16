@@ -58,7 +58,7 @@ async def test_in_flight_model_cascade_on_404():
         model = json.get("model")
         call_history.append(model)
         mock_resp = MagicMock()
-        if model == "llama-3.3-70b-versatile":
+        if model == "qwen/qwen3.8-27b":
             mock_resp.status_code = 404
             mock_resp.json.return_value = {"error": "model_not_found"}
             mock_resp.text = '{"error": "model_not_found"}'
@@ -78,8 +78,8 @@ async def test_in_flight_model_cascade_on_404():
         )
         assert status == 200
         assert isinstance(data, dict)
-        assert data.get("model") == "llama-3.1-8b-instant"
-        assert call_history == ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+        assert data.get("model") == "openai/gpt-oss-20b"
+        assert call_history == ["qwen/qwen3.8-27b", "openai/gpt-oss-20b"]
 
 
 @pytest.mark.asyncio

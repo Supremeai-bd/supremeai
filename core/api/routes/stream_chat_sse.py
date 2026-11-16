@@ -415,7 +415,17 @@ class ChatStreamRequest(BaseModel):
                 data["sessionId"] = data["session_id"]
 
             if not data.get("prompt"):
-                raise ValueError("Either 'prompt' or 'message' must be provided.")
+                # Harmonize with standard OpenAI / frontend payloads having { "messages": [...] }
+                msgs = data.get("messages")
+                if isinstance(msgs, list) and msgs:
+                    for m in reversed(msgs):
+                        if isinstance(m, dict) and m.get("role") == "user" and m.get("content"):
+                            data["prompt"] = str(m["content"])
+                            data["message"] = data["prompt"]
+                            break
+
+            if not data.get("prompt"):
+                raise ValueError("Either 'prompt' or 'message' or a non-empty 'messages' list must be provided.")
             # Bounds check
             prompt = data.get("prompt") or ""
             if len(prompt) > 20000:

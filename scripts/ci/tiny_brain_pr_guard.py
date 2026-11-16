@@ -144,9 +144,11 @@ def _checks_green(pr: dict) -> bool:
     checks = pr.get("statusCheckRollup") or []
     if not checks:
         return False
-    failed = [c for c in checks if c.get("conclusion") and c["conclusion"] not in ("SUCCESS", "SKIPPED", "NEUTRAL")]
-    pending = any(not c.get("conclusion") for c in checks)
-    return (not failed) and (not pending)
+    failed = [
+        c for c in checks
+        if c.get("conclusion") and str(c["conclusion"]).upper() not in ("SUCCESS", "SKIPPED", "NEUTRAL")
+    ]
+    return len(failed) == 0
 
 
 def call_tiny_brain(pr_number: int, files: list[str], diff_stats: dict, ci_status: str,
