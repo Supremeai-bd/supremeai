@@ -103,7 +103,7 @@ class TestEvalNode:
     def test_unsupported_operator_raises(self):
         node = ast.parse("1 & 2", mode="eval").body
 
-        with patch.dict("backend.tools.code.cot_reasoner._ALLOWED_OPERATORS", {}):
+        with patch.dict("core.tools.code.cot_reasoner._ALLOWED_OPERATORS", {}):
             with pytest.raises(ValueError, match="Unsupported operator"):
                 _eval_node(node)
 
@@ -183,7 +183,7 @@ class TestVerifySymbolicMath:
         with (
             patch.dict("sys.modules", {"sympy": FakeSympyRaise()}),
             patch(
-                "backend.tools.code.cot_reasoner._safe_eval_math",
+                "core.tools.code.cot_reasoner._safe_eval_math",
                 side_effect=ValueError("bad"),
             ),
         ):

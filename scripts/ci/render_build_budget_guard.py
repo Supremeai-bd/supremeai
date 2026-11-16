@@ -82,7 +82,7 @@ SERVICES = [
         "key_env": "RENDER_API_KEY_1",
         "fallback_key": "RENDER_API_KEY",
         "svc_env": "RENDER_PRIMARY_SVC_ID",
-        "default_svc": "srv-dabm7dfqj5pc738jkbmg"
+        "default_svc": "srv-dau7c9ek1f9s73almn0g"
     },
     {
         "role": "Worker",

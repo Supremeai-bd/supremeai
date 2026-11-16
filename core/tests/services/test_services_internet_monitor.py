@@ -58,7 +58,7 @@ async def test_start_monitoring_already_running():
     """Test starting monitoring when already running."""
     service = InternetMonitorService()
     service.is_running = True
-    with patch("backend.services.internet_monitor_service.logger") as mock_logger:
+    with patch("core.services.internet_monitor_service.logger") as mock_logger:
         await service.start_monitoring()
         mock_logger.warning.assert_called_once_with("Internet monitoring is already running")
 
@@ -92,7 +92,7 @@ async def test_stop_monitoring_when_not_running():
     """Test stopping monitoring when it's not running."""
     service = InternetMonitorService()
     service.is_running = False
-    with patch("backend.services.internet_monitor_service.logger") as mock_logger:
+    with patch("core.services.internet_monitor_service.logger") as mock_logger:
         await service.stop_monitoring()
         mock_logger.warning.assert_called_once_with("Internet monitoring is not running")
 

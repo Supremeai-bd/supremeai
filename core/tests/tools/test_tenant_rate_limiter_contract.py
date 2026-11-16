@@ -30,7 +30,7 @@ async def test_quota_rejects_rpm_exhaustion(monkeypatch):
     limiter = TenantRateLimiter(redis_client=FakeRedis())
     monkeypatch.setattr(limiter, "get_tier", AsyncMock(return_value="free"))
     minute_key = limiter._redis_key("tenant-a", "0:rpm")
-    monkeypatch.setattr("backend.tools.tenant_rate_limiter.time.time", lambda: 0)
+    monkeypatch.setattr("core.tools.tenant_rate_limiter.time.time", lambda: 0)
     limiter.queue.values[minute_key] = str(limiter.billing_tiers["free"]["rpm"])
 
     result = await limiter.check_quota("tenant-a", cost=0.0)

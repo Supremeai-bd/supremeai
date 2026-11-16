@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 from render_client import RenderApiError, RenderClient  # noqa: E402
 
-SERVICE_ID = "srv-da5i4frm8hqs73cpp5hg"
+SERVICE_ID = "srv-dau7c9ek1f9s73almn0g"
 api_key = os.environ.get("RENDER_API_KEY", "")
 
 # Try to set env to image and provide imagePath

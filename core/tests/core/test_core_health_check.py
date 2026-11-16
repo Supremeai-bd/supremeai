@@ -79,13 +79,13 @@ def test_comprehensive_health_checker_initialization():
     assert checker.checks == expected_checks
 
 
-# বাংলা মন্তব্য: health_check.py তে সরাসরি 'from .config import settings' ইম্পোর্ট করায় patch লক্ষ্য করতে হবে 'backend.core.health_check.settings'
+# বাংলা মন্তব্য: health_check.py তে সরাসরি 'from .config import settings' ইম্পোর্ট করায় patch লক্ষ্য করতে হবে 'core.health_check.settings'
 @pytest.mark.asyncio
 async def test_check_application_healthy():
     """Test application health check."""
     checker = ComprehensiveHealthChecker()
 
-    with patch("backend.core.health_check.settings") as mock_settings:
+    with patch("core.health_check.settings") as mock_settings:
         mock_settings.env = "test"
         mock_settings.PROJECT_NAME = "Test Project"
 
@@ -103,7 +103,7 @@ async def test_check_application_exception():
     """Test application health check with exception."""
     checker = ComprehensiveHealthChecker()
 
-    with patch("backend.core.health_check.settings") as mock_settings:
+    with patch("core.health_check.settings") as mock_settings:
         type(mock_settings).env = PropertyMock(side_effect=Exception("Test error"))
 
         result = await checker.check_application()
@@ -118,7 +118,7 @@ async def test_check_redis_connected():
     """Test Redis health check when connected."""
     checker = ComprehensiveHealthChecker()
 
-    with patch("backend.core.health_check.redis_manager") as mock_redis_manager:
+    with patch("core.health_check.redis_manager") as mock_redis_manager:
         mock_redis_manager.is_connected = True
         mock_redis_manager.client = AsyncMock()
         mock_redis_manager.client.ping.return_value = b"PONG"
@@ -136,7 +136,7 @@ async def test_check_redis_not_connected():
     """Test Redis health check when not connected."""
     checker = ComprehensiveHealthChecker()
 
-    with patch("backend.core.health_check.redis_manager") as mock_redis_manager:
+    with patch("core.health_check.redis_manager") as mock_redis_manager:
         mock_redis_manager.is_connected = False
 
         result = await checker.check_redis()
@@ -151,7 +151,7 @@ async def test_check_redis_ping_failed():
     """Test Redis health check when ping fails."""
     checker = ComprehensiveHealthChecker()
 
-    with patch("backend.core.health_check.redis_manager") as mock_redis_manager:
+    with patch("core.health_check.redis_manager") as mock_redis_manager:
         mock_redis_manager.is_connected = True
         mock_redis_manager.client = AsyncMock()
         mock_redis_manager.client.ping.return_value = None
@@ -167,7 +167,7 @@ async def test_check_redis_exception():
     """Test Redis health check with exception."""
     checker = ComprehensiveHealthChecker()
 
-    with patch("backend.core.health_check.redis_manager") as mock_redis_manager:
+    with patch("core.health_check.redis_manager") as mock_redis_manager:
         mock_redis_manager.client = AsyncMock()
         mock_redis_manager.client.ping.side_effect = Exception("Connection failed")
 
@@ -204,7 +204,7 @@ async def test_check_database_exception():
     checker = ComprehensiveHealthChecker()
 
     # বাংলা মন্তব্য: সময় নির্ধারণ ফাংশনে এরর দিয়ে প্লেসহোল্ডার ডেটাবেস ফাংশনে এক্সেপশন পরীক্ষা করা হচ্ছে
-    with patch("backend.core.health_check.time.time", side_effect=Exception("DB Error")):
+    with patch("core.health_check.time.time", side_effect=Exception("DB Error")):
         result = await checker.check_database()
         assert result.status == HealthStatus.UNHEALTHY
         assert "failed" in result.message
@@ -215,7 +215,7 @@ async def test_check_external_services_all_configured():
     """Test external services health check when all are configured."""
     checker = ComprehensiveHealthChecker()
 
-    with patch("backend.core.health_check.settings") as mock_settings:
+    with patch("core.health_check.settings") as mock_settings:
         mock_settings.gemini_api_key = "test_key"
         mock_settings.openrouter_api_key = "test_key"
         mock_settings.redis_url = "redis://<your-redis-url>"
@@ -236,7 +236,7 @@ async def test_check_external_services_some_missing():
     """Test external services health check when some are missing."""
     checker = ComprehensiveHealthChecker()
 
-    with patch("backend.core.health_check.settings") as mock_settings:
+    with patch("core.health_check.settings") as mock_settings:
         mock_settings.gemini_api_key = None
         mock_settings.openrouter_api_key = "test_key"
         mock_settings.redis_url = None
@@ -260,7 +260,7 @@ async def test_check_external_services_exception():
     """Test external services health check with exception."""
     checker = ComprehensiveHealthChecker()
 
-    with patch("backend.core.health_check.settings") as mock_settings:
+    with patch("core.health_check.settings") as mock_settings:
         type(mock_settings).gemini_api_key = PropertyMock(side_effect=Exception("Config error"))
 
         result = await checker.check_external_services()

@@ -26,11 +26,11 @@ on:
 jobs:
   dependency-scan:
     name: 🩺 Dependency Health Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # --- Node.js/pnpm এনভায়রনমেন্ট সেটআপ ---
       - name: Set up pnpm
@@ -39,7 +39,7 @@ jobs:
           version: 9.0.0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24' # package.json থেকে পাওয়া
           cache: 'pnpm'

@@ -215,7 +215,7 @@ jobs:
   # =========================================================================
   resolve-execution-tier:
     name: "Tier 1: 4-Level Runner Hierarchy Preflight (<10s)"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 3
     outputs:
       execution_tier: ${{ steps.runner-check.outputs.execution_tier }}
@@ -348,7 +348,7 @@ jobs:
       group: nightly-ops-deep-audit
       cancel-in-progress: false
     name: 🔍 Deep Audit (cloud fallback)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
       contents: read
@@ -597,7 +597,7 @@ jobs:
       group: nightly-ops-ai-safety
       cancel-in-progress: false
     name: 🛡️ AI Safety & System Integrity Audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: read
@@ -642,7 +642,7 @@ jobs:
       group: nightly-ops-mission-passk
       cancel-in-progress: false
     name: 🎯 Mission Reliability Gate (pass^3 ≥ 0.8) + Nightly Scoreboard
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     permissions:
       contents: read
@@ -786,7 +786,7 @@ jobs:
     permissions:
       contents: read
       issues: write
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -828,7 +828,7 @@ jobs:
     # (lightweight API probe, 5-min timeout).
     name: 🧪 Infisical RAW Vault Synthetic Check (#72)
     if: github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0') # #67 Tier 1 daily
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Checkout
@@ -866,7 +866,7 @@ jobs:
     permissions:
       contents: read
       issues: write
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -911,7 +911,7 @@ jobs:
     permissions:
       contents: read
       issues: write
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 3
     env:
       GH_REPO: ${{ github.repository }}
@@ -1053,7 +1053,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Checkout main tree
@@ -1100,7 +1100,7 @@ jobs:
       issues: write
       pull-requests: read
     name: 🔓 Release Stale Mutex Locks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       GH_REPO: ${{ github.repository }}
@@ -1239,7 +1239,7 @@ jobs:
       group: qa-live-smoke
       cancel-in-progress: false
     name: 🌐 Live Production Smoke (fail-closed)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Import RENDER_CORE_URL from Infisical
@@ -1560,7 +1560,7 @@ jobs:
     concurrency:
       group: db-retention
       cancel-in-progress: false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Prune evolution_logs older than retention window
@@ -1643,7 +1643,7 @@ jobs:
       group: nightly-ops-e2e-customer
       cancel-in-progress: true
     name: 🎭 Customer E2E (Playwright)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       QA_CUSTOMER_EMAIL: ${{ secrets.QA_CUSTOMER_EMAIL }}
@@ -1736,7 +1736,7 @@ jobs:
       group: nightly-ops-load-locust
       cancel-in-progress: false
     name: 📈 Locust Load Test (Tier-1, 100 VU × 15m)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -1848,7 +1848,7 @@ jobs:
       group: nightly-ops-chaos-suite
       cancel-in-progress: false
     name: 💉 Chaos Resilience Suite (Tier-2, -m chaos)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1886,7 +1886,7 @@ jobs:
       group: nightly-ops-browser-e2e
       cancel-in-progress: false
     name: 🥁 Real-Browser E2E (Tier-3, tests/browser)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     permissions:
       contents: read
@@ -1928,7 +1928,7 @@ jobs:
       group: nightly-ops-db-pool-health
       cancel-in-progress: false
     name: 🗄️ DB & Pool Health Probe (pgBouncer/quota report)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -2010,7 +2010,7 @@ jobs:
     needs: [resolve-execution-tier]
     name: 🔍 Deploy Doctor (hourly fallback, 90m window)
     if: false # dormant by design (#67): cron absent from triggers since SCHEDULE DIET v4; 26th dispatch input would exceed GitHub's 25-input limit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -2067,7 +2067,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: write
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Apply retention policy
@@ -2130,7 +2130,7 @@ jobs:
         (github.event_name == 'workflow_dispatch' && inputs.run_silent_error == true) ||
         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
     name: 🤫 Silent Error Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v5
     - name: Setup Python
@@ -2163,7 +2163,7 @@ jobs:
       group: dast-zap-${{ github.ref }}
       cancel-in-progress: true
     name: 🔎 OWASP ZAP API + Full scan (blocking)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       # (#4276) dast_base_url dispatch-input বাদ — 25-input ক্যাপ ভাঙছিল (পুরো
       # workflow invalid → সব nightly arm 0-jobs failure)। ZAP টার্গেট এখন সরাসরি
@@ -2225,7 +2225,7 @@ jobs:
       contents: read
       security-events: write
     name: Validate constitution governance
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -2249,7 +2249,7 @@ jobs:
         (github.event_name == 'workflow_dispatch' && inputs.run_self_audit == true) ||
         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
     name: 🔍 Weekly Self-Audit Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v5
     - name: Setup Python
@@ -2272,7 +2272,7 @@ jobs:
     permissions:
       actions: write
       contents: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout Repository
@@ -2299,7 +2299,7 @@ jobs:
     needs: [resolve-execution-tier]
     name: "⏰ Schedule Watchdog (cron self-heal)"
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       actions: write
@@ -2327,7 +2327,7 @@ jobs:
     needs: [resolve-execution-tier]
     name: "📝 Issue Template Conformance"
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       issues: write
@@ -2352,7 +2352,7 @@ jobs:
     needs: [resolve-execution-tier]
     name: "🩺 Dependency Health Scan"
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
@@ -2426,7 +2426,7 @@ jobs:
     needs: [resolve-execution-tier]
     name: "Secret and Naming Hygiene Guards"
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
@@ -2505,7 +2505,7 @@ jobs:
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.run_opportunistic_audit == true) ||
       (github.event_name == 'schedule' && github.event.schedule == '0 */2 * * *')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
@@ -2547,7 +2547,7 @@ jobs:
     needs: [resolve-execution-tier, evaluate-opportunistic-audit]
     name: "Run Emergency Audit (Cloud Fallback, SSOT tier)"
     if: needs.evaluate-opportunistic-audit.outputs.should_run == 'true' && needs.resolve-execution-tier.outputs.is_local_online != 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
@@ -2564,11 +2564,11 @@ jobs:
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.run_redis_quota_monitor == true) ||
       (github.event_name == 'schedule' && (github.event.schedule == '13,43 * * * *' || github.event.schedule == '0 3 * * *'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Checkout monorepo mirror
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -2603,10 +2603,10 @@ jobs:
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.run_garak_redteam == true) ||
       (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * 1' || github.event.schedule == '0 3 * * 0'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"

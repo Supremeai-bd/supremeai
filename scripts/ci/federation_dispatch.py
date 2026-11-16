@@ -218,9 +218,9 @@ on:
       dry_run: { description: "Dry run", type: boolean, default: true }
 jobs:
   dispatch:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
       - run: python scripts/ci/federation_dispatch.py --paths-file /tmp/changed.txt --json

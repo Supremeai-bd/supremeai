@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 from render_client import RenderApiError, RenderClient  # noqa: E402
 
-SERVICE_ID = os.environ.get("RENDER_SERVICE_ID", "srv-da666f8u01pc739bm3t0")
+SERVICE_ID = os.environ.get("RENDER_SERVICE_ID", "srv-dau7c9ek1f9s73almn0g")
 
 
 def main() -> int:

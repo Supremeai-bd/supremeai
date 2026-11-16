@@ -33,36 +33,34 @@ class SkillIngestor:
         self.morphic_adapter = MorphicAdapter()
 
     def static_ast_safety_check(self, code: str) -> tuple[bool, str]:
+        # #2328 — harvested-skill safety contract (migrated from the retired
+        # ephemeral_synthesizer scanner). Forbidden top-level import roots;
+        # submodule imports (e.g. "os.path") are caught via the first segment.
+        forbidden_imports = {
+            "os",
+            "subprocess",
+            "sys",
+            "requests",
+            "urllib",
+            "socket",
+            "shutil",
+            "builtins",
+        }
+        # Dangerous builtin calls enabling escape / reflection / dynamic import.
+        forbidden_calls = {"eval", "exec", "__import__", "globals", "locals", "compile"}
         try:
             tree = ast.parse(code)
             for node in ast.walk(tree):
                 if isinstance(node, ast.Import):
                     for alias in node.names:
-                        if alias.name in [
-                            "os",
-                            "subprocess",
-                            "sys",
-                            "requests",
-                            "urllib",
-                            "socket",
-                        ]:
+                        if alias.name.split(".")[0] in forbidden_imports:
                             return False, f"Forbidden import found: {alias.name}"
                 elif isinstance(node, ast.ImportFrom):
-                    if node.module in [
-                        "os",
-                        "subprocess",
-                        "sys",
-                        "requests",
-                        "urllib",
-                        "socket",
-                    ]:
+                    if node.module and node.module.split(".")[0] in forbidden_imports:
                         return False, f"Forbidden from-import found: {node.module}"
-                if isinstance(node, ast.Call):
-                    if isinstance(node.func, ast.Name) and node.func.id in [
-                        "eval",
-                        "exec",
-                    ]:
-                        return False, "Dangerous code pattern found: exec/eval usage."
+                elif isinstance(node, ast.Call):
+                    if isinstance(node.func, ast.Name) and node.func.id in forbidden_calls:
+                        return False, f"Dangerous code pattern found: {node.func.id} usage."
             return True, "AST verified."
         except SyntaxError:
             return False, "Invalid Python syntax."

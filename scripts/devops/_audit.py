@@ -202,7 +202,7 @@ env = env_vals(os.path.join(ROOT, ".env"))
 cid = env.get("INFISICAL_CLIENT_ID"); csec = env.get("INFISICAL_CLIENT_SECRET")
 pid = env.get("INFISICAL_PROJECT_ID"); ght = env.get("GITHUB_TOKEN")
 rak = env.get("RENDER_API_KEY")
-render_primary = env.get("RENDER_PRIMARY_SVC_ID") or "srv-da666f8u01pc739bm3t0"
+render_primary = env.get("RENDER_PRIMARY_SVC_ID") or "srv-dau7c9ek1f9s73almn0g"
 render_scraper = None  # svc id in .env (srv-da15tovqj5pc73br4b9g) returns 404 — stale
 
 inf_set, gh_set, render_set = set(), set(), set()

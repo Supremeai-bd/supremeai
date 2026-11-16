@@ -35,6 +35,8 @@ def _send_http_request(
 
 def load_secrets() -> dict[str, str]:
     project = os.environ.get("INFISICAL_PROJECT_ID")
+    if project:
+        project = project.strip("\"'")
     environment = os.environ.get("INFISICAL_ENV", "prod")
     path = os.environ.get("INFISICAL_SECRET_PATH", "/")
     if not project or environment != "prod":

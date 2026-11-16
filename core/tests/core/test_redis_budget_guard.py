@@ -10,7 +10,6 @@ from __future__ import annotations
 import importlib
 import sys
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -163,13 +162,17 @@ class TestBudgetTracking:
 
 
 class TestSingleCacheManager:
+    # NOTE: __file__ is <core>/tests/core/<this>, so parents[2] IS the core
+    # package root (…/core). The paths below are relative to that root — the
+    # earlier "…/core/core/…" form only worked under a different monorepo
+    # layout and raised FileNotFoundError after `core/` became the rootdir.
     def test_dead_cache_manager_removed(self):
-        backend_root = Path(__file__).resolve().parents[2]
-        assert not (backend_root / "core" / "cache_manager.py").exists(), (
+        core_root = Path(__file__).resolve().parents[2]
+        assert not (core_root / "cache_manager.py").exists(), (
             "FreeTierCacheManager (dead code) must stay deleted — one cache-manager remains"
         )
 
     def test_health_probes_comment_cleaned(self):
-        backend_root = Path(__file__).resolve().parents[2]
-        text = (backend_root / "core" / "health" / "health_probes.py").read_text(encoding="utf-8")
+        core_root = Path(__file__).resolve().parents[2]
+        text = (core_root / "health" / "health_probes.py").read_text(encoding="utf-8")
         assert "cache_manager.py" not in text

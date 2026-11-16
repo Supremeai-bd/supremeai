@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 # tests/test_core_sandbox.py
 """Tests for sandbox security components."""
@@ -9,10 +10,16 @@ from unittest.mock import patch
 
 import pytest
 
+# The microVM sandbox uses a POSIX-only root (/tmp/sandboxes). These specific
+# path-contract tests cannot hold on Windows (Path("/tmp/sandboxes") becomes a
+# drive-relative WindowsPath), so they are correctly scoped to POSIX hosts.
+_POSIX_ONLY = pytest.mark.skipif(os.name == "nt", reason="POSIX-only sandbox path (/tmp/sandboxes)")
+
 
 class TestSandboxValidation:
     """Test sandbox path and input validation."""
 
+    @_POSIX_ONLY
     def test_sandbox_root_validation(self):
         """Test sandbox root validation accepts whitelisted roots only."""
         from core.microvm_sandbox import _validate_sandbox_root
@@ -59,6 +66,7 @@ class TestSandboxValidation:
 class TestSafeVMPath:
     """Test safe VM path generation."""
 
+    @_POSIX_ONLY
     def test_safe_vm_path_within_sandbox(self):
         """Test that VM paths stay within the whitelisted sandbox root."""
         from core.microvm_sandbox import _safe_vm_path
@@ -104,7 +112,7 @@ class TestFileIsolationGateExtended:
         """Test FileIsolationGate initializes without a real container."""
         from core.sandbox.file_isolation_gate import FileIsolationGate
 
-        with patch("backend.sandbox.file_isolation_gate.DockerSandbox"):
+        with patch("core.sandbox.file_isolation_gate.DockerSandbox"):
             gate = FileIsolationGate()
             assert isinstance(gate, FileIsolationGate)
             assert hasattr(gate, "sandbox")
