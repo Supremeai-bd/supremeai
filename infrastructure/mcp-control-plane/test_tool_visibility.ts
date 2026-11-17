@@ -248,6 +248,47 @@ for (const [label, context, list] of [
   }
 }
 
+// ─── ৪ক. tools/list pagination — backward compatible + cursor follow ───────
+// Default page size (200) is far above this fixture's 6 tools, so the existing
+// assertions above (deepEqual full lists, no nextCursor) already prove the
+// no-regression path. Here we force a tiny page size and verify cursor paging.
+{
+  const previous = process.env.MCP_TOOLS_PAGE_SIZE;
+  process.env.MCP_TOOLS_PAGE_SIZE = "2";
+  try {
+    const server = await makeFilteredServer();
+    const client = new Client({ name: "pagination-test-client", version: "1.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    try {
+      await server.connect(serverTransport);
+      await client.connect(clientTransport);
+      await RequestContextStore.run(adminCtx, async () => {
+        const page1 = await client.listTools();
+        assert.deepEqual((page1.tools ?? []).map((t) => t.name), ["system_summary", "system_health"]);
+        assert.equal(page1.nextCursor, "2", "first page must advertise a nextCursor");
+
+        const page2 = await client.listTools({ cursor: page1.nextCursor });
+        assert.deepEqual((page2.tools ?? []).map((t) => t.name), ["github_read_file", "notify_telegram"]);
+        assert.equal(page2.nextCursor, "4");
+
+        const page3 = await client.listTools({ cursor: page2.nextCursor });
+        assert.deepEqual((page3.tools ?? []).map((t) => t.name), ["autonomy_kill_switch", "echo_with_schema"]);
+        assert.equal(page3.nextCursor, undefined, "last page carries no nextCursor");
+
+        // Paginated traversal must reconstruct the unpaginated list exactly.
+        const seen = [...(page1.tools ?? []), ...(page2.tools ?? []), ...(page3.tools ?? [])].map((t) => t.name);
+        assert.deepEqual(seen, adminList, "paginated traversal must equal the unpaginated list");
+      });
+    } finally {
+      try { await client.close(); } catch { /* already closed */ }
+      try { await server.close(); } catch { /* already closed */ }
+    }
+  } finally {
+    if (previous === undefined) delete process.env.MCP_TOOLS_PAGE_SIZE;
+    else process.env.MCP_TOOLS_PAGE_SIZE = previous;
+  }
+}
+
 // ─── Kill-switch: MCP_DISCOVERY_FILTER=off installs NOTHING ───────────────
 {
   process.env.MCP_DISCOVERY_FILTER = "off";
