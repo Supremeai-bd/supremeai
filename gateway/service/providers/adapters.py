@@ -55,7 +55,7 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     "groq": {
         "base_url": os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
-        "default_model": os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+        "default_model": os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
     },
     "openrouter": {
         "base_url": os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
@@ -128,14 +128,16 @@ EXCLUDED_META_OR_PAID_MODELS: frozenset[str] = frozenset({
 # the adapter seamlessly tries the next model in sequence without failing the client request.
 PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
     "groq": [
+        # 2026-11-17: only models verified live on Groq's /models with the
+        # deployment key. Removed llama-3.3-70b-versatile / llama-3.1-8b-instant
+        # (404) and qwen-2.5-32b / deepseek-r1-distill-llama-70b (400
+        # decommissioned) — they made every groq attempt cascade through dead
+        # models before failing with "No models available for provider groq".
         "qwen/qwen3.8-27b",
         "openai/gpt-oss-20b",
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant",
-        "qwen-2.5-32b",
-        "deepseek-r1-distill-llama-70b",
-        "llama-3.2-3b-preview",
-        "llama-3.2-1b-preview",
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-safeguard-20b",
+        "allam-2-7b",
     ],
     # 2026-11-16: gemini-1.5-* and gemini-2.0-flash were retired (HTTP 404 on the
     # OpenAI-compat surface). Keeping them made every quota-limited key cascade
