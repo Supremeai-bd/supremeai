@@ -310,32 +310,41 @@ class SettingsFieldsMixin:
     enable_token_compression: bool = True
 
     # Central model registry: deployment operators can change routing without code edits.
-    # FINAL-TEST FIX (2026-09-13): gemini-2.0-flash was retired by Google (404 on
-    # every call) and groq/openrouter have no keys configured in this deployment,
-    # so all defaults now point at the verified-working provider chain:
-    # Gemini 2.5 Flash (key valid) -> BYNARA -> BAI (OpenAI-compatible routers).
-    model_coding: str = Field(default="gemini/gemini-2.5-flash", validation_alias="MODEL_CODING")
+    # 2026-11-17 (latency fix): gemini-2.5-flash / gemini-2.5-pro return 429 (quota)
+    # with the deployment key, so every chat's first hop was a dead 429 that only
+    # resolved after a slow fallback. All defaults now lead with the verified-working
+    # low-latency model (gemini-flash-lite-latest, HTTP 200) -> BYNARA -> BAI,
+    # matching config/routing_policy.json.
+    model_coding: str = Field(
+        default="gemini/gemini-flash-lite-latest", validation_alias="MODEL_CODING"
+    )
     model_reasoning: str = Field(default="bynara/laguna-s-2.1", validation_alias="MODEL_REASONING")
-    model_vision: str = Field(default="gemini/gemini-2.5-flash", validation_alias="MODEL_VISION")
-    model_chat: str = Field(default="gemini/gemini-2.5-flash", validation_alias="MODEL_CHAT")
-    model_general: str = Field(default="gemini/gemini-2.5-flash", validation_alias="MODEL_GENERAL")
+    model_vision: str = Field(
+        default="gemini/gemini-flash-lite-latest", validation_alias="MODEL_VISION"
+    )
+    model_chat: str = Field(
+        default="gemini/gemini-flash-lite-latest", validation_alias="MODEL_CHAT"
+    )
+    model_general: str = Field(
+        default="gemini/gemini-flash-lite-latest", validation_alias="MODEL_GENERAL"
+    )
     embedding_model: str = Field(
         default="text-embedding-3-small", validation_alias="EMBEDDING_MODEL"
     )
     model_multilingual: str = Field(
-        default="gemini/gemini-2.5-flash",
+        default="gemini/gemini-flash-lite-latest",
         validation_alias="MODEL_MULTILINGUAL",
     )
     route_ladder_simple: str | list[str] = Field(
-        default="gemini/gemini-2.5-flash,bynara/agnes-2.5-flash,bai/qwen3.8-flash",
+        default="gemini/gemini-flash-lite-latest,bynara/agnes-2.5-flash,bai/qwen3.8-flash",
         validation_alias="ROUTE_LADDER_SIMPLE",
     )
     route_ladder_medium: str | list[str] = Field(
-        default="gemini/gemini-2.5-flash,bynara/laguna-s-2.1,bai/mimo-v2.5",
+        default="gemini/gemini-flash-lite-latest,bynara/laguna-s-2.1,bai/mimo-v2.5",
         validation_alias="ROUTE_LADDER_MEDIUM",
     )
     route_ladder_complex: str | list[str] = Field(
-        default="gemini/gemini-2.5-pro,bynara/laguna-s-2.1,gemini/gemini-2.5-flash",
+        default="gemini/gemini-flash-lite-latest,bynara/laguna-s-2.1,bai/mimo-v2.5",
         validation_alias="ROUTE_LADDER_COMPLEX",
     )
 
@@ -555,7 +564,7 @@ class SettingsFieldsMixin:
     # retired gemini-2.0-flash default was used everywhere. ValidationAlias accepts
     # both names now.
     gemini_model_name: str = Field(
-        default="gemini/gemini-2.5-flash",
+        default="gemini/gemini-flash-lite-latest",
         validation_alias=AliasChoices("GEMINI_MODEL_NAME", "GEMINI_MODEL"),
     )
 

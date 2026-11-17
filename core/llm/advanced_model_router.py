@@ -514,7 +514,7 @@ class AdvancedModelRouter:
         bengali_models = [settings.model_multilingual]
         for m in [
             "groq/openai/gpt-oss-20b",
-            "gemini/gemini-2.5-flash",
+            "gemini/gemini-flash-lite-latest",
             "openrouter/meta-llama/llama-3.3-70b-instruct",
         ]:
             if m not in bengali_models:
@@ -534,7 +534,7 @@ class AdvancedModelRouter:
         for m in [
             "groq/openai/gpt-oss-120b",
             "openrouter/meta-llama/llama-3.3-70b-instruct",
-            "gemini/gemini-2.5-flash",
+            "gemini/gemini-flash-lite-latest",
         ]:
             if m not in reasoning_models:
                 reasoning_models.append(m)
@@ -542,7 +542,7 @@ class AdvancedModelRouter:
         general_models = [settings.model_general, settings.model_chat]
         for m in [
             "groq/openai/gpt-oss-20b",
-            "gemini/gemini-2.5-flash",
+            "gemini/gemini-flash-lite-latest",
         ]:
             if m not in general_models:
                 general_models.append(m)
@@ -564,7 +564,7 @@ class AdvancedModelRouter:
             "creative": {
                 "preferred_models": [
                     settings.model_general,
-                    "gemini/gemini-2.5-flash",
+                    "gemini/gemini-flash-lite-latest",
                     "openrouter/openai/gpt-4o",
                     "groq/openai/gpt-oss-20b",
                 ],
