@@ -32,6 +32,12 @@ jobs:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # hierarchy-exception: CodeQL SAST must run on GitHub-hosted runners — the
+    # codeql-action needs a runner with the CodeQL toolcache, and the analysis
+    # is read-only (posts to the Security tab). It is NOT a required PR check
+    # and does not gate the landing/merge pipeline, so it is intentionally kept
+    # off the 4-tier execution hierarchy (which is reserved for the fail-closed
+    # build/test/deploy gate). Narrow, justified exception per AGENTS.md §7.
     strategy:
       fail-fast: false
       matrix:
