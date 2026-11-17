@@ -66,7 +66,6 @@ PROVIDER_BASE_URLS = {
     "sambanova": "https://api.sambanova.ai/v1",
     "kilo": "https://api.kilo.ai/api/gateway",
     "v0": "https://api.v0.dev/v1",
-    "routeme": "https://routesme.online/v1",
     "routesme": "https://routesme.online/v1",
     "bynara": "https://router.bynara.id/v1",
     "bai": "https://api.b.ai/v1",

@@ -38,6 +38,8 @@ PROVIDER_BASELINE_LATENCY_MS: dict[str, float] = {
     "kilo": 200.0,
     "manus": 500.0,
     "routesme": 700.0,
+    "bynara": 700.0,
+    "bai": 700.0,
 }
 
 
@@ -234,7 +236,7 @@ class FederationSquad:
     # explicit preferred_provider="v0" with a premium key.
     DEFAULT_PROVIDER_ORDER = [
         "groq", "gemini", "openrouter", "kilo", "sambanova", "mistral", "perplexity", "openai",
-        "huggingface", "routesme",
+        "huggingface", "routesme", "bynara", "bai",
     ]
 
     PREFIX_MAP: Dict[str, List[str]] = {
@@ -250,6 +252,8 @@ class FederationSquad:
         "v0": ["V0_API_KEY"],
         "huggingface": ["HF_API_KEY", "HUGGINGFACE_API_KEY"],
         "routesme": ["ROUTEME_API_KEY"],
+        "bynara": ["BYNARA_API_KEY"],
+        "bai": ["BAI_API_KEY"],
     }
 
     def __init__(self):
