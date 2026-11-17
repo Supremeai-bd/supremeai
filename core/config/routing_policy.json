@@ -1,22 +1,21 @@
 {
   "_comment": "SupremeAI 2.0 LLM Routing Policy — task complexity অনুযায়ী model priority, cheapest-first with failover",
-  "_verification": "2026-09-13 final-test audit: every model below was verified against live provider APIs with the deployment's actual keys. Retired gemini-2.0-flash / gemini-1.5-pro removed (Google 404). groq/openrouter entries removed because no GROQ_API_KEY/OPENROUTER_API_KEY is configured in the deployment (they caused every chat to walk a dead chain). BYNARA + BAI (OpenAI-compatible routers with configured keys) added as first-class fallbacks.",
+  "_verification": "2026-11-16: gemini-2.5-flash / gemini-2.5-pro return 429 (quota) with the deployment key; replaced with gemini-flash-lite-latest (verified HTTP 200) as the primary Gemini model to avoid a dead first hop and slow fallback. 2026-09-13 final-test audit: every model below was verified against live provider APIs with the deployment's actual keys. Retired gemini-2.0-flash / gemini-1.5-pro removed (Google 404). groq/openrouter entries removed because no GROQ_API_KEY/OPENROUTER_API_KEY is configured in the deployment (they caused every chat to walk a dead chain). BYNARA + BAI (OpenAI-compatible routers with configured keys) added as first-class fallbacks.",
   "complexity_rules": {
     "easy": [
-      "gemini/gemini-2.5-flash",
+      "gemini/gemini-flash-lite-latest",
       "bynara/agnes-2.5-flash",
       "bai/qwen3.8-flash",
       "hf/njelit1/supreme-coder-3b"
     ],
     "medium": [
-      "gemini/gemini-2.5-flash",
+      "gemini/gemini-flash-lite-latest",
       "bynara/laguna-s-2.1",
       "bai/mimo-v2.5",
       "hf/njelitltd/supreme-reasoner-3b"
     ],
     "hard": [
-      "gemini/gemini-2.5-pro",
-      "gemini/gemini-2.5-flash",
+      "gemini/gemini-flash-lite-latest",
       "bynara/laguna-s-2.1",
       "bai/mimo-v2.5",
       "hf/njelitltd/supreme-reasoner-3b"
@@ -24,35 +23,34 @@
   },
   "task_overrides": {
     "coding": [
-      "gemini/gemini-2.5-flash",
+      "gemini/gemini-flash-lite-latest",
       "hf/njelit1/supreme-coder-3b",
       "bynara/agnes-2.5-flash",
       "bai/qwen3.8-flash"
     ],
     "vision": [
-      "gemini/gemini-2.5-flash",
+      "gemini/gemini-flash-lite-latest",
       "bynara/agnes-2.5-flash",
       "bai/qwen3.8-flash"
     ],
     "reasoning": [
-      "gemini/gemini-2.5-pro",
+      "gemini/gemini-flash-lite-latest",
       "bynara/laguna-s-2.1",
-      "bai/mimo-v2.5",
-      "gemini/gemini-2.5-flash"
+      "bai/mimo-v2.5"
     ],
     "chat": [
-      "gemini/gemini-2.5-flash",
+      "gemini/gemini-flash-lite-latest",
       "bynara/agnes-2.5-flash",
       "bai/qwen3.8-flash"
     ],
     "general": [
-      "gemini/gemini-2.5-flash",
+      "gemini/gemini-flash-lite-latest",
       "bynara/agnes-2.5-flash",
       "bai/qwen3.8-flash"
     ]
   },
   "fallback_chain": [
-    "gemini/gemini-2.5-flash",
+    "gemini/gemini-flash-lite-latest",
     "bynara/agnes-2.5-flash",
     "bai/qwen3.8-flash",
     "hf/njelitltd/supreme-reasoner-3b",
