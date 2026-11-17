@@ -16,30 +16,35 @@ from core.llm.advanced_model_router import (
 class SupremeMoERouter:
     """Backward-compatible facade bridging to core.llm.advanced_model_router."""
 
+    # 2026-11-17 (#645 follow-up): every Groq id below is verified live on
+    # Groq's /models. llama-3.3-70b-versatile, llama-3.1-8b-instant,
+    # qwen-2.5-coder-32b and deepseek-r1-distill-llama-70b all 404/400 — routing
+    # to them wasted a full attempt before failing. Keep in sync with
+    # gateway/service/providers/adapters.py::PROVIDER_MODEL_CASCADES["groq"].
     EXPERT_MODEL_MAP: dict[ExpertType, list[str]] = {
         ExpertType.BENGALI: [
             "hf_space/supreme-hybrid-8b",
-            "groq/llama-3.3-70b-versatile",
+            "groq/openai/gpt-oss-20b",
             "gemini/gemini-2.5-flash",
         ],
         ExpertType.CODER: [
             "deepseek/deepseek-coder",
-            "groq/qwen-2.5-coder-32b",
+            "groq/qwen/qwen3.8-27b",
             "openai/gpt-4o",
         ],
         ExpertType.REASONER: [
             "deepseek/deepseek-chat",
-            "groq/deepseek-r1-distill-llama-70b",
+            "groq/openai/gpt-oss-120b",
             "gemini/gemini-2.5-pro",
         ],
         ExpertType.CREATIVE: [
             "gemini/gemini-2.5-flash",
             "openai/gpt-4o",
-            "groq/llama-3.3-70b-versatile",
+            "groq/openai/gpt-oss-20b",
         ],
         ExpertType.GENERAL: [
             "gemini/gemini-2.5-flash",
-            "groq/llama-3.1-8b-instant",
+            "groq/allam-2-7b",
             "openai/gpt-4o-mini",
         ],
     }
@@ -59,7 +64,7 @@ class SupremeMoERouter:
 
     def route(self, prompt: str) -> tuple[str, list[str]]:
         models = self.get_model_chain(prompt)
-        default_fallback = getattr(settings, "model_general", "groq/llama-3.3-70b-versatile")
+        default_fallback = getattr(settings, "model_general", "groq/openai/gpt-oss-20b")
         primary = models[0] if models else default_fallback
         fallbacks = models[1:] if len(models) > 1 else []
         return primary, fallbacks

@@ -22,7 +22,10 @@ async def test_get_available_models_by_task():
     router = AdvancedModelRouter()
     coding_models = router.get_available_models("coding")
     assert len(coding_models) >= 1
-    assert any(m[1] == "llama-3.3-70b-versatile" for m in coding_models)
+    # 2026-11-17 (#645 follow-up): Groq's llama-3.3-70b-versatile returns 404 on
+    # /models, so the coding chain must offer a live id and never the dead one.
+    assert any(m[1] == "openai/gpt-oss-20b" for m in coding_models)
+    assert not any(m[1] == "llama-3.3-70b-versatile" for m in coding_models)
 
     reasoning_models = router.get_available_models("reasoning")
     assert len(reasoning_models) >= 1

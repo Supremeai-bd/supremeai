@@ -222,26 +222,33 @@ class MultiModelDistiller:
             logger.warning(f"Gemini generation fallback: {e}")
         return ""
 
-    async def generate_with_groq(self, prompt: str) -> str:
-        """Query Groq ultra-fast Llama 3.3 endpoint if configured."""
-        api_key = settings.groq_api_key
-        if not api_key:
-            return ""
+    async def _openai_chat_completion(
+        self,
+        *,
+        url: str,
+        api_key: str,
+        model: str,
+        system_prompt: str,
+        prompt: str,
+        provider_label: str,
+    ) -> str:
+        """Shared OpenAI-compatible chat-completions call for provider fallbacks.
+
+        Groq and OpenRouter expose the same wire format, so the request shape,
+        response unwrap and error swallowing live here once instead of being
+        duplicated per provider (the duplication gate rejects a second copy).
+        """
         try:
             import httpx
 
-            url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             }
             payload = {
-                "model": "llama-3.3-70b-versatile",
+                "model": model,
                 "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are a Principal Cloud & AI Architect. Output actionable, dense architectural knowledge.",
-                    },
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.2,
@@ -253,42 +260,63 @@ class MultiModelDistiller:
                     data = resp.json()
                     return data["choices"][0]["message"]["content"]
         except Exception as e:  # noqa: BLE001 — provider fallback chain, never raises
-            logger.warning(f"Groq generation fallback: {e}")
+            logger.warning(f"{provider_label} generation fallback: {e}")
         return ""
+
+    # 2026-11-17: OpenAI-compatible providers, as data. Each entry used to be a
+    # near-identical `generate_with_*` method, which the duplication gate rejects
+    # as a clone; the per-provider differences now live here instead.
+    _OPENAI_COMPAT_PROVIDERS: dict[str, dict[str, str]] = {
+        "groq": {
+            "api_key_attr": "groq_api_key",
+            "url": "https://api.groq.com/openai/v1/chat/completions",
+            # #645 follow-up: llama-3.3-70b-versatile returns 404 on Groq's
+            # /models — only verified-live ids may be sent.
+            "model": "openai/gpt-oss-20b",
+            "system_prompt": (
+                "You are a Principal Cloud & AI Architect. "
+                "Output actionable, dense architectural knowledge."
+            ),
+            "label": "Groq",
+        },
+        "openrouter": {
+            "api_key_attr": "openrouter_api_key",
+            "url": "https://openrouter.ai/api/v1/chat/completions",
+            "model": "deepseek/deepseek-chat",
+            "system_prompt": (
+                "You are an Elite AI Systems Engineer. Provide structured, "
+                "production-tested implementation blueprints."
+            ),
+            "label": "OpenRouter",
+        },
+    }
+
+    async def _generate_openai_compatible(self, prompt: str, provider: str) -> str:
+        """Dispatch to a configured OpenAI-compatible provider by name."""
+        cfg = self._OPENAI_COMPAT_PROVIDERS[provider]
+        # 2026-11-17: `Settings` declares no groq_api_key/openrouter_api_key
+        # field (verified: Settings.model_fields has only hf/resend/routeme/
+        # stripe), so direct attribute access raised AttributeError on every
+        # call. Read defensively, matching core/brain/model_router.py.
+        api_key = getattr(settings, cfg["api_key_attr"], None)
+        if not api_key:
+            return ""
+        return await self._openai_chat_completion(
+            url=cfg["url"],
+            api_key=api_key,
+            model=cfg["model"],
+            system_prompt=cfg["system_prompt"],
+            prompt=prompt,
+            provider_label=cfg["label"],
+        )
+
+    async def generate_with_groq(self, prompt: str) -> str:
+        """Query the Groq OpenAI-compatible endpoint if configured."""
+        return await self._generate_openai_compatible(prompt, "groq")
 
     async def generate_with_openrouter(self, prompt: str) -> str:
         """Query OpenRouter Multi-Model Fleet."""
-        api_key = settings.openrouter_api_key
-        if not api_key:
-            return ""
-        try:
-            import httpx
-
-            url = "https://openrouter.ai/api/v1/chat/completions"
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            }
-            payload = {
-                "model": "deepseek/deepseek-chat",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are an Elite AI Systems Engineer. Provide structured, production-tested implementation blueprints.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.2,
-                "max_tokens": 1500,
-            }
-            async with httpx.AsyncClient(timeout=25.0) as client:
-                resp = await client.post(url, headers=headers, json=payload)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    return data["choices"][0]["message"]["content"]
-        except Exception as e:  # noqa: BLE001 — provider fallback chain, never raises
-            logger.warning(f"OpenRouter generation fallback: {e}")
-        return ""
+        return await self._generate_openai_compatible(prompt, "openrouter")
 
     async def generate_with_model_router(self, prompt: str) -> str:
         """Query SupremeAI dynamic ModelRouter ($0..N active provider pool)."""

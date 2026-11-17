@@ -45,6 +45,11 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 INTAKE = REPO_ROOT / "scripts" / "bridge" / "bridge_intake.py"
 
+# 2026-11-17: every git invocation here runs against a throwaway local origin.
+# Without a timeout a single wedged git (lock contention, credential prompt,
+# AV scan) blocks forever and takes the whole suite down with it.
+GIT_TIMEOUT = 120
+
 PASS = 0
 FAIL = 1
 
@@ -58,7 +63,15 @@ def _load_intake_module():
 
 def _git(*args, cwd, check=True):
     env_args = ["-c", "user.email=wo-test@example.invalid", "-c", "user.name=WO Test"]
-    proc = subprocess.run(["git", *env_args, *args], cwd=str(cwd), capture_output=True, text=True)
+    # 2026-11-17: without a timeout a wedged git (lock contention, credential
+    # prompt, slow AV scan on Windows) blocks forever and hangs the whole suite.
+    proc = subprocess.run(
+        ["git", *env_args, *args],
+        cwd=str(cwd),
+        capture_output=True,
+        text=True,
+        timeout=GIT_TIMEOUT,
+    )
     if check and proc.returncode != 0:
         raise AssertionError(
             f"git {' '.join(args)} rc={proc.returncode}: {(proc.stderr or proc.stdout)[-400:]}"

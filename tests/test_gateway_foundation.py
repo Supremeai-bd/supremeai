@@ -271,10 +271,20 @@ class TestProviderChain(unittest.TestCase):
         from gateway.service.providers.adapters import PROVIDER_MODEL_CASCADES
 
         groq_cascade = PROVIDER_MODEL_CASCADES.get("groq", [])
-        self.assertIn("llama-3.3-70b-versatile", groq_cascade)
-        self.assertIn("llama-3.1-8b-instant", groq_cascade)
-        # Verify decommissioned models are purged
-        for decommissioned in ("llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"):
+        # 2026-11-17 (#645): llama-3.3-70b-versatile and llama-3.1-8b-instant
+        # return 404 on Groq's /models with the deployment key. Only live,
+        # verified ids may remain in the cascade.
+        for live in ("qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"):
+            self.assertIn(live, groq_cascade)
+        # Verify decommissioned / removed models are purged
+        for decommissioned in (
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "llama3-70b-8192",
+            "llama3-8b-8192",
+            "mixtral-8x7b-32768",
+            "gemma2-9b-it",
+        ):
             self.assertNotIn(decommissioned, groq_cascade)
 
     def test_stream_chat_completion_resets_empty_unsupported_set(self):

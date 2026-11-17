@@ -6,10 +6,19 @@ import json
 
 from core.monitoring.logging_config import logger
 
-with open("coverage.json") as f:
-    data = json.load(f)
+COVERAGE_PATH = "coverage.json"
 
-files = data["files"]
+
+def _load_files(path: str = COVERAGE_PATH) -> dict:
+    """Load the coverage report's ``files`` mapping.
+
+    2026-11-17: this used to be read at import time, so importing the module
+    raised FileNotFoundError whenever coverage.json was absent. Reading it inside
+    the entrypoint keeps module import free of side effects.
+    """
+    with open(path) as f:
+        return json.load(f)["files"]
+
 
 targets = [
     "api/routes/__init__.py",
@@ -46,6 +55,7 @@ targets = [
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    files = _load_files()
     logger.info("=" * 80)
     logger.info("HIGH-PRIORITY TARGET COVERAGE STATUS")
     logger.info("=" * 80)

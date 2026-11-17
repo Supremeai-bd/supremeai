@@ -50,8 +50,19 @@ def is_private_or_restricted_host(host: str) -> bool:
         return False
 
 
-def is_safe_url(raw_url: str) -> bool:
-    """Synchronous check used by FastAPI route validation."""
+def is_safe_url_resolved(raw_url: str) -> bool:
+    """Request-time SSRF check: parse-time validation PLUS DNS resolution.
+
+    2026-11-17: ``browser_agent`` and ``web_scraper`` import this name (it is
+    the canonical ``core.services.scraper.security`` API), but this standalone
+    microservice only defined ``is_safe_url``. The resulting ImportError made
+    the whole scraper engine fail to construct, so ``/scrape``, ``/browse`` and
+    ``/recipe`` were silently never registered.
+
+    This implementation always resolves the hostname and screens every A/AAAA
+    record, so it is the resolving check. ``is_safe_url`` is kept as an alias so
+    existing callers keep the exact same behaviour.
+    """
     try:
         parsed = urlparse(raw_url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
@@ -69,6 +80,10 @@ def is_safe_url(raw_url: str) -> bool:
         return True
     except Exception:
         return False
+
+
+# Backwards-compatible alias: the original public name for the same check.
+is_safe_url = is_safe_url_resolved
 
 
 async def safe_url(raw_url: str) -> str:

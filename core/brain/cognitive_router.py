@@ -20,6 +20,14 @@ COMPLEX_KEYWORDS = (
     "strategy",
 )
 
+# 2026-11-17 (#645 follow-up): llama-3.3-70b-versatile and llama-3.1-8b-instant
+# return 404 on Groq's /models with the deployment key. Routing to them burned a
+# full provider attempt before failing, so every Groq fallback here must use a
+# model that is verified live. Keep this in sync with
+# gateway/service/providers/adapters.py::PROVIDER_MODEL_CASCADES["groq"].
+GROQ_DEFAULT_MODEL = "openai/gpt-oss-20b"
+DEFAULT_GENERAL_MODEL = f"groq/{GROQ_DEFAULT_MODEL}"
+
 
 def classify_task_complexity(prompt: str) -> dict[str, Any]:
     text = (prompt or "").strip().lower()
@@ -85,15 +93,17 @@ class CognitiveRouter:
         # Complex tasks route to react
         if classification["complexity"] == "complex":
             provider = "groq"
-            model = "groq/llama-3.3-70b-versatile"
+            model = GROQ_DEFAULT_MODEL
             if self.economic_optimizer and budget_context:
                 decision = await self.economic_optimizer.optimize_route(
                     prompt, "general", budget_context
                 )
                 provider = decision.provider
                 model = decision.model
-            elif "/" in getattr(settings, "model_general", "groq/llama-3.3-70b-versatile"):
-                provider, model = getattr(settings, "model_general", "groq/llama-3.3-70b-versatile").split("/", 1)
+            elif "/" in getattr(settings, "model_general", DEFAULT_GENERAL_MODEL):
+                provider, model = getattr(
+                    settings, "model_general", DEFAULT_GENERAL_MODEL
+                ).split("/", 1)
 
             return {
                 "routing_mode": "react",
@@ -116,7 +126,7 @@ class CognitiveRouter:
                 "model": decision.model,
             }
 
-        default_model = getattr(settings, "model_general", "groq/llama-3.3-70b-versatile")
+        default_model = getattr(settings, "model_general", DEFAULT_GENERAL_MODEL)
         if "/" in default_model:
             prov, mod = default_model.split("/", 1)
         else:
