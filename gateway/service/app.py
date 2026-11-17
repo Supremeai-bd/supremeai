@@ -2864,7 +2864,10 @@ async def append_conversation_message(
     conv = get_conversation(conversation_id, user_id=user_id) if get_conversation else None
     if not conv:
         raise HTTPException(status_code=404, detail=f"Conversation {conversation_id} not found")
-    msg = add_message(conversation_id, role, str(content), user_id=user_id) if add_message else {"id": "", "conversation_id": conversation_id, "role": role, "content": str(content)}
+    try:
+        msg = add_message(conversation_id, role, str(content), user_id=user_id) if add_message else {"id": "", "conversation_id": conversation_id, "role": role, "content": str(content)}
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
     return {"status": "ok", "message": msg}
 
 

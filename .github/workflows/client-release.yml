@@ -2,8 +2,7 @@ name: client-release
 # Unified Client Release Pipeline (root monorepo single door)
 # Builds VS Code Extension (.vsix) and Desktop Client (.exe/NSIS/MSI via Tauri).
 # Runs only when relevant paths change (or via manual dispatch) to keep CI cost
-# low. The retired vscode/mobile workspace (Capacitor .apk) lane was removed —
-# the mobile workspace no longer exists in vscode/package.json.
+# low. Note: Native mobile client lives in dedicated repo (Supremeai-bd/supremeai-apk).
 # Desktop build prefers the local self-hosted Windows runner when online
 # (saves cloud minutes); falls back to windows-latest otherwise.
 

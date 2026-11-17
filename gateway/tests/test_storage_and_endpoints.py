@@ -21,9 +21,11 @@ if SAT not in sys.path:
     sys.path.insert(0, SAT)
 
 try:
+    from service import app as app_module
     from service import storage
     from service.app import app, log_ring_buffer
 except ImportError:
+    from gateway.service import app as app_module
     from gateway.service import storage
     from gateway.service.app import app, log_ring_buffer
 
@@ -38,6 +40,7 @@ class TestStorageAndEndpoints(unittest.TestCase):
         # affected.
         os.environ["ENV"] = "test"
         os.environ["SUPREMEAI_TEST_GUEST_BYPASS"] = "1"
+        os.environ["SUPREMEAI_MASTER_KEY"] = "test-master-key-32-bytes-supersecret-token"
         storage.init_db()
         cls.client = TestClient(app)
 
@@ -79,6 +82,37 @@ class TestStorageAndEndpoints(unittest.TestCase):
         self.assertTrue(ok)
         self.assertIsNone(storage.get_conversation(conv_id, user_id=user_id))
 
+    def test_01b_cross_user_storage_isolation(self):
+        conv_id = f"test-iso-{time.time()}"
+        user_alice = "usr-alice-isolated"
+        user_bob = "usr-bob-attacker"
+
+        storage.save_conversation(conv_id, user_id=user_alice, title="Alice Secret")
+        storage.add_message(conv_id, "user", "Alice secret prompt", user_id=user_alice)
+
+        # 1. Bob cannot write into Alice's conversation
+        with self.assertRaises(PermissionError):
+            storage.add_message(conv_id, "user", "Bob malicious injection", user_id=user_bob)
+
+        # 2. Bob cannot delete Alice's conversation
+        ok_bob = storage.delete_conversation(conv_id, user_id=user_bob)
+        self.assertFalse(ok_bob)
+
+        # 3. Alice's messages are completely untouched
+        conv_alice = storage.get_conversation(conv_id, user_id=user_alice)
+        self.assertIsNotNone(conv_alice)
+        self.assertEqual(len(conv_alice["messages"]), 1)
+        self.assertEqual(conv_alice["messages"][0]["content"], "Alice secret prompt")
+
+        # 4. Bob cannot read Alice's conversation
+        conv_bob = storage.get_conversation(conv_id, user_id=user_bob)
+        self.assertIsNone(conv_bob)
+
+        # 5. Alice can delete her own conversation
+        ok_alice = storage.delete_conversation(conv_id, user_id=user_alice)
+        self.assertTrue(ok_alice)
+        self.assertIsNone(storage.get_conversation(conv_id, user_id=user_alice))
+
     def test_02_user_preferences_and_tool_cards(self):
         user_id = f"usr-pref-test-{time.time()}"
 
@@ -117,33 +151,55 @@ class TestStorageAndEndpoints(unittest.TestCase):
     def test_04_conversation_endpoints(self):
         headers = {"X-Guest-Mode": "true", "X-User-Id": "usr-endpoint-test"}
 
-        # Create conversation
-        r_create = self.client.post("/api/v1/chat/conversations", json={"title": "Dashboard Session"}, headers=headers)
+        # Create conversation with Alice
+        token_alice = app_module._issue_signed_token("alice", "standard")
+        headers_alice = {"Authorization": f"Bearer {token_alice}"}
+        r_create = self.client.post("/api/v1/chat/conversations", json={"title": "Alice Session"}, headers=headers_alice)
         self.assertEqual(r_create.status_code, 200)
         c_id = r_create.json()["conversation"]["id"]
 
-        # List conversations
-        r_list = self.client.get("/api/v1/chat/conversations", headers=headers)
+        # List conversations for Alice
+        r_list = self.client.get("/api/v1/chat/conversations", headers=headers_alice)
         self.assertEqual(r_list.status_code, 200)
         self.assertIn("conversations", r_list.json())
 
         # Get conversation details
-        r_get = self.client.get(f"/api/v1/chat/conversations/{c_id}", headers=headers)
+        r_get = self.client.get(f"/api/v1/chat/conversations/{c_id}", headers=headers_alice)
         self.assertEqual(r_get.status_code, 200)
         self.assertEqual(r_get.json()["id"], c_id)
 
-        # Delete conversation
-        r_del = self.client.delete(f"/api/v1/chat/conversations/{c_id}", headers=headers)
+        # Cross-user isolation: Bob must NOT be able to delete Alice's conversation
+        token_bob = app_module._issue_signed_token("bob", "standard")
+        headers_bob = {"Authorization": f"Bearer {token_bob}"}
+        r_del_unauth = self.client.delete(f"/api/v1/chat/conversations/{c_id}", headers=headers_bob)
+        self.assertEqual(r_del_unauth.status_code, 200)
+        self.assertEqual(r_del_unauth.json()["status"], "not_found")
+
+        # Verify Alice's conversation still exists
+        r_get_safe = self.client.get(f"/api/v1/chat/conversations/{c_id}", headers=headers_alice)
+        self.assertEqual(r_get_safe.status_code, 200)
+        self.assertEqual(r_get_safe.json()["id"], c_id)
+
+        # Authorized owner (Alice) deletes conversation
+        r_del = self.client.delete(f"/api/v1/chat/conversations/{c_id}", headers=headers_alice)
         self.assertEqual(r_del.status_code, 200)
         self.assertEqual(r_del.json()["status"], "deleted")
 
     def test_05_admin_livelogs_endpoint(self):
-        headers = {"X-Guest-Mode": "true"}
-        r = self.client.get("/admin-api/logs?limit=10", headers=headers)
-        self.assertEqual(r.status_code, 200)
-        data = r.json()
-        self.assertEqual(data["status"], "ok")
-        self.assertIsInstance(data["logs"], list)
+        # 1. Unprivileged guest must be denied 403
+        headers_guest = {"X-Guest-Mode": "true"}
+        r_guest = self.client.get("/admin-api/logs?limit=10", headers=headers_guest)
+        self.assertEqual(r_guest.status_code, 403)
+
+        # 2. Authorized admin receives 200 via admin-scoped token or superadmin key
+        admin_key = "adm_test_secret_for_livelogs_verification_123"
+        with patch.object(app_module, "SUPERADMIN_KEY", admin_key):
+            headers_admin = {"X-Superadmin-Key": admin_key}
+            r_admin = self.client.get("/admin-api/logs?limit=10", headers=headers_admin)
+            self.assertEqual(r_admin.status_code, 200)
+            data = r_admin.json()
+            self.assertEqual(data["status"], "ok")
+            self.assertIsInstance(data["logs"], list)
 
     def test_06_preferences_and_tool_card_endpoints(self):
         headers = {"X-Guest-Mode": "true", "X-User-Id": "usr-endpoint-pref"}
@@ -207,7 +263,10 @@ class TestStorageAndEndpoints(unittest.TestCase):
         self.assertEqual(data["checks"]["primary"]["status"], "unknown")
         self.assertEqual(data["checks"]["worker"]["status"], "unknown")
 
-    @patch.dict(os.environ, {"SUPREMEAI_ADMIN_PASSWORD": "password123"})
+    @patch.dict(os.environ, {
+        "SUPREMEAI_ADMIN_PASSWORD": "password123",
+        "SUPREMEAI_MASTER_KEY": "test-master-key-32-bytes-supersecret-token",
+    })
     def test_08_auth_login_and_register(self):
         # 1. Login with username field (what studio authStore sends)
         r_username = self.client.post("/api/v1/auth/login", json={"username": "niloyjoy7@gmail.com", "password": "password123"})

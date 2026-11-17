@@ -52,22 +52,25 @@ def get_db():
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode = WAL;")
         conn.execute("PRAGMA synchronous = NORMAL;")
+    except Exception as exc:
+        logger.warning(f"SQLite connection error ({exc}), falling back to in-memory store.")
+        yield None
+        return
+
+    try:
         yield conn
         conn.commit()
-    except Exception as exc:
-        if conn:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-        logger.warning(f"SQLite DB error ({exc}), falling back to in-memory store.")
-        yield None
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
     finally:
-        if conn:
-            try:
-                conn.close()
-            except Exception:
-                pass
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 def init_db() -> None:
@@ -229,6 +232,17 @@ def add_message(
     now = time.time()
     extra_str = json.dumps(extra or {})
 
+    # Verify conversation ownership if already exists to prevent cross-user IDOR injection
+    with get_db() as conn:
+        if conn is not None:
+            existing = conn.execute("SELECT user_id FROM conversations WHERE id = ?;", (conversation_id,)).fetchone()
+            if existing is not None and user_id and existing["user_id"] != user_id:
+                raise PermissionError(f"User {user_id} is not authorized to write to conversation {conversation_id}")
+        else:
+            existing_mem = _MEM_FALLBACK["conversations"].get(conversation_id)
+            if existing_mem is not None and user_id and existing_mem.get("user_id") != user_id:
+                raise PermissionError(f"User {user_id} is not authorized to write to conversation {conversation_id}")
+
     # Auto-create conversation if missing
     save_conversation(conversation_id, user_id=user_id, title=(content[:40] if role == "user" else None))
 
@@ -372,14 +386,19 @@ def delete_conversation(conversation_id: str, user_id: Optional[str] = None) -> 
                 query += " AND user_id = ?"
                 params.append(user_id)
             cur = conn.execute(query, params)
-            conn.execute("DELETE FROM messages WHERE conversation_id = ?;", (conversation_id,))
-            return cur.rowcount > 0
-        else:
-            if conversation_id in _MEM_FALLBACK["conversations"]:
-                del _MEM_FALLBACK["conversations"][conversation_id]
-                _MEM_FALLBACK["messages"].pop(conversation_id, None)
+            if cur.rowcount > 0:
+                conn.execute("DELETE FROM messages WHERE conversation_id = ?;", (conversation_id,))
                 return True
             return False
+        else:
+            conv = _MEM_FALLBACK["conversations"].get(conversation_id)
+            if not conv:
+                return False
+            if user_id and conv.get("user_id") != user_id:
+                return False
+            del _MEM_FALLBACK["conversations"][conversation_id]
+            _MEM_FALLBACK["messages"].pop(conversation_id, None)
+            return True
 
 
 # ── Trusted Browser (7-day admin remember) Persistence ─────────────────────
