@@ -154,6 +154,24 @@ def rate_limit_headers(
     response.headers["X-RateLimit-Reset"] = str(decision.reset_epoch)
 
 
+def _client_ip(request: Request) -> str:
+    """Trusted-proxy-aware client IP for bucketing.
+
+    The platform proxy (Render) appends the real client IP as the LAST
+    X-Forwarded-For hop; client-supplied leftmost values are spoofable and
+    must not be trusted for bucketing (same doctrine as
+    gateway/service/app.py::_client_ip). Trusting the leftmost hop would
+    let an unauthenticated caller mint a fresh rate-limit budget per
+    request by rotating a fake X-Forwarded-For header.
+    """
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        last_hop = xff.split(",")[-1].strip()
+        if last_hop:
+            return last_hop
+    return request.client.host if request.client else "anonymous"
+
+
 async def check_rate_limit(request: Request, limiter: SlidingWindowLimiter):
     """Per-key sliding window (IP fallback); returns the full decision."""
     key_id = request.headers.get("x-supremeai-key") or (
@@ -699,9 +717,7 @@ def create_app(
         key_record = getattr(request.state, "key_record", None)
         is_guest = key_record is None or getattr(key_record, "owner", "") == "guest"
         if is_guest and guest_daily_limiter is not None:
-            guest_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
-                request.client.host if request.client else "anonymous"
-            )
+            guest_ip = _client_ip(request)
             guest_decision = await guest_daily_limiter.check(guest_ip)
             if not guest_decision.allowed:
                 return error_response(
