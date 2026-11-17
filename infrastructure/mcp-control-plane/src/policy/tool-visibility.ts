@@ -248,6 +248,65 @@ function discoveryFilterDisabled(): boolean {
   return (process.env.MCP_DISCOVERY_FILTER ?? "").trim().toLowerCase() === "off";
 }
 
+/**
+ * tools/list pagination (MCP spec: optional `params.cursor` → `nextCursor`).
+ *
+ * WHY this exists: the SDK does not paginate — it always returns the whole
+ * (filtered) registry in one payload. As the tower's tool count grows that
+ * becomes one oversized tools/list response. This adds spec-compliant paging
+ * WITHOUT regressing any existing client:
+ *
+ *   • Page size defaults to 200 — far above today's ~90-tool surface — so NO
+ *     current caller ever sees a truncated list. When `nextCursor` is absent
+ *     the response is byte-identical to the pre-pagination behavior, so naive
+ *     clients (Claude Desktop, Cursor, Manus) that call tools/list exactly once
+ *     keep receiving the complete list.
+ *   • Only when a filtered list ever EXCEEDS the page size do we emit
+ *     `nextCursor`; a client that follows it (sends `?cursor`) gets the next
+ *     page. A client that ignores `nextCursor` still receives the first
+ *     `pageSize` tools (which, at the 200 default, is always the full list
+ *     today) — capability is never silently hidden.
+ *
+ * Rollback: MCP_TOOLS_PAGE_SIZE=0 (or a huge value) disables truncation.
+ */
+function toolsPageSize(): number {
+  const raw = (process.env.MCP_TOOLS_PAGE_SIZE ?? "").trim();
+  if (raw) {
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isInteger(parsed) && parsed > 0) return parsed;
+    console.error(`[tool-visibility] invalid MCP_TOOLS_PAGE_SIZE=${JSON.stringify(raw)} — falling back to 200.`);
+  }
+  return 200;
+}
+
+/** Extract an incoming `params.cursor` from a tools/list request, if any. */
+function cursorFromRequest(request: unknown): string | undefined {
+  const params = (request as { params?: { cursor?: unknown } } | undefined)?.params;
+  const cursor = params?.cursor;
+  return typeof cursor === "string" && cursor.length > 0 ? cursor : undefined;
+}
+
+/** Cursor → non-negative integer offset, clamped into [0, total]. */
+function cursorOffset(cursor: string | undefined, total: number): number {
+  if (cursor === undefined) return 0;
+  const parsed = Number.parseInt(cursor, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) return 0;
+  return parsed >= total ? total : parsed;
+}
+
+/** Slice a filtered tool list to one page; attach `nextCursor` only if more remain. */
+function paginateTools<T extends { name: string }>(
+  tools: T[],
+  cursor: string | undefined,
+): { tools: T[]; nextCursor?: string } {
+  const pageSize = toolsPageSize();
+  const start = cursorOffset(cursor, tools.length);
+  const page = tools.slice(start, start + pageSize);
+  const end = start + page.length;
+  if (end < tools.length) return { tools: page, nextCursor: String(end) };
+  return { tools: page };
+}
+
 interface MinimalServer {
   server: {
     setRequestHandler(schema: typeof ListToolsRequestSchema, handler: (request: unknown, extra: unknown) => unknown): void;
@@ -301,9 +360,13 @@ export function attachDiscoveryFilter(server: McpServer): void {
 
   if (typeof original === "function") {
     inner.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
-      const result = (await original(request, extra)) as { tools?: Array<{ name: string }> } | undefined;
+      const result = (await original(request, extra)) as { tools?: Array<{ name: string }>; nextCursor?: string } | undefined;
       if (result && Array.isArray(result.tools)) {
-        result.tools = result.tools.filter((tool) => !toolListAccessError(tool.name));
+        const filtered = result.tools.filter((tool) => !toolListAccessError(tool.name));
+        const page = paginateTools(filtered, cursorFromRequest(request));
+        result.tools = page.tools;
+        if (page.nextCursor !== undefined) result.nextCursor = page.nextCursor;
+        else delete result.nextCursor;
       }
       return result;
     });
@@ -315,14 +378,14 @@ export function attachDiscoveryFilter(server: McpServer): void {
     console.error(
       "[tool-visibility] ⚠️ SDK internals drift: could not capture the built-in tools/list handler — using the _registeredTools mirror fallback (STILL FILTERED, but verify the pinned SDK version).",
     );
-    inner.setRequestHandler(ListToolsRequestSchema, () => {
+    inner.setRequestHandler(ListToolsRequestSchema, (request) => {
       const tools: ToolDescriptor[] = [];
       for (const [name, entry] of Object.entries(registered)) {
         if (entry?.enabled === false) continue;
         if (toolListAccessError(name)) continue;
         tools.push({ name, inputSchema: inputSchemaFor(entry?.inputSchema) });
       }
-      return { tools };
+      return paginateTools(tools, cursorFromRequest(request));
     });
     return;
   }
@@ -335,9 +398,12 @@ export function attachDiscoveryFilter(server: McpServer): void {
   console.error(
     "[tool-visibility] ⚠️ SDK internals drift: no tools/list handler AND no _registeredTools — FAIL-CLOSED discovery (public-safe tools only). Update tool-visibility.ts for the new SDK.",
   );
-  inner.setRequestHandler(ListToolsRequestSchema, () => {
+  inner.setRequestHandler(ListToolsRequestSchema, (request) => {
     const failClosedSafe = ["system_summary", "system_health", "agent_status", "agent_heartbeat", "bridge_guide"];
-    return { tools: failClosedSafe.filter((name) => !toolListAccessError(name)).map((name) => ({ name, inputSchema: { type: "object" } })) };
+    const tools = failClosedSafe
+      .filter((name) => !toolListAccessError(name))
+      .map((name) => ({ name, inputSchema: { type: "object" } }));
+    return paginateTools(tools, cursorFromRequest(request));
   });
 }
 
