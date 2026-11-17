@@ -1854,7 +1854,7 @@ async def _execute_chat_completion(
             break
     if has_image:
         preferred_provider = "gemini"
-        requested_model = "gemini-2.5-flash"
+        requested_model = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
     else:
         # Optional: let dual-pool priority router influence preferred provider (soft switch)
         try:
@@ -2021,6 +2021,7 @@ async def _execute_chat_completion(
         preferred_provider=preferred_provider,
         adaptive_routes=_adaptive_routes,
         stealth_available=bool(STEALTH_WEBHOOK_URL),
+        has_image=has_image,
     )
 
     use_priority_1 = decision.route_type == "stealth-webhook"
@@ -2030,7 +2031,18 @@ async def _execute_chat_completion(
     if router_mode == "hard" and preferred_provider:
         candidates = [c for c in candidates if c[0] == preferred_provider] or candidates
     if not candidates and squad and requested_model not in ("supremeai-web", "supremeai/web"):
-        candidates = squad.get_candidate_slots("auto")
+        if has_image:
+            candidates = [c for c in squad.get_candidate_slots("auto") if c[0] in ("gemini", "openai")]
+        else:
+            candidates = squad.get_candidate_slots("auto")
+
+    # If image input is present but all vision-capable providers are exhausted or unavailable,
+    # fail-closed with 503 instead of cascading to a text-only model that will refuse images.
+    if has_image and not candidates:
+        raise HTTPException(
+            status_code=503,
+            detail="Vision analysis is temporarily unavailable: all vision-capable model quotas are currently exhausted. Please try again shortly or attach a personal API key."
+        )
     if use_priority_1:
         w_status, w_response = None, None
         start_time = time.time()
