@@ -132,6 +132,14 @@ EXCLUDED_META_OR_PAID_MODELS: frozenset[str] = frozenset({
     "auto",
 })
 
+# Global "paid avoid": any (provider, model) that returns HTTP 402 (payment required) is
+# added here at runtime and filtered out of that provider's candidate cascade, so a paid
+# model is never retried on any slot/key of that provider for the lifetime of the process.
+# Keyed per-provider because a model slug may be free on one router and paid on another.
+# Complements the per-slot unsupported_models blacklist and free_model_discovery's 402 skip —
+# this makes the whole pool behave like Kilo's free-only routing (paid models auto-excluded).
+_PAID_MODELS: set[tuple[str, str]] = set()
+
 # Exhaustive zero-waste model cascades: if top model hits quota/limit (429) or is unavailable (404/400),
 # the adapter seamlessly tries the next model in sequence without failing the client request.
 PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
@@ -336,6 +344,9 @@ def _resolve_candidate_models(
     discovered = getattr(slot, "discovered_models", None) if slot else None
     if discovered:
         cascade = [m for m in discovered if str(m).lower() not in EXCLUDED_META_OR_PAID_MODELS]
+    # Global paid avoid: drop any model that has 402'd on this provider in this process.
+    if _PAID_MODELS:
+        cascade = [m for m in cascade if (provider, m) not in _PAID_MODELS]
     candidate_models: list[str] = []
     preferred_slot_model = getattr(slot, "preferred_model", None) if slot else None
     unsupported_set = getattr(slot, "unsupported_models", set()) if slot else set()
@@ -474,6 +485,7 @@ async def forward_chat_completion(
 
                 # Skip paid tiers if requested payment (402) and blacklist this paid model on the slot
                 if status_code == 402:
+                    _PAID_MODELS.add((provider, model_name))
                     if slot and hasattr(slot, "unsupported_models"):
                         slot.unsupported_models.add(model_name)
                         slot.supported_models.discard(model_name)
@@ -581,6 +593,7 @@ async def stream_chat_completion_events(
                             if getattr(slot, "preferred_model", None) == model_name:
                                 slot.preferred_model = next(iter(slot.supported_models), None)
                         if status_code == 402:
+                            _PAID_MODELS.add((provider, model_name))
                             logger.warning(f"[{provider}] Model {model_name} requested payment (402); skipping paid tier.")
                         else:
                             logger.warning(
