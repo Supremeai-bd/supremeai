@@ -1,8 +1,9 @@
 name: client-release
 # Unified Client Release Pipeline (root monorepo single door)
-# Builds VS Code Extension (.vsix), Desktop Client (.exe/NSIS/MSI via Tauri),
-# and Mobile Client (.apk via Capacitor). Runs only when relevant paths change
-# (or via manual dispatch) to keep CI cost low.
+# Builds VS Code Extension (.vsix) and Desktop Client (.exe/NSIS/MSI via Tauri).
+# Runs only when relevant paths change (or via manual dispatch) to keep CI cost
+# low. The retired vscode/mobile workspace (Capacitor .apk) lane was removed —
+# the mobile workspace no longer exists in vscode/package.json.
 # Desktop build prefers the local self-hosted Windows runner when online
 # (saves cloud minutes); falls back to windows-latest otherwise.
 
@@ -12,7 +13,6 @@ on:
     paths:
       - "vscode/extension/**"
       - "vscode/desktop/**"
-      - "vscode/mobile/**"
       - "vscode/package.json"
       - "vscode/package-lock.json"
   workflow_dispatch:
@@ -24,11 +24,6 @@ on:
         default: false
       release_desktop:
         description: "Force release Desktop Client (.exe & NSIS setup)"
-        required: false
-        type: boolean
-        default: false
-      release_mobile:
-        description: "Force release Mobile Client (.apk)"
         required: false
         type: boolean
         default: false
@@ -74,7 +69,6 @@ jobs:
     outputs:
       extension: ${{ steps.filter.outputs.extension }}
       desktop: ${{ steps.filter.outputs.desktop }}
-      mobile: ${{ steps.filter.outputs.mobile }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -91,10 +85,6 @@ jobs:
               - 'vscode/package-lock.json'
             desktop:
               - 'vscode/desktop/**'
-              - 'vscode/package.json'
-              - 'vscode/package-lock.json'
-            mobile:
-              - 'vscode/mobile/**'
               - 'vscode/package.json'
               - 'vscode/package-lock.json'
 
@@ -329,77 +319,6 @@ jobs:
             vscode/desktop/src-tauri/target/release/bundle/msi/*.msi
           tag_name: ${{ steps.version.outputs.version }}
           name: "SupremeAI Desktop ${{ steps.version.outputs.version }}"
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-mobile:
-    name: "Build & Release Mobile Client (Android .apk)"
-    needs: [detect-changes, resolve-execution-tier]
-    if: (needs.detect-changes.outputs.mobile == 'true' || github.event.inputs.release_mobile == 'true')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    defaults:
-      run:
-        working-directory: vscode
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: "npm"
-          cache-dependency-path: vscode/package-lock.json
-
-      - name: Setup Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Mobile Web App & Prepare Dist
-        run: |
-          npm run build --workspace=mobile
-          mkdir -p mobile/dist
-          if [ ! -f mobile/dist/index.html ]; then
-            printf '<!DOCTYPE html><html><head><meta charset="utf-8"><title>SupremeAI Mobile</title></head><body><div id="root"></div></body></html>' > mobile/dist/index.html
-          fi
-
-      - name: Sync Capacitor Android
-        working-directory: vscode/mobile
-        run: |
-          npx cap add android || true
-          npx cap sync android
-
-      - name: Build Android Debug APK
-        working-directory: vscode/mobile/android
-        run: ./gradlew assembleDebug
-
-      - name: Determine Mobile Version
-        id: version
-        run: |
-          VER=$(node -p "require('./mobile/package.json').version")
-          echo "version=mobile-v$VER" >> "$GITHUB_OUTPUT"
-
-      - name: Upload Mobile Artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: supremeai-mobile-android-debug
-          path: vscode/mobile/android/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
-
-      - name: Publish Mobile GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          files: vscode/mobile/android/app/build/outputs/apk/debug/*.apk
-          tag_name: ${{ steps.version.outputs.version }}
-          name: "SupremeAI Mobile ${{ steps.version.outputs.version }}"
           draft: false
           prerelease: false
           generate_release_notes: true
