@@ -820,6 +820,63 @@ def _verify_client_auth(request: Request, x_supremeai_key: Optional[str] = None)
     return any(_hmac.compare_digest(token, k) for k in valid_keys)
 
 
+def _is_admin_principal(
+    request: Request,
+    x_supremeai_key: Optional[str] = None,
+    x_superadmin_key: Optional[str] = None,
+) -> bool:
+    """Authorize administrative (superuser) access only.
+
+    Unlike ``_verify_client_auth``, an ordinary client API key, a guest token,
+    or a standard-quota ``sk-supreme-`` key is REJECTED. Access requires EITHER
+    the dedicated superadmin key OR an admin-scoped signed token
+    (``client == 'studio-admin'`` / ``quota == 'unlimited'``) OR a valid admin
+    JWT whose role is ``admin``.
+    """
+    import hmac as _hmac
+
+    if (
+        SUPERADMIN_KEY
+        and x_superadmin_key
+        and _hmac.compare_digest(x_superadmin_key, SUPERADMIN_KEY)
+    ):
+        return True
+
+    token = _extract_token(request, x_supremeai_key)
+    if not token:
+        return False
+
+    # 1. Admin-scoped signed key (studio-admin / unlimited quota).
+    if token.startswith("sk-supreme-"):
+        try:
+            meta = verify_key(token)
+        except Exception:
+            meta = None
+        if meta and (
+            str(meta.get("client", "")).lower() == "studio-admin"
+            or str(meta.get("quota", "")).lower() == "unlimited"
+        ):
+            return True
+
+    # 2. Admin JWT (defense in depth for password/2FA admin sessions).
+    try:
+        from gateway.service.admin_auth import verify_admin_jwt
+    except ImportError:
+        try:
+            from service.admin_auth import verify_admin_jwt  # type: ignore[no-redef]
+        except ImportError:
+            verify_admin_jwt = None  # type: ignore[assignment]
+    if verify_admin_jwt is not None:
+        try:
+            payload = verify_admin_jwt(token)
+            if str(payload.get("role", "")).lower() == "admin":
+                return True
+        except Exception:
+            pass
+
+    return False
+
+
 def _require_operator_key(request: Request, x_supremeai_key: Optional[str] = None) -> bool:
     """Authorize operator-only telemetry with a dedicated exact-match key.
 
@@ -2893,9 +2950,10 @@ async def get_admin_logs(
     x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
 ):
     """Fetches recent service logs for the Admin Console."""
-    is_super = bool(SUPERADMIN_KEY and x_superadmin_key == SUPERADMIN_KEY)
-    is_client = _verify_client_auth(request, x_supremeai_key)
-    if not is_super and not is_client:
+    # FIX (security): server logs may expose internal topology, tokens, and PII.
+    # A generic client key or guest token must NOT grant access. Require an
+    # admin principal (superadmin key OR admin-scoped token OR admin JWT).
+    if not _is_admin_principal(request, x_supremeai_key, x_superadmin_key):
         raise HTTPException(status_code=403, detail="Admin authorization required to view server logs")
 
     logs = log_ring_buffer.get_logs(limit=limit, level=level, search=search)
@@ -2917,9 +2975,8 @@ async def stream_admin_logs(
     x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
 ):
     """Real-time Server-Sent Events (SSE) log streamer for Admin Console."""
-    is_super = bool(SUPERADMIN_KEY and x_superadmin_key == SUPERADMIN_KEY)
-    is_client = _verify_client_auth(request, x_supremeai_key)
-    if not is_super and not is_client:
+    # FIX (security): require an admin principal — never a generic client/guest token.
+    if not _is_admin_principal(request, x_supremeai_key, x_superadmin_key):
         raise HTTPException(status_code=403, detail="Admin authorization required to stream server logs")
 
     subscriber_queue: asyncio.Queue = asyncio.Queue(maxsize=200)

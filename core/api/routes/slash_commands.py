@@ -227,6 +227,29 @@ class CommandExecuteResponse(BaseModel):
 # ---------- Command Handlers ----------
 
 
+def _owns_conversation(db: Any, conversation_id: str, user_id: str) -> bool:
+    """Return True only if ``conversation_id`` belongs to ``user_id``.
+
+    FIX (security, IDOR): ``db.client`` uses the service-role key (RLS
+    bypassed), so every handler that accepts a caller-supplied
+    ``conversation_id`` MUST verify ownership before reading or mutating the
+    conversation's messages.
+    """
+    try:
+        owned = (
+            db.client.table("conversations")
+            .select("id")
+            .eq("id", conversation_id)
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        return bool(owned.data)
+    except Exception as exc:  # fail closed — never grant access on error
+        logger.warning("Ownership check failed for conversation %s: %s", conversation_id, exc)
+        return False
+
+
 async def _handle_research(args: dict[str, Any], user_id: str) -> dict[str, Any]:
     """Execute deep research using the knowledge base and LLM."""
     query = args.get("query", "")
@@ -304,6 +327,14 @@ async def _handle_summarize(args: dict[str, Any], user_id: str) -> dict[str, Any
         if not convs.data:
             return {"error": "No conversations found"}
         conversation_id = convs.data[0]["id"]
+    elif not _owns_conversation(db, conversation_id, user_id):
+        # FIX (security, IDOR): block cross-tenant conversation reads.
+        logger.warning(
+            "Summarize denied: conversation %s not owned by user %s",
+            conversation_id,
+            user_id,
+        )
+        return {"error": "Conversation not found or access denied"}
 
     # Fetch messages
     messages_resp = (
@@ -455,6 +486,14 @@ async def _handle_export(args: dict[str, Any], user_id: str) -> dict[str, Any]:
         conversation_id = convs.data[0]["id"]
         title = convs.data[0].get("title", "Export")
     else:
+        # FIX (security, IDOR): only export conversations the caller owns.
+        if not _owns_conversation(db, conversation_id, user_id):
+            logger.warning(
+                "Export denied: conversation %s not owned by user %s",
+                conversation_id,
+                user_id,
+            )
+            return {"error": "Conversation not found or access denied"}
         conv = db.client.table("conversations").select("title").eq("id", conversation_id).execute()
         title = conv.data[0]["title"] if conv.data else "Export"
 
@@ -551,6 +590,17 @@ async def _handle_clear(args: dict[str, Any], user_id: str) -> dict[str, Any]:
         if not convs.data:
             return {"error": "No conversations found to clear"}
         conversation_id = convs.data[0]["id"]
+    elif not _owns_conversation(db, conversation_id, user_id):
+        # FIX (security, IDOR): never delete a conversation the caller does not
+        # own. `db.client` uses the service-role key (RLS bypassed), so ownership
+        # MUST be enforced here — otherwise any caller could wipe another user's
+        # chat history by passing an arbitrary conversation_id.
+        logger.warning(
+            "Clear denied: conversation %s not owned by user %s",
+            conversation_id,
+            user_id,
+        )
+        return {"error": "Conversation not found or access denied"}
 
     try:
         db.client.table("messages").delete().eq("conversation_id", conversation_id).execute()
