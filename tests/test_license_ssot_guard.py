@@ -142,9 +142,12 @@ SSOT_FIXTURE = (
     "### 2.3 Licensing & Intellectual Property Policy (SSOT)\n"
     "- **Permissive Open-Source (MIT License):** Applied to (`supremeai`, "
     "`supremeai-studio`, `supremeai-vscode`).\n"
-    "- **Proprietary / All Rights Reserved:** Applied to (`supremeai`, `supremeai-core`, "
+    # 2026-11-17: mirrors the corrected live §2.3. The root `supremeai` repo is
+    # declared exactly once (MIT); the Proprietary bullet lists only its private
+    # satellites, so no repository name is declared under both models.
+    "- **Proprietary / All Rights Reserved:** Applied to (`supremeai-core`, "
     "`supremeai-api`, `supremeai-browser`, `supremeai-infrastructure`, "
-    "`supremeai-mcp-control-plane`, `supremeai-agents`, `supremeai`).\n"
+    "`supremeai-mcp-control-plane`, `supremeai-agents`).\n"
 )
 
 
