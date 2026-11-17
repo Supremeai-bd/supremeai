@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-BACKEND_DIR = REPO_ROOT / "backend"
+BACKEND_DIR = REPO_ROOT / "core"
 POLICY_PATH = BACKEND_DIR / "config" / "routing_policy.json"
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
 VISION_SERVICE = BACKEND_DIR / "services" / "vision_service.py"
@@ -54,10 +54,27 @@ def test_routing_policy_json_has_no_retired_substrings():
 
 def test_env_example_gemini_model_is_served():
     text = ENV_EXAMPLE.read_text(encoding="utf-8")
-    line = next((ln for ln in text.splitlines() if ln.startswith("GEMINI_MODEL_NAME=")), None)
-    assert line is not None, "GEMINI_MODEL_NAME disappeared from .env.example"
+    line = next(
+        (ln for ln in text.splitlines() if ln.startswith(("GEMINI_MODEL_NAME=", "GEMINI_MODEL="))),
+        None,
+    )
+    assert line is not None, "GEMINI_MODEL_NAME / GEMINI_MODEL disappeared from .env.example"
     for sub in _RETIRED_SUBSTRINGS:
         assert sub not in line, f".env.example default is a retired model: {line!r}"
+
+
+def test_deprecated_gemini_env_remapped_to_flash_lite():
+    from core.config_validation import SettingsValidationMixin
+
+    for stale in ("gemini-2.5-flash", "gemini/gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", ""):
+        assert (
+            SettingsValidationMixin.remap_deprecated_gemini_model_env(stale)
+            == "gemini/gemini-flash-lite-latest"
+        )
+    assert (
+        SettingsValidationMixin.remap_deprecated_gemini_model_env("gemini/gemini-flash-lite-latest")
+        == "gemini/gemini-flash-lite-latest"
+    )
 
 
 def test_service_fallbacks_not_retired():

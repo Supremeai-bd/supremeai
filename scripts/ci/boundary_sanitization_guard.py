@@ -182,6 +182,8 @@ APPROVED_SUBTREES = {
         "startup_validator.py",
         "db_ssl.py",
         "config_fields.py",
+        "config_validation.py",
+        "config_parsers.py",
         "task_queue",
         "task_router.py",
         ".github",
