@@ -92,6 +92,28 @@ class DualPoolPriorityRouter:
                 slots.append(KeySlot(alias=env_name.lower(), env_key=env_name))
         return slots
 
+    @staticmethod
+    def _scan_web_keys(
+        bundle_names: tuple[str, ...],
+        individual_names: tuple[str, ...],
+        src: dict[str, str],
+    ) -> list[KeySlot]:
+        """Key slots for a web (stealth/cookie) model.
+
+        Prefers the unified cookie bundle (SSOT, e.g. AI_FLEET_COOKIES_GZIP_B64 /
+        SUPREMEAI_GEMINI_COOKIES) so renewing one secret updates every web model,
+        and falls back to the legacy individual token env vars for backward compat.
+        """
+        slots: list[KeySlot] = []
+        for name in bundle_names:
+            if (src.get(name) or "").strip():
+                slots.append(KeySlot(alias=name.lower(), env_key=name))
+                break
+        for name in individual_names:
+            if (src.get(name) or "").strip() and all(s.env_key != name for s in slots):
+                slots.append(KeySlot(alias=name.lower(), env_key=name))
+        return slots
+
     def _default_models_from_env(self) -> list[PoolModelEntry]:
         src = dict(os.environ)
         return [
@@ -129,7 +151,11 @@ class DualPoolPriorityRouter:
                 capabilities=("reasoning", "design"),
                 active_model_name="core-architect",
                 latency_ms=1400.0,
-                keys=self._scan_keys(("STEALTH_WEBHOOK_URL", "BLAZE_SESSION_JWT"), src),
+                keys=self._scan_web_keys(
+                    bundle_names=("AI_FLEET_COOKIES_GZIP_B64",),
+                    individual_names=("STEALTH_WEBHOOK_URL", "BLAZE_SESSION_JWT"),
+                    src=src,
+                ),
             ),
             PoolModelEntry(
                 model_id="web-logic",
@@ -138,7 +164,11 @@ class DualPoolPriorityRouter:
                 capabilities=("reasoning", "general"),
                 active_model_name="core-logic",
                 latency_ms=1200.0,
-                keys=self._scan_keys(("CHATGPT_WEB_TOKEN", "CHATGPT_SESSION_TOKEN"), src),
+                keys=self._scan_web_keys(
+                    bundle_names=("AI_FLEET_COOKIES_GZIP_B64",),
+                    individual_names=("CHATGPT_WEB_TOKEN", "CHATGPT_SESSION_TOKEN"),
+                    src=src,
+                ),
             ),
             PoolModelEntry(
                 model_id="web-speed",
@@ -147,7 +177,11 @@ class DualPoolPriorityRouter:
                 capabilities=("spark", "design"),
                 active_model_name="core-speed",
                 latency_ms=1100.0,
-                keys=self._scan_keys(("GEMINI_WEB_TOKEN", "V0_TOKEN"), src),
+                keys=self._scan_web_keys(
+                    bundle_names=("AI_FLEET_COOKIES_GZIP_B64", "SUPREMEAI_GEMINI_COOKIES"),
+                    individual_names=("GEMINI_WEB_TOKEN", "V0_TOKEN"),
+                    src=src,
+                ),
             ),
         ]
 
