@@ -315,6 +315,7 @@ firebase.json
 # ROOT ALLOWLIST: Official Monorepo Top-Level Directories (Unlocks Layer 3)
 # ------------------------------------------------------------------------------
 !/.agents/
+!/.githooks/
 !/.github/
 !/.kilo/
 /.kilo/*
