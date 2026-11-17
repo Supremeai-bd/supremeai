@@ -37,9 +37,11 @@ def test_provider_cascades_defined():
     assert "perplexity" in PROVIDER_MODEL_CASCADES
     assert "sonar" in PROVIDER_MODEL_CASCADES["perplexity"]
 
-    # Verify Groq contains live verified models
-    assert "llama-3.3-70b-versatile" in PROVIDER_MODEL_CASCADES["groq"]
-    assert "llama-3.1-8b-instant" in PROVIDER_MODEL_CASCADES["groq"]
+    # Verify Groq contains live verified models (2026-11-17: dead llama-3.3/3.1/qwen-2.5 removed)
+    assert "qwen/qwen3.8-27b" in PROVIDER_MODEL_CASCADES["groq"]
+    assert "openai/gpt-oss-20b" in PROVIDER_MODEL_CASCADES["groq"]
+    assert "llama-3.3-70b-versatile" not in PROVIDER_MODEL_CASCADES["groq"]
+    assert "llama-3.1-8b-instant" not in PROVIDER_MODEL_CASCADES["groq"]
 
     # Verify Gemini contains live verified models
     assert "gemini-2.5-flash" in PROVIDER_MODEL_CASCADES["gemini"]
