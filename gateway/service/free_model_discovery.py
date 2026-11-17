@@ -69,6 +69,9 @@ PROVIDER_BASE_URLS = {
     "routesme": "https://routesme.online/v1",
     "bynara": "https://router.bynara.id/v1",
     "bai": "https://api.b.ai/v1",
+    "unorouter": "https://api.unorouter.com/v1",
+    "cohere": "https://api.cohere.ai/compatibility/v1",
+    "llm7": "https://api.llm7.io/v1",
 }
 
 # Meta-routers ("kilo-auto/free", "openrouter/free") blindly delegate model choice
