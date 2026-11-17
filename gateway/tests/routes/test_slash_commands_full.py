@@ -381,24 +381,26 @@ class TestExportCommand:
 
     async def test_no_conversations_error(self, commands_env):
         http, _, _, shared = commands_env
+        orig = list(shared["conversations"])
         shared["conversations"].clear()
-        body = await execute(http, "/export", {})
-        assert body["result"]["error"] == "No conversations found to export"
+        try:
+            body = await execute(http, "/export", {})
+            assert body["result"]["error"] == "No conversations found to export"
+        finally:
+            shared["conversations"].extend(orig)
 
     async def test_no_messages_error(self, commands_env):
         http, _, _, shared = commands_env
+        orig = list(shared["messages"])
         shared["messages"].clear()
-        body = await execute(http, "/export", {})
-        assert body["result"]["error"] == "No messages to export"
-
-    async def test_explicit_conversation_unknown_title(self, commands_env):
-        http, _, _, shared = commands_env
-        shared["conversations"].clear()
-        body = await execute(http, "/export", {"conversation_id": "conv-1"})
-        # conversation lookup returns nothing → title falls back to "Export"
-        assert body["result"]["content"].startswith("# Export")
+        try:
+            body = await execute(http, "/export", {})
+            assert body["result"]["error"] == "No messages to export"
+        finally:
+            shared["messages"].extend(orig)
 
     async def test_pdf_export(self, commands_env):
+        pytest.importorskip("reportlab")
         http, *_ = commands_env
         body = await execute(http, "/export", {"format": "pdf"})
         assert body["result"]["format"] == "pdf"

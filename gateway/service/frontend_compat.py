@@ -18,7 +18,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -72,6 +72,60 @@ def _gh(method: str, path: str, body: Any = None) -> tuple[int, Any]:
             return e.code, {"error": raw}
     except Exception as e:
         return 502, {"error": str(e)}
+
+
+# ---- Admin (superuser) authorization guard ---------------------------------
+# The GitHub orchestration routes below mutate production repository state
+# (approve/merge PRs, rerun/cancel/dispatch workflows). They MUST fail closed:
+# an ordinary client API key, a guest token, or a standard-quota ``sk-supreme-``
+# key is rejected. Access requires EITHER the dedicated superadmin key OR an
+# admin-scoped signed token (``client == 'studio-admin'`` / ``quota ==
+# 'unlimited'``) OR a valid admin JWT.
+_SUPERADMIN_KEY = (
+    os.getenv("SUPREMEAI_SUPERADMIN_KEY")
+    or os.getenv("MCP_SUPERADMIN_KEY")
+    or ""
+).strip()
+
+
+def _extract_bearer(request: Request) -> str:
+    auth = request.headers.get("authorization", "")
+    if auth.lower().startswith("bearer "):
+        return auth[7:].strip()
+    return request.headers.get("x-supremeai-key", "").strip()
+
+
+def _verify_admin_token(token: str) -> bool:
+    """Validate admin authorization via admin_auth.is_admin_token."""
+    try:
+        from gateway.service.admin_auth import is_admin_token
+    except ImportError:
+        try:
+            from service.admin_auth import is_admin_token  # type: ignore[no-redef]
+        except ImportError:
+            is_admin_token = None  # type: ignore[assignment]
+    return bool(is_admin_token and is_admin_token(token))
+
+
+async def require_github_admin(
+    request: Request,
+    x_superadmin_key: Optional[str] = Header(None, alias="X-Superadmin-Key"),
+) -> None:
+    """Fail-closed admin dependency for GitHub orchestration routes."""
+    import hmac as _hmac
+
+    if (
+        _SUPERADMIN_KEY
+        and x_superadmin_key
+        and _hmac.compare_digest(x_superadmin_key, _SUPERADMIN_KEY)
+    ):
+        return
+    if _verify_admin_token(_extract_bearer(request)):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail="Admin (superuser) authorization required for GitHub orchestration",
+    )
 
 
 def _broadcast_hitl(event_name: str, data: dict[str, Any]) -> None:
@@ -1215,7 +1269,7 @@ async def fe_projects_delete(pid: str):
     return {"status": "ok"}
 
 
-@router.get("/api/admin/github/runs")
+@router.get("/api/admin/github/runs", dependencies=[Depends(require_github_admin)])
 async def gh_runs():
     status, data = _gh("GET", f"/repos/{_GH_REPO}/actions/runs?per_page=10")
     runs = []
@@ -1232,19 +1286,19 @@ async def gh_runs():
     return {"runs": runs, "status_code": status, "token_configured": bool(_GH_TOKEN)}
 
 
-@router.post("/api/admin/github/runs/{run_id}/rerun")
+@router.post("/api/admin/github/runs/{run_id}/rerun", dependencies=[Depends(require_github_admin)])
 async def gh_rerun(run_id: str):
     status, data = _gh("POST", f"/repos/{_GH_REPO}/actions/runs/{run_id}/rerun-failed-jobs")
     return {"run_id": run_id, "status_code": status, "result": data}
 
 
-@router.post("/api/admin/github/runs/{run_id}/cancel")
+@router.post("/api/admin/github/runs/{run_id}/cancel", dependencies=[Depends(require_github_admin)])
 async def gh_cancel(run_id: str):
     status, data = _gh("POST", f"/repos/{_GH_REPO}/actions/runs/{run_id}/cancel")
     return {"run_id": run_id, "status_code": status, "result": data}
 
 
-@router.post("/api/admin/github/workflows/{workflow_id}/dispatch")
+@router.post("/api/admin/github/workflows/{workflow_id}/dispatch", dependencies=[Depends(require_github_admin)])
 async def gh_dispatch(workflow_id: str, request: Request):
     body = await request.json()
     payload = {"ref": body.get("ref", "main")}
@@ -1252,7 +1306,7 @@ async def gh_dispatch(workflow_id: str, request: Request):
     return {"workflow_id": workflow_id, "status_code": status, "result": data}
 
 
-@router.get("/api/admin/github/pulls")
+@router.get("/api/admin/github/pulls", dependencies=[Depends(require_github_admin)])
 async def gh_pulls():
     status, data = _gh("GET", f"/repos/{_GH_REPO}/pulls?state=open&per_page=20")
     pulls = []
@@ -1269,7 +1323,7 @@ async def gh_pulls():
     return {"pulls": pulls, "status_code": status, "token_configured": bool(_GH_TOKEN)}
 
 
-@router.post("/api/admin/github/pulls/{pr_number}/approve")
+@router.post("/api/admin/github/pulls/{pr_number}/approve", dependencies=[Depends(require_github_admin)])
 async def gh_approve(pr_number: str, request: Request):
     body = await request.json() if False else {}
     try:
@@ -1281,7 +1335,7 @@ async def gh_approve(pr_number: str, request: Request):
     return {"pr": pr_number, "status_code": status, "result": data}
 
 
-@router.post("/api/admin/github/pulls/{pr_number}/merge")
+@router.post("/api/admin/github/pulls/{pr_number}/merge", dependencies=[Depends(require_github_admin)])
 async def gh_merge(pr_number: str, request: Request):
     try:
         body = await request.json()
