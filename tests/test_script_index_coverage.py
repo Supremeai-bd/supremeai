@@ -94,7 +94,16 @@ class TestScriptIndexCoverage(unittest.TestCase):
             for f in ls.stdout.splitlines()
             if f.startswith("scripts/") and f.endswith((".py", ".sh", ".mjs", ".js", ".dart"))
         }
-        missing = sorted(tracked - self.rows)
+        # The generator's documented contract (module docstring) is that
+        # zero-byte files — empty `__init__.py` package markers and friends —
+        # are skipped and counted in the header, not indexed as scripts. Exclude
+        # exactly that documented class so this pin keeps meaning "no real
+        # script is invisible to the index" instead of demanding 28 package
+        # markers become rows.
+        missing = sorted(
+            p for p in (tracked - self.rows)
+            if (REPO_ROOT / "scripts" / p).stat().st_size > 0
+        )
         self.assertEqual(
             missing, [],
             f"{len(missing)} tracked script(s) invisible to the index — scan-root regression "
