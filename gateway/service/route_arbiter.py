@@ -72,6 +72,7 @@ class DynamicRouteArbiter:
         preferred_provider: Optional[str],
         adaptive_routes: Dict[str, Any],
         stealth_available: bool,
+        has_image: bool = False,
     ) -> RoutingDecision:
         model_clean = (requested_model or "auto").strip().lower()
         target_latency = MODEL_LATENCY_THRESHOLDS_MS.get(model_clean, 1800.0)
@@ -123,6 +124,9 @@ class DynamicRouteArbiter:
 
             # Secondary / Fallbacks: cascade across allowed_providers and full federation squad
             provider_sequence = list(allowed_providers or ["groq", "gemini", "openrouter", "sambanova", "mistral", "kilo"])
+            if has_image:
+                # Strictly isolate vision tasks to multimodal providers (never text-only models like Groq/Mistral/Kilo)
+                provider_sequence = [p for p in provider_sequence if p in ("gemini", "openai")]
             try:
                 from gateway.dual_pool_priority_router import get_dual_pool_router
                 active_pick = get_dual_pool_router().select_best_model(model_clean)
@@ -144,6 +148,8 @@ class DynamicRouteArbiter:
 
             # Tertiary: add any other healthy squad auto slots
             for prov_item, slot in self.squad.get_candidate_slots("auto"):
+                if has_image and prov_item not in ("gemini", "openai"):
+                    continue
                 if slot.name not in seen_slot_names:
                     fallback_candidates.append((prov_item, slot))
                     seen_slot_names.add(slot.name)

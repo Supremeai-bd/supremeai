@@ -352,14 +352,6 @@ def _resolve_candidate_models(
     unsupported_set = getattr(slot, "unsupported_models", set()) if slot else set()
     supported_set = getattr(slot, "supported_models", set()) if slot else set()
     if (
-        preferred_slot_model
-        and str(preferred_slot_model).lower() not in EXCLUDED_META_OR_PAID_MODELS
-        and preferred_slot_model not in unsupported_set
-        and preferred_slot_model not in candidate_models
-    ):
-        candidate_models.append(preferred_slot_model)
-
-    if (
         client_model
         and client_model not in ("auto", "default", "")
         and str(client_model).lower() not in EXCLUDED_META_OR_PAID_MODELS
@@ -368,8 +360,16 @@ def _resolve_candidate_models(
         and not str(client_model).startswith("supremeai-")
         and (str(client_model) in cascade or provider == "openrouter")
     ):
-        if str(client_model) not in candidate_models:
+        if str(client_model) not in candidate_models and str(client_model) not in unsupported_set:
             candidate_models.append(str(client_model))
+
+    if (
+        preferred_slot_model
+        and str(preferred_slot_model).lower() not in EXCLUDED_META_OR_PAID_MODELS
+        and preferred_slot_model not in unsupported_set
+        and preferred_slot_model not in candidate_models
+    ):
+        candidate_models.append(preferred_slot_model)
 
     for m in cascade:
         if str(m).lower() in EXCLUDED_META_OR_PAID_MODELS:
@@ -651,7 +651,12 @@ async def stream_chat_completion_events(
                 yield ("error", {"error": f"Connection error to {provider}: {str(exc)}"})
                 return
 
-    yield ("error", {"error": f"No models available for provider {provider}"})
+    err_detail = (
+        "Vision model unavailable: Gemini API quota exhausted or rate-limited"
+        if provider == "gemini"
+        else f"No models available for provider {provider}"
+    )
+    yield ("error", {"error": err_detail})
 
 
 async def forward_stealth_webhook(
