@@ -14,26 +14,10 @@ driven via fastapi.testclient.
 from __future__ import annotations
 
 import json
-import sys
-from pathlib import Path
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-
-_GATEWAY_DIR = next(
-    (
-        p
-        for p in Path(__file__).resolve().parents
-        if (p / "main.py").is_file() and (p / "routing_policy.json").is_file()
-    ),
-    None,
-)
-if _GATEWAY_DIR is None:
-    raise ImportError("gateway package not found near " + str(Path(__file__)))
-REPO_ROOT = _GATEWAY_DIR.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
 
 from gateway.config import parse_routing_policy
 from gateway.main import create_app
