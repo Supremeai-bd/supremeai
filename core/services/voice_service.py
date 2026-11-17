@@ -267,7 +267,7 @@ class VoiceService:
 
         import httpx
 
-        model_name = "gemini-2.5-flash"
+        model_name = "gemini-flash-lite-latest"
         mime = _sniff_audio_mime(filename)
         audio_b64 = base64.b64encode(audio_bytes).decode("ascii")
         url = (

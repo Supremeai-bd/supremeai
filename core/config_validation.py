@@ -51,6 +51,38 @@ class SettingsValidationMixin:
         "openai_api_key": "Set OPENAI_API_KEY for OpenAI integration. Get key from: https://platform.openai.com/api-keys",
     }
 
+    _QUOTA_EXHAUSTED_OR_RETIRED_GEMINI_MODELS: frozenset[str] = frozenset(
+        {
+            "gemini-2.0-flash",
+            "gemini/gemini-2.0-flash",
+            "models/gemini-2.0-flash",
+            "gemini-2.5-flash",
+            "gemini/gemini-2.5-flash",
+            "models/gemini-2.5-flash",
+            "gemini-2.5-pro",
+            "gemini/gemini-2.5-pro",
+            "models/gemini-2.5-pro",
+        }
+    )
+
+    @field_validator(
+        "gemini_model_name",
+        "model_coding",
+        "model_vision",
+        "model_chat",
+        "model_general",
+        "model_multilingual",
+        mode="before",
+        check_fields=False,
+    )
+    @classmethod
+    def remap_deprecated_gemini_model_env(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            stripped = v.strip()
+            if not stripped or stripped.lower() in cls._QUOTA_EXHAUSTED_OR_RETIRED_GEMINI_MODELS:
+                return "gemini/gemini-flash-lite-latest"
+        return v
+
     @field_validator("*", mode="before")
     @classmethod
     def validate_env_vars(cls, value: Any, info: ValidationInfo) -> Any:
