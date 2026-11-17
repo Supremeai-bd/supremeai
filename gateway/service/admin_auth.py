@@ -253,6 +253,49 @@ def verify_admin_jwt(token: str) -> dict[str, Any]:
     return payload
 
 
+def is_admin_token(token: str | None, verify_key_fn: Any = None) -> bool:
+    """Return True if token is an admin-scoped API key (studio-admin/unlimited) or valid admin JWT."""
+    if not token or not isinstance(token, str):
+        return False
+    clean = token.strip()
+    if clean.startswith("Bearer "):
+        clean = clean[7:].strip()
+    if not clean:
+        return False
+
+    # 1. Admin-scoped signed key (studio-admin / unlimited quota).
+    if clean.startswith("sk-supreme-"):
+        v_fn = verify_key_fn
+        if v_fn is None:
+            try:
+                from gateway.service.keygen import verify_key as v_fn
+            except ImportError:
+                try:
+                    from service.keygen import verify_key as v_fn  # type: ignore[no-redef]
+                except ImportError:
+                    v_fn = None
+        if v_fn is not None:
+            try:
+                meta = v_fn(clean)
+                if meta and (
+                    str(meta.get("client", "")).lower() == "studio-admin"
+                    or str(meta.get("quota", "")).lower() == "unlimited"
+                ):
+                    return True
+            except Exception:
+                pass
+
+    # 2. Admin JWT (defense in depth for password/2FA admin sessions).
+    try:
+        payload = verify_admin_jwt(clean)
+        if str(payload.get("role", "")).lower() == "admin":
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
 def issue_trusted_browser_token(
     uid: str,
     email: str,

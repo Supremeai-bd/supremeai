@@ -96,47 +96,15 @@ def _extract_bearer(request: Request) -> str:
 
 
 def _verify_admin_token(token: str) -> bool:
-    """Return True only for an admin-scoped signed key or a valid admin JWT."""
-    if not token:
-        return False
-
-    # 1. Admin-scoped signed key (studio-admin / unlimited quota).
-    if token.startswith("sk-supreme-"):
-        try:
-            from gateway.service.keygen import verify_key
-        except ImportError:
-            try:
-                from service.keygen import verify_key  # type: ignore[no-redef]
-            except ImportError:
-                verify_key = None  # type: ignore[assignment]
-        if verify_key is not None:
-            try:
-                meta = verify_key(token)
-            except Exception:
-                meta = None
-            if meta and (
-                str(meta.get("client", "")).lower() == "studio-admin"
-                or str(meta.get("quota", "")).lower() == "unlimited"
-            ):
-                return True
-
-    # 2. Admin JWT (defense in depth for password/2FA admin sessions).
+    """Validate admin authorization via admin_auth.is_admin_token."""
     try:
-        from gateway.service.admin_auth import verify_admin_jwt
+        from gateway.service.admin_auth import is_admin_token
     except ImportError:
         try:
-            from service.admin_auth import verify_admin_jwt  # type: ignore[no-redef]
+            from service.admin_auth import is_admin_token  # type: ignore[no-redef]
         except ImportError:
-            verify_admin_jwt = None  # type: ignore[assignment]
-    if verify_admin_jwt is not None:
-        try:
-            payload = verify_admin_jwt(token)
-            if str(payload.get("role", "")).lower() == "admin":
-                return True
-        except Exception:
-            pass
-
-    return False
+            is_admin_token = None  # type: ignore[assignment]
+    return bool(is_admin_token and is_admin_token(token))
 
 
 async def require_github_admin(

@@ -846,33 +846,15 @@ def _is_admin_principal(
     if not token:
         return False
 
-    # 1. Admin-scoped signed key (studio-admin / unlimited quota).
-    if token.startswith("sk-supreme-"):
-        try:
-            meta = verify_key(token)
-        except Exception:
-            meta = None
-        if meta and (
-            str(meta.get("client", "")).lower() == "studio-admin"
-            or str(meta.get("quota", "")).lower() == "unlimited"
-        ):
-            return True
-
-    # 2. Admin JWT (defense in depth for password/2FA admin sessions).
     try:
-        from gateway.service.admin_auth import verify_admin_jwt
+        from gateway.service.admin_auth import is_admin_token
     except ImportError:
         try:
-            from service.admin_auth import verify_admin_jwt  # type: ignore[no-redef]
+            from service.admin_auth import is_admin_token  # type: ignore[no-redef]
         except ImportError:
-            verify_admin_jwt = None  # type: ignore[assignment]
-    if verify_admin_jwt is not None:
-        try:
-            payload = verify_admin_jwt(token)
-            if str(payload.get("role", "")).lower() == "admin":
-                return True
-        except Exception:
-            pass
+            is_admin_token = None  # type: ignore[assignment]
+    if is_admin_token is not None and is_admin_token(token, verify_key_fn=verify_key):
+        return True
 
     return False
 
