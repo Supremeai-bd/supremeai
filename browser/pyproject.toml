@@ -22,7 +22,7 @@ runtime = ["playwright>=1.40", "lxml>=4.9"]
 dev = ["pytest>=7.4"]
 
 [tool.setuptools.packages.find]
-include = ["runtime*", "ghost_tower*"]
+include = ["runtime*", "ghost_tower*", "routes*", "tools*", "gateway*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

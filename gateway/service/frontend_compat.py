@@ -162,7 +162,7 @@ class HitlRegisterPayload(BaseModel):
     status: str = "pending"
 
 
-@router.post("/api/v1/hitl/register")
+@router.post("/api/v1/hitl/register", dependencies=[Depends(require_github_admin)])
 async def fe_hitl_register(payload: HitlRegisterPayload):
     record = {
         "id": payload.id,
@@ -179,7 +179,7 @@ async def fe_hitl_register(payload: HitlRegisterPayload):
     return {"status": "ok", "record": record}
 
 
-@router.get("/api/v1/hitl/pending")
+@router.get("/api/v1/hitl/pending", dependencies=[Depends(require_github_admin)])
 async def fe_hitl_pending():
     # Frontend hitlService.ts expects a list of pending records
     return [r for r in _pending_hitl.values() if r.get("status") == "pending"]
@@ -218,7 +218,7 @@ def _submit_github_pr_review(pr_number: int | str, event: str, body: str) -> dic
     return {"status": status, "response": res}
 
 
-@router.post("/api/v1/hitl/approve/{rid}")
+@router.post("/api/v1/hitl/approve/{rid}", dependencies=[Depends(require_github_admin)])
 async def fe_hitl_approve(rid: str, request: Request = None):
     record = _pending_hitl.get(rid)
     ctx = record.get("context", {}) if record else {}
@@ -245,7 +245,7 @@ async def fe_hitl_approve(rid: str, request: Request = None):
     }
 
 
-@router.post("/api/v1/hitl/reject/{rid}")
+@router.post("/api/v1/hitl/reject/{rid}", dependencies=[Depends(require_github_admin)])
 async def fe_hitl_reject(rid: str, request: Request = None):
     reason = "Rejected by administrator"
     if request:
@@ -282,7 +282,7 @@ async def fe_hitl_reject(rid: str, request: Request = None):
     }
 
 
-@router.get("/api/v1/stream/hitl")
+@router.get("/api/v1/stream/hitl", dependencies=[Depends(require_github_admin)])
 async def fe_stream_hitl():
     async def gen():
         q: asyncio.Queue = asyncio.Queue()

@@ -126,7 +126,7 @@ class DynamicRouteArbiter:
             provider_sequence = list(allowed_providers or ["groq", "gemini", "openrouter", "sambanova", "mistral", "kilo"])
             if has_image:
                 # Strictly isolate vision tasks to multimodal providers (never text-only models like Groq/Mistral/Kilo)
-                provider_sequence = [p for p in provider_sequence if p in ("gemini", "openai")]
+                provider_sequence = [p for p in provider_sequence if p in ("gemini", "openai", "openrouter")]
             try:
                 from gateway.dual_pool_priority_router import get_dual_pool_router
                 active_pick = get_dual_pool_router().select_best_model(model_clean)
@@ -148,7 +148,7 @@ class DynamicRouteArbiter:
 
             # Tertiary: add any other healthy squad auto slots
             for prov_item, slot in self.squad.get_candidate_slots("auto"):
-                if has_image and prov_item not in ("gemini", "openai"):
+                if has_image and prov_item not in ("gemini", "openai", "openrouter"):
                     continue
                 if slot.name not in seen_slot_names:
                     fallback_candidates.append((prov_item, slot))
