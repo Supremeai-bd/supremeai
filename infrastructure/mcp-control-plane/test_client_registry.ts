@@ -21,7 +21,7 @@ assert.equal(resolveClient(rotated!.token), undefined);
 // Zero-manual-registration for no-auth AI clients + live protocol refresh.
 const guestSse = getOrCreateGuestClient("guest_test_registry_1", "Test Guest (1.2.3.4)", "cursor", "sse");
 assert.equal(guestSse.status, "active");
-assert.equal(guestSse.role, "admin"); // pre-production default: admin role until production ready
+assert.equal(guestSse.role, "viewer"); // least-privilege default: anonymous guests are viewers, never admin (#2720)
 assert.equal(guestSse.protocol, "sse");
 
 // Reconnect over streamable-http → SAME record, protocol follows the latest transport.
@@ -61,7 +61,9 @@ import { assertRepoReadAccess, repoAccessFor } from "./src/tools/github.tools.js
 
 // 1. Rank ladder is strictly monotonic.
 assert.equal(ROLE_RANK.viewer, 0);
-assert.ok(ROLE_RANK.restricted_viewer < ROLE_RANK.repo_viewer);
+assert.equal(ROLE_RANK.restricted_viewer, 0); // read-only aliases share viewer rank (backward-compat, #110)
+assert.equal(ROLE_RANK.repo_viewer, 0);
+assert.ok(ROLE_RANK.restricted_viewer < ROLE_RANK.agent);
 assert.ok(ROLE_RANK.repo_viewer < ROLE_RANK.agent);
 assert.ok(ROLE_RANK.agent < ROLE_RANK.admin);
 assert.ok(ROLE_RANK.admin < ROLE_RANK.supremeadmin);
@@ -95,6 +97,10 @@ assert.equal(promoted?.role, "repo_viewer");
 assert.ok(promoted?.scopes.includes("repos:all:read"));
 
 // 5. Named client record: stable id, role upgrades persist (database truth).
+//    Create first, THEN promote — a non-`guest_` id is never reset to the
+//    viewer default on reconnect (only `guest_`-prefixed ids are, #2720).
+const namedCreate = getOrCreateGuestClient("named_pko_main", "Named Client: pko_main (xAI Grok Web)", "xai", "streamable-http");
+assert.equal(namedCreate.id, "named_pko_main");
 changeClientRole("named_pko_main", "admin");
 const namedA = getOrCreateGuestClient("named_pko_main", "Named Client: pko_main (xAI Grok Web)", "xai", "streamable-http");
 assert.equal(namedA.id, "named_pko_main");
