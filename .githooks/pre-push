@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# SupremeAI pre-push hook — local mirror of the CI guard roster.
+#
+# Structure (hybrid, 2026-11-17):
+#   Sections 1-12   delegate to scripts/ci/run_all_guards.py, the roster SSOT.
+#                   Add a guard THERE, never here, so this hook cannot drift
+#                   away from the roster. Via the roster this hook already runs
+#                   the openapi contract gate (scripts/ci/openapi_breaking_guard.py),
+#                   BANDIT SAST GUARD (#1809) (scripts/ci/bandit_sast_guard.py),
+#                   LICENSE SSOT GUARD (#1773) (scripts/ci/license_ssot_guard.py),
+#                   CONTRACT CODEGEN GUARD (#1846) (scripts/ci/contract_codegen_guard.py)
+#                   and the npm CVE guard (scripts/ci/npm_dep_cve_guard.py).
+#   Sections 13-15  changed-file-scoped fast gates. They only run when the push
+#                   actually touches their surface, so a docs-only push does not
+#                   pay for a dependency audit and vice versa. The roster above
+#                   still sweeps everything unconditionally.
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+#
+# Any non-zero exit aborts the push. A broken guard must be loud, never a
+# silent pass — that is the entire point of a fail-closed gate.
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if command -v python3 >/dev/null 2>&1; then
+    PY=python3
+else
+    PY=python
+fi
+cd "$REPO_ROOT"
+
+# --- changed files for this push -------------------------------------------
+# Prefer the upstream of the current branch; fall back to the last commit so a
+# first push on a fresh branch still gets a sane surface.
+UPSTREAM="$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)"
+if [ -n "$UPSTREAM" ]; then
+    CHANGED="$(git diff --name-only --diff-filter=ACM "${UPSTREAM}...HEAD" 2>/dev/null || true)"
+else
+    CHANGED="$(git diff --name-only --diff-filter=ACM 'HEAD~1' 'HEAD' 2>/dev/null || true)"
+fi
+
+echo "== Sections 1-12: guard roster (scripts/ci/run_all_guards.py — SSOT) =="
+"$PY" scripts/ci/run_all_guards.py
+
+echo "== 13. JS-DEP CVE GUARD =="
+if printf '%s\n' "$CHANGED" | grep -Eq '(^|/)package\.json$|(^|/)package-lock\.json$'; then
+    "$PY" scripts/ci/js_dep_cve_guard.py --check
+else
+    echo "skip: no JS manifest changed"
+fi
+
+echo "== 14. PY-DEP CVE GUARD =="
+if printf '%s\n' "$CHANGED" | grep -Eq 'pyproject\.toml$'; then
+    "$PY" scripts/ci/py_dep_cve_guard.py --check
+else
+    echo "skip: no pyproject.toml changed"
+fi
+
+echo "== 15. DOCS LINK INTEGRITY GUARD =="
+MD_CHANGED="$(printf '%s\n' "$CHANGED" | grep -E '\.md$' || true)"
+if [ -n "$MD_CHANGED" ]; then
+    # shellcheck disable=SC2086 -- intentional word splitting into --files
+    "$PY" scripts/ci/docs_link_integrity_guard.py --files $MD_CHANGED
+else
+    echo "skip: no markdown changed"
+fi
+
+echo "pre-push: all guard sections passed"

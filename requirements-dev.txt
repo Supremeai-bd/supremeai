@@ -1,8 +1,12 @@
 # SupremeAI — dev/CI-only tooling pins (root)
 # SSOT manifest for dev/CI tooling; the uv-compiled requirements-dev.lock is the
 # reproducible resolution CI installs from (R29 uv-lockfile lane #1745).
-# After any change here, recompile the lock (deterministic, byte-stable body):
-#   uv pip compile requirements-dev.txt -o requirements-dev.lock
+# After any change here, recompile the lock (deterministic, byte-stable body).
+# --upgrade is REQUIRED: uv treats pins already present in the output file as
+# constraints, so without it a newly published upstream version is never picked
+# up and the lock silently rots. --python-platform pins the target to CI's
+# ubuntu/x86_64 so the artifact is identical on any contributor host.
+#   uv pip compile requirements-dev.txt -o requirements-dev.lock --upgrade --python-platform x86_64-unknown-linux-gnu
 # Freshness is CI-enforced (fast-lint-syntax-preflight job): recompile to a temp
 # path and diff the bodies (skip the 2 autogen header lines).
 # Direct install equivalent (no uv):  pip install -r requirements-dev.txt && lint-imports
