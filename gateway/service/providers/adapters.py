@@ -89,10 +89,6 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "base_url": os.getenv("KILO_BASE_URL", "https://api.kilo.ai/api/gateway"),
         "default_model": os.getenv("KILO_MODEL", "nvidia/nemotron-3.5-lightning:free"),
     },
-    "routeme": {
-        "base_url": os.getenv("ROUTEME_BASE_URL", "https://routesme.online/v1"),
-        "default_model": os.getenv("ROUTEME_FREE_MODEL", os.getenv("ROUTEME_MODEL", "GLM-5.3-Flash")),
-    },
     "routesme": {
         "base_url": os.getenv("ROUTEME_BASE_URL", "https://routesme.online/v1"),
         "default_model": os.getenv("ROUTEME_FREE_MODEL", os.getenv("ROUTEME_MODEL", "GLM-5.3-Flash")),
@@ -208,6 +204,24 @@ PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
         "Kimi-k3",
         "Minimax-M3",
         "Step-3.7-Flash",
+    ],
+    # Bynara (router.bynara.id) — OpenAI-compatible free aggregator. Models verified
+    # on /models (2026-11-17); agnes-2.5-flash is the routing_policy primary.
+    "bynara": [
+        "agnes-2.5-flash",
+        "glm-5.3-flash",
+        "deepseek-v4.1-flash",
+        "qwen3.8-flash",
+        "mimo-v2.6-flash",
+    ],
+    # B.ai (api.b.ai) — OpenAI-compatible free aggregator. qwen3.8-flash is the
+    # routing_policy primary; gemini-3.5-flash-lite is a fast fallback.
+    "bai": [
+        "qwen3.8-flash",
+        "gemini-3.5-flash-lite",
+        "glm-5.3-flash",
+        "mimo-v2.6-flash",
+        "gpt-5.4-mini",
     ],
 }
 
