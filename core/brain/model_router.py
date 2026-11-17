@@ -332,7 +332,12 @@ class ModelRouter:
                 best_provider = "gemini"
             else:
                 tracker = get_tracker()
-                best_provider = tracker.get_best_provider(["gemini", "groq", "openrouter"])
+                # 2026-11-17 (latency fix): groq/openrouter have no keys configured
+                # in this deployment, so including them made the tracker pick a dead
+                # provider and every chat walked a dead chain before failing over.
+                # The gateway's routing_policy.json handles the real cross-provider
+                # fallback chain (gemini -> bynara -> bai -> hf -> routesme).
+                best_provider = tracker.get_best_provider(["gemini"])
 
             if not best_provider:
                 logger.warning(

@@ -36,7 +36,7 @@ _DEFAULT_FALLBACK_MODELS: list[str] = list(
     getattr(
         settings,
         "fallback_models",
-        ["gemini/gemini-2.5-flash", "bynara/agnes-2.5-flash", "bai/qwen3.8-flash"],
+        ["gemini/gemini-flash-lite-latest", "bynara/agnes-2.5-flash", "bai/qwen3.8-flash"],
     )
 )
 
