@@ -191,6 +191,16 @@ APPROVED_SUBTREES = {
         "contracts",
         "cost_guard.py",
         "ecosystem",
+        # Registry completion (#650): brain/, ecosystem_scout/ and
+        # analyze_coverage.py were already tracked and already present on
+        # origin/main (verified with `git ls-tree -r origin/main`), but were
+        # never listed here — so any PR touching them fail-closed even though
+        # they are already public surface. Added to make the registry match the
+        # live tree; this exposes nothing new. Reverting these three entries
+        # would require deleting the paths from the public repo first.
+        "brain",
+        "ecosystem_scout",
+        "analyze_coverage.py",
         "integrations",
         "llm",
         "models",

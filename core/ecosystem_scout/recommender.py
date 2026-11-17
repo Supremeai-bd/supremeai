@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from ..models import Recommendation, ScoutFinding
+from .models import Recommendation, ScoutFinding
 
 # Threshold: findings with score < this are filtered out before auditor review
 RECOMMENDATION_THRESHOLD = 0.4

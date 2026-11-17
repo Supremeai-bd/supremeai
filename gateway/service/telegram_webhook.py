@@ -180,7 +180,9 @@ async def query_strategy_ai(prompt: str) -> str:
 
     if groq_key and forward_chat_completion:
         chat_payload = {
-            "model": "llama-3.3-70b-versatile",
+            # 2026-11-17 (#645 follow-up): llama-3.3-70b-versatile returns 404
+            # on Groq's /models — only verified-live ids may be sent.
+            "model": "openai/gpt-oss-20b",
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},

@@ -28,7 +28,7 @@ class EconomicOptimizer:
         self.free_tier_tracker = free_tier_tracker
         self.provider_tiers = {
             "groq": {
-                "model": "llama-3.3-70b-versatile",
+                "model": "openai/gpt-oss-20b",
                 "cost_per_1k": 0.0001,
                 "tier": "free/cheap",
             },
@@ -44,7 +44,7 @@ class EconomicOptimizer:
     # partial config sync হলে 'huggingface' হারিয়ে KeyError হচ্ছিল।
     DEFAULT_TIERS: dict[str, dict[str, Any]] = {
         "huggingface": {"model": "zephyr-7b", "cost_per_1k": 0.00005, "tier": "free/cheap"},
-        "groq": {"model": "llama-3.3-70b-versatile", "cost_per_1k": 0.0001, "tier": "free/cheap"},
+        "groq": {"model": "openai/gpt-oss-20b", "cost_per_1k": 0.0001, "tier": "free/cheap"},
     }
 
     async def sync_from_db(self, db: Any) -> None:

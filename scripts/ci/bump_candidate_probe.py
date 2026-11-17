@@ -49,10 +49,12 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import sys
 import urllib.request
 from datetime import datetime, timezone
+from fnmatch import fnmatch
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -262,19 +264,32 @@ def parse_poetry_pyproject(path: Path, synth=None) -> tuple[list[dict], list[str
     return sorted(pairs.values(), key=lambda p: (p["name"], p["version"])), skips
 
 
-def discover_py_manifests(root: Path, skip_dirs=None) -> list[Path]:
-    """requirements*.txt at any tracked depth (py_dep_cve_guard surface)."""
+def _walk_pruned(root: Path, skip_dirs, pattern: str) -> list[Path]:
+    """Files matching ``pattern`` under ``root``, never descending into ``skip_dirs``.
+
+    ``Path.rglob`` walks the ENTIRE tree before its results can be filtered, so a
+    virtualenv or node_modules tree is fully traversed (seconds to minutes) even
+    though none of its files are ever returned. ``os.walk`` is top-down, which
+    lets us remove a directory from ``dirnames`` in place and never descend into
+    it — the same pruning contract the docstring promises, actually enforced.
+    """
     if not root.is_dir():
         return []
+    skip = set(skip_dirs)
+    out: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in skip]
+        for fn in filenames:
+            if fnmatch(fn, pattern):
+                out.append(Path(dirpath) / fn)
+    return sorted(out)
+
+
+def discover_py_manifests(root: Path, skip_dirs=None) -> list[Path]:
+    """requirements*.txt at any tracked depth (py_dep_cve_guard surface)."""
     if skip_dirs is None:
         skip_dirs = getattr(_load_py_guard(), "SKIP_DIRS", frozenset({".git", "node_modules"}))
-    out = []
-    for p in sorted(root.rglob("requirements*.txt")):
-        rel = p.relative_to(root)
-        if any(part in skip_dirs for part in rel.parts[:-1]):
-            continue
-        out.append(p)
-    return out
+    return _walk_pruned(root, skip_dirs, "requirements*.txt")
 
 
 def discover_pyprojects(root: Path, skip_dirs=None) -> list[Path]:
@@ -285,17 +300,9 @@ def discover_pyprojects(root: Path, skip_dirs=None) -> list[Path]:
     membership is decided at parse time — a PEP-621-only pyproject becomes
     an honest skip row, mirroring the guard's discovery contract.
     """
-    if not root.is_dir():
-        return []
     if skip_dirs is None:
         skip_dirs = getattr(_load_py_guard(), "SKIP_DIRS", frozenset({".git", "node_modules"}))
-    out = []
-    for p in sorted(root.rglob("pyproject.toml")):
-        rel = p.relative_to(root)
-        if any(part in skip_dirs for part in rel.parts[:-1]):
-            continue
-        out.append(p)
-    return out
+    return _walk_pruned(root, skip_dirs, "pyproject.toml")
 
 
 # --- freshness verdict ----------------------------------------------------

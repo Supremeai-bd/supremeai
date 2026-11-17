@@ -335,7 +335,10 @@ def test_get_available_models_provider_split_and_fallback():
     else:
         expected_provider, expected_model = "openai", settings.model_chat
     assert (expected_provider, expected_model) in coding
-    assert ("groq", "llama-3.3-70b-versatile") in coding
+    # 2026-11-17 (#645 follow-up): llama-3.3-70b-versatile 404s on Groq — the
+    # coding chain must offer the live replacement instead.
+    assert ("groq", "openai/gpt-oss-20b") in coding
+    assert ("groq", "llama-3.3-70b-versatile") not in coding
 
 
 # ── Prompt complexity feature extraction ───────────────────────────────────
@@ -388,7 +391,8 @@ async def test_route_request_empty_models_fallback():
     }
     decision = await router.route_request("anything")
     assert decision.provider == "groq"
-    assert decision.model == "llama-3.3-70b-versatile"
+    # 2026-11-17 (#645 follow-up): the terminal fallback must name a live model.
+    assert decision.model == "openai/gpt-oss-20b"
 
 
 @pytest.mark.asyncio

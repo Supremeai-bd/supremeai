@@ -236,7 +236,9 @@ class MultiModelDistiller:
                 "Content-Type": "application/json",
             }
             payload = {
-                "model": "llama-3.3-70b-versatile",
+                # 2026-11-17 (#645 follow-up): llama-3.3-70b-versatile returns
+                # 404 on Groq's /models — only verified-live ids may be sent.
+                "model": "openai/gpt-oss-20b",
                 "messages": [
                     {
                         "role": "system",

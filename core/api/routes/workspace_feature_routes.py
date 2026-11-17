@@ -23,7 +23,7 @@ from api.routes.reasoning import router as reasoning_router
 from api.routes.scheduled_tasks import router as scheduled_tasks_router
 from api.routes.share import router as share_router
 from api.routes.slash_commands import router as slash_commands_router
-from routes.keys import router as user_keys_router
+from api.routes.keys import router as user_keys_router
 
 if TYPE_CHECKING:
     from fastapi import APIRouter

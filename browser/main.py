@@ -31,7 +31,21 @@ except ImportError:
         duck_engine = None
         ChatRequest = None
 
-# Register optional browser scraper routes if dependencies are available
+# ---------------------------------------------------------------------------
+# Optional scraper routes.
+#
+# 2026-11-17: dependency setup AND route registration used to share one
+# `try/except Exception`. A single bug anywhere in the ~105 lines of route code
+# therefore disabled /scrape, /browse and /recipe and reported it as
+# "dependencies unavailable" at INFO level — the failure was invisible. Setup is
+# now isolated: once the engine is constructed, the routes register
+# unconditionally, so a registration error can never masquerade as a missing
+# optional dependency.
+# ---------------------------------------------------------------------------
+_scraper = None
+_agent = None
+_scraper_unavailable_reason: str | None = None
+
 try:
     try:
         from browser_agent import BrowserAgent, BrowseRequest
@@ -42,6 +56,17 @@ try:
         from services.scraper.security import is_safe_url
         from services.scraper.web_scraper import WebScraper
 
+    _scraper = WebScraper()
+    _agent = BrowserAgent(headless=True)
+except Exception as _scraper_err:  # noqa: BLE001 — optional engine, must not block boot
+    _scraper_unavailable_reason = f"{type(_scraper_err).__name__}: {_scraper_err}"
+    logger.exception(
+        "Scraper engine could not be constructed (%s). /scrape, /browse and /recipe "
+        "will NOT be registered; the service continues in Gemini Cookie Relay mode.",
+        _scraper_unavailable_reason,
+    )
+
+if _scraper is not None and _agent is not None:
     from fastapi import HTTPException, Request
     from pydantic import BaseModel
 
@@ -84,9 +109,6 @@ try:
 
     MAX_CONCURRENCY = int(os.getenv("SCRAPER_MAX_CONCURRENCY", "3"))
     TIMEOUT_SECONDS = int(os.getenv("SCRAPER_TIMEOUT_SECONDS", "45"))
-
-    _scraper = WebScraper()
-    _agent = BrowserAgent(headless=True)
 
     class ScrapeRequest(BaseModel):
         url: str
@@ -135,10 +157,4 @@ try:
         return await _agent.execute_recipe(steps=request.steps, initial_url=request.initial_url)
 
     logger.info("Scraper browser routes registered successfully")
-
-except Exception as _scraper_err:
-    logger.info(
-        f"Scraper engine dependencies unavailable ({_scraper_err}); "
-        "operating in lightweight Gemini Cookie Relay mode."
-    )
 

@@ -513,7 +513,7 @@ class AdvancedModelRouter:
         # Dynamically inject models from settings while preserving resilient fallbacks
         bengali_models = [settings.model_multilingual]
         for m in [
-            "groq/llama-3.3-70b-versatile",
+            "groq/openai/gpt-oss-20b",
             "gemini/gemini-2.5-flash",
             "openrouter/meta-llama/llama-3.3-70b-instruct",
         ]:
@@ -522,7 +522,7 @@ class AdvancedModelRouter:
 
         coding_models = [
             settings.model_coding,
-            "groq/llama-3.3-70b-versatile",
+            "groq/openai/gpt-oss-20b",
             "openrouter/deepseek/deepseek-coder",
             "deepseek/deepseek-coder",
             settings.model_chat,
@@ -532,7 +532,7 @@ class AdvancedModelRouter:
 
         reasoning_models = [settings.model_reasoning]
         for m in [
-            "groq/deepseek-r1-distill-llama-70b",
+            "groq/openai/gpt-oss-120b",
             "openrouter/meta-llama/llama-3.3-70b-instruct",
             "gemini/gemini-2.5-flash",
         ]:
@@ -541,7 +541,7 @@ class AdvancedModelRouter:
 
         general_models = [settings.model_general, settings.model_chat]
         for m in [
-            "groq/llama-3.3-70b-versatile",
+            "groq/openai/gpt-oss-20b",
             "gemini/gemini-2.5-flash",
         ]:
             if m not in general_models:
@@ -566,7 +566,7 @@ class AdvancedModelRouter:
                     settings.model_general,
                     "gemini/gemini-2.5-flash",
                     "openrouter/openai/gpt-4o",
-                    "groq/llama-3.3-70b-versatile",
+                    "groq/openai/gpt-oss-20b",
                 ],
                 "tier_preference": ModelTier.BALANCED,
             },
@@ -711,7 +711,10 @@ class AdvancedModelRouter:
             if scored_models
             else RouteDecision(
                 provider="groq",
-                model="llama-3.3-70b-versatile",
+                # 2026-11-17 (#645 follow-up): llama-3.3-70b-versatile 404s on
+                # Groq's /models. This is the terminal fallback — it must name a
+                # model that actually exists.
+                model="openai/gpt-oss-20b",
                 priority_score=1.0,
                 expected_cost=0.0001,
                 expected_latency=0.06,
