@@ -390,6 +390,40 @@ def create_app(
             limiter = SlidingWindowLimiter(
                 config.rate_limit_window_s, config.rate_limit_max_requests
             )
+
+    # P0: guest (anonymous) per-IP daily request budget. Caps free-tier abuse so
+    # an unauthenticated caller cannot drain the key pool. Tunable via
+    # SUPREMEAI_GUEST_DAILY_MAX (default 40/day/IP; set 0 to disable).
+    import os as _os_mod
+
+    guest_daily_limiter: Any = None
+    try:
+        guest_daily_max = int(_os_mod.environ.get("SUPREMEAI_GUEST_DAILY_MAX", "40"))
+    except (TypeError, ValueError):
+        guest_daily_max = 40
+    if guest_daily_max > 0:
+        _redis_url = _os_mod.environ.get("REDIS_URL") or _os_mod.environ.get(
+            "SUPREMEAI_REDIS_URL"
+        )
+        if _redis_url:
+            try:
+                from .rate_limit import RedisSlidingWindowLimiter
+
+                guest_daily_limiter = RedisSlidingWindowLimiter(
+                    86400,
+                    guest_daily_max,
+                    redis_url=_redis_url,
+                    prefix="supremeai:guestdaily:",
+                )
+            except Exception:  # noqa: BLE001 - fall back to in-memory limiter
+                from .rate_limit import SlidingWindowLimiter
+
+                guest_daily_limiter = SlidingWindowLimiter(86400, guest_daily_max)
+        else:
+            from .rate_limit import SlidingWindowLimiter
+
+            guest_daily_limiter = SlidingWindowLimiter(86400, guest_daily_max)
+
     if memory_store is None:
         import os as _os
 
@@ -659,6 +693,32 @@ def create_app(
             return err
         if (err := await gate(request, "chat")) is not None:
             return err
+
+        # P0: enforce a per-IP daily budget for anonymous (guest) callers so an
+        # unauthenticated client cannot drain the key pool before signing up.
+        key_record = getattr(request.state, "key_record", None)
+        is_guest = key_record is None or getattr(key_record, "owner", "") == "guest"
+        if is_guest and guest_daily_limiter is not None:
+            guest_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
+                request.client.host if request.client else "anonymous"
+            )
+            guest_decision = await guest_daily_limiter.check(guest_ip)
+            if not guest_decision.allowed:
+                return error_response(
+                    429,
+                    err_type="rate_limit_error",
+                    code="guest_daily_limit",
+                    message=(
+                        "Guest daily free-tier limit reached. Create a free account "
+                        "to keep chatting with a higher daily allowance."
+                    ),
+                    headers={
+                        "Retry-After": str(guest_decision.retry_after_s or 3600),
+                        "X-RateLimit-Limit": str(guest_daily_limiter.max_requests),
+                        "X-RateLimit-Remaining": "0",
+                        "X-RateLimit-Reset": str(guest_decision.reset_epoch),
+                    },
+                )
 
         try:
             body = await request.json()

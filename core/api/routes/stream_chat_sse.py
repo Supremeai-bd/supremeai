@@ -210,31 +210,40 @@ class SafeSSEGenerator:
         # pgvector থেকে recall করে prompt-এর শুরুতে যুক্ত করা হয়।
         # কোনো ব্যর্থতায় মূল প্রম্পট অপরিবর্তিত থাকে (graceful degradation)।
         _enrich_start = time.monotonic()
-        try:
-            enriched = await asyncio.wait_for(
-                auto_rag_injector.enrich_system_prompt(
-                    system_prompt=self.prompt,
-                    user_query=self._original_prompt,
-                    user_id=self.user_id,
-                    tenant_id=self.tenant_id,
-                    session_id=self.session_id,
-                ),
-                timeout=ENRICHMENT_TIMEOUT_S,
-            )
-            if enriched != self.prompt:
-                self.prompt = enriched
-        except asyncio.TimeoutError:
-            logger.info(
-                f"[SSE] Auto-RAG enrichment exceeded {ENRICHMENT_TIMEOUT_S:.1f}s; using raw prompt "
-                f"(user={self.user_id})"
-            )
-        except Exception as rag_exc:  # pragma: no cover - defensive
-            logger.debug(f"[SSE] Auto-RAG injection skipped: {rag_exc}")
-        finally:
-            logger.info(
-                f"[SSE] enrichment_ms={int((time.monotonic() - _enrich_start) * 1000)} "
-                f"user={self.user_id}"
-            )
+        _clean_query = (self._original_prompt or "").strip().lower()
+        _is_trivial = len(_clean_query) < 12 or _clean_query in {
+            "hi", "hello", "hey", "hola", "yo", "হাই", "হ্যালো", "হেই", "কেমন আছো",
+            "সালাম", "salam", "assalamu alaikum", "assalamualaikum", "good morning",
+            "good evening", "good night", "ok", "okay", "bye"
+        }
+        if _is_trivial:
+            logger.info(f"[SSE] Auto-RAG skipped: trivial/greeting query (user={self.user_id})")
+        else:
+            try:
+                enriched = await asyncio.wait_for(
+                    auto_rag_injector.enrich_system_prompt(
+                        system_prompt=self.prompt,
+                        user_query=self._original_prompt,
+                        user_id=self.user_id,
+                        tenant_id=self.tenant_id,
+                        session_id=self.session_id,
+                    ),
+                    timeout=ENRICHMENT_TIMEOUT_S,
+                )
+                if enriched != self.prompt:
+                    self.prompt = enriched
+            except asyncio.TimeoutError:
+                logger.info(
+                    f"[SSE] Auto-RAG enrichment exceeded {ENRICHMENT_TIMEOUT_S:.1f}s; using raw prompt "
+                    f"(user={self.user_id})"
+                )
+            except Exception as rag_exc:  # pragma: no cover - defensive
+                logger.debug(f"[SSE] Auto-RAG injection skipped: {rag_exc}")
+            finally:
+                logger.info(
+                    f"[SSE] enrichment_ms={int((time.monotonic() - _enrich_start) * 1000)} "
+                    f"user={self.user_id}"
+                )
 
         try:
             # Try streaming path first. The streaming path is an async generator,

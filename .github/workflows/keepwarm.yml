@@ -1,0 +1,19 @@
+name: Render Services Keepwarm
+
+on:
+  schedule:
+    # Run every 10 minutes to prevent Render free-tier containers from spinning down
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keepwarm:
+    name: Ping Services
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping SupremeAI API & MCP Tower
+        run: |
+          echo "Pinging SupremeAI Gateway..."
+          curl -sf --max-time 10 https://supremeai-api-ulw0.onrender.com/healthz || echo "Gateway ping returned non-200"
+          echo "Pinging SupremeAI MCP Tower..."
+          curl -sf --max-time 10 https://supremeai-mcp-tower.onrender.com/health || echo "MCP Tower ping returned non-200"

@@ -148,10 +148,10 @@ class CompletionMixin:
 
         prompt_text = normalize_prompt(prompt)
 
-        # বাংলা মন্তব্ব: Semantic cache check — API call আগে cost-zero response
-        if prompt_text and not stream:
+        # বাংলা মন্তব্য: Semantic cache check — API call আগে cost-zero response
+        if prompt_text:
             cached = await self.cache.query_similar(prompt_text, task_type=task_type)
-            if cached:
+            if cached and not stream:
                 # Sprint 3 (learning loop): durable cache-hit observation — evidence
                 # for cache-effectiveness measurement (plan §13.1). Best-effort.
                 try:

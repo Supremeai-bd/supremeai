@@ -100,6 +100,16 @@ class AutoRAGInjector:
         if not user_query or not user_query.strip():
             return system_prompt
 
+        # Latency optimization: skip memory embedding + pgvector search on trivial / greeting queries
+        _clean_query = user_query.strip().lower()
+        if len(_clean_query) < 12 or _clean_query in {
+            "hi", "hello", "hey", "hola", "yo", "হাই", "হ্যালো", "হেই", "কেমন আছো",
+            "সালাম", "salam", "assalamu alaikum", "assalamualaikum", "good morning",
+            "good evening", "good night", "ok", "okay", "bye"
+        }:
+            logger.debug("[AutoRAG] Skipping recall for trivial/greeting query")
+            return system_prompt
+
         # Issue #1689 (CRITICAL): tenant-less recall এখন অসম্ভব —
         # vector_store.similarity_search-এ user_id REQUIRED। user_id ছাড়া
         # ইনজেকশন করলে অন্য ইউজারের প্রাইভেট মেমরি প্রম্পটে ফাঁস হতো।

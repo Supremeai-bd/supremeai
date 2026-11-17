@@ -26,7 +26,9 @@ def _make_vector_store(memories: list[dict] | None = None, fail: bool = False):
 
 @pytest.fixture
 def injector():
-    return AutoRAGInjector(vector_store=None)
+    inj = AutoRAGInjector(vector_store=None)
+    inj._get_query_embedding = AsyncMock(return_value=[0.1] * 384)
+    return inj
 
 
 # ── enrich_system_prompt ─────────────────────────────────────────────────
@@ -68,7 +70,7 @@ async def test_enrich_low_score_filtered_out(injector):
     vs = _make_vector_store([{"id": "1", "content": "noise", "score": 0.10, "metadata": {}}])
     injector._vs = vs
     original = "SYS"
-    out = await injector.enrich_system_prompt(original, "query", "u1", "t1")
+    out = await injector.enrich_system_prompt(original, "search long detailed query", "u1", "t1")
     assert out == original  # MIN_RELEVANCE_SCORE=0.55 এর নিচে — বাদ
 
 
@@ -76,8 +78,18 @@ async def test_enrich_low_score_filtered_out(injector):
 async def test_enrich_graceful_degradation_on_error(injector):
     injector._vs = _make_vector_store(fail=True)
     original = "You are helpful."
-    out = await injector.enrich_system_prompt(original, "query", "u1", "t1")
+    out = await injector.enrich_system_prompt(original, "search long detailed query", "u1", "t1")
     assert out == original  # ব্যর্থ হলেও মূল prompt অক্ষত
+
+
+@pytest.mark.asyncio
+async def test_enrich_trivial_query_skips_rag(injector):
+    vs = _make_vector_store([{"id": "1", "content": "memory", "score": 0.95, "metadata": {}}])
+    injector._vs = vs
+    for trivial in ("hi", "hello", "hey", "সালাম", "salam", "ok", "hey there"):
+        out = await injector.enrich_system_prompt("System instruction", trivial, "u1", "t1")
+        assert out == "System instruction"
+    vs.similarity_search.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -93,7 +105,7 @@ async def test_enrich_empty_query_noop(injector):
 async def test_enrich_truncates_long_memory(injector):
     vs = _make_vector_store([{"id": "1", "content": "x" * 5000, "score": 0.9, "metadata": {}}])
     injector._vs = vs
-    out = await injector.enrich_system_prompt("SYS", "q", "u1", "t1")
+    out = await injector.enrich_system_prompt("SYS", "tell me more details about project architecture", "u1", "t1")
     # MAX_CHARS_PER_MEMORY=400 + হেডার/স্কোর প্রিফিক্স
     assert "x" * 401 not in out.replace("\n", "")[:1000] or len(out) < 1000
 
