@@ -101,6 +101,18 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "base_url": os.getenv("BAI_BASE_URL", "https://api.b.ai/v1"),
         "default_model": os.getenv("BAI_FREE_MODEL", "qwen3.8-flash"),
     },
+    "unorouter": {
+        "base_url": os.getenv("UNOROUTER_BASE_URL", "https://api.unorouter.com/v1"),
+        "default_model": os.getenv("UNOROUTER_FREE_MODEL", "gemini-3.1-flash-lite:free"),
+    },
+    "cohere": {
+        "base_url": os.getenv("COHERE_BASE_URL", "https://api.cohere.ai/compatibility/v1"),
+        "default_model": os.getenv("COHERE_FREE_MODEL", "command-r-08-2024"),
+    },
+    "llm7": {
+        "base_url": os.getenv("LLM7_BASE_URL", "https://api.llm7.io/v1"),
+        "default_model": os.getenv("LLM7_FREE_MODEL", "glm-5.3-flash"),
+    },
     "ghost_gemini": {
         "base_url": os.getenv("GHOST_TOWER_URL", "http://127.0.0.1:8788"),
         "default_model": "gemini-web",
@@ -222,6 +234,24 @@ PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
         "glm-5.3-flash",
         "mimo-v2.6-flash",
         "gpt-5.4-mini",
+    ],
+    # UnoRouter (api.unorouter.com) — free `:free` models. Verified HTTP 200
+    # (2026-11-17); glm/qwen/gpt-oss :free variants return 403 consent_required.
+    "unorouter": [
+        "gemini-3.1-flash-lite:free",
+        "step-5-preview:free",
+        "agnes-2.5-flash:free",
+    ],
+    # Cohere (api.cohere.ai compatibility) — trial keys, verified HTTP 200.
+    "cohere": [
+        "command-r-08-2024",
+        "command-a-03-2025",
+        "command-r7b-12-2024",
+    ],
+    # LLM7.io (api.llm7.io) — verified HTTP 200; gemini/deepseek/mimo need balance (402).
+    "llm7": [
+        "glm-5.3-flash",
+        "gpt-oss:20b",
     ],
 }
 
