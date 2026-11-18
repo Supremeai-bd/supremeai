@@ -12,6 +12,7 @@ import { timingSafeEqual, randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { gzipSync } from "node:zlib";
 import { z } from "zod";
 import { env } from "./lib/env.js";
 import {
@@ -94,17 +95,35 @@ interface CiAttestationEntry {
 const ciAttestationStore = new Map<string, CiAttestationEntry>();
 const MAX_ATTESTATIONS = 1000;
 
+let currentReqAcceptsGzip = false;
+
 function requestPath(req: IncomingMessage): string {
   return new URL(req.url ?? "/", `http://${req.headers.host || "localhost"}`).pathname;
 }
 function writeJson(res: ServerResponse, status: number, payload: unknown, extraHeaders: Record<string, string> = {}): void {
+  const raw = JSON.stringify(payload);
+  const reqAcceptEncoding = (res as { req?: IncomingMessage }).req?.headers?.["accept-encoding"];
+  const acceptsGzip = reqAcceptEncoding !== undefined ? /\bgzip\b/i.test(String(reqAcceptEncoding)) : currentReqAcceptsGzip;
+  if (acceptsGzip && Buffer.byteLength(raw) >= 1024) {
+    const compressed = gzipSync(Buffer.from(raw, "utf-8"));
+    res.writeHead(status, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Encoding": "gzip",
+      "Vary": "Accept-Encoding",
+      ...extraHeaders,
+    });
+    res.end(compressed);
+    return;
+  }
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
     ...extraHeaders,
   });
-  res.end(JSON.stringify(payload));
+  res.end(raw);
 }
 
 function safeEqual(left: string, right: string): boolean {
@@ -297,6 +316,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
   }
 
   const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    currentReqAcceptsGzip = /\bgzip\b/i.test(String(req.headers["accept-encoding"] ?? ""));
     const url = req.url ?? "/";
     let pathname = requestPath(req);
     const caller = resolveCaller(req);
@@ -395,6 +415,12 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       return;
     }
 
+
+    if (pathname === "/health/live" || pathname === "/healthz") {
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(req.method === "HEAD" ? undefined : '{"status":"ok","live":true}');
+      return;
+    }
 
     if (url === "/health" || url === "/") {
       // ROOT-CAUSE FIX (#2724): /health was hardcoded `status: "ok"` regardless

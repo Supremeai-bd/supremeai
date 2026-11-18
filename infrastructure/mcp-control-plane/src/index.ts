@@ -503,10 +503,11 @@ async function main(): Promise<void> {
       .then(({ globalHealthEngine }) => {
         globalHealthEngine.runFullSweep().catch((err) => console.error("[HealthEngine] Initial boot sweep error:", err));
 
-        // Recurring 5-minute health sweep to prevent stale health data and watchdog alarms
+        // Recurring 8-minute health sweep (configurable via HEALTH_SWEEP_INTERVAL_MS, bounded [5m..9m] to stay inside 10m watchdog)
+        const sweepIntervalMs = Math.max(300_000, Math.min(540_000, Number(process.env.HEALTH_SWEEP_INTERVAL_MS) || 8 * 60 * 1000));
         const recurringSweepTimer = setInterval(() => {
           globalHealthEngine.runFullSweep().catch((err) => console.error("[HealthEngine] Periodic sweep error:", err));
-        }, 5 * 60 * 1000);
+        }, sweepIntervalMs);
         if (typeof recurringSweepTimer.unref === "function") {
           recurringSweepTimer.unref();
         }

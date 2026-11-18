@@ -43,9 +43,15 @@ async function getAccessToken(): Promise<string> {
   throw new Error("Failed to get Infisical access token");
 }
 
+const workspaceIdCache = new Map<string, string>();
+
 async function resolveWorkspaceId(projectOrSlug: string, token: string): Promise<string> {
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectOrSlug)) {
     return projectOrSlug;
+  }
+  const cached = workspaceIdCache.get(projectOrSlug);
+  if (cached) {
+    return cached;
   }
   try {
     const res = await httpRequest(`${INFISICAL_URL}/api/v1/workspace`, {
@@ -56,7 +62,9 @@ async function resolveWorkspaceId(projectOrSlug: string, token: string): Promise
     const workspaces = Array.isArray((res.data as any)?.workspaces) ? (res.data as any).workspaces : [];
     for (const ws of workspaces) {
       if (ws.id === projectOrSlug || ws.slug === projectOrSlug) {
-        return String(ws.id);
+        const resolved = String(ws.id);
+        workspaceIdCache.set(projectOrSlug, resolved);
+        return resolved;
       }
     }
   } catch {
@@ -105,7 +113,7 @@ function standardPathResult(settled: PromiseSettledResult<any>): Record<string, 
   };
 }
 
-export async function auditSecrets(): Promise<unknown> {
+export async function auditSecrets({ includeSecretList = false }: { includeSecretList?: boolean } = {}): Promise<unknown> {
   const { projectId, environment } = env.infisical;
   if (!projectId) {
     throw new Error("Missing INFISICAL_PROJECT_ID");
@@ -165,7 +173,7 @@ export async function auditSecrets(): Promise<unknown> {
     path: "raw",
     rawCount: rawList.length,
     // Metadata only — secret values are never surfaced through health/tools.
-    secrets: rawList,
+    ...(includeSecretList ? { secrets: rawList } : {}),
     standardPath: standardPathResult(standardSettled),
   };
 }

@@ -71,11 +71,17 @@ export async function checkFirecrawl(): Promise<unknown> {
   const start = Date.now();
   await pool.execute(
     async (key: string) => {
-      const res = await httpRequest("https://api.firecrawl.dev/v1/scrape", {
-        method: "POST",
-        headers: bearerAuth(key),
-        body: { url: "https://example.com" }
+      let res = await httpRequest("https://api.firecrawl.dev/v1/team/credit-usage", {
+        method: "GET",
+        headers: bearerAuth(key)
       });
+      if (res.status === 404) {
+        res = await httpRequest("https://api.firecrawl.dev/v1/scrape", {
+          method: "POST",
+          headers: bearerAuth(key),
+          body: { url: "https://example.com" }
+        });
+      }
 
       if (!res.ok) {
         if (res.status === 401) {
@@ -117,7 +123,7 @@ export async function checkKaggle(): Promise<unknown> {
     async (token) => {
       const isBearer = token.startsWith("KGAT_");
       const authHeader = isBearer ? `Bearer ${token}` : `Basic ${Buffer.from(token).toString('base64')}`;
-      const res = await httpRequest("https://www.kaggle.com/api/v1/competitions/list", {
+      const res = await httpRequest("https://www.kaggle.com/api/v1/competitions/list?page=1&search=titanic", {
         headers: { Authorization: authHeader }
       });
       if (!res.ok) {
