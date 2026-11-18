@@ -199,7 +199,7 @@ async def export_and_sync():
     print("   [SUCCESS]: AI Fleet Cookies Synced to Infisical Cloud Vault!")
     print(f"   - Total AI Cookies: {len(ai_cookies)}")
     print(f"   - Target Vault: Infisical Production ({WORKSPACE_ID})")
-    print("   - Keys Synced: AI_FLEET_COOKIES_GZIP_B64, AI_FLEET_COOKIES_ENC, SUPREMEAI_GEMINI_COOKIES")
+    print(f"   - Keys Synced: AI_FLEET_COOKIES_GZIP_B64, AI_FLEET_COOKIES_ENC, SUPREMEAI_GEMINI_COOKIES")
     print("   All cloud microservices can now use these sessions 24/7!")
     print("=================================================================")
 

@@ -18,8 +18,9 @@ preserved verbatim.
 
 from datetime import datetime
 
-from core.logging_config import logger
 from fastapi import APIRouter
+
+from core.logging_config import logger
 
 # Dependency-free by design (see module docstring): NO router-level auth
 # dependency here, unlike the package's main ``router``.
@@ -47,9 +48,7 @@ async def check_security_modules() -> bool:
         # FIX (import + api-drift): 'OriginValidator' never existed — the real
         # validator is TrustedOriginMiddleware in core.security.origin_validator.
         from core.security.origin_validator import TrustedOriginMiddleware  # noqa: F401
-        from core.security.protection.ssrf_protection import (
-            SSRFProtection,  # noqa: F401
-        )
+        from core.security.protection.ssrf_protection import SSRFProtection  # noqa: F401
 
         return True
     except ImportError:

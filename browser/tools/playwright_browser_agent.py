@@ -30,7 +30,6 @@ from core.security.secure_credential_store import (
 )
 from database.supabase_client import db
 from memory.long_term_memory import MemoryManager
-
 from tools.browser.browser_stealth import BrowserStealth
 
 TRUST_SCORE_THRESHOLD = 0.95

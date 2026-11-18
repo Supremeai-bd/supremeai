@@ -8,9 +8,10 @@ exactly as before.
 
 import asyncio
 
+from pydantic import BaseModel
+
 from api.routes.browser import router
 from api.routes.browser._tasks import GoalRequest
-from pydantic import BaseModel
 
 
 class SemanticClickRequest(BaseModel):
@@ -37,8 +38,8 @@ async def semantic_click(req: SemanticClickRequest):
 @router.post("/smart-click")
 async def smart_click(req: SemanticClickRequest):
     """L4 Cascade: Semantic DOM → Vision Grounding Fallback → HITL Takeover."""
-    from browser.semantic_dom import SemanticDOM
-    from browser.vision_grounding import VisionGrounding
+    from browser.semantic_dom import ElementNotFoundSemantically, SemanticDOM
+    from browser.vision_grounding import LowConfidenceGrounding, VisionGrounding
 
     # 1. Semantic DOM
     try:

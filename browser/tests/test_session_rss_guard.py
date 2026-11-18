@@ -45,6 +45,7 @@ class TestBrowserShutdownMemoryGuard:
               (খ) প্রধান প্রসেসের RSS বেসলাইন+slack-এর মধ্যে ফেরে।
         """
         import psutil
+
         from core.playwright_manager import (
             get_global_browser,
             shutdown_global_browser,

@@ -11,14 +11,15 @@ import hashlib
 import json
 
 import httpx
+from fastapi import Depends, HTTPException
+from pydantic import BaseModel
+
 from api.routes.admin_dashboard import require_admin_token
 from api.routes.browser import router
 from core.cache.redis_manager import MultiLevelCache
 from core.config import settings
 from core.http_client import get_shared_async_client
 from core.logging_config import logger
-from fastapi import Depends, HTTPException
-from pydantic import BaseModel
 from tools.ai_agents.browser_agent import BrowseRequest
 
 
