@@ -35,6 +35,10 @@ _MEM_FALLBACK: Dict[str, Any] = {
     "trusted_browsers": {},
     "users": {},
     "guest_tokens": {},
+    "user_knowledge": {},
+    "user_webhooks": {},
+    "user_api_keys": {},
+    "user_projects": {},
 }
 _USE_MEM_FALLBACK = False
 
@@ -164,6 +168,50 @@ def init_db() -> None:
             );
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_guest_tokens_expires ON guest_tokens(expires_at);")
+
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_knowledge (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                data_json TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL
+            );
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_uk_user ON user_knowledge(user_id);")
+
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_webhooks (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                data_json TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL
+            );
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_uw_user ON user_webhooks(user_id);")
+
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_api_keys (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                data_json TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL
+            );
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_uak_user ON user_api_keys(user_id);")
+
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_projects (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                data_json TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL
+            );
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_up_user ON user_projects(user_id);")
         logger.info(f"Gateway SQLite storage initialized at {_DB_PATH}")
     except Exception as exc:
         logger.warning(f"Failed to initialize SQLite storage: {exc}. Using memory fallback.")
@@ -986,6 +1034,134 @@ def verify_guest_token(token: str) -> Optional[str]:
     if float(row.get("expires_at", 0)) < now:
         return None
     return row.get("user_id")
+
+
+# ── User Stores (Knowledge, Webhooks, API Keys, Projects) ─────────────────
+
+ALLOWED_USER_STORES = frozenset({
+    "user_knowledge",
+    "user_webhooks",
+    "user_api_keys",
+    "user_projects",
+})
+
+
+def list_user_store(table_name: str, user_id: str) -> List[Dict[str, Any]]:
+    if table_name not in ALLOWED_USER_STORES:
+        raise ValueError(f"Invalid store table: {table_name}")
+    if _USE_MEM_FALLBACK:
+        user_bucket = _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})
+        return list(user_bucket.values())
+    try:
+        with get_db() as conn:
+            if conn is None:
+                user_bucket = _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})
+                return list(user_bucket.values())
+            cursor = conn.execute(
+                f"SELECT data_json FROM {table_name} WHERE user_id = ? ORDER BY created_at DESC",
+                (user_id,),
+            )
+            records = []
+            for row in cursor.fetchall():
+                try:
+                    records.append(json.loads(row["data_json"]))
+                except Exception:
+                    pass
+            return records
+    except Exception as exc:
+        logger.warning(f"Error listing {table_name} for {user_id}: {exc}")
+        user_bucket = _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})
+        return list(user_bucket.values())
+
+
+def get_user_store_record(table_name: str, user_id: str, record_id: str) -> Optional[Dict[str, Any]]:
+    if table_name not in ALLOWED_USER_STORES:
+        raise ValueError(f"Invalid store table: {table_name}")
+    if _USE_MEM_FALLBACK:
+        return _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {}).get(record_id)
+    try:
+        with get_db() as conn:
+            if conn is None:
+                return _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {}).get(record_id)
+            cursor = conn.execute(
+                f"SELECT data_json FROM {table_name} WHERE user_id = ? AND id = ?",
+                (user_id, record_id),
+            )
+            row = cursor.fetchone()
+            if row:
+                try:
+                    return json.loads(row["data_json"])
+                except Exception:
+                    return None
+            return None
+    except Exception as exc:
+        logger.warning(f"Error fetching {table_name} record {record_id} for {user_id}: {exc}")
+        return _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {}).get(record_id)
+
+
+def save_user_store_record(
+    table_name: str,
+    user_id: str,
+    record_id: str,
+    data: Dict[str, Any],
+) -> Dict[str, Any]:
+    if table_name not in ALLOWED_USER_STORES:
+        raise ValueError(f"Invalid store table: {table_name}")
+    now = time.time()
+    payload = dict(data)
+    payload["id"] = record_id
+    payload.setdefault("created_at", now)
+    payload["updated_at"] = now
+    data_json = json.dumps(payload)
+
+    if _USE_MEM_FALLBACK:
+        _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})[record_id] = payload
+        return payload
+
+    try:
+        with get_db() as conn:
+            if conn is None:
+                _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})[record_id] = payload
+                return payload
+            conn.execute(
+                f"""
+                INSERT INTO {table_name} (id, user_id, data_json, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    data_json = excluded.data_json,
+                    updated_at = excluded.updated_at
+                WHERE user_id = excluded.user_id
+                """,
+                (record_id, user_id, data_json, now, now),
+            )
+            return payload
+    except Exception as exc:
+        logger.warning(f"Error saving {table_name} record {record_id} for {user_id}: {exc}")
+        _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})[record_id] = payload
+        return payload
+
+
+def delete_user_store_record(table_name: str, user_id: str, record_id: str) -> bool:
+    if table_name not in ALLOWED_USER_STORES:
+        raise ValueError(f"Invalid store table: {table_name}")
+    if _USE_MEM_FALLBACK:
+        bucket = _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})
+        return bucket.pop(record_id, None) is not None
+
+    try:
+        with get_db() as conn:
+            if conn is None:
+                bucket = _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})
+                return bucket.pop(record_id, None) is not None
+            cursor = conn.execute(
+                f"DELETE FROM {table_name} WHERE user_id = ? AND id = ?",
+                (user_id, record_id),
+            )
+            return cursor.rowcount > 0
+    except Exception as exc:
+        logger.warning(f"Error deleting {table_name} record {record_id} for {user_id}: {exc}")
+        bucket = _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})
+        return bucket.pop(record_id, None) is not None
 
 
 # Auto-run initialization on module load
