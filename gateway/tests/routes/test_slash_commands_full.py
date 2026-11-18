@@ -13,14 +13,17 @@ downstream-failure branches) plus dispatch/401/unknown-command paths.
 
 from __future__ import annotations
 
+import base64
+import json
 from typing import Any
 
-import api.routes.slash_commands as sc
 import pytest
 import pytest_asyncio
-from api.deps import get_current_user_token
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+
+import api.routes.slash_commands as sc
+from api.deps import get_current_user_token
 
 SUB = "user-1"
 
@@ -190,7 +193,7 @@ class TestDispatch:
     async def test_invalid_token_401(self, commands_env):
         http, *_ = commands_env
         app = http._transport.app
-        app.dependency_overrides[get_current_user_token] = dict
+        app.dependency_overrides[get_current_user_token] = lambda: {}
         try:
             resp = await http.post("/api/commands/execute", json={"command": "/help"})
         finally:

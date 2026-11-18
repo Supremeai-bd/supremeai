@@ -39,7 +39,7 @@ import ipaddress  # noqa: F401  (module-attr parity with pre-split module)
 import json  # noqa: F401  (module-attr parity with pre-split module)
 import os  # noqa: F401  (module-attr parity with pre-split module)
 import socket  # noqa: F401  (module-attr parity with pre-split module)
-import urllib.error
+import urllib.error  # noqa: F401  (module-attr parity with pre-split module)
 import urllib.request  # noqa: F401  (module-attr parity with pre-split module)
 import uuid  # noqa: F401  (module-attr parity with pre-split module)
 from datetime import UTC, datetime  # noqa: F401  (module-attr parity)
@@ -47,42 +47,20 @@ from typing import Any, Literal  # noqa: F401  (module-attr parity)
 from urllib.parse import urlparse  # noqa: F401  (module-attr parity)
 
 import httpx  # noqa: F401  (module-attr parity with pre-split module)
-from api.deps import (  # noqa: F401  (module-attr parity)
-    get_current_tenant,
-    get_current_user_token,
-)
-from api.routes.admin_dashboard import (
-    require_admin_token,  # noqa: F401  (module-attr parity)
-)
-from fastapi import (  # noqa: F401  (module-attr parity)
-    APIRouter,
-    Depends,
-    HTTPException,
-    Response,
-)
+from fastapi import APIRouter, Depends, HTTPException, Response  # noqa: F401  (module-attr parity)
 from pydantic import BaseModel, Field  # noqa: F401  (module-attr parity)
-from tools.ai_agents.browser_agent import (
-    BrowseRequest,  # noqa: F401  (module-attr parity)
-)
 
-from core.browser_compat_store import (
-    browser_compat_store,  # noqa: F401  (module-attr parity)
-)
+from api.deps import get_current_tenant, get_current_user_token  # noqa: F401  (module-attr parity)
+from api.routes.admin_dashboard import require_admin_token  # noqa: F401  (module-attr parity)
+from core.browser_compat_store import browser_compat_store  # noqa: F401  (module-attr parity)
 from core.browser_session_catalog import (  # noqa: F401  (module-attr parity)
     SavedBrowserSession,
     browser_session_catalog,
 )
-from core.browser_session_manager import (
-    session_manager,  # noqa: F401  (module-attr parity)
-)
+from core.browser_session_manager import session_manager  # noqa: F401  (module-attr parity)
 from core.cache.redis_manager import MultiLevelCache  # noqa: F401  (module-attr parity)
-from core.config import (
-    settings,  # noqa: F401  (module-attr parity with pre-split module)
-)
-from core.effective_policy import (  # noqa: F401  (parity)
-    get_effective_policy,
-    policy_store,
-)
+from core.config import settings  # noqa: F401  (module-attr parity with pre-split module)
+from core.effective_policy import get_effective_policy, policy_store  # noqa: F401  (parity)
 from core.errors.error_bus import with_error_bus  # noqa: F401  (module-attr parity)
 from core.kernel.audit_logger import AuditLogger  # noqa: F401  (module-attr parity)
 from core.monitoring.logging_config import logger  # noqa: F401  (module-attr parity)
@@ -108,6 +86,7 @@ from core.security.secure_credential_store import (  # noqa: F401  (module-attr 
     SecureCredentialStore,
 )
 from core.task_policy import evaluate_goal  # noqa: F401  (module-attr parity)
+from tools.ai_agents.browser_agent import BrowseRequest  # noqa: F401  (module-attr parity)
 
 router = APIRouter(
     prefix="/api/browser", tags=["browser"], dependencies=[Depends(get_current_user_token)]
@@ -117,22 +96,22 @@ router = APIRouter(
 #    original single-file order. Do not reorder. â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 from . import (
-    _automation,  # noqa: F401  (route registration + re-exports)
-    _cognitive,  # noqa: F401  (route registration + re-exports)
-    _crown_jewel,  # noqa: F401  (route registration + re-exports)
-    _learning,  # noqa: F401  (route registration + re-exports)
-    _legacy_status,  # noqa: F401  (route registration + re-exports)
-    _policy,  # noqa: F401  (route registration + re-exports)
-    _render_proxy,  # noqa: F401  (route registration + re-exports)
-    _scraping,  # noqa: F401  (route registration + re-exports)
-    _session_store,  # noqa: F401  (route registration + re-exports)
-    _state,  # noqa: F401  (shared in-place-mutation state)
-    _surf_actions,  # noqa: F401  (route registration + re-exports)
-    _surf_controls,  # noqa: F401  (route registration + re-exports)
-    _tasks,  # noqa: F401  (route registration + re-exports)
-    _url_permissions,  # noqa: F401  (route registration + re-exports)
+    _automation,  # noqa: F401,E402  (route registration + re-exports)
+    _cognitive,  # noqa: F401,E402  (route registration + re-exports)
+    _crown_jewel,  # noqa: F401,E402  (route registration + re-exports)
+    _learning,  # noqa: F401,E402  (route registration + re-exports)
+    _legacy_status,  # noqa: F401,E402  (route registration + re-exports)
+    _policy,  # noqa: F401,E402  (route registration + re-exports)
+    _render_proxy,  # noqa: F401,E402  (route registration + re-exports)
+    _scraping,  # noqa: F401,E402  (route registration + re-exports)
+    _session_store,  # noqa: F401,E402  (route registration + re-exports)
+    _state,  # noqa: F401,E402  (shared in-place-mutation state)
+    _surf_actions,  # noqa: F401,E402  (route registration + re-exports)
+    _surf_controls,  # noqa: F401,E402  (route registration + re-exports)
+    _tasks,  # noqa: F401,E402  (route registration + re-exports)
+    _url_permissions,  # noqa: F401,E402  (route registration + re-exports)
 )
-from ._automation import (  # noqa: F401  (re-exports)
+from ._automation import (  # noqa: F401,E402  (re-exports)
     AutomationSessionRequest,
     BrowserActionRequest,
     BrowserSessionResponse,
@@ -147,7 +126,7 @@ from ._automation import (  # noqa: F401  (re-exports)
     revoke_saved_session,
     save_session,
 )
-from ._cognitive import (  # noqa: F401  (re-exports)
+from ._cognitive import (  # noqa: F401,E402  (re-exports)
     SemanticClickRequest,
     SwarmExploreRequest,
     explore_swarm,
@@ -155,7 +134,7 @@ from ._cognitive import (  # noqa: F401  (re-exports)
     semantic_click,
     smart_click,
 )
-from ._crown_jewel import (  # noqa: F401  (re-exports)
+from ._crown_jewel import (  # noqa: F401,E402  (re-exports)
     AIActionRequest,
     BrowseSessionRequest,
     ScreenshotRequest,
@@ -167,23 +146,23 @@ from ._crown_jewel import (  # noqa: F401  (re-exports)
     save_screenshot_to_gallery,
     security_scan,
 )
-from ._health import (  # noqa: F401  (re-exports)
+from ._health import (  # noqa: F401,E402  (re-exports)
     browser_service_health,
     public_router,  # dependency-free /health probe (#1490 contract, #2258 port)
 )
-from ._learning import (  # noqa: F401  (re-exports)
+from ._learning import (  # noqa: F401,E402  (re-exports)
     SYSTEM_LEARNING,
     ToggleLearningRequest,
     get_system_learning,
     toggle_learning,
 )
-from ._legacy_status import (  # noqa: F401  (re-exports)
+from ._legacy_status import (  # noqa: F401,E402  (re-exports)
     get_recent_activity,
     get_status,
     start_surf,
     stop_surf,
 )
-from ._policy import (  # noqa: F401  (re-exports)
+from ._policy import (  # noqa: F401,E402  (re-exports)
     PolicyUpdateRequest,
     UserPolicyUpdateRequest,
     get_policy,
@@ -191,13 +170,13 @@ from ._policy import (  # noqa: F401  (re-exports)
     update_admin_policy,
     update_user_policy,
 )
-from ._render_proxy import (  # noqa: F401  (re-exports)
+from ._render_proxy import (  # noqa: F401,E402  (re-exports)
     _BLOCKED_NETS,
     _frame_ancestors_sources,
     _host_is_blocked,
     render_proxy,
 )
-from ._scraping import (  # noqa: F401  (re-exports)
+from ._scraping import (  # noqa: F401,E402  (re-exports)
     _SCRAPE_CACHE_TTL,
     _SCRAPER_URL,
     ScrapeRequest,
@@ -209,7 +188,7 @@ from ._scraping import (  # noqa: F401  (re-exports)
     extract,
     scrape,
 )
-from ._session_store import (  # noqa: F401  (re-exports)
+from ._session_store import (  # noqa: F401,E402  (re-exports)
     SESSIONS,
     SessionIn,
     SessionMessageIn,
@@ -219,8 +198,8 @@ from ._session_store import (  # noqa: F401  (re-exports)
     list_sessions,
     update_session,
 )
-from ._state import BROWSER_STATUS, RECENT_ACTIVITIES  # noqa: F401  (re-exports)
-from ._surf_actions import (  # noqa: F401  (re-exports)
+from ._state import BROWSER_STATUS, RECENT_ACTIVITIES  # noqa: F401,E402  (re-exports)
+from ._surf_actions import (  # noqa: F401,E402  (re-exports)
     ClickAtRequest,
     ClickRequest,
     FillRequest,
@@ -236,7 +215,7 @@ from ._surf_actions import (  # noqa: F401  (re-exports)
     simulate_activity,
     type_key,
 )
-from ._surf_controls import (  # noqa: F401  (re-exports)
+from ._surf_controls import (  # noqa: F401,E402  (re-exports)
     PAUSED_STATE,
     SurfControlRequest,
     get_paused_state,
@@ -244,7 +223,7 @@ from ._surf_controls import (  # noqa: F401  (re-exports)
     resume_surf,
     skip_auth,
 )
-from ._tasks import (  # noqa: F401  (re-exports)
+from ._tasks import (  # noqa: F401,E402  (re-exports)
     EXECUTION_CAP_MS,
     FINDINGS,
     GoalRequest,
@@ -259,7 +238,7 @@ from ._tasks import (  # noqa: F401  (re-exports)
     set_task_complete,
     set_task_failed,
 )
-from ._url_permissions import (  # noqa: F401  (re-exports)
+from ._url_permissions import (  # noqa: F401,E402  (re-exports)
     PERMISSION_REQUESTS,
     URL_PERMISSIONS,
     DecisionRequest,
