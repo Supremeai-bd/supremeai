@@ -313,11 +313,12 @@ async def fe_health():
 
 @router.get("/api/platform/config")
 async def fe_platform_config():
-    return {
-        "status": "ok",
-        "version": "v2.4.0-prod",
-        "features": {"chat": True, "voice": True, "admin": True},
-    }
+    try:
+        from . import studio_data
+    except ImportError:
+        from gateway.service import studio_data  # type: ignore[no-redef]
+    config, _, _ = await studio_data.platform_state()
+    return config
 
 
 MCP_TOWER_SERVICES_CATALOG = [
@@ -495,56 +496,71 @@ async def fe_chat_title(request: Request):
 
 
 # ---- customers ----
-@router.get("/api/customers")
+@router.get("/api/customers", dependencies=[Depends(require_github_admin)])
 async def fe_customers_list():
-    return {"customers": list(_customers.values())}
+    try:
+        from . import studio_data
+    except ImportError:
+        from gateway.service import studio_data  # type: ignore[no-redef]
+    return {"customers": await studio_data.customers()}
 
 
-@router.get("/api/customers/{cid}")
+@router.get("/api/customers/{cid}", dependencies=[Depends(require_github_admin)])
 async def fe_customer_get(cid: str):
-    c = _customers.get(cid)
-    if not c:
+    try:
+        from . import studio_data
+    except ImportError:
+        from gateway.service import studio_data  # type: ignore[no-redef]
+    rows = await studio_data.customers(cid)
+    if not rows:
         return JSONResponse(status_code=404, content={"error": "not found"})
-    return {"customer": c}
+    return {"customer": rows[0]}
 
 
-@router.post("/api/customers")
+@router.post("/api/customers", dependencies=[Depends(require_github_admin)])
 async def fe_customer_create(request: Request):
+    try:
+        from . import studio_data
+    except ImportError:
+        from gateway.service import studio_data  # type: ignore[no-redef]
     body = await request.json()
-    cid = f"c_{uuid.uuid4().hex[:8]}"
-    rec = {"id": cid, "joinedDate": _now()[:10], "lastActive": "Just now", **body}
-    _customers[cid] = rec
-    return {"customer": rec}
+    fields = studio_data.CustomerFields.model_validate(body)
+    return {"customer": await studio_data.create_customer(fields)}
 
 
-@router.patch("/api/customers/{cid}")
+@router.patch("/api/customers/{cid}", dependencies=[Depends(require_github_admin)])
 async def fe_customer_update(cid: str, request: Request):
+    try:
+        from . import studio_data
+    except ImportError:
+        from gateway.service import studio_data  # type: ignore[no-redef]
     body = await request.json()
-    if cid not in _customers:
-        _customers[cid] = {"id": cid, "joinedDate": _now()[:10], "lastActive": "Just now"}
-    _customers[cid].update(body)
-    return {"customer": _customers[cid]}
+    return {"customer": await studio_data.update_customer(cid, body)}
 
 
-@router.put("/api/customers/{cid}")
+@router.put("/api/customers/{cid}", dependencies=[Depends(require_github_admin)])
 async def fe_customer_put(cid: str, request: Request):
     return await fe_customer_update(cid, request)
 
 
-@router.delete("/api/customers/{cid}")
+@router.delete("/api/customers/{cid}", dependencies=[Depends(require_github_admin)])
 async def fe_customer_delete(cid: str):
-    _customers.pop(cid, None)
+    try:
+        from . import studio_data
+    except ImportError:
+        from gateway.service import studio_data  # type: ignore[no-redef]
+    await studio_data.delete_customer(cid)
     return {"status": "ok"}
 
 
-@router.post("/api/admin/customers")
+@router.post("/api/admin/customers", dependencies=[Depends(require_github_admin)])
 async def fe_admin_customers_create(request: Request):
     return await fe_customer_create(request)
 
 
-@router.get("/api/admin/customers")
+@router.get("/api/admin/customers", dependencies=[Depends(require_github_admin)])
 async def fe_admin_customers_list():
-    return {"customers": list(_customers.values())}
+    return await fe_customers_list()
 
 
 # ---- knowledge ----
@@ -637,24 +653,47 @@ async def fe_apikey_create(request: Request):
 
 # ---- billing ----
 @router.get("/api/billing/wallet")
-async def fe_billing_wallet():
-    return {"balance": 0, "wallet": {"balance": 0}}
+async def fe_billing_wallet(request: Request):
+    try:
+        from . import studio_data
+    except ImportError:
+        from gateway.service import studio_data  # type: ignore[no-redef]
+    uid = studio_data.account_id(request)
+    return await studio_data.wallet(uid)
 
 
 @router.get("/api/billing/summary")
-async def fe_billing_summary():
-    return {"summary": {}, "status": "ok"}
+async def fe_billing_summary(request: Request):
+    try:
+        from . import studio_data
+    except ImportError:
+        from gateway.service import studio_data  # type: ignore[no-redef]
+    uid = studio_data.account_id(request)
+    w = await studio_data.wallet(uid)
+    return {"wallet": w, "status": "ok"}
 
 
 @router.get("/api/billing/history")
-async def fe_billing_history():
-    return {"history": [], "invoices": []}
+async def fe_billing_history(request: Request):
+    try:
+        from . import studio_data
+    except ImportError:
+        from gateway.service import studio_data  # type: ignore[no-redef]
+    uid = studio_data.account_id(request)
+    return await studio_data.invoices(uid)
 
 
 @router.post("/api/billing/add-funds")
 async def fe_billing_add_funds(request: Request):
-    body = await request.json()
-    return {"success": True, "invoice": {"amount": body.get("amount", 0)}}
+    try:
+        from . import studio_data
+    except ImportError:
+        from gateway.service import studio_data  # type: ignore[no-redef]
+    studio_data.account_id(request)
+    raise HTTPException(
+        status_code=503,
+        detail="Payment checkout is not configured on this gateway.",
+    )
 
 
 # ---- research/share ----
@@ -838,15 +877,25 @@ async def fe_admin_providers_probe_all():
     return {"status": "ok"}
 
 
-@router.get("/api/admin/feature-flags")
+@router.get("/api/admin/feature-flags", dependencies=[Depends(require_github_admin)])
 async def fe_admin_feature_flags():
-    return {"flags": {}}
+    try:
+        from . import studio_data
+    except ImportError:
+        from gateway.service import studio_data  # type: ignore[no-redef]
+    config, _, _ = await studio_data.platform_state()
+    return {"flags": config["featureFlags"]}
 
 
-@router.post("/api/admin/feature-flags")
+@router.post("/api/admin/feature-flags", dependencies=[Depends(require_github_admin)])
 async def fe_admin_feature_flags_set(request: Request):
+    try:
+        from . import studio_data
+    except ImportError:
+        from gateway.service import studio_data  # type: ignore[no-redef]
     body = await request.json()
-    return {"flags": body.get("flags", {})}
+    config = await studio_data.change_platform(flag=body)
+    return {"flags": config["featureFlags"]}
 
 
 @router.get("/api/admin/infisical/vault-keys")
@@ -859,9 +908,14 @@ async def fe_admin_infisical_sync():
     return {"status": "ok"}
 
 
-@router.get("/api/admin/models/policy")
+@router.get("/api/admin/models/policy", dependencies=[Depends(require_github_admin)])
 async def fe_admin_models_policy():
-    return {"policy": {}, "status": "ok"}
+    try:
+        from . import studio_data
+    except ImportError:
+        from gateway.service import studio_data  # type: ignore[no-redef]
+    config, _, _ = await studio_data.platform_state()
+    return {"policy": config["modelPolicies"], "status": "ok"}
 
 
 # ---- admin control-plane (stubs) ----
