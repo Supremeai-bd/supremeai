@@ -203,3 +203,38 @@ class TestFrontendCompatEndpoints:
         # Telegram unconfigured -> 503
         res_tg = client.post("/api/admin/control-plane/telegram-dispatch", json={}, headers=headers)
         assert res_tg.status_code == 503
+
+    def test_safety_mode_persists_and_roundtrips(self, client):
+        admin_key = generate_key("studio-admin")
+        headers = {"Authorization": f"Bearer {admin_key}"}
+        url = "/api/admin/control-plane/safety-mode"
+        valid = ("read-only", "dry-run-hitl", "operator-override")
+
+        # Establish a deterministic baseline regardless of prior state.
+        client.post(url, json={"safetyMode": "dry-run-hitl"}, headers=headers)
+
+        # GET returns a valid posture under both keys for frontend compatibility.
+        body = client.get(url, headers=headers).json()
+        assert body["safetyMode"] == "dry-run-hitl"
+        assert body["mode"] == body["safetyMode"]
+
+        # POST updates the mode and echoes it back.
+        res_post = client.post(url, json={"safetyMode": "read-only", "actor": "admin@test"}, headers=headers)
+        assert res_post.status_code == 200
+        assert res_post.json()["safetyMode"] == "read-only"
+
+        # The new posture is durable across a subsequent read.
+        assert client.get(url, headers=headers).json()["safetyMode"] == "read-only"
+
+        # Overview reflects the same persisted posture (no more hardcoded value).
+        overview = client.get("/api/admin/control-plane/overview", headers=headers)
+        assert overview.status_code == 200
+        assert overview.json()["safetyMode"] == "read-only"
+
+        # Invalid posture is rejected fail-closed (the old "normal" value is gone).
+        res_bad = client.post(url, json={"safetyMode": "normal"}, headers=headers)
+        assert res_bad.status_code == 400
+        assert client.get(url, headers=headers).json()["safetyMode"] in valid
+
+        # Reset to default for test hygiene.
+        client.post(url, json={"safetyMode": "dry-run-hitl"}, headers=headers)

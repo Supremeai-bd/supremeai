@@ -39,6 +39,7 @@ _MEM_FALLBACK: Dict[str, Any] = {
     "user_webhooks": {},
     "user_api_keys": {},
     "user_projects": {},
+    "app_settings": {},
 }
 _USE_MEM_FALLBACK = False
 
@@ -212,6 +213,14 @@ def init_db() -> None:
             );
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_up_user ON user_projects(user_id);")
+
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value_json TEXT NOT NULL,
+                updated_at REAL NOT NULL
+            );
+            """)
         logger.info(f"Gateway SQLite storage initialized at {_DB_PATH}")
     except Exception as exc:
         logger.warning(f"Failed to initialize SQLite storage: {exc}. Using memory fallback.")
@@ -1162,6 +1171,54 @@ def delete_user_store_record(table_name: str, user_id: str, record_id: str) -> b
         logger.warning(f"Error deleting {table_name} record {record_id} for {user_id}: {exc}")
         bucket = _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})
         return bucket.pop(record_id, None) is not None
+
+
+# ── Global App Settings (control-plane key/value) ─────────────────────────
+# Admin control-plane toggles (e.g. safety-mode) are global, not per-user, so
+# they need a durable key/value store rather than a user-scoped table.
+
+def get_setting(key: str, default: Any = None) -> Any:
+    """Return a persisted global setting value, or `default` if absent."""
+    if _USE_MEM_FALLBACK:
+        return _MEM_FALLBACK.setdefault("app_settings", {}).get(key, default)
+    try:
+        with get_db() as conn:
+            if conn is None:
+                return _MEM_FALLBACK.setdefault("app_settings", {}).get(key, default)
+            row = conn.execute(
+                "SELECT value_json FROM app_settings WHERE key = ?;", (key,)
+            ).fetchone()
+            if row:
+                try:
+                    return json.loads(row["value_json"])
+                except Exception:
+                    return default
+            return default
+    except Exception as exc:
+        logger.warning(f"Error fetching setting {key}: {exc}")
+        return _MEM_FALLBACK.setdefault("app_settings", {}).get(key, default)
+
+
+def set_setting(key: str, value: Any) -> None:
+    """Persist a global setting value (JSON-encoded)."""
+    now = time.time()
+    value_json = json.dumps(value)
+    if _USE_MEM_FALLBACK:
+        _MEM_FALLBACK.setdefault("app_settings", {})[key] = value
+        return
+    try:
+        with get_db() as conn:
+            if conn is None:
+                _MEM_FALLBACK.setdefault("app_settings", {})[key] = value
+                return
+            conn.execute(
+                "INSERT INTO app_settings (key, value_json, updated_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at;",
+                (key, value_json, now),
+            )
+    except Exception as exc:
+        logger.warning(f"Error saving setting {key}: {exc}")
+        _MEM_FALLBACK.setdefault("app_settings", {})[key] = value
 
 
 # Auto-run initialization on module load

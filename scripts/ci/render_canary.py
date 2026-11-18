@@ -35,7 +35,7 @@ def parse_canary_targets(raw: str) -> list[dict[str, Any]]:
     targets: list[dict[str, Any]] = []
     for obj_match in re.finditer(r"\{([^{}]+)\}", raw):
         body = obj_match.group(1)
-        item: dict[str, str] = {}
+        item: dict[str, Any] = {}
         for pair in body.split(","):
             if ":" not in pair:
                 continue
@@ -43,7 +43,12 @@ def parse_canary_targets(raw: str) -> list[dict[str, Any]]:
             key = k.strip().strip('"').strip("'")
             val = v.strip().strip('"').strip("'")
             if key:
-                item[key] = val
+                if val.lower() == "false":
+                    item[key] = False
+                elif val.lower() == "true":
+                    item[key] = True
+                else:
+                    item[key] = val
         if "url" in item:
             targets.append(item)
     if targets:
@@ -73,8 +78,12 @@ def main() -> int:
             failed.append(f"{name}: invalid URL")
             continue
         ok = False
+        is_suspended = False
         last_error = "unknown error"
-        is_auxiliary = name in ("ci-runner", "supremeai-ci-runner") or target.get("critical") is False
+        is_auxiliary = (
+            name in ("ci-runner", "supremeai-ci-runner", "mcp-tower", "supremeai-mcp-tower")
+            or target.get("critical") in (False, "false", "False", "0")
+        )
         max_attempts = 5 if is_auxiliary else 4
         for attempt in range(1, max_attempts + 1):
             try:
@@ -86,14 +95,30 @@ def main() -> int:
                 print(f"OK {name}: {url}")
                 ok = True
                 break
+            except urllib.error.HTTPError as exc:
+                body = ""
+                try:
+                    body = exc.read(512).decode("utf-8", errors="replace")
+                except Exception:
+                    pass
+                headers = getattr(exc, "headers", None)
+                routing = headers.get("x-render-routing", "") if headers else ""
+                if routing == "suspend-by-user" or "suspended by its owner" in body.lower():
+                    is_suspended = True
+                    last_error = f"HTTP {exc.code}: Service suspended by owner on Render"
+                    break
+                last_error = str(exc)
+                if attempt < max_attempts:
+                    time.sleep(12)
             except (OSError, urllib.error.URLError, RuntimeError) as exc:
                 last_error = str(exc)
                 if attempt < max_attempts:
                     time.sleep(12)
         if not ok:
             if is_auxiliary:
+                reason = "Service Suspended by Owner" if is_suspended else "Auxiliary/Batch Runner Degraded"
                 print(
-                    f"WARN [Auxiliary/Batch Runner Degraded] {name}: {last_error} (non-blocking for user-facing production traffic)",
+                    f"WARN [{reason}] {name}: {last_error} (non-blocking for user-facing production traffic)",
                     file=sys.stderr,
                 )
             else:

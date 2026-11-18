@@ -964,6 +964,28 @@ _CP_STUBS = [
     "hitl/{id}/resolve", "mcp-call",
 ]
 
+# ---- control-plane safety mode (persisted, frontend-compatible) ----
+# The frontend Control Center only understands these three postures
+# (see src/types/controlCenter.ts). The POST body uses `safetyMode`; the
+# response exposes both `safetyMode` and legacy `mode` for compatibility.
+_SAFETY_MODES = ("read-only", "dry-run-hitl", "operator-override")
+_DEFAULT_SAFETY_MODE = "dry-run-hitl"
+
+
+def _get_safety_mode() -> str:
+    mode = storage.get_setting("control_plane_safety_mode", _DEFAULT_SAFETY_MODE)
+    return mode if mode in _SAFETY_MODES else _DEFAULT_SAFETY_MODE
+
+
+def _set_safety_mode(mode: str) -> str:
+    if mode not in _SAFETY_MODES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid safety mode. Allowed: {', '.join(_SAFETY_MODES)}",
+        )
+    storage.set_setting("control_plane_safety_mode", mode)
+    return mode
+
 
 @router.get("/api/admin/control-plane/overview", dependencies=[Depends(require_github_admin)])
 async def cp_overview():
@@ -972,7 +994,7 @@ async def cp_overview():
     git_sha = os.getenv("RENDER_GIT_COMMIT", "").strip() or os.getenv("GIT_COMMIT", "").strip() or "619bad0"
     return {
         "status": "ok",
-        "safetyMode": "dry-run-hitl",
+        "safetyMode": _get_safety_mode(),
         "mcpEndpoint": "/api/mcp-tower",
         "backendGateway": "/api/v1",
         "pendingHitlCount": pending_count,
@@ -998,12 +1020,24 @@ async def cp_overview():
 
 @router.get("/api/admin/control-plane/safety-mode", dependencies=[Depends(require_github_admin)])
 async def cp_safety_mode():
-    return {"mode": "normal", "status": "ok"}
+    mode = _get_safety_mode()
+    return {"safetyMode": mode, "mode": mode, "status": "ok"}
 
 
 @router.post("/api/admin/control-plane/safety-mode", dependencies=[Depends(require_github_admin)])
 async def cp_safety_mode_set(request: Request):
-    return {"mode": "normal", "status": "ok"}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    requested = body.get("safetyMode") or body.get("mode")
+    if requested not in _SAFETY_MODES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid safety mode. Allowed: {', '.join(_SAFETY_MODES)}",
+        )
+    mode = _set_safety_mode(requested)
+    return {"success": True, "safetyMode": mode, "mode": mode, "status": "ok"}
 
 
 @router.get("/api/admin/control-plane/hitl", dependencies=[Depends(require_github_admin)])
