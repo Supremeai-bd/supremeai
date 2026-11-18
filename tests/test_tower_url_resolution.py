@@ -21,7 +21,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "agents"))
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ops" / "operations"))
 
-import mcp_tower_client  # noqa: E402
+import mcp_tower_client
 
 ORIGIN = "https://supremeai-mcp-tower.onrender.com"
 

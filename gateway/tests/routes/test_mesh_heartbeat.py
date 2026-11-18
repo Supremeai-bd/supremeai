@@ -23,13 +23,12 @@ Coverage:
 
 from __future__ import annotations
 
-import time
 import unittest
 
+from api.routes.mesh import router as mesh_router
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from api.routes.mesh import router as mesh_router
 from core.presence_registry import (
     PresenceRegistry,
     get_presence_registry,
@@ -124,7 +123,7 @@ class TestMeshHeartbeatEndpoint(unittest.TestCase):
         # (আসল production code-এ এটা time পার হওয়ার সাথে সাথে ঘটবে)
         record = self.registry._nodes["pc-stale"]
         stale_epoch = record.last_seen_epoch - 700  # 11 মিনিট আগে
-        from datetime import UTC, datetime, timedelta
+        from datetime import UTC, datetime
 
         stale_iso = datetime.fromtimestamp(stale_epoch, tz=UTC).isoformat()
         self.registry._nodes["pc-stale"] = record.model_copy(

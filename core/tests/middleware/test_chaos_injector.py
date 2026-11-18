@@ -18,14 +18,13 @@ from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
-from starlette.responses import JSONResponse, Response
-
 from core.middleware.chaos_injector import (
     _DEFAULT_DELAY_THRESHOLD,
     _DEFAULT_DROP_THRESHOLD,
     _DEFAULT_RATE_LIMIT_THRESHOLD,
     ChaosInjectorMiddleware,
 )
+from starlette.responses import JSONResponse, Response
 
 pytestmark = pytest.mark.important
 

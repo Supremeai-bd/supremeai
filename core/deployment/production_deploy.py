@@ -42,7 +42,7 @@ except ImportError:
 
     requests.exceptions = type("exceptions", (), {"RequestException": Exception})
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 try:
     import yaml  # type: ignore

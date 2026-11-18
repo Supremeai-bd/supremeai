@@ -6,6 +6,7 @@ import uuid
 from decimal import Decimal
 
 import httpx
+
 try:
     import stripe
 except ImportError:

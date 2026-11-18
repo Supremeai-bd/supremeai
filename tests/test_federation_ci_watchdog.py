@@ -339,6 +339,7 @@ class TestLaneClassification(unittest.TestCase):
 
     def test_pr_lane_failure_handled_inplace(self):
         from unittest.mock import patch
+
         import scripts.ci.federation_ci_watchdog as wd
 
         with patch("scripts.ci.federation_ci_watchdog.label_pr_lane_failure", return_value=True) as mock_label:

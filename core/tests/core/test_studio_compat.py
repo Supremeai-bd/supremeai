@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 core_path = str(Path(__file__).resolve().parents[2])
@@ -113,7 +114,7 @@ def test_studio_signout_with_invalid_token_is_tolerated(client: TestClient):
 def test_auths_index_has_no_mock_operator_fallback():
     auths_file = os.path.join("studio", "src", "lib", "apis", "auths", "index.ts")
     assert os.path.exists(auths_file)
-    with open(auths_file, "r", encoding="utf-8") as f:
+    with open(auths_file, encoding="utf-8") as f:
         content = f.read()
 
     assert "supremeai-session-token" not in content, "Privileged mock token must not exist in auths/index.ts"

@@ -9,7 +9,6 @@ Tests:
 """
 
 import pytest
-
 from core.integration_layer import SupremeAIIntegrator, get_integrator
 
 

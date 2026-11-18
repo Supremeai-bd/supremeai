@@ -164,6 +164,7 @@ def test_load_ledger_round_trip(tmp_path):
 
 def test_load_ledger_rejects_bad_schema(tmp_path):
     import json
+
     import pytest
     p = tmp_path / "ledger.json"
     p.write_text(json.dumps({"schema": "nope/9", "entries": {}}), encoding="utf-8")

@@ -6,7 +6,7 @@ from __future__ import annotations
 import traceback
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 
 class CausalDebugger:

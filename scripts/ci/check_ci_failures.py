@@ -16,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import pipeline_failure_register as pfr  # noqa: E402
+import pipeline_failure_register as pfr
 
 
 def main() -> int:

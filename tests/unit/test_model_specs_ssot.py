@@ -1,10 +1,9 @@
 # tests/unit/test_model_specs_ssot.py
 # বাংলা মন্তব্য: Issue #133-এর জন্য ModelSpec SSOT ভেরিফিকেশন টেস্ট
 
-import pytest
 from core.llm.model_specs import (
-    MODEL_SPECS_CATALOG,
     FREE_TIER_MODELS_SET,
+    MODEL_SPECS_CATALOG,
     get_model_spec,
     is_model_retired,
 )

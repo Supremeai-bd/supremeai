@@ -13,11 +13,10 @@ import re
 import sys
 import time
 
+from core.config import settings
+from core.monitoring.logging_config import logger
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-
-from core.config import settings
-from core.logging_config import logger
 
 # Configure logging
 

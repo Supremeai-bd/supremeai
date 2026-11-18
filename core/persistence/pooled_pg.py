@@ -50,7 +50,7 @@ try:
 except ImportError:
     psycopg2 = None
 from core.config import settings
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.secret_utils import unwrap_secret
 
 # Deliberately small: these 4 subsystems are secondary telemetry/state, not

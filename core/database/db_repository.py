@@ -4,7 +4,7 @@ import re
 from typing import Any
 from unittest.mock import MagicMock, Mock
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 _VALID_TABLE_PATTERN = re.compile(r"^[A-Za-z0-9_]+$")
 

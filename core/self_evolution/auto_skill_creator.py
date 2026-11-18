@@ -232,9 +232,8 @@ class AutoSkillCreator:
 
         start_time = time.time()
 
-        from skills.schema import UniversalSkillSchema
-
         from core.llm.llm_gateway import llm_gateway
+        from skills.schema import UniversalSkillSchema
 
         logger.info(
             f"🧠 Self-Evolution Triggered: Designing skill '{skill_name}' for demand: '{user_demand}'"

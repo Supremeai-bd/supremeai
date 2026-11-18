@@ -21,9 +21,9 @@ import json
 import types as _stdlib_types
 
 import pytest
+from core.memory.mcp_server import KnowledgeGraph, _check_policy, _dispatch, build_server
 
 import memory.mcp_server as mcp_server
-from core.memory.mcp_server import KnowledgeGraph, _check_policy, _dispatch, build_server
 
 pytestmark = pytest.mark.memory
 

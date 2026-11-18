@@ -63,7 +63,7 @@ def _request(
     except urllib.error.HTTPError as e:
         status = e.code
         body = e.read().decode("utf-8", errors="replace")
-    except Exception as e:  # noqa: BLE001 - network errors must not abort the matrix
+    except Exception as e:
         return -1, {"error": str(e)}
     payload: dict = {}
     try:

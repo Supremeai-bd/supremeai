@@ -27,7 +27,7 @@ class SkillRegistry:
         # Serverless (Cloud Run/Vercel) পরিবেশে এটা কাজ করবে না — ফলে DB-ই মাস্টার
         if os.path.exists(self.registry_path):
             try:
-                with open(self.registry_path, "r", encoding="utf-8") as f:
+                with open(self.registry_path, encoding="utf-8") as f:
                     return json.load(f)
             except Exception as exc:
                 logger.warning(

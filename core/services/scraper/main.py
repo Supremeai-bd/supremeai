@@ -16,8 +16,9 @@ import os
 
 try:
     from browser_agent import BrowserAgent, BrowseRequest
-    from security import is_safe_url
     from web_scraper import WebScraper
+
+    from security import is_safe_url
 except ImportError:
     from services.scraper.browser_agent import BrowserAgent, BrowseRequest
     from services.scraper.security import is_safe_url

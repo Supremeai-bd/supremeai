@@ -8,13 +8,9 @@ Ensures:
 
 from __future__ import annotations
 
-import pathlib
 from scripts.ops.migrate_docs_to_archive import (
     is_must_keep,
-    collect_archivable_files,
     migrate,
-    MUST_KEEP_FILES,
-    ARCHIVE_REPO,
 )
 
 

@@ -20,6 +20,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
+from gateway.circuit_breaker import CircuitBreaker
 from gateway.config import (
     ALLOWED_PROVIDERS,
     CONFIG_SCHEMA_VERSION,
@@ -28,7 +29,6 @@ from gateway.config import (
     GatewayConfig,
     parse_routing_policy,
 )
-from gateway.circuit_breaker import CircuitBreaker
 from gateway.memory import QdrantMemoryStore
 from gateway.provider_chain import (
     AttemptResult,
@@ -319,6 +319,7 @@ class TestProviderChain(unittest.TestCase):
     def test_fe_verify_2fa_totp_rejection_and_acceptance(self):
         import os
         from unittest.mock import AsyncMock, patch
+
         from gateway.service.admin_auth import generate_totp_secret
         from gateway.service.frontend_compat import fe_verify_2fa
 

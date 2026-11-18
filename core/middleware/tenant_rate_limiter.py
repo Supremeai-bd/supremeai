@@ -11,10 +11,9 @@ aggregate-safe নয়, লাউড লগ) | "closed" (429 — কঠোর 
 নীতি-প্যাটার্ন: V5.1 is_token_revoked env-aware fail-policy।
 """
 
-from fastapi import HTTPException, Request
-
 from core.config import settings
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
+from fastapi import HTTPException, Request
 
 # M13 P-C: Redis-বিভ্রাটে fallback ব্যবহারের জন্য বাউন্ডেড ইন-মেমরি limiter
 # (InMemoryFallbackLimiter-প্যাটার্ন পুনঃব্যবহার) — "fallback" মোডে কেবল।

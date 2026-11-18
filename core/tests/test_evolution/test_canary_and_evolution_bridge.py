@@ -149,10 +149,10 @@ def test_canary_header_overrides():
 
 @pytest.mark.asyncio
 async def test_canary_route_endpoint():
+    from core.api.routes.evolution import router as evolution_router
     from fastapi import FastAPI
     from httpx import ASGITransport, AsyncClient
 
-    from core.api.routes.evolution import router as evolution_router
     from evolution.canary_manager import get_canary_controller
     from evolution.change_proposal import ChangeType, get_change_manager
 

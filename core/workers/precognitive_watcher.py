@@ -13,9 +13,8 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
+from core.monitoring.logging_config import logger
 from pydantic import BaseModel, Field
-
-from core.logging_config import logger
 
 
 class SentinelAlert(BaseModel):

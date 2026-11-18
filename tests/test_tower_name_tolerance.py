@@ -18,7 +18,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "scripts" / "ci"))
 
-from tower_name_tolerance import (  # noqa: E402
+from tower_name_tolerance import (
     call_across_names,
     envelope_says_tool_not_found,
     epoch_spellings,

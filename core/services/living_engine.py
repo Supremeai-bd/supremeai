@@ -22,7 +22,6 @@ from core.advanced_reasoning import AdvancedReasoningEngine, ReasoningChain
 from core.engine.self_reflection import SelfReflectionLoop
 from core.evolution_module import EvolutionModule, EvolutionResult
 from core.monitoring.logging_config import logger
-
 from evolution.auto_evolution_controller import AutoEvolutionController
 from learning.pattern_recognizer import PatternMatch, PatternRecognizer
 from services.dynamic_planner import DynamicPlanningEngine, TaskDAG, TaskNode

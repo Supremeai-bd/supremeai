@@ -1,10 +1,10 @@
 import pytest
 
-from brain.expert_router import ExpertType, SupremeMoERouter
-
 # Phase-2.1 (#2249): get_llm_gateway used to be re-exported through the retired
 # services/llm/llm_router shim — import it from the canonical gateway package.
 from core.llm.llm_gateway import get_llm_gateway
+
+from brain.expert_router import ExpertType, SupremeMoERouter
 
 
 def test_moe_prompt_classification():

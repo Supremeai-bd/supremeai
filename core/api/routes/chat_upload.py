@@ -4,12 +4,12 @@ import os
 import uuid
 from datetime import UTC, datetime
 
-from core.monitoring.logging_config import logger
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from api.deps import get_current_user_token
+from core.monitoring.logging_config import logger
 from database.supabase_client import get_db
 
 router = APIRouter(

@@ -10,8 +10,6 @@ import argparse
 import json
 import os
 import subprocess
-import sys
-from pathlib import Path
 
 REPO = os.environ.get("GITHUB_REPOSITORY") or "Supremeai-bd/supremeai"
 
@@ -20,7 +18,7 @@ def _gh(args: list[str]) -> tuple[int, str]:
     try:
         res = subprocess.run(["gh"] + args, capture_output=True, text=True, timeout=60)
         return res.returncode, (res.stdout or "") + (res.stderr or "")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return 1, str(exc)
 
 

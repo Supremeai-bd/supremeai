@@ -2,6 +2,7 @@
 """Comprehensive 21-State Transition Contract & Negative Security Governance Test."""
 
 from core.security.governance_policy import get_governance_policy
+
 from evolution.artifact_integrity import ArtifactIntegrityGate, canonical_artifact_hash
 from evolution.benchmark_runner import BenchmarkRunner
 from evolution.canary_manager import CanaryRolloutController

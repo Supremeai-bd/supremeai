@@ -37,8 +37,10 @@ import os
 import time
 from typing import Any
 
+from ..config import (
+    utc_ts,  # canonical int-epoch clock — keep decisions shape-identical (P3)
+)
 from ..rate_limit import RateDecision, SlidingWindowLimiter
-from ..config import utc_ts  # canonical int-epoch clock — keep decisions shape-identical (P3)
 
 try:  # optional dep — gateway/requirements.txt intentionally stays redis-free
     from redis import asyncio as aioredis  # type: ignore[import-not-found]

@@ -313,7 +313,7 @@ def probe_render(kv: dict) -> list[dict]:
         # বাংলা মন্তব্য: সেটিংস-ঝুঁকি যাচাই (#2454 শিক্ষা) — free plan + health-path অনুপস্থিত
         if plan == "free":
             out.append(mk("render", f"settings[{name}].plan", None,
-                          f"plan=free — ১৫m idle spin-down + 512MB RAM ঝুঁকি",
+                          "plan=free — ১৫m idle spin-down + 512MB RAM ঝুঁকি",
                           category="SETTINGS_RISK"))
         if not hcp:
             out.append(mk("render", f"settings[{name}].healthCheckPath", None,
@@ -501,7 +501,7 @@ def probe_ai_hosts(kv: dict) -> list[dict]:
     gemini = kv.get("GEMINI_API_KEY", "")
     google = kv.get("GOOGLE_API_KEY", "")
     if google and "GOOGLE_API_KEY" not in DECOMMISSIONED_AI_HOSTS:
-        st, body = http("GET", f"https://generativelanguage.googleapis.com/v1beta/models",
+        st, body = http("GET", "https://generativelanguage.googleapis.com/v1beta/models",
                         {"x-goog-api-key": google, "Referer": GOOGLE_PROBE_REFERER})
         if st == 200:
             out.append(mk("google", "models", True, "HTTP 200"))
@@ -509,7 +509,7 @@ def probe_ai_hosts(kv: dict) -> list[dict]:
             cat, note = classify("google", "models", st, body)
             out.append(mk("google", "models", False, f"HTTP {st}: {body[:140]}", category=cat, note=note))
     if gemini and "GEMINI_API_KEY" not in DECOMMISSIONED_AI_HOSTS:
-        st, body = http("GET", f"https://generativelanguage.googleapis.com/v1beta/models",
+        st, body = http("GET", "https://generativelanguage.googleapis.com/v1beta/models",
                         {"x-goog-api-key": gemini, "Referer": GOOGLE_PROBE_REFERER})
         if st == 200:
             out.append(mk("gemini", "models", True, "HTTP 200"))
@@ -666,8 +666,8 @@ PROBES = [probe_upstash, probe_render, probe_supabase, probe_vercel, probe_cloud
 def discover_unmonitored(kv: dict) -> list[dict]:
     """বাংলা মন্তব্য: ডায়নামিক ডিসকভারি — রেজিস্ট্রি কোনো সচল API-key গ্রাস করেনি তা খুঁজে বার করা।
     অ্যাপ-ইন্টার্নাল secret (JWT/OTP/SIGNING/WEBHOOK-ইত্যাদি) ও public client key (VITE_) বাদ।"""
-    consumed = re.compile("|".join(CONSUMED_KEY_HINTS), re.I)
-    not_platform = re.compile(r"(_SECRET$|WEBHOOK|JWT|OTP|SIGNING|VITE_|SESSION|SALT|HASH|_KEY_2$)", re.I)
+    consumed = re.compile("|".join(CONSUMED_KEY_HINTS), re.IGNORECASE)
+    not_platform = re.compile(r"(_SECRET$|WEBHOOK|JWT|OTP|SIGNING|VITE_|SESSION|SALT|HASH|_KEY_2$)", re.IGNORECASE)
     out = []
     for k, v in kv.items():
         if not v or consumed.search(k) or not_platform.search(k):

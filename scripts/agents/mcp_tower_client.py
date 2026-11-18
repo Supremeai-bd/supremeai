@@ -125,7 +125,6 @@ class McpTowerRateLimitedError(McpTowerConnectionError):
     এই শ্রেণির বাইরে — সেটা সত্যিই cold-boot/unavailable হতে পারে।
     """
 
-    pass
 
 
 class McpTowerTimeoutError(McpTowerError):
@@ -375,7 +374,7 @@ class McpTowerClient:
         except Exception:
             pass
 
-    def __enter__(self) -> "McpTowerClient":
+    def __enter__(self) -> McpTowerClient:
         self.connect()
         return self
 
@@ -619,7 +618,7 @@ def _cli_main() -> int:
             # AUDIT-FIX (#2030): --auto-register sends initial heartbeat immediately
             # and saves the response (which may contain auto-incremented name from server)
             if args.auto_register:
-                print(f"Auto-registering with MCP Tower (Rule #19)...")
+                print("Auto-registering with MCP Tower (Rule #19)...")
                 try:
                     result = client.call_tool("agent_heartbeat", {"slot": slot, "agentId": name})
                     text = result["content"][0]["text"] if isinstance(result, dict) and "content" in result else str(result)

@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # AUDIT-FIX (#1696 HIGH): আগে শুধু `".." in bind_source` স্ট্রিং চেক ছিল —
 # `/etc/./shadow` বা symlink-ভায়া `/tmp/innocent → /etc` দিয়ে bypass হতো।

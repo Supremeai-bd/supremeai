@@ -46,7 +46,6 @@ TAG = "[docs-link-integrity-guard]"
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci"))
 import docs_link_integrity_guard as guard
 
-
 # --------------------------------------------------------------------------- #
 # helpers                                                                      #
 # --------------------------------------------------------------------------- #

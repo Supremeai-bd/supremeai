@@ -9,8 +9,6 @@ ownership record চুক্তি, singleton।
 from __future__ import annotations
 
 import pytest
-from fastapi import HTTPException
-
 from api.routes.agent_registry import (
     assign_ownership,
     get_agent,
@@ -18,6 +16,8 @@ from api.routes.agent_registry import (
     remove_agent,
     upsert_agent,
 )
+from fastapi import HTTPException
+
 from core.agent_registry import AgentRecord, AgentRegistry, get_agent_registry
 
 

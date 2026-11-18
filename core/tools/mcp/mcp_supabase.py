@@ -13,11 +13,11 @@ from enum import StrEnum
 from typing import Any
 
 import psycopg2
-from core.tools.mcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.config import settings
 from core.monitoring.logging_config import logger
+from core.tools.mcp import FastMCP
 from utils.environment import is_admin_authorized
 
 mcp = FastMCP("supabase_mcp")

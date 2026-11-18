@@ -33,7 +33,7 @@ from unittest import mock
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci"))
 
-import auto_bridge_pr_opener as opener  # noqa: E402
+import auto_bridge_pr_opener as opener
 
 
 def wo(num, title="Bridge Work Order", body=None):

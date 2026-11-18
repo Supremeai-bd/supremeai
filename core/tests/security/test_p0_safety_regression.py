@@ -34,8 +34,6 @@ _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..",
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from skills.registry import SkillRegistry
-
 from core.self_evolution import auto_skill_creator as asc
 from core.self_evolution.auto_skill_creator import (
     MOCKED_SKILL_WRITES,
@@ -44,6 +42,7 @@ from core.self_evolution.auto_skill_creator import (
 )
 from skills.installer import ALLOWED_SKILL_DEPENDENCIES, SkillInstaller
 from skills.installer import SecurityError as InstallerSecurityError
+from skills.registry import SkillRegistry
 
 # ── helpers / fixtures ────────────────────────────────────────────────────────
 

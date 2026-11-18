@@ -49,7 +49,7 @@ from pathlib import Path
 
 # SCRIPT-INTELLIGENCE v9: make the shared discovery lib importable from any cwd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # -> scripts/
-from lib.auto_discovery import discover_files, existing_paths  # noqa: E402
+from lib.auto_discovery import discover_files, existing_paths
 
 
 # ANSI Colors for terminal output

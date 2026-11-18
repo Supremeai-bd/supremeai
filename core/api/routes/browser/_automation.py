@@ -245,6 +245,7 @@ def _get_owner_vault(owner_id: str):
     import os
     import re
     from pathlib import Path
+
     from core.browser_session_vault import BrowserSessionVault
 
     clean_owner = re.sub(r"[^a-zA-Z0-9_\-]", "_", owner_id or "default")

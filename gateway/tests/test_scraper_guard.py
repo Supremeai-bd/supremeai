@@ -8,13 +8,12 @@ Scraper route guard tests (production-readiness plan, item 1).
 - Semaphore present — MAX_CONCURRENCY সাপোর্ট
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+from api.routes import scraper as scraper_routes
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from api.routes import scraper as scraper_routes
 
 pytestmark = [pytest.mark.unit, pytest.mark.critical]
 

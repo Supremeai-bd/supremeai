@@ -34,14 +34,13 @@ import os
 import secrets
 import struct
 import time
+import urllib.parse
+import urllib.request
 import uuid
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
-
-import urllib.parse
-import urllib.request
 
 logger = logging.getLogger("supremeai.admin_auth")
 
@@ -271,7 +270,9 @@ def is_admin_token(token: str | None, verify_key_fn: Any = None) -> bool:
                 from gateway.service.keygen import verify_key as v_fn
             except ImportError:
                 try:
-                    from service.keygen import verify_key as v_fn  # type: ignore[no-redef]
+                    from service.keygen import (
+                        verify_key as v_fn,  # type: ignore[no-redef]
+                    )
                 except ImportError:
                     v_fn = None
         if v_fn is not None:

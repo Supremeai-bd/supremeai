@@ -24,7 +24,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 _REASONING_LOG_TYPE = "reasoning_step"
 

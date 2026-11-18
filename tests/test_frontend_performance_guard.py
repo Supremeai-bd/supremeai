@@ -1,5 +1,6 @@
 import unittest
 from pathlib import Path
+
 from scripts.ci.frontend_performance_guard import check_app_code_splitting, self_test
 
 

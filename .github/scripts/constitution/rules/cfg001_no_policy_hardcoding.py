@@ -1,6 +1,7 @@
 """Detect likely runtime policy constants that should be registry-backed."""
-from pathlib import Path
 import re
+from pathlib import Path
+
 from ..models import RuleCategory, RuleDefinition, Severity
 from .base import BaseRule
 

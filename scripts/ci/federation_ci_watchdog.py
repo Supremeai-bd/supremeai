@@ -39,18 +39,18 @@ if hasattr(sys.stderr, "reconfigure"):
 
 try:
     from scripts.ci.federation_anchors import (
-        get_anchor_issue_number,
-        list_sub_issue_ids,
-        link_sub_issue,
         ACTIVE_ANCHOR_HUBS,
+        get_anchor_issue_number,
+        link_sub_issue,
+        list_sub_issue_ids,
     )
 except ImportError:
     try:
         from federation_anchors import (
-            get_anchor_issue_number,
-            list_sub_issue_ids,
-            link_sub_issue,
             ACTIVE_ANCHOR_HUBS,
+            get_anchor_issue_number,
+            link_sub_issue,
+            list_sub_issue_ids,
         )
     except ImportError:
         get_anchor_issue_number = None

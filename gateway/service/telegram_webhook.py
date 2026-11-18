@@ -6,17 +6,22 @@ the SupremeAI Gemini Engine / Dynamic Squad, formats executive briefs,
 and delivers responses with auto-chunking back to Telegram.
 """
 from __future__ import annotations
-from core.utils.api_key_resolver import resolve_numbered_key
 
 import logging
 import os
 from typing import Optional
-from fastapi import APIRouter, BackgroundTasks, Request, Response, status
+
 import httpx
+from fastapi import APIRouter, BackgroundTasks, Request, Response, status
+
+from core.utils.api_key_resolver import resolve_numbered_key
 
 try:
     from service.pool import squad
-    from service.providers.adapters import forward_chat_completion, forward_stealth_webhook
+    from service.providers.adapters import (
+        forward_chat_completion,
+        forward_stealth_webhook,
+    )
 except ImportError:
     squad = None  # type: ignore[assignment]
     forward_chat_completion = None  # type: ignore[assignment]

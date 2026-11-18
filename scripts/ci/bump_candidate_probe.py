@@ -418,7 +418,7 @@ def collect_surfaces(repo_root: Path):
 def build_report(surfaces, fetch=None, clock=None):
     """Assemble the dated candidate report. `fetch(kind, name)` injectable for tests."""
     if fetch is None:
-        fetch = lambda kind, name: FETCHERS[kind](name)  # noqa: E731
+        fetch = lambda kind, name: FETCHERS[kind](name)
     when = clock or datetime.now(timezone.utc)
     lines = [
         f"BUMP CANDIDATE PROBE (report-only, #2106 R50 option C) — {when.date().isoformat()}",

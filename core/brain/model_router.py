@@ -27,11 +27,11 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from core.config import settings
-from core.utils.api_key_resolver import resolve_numbered_key
 from core.llm.llm_gateway import get_llm_gateway
 from core.llm.llm_gateway.errors import ProviderUnavailableError
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.performance_enhancer import get_performance_optimizer
+from core.utils.api_key_resolver import resolve_numbered_key
 
 try:
     from core.resilience.circuit_breaker import CircuitBreaker

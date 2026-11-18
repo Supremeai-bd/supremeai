@@ -19,8 +19,8 @@ from unittest.mock import AsyncMock
 import pytest
 
 from core.security.codegen_gate import ALLOW_INPROCESS_CODEGEN_ENV
-from core.skill_manager import SkillManager
 from core.services.tool_forge import ToolForgeError, ToolForgeService, ToolSpec
+from core.skill_manager import SkillManager
 from core.tools.code.safe_executor import run_restricted
 
 

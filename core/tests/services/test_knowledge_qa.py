@@ -7,9 +7,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from fastapi import HTTPException
-
 from core.services.knowledge_qa import Citation, KnowledgeQAService
+from fastapi import HTTPException
 
 
 class TestCitation:

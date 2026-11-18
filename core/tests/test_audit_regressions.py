@@ -12,8 +12,9 @@ from unittest.mock import AsyncMock
 import jwt
 import pytest
 import yaml
-from core.app_builder import router_health_check
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
+
+from core.app_builder import router_health_check
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -41,9 +42,8 @@ def test_factory_boots_from_repo_root_without_pytest_path_injection():
 
 
 def _registry(monkeypatch, *, critical=False, role="monolith"):
-    from core.api import routers
-
     import api
+    from core.api import routers
 
     monkeypatch.setattr(api, "_registration_report", [])
     monkeypatch.setattr(
@@ -148,10 +148,9 @@ def test_router_mount_is_idempotent_per_app_and_prefix(monkeypatch):
 
 @pytest.fixture
 def jwt_contract(monkeypatch):
+    from api.routes import auth
     from core import security
     from core.security.authentication import auth_middleware
-
-    from api.routes import auth
 
     secret = "audit-regression-fixture-signing-key-not-a-production-secret"
     monkeypatch.setattr(security, "_get_jwt_secret", lambda: secret)

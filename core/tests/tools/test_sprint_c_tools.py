@@ -44,7 +44,6 @@ class TestBrowserAgent:
     @pytest.mark.asyncio
     async def test_fetch_page_error(self):
         import httpx
-
         from core.tools.ai_agents.browser_agent import BrowserAgent
 
         agent = BrowserAgent()

@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts" / "agents"))
 
-from router import DynamicRouter, MODEL_CHAINS
+from router import DynamicRouter
 
 
 def test_bengali_selects_kimi():

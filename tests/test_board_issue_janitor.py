@@ -1,7 +1,8 @@
 import unittest
+
 from scripts.agents.pr_lifecycle_guard import (
-    find_superseded_sentry_passes,
     find_duplicate_issues,
+    find_superseded_sentry_passes,
 )
 
 

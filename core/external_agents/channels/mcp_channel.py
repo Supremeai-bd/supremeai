@@ -25,7 +25,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 __all__ = ["McpChannelServer", "SupremeAiWorkerTools", "TOOL_DEFINITIONS"]
 

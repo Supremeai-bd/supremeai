@@ -8,9 +8,8 @@ import os
 from typing import Any
 
 import boto3
+from core.monitoring.logging_config import logger
 from google.cloud import storage
-
-from core.logging_config import logger
 
 
 class SeedDataLoader:

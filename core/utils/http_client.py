@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 _shared_client: httpx.AsyncClient | None = None
 

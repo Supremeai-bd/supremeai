@@ -16,7 +16,7 @@ sys.path.insert(
     0, str(Path(__file__).resolve().parents[1])
 )  # constitution pkg parent (test_gates-প্যাটার্ন)
 
-import freshness_gate as fg  # noqa: E402
+import freshness_gate as fg
 
 STRICT = {"mode": "strict", "main_ref": "origin/main", "exempt_actors": ["dependabot[bot]"]}
 

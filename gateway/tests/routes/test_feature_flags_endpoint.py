@@ -7,9 +7,9 @@ hardcoded fake flag list.
 """
 
 import pytest
+from api.routes.admin_dashboard import require_admin_token
 from fastapi.testclient import TestClient
 
-from api.routes.admin_dashboard import require_admin_token
 from core.app import app
 from core.feature_flags import RUNTIME_FLAG_NAMES, feature_flags
 
@@ -32,7 +32,7 @@ class _FakeTable:
     def select(self, *_a):
         return self
 
-    def upsert(self, payload, on_conflict=None):  # noqa: ARG002
+    def upsert(self, payload, on_conflict=None):
         self.upserts.append(payload)
         return self
 

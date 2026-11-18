@@ -11,9 +11,10 @@ import time
 from typing import Any
 
 import httpx
-from core.monitoring.logging_config import logger
 from fastapi import APIRouter
 from pydantic import BaseModel
+
+from core.monitoring.logging_config import logger
 
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 

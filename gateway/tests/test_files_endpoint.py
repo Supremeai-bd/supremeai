@@ -9,10 +9,9 @@ import os
 os.environ["ALLOW_TEST_AUTH_BYPASS"] = "true"
 
 import pytest
+from api.routes.files import router
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from api.routes.files import router
 
 
 @pytest.fixture

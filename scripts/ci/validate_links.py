@@ -56,8 +56,8 @@ import os
 import re
 import sys
 import unicodedata
-import urllib.request
 import urllib.error
+import urllib.request
 from typing import Dict, List, Optional, Tuple
 
 SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv"}
@@ -66,14 +66,14 @@ SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv"}
 
 FENCE_RE = re.compile(r"^\s{0,3}(```+|~~~+)")
 INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
-HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
+HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 
 # [text](<target with spaces>) or [text](target "title")
 ANGLE_LINK_RE = re.compile(r"!?\[[^\]\n]*\]\(\s*<([^<>\n]+)>\s*(?:\"[^\"]*\"\s*)?\)")
 # [text](target) — first whitespace-delimited token is the target
 PLAIN_LINK_RE = re.compile(r"!?\[[^\]\n]*\]\(\s*([^\s)<][^)\s]*)\s*(?:\"[^\"]*\"\s*)?\)")
 # reference-style definition: [id]: target
-REFDEF_RE = re.compile(r"^ {0,3}\[([^\]\n]+)\]:\s*([^\s]+)\s*$", re.M)
+REFDEF_RE = re.compile(r"^ {0,3}\[([^\]\n]+)\]:\s*([^\s]+)\s*$", re.MULTILINE)
 
 ATX_HEADING_RE = re.compile(r"^ {0,3}(#{1,6})\s+(.+?)\s*#*\s*$")
 SETEXT_RE = re.compile(r"^ {0,3}(=+|-+)\s*$")
@@ -261,7 +261,7 @@ class LinkValidator:
                     return
                 if method == "GET":
                     break
-            except Exception:  # noqa: BLE001 — network diagnostics, not contract
+            except Exception:
                 if method == "GET":
                     break
         self.warnings.append({"file": where, "line": line, "target": url,

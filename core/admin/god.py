@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from core.degraded_mode import sqlite_fallback_allowed
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # শেয়ার্ড ইউটিলিটি — Firestore ও টেস্ট এনভায়রনমেন্ট চেক কেন্দ্রীভূত
 from utils.firestore_helpers import get_firestore_db

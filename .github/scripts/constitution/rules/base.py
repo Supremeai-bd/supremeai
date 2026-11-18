@@ -6,9 +6,8 @@ import ast
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
 
-from ..models import AuditFinding, RuleCategory, RuleDefinition, Severity
+from ..models import AuditFinding, RuleDefinition
 
 
 class BaseRule(ABC):
@@ -21,13 +20,12 @@ class BaseRule(ABC):
     @abstractmethod
     def audit(self, files: list[Path]) -> list[AuditFinding]:
         """Run the audit on the given files. Must be implemented by subclass."""
-        pass
 
     def _find_in_file(
         self,
         file_path: Path,
         pattern: str | re.Pattern,
-        exclude_patterns: Optional[list[str | re.Pattern]] = None,
+        exclude_patterns: list[str | re.Pattern] | None = None,
     ) -> list[tuple[int, str]]:
         """Find pattern matches in a file. Returns list of (line_number, line_text)."""
         if isinstance(pattern, str):
@@ -96,10 +94,10 @@ class BaseRule(ABC):
     def _create_finding(
         self,
         file_path: Path,
-        line_number: Optional[int] = None,
+        line_number: int | None = None,
         message: str = "",
-        code_snippet: Optional[str] = None,
-        remediation: Optional[str] = None,
+        code_snippet: str | None = None,
+        remediation: str | None = None,
         confidence: float = 1.0,
     ) -> AuditFinding:
         """Create a finding record."""

@@ -1,9 +1,9 @@
 import asyncio
 from typing import Any
 
+import docker
 from docker.errors import ContainerError
 
-import docker
 from core.monitoring.logging_config import logger
 
 

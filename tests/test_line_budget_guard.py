@@ -30,7 +30,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts" / "ci"))
 
-import line_budget_guard as lbg  # noqa: E402
+import line_budget_guard as lbg
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 

@@ -10,11 +10,11 @@ Verifies:
 
 from __future__ import annotations
 
-import sys
 import asyncio
 import hashlib
 import hmac
 import json
+import sys
 from pathlib import Path
 
 import pytest

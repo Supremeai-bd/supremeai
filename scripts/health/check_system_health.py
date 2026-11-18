@@ -98,7 +98,7 @@ async def send_telegram_alert(message: str) -> None:
                 logger.info("✅ Telegram alert সফলভাবে পাঠানো হয়েছে।")
             else:
                 logger.error("❌ Telegram alert পাঠাতে ব্যর্থ: status=%s", response.status_code)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("❌ Telegram alert পাঠাতে এরর: %s", exc)
 
 
@@ -115,7 +115,7 @@ async def check_api(max_retries: int = 2) -> tuple[bool, str]:
                 if response.status_code == 200:
                     return True, "OK"
                 last_error = f"Status Code: {response.status_code}"
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             last_error = str(exc)
 
         if attempt < max_retries:
@@ -137,15 +137,16 @@ async def check_database() -> tuple[bool, str]:
         return True, "Database connection successful."
     except ImportError as exc:
         return False, f"Missing database module: {exc}"
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, f"Database query failed: {exc}"
 
 
 async def check_redis() -> tuple[bool, str]:
     """core.config.settings.redis_url থেকে Redis কানেকশন যাচাই করে।"""
     try:
-        from core.config import settings
         from redis.asyncio import Redis
+
+        from core.config import settings
 
         redis_url = getattr(settings, "redis_url", None) or os.getenv("REDIS_URL", "redis://dummy-redis-server:6379")
         client: Redis = Redis.from_url(redis_url, socket_timeout=TIMEOUT)
@@ -156,7 +157,7 @@ async def check_redis() -> tuple[bool, str]:
             await client.aclose()
     except ImportError as exc:
         return False, f"Missing redis module: {exc}"
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, f"Redis check failed: {exc}"
 
 
@@ -171,7 +172,7 @@ def check_dependencies_and_env() -> tuple[bool, str]:
         return ok, detail
     except ImportError as exc:
         return False, f"HealthChecker ইম্পোর্ট করা যায়নি: {exc}"
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, f"Dependency/env check error: {exc}"
 
 

@@ -42,9 +42,7 @@ class DynamicRouter:
         tt = (task_type or kwargs.get("task_type") or kwargs.get("task") or kwargs.get("kind") or "code")
         lang = (language or kwargs.get("language") or kwargs.get("lang"))
         key = str(tt).lower() if tt is not None else "code"
-        if lang and str(lang).lower() in ("bn", "bangla", "bengali"):
-            key = "bengali"
-        elif "bengali" in key or "bangla" in key or "bn" == key:
+        if lang and str(lang).lower() in ("bn", "bangla", "bengali") or "bengali" in key or "bangla" in key or "bn" == key:
             key = "bengali"
         elif "code" in key or "coding" in key:
             key = "code"
@@ -97,7 +95,7 @@ class DynamicRouter:
 # Alias for older callers
 Router = DynamicRouter
 
-__all__ = ["DynamicRouter", "Router", "MODEL_CHAINS"]
+__all__ = ["MODEL_CHAINS", "DynamicRouter", "Router"]
 # Re-export dynamic_router public names for convenience.
 for _n in ("load_fixture", "validate_config", "classify", "plan_task", "execute", "RoutePlan", "RouteResult"):
     if hasattr(_dr, _n):

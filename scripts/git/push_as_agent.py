@@ -14,7 +14,7 @@ VAULT_ENV_PATH = SCRIPTS_DIR.parent / "vault.env"
 # কপি রাখে না; #1821-এর নোট করা ৫ম-registry-copy drift ঝুঁকি এখানেই বন্ধ।
 # push_as_agent থাকলো push-এর একক দায়িত্বে (single responsibility)।
 sys.path.insert(0, str(SCRIPTS_DIR.parent))
-from scripts.agents import credential_manager as _cm  # noqa: E402
+from scripts.agents import credential_manager as _cm
 
 # Re-export surface: SSOT wiring kept visible for the drift gate + tests.
 BOT_SLOT_CREDENTIALS = _cm.BOT_SLOT_CREDENTIALS

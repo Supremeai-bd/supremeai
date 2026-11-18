@@ -131,7 +131,7 @@ class ModelEndpoint:
         return json.dumps(payload, sort_keys=True)
 
     @classmethod
-    def from_json(cls, raw: Any) -> "ModelEndpoint":
+    def from_json(cls, raw: Any) -> ModelEndpoint:
         payload = json.loads(raw) if isinstance(raw, str) else raw
         return cls(**payload)
 
@@ -394,10 +394,10 @@ class AutonomyPersistence:
         except sqlite3.Error:
             pass
 
-    def __enter__(self) -> "AutonomyPersistence":
+    def __enter__(self) -> AutonomyPersistence:
         return self
 
-    def __exit__(self, *exc_info: Any) -> None:
+    def __exit__(self, *exc_info: object) -> None:
         self.close()
 
     def _require_writable(self) -> None:

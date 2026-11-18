@@ -39,7 +39,7 @@ async def pkg_env():
     """
     from api.deps import get_current_user_token
     from api.routes.admin_dashboard import require_admin_token
-    from api.routes.browser import public_router, router
+    from api.routes.browser import router
 
     stub = {"sub": "pkg-test-user", "role": "user", "tenant_id": "t1"}
     app = FastAPI()

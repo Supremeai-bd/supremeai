@@ -70,8 +70,7 @@ def main() -> None:
 
     if not args.dry_run:
         try:
-            import torch  # type: ignore
-            from unsloth import FastLanguageModel  # type: ignore
+            pass  # type: ignore
         except Exception as exc:
             raise SystemExit(f"Training dependencies unavailable: {exc}")
         # Full training left to deployment environment; manifest is the contract.

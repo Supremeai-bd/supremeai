@@ -20,11 +20,11 @@ import json
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
+import api.routes.websocket_hitl as wh
 import jwt
 import pytest
 from fastapi import WebSocketDisconnect
 
-import api.routes.websocket_hitl as wh
 from core.config import settings
 from core.messaging.event_bus import ErrorEvent, error_event_bus
 

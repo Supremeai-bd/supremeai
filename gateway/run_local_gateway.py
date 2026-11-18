@@ -17,6 +17,7 @@ if os.path.exists(secrets_file):
     print("[AUTH] Loaded Gemini, Groq, OpenRouter & Webhook keys from Infisical!")
 
 import uvicorn
+
 from gateway.serve import app
 
 if __name__ == "__main__":

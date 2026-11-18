@@ -165,7 +165,7 @@ class TestMissionPartialProviderFailover:
         """বাংলা: ৩-স্তর কল-চেইনে প্রোভাইডার ১ ও ২ মারা যায় → ফলব্যাক ৩ সম্পূর্ণ
         ফল দেয়; দুটি ব্যর্থতাই আসল failover-লগে ("Trying next in chain") যায়,
         ব্রেকার হিসাব ২ ব্যর্থতা + ১ সাফল্য দেখায় — নীরব আংশিক ব্যর্থতা নেই।"""
-        from core.logging_config import logger
+        from core.monitoring.logging_config import logger
 
         gw = _StubGatewayFactory.build(_CAMPAIGN_CHAIN)
         # প্রথম দুই প্রোভাইডারে বিস্ফোরণ, তৃতীয়টি সম্পূর্ণ ফল দেয়।

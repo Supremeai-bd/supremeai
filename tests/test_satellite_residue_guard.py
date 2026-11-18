@@ -21,7 +21,7 @@ from unittest import mock
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci"))
 
-import satellite_residue_guard as guard  # noqa: E402
+import satellite_residue_guard as guard
 
 
 def sha(i: int) -> str:

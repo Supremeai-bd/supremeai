@@ -22,7 +22,7 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 _RUN_ACTOR = "run-scope"
 

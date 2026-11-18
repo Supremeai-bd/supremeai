@@ -6,8 +6,8 @@ import jwt
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
 from core.config import settings
-from core.monitoring.logging_config import logger
 from core.messaging.event_bus import ErrorEvent, error_event_bus
+from core.monitoring.logging_config import logger
 from core.security import ALGORITHM
 
 router = APIRouter(prefix="/ws/hitl", tags=["hitl"])

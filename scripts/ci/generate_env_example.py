@@ -107,7 +107,7 @@ def load_registry():
 class Entry:
     """One KEY=... line plus the comment block attached to it."""
 
-    __slots__ = ("key", "value", "inline", "comments", "order")
+    __slots__ = ("comments", "inline", "key", "order", "value")
 
     def __init__(
         self, key: str, value: str, inline: str, comments: list[str], order: int

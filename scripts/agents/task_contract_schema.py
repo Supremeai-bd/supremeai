@@ -118,7 +118,7 @@ class TaskContract:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict) -> "TaskContract":
+    def from_dict(cls, data: dict) -> TaskContract:
         gate = data.get("admin_gate") or {}
         admin = AdminGate(
             required=bool(gate.get("required", False)),

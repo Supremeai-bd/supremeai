@@ -56,7 +56,7 @@ from unittest import mock
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "scripts" / "agents"))
 
-import continuous_agent_loop as cal  # noqa: E402
+import continuous_agent_loop as cal
 
 GATE_NOTE_FRAGMENT = "roster does not carry"
 

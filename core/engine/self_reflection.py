@@ -7,10 +7,10 @@ import os
 from typing import Any
 
 import httpx
-
 from core.monitoring.logging_config import logger
-from memory.episodic_memory import EpisodicMemory
 from core.utils.api_key_resolver import resolve_numbered_key
+
+from memory.episodic_memory import EpisodicMemory
 
 
 class SelfReflectionLoop:

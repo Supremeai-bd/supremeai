@@ -36,7 +36,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "lib"))
 
-from render_client import RenderApiError, RenderClient  # noqa: E402
+from render_client import RenderApiError, RenderClient
 
 
 # বাংলা মন্তব্য: Render-এর suspended ফিল্ড বিভিন্ন শেপে আসতে পারে — bool,

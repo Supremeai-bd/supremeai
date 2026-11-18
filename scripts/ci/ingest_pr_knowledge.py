@@ -18,7 +18,6 @@ Stdlib-only for core execution, fail-soft on network errors (never breaks merge 
 """
 
 from __future__ import annotations
-from core.utils.api_key_resolver import resolve_numbered_key
 
 import argparse
 import json
@@ -32,6 +31,8 @@ import urllib.parse
 import urllib.request
 import uuid
 from typing import Dict, List, Optional, Tuple
+
+from core.utils.api_key_resolver import resolve_numbered_key
 
 if hasattr(sys.stdout, "reconfigure"):
     try:

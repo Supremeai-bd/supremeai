@@ -13,7 +13,7 @@ import os
 import uuid
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 try:
     from core.config import settings

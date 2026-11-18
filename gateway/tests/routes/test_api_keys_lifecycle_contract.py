@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI
@@ -95,6 +95,7 @@ class TestApiKeyGeneration:
         """
         tc, _app = keys_app
         import api.routes.api_keys as keys_mod
+
         from core.security import API_KEY_PREFIX
 
         keys_mod.db_create_api_key.return_value = {
@@ -127,6 +128,7 @@ class TestApiKeyGeneration:
         """
         tc, _app = keys_app
         import api.routes.api_keys as keys_mod
+
         from core.security import hash_api_key
 
         keys_mod.db_create_api_key.return_value = {
@@ -431,6 +433,7 @@ class TestKeyRotation:
         """
         tc, _app = keys_app
         import api.routes.api_keys as keys_mod
+
         from core.security import verify_api_key
 
         rec, plain = _real_key_record(key_id=3, owner="test_owner")
@@ -609,7 +612,7 @@ class TestKeyRevocation:
         }
         request = Request(scope)
 
-        async def call_next(_req):  # noqa: ANN001
+        async def call_next(_req):
             # বাংলা: যদি middleware pass করে দেয় তবে 200 — কিন্তু revoked হলে আসবে না।
             from fastapi.responses import JSONResponse
 
@@ -667,7 +670,7 @@ class TestKeyRevocation:
         }
         request = Request(scope)
 
-        async def call_next(_req):  # noqa: ANN001
+        async def call_next(_req):
             from fastapi.responses import JSONResponse
 
             return JSONResponse(status_code=200, content={"ok": True})

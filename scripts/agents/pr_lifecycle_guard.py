@@ -89,14 +89,14 @@ def real_api(endpoint: str, method: str = "GET", payload: dict | None = None) ->
     if token:
         headers["Authorization"] = f"token {token}"
 
-    req = urllib.request.Request(  # noqa: S310
+    req = urllib.request.Request(
         f"{API_BASE}/{endpoint.lstrip('/')}",
         data=json.dumps(payload).encode() if payload is not None else None,
         method=method,
         headers=headers,
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=30) as resp:
             raw = resp.read().decode()
         return json.loads(raw) if raw.strip() else None
     except urllib.error.HTTPError as exc:

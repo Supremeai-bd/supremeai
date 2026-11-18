@@ -96,7 +96,7 @@ def scan_frontend() -> dict[str, list[str]]:
             continue
         try:
             text = file.read_text(encoding="utf-8", errors="replace")
-        except Exception:  # noqa: BLE001, S112
+        except Exception:  # noqa: S112
             continue
         rel = file.relative_to(REPO_ROOT).as_posix()
         for m in _FE_PATH.finditer(text):

@@ -30,6 +30,7 @@ from core.advanced_reasoning import AdvancedReasoningEngine
 from core.evolution_module import EvolutionModule
 from core.monitoring.logging_config import logger
 from core.resilience.safety_rollback_manager import SafetyRollbackManager
+
 try:
     from evolution.auto_evolution_controller import AutoEvolutionController
 except Exception:

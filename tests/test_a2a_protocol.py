@@ -1,7 +1,8 @@
 import json
-import pytest
 from pathlib import Path
+
 from scripts.agents.a2a_messaging_bus import A2ABus, A2ATaskAdapter
+
 
 def test_agent_card_structure():
     card_path = Path(__file__).resolve().parents[1] / "gateway" / "well-known" / "agent-card.json"

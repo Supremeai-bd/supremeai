@@ -34,6 +34,7 @@ ADVISORY_CHECKS = (
 
 import os
 
+
 def run_check(check: Check) -> tuple[int, str]:
     command = [sys.executable, *check.command]
     env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")

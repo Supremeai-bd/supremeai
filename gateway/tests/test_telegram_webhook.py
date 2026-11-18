@@ -1,7 +1,9 @@
 import unittest
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
+
 from fastapi.testclient import TestClient
 from service.app import app
+
 
 class TelegramWebhookTest(unittest.TestCase):
     def setUp(self):

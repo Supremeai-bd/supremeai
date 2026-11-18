@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 """Enforce Universal 4-Level Runner Hierarchy guard (constitutional, warn-only default)."""
 from __future__ import annotations
-import argparse, re
+
+import argparse
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WF = ROOT / ".github" / "workflows"
-DEPLOY_NAME_RE = re.compile(r"deploy|release-publish|publish-release|cloudflare|vercel|render.*service|no-render-deploy|verify.*render.*service|attest", re.I)
+DEPLOY_NAME_RE = re.compile(r"deploy|release-publish|publish-release|cloudflare|vercel|render.*service|no-render-deploy|verify.*render.*service|attest", re.IGNORECASE)
 ALLOW = {"evaluate-audit-timing", "detect-changes", "resolve-execution-tier"}
 
 def split_jobs(text):
     jobs = {}
-    for m in re.finditer(r"^  ([a-zA-Z0-9_-]+):\s*$", text, re.M):
+    for m in re.finditer(r"^  ([a-zA-Z0-9_-]+):\s*$", text, re.MULTILINE):
         name = m.group(1); start = m.end()
-        n = re.search(r"^  [a-zA-Z0-9_-]+:\s*$", text[start:], re.M)
+        n = re.search(r"^  [a-zA-Z0-9_-]+:\s*$", text[start:], re.MULTILINE)
         jobs[name] = text[start:start + n.start() if n else None]
     return jobs
 
@@ -24,9 +26,9 @@ def main() -> int:
         t = p.read_text(encoding="utf-8", errors="ignore")
         has_preflight = ("resolve-execution-tier" in t) or ("resolve_execution_tier" in t)
         for name, block in split_jobs(t).items():
-            runs = re.search(r"^\s*runs-on:\s*(.+)$", block, re.M)
+            runs = re.search(r"^\s*runs-on:\s*(.+)$", block, re.MULTILINE)
             if not runs or "ubuntu" not in runs.group(1): continue
-            tm = re.search(r"^\s*timeout-minutes:\s*(\d+)", block, re.M)
+            tm = re.search(r"^\s*timeout-minutes:\s*(\d+)", block, re.MULTILINE)
             minutes = int(tm.group(1)) if tm else 0
             gated = ("resolve-execution-tier" in block) or ("hierarchy-exception:" in block)
             if minutes >= 15 and not gated and not DEPLOY_NAME_RE.search(name) and name not in ALLOW:

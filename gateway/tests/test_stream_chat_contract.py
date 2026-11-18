@@ -6,9 +6,9 @@ Tests both /api/chat/stream and /api/v1/stream/chat with both 'prompt' and 'mess
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from brain.model_router import ModelRouter
 from fastapi.testclient import TestClient
 
-from brain.model_router import ModelRouter
 from core.app import app
 
 client = TestClient(app)

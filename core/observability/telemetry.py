@@ -6,21 +6,21 @@ and GenAI semantic conventions (tokens/cost) without vendor lock-in.
 """
 from __future__ import annotations
 
-import os
 import contextlib
+import os
 from typing import Any, Dict, Optional
 
 try:
     from opentelemetry import trace
+    from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-    from opentelemetry.sdk.resources import Resource
     OTEL_AVAILABLE = True
 except ImportError:
     OTEL_AVAILABLE = False
 
 
-_tracer: Optional[Any] = None
+_tracer: Any | None = None
 
 
 def init_telemetry(service_name: str = "supremeai-agent-engine"):
@@ -63,7 +63,7 @@ def get_tracer(service_name: str = "supremeai-agent-engine"):
 
 
 @contextlib.contextmanager
-def trace_agent_step(step_name: str, attributes: Optional[Dict[str, Any]] = None):
+def trace_agent_step(step_name: str, attributes: dict[str, Any] | None = None):
     """Context manager for tracing agent execution steps with GenAI conventions."""
     tracer = get_tracer()
     if tracer is None:

@@ -18,9 +18,9 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 import httpx
-
 from core.config import settings
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
+
 from external_agents.contracts.task_contract import TaskContract
 from external_agents.control.state_manager import AgentStateManager
 

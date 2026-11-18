@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scripts.ci.mission_control_status import aggregate, render_markdown, load_input
+from scripts.ci.mission_control_status import aggregate, load_input, render_markdown
 
 
 def test_green() -> None:

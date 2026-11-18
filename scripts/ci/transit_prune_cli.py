@@ -24,7 +24,7 @@ from typing import Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import transit_prune  # noqa: E402  (colocated pure core)
+import transit_prune
 
 
 def _load_evidence(path: Optional[str]) -> dict:

@@ -13,8 +13,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
-
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 MODULES_LIST_PATH = ROOT_DIR / "MODULES_LIST.md"
 

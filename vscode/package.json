@@ -3,18 +3,8 @@
   "version": "1.0.0",
   "license": "MIT",
   "private": true,
-  "description": "SupremeAI Unified Client Hub — VS Code Extension and Desktop (Tauri/Electron)",
-  "workspaces": [
-    "extension",
-    "desktop"
-  ],
+  "description": "SupremeAI Unified Client Hub — Sovereign Client References Sentinel Anchor",
   "scripts": {
-    "build:extension": "npm run compile --workspace=extension",
-    "build:desktop": "npm run build --workspace=desktop",
-    "build:all": "npm run build:extension && npm run build:desktop",
-    "test": "npm run test --workspace=extension"
-  },
-  "devDependencies": {
-    "typescript": "^5.3.3"
+    "info": "echo 'Client applications are maintained in sovereign repositories under Supremeai-bd organization.'"
   }
 }

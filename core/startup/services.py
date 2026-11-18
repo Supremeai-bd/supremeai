@@ -4,9 +4,9 @@ import os
 from core.cache.redis_manager import redis_manager
 from core.config import settings
 from core.config_cache import config_cache
-from core.logging_config import logger
 from core.maintenance_pipeline import maintenance_pipeline
 from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus
+from core.monitoring.logging_config import logger
 from core.reliability_controller import ReliabilityController
 from core.secret_utils import unwrap_secret
 from core.startup.api_key_tables import ensure_api_key_tables as _ensure_api_key_tables

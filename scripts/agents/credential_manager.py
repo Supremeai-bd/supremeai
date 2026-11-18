@@ -289,10 +289,10 @@ def _infisical_fetch_secrets(vault: dict, transport=None) -> dict:
     if not access_token:
         # #4081: actionable error — Infisical login failed (wrong creds)
         raise CredentialError(
-            f"Infisical login failed — no accessToken in response. "
-            f"Check INFISICAL_CLIENT_ID / INFISICAL_CLIENT_SECRET in vault.env. "
-            f"Verify: python scripts/agents/credential_bootstrap.py --verify\n"
-            f"See: docs/agents/credentials.md"
+            "Infisical login failed — no accessToken in response. "
+            "Check INFISICAL_CLIENT_ID / INFISICAL_CLIENT_SECRET in vault.env. "
+            "Verify: python scripts/agents/credential_bootstrap.py --verify\n"
+            "See: docs/agents/credentials.md"
         )
     try:
         resp = transport.get(
@@ -319,9 +319,9 @@ def _infisical_fetch_secrets(vault: dict, transport=None) -> dict:
         ) from err
     if "secrets" not in secrets_payload:
         raise CredentialError(
-            f"Infisical returned no 'secrets' key in response. "
-            f"Check INFISICAL_PROJECT_ID in vault.env. "
-            f"Verify: python scripts/agents/credential_bootstrap.py --verify"
+            "Infisical returned no 'secrets' key in response. "
+            "Check INFISICAL_PROJECT_ID in vault.env. "
+            "Verify: python scripts/agents/credential_bootstrap.py --verify"
         )
     return {
         s["secretKey"]: s.get("secretValue", "") or ""

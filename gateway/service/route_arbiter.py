@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from .adaptive_routing import RouteSnapshot, route_score
-from .pool import KeySlot, FederationSquad
+from .pool import FederationSquad, KeySlot
 
 logger = logging.getLogger("supremeai.arbiter")
 

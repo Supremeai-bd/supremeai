@@ -163,9 +163,8 @@ class ControlTowerClient:
 
             # Prefer Streamable HTTP (Tower's native transport); fall back to SSE.
             try:
-                from mcp.client.streamable_http import streamable_http_client
-
                 import httpx
+                from mcp.client.streamable_http import streamable_http_client
 
                 http_client = httpx.AsyncClient(headers=headers, timeout=30.0)
                 await self._exit_stack.enter_async_context(http_client)

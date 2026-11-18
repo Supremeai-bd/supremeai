@@ -57,7 +57,7 @@ from loguru import logger
 
 # SCRIPT-INTELLIGENCE v9: shared discovery lib (stdlib only, first-party).
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # -> scripts/
-from lib.auto_discovery import (  # noqa: E402
+from lib.auto_discovery import (
     discover_core_modules,
     discover_files,
     existing_paths,

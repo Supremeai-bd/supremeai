@@ -7,8 +7,9 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies import get_current_user_token, get_tenant_db
-from database.session import get_db_session
 from core.monitoring.logging_config import logger
+from database.session import get_db_session
+
 try:
     from core.service_container import global_http_client  # FIX: reuse shared connection pool
 except ImportError:

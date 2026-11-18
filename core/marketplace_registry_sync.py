@@ -17,8 +17,9 @@ import os
 import tempfile
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from datetime import UTC, datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
 
 REGISTRY_BASE = "https://registry.modelcontextprotocol.io"
 SERVERS_PATH = "/v0/servers"          # /v0 verified live 2026-10-30 (scout R80); /v0.1 also serves
@@ -50,7 +51,7 @@ class RegistryOutage(RuntimeError):
 # Normalization ($schema gate + transport gate + trust tier)
 # --------------------------------------------------------------------------- #
 
-def _meta_updated_at(record: Dict[str, Any], official_meta: Optional[Dict[str, Any]] = None) -> Optional[str]:
+def _meta_updated_at(record: dict[str, Any], official_meta: dict[str, Any] | None = None) -> str | None:
     official = official_meta or {}
     for cand in (record.get("updatedAt"), official.get("updatedAt"),
                  official.get("statusChangedAt"), official.get("publishedAt")):
@@ -59,7 +60,7 @@ def _meta_updated_at(record: Dict[str, Any], official_meta: Optional[Dict[str, A
     return None
 
 
-def _first_streamable_remote(record: Dict[str, Any]) -> Tuple[Optional[str], Optional[str], bool]:
+def _first_streamable_remote(record: dict[str, Any]) -> tuple[str | None, str | None, bool]:
     """Return (url, type, one_click). Fail-closed: only EXACT type matches are offered."""
     remotes = record.get("remotes")
     if not isinstance(remotes, list):
@@ -74,7 +75,7 @@ def _first_streamable_remote(record: Dict[str, Any]) -> Tuple[Optional[str], Opt
     return None, None, False
 
 
-def normalize(record: Any, official_meta: Optional[Dict[str, Any]] = None) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+def normalize(record: Any, official_meta: dict[str, Any] | None = None) -> tuple[dict[str, Any] | None, str | None]:
     """registry record -> normalized catalog row, or (None, reject_reason).
 
     Accepts the live envelope's nested record plus its official metadata block
@@ -117,12 +118,12 @@ def normalize(record: Any, official_meta: Optional[Dict[str, Any]] = None) -> Tu
     return row, None
 
 
-def _page_items(page: Dict[str, Any]) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
+def _page_items(page: dict[str, Any]) -> list[tuple[dict[str, Any], dict[str, Any]]]:
     """Registry page -> [(record, official_meta)] — supports the live envelope
     ({servers: [{server, _meta}]}, verified live 2026-10-30) and flat records."""
     items = page.get("servers") if isinstance(page.get("servers"), list) else \
         (page.get("records") if isinstance(page.get("records"), list) else [])
-    out: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
+    out: list[tuple[dict[str, Any], dict[str, Any]]] = []
     for it in items:
         if isinstance(it, dict) and isinstance(it.get("server"), dict):
             meta = it.get("_meta") or {}
@@ -134,14 +135,14 @@ def _page_items(page: Dict[str, Any]) -> List[Tuple[Dict[str, Any], Dict[str, An
     return out
 
 
-def _page_cursor(page: Dict[str, Any]) -> Optional[str]:
+def _page_cursor(page: dict[str, Any]) -> str | None:
     """Live pagination cursor lives at metadata.nextCursor (verified live)."""
     md = page.get("metadata")
     cur = md.get("nextCursor") if isinstance(md, dict) else None
     return cur if isinstance(cur, str) and cur else None
 
 
-def watermark_of(rows: List[Dict[str, Any]]) -> Optional[str]:
+def watermark_of(rows: list[dict[str, Any]]) -> str | None:
     """Max updatedAt across rows — the incremental-refresh cursor candidate."""
     stamps = [r["updated_at"] for r in rows if r.get("updated_at")]
     return max(stamps) if stamps else None
@@ -151,10 +152,10 @@ def watermark_of(rows: List[Dict[str, Any]]) -> Optional[str]:
 # Fetch layer (GET-only, zero-credential, injectable for offline tests)
 # --------------------------------------------------------------------------- #
 
-FetchPage = Callable[[Optional[str], Optional[str]], Dict[str, Any]]
+FetchPage = Callable[[str | None, str | None], dict[str, Any]]
 
 
-def fetch_page_live(cursor: Optional[str], updated_since: Optional[str]) -> Dict[str, Any]:
+def fetch_page_live(cursor: str | None, updated_since: str | None) -> dict[str, Any]:
     """GET one page of {records, cursor}. GET-only by construction; no auth headers."""
     params = [f"limit={PAGE_LIMIT}"]
     if cursor:
@@ -190,8 +191,8 @@ def probe_updated_since(fetch: FetchPage = fetch_page_live) -> bool:
 # --------------------------------------------------------------------------- #
 
 def sync(cache_path: str, fetch: FetchPage = fetch_page_live,
-         max_pages: Optional[int] = None, updated_since: Optional[str] = None,
-         now: Optional[str] = None) -> Dict[str, Any]:
+         max_pages: int | None = None, updated_since: str | None = None,
+         now: str | None = None) -> dict[str, Any]:
     """Walk /v0/servers until the registry cursor is EXHAUSTED (the primary
     termination condition — a max_pages cap is an explicit caller budget, not
     the contract), normalize rows through the gates, and atomically replace
@@ -199,7 +200,7 @@ def sync(cache_path: str, fetch: FetchPage = fetch_page_live,
     returned stats carry degraded=True (stale rows keep serving; the
     marketplace is never blocked)."""
     prev = load_cache(cache_path)
-    stats: Dict[str, Any] = {
+    stats: dict[str, Any] = {
         "pages": 0, "fetched": 0, "accepted": 0,
         "rejected_schema_missing": 0, "rejected_schema_unknown": 0,
         "rejected_no_name": 0, "rejected_not_an_object": 0,
@@ -208,8 +209,8 @@ def sync(cache_path: str, fetch: FetchPage = fetch_page_live,
         "degraded": False, "degrade_reason": None,
         "updated_since_requested": updated_since,
     }
-    rows: List[Dict[str, Any]] = []
-    cursor: Optional[str] = None
+    rows: list[dict[str, Any]] = []
+    cursor: str | None = None
     while True:
         try:
             page = fetch(cursor, updated_since)
@@ -250,12 +251,12 @@ def sync(cache_path: str, fetch: FetchPage = fetch_page_live,
     return finalize_sync(cache_path, rows, prev, stats, now=now)
 
 
-def finalize_sync(cache_path: str, rows: List[Dict[str, Any]],
-                  prev: Optional[Dict[str, Any]], stats: Dict[str, Any],
-                  now: Optional[str] = None, touch: bool = True) -> Dict[str, Any]:
+def finalize_sync(cache_path: str, rows: list[dict[str, Any]],
+                  prev: dict[str, Any] | None, stats: dict[str, Any],
+                  now: str | None = None, touch: bool = True) -> dict[str, Any]:
     doc = {
         "version": CACHE_VERSION,
-        "generated_at": now or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_at": now or datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "watermark": watermark_of(rows) or (prev or {}).get("watermark"),
         "rows": rows,
         "stats": stats,
@@ -265,7 +266,7 @@ def finalize_sync(cache_path: str, rows: List[Dict[str, Any]],
     return {"cache": cache_path, "watermark": doc["watermark"], **stats}
 
 
-def _atomic_write_json(path: str, doc: Dict[str, Any]) -> None:
+def _atomic_write_json(path: str, doc: dict[str, Any]) -> None:
     d = os.path.dirname(os.path.abspath(path)) or "."
     os.makedirs(d, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=".registry_cache_", dir=d)
@@ -281,30 +282,30 @@ def _atomic_write_json(path: str, doc: Dict[str, Any]) -> None:
                 pass
 
 
-def load_cache(cache_path: str) -> Optional[Dict[str, Any]]:
+def load_cache(cache_path: str) -> dict[str, Any] | None:
     try:
-        with open(cache_path, "r", encoding="utf-8") as fh:
+        with open(cache_path, encoding="utf-8") as fh:
             doc = json.load(fh)
         return doc if isinstance(doc, dict) and isinstance(doc.get("rows"), list) else None
     except Exception:
         return None
 
 
-def load_rows(cache_path: str, max_age_s: Optional[int] = None,
-              now: Optional[datetime] = None) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+def load_rows(cache_path: str, max_age_s: int | None = None,
+              now: datetime | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Cache-first read for the BYO listing: NEVER raises. A missing or corrupt
     cache degrades to ([], degraded=True) — the marketplace renders empty
     rather than erroring; a registry outage never reaches this path."""
     doc = load_cache(cache_path)
     if doc is None:
         return [], {"degraded": True, "reason": "no-cache", "stale": False, "count": 0}
-    meta: Dict[str, Any] = {"degraded": False, "stale": False, "count": len(doc["rows"]),
+    meta: dict[str, Any] = {"degraded": False, "stale": False, "count": len(doc["rows"]),
                             "watermark": doc.get("watermark"),
                             "generated_at": doc.get("generated_at")}
     if max_age_s is not None:
         try:
             gen = datetime.strptime(doc.get("generated_at", ""), "%Y-%m-%dT%H:%M:%SZ")
-            now = now or datetime.now(timezone.utc)
+            now = now or datetime.now(UTC)
             if (now - gen).total_seconds() > max_age_s:
                 meta["stale"] = True
         except ValueError:
@@ -342,7 +343,7 @@ def _wrap(recs, next_cursor=None):
 
 
 def selftest() -> int:
-    checks: List[Tuple[str, bool]] = []
+    checks: list[tuple[str, bool]] = []
 
     def ck(name, cond):
         checks.append((name, bool(cond)))
@@ -399,7 +400,7 @@ def selftest() -> int:
         return _wrap([_rec("inc", updated="2026-10-30T02:00:00Z")], None)
     sync(cache, fetch=spy, updated_since="2026-10-30T00:00:00Z", now="2026-10-30T02:01:00Z")
     ck("T9 watermark passed as updated_since", seen["us"] == "2026-10-30T00:00:00Z")
-    src = open(__file__, "r", encoding="utf-8").read()
+    src = open(__file__, encoding="utf-8").read()
     # T10 static safety: GET-only, no credentials, no auto-registration surface
     # (scan the implementation segment only — the selftest below mentions the
     # guard literals by name, which would self-reference the check).
@@ -424,7 +425,7 @@ def selftest() -> int:
 # CLI
 # --------------------------------------------------------------------------- #
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Official MCP Registry catalog sync (read-only, cache-first, fail-closed; #1686)")
     p.add_argument("--probe", action="store_true", help="zero-credential live capability probe (1 page + updated_since support)")
     p.add_argument("--sync", action="store_true", help="walk the registry and refresh the cache")

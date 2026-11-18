@@ -14,7 +14,6 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from core.llm.llm_gateway.completion import CompletionMixin
 from core.llm.llm_gateway.context import InferenceContext
 from core.llm.llm_gateway.errors import GatewayError

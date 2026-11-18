@@ -12,7 +12,6 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from core.learning import decision_store
 from core.models.decision_metadata import DecisionMetadata
 
@@ -23,11 +22,10 @@ pytestmark = pytest.mark.unit
 async def decision_table():
     """শুধু decision_metadata টেবিল বানায় (global metadata-তে অসম্পূর্ণ
     অন্য মডেলের FK আছে — সেগুলো এই টেস্টের ব্যাপার নয়; isolation)।"""
-    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
     from core.models.decision_metadata import (
         DecisionMetadata as DecisionMetadataModel,
     )
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     engine = create_async_engine("sqlite+aiosqlite://")
     async with engine.begin() as conn:

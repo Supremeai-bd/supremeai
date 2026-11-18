@@ -59,8 +59,8 @@ async def studio_sign_in(
         create_refresh_token,
     )
     from core.config import settings
-    from database.supabase_client import db
     from core.monitoring.logging_config import logger
+    from database.supabase_client import db
 
     correlation_id = getattr(request.state, "correlation_id", "")
     username = body.email.strip()
@@ -161,8 +161,8 @@ async def studio_sign_up(
         create_access_token,
         create_refresh_token,
     )
-    from database.supabase_client import db
     from core.monitoring.logging_config import logger
+    from database.supabase_client import db
 
     correlation_id = getattr(request.state, "correlation_id", "")
     email = body.email.strip()

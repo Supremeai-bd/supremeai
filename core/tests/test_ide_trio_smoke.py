@@ -9,7 +9,7 @@ import importlib.util
 import sys
 from pathlib import Path
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # Ensure Unicode output works even on cp1252 Windows consoles.
 try:

@@ -1,7 +1,7 @@
 import asyncio
 import os
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.resilience.circuit_breaker import CircuitBreakerState
 
 try:

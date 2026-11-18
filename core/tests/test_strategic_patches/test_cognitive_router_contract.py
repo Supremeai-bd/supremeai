@@ -1,7 +1,6 @@
 """Deterministic contract tests for the currently supported cognitive router."""
 
 import pytest
-
 from core.brain.cognitive_router import CognitiveRouter
 
 

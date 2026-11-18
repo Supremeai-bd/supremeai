@@ -1,10 +1,10 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from core.api.routes.gitlab import router
 from fastapi.testclient import TestClient
 
 from api.dependencies import get_current_user_token, get_tenant_db
-from core.api.routes.gitlab import router
 from database.session import get_db_session
 
 

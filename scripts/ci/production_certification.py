@@ -155,7 +155,7 @@ def get_deploy_evidence(candidate_sha: str) -> dict:
         })
         with urllib.request.urlopen(req, timeout=30) as r:
             runs = json.loads(r.read()).get("workflow_runs", [])
-    except Exception as e:  # noqa: BLE001 — fail-closed: API ব্যর্থতা = UNKNOWN
+    except Exception as e:
         detail = str(e)[:120]
         return {"sha_alignment": {"status": "", "source": f"deploy-train.yml: {detail}", "critical": True},
                 "deploy_freshness": {"status": "", "source": "deploy-train.yml", "critical": True},

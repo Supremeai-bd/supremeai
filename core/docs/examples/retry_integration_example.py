@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 from .retry_handler import retry_handler, retry_with_budget
 

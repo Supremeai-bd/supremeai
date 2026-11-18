@@ -38,8 +38,7 @@ import sys
 # অনুযায়ী সরিয়ে নেওয়া হলো — billion-laughs/XXE class attack একদম বন্ধ।
 import defusedxml.ElementTree as ET
 import psycopg2
-
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # backend ডিরেক্টরি sys.path এ যোগ করা হচ্ছে, যাতে core.*, tools.* ইম্পোর্ট করা যায়
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -50,6 +49,7 @@ sys.path.insert(0, BACKEND_DIR)
 
 try:
     from core.config import settings
+
     from tools.headless_agent_registry import get_headless_agent_configs
 except ImportError as e:
     logger.error(f"প্রয়োজনীয় মডিউল ইম্পোর্ট করা যায়নি: {e}. backend ডিরেক্টরি থেকে বা repo root থেকে চালান।")

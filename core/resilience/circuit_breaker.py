@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, TypeVar
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 from ..config import settings  # Fixed import path - using relative import
 

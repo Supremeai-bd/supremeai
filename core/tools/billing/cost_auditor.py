@@ -1,6 +1,7 @@
 import os
 
 from core.monitoring.logging_config import logger
+
 try:
     from core.memory.sqlite_store import SQLiteMemoryStore
 except ImportError:

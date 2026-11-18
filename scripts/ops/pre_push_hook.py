@@ -43,8 +43,8 @@ def is_ref_deletion() -> bool:
 
         if os.name == "nt":
             import ctypes
-            from ctypes import wintypes
             import msvcrt
+            from ctypes import wintypes
 
             handle = msvcrt.get_osfhandle(sys.stdin.fileno())
             avail = wintypes.DWORD()

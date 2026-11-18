@@ -23,8 +23,9 @@ Design notes:
 from __future__ import annotations
 
 import subprocess
-import tomllib
 from pathlib import Path
+
+import tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BOM = b"\xef\xbb\xbf"

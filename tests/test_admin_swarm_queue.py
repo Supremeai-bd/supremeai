@@ -1,10 +1,9 @@
 """Tests for Admin Swarm Workers and Task Queue endpoints."""
 
 import pytest
+from api.routes.admin_swarm_queue import router as admin_swarm_queue_router
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from api.routes.admin_swarm_queue import router as admin_swarm_queue_router
 
 
 @pytest.fixture

@@ -34,7 +34,10 @@ _AGENTS_DIR = str(Path(__file__).resolve().parents[1] / "agents")
 if _AGENTS_DIR not in sys.path:
     sys.path.insert(0, _AGENTS_DIR)
 
-from claim_thresholds import MIN_CLAIM_AGE_BEFORE_RELEASE_MINUTES, ORPHAN_RELEASE_MINUTES
+from claim_thresholds import (
+    MIN_CLAIM_AGE_BEFORE_RELEASE_MINUTES,
+    ORPHAN_RELEASE_MINUTES,
+)
 
 TTL_MINUTES_DEFAULT = ORPHAN_RELEASE_MINUTES
 

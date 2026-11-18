@@ -22,7 +22,7 @@ class RouteGraph:
                 node_edges.sort(key=lambda edge: (edge["relation"], edge["target"], edge["source"]))
 
     @classmethod
-    def from_path(cls, path: str | Path) -> "RouteGraph":
+    def from_path(cls, path: str | Path) -> RouteGraph:
         return cls(json.loads(Path(path).read_text(encoding="utf-8")))
 
     def get_node(self, node_id: str) -> dict[str, Any] | None:

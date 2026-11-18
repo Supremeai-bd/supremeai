@@ -15,7 +15,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
-
 from core.services.hitl.engine import HITLEngine
 from core.services.hitl.resume_token import (
     DEFAULT_RESUME_TTL_SECONDS,

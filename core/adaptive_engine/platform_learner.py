@@ -2,10 +2,10 @@ import datetime
 import json
 
 import httpx
+from core.monitoring.logging_config import logger
 
 from adaptive_engine.registry import PlatformProfile, PlatformRegistry
 from brain.model_router import ModelRouter
-from core.logging_config import logger
 
 
 class PlatformLearner:

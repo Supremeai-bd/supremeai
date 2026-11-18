@@ -1,8 +1,8 @@
 """Unit tests for deterministic Constitution rules."""
 
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 
 from constitution.rules.arch001_no_local_machine import NoLocalMachineRule
 from constitution.rules.rel001_no_silent_failure import NoSilentFailureRule

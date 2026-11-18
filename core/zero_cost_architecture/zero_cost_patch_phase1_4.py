@@ -51,7 +51,7 @@ from typing import (
 import aiohttp
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # ============================================================================
 # CONFIGURATION LAYER — Dynamic, Zero-Hardcode, Env-Driven

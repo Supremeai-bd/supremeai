@@ -7,7 +7,7 @@ import hashlib
 import json
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from evolution.change_proposal import (
     ChangeProposalManager,
     ProposalState,

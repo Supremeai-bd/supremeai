@@ -2,9 +2,8 @@
 """Tests for Runtime BudgetGuard enforcement."""
 
 import pytest
-
-from core.task_contract import TaskBudget, TaskContract
 from core.runtime.budget_guard import BudgetExceededError, BudgetGuard
+from core.task_contract import TaskBudget, TaskContract
 
 
 def test_budget_guard_pre_execution_passes():

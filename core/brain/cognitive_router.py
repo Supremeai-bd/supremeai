@@ -3,8 +3,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from brain.economic_optimizer import BudgetContext, EconomicOptimizer
 from core.config import settings
+
+from brain.economic_optimizer import BudgetContext, EconomicOptimizer
 
 COMPLEX_KEYWORDS = (
     "investigate",

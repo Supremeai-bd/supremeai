@@ -12,9 +12,9 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from core.runs.run_scope import observe_run
 
 import database.session as db_session
-from core.runs.run_scope import observe_run
 
 
 class FakeService:

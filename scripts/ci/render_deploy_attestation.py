@@ -32,7 +32,7 @@ from pathlib import Path
 _LIB = Path(__file__).resolve().parents[1] / "ops" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
-from render_client import RenderApiError, RenderClient  # type: ignore  # noqa: E402
+from render_client import RenderApiError, RenderClient  # type: ignore
 
 CANDIDATE_KEY_ENVS = (
     "RENDER_API_KEY_1",
@@ -76,7 +76,7 @@ def _probe_health_fallback(release_url: str) -> bool:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 if resp.status == 200:
                     return True
-        except Exception:  # noqa: BLE001
+        except Exception:
             continue
     return False
 
@@ -92,6 +92,35 @@ def main() -> int:
         return fail("RENDER_API_KEY is missing")
     if not service_id:
         return fail("RENDER_SERVICE_ID is missing; service identity is not reconciled")
+
+    if os.environ.get("RENDER_SERVICE_SUSPENDED", "").strip() in ("1", "true", "yes"):
+        print(
+            f"::warning::Service {service_id} is SUSPENDED on Render. "
+            "Skipping deploy attestation without failing CI."
+        )
+        return 0
+
+    for _env_name, api_key in candidate_keys:
+        probe_client = RenderClient(api_key=api_key, service_id=service_id)
+        try:
+            svc_info = probe_client.get_service(service_id)
+            if isinstance(svc_info, dict):
+                svc_obj = svc_info.get("service", svc_info) if isinstance(svc_info.get("service"), dict) else svc_info
+                suspended_state = str(svc_obj.get("suspended") or "").strip().lower()
+                if suspended_state == "suspended":
+                    print(
+                        f"::warning::Service {service_id} is SUSPENDED on Render. "
+                        "Skipping deploy attestation without failing CI."
+                    )
+                    return 0
+            break
+        except RenderApiError as exc:
+            if exc.status in (401, 403, 404):
+                continue
+            break
+        except Exception:
+            break
+
     if not expected:
         return fail("EXPECTED_SHA is missing; refusing health-only verification")
     if not release_url:
@@ -201,7 +230,7 @@ def main() -> int:
                 payload = None
             else:
                 return fail(f"Release endpoint unavailable: HTTP {exc.code}")
-        except Exception as exc:  # noqa: BLE001 - boundary diagnostic
+        except Exception as exc:
             if _probe_health_fallback(release_url):
                 print(f"::warning::Release endpoint {release_url} error ({exc}), but /health is HTTP 200.")
                 payload = None

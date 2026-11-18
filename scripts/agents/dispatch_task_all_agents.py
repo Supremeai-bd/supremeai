@@ -79,7 +79,7 @@ async def dispatch_tasks():
 
     # Lazy import — keeps this module importable by gates (check_slot_registry_drift)
     # without pulling in backend core/mesh dependencies.
-    from core.agent_mailbox import get_agent_mailbox, BROADCAST_TARGET
+    from core.agent_mailbox import BROADCAST_TARGET, get_agent_mailbox
 
     active_agents = resolve_active_agents()
     print(

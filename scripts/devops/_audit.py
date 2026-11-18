@@ -1,4 +1,9 @@
-import json, re, os, urllib.request, urllib.error
+import json
+import os
+import re
+import urllib.error
+import urllib.request
+
 try:
     import yaml
 except ImportError:

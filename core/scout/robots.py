@@ -14,8 +14,7 @@ from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
 
 import httpx
-
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 _ROBOT_TIMEOUT = 5.0
 _CACHE_TTL = 3600.0

@@ -14,7 +14,6 @@ Exit codes: 0 = pass, 1 = fail (WARNING only — advisory, not BLOCK).
 import argparse
 import os
 import subprocess
-import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]

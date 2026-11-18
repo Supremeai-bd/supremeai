@@ -8,4 +8,4 @@ _ROOT_TESTS = str(Path(__file__).resolve().parents[2] / "tests")
 if _ROOT_TESTS not in sys.path:
     sys.path.insert(0, _ROOT_TESTS)
 
-from test_openapi_breaking_guard import *  # noqa: F401, F403, E402
+from test_openapi_breaking_guard import *

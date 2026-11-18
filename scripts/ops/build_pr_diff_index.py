@@ -12,7 +12,6 @@ and the MCP Control Tower can query with sub-millisecond latency.
 
 import json
 import os
-import re
 import sys
 import time
 from pathlib import Path

@@ -20,14 +20,14 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # In-memory stores for offline fallback
-_GRAPH_NODES: Dict[str, Dict[str, Any]] = {}
-_GRAPH_EDGES: List[Dict[str, Any]] = []
-_DOCUMENTS: List[Dict[str, Any]] = []
-_LEARNED_FACTS: List[Dict[str, Any]] = []
-_EPISODES: List[Dict[str, Any]] = []
+_GRAPH_NODES: dict[str, dict[str, Any]] = {}
+_GRAPH_EDGES: list[dict[str, Any]] = []
+_DOCUMENTS: list[dict[str, Any]] = []
+_LEARNED_FACTS: list[dict[str, Any]] = []
+_EPISODES: list[dict[str, Any]] = []
 
 # bridge-20261027-memory-graph-empty (#1341): TTL + recency policy for the
 # in-memory episode store. Configurable via MEMORY_EPISODE_TTL_MS (<=0 disables).
@@ -38,7 +38,7 @@ _EPISODE_TTL_MS = int(os.environ.get("MEMORY_EPISODE_TTL_MS", "0") or 0)
 # graph_nodes to 0 (AIQ-057/062/098). This wires a stdlib-SQLite write-through
 # store: hydrate once at boot, persist on every mutation, degrade to the
 # legacy in-memory graph if storage is unavailable (fail-open).
-from graph_store import GraphStore, resolve_db_path  # noqa: E402
+from graph_store import GraphStore, resolve_db_path
 
 # Transient-entity TTL for the knowledge graph (task/topic nodes only; user
 # created durable entities are never expired). <=0 disables (default).
@@ -61,7 +61,7 @@ except Exception as _hydration_err:  # hydration must never kill the sidecar
     sys.stderr.write(f"[MemorySidecar] graph hydration skipped: {_hydration_err}\n")
 
 
-def _node_ts_ms(node: Dict[str, Any]) -> float:
+def _node_ts_ms(node: dict[str, Any]) -> float:
     _ts = str(node.get("created_at", ""))
     try:
         from datetime import datetime
@@ -71,7 +71,7 @@ def _node_ts_ms(node: Dict[str, Any]) -> float:
         return 0.0
 
 
-def _prune_expired_graph(now_ms: Optional[float] = None) -> int:
+def _prune_expired_graph(now_ms: float | None = None) -> int:
     """Drop transient (task/topic) graph entities past MEMORY_GRAPH_TTL_MS.
 
     Durable entities (any entityType other than task/topic) are never
@@ -95,7 +95,7 @@ def _prune_expired_graph(now_ms: Optional[float] = None) -> int:
     return len(stale)
 
 
-def _episode_ts_ms(episode: Dict[str, Any]) -> float:
+def _episode_ts_ms(episode: dict[str, Any]) -> float:
     _ts = str(episode.get("created_at", ""))
     try:
         from datetime import datetime
@@ -105,7 +105,7 @@ def _episode_ts_ms(episode: Dict[str, Any]) -> float:
         return 0.0
 
 
-def _prune_expired(now_ms: Optional[float] = None) -> int:
+def _prune_expired(now_ms: float | None = None) -> int:
     """Drop episodes past TTL (fail-loud knob: MEMORY_EPISODE_TTL_MS)."""
     if _EPISODE_TTL_MS <= 0:
         return 0
@@ -128,7 +128,7 @@ QDRANT_URL = _get_env("QDRANT_URL")
 QDRANT_KEY = _get_env("QDRANT_API_KEY")
 
 
-def _supabase_request(table: str, method: str = "GET", data: Optional[Any] = None, params: Optional[Dict[str, str]] = None) -> Optional[Any]:
+def _supabase_request(table: str, method: str = "GET", data: Any | None = None, params: dict[str, str] | None = None) -> Any | None:
     if not SUPABASE_URL or not SUPABASE_KEY:
         return None
     url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{table}"
@@ -151,7 +151,7 @@ def _supabase_request(table: str, method: str = "GET", data: Optional[Any] = Non
         return None
 
 
-def _qdrant_request(endpoint: str, method: str = "GET", data: Optional[Any] = None) -> Optional[Any]:
+def _qdrant_request(endpoint: str, method: str = "GET", data: Any | None = None) -> Any | None:
     if not QDRANT_URL:
         return None
     url = f"{QDRANT_URL.rstrip('/')}/{endpoint.lstrip('/')}"
@@ -453,7 +453,7 @@ TOOLS_SCHEMA = [
 ]
 
 
-def handle_tool(name: str, args: Dict[str, Any]) -> Any:
+def handle_tool(name: str, args: dict[str, Any]) -> Any:
     global _GRAPH_EDGES
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
@@ -609,7 +609,7 @@ def handle_tool(name: str, args: Dict[str, Any]) -> Any:
         # (#1359) write-through: task entities survive restarts too
         _STORE.upsert_entity(_task_name, "task", _GRAPH_NODES[_task_name]["observations"], now)
         _topic_pool = _re.findall(r"[A-Za-z_][A-Za-z0-9_]{3,}", f"{episode.get('description', '')} {episode.get('result', '')}")
-        _topics: List[str] = []
+        _topics: list[str] = []
         for _raw in _topic_pool:
             _t = f"{_ns}:topic:{_raw.lower()}"
             if _t not in _topics:

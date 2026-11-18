@@ -252,7 +252,6 @@ def run_checks(repo_root: Path) -> tuple[bool, list[str]]:
 
 def self_test() -> bool:
     """বাংলা: ৬-কেস হারমেটিক স্যুট — সিনথেটিক ফিক্সচারে প্রতিটা প্লেনের সবুজ/লাল পথ।"""
-    import os
 
     cases: list[tuple[str, bool]] = []
     tmp = Path(tempfile.mkdtemp(prefix="lockguard-selftest-"))

@@ -133,13 +133,18 @@ jobs:
         with:
           node-version: 24
 
-      - name: VSCode Extension Compile & Test Check
+      - name: VSCode Extension / Satellite Sentinel Check
         if: steps.filter.outputs.vscode == 'true'
-        working-directory: vscode
         run: |
-          npm ci
-          npm run compile --workspace=extension
-          npm test --workspace=extension
+          if [ -f "vscode/extension/package.json" ]; then
+            cd vscode
+            npm ci
+            npm run compile --workspace=extension
+            npm test --workspace=extension
+          else
+            echo "vscode/extension decoupled to Supremeai-bd/supremeai-vscode — verifying satellite contract sentinel..."
+            python scripts/ci/nightly_repo_hygiene.py --verify-client-contracts
+          fi
 
   runtime-readiness:
     name: "Tier 1: Runtime Readiness & Boundaries (<30s, cloud fallback)"

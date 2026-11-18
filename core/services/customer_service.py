@@ -6,9 +6,12 @@ Pydantic schemas with full support for filtering, pagination, and transactional 
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
-from sqlalchemy import delete as sql_delete, select, update as sql_update
+from sqlalchemy import delete as sql_delete
+from sqlalchemy import select
+from sqlalchemy import update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.customer import Customer

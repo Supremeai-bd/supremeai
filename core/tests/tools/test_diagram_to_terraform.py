@@ -3,7 +3,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from core.tools.code.diagram_to_architecture import DiagramToArchitecture
 
 

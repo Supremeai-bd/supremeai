@@ -782,7 +782,7 @@ def refresh_token_if_stale() -> bool:
                     except Exception:
                         pass
                     return True
-        print(f"⚠️ No auth script found — token refresh skipped (manual refresh needed)")
+        print("⚠️ No auth script found — token refresh skipped (manual refresh needed)")
         return False
     except Exception as e:
         print(f"⚠️ Token refresh failed: {e} — using existing token")

@@ -1,7 +1,7 @@
 import time
 from typing import Optional
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 from ..config import settings
 from .execution_recorder import execution_recorder

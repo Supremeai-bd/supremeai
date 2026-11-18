@@ -15,4 +15,4 @@ Usage:
 """
 
 __version__ = "0.3.0"
-__all__ = ["cli", "reusability_audit", "harvest", "plan_guard", "standalone_check"]
+__all__ = ["cli", "harvest", "plan_guard", "reusability_audit", "standalone_check"]

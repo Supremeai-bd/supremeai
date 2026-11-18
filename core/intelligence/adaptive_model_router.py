@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 class ModelProfile:
     model_id: str
     model_name: str
-    category_scores: Dict[str, float] = field(default_factory=dict)  # category -> quality 0-100
-    avg_latency_ms: Dict[str, int] = field(default_factory=dict)     # category -> latency ms
+    category_scores: dict[str, float] = field(default_factory=dict)  # category -> quality 0-100
+    avg_latency_ms: dict[str, int] = field(default_factory=dict)     # category -> latency ms
     avg_cost_per_1k: float = 0.002
     total_tasks: int = 0
     active: bool = True
@@ -33,7 +33,7 @@ class RoutingDecision:
     routing_reason: str
     exploration: bool
     confidence_score: float
-    fallback_chain: List[str]
+    fallback_chain: list[str]
 
 
 class AdaptiveModelRouter:
@@ -46,7 +46,7 @@ class AdaptiveModelRouter:
         weight_cost: float = 0.2,
         exploration_rate: float = 0.1,  # 10% exploration
         decay_factor: float = 0.95,
-        fallback_chain: Optional[List[str]] = None,
+        fallback_chain: list[str] | None = None,
     ):
         self.w_quality = weight_quality
         self.w_latency = weight_latency
@@ -54,7 +54,7 @@ class AdaptiveModelRouter:
         self.epsilon = exploration_rate
         self.decay = decay_factor
         self.fallback_chain = fallback_chain or ["qwen2.5_coder", "gemini_flash", "local_tiny_brain"]
-        self.models: Dict[str, ModelProfile] = {}
+        self.models: dict[str, ModelProfile] = {}
 
     def register_model(self, profile: ModelProfile) -> None:
         """Register or update model profile in memory registry."""

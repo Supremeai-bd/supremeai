@@ -1,6 +1,10 @@
 """Offline gate for the approved long-term knowledge curriculum."""
 from __future__ import annotations
-import argparse, hashlib, json, re
+
+import argparse
+import hashlib
+import json
+import re
 from pathlib import Path
 
 REQUIRED = {"knowledge_key", "title", "domain", "namespace", "content", "source_document", "source_section", "confidence", "risk_level", "status", "tags"}

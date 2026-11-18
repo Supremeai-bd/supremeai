@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger("supremeai.response_guard")
 
@@ -129,11 +129,11 @@ scrub_identity = purge_identity_bleed
 sanitize = validate_and_sanitize
 
 __all__ = [
-    "STUB_MARKERS",
     "IDENTITY_BRANDS",
-    "purge_identity_bleed",
+    "STUB_MARKERS",
     "is_stub_content",
+    "purge_identity_bleed",
     "repair_markdown",
-    "validate_and_sanitize",
     "sanitize_response",
+    "validate_and_sanitize",
 ]

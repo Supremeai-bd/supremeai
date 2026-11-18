@@ -5,12 +5,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
-from core.cache.redis_manager import redis_manager
-from core.config import settings
-from core.errors.error_bus import with_error_bus
-from core.monitoring.logging_config import logger
-from core.security import JWT_AUDIENCE, JWT_ISSUER, is_token_revoked, revoke_token
-from core.security.authentication.rbac import UserContext
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt import PyJWTError as JWTError
@@ -19,6 +13,12 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 # বাংলা: A5/A6 (admin users) রুটের জন্য admin guard — circular import এড়াতে
 # এটি lazy নয়, dependencies মডিউল core-only তাই এখানে safe।
 from api.dependencies import get_current_admin
+from core.cache.redis_manager import redis_manager
+from core.config import settings
+from core.errors.error_bus import with_error_bus
+from core.monitoring.logging_config import logger
+from core.security import JWT_AUDIENCE, JWT_ISSUER, is_token_revoked, revoke_token
+from core.security.authentication.rbac import UserContext
 from database.supabase_client import db
 
 try:

@@ -1,10 +1,9 @@
 """Tests for Workspace User Knowledge Base endpoints (/api/user/knowledge)."""
 
 import pytest
+from api.routes.knowledge import router as knowledge_router
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from api.routes.knowledge import router as knowledge_router
 
 
 @pytest.fixture

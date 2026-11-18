@@ -4,7 +4,7 @@ import pytest
 
 
 def test_setup_logging_runs():
-    from core.logging_config import setup_logging
+    from core.monitoring.logging_config import setup_logging
 
     # Should not raise
     setup_logging()

@@ -8,9 +8,9 @@ material ever leaks (structural checks only).
 """
 
 import pytest
+from api.routes.admin_dashboard import require_admin_token
 from fastapi.testclient import TestClient
 
-from api.routes.admin_dashboard import require_admin_token
 from core.app import app
 
 client = TestClient(app)

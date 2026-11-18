@@ -59,11 +59,7 @@ class TimeoutVisitor(ast.NodeVisitor):
             full_call = (*mod_chain, func_name)
 
             is_match = False
-            if full_call in NETWORK_FUNCS:
-                is_match = True
-            elif mod_chain and mod_chain[-1] in ("requests", "httpx") and func_name in ("get", "post", "put", "delete", "request"):
-                is_match = True
-            elif func_name == "urlopen" and mod_chain and mod_chain[-1] in ("request", "urllib"):
+            if full_call in NETWORK_FUNCS or mod_chain and mod_chain[-1] in ("requests", "httpx") and func_name in ("get", "post", "put", "delete", "request") or func_name == "urlopen" and mod_chain and mod_chain[-1] in ("request", "urllib"):
                 is_match = True
 
             if is_match:

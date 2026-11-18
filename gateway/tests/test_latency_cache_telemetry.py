@@ -2,9 +2,9 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from gateway.service.app import app
 from gateway.service.cache import MultiTierResponseCache
 from gateway.service.pool import FederationSquad
-from gateway.service.app import app
 
 
 def test_cache_is_cacheable_rules():

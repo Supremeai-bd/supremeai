@@ -13,8 +13,8 @@ import pytest
 sys.modules.setdefault("google", MagicMock())
 sys.modules.setdefault("google.genai", MagicMock())
 
-from fastapi import APIRouter  # noqa: E402
-from fastapi.security import HTTPAuthorizationCredentials  # noqa: E402
+from fastapi import APIRouter
+from fastapi.security import HTTPAuthorizationCredentials
 
 
 def _collect_auth_dependency_names(route) -> set[str]:
@@ -149,9 +149,8 @@ def test_require_admin_token_rejects_invalid_token():
     """A non-admin / malformed token must be rejected (fail-closed)."""
     from unittest.mock import MagicMock
 
-    from fastapi import HTTPException, Request
-
     from api.routes.admin_auth import require_admin_token
+    from fastapi import HTTPException, Request
 
     creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="not-a-valid-jwt")
     request_mock = MagicMock(spec=Request)

@@ -2,13 +2,12 @@
 
 from types import SimpleNamespace
 
-from pydantic import SecretStr
-
 import core.database.supabase_client as supabase_client_module
 import core.db as db_module
 import core.persistence.pooled_pg as pooled_pg_module
 from core.database.session import get_async_url
 from core.database.supabase_client import SupabaseDB
+from pydantic import SecretStr
 
 
 def test_database_url_is_unwrapped_before_scheme_normalization(monkeypatch):

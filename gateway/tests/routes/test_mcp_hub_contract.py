@@ -23,7 +23,7 @@ with ONLY the three hub tables, ``get_db_session`` dependency overridden.
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, datetime
+from datetime import datetime
 
 import pytest
 import pytest_asyncio
@@ -32,13 +32,12 @@ import pytest_asyncio
 pytest.importorskip(
     "greenlet", reason="greenlet not installed — required for SQLAlchemy asyncio engine"
 )
+from database.session import get_db_session
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-
-from database.session import get_db_session
 
 # ---------------------------------------------------------------- fixtures ----
 
@@ -194,9 +193,8 @@ async def test_lazy_tenant_not_duplicated(hub):
     for name in ("a", "b"):
         res = await http.post("/api/v1/mcp/clients", json={"name": name})
         assert res.status_code == 201, res.text
-    from sqlalchemy import func
-
     from models.mcp_gateway import McpTenant
+    from sqlalchemy import func
 
     async with maker() as session:
         count = (await session.execute(select(func.count()).select_from(McpTenant))).scalar_one()
@@ -432,12 +430,11 @@ async def test_slug_claim_race_maps_to_409(hub, monkeypatch):
     """Concurrent-claim race: the IntegrityError on commit maps to the SAME 409
     contract as the pre-check (client sees 'Slug already claimed', session
     rolled back cleanly)."""
-    from sqlalchemy.exc import IntegrityError
-
     from api.routes import mcp_hub as hub_module
     from database.session import get_db_session as _dep
     from models.base import Base
     from models.mcp_gateway import McpClient, McpSlug, McpTenant
+    from sqlalchemy.exc import IntegrityError
 
     class RacingSessionWrapper:
         """First commit raises IntegrityError (row inserted by the rival

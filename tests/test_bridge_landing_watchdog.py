@@ -60,7 +60,7 @@ def test_verdict_model_pins():
     assert mod.extract_slugs("(bridge-20261028-)") == []  # slug must start alnum
     # Prefix collision is the r2-lane trap: base slug must not match -r2 needle.
     base = "(bridge-20261028-alpha-lane)"
-    assert base not in mod.extract_slugs(f"x (bridge-20261028-alpha-lane-r2) y")
+    assert base not in mod.extract_slugs("x (bridge-20261028-alpha-lane-r2) y")
     # Threshold default: 2h (fresh-evidence window vs CI-Guardian latency).
     assert mod.DEFAULT_AT_RISK_HOURS == 2.0
     # Satellite model (#1916 live false positive): the open repo constant and
@@ -88,7 +88,7 @@ def test_classify_pure_matrix():
     assert v["verdict"] == "MERGED_ON_MAIN", v
     # In flight: slug in an open PR title -> OPEN_PR.
     v = mod.classify({"number": 2, "title": f"x {slug} y", "createdAt": fresh},
-                     [], [f"PR title (bridge-20261028-alpha-lane) (#1901)"], now)
+                     [], ["PR title (bridge-20261028-alpha-lane) (#1901)"], now)
     assert v["verdict"] == "OPEN_PR", v
     # Young unmatched -> IN_GATES (normal CI-Guardian latency).
     v = mod.classify({"number": 3, "title": f"x {slug} y", "createdAt": fresh}, [], [], now)
@@ -102,15 +102,15 @@ def test_classify_pure_matrix():
     assert v["verdict"] == "NO_SLUG", v
     # Prefix collision: -r2 slug must NOT match the base lane's landing.
     v = mod.classify({"number": 6, "title": f"x {r2} y", "createdAt": old},
-                     [f"feat: base lane (bridge-20261028-alpha-lane) (#1902)"], [], now)
+                     ["feat: base lane (bridge-20261028-alpha-lane) (#1902)"], [], now)
     assert v["verdict"] == "LANDING_AT_RISK", v
     # ...and -r2 matches its own landing.
     v = mod.classify({"number": 7, "title": f"x {r2} y", "createdAt": fresh},
-                     [f"feat: rescue (bridge-20261028-alpha-lane-r2) (#1903)"], [], now)
+                     ["feat: rescue (bridge-20261028-alpha-lane-r2) (#1903)"], [], now)
     assert v["verdict"] == "MERGED_ON_MAIN", v
     # Any-slug-wins: a multi-slug WO counts as landed if ONE slug landed.
     v = mod.classify({"number": 8, "title": f"a {slug} b {r2} c", "createdAt": old},
-                     [f"feat: base (bridge-20261028-alpha-lane) (#1904)"], [], now)
+                     ["feat: base (bridge-20261028-alpha-lane) (#1904)"], [], now)
     assert v["verdict"] == "MERGED_ON_MAIN", v
     # Unparseable createdAt -> honest IN_GATES (never a risk flag on bad data).
     v = mod.classify({"number": 9, "title": f"x {slug} y", "createdAt": "not-a-timestamp"},
@@ -147,7 +147,7 @@ def test_satellite_target_matrix():
     assert v["verdict"] == "SATELLITE_TARGET", v
     # A matched slug still wins over the satellite hint.
     v = mod.classify({"number": 22, "title": f"sat landed {slug}", "createdAt": old},
-                     [f"feat: sat (bridge-20261028-alpha-lane) (#1906)"], [], now,
+                     ["feat: sat (bridge-20261028-alpha-lane) (#1906)"], [], now,
                      target_repo=sat)
     assert v["verdict"] == "MERGED_ON_MAIN", v
     # Explicit open-repo target keeps the standard risk model.
@@ -218,13 +218,13 @@ def test_run_verdicts_full_board_join_2516():
     now = 1793160000.0
     old = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 4 * 3600))
     slug = "(bridge-20261028-alpha-lane)"
-    hist = [f"feat: landed (bridge-20261028-alpha-lane) (#1905)"]
+    hist = ["feat: landed (bridge-20261028-alpha-lane) (#1905)"]
     vs = mod.run_verdicts(
         [{"number": 21, "title": f"landed {slug}", "createdAt": old,
           "updatedAt": old, "labels": ["report-only", "ops"]},
          {"number": 22, "title": f"landed {slug}", "createdAt": old,
           "labels": ["bridge:queued"]},
-         {"number": 23, "title": f"stuck (bridge-20261028-beta-lane)", "createdAt": old,
+         {"number": 23, "title": "stuck (bridge-20261028-beta-lane)", "createdAt": old,
           "labels": ["status:claimed"]}],
         hist, [], now)
     by_num = {v["number"]: v["verdict"] for v in vs}
@@ -235,7 +235,7 @@ def test_run_verdicts_full_board_join_2516():
     assert "label_plane" not in next(v for v in vs if v["number"] == 22), "queued rows carry no plane tag"
     # Non-landed non-queued rows stay silent (zero new false positives).
     vs = mod.run_verdicts(
-        [{"number": 24, "title": f"stuck (bridge-20261028-beta-lane)", "createdAt": old,
+        [{"number": 24, "title": "stuck (bridge-20261028-beta-lane)", "createdAt": old,
           "labels": ["status:claimed"]}],
         hist, [], now)
     assert vs == [], vs

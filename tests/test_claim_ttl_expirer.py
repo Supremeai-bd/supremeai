@@ -46,8 +46,8 @@ from unittest import mock
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "agents"))
 
-import claim_ttl_expirer as cte  # noqa: E402
-from claim_thresholds import CLAIM_IDLE_RELEASE_HOURS  # noqa: E402
+import claim_ttl_expirer as cte
+from claim_thresholds import CLAIM_IDLE_RELEASE_HOURS
 
 
 class FakeRun:

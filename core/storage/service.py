@@ -1,7 +1,7 @@
 from typing import BinaryIO
 
 from core.config import settings
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 from .interfaces import StorageProvider
 from .models import StorageFile, StorageResult

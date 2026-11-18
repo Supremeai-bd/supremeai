@@ -290,11 +290,11 @@ def run_plan() -> int:
     print(f"  family pin    : {VERSION_FAMILY} (radar IV precedent + #2161 Finding 2)")
     print(f"  GET surface   : {PING_PATH} | {VERSION_PATH} | {SERVERS_PATH}?limit=N&cursor=C")
     print(f"  cache         : in-memory TTL {CACHE_TTL_S}s, zero disk writes")
-    print(f"  health line   : ping + service version + build age (drift detection)")
-    print(f"  snapshot      : paged walk, limit<=200/page, honest skip rows, never red")
-    print(f"  never-do      : no publish or validate probes, no credentials, no"
-          f" auto-registration, no .github/**, no guard-baseline writes")
-    print(f"  report-only   : rows are informational; connect stays human-approved (WO #1523)")
+    print("  health line   : ping + service version + build age (drift detection)")
+    print("  snapshot      : paged walk, limit<=200/page, honest skip rows, never red")
+    print("  never-do      : no publish or validate probes, no credentials, no"
+          " auto-registration, no .github/**, no guard-baseline writes")
+    print("  report-only   : rows are informational; connect stays human-approved (WO #1523)")
     return EXIT_OK
 
 
@@ -335,7 +335,7 @@ def run_snapshot(limit: int, max_pages: int, needle: str | None) -> int:
     for skip in snap["skips"]:
         print(f"  skip: {skip}")
     print(f"  GETs       : {cache.misses + cache.hits} ({cache.misses} network / {cache.hits} cached)")
-    print(f"  report-only: rows are informational; connect stays human-approved")
+    print("  report-only: rows are informational; connect stays human-approved")
     return EXIT_OK
 
 

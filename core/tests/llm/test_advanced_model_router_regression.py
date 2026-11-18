@@ -10,7 +10,6 @@ import urllib.request
 from unittest.mock import patch
 
 import pytest
-
 from core.config import settings
 from core.llm.advanced_model_router import (
     _DETERMINISTIC_PATTERNS,

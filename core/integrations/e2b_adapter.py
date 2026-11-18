@@ -17,8 +17,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from core.logging_config import logger
 from core.integrations._flags import flag, import_available
+from core.monitoring.logging_config import logger
 
 _ENABLED_FLAG = "SUPREMEAI_E2B_ENABLED"
 _MAX_OUTPUT_BYTES = 256 * 1024

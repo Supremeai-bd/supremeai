@@ -16,11 +16,11 @@ import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
-from core.monitoring.logging_config import logger
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from api.deps import get_current_user_token
+from core.monitoring.logging_config import logger
 from database.supabase_client import db as supabase_db
 
 router = APIRouter(

@@ -160,6 +160,7 @@ async def force_dual_pool_recheck(
 ) -> dict[str, Any]:
     """Trigger an immediate background recheck of all 6 models and return updated telemetry."""
     import asyncio
+
     from gateway.dual_pool_priority_router import get_dual_pool_router, live_http_probe
 
     r = get_dual_pool_router()

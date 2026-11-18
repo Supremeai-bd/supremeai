@@ -7,6 +7,7 @@ and compat routes.
 from __future__ import annotations
 
 import re
+
 from fastapi import HTTPException, Request
 
 try:

@@ -3,7 +3,7 @@ import json
 import os
 import sys
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # Ensure the backend tools can be imported
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))

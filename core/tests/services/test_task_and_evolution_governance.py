@@ -2,8 +2,8 @@
 """Tests for TaskContract and ChangeProposal Governance (Audit P0 implementations)."""
 
 import pytest
-
 from core.task_contract import RiskLevel, TaskContract, TaskStatus, VerificationPolicy
+
 from evolution.change_proposal import (
     ChangeType,
     ProposalState,

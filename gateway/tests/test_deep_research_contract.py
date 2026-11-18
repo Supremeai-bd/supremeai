@@ -11,13 +11,12 @@ from __future__ import annotations
 import json
 
 import pytest
-from pydantic import ValidationError
-
 from api.routes.deep_research import (
     HISTORY_SELECT_COLUMNS,
     ResearchReport,
     ResearchStepEvent,
 )
+from pydantic import ValidationError
 
 # ---------------------------------------------------------------------------
 # 1) SSE "step" event — frontend reads: type, step(number), name, content

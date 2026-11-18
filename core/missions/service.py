@@ -27,7 +27,6 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.logging_config import logger
 from core.missions.models import Mission, MissionTraceEvent
 from core.missions.state_machine import (
     APPROVED,
@@ -42,6 +41,7 @@ from core.missions.state_machine import (
     assert_transition,
     requires_phase_reset,
 )
+from core.monitoring.logging_config import logger
 
 #: Label stamped on missions by the default (no-LLM) assigner stub.
 DEFAULT_AGENT_LABEL = "auto-agent-v1"

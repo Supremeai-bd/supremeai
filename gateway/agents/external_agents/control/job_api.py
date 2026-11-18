@@ -19,10 +19,9 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
-
 from external_agents.contracts.task_contract import TaskContract, TaskState
 from external_agents.control.state_manager import AgentStateManager, TaskRecord
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 

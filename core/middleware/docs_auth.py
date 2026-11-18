@@ -27,7 +27,7 @@ import secrets
 from collections.abc import Callable
 
 from core.config import settings
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # বাংলা: যেসব পাথ docs/OpenAPI exposure হিসেবে গণ্য হবে — AuthMiddleware-এর
 # পাবলিক লিস্টের সাথে consistent রাখা হয়েছে।

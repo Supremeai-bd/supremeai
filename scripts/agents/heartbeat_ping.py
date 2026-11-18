@@ -30,11 +30,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from core.utils.api_key_resolver import resolve_numbered_key
 import sys
 import time
 import urllib.error
 import urllib.request
+
+from core.utils.api_key_resolver import resolve_numbered_key
 
 SLOT_RULES = "slot must match agent-N (e.g. agent-4)"
 TTL_SECONDS = 300
@@ -112,7 +113,7 @@ def ping_rest(slot: str, payload: str, url: str | None, token: str | None) -> st
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode()[:120]
             failures.append(f"{label}: HTTP {exc.code} {detail}")
-        except Exception as exc:  # noqa: BLE001 — failover must keep walking
+        except Exception as exc:
             failures.append(f"{label}: {exc}")
     raise RuntimeError(f"all {len(attempts)} Redis account(s) rejected the ping: {' | '.join(failures)}")
 

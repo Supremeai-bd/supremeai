@@ -6,8 +6,9 @@ import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
-from core.logging_config import logger
 from core.messaging.event_bus import ErrorEvent, error_event_bus
+from core.monitoring.logging_config import logger
+
 from scout.models import CrawlEventType
 
 #: বাংলা: fire-and-forget persistence-task-দের জীবন্ত রাখার সেট (GC-সুরক্ষা)।

@@ -25,10 +25,10 @@ Scanned surfaces: every `.github/workflows/*.yml` AND every composite action
 automatically (no list to update).
 """
 
-from pathlib import Path
 import json
 import re
 import unittest
+from pathlib import Path
 
 import yaml
 

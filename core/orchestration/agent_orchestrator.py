@@ -7,8 +7,8 @@ from pydantic import BaseModel
 
 from core.config import settings
 from core.errors.error_bus import with_error_bus
-from core.logging_config import logger
 from core.messaging.event_bus import ErrorContext
+from core.monitoring.logging_config import logger
 
 MAX_AGENT_TOKENS = settings.max_agent_tokens
 MAX_AGENT_ITERATIONS = settings.max_agent_iterations

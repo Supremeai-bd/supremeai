@@ -7,7 +7,6 @@ with hallucinations like "I don't have the ability to view or interpret images".
 """
 
 from unittest.mock import MagicMock
-import pytest
 
 from gateway.service.route_arbiter import DynamicRouteArbiter, KeySlot
 

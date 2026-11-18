@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts" / "ci"))
 
-import tiny_brain_pr_guard as guard  # noqa: E402
+import tiny_brain_pr_guard as guard
 
 
 class TestTinyBrainGuard(unittest.TestCase):

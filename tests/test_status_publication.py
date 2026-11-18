@@ -22,7 +22,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "gateway" / "service"))
 
-import status_publication as sp  # noqa: E402
+import status_publication as sp
 
 APP_PATH = REPO_ROOT / "gateway" / "service" / "app.py"
 

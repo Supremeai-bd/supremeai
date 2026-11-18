@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-import subprocess, sys
+import subprocess
+import sys
+
 # Zero-regression gate: ensure no syntax errors in changed Python files
 r = subprocess.run([sys.executable, '-m', 'py_compile'] + [f for f in __import__('sys').argv[1:] if f.endswith('.py')], capture_output=True)
 if r.returncode != 0:

@@ -112,30 +112,75 @@ def get_changed_files_from_git() -> list[str]:
 def get_diff_text(files: list[str], pr_number: str | None = None) -> str:
     """Extract git diff text for specified files, truncated to limit."""
     diff_text = ""
-    if pr_number and shutil.which("gh"):
-        try:
-            res = run_cmd(["gh", "pr", "diff", str(pr_number)])
-            if res.returncode == 0 and res.stdout.strip():
-                diff_text = res.stdout
-        except Exception:
-            pass
-    if not diff_text:
+    # 1. Prefer targeted git diff for the specific high-risk files from GITHUB_WORKSPACE or repo root
+    search_dirs: list[str] = []
+    gh_ws = os.environ.get("GITHUB_WORKSPACE", "").strip()
+    if gh_ws and Path(gh_ws).is_dir():
+        search_dirs.append(gh_ws)
+    parent_ws = Path.cwd().parent
+    if Path.cwd().name == "_verifier-base" and (parent_ws / ".git").exists():
+        search_dirs.append(str(parent_ws))
+    search_dirs.append(str(Path.cwd()))
+
+    for work_dir in search_dirs:
         for base in ("origin/main", "main", "HEAD~1"):
             try:
-                cmd = ["git", "diff", f"{base}...HEAD", "--"] + files
+                cmd = ["git", "-C", work_dir, "diff", f"{base}...HEAD", "--"] + files
                 res = run_cmd(cmd)
                 if res.returncode == 0 and res.stdout.strip():
                     diff_text = res.stdout
                     break
             except Exception:
                 continue
-    if not diff_text:
+        if diff_text:
+            break
+
+    # 2. Fallback to gh pr diff or GitHub pulls/files API (handles >300 file PRs where gh pr diff returns HTTP 406)
+    if not diff_text and pr_number and shutil.which("gh"):
         try:
-            res = run_cmd(["git", "diff", "HEAD", "--"] + files)
-            if res.returncode == 0:
+            res = run_cmd(["gh", "pr", "diff", str(pr_number)])
+            if res.returncode == 0 and res.stdout.strip():
                 diff_text = res.stdout
         except Exception:
             pass
+
+        if not diff_text:
+            try:
+                repo_slug = os.environ.get("GITHUB_REPOSITORY", "Supremeai-bd/supremeai").strip()
+                res = run_cmd([
+                    "gh",
+                    "api",
+                    "--paginate",
+                    f"repos/{repo_slug}/pulls/{pr_number}/files?per_page=100",
+                ])
+                if res.returncode == 0 and res.stdout.strip():
+                    risky_set = {f.replace("\\", "/").strip().lstrip("/") for f in files}
+                    patches: list[str] = []
+                    for page_line in res.stdout.splitlines():
+                        page_line = page_line.strip()
+                        if not page_line:
+                            continue
+                        items = json.loads(page_line)
+                        if isinstance(items, list):
+                            for item in items:
+                                fname = str(item.get("filename") or "")
+                                patch = str(item.get("patch") or "")
+                                if fname in risky_set and patch:
+                                    patches.append(f"--- a/{fname}\n+++ b/{fname}\n{patch}")
+                    if patches:
+                        diff_text = "\n".join(patches)
+            except Exception:
+                pass
+
+    if not diff_text:
+        for work_dir in search_dirs:
+            try:
+                res = run_cmd(["git", "-C", work_dir, "diff", "HEAD", "--"] + files)
+                if res.returncode == 0 and res.stdout.strip():
+                    diff_text = res.stdout
+                    break
+            except Exception:
+                pass
     return diff_text[:DIFF_CHAR_LIMIT]
 
 
@@ -281,8 +326,8 @@ def run_semantic_verification(files: list[str], diff: str, title: str = "") -> d
     # 2. Check for test files in changes
     has_test = any(re.search(r"tests?|test_.*\.py$", f, re.IGNORECASE) for f in files)
 
-    # 3. Attempt LLM Pool
-    providers = _get_api_providers()
+    # 3. Attempt LLM Pool (only when non-empty diff text is available)
+    providers = _get_api_providers() if diff.strip() else []
     prompt = (
         "You are SupremeAI's Senior Security & Architecture Gatekeeper.\n"
         "Analyze the following High-Risk PR diff against these 3 strict criteria:\n"

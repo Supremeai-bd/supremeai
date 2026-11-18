@@ -232,7 +232,7 @@ class _Fixture(BaseHTTPRequestHandler):
     payload = b"{}"
     code = 200
 
-    def do_GET(self):  # noqa: N802
+    def do_GET(self):
         self.send_response(self.code)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
@@ -415,7 +415,7 @@ def main(argv: list[str] | None = None) -> int:
         if ns.strict:
             print(f"STRICT drift (exit 1): {len(drifts)}/{len(verdicts)} nodes off-contract.")
             return DRIFT
-        print(f"REPORT-ONLY drift (exit 0) — rerun with --strict for a fail-closed verdict.")
+        print("REPORT-ONLY drift (exit 0) — rerun with --strict for a fail-closed verdict.")
         return OK
 
     print(f"FLEET CONTRACT OK: {len(verdicts)}/{len(verdicts)} nodes on-contract (report-only, exit 0).")

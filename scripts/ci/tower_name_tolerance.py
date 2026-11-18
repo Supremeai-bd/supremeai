@@ -100,7 +100,7 @@ def call_across_names(call_by_name: Callable[[str], Any], names: tuple[str, ...]
     for name in names:
         try:
             resp = call_by_name(name)
-        except Exception as exc:  # noqa: BLE001 — যুগ-সহনশীলতাই এখানে উদ্দেশ্য
+        except Exception as exc:
             last_exc = exc
             continue
         if envelope_says_tool_not_found(resp):

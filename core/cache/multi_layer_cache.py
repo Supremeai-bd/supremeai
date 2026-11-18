@@ -26,8 +26,8 @@ except ImportError:
     TTLCache = dict  # fallback for lightweight environments lacking cachetools
 
 from core.llm.token_budget import estimate_tokens
-from core.logging_config import logger
 from core.messaging.event_bus import ErrorEvent, error_event_bus
+from core.monitoring.logging_config import logger
 from core.swarm_pubsub import swarm_streamer
 from monitoring.metrics_collector import metrics_collector, record_cache_access
 

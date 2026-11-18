@@ -1,5 +1,5 @@
 from core.config import settings
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 from .interfaces import MessagingProvider
 from .models import MessageEvent, MessageResult

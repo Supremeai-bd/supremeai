@@ -8,7 +8,6 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
-
 from core.services.escrow_service import Escrow, EscrowService, EscrowStatus
 
 

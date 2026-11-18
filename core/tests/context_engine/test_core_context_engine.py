@@ -14,7 +14,6 @@ Pins the smallest-sufficient-context contract:
 from __future__ import annotations
 
 import pytest
-
 from core.context_engine import (
     DEFAULT_INPUT_BUDGET,
     ContextBlock,

@@ -28,8 +28,8 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from core.logging_config import logger
 from core.integrations.telegram_config import MeshTelegramConfig
+from core.monitoring.logging_config import logger
 
 # callback_data prefix — 64-byte Telegram সীমার জন্য record_id এর বদলে
 # স্বল্প-সংখ্যক কী ব্যবহার হয় (registry: n → record_id)।

@@ -13,7 +13,7 @@ sys.path.insert(
     0, str(Path(__file__).resolve().parents[1])
 )  # constitution pkg parent (test_gates-প্যাটার্ন)
 
-import branch_creation_guard as guard  # noqa: E402
+import branch_creation_guard as guard
 
 REPO = "SaifulHaqueNiloy/supremeai"
 CLAIM_COMMENT_PLANNER = {

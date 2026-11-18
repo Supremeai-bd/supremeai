@@ -14,7 +14,6 @@ AutoHealer.proactive_guardian_cycle()-এ গিয়ে সত্যিকা�
 
 from __future__ import annotations
 
-import asyncio
 import os
 import time
 from datetime import UTC, datetime
@@ -22,7 +21,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # বাংলা মন্তব্য: থ্রেশহোল্ড-নীতি — এক জায়গায় টিউনযোগ্য, ম্যাজিক-নাম্বার ছড়ানো নয়।
 _DLQ_BACKLOG_WARNING = 50

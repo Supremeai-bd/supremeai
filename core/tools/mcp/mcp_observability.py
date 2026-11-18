@@ -10,8 +10,9 @@ import os
 from pathlib import Path
 
 import httpx
-from core.tools.mcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field
+
+from core.tools.mcp import FastMCP
 
 mcp = FastMCP("observability_mcp")
 

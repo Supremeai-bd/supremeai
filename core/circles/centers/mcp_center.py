@@ -16,7 +16,7 @@ from typing import Any
 
 from core.circles.centers.base import CircleCenter, ExecutionEnvelope, LocalCapability
 from core.circles.contracts import CircleName, RiskLevel
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 _DEFAULT_CONFIG = (
     Path(__file__).resolve().parents[4]

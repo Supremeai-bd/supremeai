@@ -14,7 +14,6 @@ Semantics under test:
 from __future__ import annotations
 
 import pytest
-
 from core.runs.budgets import (
     BudgetDimension,
     BudgetSnapshot,

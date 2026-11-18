@@ -1,5 +1,6 @@
 import os
 
+
 def generate_summary():
     report_dir = "ci-reports"
     summary_file = os.path.join(report_dir, "summary.txt")

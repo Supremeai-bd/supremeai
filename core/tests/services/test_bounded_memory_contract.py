@@ -18,9 +18,8 @@ import time
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
-
 from core.monitoring.metrics_collector import _HISTOGRAM_WINDOW, MetricsCollector
+from fastapi import HTTPException
 
 # ---------------------------------------------------------------------------
 # 1) metrics_collector — histogram bounded window

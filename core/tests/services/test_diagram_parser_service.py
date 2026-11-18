@@ -8,7 +8,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from core.services.diagram_parser_service import (
     DiagramParserService,
     DiagramType,

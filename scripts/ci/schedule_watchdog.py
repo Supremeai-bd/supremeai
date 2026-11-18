@@ -110,7 +110,7 @@ def api(method: str, path: str, token: str, body: dict | None = None) -> tuple[i
         with urllib.request.urlopen(req, timeout=30) as resp:
             payload = json.load(resp) if resp.status != 204 else {}
             return resp.status, payload
-    except urllib.error.HTTPError as exc:  # noqa: BLE001 — স্ট্যাটাস-ভিত্তিক সিদ্ধান্তের জন্য
+    except urllib.error.HTTPError as exc:
         return exc.code, {}
 
 
@@ -162,7 +162,7 @@ def main() -> int:
             continue
         try:
             spec = yaml.safe_load(__import__("base64").b64decode(raw["content"]).decode())
-        except Exception as exc:  # noqa: BLE001 — একটি খারাপ YAML পুরো sweep বন্ধ করবে না
+        except Exception as exc:
             report.append(f"WARN(yaml {exc.__class__.__name__}) | {path}")
             continue
         trig = spec.get("on") if isinstance(spec, dict) else None
@@ -198,7 +198,7 @@ def main() -> int:
             try:
                 base = last_dt or (now - dt.timedelta(days=400))
                 due = cron_next(cron, base)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 continue
             if next_due is None or due < next_due:
                 next_due = due

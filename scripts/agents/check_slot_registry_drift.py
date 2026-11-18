@@ -128,7 +128,7 @@ def check_dispatch_script() -> None:
                 fail(
                     f"dispatch_task_all_agents.py: active YAML slot '{slot_id}' missing from resolved map"
                 )
-    except Exception as exc:  # noqa: BLE001 — gate must never crash silently
+    except Exception as exc:
         fail(f"dispatch_task_all_agents.py: could not verify YAML derivation ({exc})")
     finally:
         sys.path.pop(0)

@@ -48,8 +48,7 @@ MAP = "ECOSYSTEM_MAP.md"
 TAG = "[license-ssot-guard]"
 
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci"))
-import license_ssot_guard as guard  # noqa: E402
-
+import license_ssot_guard as guard
 
 # --------------------------------------------------------------------------- #
 # SSOT wiring: the live roster and the live hook carry the guard               #

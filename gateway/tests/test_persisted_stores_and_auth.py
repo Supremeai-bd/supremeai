@@ -1,14 +1,11 @@
-import io
-import os
 import pytest
 from fastapi import Request
-from starlette.datastructures import Headers
 from fastapi.testclient import TestClient
 
-from gateway.service.app import app
 from gateway.service import storage
+from gateway.service.app import app
+from gateway.service.auth_identity import resolve_user_id
 from gateway.service.keygen import generate_key
-from gateway.service.auth_identity import resolve_user_id, extract_token
 
 
 @pytest.fixture(autouse=True)

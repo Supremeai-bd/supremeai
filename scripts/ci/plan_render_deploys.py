@@ -41,7 +41,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 SERVICE_RULES = {
     "core": (
         "RENDER_CORE_SERVICE_ID",

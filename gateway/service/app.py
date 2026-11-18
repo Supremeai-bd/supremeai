@@ -13,16 +13,15 @@ Key Features:
 from __future__ import annotations
 
 import asyncio
-from collections import deque
-from datetime import datetime, timezone
 import json
 import logging
 import os
 import socket
 import time
-import hmac
-from typing import Any, Optional, Tuple
 import uuid
+from collections import deque
+from datetime import datetime, timezone
+from typing import Any, Optional, Tuple
 
 from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -198,22 +197,35 @@ except ImportError:
 # ── Provider-Agnostic Context Compiler, Response Guard & Canonical Memory ──
 try:
     from service.context_compiler import compile_chat_context, resolve_sampling_knobs
-    from service.response_guard import is_stub_content, purge_identity_bleed, repair_markdown, validate_and_sanitize
     from service.memory_store import (
         append_canonical_message,
         get_recent_history,
         get_user_durable_memories,
         log_provider_attempt,
     )
+    from service.response_guard import (
+        is_stub_content,
+        purge_identity_bleed,
+        repair_markdown,
+        validate_and_sanitize,
+    )
 except ImportError:
     try:
-        from gateway.service.context_compiler import compile_chat_context, resolve_sampling_knobs
-        from gateway.service.response_guard import is_stub_content, purge_identity_bleed, repair_markdown, validate_and_sanitize
+        from gateway.service.context_compiler import (
+            compile_chat_context,
+            resolve_sampling_knobs,
+        )
         from gateway.service.memory_store import (
             append_canonical_message,
             get_recent_history,
             get_user_durable_memories,
             log_provider_attempt,
+        )
+        from gateway.service.response_guard import (
+            is_stub_content,
+            purge_identity_bleed,
+            repair_markdown,
+            validate_and_sanitize,
         )
     except ImportError:
         compile_chat_context = None  # type: ignore[assignment]
@@ -339,7 +351,7 @@ async def _aiter_stream_first_token(
 try:
     from service.adaptive_routing import RouteState, choose_route
 except ImportError:  # pragma: no cover - package-relative fallback
-    from gateway.service.adaptive_routing import RouteState, choose_route
+    from gateway.service.adaptive_routing import RouteState
 
 
 def _optional_int_env(*names: str) -> int | None:
@@ -429,7 +441,7 @@ async def _on_startup():
     asyncio.create_task(start_background_recheck_loop(interval_seconds=120.0))
     # Root-level free-model discovery: per-key /models + micro-probe + dead-key pruning
     try:
-        from gateway.service.free_model_discovery import run_discovery, discovery_loop
+        from gateway.service.free_model_discovery import discovery_loop, run_discovery
         asyncio.create_task(run_discovery(squad))
         asyncio.create_task(discovery_loop(squad, interval_seconds=900.0))
     except Exception as exc:  # noqa: BLE001
@@ -456,7 +468,8 @@ else:
     allowed_origins = _default_cors
 
 # Way 28: bind one correlation id per request (echoed on responses; usable in logs).
-from gateway.middleware.correlation_id import CorrelationIdMiddleware  # noqa: E402
+from gateway.middleware.correlation_id import CorrelationIdMiddleware
+
 app.add_middleware(CorrelationIdMiddleware)
 
 # Audit P1-12 fix: plain http is only trusted for local development hosts.
@@ -506,7 +519,8 @@ app.add_middleware(
 # response. Added LAST so it mounts OUTERMOST (Starlette add_middleware prepends):
 # request flow Sec -> CORS -> Corr -> routes, so every response — CORS preflight
 # included — gets stamped. Pure-ASGI header injection never touches the SSE body.
-from gateway.middleware.security_headers import SecurityHeadersMiddleware  # noqa: E402
+from gateway.middleware.security_headers import SecurityHeadersMiddleware
+
 app.add_middleware(SecurityHeadersMiddleware)
 
 # Telegram Inbound Webhook Listener
@@ -891,7 +905,9 @@ def _extract_user_id(request: Request) -> str:
         from service.auth_identity import resolve_user_id
     except ImportError:
         try:
-            from gateway.service.auth_identity import resolve_user_id  # type: ignore[no-redef]
+            from gateway.service.auth_identity import (
+                resolve_user_id,  # type: ignore[no-redef]
+            )
         except ImportError:
             from .auth_identity import resolve_user_id  # type: ignore[no-redef]
     return resolve_user_id(request, require_registered=False)
@@ -1375,7 +1391,8 @@ async def studio_auth_login(request: Request):
             from gateway.service.admin_auth import _verify_password
         except Exception:  # noqa: BLE001
             def _verify_password(pw: str) -> bool:  # type: ignore[misc]
-                import hmac, os
+                import hmac
+                import os
                 env_pass = os.getenv("SUPREMEAI_ADMIN_PASSWORD", "").strip()
                 return bool(env_pass) and hmac.compare_digest(pw, env_pass)
 
@@ -1551,7 +1568,7 @@ async def studio_auth_me(request: Request):
             "authenticated": True,
             "user_id": user_id,
             "email": "",
-            "name": (client[4:] if client.startswith("usr-") else client).capitalize() or "User",
+            "name": (client.removeprefix("usr-")).capitalize() or "User",
             "role": "user",
             "permissions": ["read", "write"],
         }
@@ -2002,8 +2019,8 @@ async def _execute_chat_completion(
     # Evaluates latency targets (spark: 1.5s, core: 1.8s, reason/deep: 2.0-2.5s)
     # and balances quota and speed without hardcoded priority bias.
     # ═══════════════════════════════════════════════════════════════════════
-    from gateway.service.route_arbiter import route_arbiter, RoutingDecision
     from gateway.dual_pool_priority_router import get_dual_pool_router
+    from gateway.service.route_arbiter import RoutingDecision, route_arbiter
     route_arbiter.squad = squad
     dual_router = get_dual_pool_router()
     dual_pick = dual_router.select_best_model(requested_model or "general")
@@ -2099,10 +2116,14 @@ async def _execute_chat_completion(
         # here because the full content is already buffered).
         if chat_content:
             try:
-                from gateway.service.stream_sanitizer import sanitize_stream as _sanitize_stream
+                from gateway.service.stream_sanitizer import (
+                    sanitize_stream as _sanitize_stream,
+                )
             except ImportError:
                 try:
-                    from service.stream_sanitizer import sanitize_stream as _sanitize_stream
+                    from service.stream_sanitizer import (
+                        sanitize_stream as _sanitize_stream,
+                    )
                 except ImportError:
                     _sanitize_stream = None
             if _sanitize_stream is not None:
@@ -2329,13 +2350,17 @@ async def _execute_chat_completion(
                                     if pool:
                                         pool.report_injury(slot, 500, call_latency)
                                     try:
-                                        from gateway.service.free_model_discovery import persist_slot
+                                        from gateway.service.free_model_discovery import (
+                                            persist_slot,
+                                        )
                                         asyncio.create_task(persist_slot(slot))
                                     except Exception:  # noqa: BLE001
                                         pass
                                     _adaptive_routes["api-pool"].record(call_latency, success=False)
                                     try:
-                                        from gateway.service.free_model_discovery import validate_slot
+                                        from gateway.service.free_model_discovery import (
+                                            validate_slot,
+                                        )
                                         asyncio.create_task(validate_slot(slot))
                                     except Exception:  # noqa: BLE001
                                         pass

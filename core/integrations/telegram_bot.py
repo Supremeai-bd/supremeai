@@ -31,7 +31,6 @@ from typing import Any
 
 import httpx
 
-from core.logging_config import logger
 from core.integrations.telegram_config import MeshTelegramConfig, load_mesh_telegram_config
 from core.integrations.telegram_handlers import (
     CB_APPROVE,
@@ -42,6 +41,7 @@ from core.integrations.telegram_handlers import (
     MeshCallbackHandlers,
     MeshCommandHandlers,
 )
+from core.monitoring.logging_config import logger
 
 
 # ── HTTP clients ─────────────────────────────────────────────────────────────

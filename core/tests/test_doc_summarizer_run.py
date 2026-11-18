@@ -5,8 +5,8 @@ import os
 import sys
 import time
 
+from core.monitoring.logging_config import logger
 from core.skills.core_doc_summarizer import execute_tool
-from core.logging_config import logger
 from core.utils.api_key_resolver import resolve_numbered_key
 
 # প্রোডাকশন-গ্রেড লগিং সেটআপ

@@ -13,7 +13,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from core.services.auto_healer import AutoHealer, Issue, IssueCategory, RetryPolicy, Severity
 
 

@@ -122,7 +122,7 @@ index abc123..def456 100644
         import tempfile
         # Test UTF-8
         with tempfile.NamedTemporaryFile("wb", delete=False) as f:
-            f.write("hello utf8".encode("utf-8"))
+            f.write(b"hello utf8")
             p_utf8 = f.name
         self.assertEqual(ingest_mod.read_text_safe(p_utf8), "hello utf8")
 

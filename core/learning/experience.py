@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 
 @dataclass

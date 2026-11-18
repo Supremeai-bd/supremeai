@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from core.tools.social.email_agent import EmailAgent
 
 

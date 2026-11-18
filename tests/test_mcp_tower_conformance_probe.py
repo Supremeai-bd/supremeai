@@ -1,9 +1,9 @@
-import pytest
 from scripts.ci.mcp_tower_conformance_probe import (
-    build_initialize_payload,
     analyze_capabilities,
-    run_self_test
+    build_initialize_payload,
+    run_self_test,
 )
+
 
 def test_mcp_tower_conformance_probe_self_test():
     assert run_self_test() == 0

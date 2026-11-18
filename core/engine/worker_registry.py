@@ -1,8 +1,8 @@
 import asyncio
 from datetime import UTC, datetime
 
-from core.monitoring.logging_config import logger
 from core.messaging.nats_messaging import nats_client
+from core.monitoring.logging_config import logger
 
 
 class WorkerRegistry:

@@ -22,8 +22,6 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Iterable
-
 
 REPORT_DIR = Path(os.getenv("CI_AUDIT_REPORT_DIR", "ci-reports"))
 SUMMARY_FILE = REPORT_DIR / "summary.txt"

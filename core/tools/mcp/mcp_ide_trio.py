@@ -15,10 +15,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.tools.mcp import FastMCP
 from pydantic import BaseModel, Field
 
 from core.monitoring.logging_config import logger
+from core.tools.mcp import FastMCP
 
 mcp = FastMCP("ide_trio_mcp")
 

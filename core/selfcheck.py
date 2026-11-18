@@ -18,7 +18,11 @@ def get_complete_ai_system() -> dict[str, Any]:
 
     evolution_components = get_evolution_pipeline()
 
-    from core import AccessibilityComplianceEngine, ProductionDeploymentSystem, get_performance_optimizer
+    from core import (
+        AccessibilityComplianceEngine,
+        ProductionDeploymentSystem,
+        get_performance_optimizer,
+    )
 
     qa_suite = None
     try:

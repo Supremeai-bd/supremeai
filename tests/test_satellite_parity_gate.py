@@ -19,7 +19,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts" / "ci"))
 
-import satellite_parity_gate as gate  # noqa: E402
+import satellite_parity_gate as gate
 
 P1 = {"open": "gateway/main.py", "satellite": "Supremeai-bd/supremeai-api", "path": "main.py"}
 P2 = {"open": "core/main.py", "satellite": "Supremeai-bd/supremeai-core", "path": "main.py"}

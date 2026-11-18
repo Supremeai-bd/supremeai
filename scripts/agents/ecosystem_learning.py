@@ -22,8 +22,8 @@ from __future__ import annotations
 
 import json
 import time
-from pathlib import Path
 from collections import Counter, defaultdict
+from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 TRACE_FILE = ROOT_DIR / "docs" / "master_docs" / "AGENT_TRACES.jsonl"

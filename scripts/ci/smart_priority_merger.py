@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Smart Priority-Wise Sequential PR Merger (স্মার্ট প্রায়োরিটি-ভিত্তিক একক-মার্জার)
 ================================================================================
@@ -33,6 +32,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
 from core.utils.api_key_resolver import resolve_numbered_key
 
 # বাংলা মন্তব্য: উইন্ডোজ এবং সিআই-তে ইউনিকোড/বাংলা আউটপুট নিশ্চিত করতে utf-8 রিকনফিগারেশন
@@ -142,7 +142,7 @@ def _load_protected_paths() -> List[str]:
             paths = (payload.get("auto_merge") or {}).get("protected_paths")
             if isinstance(paths, list) and paths:
                 return [str(p) for p in paths if str(p).strip()]
-    except (OSError, ValueError):  # noqa: BLE001 — policy ফাইল ভাঙলেও merger বন্ধ হবে না
+    except (OSError, ValueError):
         pass
     return list(_PROTECTED_PATHS_FALLBACK)
 
@@ -452,7 +452,7 @@ def auto_heal_pr_evidence(pr_num: int, current_body: str, rollup: Optional[List[
         )
         if res.returncode != 0:
             logger.error(f"❌ PR #{pr_num} রিমাইন্ডার কমেন্ট পোস্ট ব্যর্থ: {res.stderr.strip()}")
-    except Exception as exc:  # noqa: BLE001 — হিল ব্যর্থ মার্জ-পাইপলাইন ভাঙ্বে না
+    except Exception as exc:
         logger.error(f"❌ রিমাইন্ডার কমেন্ট ব্যর্থ: {exc}")
 
     return False
@@ -928,7 +928,7 @@ class SemanticRiskClassifier:
         def _sig_of(node: Any) -> str:
             try:
                 return _ast.unparse(node.args) if getattr(node, "args", None) else ""
-            except Exception:  # noqa: BLE001 — unparse ব্যর্থ হলেও ম্যাপিং থাকবে
+            except Exception:
                 return ""
 
         def _walk(nodes: List[Any], prefix: str) -> None:
@@ -1192,7 +1192,7 @@ class AISentinelReviewer:
             if provider["name"] == "groq":
                 return data["choices"][0]["message"]["content"]
             return data["candidates"][0]["content"]["parts"][0]["text"]
-        except Exception as e:  # noqa: BLE001 — provider ব্যর্থতা পাইপলাইন ভাঙবে না
+        except Exception as e:
             logger.warning(f"🤖 Sentinel provider '{provider['name']}' ব্যর্থ: {e}")
             return None
 
@@ -1731,7 +1731,7 @@ def main() -> None:
             logger.info(f"🛑 Reached merge limit of {args.limit}. Stopping.")
             break
 
-        print(f"\n─────────────────────────────────────────────────────────────", flush=True)
+        print("\n─────────────────────────────────────────────────────────────", flush=True)
         print(f"👉 [{idx}/{len(plan)}] Evaluating PR #{item.number}: {item.title}", flush=True)
         print(f"   Tier: {item.tier_name} | Branch: {item.branch}", flush=True)
 

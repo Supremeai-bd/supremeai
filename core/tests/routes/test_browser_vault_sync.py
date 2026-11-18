@@ -1,12 +1,12 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from core.browser_session_vault import BrowserSessionVault
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 
 from api.dependencies import get_current_user_token
 from api.routes.browser import router
-from core.browser_session_vault import BrowserSessionVault
 
 
 @pytest.fixture()

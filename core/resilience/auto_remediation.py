@@ -2,7 +2,7 @@ import os
 import time
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.utils.api_key_resolver import resolve_numbered_key
 
 # AUDIT-FIX (#1693 HIGH): No deduplication key — same file patched repeatedly.

@@ -1,16 +1,16 @@
 """
 test_model_cascades.py — Tests for Zero-Waste Model Priority Cascade and Fallback.
 """
+from unittest.mock import MagicMock, patch
+
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, patch, MagicMock
+
 import gateway.service.providers.adapters as _adapters
+from gateway.service.pool import FederationSquad
 from gateway.service.providers.adapters import (
-    forward_chat_completion,
     PROVIDER_MODEL_CASCADES,
-    PROVIDER_CONFIGS,
+    forward_chat_completion,
 )
-from gateway.service.pool import FederationSquad, ProviderKeyPool, KeySlot
 
 
 @pytest.fixture(autouse=True)

@@ -4,7 +4,9 @@
 Run once per clone/agent worktree:
     python scripts/setup_git_hooks.py
 """
-import shutil, subprocess, sys
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]

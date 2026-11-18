@@ -38,7 +38,7 @@ REGISTRY = REPO_ROOT / "secrets_registry.yaml"
 
 # Security-sensitive key-name heuristics.
 SENSITIVE_RE = re.compile(
-    r"(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|DSN|SERVICE_ACCOUNT|API_KEY)", re.I
+    r"(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|DSN|SERVICE_ACCOUNT|API_KEY)", re.IGNORECASE
 )
 # Candidate env keys: UPPER_SNAKE, reasonably long, has a separator or suffix.
 CANDIDATE_RE = re.compile(r"\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)\b")

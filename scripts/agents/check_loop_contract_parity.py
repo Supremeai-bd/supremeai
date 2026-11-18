@@ -155,7 +155,7 @@ def main() -> int:
     #    pipeline.yml is admin-lane, agents cannot sync it).
     warnings: list[str] = []
     loop_labels_m = re.search(
-        r"EXCLUDED_LABELS\s*=\s*frozenset\(\{(.*?)\}\)", code, re.S
+        r"EXCLUDED_LABELS\s*=\s*frozenset\(\{(.*?)\}\)", code, re.DOTALL
     )
     pipe_lines = [
         ln
@@ -246,7 +246,7 @@ def main() -> int:
         )
     else:
         ssot_m8 = re.search(
-            r"EXCLUDED_LABELS\s*=\s*frozenset\(\{(.*?)\}\)", code, re.S
+            r"EXCLUDED_LABELS\s*=\s*frozenset\(\{(.*?)\}\)", code, re.DOTALL
         )
         if ssot_m8 is None:
             failures.append(
@@ -263,9 +263,7 @@ def main() -> int:
             # them, so doc tokens like task-envelope-v1 never false-positive.
             for tok in re.findall(r"`([^`]+)`", doc_text):
                 tok = tok.strip().lower()
-                if re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*:[a-z0-9-]+", tok):
-                    doc_labels.add(tok)
-                elif tok in loop_labels_8:
+                if re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*:[a-z0-9-]+", tok) or tok in loop_labels_8:
                     doc_labels.add(tok)
             starve8 = doc_labels - loop_labels_8
             waste8 = loop_labels_8 - doc_labels if doc_labels else set()

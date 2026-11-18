@@ -41,10 +41,10 @@ class _FakeClient:
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    def __enter__(self) -> "_FakeClient":
+    def __enter__(self) -> _FakeClient:
         return self
 
-    def __exit__(self, *exc: Any) -> None:
+    def __exit__(self, *exc: object) -> None:
         return None
 
     def _record(self, method: str, url: Any, **kwargs: Any) -> _FakeResponse:

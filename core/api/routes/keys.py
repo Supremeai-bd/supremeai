@@ -20,13 +20,13 @@ from datetime import UTC, datetime, timezone
 from typing import Any, Optional
 
 import httpx
-from core.monitoring.logging_config import logger
-from core.request_context import get_correlation_id
-from core.security.authentication.rbac import get_current_user_token as verify_token_dependency
 from cryptography.fernet import Fernet
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from core.monitoring.logging_config import logger
+from core.request_context import get_correlation_id
+from core.security.authentication.rbac import get_current_user_token as verify_token_dependency
 from database.supabase_client import get_db
 
 router = APIRouter(prefix="/keys", tags=["User Keys"])

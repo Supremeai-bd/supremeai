@@ -3,16 +3,16 @@
 Native client applications and developer workflows for SupremeAI.  
 Per [`ARCHITECTURE_PLAN.md`](https://github.com/Supremeai-bd/supremeai/blob/main/ARCHITECTURE_PLAN.md), this hub hosts desktop and IDE client applications, while the native Android app lives in [`Supremeai-bd/supremeai-apk`](https://github.com/Supremeai-bd/supremeai-apk):
 
-| Subdirectory / Repo | Target Platform | Release Channel |
-|---|---|---|
-| **[`/extension`](https://github.com/Supremeai-bd/supremeai-vscode/tree/main/extension)** | VS Code Extension (`.vsix`) | VS Code Marketplace / GitHub Releases |
-| **[`/desktop`](https://github.com/Supremeai-bd/supremeai-vscode/tree/main/desktop)** | Windows / macOS / Linux Desktop App | GitHub Releases (`.exe`, `.dmg`, `.AppImage`) |
-| **[`Supremeai-bd/supremeai-apk`](https://github.com/Supremeai-bd/supremeai-apk)** | Native Android App (Kotlin + Jetpack Compose) | Google Play Store / APK Releases |
+| Client Application | Repository | Target Platform | Release Artifacts |
+|---|---|---|---|
+| **IDE Extension** | [`Supremeai-bd/supremeai-vscode`](https://github.com/Supremeai-bd/supremeai-vscode) | VS Code / Cursor / Windsurf | `.vsix` Packages & VS Code Marketplace |
+| **Desktop Workstation** | [`Supremeai-bd/supremeai-desktop`](https://github.com/Supremeai-bd/supremeai-desktop) | Windows / macOS / Linux | `.exe`, `.msi`, `.dmg`, `.AppImage` |
+| **Mobile Studio** | [`Supremeai-bd/supremeai-apk`](https://github.com/Supremeai-bd/supremeai-apk) | Android Phones & Tablets | `.apk` Installers & Google Play Store |
+| **Web Studio** | [`Supremeai-bd/supremeai-frontend`](https://github.com/Supremeai-bd/supremeai-frontend) | Web Browsers | Cloud Web Application |
 
-> Satellite sovereignty (#4934): the `extension/` and `desktop/`
-> sources live in the sovereign [`supremeai-vscode`](https://github.com/Supremeai-bd/supremeai-vscode)
-> satellite repository; this hub keeps release docs and the root sentinel
-> anchor (`package.json`) for zero-drift parity verification.
+> **Satellite Sovereignty Policy**:
+> All external client applications are decoupled into sovereign satellite repositories under the `Supremeai-bd` organization.
+> The root repository `Supremeai-bd/supremeai` serves exclusively as the single source of truth for the **AI Core Engine, Gateway Router, Swarm Supervisor, and MCP Control Plane**.
 
 ---
 

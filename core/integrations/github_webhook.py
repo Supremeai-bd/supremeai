@@ -30,7 +30,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
 from core.config import settings
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.task_router import TaskRouter, get_task_router
 
 router = APIRouter(prefix="/api/v1/integrations/github", tags=["github-webhook"])

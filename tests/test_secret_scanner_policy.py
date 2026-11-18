@@ -1,7 +1,7 @@
 """Tests for secret_scanner_policy (Guardian gate)."""
 from __future__ import annotations
 
-from scripts.ci.secret_scanner_policy import scan_text, scan_paths
+from scripts.ci.secret_scanner_policy import scan_paths, scan_text
 
 
 def test_clean_text_no_findings() -> None:

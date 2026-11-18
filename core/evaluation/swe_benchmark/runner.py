@@ -38,9 +38,10 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 CORPUS_PATH = Path(__file__).resolve().parent / "corpus.json"
 

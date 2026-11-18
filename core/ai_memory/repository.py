@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from core.embeddings import hash_vectorize
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 EMBEDDING_DIM = 384
 

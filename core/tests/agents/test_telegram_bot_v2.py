@@ -3,7 +3,6 @@ import hmac
 from unittest.mock import AsyncMock
 
 import pytest
-
 from core.tools.social.telegram_bot import TelegramBotHandler
 from core.tools.social.telegram_security import security_guard
 

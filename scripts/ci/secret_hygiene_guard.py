@@ -16,7 +16,6 @@ import os
 import re
 import sys
 
-
 AUDIT_FILE = "scratchpad/audit_keys_output.txt" if os.path.exists("scratchpad/audit_keys_output.txt") else None
 
 

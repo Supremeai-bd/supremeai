@@ -7,11 +7,12 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
-from brain.economic_optimizer import BudgetContext, get_economic_optimizer
 from core.config import settings
 from core.llm.advanced_model_router import (
     get_advanced_router,
 )
+
+from brain.economic_optimizer import BudgetContext, get_economic_optimizer
 
 
 class ProviderHealth(TypedDict):

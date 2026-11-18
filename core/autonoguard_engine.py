@@ -25,8 +25,8 @@ from core.config import settings
 from core.errors.error_remediation import error_remediator
 from core.failure_fingerprint import make_fingerprint
 from core.immune_system import ImmuneSystemScanner
-from core.monitoring.logging_config import logger
 from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus
+from core.monitoring.logging_config import logger
 
 # Standardize on core.resilience CircuitBreaker
 from core.resilience.circuit_breaker import CircuitBreaker

@@ -22,8 +22,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from core.monitoring.logging_config import logger
 from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus
+from core.monitoring.logging_config import logger
 
 # ---------------------------------------------------------------------------
 # Per-provider max token budgets (conservative — leaves headroom for system prompts)

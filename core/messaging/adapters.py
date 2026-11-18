@@ -22,7 +22,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import uuid4
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 from .interfaces import MessagingProvider
 from .models import MessageEvent, MessageResult

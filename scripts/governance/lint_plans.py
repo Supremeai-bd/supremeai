@@ -111,7 +111,7 @@ FAMILY_KEYWORDS: dict[str, tuple[str, ...]] = {
 class Finding:
     """A single governance finding on one plan document."""
 
-    __slots__ = ("severity", "path", "code", "message")
+    __slots__ = ("code", "message", "path", "severity")
 
     def __init__(self, severity: str, path: Path, code: str, message: str) -> None:
         self.severity = severity  # "error" | "warning" | "info"

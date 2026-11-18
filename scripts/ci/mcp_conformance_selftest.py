@@ -86,7 +86,7 @@ def main() -> int:
 
     try:
         sid = initialize(url)
-    except Exception as err:  # noqa: BLE001
+    except Exception as err:
         print(f"FATAL: cannot initialize session with {url}: {err}")
         return 2
 
@@ -101,7 +101,7 @@ def main() -> int:
     # headers matter.
     try:
         rpc(url, sid, "ping", {}, rid=10)
-    except Exception as err:  # noqa: BLE001 — transport failure is unreachability, not a violation
+    except Exception as err:
         print(f"FATAL: post-initialize ping to {url} failed: {err}")
         return 2
     if (LAST_HEADERS or {}).get("MCP-Protocol-Version") != PROTOCOL_VERSION:

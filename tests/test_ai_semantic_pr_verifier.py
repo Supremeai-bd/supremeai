@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+
 from scripts.ci.ai_semantic_pr_verifier import (
     classify_pr_risk,
     is_high_risk_file,

@@ -5,11 +5,11 @@ This module provides endpoints for monitoring system performance,
 collecting metrics, and exposing health information.
 """
 
+from core.cache.multi_layer_cache import multi_layer_cache
+from core.config import settings
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from core.cache.multi_layer_cache import multi_layer_cache
-from core.config import settings
 from monitoring.metrics_collector import metrics_collector
 
 router = APIRouter(prefix="/telemetry", tags=["telemetry"])
@@ -137,7 +137,7 @@ class FrontendErrorReport(BaseModel):
 @router.post("/frontend-error", tags=["telemetry"])
 async def report_frontend_error(payload: FrontendErrorReport):
     """Receive and log frontend error reports safely from the Studio Client."""
-    from core.logging_config import logger
+    from core.monitoring.logging_config import logger
 
     logger.error(f"Frontend error report: message={payload.message[:200]} url={payload.url}")
     return {"status": "logged", "message": "Frontend error report received"}

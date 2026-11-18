@@ -63,7 +63,7 @@ def _test_row(number: int = 3371) -> dict:
 def _pass_row(number: int) -> dict:
     return {
         "number": number,
-        "title": f"guard(platform): sentry pass 13:33Z — sweep surface FLAPS BACK 12→33 rows",
+        "title": "guard(platform): sentry pass 13:33Z — sweep surface FLAPS BACK 12→33 rows",
         "labels": [],
     }
 

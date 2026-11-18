@@ -25,7 +25,6 @@ import re
 import sys
 from pathlib import Path
 
-
 INTENT_PATTERNS = {
     "change_secret_handling": [
         r"secret_vault\.py",
@@ -142,13 +141,7 @@ def extract_intention(
 
     # Boost confidence if PR title prefix matches (feat/, fix/, refactor/)
     title_prefix_match = False
-    if best_intent == "add_feature" and re.match(r"^feat\(", pr_title):
-        confidence = min(1.0, confidence + 0.2)
-        title_prefix_match = True
-    elif best_intent == "fix_bug" and re.match(r"^fix\(", pr_title):
-        confidence = min(1.0, confidence + 0.2)
-        title_prefix_match = True
-    elif best_intent == "refactor" and re.match(r"^refactor\(", pr_title):
+    if best_intent == "add_feature" and re.match(r"^feat\(", pr_title) or best_intent == "fix_bug" and re.match(r"^fix\(", pr_title) or best_intent == "refactor" and re.match(r"^refactor\(", pr_title):
         confidence = min(1.0, confidence + 0.2)
         title_prefix_match = True
 

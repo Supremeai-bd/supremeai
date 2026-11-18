@@ -16,7 +16,7 @@ import urllib.error
 import urllib.request
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -36,7 +36,9 @@ try:
     from .auth_identity import resolve_user_id
 except ImportError:
     try:
-        from gateway.service.auth_identity import resolve_user_id  # type: ignore[no-redef]
+        from gateway.service.auth_identity import (
+            resolve_user_id,  # type: ignore[no-redef]
+        )
     except ImportError:
         from service.auth_identity import resolve_user_id  # type: ignore[no-redef]
 
@@ -790,6 +792,7 @@ async def fe_tts_edge(request: Request):
 
     try:
         import io
+
         import edge_tts
 
         communicate = edge_tts.Communicate(text, voice)
@@ -805,7 +808,7 @@ async def fe_tts_edge(request: Request):
         raise
     except Exception as exc:
         logging.getLogger("supremeai.gateway.compat").warning(f"TTS synthesis error: {exc}")
-        raise HTTPException(status_code=503, detail=f"Voice synthesis service unavailable: {str(exc)}")
+        raise HTTPException(status_code=503, detail=f"Voice synthesis service unavailable: {exc!s}")
 
 
 @router.post("/api/transcribe")

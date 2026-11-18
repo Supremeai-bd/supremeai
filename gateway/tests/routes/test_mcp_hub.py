@@ -39,10 +39,9 @@ pytest.importorskip(
     "greenlet", reason="greenlet not installed — required for SQLAlchemy asyncio engine"
 )
 
+from database.session import get_db_session
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-
-from database.session import get_db_session
 
 # ---------------------------------------------------------------- fixures ----
 
@@ -62,11 +61,14 @@ def _make_app() -> FastAPI:
 @pytest_asyncio.fixture
 async def hub_env(monkeypatch):
     """Minimal app + fresh in-memory DB with the router's DB dep overridden."""
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-    from sqlalchemy.pool import StaticPool
-
     from models.base import Base
     from models.mcp_gateway import McpClient, McpSlug, McpTenant
+    from sqlalchemy.ext.asyncio import (
+        AsyncSession,
+        async_sessionmaker,
+        create_async_engine,
+    )
+    from sqlalchemy.pool import StaticPool
 
     engine = create_async_engine(
         "sqlite+aiosqlite://",
@@ -128,9 +130,8 @@ async def _seed_tenant(maker, tenant_id: str = "test-tenant", **overrides) -> No
 
 
 async def _fetch_client_row(maker, client_id: str):
-    from sqlalchemy import select
-
     from models.mcp_gateway import McpClient
+    from sqlalchemy import select
 
     async with maker() as session:
         row = await session.execute(select(McpClient).where(McpClient.id == client_id))
@@ -158,9 +159,8 @@ async def test_claim_slug_success(hub_env):
     assert data["status"] == "active"
 
     # Row persisted and keyed to the caller's EXISTING tenant identity.
-    from sqlalchemy import select
-
     from models.mcp_gateway import McpSlug
+    from sqlalchemy import select
 
     async with maker() as session:
         row = (await session.execute(select(McpSlug).where(McpSlug.slug == "niloy"))).scalar_one()

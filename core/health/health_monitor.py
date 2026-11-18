@@ -2,7 +2,7 @@ import asyncio
 import time
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from services.config_service import ConfigService
 
 try:

@@ -12,9 +12,9 @@ Tests:
 """
 
 import pytest
+from api.server import app
 from httpx import ASGITransport, AsyncClient
 
-from api.server import app
 from core.integration_layer import get_integrator
 
 

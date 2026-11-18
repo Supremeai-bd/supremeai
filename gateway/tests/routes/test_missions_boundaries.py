@@ -44,13 +44,12 @@ import pytest_asyncio
 pytest.importorskip(
     "greenlet", reason="greenlet not installed — required for SQLAlchemy asyncio engine"
 )
+from api.dependencies import get_current_user_token
+from database.session import get_db_session
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-
-from api.dependencies import get_current_user_token
-from database.session import get_db_session
 
 # ---------------------------------------------------------------- fixtures ----
 

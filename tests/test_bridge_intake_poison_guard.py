@@ -8,6 +8,8 @@ detail; guard-৪ intake rc≠0 হলেও sync চলবে। সব offline
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from scripts.bridge.bridge_intake import (
@@ -15,8 +17,6 @@ from scripts.bridge.bridge_intake import (
     _has_effective_landing,
     gh_ok,
 )
-
-from pathlib import Path  # noqa: E402
 
 INTAKE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "bridge" / "bridge_intake.py"
 

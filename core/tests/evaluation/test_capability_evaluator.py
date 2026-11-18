@@ -10,7 +10,6 @@ CI-safe: বিশুদ্ধ ইন-মেমরি গণনা।
 from __future__ import annotations
 
 import pytest
-
 from core.evaluation.capability_evaluator import evaluate_provider
 from core.evaluation.models import DimensionScore, ProviderScore, ScoreDimension
 from core.evaluation.scorers.latency import (

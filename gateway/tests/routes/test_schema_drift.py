@@ -11,7 +11,6 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
-
 from api.routes.health_aggregation import (
     SchemaDriftStatus,
     _fingerprint_rows,

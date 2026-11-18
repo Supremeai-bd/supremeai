@@ -4,10 +4,9 @@ from __future__ import annotations
 import base64
 import json
 
-from fastapi.responses import JSONResponse
-
 from core.config import settings
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
+from fastapi.responses import JSONResponse
 
 try:
     import redis.asyncio as aioredis

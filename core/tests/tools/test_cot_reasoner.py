@@ -3,7 +3,6 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from core.tools.code.cot_reasoner import (
     ChainOfThoughtReasoner,
     DeepReasoningChain,

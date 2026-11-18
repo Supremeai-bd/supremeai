@@ -14,13 +14,13 @@ router = APIRouter(
 
 
 class OverviewResponse(BaseModel):
-    active_agents: Optional[int] = None
-    active_tasks: Optional[int] = None
-    requests_per_second: Optional[float] = None
-    latency_p95_ms: Optional[float] = None
-    error_rate: Optional[float] = None
-    cost_per_hour: Optional[float] = None
-    health_percent: Optional[float] = None
+    active_agents: int | None = None
+    active_tasks: int | None = None
+    requests_per_second: float | None = None
+    latency_p95_ms: float | None = None
+    error_rate: float | None = None
+    cost_per_hour: float | None = None
+    health_percent: float | None = None
     status: str = "stub"
     note: str = (
         "Command Center overview is not yet backed by live telemetry; "

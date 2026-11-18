@@ -27,7 +27,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.persistence import pooled_pg
 
 

@@ -57,7 +57,7 @@ def gh_issue_create(title: str, body: str, labels: list[str]) -> None:
     try:
         from agents.gh_label_ensure import ensure_labels
         labels = ensure_labels(labels)
-    except Exception as exc:  # noqa: BLE001 — per-finding resilience: স্ক্যান থামবে না
+    except Exception as exc:
         print(f"  ⚠️ label-ensure skipped: {exc}")
     cmd = [
         "gh", "issue", "create",
@@ -163,7 +163,7 @@ _NEGATION_CONTEXT_RE = re.compile(
 
 # (P6, #3823) shell env-default idiom — `${DB_HOST:-localhost}` = env-driven host,
 # hardcode নয় (apply_tier_patch.py docker-compose ENV ব্লক)।
-_SHELL_DEFAULT_RE = re.compile(r"\$\{[^}]*:-(?:localhost|127\.0\.0\.1|0\.0\.0\.0)", re.I)
+_SHELL_DEFAULT_RE = re.compile(r"\$\{[^}]*:-(?:localhost|127\.0\.0\.1|0\.0\.0\.0)", re.IGNORECASE)
 
 # (P6, #3823) scanner self-exclusion — detector নিজের সোর্স (pattern/docstring/usage
 # text-এ localhost-স্ট্রিং থাকে) কখনো ফ্ল্যাগ করবে না।
@@ -920,7 +920,7 @@ def write_findings_report(path: str = "/tmp/rules_breaker_findings.json") -> int
     with open(path, "w") as fh:
         _json.dump(report, fh, indent=2, ensure_ascii=False)
     print(f"📋 Findings report written: {path} ({len(_findings_report)} findings)")
-    print(f"   Directive: auditor agent should review + create issues.")
+    print("   Directive: auditor agent should review + create issues.")
     return len(_findings_report)
 
 

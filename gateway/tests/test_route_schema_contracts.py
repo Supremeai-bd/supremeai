@@ -7,7 +7,6 @@ status codes, এবং response model contract।
 
 from __future__ import annotations
 
-import pytest
 from fastapi import FastAPI
 
 from core.app import app as _APP

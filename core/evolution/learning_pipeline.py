@@ -30,7 +30,7 @@ from typing import Any
 # Add backend to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 
 @dataclass

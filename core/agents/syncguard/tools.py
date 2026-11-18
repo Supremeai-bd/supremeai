@@ -1,7 +1,7 @@
 import os
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 
 async def check_infrastructure_drift(github_repo_url: str) -> dict[str, Any]:

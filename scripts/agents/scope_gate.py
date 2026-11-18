@@ -31,7 +31,7 @@ from typing import Any
 
 # ── SSOT reuse (P2 — নতুন taxonomy সংজ্ঞা নয়) ──────────────────────────────
 REPO_ROOT = Path(__file__).resolve().parents[2]
-from scripts.governance.lint_plans import TARGET_SCOPES  # noqa: E402
+from scripts.governance.lint_plans import TARGET_SCOPES
 
 # বাংলা মন্তব্য: customer/tenant demand-lane — SSOT-র একমাত্র customer scope
 # `customer_facing`; tenant demand সেই লেনেই চলে (alias নিচে)। অজানা মান =
@@ -56,7 +56,7 @@ INTERNAL_LAYER_PREFIXES = (
 )
 
 # issue body/label-এ target_scope metadata পার্সিং (deterministic, warn-free)
-_TARGET_SCOPE_LINE_RE = re.compile(r"^\s*target_scope:\s*([A-Za-z_]+)\s*$", re.M)
+_TARGET_SCOPE_LINE_RE = re.compile(r"^\s*target_scope:\s*([A-Za-z_]+)\s*$", re.MULTILINE)
 _SCOPE_LABEL_RE = re.compile(r"^scope:([A-Za-z_]+)$")
 
 
@@ -189,7 +189,7 @@ def scope_gate_preflight(
         )
         if res.returncode == 0 and res.stdout:
             body = res.stdout
-    except Exception:  # noqa: BLE001 — fetch ব্যর্থতাও fail-closed পথেই যায়
+    except Exception:
         body = ""
     return evaluate_claim(
         resolve_demand_scope(),

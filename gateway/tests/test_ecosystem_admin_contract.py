@@ -10,11 +10,10 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 import pytest
-from fastapi import FastAPI, HTTPException
-from fastapi.testclient import TestClient
-
 from adaptive_engine.source_governance import LearnedItem, SourceCategory, SourceState
 from api.routes import ecosystem_admin
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
 
 ADMIN_TOKEN = "test-admin-token-err-h04"
 

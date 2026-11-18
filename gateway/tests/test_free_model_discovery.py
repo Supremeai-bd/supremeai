@@ -6,8 +6,9 @@ Locks in the 2026-11-16 fixes:
 - Free/preferred models are probed before paid ones so a paid entry cannot shadow them.
 - A 401/403 still marks the key dead (auth/forbidden).
 """
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 import gateway.service.free_model_discovery as fmd
 from gateway.service.pool import KeySlot

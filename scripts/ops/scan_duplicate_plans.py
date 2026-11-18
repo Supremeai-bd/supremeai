@@ -1,5 +1,5 @@
-import os
 import hashlib
+import os
 from difflib import SequenceMatcher
 
 plans_base = os.environ.get("PLANS_BASE", "docs/plans")  # FIX(P6 tier-8): machine path -> env

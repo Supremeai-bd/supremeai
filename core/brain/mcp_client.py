@@ -14,8 +14,8 @@ import subprocess
 import time
 from typing import Any
 
-from core.logging_config import logger
 from core.mcp_allowlist import MCPAllowlist, get_mcp_servers
+from core.monitoring.logging_config import logger
 
 DEFAULT_TIMEOUT = 30
 

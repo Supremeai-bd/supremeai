@@ -46,7 +46,9 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gates import find_linked_issue_numbers  # noqa: E402 — same-dir import (branch_creation_guard-প্যাটার্ন)
+from gates import (
+    find_linked_issue_numbers,
+)
 
 RULES_PATH = (
     Path(__file__).resolve().parents[3] / ".github" / "constitution" / "rules.yml"

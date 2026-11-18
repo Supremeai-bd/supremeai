@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Optional
 from uuid import uuid4
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 from .models import AutomationEvent, AutomationResult, AutomationStatus
 

@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from core.config import settings
 from core.degraded_mode import InMemoryRing, sqlite_fallback_allowed
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.persistence import pooled_pg
 from core.persistence.write_behind import WriteBehindBatcher
 

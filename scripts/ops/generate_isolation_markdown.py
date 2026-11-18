@@ -1,5 +1,4 @@
 import json
-import os
 
 with open('docs/audit_reports/deep_codebase_isolation_raw.json', 'r', encoding='utf-8') as f:
     data = json.load(f)

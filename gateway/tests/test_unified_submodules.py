@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 
 from gateway.main import create_app

@@ -1,2 +1,2 @@
 """Canonical re-export from core.api.routes.hybrid_search (SSOT #751)."""
-from core.api.routes.hybrid_search import *  # noqa: F401, F403
+from core.api.routes.hybrid_search import *

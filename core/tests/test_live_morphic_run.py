@@ -4,8 +4,8 @@ import logging
 import os
 import sys
 
+from core.monitoring.logging_config import logger
 from core.skills.core_knowledge_qa import execute_tool
-from core.logging_config import logger
 from core.utils.api_key_resolver import resolve_numbered_key
 
 # লগিং কনফিগারেশন (যাতে কনসোলে আউটপুট সুন্দরভাবে দেখা যায় এবং লিন্টার পাস করে)

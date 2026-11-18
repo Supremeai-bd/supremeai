@@ -9,7 +9,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 try:
     from dotenv import load_dotenv
@@ -142,7 +142,7 @@ def monitor_service(service, skip_health=False):
                     created_at_str = latest.get("createdAt", "")
                     if created_at_str:
                         created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
-                        now = datetime.now(timezone.utc)
+                        now = datetime.now(UTC)
                         # If the deploy is newer than 10 minutes, we consider it our new deploy
                         if (now - created_at) < timedelta(minutes=10):
                             deploy_id = latest.get("id")

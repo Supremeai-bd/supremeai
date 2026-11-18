@@ -60,7 +60,7 @@ def test_gap_premise_holds_end_to_end() -> None:
     token = "ghp_" + "".join(chr(c) for c in [65, 49, 98, 50, 67, 51, 100, 52])
     sk_fixture = "sk" + chr(45) + "live-abcdef"  # runtime-built: no secret-shaped literal
     evidence = {
-        "research_note": f"contact rafiq@example-px.com or +880-1711-555-344, IBAN DE89 3704 0044 0532 0130 00",
+        "research_note": "contact rafiq@example-px.com or +880-1711-555-344, IBAN DE89 3704 0044 0532 0130 00",
         "deploy_note": f"rotate token {token} by friday",
         "proper": {"api_key": sk_fixture, "count": 1},  # control: key-tier works
     }

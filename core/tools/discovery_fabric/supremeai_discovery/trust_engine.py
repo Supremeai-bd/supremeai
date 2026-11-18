@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 
 @dataclass
@@ -27,7 +27,7 @@ def freshness_from_iso(value: str | None) -> float:
         return 0.4
     try:
         t = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        days = max(0, (datetime.now(timezone.utc) - t).days)
+        days = max(0, (datetime.now(UTC) - t).days)
         return max(0.05, 1 - min(days, 3650) / 3650)
     except Exception:
         return 0.4

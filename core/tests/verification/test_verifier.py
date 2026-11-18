@@ -2,8 +2,8 @@
 """Tests for Deterministic Verifier Engine."""
 
 import pytest
-
 from core.task_contract import TaskContract, VerificationPolicy
+
 from verification.verifier import get_verifier
 
 

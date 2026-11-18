@@ -36,8 +36,8 @@ from pathlib import Path
 
 # #3088: universal fingerprint-dedup — title-keyword নয়, সেমান্টিক জাল (both lanes)।
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from issue_fingerprint import duplicate_guard, fingerprint, prepend_marker  # noqa: E402
-from gh_label_ensure import LabelEnsureError, ensure_labels  # noqa: E402  # #3278
+from gh_label_ensure import LabelEnsureError, ensure_labels  # #3278
+from issue_fingerprint import duplicate_guard, fingerprint, prepend_marker
 
 if sys.stdout.encoding != "utf-8":
     try:
@@ -794,7 +794,7 @@ def main() -> int:
                     states = lookup.issues_by_state()
                     print(f"👥 group:{args.group} active: {lookup.active_count} "
                           f"(in-progress: {len(states['in_progress'])}, has-pr: {len(states['has_pr'])})")
-            except Exception as exc:  # noqa: BLE001 — group-রিপোর্ট advisory, কখনো creation আটকাবে না
+            except Exception as exc:
                 print(f"⚠️  group-first lookup skipped: {exc}")
         if not args.allow_fingerprint_duplicate:
             verdict = duplicate_guard(

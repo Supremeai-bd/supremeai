@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # SECURE FIX (CI): services.smart_model_router no longer exports MODEL_REGISTRY or
 # ModelConfig (refactored away during Phase 1 Router Consolidation).

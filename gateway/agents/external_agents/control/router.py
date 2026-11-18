@@ -21,8 +21,6 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
-
 from external_agents.contracts.architecture_artifact import ArchitectureArtifact
 from external_agents.contracts.planner_artifact import PlannerArtifact
 from external_agents.contracts.task_contract import AgentProvider, TaskContract
@@ -33,7 +31,8 @@ from external_agents.control.policy_engine import (
 )
 from external_agents.providers.chatgpt import ChatGPTProvider
 from external_agents.providers.gemini import GeminiProvider
-from external_agents.providers.registry import ExecutionMode, ProviderRegistry
+from external_agents.providers.registry import ProviderRegistry
+from pydantic import BaseModel, Field
 
 __all__ = ["ImplementationBrief", "PlannerArchitectRouter", "RouteOutcome"]
 

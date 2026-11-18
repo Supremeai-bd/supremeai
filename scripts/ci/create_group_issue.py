@@ -32,8 +32,8 @@ from pathlib import Path
 
 # #3088: canonical group-first + fingerprint dedup — ইস্যু-জন্মের আগেই জাল।
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "agents"))
-from group_taxonomy import group_first_lookup, validate_primary_group  # noqa: E402
-from issue_fingerprint import duplicate_guard, prepend_marker  # noqa: E402
+from group_taxonomy import group_first_lookup, validate_primary_group
+from issue_fingerprint import duplicate_guard, prepend_marker
 
 if sys.platform == "win32":
     try:

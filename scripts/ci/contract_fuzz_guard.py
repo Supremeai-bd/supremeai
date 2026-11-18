@@ -181,9 +181,9 @@ def run_live_fuzz(max_time: int, seed: int) -> tuple[dict[str, int], int, list[s
     # repo root — the in-repo gateway package lives at the root.
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
-    from gateway.service.app import app  # in-repo production implementation
-
     from schemathesis import openapi as st_openapi
+
+    from gateway.service.app import app  # in-repo production implementation
 
     cfg = schemathesis.Config.from_dict(
         {"max-time": max_time, "seed": seed, "max-failures": 1000000}

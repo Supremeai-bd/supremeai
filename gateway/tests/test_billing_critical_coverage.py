@@ -127,7 +127,6 @@ class TestCheckoutRequestContract:
 
     def test_missing_price_id_rejected(self):
         from pydantic import ValidationError
-
         from services.billing.billing_plans import CheckoutRequest
 
         with pytest.raises(ValidationError):
@@ -138,7 +137,6 @@ class TestCheckoutRequestContract:
 
     def test_missing_urls_rejected(self):
         from pydantic import ValidationError
-
         from services.billing.billing_plans import CheckoutRequest
 
         with pytest.raises(ValidationError):
@@ -163,14 +161,20 @@ class TestSubscriptionPlansListCompat:
     """#3267: SUBSCRIPTION_PLANS_LIST — legacy list format-এর চুক্তি।"""
 
     def test_list_format_keys(self):
-        from services.billing.billing_plans import SUBSCRIPTION_PLANS, SUBSCRIPTION_PLANS_LIST
+        from services.billing.billing_plans import (
+            SUBSCRIPTION_PLANS,
+            SUBSCRIPTION_PLANS_LIST,
+        )
 
         assert len(SUBSCRIPTION_PLANS_LIST) == len(SUBSCRIPTION_PLANS)
         for entry in SUBSCRIPTION_PLANS_LIST:
             assert {"id", "name", "price", "currency", "interval", "features"} <= set(entry.keys())
 
     def test_list_matches_dict_values(self):
-        from services.billing.billing_plans import SUBSCRIPTION_PLANS, SUBSCRIPTION_PLANS_LIST
+        from services.billing.billing_plans import (
+            SUBSCRIPTION_PLANS,
+            SUBSCRIPTION_PLANS_LIST,
+        )
 
         by_id = {p["id"]: p for p in SUBSCRIPTION_PLANS_LIST}
         for key, plan in SUBSCRIPTION_PLANS.items():

@@ -8,7 +8,7 @@ empty bodies, oversized payloads।
 from __future__ import annotations
 
 import pytest
-from fastapi import FastAPI, status
+from fastapi import status
 
 # ── Missing required fields tests ────────────────────────────────────────────
 

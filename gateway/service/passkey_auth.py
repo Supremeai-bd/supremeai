@@ -16,10 +16,10 @@ import os
 import secrets
 import struct
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException, Request, Response
+from pydantic import BaseModel
 
 from core.config import settings
 from gateway.service.storage import (

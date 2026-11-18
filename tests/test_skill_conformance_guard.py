@@ -19,7 +19,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci"))
 
-import skill_conformance_guard as G  # noqa: E402
+import skill_conformance_guard as G
 
 
 def make_skill(root: Path, name: str, frontmatter: str, body: str = "instructions\n") -> Path:

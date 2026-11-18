@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 try:
     import psutil

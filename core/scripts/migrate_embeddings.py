@@ -2,10 +2,9 @@ import asyncio
 import logging
 import os
 
-from dotenv import load_dotenv
-
 from core.config import settings
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
+from dotenv import load_dotenv
 
 if os.path.exists(".env"):
     load_dotenv(".env")
@@ -18,9 +17,8 @@ logging.basicConfig(level=logging.INFO)
 async def migrate_embeddings():
     """Re-encode ai_memory using the canonical 384-dimensional pgvector contract."""
     try:
-        from supabase import create_client
-
         from core.embeddings import embed_for_pgvector
+        from supabase import create_client
 
         url = settings.supabase_url
         key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")

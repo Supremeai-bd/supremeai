@@ -45,7 +45,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from scripts.agents.issue_fingerprint import (  # noqa: E402
+from scripts.agents.issue_fingerprint import (
     extract_fingerprint,
     find_active_duplicate,
     find_recently_closed_duplicate,
@@ -255,11 +255,11 @@ def build_context(issue_number: int) -> tuple[dict, list[str]]:
     if fp:
         try:
             active_dup = find_active_duplicate(fp)
-        except Exception as exc:  # noqa: BLE001 — fail-closed-এ যাবে, crash নয়
+        except Exception as exc:
             errors.append(f"duplicate scan: {exc}")
         try:
             closed_dup = find_recently_closed_duplicate(fp)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             errors.append(f"closed-duplicate scan: {exc}")
 
     return {

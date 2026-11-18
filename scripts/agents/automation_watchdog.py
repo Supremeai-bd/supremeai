@@ -169,7 +169,7 @@ def gh_json(endpoint: str) -> object | None:
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.loads(r.read())
-    except Exception:  # noqa: BLE001 — ব্যর্থতা = unknown, কখনো মিথ্যে সুস্থ নয়
+    except Exception:
         return None
 
 
@@ -187,7 +187,7 @@ def collect_observations() -> dict:
                 heartbeats.append({"name": name, "last_seen_epoch": rec.get("last_seen_epoch")})
         else:
             heartbeats.append({"name": "agent-heartbeat-store", "last_seen_epoch": None})
-    except Exception:  # noqa: BLE001
+    except Exception:
         heartbeats.append({"name": "agent-heartbeat-store", "last_seen_epoch": None})
 
     # stuck claims: status:in-progress open issues

@@ -31,8 +31,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any
 
-from core.config import settings
 from google.cloud import firestore, storage
+
+from core.config import settings
 
 # Configure logging
 logging.basicConfig(

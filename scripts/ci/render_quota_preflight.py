@@ -8,7 +8,9 @@ For each service account, check remaining quota and decide:
 Quota API is not exposed by Render; on failure assume full budget (500) so
 auto-deploy proceeds, with a warning.
 """
-import json, os, sys, urllib.request
+import json
+import os
+import urllib.request
 
 SERVICES = [
     ("RENDER_API_KEY", "core"),
@@ -47,9 +49,7 @@ for var, name in SERVICES:
         print("::warning::%s key missing for %s" % (var, name))
         continue
     remaining = check_account(key)
-    if remaining >= GLOBAL_THRESHOLD and remaining >= (ESTIMATED_BUILD_MINUTES + SAFETY_BUFFER):
-        mode = "render-source-build"
-    elif remaining >= (ESTIMATED_BUILD_MINUTES + SAFETY_BUFFER):
+    if remaining >= GLOBAL_THRESHOLD and remaining >= (ESTIMATED_BUILD_MINUTES + SAFETY_BUFFER) or remaining >= (ESTIMATED_BUILD_MINUTES + SAFETY_BUFFER):
         mode = "render-source-build"
     else:
         mode = "prebuilt-image"

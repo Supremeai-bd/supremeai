@@ -6,6 +6,7 @@ import re
 from urllib.parse import urlparse
 
 from core.security import is_safe_url
+
 from scout.models import CrawlPolicy, DomainRule, TrustLevel
 
 

@@ -21,11 +21,10 @@ import hmac
 import os
 from collections.abc import Iterable
 
+from core.monitoring.logging_config import logger
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-
-from core.logging_config import logger
 
 # বাংলা: এই পাথগুলো Render-এর নিজস্ব health probe + Firebase init-এর জন্য উন্মুক্ত থাকবে।
 # এগুলো কোনো sensitive ডেটা রিটার্ন করে না, তাই অরিজিন শিল্ড বাইপাস করা নিরাপদ।

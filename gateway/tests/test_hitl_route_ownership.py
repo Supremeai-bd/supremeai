@@ -42,7 +42,7 @@ def _norm_module(module: str) -> str:
     """একই endpoint দুই import-নামে আসতে পারে (repo root vs backend/ CWD) —
     ফুল-suite-এ ``backend.api.routes.X`` ও ``api.routes.X`` একই ফাংশন;
     নরমালাইজ ছাড়া প্রতিটি রুট phantom-collision মনে হয়।"""
-    return module[8:] if module.startswith("backend.") else module
+    return module.removeprefix("backend.")
 
 
 def _winner(path: str, method: str) -> tuple[str, str]:

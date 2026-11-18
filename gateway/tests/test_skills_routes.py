@@ -6,9 +6,8 @@ import json
 
 import anyio
 import pytest
-from fastapi import HTTPException
-
 from api.routes import skills as skills_module
+from fastapi import HTTPException
 
 
 @pytest.fixture()

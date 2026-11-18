@@ -38,7 +38,7 @@ SAT = os.path.abspath(os.path.join(BASE, ".."))
 if SAT not in sys.path:
     sys.path.insert(0, SAT)
 
-import httpx  # noqa: E402
+import httpx
 
 RESULTS: list = []
 
@@ -56,11 +56,11 @@ def check(name: str, cond: bool, evidence: str = "") -> None:
 # Satellite repos (no gateway/ package) fall back to the bare layout.
 os.environ["STEALTH_WEBHOOK_URL"] = "https://dead-host.invalid/v1/chat/completions"
 try:
-    from gateway.service.providers import adapters as ad  # noqa: E402
-    from gateway.service import app as appmod  # noqa: E402
+    from gateway.service import app as appmod
+    from gateway.service.providers import adapters as ad
 except ImportError:  # satellite layout: repo root IS the gateway package dir
-    from service.providers import adapters as ad  # noqa: E402
-    import service.app as appmod  # noqa: E402
+    import service.app as appmod
+    from service.providers import adapters as ad
 
 
 # ── G1..G4 normalize_stealth_url ────────────────────────────────────────────
@@ -118,7 +118,7 @@ class _FakeClientFactory:
         self._behavior = behavior
         self.last_call: Dict[str, Any] = {}
 
-    def __call__(self, *a: Any, **k: Any) -> "_FakeClient":
+    def __call__(self, *a: Any, **k: Any) -> _FakeClient:
         return _FakeClient(self._behavior, self.last_call)
 
 
@@ -127,10 +127,10 @@ class _FakeClient:
         self._behavior = behavior
         self._last_call = last_call
 
-    async def __aenter__(self) -> "_FakeClient":
+    async def __aenter__(self) -> _FakeClient:
         return self
 
-    async def __aexit__(self, *a: Any) -> None:
+    async def __aexit__(self, *a: object) -> None:
         return None
 
     async def post(self, url: str, **k: Any) -> Any:

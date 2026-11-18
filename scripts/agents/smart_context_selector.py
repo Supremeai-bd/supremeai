@@ -332,7 +332,7 @@ def self_test() -> int:
             check("schema validation available", True)  # সৎ অবনমন — offline বৈধ
         else:
             check("payload validates against context-assembly.schema.json", True)
-    except Exception as exc:  # noqa: BLE001 — যেকোনো ব্যর্থতা সৎ দেখাও
+    except Exception as exc:
         check(f"payload schema validation ({exc})", False)
 
     print(f"assembly_id={a['assembly_id']} tokens_used={a['tokens_used']} clipped={a['clipped_layers']}")

@@ -1,11 +1,12 @@
 """Tests for Swappable WebSocket Live Broadcaster."""
 
 import json
+
 import pytest
+from api.routes.live_broadcaster import broadcaster
+from api.routes.live_broadcaster import router as broadcaster_router
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from api.routes.live_broadcaster import broadcaster, router as broadcaster_router
 
 
 @pytest.fixture

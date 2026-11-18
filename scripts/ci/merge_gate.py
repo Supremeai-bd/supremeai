@@ -124,7 +124,7 @@ class Gateway:
             if res.returncode == 0:
                 return res.stdout.strip()
             err = res.stderr or ""
-        except Exception as exc:  # noqa: BLE001 — timeout/exec: fallback সিদ্ধান্তে যায়
+        except Exception as exc:
             err = str(exc)
         fb = (os.environ.get("GH_FALLBACK_TOKEN") or "").strip()
         cur = (os.environ.get("GH_TOKEN") or "").strip()
@@ -219,7 +219,7 @@ def fetch_required_checks(gw: Gateway) -> tuple[list[str], str]:
         contexts = (data.get("required_status_checks") or {}).get("contexts") or []
         if contexts:
             return [str(c) for c in contexts], "branch-protection"
-    except Exception:  # noqa: BLE001 — fallback-ই fail-closed কাভার করে
+    except Exception:
         pass
     return list(DEFAULT_REQUIRED_CHECKS), "default-fallback"
 
@@ -234,7 +234,7 @@ def required_checks_verdict(
     try:
         raw = gw.gh("api", f"repos/{REPO}/commits/{head_sha}/check-runs?per_page=100")
         runs = json.loads(raw).get("check_runs", [])
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return [], [f"evidence-fetch-failed: check-runs API ({exc})"]
 
     for name in required:
@@ -257,7 +257,7 @@ def evaluator_verdict(gw: Gateway, pr_number: int) -> tuple[str, list[str]]:
     try:
         raw = gw.run([sys.executable, str(script), "--pr", str(pr_number), "--json"])
         return str(json.loads(raw).get("verdict", "")), []
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return "", [f"evidence-fetch-failed: evaluator ({exc})"]
 
 
@@ -275,7 +275,7 @@ def freshness_verdict(
         gw.git("fetch", "-q", "origin", f"pull/{pr_number}/head")
         merge_base = gw.git("merge-base", "FETCH_HEAD", main_ref)
         main_head = gw.git("rev-parse", main_ref)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, [f"evidence-fetch-failed: freshness git ({exc})"]
     if merge_base != main_head:
         return False, [
@@ -287,7 +287,7 @@ def freshness_verdict(
 
 def exempt_actors() -> set[str]:
     try:
-        import yaml  # noqa: PLC0415 — lazy
+        import yaml
 
         data = yaml.safe_load(
             Path(".github/constitution/rules.yml").read_text(encoding="utf-8")
@@ -295,7 +295,7 @@ def exempt_actors() -> set[str]:
         override = (data or {}).get("freshness_policy") or {}
         if override.get("exempt_actors"):
             return {str(a) for a in override["exempt_actors"]}
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
     return set(DEFAULT_EXEMPT_ACTORS)
 
@@ -311,7 +311,7 @@ def predecessor_verdict(gw: Gateway, group: str, seq: int) -> tuple[bool, list[s
             "--json", "number,state,labels",
         )
         prs = json.loads(raw or "[]")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, [f"evidence-fetch-failed: predecessor PR query ({exc})"]
 
     def has_label(p: dict[str, Any], wanted: str) -> bool:
@@ -353,7 +353,7 @@ def decide(gw: Gateway, pr_number: int) -> dict[str, Any]:
     """এক PR-এর পূর্ণ evidence-রায় — MERGE বা HOLD(reasons-সহ)। fail-closed।"""
     try:
         pr = pr_view(gw, pr_number)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return {"pr": pr_number, "verdict": "HOLD",
                 "reasons": [f"evidence-fetch-failed: pr view ({exc})"]}
 
@@ -440,7 +440,7 @@ def execute_merge(gw: Gateway, pr_number: int) -> tuple[bool, str]:
     try:
         gw.gh("pr", "merge", str(pr_number), "--squash", "--delete-branch")
         return True, ""
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, str(exc)[:300]
 
 
@@ -463,7 +463,7 @@ def cmd_scan(gw: Gateway, execute: bool, limit: int, evaluate_top: int = 5) -> l
             "number,title,labels,createdAt,isDraft",
         )
         prs = json.loads(raw or "[]")
-    except Exception as exc:  # noqa: BLE001 — fail-closed: স্ক্যান-ব্যর্থতা = কোনো merge নয়
+    except Exception as exc:
         return [{"pr": None, "verdict": "HOLD",
                  "reasons": [f"evidence-fetch-failed: pr list ({exc})"]}]
     prs = [p for p in prs if not p.get("isDraft")]

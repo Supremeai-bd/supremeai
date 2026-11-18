@@ -59,7 +59,6 @@ TAG = "[npm-dep-cve-guard]"
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci"))
 import npm_dep_cve_guard as guard  # the importable copy (same source file)
 
-
 # ---------------------------------------------------------------------------
 # fixtures
 # ---------------------------------------------------------------------------

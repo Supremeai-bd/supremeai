@@ -14,7 +14,7 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 router = APIRouter(tags=["Live Broadcaster"])
 

@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from core.api.routes import *  # noqa: F401, F403
-from core.api.routes import _safe_imports, _ROUTER_DEFINITIONS  # noqa: F401
+from core.api.routes import *
+from core.api.routes import _ROUTER_DEFINITIONS, _safe_imports  # noqa: F401
 

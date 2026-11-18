@@ -38,7 +38,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # Import existing components
 from core.orchestration.swarm_orchestrator import (

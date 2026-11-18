@@ -7,11 +7,10 @@ import re
 import time
 import uuid
 
-from fastapi.responses import JSONResponse
-
 from core.errors.error_bus import with_error_bus
-from core.monitoring.logging_config import logger
 from core.messaging.event_bus import ErrorContext, ErrorEvent
+from core.monitoring.logging_config import logger
+from fastapi.responses import JSONResponse
 
 
 class HoneypotMiddleware:

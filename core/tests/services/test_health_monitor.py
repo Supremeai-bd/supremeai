@@ -9,7 +9,6 @@ import time
 from unittest.mock import patch
 
 import pytest
-
 from core.health.health_monitor import HealthMonitor
 
 

@@ -4,7 +4,16 @@ audit v2 (High-Performance Optimized) — self-discovering isolation & capabilit
 Zero-maintenance design with fast inverted-index search to run in < 15 seconds.
 """
 from __future__ import annotations
-import argparse, ast, fnmatch, importlib.util, json, re, subprocess, sys, os
+
+import argparse
+import ast
+import fnmatch
+import importlib.util
+import json
+import os
+import re
+import subprocess
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path

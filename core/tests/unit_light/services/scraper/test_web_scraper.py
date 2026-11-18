@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock, patch
 
 import httpx
-
 from core.services.scraper.web_scraper import WebScraper
 
 

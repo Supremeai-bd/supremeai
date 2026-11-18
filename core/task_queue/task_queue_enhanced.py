@@ -20,7 +20,7 @@ from typing import Any
 
 from core.config import settings
 from core.errors.error_bus import with_error_bus
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 
 # ── Bounded Queue Helpers ───────────────────────────────────────────────────

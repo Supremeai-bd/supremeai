@@ -11,10 +11,9 @@ from unittest.mock import patch
 
 
 def _make_client():
-    from fastapi import FastAPI
-
     from api.routes.access import router as access_router
     from api.routes.connections import router as connections_router
+    from fastapi import FastAPI
 
     app = FastAPI()
     app.include_router(connections_router)

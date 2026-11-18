@@ -48,7 +48,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "scripts" / "bridge"))
 
-import bridge_intake as bi  # noqa: E402
+import bridge_intake as bi
 
 TASK_ID = "bridge-20261102-bridge-intake-pagination"  # TASK_ID_RE-conforming
 
@@ -101,7 +101,7 @@ def pages_response(pages: list[list[dict]], next_after_last: bool, first_url: st
     base = "https://api.github.com/x"
     first = first_url or base
 
-    def router(_request, timeout=None):  # noqa: ANN001 - fake signature
+    def router(_request, timeout=None):
         m = re.search(r"[?&]p=(\d+)", _request.full_url)
         idx = min(int(m.group(1)), len(pages) - 1) if m else 0
         last = idx == len(pages) - 1

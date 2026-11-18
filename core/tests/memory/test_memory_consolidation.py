@@ -13,7 +13,6 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from core.services import memory_service as memory_service_module
 from core.services.memory_service import CascadeMemoryService, memory_dedup_enabled
 

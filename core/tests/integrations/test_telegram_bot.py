@@ -13,6 +13,7 @@ from typing import Any
 
 import httpx
 import pytest
+
 from core.integrations.telegram_bot import MeshTelegramBot, TowerClient
 from core.integrations.telegram_config import MeshTelegramConfig
 from core.integrations.telegram_handlers import DeferStore, KeyRegistry
