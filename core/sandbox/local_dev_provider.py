@@ -17,7 +17,6 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional
 
 from core.monitoring.logging_config import logger
 from core.sandbox.base import ExecutionResult, SandboxConfig, SandboxProvider

@@ -33,7 +33,6 @@ def _existing_tables_offline_safe(conn):
     # Issue #478: offline mode cannot inspect (MockConnection) — degrade to an
     # empty set so the generated SQL plan contains the full DDL; the live run
     # still guards with the real inspector.
-    from alembic import context
 
     if _alembic_context.is_offline_mode():
         return set()

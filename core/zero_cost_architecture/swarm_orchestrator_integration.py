@@ -33,10 +33,9 @@ from __future__ import annotations
 
 import asyncio
 import time
-import uuid
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from core.monitoring.logging_config import logger
 
@@ -50,18 +49,11 @@ from models.shared_workspace import SharedWorkspace
 # Import zero-cost components
 from .zero_cost_patch_phase1_4 import (
     AdaptiveCircuitBreaker,
-    CircuitBreakerOpenError,
-    InProcessAsyncQueue,
-    PerformanceLearningEngine,
     TaskPriority,
-    TaskStatus,
-    UpstashRedisClient,
     ZeroCostConfig,
-    ZeroCostOrchestrator,
     generate_correlation_id,
     get_orchestrator,
     get_zero_cost_config,
-    resilient_execute,
 )
 
 

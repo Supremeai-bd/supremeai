@@ -32,8 +32,6 @@ import pytest
 
 from core.security.enhanced_ast_scanner import (
     EnhancedASTScanner,
-    SecurityIssue,
-    SecurityScanner,
 )
 from core.security.protection.honeypot import HoneypotMiddleware
 from core.security.protection.prompt_firewall import (

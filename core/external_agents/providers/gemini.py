@@ -9,7 +9,6 @@ Browser-channel delivery is policy-checked by the Policy Engine.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Awaitable, Callable
 
 from external_agents.contracts.architecture_artifact import ArchitectureArtifact, EdgeCaseFinding

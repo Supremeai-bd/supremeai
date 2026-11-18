@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from core.degraded_mode import SQLiteFallbackDisabledError
-from core.tools.checkpoint_manager import Checkpoint, CheckpointManager
+from core.tools.checkpoint_manager import CheckpointManager
 
 
 class TestCheckpointManagerComprehensive:

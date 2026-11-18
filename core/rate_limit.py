@@ -76,7 +76,6 @@ class RateLimiter:
     }
 
     def __init__(self, redis_url: str | None = None, enabled: bool = True):
-        from core.config import settings
 
         self.enabled = enabled
         self._redis: aioredis.Redis | None = None

@@ -19,9 +19,8 @@ Run with: pytest tests/test_auth.py -v --cov=auth
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta, timezone
-from typing import Any, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 
@@ -30,10 +29,6 @@ from core.conftest import (
     TEST_ALGORITHM,
     TEST_SECRET_KEY,
     CustomAssertions,
-    sample_admin_data,
-    sample_operator_data,
-    sample_user_data,
-    valid_password,
 )
 
 # ============================================================================
@@ -169,7 +164,6 @@ class MockAuthService:
 
         try:
             import jwt
-            from jwt import PyJWTError as JWTError
 
             payload = jwt.decode(token, TEST_SECRET_KEY, algorithms=[TEST_ALGORITHM])
 
@@ -204,7 +198,6 @@ class MockAuthService:
         # Validate refresh token
         try:
             import jwt
-            from jwt import PyJWTError as JWTError
 
             payload = jwt.decode(refresh_token, TEST_SECRET_KEY, algorithms=[TEST_ALGORITHM])
 

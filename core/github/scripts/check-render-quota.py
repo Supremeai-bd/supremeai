@@ -3,7 +3,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 RENDER_FREE_MINUTES = 500          # Render free tier monthly limit

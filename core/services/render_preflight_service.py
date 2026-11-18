@@ -7,16 +7,14 @@ Render API usage calculations, and manual override tracking.
 from __future__ import annotations
 
 import logging
-import os
 import urllib.error
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from core.clients.render_api import render_get_json
 
 logger = logging.getLogger(__name__)
 
-from core.contracts.redaction import redact as redact_secrets
 from core.contracts.render_preflight_store import RenderPreflightStore
 
 

@@ -1,17 +1,17 @@
-{
+﻿{
   "name": "SupremeAI Autonomous Federation Agent",
   "description": "Autonomous multi-agent intelligence and software engineering federation with continuous reasoning, cross-model routing, and verified tool execution.",
-  "url": "https://supremeai-mcp-tower.onrender.com/a2a",
+  "url": "https://supremeai-mcp-tower-live.onrender.com/a2a",
   "version": "1.0.0",
   "protocolVersion": "1.0.0",
   "supportedInterfaces": [
     {
-      "url": "https://supremeai-mcp-tower.onrender.com/a2a/v1",
+      "url": "https://supremeai-mcp-tower-live.onrender.com/a2a/v1",
       "protocolBinding": "JSON-RPC",
       "protocolVersion": "1.0.0"
     },
     {
-      "url": "https://supremeai-mcp-tower.onrender.com/a2a/v1/message:send",
+      "url": "https://supremeai-mcp-tower-live.onrender.com/a2a/v1/message:send",
       "protocolBinding": "HTTP+JSON",
       "protocolVersion": "1.0.0"
     }

@@ -17,12 +17,10 @@ Strategy (per env1.txt directive — "No Fake Mocking"):
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 # Add scripts dir to path
 SCRIPTS_DIR = Path(__file__).resolve().parents[4] / ".github" / "scripts" / "pr_helper"
@@ -38,7 +36,6 @@ from ai_autofix_flags import (
 )
 from ai_fix_generator import (
     ALLOWED_PATH_PREFIXES,
-    DEFAULT_MAX_ATTEMPTS,
     PROTECTED_PATH_PREFIXES,
     _call_gemini,
     _call_openai,
@@ -50,9 +47,6 @@ from ai_fix_generator import (
     _strip_markdown_code_block,
     call_model,
     generate_fixes,
-)
-from ai_fix_generator import (
-    DEFAULT_CONFIDENCE_THRESHOLD as GEN_DEFAULT_CONF,
 )
 from ci_failure_collector import (
     _classify_failure,

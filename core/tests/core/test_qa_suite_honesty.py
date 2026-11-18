@@ -10,7 +10,6 @@ Guards against regression to fabricated assurance:
   underlying checks are unverified.
 """
 
-import pytest
 
 from core.testing.qa_suite import (
     ChaosEngineer,

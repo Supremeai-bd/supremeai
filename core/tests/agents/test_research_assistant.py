@@ -9,7 +9,6 @@
 
 from __future__ import annotations
 
-import importlib
 
 import pytest
 from core.agents.research_assistant import ResearchAssistant, ResearchSourceError

@@ -72,7 +72,7 @@ class TestModelProviderProtocol:
         # Given: ModelProvider class
         # When: inspecting its type
         # Then: it is a typing.Protocol (not a concrete class)
-        from typing import Protocol, get_type_hints
+        from typing import Protocol
 
         # Protocol check: should have __protocol_attrs__ or be subclass of Protocol
         assert (
@@ -134,9 +134,7 @@ class TestModelProviderProtocol:
         provider = FakeProvider()
 
         # Then: isinstance check against the Protocol (runtime_checkable)
-        from typing import runtime_checkable
 
-        from core.llm.interfaces import ModelProvider as MP
 
         # runtime_checkable protocols support isinstance()
         # (ModelProvider may or may not be runtime_checkable — check the protocol)

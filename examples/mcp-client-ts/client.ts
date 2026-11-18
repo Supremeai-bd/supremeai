@@ -1,5 +1,5 @@
-/**
- * SupremeAI MCP Tower — zero-dependency TypeScript client (SSE + Streamable HTTP).
+﻿/**
+ * SupremeAI MCP Tower â€” zero-dependency TypeScript client (SSE + Streamable HTTP).
  *
  * Spec companion: docs/MCP_CONNECT.md (issue #31).
  *
@@ -10,17 +10,17 @@
  * - credentials never appear in URLs or logs (SECRETS_MODEL.md)
  *
  * Transports (verified against infrastructure/mcp-control-plane/src/index.ts):
- * - POST/GET/DELETE /mcp  — Streamable HTTP, stateful via Mcp-Session-Id
- * - GET /sse              — Server-Sent Events (text/event-stream)
- * - GET /health           — public smoke probe
+ * - POST/GET/DELETE /mcp  â€” Streamable HTTP, stateful via Mcp-Session-Id
+ * - GET /sse              â€” Server-Sent Events (text/event-stream)
+ * - GET /health           â€” public smoke probe
  */
 
 export const DEFAULT_BASE_URL =
-  process.env.SUPREMEAI_MCP_TOWER_URL ?? "https://supremeai-mcp-tower.onrender.com";
+  process.env.SUPREMEAI_MCP_TOWER_URL ?? "https://supremeai-mcp-tower-live.onrender.com";
 export const DEFAULT_CLIENT_NAME = process.env.SUPREMEAI_CLIENT_NAME ?? "demo-ts-client";
 const MCP_ACCEPT = "application/json, text/event-stream";
 
-/** সব Tower-ত্রুটির মূল — status_code বহন করে (honest failure). */
+/** à¦¸à¦¬ Tower-à¦¤à§à¦°à§à¦Ÿà¦¿à¦° à¦®à§‚à¦² â€” status_code à¦¬à¦¹à¦¨ à¦•à¦°à§‡ (honest failure). */
 export class TowerError extends Error {
   readonly statusCode?: number;
   constructor(message: string, statusCode?: number) {
@@ -86,16 +86,16 @@ async function request(
     const text = await resp.text();
     if (resp.status === 429) {
       const retryAfter = resp.headers.get("Retry-After") ?? "unknown";
-      throw new TowerRateLimited(`429 rate limited (Retry-After: ${retryAfter}s) — ${text.slice(0, 300)}`);
+      throw new TowerRateLimited(`429 rate limited (Retry-After: ${retryAfter}s) â€” ${text.slice(0, 300)}`);
     }
     if (resp.status === 403) {
-      throw new TowerForbidden(`403 default-deny RBAC — register or present verified credentials: ${text.slice(0, 300)}`);
+      throw new TowerForbidden(`403 default-deny RBAC â€” register or present verified credentials: ${text.slice(0, 300)}`);
     }
     if (resp.status === 404 && text.includes("-32001")) {
-      throw new TowerSessionLost("404 -32001 session not found — re-initialize a fresh session");
+      throw new TowerSessionLost("404 -32001 session not found â€” re-initialize a fresh session");
     }
     if (!resp.ok) {
-      throw new TowerError(`HTTP ${resp.status} — ${text.slice(0, 300)}`, resp.status);
+      throw new TowerError(`HTTP ${resp.status} â€” ${text.slice(0, 300)}`, resp.status);
     }
     return { status: resp.status, headers: resp.headers, text };
   } catch (err) {
@@ -125,7 +125,7 @@ export class McpHttpClient {
 
   private async rpc<T = unknown>(method: string, params?: unknown): Promise<T> {
     if (this.sessionId === null && method !== "initialize") {
-      throw new TowerSessionLost("no active session — call initialize() first");
+      throw new TowerSessionLost("no active session â€” call initialize() first");
     }
     const id = this.nextId++;
     const payload: Record<string, unknown> = { jsonrpc: "2.0", id, method };
@@ -181,7 +181,7 @@ export class McpHttpClient {
     return this.rpc<T>("tools/call", { name, arguments: args });
   }
 
-  /** DELETE /mcp — always release the session on shutdown (etiquette §5). */
+  /** DELETE /mcp â€” always release the session on shutdown (etiquette Â§5). */
   async close(): Promise<void> {
     if (this.sessionId === null) return;
     try {
@@ -209,7 +209,7 @@ export interface SseFrame {
 /**
  * Read the first SSE frames from /sse (text/event-stream).
  * Bounded by maxFrames for demo use. Real clients: reconnect on
- * network errors with exponential backoff (docs/MCP_CONNECT.md §3).
+ * network errors with exponential backoff (docs/MCP_CONNECT.md Â§3).
  */
 export async function sseRead(
   maxFrames = 5,
@@ -227,7 +227,7 @@ export async function sseRead(
       signal: controller.signal,
     });
     if (resp.status === 503) {
-      throw new TowerError("503 SSE session table full — back off and reconnect later", 503);
+      throw new TowerError("503 SSE session table full â€” back off and reconnect later", 503);
     }
     if (!resp.ok || !resp.body) {
       throw new TowerError(`HTTP ${resp.status} on /sse`, resp.status);
@@ -284,10 +284,10 @@ export async function health(baseUrl: string = DEFAULT_BASE_URL): Promise<unknow
 
 async function main(argv: string[]): Promise<number> {
   const actions = `Usage: bun run client.ts <action> [args]
-  health — GET /health smoke probe (no credentials)
-  sse    — read first SSE frames from /sse
-  tools  — initialize + tools/list over Streamable HTTP
-  call   — initialize + tools/call <name> [json-args]`;
+  health â€” GET /health smoke probe (no credentials)
+  sse    â€” read first SSE frames from /sse
+  tools  â€” initialize + tools/list over Streamable HTTP
+  call   â€” initialize + tools/call <name> [json-args]`;
   const [action, ...rest] = argv;
   if (!action) {
     console.log(actions);
@@ -312,7 +312,7 @@ async function main(argv: string[]): Promise<number> {
   try {
     const init = await client.initialize();
     const serverInfo = (init.serverInfo ?? {}) as { name?: string; version?: string };
-    console.log(`# connected as '${client.clientName}' — server: ${serverInfo.name ?? "?"} ${serverInfo.version ?? ""}`);
+    console.log(`# connected as '${client.clientName}' â€” server: ${serverInfo.name ?? "?"} ${serverInfo.version ?? ""}`);
     console.log(`# session: ${client.sessionId}`);
     if (action === "tools") {
       for (const tool of await client.listTools()) {
@@ -333,7 +333,7 @@ async function main(argv: string[]): Promise<number> {
   }
 }
 
-// CLI entry — import is offline-safe; network only when executed as main.
+// CLI entry â€” import is offline-safe; network only when executed as main.
 const isMain =
   typeof process !== "undefined" &&
   Array.isArray(process.argv) &&

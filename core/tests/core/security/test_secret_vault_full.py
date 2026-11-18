@@ -17,9 +17,7 @@ import pytest
 
 import core.security.secret_vault as sv
 from core.security.secret_vault import (
-    CACHE_TTL_SECONDS,
     ProductionSecretVault,
-    SecretNotFoundError,
     _CacheEntry,
     get_secret_vault,
     reset_secret_vault,

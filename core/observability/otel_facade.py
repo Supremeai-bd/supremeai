@@ -35,8 +35,7 @@ try:  # optional, operator-chosen
     from opentelemetry import trace as ot_trace  # type: ignore[import-not-found]
     from opentelemetry.sdk.trace import TracerProvider  # type: ignore[import-not-found]
     from opentelemetry.sdk.trace.export import (  # type: ignore[import-not-found]
-        BatchSpanProcessor,
-        SpanExporter,  # type: ignore[import-not-found]
+        BatchSpanProcessor,  # type: ignore[import-not-found]
     )
 
     _OTEL_AVAILABLE = True

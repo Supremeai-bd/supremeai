@@ -504,7 +504,6 @@ async def sslcommerz_webhook_listener(
         async with session.begin():
             # বাংলা মন্তব্য: Race condition প্রতিরোধ - wallet row lock করা
             # SELECT ... FOR UPDATE ব্যবহার করে concurrent request গুলো serialize হবে
-            from sqlalchemy import text as sa_text
 
             # প্রথমে wallet row lock করা (FOR UPDATE)
             result = await session.execute(

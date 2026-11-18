@@ -1,10 +1,7 @@
 """Coverage tests for core/automation/idempotency.py."""
 
-import json
-import zlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 
 from core.automation.idempotency import (
     InMemoryIdempotencyStore,

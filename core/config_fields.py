@@ -1,7 +1,7 @@
 """Pydantic field declarations for SupremeAI settings."""
 
 import os
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, ClassVar
 
 from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import NoDecode

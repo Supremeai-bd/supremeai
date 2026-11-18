@@ -102,7 +102,6 @@ def _build_engine_kwargs(async_url: str) -> dict[str, Any]:
     return engine_kwargs
 
 
-import os
 import time
 
 from sqlalchemy import event

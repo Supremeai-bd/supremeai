@@ -13,8 +13,7 @@ Backward-compat: AUTOMATION_REGISTRY (dict[str, str]) ও get_workflow_route()
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)

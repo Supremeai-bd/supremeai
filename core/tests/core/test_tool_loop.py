@@ -14,7 +14,6 @@ import pytest
 
 import tools.agent_tools as agent_tools_module
 from brain.reasoning_orchestrator import ReasoningOrchestrator
-from core import tool_loop
 from core.tool_loop import agent_tools_enabled, execute_tool_decision
 
 

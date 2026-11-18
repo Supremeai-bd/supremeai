@@ -2,12 +2,7 @@
 
 from __future__ import annotations
 
-import os
 
-import pytest
-from starlette.applications import Starlette
-from starlette.responses import JSONResponse
-from starlette.testclient import TestClient
 
 
 class TestDocsAuthContract:

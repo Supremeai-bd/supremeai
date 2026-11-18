@@ -19,17 +19,12 @@ Run with: pytest tests/test_agents.py -v --cov=agents
 
 import asyncio
 import uuid
-from datetime import UTC, datetime, timedelta, timezone
-from typing import Any, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 from core.conftest import (
     CustomAssertions,
-    sample_admin_data,
-    sample_agent_create_request,
-    sample_agent_data,
-    sample_user_data,
 )
 
 # ============================================================================

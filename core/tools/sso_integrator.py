@@ -1,6 +1,6 @@
 import base64
 import os
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 from urllib.parse import parse_qs, urlparse
 

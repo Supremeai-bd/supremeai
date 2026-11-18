@@ -1,6 +1,6 @@
 """Coverage tests for core/intelligent_cache.py (IntelligentCache)."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -8,11 +8,9 @@ import core.intelligent_cache as ic
 from core.intelligent_cache import (
     CacheConfig,
     CacheStats,
-    CacheTier,
     IntelligentCache,
     cached_get,
     cached_set,
-    get_cache,
 )
 
 
@@ -92,7 +90,6 @@ def test_initialize_redis_failure(monkeypatch):
 
 
 def test_circuit_breaker_open_then_expires(cache, monkeypatch):
-    import time
 
     monkeypatch.setattr("core.intelligent_cache.time.time", lambda: 1000.0)
     cache._circuit_breaker_open = True
@@ -102,7 +99,6 @@ def test_circuit_breaker_open_then_expires(cache, monkeypatch):
 
 
 def test_circuit_breaker_still_open(cache, monkeypatch):
-    import time
 
     monkeypatch.setattr("core.intelligent_cache.time.time", lambda: 1000.0)
     cache._circuit_breaker_open = True

@@ -1,6 +1,6 @@
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field

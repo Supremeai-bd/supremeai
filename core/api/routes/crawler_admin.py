@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field
 from api.dependencies import get_project_admin
 from core.monitoring.logging_config import logger
 from scout import persistence
-from scout.models import CrawlHistoryRecord, CrawlPolicy, DomainRule, TrustLevel
+from scout.models import CrawlHistoryRecord, CrawlPolicy, DomainRule
 
 router = APIRouter(
     prefix="/api/v1/admin/crawler",

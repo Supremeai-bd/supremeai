@@ -30,7 +30,6 @@ Env knobs (সবই optional, ন্যায্য default):
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import os
 import time

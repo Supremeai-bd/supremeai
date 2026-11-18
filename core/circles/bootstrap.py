@@ -8,7 +8,7 @@ from collections.abc import Iterable
 
 from core.circles.centers import CircleCenter, build_default_centers
 from core.circles.centers.realtime_center import RealtimeCenter
-from core.circles.contracts import CircleManifest, CircleName
+from core.circles.contracts import CircleManifest
 from core.circles.governance_core import GovernanceCore, PolicyEvaluator
 from core.circles.manifests import default_manifests
 from core.circles.registry import CircleRegistry
@@ -48,4 +48,3 @@ def build_federation(
 
 __all__ = ["build_circle_registry", "build_federation"]
 
-from core.circles.governance_core import get_governance_core, reset_governance_core

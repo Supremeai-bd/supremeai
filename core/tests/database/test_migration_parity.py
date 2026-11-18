@@ -22,7 +22,6 @@ Rule #6: বাংলা কমেন্ট + Given-When-Then docstring প্�
 
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime
 from typing import Any
 

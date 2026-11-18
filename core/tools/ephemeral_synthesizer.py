@@ -22,7 +22,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from core.monitoring.logging_config import logger
 from core.security.codegen_gate import (

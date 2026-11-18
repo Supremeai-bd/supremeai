@@ -14,7 +14,7 @@ import json
 from dataclasses import dataclass, field  # noqa: F401
 from datetime import timedelta
 from enum import StrEnum
-from typing import Any, Optional
+from typing import Any
 
 from core.cache import get_redis_client
 from core.monitoring.logging_config import logger

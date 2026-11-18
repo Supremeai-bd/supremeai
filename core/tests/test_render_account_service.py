@@ -1,6 +1,6 @@
 import unittest
-from datetime import UTC, datetime, timezone
-from unittest.mock import MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import patch
 
 from core.services.render_account_service import RenderAccountService
 

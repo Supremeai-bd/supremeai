@@ -1,5 +1,5 @@
 from datetime import UTC, datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from core.monitoring.logging_config import logger
 

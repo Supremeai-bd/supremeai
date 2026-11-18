@@ -22,7 +22,6 @@ import gzip
 import hashlib
 import importlib
 import json
-import os
 import re
 import sys
 import types

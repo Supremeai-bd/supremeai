@@ -5,7 +5,6 @@ plus strip-filter semantics and the tuple/frozenset wrappers used by
 ``middleware/cors_policy.py`` and ``core/security/origin_validator.py``.
 """
 
-import pytest
 
 from core.config_parsers import parse_origin_list
 

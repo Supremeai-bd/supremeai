@@ -5,10 +5,8 @@ from __future__ import annotations
 
 import json
 import subprocess
-from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
 from scripts.agents.create_issue import (
     check_duplicates,
     create_discovery_issue,

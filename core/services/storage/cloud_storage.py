@@ -19,7 +19,7 @@ from core.monitoring.logging_config import logger
 from core.secret_utils import unwrap_secret
 from fastapi import HTTPException, status
 
-from utils.http_client import DEFAULT_TIMEOUT, create_async_client
+from utils.http_client import create_async_client
 
 
 class CloudStorageManager:

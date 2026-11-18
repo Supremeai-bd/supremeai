@@ -13,7 +13,6 @@ Context Engine will issue.
 
 from __future__ import annotations
 
-import uuid
 
 import pytest
 import pytest_asyncio

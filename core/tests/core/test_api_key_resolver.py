@@ -2,7 +2,6 @@
 import os
 from unittest.mock import patch
 
-import pytest
 
 from core.utils.api_key_resolver import resolve_key_with_aliases, resolve_numbered_key
 

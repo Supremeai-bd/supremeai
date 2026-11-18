@@ -16,10 +16,8 @@ Test Coverage:
 Run with: pytest tests/test_utils.py -v --cov=utils
 """
 
-import asyncio
-from datetime import UTC, datetime, timedelta, timezone
-from typing import Any, Optional, Union
-from unittest.mock import AsyncMock, MagicMock
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 

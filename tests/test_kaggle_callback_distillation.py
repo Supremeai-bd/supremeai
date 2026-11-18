@@ -7,7 +7,7 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from gateway.routes.kaggle import (
+from core.api.routes.kaggle import (
     KaggleCallbackRequest,
     distill_kaggle_callback_knowledge,
     ingest_distilled_knowledge,
@@ -75,7 +75,7 @@ class TestKaggleCallbackDistillation(unittest.TestCase):
     def test_trigger_hourly_learning_cron_response(self):
         from fastapi import BackgroundTasks
 
-        from gateway.routes.kaggle import trigger_hourly_learning_cron
+        from core.api.routes.kaggle import trigger_hourly_learning_cron
 
         bg = BackgroundTasks()
         res = asyncio.run(trigger_hourly_learning_cron(background_tasks=bg, x_cron_source="cloudflare-edge"))

@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+﻿import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -55,7 +55,7 @@ export async function registerAgentBootstrapTools(server: McpServer): Promise<vo
 
       if (scope === "all" || scope === "endpoints") {
         summary.endpoints = {
-          mcpControlTower: "https://supremeai-mcp-tower.onrender.com",
+          mcpControlTower: "https://supremeai-mcp-tower-live.onrender.com",
           supabaseProject: "https://xtvkltzmberxekoamala.supabase.co",
           cloudflareWorker: "https://supremeai-keepwarm-worker (Edge Mesh)",
           authProvider: "Supabase Native Auth (Zero-Firebase)",

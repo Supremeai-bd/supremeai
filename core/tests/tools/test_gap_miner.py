@@ -1,7 +1,6 @@
 import re
 from pathlib import Path
 
-import pytest
 from core.tools.gap_miner.tools.gap_miner import (
     SECRET_VALUE_RE,
     TODO_RE,

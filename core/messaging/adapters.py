@@ -19,7 +19,6 @@ then Mock fallback)।
 
 from __future__ import annotations
 
-from typing import Any
 from uuid import uuid4
 
 from core.monitoring.logging_config import logger

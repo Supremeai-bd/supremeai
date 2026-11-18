@@ -57,7 +57,6 @@ async def _execute_mission_goal(mission_id: str) -> None:
     ``get_db_session_context``; any execution error transitions the mission
     to FAILED with the reason recorded.
     """
-    import asyncio
 
     from api.routes.scheduled_tasks import _execute_task_prompt
 

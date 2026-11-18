@@ -37,7 +37,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 # ── ধ্রুবক ────────────────────────────────────────────────────────────────────
 INFISICAL_HOST = os.environ.get("INFISICAL_HOST", "https://app.infisical.com")

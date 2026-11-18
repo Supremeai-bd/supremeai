@@ -1,4 +1,4 @@
-name: "Deploy Rollback"
+﻿name: "Deploy Rollback"
 
 # Manual, audited rollback lane for the three Render services declared in
 # render.yaml (autoDeploy is false everywhere, so a rollback is just a
@@ -7,7 +7,7 @@ name: "Deploy Rollback"
 # This workflow deliberately does NOT reuse unified-pipeline.yml: a rollback
 # must not be planned from a diff, and it must fail closed if the requested
 # SHA cannot be built. Strict mode (REQUIRE_EXPECTED_SHA) is on, so Render's
-# "commit not indexed, fall back to branch HEAD" behavior is refused — a
+# "commit not indexed, fall back to branch HEAD" behavior is refused â€” a
 # rollback that silently deploys HEAD would be worse than no rollback.
 #
 # Runbook: docs/runbooks/rollback.md
@@ -111,7 +111,7 @@ jobs:
                 sid="$SVC_ID_MCP_TOWER"
                 name="supremeai-mcp-tower"
                 hint="RENDER_SERVICE_ID_MCP_TOWER"
-                url="https://supremeai-mcp-tower.onrender.com/release"
+                url="https://supremeai-mcp-tower-live.onrender.com/release"
                 ;;
             esac
             if [ -z "$sid" ]; then
@@ -166,7 +166,7 @@ jobs:
             echo "::error::Commit ${TARGET_SHA} is not an ancestor of main; refusing to deploy an unmerged revision."
             exit 1
           fi
-          echo "Target ${TARGET_SHA} is on main ✓"
+          echo "Target ${TARGET_SHA} is on main âœ“"
 
       - name: Trigger the rollback deploy and poll to a terminal state
         env:

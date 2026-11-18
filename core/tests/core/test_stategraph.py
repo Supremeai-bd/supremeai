@@ -9,7 +9,6 @@ from core.runs.stategraph import (
     CompiledGraph,
     RecursionLimitExceeded,
     StateGraph,
-    StateGraphError,
 )
 
 

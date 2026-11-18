@@ -6,7 +6,7 @@ import pytest
 
 from scout.models import CrawlPolicy, DomainRule, TrustLevel
 from scout.policy import PolicyEngine
-from scout.web_crawler_agent import APPROVED_DOMAINS, crawl
+from scout.web_crawler_agent import crawl
 
 
 def test_policy_engine_ssrf_blocking() -> None:

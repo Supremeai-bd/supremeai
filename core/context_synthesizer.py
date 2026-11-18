@@ -5,7 +5,7 @@ Hierarchical Context Budgeter & Progressive Disclosure Engine — Core Decision 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum, StrEnum
+from enum import StrEnum
 from typing import ClassVar
 
 

@@ -30,7 +30,6 @@ import pytest
 from core.config import settings
 from core.task_queue import task_queue_enhanced as tqe
 from core.task_queue.task_queue_enhanced import (
-    QueueBackend,
     TaskPriority,
     TaskQueue,
     TaskResult,
