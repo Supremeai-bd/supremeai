@@ -34,6 +34,8 @@ export const OPTIONAL_PROVIDERS = new Set([
   "telegram",
 ]);
 
+export const OPTIONAL_PROVIDER_TTL_MS = 60 * 60 * 1000;
+
 export function isOptionalProvider(provider: string): boolean {
   return OPTIONAL_PROVIDERS.has(provider) || provider.startsWith("ai-");
 }
@@ -106,7 +108,7 @@ export class HealthEngine {
    * Runs a full parallel sweep of all configured providers.
    * Caches results and generates incidents.
    */
-  public async runFullSweep(): Promise<SweepReport> {
+  public async runFullSweep(options?: { forceOptional?: boolean }): Promise<SweepReport> {
     const start = Date.now();
     const incidents: IncidentAlert[] = [];
     
@@ -262,6 +264,14 @@ export class HealthEngine {
     // Execute all checks in parallel
     const promises = Object.entries(checks).map(async ([provider, fn]) => {
       const oldSnap = globalHealthCache.getSnapshot(provider);
+      if (
+        !options?.forceOptional &&
+        isOptionalProvider(provider) &&
+        oldSnap &&
+        (Date.now() - oldSnap.lastCheckMs) < OPTIONAL_PROVIDER_TTL_MS
+      ) {
+        return;
+      }
       const newSnap = await this.executeCheck(provider, fn);
       
       // Update Cache

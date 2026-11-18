@@ -27,6 +27,7 @@ Auto-Fix Tiers:
 
 import argparse
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -378,6 +379,150 @@ def check_runtime_memory_guard() -> bool:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Bandwidth & Polling Guard (Render 5 GB / Month Free-Tier Quota)
+# ══════════════════════════════════════════════════════════════════════════════
+
+MIN_HEALTH_SWEEP_INTERVAL_MS = 300_000
+
+
+def _eval_ms_literal_expr(expr: str) -> int | None:
+    """Evaluate a simple integer or multiplication literal (e.g. '5 * 60 * 1000')."""
+    cleaned = expr.replace("_", "").strip()
+    if not re.fullmatch(r"\d+(?:\s*\*\s*\d+)*", cleaned):
+        return None
+    total = 1
+    for part in cleaned.split("*"):
+        total *= int(part.strip())
+    return total
+
+
+def _extract_setinterval_args(content: str) -> list[tuple[str, str]]:
+    """Extract (callback_src, interval_expr) pairs from setInterval(...) calls."""
+    calls: list[tuple[str, str]] = []
+    idx = 0
+    while True:
+        pos = content.find("setInterval(", idx)
+        if pos == -1:
+            break
+        open_paren = pos + len("setInterval(") - 1
+        depth = 0
+        split_comma = -1
+        end_paren = -1
+        for i in range(open_paren, len(content)):
+            ch = content[i]
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0:
+                    end_paren = i
+                    break
+            elif ch == "," and depth == 1:
+                split_comma = i
+        if end_paren != -1 and split_comma != -1:
+            calls.append((content[open_paren + 1 : split_comma], content[split_comma + 1 : end_paren].strip()))
+        idx = (end_paren + 1) if end_paren != -1 else (open_paren + 1)
+    return calls
+
+
+def check_bandwidth_and_polling_guard(root: Path | None = None) -> bool:
+    """
+    বাংলা মন্তব্য: Free-tier 5 GB/month bandwidth & external API polling guard.
+    Verifies:
+      1. MCP Control Tower sweep setInterval never uses hardcoded interval < 300000 ms
+      2. Optional providers use OPTIONAL_PROVIDER_TTL_MS throttling in engine.ts
+      3. HTTP server enables gzip compression (gzipSync + Content-Encoding)
+      4. .github/workflows/keepwarm.yml has no high-frequency (*/5, */10, */15) cron
+    Returns True if BLOCKED, False if safe.
+    """
+    base = root if root is not None else ROOT
+    print("\n📡 Bandwidth & Polling Guard — 5 GB Free-Tier Safety Check")
+    print("=" * 60)
+
+    any_block = False
+
+    # ── 1. MCP Control Tower Sweep Interval Guard ─────────────────────────────
+    index_path = base / "infrastructure" / "mcp-control-plane" / "src" / "index.ts"
+    if index_path.exists():
+        content = index_path.read_text(encoding="utf-8", errors="replace")
+        sweep_violations: list[str] = []
+        for callback_src, arg_expr in _extract_setinterval_args(content):
+            if "runFullSweep" not in callback_src:
+                continue
+            ms_val = _eval_ms_literal_expr(arg_expr)
+            if ms_val is not None and ms_val < MIN_HEALTH_SWEEP_INTERVAL_MS:
+                sweep_violations.append(
+                    f"  Hardcoded sweep interval {arg_expr} ({ms_val} ms) < {MIN_HEALTH_SWEEP_INTERVAL_MS} ms"
+                )
+        if sweep_violations:
+            print("  🔴 BLOCKED: Aggressive health sweep interval in index.ts!")
+            for v in sweep_violations:
+                print(v)
+            any_block = True
+        else:
+            print("  ✅ OK — MCP health sweep interval >= 300000 ms (5 min floor)")
+    else:
+        print("  ⏭  mcp-control-plane/src/index.ts not found — skipping")
+
+    # ── 2. Optional Provider TTL Guard ────────────────────────────────────────
+    engine_path = base / "infrastructure" / "mcp-control-plane" / "src" / "health" / "engine.ts"
+    if engine_path.exists():
+        engine_content = engine_path.read_text(encoding="utf-8", errors="replace")
+        if "OPTIONAL_PROVIDER_TTL_MS" not in engine_content:
+            print("  🔴 BLOCKED: OPTIONAL_PROVIDER_TTL_MS missing from health/engine.ts!")
+            print("  Optional providers must not be polled on every background sweep.")
+            any_block = True
+        else:
+            print("  ✅ OK — OPTIONAL_PROVIDER_TTL_MS throttling active in health/engine.ts")
+    else:
+        print("  ⏭  mcp-control-plane/src/health/engine.ts not found — skipping")
+
+    # ── 3. HTTP Gzip Compression Guard ────────────────────────────────────────
+    http_server_path = base / "infrastructure" / "mcp-control-plane" / "src" / "http_server.ts"
+    if http_server_path.exists():
+        http_content = http_server_path.read_text(encoding="utf-8", errors="replace")
+        if "gzipSync" not in http_content or "Content-Encoding" not in http_content:
+            print("  🔴 BLOCKED: HTTP gzip compression missing in http_server.ts!")
+            print("  Ensure gzipSync and Content-Encoding headers are wired for JSON responses.")
+            any_block = True
+        else:
+            print("  ✅ OK — HTTP gzip compression (gzipSync + Content-Encoding) wired")
+    else:
+        print("  ⏭  mcp-control-plane/src/http_server.ts not found — skipping")
+
+    # ── 4. GitHub Keepwarm Duplicate Cron Guard ───────────────────────────────
+    keepwarm_path = base / ".github" / "workflows" / "keepwarm.yml"
+    if keepwarm_path.exists():
+        kw_lines = keepwarm_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        cron_violations: list[str] = []
+        high_freq_cron = re.compile(r"cron\s*:\s*['\"]?\s*\*/(?:[1-9]|1[0-5])\s")
+        for lineno, line in enumerate(kw_lines, start=1):
+            stripped = line.split("#", 1)[0].strip()
+            if not stripped:
+                continue
+            if high_freq_cron.search(stripped):
+                cron_violations.append(f"  Line {lineno}: {stripped}")
+        if cron_violations:
+            print("  🔴 BLOCKED: High-frequency duplicate keepwarm cron found in keepwarm.yml!")
+            print("  Cloudflare Worker is SSOT; remove */5, */10, or */15 crons from GitHub Actions.")
+            for v in cron_violations:
+                print(v)
+            any_block = True
+        else:
+            print("  ✅ OK — no high-frequency duplicate cron in .github/workflows/keepwarm.yml")
+    else:
+        print("  ⏭  .github/workflows/keepwarm.yml not found — skipping")
+
+    print("\n" + "=" * 60)
+    if any_block:
+        print("🚫 BANDWIDTH & POLLING GUARD: One or more checks FAILED.")
+        return True
+    print("✅ All bandwidth & polling guard checks passed!")
+    print()
+    return False
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Intelligent Auto-Fix Cleanup
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -488,7 +633,7 @@ def auto_fix_cleanup(dry_run: bool = False) -> int:
         print(label)
 
     if critical_triggered:
-        print(f"  🗑  [GIT GC] Will run: git gc --auto --prune=now (in .git/)")
+        print("  🗑  [GIT GC] Will run: git gc --auto --prune=now (in .git/)")
 
     print()
 
@@ -567,15 +712,17 @@ if __name__ == "__main__":
 
     size_blocked = run_checks()
     memory_blocked = check_runtime_memory_guard()
+    bandwidth_blocked = check_bandwidth_and_polling_guard()
 
     if args.auto_fix or args.dry_run:
         auto_fix_cleanup(dry_run=args.dry_run)
-        if not args.dry_run and (size_blocked or memory_blocked):
+        if not args.dry_run and (size_blocked or memory_blocked or bandwidth_blocked):
             # Re-run checks after cleanup to see if we're now in the clear
             print()
             print("🔄 Re-running checks after auto-fix...")
             print("=" * 60)
             size_blocked = run_checks()
             memory_blocked = check_runtime_memory_guard()
+            bandwidth_blocked = check_bandwidth_and_polling_guard()
 
-    sys.exit(1 if (size_blocked or memory_blocked) else 0)
+    sys.exit(1 if (size_blocked or memory_blocked or bandwidth_blocked) else 0)

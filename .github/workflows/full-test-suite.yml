@@ -29,6 +29,7 @@ permissions:
 jobs:
   full-test-battery:
     name: "Full Battery (${{ inputs.test_suite || 'all' }})"
+    # hierarchy-exception: scheduled nightly battery running on public GitHub runner
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
