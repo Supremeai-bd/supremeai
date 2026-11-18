@@ -395,7 +395,7 @@ def probe_ai_providers(sec: dict) -> None:
 
 def probe_github() -> None:
     token = os.environ.get("GITHUB_TOKEN", "")
-    status, body, _ = http("GET", "https://api.github.com/rate_limit", headers={"Authorization": f"Bearer {token}"})
+    status, _body, _ = http("GET", "https://api.github.com/rate_limit", headers={"Authorization": f"Bearer {token}"})
     record("github", "rate_limit", status == 200, f"HTTP {status}")
 
 

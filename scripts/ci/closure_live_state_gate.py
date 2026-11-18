@@ -337,22 +337,22 @@ def route_verdict(subject_labels: list[str], audit_labels: list[str],
     """Pure verdict routing. Returns (verdict, exit_code, human_note)."""
     if unreachable:
         return ("UNREACHABLE", 2,
-                "tower read failed — honest skip; closure NOT verified by "
-                "this gate (never reported as pass)")
+                ("tower read failed — honest skip; closure NOT verified by "
+                "this gate (never reported as pass)"))
     if not scope_applies(subject_labels, audit_labels):
         return ("NOT_APPLICABLE", 0,
-                "subject carries no platform-audit label — fix-lane closure, "
-                "gate off (scope note #2925)")
+                ("subject carries no platform-audit label — fix-lane closure, "
+                "gate off (scope note #2925)"))
     if criterion is None:
         if strict:
             return ("NO_CRITERION", 1,
-                    "--strict: platform-audit subject without a declared "
+                    ("--strict: platform-audit subject without a declared "
                     "recovery criterion — closing artifact refused; declare "
-                    "criterion or attach manual live-state evidence")
+                    "criterion or attach manual live-state evidence"))
         return ("NO_CRITERION", 0,
-                "no declared criterion — mechanical evaluation impossible; "
+                ("no declared criterion — mechanical evaluation impossible; "
                 "report-only warning: attach manual live-state evidence to "
-                "the closing artifact")
+                "the closing artifact"))
     # criterion present: evaluation happened upstream
     raise ValueError("route_verdict requires criterion=None here")
 

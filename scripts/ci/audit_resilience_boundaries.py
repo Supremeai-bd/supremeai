@@ -79,7 +79,7 @@ def audit_file(path: Path) -> list[dict[str, object]]:
             # report its own implementation as an unbounded boundary.
             if called == "create_async_client" and path.name == "http_client.py":
                 continue
-            path_text = str(path).replace("\\", "/")
+            str(path).replace("\\", "/")
             sdk_markers = {
                 "supabase": called == "create_client",
                 "firestore": called == "Client",

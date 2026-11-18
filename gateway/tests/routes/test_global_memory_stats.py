@@ -89,7 +89,7 @@ def client(monkeypatch):
 
 class TestMemoryStatsServerSideCount:
     def test_response_shape_and_values(self, client):
-        tc, captured, _ = client
+        tc, _captured, _ = client
         res = tc.get("/api/preferences/memory/stats")
         assert res.status_code == 200
         body = res.json()

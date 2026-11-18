@@ -4,6 +4,7 @@ Firebase Auth has been removed (Zero-Firebase Native Auth); `auth` is None.
 """
 
 auth = None
-get_firebase_auth = lambda: None
+def get_firebase_auth():
+    return None
 
 __all__ = ["auth", "get_firebase_auth"]

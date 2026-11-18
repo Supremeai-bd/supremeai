@@ -46,7 +46,7 @@ modes = {}
 for var, name in SERVICES:
     key = os.environ.get(var, "").strip()
     if not key:
-        print("::warning::%s key missing for %s" % (var, name))
+        print(f"::warning::{var} key missing for {name}")
         continue
     remaining = check_account(key)
     if remaining >= GLOBAL_THRESHOLD and remaining >= (ESTIMATED_BUILD_MINUTES + SAFETY_BUFFER) or remaining >= (ESTIMATED_BUILD_MINUTES + SAFETY_BUFFER):
@@ -54,16 +54,16 @@ for var, name in SERVICES:
     else:
         mode = "prebuilt-image"
     modes[name] = mode
-    print("SERVICE=%s REMAINING=%.1f MODE=%s" % (name, remaining, mode))
+    print(f"SERVICE={name} REMAINING={remaining:.1f} MODE={mode}")
 
 # Overall mode = most conservative (if any service needs image build, note it)
 overall = "render-source-build" if all(m == "render-source-build" for m in modes.values()) else "mixed"
-print("RENDER_DEPLOY_MODE=%s" % overall)
+print(f"RENDER_DEPLOY_MODE={overall}")
 
 out = os.environ.get("GITHUB_OUTPUT")
 if out:
     with open(out, "a") as f:
-        f.write("deploy_mode=%s\n" % overall)
+        f.write(f"deploy_mode={overall}\n")
         # per-service modes
         for name, mode in modes.items():
-            f.write("mode_%s=%s\n" % (name.replace("-", "_"), mode))
+            f.write("mode_{}={}\n".format(name.replace("-", "_"), mode))

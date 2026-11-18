@@ -170,8 +170,8 @@ def render_body(queue: List[Tuple[int, str, Dict[str, Any]]], limit: int, trigge
         "> Claim order: **priority ladder DESC** (`P0-critical → P1-high → P2-medium → P3-low`,",
         "> no label = P3) then **oldest first** — [`ISSUE_PRIORITY_POLICY.md`](../../docs/agents/ISSUE_PRIORITY_POLICY.md).",
         "",
-        f"**Last update:** {now} · **trigger:** `{trigger}` · **unclaimed total:** {len(queue)} "
-        f"(P0: {counts['P0-critical']} · P1: {counts['P1-high']} · P2: {counts['P2-medium']} · P3: {counts['P3-low']})",
+        (f"**Last update:** {now} · **trigger:** `{trigger}` · **unclaimed total:** {len(queue)} "
+        f"(P0: {counts['P0-critical']} · P1: {counts['P1-high']} · P2: {counts['P2-medium']} · P3: {counts['P3-low']})"),
         "",
         "## 🥇 Overall — claim from the top",
         "",

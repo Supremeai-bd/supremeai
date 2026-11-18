@@ -115,8 +115,8 @@ class IntelligenceGate:
 
         try:
             # মেট্রিক সংগ্রহ
-            prompt = artifact.get('prompt', '')
-            task_type = artifact.get('task_type', 'general')
+            artifact.get('prompt', '')
+            artifact.get('task_type', 'general')
 
             # ক্যাশ হিট রেট মনিটর করুন
             cache_hit_rate = await self._get_cache_hit_rate()

@@ -27,10 +27,10 @@ if str(SCRIPT_DIR) not in sys.path:
 
 try:
     from ai_pr_evaluator import classify_pr_risk
-except Exception:  # noqa: BLE001
+except Exception:
     try:
         from scripts.ci.ai_pr_evaluator import classify_pr_risk
-    except Exception:  # noqa: BLE001
+    except Exception:
         classify_pr_risk = None
 
 try:
@@ -40,7 +40,7 @@ try:
         post_pr_comment,
         real_api,
     )
-except Exception:  # noqa: BLE001
+except Exception:
     try:
         from scripts.ci.ai_auto_approver import (
             approve_pending_deployment,
@@ -48,7 +48,7 @@ except Exception:  # noqa: BLE001
             post_pr_comment,
             real_api,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         approve_pending_deployment = None
         fetch_pr = None
         post_pr_comment = None
@@ -95,7 +95,7 @@ def is_forbidden_path(path: str) -> bool:
         return True
     if "infisical" in p:
         return True
-    if base in ("admin_auth.py", "keygen.py") or p.endswith("/admin_auth.py") or p.endswith("/keygen.py"):
+    if base in ("admin_auth.py", "keygen.py") or p.endswith(("/admin_auth.py", "/keygen.py")):
         return True
     for prefix in FORBIDDEN_PATH_PREFIXES:
         if p.startswith(prefix):
@@ -166,7 +166,7 @@ def call_tiny_brain(pr_number: int, files: list[str], diff_stats: dict, ci_statu
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode())
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -305,7 +305,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             with open(gh_out, "a", encoding="utf-8") as fh:
                 fh.write("is_low_risk={}\n".format("true" if result.get("verdict") == "AUTO_MERGE" else "false"))
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     if opts.as_json:
         print(json.dumps(result))

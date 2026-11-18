@@ -393,7 +393,7 @@ if __name__ == "__main__":
 # --- Merged from telegram_code_backup.py ---
 
 #!/usr/bin/env python3
-# ruff: noqa: BLE001, ASYNC230, SIM102
+# ruff: noqa: ASYNC230, SIM102
 """
 SupremeAI 2.0 — Automated Telegram Codebase Backup Runner (Zip & Markdown Digest)
 ---------------------------------------------------------------------------------

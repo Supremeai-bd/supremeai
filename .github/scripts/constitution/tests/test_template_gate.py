@@ -286,7 +286,7 @@ class IssueValidationTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class PrValidationTests(unittest.TestCase):
     def test_compliant_pr_passes(self):
-        status, missing, _ = tg.validate_pr(agent_pr(), [agent_issue()], policy())
+        status, _missing, _ = tg.validate_pr(agent_pr(), [agent_issue()], policy())
         self.assertEqual(status, "compliant")
 
     def test_missing_pr_sections_reported(self):

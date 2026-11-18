@@ -29,18 +29,19 @@ import ast
 import json
 import os
 import sys
-import tomllib
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, TextIO
 
+import tomllib
+
 # বাংলা: SCRIPT-INTELLIGENCE v9 — shared auto-discovery লাইব্রেরি
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # scripts/
 from datetime import UTC
 
-from lib.auto_discovery import (  # noqa: E402
+from lib.auto_discovery import (
     DiscoveryError,
     discover_core_modules,
     discover_fastapi_routes,
@@ -261,8 +262,7 @@ class DeadCodeFinder:
         except ValueError:
             return filepath.stem
         parts = list(rel.parts)
-        if parts[-1].endswith(".py"):
-            parts[-1] = parts[-1][:-3]
+        parts[-1] = parts[-1].removesuffix(".py")
         if parts[-1] == "__init__":
             parts = parts[:-1]
             if not parts:
@@ -585,7 +585,7 @@ class DeadCodeFinder:
         )
         scripts.update(data.get("project", {}).get("scripts", {}))
 
-        for _script_name, module_ref in scripts.items():
+        for module_ref in scripts.values():
             # বাংলা: "module:function" ফরম্যাট
             mod_part = module_ref.split(":")[0] if ":" in module_ref else module_ref
             resolved = self._module_to_path(mod_part)
@@ -649,10 +649,9 @@ class DeadCodeFinder:
         # বাংলা: শুধু প্রোডাকশন entry points থেকে শুরু (টেস্ট ফাইল বাদ)
         for ep in self.entry_points:
             ep_info = self.modules.get(ep)
-            if ep_info and not ep_info.is_test_file:
-                if ep not in visited:
-                    queue.append(ep)
-                    visited.add(ep)
+            if ep_info and not ep_info.is_test_file and ep not in visited:
+                queue.append(ep)
+                visited.add(ep)
 
         while queue:
             current = queue.popleft()

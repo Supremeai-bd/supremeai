@@ -184,7 +184,7 @@ def audit_topological_sequence(
         for low in (1, 2, 3):
             found = by_layer.get(low)
             if found:
-                grounding = sorted(found)[0]
+                grounding = min(found)
                 break
     result.grounded_low_layer_file = grounding
 

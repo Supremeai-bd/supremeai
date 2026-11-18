@@ -130,7 +130,7 @@ async def execute_click_cascade(
     """
     # ── Step 1: SemanticDOM ────────────────────────────────────────────
     try:
-        from browser.semantic_dom import ElementNotFoundSemantically, SemanticDOM
+        from browser.semantic_dom import SemanticDOM
 
         sdom = SemanticDOM(page)
         element = await sdom.query(target, threshold=CONFIDENCE_VERIFY)

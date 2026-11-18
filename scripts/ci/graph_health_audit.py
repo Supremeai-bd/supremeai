@@ -284,7 +284,7 @@ def audit_registry(registry: dict[str, Any], repo_root: Path) -> list[AuditFindi
         on_disk = {
             p.name for p in MODELS_DIR.glob("*.py") if p.name not in MODEL_COVERAGE_EXEMPT
         }
-        mapped = {str(k) for k in db_map.keys()}
+        mapped = {str(k) for k in db_map}
         for missing in sorted(on_disk - mapped):
             findings.append(
                 AuditFinding(

@@ -254,7 +254,7 @@ class TestProvenanceStamping(unittest.TestCase):
             self.assertEqual(meta["task_id"], "123")
             self.assertTrue(meta["verified"])
             # LESSONS format untouched: pipe table row, date-first, task ref
-            row = [ln for ln in lessons.read_text().splitlines() if "#123" in ln][0]
+            row = next(ln for ln in lessons.read_text().splitlines() if "#123" in ln)
             self.assertTrue(row.startswith("| "))
             self.assertEqual(len(row.split("|")), 7)  # 5 columns -> 7 pipe-split cells
 

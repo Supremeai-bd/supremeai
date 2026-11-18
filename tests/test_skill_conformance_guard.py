@@ -68,7 +68,7 @@ class CheckTests(unittest.TestCase):
     def test_clean_skill_zero_errors(self):
         with tempfile.TemporaryDirectory() as td:
             d = make_skill(Path(td), "clean", "---\nname: clean\ndescription: ok\n---\n")
-            errs, warns = G.check_skill_file(d)
+            errs, _warns = G.check_skill_file(d)
             self.assertEqual(errs, [])
 
     def test_e4_name_directory_drift(self):
@@ -111,7 +111,7 @@ class ScanAndRatchetTests(unittest.TestCase):
     def test_e1_missing_skill_md(self):
         with tempfile.TemporaryDirectory() as td:
             (Path(td) / "ghost").mkdir()
-            err_rows, warn_rows, skips = G.scan(Path(td))
+            err_rows, _warn_rows, _skips = G.scan(Path(td))
             self.assertEqual([n for n, _ in err_rows], ["ghost"])
             self.assertTrue(err_rows[0][1][0].startswith("E1"))
 
@@ -144,7 +144,7 @@ class LiveSurfaceTests(unittest.TestCase):
 
     def test_live_scan_within_baseline(self):
         baseline = G.load_baseline(G.DEFAULT_BASELINE)
-        err_rows, _, skips = G.scan(G.DEFAULT_ROOT)
+        err_rows, _, _skips = G.scan(G.DEFAULT_ROOT)
         violations, _ = G.ratchet(err_rows, baseline)
         self.assertEqual(violations, [], f"live surface grew new structural errors: {violations}")
 

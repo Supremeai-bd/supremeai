@@ -59,7 +59,7 @@ def parse_modules_list() -> tuple[dict[str, int], list[dict]]:
 
 
 def test_module_boundary_strictly_enforced():
-    counts, modules = parse_modules_list()
+    _counts, modules = parse_modules_list()
     # MODULES_LIST.md boundary. 2026-09-17: owner-approved deletion of the three
     # dead zustand stores (chatStore/themeStore/useSupremeStore — commit 0aefa3b3)
     # moved the production catalog 194 -> 191; 2026-09-25: catalog truth-sync —

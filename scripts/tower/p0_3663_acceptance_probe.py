@@ -275,15 +275,15 @@ def aggregate(verdicts: list[str]) -> tuple[str, int]:
     n_fc = verdicts.count(Verdict.FAIL_CLOSED)
     n_ind = verdicts.count(Verdict.INDETERMINATE)
     if n_exposed:
-        return (f"P0 #3663 FAIL-OPEN STILL LIVE ({n_exposed}/3 criteria exposed) — "
-                "pre-deploy expected state; owner redeploy pending", 2)
+        return ((f"P0 #3663 FAIL-OPEN STILL LIVE ({n_exposed}/3 criteria exposed) — "
+                "pre-deploy expected state; owner redeploy pending"), 2)
     if n_fc == len(verdicts):
         return ("P0 #3663 REMEDIATED on live tower — anonymous sessions fail closed (3/3)", 0)
     if n_ind == len(verdicts):
         return ("P0 #3663 INDETERMINATE — observables unavailable; manual review needed", 1)
-    return (f"P0 #3663 NO EXPOSURE OBSERVED — fail-closed signals {n_fc}/3, "
+    return ((f"P0 #3663 NO EXPOSURE OBSERVED — fail-closed signals {n_fc}/3, "
             f"indeterminate {n_ind}/3 (positive redeploy evidence; full 3/3 "
-            "acceptance pending observability)", 3)
+            "acceptance pending observability)"), 3)
 
 
 def run_probe(base_url: str | None, timeout: int) -> dict:

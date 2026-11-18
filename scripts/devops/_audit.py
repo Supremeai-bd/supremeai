@@ -127,7 +127,7 @@ def validator_for(key):
         "FIREBASE_SERVICE_ACCOUNT_JSON": json_v,
         "FIREBASE_SERVICE_ACCOUNT_SUPREMEAI_A": json_v,
         "FIREBASE_SERVICE_ACCOUNT": json_v,
-        "FIREBASE_TOKEN": lambda x: ("REAL" if x.startswith("1//") or x.startswith("ya29.") else "FAKE"),
+        "FIREBASE_TOKEN": lambda x: ("REAL" if x.startswith(("1//", "ya29.")) else "FAKE"),
         "GITLAB_TOKEN": lambda x: vstart(x, ["glpat-"]),
         "OPENHANDS_API_KEY": lambda x: vstart(x, ["sk-oh-"]),
         "ROUTEME_API_KEY": lambda x: vstart(x, ["rm-"]),
@@ -147,7 +147,7 @@ def validator_for(key):
         "SECRET_BACKEND": lambda x: ("UNVERIFIABLE", "opaque"),
         "SECRET_KEY": lambda x: ("UNVERIFIABLE", "opaque"),
         "TEST_VAULT_KEY": lambda x: ("UNVERIFIABLE", "opaque"),
-        "SUPREMEAI_ADMIN_PASSWORD_HASH": lambda x: ("REAL" if x.startswith("$2b$") or x.startswith("$2a$") else "FAKE"),
+        "SUPREMEAI_ADMIN_PASSWORD_HASH": lambda x: ("REAL" if x.startswith(("$2b$", "$2a$")) else "FAKE"),
         "SUPREMEAI_ADMIN_TOTP_SECRET": lambda x: ("FAKE" if x.upper() == "JBSWY3DPEHPK3PXP" else ("UNVERIFIABLE", "base32")),
         "DB_PASSWORD": lambda x: ("UNVERIFIABLE", "opaque"),
         "DOCS_PASSWORD": lambda x: ("PLACEHOLDER", "weak/default-style password"),
@@ -238,7 +238,7 @@ if yaml:
 
 def targets(key):
     if key in reg:
-        return [k for k in reg[key].keys()]
+        return [k for k in reg[key]]
     return []
 
 all_keys = list(env.keys())

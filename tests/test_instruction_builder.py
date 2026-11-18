@@ -29,7 +29,7 @@ class TestLoadRoleRules(unittest.TestCase):
 
     def test_every_registered_role_loads(self):
         for role_id in sorted(ib.ROLE_CONTRACTS):
-            applicable, prohibited, source = ib.load_role_rules(role_id)
+            applicable, _prohibited, source = ib.load_role_rules(role_id)
             self.assertTrue(len(applicable) >= 0 and source == "role_trigger_matrix.ROLE_CONTRACTS")
 
     def test_unknown_role_fails_closed(self):
@@ -115,7 +115,7 @@ class TestNoPhantomRegression(unittest.TestCase):
 
     def test_no_phantom_symbol_is_live_code(self):
         source = Path(ib.__file__).read_text(encoding="utf-8")
-        imported, used = self._live_code_facts(source)
+        _imported, used = self._live_code_facts(source)
         self.assertNotIn("_load_agent_rules", used)
         self.assertNotIn("get_role_contract", used)
 

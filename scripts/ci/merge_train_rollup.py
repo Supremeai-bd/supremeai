@@ -131,7 +131,7 @@ def extract_linked_issues(text: str) -> List[int]:
     if not text:
         return []
     matches = ISSUE_KEYWORD_REGEX.findall(text)
-    return sorted(list({int(m) for m in matches}))
+    return sorted({int(m) for m in matches})
 
 
 def filter_queued_prs(

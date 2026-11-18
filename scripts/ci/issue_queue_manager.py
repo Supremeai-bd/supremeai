@@ -429,7 +429,7 @@ def cmd_auto_merge(args):
             
         # Attempt squash merge
         print(f"   🚀 Merging PR #{pr_num} (seq:{seq}) into main...")
-        rc, m_out, m_err = run_cmd(["gh", "pr", "merge", str(pr_num), "--squash", "--admin"])
+        rc, _m_out, m_err = run_cmd(["gh", "pr", "merge", str(pr_num), "--squash", "--admin"])
         if rc == 0:
             print(f"   ✅ PR #{pr_num} merged successfully!")
             run_cmd(["gh", "issue", "close", str(iss_num), "--comment", f"Closed via GSPQ sequential merge of PR #{pr_num}."])

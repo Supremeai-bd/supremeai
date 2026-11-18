@@ -248,8 +248,8 @@ def create_issue_for(finding: dict) -> int | None:
 
 def close_recovered(rec: dict) -> bool:
     rc, _, _ = run(["gh", "issue", "close", str(rec["issue"]), "--reason", "completed",
-                    "--comment", "🐕 Watchdog recovery — finding আর পুনরুৎপাদিত হচ্ছে না "
-                                 "(সর্বশেষ পর্যবেক্ষণে সুস্থ)। auto-close (#4168 recovery চুক্তি)।"])
+                    "--comment", ("🐕 Watchdog recovery — finding আর পুনরুৎপাদিত হচ্ছে না "
+                                 "(সর্বশেষ পর্যবেক্ষণে সুস্থ)। auto-close (#4168 recovery চুক্তি)।")])
     return rc == 0
 
 

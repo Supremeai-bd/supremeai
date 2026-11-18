@@ -61,7 +61,7 @@ def check_empty_excepts() -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Silent failure policy guard")
     parser.add_argument("--check", action="store_true", help="Perform check")
-    args = parser.parse_args()
+    parser.parse_args()
 
     wf_errors = check_workflows()
     if wf_errors:

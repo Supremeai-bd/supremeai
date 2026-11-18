@@ -556,8 +556,7 @@ def check_env_files_exposed(root: Path, report: Report):
             res = subprocess.run(
                 ["git", "ls-files", "--error-unmatch", str(f.name)],
                 cwd=str(root),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 check=False,
             )
             is_tracked = (res.returncode == 0)

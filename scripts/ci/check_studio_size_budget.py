@@ -43,7 +43,7 @@ def main() -> int:
             continue
         path = os.path.join(assets, fname)
         size = os.path.getsize(path)
-        if fname.startswith("index-") or fname.startswith("vendor-"):
+        if fname.startswith(("index-", "vendor-")):
             # entry + vendor chunks load upfront in this build layout;
             # route chunks (React.lazy) are named by their module.
             initial.append((fname, size))

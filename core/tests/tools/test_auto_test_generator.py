@@ -2,7 +2,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from core.tools.code.auto_test_generator import (
     AutoTestGenerator,
     TestGenRequest,
@@ -355,9 +354,8 @@ def client(generator):
 
         app = _app
     except Exception:
-        from fastapi import FastAPI
-
         from core.tools.code.auto_test_generator import router as test_router
+        from fastapi import FastAPI
 
         app = FastAPI()
         app.include_router(test_router)
@@ -457,9 +455,8 @@ async def test_batch_generate_save_true(tmp_path, generator):
 
 @pytest.mark.anyio
 async def test_generate_endpoint_success(client):
-    from fastapi.testclient import TestClient
-
     from core.tools.code.auto_test_generator import _generator
+    from fastapi.testclient import TestClient
 
     app = None
     try:
@@ -470,9 +467,8 @@ async def test_generate_endpoint_success(client):
         app = None
 
     if app is None:
-        from fastapi import FastAPI
-
         from core.tools.code.auto_test_generator import router as test_router
+        from fastapi import FastAPI
 
         app = FastAPI()
         app.include_router(test_router)
@@ -502,9 +498,8 @@ async def test_generate_endpoint_success(client):
 
 @pytest.mark.anyio
 async def test_generate_endpoint_error(client):
-    from fastapi.testclient import TestClient
-
     from core.tools.code.auto_test_generator import _generator
+    from fastapi.testclient import TestClient
 
     app = None
     try:
@@ -515,9 +510,8 @@ async def test_generate_endpoint_error(client):
         app = None
 
     if app is None:
-        from fastapi import FastAPI
-
         from core.tools.code.auto_test_generator import router as test_router
+        from fastapi import FastAPI
 
         app = FastAPI()
         app.include_router(test_router)
@@ -558,9 +552,8 @@ async def test_generate_file_endpoint(client, generator):
         app = None
 
     if app is None:
-        from fastapi import FastAPI
-
         from core.tools.code.auto_test_generator import router as test_router
+        from fastapi import FastAPI
 
         app = FastAPI()
         app.include_router(test_router)

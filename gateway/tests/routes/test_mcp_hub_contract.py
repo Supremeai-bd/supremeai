@@ -390,7 +390,7 @@ async def test_list_includes_revoked_rows_ordered(hub):
 async def test_second_slug_is_not_primary(hub):
     """The FIRST active slug wins primary election; later claims on the same
     tenant are non-primary aliases."""
-    http, maker = hub
+    http, _maker = hub
     r1 = await http.post("/api/v1/mcp/slug/claim", json={"slug": "first-slug"})
     r2 = await http.post("/api/v1/mcp/slug/claim", json={"slug": "second-slug"})
     assert r1.status_code == 201 and r2.status_code == 201

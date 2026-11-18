@@ -41,7 +41,7 @@ def migrate_file(path):
         # find a good insertion point: after the last 'from core.' or 'import' at top
         insert_idx = 0
         for i, line in enumerate(lines):
-            if line.startswith("import ") or line.startswith("from "):
+            if line.startswith(("import ", "from ")):
                 insert_idx = i + 1
             else:
                 # stop at first non-import, non-blank, non-comment line

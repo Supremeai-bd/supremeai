@@ -23,7 +23,6 @@ def test_secret_value_regex_whitespace():
     match_colon = SECRET_VALUE_RE.search(sample_with_colon)
     assert match_colon is not None, "Colon and whitespace-separated secret should match"
 
-    sample_literal_backslash_s = r'api_key\s=\s"synthetic_dummy_key_1234567890abcdef"'
     # Should match or not match, but normal code with real spaces MUST match.
 
 def test_todo_regex_word_boundaries():
@@ -58,7 +57,7 @@ def test_line_counting_and_loc(tmp_path: Path):
     miner = Miner(tmp_path)
     # Miner counts lines using '\n'
     text = miner.text(test_file)
-    lines = text.count("\n") + (1 if text else 0)
+    text.count("\n") + (1 if text else 0)
     # 5 newlines in content -> 6 lines total (or 5 lines if standard trailing newline)
     # Specifically, text.count("\n") returns 5, NOT 0 (which was the bug with text.count("\\n"))
     assert text.count("\n") == 5

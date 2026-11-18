@@ -25,7 +25,7 @@ def load_registry():
 def build_alias_map(reg):
     """Return {alias: canonical} dict."""
     amap = {}
-    for fam, info in reg.get("families", {}).items():
+    for info in reg.get("families", {}).values():
         for canon, aliases in info.get("canonical", {}).items():
             for a in aliases:
                 amap[a] = canon

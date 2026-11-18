@@ -99,9 +99,8 @@ def get_risk_level(module_rel_path: str) -> tuple:
     best = ("LOW", 1, "🟢")  # ডিফল্ট
     for level, cfg in RISK_CONFIG.items():
         for kw in cfg["keywords"]:
-            if kw in path_lower:
-                if cfg["weight"] > best[1]:
-                    best = (level, cfg["weight"], cfg["emoji"])
+            if kw in path_lower and cfg["weight"] > best[1]:
+                best = (level, cfg["weight"], cfg["emoji"])
     return best
 
 
@@ -219,14 +218,13 @@ def build_import_to_test_map(tests_dir: Path, test_files: set) -> dict:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     import_map[alias.name.split(".")[0]].append(tf_rel)
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    parts = node.module.split(".")
-                    # প্রথম অংশ যদি backend এর সাব-মডিউল হয়
-                    for p in parts:
-                        if p and not p.startswith("_"):
-                            import_map[p].append(tf_rel)
-                            break
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                parts = node.module.split(".")
+                # প্রথম অংশ যদি backend এর সাব-মডিউল হয়
+                for p in parts:
+                    if p and not p.startswith("_"):
+                        import_map[p].append(tf_rel)
+                        break
     return dict(import_map)
 
 
@@ -267,7 +265,7 @@ def extract_classes_and_functions(filepath: Path) -> dict:
     for node in ast.iter_child_nodes(tree):
         if isinstance(node, ast.ClassDef):
             result["classes"].append(node.name)
-        elif isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if not node.name.startswith("_"):
                 result["functions"].append(node.name)
     return result

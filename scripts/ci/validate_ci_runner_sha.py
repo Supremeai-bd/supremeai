@@ -27,7 +27,7 @@ last_status = None
 last_commit = None
 while time.monotonic() < deadline:
     req = urllib.request.Request(
-        "https://api.render.com/v1/services/%s/deploys?limit=1" % RENDER_SVC_ID,
+        f"https://api.render.com/v1/services/{RENDER_SVC_ID}/deploys?limit=1",
         headers={"Authorization": "Bearer " + RENDER_API_KEY, "Accept": "application/json"},
     )
     try:
@@ -50,10 +50,10 @@ print("CI runner deploy commit:", last_commit)
 print("Expected PR head SHA:", PR_HEAD_SHA)
 
 if last_status != "live":
-    print("::error::CI runner deploy did not reach live (status=%s)" % last_status)
+    print(f"::error::CI runner deploy did not reach live (status={last_status})")
     sys.exit(1)
 if last_commit != PR_HEAD_SHA:
-    print("::warning::CI runner tested commit %s (expected PR head %s). Render builds from main branch, so PR-head SHA validation requires runner-side checkout; treating as advisory (deploy status live)." % (last_commit, PR_HEAD_SHA))
+    print(f"::warning::CI runner tested commit {last_commit} (expected PR head {PR_HEAD_SHA}). Render builds from main branch, so PR-head SHA validation requires runner-side checkout; treating as advisory (deploy status live).")
     # Advisory: do not block merge on SHA mismatch until runner-side PR checkout is implemented.
 else:
     print("CI runner SHA validation: PASSED")

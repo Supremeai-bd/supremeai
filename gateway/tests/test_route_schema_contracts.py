@@ -55,7 +55,7 @@ class TestAppRouteDiscovery:
 
     def test_api_v1_prefix_routes_registered(self):
         paths = _app_paths(_APP)
-        api_routes = [p for p in paths if p.startswith("/api/v1") or p.startswith("/api/")]
+        api_routes = [p for p in paths if p.startswith(("/api/v1", "/api/"))]
         assert len(api_routes) > 10, "should have many API routes"
 
     def test_all_paths_start_with_slash(self):

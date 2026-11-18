@@ -428,7 +428,7 @@ async def test_sweep_execution_observed_as_run_in_real_fabric(fake_db, fast_llm,
     from runs.models import Run
     from sqlalchemy import select
 
-    engine, _holder = _make_sqlite_runs_ctx(monkeypatch)
+    _engine, _holder = _make_sqlite_runs_ctx(monkeypatch)
     now = datetime.now(UTC)
     fake_db.store["scheduled_tasks"] = [
         _task_row(schedule_type="once", scheduled_time=_iso(now - timedelta(minutes=5)))

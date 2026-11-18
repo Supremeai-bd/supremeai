@@ -160,9 +160,8 @@ def _broken_internal_paths(repo: Path, text: str) -> list[str]:
         rest = text[m.end(): line_end if line_end != -1 else len(text)]
         if re.match(r"\s*:", rest):
             continue
-        if not (repo / rel).exists():
-            if rel not in broken:
-                broken.append(rel)
+        if not (repo / rel).exists() and rel not in broken:
+            broken.append(rel)
     return broken
 
 

@@ -320,7 +320,7 @@ class RouteAnalyzer(ast.NodeVisitor):
 
             if isinstance(child.exc, ast.Call):
                 func_node = child.exc.func
-                call_str = ast.dump(func_node)
+                ast.dump(func_node)
 
                 # HTTPException চেক
                 if isinstance(func_node, ast.Name) and func_node.id == 'HTTPException' or isinstance(func_node, ast.Attribute) and func_node.attr == 'HTTPException':
@@ -398,7 +398,7 @@ class RouteAnalyzer(ast.NodeVisitor):
                 continue
 
             if isinstance(child.value, ast.Dict):
-                dict_str = ast.dump(child.value).lower()
+                ast.dump(child.value).lower()
                 keys = []
                 for k in child.value.keys:
                     if isinstance(k, ast.Constant):
@@ -456,7 +456,7 @@ class RouteAnalyzer(ast.NodeVisitor):
         db_call_nodes = []
         for child in ast.walk(node):
             if isinstance(child, ast.Call):
-                call_str = ast.dump(child)
+                ast.dump(child)
                 if isinstance(child.func, ast.Attribute):
                     attr = child.func.attr
                     if any(indicator in attr for indicator in DB_CALL_INDICATORS):
@@ -554,7 +554,7 @@ class RouteAnalyzer(ast.NodeVisitor):
         if not isinstance(node, ast.Call):
             return None
 
-        call_str = ast.dump(node)
+        ast.dump(node)
 
         # httpx.Client().get(...), httpx.post(...), ইত্যাদি
         if isinstance(node.func, ast.Attribute):
@@ -563,7 +563,7 @@ class RouteAnalyzer(ast.NodeVisitor):
             if isinstance(node.func.value, ast.Name):
                 obj = node.func.value.id
                 if obj in EXTERNAL_CALL_PATTERNS:
-                    desc, methods = EXTERNAL_CALL_PATTERNS[obj]
+                    _desc, methods = EXTERNAL_CALL_PATTERNS[obj]
                     if attr in methods or any(m in attr for m in methods):
                         return {'type': obj, 'description': f'{obj}.{attr}()', 'line': node.lineno}
 
@@ -864,7 +864,7 @@ class ConsistencyChecker:
         if len(entries) < 2:
             return
 
-        codes_used = set(e['code'] for e in entries)
+        codes_used = {e['code'] for e in entries}
         if len(codes_used) <= 1:
             return
 

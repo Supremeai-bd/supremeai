@@ -276,8 +276,8 @@ def format_markdown_report(report: CollisionReport) -> str:
     lines.extend([
         "",
         "> [!IMPORTANT]",
-        "> **Action Required**: Please coordinate with the colliding PR owner before merging. "
-        "Merging one PR before resolving overlapping diffs will trigger automatic merge conflicts in the other.",
+        ("> **Action Required**: Please coordinate with the colliding PR owner before merging. "
+        "Merging one PR before resolving overlapping diffs will trigger automatic merge conflicts in the other."),
     ])
     return "\n".join(lines)
 

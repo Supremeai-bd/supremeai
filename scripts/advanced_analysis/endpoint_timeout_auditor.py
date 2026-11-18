@@ -156,12 +156,11 @@ class RouteFileParser:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     self._imports.add(alias.name.split(".")[0])
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    self._imports.add(node.module.split(".")[0])
-                    self._from_imports.setdefault(node.module, set())
-                    for alias in node.names:
-                        self._from_imports[node.module].add(alias.name)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                self._imports.add(node.module.split(".")[0])
+                self._from_imports.setdefault(node.module, set())
+                for alias in node.names:
+                    self._from_imports[node.module].add(alias.name)
 
     def _has_httpx(self) -> bool:
         return "httpx" in self._imports
@@ -287,9 +286,8 @@ class RouteFileParser:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     self._imports.add(alias.name.split(".")[0])
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    self._imports.add(node.module.split(".")[0])
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                self._imports.add(node.module.split(".")[0])
 
     def _make_call(
         self,
@@ -581,7 +579,7 @@ class RouteFileParser:
                 # বাংলা: await সহ কল কিনা পরীক্ষা
                 if i > 0 and "await" in func_lines[i - 1]:
                     continue
-                if "await" not in line and i + 1 < len(func_lines) and "await" not in func_lines[i]:
+                if "await" not in line and i + 1 < len(func_lines) and "await" not in line:
                     # বাংলা: non-await fetch wrapper — সম্ভবত sync
                     timeout_match = re.search(r"timeout\s*=\s*([\d.]+)", line)
                     calls.append(self._make_call(

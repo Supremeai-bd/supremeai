@@ -127,7 +127,10 @@ import urllib.request
 from pathlib import Path
 
 try:
-    from tower_name_tolerance import call_across_names, epoch_spellings  # flat: scripts/ci on sys.path
+    from tower_name_tolerance import (  # flat: scripts/ci on sys.path
+        call_across_names,
+        epoch_spellings,
+    )
 except ImportError:  # pragma: no cover — package-style load (tests, CI runner)
     from scripts.ci.tower_name_tolerance import call_across_names, epoch_spellings
 
@@ -189,13 +192,13 @@ def _rpc(method, params=None, session_id=None, notify=False, attempts=4):
             last = e
             time.sleep(10 * (attempt + 1))
     else:
-        raise last  # noqa: TRY201 - caller maps to the honest-skip exit
+        raise last
     if "text/event-stream" in ctype:
         for line in body.splitlines():
             if line.startswith("data:"):
                 try:
                     return json.loads(line[5:].strip()), sid
-                except Exception:  # noqa: BLE001  # nosec B112 — SSE lines are individually skippable by design; continue IS the contract (#2081 audit)
+                except Exception:  # nosec B112 — SSE lines are individually skippable by design; continue IS the contract (#2081 audit)
                     continue
     if not body.strip():
         return {"accepted": True}, sid
@@ -396,11 +399,11 @@ def _load_rejected_plane(fetch_rows=_fetch_rejected_rows,
                    "this egress IP (shared egress may exhaust it "
                    "continuously); budget resets hourly" if err.code == 403
                    else f"HTTP {err.code}")
-    except Exception as err:  # noqa: BLE001 — one plane down is a disclosed skip
+    except Exception as err:
         gh_note = err.__class__.__name__
     try:
         return tower_rows(), f"tower-plane fallback (github: {gh_note})"
-    except Exception as err:  # noqa: BLE001 — both planes down: dual-cause note
+    except Exception as err:
         return [], (f"unreachable (github {gh_note}; "
                     f"tower {err.__class__.__name__})")
 
@@ -443,7 +446,7 @@ def _load_queue_integrity(listing_numbers: set,
                           "rate limit for this egress IP (shared egress may "
                           "exhaust it continuously); budget resets hourly)")
         return None, f"unreachable (HTTP {err.code})"
-    except Exception as err:  # noqa: BLE001 — one plane down is a disclosed skip
+    except Exception as err:
         return None, f"unreachable ({err.__class__.__name__})"
     missing, phantom = _check_queue_integrity(
         set(listing_numbers), {r.get("number") for r in rows})
@@ -615,7 +618,7 @@ def _deepen_main(depth: int, git_bin: str) -> bool:
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180,
         )
         return out.returncode == 0
-    except Exception:  # noqa: BLE001 — offline/permission failures degrade, never crash
+    except Exception:
         return False
 
 
@@ -638,7 +641,7 @@ that per-item line is the only surviving evidence).
     """
     try:
         proc = closer(num, comment)
-    except Exception as err:  # noqa: BLE001 — gh missing/exec failure degrades, never crashes
+    except Exception as err:
         return f"  [WARN] Failed to close #{num}: {err}"
     rc = getattr(proc, "returncode", None)
     if rc == 0:
@@ -715,7 +718,7 @@ def _fetch_wo_body(number: int) -> str | None:
     """Fetch one WO's full body (read-only tower round-trip) for refinement."""
     try:
         return json.loads(_tower_text("bridge.work_order", {"number": number})).get("body")
-    except Exception:  # noqa: BLE001 - refinement is best-effort, fail-closed
+    except Exception:
         return None
 
 
@@ -736,7 +739,7 @@ def refine_satellites(verdicts: list[dict], fetch_body=_fetch_wo_body,
         probed += 1
         try:
             repo = parse_target_repo(fetch_body(v["number"]))
-        except Exception:  # noqa: BLE001 - defense in depth: a raising injectable
+        except Exception:
             repo = None     # fetcher must never turn a risk flag into a crash
         if repo and repo != OPEN_REPO:
             out[i] = classify(
@@ -751,7 +754,7 @@ def _fetch_wo_feedback(number: int) -> dict | None:
     """Fetch one WO's Tower verdict-plane record (read-only round-trip)."""
     try:
         return json.loads(_tower_text("bridge_read_feedback", {"number": number}))
-    except Exception:  # noqa: BLE001 - enrichment is best-effort, never fatal
+    except Exception:
         return None
 
 
@@ -794,7 +797,7 @@ def enrich_tower_verdicts(verdicts: list[dict], fetch_feedback=_fetch_wo_feedbac
         fb = None
         try:
             fb = fetch_feedback(v["number"])
-        except Exception:  # noqa: BLE001 - defense in depth vs raising injectables
+        except Exception:
             fb = None
         if not isinstance(fb, dict):
             out[i] = {**v, "tower_verdict": "unreadable", "tower_unstamped": None}
@@ -818,12 +821,12 @@ def self_test() -> list[tuple[str, bool, str]]:
 
     # 1. landed: slug present in main history
     v = classify({"number": 1, "title": f"x {slug_a} y", "createdAt": fresh},
-                 [f"feat: something (bridge-20261028-alpha-lane) (#1900)"], [], now)
+                 ["feat: something (bridge-20261028-alpha-lane) (#1900)"], [], now)
     cases.append(("landed slug -> MERGED_ON_MAIN", v["verdict"] == "MERGED_ON_MAIN", json.dumps(v)[:160]))
 
     # 2. in flight: slug in an open PR title
     v = classify({"number": 2, "title": f"x {slug_a} y", "createdAt": fresh},
-                 [], [f"PR title (bridge-20261028-alpha-lane) (#1901)"], now)
+                 [], ["PR title (bridge-20261028-alpha-lane) (#1901)"], now)
     cases.append(("in-flight slug -> OPEN_PR", v["verdict"] == "OPEN_PR", json.dumps(v)[:160]))
 
     # 3. young unmatched -> IN_GATES (normal CI-Guardian latency)
@@ -840,18 +843,18 @@ def self_test() -> list[tuple[str, bool, str]]:
 
     # 6. prefix collision: -r2 slug must not match the base lane's landing
     v = classify({"number": 6, "title": f"x {slug_r2} y", "createdAt": old},
-                 [f"feat: base lane (bridge-20261028-alpha-lane) (#1902)"], [], now)
+                 ["feat: base lane (bridge-20261028-alpha-lane) (#1902)"], [], now)
     cases.append(("prefix collision rejected (-r2 vs base)",
                   v["verdict"] == "LANDING_AT_RISK", json.dumps(v)[:160]))
 
     # 7. r2 lane landed under its own slug -> matched
     v = classify({"number": 7, "title": f"x {slug_r2} y", "createdAt": fresh},
-                 [f"feat: rescue (bridge-20261028-alpha-lane-r2) (#1903)"], [], now)
+                 ["feat: rescue (bridge-20261028-alpha-lane-r2) (#1903)"], [], now)
     cases.append(("-r2 slug matches its own landing", v["verdict"] == "MERGED_ON_MAIN", json.dumps(v)[:160]))
 
     # 8. any-slug-wins: multi-slug WO counts as landed if ONE slug landed
     v = classify({"number": 8, "title": f"a {slug_a} b {slug_r2} c", "createdAt": old},
-                 [f"feat: base (bridge-20261028-alpha-lane) (#1904)"], [], now)
+                 ["feat: base (bridge-20261028-alpha-lane) (#1904)"], [], now)
     cases.append(("multi-slug any-match -> MERGED_ON_MAIN", v["verdict"] == "MERGED_ON_MAIN", json.dumps(v)[:160]))
 
     # 9. unparseable createdAt -> honest IN_GATES (never a risk flag on bad data)
@@ -882,7 +885,7 @@ def self_test() -> list[tuple[str, bool, str]]:
         [{"number": 14, "title": f"landed {slug_a}", "createdAt": old, "labels": ["bridge:queued"]},
          {"number": 15, "title": f"stuck {slug_r2}", "createdAt": old, "labels": ["bridge:queued"]},
          {"number": 16, "title": f"young {slug_g}", "createdAt": fresh, "labels": ["bridge:queued"]}],
-        [f"feat: landed (bridge-20261028-alpha-lane) (#1905)"], [], now)
+        ["feat: landed (bridge-20261028-alpha-lane) (#1905)"], [], now)
     by_num = {v["number"]: v["verdict"] for v in vs}
     ok = (by_num == {14: "MERGED_ON_MAIN", 15: "LANDING_AT_RISK", 16: "IN_GATES"})
     cases.append(("mixed fixture board classifies exactly", ok, json.dumps(by_num)[:200]))
@@ -907,7 +910,7 @@ def self_test() -> list[tuple[str, bool, str]]:
     cases.append(("young satellite WO -> SATELLITE_TARGET (age-independent)",
                   v["verdict"] == "SATELLITE_TARGET", json.dumps(v)[:160]))
     v = classify({"number": 19, "title": f"sat landed {slug_a}", "createdAt": old},
-                 [f"feat: sat (bridge-20261028-alpha-lane) (#1906)"], [], now,
+                 ["feat: sat (bridge-20261028-alpha-lane) (#1906)"], [], now,
                  target_repo="Supremeai-bd/supremeai-browser")
     cases.append(("matched slug still wins over satellite hint",
                   v["verdict"] == "MERGED_ON_MAIN", json.dumps(v)[:160]))
@@ -920,7 +923,7 @@ def self_test() -> list[tuple[str, bool, str]]:
     # whose updatedAt == createdAt carry the close-on-merge flap signature;
     # touched rows and rows missing timestamps stay untagged (honest unknown);
     # the tag propagates to FALSE_REJECTION rows (same classify path).
-    merged_hist = [f"feat: landed (bridge-20261028-alpha-lane) (#1905)"]
+    merged_hist = ["feat: landed (bridge-20261028-alpha-lane) (#1905)"]
     v = classify({"number": 31, "title": f"x {slug_a}", "createdAt": old, "updatedAt": old},
                  merged_hist, [], now)
     cases.append(("never-touched merged row carries flap fingerprint",
@@ -971,7 +974,7 @@ def self_test() -> list[tuple[str, bool, str]]:
     vs = run_verdicts(
         [{"number": 22, "title": f"recert {slug_a}", "createdAt": old,
           "labels": ["bridge:rejected"]}],
-        [f"feat: landed (bridge-20261028-alpha-lane) (#1907)"], [], now)
+        ["feat: landed (bridge-20261028-alpha-lane) (#1907)"], [], now)
     ok = (len(vs) == 1 and vs[0]["verdict"] == "FALSE_REJECTION"
           and "1972" in vs[0]["evidence"])
     cases.append(("rejected-but-landed -> FALSE_REJECTION (#1972 class)", ok, json.dumps(vs)[:220]))
@@ -990,7 +993,7 @@ def self_test() -> list[tuple[str, bool, str]]:
           "labels": ["bridge:queued"]},
          {"number": 25, "title": f"rejected landed {slug_a}", "createdAt": old,
           "labels": ["bridge:rejected"]}],
-        [f"feat: landed (bridge-20261028-alpha-lane) (#1908)"], [], now)
+        ["feat: landed (bridge-20261028-alpha-lane) (#1908)"], [], now)
     by_num = {v["number"]: v["verdict"] for v in vs}
     cases.append(("mixed queued/rejected board classifies exactly",
                   by_num == {24: "MERGED_ON_MAIN", 25: "FALSE_REJECTION"}, json.dumps(by_num)[:200]))
@@ -1002,7 +1005,7 @@ def self_test() -> list[tuple[str, bool, str]]:
     # stragglers stranded while every sweep was matrix-scoped). The flap
     # fingerprint works there too; a non-landed non-queued row stays
     # unreported (zero new false positives on the strict surface).
-    hist_17b = [f"feat: landed (bridge-20261028-alpha-lane) (#1908)"]
+    hist_17b = ["feat: landed (bridge-20261028-alpha-lane) (#1908)"]
     vs = run_verdicts(
         [{"number": 35, "title": f"landed {slug_a}", "createdAt": old,
           "updatedAt": old, "labels": ["report-only", "ops"]},
@@ -1091,7 +1094,7 @@ def self_test() -> list[tuple[str, bool, str]]:
         cases.append(("ladder transport failure fail-close", False, "no raise"))
     except ConnectionError:
         cases.append(("ladder transport failure fail-close", True, ""))
-    except Exception as e:  # noqa: BLE001 — wrong failure class is a FAIL
+    except Exception as e:
         cases.append(("ladder transport failure fail-close", False, type(e).__name__))
 
     # flight plane arguments lock (wrong-repo + ignored per_page, both silent)
@@ -1375,7 +1378,7 @@ def main(argv: list[str] | None = None) -> int:
         wos, queue_rung = _fetch_work_orders()
         subjects = _main_subjects()
         pr_titles = _open_pr_titles()
-    except Exception as e:  # noqa: BLE001 - unreachable planes are a skip, never a pass
+    except Exception as e:
         print(f"SKIP: board/history unreachable ({e.__class__.__name__}: {e})")
         return 2
 

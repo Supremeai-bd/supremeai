@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "https://json.schemastore.org/mcp",
   "mcpServers": {
     "github-reader": {
@@ -18,6 +18,17 @@
       "type": "sse",
       "url": "https://supremeai-mcp-tower.onrender.com/sse",
       "transport": "sse"
+    },
+    "supremeai-mcp-tower": {
+      "command": "node",
+      "args": [
+        "F:/supremeai/infrastructure/mcp-control-plane/dist/index.js"
+      ],
+      "env": {
+        "MCP_MODE": "stdio",
+        "TINY_BRAIN_URL": "https://njelitltd-tiny-brain.hf.space",
+        "KAGGLE_SHADOW_URL": "https://supremeai-kaggle-mcp.paykaribazaronline.workers.dev"
+      }
     }
   }
 }

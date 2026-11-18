@@ -79,7 +79,7 @@ def _agg_report(td: Path) -> tuple[int, dict, Path]:
         ),
     )
     out = td / "security-report.json"
-    code, out_text = _run_gate("--trivy", str(trivy), "--output", str(out))
+    code, _out_text = _run_gate("--trivy", str(trivy), "--output", str(out))
     return code, json.loads(out.read_text(encoding="utf-8")), out
 
 
@@ -108,7 +108,7 @@ def test_clean_report_passes() -> None:
 def test_missing_report_fails_closed() -> None:
     with tempfile.TemporaryDirectory(prefix="secgate-t3-") as td:
         out = Path(td) / "security-report.json"
-        code, out_text = _run_gate("--trivy", str(Path(td) / "absent.json"), "--output", str(out))
+        code, _out_text = _run_gate("--trivy", str(Path(td) / "absent.json"), "--output", str(out))
         report = json.loads(out.read_text(encoding="utf-8"))
         assert code == 1
         assert report["status"] == "fail"

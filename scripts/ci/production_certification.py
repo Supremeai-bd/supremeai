@@ -204,7 +204,7 @@ def get_sha() -> str:
 
 
 def is_git_clean() -> bool:
-    rc, out, _ = run(["git", "status", "--porcelain"])
+    _rc, out, _ = run(["git", "status", "--porcelain"])
     return out.strip() == ""
 
 
@@ -275,7 +275,7 @@ def get_open_p0_p1_issues() -> list[dict]:
 
 def check_secret_scan() -> dict:
     """Quick secret scan — check for hardcoded secrets in scripts/."""
-    rc, out, _ = run([
+    _rc, out, _ = run([
         "grep", "-rn", "--include=*.py", "--include=*.yml", "--include=*.sh",
         "-E", r"ghs_[a-zA-Z0-9]{36}|ghp_[a-zA-Z0-9]{36}|sk-[a-zA-Z0-9]{48}",
         "scripts/", ".github/",
@@ -309,7 +309,7 @@ def check_ruff() -> dict:
 
 def check_py_compile() -> dict:
     """Check if all Python files compile."""
-    rc, out, err = run([sys.executable, "-m", "py_compile", "scripts/agents/continuous_agent_loop.py"])
+    rc, _out, err = run([sys.executable, "-m", "py_compile", "scripts/agents/continuous_agent_loop.py"])
     if rc == 0:
         return {"status": "PASS", "evidence": "main agent script compiles"}
     return {"status": "FAIL", "evidence": err[:200]}

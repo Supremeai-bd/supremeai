@@ -177,7 +177,7 @@ class TestProvenanceDigestGuard(unittest.TestCase):
         payloads outright — the first submit attempt 403'd on it).
         """
         dpg = _import_guard()
-        escape_path = "/".join(["..", "..", "..", "etc", "passwd"])
+        escape_path = "../../../etc/passwd"
         with tempfile.TemporaryDirectory() as tmp:
             receipt = Path(tmp) / "bridge-19700101-escape.json"
             receipt.write_text(

@@ -193,10 +193,10 @@ def verify(root: Path, tool: str) -> tuple[int, list[str]]:
         return 0, [f"{TAG} SKIP: contract file {CONTRACT_FILE} absent in this tree — nothing to verify."]
     if not artifact.exists():
         return 1, [
-            f"{TAG} FAIL: committed consumer artifact {ARTIFACT_FILE} is missing while the "
+            (f"{TAG} FAIL: committed consumer artifact {ARTIFACT_FILE} is missing while the "
             f"contract exists. The contract's consumer surface must be a build product, not an "
             f"absence. Generate once and commit: datamodel-codegen --input {CONTRACT_FILE} "
-            f"{' '.join(GEN_BASE_ARGS)} --output {ARTIFACT_FILE}",
+            f"{' '.join(GEN_BASE_ARGS)} --output {ARTIFACT_FILE}"),
         ]
     with tempfile.TemporaryDirectory() as td:
         regen = Path(td) / "gateway_models.py"
@@ -208,9 +208,9 @@ def verify(root: Path, tool: str) -> tuple[int, list[str]]:
     committed = artifact.read_bytes()
     if normalize(fresh) != normalize(committed):
         return 1, [
-            f"{TAG} FAIL: contract → consumer DRIFT — {ARTIFACT_FILE} does not match a fresh "
+            (f"{TAG} FAIL: contract → consumer DRIFT — {ARTIFACT_FILE} does not match a fresh "
             f"pinned regeneration of {CONTRACT_FILE}. The contract changed without regenerating "
-            f"its consumer surface. Never hand-edit the artifact; regenerate and commit:",
+            f"its consumer surface. Never hand-edit the artifact; regenerate and commit:"),
             drift_evidence(fresh, committed),
         ]
     notes.append(f"{TAG} PASS: {ARTIFACT_FILE} byte-matches a fresh pinned ({CODEGEN_PIN}) regeneration of {CONTRACT_FILE}.")

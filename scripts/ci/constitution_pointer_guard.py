@@ -287,7 +287,7 @@ def self_test() -> bool:
         files = ["clean.md", "doc.md", "code.py", "allowed.md", "bin.dat"]
 
         allow = {"allowed.md": ("historical", "test entry")}
-        violations, stale = scan_tree(root, files, patterns, allow)
+        violations, _stale = scan_tree(root, files, patterns, allow)
 
         check("clean file not flagged", not any(v["file"] == "clean.md" for v in violations))
         check("md citation flagged", any(

@@ -54,13 +54,7 @@ def test_classify_image(ref, expected):
 # --------------------------------------------------------------------------- #
 
 def test_parse_froms_flags_aliases_comments():
-    content = "\n".join([
-        "# FROM python:3.9 (comment must be ignored)",
-        "FROM --platform=linux/amd64 python:3.11-slim AS builder",
-        "",
-        "FROM python:3.11.14-slim",
-        "from node:24-alpine as runtime",  # case-insensitive instruction
-    ])
+    content = "# FROM python:3.9 (comment must be ignored)\nFROM --platform=linux/amd64 python:3.11-slim AS builder\n\nFROM python:3.11.14-slim\nfrom node:24-alpine as runtime"
     froms = cds.parse_froms(content)
     assert [(ln, ref) for ln, ref in froms] == [
         (2, "python:3.11-slim"),

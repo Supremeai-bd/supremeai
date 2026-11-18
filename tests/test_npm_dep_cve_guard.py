@@ -282,7 +282,7 @@ def test_decision_tree_hermetic() -> None:
             assert code == guard.EXIT_PASS and drift == []
 
             # wrangler.toml (R46) is on the surface too
-            code, drift, imp, notes = guard.evaluate(
+            code, drift, _imp, notes = guard.evaluate(
                 root, files=["browser/cloudflare-worker/wrangler.toml"])
             assert code == guard.EXIT_PASS and drift == []
 
@@ -372,7 +372,7 @@ def test_worker_lock_floor_honored_then_drifts() -> None:
             code, drift, imp, notes = guard.evaluate(root, files=None)
             assert code == guard.EXIT_PASS and drift == []
         with _OsvPatch(guard, _worker_new_id):
-            code, drift, imp, notes = guard.evaluate(root, files=None)
+            code, drift, _imp, _notes = guard.evaluate(root, files=None)
             assert code == guard.EXIT_DRIFT
             assert drift[0]["kind"] == "new-id"
             assert drift[0]["pair"] == f"{WORKER_LOCK}:tar-fs@3.0.4"
@@ -392,7 +392,7 @@ def test_all_dev_lock_is_honest_zero() -> None:
         pairs, skipped = guard.load_lock_pairs(root / VSCODE_EXT_LOCK)
         assert pairs == [] and skipped["dev"] == 1
         with _OsvPatch(guard, _known_floor):
-            code, drift, imp, notes = guard.evaluate(root, files=None)
+            code, drift, _imp, _notes = guard.evaluate(root, files=None)
             assert code == guard.EXIT_PASS and drift == []
 
 

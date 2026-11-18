@@ -46,7 +46,7 @@ PRIORITY_KEYWORDS = {
 
 def fetch_issue(issue_num: int) -> dict:
     repo = os.environ.get("GH_REPO", "")
-    token = os.environ.get("GH_TOKEN", "")
+    os.environ.get("GH_TOKEN", "")
     result = subprocess.run(
         ["gh", "api", f"repos/{repo}/issues/{issue_num}"],
         capture_output=True, text=True, timeout=30
@@ -100,7 +100,7 @@ def route_issue(issue: dict, dry_run: bool = False) -> list[str]:
     if dry_run:
         print(f"[DRY RUN] Would add: {labels_to_add}")
     else:
-        repo = os.environ.get("GH_REPO", "")
+        os.environ.get("GH_REPO", "")
         for label in labels_to_add:
             if label not in existing_labels:
                 subprocess.run(

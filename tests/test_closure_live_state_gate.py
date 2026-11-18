@@ -259,7 +259,7 @@ def test_live_gate_honest_skip_or_verdict():
     else:
         assert proc.returncode in (0, 1), \
             f"unexpected exit code {proc.returncode}: {combined[:300]}"
-        assert f"verdict=" in proc.stdout
+        assert "verdict=" in proc.stdout
 
 
 if __name__ == "__main__":

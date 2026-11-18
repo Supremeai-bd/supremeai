@@ -34,7 +34,7 @@ def load_canonical_aliases():
     amap = {}
     if os.path.exists(CANON):
         reg = json.load(open(CANON, encoding="utf-8"))
-        for fam, info in reg.get("families", {}).items():
+        for info in reg.get("families", {}).values():
             for canon, aliases in info.get("canonical", {}).items():
                 for a in aliases:
                     amap[a] = canon

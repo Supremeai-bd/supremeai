@@ -41,7 +41,7 @@ def deployment_drift(root: Path) -> list[dict[str, str]]:
         content = path.read_text(encoding="utf-8", errors="ignore")
         for match in re.finditer(r"(?:COPY|ADD)\s+([^\s]+)", content):
             source = match.group(1).strip('"\'')
-            if source.startswith("http") or source.startswith("$"):
+            if source.startswith(("http", "$")):
                 continue
             if not (root / source).exists() and not source.startswith("--"):
                 findings.append({"category": "deployment_drift", "path": relative, "message": f"Referenced build path does not exist: {source}"})

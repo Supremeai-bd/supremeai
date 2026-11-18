@@ -78,8 +78,14 @@ class SecretEntry:
     """একটি সিক্রেটের সম্পূর্ণ তথ্য ধারণ করে।"""
 
     __slots__ = (
-        "name", "criticality_map", "note", "category",
-        "age_days", "status", "last_modified", "highest_criticality",
+        "age_days",
+        "category",
+        "criticality_map",
+        "highest_criticality",
+        "last_modified",
+        "name",
+        "note",
+        "status",
     )
 
     def __init__(

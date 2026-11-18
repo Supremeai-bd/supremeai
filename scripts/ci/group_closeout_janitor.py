@@ -79,7 +79,7 @@ def sweep_remote_branches(dry_run: bool = False) -> int:
     logger.info("--- Step 1: Sweeping Stale Remote Agent Branches ---")
     open_branches = get_open_pr_branches()
     remote_branches = get_remote_agent_branches()
-    stale = sorted(list(remote_branches - open_branches))
+    stale = sorted(remote_branches - open_branches)
 
     if not stale:
         logger.info("[OK] No stale remote branches found.")

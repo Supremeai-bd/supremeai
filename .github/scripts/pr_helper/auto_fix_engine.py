@@ -67,7 +67,7 @@ def _fix_import_error(
     if not m:
         m = re.search(r"cannot import name ['\"]?(\w+)['\"]? from ['\"]?([\w.]+)", snippet)
         if m:
-            old_name, old_path = m.group(1), m.group(2)
+            _old_name, old_path = m.group(1), m.group(2)
         else:
             return None
     else:

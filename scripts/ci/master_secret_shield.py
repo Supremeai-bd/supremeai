@@ -18,7 +18,6 @@ from __future__ import annotations
 import argparse
 import contextlib
 import math
-import os
 import re
 import sys
 from dataclasses import dataclass
@@ -99,7 +98,7 @@ def calculate_shannon_entropy(data: str) -> float:
     length = len(data)
     for x in set(data):
         p_x = float(data.count(x)) / length
-        entropy += -p_x * math.log(p_x, 2)
+        entropy += -p_x * math.log2(p_x)
     return entropy
 
 
@@ -210,14 +209,14 @@ def self_test() -> int:
     # Test cases: (input_line, should_flag, expected_rule)
     # Dynamically formatted at runtime to keep source text free of static token signatures (satisfies Gitleaks)
     pats = {
-        "ghp": "".join(["ghp_", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0123456789"]),
-        "aiza": "".join(["AIzaSy", "BNm1234567890abcdefghijklmnopqrst"]),
-        "gsk": "".join(["gsk_", "1234567890abcdefghijklmnopqrstuvwxyz", "1234567890abcdef"]),
+        "ghp": "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+        "aiza": "AIzaSyBNm1234567890abcdefghijklmnopqrst",
+        "gsk": "gsk_1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdef",
     }
     # OTP variable name also built at runtime (same technique as pats): the
     # static spelling would trip the no-secret-logs pre-commit scanner
     # (fixture-as-data false positive) and keep that gate red on its own tree.
-    otp_var = "".join(["current", "_otp"])
+    otp_var = "current_otp"
     # PEM header is a public template constant: built at runtime so this
     # source file never carries a static key-header literal.
     pem_head = "-" * 5 + "BEGIN RSA " + "PRIVATE " + "KEY" + "-" * 5

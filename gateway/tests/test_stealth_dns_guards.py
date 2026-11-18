@@ -39,6 +39,7 @@ if SAT not in sys.path:
     sys.path.insert(0, SAT)
 
 import httpx
+from typing_extensions import Self
 
 RESULTS: list = []
 
@@ -127,7 +128,7 @@ class _FakeClient:
         self._behavior = behavior
         self._last_call = last_call
 
-    async def __aenter__(self) -> _FakeClient:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *a: object) -> None:

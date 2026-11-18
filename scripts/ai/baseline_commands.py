@@ -1,7 +1,9 @@
 """Validate the repository's baseline command registry without executing commands."""
 from __future__ import annotations
 
+import functools
 import json
+import operator
 from pathlib import Path
 from typing import Any
 
@@ -38,7 +40,7 @@ def validate_registry() -> list[str]:
             if script and script not in scripts:
                 errors.append(f"{category}: unknown package script '{script}'")
     for command in registry.get("policy", {}).get("never_execute_automatically", []):
-        if command not in sum(registry.get("commands", {}).values(), []):
+        if command not in functools.reduce(operator.iadd, registry.get("commands", {}).values(), []):
             errors.append(f"policy command is not registered: '{command}'")
     return errors
 
