@@ -7,8 +7,8 @@ from typing import Any
 
 from core.degraded_mode import DEFAULT_IN_MEMORY_MAXLEN, InMemoryRing, sqlite_fallback_allowed
 from core.errors.error_bus import with_error_bus
-from core.logging_config import logger
 from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus
+from core.monitoring.logging_config import logger
 
 # P0: WARN-at-most-once flag for in-memory FIFO drop events.
 _drop_warned = False

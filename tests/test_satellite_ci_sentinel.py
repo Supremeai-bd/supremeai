@@ -17,7 +17,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci"))
 
-import satellite_ci_sentinel as sentinel  # noqa: E402
+import satellite_ci_sentinel as sentinel
 
 NOW = datetime(2026, 10, 28, 12, 0, tzinfo=timezone.utc)
 OLD = datetime(2026, 10, 26, 0, 0, tzinfo=timezone.utc)  # 60h before NOW

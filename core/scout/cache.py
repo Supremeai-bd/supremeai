@@ -7,7 +7,8 @@ import json
 from typing import Any
 
 from core.cache.redis_manager import redis_manager
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
+
 from scout.models import CrawlResponse
 
 

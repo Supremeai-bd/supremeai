@@ -6,8 +6,8 @@ from pathlib import Path
 
 from scripts.ci.memory_consolidation_guard import (
     audit_memory,
-    find_exact_duplicates,
     find_contradictions,
+    find_exact_duplicates,
     find_near_duplicates,
     load_input,
 )

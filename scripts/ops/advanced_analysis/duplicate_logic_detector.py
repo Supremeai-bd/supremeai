@@ -8,8 +8,8 @@ AST-ভিত্তিক স্ট্রাকচারাল তুলনা �
 বেরিয়া কোড: ০ = পরিষ্কার, ১ = ডুপ্লিকেট পাওয়া গেছে, ২ = ত্রুটি
 """
 
-import ast
 import argparse
+import ast
 import copy
 import hashlib
 import json

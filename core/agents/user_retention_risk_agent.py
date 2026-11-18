@@ -25,7 +25,7 @@ from typing import Any
 from brain.model_router import ModelRouter
 from core.cache import get_cache
 from core.config_cache import config_cache
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from database.tenant_db import TenantAwareFirestore
 
 

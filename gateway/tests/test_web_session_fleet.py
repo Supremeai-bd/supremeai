@@ -6,9 +6,12 @@ from __future__ import annotations
 import base64
 import gzip
 import json
-import pytest
 
-from service.providers.web_session import WebSessionBridge, WebSessionAccount, WebSessionAdapter
+import pytest
+from service.providers.web_session import (
+    WebSessionAdapter,
+    WebSessionBridge,
+)
 from service.router import ADAPTER_REGISTRY
 
 

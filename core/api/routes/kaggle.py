@@ -9,10 +9,11 @@ import json
 import secrets
 from typing import Any
 
-from core.kaggle_orchestrator import KaggleOrchestrator, KaggleTaskType
-from core.monitoring.logging_config import logger
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from pydantic import BaseModel
+
+from core.kaggle_orchestrator import KaggleOrchestrator, KaggleTaskType
+from core.monitoring.logging_config import logger
 
 # AUDIT FIX (2026-11-13, HIGH — unauthenticated Kaggle surfaces):
 # /jobs/{id}, /stats and /submit had NO auth at all — anyone could read job

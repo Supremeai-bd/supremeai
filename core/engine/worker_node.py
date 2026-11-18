@@ -5,8 +5,8 @@ import platform
 import uuid
 from datetime import UTC, datetime
 
-from core.monitoring.logging_config import logger
 from core.messaging.nats_messaging import NATSClient
+from core.monitoring.logging_config import logger
 
 
 class SwarmWorkerNode:

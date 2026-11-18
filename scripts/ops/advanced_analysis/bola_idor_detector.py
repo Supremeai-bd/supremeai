@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import sys
 import ast
 import os
+import sys
+
 
 class BolaIdorVisitor(ast.NodeVisitor):
     def __init__(self, filepath):

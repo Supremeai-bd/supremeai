@@ -8,9 +8,7 @@ text format when prometheus_client is unavailable (never raises).
 from __future__ import annotations
 
 import re
-import time
 from collections import defaultdict
-from typing import Any
 
 try:
     from core.observability.metrics_registry import normalize_route_path

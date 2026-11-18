@@ -44,8 +44,8 @@ from pydantic import BaseModel, Field, model_validator
 
 from core.llm.llm_gateway import llm_gateway
 from core.llm.llm_gateway.context import InferenceContext
-from core.monitoring.logging_config import logger
 from core.memory.auto_rag_injector import auto_rag_injector
+from core.monitoring.logging_config import logger
 from core.security import verify_token_async
 
 router = APIRouter(prefix="/api/v1/stream", tags=["SSE Chat Stream"])
@@ -232,7 +232,7 @@ class SafeSSEGenerator:
                 )
                 if enriched != self.prompt:
                     self.prompt = enriched
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.info(
                     f"[SSE] Auto-RAG enrichment exceeded {ENRICHMENT_TIMEOUT_S:.1f}s; using raw prompt "
                     f"(user={self.user_id})"
@@ -340,7 +340,7 @@ class SafeSSEGenerator:
                         )
                     except StopAsyncIteration:
                         break
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         logger.warning(
                             f"[SSE] First-token timeout ({SSE_FIRST_TOKEN_TIMEOUT_S}s) — no token from model "
                             f"(user={self.user_id}); failing stream"

@@ -63,8 +63,9 @@ import shlex
 import subprocess
 import sys
 import time
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Frozen contract constants
@@ -1081,7 +1082,7 @@ def self_test() -> int:
         ok(outcome["status"] == "completed", "full run completed")
         ok(len(outcome["steps"]) == 8, "all 8 steps recorded")
         ok(outcome["tiers_passed"] and outcome["record"] is not None, "tiers passed + record built")
-        ok(f"Closes #334" in outcome["record"]["pr_body"], "Closes line embedded")
+        ok("Closes #334" in outcome["record"]["pr_body"], "Closes line embedded")
         ok("Closes #334" in outcome["record"]["commit_message"], "U8: Closes in commit message")
         ev_path = r4.write_evidence()
         ok(ev_path.is_file(), "evidence file written")

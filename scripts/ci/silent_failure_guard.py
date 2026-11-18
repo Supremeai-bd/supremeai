@@ -65,7 +65,7 @@ def main() -> int:
 
     wf_errors = check_workflows()
     if wf_errors:
-        print(f"[FAIL] silent_failure_guard: Found suppressed CI failures with '|| true':")
+        print("[FAIL] silent_failure_guard: Found suppressed CI failures with '|| true':")
         for err in wf_errors:
             print(f"  - {err}")
         return 1

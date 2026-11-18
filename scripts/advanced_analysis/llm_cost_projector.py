@@ -670,7 +670,7 @@ class CostCalculator:
         display_name = (pricing.display_name if pricing else provider)
 
         # বাংলা: ফ্রি টায়ারে দৈনিক কতটি কল সম্ভব
-        daily_free_calls = free_rpd if free_rpd > 0 else 0
+        daily_free_calls = max(0, free_rpd)
 
         # বাংলা: দৈনিক মোট কল থেকে পেইড কল বের করা
         daily_total = self.daily_requests

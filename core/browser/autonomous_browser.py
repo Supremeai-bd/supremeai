@@ -23,10 +23,11 @@ import re
 from typing import Any
 from urllib.parse import urlparse
 
+from core.monitoring.logging_config import logger
+
 from brain.reasoning_orchestrator import ReasoningOrchestrator
 from browser.action_cascade import execute_click_cascade
 from browser.browsing_memory import BrowsingMemory
-from core.logging_config import logger
 
 __all__ = ["AutonomousBrowserAgent"]
 

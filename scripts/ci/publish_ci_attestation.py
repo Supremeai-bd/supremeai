@@ -68,7 +68,7 @@ def main() -> int:
         with urllib.request.urlopen(request, timeout=30) as response:
             if response.status >= 300:
                 return fail(f"MCP Tower returned HTTP {response.status}")
-    except Exception as exc:  # noqa: BLE001 - boundary diagnostic, non-blocking
+    except Exception as exc:
         print(f"::warning::CI attestation not published to MCP Tower: {exc}")
         return 0
     print("CI attestation published to MCP Tower")

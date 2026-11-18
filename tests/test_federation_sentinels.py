@@ -19,7 +19,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci"))
 
-import federation_satellite_sync as sync  # noqa: E402
+import federation_satellite_sync as sync
 
 
 class SentinelPairLoading(unittest.TestCase):

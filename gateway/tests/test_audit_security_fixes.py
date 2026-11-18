@@ -1,6 +1,5 @@
-from fastapi.testclient import TestClient
-
 import service.app as app_module
+from fastapi.testclient import TestClient
 from service.app import app
 from service.keygen import generate_key, verify_key
 

@@ -7,9 +7,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import FastAPI
-
 from api import register_router
+from fastapi import FastAPI
 
 pytestmark = pytest.mark.skip(
     reason="Pre-existing failure — code refactored, test not updated (P0 audit)"

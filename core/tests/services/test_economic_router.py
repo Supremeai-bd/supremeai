@@ -7,7 +7,6 @@ core/optimization/economic_optimizer.py.
 """
 
 import pytest
-
 from core.optimization.economic_optimizer import (
     BudgetContext,
     EconomicRouter,

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 
 @dataclass
@@ -15,11 +15,11 @@ class MemoryCurator:
         if s>=self.archive:return MemoryDecision('archive',mid,'Low confidence',s)
         return MemoryDecision('demote',mid,'Very low confidence',s)
     def expired(self,m):
-        ts=m.get('expires_at') or m.get('created_at');
+        ts=m.get('expires_at') or m.get('created_at')
         if not ts:return False
         try:dt=datetime.fromisoformat(ts.replace('Z','+00:00'))
         except ValueError:return False
-        if m.get('expires_at'):return dt<=datetime.now(timezone.utc)
-        return dt+timedelta(days=self.ttl.get(m.get('domain','general'),180))<=datetime.now(timezone.utc)
+        if m.get('expires_at'):return dt<=datetime.now(UTC)
+        return dt+timedelta(days=self.ttl.get(m.get('domain','general'),180))<=datetime.now(UTC)
     def merge(self,a,b):
         out=dict(a); out['confidence']=max(float(a.get('confidence',0)),float(b.get('confidence',0))); out['tags']=sorted(set(a.get('tags',[]))|set(b.get('tags',[]))); out['provenance']=a.get('provenance',[])+b.get('provenance',[]); return out

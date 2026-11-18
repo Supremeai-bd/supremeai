@@ -1,10 +1,9 @@
 """Tests for SupremeAI Customer Directory API (both /api/customers and /api/admin/customers)."""
 
 import pytest
+from api.routes.customers import router as customers_router
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from api.routes.customers import router as customers_router
 
 
 @pytest.fixture

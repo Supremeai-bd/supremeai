@@ -50,7 +50,7 @@ def test_cost_auditor_generation():
 
             assert os.path.exists(report["image_report"])
         except ImportError:
-            from core.logging_config import logger
+            from core.monitoring.logging_config import logger
 
             logger.warning(
                 "matplotlib not installed, skipping image report check in test_monitoring"

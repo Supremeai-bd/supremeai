@@ -1,12 +1,12 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from api.routes.workspaces_route import (
     BindTargetRequest,
     bind_target_repository,
     list_target_repositories,
 )
+
 from core.target_registry import PermissionScope, TargetPlatformType
 
 _VALID_OTP = "123456"

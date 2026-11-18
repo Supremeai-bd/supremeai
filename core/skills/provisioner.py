@@ -8,7 +8,7 @@ import shutil
 import sys
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 from .skill_registry import skill_registry
 

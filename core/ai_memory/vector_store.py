@@ -10,7 +10,7 @@ from typing import Any
 
 from supabase import create_client
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 
 def _coerce_uuid(raw: str) -> str:

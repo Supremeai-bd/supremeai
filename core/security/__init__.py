@@ -30,8 +30,9 @@ try:
     import jwt
 except ImportError:
     jwt = None
-from core.monitoring.logging_config import logger
 from fastapi import HTTPException, status
+
+from core.monitoring.logging_config import logger
 
 # Fixed import path - using relative import instead of absolute
 from .enhanced_ast_scanner import SecurityIssue, SecurityScanner

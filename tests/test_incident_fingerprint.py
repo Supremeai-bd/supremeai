@@ -1,10 +1,11 @@
 from pathlib import Path
+
 from scripts.agents.incident_fingerprint import (
+    IncidentRegistrySSOT,
+    check_pr_deduplication,
     compute_incident_fingerprint,
     extract_incident_fingerprint,
     format_incident_marker,
-    IncidentRegistrySSOT,
-    check_pr_deduplication,
 )
 
 

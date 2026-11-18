@@ -53,9 +53,9 @@ class IntelligenceGate:
         self,
         artifact: dict,
         evidence_claims: list[str],
-        python_code: Optional[str] = None,
-        test_code: Optional[str] = None,
-        security_context: Optional[dict] = None
+        python_code: str | None = None,
+        test_code: str | None = None,
+        security_context: dict | None = None
     ) -> PromotionGate:
         """
         সম্পূর্ণ যাচাইকরণ চালান

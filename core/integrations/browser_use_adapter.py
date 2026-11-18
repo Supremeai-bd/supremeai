@@ -27,14 +27,14 @@ browser-use (AI-agent browser automation) থেকে নেওয়া মূ
 from __future__ import annotations
 
 import os
-from core.utils.api_key_resolver import resolve_numbered_key
 import re
 from typing import Any
 
 import httpx
 
-from core.logging_config import logger
 from core.integrations._flags import flag, import_available
+from core.monitoring.logging_config import logger
+from core.utils.api_key_resolver import resolve_numbered_key
 
 _ENABLED_FLAG = "SUPREMEAI_BROWSER_USE_ENABLED"
 

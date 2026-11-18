@@ -83,7 +83,7 @@ def test_version_mismatch_is_skip_not_fail():
     assert mod.CODEGEN_PIN == "0.86.0", "pin moved — regenerate artifact + update tests in the same PR"
     # unparseable --version output never guesses (tool path must EXIST so
     # discovery reaches the version probe):
-    import unittest.mock as mock
+    from unittest import mock
     fake = mock.Mock()
     fake.returncode = 0
     fake.stdout = "garbage-no-version"
@@ -104,7 +104,8 @@ def test_engagement_scoped_to_contract_surface():
 def test_guard_never_modifies_contract_or_artifact():
     """Byte-identity of inputs across a full hermetic verify cycle."""
     mod = _load_guard()
-    import tempfile, stat
+    import stat
+    import tempfile
     with tempfile.TemporaryDirectory() as td_s:
         td = Path(td_s)
         tool_path = td / "fixture.py"

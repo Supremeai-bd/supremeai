@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-import sys
 import re
+import sys
+
 
 def main():
     if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":

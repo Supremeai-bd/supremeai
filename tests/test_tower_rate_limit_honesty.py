@@ -51,10 +51,10 @@ from typing import Any
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "scripts" / "agents"))
 
-import continuous_agent_loop as cal  # noqa: E402
+import continuous_agent_loop as cal
 
 try:
-    import mcp_tower_client as mtc  # noqa: E402
+    import mcp_tower_client as mtc
 
     HAVE_SIBLING = True
 except ImportError:  # pragma: no cover — documented degraded runtime
@@ -177,7 +177,7 @@ class TestFloorProbeRateLimitNote(unittest.TestCase):
     """Floor probe: 429-shaped failure ⇒ honest rate-limit note, not tower-down."""
 
     def _floor_note_with(self, exc: Exception) -> str:
-        fake = lambda *a, **k: _FakeFloorClient(exc)  # noqa: E731
+        fake = lambda *a, **k: _FakeFloorClient(exc)
         with unittest.mock.patch.object(mtc, "McpTowerClient", fake):
             return cal._tower_queue_floor(timeout_s=6.0)
 

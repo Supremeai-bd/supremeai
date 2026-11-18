@@ -29,7 +29,7 @@ from uuid import uuid4
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from models.mcp_audit_event import MCPAuditEvent
 
 __all__ = [

@@ -16,12 +16,12 @@ import asyncio
 import re
 import uuid
 
-from core.monitoring.logging_config import logger
-from core.request_context import get_correlation_id
-from core.security.authentication.rbac import get_current_user_token as verify_token_dependency
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from core.monitoring.logging_config import logger
+from core.request_context import get_correlation_id
+from core.security.authentication.rbac import get_current_user_token as verify_token_dependency
 from database.supabase_client import get_db
 
 

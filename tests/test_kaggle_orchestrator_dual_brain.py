@@ -13,7 +13,6 @@ if str(REPO_ROOT) not in sys.path:
 
 from core.kaggle_orchestrator import (
     KaggleAccount,
-    KaggleAccountStatus,
     KaggleJob,
     KaggleOrchestrator,
     KaggleTaskType,

@@ -11,9 +11,8 @@ Usage:
 
 import json
 import os
-import sys
-import urllib.request
 import urllib.error
+import urllib.request
 
 # Cloudflare Accounts config (from vault / env)
 ACCOUNTS = [

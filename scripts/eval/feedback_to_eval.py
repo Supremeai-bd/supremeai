@@ -178,8 +178,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
-            for c in cases:
-                f.write(json.dumps(c, ensure_ascii=False) + "\n")
+            f.writelines(json.dumps(c, ensure_ascii=False) + "\n" for c in cases)
     else:
         for c in cases:
             print(json.dumps(c, ensure_ascii=False))

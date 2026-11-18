@@ -1,10 +1,10 @@
 import asyncio
+import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-import logging
 logger = logging.getLogger('browser.playwright')
 
 try:

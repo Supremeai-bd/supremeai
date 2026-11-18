@@ -10,8 +10,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from core.agent_factory import DynamicAgentFactory
 from core.intelligence import IntelligenceRouter, VerificationEngine
 from core.intelligence.manual_tasks import ManualTaskRegistry
-from core.logging_config import logger
 from core.mcp_client import MCPRegistryClient
+from core.monitoring.logging_config import logger
 from core.orchestration.swarm_agent_roles import (
     ArchitectureAgent,
     CodeGeneratorAgent,
@@ -489,7 +489,7 @@ class SwarmOrchestrator:
 
         except Exception as e:
             # বাংলা মন্তব্য: অর্��েস্ট্রেটরের টপ-লেভেলে সব এরর ক্যাচ করার জন্য Exception ব্যবহার করা হয়েছে এবং ট্রেসব্যাক লগ করা হচ্ছে।
-            from core.logging_config import logger
+            from core.monitoring.logging_config import logger
 
             logger.opt(exception=True).error(f"DAG execution failed: {e}")
 

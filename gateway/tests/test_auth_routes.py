@@ -4,9 +4,6 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import FastAPI
-from pydantic import ValidationError
-
 from api.routes.auth import (
     LoginRequest,
     MeResponse,
@@ -16,6 +13,8 @@ from api.routes.auth import (
     optional_current_user,
     router,
 )
+from fastapi import FastAPI
+from pydantic import ValidationError
 
 # Guardian-Lite FP mitigation (#1042/#1044): the scanner's generic_password_assign
 # rule flags 8+-char literals after a password key. These credentials feed a fully

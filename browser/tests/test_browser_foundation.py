@@ -32,6 +32,7 @@ SELF_PATH = "tests/test_browser_foundation.py"
 SATELLITE_REPO = "Supremeai-bd/supremeai-browser"
 
 import pytest
+
 if not SENTINELS_JSON.exists():
     pytest.skip('Open-side sentinel contract only runs in supremeai', allow_module_level=True)
 

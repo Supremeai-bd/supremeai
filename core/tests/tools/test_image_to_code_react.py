@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from core.tools.code.image_to_code import ImageToCode
 
 

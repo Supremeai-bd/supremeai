@@ -38,6 +38,7 @@ from core.task_router import (
     get_task_router,
 )
 
+
 def _verify_mesh_task_auth(request: Request) -> None:
     """Internal node authentication for mesh task queue endpoints (audit fix).
 

@@ -2,7 +2,6 @@
 """Tests for SupremeAIFactory and Master Wiring."""
 
 import pytest
-
 from core.factory import get_factory
 
 

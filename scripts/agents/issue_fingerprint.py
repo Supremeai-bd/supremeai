@@ -217,7 +217,7 @@ def duplicate_guard(
     fp = fingerprint(primary_group or "ungrouped", problem, affected_scope, root_cause_class)
     try:
         active = find_active_duplicate(fp, primary_group, repo_dir=repo_dir)
-    except Exception:  # noqa: BLE001 — guard নিজেই কখনো creator-কে ক্র্যাশ করাবে না
+    except Exception:
         active = None
     if active:
         return DuplicateVerdict(
@@ -226,7 +226,7 @@ def duplicate_guard(
         )
     try:
         closed = find_recently_closed_duplicate(fp, closed_window_days, repo_dir=repo_dir)
-    except Exception:  # noqa: BLE001 — closed-স্ক্যানও fail-open (active-পাশের মতো)
+    except Exception:
         closed = None
     if closed:
         return DuplicateVerdict(

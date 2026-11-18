@@ -30,10 +30,9 @@ from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
-from cryptography.fernet import Fernet, InvalidToken
-
 from core.tools.social.teldrive_storage import TelDriveCrypto, TelDriveStorage
 from core.tools.social.telegram_bot import TelegramBotHandler
+from cryptography.fernet import Fernet, InvalidToken
 
 # Flat sibling imports can replace the parent package's social attribute.
 # Resolve the canonical module directly so patches target the tested classes.

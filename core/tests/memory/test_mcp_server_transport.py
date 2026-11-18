@@ -30,7 +30,6 @@ from types import ModuleType, SimpleNamespace
 from uuid import uuid4
 
 import pytest
-
 from core.memory import mcp_server
 from core.memory.mcp_server import build_server
 

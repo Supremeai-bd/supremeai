@@ -27,7 +27,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 RETENTION_RPC = "fn_ai_memory_retention_cleanup"
 DEFAULT_RETENTION_DAYS = 180

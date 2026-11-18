@@ -29,9 +29,9 @@ from sqlalchemy.pool import StaticPool
 
 from core.automation.execution_recorder import ExecutionRecorder
 from core.automation.models import AutomationEvent, AutomationResult, AutomationStatus
-from core.orchestration.conversation_orchestrator import ExecutionRecord
 from core.missions.models import Mission  # noqa: F401 — registers missions table (runs FK target)
 from core.models.base import Base
+from core.orchestration.conversation_orchestrator import ExecutionRecord
 from core.runs.models import Run, RunEvent
 
 

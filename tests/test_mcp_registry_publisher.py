@@ -1,9 +1,9 @@
-import pytest
 from scripts.ci.mcp_registry_publisher import (
     build_server_json,
+    run_self_test,
     validate_server_json_schema,
-    run_self_test
 )
+
 
 def test_mcp_registry_publisher_self_test():
     assert run_self_test() == 0

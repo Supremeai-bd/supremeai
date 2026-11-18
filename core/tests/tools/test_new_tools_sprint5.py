@@ -40,8 +40,9 @@ class TestSSOIntegrator:
 
 class TestReferralEngine:
     def test_referral_engine_generates_code(self):
-        import database.supabase_client as db_mod
         from core.tools.social.viral_referral_engine import ViralReferralEngine
+
+        import database.supabase_client as db_mod
 
         original = db_mod.db.client
         db_mod.db.client = None
@@ -63,8 +64,9 @@ class TestReferralEngine:
         assert "twitter.com/intent" in link_tw
 
     def test_wallet_balance_default(self):
-        import database.supabase_client as db_mod
         from core.tools.social.viral_referral_engine import ViralReferralEngine
+
+        import database.supabase_client as db_mod
 
         original = db_mod.db.client
         db_mod.db.client = None

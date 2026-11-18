@@ -94,7 +94,7 @@ def find_awaits(text: str):
 
 
 def ensure_asyncio_import(text: str) -> str:
-    if re.search(r"^\s*(import asyncio|from asyncio import )", text, re.M):
+    if re.search(r"^\s*(import asyncio|from asyncio import )", text, re.MULTILINE):
         return text
     lines = text.splitlines(keepends=True)
     n = len(lines)
@@ -156,7 +156,7 @@ def main() -> int:
                 print(f"     MANUAL (pattern B, not auto-fixed): {seg}")
         except SyntaxError as exc:
             print(f"SKIP parse error {exc.lineno}:{exc.offset} {exc.msg}  {rel}")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             print(f"SKIP {exc}  {rel}")
     return 0
 

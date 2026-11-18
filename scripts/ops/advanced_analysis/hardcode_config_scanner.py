@@ -28,6 +28,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # scripts/
+from loguru import logger
+
 from lib.auto_discovery import (
     DiscoveryError,
     discover_core_modules,
@@ -36,7 +38,6 @@ from lib.auto_discovery import (
     get_layout,
     require,
 )
-from loguru import logger
 
 # ── Rules ──
 # 1. No hardcoded production urls

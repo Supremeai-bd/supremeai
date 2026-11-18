@@ -24,8 +24,9 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +36,8 @@ try:  # optional, operator-chosen
     from opentelemetry.sdk.trace import TracerProvider  # type: ignore[import-not-found]
     from opentelemetry.sdk.trace.export import (  # type: ignore[import-not-found]
         BatchSpanProcessor,
+        SpanExporter,  # type: ignore[import-not-found]
     )
-    from opentelemetry.sdk.trace.export import SpanExporter  # type: ignore[import-not-found]
 
     _OTEL_AVAILABLE = True
 except Exception:  # pragma: no cover - OTel not installed

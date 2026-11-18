@@ -32,8 +32,8 @@ from pydantic import BaseModel, Field
 
 from api.dependencies import verify_autonomous_agent_token
 from core.errors.error_bus import with_error_bus
-from core.monitoring.logging_config import logger
 from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus
+from core.monitoring.logging_config import logger
 
 router = APIRouter(prefix="/api/v1/agents", tags=["Autonomous Agents"])
 

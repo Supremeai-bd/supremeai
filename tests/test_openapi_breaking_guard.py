@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import stat
 import subprocess
 import sys
 import tempfile
@@ -44,8 +43,7 @@ TRAILER = "contract-break-approved:"
 TAG = "[openapi-breaking-guard]"
 
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci"))
-import openapi_breaking_guard as guard  # noqa: E402
-
+import openapi_breaking_guard as guard
 
 # --------------------------------------------------------------------------- #
 # SSOT wiring: the live roster and the live hook carry the guard               #

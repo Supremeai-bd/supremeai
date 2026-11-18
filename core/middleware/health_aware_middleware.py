@@ -6,11 +6,11 @@
 import time
 from typing import Any
 
+from core.cache.redis_manager import redis_manager
+from core.monitoring.logging_config import logger
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from core.cache.redis_manager import redis_manager
-from core.logging_config import logger
 from services.config_service import ConfigService
 
 GLOBAL_HEALTH_CONFIG = {"health_threshold": 0.8}

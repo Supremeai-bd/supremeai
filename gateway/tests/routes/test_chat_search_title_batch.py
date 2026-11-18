@@ -9,7 +9,6 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
-
 from api.routes.chat_search import search_chats
 
 

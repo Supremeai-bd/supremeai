@@ -1,6 +1,4 @@
 import pytest
-from fastapi import HTTPException
-
 from api.errors import (
     APIErrorDetail,
     ErrorResponse,
@@ -11,6 +9,7 @@ from api.errors import (
     raise_not_found,
     raise_unauthorized,
 )
+from fastapi import HTTPException
 
 
 def test_error_models():

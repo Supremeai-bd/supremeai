@@ -23,7 +23,7 @@ from typing import Any
 
 from sqlalchemy import select, update
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from database.session import get_db_session_context
 from models.decision_metadata import DECISION_OUTCOMES, DECISION_STATUSES, DecisionMetadata
 

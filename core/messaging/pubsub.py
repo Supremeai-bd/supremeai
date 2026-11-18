@@ -1,6 +1,6 @@
 import asyncio
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 DEFAULT_QUEUE_MAXSIZE = 1000  # backpressure limit — env দিয়ে override করা যাবে
 

@@ -26,10 +26,11 @@ os.environ["ALLOW_TEST_AUTH_BYPASS"] = "true"
 backend_path = os.path.join(os.path.dirname(__file__), "..", "backend")
 sys.path.insert(0, os.path.abspath(backend_path))
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 from api.routes.mesh_mailbox import router as mailbox_router
 from core.agent_mailbox import AgentMailbox, get_agent_mailbox
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
 
 def run_agent_communication_demo():
     print("=" * 70)

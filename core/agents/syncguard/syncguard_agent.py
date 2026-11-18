@@ -6,7 +6,7 @@ from typing import Any
 import redis.asyncio as redis
 import yaml  # type: ignore
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # Import the unified memory interface
 from core.unified_memory import unified_memory

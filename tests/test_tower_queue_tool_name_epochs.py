@@ -45,7 +45,7 @@ import sys
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO_ROOT, "scripts", "agents"))
 
-import continuous_agent_loop as loop  # noqa: E402
+import continuous_agent_loop as loop
 
 
 def test_candidates_cover_both_documented_epochs() -> None:

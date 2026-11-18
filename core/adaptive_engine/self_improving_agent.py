@@ -39,9 +39,10 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 
+from core.cache import get_redis_client
+
 # FIX (import): canonical location is adaptive_engine.experience_db
 from adaptive_engine.experience_db import ExperienceDatabase
-from core.cache import get_redis_client
 from monitoring.logging import get_logger
 
 

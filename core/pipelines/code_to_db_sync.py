@@ -18,7 +18,8 @@ from pathlib import Path
 from typing import Any
 
 from core.cache import get_cache
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
+
 from database.multi_db_router import get_multi_db_router
 
 # ── Constants ────────────────────────────────────────────────────────────────

@@ -85,7 +85,7 @@ def path_score(path: str) -> int:
         score -= 25
     if "/archive/" in path or path.startswith("archive/"):
         score -= 100
-    if re.search(r"(?:_20\d{2}|\.bak|\.old|copy|duplicate)", path, re.I):
+    if re.search(r"(?:_20\d{2}|\.bak|\.old|copy|duplicate)", path, re.IGNORECASE):
         score -= 25
     return score
 
@@ -199,7 +199,7 @@ def render(plan_files: list[FilePlan], plan_methods: list[MethodPlan], clones: l
     for i, item in enumerate(plan_files, 1):
         lines += [f"### F{i}. {item.category} — {item.confidence} confidence", "", f"**Tentative canonical:** `{item.canonical_candidate}`", "", "**Duplicate candidates:**"]
         lines += [f"- `{p}` (active references found: {item.reference_counts.get(p, 0)})" for p in item.duplicate_candidates]
-        lines += ["", f"**Group:** " + " ↔ ".join(f"`{p}`" for p in item.group), "", f"**Action:** {item.action}", "", "**Verification:**"]
+        lines += ["", "**Group:** " + " ↔ ".join(f"`{p}`" for p in item.group), "", f"**Action:** {item.action}", "", "**Verification:**"]
         lines += [f"- {v}" for v in item.verification] + [""]
     lines += ["## Method-level refactors", ""]
     for i, item in enumerate(plan_methods, 1):

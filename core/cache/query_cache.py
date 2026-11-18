@@ -18,7 +18,7 @@ from typing import Any
 import redis.asyncio as aioredis
 from redis.exceptions import RedisError
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # Configure logging
 

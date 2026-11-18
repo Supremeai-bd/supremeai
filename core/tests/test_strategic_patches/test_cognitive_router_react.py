@@ -7,7 +7,6 @@
 """
 
 import pytest
-
 from core.brain.cognitive_router import (
     CognitiveRouter,
     classify_task_complexity,

@@ -12,13 +12,14 @@ All 6 providers are connected via their OpenAI-compatible HTTP surfaces:
 from __future__ import annotations
 
 import asyncio
-from contextlib import asynccontextmanager
 import json
 import logging
 import os
 import time
+from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator, Dict, Optional, Tuple
 from urllib.parse import urlsplit
+
 import httpx
 
 logger = logging.getLogger("supremeai.adapters")
@@ -519,7 +520,7 @@ async def forward_chat_completion(
                 last_status, last_data = 504, {"error": f"Provider {provider} model {model_name} timed out"}
                 continue
             except httpx.RequestError as exc:
-                return 502, {"error": f"Connection error to {provider}: {str(exc)}"}
+                return 502, {"error": f"Connection error to {provider}: {exc!s}"}
 
     return last_status, last_data
 
@@ -649,7 +650,7 @@ async def stream_chat_completion_events(
                 logger.warning(f"[{provider}] Model {model_name} timed out after {timeout}s; trying next model...")
                 continue
             except httpx.RequestError as exc:
-                yield ("error", {"error": f"Connection error to {provider}: {str(exc)}"})
+                yield ("error", {"error": f"Connection error to {provider}: {exc!s}"})
                 return
 
     err_detail = (

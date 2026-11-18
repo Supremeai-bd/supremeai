@@ -1,10 +1,9 @@
 """Tests for user outbound webhooks API."""
 
 import pytest
+from api.routes.webhooks_outbound import _WEBHOOKS, router
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from api.routes.webhooks_outbound import router, _WEBHOOKS
 
 
 @pytest.fixture(autouse=True)

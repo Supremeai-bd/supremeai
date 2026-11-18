@@ -7,7 +7,6 @@ import asyncio
 import time
 
 import httpx
-
 from core.config import settings
 
 

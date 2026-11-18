@@ -3,7 +3,7 @@ import time
 from collections import OrderedDict
 from typing import Optional, Protocol
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 from .models import AutomationResult, AutomationStatus
 

@@ -18,7 +18,7 @@ import logging
 import os
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 try:
     from loguru import logger
@@ -197,7 +197,7 @@ class LoggingConfig:
             # post-3.12). now(timezone.utc).replace(tzinfo=None) keeps the
             # naive-UTC ISO shape byte-identical for log consumers while
             # dropping the DeprecationWarning.
-            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+            "timestamp": datetime.now(UTC).replace(tzinfo=None).isoformat(),
             "level": record["level"].name,
             "message": record["message"],
             "module": record["name"],

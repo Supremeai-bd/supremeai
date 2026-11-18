@@ -7,8 +7,8 @@ from core import service_container as services
 service_container = services
 from core.agent_supervisor import agent_supervisor
 from core.cache.redis_manager import redis_manager
-from core.monitoring.logging_config import logger
 from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus
+from core.monitoring.logging_config import logger
 from core.persistence import pooled_pg
 from core.persistence.write_behind import flush_all as flush_write_behind_batchers
 from database.pgbouncer_pool import get_db_pool

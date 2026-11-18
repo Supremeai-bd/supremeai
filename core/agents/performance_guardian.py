@@ -23,7 +23,7 @@ from typing import Any
 from brain.model_router import ModelRouter
 from core.cache import get_cache
 from core.config_cache import config_cache
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # ── Constants ────────────────────────────────────────────────────────────────
 METRIC_CACHE_TTL = 300  # 5 minutes

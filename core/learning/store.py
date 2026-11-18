@@ -38,7 +38,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 try:  # house logger; fall back to stdlib so this module has zero heavy deps
-    from core.logging_config import logger  # type: ignore[attr-defined]
+    from core.monitoring.logging_config import logger  # type: ignore[attr-defined]
 except Exception:  # pragma: no cover - only when logging_config is broken
     logger = logging.getLogger("core.learning.store")
 

@@ -1,5 +1,4 @@
 import pytest
-
 from core.language_router import LanguageRouter
 
 

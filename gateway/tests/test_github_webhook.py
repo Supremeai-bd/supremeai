@@ -22,9 +22,9 @@ import unittest
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from integrations.github_webhook import router as webhook_router
 
 from core.task_router import TaskRouter, get_task_router, reset_task_router_for_tests
-from integrations.github_webhook import router as webhook_router
 
 SECRET = "webhook-test-secret"
 

@@ -15,10 +15,9 @@ try:
 except ImportError:
     BeautifulSoup = None  # type: ignore[misc, assignment]
 
-from pydantic import BaseModel
-
 from core.human_behavior import HumanBehaviorSimulators
 from core.monitoring.logging_config import logger
+from pydantic import BaseModel
 
 # বাংলা মন্তব্য: Dual-path import — standalone scraper-এ top-level `security`/
 # `web_scraper`, backend-এ embedded হলে `services.scraper.*`। Scraper-এর নিজস্ব

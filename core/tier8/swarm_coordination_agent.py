@@ -22,7 +22,7 @@ from typing import Any, ClassVar
 from core.base import BaseSkill
 from core.config import settings
 from core.llm.llm_gateway import LLMGateway, get_llm_gateway
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.observability.telemetry import get_tracer, trace_span
 from core.swarm_pubsub import SwarmPubSub, get_swarm_streamer
 from services.config_service import ConfigService

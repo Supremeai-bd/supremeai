@@ -19,9 +19,8 @@ import urllib.request
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-import pytest
-
 import core.services.render_preflight_service as rps
+import pytest
 from core.contracts.render_preflight_store import RenderPreflightStore
 
 # ---------------------------------------------------------------------------

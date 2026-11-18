@@ -4,7 +4,7 @@ import uuid
 
 from fastapi import HTTPException
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 
 def safe_http_error(

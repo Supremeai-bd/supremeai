@@ -99,7 +99,7 @@ def main() -> int:
     # ── ধাপ ২: উভয় snapshot-এর schema hash অভিন্ন ──
     ts_report = _ts_dump()
     py_harness = (
-        f"import sys; sys.path.insert(0, {repr(str(BACKEND_ROOT))}); "
+        f"import sys; sys.path.insert(0, {str(BACKEND_ROOT)!r}); "
         "from core.mcp_policy_schema_generated import SCHEMA_HASH as h, SCHEMA_VERSION as v; "
         "print(h, v)"
     )

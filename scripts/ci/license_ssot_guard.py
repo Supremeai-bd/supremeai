@@ -52,7 +52,6 @@ import argparse
 import contextlib
 import json
 import re
-import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -106,7 +105,7 @@ MIRROR_SURFACE_TABLE: list[tuple[str, str, str]] = [
 
 # §2.3-declared repos with NO public mirror surface in supremeai — the
 # guard honestly skips these (it never guesses private repo state, per #1773).
-NO_MIRROR_REPOS = frozenset({"supremeai", "supremeai-agents", "supremeai"})
+NO_MIRROR_REPOS = frozenset({"supremeai", "supremeai-agents"})
 
 MIN_MIT_REPOS = 3  # open, studio, vscode — fewer means the SSOT parse broke
 MIN_PROPRIETARY_REPOS = 5
@@ -287,7 +286,7 @@ def classify_findings(
         surface, repo, model = surface_for(rel)
         try:
             data = json.loads(pkg.read_text(encoding="utf-8", errors="replace"))
-        except Exception as exc:  # noqa: BLE001 — unparseable manifest is honest evidence
+        except Exception as exc:
             notes.append(f"{rel}: unparseable package.json ({exc}) — skipped with evidence")
             continue
         if not isinstance(data, dict):
@@ -436,7 +435,7 @@ def self_test() -> bool:
         assert any("absent on disk" in n for n in notes), notes  # browser/infra honest skips
         print("  PASS | sandbox scan: missing/absent/contradiction + honest skips")
         # 5. Decision tree: all findings inside baseline -> exit 0 (report-only).
-        import license_ssot_guard as guard_mod  # noqa: PLC0415 — self-test only
+        import license_ssot_guard as guard_mod
 
         # NOTE: mutate + call through the imported module object so the
         # baseline swap is actually visible to evaluate() (when run as a

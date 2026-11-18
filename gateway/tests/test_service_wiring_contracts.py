@@ -1,9 +1,9 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from api.routes import scraper
 from fastapi.testclient import TestClient
 
-from api.routes import scraper
 from core.service_registry import get_service_registry
 
 

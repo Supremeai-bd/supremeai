@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import unittest
-from pathlib import Path
 
 from scripts.ci.production_release_gate import (
     REQUIRED_FIELDS,

@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.agents.continuous_agent_loop import build_autonomy_brain_plan, build_task_envelope
+from scripts.agents.continuous_agent_loop import (
+    build_autonomy_brain_plan,
+    build_task_envelope,
+)
 
 
 class TestAutonomyBrainWiring(unittest.TestCase):

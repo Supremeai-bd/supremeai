@@ -14,8 +14,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from core.monitoring.logging_config import logger
+
 from browser.session_manager import BrowserSessionManager
-from core.logging_config import logger
 from external_agents.contracts.task_contract import TaskContract
 from external_agents.control.policy_engine import PolicyDecision, PolicyEngine
 from external_agents.providers.registry import ExecutionMode, ProviderRegistry

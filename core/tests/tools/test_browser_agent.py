@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-
 from core.playwright_manager import get_global_browser
 from core.security import is_safe_url
 from core.tools.ai_agents.browser_agent import BrowserAgent

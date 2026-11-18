@@ -1,7 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from core.tools.devops.gitlab_agent import GitLabAgent
 
 

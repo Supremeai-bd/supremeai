@@ -48,19 +48,19 @@ from functools import lru_cache
 from pathlib import Path
 
 __all__ = [
+    "DiscoveryError",
     "RepoLayout",
-    "find_repo_root",
-    "get_layout",
-    "discover_py_files",
-    "discover_files",
-    "existing_paths",
-    "discover_fastapi_routes",
-    "discover_router_modules",
     "discover_core_modules",
+    "discover_fastapi_routes",
+    "discover_files",
+    "discover_py_files",
+    "discover_router_modules",
     "discover_service_urls",
     "discover_services_from_render_yaml",
+    "existing_paths",
+    "find_repo_root",
+    "get_layout",
     "require",
-    "DiscoveryError",
 ]
 
 
@@ -434,7 +434,7 @@ def discover_service_urls(
                 names = re.findall(
                     r"^\s*-\s*type\s*:\s*web\s*$.*?^\s*name\s*:\s*(\S+)",
                     yaml_hit[0].read_text(encoding="utf-8", errors="replace"),
-                    re.M | re.S,
+                    re.MULTILINE | re.DOTALL,
                 )
                 for n in names:
                     disc.services.append(ServiceUrl(n, f"https://{n}.onrender.com", "render.yaml"))
@@ -463,9 +463,9 @@ def discover_services_from_render_yaml() -> list[dict[str, str]]:
     try:
         import re
         txt = hits[0].read_text(encoding="utf-8", errors="replace")
-        for block in re.split(r"(?=^\s*-\s*type\s*:)", txt, flags=re.M):
-            m_name = re.search(r"^\s*name\s*:\s*(\S+)", block, re.M)
-            m_type = re.search(r"^\s*type\s*:\s*(\S+)", block, re.M)
+        for block in re.split(r"(?=^\s*-\s*type\s*:)", txt, flags=re.MULTILINE):
+            m_name = re.search(r"^\s*name\s*:\s*(\S+)", block, re.MULTILINE)
+            m_type = re.search(r"^\s*type\s*:\s*(\S+)", block, re.MULTILINE)
             if m_name:
                 entries.append(
                     {"name": m_name.group(1), "type": m_type.group(1) if m_type else "?"}

@@ -35,7 +35,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager, contextmanager
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # Lazy imports to avoid circular dependencies
 # These are imported on-demand in the methods below

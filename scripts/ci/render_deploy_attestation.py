@@ -32,7 +32,7 @@ from pathlib import Path
 _LIB = Path(__file__).resolve().parents[1] / "ops" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
-from render_client import RenderApiError, RenderClient  # type: ignore  # noqa: E402
+from render_client import RenderApiError, RenderClient  # type: ignore
 
 CANDIDATE_KEY_ENVS = (
     "RENDER_API_KEY_1",
@@ -76,7 +76,7 @@ def _probe_health_fallback(release_url: str) -> bool:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 if resp.status == 200:
                     return True
-        except Exception:  # noqa: BLE001
+        except Exception:
             continue
     return False
 
@@ -201,7 +201,7 @@ def main() -> int:
                 payload = None
             else:
                 return fail(f"Release endpoint unavailable: HTTP {exc.code}")
-        except Exception as exc:  # noqa: BLE001 - boundary diagnostic
+        except Exception as exc:
             if _probe_health_fallback(release_url):
                 print(f"::warning::Release endpoint {release_url} error ({exc}), but /health is HTTP 200.")
                 payload = None

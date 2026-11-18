@@ -25,7 +25,7 @@ def main():
             try:s=p.stat().st_size
             except OSError:continue
             if not p.is_file(): continue
-            files.append(p); ext[p.suffix.lower() or '<none>']+=1; sizes.append((s,p));
+            files.append(p); ext[p.suffix.lower() or '<none>']+=1; sizes.append((s,p))
             rel=p.relative_to(root)
             if rel.parts: dirs[rel.parts[0]]+=1
             if p.suffix.lower() in EXTS and s<1_500_000:

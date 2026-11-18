@@ -8,8 +8,7 @@ routing decision প্রতিফলিত করে।
 
 from __future__ import annotations
 
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -68,7 +67,6 @@ class FakeService:
 @pytest.fixture()
 def wired(monkeypatch):
     """Import the route module with the db session context faked out."""
-    import asyncio
 
     missions = {"m-1": FakeMission()}
     service = FakeService(missions)
@@ -125,7 +123,7 @@ class TestAssignerRouting:
     def test_start_route_spawns_executor(self, wired):
         source = wired[0].__file__ and __import__("pathlib").Path(wired[0].__file__).read_text(
             encoding="utf-8"
-        )  # noqa: SIM115
+        )
         assert "asyncio.create_task(_execute_mission_goal" in source, (
             "start endpoints must enqueue the autonomous executor"
         )

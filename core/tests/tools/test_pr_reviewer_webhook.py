@@ -4,7 +4,6 @@ import secrets
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from core.tools.code.pr_reviewer import PRReviewer
 
 

@@ -7,9 +7,6 @@
 Exit codes: 0 = pass, 1 = fail (advisory).
 """
 import argparse
-import os
-import subprocess
-import sys
 
 
 def check_heartbeat(pr_author: str) -> tuple[bool, str]:

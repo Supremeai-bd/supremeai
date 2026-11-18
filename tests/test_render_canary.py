@@ -5,11 +5,9 @@ from __future__ import annotations
 
 import io
 import sys
+import urllib.error
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-import urllib.error
-
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci"))

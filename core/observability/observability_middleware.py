@@ -4,7 +4,7 @@ import os
 import time
 import uuid
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.observability.metrics_registry import (
     normalize_route_path,
     record_error,

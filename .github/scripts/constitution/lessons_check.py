@@ -8,11 +8,8 @@
 Exit codes: 0 = pass, 1 = fail (advisory).
 """
 import argparse
-import json
 import os
 import subprocess
-import sys
-from datetime import datetime, timezone
 
 
 def check_pr_force_pushed(pr_number: int) -> bool:

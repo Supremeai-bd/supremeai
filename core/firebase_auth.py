@@ -6,7 +6,7 @@ This stub returns None safely without throwing errors or requiring firebase-admi
 
 from __future__ import annotations
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 auth = None
 

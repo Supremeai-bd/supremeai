@@ -68,7 +68,6 @@ import re
 import shutil
 import subprocess
 import sys
-from typing import Dict, List, Optional, Tuple
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Path classification patterns
@@ -148,7 +147,7 @@ BLOCK = "block"
 WARNING = "warning"
 
 
-def _git(args: List[str]) -> str:
+def _git(args: list[str]) -> str:
     result = subprocess.run(
         ["git", *args], capture_output=True, text=True, check=False
     )
@@ -157,7 +156,7 @@ def _git(args: List[str]) -> str:
     return result.stdout
 
 
-def _matches(path: str, patterns: List[str]) -> bool:
+def _matches(path: str, patterns: list[str]) -> bool:
     return any(fnmatch.fnmatch(path, pat) for pat in patterns)
 
 
@@ -173,10 +172,10 @@ def _is_frontend_source(path: str) -> bool:
     return _matches(path, FRONTEND_SOURCE_PATTERNS)
 
 
-def run_tsc(frontend_dir: str = "frontend") -> Tuple[int, str]:
+def run_tsc(frontend_dir: str = "frontend") -> tuple[int, str]:
     """Run tsc project build-check; return (exit_code, combined_output)."""
     tsc = shutil.which("tsc")
-    base_cmd: List[str]
+    base_cmd: list[str]
     if shutil.which("pnpm"):
         base_cmd = ["pnpm", "exec", "tsc", "-b", "tsconfig.app.json", "--noEmit"]
     elif tsc:
@@ -190,8 +189,8 @@ def run_tsc(frontend_dir: str = "frontend") -> Tuple[int, str]:
     return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
 
 
-def parse_tsc(output: str) -> List[Dict[str, object]]:
-    entries: List[Dict[str, object]] = []
+def parse_tsc(output: str) -> list[dict[str, object]]:
+    entries: list[dict[str, object]] = []
     for raw in output.splitlines():
         m = TSC_LINE_RE.match(raw.strip())
         if not m:
@@ -208,13 +207,13 @@ def parse_tsc(output: str) -> List[Dict[str, object]]:
     return entries
 
 
-def collect_diff(base: str, head: str) -> Dict[str, object]:
+def collect_diff(base: str, head: str) -> dict[str, object]:
     changed = [f for f in _git(["diff", "--name-only", f"{base}...{head}"]).splitlines() if f]
     deleted = [f for f in _git(["diff", "--diff-filter=D", "--name-only", f"{base}...{head}"]).splitlines() if f]
 
     # Added lines with file + new-file line numbers (unified diff, U0).
-    added: List[Tuple[str, int, str]] = []
-    current_file: Optional[str] = None
+    added: list[tuple[str, int, str]] = []
+    current_file: str | None = None
     new_line = 0
     for raw in _git(["diff", "-U0", f"{base}...{head}"]).splitlines():
         if raw.startswith("+++ b/"):
@@ -232,18 +231,18 @@ def collect_diff(base: str, head: str) -> Dict[str, object]:
 def guard_learning_guards(
     base: str,
     head: str,
-    allow_test_deletion: Optional[str],
-    allow_docs_deletion: Optional[str],
-    tsc_report: Optional[List[Dict[str, object]]],
+    allow_test_deletion: str | None,
+    allow_docs_deletion: str | None,
+    tsc_report: list[dict[str, object]] | None,
     tsc_scoped: bool,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     diff = collect_diff(base, head)
-    changed: List[str] = diff["changed"]  # type: ignore[assignment]
-    deleted: List[str] = diff["deleted"]  # type: ignore[assignment]
-    added: List[Tuple[str, int, str]] = diff["added"]  # type: ignore[assignment]
+    changed: list[str] = diff["changed"]  # type: ignore[assignment]
+    deleted: list[str] = diff["deleted"]  # type: ignore[assignment]
+    added: list[tuple[str, int, str]] = diff["added"]  # type: ignore[assignment]
 
-    violations: List[Dict[str, object]] = []
-    warnings: List[Dict[str, object]] = []
+    violations: list[dict[str, object]] = []
+    warnings: list[dict[str, object]] = []
 
     frontend_changed = any(_is_frontend_source(f) for f in changed)
     backend_changed = any(
@@ -291,7 +290,7 @@ def guard_learning_guards(
     # (SECURITY_GUARDIAN.md), (b) the guard's own regex definitions inside
     # .github/scripts tooling. Blanket skips that make CI fake-green live in
     # test files — that is the regression class (#1011 / c6a0856b).
-    skip_hits: List[Dict[str, object]] = []
+    skip_hits: list[dict[str, object]] = []
     for path, lineno, text in added:
         if not _is_test_path(path):
             continue
@@ -379,8 +378,8 @@ def guard_learning_guards(
     }
 
 
-def write_summary_md(report: Dict[str, object], path: str) -> None:
-    lines: List[str] = []
+def write_summary_md(report: dict[str, object], path: str) -> None:
+    lines: list[str] = []
     status = report["status"]
     icon = "✅ PASS" if status == "pass" else "⛔ FAIL"
     counts = report["counts"]
@@ -418,7 +417,7 @@ def write_summary_md(report: Dict[str, object], path: str) -> None:
         fh.write("\n".join(lines))
 
 
-def emit_annotations(report: Dict[str, object]) -> None:
+def emit_annotations(report: dict[str, object]) -> None:
     for v in report["violations"]:
         print(f"::error file={v['file']}::[learning-guards {v['guard']}] {v['detail']}")
     for w in report["warnings"][:10]:
@@ -458,7 +457,7 @@ def main() -> int:
         parser.error("--base and --head are required (unless --scope-only)")
 
     # ── L1: run tsc when frontend sources changed ─────────────────────────
-    tsc_report: Optional[List[Dict[str, object]]] = None
+    tsc_report: list[dict[str, object]] | None = None
     tsc_scoped = False
     pre = collect_diff(args.base, args.head)
     frontend_changed = any(_is_frontend_source(f) for f in pre["changed"])
@@ -493,7 +492,7 @@ def main() -> int:
     return 1 if report["status"] == "fail" else 0
 
 
-def _finish(report: Dict[str, object], args: argparse.Namespace) -> None:
+def _finish(report: dict[str, object], args: argparse.Namespace) -> None:
     if args.output_json:
         with open(args.output_json, "w", encoding="utf-8") as fh:
             json.dump(report, fh, indent=2)

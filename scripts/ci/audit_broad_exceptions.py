@@ -14,7 +14,6 @@ import ast
 import json
 from pathlib import Path
 
-
 DEFAULT_ROOTS = ("backend", "tools", "scripts")
 EXCLUDED_PARTS = {"tests", "examples", "__pycache__", ".venv", "venv"}
 

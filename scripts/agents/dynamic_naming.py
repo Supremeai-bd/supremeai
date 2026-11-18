@@ -128,9 +128,9 @@ def build_pr_body(
 
     body_parts = [
         f"## Summary\n\nAutomated fix for #{issue_number}: {title[:80]}",
-        f"\n## Merge Queue Position\n",
-        f"| Field | Value |",
-        f"|---|---|",
+        "\n## Merge Queue Position\n",
+        "| Field | Value |",
+        "|---|---|",
         f"| Priority | {priority} |",
     ]
     if group:

@@ -7,14 +7,15 @@ Also validates fail-closed SecretNotFoundError and non-retryable config errors.
 
 import json
 from unittest.mock import MagicMock, patch
+
 import pytest
 
+import core.messaging.event_bus as eb
 from core.messaging.event_bus import (
     ErrorEvent,
     IntelligentErrorBus,
     _forward_to_telemetry,
 )
-import core.messaging.event_bus as eb
 from core.security.secret_vault import ProductionSecretVault, SecretNotFoundError
 
 

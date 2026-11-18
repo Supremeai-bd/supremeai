@@ -19,8 +19,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.config import settings
 from core.errors.error_bus import with_error_bus
-from core.logging_config import logger
 from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus
+from core.monitoring.logging_config import logger
 from core.self_evolution.fitness_engine import FitnessEngine
 from database.tenant_db import TenantAwareFirestore
 

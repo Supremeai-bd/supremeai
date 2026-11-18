@@ -17,7 +17,7 @@ import asyncio
 
 import pytest
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.task_queue.task_queue_enhanced import (
     EnhancedTaskQueue,
     QueueBackend,

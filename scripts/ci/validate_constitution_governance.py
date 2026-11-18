@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Validate constitutional governance metadata without contacting production."""
 from __future__ import annotations
+
 import argparse
 from datetime import datetime, timezone
 from pathlib import Path
-import sys
 
 
 def main() -> int:

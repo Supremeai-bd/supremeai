@@ -9,14 +9,13 @@ Implements the Dynamic Active Free Model Discovery plan at root level:
 from __future__ import annotations
 
 import asyncio
+import json as _json
 import logging
+import os as _os
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Any, List, Tuple
 
 import httpx
-
-import json as _json
-import os as _os
 
 logger = logging.getLogger("supremeai.free_model_discovery")
 

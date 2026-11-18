@@ -2,7 +2,6 @@
 # বাংলা মন্তব্য: Smart Context Selector (Issue #105) Pytest Suite
 # scripts/agents/smart_context_selector.py-এর Layer 1-8 সিলেকশন এবং পলিসি ভেরিফিকেশন।
 
-import pytest
 import subprocess
 import sys
 

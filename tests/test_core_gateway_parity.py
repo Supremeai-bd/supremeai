@@ -2,7 +2,6 @@
 tests/test_core_gateway_parity.py — Unit test for Core-Gateway Parity Guard (#761).
 """
 
-from pathlib import Path
 from scripts.ci.core_gateway_parity_guard import REPO_ROOT, check_parity, run_self_test
 
 

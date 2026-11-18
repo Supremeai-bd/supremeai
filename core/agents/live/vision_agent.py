@@ -4,8 +4,8 @@ import os
 from typing import Any
 
 from core.errors.error_bus import with_error_bus
-from core.monitoring.logging_config import logger
 from core.messaging.event_bus import ErrorContext
+from core.monitoring.logging_config import logger
 
 
 class VisionAgent:

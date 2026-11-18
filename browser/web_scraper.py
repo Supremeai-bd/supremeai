@@ -10,6 +10,7 @@ requested, closing the redirect-to-metadata and DNS-rebinding bypasses of the
 old follow_redirects=True call.
 """
 
+import logging
 import os
 from typing import Any
 from urllib.parse import urljoin
@@ -17,14 +18,16 @@ from urllib.parse import urljoin
 import httpx
 from bs4 import BeautifulSoup
 
-import logging
 logger = logging.getLogger('supremeai.scraper')
 
 # বাংলা মন্তব্য: Dual-path import — standalone scraper service-এ `security`
 # top-level (conftest sys.path), backend এর ভিতরে embedded হলে
 # `services.scraper.security`।
 try:
-    from security import is_safe_url, is_safe_url_resolved  # standalone scraper microservice
+    from security import (  # standalone scraper microservice
+        is_safe_url,
+        is_safe_url_resolved,
+    )
 except ImportError:  # embedded in main backend
     from services.scraper.security import (  # type: ignore[no-redef]
         is_safe_url,

@@ -1,5 +1,5 @@
 import os
-import re
+
 
 def clean(s):
     return s.encode('ascii', 'ignore').decode('ascii').strip()

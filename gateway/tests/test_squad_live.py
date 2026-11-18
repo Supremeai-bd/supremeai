@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
+
 from service.pool import squad
+
 
 def test_discovery():
     old_env = dict(os.environ)

@@ -24,7 +24,7 @@ from core.circles.governance_core import get_governance_core
 from core.circles.registry import circle_registry
 from core.kernel.audit_logger import AuditLogger
 from core.kernel.interface import CircleScope, KernelRequest, KernelResponse
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 _CIRCLE_SCOPE_MAPPING: dict[CircleScope, CircleName] = {
     CircleScope.GOVERNANCE: CircleName.ADMIN,

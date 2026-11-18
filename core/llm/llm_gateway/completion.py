@@ -47,7 +47,6 @@ from .errors import GatewayError
 from .registry import _provider_key_pool, _resolve_litellm_target
 from .spend_meter import settle_gateway_spend
 
-
 UNATTRIBUTED_TENANT: str = "unattributed"
 
 

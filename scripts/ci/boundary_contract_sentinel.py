@@ -84,8 +84,10 @@ SECURITY_HEADERS: dict[str, tuple[str, ...]] = {
 # import-safe without fastapi; satellite fallback mirrors the test-suite layout).
 try:
     sys.path.insert(0, str(REPO_ROOT / "gateway" / "service"))
-    from status_publication import OPERATOR_ONLY_FIELDS  # type: ignore[import-not-found]
-except Exception:  # noqa: BLE001 - sentinel must degrade to its pinned copy, not crash
+    from status_publication import (
+        OPERATOR_ONLY_FIELDS,  # type: ignore[import-not-found]
+    )
+except Exception:
     OPERATOR_ONLY_FIELDS = (
         "total_keys", "total_healthy_keys", "stealth_priority1_configured",
         "stealth_dns", "web_sessions_active", "web_session_status",
@@ -137,7 +139,7 @@ def run_probes(base_url: str, timeout: float = 15.0) -> list[dict]:
     s, h, b = _get(base_url, "/", timeout=timeout)
     try:
         fields = set(json.loads(b).keys())
-    except Exception:  # noqa: BLE001 - non-JSON root is drift evidence, not a crash
+    except Exception:
         fields = {"<non-json>"}
     probe("GET / 4-field root", {"status": s, "fields": sorted(fields)},
           s == 200 and fields == ROOT_FIELDS)
@@ -159,7 +161,7 @@ def run_probes(base_url: str, timeout: float = 15.0) -> list[dict]:
         s4, _, b4 = _get(base_url, path, timeout=timeout)
         try:
             f4 = set(json.loads(b4).keys())
-        except Exception:  # noqa: BLE001
+        except Exception:
             f4 = {"<non-json>"}
         leaked = sorted(f4 & set(OPERATOR_ONLY_FIELDS))
         probe(f"GET {path} redacted liveness", {"status": s4, "fields": sorted(f4), "leaked": leaked},
@@ -191,7 +193,7 @@ def run_probes(base_url: str, timeout: float = 15.0) -> list[dict]:
     if s9 == 200:
         try:
             path_count = len(json.loads(b9).get("paths") or {})
-        except Exception:  # noqa: BLE001 - non-JSON 200 is still inventory-shaped drift
+        except Exception:
             path_count = -1
     probe("GET /openapi.json inventory not served unauth",
           {"status": s9, "path_count": path_count},
@@ -205,7 +207,7 @@ def run_probes(base_url: str, timeout: float = 15.0) -> list[dict]:
     s10, _, b10 = _get(base_url, "/readyz", timeout=timeout)
     try:
         f10 = set(json.loads(b10).keys())
-    except Exception:  # noqa: BLE001 - non-JSON readiness is drift evidence, not a crash
+    except Exception:
         f10 = {"<non-json>"}
     expected10 = READINESS_FIELDS if s10 == 200 else READINESS_FIELDS | {"reason"}
     b10_low = b10.lower()
@@ -240,7 +242,7 @@ def _fixture_handler(mode: str):
     """Serve the pre-fix or post-fix edge fixture from the #1819/#1874 tables."""
 
     class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *a):  # noqa: D401 - silence request logging
+        def log_message(self, *a):
             return
 
         def _send(self, code: int, payload: dict | str, headers: dict | None = None) -> None:
@@ -254,7 +256,7 @@ def _fixture_handler(mode: str):
             if self.command != "HEAD":
                 self.wfile.write(body)
 
-        def do_GET(self):  # noqa: N802 - stdlib naming
+        def do_GET(self):
             if mode == "post":
                 if self.path == "/":
                     self._send(200, {k: "v" for k in sorted(ROOT_FIELDS)}, _postfix_headers())
@@ -297,13 +299,13 @@ def _fixture_handler(mode: str):
                 else:
                     self._send(404, {"detail": "Not Found"})
 
-        def do_HEAD(self):  # noqa: N802
+        def do_HEAD(self):
             if mode == "post" and self.path == "/":
                 self._send(200, {}, _postfix_headers())
             else:
                 self._send(405, {"detail": "Method Not Allowed"})
 
-        def do_OPTIONS(self):  # noqa: N802
+        def do_OPTIONS(self):
             origin = self.headers.get("Origin")
             if mode == "post" and origin == ALLOWLISTED_ORIGIN:
                 self._send(200, {}, _postfix_headers({
@@ -424,7 +426,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"probing {args.base_url} (mode: {'strict' if args.strict else 'report-only'})")
     try:
         results = run_probes(args.base_url, timeout=args.timeout)
-    except Exception as e:  # noqa: BLE001 - unreachable edge is a skip, never a pass
+    except Exception as e:
         print(f"SKIP: gateway unreachable ({e.__class__.__name__}: {e})")
         return 2
     failed = [r for r in results if not r["pass"]]

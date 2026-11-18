@@ -100,7 +100,7 @@ class TowerClient:
                 return extract_sse_data(raw)
             except urllib.error.HTTPError as exc:
                 last_err = exc
-            except Exception as exc:  # noqa: BLE001 - honest-skip boundary
+            except Exception as exc:
                 last_err = exc
             if attempt < self.retries:
                 import time
@@ -119,7 +119,7 @@ class TowerClient:
         )
         try:
             self._rpc("notifications/initialized", {})
-        except Exception:  # noqa: BLE001 - notification is fire-and-forget
+        except Exception:
             pass
         return init
 
@@ -132,7 +132,7 @@ class TowerClient:
         txt = "\n".join(texts)
         try:
             return json.loads(txt)
-        except Exception:  # noqa: BLE001
+        except Exception:
             return txt
 
 
@@ -150,11 +150,11 @@ def extract_sse_data(raw: str) -> dict:
                 continue
             try:
                 return json.loads(payload)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 return {"raw": payload}
     try:
         return json.loads(raw)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return {"raw": raw}
 
 
@@ -164,7 +164,7 @@ def _parse_ts(ts: str) -> datetime | None:
         return None
     try:
         return datetime.fromisoformat(str(ts).replace("Z", "+00:00")).astimezone(timezone.utc)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -267,7 +267,7 @@ def live_sweep(repos, max_age_hours: float, tower_url: str = TOWER_URL, timeout:
     for name in repos:
         try:
             data = client.tool("github.workflow_runs", {"repo": f"{ORG}/{name}", "per_page": 15})
-        except Exception as exc:  # noqa: BLE001 - honest-skip, never fabricate
+        except Exception as exc:
             sweep[name] = {"runs": None, "note": f"skip ({exc})"}
             skips.append(f"{ORG}/{name}: skip ({exc})")
             continue
@@ -391,7 +391,7 @@ def main(argv: list | None = None) -> int:
 
     try:
         sweep, skips = live_sweep(repos, args.max_age_hours)
-    except Exception as exc:  # noqa: BLE001 - fail-close per #1760
+    except Exception as exc:
         print(f"unable to verify ANY repo — tower unreachable: {exc}", file=sys.stderr)
         return 2
 

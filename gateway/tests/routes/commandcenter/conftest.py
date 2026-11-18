@@ -1,9 +1,9 @@
 from unittest.mock import patch
 
 import pytest
+from api.dependencies import get_current_admin, get_current_user_token
 from fastapi.testclient import TestClient
 
-from api.dependencies import get_current_admin, get_current_user_token
 from core.app import app
 
 client = TestClient(app)

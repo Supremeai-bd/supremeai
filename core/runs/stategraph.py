@@ -18,7 +18,7 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 END = "__end__"
 START = "__start__"

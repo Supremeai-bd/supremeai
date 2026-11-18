@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # constitution pkg parent
 
-import template_gate as tg  # noqa: E402
+import template_gate as tg
 
 REPO = "SaifulHaqueNiloy/supremeai"
 REPO_ROOT = Path(__file__).resolve().parents[4]  # …/supremeai-repo

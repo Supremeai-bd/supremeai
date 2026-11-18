@@ -359,8 +359,8 @@ def probe_ai_providers(sec: dict) -> None:
             # Root-cause: treating 401 as FAIL made nightly-ops RED for known
             # invalid creds — pipeline noise. WARN = actionable but non-blocking.
             record(name, "models list", None,
-                   f"HTTP 401 — AUTH_INVALID: key revoked/expired (tracked in #3228 for groq); "
-                   f"rotate key in vault to resolve. WARN — not a platform outage (#3260)",
+                   "HTTP 401 — AUTH_INVALID: key revoked/expired (tracked in #3228 for groq); "
+                   "rotate key in vault to resolve. WARN — not a platform outage (#3260)",
                    alert=True)
         else:
             record(name, "models list", False, f"HTTP {status}: {body[:140]}")

@@ -47,7 +47,7 @@ import os
 import sqlite3
 import sys
 import tempfile
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 _SCHEMA_VERSION = 1
 
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS meta (
 """
 
 
-def resolve_db_path(env: Optional[Dict[str, str]] = None) -> str:
+def resolve_db_path(env: dict[str, str] | None = None) -> str:
     """Db-path resolution order: explicit env → state dir → system tempdir."""
     env = dict(os.environ if env is None else env)
     explicit = (env.get("MEMORY_GRAPH_DB_PATH") or "").strip()
@@ -88,10 +88,10 @@ def resolve_db_path(env: Optional[Dict[str, str]] = None) -> str:
 class GraphStore:
     """Write-through SQLite mirror of the knowledge graph. Fail-open."""
 
-    def __init__(self, db_path: str, env: Optional[Dict[str, str]] = None) -> None:
+    def __init__(self, db_path: str, env: dict[str, str] | None = None) -> None:
         self.db_path = db_path
         self.available = False
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
         try:
             parent = os.path.dirname(db_path)
             if parent:
@@ -116,12 +116,12 @@ class GraphStore:
             self.available = False
 
     # ── hydration ────────────────────────────────────────────────────────
-    def load(self) -> Tuple[Dict[str, Dict[str, Any]], List[Dict[str, Any]]]:
+    def load(self) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
         """Full-graph hydration at startup (called exactly once)."""
         if not self.available or self._conn is None:
             return {}, []
-        nodes: Dict[str, Dict[str, Any]] = {}
-        edges: List[Dict[str, Any]] = []
+        nodes: dict[str, dict[str, Any]] = {}
+        edges: list[dict[str, Any]] = []
         try:
             for name, etype, obs_json, created in self._conn.execute(
                 "SELECT name, entity_type, observations, created_at FROM entities"
@@ -153,7 +153,7 @@ class GraphStore:
         return nodes, edges
 
     # ── entity writes ────────────────────────────────────────────────────
-    def upsert_entity(self, name: str, entity_type: str, observations: List[str], created_at: str) -> None:
+    def upsert_entity(self, name: str, entity_type: str, observations: list[str], created_at: str) -> None:
         if not self.available or self._conn is None:
             return
         try:
@@ -167,7 +167,7 @@ class GraphStore:
         except Exception as err:
             sys.stderr.write(f"[MemorySidecar] graph_store.upsert_entity failed: {err}\n")
 
-    def update_observations(self, name: str, observations: List[str]) -> None:
+    def update_observations(self, name: str, observations: list[str]) -> None:
         if not self.available or self._conn is None:
             return
         try:
@@ -192,7 +192,7 @@ class GraphStore:
             sys.stderr.write(f"[MemorySidecar] graph_store.insert_relation failed: {err}\n")
 
     # ── deletions (mirror in-memory semantics exactly) ───────────────────
-    def delete_entities(self, names: List[str]) -> None:
+    def delete_entities(self, names: list[str]) -> None:
         if not self.available or self._conn is None or not names:
             return
         try:
@@ -203,7 +203,7 @@ class GraphStore:
         except Exception as err:
             sys.stderr.write(f"[MemorySidecar] graph_store.delete_entities failed: {err}\n")
 
-    def delete_observations(self, name: str, keep: List[str]) -> None:
+    def delete_observations(self, name: str, keep: list[str]) -> None:
         if not self.available or self._conn is None:
             return
         try:
@@ -214,7 +214,7 @@ class GraphStore:
         except Exception as err:
             sys.stderr.write(f"[MemorySidecar] graph_store.delete_observations failed: {err}\n")
 
-    def delete_relations(self, tuples: List[Tuple[str, str, str]]) -> None:
+    def delete_relations(self, tuples: list[tuple[str, str, str]]) -> None:
         if not self.available or self._conn is None or not tuples:
             return
         try:
@@ -228,11 +228,11 @@ class GraphStore:
             sys.stderr.write(f"[MemorySidecar] graph_store.delete_relations failed: {err}\n")
 
     # ── GDPR: full export + hard wipe ────────────────────────────────────
-    def export_all(self) -> Dict[str, List[Dict[str, Any]]]:
+    def export_all(self) -> dict[str, list[dict[str, Any]]]:
         """Re-read straight from SQLite (independent of the hydrated cache)."""
         if not self.available or self._conn is None:
             return {"entities": [], "relations": []}
-        out: Dict[str, List[Dict[str, Any]]] = {"entities": [], "relations": []}
+        out: dict[str, list[dict[str, Any]]] = {"entities": [], "relations": []}
         try:
             for name, etype, obs_json, created in self._conn.execute(
                 "SELECT name, entity_type, observations, created_at FROM entities ORDER BY name"

@@ -22,10 +22,10 @@ from unittest.mock import patch
 
 import jwt as pyjwt
 import pytest
+from api.routes import agent as agent_route
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from api.routes import agent as agent_route
 from core.config import settings
 
 PROMPT = "fix the failing login test and verify the build"
@@ -58,7 +58,7 @@ class TestTwoSurfaceContract:
         assert agents_route.router.prefix == "/api/agents"
 
     def test_routers_registry_mounts_exactly_two_agent_surfaces(self):
-        import api.routers as routers
+        from api import routers
 
         paths = [entry["path"] for entry in routers.ALL_ROUTERS]
         agent_paths = [p for p in paths if p in ("api.routes.agent", "api.routes.agents")]

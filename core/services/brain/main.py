@@ -12,10 +12,10 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional
 from contextlib import asynccontextmanager
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel, Field
@@ -35,7 +35,7 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 BRAIN_AUTH_TOKEN = os.getenv("BRAIN_AUTH_TOKEN", "")
 
 # In-memory LRU cache for ultra-fast responses without Redis overhead
-DECISION_CACHE: Dict[str, Dict[str, Any]] = {}
+DECISION_CACHE: dict[str, dict[str, Any]] = {}
 CACHE_MAX_ENTRIES = 500
 
 
@@ -74,7 +74,7 @@ app.add_middleware(
 )
 
 
-def verify_brain_token(token: Optional[str] = Depends(api_key_header)) -> bool:
+def verify_brain_token(token: str | None = Depends(api_key_header)) -> bool:
     """Validate internal microservice authorization if BRAIN_AUTH_TOKEN is configured."""
     if not BRAIN_AUTH_TOKEN:
         return True
@@ -86,22 +86,22 @@ def verify_brain_token(token: Optional[str] = Depends(api_key_header)) -> bool:
 # Schemas
 class RouteRequest(BaseModel):
     task: str = Field(..., description="Task description or prompt")
-    complexity: Optional[str] = Field("low", description="low | medium | high")
-    preferred_provider: Optional[str] = Field("auto", description="auto | openrouter | gemini | local")
-    context_length: Optional[int] = Field(0, description="Estimated token length")
+    complexity: str | None = Field("low", description="low | medium | high")
+    preferred_provider: str | None = Field("auto", description="auto | openrouter | gemini | local")
+    context_length: int | None = Field(0, description="Estimated token length")
 
 
 class RouteDecision(BaseModel):
     recommended_model: str
     tier: str
     estimated_latency_ms: int
-    delegation_url: Optional[str] = None
+    delegation_url: str | None = None
     cached: bool = False
 
 
 class CognitiveEvalRequest(BaseModel):
     prompt: str
-    options: List[str]
+    options: list[str]
 
 
 class CognitiveEvalResponse(BaseModel):
@@ -219,8 +219,8 @@ def evaluate_options(req: CognitiveEvalRequest, authorized: bool = Depends(verif
 
 class PRRiskRequest(BaseModel):
     pr_number: int = Field(..., description="Pull request number")
-    files: List[str] = Field(default_factory=list, description="Changed file paths")
-    diff_stats: Dict[str, int] = Field(default_factory=dict, description="additions/deletions")
+    files: list[str] = Field(default_factory=list, description="Changed file paths")
+    diff_stats: dict[str, int] = Field(default_factory=dict, description="additions/deletions")
     ci_test_status: str = Field("100%_PASS", description="CI test status")
 
 

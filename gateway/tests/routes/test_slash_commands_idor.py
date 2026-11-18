@@ -16,13 +16,12 @@ from __future__ import annotations
 
 from typing import Any
 
+import api.routes.slash_commands as sc
 import pytest
 import pytest_asyncio
+from api.deps import get_current_user_token
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-
-import api.routes.slash_commands as sc
-from api.deps import get_current_user_token
 
 SUB = "user-1"
 OTHER_USER_CONV = "conv-owned-by-user-2"
@@ -43,7 +42,7 @@ class _FilteringTable:
         self._fail = fail
         self._filters: dict[str, Any] = {}
 
-    def _clone(self) -> "_FilteringTable":
+    def _clone(self) -> _FilteringTable:
         t = _FilteringTable(self._rows, self._ops, self._fail)
         t._filters = dict(self._filters)
         return t

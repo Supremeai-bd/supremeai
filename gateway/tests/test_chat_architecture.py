@@ -10,22 +10,21 @@ from __future__ import annotations
 
 import os
 import tempfile
+
 import pytest
 
 from gateway.service.context_compiler import (
-    CORE_SYSTEM_ANCHOR,
-    PLATFORM_GROUNDING_SHEET,
     build_system_anchor,
     compile_chat_context,
     resolve_sampling_knobs,
 )
+from gateway.service.memory_store import CanonicalMemoryStore
 from gateway.service.response_guard import (
     is_stub_content,
     purge_identity_bleed,
     repair_markdown,
     validate_and_sanitize,
 )
-from gateway.service.memory_store import CanonicalMemoryStore
 
 
 class TestContextCompiler:
@@ -187,6 +186,7 @@ class TestMemoryStore:
 class TestChatGatewayIntegration:
     def test_pipeline_compiler_and_sanitizer_end_to_end(self, monkeypatch):
         from starlette.testclient import TestClient
+
         from gateway.service import app as app_module
 
         # Mock forward_stealth_webhook

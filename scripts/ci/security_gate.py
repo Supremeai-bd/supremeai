@@ -190,4 +190,4 @@ if __name__ == "__main__":
     sys.exit(main())
 
 
-__all__ = ["main", "self_test", "_trivy_findings"]
+__all__ = ["_trivy_findings", "main", "self_test"]

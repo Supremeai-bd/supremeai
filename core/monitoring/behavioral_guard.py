@@ -7,7 +7,7 @@ import time
 from collections import defaultdict
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 
 class BehavioralGuard:

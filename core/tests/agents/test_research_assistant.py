@@ -12,10 +12,9 @@ from __future__ import annotations
 import importlib
 
 import pytest
-from fastapi import HTTPException
-
 from core.agents.research_assistant import ResearchAssistant, ResearchSourceError
 from core.api.routes import agents as agents_routes
+from fastapi import HTTPException
 
 # ----------------------------------------------------------------- summarize
 

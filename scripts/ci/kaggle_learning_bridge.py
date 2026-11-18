@@ -17,8 +17,6 @@ Stdlib-only, fail-soft, cross-platform (Linux/Windows/macOS).
 
 from __future__ import annotations
 
-from core.utils.api_key_resolver import resolve_numbered_key
-
 import argparse
 import base64
 import json
@@ -30,6 +28,8 @@ import urllib.parse
 import urllib.request
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
+
+from core.utils.api_key_resolver import resolve_numbered_key
 
 KAGGLE_API_BASE = "https://www.kaggle.com/api/v1"
 

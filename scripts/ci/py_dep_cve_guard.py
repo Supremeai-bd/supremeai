@@ -112,8 +112,9 @@ import shutil
 import subprocess  # nosec B404 — the guard runs pip-audit and git via list-argv only (#2081 audit)
 import sys
 import tempfile
-import tomllib
 from pathlib import Path
+
+import tomllib
 
 if hasattr(sys.stdout, "reconfigure"):
     with contextlib.suppress(Exception):

@@ -58,6 +58,14 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
     """
 
     # বাংলা মন্তব্ব্য: লেজি ইম্পোর্ট — মিডলওয়্যার ক্লাস শুধু create_app() কল করলেই লোড হবে
+    from fastapi.middleware.cors import CORSMiddleware
+
+    from api.middleware import (
+        RequestIdMiddleware,
+        ResponseStandardizationMiddleware,
+        SupremeContextMiddleware,
+        TenantExtractionMiddleware,
+    )
     from core.lifespan import app_lifespan
 
     # P0 (production docs exposure policy): gates /docs, /redoc and openapi.json.
@@ -79,14 +87,6 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
     from core.security.autonoguard_middleware import AutonoGuardMiddleware
     from core.security.origin_validator import TrustedOriginMiddleware
     from core.security.protection.honeypot import HoneypotMiddleware
-    from fastapi.middleware.cors import CORSMiddleware
-
-    from api.middleware import (
-        RequestIdMiddleware,
-        ResponseStandardizationMiddleware,
-        SupremeContextMiddleware,
-        TenantExtractionMiddleware,
-    )
     from middleware.chaos_injector import ChaosInjectorMiddleware
     from middleware.idempotency_middleware import IdempotencyMiddleware
 
@@ -98,7 +98,6 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
         from core.browser_session_manager import shutdown_browser_sessions
         from core.config_validator import print_config_summary, validate_config
         from core.health_routes import register_check, set_liveness
-
         from utils.platform_detect import DETECTED_PLATFORM, auto_set_platform_env
 
         if os.getenv("OPENAPI_GENERATION", "false").lower() == "true":
@@ -144,9 +143,10 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
             #      used against the ASYNC engine (asyncpg).
             # Failures were also swallowed silently — now logged server-side.
             try:
+                from sqlalchemy import text
+
                 from core.db import get_engine
                 from core.secret_utils import unwrap_secret
-                from sqlalchemy import text
 
                 engine = get_engine()
                 async with engine.connect() as conn:
@@ -494,8 +494,9 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
 
     # বাংলা মন্তব্ব্য: মেট্রিক্স এন্ডপয়েন্ট যোগ করা
     if settings.MONITORING_DETAILED:
-        from core._monitoring_legacy import get_metrics_collector
         from fastapi.responses import PlainTextResponse
+
+        from core._monitoring_legacy import get_metrics_collector
 
         @app.get("/metrics", response_class=PlainTextResponse)
         async def metrics_endpoint():

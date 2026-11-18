@@ -31,9 +31,8 @@ import time
 from datetime import timedelta
 from typing import Any
 
-import pytest
-
 import core.config
+import pytest
 from core.config_parsers import parse_origin_list
 from core.security.origin_validator import _load_origins
 
@@ -175,7 +174,6 @@ class TestJwtContract:
     def test_wrong_key_rejected(self):
         """অন্য key দিয়ে সই করা (forged) token — HS256 signature verify ফেল করে।"""
         import jwt as pyjwt
-
         from core.security.authentication import auth_middleware
 
         forged = pyjwt.encode(

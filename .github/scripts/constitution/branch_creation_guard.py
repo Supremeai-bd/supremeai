@@ -39,12 +39,15 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gates import claim_matches, extract_claim_agents  # noqa: E402 — same-dir import
-from template_gate import actor_category, validate_issue  # noqa: E402 — #2912 chain: identity default-deny + template-যাচাই
+from gates import claim_matches, extract_claim_agents
+from template_gate import (
+    actor_category,
+    validate_issue,
+)
 
 # বাংলা মন্তব্য (#2912): নিজের policy-লোডার চাই — identity/template কীগুলো
 # (human_allowlist, trusted_bot_actors, template_policy) branch-policy-তে মার্জ করতে হয়।
-from template_gate import load_template_policy as _load_template_policy  # noqa: E402
+from template_gate import load_template_policy as _load_template_policy
 
 RULES_PATH = (
     Path(__file__).resolve().parents[3] / ".github" / "constitution" / "rules.yml"

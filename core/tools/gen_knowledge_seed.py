@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Generate coldstart_knowledge_seed_knowledge_base.json — correct, programmatic generation."""
-import json, sys
+import json
+import sys
 
 if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
     try:

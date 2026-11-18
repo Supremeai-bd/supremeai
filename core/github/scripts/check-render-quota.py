@@ -3,7 +3,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 RENDER_FREE_MINUTES = 500          # Render free tier monthly limit
@@ -11,7 +11,7 @@ THRESHOLD_PERCENT   = 95           # Activate GHA build if usage >= 95%
 CACHE_FILE          = "render_minutes_cache.json"
 
 def now_utc() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 def get_billing_cycle_start(deploys: list, env_var_name: str, default_day: int) -> str:
     """
@@ -70,7 +70,7 @@ def get_billing_cycle_start(deploys: list, env_var_name: str, default_day: int) 
 
 def format_local_dt(iso_str: str) -> str:
     try:
-        dt = datetime.strptime(iso_str[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+        dt = datetime.strptime(iso_str[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=UTC)
         return dt.strftime("%Y-%m-%d %H:%M UTC")
     except Exception:
         return iso_str

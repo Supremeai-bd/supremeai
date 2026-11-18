@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from evolution.change_proposal import (
     ChangeProposal,
     ChangeProposalManager,

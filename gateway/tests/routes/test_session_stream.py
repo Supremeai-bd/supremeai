@@ -33,6 +33,7 @@ class _FakeRequest:
 async def _drive_stream(session_id: str, published_entry: dict) -> list[dict]:
     """Open the real SSE generator, read 2 frames (connected + published)."""
     from api.routes.session_stream import stream_session
+
     from core.observability.log_batcher import batcher
 
     response = await stream_session(_FakeRequest(), session_id)  # type: ignore[arg-type]

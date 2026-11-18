@@ -10,7 +10,7 @@ from typing import Any
 
 from core.automation.execution_recorder import execution_recorder
 from core.automation.models import ExecutionEnvelope
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.security.tool_gateway import ToolPolicyGateway, tool_policy_gateway
 
 

@@ -15,7 +15,6 @@ Covers:
 from __future__ import annotations
 
 import pytest
-
 from core.runs import retry as run_retry
 from core.runs import state_machine as sm
 

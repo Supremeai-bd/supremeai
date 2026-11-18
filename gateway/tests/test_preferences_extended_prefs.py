@@ -15,7 +15,6 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-
 from api.routes import preferences as preferences_module
 
 

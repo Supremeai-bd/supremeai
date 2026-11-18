@@ -232,7 +232,7 @@ def compute_all_group_keys(backend_root: Path = BACKEND_ROOT) -> dict[str, str]:
     # Imported lazily to keep this module dependency-free from the planner
     # (the planner imports THIS module; a top-level cycle would break both).
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    import plan_backend_test_groups as planner  # noqa: PLC0415
+    import plan_backend_test_groups as planner
 
     components = global_component_hashes(backend_root)
     return {
@@ -269,7 +269,7 @@ def main() -> int:
     if args.group:
         sys_path = sys.path[:]
         sys.path.insert(0, str(Path(__file__).resolve().parent))
-        import plan_backend_test_groups as planner  # noqa: PLC0415
+        import plan_backend_test_groups as planner
 
         sys.path = sys_path
         if args.group not in planner.GROUPS:

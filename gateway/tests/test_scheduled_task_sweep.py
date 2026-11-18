@@ -13,9 +13,9 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import api.routes.scheduled_tasks as st_module
 import pytest
 
-import api.routes.scheduled_tasks as st_module
 from core.scheduled_task_sweep import compute_due, sweep_due_tasks_once
 
 # ---------------------------------------------------------------------------
@@ -373,13 +373,16 @@ async def test_sweep_reports_db_unavailable_honestly(monkeypatch: pytest.MonkeyP
 
 def _make_sqlite_runs_ctx(monkeypatch):
     """বাস্তব RunService-এর সাথে in-memory sqlite runs fabric — integration সত্য।"""
-    from sqlalchemy import event as sa_event
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-    from sqlalchemy.pool import StaticPool
-
     from missions.models import Mission, MissionTraceEvent
     from models.base import Base
     from runs.models import Run, RunEvent
+    from sqlalchemy import event as sa_event
+    from sqlalchemy.ext.asyncio import (
+        AsyncSession,
+        async_sessionmaker,
+        create_async_engine,
+    )
+    from sqlalchemy.pool import StaticPool
 
     engine = create_async_engine(
         "sqlite+aiosqlite://",
@@ -422,9 +425,8 @@ def _make_sqlite_runs_ctx(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_sweep_execution_observed_as_run_in_real_fabric(fake_db, fast_llm, monkeypatch):
-    from sqlalchemy import select
-
     from runs.models import Run
+    from sqlalchemy import select
 
     engine, _holder = _make_sqlite_runs_ctx(monkeypatch)
     now = datetime.now(UTC)

@@ -5,7 +5,7 @@ import boto3
 from supabase import Client, create_client
 
 from core.config import settings
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 
 class StorageClient:

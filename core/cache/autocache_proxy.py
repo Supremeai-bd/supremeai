@@ -1,7 +1,7 @@
 from typing import Any
 
 from core.cache.multi_layer_cache import MultiLayerCache
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 
 class AutoCacheProxy:

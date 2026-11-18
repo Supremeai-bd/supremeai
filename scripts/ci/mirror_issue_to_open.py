@@ -18,8 +18,8 @@ import json
 import os
 import re
 import sys
-import urllib.request
 import urllib.error
+import urllib.request
 
 OPEN_REPO = os.environ.get("OPEN_REPO", "Supremeai-bd/supremeai")
 CORE_REPO = os.environ.get("CORE_REPO", "Supremeai-bd/supremeai")

@@ -17,12 +17,11 @@ import uuid
 
 import pytest
 import pytest_asyncio
+from core.models.base import Base
+from core.models.chat_attachment import ChatAttachment
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-
-from core.models.base import Base
-from core.models.chat_attachment import ChatAttachment
 
 
 @pytest_asyncio.fixture

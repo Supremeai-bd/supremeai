@@ -210,7 +210,7 @@ class DynamicCredentialBroker:
             if result:
                 print(f"[Broker] MCP Tower role updated: {tower_role}")
             else:
-                print(f"[Broker] WARNING: MCP Tower role update failed (non-blocking)")
+                print("[Broker] WARNING: MCP Tower role update failed (non-blocking)")
 
         # 5. Verify no forbidden keys leaked
         leaked = FORBIDDEN_KEYS & set(scoped_env.keys())
@@ -239,13 +239,13 @@ class DynamicCredentialBroker:
                 "role": "viewer",
             })
             if result:
-                print(f"[Broker] MCP Tower role reverted to viewer")
+                print("[Broker] MCP Tower role reverted to viewer")
             else:
-                print(f"[Broker] WARNING: MCP Tower role revert failed (non-blocking)")
+                print("[Broker] WARNING: MCP Tower role revert failed (non-blocking)")
 
         # Keys are already gone (scoped_env was a local dict in activate())
         # Nothing to clear from disk or memory
-        print(f"[Broker] Deactivated: scoped keys cleared from memory")
+        print("[Broker] Deactivated: scoped keys cleared from memory")
 
 
 def main() -> int:

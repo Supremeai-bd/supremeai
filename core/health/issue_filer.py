@@ -40,7 +40,7 @@ from typing import Any
 
 import httpx
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 from ..messaging.event_bus import ErrorEvent, error_event_bus
 

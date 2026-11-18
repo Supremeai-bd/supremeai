@@ -133,6 +133,8 @@ def test_prompt_action_dataclass():
     from core.intent_router import ACTION_PATTERNS, PromptAction
     from core.intent_router_v2 import (
         ACTION_PATTERNS as AP2,
+    )
+    from core.intent_router_v2 import (
         PromptAction as PA2,
     )
 

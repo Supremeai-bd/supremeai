@@ -42,7 +42,7 @@ from playwright.async_api import BrowserContext, Page, Response, async_playwrigh
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(REPO_ROOT / "backend"))
-from web_intent_engine import IntentEngine, extract_reply  # noqa: E402
+from web_intent_engine import IntentEngine, extract_reply
 
 if hasattr(sys.stdout, "reconfigure"):
     try:
@@ -172,7 +172,7 @@ class TaskQueue:
             except Exception:
                 continue
             role_ok = t.get("role") and t["role"].lower() == s.role
-            pat_ok = t.get("session_pattern") and re.search(t["session_pattern"], s.title, re.I)
+            pat_ok = t.get("session_pattern") and re.search(t["session_pattern"], s.title, re.IGNORECASE)
             id_ok = t.get("session_id") == s.sid
             untargeted = not any(t.get(k) for k in ("role", "session_pattern", "session_id"))
             if role_ok or pat_ok or id_ok or untargeted:
@@ -343,13 +343,13 @@ class PromptComposer:
            → varied role pool (never the same text twice in a row).
     """
 
-    _ITEM_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+(.{8,140})$", re.M)
-    _NEXT_RE = re.compile(r"(?:next(?: step)?s?|todo|remaining|should i|shall i|would you like)[^\n]{0,160}", re.I)
+    _ITEM_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+(.{8,140})$", re.MULTILINE)
+    _NEXT_RE = re.compile(r"(?:next(?: step)?s?|todo|remaining|should i|shall i|would you like)[^\n]{0,160}", re.IGNORECASE)
 
     def __init__(self, recipes: dict):
         self.roles = recipes.get("roles", {})
         self.templates = recipes.get("followup_templates", ["Go ahead with {item}"])
-        self.done_re = [re.compile(p, re.I) for p in recipes.get("guards", {}).get("task_done_text", [])]
+        self.done_re = [re.compile(p, re.IGNORECASE) for p in recipes.get("guards", {}).get("task_done_text", [])]
         self.history: dict[str, deque[str]] = {}
 
     def says_done(self, reply: str) -> bool:
@@ -500,7 +500,7 @@ async def run(args: argparse.Namespace) -> None:
 
     eng = IntentEngine(memory_path=tasks_dir / "intent_memory.json")
     roles_cfg = eng.recipes.get("roles", {})
-    skip_re = re.compile(eng.recipes.get("session_skip_titles", "^$"), re.I)
+    skip_re = re.compile(eng.recipes.get("session_skip_titles", "^$"), re.IGNORECASE)
     q = TaskQueue(tasks_dir)
     stop = asyncio.Event()
     pacer = Pacer(eng.recipes.get("pacing", {}))
@@ -543,7 +543,7 @@ async def run(args: argparse.Namespace) -> None:
 
         sessions: list[Session] = []
         for sid, meta in sorted(found.items(), key=lambda kv: -kv[1]["updated"]):
-            if skip_re.match(meta["title"]) or (args.filter and not re.search(args.filter, meta["title"], re.I)):
+            if skip_re.match(meta["title"]) or (args.filter and not re.search(args.filter, meta["title"], re.IGNORECASE)):
                 continue
             sessions.append(Session(sid=sid, title=meta["title"] or sid[:8], role=infer_role(meta["title"], roles_cfg),
                                     url=template.replace("{id}", sid) if template else None, updated=meta["updated"]))
@@ -685,7 +685,7 @@ async def run_pulse_cycle(args: argparse.Namespace) -> None:
 
     eng = IntentEngine(memory_path=tasks_dir / "intent_memory.json")
     roles_cfg = eng.recipes.get("roles", {})
-    skip_re = re.compile(eng.recipes.get("session_skip_titles", "^$"), re.I)
+    skip_re = re.compile(eng.recipes.get("session_skip_titles", "^$"), re.IGNORECASE)
     q = TaskQueue(tasks_dir)
     pacer = Pacer(eng.recipes.get("pacing", {}))
     guard = Guard(tasks_dir)
@@ -732,7 +732,7 @@ async def run_pulse_cycle(args: argparse.Namespace) -> None:
 
             sessions: list[Session] = []
             for sid, meta in sorted(found.items(), key=lambda kv: -kv[1]["updated"]):
-                if skip_re.match(meta["title"]) or (args.filter and not re.search(args.filter, meta["title"], re.I)):
+                if skip_re.match(meta["title"]) or (args.filter and not re.search(args.filter, meta["title"], re.IGNORECASE)):
                     continue
                 sessions.append(Session(sid=sid, title=meta["title"] or sid[:8], role=infer_role(meta["title"], roles_cfg),
                                         url=template.replace("{id}", sid) if template else None, updated=meta["updated"]))

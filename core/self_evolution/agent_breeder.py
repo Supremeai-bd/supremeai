@@ -25,8 +25,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.errors.error_bus import with_error_bus
-from core.monitoring.logging_config import logger
 from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus
+from core.monitoring.logging_config import logger
 from models.meta_ai import AgentGenome, AgentOffspring, AgentStatus, BreedingPool
 
 

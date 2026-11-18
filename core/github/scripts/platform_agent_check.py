@@ -21,7 +21,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 INFISICAL_HOST = os.environ.get("INFISICAL_HOST", "https://app.infisical.com")
 REPO = os.environ.get("GITHUB_REPOSITORY", "SaifulHaqueNiloy/supremeai")
@@ -319,7 +319,7 @@ GITLAB_PROJECT_PATH = "paykaribazaronline%2Fsupremeai"
 def _age_hours_since(iso_ts: str) -> float | None:
     try:
         dt = datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
-        return (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
+        return (datetime.now(UTC) - dt).total_seconds() / 3600.0
     except Exception:
         return None
 
@@ -396,7 +396,7 @@ def upsert_issue(failures: list[dict], run_url: str) -> None:
     if not failures:
         return
     ensure_label()
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     lines = [f"- **{f['platform']}** — `{f['check']}`: {f['detail']}" for f in failures]
     body = (
         f"Automated 3-hour sweep failure report ({now}).\n\n"
@@ -439,7 +439,7 @@ def main() -> int:
     probe_github()
     probe_mirror(sec)
 
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     failed = [r for r in results if r["ok"] is False]
     skipped = [r for r in results if r["ok"] is None]
     passed = [r for r in results if r["ok"] is True]

@@ -98,7 +98,7 @@ class TestLiveClaimPreverify(_LeaseIsolated):
     def test_active_claim_advances_to_next_candidate(self):
         """The #2794 live shape: top row claimed 8s ago, labels still unclaimed."""
         board = [_row(2597), _row(2738)]
-        probe = lambda n: _active() if str(n) == "2597" else _FREE  # noqa: E731
+        probe = lambda n: _active() if str(n) == "2597" else _FREE
         self.assertEqual(
             cal.pick_next_issue(issues=board, claim_probe=probe), "2738"
         )
@@ -106,7 +106,7 @@ class TestLiveClaimPreverify(_LeaseIsolated):
     def test_expired_claim_does_not_skip(self):
         """A TTL-expired latestClaim is not an active claim (lease released)."""
         board = [_row(2597), _row(2738)]
-        probe = lambda n: (  # noqa: E731
+        probe = lambda n: (
             (False, "latestClaim by zai-glm-agent-cron-484748-c46 expired (67m age > 30m ttl)")
             if str(n) == "2597"
             else _FREE
@@ -123,7 +123,7 @@ class TestLiveClaimPreverify(_LeaseIsolated):
             "feedback probe timed out after 6s",
             "latestClaim present but unparseable (at=None, ttl=None)",
         ):
-            probe = lambda n, _note=note: (False, _note)  # noqa: E731
+            probe = lambda n, _note=note: (False, _note)
             self.assertEqual(
                 cal.pick_next_issue(issues=board, claim_probe=probe),
                 "2597",
@@ -144,7 +144,7 @@ class TestLiveClaimPreverify(_LeaseIsolated):
     def test_all_topn_claimed_returns_none(self):
         """Exhausted window ⇒ honest None, never a blind dispatch below it."""
         board = [_row(3000 + i) for i in range(1, 7)]
-        probe = lambda n: _active()  # noqa: E731
+        probe = lambda n: _active()
         self.assertIsNone(cal.pick_next_issue(issues=board, claim_probe=probe))
 
     def test_probing_bounded_to_topn(self):
@@ -162,7 +162,7 @@ class TestLiveClaimPreverify(_LeaseIsolated):
     def test_priority_order_governs_probe_order(self):
         """P0 sorts ahead and gets probed first; skip advances in priority order."""
         board = [_row(3001), _row(2000, ["P0"])]
-        probe = lambda n: _active() if str(n) == "2000" else _FREE  # noqa: E731
+        probe = lambda n: _active() if str(n) == "2000" else _FREE
         self.assertEqual(
             cal.pick_next_issue(issues=board, claim_probe=probe), "3001"
         )

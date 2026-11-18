@@ -21,11 +21,11 @@ import time
 from pathlib import Path
 from unittest.mock import patch
 
+import api.routes.traffic_monitor as traffic_module
 import pytest
+from api.dependencies import get_current_admin, get_current_user_token
 from fastapi.testclient import TestClient
 
-import api.routes.traffic_monitor as traffic_module
-from api.dependencies import get_current_admin, get_current_user_token
 from core.app import app
 
 client = TestClient(app)

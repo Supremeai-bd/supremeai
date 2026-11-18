@@ -106,7 +106,7 @@ SECRET_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("private-key-block", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY( BLOCK)?-----")),
     (
         "literal-client-secret",
-        re.compile(r"(CLIENT_SECRET|CLIENT_KEY|API_KEY|PASSWORD)\s*[:=]\s*[\"']?[A-Za-z0-9+/=_-]{16,}[\"']?\s*$", re.M),
+        re.compile(r"(CLIENT_SECRET|CLIENT_KEY|API_KEY|PASSWORD)\s*[:=]\s*[\"']?[A-Za-z0-9+/=_-]{16,}[\"']?\s*$", re.MULTILINE),
     ),
     # credentialed redis URL. Both the family label and the pattern literal are
     # fragment-built so the tower's meta-scanner (which greps patch SOURCE text
@@ -733,37 +733,7 @@ def route_files(files: list[str], explicit_target: str | None = None) -> tuple[s
         elif f.startswith(("studio/", "public/dashboard-preview/", "examples/dashboard-preview/")):
             repo = "Supremeai-bd/supremeai-studio"
             canon = f
-        elif f.startswith(("api/", "gateway/", "api-schemas/gateway.")):
-            repo = PRIVATE_REPO
-            canon = f
-        elif f.startswith(("core/", "api-schemas/task-router.")):
-            repo = PRIVATE_REPO
-            canon = f
-        elif f.startswith(("command/", "handlers/telegram")):
-            repo = PRIVATE_REPO
-            canon = f
-        elif f.startswith(("skills/", "examples/langchain-", "examples/vercel-")):
-            repo = PRIVATE_REPO
-            canon = f
-        elif f.startswith("vscode/"):
-            repo = PRIVATE_REPO
-            canon = f
-        elif f.startswith(("agents/", "runner/")):
-            repo = PRIVATE_REPO
-            canon = f
-        elif f.startswith(("browser/", "sandbox/")):
-            repo = PRIVATE_REPO
-            canon = f
-        elif f.startswith(("sdk/", "examples/sdk-", "api-schemas/telemetry-log.", "api-schemas/websocket-events.")):
-            repo = PRIVATE_REPO
-            canon = f
-        elif f.startswith(("infrastructure/mcp-control-plane/", "api-schemas/heartbeat.")):
-            repo = PRIVATE_REPO
-            canon = f
-        elif f.startswith(("deployments/", "infra/")):
-            repo = PRIVATE_REPO
-            canon = f
-        elif f.startswith("archive/"):
+        elif f.startswith(("api/", "gateway/", "api-schemas/gateway.")) or f.startswith(("core/", "api-schemas/task-router.")) or f.startswith(("command/", "handlers/telegram")) or f.startswith(("skills/", "examples/langchain-", "examples/vercel-")) or f.startswith("vscode/") or f.startswith(("agents/", "runner/")) or f.startswith(("browser/", "sandbox/")) or f.startswith(("sdk/", "examples/sdk-", "api-schemas/telemetry-log.", "api-schemas/websocket-events.")) or f.startswith(("infrastructure/mcp-control-plane/", "api-schemas/heartbeat.")) or f.startswith(("deployments/", "infra/")) or f.startswith("archive/"):
             repo = PRIVATE_REPO
             canon = f
         else:
@@ -1117,7 +1087,7 @@ def _handle_intake_failure(token: str, issue: dict, detail: str, results: list[s
             )
             set_labels(OPEN_REPO, token, num, [LABEL_ADMIN])
             results.append(f"#{num} → QUARANTINED (repeat failure): {detail[:80]}")
-        except Exception as exc:  # noqa: BLE001 — quarantine-ও ব্যর্থ হলে সৎ error-ই থাক
+        except Exception as exc:
             results.append(f"#{num} → ERROR (quarantine failed): {type(exc).__name__}: {str(exc)[:80]}")
         return
     try:
@@ -1132,7 +1102,7 @@ def _handle_intake_failure(token: str, issue: dict, detail: str, results: list[s
                 token,
             ),
         )
-    except Exception:  # noqa: BLE001 — কমেন্ট ব্যর্থ হলেও মূল error রিপোর্ট হবে
+    except Exception:
         pass
     results.append(f"#{num} → {detail[:100]}")
 
@@ -1153,7 +1123,7 @@ def cmd_intake(token: str) -> int:
                 process_issue(issue, token, work, results)
             except BridgeError as exc:
                 _handle_intake_failure(token, issue, f"ERROR (honest): {str(exc)[:120]}", results)
-            except Exception as exc:  # noqa: BLE001 — fail-honest per-issue, loop continues
+            except Exception as exc:
                 _handle_intake_failure(token, issue, f"UNEXPECTED: {type(exc).__name__}: {str(exc)[:120]}", results)
     print("== bridge intake ==")
     for line in results or ["queue empty"]:

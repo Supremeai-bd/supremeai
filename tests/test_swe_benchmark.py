@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 import json
 import sys
 from pathlib import Path
@@ -28,7 +27,7 @@ except ModuleNotFoundError as _exc:  # core runtime incomplete in the public mir
 
 
 
-def _make_oracle_detector(cases: list[dict]) -> "callable[[str], bool]":
+def _make_oracle_detector(cases: list[dict]) -> callable[[str], bool]:
     """Corpus-oracle reference detector: returns the frozen ground truth per input.
 
     Drift repair (audited on pristine main): the previous keyword-list

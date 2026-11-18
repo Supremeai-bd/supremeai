@@ -24,7 +24,7 @@ GUARD = REPO_ROOT / "scripts" / "ci" / "constitution_pointer_guard.py"
 
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci"))
 
-import constitution_pointer_guard as cpg  # noqa: E402
+import constitution_pointer_guard as cpg
 
 
 class HermeticScanTests(unittest.TestCase):
@@ -100,7 +100,7 @@ class ShippedConfigurationTests(unittest.TestCase):
     """Integration against the real repo — the #1642 acceptance ratchet."""
 
     def test_guard_self_test_mode_passes(self):
-        proc = subprocess.run(  # noqa: S603
+        proc = subprocess.run(
             [sys.executable, str(GUARD), "--self-test"],
             cwd=str(REPO_ROOT),
             capture_output=True,

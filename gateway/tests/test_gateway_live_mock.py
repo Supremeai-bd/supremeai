@@ -1,8 +1,10 @@
 import unittest
+
 from fastapi.testclient import TestClient
 from service.app import app
-from service.pool import squad, KeySlot
 from service.keygen import generate_key, verify_key
+from service.pool import KeySlot, squad
+
 
 class GatewayEndpointsTest(unittest.TestCase):
     def setUp(self):

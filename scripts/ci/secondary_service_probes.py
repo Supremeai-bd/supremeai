@@ -64,7 +64,7 @@ def _http_probe(url: str) -> dict:
             "latency_ms": round((time.monotonic() - start) * 1000, 1),
             "error": f"HTTP {exc.code}",
         }
-    except Exception as exc:  # noqa: BLE001 — probe must report, not crash
+    except Exception as exc:
         return {
             "ok": False,
             "status": None,
@@ -156,7 +156,7 @@ def _probe_database_query_path(dsn: str) -> dict:
                 return True, {"select1": "ok", "ai_memory_sweep_predicate": "ok"}
             finally:
                 await conn.close()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return False, {"error": f"{exc.__class__.__name__}: {exc}"}
 
     ok, detail = asyncio.run(_run())

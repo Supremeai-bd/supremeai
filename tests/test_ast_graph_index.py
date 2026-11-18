@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts" / "ops"))
 
-import ast_graph_index as agi  # noqa: E402
+import ast_graph_index as agi
 
 
 def test_parse_function():

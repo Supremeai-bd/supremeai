@@ -47,20 +47,31 @@ from typing import Any, Literal  # noqa: F401  (module-attr parity)
 from urllib.parse import urlparse  # noqa: F401  (module-attr parity)
 
 import httpx  # noqa: F401  (module-attr parity with pre-split module)
-from fastapi import APIRouter, Depends, HTTPException, Response  # noqa: F401  (module-attr parity)
-from pydantic import BaseModel, Field  # noqa: F401  (module-attr parity)
-
-from api.deps import get_current_tenant, get_current_user_token  # noqa: F401  (module-attr parity)
-from api.routes.admin_dashboard import require_admin_token  # noqa: F401  (module-attr parity)
-from core.browser_compat_store import browser_compat_store  # noqa: F401  (module-attr parity)
+from api.deps import (  # noqa: F401  (module-attr parity)
+    get_current_tenant,
+    get_current_user_token,
+)
+from api.routes.admin_dashboard import (
+    require_admin_token,  # noqa: F401  (module-attr parity)
+)
+from core.browser_compat_store import (
+    browser_compat_store,  # noqa: F401  (module-attr parity)
+)
 from core.browser_session_catalog import (  # noqa: F401  (module-attr parity)
     SavedBrowserSession,
     browser_session_catalog,
 )
-from core.browser_session_manager import session_manager  # noqa: F401  (module-attr parity)
+from core.browser_session_manager import (
+    session_manager,  # noqa: F401  (module-attr parity)
+)
 from core.cache.redis_manager import MultiLevelCache  # noqa: F401  (module-attr parity)
-from core.config import settings  # noqa: F401  (module-attr parity with pre-split module)
-from core.effective_policy import get_effective_policy, policy_store  # noqa: F401  (parity)
+from core.config import (
+    settings,  # noqa: F401  (module-attr parity with pre-split module)
+)
+from core.effective_policy import (  # noqa: F401  (parity)
+    get_effective_policy,
+    policy_store,
+)
 from core.errors.error_bus import with_error_bus  # noqa: F401  (module-attr parity)
 from core.kernel.audit_logger import AuditLogger  # noqa: F401  (module-attr parity)
 from core.logging_config import logger  # noqa: F401  (module-attr parity)
@@ -86,7 +97,16 @@ from core.security.secure_credential_store import (  # noqa: F401  (module-attr 
     SecureCredentialStore,
 )
 from core.task_policy import evaluate_goal  # noqa: F401  (module-attr parity)
-from tools.ai_agents.browser_agent import BrowseRequest  # noqa: F401  (module-attr parity)
+from fastapi import (  # noqa: F401  (module-attr parity)
+    APIRouter,
+    Depends,
+    HTTPException,
+    Response,
+)
+from pydantic import BaseModel, Field  # noqa: F401  (module-attr parity)
+from tools.ai_agents.browser_agent import (
+    BrowseRequest,  # noqa: F401  (module-attr parity)
+)
 
 router = APIRouter(
     prefix="/api/browser", tags=["browser"], dependencies=[Depends(get_current_user_token)]

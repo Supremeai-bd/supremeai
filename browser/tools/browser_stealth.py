@@ -9,8 +9,6 @@ from __future__ import annotations
 import asyncio
 import secrets
 
-from core.config import settings
-
 random = secrets.SystemRandom()
 import string
 import time

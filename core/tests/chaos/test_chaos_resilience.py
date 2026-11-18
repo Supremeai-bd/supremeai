@@ -17,13 +17,13 @@ from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
-
-from core.task_queue.task_queue_enhanced import TaskQueue, TaskQueueOverflowError
 from core.resilience.predictive_circuit_breaker import (
     CircuitBreakerState,
     PredictiveCircuitBreaker,
 )
 from core.resilience.predictive_metrics import PredictiveMetricsTracker
+from core.task_queue.task_queue_enhanced import TaskQueue, TaskQueueOverflowError
+
 from middleware.chaos_injector import ChaosInjectorMiddleware
 
 pytestmark = pytest.mark.chaos

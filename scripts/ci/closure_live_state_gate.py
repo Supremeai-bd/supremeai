@@ -391,7 +391,7 @@ def load_criterion(args: argparse.Namespace) -> dict[str, Any] | None:
     if args.criterion_file:
         try:
             data = json.loads(
-                (open(args.criterion_file, encoding="utf-8").read()))
+                open(args.criterion_file, encoding="utf-8").read())
         except (OSError, ValueError) as exc:
             raise SystemExit(f"criterion file unreadable: {exc}")
         return data if isinstance(data, dict) else None

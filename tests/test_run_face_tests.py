@@ -27,7 +27,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts" / "ci"))
 
-import run_face_tests as rft  # noqa: E402
+import run_face_tests as rft
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 

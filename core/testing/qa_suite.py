@@ -34,8 +34,7 @@ from enum import Enum
 from typing import Any
 
 import aiohttp
-
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 try:
     from selenium import webdriver

@@ -64,7 +64,6 @@ GitHub Actions outputs (GITHUB_OUTPUT):
 """
 
 from __future__ import annotations
-from core.utils.api_key_resolver import resolve_numbered_key
 
 import argparse
 import ast
@@ -77,6 +76,8 @@ import urllib.parse
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
+
+from core.utils.api_key_resolver import resolve_numbered_key
 
 # --- Constants --------------------------------------------------------------
 

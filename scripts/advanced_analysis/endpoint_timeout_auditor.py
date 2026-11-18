@@ -581,7 +581,7 @@ class RouteFileParser:
                 # বাংলা: await সহ কল কিনা পরীক্ষা
                 if i > 0 and "await" in func_lines[i - 1]:
                     continue
-                if "await" not in line and i + 1 < len(func_lines) and "await" not in func_lines[i]:
+                if "await" not in line and i + 1 < len(func_lines) and "await" not in line:
                     # বাংলা: non-await fetch wrapper — সম্ভবত sync
                     timeout_match = re.search(r"timeout\s*=\s*([\d.]+)", line)
                     calls.append(self._make_call(

@@ -16,9 +16,9 @@ import threading
 from typing import Any
 
 import pytest
+from core.memory.chromadb_store import ChromaDBStore
 
 import memory.chromadb_store as cs
-from core.memory.chromadb_store import ChromaDBStore
 
 pytestmark = [pytest.mark.memory, pytest.mark.performance]
 

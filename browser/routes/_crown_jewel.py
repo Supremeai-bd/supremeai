@@ -22,11 +22,10 @@ from typing import Any, Literal
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import HTTPException, Response
-from pydantic import BaseModel, ConfigDict, field_validator
-
 from api.routes.browser import router
 from api.routes.browser._render_proxy import _host_is_blocked
+from fastapi import HTTPException, Response
+from pydantic import BaseModel, ConfigDict, field_validator
 
 # বাংলা মন্তব্য: #2511 SSRF ফিক্স — crown-jewel fetch/render surface গুলো এখন canonical
 # guard (`_render_proxy._host_is_blocked`) reuse করে: DNS resolve fail-closed, loopback /

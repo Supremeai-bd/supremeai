@@ -1,8 +1,15 @@
 """pr_preflight_guard.py — pre-submission guard for SupremeAI PRs."""
 from __future__ import annotations
-import argparse, os, re, subprocess, sys, shutil, json as _json
-from pathlib import Path
+
+import argparse
 import contextlib
+import json as _json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
     with contextlib.suppress(Exception):

@@ -7,13 +7,12 @@ delete happy path, ownership isolation, auth gate, এবং validation।
 
 import pytest
 import pytest_asyncio
+from api.dependencies import get_current_user_token
 from fastapi import HTTPException
 from httpx import AsyncClient
-from sqlalchemy import text
-
-from api.dependencies import get_current_user_token
 from models.base import Base
 from models.project import Project
+from sqlalchemy import text
 
 pytestmark = [pytest.mark.asyncio]
 
@@ -155,18 +154,16 @@ class TestAuthGate:
     """
 
     def test_returns_state_user_when_present(self):
-        from starlette.requests import Request
-
         from api.dependencies import get_current_user_token
+        from starlette.requests import Request
 
         user = {"sub": "someone@example.com", "role": "user"}
         request = Request(scope={"type": "http", "state": {"user": user}})
         assert get_current_user_token(request) == user
 
     def test_rejects_anonymous_when_bypass_disabled(self, monkeypatch):
-        from starlette.requests import Request
-
         import api.dependencies as deps
+        from starlette.requests import Request
 
         monkeypatch.setattr(deps, "is_test_environment", lambda: False)
         request = Request(scope={"type": "http", "state": {}})

@@ -2,14 +2,9 @@
 gateway/tests/test_passkey_auth.py — Hermetic Tests for Native WebAuthn/Passkey Engine.
 """
 import base64
-import json
 import unittest
 import uuid
-from unittest.mock import patch
 
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from fastapi.testclient import TestClient
 
 from gateway.service.app import app

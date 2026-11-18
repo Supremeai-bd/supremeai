@@ -13,7 +13,7 @@ try:
     import psycopg2
 except ImportError:
     psycopg2 = None
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 try:
     from supabase import Client, create_client

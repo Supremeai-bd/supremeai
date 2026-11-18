@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.sandbox.base import ExecutionResult, SandboxConfig, SandboxProvider
 
 

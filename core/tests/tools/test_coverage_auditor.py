@@ -1,7 +1,6 @@
 from unittest.mock import mock_open, patch
 
 import pytest
-
 from core.tools.devops.coverage_auditor import CoverageAuditor, CoverageGap
 
 

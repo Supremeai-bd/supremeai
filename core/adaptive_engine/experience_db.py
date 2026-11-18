@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from core.degraded_mode import sqlite_fallback_allowed
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # বাংলা মন্তব্য: রেন্ডার ফ্রি টায়ারে মেমোরি সংকট এড়াতে LOW_MEMORY_MODE চেক করা হচ্ছে
 # REVISION 2: Default to true for 512MB RAM constraint to avoid SentenceTransformer memory hog

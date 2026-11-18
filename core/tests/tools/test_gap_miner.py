@@ -1,11 +1,13 @@
 import re
-import pytest
 from pathlib import Path
+
+import pytest
 from core.tools.gap_miner.tools.gap_miner import (
     SECRET_VALUE_RE,
     TODO_RE,
     Miner,
 )
+
 
 def test_secret_value_regex_whitespace():
     # Synthetic test samples (no real credentials) dynamically formatted to avoid false-positive secret scanner alerts

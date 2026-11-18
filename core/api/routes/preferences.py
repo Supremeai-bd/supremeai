@@ -7,9 +7,9 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from api.dependencies import get_current_user_token
+from core.messaging.pubsub import global_pubsub as theme_pubsub
 from core.monitoring.logging_config import logger
 from core.request_context import get_correlation_id
-from core.messaging.pubsub import global_pubsub as theme_pubsub
 from database.supabase_client import db
 
 router = APIRouter(

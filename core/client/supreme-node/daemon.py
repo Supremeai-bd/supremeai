@@ -54,7 +54,7 @@ import os
 import signal
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any
 
 try:
@@ -147,7 +147,7 @@ def load_config(config_path: str | None = None) -> dict[str, Any]:
             f"config file পাওয়া যায়নি। "
             f" tried defaults: {DEFAULT_CONFIG_PATHS}"
         )
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
     if not isinstance(cfg, dict):
         raise ConfigError(f"config root dict হতে হবে, got {type(cfg).__name__}")
@@ -261,7 +261,7 @@ def _get_system_load() -> dict[str, Any]:
 
 def _iso_timestamp() -> str:
     """UTC ISO8601 timestamp with Z suffix — Tower contract।"""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 # ---------------------------------------------------------------------------
@@ -382,7 +382,7 @@ class SupremeNodeDaemon:
                     await asyncio.wait_for(self._stop_event.wait(), timeout=wait)
                     # stop signaled during backoff
                     break
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     logger.debug("backoff %.1fs শেষ — reconnect করা হচ্ছে", wait)
                     continue
             finally:
@@ -456,7 +456,7 @@ class SupremeNodeDaemon:
                     self._stop_event.wait(), timeout=self.heartbeat_interval
                 )
                 return  # stop signaled
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.debug("heartbeat interval শেষ — পরের beat পাঠানো হচ্ছে")
                 continue
 

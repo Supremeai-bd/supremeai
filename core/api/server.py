@@ -24,7 +24,7 @@ from api.deps import get_current_user_token
 from api.middleware import CSRFMiddleware, GlobalRateLimiterMiddleware
 from core.factory import SupremeAIFactory, get_factory
 from core.integration_layer import SupremeAIIntegrator
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.neon_repository import close_neon_pool
 from core.startup.services import initialize_independent_services
 

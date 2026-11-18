@@ -21,7 +21,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "scripts" / "ci"))
 
-import health_incident_plane_guard as ipg  # noqa: E402
+import health_incident_plane_guard as ipg
 
 
 def _sweep(statuses: dict, incidents, overall: str) -> dict:

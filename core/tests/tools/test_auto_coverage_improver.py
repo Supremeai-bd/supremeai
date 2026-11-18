@@ -1,7 +1,6 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from core.tools.devops.auto_coverage_improver import AutoCoverageImprover
 from core.tools.devops.coverage_auditor import CoverageGap
 

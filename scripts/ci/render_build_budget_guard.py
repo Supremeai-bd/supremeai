@@ -22,7 +22,7 @@ from pathlib import Path
 # scripts/lib/ path vanished in the ops/ relocation and crashed this guard at
 # import in every context (the #2811 hardening ride-along).
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "ops" / "lib"))
-from render_client import RenderClient  # noqa: E402
+from render_client import RenderClient
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -229,6 +229,5 @@ if __name__ == "__main__":
             f.write("\n### 🛡️ Render Build Budget Guard Report\n\n")
             f.write("| Node | Service | Monthly Build Mins | AutoDeploy State | Action |\n")
             f.write("|---|---|---|---|---|\n")
-            for role, r in guard_results.items():
-                f.write(f"| {role} | {r['name']} | {r['minutes_used']}m / 500m | {r['auto_deploy']} | {r['action']} |\n")
+            f.writelines(f"| {role} | {r['name']} | {r['minutes_used']}m / 500m | {r['auto_deploy']} | {r['action']} |\n" for role, r in guard_results.items())
     sys.exit(0)

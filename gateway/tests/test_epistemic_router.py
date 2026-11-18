@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pytest
 from starlette.testclient import TestClient
+
 from gateway.service.app import app
 
 

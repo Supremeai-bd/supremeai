@@ -12,7 +12,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-
 from core.llm.llm_gateway.context import InferenceContext
 from core.llm.llm_gateway.errors import (
     GatewayError,

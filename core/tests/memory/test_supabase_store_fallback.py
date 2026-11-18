@@ -26,7 +26,6 @@ import time
 import types
 
 import pytest
-
 from core.memory.supabase_store import SupabaseStore
 
 pytestmark = pytest.mark.memory

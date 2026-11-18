@@ -4,8 +4,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 
 class TestBehavioralScorer:

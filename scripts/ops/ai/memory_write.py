@@ -12,14 +12,16 @@ Usage:
 
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "backend"))
-from core.config import settings
 import argparse
 import json
 import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+from core.config import settings
 
 # Project root to path
 ROOT_DIR = Path(__file__).resolve().parents[2]

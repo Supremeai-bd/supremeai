@@ -51,7 +51,6 @@ TAG = "[radar-index-freshness-guard]"
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci"))
 import radar_index_freshness_guard as guard
 
-
 # --------------------------------------------------------------------------- #
 # helpers                                                                      #
 # --------------------------------------------------------------------------- #

@@ -20,7 +20,6 @@ import os
 from typing import Any
 
 import pytest
-
 from core.services.hitl.dispatch import (
     APPROVAL_EXECUTORS,
     ApprovalDispatchError,

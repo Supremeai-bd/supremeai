@@ -47,7 +47,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "scripts" / "ci"))
 
-import radar_pointer_pin_guard as rppg  # noqa: E402
+import radar_pointer_pin_guard as rppg
 
 IDX = rppg.INDEX_PATH
 TST = rppg.PIN_TEST_PATH

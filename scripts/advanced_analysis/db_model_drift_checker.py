@@ -729,8 +729,7 @@ def _handle_drop_table(
     table_name = _ast_name(call_node.args[0])
     if isinstance(call_node.args[0], ast.Constant):
         table_name = str(call_node.args[0].value)
-    if table_name in tables:
-        del tables[table_name]
+    tables.pop(table_name, None)
 
 
 def _handle_create_index(
@@ -894,8 +893,7 @@ def _apply_sql_to_schema(
     )
     for m in drop_table_pattern.finditer(sql_normalized):
         table_name = m.group(1).lower()
-        if table_name in tables:
-            del tables[table_name]
+        tables.pop(table_name, None)
 
     # DROP TABLE ... CASCADE
     drop_cascade_pattern = re.compile(
@@ -904,8 +902,7 @@ def _apply_sql_to_schema(
     )
     for m in drop_cascade_pattern.finditer(sql_normalized):
         table_name = m.group(1).lower()
-        if table_name in tables:
-            del tables[table_name]
+        tables.pop(table_name, None)
 
 
 def _parse_sql_columns(body: str, table: MigrationTable) -> None:
@@ -1375,7 +1372,7 @@ def main() -> int:
                 print(f"   Source: `{t.source_file}`")
                 if t.indexes:
                     print(f"   Indexes: {', '.join(f'`{i}`' for i in t.indexes)}")
-                print("")
+                print()
                 print("   | Column | Type | Nullable | Unique | PK | FK |")
                 print("   |--------|------|----------|--------|----|----|")
                 for cname in sorted(t.columns):
@@ -1388,7 +1385,7 @@ def main() -> int:
                         f"{'PK' if c.is_primary_key else ''} | "
                         f"{fk_str} |"
                     )
-                print("")
+                print()
         return 0 if not had_errors else 2
 
     # ── শুধু মাইগ্রেশন দেখান ──
@@ -1412,7 +1409,7 @@ def main() -> int:
                 print(f"   Created in: `{t.created_in}`")
                 if t.indexes:
                     print(f"   Indexes: {', '.join(f'`{i}`' for i in t.indexes)}")
-                print("")
+                print()
                 print("   | Column | Type | Nullable | PK |")
                 print("   |--------|------|----------|----|")
                 for cname in sorted(t.columns):
@@ -1422,12 +1419,12 @@ def main() -> int:
                         f"{'✓' if c.nullable else '✗'} | "
                         f"{'PK' if c.is_primary_key else ''} |"
                     )
-                print("")
+                print()
                 if t.operations:
                     print("   **Operations:**")
                     for op in t.operations:
                         print(f"   - {op}")
-                    print("")
+                    print()
         return 0 if not had_errors else 2
 
     # ── ড্রিফট সনাক্তকরণ ──

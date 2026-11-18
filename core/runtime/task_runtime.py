@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from core.integration_layer import SupremeAIIntegrator
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.task_contract import TaskContract, TaskStatus, VerificationPolicy
 from runtime.budget_guard import BudgetExceededError, BudgetGuard
 from runtime.planner import CanonicalPlanner, Plan, get_planner

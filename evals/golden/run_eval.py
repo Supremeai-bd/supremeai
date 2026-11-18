@@ -28,7 +28,13 @@ Usage:
   python evals/golden/run_eval.py --min-accuracy 0.90
   python evals/golden/run_eval.py --self-test            # scorer unit probes
 """
-import argparse, json, os, re, sys, time, urllib.request
+import argparse
+import json
+import os
+import re
+import sys
+import time
+import urllib.request
 
 VERDICT_PASS = "GOLDEN_EVAL_VERDICT=PASS"
 VERDICT_FAIL = "GOLDEN_EVAL_VERDICT=FAIL"

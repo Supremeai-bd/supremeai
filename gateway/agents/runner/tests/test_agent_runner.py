@@ -31,7 +31,7 @@ for p in (str(RUNNER_DIR), str(REPO)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from gateway.agents.runner.agent_runner import (  # noqa: E402
+from gateway.agents.runner.agent_runner import (
     REQUIRED_TIERS,
     STEPS,
     AgentRunner,
@@ -109,7 +109,7 @@ def test_eight_steps_exact_order():
 
 
 def test_boot_smoke_import_modes():
-    import agent_runner as script_mode  # noqa: F401
+    import agent_runner as script_mode
     import runner.agent_runner as ns_mode  # namespace import from repo root
     assert ns_mode.STEPS == script_mode.STEPS
 
@@ -147,7 +147,7 @@ def test_happy_path_runs_all_eight_steps():
 
 def test_statelessness_same_inputs_same_report():
     with tempfile.TemporaryDirectory() as td:
-        fixed = lambda: 1792100000.0  # noqa: E731
+        fixed = lambda: 1792100000.0
         runs = []
         for _ in range(2):
             ws = LocalWorkspace(Path(td), branch="b")
@@ -311,7 +311,7 @@ def test_submission_title_carries_closes_keyword():
 # --- misc --------------------------------------------------------------------------
 
 def test_utc_stamp_injected_clock_deterministic():
-    fixed = lambda: 1792100000.0  # noqa: E731
+    fixed = lambda: 1792100000.0
     assert utc_stamp(fixed) == "2026-10-15T02:26:40Z" or utc_stamp(fixed).endswith("Z")
     assert utc_stamp(fixed) == utc_stamp(fixed)
 

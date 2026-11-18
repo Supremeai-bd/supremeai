@@ -30,7 +30,6 @@ import os
 import subprocess
 import sys
 import urllib.request
-from pathlib import Path
 
 REPO = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
 

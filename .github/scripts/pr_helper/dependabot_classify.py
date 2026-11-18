@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 dependabot_classify.py — Dependency-bump semver classification
 ================================================================

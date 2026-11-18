@@ -70,4 +70,4 @@ def route_module_name(route: Any) -> str:
     (``backend.api.routes.X`` ও ``api.routes.X`` একই ফাইলের alias)।"""
     endpoint = route_endpoint(route)
     module = getattr(endpoint, "__module__", "")
-    return module[8:] if module.startswith("backend.") else module
+    return module.removeprefix("backend.")

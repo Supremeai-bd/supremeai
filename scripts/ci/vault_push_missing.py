@@ -5,7 +5,7 @@ Reads values from .env, pushes via infisical CLI, reports success/failure withou
 import json
 import os
 import subprocess
-import sys
+
 
 # Load credentials from vault.env (gitignored) or environment variables.
 def load_auth():

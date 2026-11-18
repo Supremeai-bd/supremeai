@@ -15,7 +15,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.observability.telemetry import trace_span
 
 # Assuming OpenTelemetry tracer is set up in core.telemetry

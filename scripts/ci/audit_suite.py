@@ -266,7 +266,7 @@ def validate_rules_schema(rules: dict) -> list[str]:
 def load_rules(path: Path | None = None) -> dict:
     """rules.yml লোড — yaml প্যাকেজ না থাকলে স্পষ্ট এরর।"""
     try:
-        import yaml  # noqa: PLC0415 — বাংলা: lazy import, টেস্ট রানটাইমে ব্যয় এড়াতে
+        import yaml
     except ImportError as e:  # pragma: no cover — PyYAML backend ডিপেন্ডেন্সি
         raise SystemExit(f"PyYAML required for rules validation: {e}") from e
     rules_path = path or RULES_PATH

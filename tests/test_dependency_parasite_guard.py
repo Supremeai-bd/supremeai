@@ -6,10 +6,9 @@ from pathlib import Path
 
 from scripts.ci.dependency_parasite_guard import (
     audit_dependencies,
-    audit_requirements_text,
     audit_package_json_text,
+    audit_requirements_text,
     parse_requirements,
-    parse_package_json,
 )
 
 

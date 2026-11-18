@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # constitution pkg parent
 
-from constitution.gates import (  # noqa: E402
+from constitution.gates import (
     DEFAULT_CLAIM_POLICY,
     DEFAULT_LEASE_POLICY,
     DEFAULT_SCOPE_POLICY,
@@ -693,7 +693,7 @@ if __name__ == "__main__":
 # #2745 — Admin-Approval Gate (99.99/0.01 আইনের শাসন-স্তর)
 # ═══════════════════════════════════════════════════════════════════════
 
-from constitution.gates import (  # noqa: E402
+from constitution.gates import (
     DEFAULT_ADMIN_APPROVAL_POLICY,
     run_admin_approval_gate,
 )

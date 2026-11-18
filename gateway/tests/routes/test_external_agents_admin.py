@@ -25,10 +25,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from api.routes import external_agents_admin as mod
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from api.routes import external_agents_admin as mod
 
 MODULE_REF = f"{__name__}:stub_worker_ok"
 HANGING_REF = f"{__name__}:stub_worker_hangs"

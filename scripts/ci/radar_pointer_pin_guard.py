@@ -69,7 +69,7 @@ def parse_pointer(index_text: str) -> int | None:
 
 def parse_pin(test_text: str) -> int | None:
     """Frozen live pin from test_live_repo_sweep_passes' body (None = absent)."""
-    m = re.search(rf"def {PIN_TEST_FN}\(.*?(?=\ndef |\Z)", test_text, re.S)
+    m = re.search(rf"def {PIN_TEST_FN}\(.*?(?=\ndef |\Z)", test_text, re.DOTALL)
     if not m:
         return None
     hits = PIN_RE.findall(m.group(0))

@@ -1,5 +1,4 @@
 import pytest
-
 from core.generation_monitor import GenerationMonitor
 
 

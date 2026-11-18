@@ -7,7 +7,6 @@ SSOT preflight (scripts/ci/resolve_execution_tier.py) when --timing-only is used
 
 from __future__ import annotations
 
-import argparse
 import json
 import os
 import sys

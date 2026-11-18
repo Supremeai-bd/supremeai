@@ -1,9 +1,10 @@
 import logging
 import uuid
 
-from core.plugins.mcp_security import MCPSecurityGuard
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, HttpUrl
+
+from core.plugins.mcp_security import MCPSecurityGuard
 
 # AUDIT FIX (2026-11-13, HIGH — unauthenticated, non-persisting submissions):
 # /submit accepted anonymous payloads and returned a fabricated tracking id

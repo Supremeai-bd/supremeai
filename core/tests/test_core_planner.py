@@ -17,13 +17,12 @@ try:
 except ImportError:
     from core.context_synthesizer import ContextStage, ContextSynthesizer
     from core.dag_planner import CycleDetectedError, DAGPlanner, TaskNode
+    from core.decision_engine import AgentRole, DecisionEngine
     from core.state_machine import (
         AgentState,
         AgentStateMachine,
         InvalidStateTransitionError,
     )
-
-    from core.decision_engine import AgentRole, DecisionEngine
 
 
 class TestAgentStateMachine(unittest.TestCase):

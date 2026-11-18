@@ -1,9 +1,10 @@
 from typing import Any
 
-from core.monitoring.logging_config import logger
-from core.orchestration.agent_orchestrator import async_task_manager
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
+
+from core.monitoring.logging_config import logger
+from core.orchestration.agent_orchestrator import async_task_manager
 
 # AUDIT FIX (2026-11-13, HIGH — task results readable by anyone):
 # /api/task/{task_id} and /api/task/_stats had no auth dependency — any caller

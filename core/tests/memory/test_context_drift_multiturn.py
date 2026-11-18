@@ -20,9 +20,8 @@ import threading
 from typing import Any
 
 import pytest
-
-from core.unified_memory import UnifiedMemoryInterface
 from core.memory.sliding_window import SlidingWindowMemory
+from core.unified_memory import UnifiedMemoryInterface
 
 pytestmark = [pytest.mark.memory, pytest.mark.important]
 

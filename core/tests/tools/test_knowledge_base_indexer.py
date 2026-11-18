@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from core.tools.knowledge.knowledge_base_indexer import KnowledgeBaseIndexer
 
 SAMPLE_PYTHON_CODE = '''

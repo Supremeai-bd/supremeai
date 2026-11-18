@@ -8,14 +8,14 @@ Provides persistent storage for:
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import logging
 import os
 import sqlite3
 import time
 import uuid
-import hashlib
-import hmac
 from contextlib import contextmanager
 from typing import Any, Dict, List, Optional
 
@@ -903,7 +903,7 @@ def _hash_password(password: str) -> str:
     Format:  salt$hex(hash(salt:password))  — constant-time compare via hmac.
     """
     salt = os.urandom(16).hex()
-    digest = hashlib.sha256(f"{salt}:{password}".encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
     return f"{salt}${digest}"
 
 
@@ -912,7 +912,7 @@ def _verify_password_hash(password: str, stored: str) -> bool:
         salt, digest = stored.split("$", 1)
     except ValueError:
         return False
-    expected = hashlib.sha256(f"{salt}:{password}".encode("utf-8")).hexdigest()
+    expected = hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
     return hmac.compare_digest(expected, digest)
 
 

@@ -24,13 +24,12 @@ skip_in_ci = pytest.mark.skipif(
     reason="OriginShieldMiddleware is no-op in CI/test env (fail-open design)",
 )
 
+from core.middleware.origin_shield import OriginShieldMiddleware
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 from starlette.testclient import TestClient
-
-from core.middleware.origin_shield import OriginShieldMiddleware
 
 
 def _make_app(env_overrides: dict[str, str] | None = None):

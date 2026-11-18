@@ -202,9 +202,9 @@ build_context = compile_chat_context
 __all__ = [
     "CORE_SYSTEM_ANCHOR",
     "PLATFORM_GROUNDING_SHEET",
+    "build_context",
     "build_system_anchor",
-    "resolve_sampling_knobs",
     "compile_chat_context",
     "compile_context",
-    "build_context",
+    "resolve_sampling_knobs",
 ]

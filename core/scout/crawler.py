@@ -8,8 +8,8 @@ from urllib.parse import urljoin
 
 import httpx
 from bs4 import BeautifulSoup
+from core.monitoring.logging_config import logger
 
-from core.logging_config import logger
 from scout.cache import CrawlerCache
 from scout.dedup import ContentDeduplicator
 from scout.extractor import ExtractiveSummarizer

@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
-from render_client import RenderApiError, RenderClient  # noqa: E402
+from render_client import RenderApiError, RenderClient
 
 try:
     data = RenderClient(api_key=os.environ.get("RENDER_API_KEY", "")).list_services(limit=10)

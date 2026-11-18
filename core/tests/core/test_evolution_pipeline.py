@@ -5,10 +5,10 @@ import pytest
 
 try:
     from skill_loader import SkillLoader
-    from skills.registry import SkillRegistry
 
     from core.self_evolution.auto_skill_creator import AutoSkillCreator
     from skills.installer import SkillInstaller
+    from skills.registry import SkillRegistry
 
     HAS_SKILLS_INSTALLER = True
 except (ImportError, ModuleNotFoundError):

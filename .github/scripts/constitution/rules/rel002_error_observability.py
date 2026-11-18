@@ -1,6 +1,7 @@
 """Detect broad exception handlers without observable handling."""
-from pathlib import Path
 import ast
+from pathlib import Path
+
 from ..models import RuleCategory, RuleDefinition, Severity
 from .base import BaseRule
 

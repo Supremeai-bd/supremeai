@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 try:
-    from service.frontend_compat import *  # noqa: F403
-    from service.frontend_compat import router  # noqa: F401
+    from service.frontend_compat import *
+    from service.frontend_compat import router
 except ImportError:
-    from gateway.service.frontend_compat import *  # noqa: F403
+    from gateway.service.frontend_compat import *
     from gateway.service.frontend_compat import router  # noqa: F401

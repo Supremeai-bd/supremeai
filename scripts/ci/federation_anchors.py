@@ -249,7 +249,7 @@ def link_sub_issue(
             parent_issue_number, repo=repo, token=tok
         ):
             return True
-    except Exception as exc:  # noqa: BLE001 - pre-check must never block linking
+    except Exception as exc:
         print(f"[anchors] sub-issue pre-check skipped: {exc}")
 
     # 1. Try gh issue edit --parent

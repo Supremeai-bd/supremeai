@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Aggregate skill_usage.jsonl into a per-skill effectiveness report."""
-import json, sys
+import json
 from collections import defaultdict
 from pathlib import Path
+
 
 def main() -> int:
     log = Path(__file__).resolve().parents[2] / "skills" / "skill_usage.jsonl"

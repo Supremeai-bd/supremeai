@@ -146,7 +146,6 @@ class BrokenSupabase:
     def client(self):
         if self._mode == "raise_client":
             raise RuntimeError("supabase down")
-        return None
 
 
 class FakeRedisQueue:
@@ -235,7 +234,6 @@ class TestPlatformAdminIsolationWiring:
         return [r for r in router_module_router.routes if isinstance(r, APIRoute)]
 
     def test_every_router_route_requires_platform_admin(self):
-        from fastapi import Depends
 
         from api.dependencies import get_current_platform_admin
         from api.routes.tenant_admin import router
@@ -276,9 +274,8 @@ class TestPlatformAdminIsolationWiring:
         APIRoute whose path embeds the tenants prefix. Either one is the
         unmistakable fingerprint of an include_router() call.
         """
-        from fastapi.routing import APIRoute as _APIRoute
-
         from api.routes.tenant_admin import router, tenants_router
+        from fastapi.routing import APIRoute as _APIRoute
 
         assert tenants_router.prefix == "/admin-api/tenants", (
             "tenants_router prefix must be /admin-api/tenants"
@@ -323,9 +320,8 @@ class TestPlatformAdminIsolationWiring:
         instead of bare.routes directly (which retains unexpanded _IncludedRouter
         sentinels in modern FastAPI).
         """
-        from fastapi import FastAPI
-
         from api.routes.tenant_admin import router
+        from fastapi import FastAPI
 
         bare = FastAPI()
         bare.include_router(router)
@@ -351,6 +347,7 @@ class TestPlatformAdminIsolationWiring:
         """
         import api.dependencies as _deps
         from api.routes.tenant_admin import router
+
         from core.config import settings
 
         monkeypatch.setattr(settings, "allow_test_auth_bypass", False, raising=False)

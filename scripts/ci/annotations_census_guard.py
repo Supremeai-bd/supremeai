@@ -141,7 +141,7 @@ def _post(url: str, payload: dict[str, Any], session_id: str | None) -> tuple[in
     try:
         with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
             return resp.status, resp.read().decode("utf-8", errors="replace"), resp.headers.get("mcp-session-id")
-    except urllib.error.HTTPError as exc:  # noqa: PERF203 — explicit fail-closed branch
+    except urllib.error.HTTPError as exc:
         return exc.code, str(exc.read().decode("utf-8", errors="replace")), None
 
 

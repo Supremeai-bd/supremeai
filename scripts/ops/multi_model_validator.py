@@ -1,8 +1,6 @@
-from core.utils.api_key_resolver import resolve_numbered_key
 #!/usr/bin/env python3
 # 🛡️ মাল্টি-মডেল কোড ভ্যালিডেটর — SupremeAI 2.0
 # বাংলা মন্তব্য: এটি এআই মডেল ও স্ট্যাটিক AST সিকিউরিটি অ্যানালাইসিসের মাধ্যমে কোডের নিরাপত্তা ও লজিক যাচাই করে
-
 import argparse
 import ast
 import asyncio
@@ -10,6 +8,8 @@ import json
 import os
 from pathlib import Path
 from typing import Any
+
+from core.utils.api_key_resolver import resolve_numbered_key
 
 try:
     from loguru import logger

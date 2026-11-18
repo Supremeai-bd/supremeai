@@ -17,7 +17,7 @@ import httpx
 
 from core.config_proxy import DynamicConfigProxy
 from core.health.self_healer import SelfHealerService
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from utils.firestore_helpers import get_firestore_db
 
 

@@ -17,7 +17,7 @@ from enum import StrEnum
 from typing import Any
 
 from core.cache import get_cache
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.persistence.write_behind import WriteBehindBatcher
 
 # ── Constants & Outbox Batcher ────────────────────────────────────────────────

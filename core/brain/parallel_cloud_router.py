@@ -2,10 +2,9 @@ import random
 from typing import Any
 
 import httpx
-
 from core.config import settings
-from core.logging_config import logger
 from core.messaging.upstash_redis_queue import UpstashRedisQueue
+from core.monitoring.logging_config import logger
 
 
 class ParallelCloudRouter:

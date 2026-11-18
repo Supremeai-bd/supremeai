@@ -8,7 +8,10 @@
 
 Usage: build_report.py audit.raw.json [--out-dir out] [--lighthouse lh.json] [--label "Customer X"]
 """
-import argparse, json, re, sys
+import argparse
+import json
+import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -61,7 +64,7 @@ def build_findings(raw, lh=None):
     if len(warns) > 10:
         add("console.warnings", "low", "console", f"Console-এ {len(warns)}টি warning", "; ".join(short(m["text"], 80) for m in warns[:2]), "Deprecation ও React/Vue dev warning পরিষ্কার করুন")
     for l in raw.get("browserLogs", []):
-        if re.search(r"mixed content|content security policy|refused to|blocked", l.get("text", ""), re.I):
+        if re.search(r"mixed content|content security policy|refused to|blocked", l.get("text", ""), re.IGNORECASE):
             add("browser.policy-violation", "high", "security", "Browser security policy violation", short(l["text"], 200), "Mixed content/CSP rule ঠিক করুন", [l.get("url", "")])
             break
 

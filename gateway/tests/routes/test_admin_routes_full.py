@@ -25,7 +25,6 @@ import base64
 import hashlib
 import hmac
 import json
-import os
 import struct
 import time
 from types import SimpleNamespace
@@ -134,6 +133,7 @@ class FakeFirestore:
 async def admin_env(monkeypatch):
     """Minimal app + fakeredis + (optionally) fake firestore + admin settings."""
     import api.routes.admin_routes as ar
+
     from core.config import settings as real_settings
 
     _ADMIN_SETTINGS.jwt_secret = real_settings.jwt_secret

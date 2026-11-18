@@ -29,7 +29,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
-from render_client import RenderApiError, RenderClient  # noqa: E402
+from render_client import RenderApiError, RenderClient
 
 MAX_ATTEMPTS = 5
 RETRY_DELAY_SECONDS = 10
@@ -115,7 +115,7 @@ def _resolve_owning_client(
             if exc.status in (401, 403, 404):
                 continue
             return env_name, probe
-        except Exception:  # noqa: BLE001
+        except Exception:
             continue
     first_env, first_key = candidate_keys[0]
     return first_env, RenderClient(api_key=first_key, service_id=svc_id)
@@ -168,7 +168,7 @@ def _sync_bootstrap_env_vars(client: RenderClient, svc_id: str) -> None:
             )
         else:
             print(f"Bootstrap env vars on {svc_id} already up-to-date ({len(desired)} checked).")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"::warning::Bootstrap env var sync skipped on {svc_id}: {exc}")
 
 
@@ -283,7 +283,7 @@ def main() -> int:
                 _allow_ci_fallback()
                 return 2 if REQUIRE_EXPECTED_SHA else 1
             time.sleep(RETRY_DELAY_SECONDS)
-        except Exception as exc:  # noqa: BLE001 - intentional retry-all policy
+        except Exception as exc:
             print(f"Attempt {attempt}/{MAX_ATTEMPTS} unexpected transport error: {exc}")
             if attempt == MAX_ATTEMPTS:
                 _allow_ci_fallback()
@@ -317,7 +317,7 @@ def wait_for_terminal_state(
     while time.monotonic() < deadline:
         try:
             deploy = client.get_deploy(deploy_id, svc_id)
-        except Exception as exc:  # noqa: BLE001 - transient poll errors are retried
+        except Exception as exc:
             print(f"poll error (will retry): {exc}")
             time.sleep(POLL_INTERVAL_SECONDS)
             continue

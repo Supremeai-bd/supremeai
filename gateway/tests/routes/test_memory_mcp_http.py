@@ -17,12 +17,11 @@ import pytest
 
 pytest.importorskip("mcp", reason="memory MCP HTTP surface requires the mcp SDK")
 
-from fastapi.testclient import TestClient  # noqa: E402
-
-from api.routes.memory_mcp_http import (  # noqa: E402
+from api.routes.memory_mcp_http import (
     MCP_SESSIONS_PATH,
     create_memory_mcp_asgi_app,
 )
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture()

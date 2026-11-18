@@ -36,6 +36,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from core.automation.models import ExecutionEnvelope
+
 try:
     from database.session import get_db_session_context
 except ImportError:

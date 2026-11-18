@@ -18,8 +18,9 @@ import json
 import os
 from typing import Any
 
-from core.tools.mcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field
+
+from core.tools.mcp import FastMCP
 
 mcp = FastMCP("telegram_mcp")
 

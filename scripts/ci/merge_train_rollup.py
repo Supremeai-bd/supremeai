@@ -20,7 +20,6 @@ import os
 import re
 import subprocess
 import sys
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -38,6 +37,8 @@ if str(ROOT_DIR) not in sys.path:
 try:
     from scripts.git.cross_pr_collision_detector import (
         detect_collisions,
+    )
+    from scripts.git.cross_pr_collision_detector import (
         fetch_open_prs as fetch_open_prs_legacy,
     )
 except ImportError:  # pragma: no cover - defensive, repo layout guarantee

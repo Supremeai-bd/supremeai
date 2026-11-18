@@ -48,9 +48,8 @@ class TestHelperFunctions:
 
     def test_ensure_admin_authorized_raises_for_empty_uid(self):
         """_ensure_admin_authorized raises HTTPException for empty uid."""
-        from fastapi import HTTPException
-
         from api.routes.admin_routes import _ensure_admin_authorized
+        from fastapi import HTTPException
 
         with pytest.raises(HTTPException) as exc_info:
             _ensure_admin_authorized("", "test@example.com")
@@ -58,9 +57,8 @@ class TestHelperFunctions:
 
     def test_ensure_admin_authorized_raises_for_empty_email(self):
         """_ensure_admin_authorized raises HTTPException for empty email when uid is non-admin."""
-        from fastapi import HTTPException
-
         from api.routes.admin_routes import _ensure_admin_authorized
+        from fastapi import HTTPException
 
         with pytest.raises(HTTPException) as exc_info:
             _ensure_admin_authorized("non-admin-uid", "")
@@ -68,9 +66,8 @@ class TestHelperFunctions:
 
     def test_reject_mock_token_raises_when_mock_not_allowed(self):
         """_reject_mock_token raises HTTPException when mock tokens are not allowed."""
-        from fastapi import HTTPException
-
         from api.routes.admin_routes import _mock_token_allowed, _reject_mock_token
+        from fastapi import HTTPException
 
         # Only test the raise behavior if mock is not allowed
         if not _mock_token_allowed():

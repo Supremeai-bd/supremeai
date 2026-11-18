@@ -11,14 +11,12 @@ Locked contracts:
   user_session:* (live tenant state), and enforces a safety cap.
 """
 
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
-
 from api.dependencies import verify_idempotency
 from api.routes.webhooks_github import _claim_delivery
+from fastapi import HTTPException
 from middleware.idempotency_middleware import IdempotencyMiddleware
 
 # ---------------------------------------------------------------- D-1 (pin)

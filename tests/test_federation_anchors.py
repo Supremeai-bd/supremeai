@@ -17,7 +17,10 @@ from scripts.ci.federation_anchors import (
 class TestFederationAnchors(unittest.TestCase):
     def test_anchor_counts(self):
         """Must have valid registry with active and retired subsets."""
-        from scripts.ci.federation_anchors import ACTIVE_ANCHOR_HUBS, RETIRED_ANCHOR_HUBS
+        from scripts.ci.federation_anchors import (
+            ACTIVE_ANCHOR_HUBS,
+            RETIRED_ANCHOR_HUBS,
+        )
         self.assertTrue(set(ACTIVE_ANCHOR_HUBS.keys()).issubset(set(ANCHOR_HUBS.keys())))
         self.assertTrue(set(RETIRED_ANCHOR_HUBS.keys()).issubset(set(ANCHOR_HUBS.keys())))
         unique_numbers = set(ANCHOR_HUBS.values())
@@ -106,7 +109,10 @@ class TestVerifyLiveQuotaPreflight(unittest.TestCase):
         """Responses for one full verify pass, counts DERIVED from the SSOT
         registry (not hardcoded) so topology re-definitions (8-satellite →
         6-domain, #3968) cannot stale-red these tests again."""
-        from scripts.ci.federation_anchors import ACTIVE_ANCHOR_HUBS, RETIRED_ANCHOR_HUBS
+        from scripts.ci.federation_anchors import (
+            ACTIVE_ANCHOR_HUBS,
+            RETIRED_ANCHOR_HUBS,
+        )
 
         seq = list(first) if first else []
         seq += [cls.ACTIVE_OK] * len(ACTIVE_ANCHOR_HUBS)
@@ -175,7 +181,10 @@ class TestVerifyLiveQuotaPreflight(unittest.TestCase):
 
     def test_fail_closed_semantics_preserved(self):
         """A wrong anchor state must still exit 1 (pre-existing contract)."""
-        from scripts.ci.federation_anchors import ACTIVE_ANCHOR_HUBS, RETIRED_ANCHOR_HUBS
+        from scripts.ci.federation_anchors import (
+            ACTIVE_ANCHOR_HUBS,
+            RETIRED_ANCHOR_HUBS,
+        )
 
         rate_limit_body = {
             "resources": {"core": {"limit": 60, "remaining": 5000, "reset": 1790000000}}

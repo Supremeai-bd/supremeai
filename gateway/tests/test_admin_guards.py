@@ -13,7 +13,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
-
 import service.frontend_compat as fc
 from service.app import _is_admin_principal
 

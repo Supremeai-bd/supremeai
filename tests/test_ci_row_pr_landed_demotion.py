@@ -48,7 +48,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "scripts" / "agents"))
 
-import continuous_agent_loop as cal  # noqa: E402
+import continuous_agent_loop as cal
 
 
 def _ci_row(number: int, pr: int, words: str = "failing checks") -> dict:
@@ -91,7 +91,7 @@ class TestCiRowPrLandedNote(unittest.TestCase):
         def _boom(per_page):
             raise AssertionError("fetch must not run when the premise gate fails")
 
-        row = {"number": 4000, "title": f"report: analysis of PR #3534 landing shape", "labels": []}
+        row = {"number": 4000, "title": "report: analysis of PR #3534 landing shape", "labels": []}
         self.assertIsNone(cal._ci_row_pr_landed_note(row, fetch_merged=_boom))
 
     def test_title_without_pr_number_serves(self):

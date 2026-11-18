@@ -6,7 +6,7 @@ Run:  python -m pyerrorfix analyze examples/sample_buggy.py --fix --format conso
 
 import asyncio
 import hashlib
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 import pickle  # noqa: F401  (used by security detector)
 import subprocess
 import time

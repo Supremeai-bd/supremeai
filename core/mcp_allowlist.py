@@ -11,10 +11,11 @@ Dependencies:
 - `typing`: For type hinting to improve code readability and maintainability."""
 
 from __future__ import annotations
-from core.utils.api_key_resolver import resolve_numbered_key
 
 import os
 from typing import Any
+
+from core.utils.api_key_resolver import resolve_numbered_key
 
 
 def get_mcp_servers() -> dict[str, Any]:

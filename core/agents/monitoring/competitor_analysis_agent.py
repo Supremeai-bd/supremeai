@@ -14,7 +14,7 @@ from typing import Any
 
 from brain.model_router import ModelRouter
 from core.cache import get_cache
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 COMPETITOR_CACHE_TTL = 86400  # 24 hours
 

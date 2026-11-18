@@ -61,9 +61,9 @@ import json
 import time
 from typing import Any
 
-from core.logging_config import logger
 from core.mcp_audit import audit_tool_call
 from core.mcp_policy import evaluate_tool
+from core.monitoring.logging_config import logger
 
 try:
     import mcp.types as types

@@ -41,8 +41,9 @@ import os
 import subprocess
 import sys
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 RULES_PATH = Path(__file__).resolve().parents[3] / ".github" / "constitution" / "rules.yml"
 
@@ -64,7 +65,7 @@ def load_policy(rules_path: Path = RULES_PATH) -> dict[str, Any]:
     """rules.yml → freshness_policy (DEFAULT-merge) — gates.py-প্যাটার্ন।"""
     pol = dict(DEFAULT_POLICY)
     try:
-        import yaml  # noqa: PLC0415 — lazy: CI-রানারে থাকে, লোকালে ছাড়
+        import yaml
 
         data = yaml.safe_load(Path(rules_path).read_text(encoding="utf-8")) or {}
         override = data.get("freshness_policy") or {}
@@ -91,7 +92,7 @@ Git = Callable[..., str]
 def real_api(endpoint: str) -> Any:
     """REST GET — author-সমৃদ্ধির জন্যই (গেটের মূল যুক্তি git-ভিত্তিক)।"""
     token = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
-    req = urllib.request.Request(  # noqa: S310
+    req = urllib.request.Request(
         f"https://api.github.com/{endpoint.lstrip('/')}",
         headers={
             "Authorization": f"token {token}",
@@ -99,7 +100,7 @@ def real_api(endpoint: str) -> Any:
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+    with urllib.request.urlopen(req, timeout=30) as resp:
         raw = resp.read().decode()
     return json.loads(raw) if raw.strip() else None
 

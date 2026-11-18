@@ -1,14 +1,15 @@
 import os
 import unittest
 from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 
 # Ensure test signing secret is present before keygen runs
 os.environ.setdefault("SUPREMEAI_MASTER_KEY", "test-master-key-for-stealth-webhook-suite")
 
+import service.app as app_module
 from service.app import app
 from service.keygen import generate_key
-import service.app as app_module
 
 
 class StealthWebhookPriorityTest(unittest.TestCase):

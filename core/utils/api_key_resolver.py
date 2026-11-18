@@ -7,7 +7,7 @@ import os
 from typing import Optional
 
 
-def resolve_numbered_key(base: str, max_n: int = 10) -> Optional[str]:
+def resolve_numbered_key(base: str, max_n: int = 10) -> str | None:
     """Return the first non-empty value among base and base_2..base_max_n."""
     val = os.environ.get(base, "").strip()
     if val:
@@ -19,7 +19,7 @@ def resolve_numbered_key(base: str, max_n: int = 10) -> Optional[str]:
     return None
 
 
-def resolve_key_with_aliases(base: str, aliases: list[str], max_n: int = 10) -> Optional[str]:
+def resolve_key_with_aliases(base: str, aliases: list[str], max_n: int = 10) -> str | None:
     """Try base, its numbered variants, then explicit aliases (and their numbered variants)."""
     for name in [base] + aliases:
         val = resolve_numbered_key(name, max_n)

@@ -18,13 +18,12 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import api.routes.deep_research as dr
 import pytest
 import pytest_asyncio
+from api.deps import get_current_user_token
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-
-import api.routes.deep_research as dr
-from api.deps import get_current_user_token
 
 SUB = "user-1"
 
@@ -434,7 +433,7 @@ class TestHistoryAndReport:
     async def test_history_invalid_token_401(self, research_env):
         http, *_ = research_env
         app = http._transport.app
-        app.dependency_overrides[get_current_user_token] = lambda: {}
+        app.dependency_overrides[get_current_user_token] = dict
         try:
             resp = await http.get("/api/research/history")
         finally:

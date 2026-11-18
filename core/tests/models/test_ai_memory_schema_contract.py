@@ -35,13 +35,12 @@ os.environ.setdefault("TEST_DATABASE_URL", "sqlite+aiosqlite:///./test.db")
 os.environ.setdefault("DATABASE_URL", "postgresql://u:p@db.example.com:5432/supremeai")
 
 import sqlglot  # noqa: E402
-from sqlglot import exp  # noqa: E402
-
 from core.models.ai_memory import (  # noqa: E402
     EMBEDDING_DIMENSIONS,
     HAS_PGVECTOR_TYPE,
     AIMemory,
 )
+from sqlglot import exp  # noqa: E402
 
 SQL_PATH = Path(__file__).resolve().parents[2] / "database" / "supabase" / "ai_memory_phase_c.sql"
 SQL_TEXT = SQL_PATH.read_text(encoding="utf-8")

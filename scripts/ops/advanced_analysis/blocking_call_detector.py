@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-import sys
 import ast
 import os
-from pathlib import Path
+import sys
 
 # Common blocking functions that shouldn't be in async routes
 BLOCKING_CALLS = {

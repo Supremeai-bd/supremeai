@@ -12,9 +12,9 @@ from __future__ import annotations
 import importlib
 
 import pytest
+from core.config import settings
 from fastapi import HTTPException
 
-from core.config import settings
 from middleware.rate_limiter import AsyncRateLimiter
 from middleware.tenant_rate_limiter import (
     _resolve_fail_mode,

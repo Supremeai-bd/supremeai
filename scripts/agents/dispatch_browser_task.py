@@ -146,7 +146,7 @@ def show_queue_status(tasks_dir: Path):
     proc_files = list((tasks_dir / "processing").glob("*.json")) if (tasks_dir / "processing").exists() else []
     done_files = list((tasks_dir / "completed").glob("*.json")) if (tasks_dir / "completed").exists() else []
 
-    print(f"\nQueue Breakdown:")
+    print("\nQueue Breakdown:")
     print(f"  Inbox (Pending)   : {len(inbox_files)}")
     print(f"  Processing (Live) : {len(proc_files)}")
     print(f"  Completed         : {len(done_files)}")

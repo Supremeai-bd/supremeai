@@ -24,7 +24,7 @@ backend_dir = os.path.join(os.path.dirname(__file__), "../../backend")
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.security.secret_vault import get_secret_vault
 
 

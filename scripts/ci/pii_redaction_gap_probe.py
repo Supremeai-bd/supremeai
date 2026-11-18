@@ -27,7 +27,7 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
-from core.contracts.redaction import redact  # noqa: E402
+from core.contracts.redaction import redact
 
 # ---------------------------------------------------------------------------
 # Fixtures: federation-realistic lanes named in #1784 (web research, browser
@@ -168,7 +168,7 @@ def presidio_report() -> dict[str, Any]:
             }
         )
     return {
-        "engine": f"presidio-analyzer 2.2.366 (spaCy en_core_web_lg auto-pulled)",
+        "engine": "presidio-analyzer 2.2.366 (spaCy en_core_web_lg auto-pulled)",
         "init_seconds": init_s,
         "avg_latency_ms": round(sum(latencies) / len(latencies), 1),
         "total_planted": total_planted,
@@ -243,4 +243,4 @@ def main() -> int:
 if __name__ == "__main__":
     sys.exit(main())
 
-__all__ = ["gap_report", "presidio_report", "self_test", "main"]
+__all__ = ["gap_report", "main", "presidio_report", "self_test"]

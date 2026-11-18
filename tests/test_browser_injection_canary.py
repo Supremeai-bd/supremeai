@@ -29,7 +29,6 @@ from browser.runtime.injection_canaries import (
     page_wrapper,
 )
 
-
 # ---------------------------------------------------------------- corpus integrity
 
 

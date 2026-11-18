@@ -24,11 +24,11 @@ from __future__ import annotations
 import time
 import unittest
 
+from api.routes.mesh import router as mesh_router
+from api.routes.mesh_tasks import router as tasks_router
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from api.routes.mesh import router as mesh_router
-from api.routes.mesh_tasks import router as tasks_router
 from core.presence_registry import (
     PresenceRegistry,
     get_presence_registry,

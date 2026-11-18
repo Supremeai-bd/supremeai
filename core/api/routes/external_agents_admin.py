@@ -33,9 +33,9 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from core.integrations._flags import flag
 from external_agents.contracts.task_contract import AgentProvider, TaskContract
 from external_agents.control.job_api import ExternalAgentJobAPI, WorkerFn
-from core.integrations._flags import flag
 
 router = APIRouter(prefix="/api/v1/external-agents", tags=["external-agents"])
 

@@ -15,9 +15,9 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from core.tools.code.pre_commit_ai import PreCommitAI
 
 import tools.code.pre_commit_ai as pc
-from core.tools.code.pre_commit_ai import PreCommitAI
 
 MOCK_AWS_KEY = "".join(["AK", "IA", "IOSFODNN7EXAMPLE"])
 MOCK_PASS_VAR = "pass" + "word"

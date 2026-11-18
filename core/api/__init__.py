@@ -8,7 +8,7 @@ from typing import Any, List
 
 from fastapi import FastAPI
 
-_registration_report: List[dict] = []
+_registration_report: list[dict] = []
 
 
 def _record(module: str, exc: Exception) -> None:

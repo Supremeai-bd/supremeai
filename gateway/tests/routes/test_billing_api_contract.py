@@ -33,16 +33,15 @@ import pytest_asyncio
 pytest.importorskip(
     "greenlet", reason="greenlet not installed — required for SQLAlchemy asyncio engine"
 )
-from fastapi import FastAPI  # noqa: E402
-from sqlalchemy import select  # noqa: E402
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine  # noqa: E402
-
-import api.routes.billing_api as billing_api  # noqa: E402
-from api.dependencies import get_current_user_token  # noqa: E402
-from api.routes.billing_api import router as billing_router  # noqa: E402
-from database.session import get_db_session  # noqa: E402
-from models.base import Base  # noqa: E402
-from models.wallet import TransactionLedgerEntry, UserWallet  # noqa: E402
+from api.dependencies import get_current_user_token
+from api.routes import billing_api
+from api.routes.billing_api import router as billing_router
+from database.session import get_db_session
+from fastapi import FastAPI
+from models.base import Base
+from models.wallet import TransactionLedgerEntry, UserWallet
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 
 # ============================================================
@@ -132,7 +131,7 @@ class TestWalletBalanceRetrievalContract:
         """
         # Given
         client, _factory, _auth, app = billing_app
-        app.dependency_overrides[get_current_user_token] = lambda: {}
+        app.dependency_overrides[get_current_user_token] = dict
 
         # When
         response = await client.get("/api/billing/wallet")
@@ -476,7 +475,7 @@ class TestCheckoutSessionContract:
         """
         # Given
         client, _factory, _auth, app = billing_app
-        app.dependency_overrides[get_current_user_token] = lambda: {}
+        app.dependency_overrides[get_current_user_token] = dict
 
         # When
         response = await client.post(
@@ -619,5 +618,5 @@ class TestBalanceNeverNegativeContract:
             )
             after_balance = after_wallet.balance_usd
         assert after_balance >= before_balance
-        assert after_balance >= Decimal("0")
+        assert after_balance >= Decimal(0)
         assert after_balance == Decimal("6.000000")  # $5 + $1

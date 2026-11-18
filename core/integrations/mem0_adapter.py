@@ -16,8 +16,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-from core.logging_config import logger
 from core.integrations._flags import flag, import_available
+from core.monitoring.logging_config import logger
 
 _ENABLED_FLAG = "SUPREMEAI_MEM0_ENABLED"
 

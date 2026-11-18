@@ -6,9 +6,7 @@ Scans the frontend dist/ directory after build to ensure:
 - No VITE_ variables containing restricted keywords (SECRET, PASSWORD, etc.) are present.
 """
 
-import os
 import re
-import sys
 from pathlib import Path
 
 # Directories to scan

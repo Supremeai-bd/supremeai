@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from core.config_control_plane import BY_NAME, ALIAS_TO_CANONICAL  # noqa: E402
+from core.config_control_plane import ALIAS_TO_CANONICAL, BY_NAME
 
 PATTERNS = (
     re.compile(r"os\.getenv\(\s*['\"]([A-Z][A-Z0-9_]*)['\"]"),
@@ -17,7 +17,7 @@ PATTERNS = (
     re.compile(r"process\.env\.([A-Z][A-Z0-9_]*)"),
     re.compile(r"import\.meta\.env\.([A-Z][A-Z0-9_]*)"),
 )
-SENSITIVE = re.compile(r"(KEY|SECRET|TOKEN|PASSWORD|PRIVATE|CREDENTIAL|AUTH)", re.I)
+SENSITIVE = re.compile(r"(KEY|SECRET|TOKEN|PASSWORD|PRIVATE|CREDENTIAL|AUTH)", re.IGNORECASE)
 SKIP = {".git", "node_modules", ".venv", "venv", "__pycache__", "dist", "build", ".pytest_cache"}
 EXTS = {".py", ".ts", ".tsx", ".js", ".jsx", ".yml", ".yaml"}
 

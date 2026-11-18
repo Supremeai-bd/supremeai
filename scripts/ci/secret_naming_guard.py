@@ -60,7 +60,6 @@ def scan(alias_map):
 
 
 def self_test():
-    import tempfile
     reg = {"families": {"X": {"canonical": {"CANON": ["ALIAS1"]}}}}
     amap = build_alias_map(reg)
     assert amap == {"ALIAS1": "CANON"}, amap

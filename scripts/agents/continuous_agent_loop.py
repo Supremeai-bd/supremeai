@@ -14,7 +14,18 @@ Traffic-police logic:
 6. Single-dispatch clean execution: external runner/scheduler drives loop cadence.
 """
 from __future__ import annotations
-import argparse, ast, inspect, json, os, re, subprocess, sys, threading, time, urllib.request
+
+import argparse
+import ast
+import inspect
+import json
+import os
+import re
+import subprocess
+import sys
+import threading
+import time
+import urllib.request
 from collections.abc import Callable, Iterable
 from datetime import datetime
 from pathlib import Path
@@ -41,12 +52,12 @@ TRIAGE_RECEIPTS_FILE = REPO_ROOT / "scripts" / "agents" / "incident_triage_recei
 # Support both direct repo-root imports (scripts.agents.claim_thresholds) and
 # same-dir execution (claim_thresholds).
 try:
-    from scripts.agents.claim_thresholds import (  # noqa: E402
+    from scripts.agents.claim_thresholds import (
         ORPHAN_RELEASE_MINUTES,
         RECEIPT_COVERAGE_TTL_MINUTES,
     )
 except ImportError:
-    from claim_thresholds import (  # noqa: E402
+    from claim_thresholds import (
         ORPHAN_RELEASE_MINUTES,
         RECEIPT_COVERAGE_TTL_MINUTES,
     )
@@ -115,7 +126,7 @@ def inject_strategic_memory(issue_number: int, task: dict[str, Any]) -> None:
                 f"{result.stderr or 'unknown error'}",
                 file=sys.stderr,
             )
-    except Exception as err:  # noqa: BLE001 — advisory integration is fail-safe
+    except Exception as err:
         print(f"⚠️ Strategic memory injection skipped ({err})", file=sys.stderr)
 
 # #3738 twin-guard contract name: the born-duplicate demotion reads this runner's
@@ -386,7 +397,7 @@ def _lsremote_ref_exists(ref: str) -> bool | None:
             ["git", "ls-remote", "--exit-code", url, f"refs/heads/{ref}"],
             capture_output=True, text=True, timeout=STALE_INCIDENT_PROBE_TIMEOUT_S,
         )
-    except Exception:  # noqa: BLE001 — probe failure must never raise through the pick
+    except Exception:
         return None
     if proc.returncode == 0:
         return True
@@ -451,7 +462,7 @@ def _incident_stale_note(
         probe = _lsremote_ref_exists if remote_probe is None else remote_probe
         try:
             exists = probe(ref_token)
-        except Exception:  # noqa: BLE001 — fail-open, identical to fetch_errors below
+        except Exception:
             exists = None
         if exists is False:
             return (
@@ -481,7 +492,7 @@ def _incident_stale_note(
 
     try:
         runs = fetch_runs(STALE_INCIDENT_RUNS_WINDOW)
-    except Exception:  # noqa: BLE001 — fail-open: a dark runs surface serves the row
+    except Exception:
         return None
 
     incident = next(
@@ -532,7 +543,7 @@ def _probe_incident_stale(item: dict[str, Any]) -> str | None:
     """
     try:
         return _incident_stale_note(item)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -570,7 +581,7 @@ def _load_triage_receipts(path: Path | None = None) -> dict[int, dict[str, Any]]
                 if isinstance(n, int) and not isinstance(n, bool):
                     index[n] = receipt
         return index
-    except Exception:  # noqa: BLE001 — fail-open: a dark registry serves every row
+    except Exception:
         return {}
 
 
@@ -610,7 +621,7 @@ def _probe_triage_receipt(item: dict[str, Any]) -> str | None:
     """
     try:
         return _triage_receipt_note(item)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -659,7 +670,7 @@ def _sentry_pass_newest_open(issues: list[dict[str, Any]]) -> int | None:
                 continue
             if newest is None or num > newest:
                 newest = num
-    except Exception:  # noqa: BLE001 — fail-open
+    except Exception:
         return newest
     return newest
 
@@ -677,7 +688,7 @@ def _sentry_superseded_note(item: dict[str, Any], newest: int | None) -> str | N
         if not title.startswith(SENTRY_FAMILY_PREFIX) or SENTRY_FAMILY_MARKER not in title:
             return None
         num = int(item.get("number", 0))
-    except Exception:  # noqa: BLE001 — fail-open
+    except Exception:
         return None
     if num < newest:
         return (
@@ -724,7 +735,7 @@ def _sentry_test_row_note(item: dict[str, Any]) -> str | None:
             return None
         if title.index("sentry") > title.index(SENTRY_TEST_ROW_MARKER):
             return None
-    except Exception:  # noqa: BLE001 — fail-open
+    except Exception:
         return None
     return (
         "sentry connectivity test row (U4 anti-stampede demotion): filing-test "
@@ -864,7 +875,7 @@ def _map_tower_landing_rows(rows: Any) -> list[dict[str, Any]]:
                 }
             )
         return out
-    except Exception:  # noqa: BLE001 — fail-open
+    except Exception:
         return []
 
 
@@ -911,7 +922,7 @@ def _parse_tower_landing_payload(body: Any, call_id: str) -> list[Any]:
         except Exception:
             return []
         return rows if isinstance(rows, list) else []
-    except Exception:  # noqa: BLE001 — fail-open
+    except Exception:
         return []
 
 
@@ -1002,7 +1013,7 @@ def _tower_merged_landing_prs(
                     continue
                 break
             holder["body"] = body
-        except Exception as exc:  # noqa: BLE001 — fallback must never raise out of the thread
+        except Exception as exc:
             holder["error"] = f"tower landing fallback failed ({type(exc).__name__})"
 
     t = threading.Thread(target=_probe, daemon=True)
@@ -1035,14 +1046,14 @@ def _fetch_merged_landing_prs(per_page: int) -> list[dict[str, Any]]:
         _LANDING_ROWS = list(_rest_merged_landing_prs(per_page))
         _LANDING_FETCH_FAILED = False
         return _LANDING_ROWS
-    except Exception:  # noqa: BLE001 — REST dark: fall through to the tower fallback
+    except Exception:
         pass
     _LANDING_PLANE = "tower"
     try:
         _LANDING_ROWS = list(_tower_merged_landing_prs(per_page))
         _LANDING_FETCH_FAILED = False
         return _LANDING_ROWS
-    except Exception:  # noqa: BLE001 — both dark: honest raise, cached darkness
+    except Exception:
         _LANDING_PLANE = "dark"
         _LANDING_ROWS = []
         _LANDING_FETCH_FAILED = True
@@ -1078,7 +1089,7 @@ def _promised_artifact_paths(body: str) -> list[str]:
                     seen.add(path)
                     paths.append(path)
         return paths
-    except Exception:  # noqa: BLE001 — fail-open
+    except Exception:
         return []
 
 
@@ -1173,7 +1184,7 @@ def _premise_delivered_note(
             fetch_merged = _fetch_merged_landing_prs
         rows = fetch_merged(MERGED_LANDING_WINDOW)
         num = int(item.get("number"))
-    except Exception:  # noqa: BLE001 — fail-open: a dark plane serves the row
+    except Exception:
         return None
     cite = re.compile(rf"(?:closes|fixes|resolves|for|receipt)\s+#{num}\b", re.IGNORECASE)
     # Compound receipt-header form (R1776/#2766, #1776/#2766): slash-adjacent
@@ -1204,7 +1215,7 @@ def _premise_delivered_note(
                 f"#{pr.get('number')} already cites this row ('{m.group(0)}' in \"{title}\") — "
                 "the landing receipt is on main; re-verify the residual need before claiming"
             )
-    except Exception:  # noqa: BLE001 — fail-open
+    except Exception:
         return None
     return None
 
@@ -1218,7 +1229,7 @@ def _probe_premise_delivered(item: dict[str, Any]) -> str | None:
     """
     try:
         return _premise_delivered_note(item)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -1286,7 +1297,7 @@ def _ci_row_pr_landed_note(
                 "skip-with-evidence, never re-solve"
             )
         return None
-    except Exception:  # noqa: BLE001 — a demotion probe must never raise
+    except Exception:
         return None
 
 
@@ -1298,7 +1309,7 @@ def _probe_ci_row_pr_landed(item: dict[str, Any]) -> str | None:
     """
     try:
         return _ci_row_pr_landed_note(item)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -1318,7 +1329,7 @@ def _parse_epoch(value: Any) -> float | None:
         if not text:
             return None
         return datetime.fromisoformat(text.replace("Z", "+00:00")).timestamp()
-    except Exception:  # noqa: BLE001 — একটি পার্স-প্রোব কখনো raise করবে না
+    except Exception:
         return None
 
 
@@ -1393,7 +1404,7 @@ def _receipt_covered_note(
                 if created is not None and (now - created) >= ttl_s:
                     continue  # stale receipt: coverage stranded, demotion expires
                 demoters.append(f"#{row.get('number')}")
-            except Exception:  # noqa: BLE001 — per-row fail-open
+            except Exception:
                 continue
         if not demoters:
             return None
@@ -1402,7 +1413,7 @@ def _receipt_covered_note(
             f"({', '.join(demoters[:3])}) — coverage in flight (anti-stampede U5); "
             "explicit --issue override available"
         )
-    except Exception:  # noqa: BLE001 — a demotion probe must never raise
+    except Exception:
         return None
 
 
@@ -1501,7 +1512,7 @@ def _duplicate_twin_note(
                 "artifact for the filer/admin lane to dedup; explicit --issue override available"
             )
         return None
-    except Exception:  # noqa: BLE001 — a demotion probe must never raise
+    except Exception:
         return None
 
 
@@ -1535,7 +1546,7 @@ def _feedback_claim_active(issue_number: int | str, timeout_s: float = 6.0) -> t
     def _probe() -> None:
         try:
             sys.path.insert(0, str(REPO_ROOT / "scripts" / "agents"))
-            import mcp_tower_client as _mtc  # noqa: E402  (lazy sibling import)
+            import mcp_tower_client as _mtc
 
             client = _mtc.McpTowerClient()
             client.connect()
@@ -1557,14 +1568,14 @@ def _feedback_claim_active(issue_number: int | str, timeout_s: float = 6.0) -> t
                 outcome["fb"] = fb
             else:
                 outcome["error"] = "feedback payload not parseable"
-        except Exception as exc:  # noqa: BLE001 — probe must never raise
+        except Exception as exc:
             outcome["error"] = f"{type(exc).__name__}: {exc}"
 
     try:
         t = threading.Thread(target=_probe, daemon=True)
         t.start()
         t.join(timeout=timeout_s)
-    except Exception as exc:  # noqa: BLE001 — floor must never raise
+    except Exception as exc:
         return False, f"feedback probe error ({type(exc).__name__})"
     if t.is_alive():
         return False, f"feedback probe timed out after {timeout_s:.0f}s"
@@ -1712,7 +1723,7 @@ def report_failed_open_prs(
         # হেল্পারের অভ্যন্তরীণ never-raise-এর উপর defense-in-depth wrap।
         try:
             fb_rows, fb_note = _tower_open_prs(limit=limit)
-        except Exception as exc:  # noqa: BLE001 — অডিট কখনো dispatch kill করবে না
+        except Exception as exc:
             fb_rows, fb_note = None, f"tower PR probe raised ({type(exc).__name__})"
         if fb_rows is not None:
             # বাংলা (GLM Agent 04, Job 486718, 17:04+08 চক্র, U2-অন্ধত্ব নিরাময়):
@@ -1725,7 +1736,7 @@ def report_failed_open_prs(
             # শ্রেণিবিন্যাস report-only — কখনো ✅/zero-assurance নয় (U2 পিন)।
             try:
                 census, census_note = _tower_workflow_run_census(limit=limit)
-            except Exception as exc:  # noqa: BLE001 — অডিট কখনো dispatch kill করবে না
+            except Exception as exc:
                 census, census_note = None, f"workflow-runs census raised ({type(exc).__name__})"
             if census is None:
                 log_fn("🔍", f"Read-only failed PR audit: plane revived via {fb_note} — per-PR check status UNSEEN (tower payload carries no statusCheckRollup; gh absent); failing subset unknown, not certified clean (U2).")
@@ -1762,7 +1773,7 @@ def report_failed_open_prs(
         # অক্ষত), প্রোব never-raise, বোর্ড-প্লেনও অন্ধ হলে আগের ⚠ লাইনই।
         try:
             b_rows, b_note = _tower_board_rows(timeout_s=20.0)
-        except Exception as exc:  # noqa: BLE001 — অডিট কখনো dispatch kill করবে না
+        except Exception as exc:
             b_rows, b_note = [], f"board probe raised ({type(exc).__name__})"
         if b_rows:
             in_gates = sum(
@@ -2110,7 +2121,7 @@ def pick_next_issue(
         num = str(item.get("number", ""))
         try:
             active, note = claim_probe(item.get("number"))
-        except Exception as exc:  # noqa: BLE001 — a broken probe must not break the pick
+        except Exception as exc:
             active, note = False, f"probe raised {type(exc).__name__}"
         if active:
             log_fn("!", f"pick pre-verify: #{num} skipped — {note}; advancing to next candidate (#2794 fix (1))")
@@ -2122,7 +2133,7 @@ def pick_next_issue(
             # Fail-open: probe errors serve the row (never-raise contract).
             try:
                 stale_note = incident_probe(item)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 stale_note = None
                 log_fn("!", f"pick pre-verify: #{num} incident probe raised {type(exc).__name__} — serving row unchanged")
             if stale_note:
@@ -2138,7 +2149,7 @@ def pick_next_issue(
             # the filter can only REMOVE a dispatch, never block one.
             try:
                 receipt_note = triage_probe(item)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 receipt_note = None
                 log_fn("!", f"pick pre-verify: #{num} triage probe raised {type(exc).__name__} — serving row unchanged")
             if receipt_note:
@@ -2154,7 +2165,7 @@ def pick_next_issue(
             # the filter can only REMOVE a dispatch, never block one.
             try:
                 delivered_note = premise_probe(item)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 delivered_note = None
                 log_fn("!", f"pick pre-verify: #{num} premise probe raised {type(exc).__name__} — serving row unchanged")
             if delivered_note:
@@ -2177,7 +2188,7 @@ def pick_next_issue(
             # dispatch, never block one.
             try:
                 landed_note = ci_landed_probe(item)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 landed_note = None
                 log_fn("!", f"pick pre-verify: #{num} ci-landed probe raised {type(exc).__name__} — serving row unchanged")
             if landed_note:
@@ -2359,7 +2370,7 @@ def call_tool_across_rename_epochs(call_by_name: Callable[[str], Any]) -> Any:
     for name in TOWER_QUEUE_TOOL_NAME_CANDIDATES:
         try:
             resp = call_by_name(name)
-        except Exception as exc:  # noqa: BLE001 — epoch tolerance is the point
+        except Exception as exc:
             last_exc = exc
             continue
         if envelope_says_tool_not_found(resp):
@@ -2448,7 +2459,7 @@ def _tower_queue_floor(timeout_s: float = 12.0) -> str:
     def _probe() -> None:
         try:
             sys.path.insert(0, str(REPO_ROOT / "scripts" / "agents"))
-            import mcp_tower_client as _mtc  # noqa: E402  (lazy sibling import)
+            import mcp_tower_client as _mtc
 
             client = _mtc.McpTowerClient()
             client.connect()
@@ -2479,7 +2490,7 @@ def _tower_queue_floor(timeout_s: float = 12.0) -> str:
                     "tower board probe returned no totalOpen — "
                     "P0-drainage gate (Invariant 5) is dark on this gh-less runtime"
                 )
-        except Exception as exc:  # noqa: BLE001 — floor must never raise
+        except Exception as exc:
             if _tower_rate_limited(exc):
                 # বাংলা: 429-এ মিথ্যা "tower-down" নয় — সৎ শ্রেণি: tower জীবিত,
                 # fleet cron-window contention, এই রান অন্ধ (U2)।
@@ -2498,7 +2509,7 @@ def _tower_queue_floor(timeout_s: float = 12.0) -> str:
         t = threading.Thread(target=_probe, daemon=True)
         t.start()
         t.join(timeout=timeout_s)
-    except Exception as exc:  # noqa: BLE001 — floor must never raise
+    except Exception as exc:
         return f"tower board probe error ({type(exc).__name__}) — P0-drainage gate (Invariant 5) is dark on this gh-less runtime"
     if t.is_alive():
         return "tower board probe timed out — P0-drainage gate (Invariant 5) is dark on this gh-less runtime"
@@ -2540,7 +2551,7 @@ def _tower_board_rows(timeout_s: float = 20.0) -> tuple[list[dict[str, Any]], st
     def _probe() -> None:
         try:
             sys.path.insert(0, str(REPO_ROOT / "scripts" / "agents"))
-            import mcp_tower_client as _mtc  # noqa: E402  (lazy sibling import)
+            import mcp_tower_client as _mtc
 
             base = _mtc.MCP_SERVER_URL.rstrip("/")
             headers = {
@@ -2677,7 +2688,7 @@ def _tower_board_rows(timeout_s: float = 20.0) -> tuple[list[dict[str, Any]], st
             elif isinstance(q, dict) and q.get("windowTruncated"):
                 detail = " (window truncated)"
             outcome["note"] = f"tower board fallback: {len(board)} rows{detail}"
-        except Exception as exc:  # noqa: BLE001 — fallback must never raise
+        except Exception as exc:
             outcome["error"] = f"tower board fallback failed ({type(exc).__name__}: {str(exc)[:120]})"
             if _tower_rate_limited(exc):
                 # বাংলা: 429-এ কারণ-স্তর সৎ রাখা — কনজ্যুমার লাইনে (PR-audit dark
@@ -2688,7 +2699,7 @@ def _tower_board_rows(timeout_s: float = 20.0) -> tuple[list[dict[str, Any]], st
         t = threading.Thread(target=_probe, daemon=True)
         t.start()
         t.join(timeout=timeout_s)
-    except Exception as exc:  # noqa: BLE001 — fallback must never raise
+    except Exception as exc:
         return [], f"tower board fallback error ({type(exc).__name__})"
     if t.is_alive():
         return [], "tower board fallback timed out"
@@ -2791,7 +2802,7 @@ def _tower_mcp_init_session() -> str:
             return str(cached_sid)
     try:
         sys.path.insert(0, str(REPO_ROOT / "scripts" / "agents"))
-        import mcp_tower_client as _mtc  # noqa: E402  (lazy sibling import)
+        import mcp_tower_client as _mtc
 
         base = _mtc.MCP_SERVER_URL.rstrip("/")
         hdrs = {
@@ -2823,7 +2834,7 @@ def _tower_mcp_init_session() -> str:
             _TOWER_MCP_SESSION["sid"] = new_sid
             _TOWER_MCP_SESSION["born"] = time.monotonic()
         return new_sid
-    except Exception:  # noqa: BLE001 — session-init ব্যর্থতা কোনো প্রোব আটকাবে না
+    except Exception:
         return ""
 
 def _tower_tool_roster_gate(tool_name: str, timeout_s: float = 20.0) -> str | None:
@@ -2852,7 +2863,7 @@ def _tower_tool_roster_gate(tool_name: str, timeout_s: float = 20.0) -> str | No
     note: str | None
     try:
         sys.path.insert(0, str(REPO_ROOT / "scripts" / "agents"))
-        import mcp_tower_client as _mtc  # noqa: E402  (lazy sibling import)
+        import mcp_tower_client as _mtc
 
         base = _mtc.MCP_SERVER_URL.rstrip("/")
 
@@ -2935,7 +2946,7 @@ def _tower_tool_roster_gate(tool_name: str, timeout_s: float = 20.0) -> str | No
                 "with zero tool-call cycles; plane auto-revives if the tool "
                 "returns to the roster"
             ) if not (spellings & names) else None
-    except Exception:  # noqa: BLE001 — যাচাই-ব্যর্থতা কখনো প্রোব আটকাবে না (fail-open)
+    except Exception:
         note = None
     if note is not None:
         _TOWER_ROSTER_GATE_CACHE[tool_name] = note
@@ -2978,7 +2989,7 @@ def _tower_open_prs(limit: int = 30, timeout_s: float = 25.0) -> tuple[list[dict
                 outcome["error"] = gate_note
                 return
             sys.path.insert(0, str(REPO_ROOT / "scripts" / "agents"))
-            import mcp_tower_client as _mtc  # noqa: E402  (lazy sibling import)
+            import mcp_tower_client as _mtc
 
             base = _mtc.MCP_SERVER_URL.rstrip("/")
             headers = {
@@ -3095,14 +3106,14 @@ def _tower_open_prs(limit: int = 30, timeout_s: float = 25.0) -> tuple[list[dict
                 })
             outcome["rows"] = rows
             outcome["note"] = f"tower PR fallback: {len(rows)} open PR(s) visible"
-        except Exception as exc:  # noqa: BLE001 — fallback must never raise
+        except Exception as exc:
             outcome["error"] = f"tower PR fallback failed ({type(exc).__name__})"
 
     try:
         t = threading.Thread(target=_probe, daemon=True)
         t.start()
         t.join(timeout=timeout_s)
-    except Exception as exc:  # noqa: BLE001 — fallback must never raise
+    except Exception as exc:
         return None, f"tower PR fallback error ({type(exc).__name__})"
     if t.is_alive():
         return None, "tower PR fallback timed out"
@@ -3278,7 +3289,7 @@ def _tower_workflow_run_census(
                 outcome["error"] = gate_note
                 return
             sys.path.insert(0, str(REPO_ROOT / "scripts" / "agents"))
-            import mcp_tower_client as _mtc  # noqa: E402  (lazy sibling import)
+            import mcp_tower_client as _mtc
 
             base = _mtc.MCP_SERVER_URL.rstrip("/")
             headers = {
@@ -3386,14 +3397,14 @@ def _tower_workflow_run_census(
                 f"{len(census['by_title'])} completed pull_request run-title(s) "
                 f"mapped (window per_page={used_window})"
             )
-        except Exception as exc:  # noqa: BLE001 — census কখনো অডিট kill করবে না
+        except Exception as exc:
             outcome["error"] = f"tower workflow-runs census failed ({type(exc).__name__})"
 
     try:
         t = threading.Thread(target=_probe, daemon=True)
         t.start()
         t.join(timeout=timeout_s)
-    except Exception as exc:  # noqa: BLE001 — census কখনো অডিট kill করবে না
+    except Exception as exc:
         return None, f"tower workflow-runs census error ({type(exc).__name__})"
     if t.is_alive():
         return None, "tower workflow-runs census timed out"
@@ -3427,7 +3438,7 @@ def _tower_issue_hydrate(number: int | str, timeout_s: float = 75.0) -> dict[str
     def _probe() -> None:
         try:
             sys.path.insert(0, str(REPO_ROOT / "scripts" / "agents"))
-            import mcp_tower_client as _mtc  # noqa: E402  (lazy sibling import)
+            import mcp_tower_client as _mtc
 
             base = _mtc.MCP_SERVER_URL.rstrip("/")
             headers = {
@@ -3515,14 +3526,14 @@ def _tower_issue_hydrate(number: int | str, timeout_s: float = 75.0) -> dict[str
                 "labels": labels,
                 "body": wo.get("body") or "",
             }
-        except Exception as exc:  # noqa: BLE001 — hydration must never raise
+        except Exception as exc:
             outcome["error"] = f"tower issue hydration failed ({type(exc).__name__})"
 
     try:
         t = threading.Thread(target=_probe, daemon=True)
         t.start()
         t.join(timeout=timeout_s)
-    except Exception:  # noqa: BLE001 — hydration must never raise
+    except Exception:
         return None
     if t.is_alive():
         return None
@@ -3660,7 +3671,7 @@ def _print_rule_version_and_checklist() -> None:
         print(f"RULE SURFACE: {CONTRACT_VERSION} — fail-closed invariant checklist:", file=sys.stderr)
         for entry in mandatory_invariant_checklist():
             print(f"  - {entry['id']}: {entry['rule']}", file=sys.stderr)
-    except Exception:  # noqa: BLE001 — advisory surface must never break the gate
+    except Exception:
         pass
 
 def step_2_rules(offline: bool = False, auto_sync: bool = True) -> bool:
@@ -3901,8 +3912,14 @@ def build_autonomy_brain_plan(
         except ImportError:
             from scripts.agents import (
                 autonomy_persistence as ap,
+            )
+            from scripts.agents import (
                 dynamic_router as dr,
+            )
+            from scripts.agents import (
                 instruction_builder as ib,
+            )
+            from scripts.agents import (
                 smart_context_selector as scs,
             )
 

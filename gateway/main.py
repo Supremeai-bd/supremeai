@@ -52,8 +52,6 @@ try:
     )
 except (ImportError, ModuleNotFoundError):  # pragma: no cover - script-mode fallback
     from sanitization import (  # type: ignore
-        SECRET_MASK,
-        redact_secrets_in_text,
         sanitize,
         sanitize_error_message,
     )
@@ -64,9 +62,9 @@ SUPREME_BUILD_TIME = __import__("os").getenv("SUPREME_BUILD_TIME", "unknown")
 SUPREME_VERSION = GATEWAY_VERSION
 
 try:
-    from .sanitization import *  # noqa: F401,F403
+    from .sanitization import *
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
-    from sanitization import *  # type: ignore  # noqa: F401,F403
+    from sanitization import *  # type: ignore
 
 # --- standardized JSON error contract (AC2) --------------------------------
 

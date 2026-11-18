@@ -8,34 +8,19 @@ from __future__ import annotations
 try:
     from gateway.service.admin_auth import *
     from gateway.service.admin_auth import (
-        router,
-        issue_admin_jwt,
-        verify_admin_jwt,
+        DEFAULT_ADMIN_EMAIL,
+        DEFAULT_ADMIN_UID,
+        DEFAULT_TRUSTED_BROWSER_DAYS,
+        PRIMARY_OWNER_EMAIL,
+        TRUSTED_BROWSER_COOKIE,
+        build_provisioning_uri,
         check_totp,
         generate_totp_secret,
-        build_provisioning_uri,
-        DEFAULT_ADMIN_EMAIL,
-        PRIMARY_OWNER_EMAIL,
-        DEFAULT_ADMIN_UID,
+        issue_admin_jwt,
         issue_trusted_browser_token,
+        router,
+        verify_admin_jwt,
         verify_trusted_browser_token,
-        TRUSTED_BROWSER_COOKIE,
-        DEFAULT_TRUSTED_BROWSER_DAYS,
     )
 except ImportError:
     from service.admin_auth import *
-    from service.admin_auth import (
-        router,
-        issue_admin_jwt,
-        verify_admin_jwt,
-        check_totp,
-        generate_totp_secret,
-        build_provisioning_uri,
-        DEFAULT_ADMIN_EMAIL,
-        PRIMARY_OWNER_EMAIL,
-        DEFAULT_ADMIN_UID,
-        issue_trusted_browser_token,
-        verify_trusted_browser_token,
-        TRUSTED_BROWSER_COOKIE,
-        DEFAULT_TRUSTED_BROWSER_DAYS,
-    )

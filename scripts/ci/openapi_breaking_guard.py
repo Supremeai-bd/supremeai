@@ -100,7 +100,7 @@ def run_cmd(
         return 127, "", f"binary not found: {cmd[0] if cmd else '?'}"
     except subprocess.TimeoutExpired:
         return 124, "", f"timed out after {timeout}s: {' '.join(cmd)}"
-    except Exception as exc:  # noqa: BLE001 — guard must never crash on env quirks
+    except Exception as exc:
         return 1, "", f"execution error: {exc}"
 
 
@@ -114,7 +114,7 @@ def _version_tuple(text: str) -> tuple[int, ...] | None:
 
 def _version_at_least(found: tuple[int, ...], minimum: tuple[int, ...]) -> bool:
     width = max(len(found), len(minimum))
-    pad = lambda v: v + (0,) * (width - len(v))  # noqa: E731
+    pad = lambda v: v + (0,) * (width - len(v))
     return pad(found) >= pad(minimum)
 
 
@@ -222,7 +222,7 @@ def read_blob(repo_root: Path, ref: str, path: str) -> tuple[str | None, str]:
         if wt.is_file():
             try:
                 return wt.read_text(encoding="utf-8"), "worktree"
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 return None, f"worktree read failed: {exc}"
     return None, err or f"git show {ref}:{path} failed (exit {code})"
 

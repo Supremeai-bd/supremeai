@@ -9,7 +9,6 @@ from fastapi.testclient import TestClient
 from gateway.service.app import app
 from gateway.service.keygen import generate_key
 
-
 client = TestClient(app)
 
 

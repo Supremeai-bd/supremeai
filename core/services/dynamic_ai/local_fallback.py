@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from enum import Enum
 
 import httpx
-
 from core.monitoring.logging_config import logger
 
 

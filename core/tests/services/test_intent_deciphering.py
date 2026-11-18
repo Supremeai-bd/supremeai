@@ -2,7 +2,6 @@
 from unittest.mock import MagicMock
 
 import pytest
-
 from core.services.intent_deciphering import IntentDecipheringService
 
 

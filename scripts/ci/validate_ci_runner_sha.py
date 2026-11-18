@@ -4,7 +4,11 @@
 Reads PR_HEAD_SHA from env and checks the CI runner's latest deploy commit
 matches it. Exits non-zero on mismatch/timeout/missing result.
 """
-import os, json, sys, time, urllib.request
+import json
+import os
+import sys
+import time
+import urllib.request
 
 PR_HEAD_SHA = os.environ.get("PR_HEAD_SHA", "").strip()
 RENDER_API_KEY = os.environ.get("RENDER_API_KEY", "").strip()

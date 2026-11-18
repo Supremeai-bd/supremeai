@@ -331,7 +331,9 @@ async def epistemic_health() -> dict[str, Any]:
         try:
             from gateway.service.stream_sanitizer import sanitize_stream
         except ImportError:
-            from service.stream_sanitizer import sanitize_stream  # type: ignore[no-redef]
+            from service.stream_sanitizer import (
+                sanitize_stream,  # type: ignore[no-redef]
+            )
         res = sanitize_stream("Certainly! Here is the answer.")
         results["spine_stream_sanitizer"] = {
             "status": "healthy" if not res.text.lower().startswith("certainly") else "degraded",

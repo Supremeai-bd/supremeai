@@ -1,4 +1,3 @@
-import os
 
 def replace_in_file(filepath, old_text, new_text):
     with open(filepath, 'r', encoding='utf-8') as f:

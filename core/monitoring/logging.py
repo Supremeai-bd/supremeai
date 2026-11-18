@@ -5,7 +5,7 @@
 
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 
 def get_logger(name: str) -> Any:

@@ -24,10 +24,8 @@ Environment:
 
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "backend"))
-from core.config import settings
-
-
 import argparse
 import asyncio
 import json
@@ -39,6 +37,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from core.config import settings
 from loguru import logger
 from typing_extensions import Self
 

@@ -11,7 +11,6 @@ import time
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("supremeai.memory_store")
 
@@ -445,20 +444,19 @@ class CanonicalMemoryStore:
 
     def update_conversation_summary(self, conversation_id, summary, user_id=None):
         now = time.time()
-        with _LOCK:
-            with self._conn() as conn:
-                if conn is not None:
-                    q = "UPDATE conversations SET summary = ?, updated_at = ? WHERE id = ?"
-                    params = [summary, now, conversation_id]
-                    if user_id:
-                        q += " AND user_id = ?"
-                        params.append(user_id)
-                    conn.execute(q, params)
-                else:
-                    conv = _MEM["conversations"].get(conversation_id)
-                    if conv:
-                        conv["summary"] = summary
-                        conv["updated_at"] = now
+        with _LOCK, self._conn() as conn:
+            if conn is not None:
+                q = "UPDATE conversations SET summary = ?, updated_at = ? WHERE id = ?"
+                params = [summary, now, conversation_id]
+                if user_id:
+                    q += " AND user_id = ?"
+                    params.append(user_id)
+                conn.execute(q, params)
+            else:
+                conv = _MEM["conversations"].get(conversation_id)
+                if conv:
+                    conv["summary"] = summary
+                    conv["updated_at"] = now
 
 
 _DEFAULT_STORE = CanonicalMemoryStore()
@@ -494,11 +492,11 @@ memory_store = _DEFAULT_STORE
 __all__ = [
     "CanonicalMemoryStore",
     "MemoryStore",
-    "memory_store",
+    "append_canonical_message",
     "get_recent_history",
     "get_user_durable_memories",
-    "append_canonical_message",
     "log_provider_attempt",
-    "upsert_user_memory",
+    "memory_store",
     "update_conversation_summary",
+    "upsert_user_memory",
 ]

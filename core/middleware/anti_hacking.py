@@ -13,13 +13,12 @@ import json
 import os
 import secrets
 
-from fastapi import Request
-from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-
 from core.cache.redis_manager import redis_manager
 from core.config import settings
 from core.otp_router import send_otp
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 _CONTEXT_KEY_PREFIX = "security:last_context:"
 _CONTEXT_TTL = int(os.getenv("SECURITY_CONTEXT_TTL") or "86400")
@@ -84,7 +83,7 @@ class AntiHackingContextMiddleware(BaseHTTPMiddleware):
                             mismatch = False
 
                 if caution:
-                    from core.logging_config import logger as _logger
+                    from core.monitoring.logging_config import logger as _logger
 
                     _logger.info(
                         f"CAUTION: partial context match for admin {admin_id} (same_ua/subnet, no OTP fired): {signal} vs last {last}"
@@ -108,7 +107,7 @@ class AntiHackingContextMiddleware(BaseHTTPMiddleware):
                         cooldown_active = not bool(acquired)
 
                     if cooldown_active:
-                        from core.logging_config import logger as _logger2
+                        from core.monitoring.logging_config import logger as _logger2
 
                         _logger2.info(
                             f"OTP cooldown active for admin {admin_id} - suppressing duplicate send/notification."
@@ -149,7 +148,7 @@ class AntiHackingContextMiddleware(BaseHTTPMiddleware):
                             },
                         )
                     # alert-only: log and continue
-                    from core.logging_config import logger
+                    from core.monitoring.logging_config import logger
 
                     logger.warning(
                         f"🔓 [ALERT-ONLY] Context mismatch for admin {admin_id}: {signal} vs last {last}"

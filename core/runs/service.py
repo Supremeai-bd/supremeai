@@ -30,7 +30,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from runs.budgets import BudgetDimension, BudgetSnapshot, check_budgets
 from runs.models import Run, RunEvent, RunType
 from runs.retry import RetryClass, is_retryable

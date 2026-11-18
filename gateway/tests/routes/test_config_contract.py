@@ -21,7 +21,10 @@ class TestCorsContract(unittest.TestCase):
     # still enforced by the resolver tests below.
     def test_resolved_allowlist_properties(self):
         """Resolver-সমাহিত allow-list (server.py-র নির্মাণপদ্ধতি) চুক্তি মেনে চলে।"""
-        from middleware.cors_policy import resolve_admin_cors_origins, resolve_user_cors_origins
+        from middleware.cors_policy import (
+            resolve_admin_cors_origins,
+            resolve_user_cors_origins,
+        )
 
         dev = ["http://localhost:3000", "http://localhost:5173", "tauri://localhost"]
         prod = ["https://app.example.com"]

@@ -44,7 +44,7 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "agents"))
-from mcp_tower_client import (  # noqa: E402  (SSOT import, never copy constants)
+from mcp_tower_client import (
     MCP_STREAMABLE_PATH,
     PROTOCOL_VERSION_STREAMABLE,
     resolve_mcp_server_url,
@@ -79,7 +79,7 @@ def _post(url: str, payload: dict, session: str | None, timeout: int) -> tuple[d
         headers["Mcp-Session-Id"] = session
     try:
         r = requests.post(url, json=payload, headers=headers, timeout=timeout)
-    except Exception as exc:  # noqa: BLE001 — operator tool, report every failure mode
+    except Exception as exc:
         return None, session or "", f"transport: {exc}"
     sid = r.headers.get("mcp-session-id", session or "")
     text = r.text.strip()
@@ -324,7 +324,7 @@ def _self_test() -> int:
         print(("PASS" if cond else "FAIL"), label)
         ok = ok and cond
 
-    mk = lambda txt: {"result": {"content": [{"type": "text", "text": txt}]}}  # noqa: E731
+    mk = lambda txt: {"result": {"content": [{"type": "text", "text": txt}]}}
 
     v, _ = check_identity_role(mk(json.dumps({"role": "admin", "isGlobalAdmin": True})))
     expect(v == Verdict.EXPOSED, "identity: role=admin exposed")

@@ -22,7 +22,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # বাংলা মন্তব্য: স্কোরিং-ওয়েট — এক জায়গায় টিউনযোগ্য; deterministic (no LLM)।
 _W_SUCCESS = 50.0

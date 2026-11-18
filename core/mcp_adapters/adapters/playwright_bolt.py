@@ -21,7 +21,7 @@ import time
 from typing import Any
 
 from core.browser_session_vault import BrowserSessionVault
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 try:
     from . import PLAYWRIGHT_AVAILABLE
 except ImportError:

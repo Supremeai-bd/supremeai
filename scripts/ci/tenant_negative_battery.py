@@ -45,7 +45,7 @@ def call(method: str, path: str, token: str, timeout: int = 30):
             return resp.status, resp.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as err:
         return err.code, err.read().decode("utf-8", errors="replace")
-    except Exception as err:  # noqa: BLE001
+    except Exception as err:
         return 0, str(err)
 
 

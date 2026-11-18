@@ -12,7 +12,6 @@ This module tests:
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from core.otp_router import (
     CHANNEL_DISCORD,
     CHANNEL_EMAIL,

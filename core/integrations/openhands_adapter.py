@@ -20,8 +20,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from core.logging_config import logger
 from core.integrations._flags import flag
+from core.monitoring.logging_config import logger
 
 _ENABLED_FLAG = "SUPREMEAI_OPENHANDS_ENABLED"
 

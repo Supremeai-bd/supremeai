@@ -6,19 +6,17 @@ import argparse
 import json
 import os
 import subprocess
-import sys
 from pathlib import Path
-from typing import Optional
 
-from .models import AuditReport, Severity
-from .reporters import ConsoleReporter, GithubStepSummaryReporter
+from .models import AuditReport
+from .reporters import GithubStepSummaryReporter
 from .rules.arch001_no_local_machine import NoLocalMachineRule
+from .rules.cfg001_no_policy_hardcoding import NoPolicyHardcodingRule
 from .rules.rel001_no_silent_failure import NoSilentFailureRule
+from .rules.rel002_error_observability import ErrorObservabilityRule
 from .rules.sec001_backend_auth import BackendAuthFinalRule
 from .rules.sec002_no_secret_hardcoding import NoSecretHardcodingRule
-from .rules.cfg001_no_policy_hardcoding import NoPolicyHardcodingRule
 from .rules.sec003_unsafe_privilege import UnsafePrivilegeElevationRule
-from .rules.rel002_error_observability import ErrorObservabilityRule
 
 
 class ConstitutionAuditEngine:
@@ -83,7 +81,7 @@ class ConstitutionAuditEngine:
 
     def run_audit(
         self,
-        files: Optional[list[Path]] = None,
+        files: list[Path] | None = None,
         pr_diff: bool = False,
         base_ref: str = "origin/main",
     ) -> AuditReport:
@@ -107,8 +105,7 @@ class ConstitutionAuditEngine:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_path, "w") as f:
-            for finding in report.findings:
-                f.write(json.dumps(finding.to_dict()) + "\n")
+            f.writelines(json.dumps(finding.to_dict()) + "\n" for finding in report.findings)
 
     def print_summary(self, report: AuditReport) -> None:
         """Print summary to console and GitHub step summary."""

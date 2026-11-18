@@ -5,7 +5,7 @@ import hashlib
 import os
 from abc import ABC, abstractmethod
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 try:
     from cryptography.fernet import Fernet, InvalidToken
@@ -311,8 +311,8 @@ from cryptography.fernet import Fernet as _Fernet
 
 from core.config import settings as _settings
 from core.errors.error_bus import with_error_bus
-from core.logging_config import logger
 from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus
+from core.monitoring.logging_config import logger
 
 # Fail-fast policy:
 # STRICT_ENCRYPTION_CHECK=true হলে encryption key শুধুই raw environment থেকে নেয়া হবে।

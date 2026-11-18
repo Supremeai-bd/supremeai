@@ -30,10 +30,11 @@ GCP চেক: নিচে commented-out রাখা হয়েছে।
 """
 import json
 import os
-from core.utils.api_key_resolver import resolve_numbered_key
 import sys
 import urllib.error
 import urllib.request
+
+from core.utils.api_key_resolver import resolve_numbered_key
 
 # ──────────────────────────────────────────────────────────────
 # Production main repo — শুধু এই repo-তে Render/Vercel blocking থাকে।

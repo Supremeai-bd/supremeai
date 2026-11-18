@@ -28,13 +28,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from scripts.advanced_analysis.circular_import_mapper import (  # noqa: E402
+from scripts.advanced_analysis.circular_import_mapper import (
     _build_import_graph,
     _discover_py_files,
     _file_to_module,
     _tarjan_scc,
 )
-from scripts.ci.circle_architecture_gate import violations as boundary_violations  # noqa: E402
+from scripts.ci.circle_architecture_gate import (
+    violations as boundary_violations,
+)
 
 BASELINE_PATH = ROOT / "scripts" / "architecture_baseline.json"
 OUTPUT_PATH = ROOT / "docs" / "generated" / "backend_import_graph.json"

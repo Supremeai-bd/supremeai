@@ -29,7 +29,7 @@ ENV_PATTERNS = (
     re.compile(r"process\.env\.([A-Z][A-Z0-9_]*)"),
     re.compile(r"import\.meta\.env\.([A-Z][A-Z0-9_]*)"),
 )
-SECRETISH = re.compile(r"(KEY|SECRET|TOKEN|PASSWORD|PRIVATE|CREDENTIAL|AUTH)", re.I)
+SECRETISH = re.compile(r"(KEY|SECRET|TOKEN|PASSWORD|PRIVATE|CREDENTIAL|AUTH)", re.IGNORECASE)
 SKIP_DIRS = {
     ".git",
     "node_modules",

@@ -2,10 +2,9 @@
 """Tests for Canonical Task Runtime and Execution Lifecycle."""
 
 import pytest
-
-from core.task_contract import RiskLevel, TaskBudget, TaskContract, TaskStatus, VerificationPolicy
 from core.runtime.task_context import TaskContext
 from core.runtime.task_runtime import get_task_runtime
+from core.task_contract import RiskLevel, TaskBudget, TaskContract, TaskStatus, VerificationPolicy
 
 
 @pytest.mark.asyncio

@@ -50,7 +50,7 @@ import continuous_agent_loop as cal
 
 
 def _sentry(number: int, provider: bool = False, labels: list[str] | None = None) -> dict:
-    stamp = f"2026-10-28 18:43Z" if provider else f"{8 + number % 10:02d}:45Z"
+    stamp = "2026-10-28 18:43Z" if provider else f"{8 + number % 10:02d}:45Z"
     kind = "provider sentry pass" if provider else "sentry pass"
     return {
         "number": number,

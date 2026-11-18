@@ -10,7 +10,7 @@ Firestore ক্লায়েন্ট ইনিশিয়ালাইজে
 import os
 from typing import Any
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 from .environment import (
     is_test_environment,  # Fixed import path - using relative import

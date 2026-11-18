@@ -2,7 +2,6 @@
 from unittest.mock import MagicMock
 
 import pytest
-
 from core.services.dynamic_planner import TaskDAG, TaskNode
 from core.services.intent_deciphering import IntentAnalysis
 from core.services.self_correction import SelfCorrectionService

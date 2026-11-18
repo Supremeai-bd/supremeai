@@ -397,7 +397,7 @@ def main() -> int:
         print(f"🔎 {svc['name']} ({svc['role']}) — service_id={service_id[:16]}...")
         deploys = list_recent_deploys(api_key, service_id, limit=10)
         if not deploys:
-            print(f"   no deploys returned (or API error)")
+            print("   no deploys returned (or API error)")
             continue
 
         # Filter: failed deploys within window
@@ -474,7 +474,7 @@ def main() -> int:
                     issues_opened += 1
                     print(f"      📝 opened issue #{issue_num}")
                 else:
-                    print(f"      ⚠️ issue creation failed")
+                    print("      ⚠️ issue creation failed")
 
     print()
     print(f"📊 Summary: {total_failures} failures found | "

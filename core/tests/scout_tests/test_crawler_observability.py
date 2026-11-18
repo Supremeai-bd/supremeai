@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import pytest
+from core.api.routes.crawler_admin import router
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from core.api.routes.crawler_admin import router
 from scout.models import CrawlEventType
 from scout.telemetry import CrawlerTelemetry
 

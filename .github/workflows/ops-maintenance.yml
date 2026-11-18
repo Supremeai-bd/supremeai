@@ -1636,6 +1636,22 @@ jobs:
           print("learning retention prune completed; response received")
           PY
 
+      - name: Post-prune PostgreSQL planner statistics refresh (ANALYZE)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+          PROJECT_REF=$(echo "$SUPABASE_URL" | sed -E 's#https://([a-zA-Z0-9-]+)\.supabase\.co.*#\1#')
+          http_code=$(curl --silent --show-error --fail-with-body -X POST \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"ANALYZE;"}' --connect-timeout 10 --max-time 120 \
+            -o /dev/null -w '%{http_code}')
+          [[ "$http_code" == "200" || "$http_code" == "201" ]] || { echo "ANALYZE returned HTTP $http_code" >&2; exit 1; }
+          echo "PostgreSQL ANALYZE planner refresh completed (HTTP $http_code)"
+
   e2e-customer:
     needs: [resolve-execution-tier]
     if: github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0' # #67 Tier 2: weekly Sun off-peak (was daily)
@@ -2291,6 +2307,19 @@ jobs:
           set -euo pipefail
           python scripts/ci/purge_stale_workflow_runs.py --min-age-days 2 --max-deletions 100
 
+      - name: Nightly Git Optimization, Cache Eviction & Blob/Dependency Hygiene
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p ci-reports
+          python scripts/ci/nightly_repo_hygiene.py --self-test
+          python scripts/ci/nightly_repo_hygiene.py --all \
+            --json ci-reports/nightly-hygiene.json \
+            --markdown ci-reports/nightly-hygiene.md
+          cat ci-reports/nightly-hygiene.md >> "$GITHUB_STEP_SUMMARY"
+
 
   # ---------------------------------------------------------------------------
   # Watchdog & Cron Health (from schedule-watchdog.yml)
@@ -2538,6 +2567,7 @@ jobs:
           Write-Host "Executing 24h+ opportunistic audit locally on $env:COMPUTERNAME..."
           if (Test-Path .venv\Scripts\pytest.exe) { .\.venv\Scripts\pytest.exe -q tests/unit/test_telemetry_event_bus_guard.py } else { pytest -q tests/unit/test_telemetry_event_bus_guard.py }
           python scripts/ops/wiring_atlas.py --check
+          python scripts/ci/nightly_repo_hygiene.py --clean-caches --git-optimize --audit-blobs --verify-client-contracts
           python scripts/ci/check_opportunistic_audit.py --record
       - name: Publish Audit Attestation
         shell: powershell

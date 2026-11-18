@@ -7,7 +7,7 @@ from core import service_container as services
 
 service_container = services
 from core.agent_supervisor import agent_supervisor
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 
 def _build_orchestrator_tick_loop(orchestrator):

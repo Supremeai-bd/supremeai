@@ -2,15 +2,16 @@
 
 import tempfile
 from pathlib import Path
+
 import pytest
 
 from scripts.agents.a2a_messaging_bus import A2ABus
-from scripts.agents.credential_manager import (
-    build_scoped_env,
-    CredentialError,
-    FORBIDDEN_ENV_KEYS,
-)
 from scripts.agents.automation_watchdog import evaluate
+from scripts.agents.credential_manager import (
+    FORBIDDEN_ENV_KEYS,
+    CredentialError,
+    build_scoped_env,
+)
 
 
 def test_a2a_bus_send_and_receive():

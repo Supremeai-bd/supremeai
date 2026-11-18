@@ -38,20 +38,25 @@ import os
 import time
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
-
 from api.dependencies import (
     get_current_admin,  # noqa: F401  (module-attr parity with pre-split module)
 )
 from api.routes.admin_auth import admin_rate_limit, require_admin_token
-from core.config import settings  # noqa: F401  (module-attr parity with pre-split module)
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from models.ci_report import (  # noqa: F401  (module-attr parity)
+    CIReportPayload,
+    create_ci_report,
+)
+from tools.billing.cost_auditor import CostAuditor
+from tools.knowledge.codebase_exporter import export_codebase_to_markdown
+
+from core.config import (
+    settings,  # noqa: F401  (module-attr parity with pre-split module)
+)
 from core.errors.error_bus import with_error_bus
 from core.monitoring.logging_config import logger
 from core.utils.time_utils import utc_now
-from models.ci_report import CIReportPayload, create_ci_report  # noqa: F401  (module-attr parity)
-from tools.billing.cost_auditor import CostAuditor
-from tools.knowledge.codebase_exporter import export_codebase_to_markdown
 
 from ._models import ConfigUpdate, UserUpdate  # noqa: F401  (re-export)
 
@@ -343,18 +348,22 @@ def get_costs_breakdown():
         }
 
 
-from .endpoints_deploy import trigger_deploy  # noqa: E402  (registers route + re-export)
-from .endpoints_health import get_health_map  # noqa: E402  (registers route + re-export)
-from .endpoints_metrics import (  # noqa: E402  (registers routes + re-export)
+from .endpoints_deploy import (
+    trigger_deploy,
+)
+from .endpoints_health import (
+    get_health_map,
+)
+from .endpoints_metrics import (
     get_metrics,
     get_providers,
 )
-from .endpoints_router_cfg import (  # noqa: E402  (registers routes + re-export)
+from .endpoints_router_cfg import (
     RouterOverrideRequest,
     get_model_router,
     set_router_override,
 )
-from .endpoints_users import (  # noqa: E402  (registers routes + re-export)
+from .endpoints_users import (
     create_user,
     delete_user,
     get_users,
@@ -406,19 +415,19 @@ def update_cost_caps(payload: dict[str, Any]):
     return {"status": "success", "caps": caps}
 
 
-from .endpoints_backups import (  # noqa: E402  (registers routes + re-export)
+from .endpoints_backups import (
     create_backup,
     emergency_deploy,
     get_backups,
     restore_backup,
     trigger_backup,
 )
-from .endpoints_flags import (  # noqa: E402  (registers routes + re-export)
+from .endpoints_flags import (
     create_feature_flag,
     get_feature_flags,
     update_feature_flag,
 )
-from .endpoints_impersonate import (  # noqa: E402  (registers routes + re-export)
+from .endpoints_impersonate import (
     ImpersonateRequest,
     impersonate_by_payload,
     impersonate_user,
@@ -442,16 +451,16 @@ def get_full_data_export():
         raise HTTPException(status_code=500, detail=f"Export failed: {e!s}") from e
 
 
-from .endpoints_approvals_mcp import (  # noqa: E402  (registers routes + re-export)
+from .endpoints_approvals_mcp import (
     ApprovalActionPayload,
     get_commandcenter_approvals_mcp,
     resolve_commandcenter_approval_mcp,
 )
-from .endpoints_ci import (  # noqa: E402  (registers routes + re-export)
+from .endpoints_ci import (
     get_ci_logs,
     receive_ci_report,
 )
-from .endpoints_command import (  # noqa: E402  (registers routes + re-export)
+from .endpoints_command import (
     AlertAcknowledgePayload,
     ApprovalDecisionPayload,
     DeployGateToggle,
@@ -471,14 +480,14 @@ from .endpoints_command import (  # noqa: E402  (registers routes + re-export)
     toggle_deploy_gate,
     update_commandcenter_rules,
 )
-from .endpoints_config import (  # noqa: E402  (registers routes + re-export)
+from .endpoints_config import (
     _acquire_env_lock,
     _release_env_lock,
     get_config,
     get_env_etag,
     update_config,
 )
-from .endpoints_crud import (  # noqa: E402  (registers routes + re-export)
+from .endpoints_crud import (
     CUSTOMERS_FILE,
     SESSIONS_FILE,
     SETTINGS_FILE,
@@ -496,20 +505,23 @@ from .endpoints_crud import (  # noqa: E402  (registers routes + re-export)
     update_settings,
     update_workspace,
 )
-from .endpoints_events import get_events, list_reports  # noqa: E402  (registers routes + re-export)
-from .endpoints_gate import (  # noqa: E402  (registers route + re-export)
+from .endpoints_events import (
+    get_events,
+    list_reports,
+)
+from .endpoints_gate import (
     GateOverridePayload,
     execute_manual_gate_override,
 )
-from .endpoints_secrets_health import (  # noqa: E402  (registers routes + re-export)
+from .endpoints_secrets_health import (
     get_secrets_health,
 )
-from .endpoints_security import (  # noqa: E402  (registers routes + re-export)
+from .endpoints_security import (
     get_security_findings,
     run_security_scan,
 )
-from .endpoints_security_memory import (  # noqa: E402  (registers routes + re-export)
+from .endpoints_security_memory import (
     get_security_memory,
     get_security_tasks,
 )
-from .endpoints_ws import admin_websocket  # noqa: E402  (registers route + re-export)
+from .endpoints_ws import admin_websocket

@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from core.utils.api_key_resolver import resolve_numbered_key, resolve_key_with_aliases
+from core.utils.api_key_resolver import resolve_key_with_aliases, resolve_numbered_key
 
 
 def test_resolve_numbered_key_base():

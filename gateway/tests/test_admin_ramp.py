@@ -36,12 +36,11 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import api.routes.admin as ar
 import pytest
+from api.dependencies import get_current_admin
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-import api.routes.admin as ar
-from api.dependencies import get_current_admin
 
 ADMIN = {"sub": "admin-ramp", "role": "admin"}
 
@@ -275,7 +274,7 @@ class TestQuickActions:
         def _empty_scan_iter(*args, **kwargs):
             async def _gen():
                 return
-                yield  # noqa: B901 — async generator টাইপ নিশ্চিত করতে অপ্রাপ্য শাখা
+                yield
 
             return _gen()
 

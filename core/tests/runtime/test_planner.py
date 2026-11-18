@@ -2,9 +2,8 @@
 """Tests for Canonical Planner decomposition."""
 
 import pytest
-
-from core.task_contract import RiskLevel, TaskContract, VerificationPolicy
 from core.runtime.planner import StepStatus, get_planner
+from core.task_contract import RiskLevel, TaskContract, VerificationPolicy
 
 
 @pytest.mark.asyncio

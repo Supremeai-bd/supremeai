@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
-from render_client import RenderApiError, RenderClient  # noqa: E402
+from render_client import RenderApiError, RenderClient
 
 
 def get_json(url: str, key: str | None = None) -> Any:

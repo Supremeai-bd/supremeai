@@ -9,7 +9,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from gateway.model_horizon import ModelHorizonRegistry, intercept_drift, reset_registry
+from gateway.model_horizon import intercept_drift, reset_registry
 
 
 def test_retired_model_flagged():

@@ -10,12 +10,12 @@ import asyncio
 from enum import StrEnum
 from typing import Any
 
-from core.monitoring.logging_config import logger
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator
 
 from api.deps import get_current_user_token
+from core.monitoring.logging_config import logger
 from database.supabase_client import get_db
 
 router = APIRouter(

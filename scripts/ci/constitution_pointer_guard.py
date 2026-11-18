@@ -181,7 +181,7 @@ def _compile_patterns() -> list[tuple[str, re.Pattern[str], str]]:
 
 def tracked_files(repo_root: Path) -> list[str]:
     """git ls-files — the tracked universe the guard scans (fail-closed)."""
-    proc = subprocess.run(  # noqa: S603
+    proc = subprocess.run(
         ["git", "ls-files", "-z"],
         cwd=str(repo_root),
         capture_output=True,

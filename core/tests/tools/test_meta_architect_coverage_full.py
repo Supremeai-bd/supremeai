@@ -5,7 +5,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from core.tools.meta_architect import MetaArchitect
 
 

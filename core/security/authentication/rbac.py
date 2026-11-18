@@ -296,6 +296,7 @@ def get_current_user_token(request: Any = None) -> dict[str, Any]:
         # production প্রসেসে ভুল করে pytest লোড হলেই পুরো admin API খুলে যেত।
         # এখন canonical dependency-র মতোই explicit bypass opt-in লাগবে।
         from core.config import settings
+
         from utils.environment import is_test_environment
 
         if is_test_environment() and settings.is_bypass_allowed:

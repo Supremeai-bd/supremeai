@@ -2,7 +2,6 @@
 """Tests for SelfBenchmarkEngine and AdaptiveOptimizer."""
 
 import pytest
-
 from core.adaptive_optimizer import get_optimizer
 from core.integration_layer import get_integrator
 from core.self_benchmark import BenchmarkCategory, SelfBenchmarkEngine

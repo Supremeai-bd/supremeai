@@ -6,17 +6,14 @@ return a service credential, or substitute an empty result for a failed query.
 from __future__ import annotations
 
 import os
-import re
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Literal
 from urllib.parse import urlsplit
 
 import httpx
 from fastapi import HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
-
-from .keygen import verify_key
 
 
 def account_id(request: Request) -> str:
@@ -27,7 +24,9 @@ def account_id(request: Request) -> str:
         from .auth_identity import resolve_user_id
     except ImportError:
         try:
-            from gateway.service.auth_identity import resolve_user_id  # type: ignore[no-redef]
+            from gateway.service.auth_identity import (
+                resolve_user_id,  # type: ignore[no-redef]
+            )
         except ImportError:
             from service.auth_identity import resolve_user_id  # type: ignore[no-redef]
     return resolve_user_id(request, require_registered=True)

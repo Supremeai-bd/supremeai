@@ -19,11 +19,15 @@ All tests are offline and deterministic.
 from __future__ import annotations
 
 import pytest
+from api.routes.ci_dashboard_api import (
+    CISummaryModel,
+    WebhookPayload,
+    receive_ci_webhook,
+)
+from api.routes.webhooks_ai import router as webhooks_ai_router
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from api.routes.ci_dashboard_api import CISummaryModel, WebhookPayload, receive_ci_webhook
-from api.routes.webhooks_ai import router as webhooks_ai_router
 from core.config import settings
 
 SECRET = "wave1-offline-secret-0123456789abcdef"

@@ -5,7 +5,7 @@ import time
 
 from core.cache.redis_manager import redis_manager
 from core.config import settings
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # Issue #437 (log-storm dampener): under provider quota exhaustion every request
 # used to log a fallback warning (42–51% of all boot log lines during the

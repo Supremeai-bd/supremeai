@@ -62,7 +62,7 @@ import urllib.error
 import urllib.request
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -1071,7 +1071,7 @@ class EnhancedCISummaryGenerator:
             commit_sha="",
             commit_message="",
             triggered_by="",
-            generated_at=datetime.now(timezone.utc)
+            generated_at=datetime.now(UTC)
         )
 
     def generate(self) -> EnhancedCISummary:
@@ -1196,7 +1196,7 @@ class EnhancedCISummaryGenerator:
         duration = 0
         if job_data.get('started_at'):
             start = datetime.fromisoformat(job_data['started_at'].replace('Z', '+00:00'))
-            end = datetime.now(timezone.utc)
+            end = datetime.now(UTC)
             if job_data.get('completed_at'):
                 end = datetime.fromisoformat(job_data['completed_at'].replace('Z', '+00:00'))
             duration = (end - start).total_seconds()

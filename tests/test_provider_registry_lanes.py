@@ -23,7 +23,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from gateway.services.dynamic_ai.provider_registry import (  # noqa: E402
+from gateway.services.dynamic_ai.provider_registry import (
     ProviderRegistry,
     ProviderStatus,
 )
@@ -86,7 +86,6 @@ def test_cerebras_is_the_only_new_free_tier_lane():
 
 
 def test_fail_closed_availability_without_env_keys(monkeypatch):
-    import os
 
     for var in EXPECTED_ENV_VARS.values():
         monkeypatch.delenv(var, raising=False)

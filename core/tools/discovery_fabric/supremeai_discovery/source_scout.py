@@ -6,6 +6,7 @@ import re
 import time
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus
@@ -138,7 +139,7 @@ def _freshness(updated_at: str | None) -> float:
     try:
         from datetime import datetime, timezone
         ts = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
-        days = max(0, (datetime.now(timezone.utc) - ts).days)
+        days = max(0, (datetime.now(UTC) - ts).days)
         return max(0.05, 1.0 - min(days, 3650) / 3650)
     except Exception:
         return 0.35

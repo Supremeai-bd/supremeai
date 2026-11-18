@@ -208,7 +208,7 @@ def verify_contents() -> int:
         return 1
     present = [k for k in REQUIRED_KEYS if env.get(k)]
     missing = [k for k in REQUIRED_KEYS if not env.get(k)]
-    print(f"vault.env verification:")
+    print("vault.env verification:")
     print(f"  Required keys present: {len(present)}/{len(REQUIRED_KEYS)}")
     if present:
         print(f"  ✅ Present: {sorted(present)}")

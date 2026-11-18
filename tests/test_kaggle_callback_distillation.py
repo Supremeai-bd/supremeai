@@ -2,7 +2,6 @@ import asyncio
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent
@@ -75,6 +74,7 @@ class TestKaggleCallbackDistillation(unittest.TestCase):
 
     def test_trigger_hourly_learning_cron_response(self):
         from fastapi import BackgroundTasks
+
         from gateway.routes.kaggle import trigger_hourly_learning_cron
 
         bg = BackgroundTasks()

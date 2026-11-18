@@ -33,7 +33,7 @@ if importlib.util.find_spec("fastapi") is None:
     print("SKIP: fastapi not installed; reply-path guards not verifiable here")
     sys.exit(0)
 
-from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.testclient import TestClient
 
 # repo-root on sys.path for plain-script mode (pytest run from root already has it)
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -52,7 +52,9 @@ except ImportError:  # open-repo mirror layout
     try:
         import gateway.service.app as app_module  # type: ignore[no-redef]
         try:
-            from gateway.service.providers import web_session as ws_module  # type: ignore[no-redef]
+            from gateway.service.providers import (
+                web_session as ws_module,  # type: ignore[no-redef]
+            )
         except ImportError:
             ws_module = None  # open mirror does not carry web_session.py
     except ImportError:

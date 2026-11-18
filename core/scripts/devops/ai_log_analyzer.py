@@ -2,8 +2,7 @@ import logging
 import os
 
 import httpx
-
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # Configure standard logging
 logging.basicConfig(level=logging.INFO)

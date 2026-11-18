@@ -22,13 +22,14 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
+from core.monitoring.logging_config import logger
+
 from browser.browser_session import (
     IDLE_TIMEOUT_SECONDS,
     SESSION_TTL_SECONDS,
     BrowserSession,
     SessionStatus,
 )
-from core.logging_config import logger
 
 __all__ = [
     "BrowserSessionManager",

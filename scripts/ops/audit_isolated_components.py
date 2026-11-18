@@ -1,7 +1,8 @@
-import os
-import sys
-import re
 import json
+import os
+import re
+import sys
+
 
 def audit_routes():
     routes_dir = os.path.join('backend', 'api', 'routes')

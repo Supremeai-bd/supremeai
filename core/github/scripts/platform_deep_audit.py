@@ -37,7 +37,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 # ── ধ্রুবক ────────────────────────────────────────────────────────────────────
 INFISICAL_HOST = os.environ.get("INFISICAL_HOST", "https://app.infisical.com")
@@ -259,7 +259,7 @@ def vault_secrets() -> dict:
 def age_hours(iso_ts: str) -> float | None:
     try:
         dt = datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
-        return (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
+        return (datetime.now(UTC) - dt).total_seconds() / 3600.0
     except Exception:
         return None
 
@@ -314,7 +314,7 @@ def probe_render(kv: dict) -> list[dict]:
         # বাংলা মন্তব্য: সেটিংস-ঝুঁকি যাচাই (#2454 শিক্ষা) — free plan + health-path অনুপস্থিত
         if plan == "free":
             out.append(mk("render", f"settings[{name}].plan", None,
-                          f"plan=free — ১৫m idle spin-down + 512MB RAM ঝুঁকি",
+                          "plan=free — ১৫m idle spin-down + 512MB RAM ঝুঁকি",
                           category="SETTINGS_RISK"))
         if not hcp:
             out.append(mk("render", f"settings[{name}].healthCheckPath", None,
@@ -392,7 +392,7 @@ def probe_vercel(kv: dict) -> list[dict]:
     # বাংলা মন্তব্য: staleness পরীক্ষা (#2455 শিক্ষা) — শেষ production deploy বয়স
     prod = [d for d in ds if d.get("target") == "production"]
     if prod:
-        age = age_hours(datetime.fromtimestamp(prod[0].get("created", 0) / 1000, tz=timezone.utc).isoformat())
+        age = age_hours(datetime.fromtimestamp(prod[0].get("created", 0) / 1000, tz=UTC).isoformat())
         if age is not None:
             if age > 168:  # ৭ দিন
                 out.append(mk("vercel", "prod-deploy-freshness", False,
@@ -502,7 +502,7 @@ def probe_ai_hosts(kv: dict) -> list[dict]:
     gemini = kv.get("GEMINI_API_KEY", "")
     google = kv.get("GOOGLE_API_KEY", "")
     if google and "GOOGLE_API_KEY" not in DECOMMISSIONED_AI_HOSTS:
-        st, body = http("GET", f"https://generativelanguage.googleapis.com/v1beta/models",
+        st, body = http("GET", "https://generativelanguage.googleapis.com/v1beta/models",
                         {"x-goog-api-key": google, "Referer": GOOGLE_PROBE_REFERER})
         if st == 200:
             out.append(mk("google", "models", True, "HTTP 200"))
@@ -510,7 +510,7 @@ def probe_ai_hosts(kv: dict) -> list[dict]:
             cat, note = classify("google", "models", st, body)
             out.append(mk("google", "models", False, f"HTTP {st}: {body[:140]}", category=cat, note=note))
     if gemini and "GEMINI_API_KEY" not in DECOMMISSIONED_AI_HOSTS:
-        st, body = http("GET", f"https://generativelanguage.googleapis.com/v1beta/models",
+        st, body = http("GET", "https://generativelanguage.googleapis.com/v1beta/models",
                         {"x-goog-api-key": gemini, "Referer": GOOGLE_PROBE_REFERER})
         if st == 200:
             out.append(mk("gemini", "models", True, "HTTP 200"))
@@ -697,7 +697,7 @@ def run_audit(kv: dict, max_workers: int = 8) -> list[dict]:
 
 
 def render_report(findings: list[dict]) -> str:
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     passed = [f for f in findings if f["ok"] is True]
     failed = sorted([f for f in findings if f["ok"] is False], key=lambda x: SEVERITY_ORDER.get(x["severity"], 9))
     warned = [f for f in findings if f["ok"] is None]
@@ -774,7 +774,7 @@ def close_recovered_findings(current: list[dict], run_url: str) -> list[int]:
     passed_fps = [f["fp"] for f in current if f.get("ok") is True]
     if not passed_fps:
         return closed
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     for fp in passed_fps:
         hits = gh_search_issues(f'repo:{REPO} state:open type:issue "{FP_MARK}{fp}"')
         for it in hits:
@@ -807,7 +807,7 @@ def upsert_issues(findings: list[dict], report: str) -> list[int]:
     created = []
     failed = [f for f in findings if f["ok"] is False]
     tracker = find_tracker()
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     if tracker:
         http("POST", f"https://api.github.com/repos/{REPO}/issues/{tracker}/comments",
              gh_headers() | {"Content-Type": "application/json"}, {"body": report + f"\n\n<!-- run {now} -->"})

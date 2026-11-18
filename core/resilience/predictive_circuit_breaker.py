@@ -1,7 +1,7 @@
 import threading
 import time
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.resilience.circuit_breaker import CircuitBreakerState
 from core.resilience.predictive_metrics import PredictiveMetricsTracker
 

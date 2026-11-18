@@ -1,9 +1,9 @@
 import hashlib
 import importlib.util
 import os
-from pathlib import Path
 import sqlite3
 import sys
+from pathlib import Path
 
 # Ensure backend root is in sys.path
 backend_dir = Path(__file__).resolve().parent.parent.parent / "backend"

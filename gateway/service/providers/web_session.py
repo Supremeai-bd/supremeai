@@ -8,7 +8,6 @@ automatic account rotation, health scoring (0-100), least-busy dispatch, and cap
 """
 from __future__ import annotations
 
-import asyncio
 import base64
 import gzip
 import json
@@ -19,6 +18,7 @@ import time
 from collections import deque
 from collections.abc import AsyncGenerator, Sequence
 from typing import Any, Dict, List, Optional, Tuple
+
 import httpx
 
 logger = logging.getLogger("supremeai.web_session")
@@ -388,7 +388,7 @@ class WebSessionBridge:
                 except httpx.TimeoutException:
                     return 504, {"error": "Web session relay timed out"}
                 except Exception as exc:
-                    return 502, {"error": f"Web session relay connection error: {str(exc)}"}
+                    return 502, {"error": f"Web session relay connection error: {exc!s}"}
 
         # 2. Native Account Execution with health-based dispatch
         candidate = self.get_candidate()

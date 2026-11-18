@@ -16,7 +16,7 @@ import json
 import os
 import secrets
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -24,6 +24,7 @@ import httpx
 import redis.asyncio as redis
 
 from core.config import settings
+
 # Canonical logging import (post-#2533 deprecation chain, P3 slice of #2564):
 # the core.logging_config shim warns on first attribute access; import the
 # target module directly instead of burning the fleet-wide single-shot warning.
@@ -88,7 +89,7 @@ class KaggleJob:
     status: str = "queued"
     # Shape-preserving naive-UTC (byte-identical to utcnow()) — deprecation-free (#2564 P2).
     created_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None)
     )
     assigned_account: str | None = None
     result: dict[str, Any] | None = None
@@ -555,7 +556,7 @@ class KaggleOrchestrator:
         if not self.redis_client:
             raise RuntimeError("Redis not configured for KaggleOrchestrator")
 
-        job_id = f"job_{datetime.now(timezone.utc).replace(tzinfo=None).strftime('%Y%m%d_%H%M%S')}_{hashlib.md5(json.dumps(payload).encode()).hexdigest()[:8]}"
+        job_id = f"job_{datetime.now(UTC).replace(tzinfo=None).strftime('%Y%m%d_%H%M%S')}_{hashlib.md5(json.dumps(payload).encode()).hexdigest()[:8]}"
 
         job = KaggleJob(
             job_id=job_id,
@@ -623,7 +624,7 @@ class KaggleOrchestrator:
             estimated_hours=float(job_data.get("estimated_hours", "2.0")),
             status=job_data.get("status", "unknown"),
             created_at=datetime.fromisoformat(
-                job_data.get("created_at", datetime.now(timezone.utc).replace(tzinfo=None).isoformat())
+                job_data.get("created_at", datetime.now(UTC).replace(tzinfo=None).isoformat())
             ),
             retry_count=int(job_data.get("retry_count", "0")),
         )
@@ -695,7 +696,7 @@ class KaggleOrchestrator:
 
                 account.status = KaggleAccountStatus.IN_USE
                 account.current_task = job.job_id
-                account.last_used = datetime.now(timezone.utc).replace(tzinfo=None)
+                account.last_used = datetime.now(UTC).replace(tzinfo=None)
 
                 logger.info(f"🚀 Job {job.job_id} dispatched to Kaggle account {account.username}")
                 return True

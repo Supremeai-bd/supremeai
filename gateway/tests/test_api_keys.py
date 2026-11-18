@@ -54,6 +54,8 @@ for _mod in [m for m in list(sys.modules) if m == "core.app" or m.startswith("co
     del sys.modules[_mod]
 
 from api.routes.api_keys import router
+from middleware.rate_limiter import AsyncRateLimiter
+
 from core.app import app
 from core.security import (
     API_KEY_PREFIX,
@@ -62,7 +64,6 @@ from core.security import (
     mask_api_key,
     verify_api_key,
 )
-from middleware.rate_limiter import AsyncRateLimiter
 
 
 @pytest.fixture
@@ -640,7 +641,6 @@ class TestRotateAndUsageDirect:
                     "host": host,
                 }
             )
-            return None
 
         req = _fake_request(user="test_owner")
         req.client = None

@@ -24,9 +24,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from core.tools.code.dependency_manager_agent import DependencyManagerAgent
 
 import tools.code.dependency_manager_agent as dma_module
-from core.tools.code.dependency_manager_agent import DependencyManagerAgent
 
 # --------------------------------------------------------------------------- #
 # Harness                                                                     #

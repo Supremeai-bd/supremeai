@@ -27,9 +27,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
-from pydantic import BaseModel, Field
-
 from external_agents.contracts.task_contract import TaskContract, TaskState
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 

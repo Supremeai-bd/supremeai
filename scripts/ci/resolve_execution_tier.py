@@ -15,12 +15,13 @@ import json
 import os
 import sys
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeout
 from pathlib import Path
 
 # Reuse the canonical local-runner probe to avoid code duplication (Zero-Recurrence Invariant).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_opportunistic_audit import is_local_runner_online  # noqa: E402
+from check_opportunistic_audit import is_local_runner_online
 
 PROBE_TIMEOUT_S = 4.0
 PROBE_BUDGET_S = 7.0

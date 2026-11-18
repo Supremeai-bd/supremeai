@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import json
 import os
-from core.utils.api_key_resolver import resolve_numbered_key
-import sys
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
+
+from core.utils.api_key_resolver import resolve_numbered_key
 
 
 def get_json(url: str, token: str) -> dict:

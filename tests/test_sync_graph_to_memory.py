@@ -1,5 +1,11 @@
 import unittest
-from scripts.ci.sync_graph_to_memory import self_test, query_symbol, trace_node_relations, format_entities_for_memory
+
+from scripts.ci.sync_graph_to_memory import (
+    format_entities_for_memory,
+    query_symbol,
+    self_test,
+    trace_node_relations,
+)
 
 
 class TestSyncGraphToMemory(unittest.TestCase):

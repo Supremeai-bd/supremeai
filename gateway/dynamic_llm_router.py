@@ -23,8 +23,8 @@ import os
 import re
 import sys
 import time
-from dataclasses import dataclass, field
-from typing import Any, Callable, Iterator
+from dataclasses import dataclass
+from typing import Any, Callable
 
 if hasattr(sys.stdout, "reconfigure"):
     with contextlib.suppress(Exception):

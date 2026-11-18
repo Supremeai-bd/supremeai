@@ -22,13 +22,12 @@ working.
 
 from __future__ import annotations
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
 import api.routes.admin as admin_core_routes
 import api.routes.admin_routes as admin_surface_routes
 import api.routes.internal as internal_routes
 from api.routes.admin_dashboard.endpoints_command import router as commandcenter_router
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 
 def _build() -> tuple[FastAPI, TestClient]:

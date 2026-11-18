@@ -2,7 +2,7 @@ from typing import Any
 
 import httpx
 
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.skills.base import BaseSkill
 from models.shared_workspace import SharedWorkspace
 

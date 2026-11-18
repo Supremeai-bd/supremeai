@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 from pathlib import Path
-import json
 
 
 class Severity(str, Enum):
@@ -39,7 +38,7 @@ class RuleDefinition:
     description: str
     severity: Severity
     fixable: bool = False
-    details: Optional[str] = None
+    details: str | None = None
 
 
 @dataclass
@@ -48,11 +47,11 @@ class AuditFinding:
     rule_id: str
     severity: Severity
     file_path: str
-    line_number: Optional[int] = None
-    column_number: Optional[int] = None
+    line_number: int | None = None
+    column_number: int | None = None
     message: str = ""
-    code_snippet: Optional[str] = None
-    remediation: Optional[str] = None
+    code_snippet: str | None = None
+    remediation: str | None = None
     confidence: float = 1.0  # 0.0 to 1.0
 
     def to_dict(self) -> dict:
@@ -77,8 +76,8 @@ class Exemption:
     file_path: str
     owner: str  # GitHub username or team responsible
     reason: str  # Why this exemption exists
-    expires: Optional[datetime] = None  # When exemption expires
-    line_number: Optional[int] = None
+    expires: datetime | None = None  # When exemption expires
+    line_number: int | None = None
 
     def is_expired(self) -> bool:
         """Check if exemption has expired."""
@@ -103,9 +102,9 @@ class AuditReport:
     """Complete audit report for a run."""
     findings: list[AuditFinding] = field(default_factory=list)
     exemptions_applied: list[Exemption] = field(default_factory=list)
-    run_id: Optional[str] = None
-    sha: Optional[str] = None
-    branch: Optional[str] = None
+    run_id: str | None = None
+    sha: str | None = None
+    branch: str | None = None
     timestamp: datetime = field(default_factory=datetime.now)
 
     def blocking_findings(self) -> list[AuditFinding]:

@@ -26,7 +26,7 @@ from collections import deque
 from typing import Any
 
 from core.config import settings
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 
 # Route normalizer regexes for Prometheus cardinality and PII protection
 _UUID_REGEX = re.compile(

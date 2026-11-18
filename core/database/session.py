@@ -14,7 +14,7 @@ from sqlalchemy.pool import NullPool, StaticPool
 
 from core.config import settings
 from core.degraded_mode import allow_db_degradation
-from core.logging_config import logger
+from core.monitoring.logging_config import logger
 from core.secret_utils import unwrap_secret
 
 
