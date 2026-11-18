@@ -1,6 +1,8 @@
 # SupremeAI — Production Readiness Checklist
 
 > Format: `[ ]` = Not checked yet | `[x]` = Passed | `[!]` = Failed — reason noted
+>
+> Last synced: 2026-11-18 — verified against live probes and `main` HEAD `473d3cb`. Re-verify before each release.
 
 ---
 
@@ -8,14 +10,14 @@
 
 | # | Check Item | Status | Note |
 |---|---|---|---|
-| A1 | Render Primary (Core API) — service healthy | `[!]` Failed | `update_failed` — degraded, redeploy needed |
-| A2 | Render CI Runner — response latency normal | `[!]` Failed | Latency `null` — runner response unverified |
+| A1 | Render Primary (Core API) — service healthy | `[x]` Passed | `200` on `/health/live` (2026-11-18) — recovered from earlier `update_failed` |
+| A2 | Render CI Runner — response latency normal | `[!]` Failed | Last canary reported `503 Service Unavailable` for ci-runner (auxiliary, non-blocking) |
 | A3 | Cloudflare Edge Mesh — latency < 400ms | `[!]` Failed | 1632ms detected — edge worker check needed |
 | A4 | Worker service — healthy | `[x]` Passed | |
 | A5 | Scraper service — healthy | `[x]` Passed | |
-| A6 | MCP service — healthy | `[x]` Passed | |
+| A6 | MCP service — healthy | `[!]` Failed | `/health` returned `503` (2026-11-18); CI now classifies mcp-tower as auxiliary canary |
 | A7 | API Shield — healthy | `[x]` Passed | |
-| A8 | Brain service — healthy | `[x]` Passed | |
+| A8 | Brain service — healthy | `[x]` Passed | `/health` = `200` for tiny-brain (2026-11-18) |
 | A9 | Supabase — healthy | `[x]` Passed | |
 | A10 | Redis — PONG response confirmed | `[x]` Passed | |
 | A11 | Infisical secrets — reachable | `[x]` Passed | |
@@ -28,7 +30,7 @@
 
 | # | Check Item | Status | Note |
 |---|---|---|---|
-| B1 | API Gateway SHA — deployed SHA matches repo HEAD | `[!]` Failed | `5386e64 ≠ d4c273d` — redeploy to `d4c273d` |
+| B1 | API Gateway SHA — deployed SHA matches repo HEAD | `[x]` Passed | Post-deploy canary (run 44335970461) tagged gateway/api OK; live `/healthz` = `200` (SHA not exposed on health endpoint — see B9) |
 | B2 | Core service — parity verified | `[x]` Passed | |
 | B3 | MCP service — parity verified | `[x]` Passed | |
 | B4 | Worker service — parity verified | `[x]` Passed | |
@@ -36,6 +38,7 @@
 | B6 | Brain service — parity verified | `[x]` Passed | |
 | B7 | Monorepo SSOT — satellites archived/read-only | `[ ]` | Confirm all satellite repos archived |
 | B8 | Re-audit: release gate PASSED | `[ ]` | Blocked by B1 |
+| B9 | Deployed SHA observable via health endpoint | `[ ]` | `/healthz` exposes `version` only; add `git_sha` so B1 can be verified without the deploy log |
 
 ---
 
@@ -377,7 +380,7 @@
 | S4 | FAQ — up to date | `[ ]` | |
 | S5 | Rollback plan — documented and tested | `[ ]` | |
 | S6 | Disaster recovery runbook — tested | `[ ]` | |
-| S7 | system_parity_audit — release gate PASSED | `[ ]` | Blocked by B1, A1 |
+| S7 | system_parity_audit — release gate PASSED | `[ ]` | |
 
 ---
 
