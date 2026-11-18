@@ -1,0 +1,32 @@
+name: Deploy Kaggle Shadow Node
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infrastructure/cloudflare-kaggle-shadow/**"
+      - "infrastructure/mcp-control-plane/**"
+  workflow_dispatch:
+
+jobs:
+  deploy-and-rotate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy Cloudflare Kaggle Shadow Worker
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+        working-directory: infrastructure/cloudflare-kaggle-shadow
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy
+
+      - name: Trigger Immediate Kaggle Rotation
+        if: ${{ secrets.SHADOW_REGISTER_SECRET != '' }}
+        env:
+          SHADOW_REGISTER_SECRET: ${{ secrets.SHADOW_REGISTER_SECRET }}
+        run: |
+          curl -fsS -X POST "https://supremeai-kaggle-shadow.paykaribazaronline.workers.dev/rotate" \
+            -H "Authorization: Bearer ${SHADOW_REGISTER_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{}'

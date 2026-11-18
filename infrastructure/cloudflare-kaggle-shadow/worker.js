@@ -44,11 +44,34 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 @app.get("/health/live")
 @app.get("/health")
 def health():
-    return {"status": "healthy", "type": "kaggle_shadow_node", "account": "${username}"}
+    return {"status": "healthy", "type": "kaggle_shadow_node", "account": "${username}", "tiny_brain_ready": True}
+
+@app.get("/train/status")
+def train_status():
+    return {"status": "idle", "mode": "combined_shadow_and_tiny_brain", "account": "${username}"}
 
 @app.post("/mcp/call")
 async def mcp_call(request: Request):
     data = await request.json()
+    tool = data.get("tool", "")
+    args = data.get("arguments", {})
+    if tool == "tiny_brain.route":
+        req = urllib.request.Request(
+            "https://njelitltd-tiny-brain.hf.space/route",
+            data=json.dumps({"prompt": args.get("prompt", ""), "context": args.get("context", "")}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode())
+    if tool == "tiny_brain.top_ai":
+        force = "true" if args.get("force") else "false"
+        with urllib.request.urlopen(f"https://njelitltd-tiny-brain.hf.space/top-ai?force={force}", timeout=10) as resp:
+            return json.loads(resp.read().decode())
+    if tool == "kaggle_shadow.status":
+        req = urllib.request.Request("${workerUrl}/status", headers={"User-Agent": "SupremeAI-Shadow/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode())
     return {"status": "ok", "shadow_handled": True, "account": "${username}", "payload": data}
 
 cf_bin = shutil.which("cloudflared") or "/usr/local/bin/cloudflared"
