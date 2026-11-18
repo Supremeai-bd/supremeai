@@ -252,14 +252,42 @@ def _find_memory_customer(customer_id: str) -> dict[str, Any] | None:
     return None
 
 
+async def _db_session_or_none():
+    if get_db_session is None:
+        yield None
+        return
+    try:
+        async for s in get_db_session():
+            yield s
+            return
+    except Exception:
+        yield None
+
+
 # --- Shared Handler Logic ---
 
 
-async def _list_customers_impl() -> list[dict[str, Any]]:
+async def _list_customers_impl(session: AsyncSession | None = None) -> list[dict[str, Any]]:
+    if session is not None:
+        try:
+            result = await session.execute(select(Customer))
+            rows = result.scalars().all()
+            if rows:
+                return [r.to_dict() for r in rows]
+        except Exception:
+            pass
     return list(_MEMORY_CUSTOMERS)
 
 
-async def _get_customer_impl(customer_id: str) -> dict[str, Any]:
+async def _get_customer_impl(customer_id: str, session: AsyncSession | None = None) -> dict[str, Any]:
+    if session is not None:
+        try:
+            result = await session.execute(select(Customer).where(Customer.id == customer_id))
+            cust = result.scalar_one_or_none()
+            if cust:
+                return cust.to_dict()
+        except Exception:
+            pass
     c = _find_memory_customer(customer_id)
     if not c:
         raise HTTPException(
@@ -269,7 +297,44 @@ async def _get_customer_impl(customer_id: str) -> dict[str, Any]:
     return c
 
 
-async def _create_customer_impl(payload: CustomerCreate) -> dict[str, Any]:
+async def _create_customer_impl(payload: CustomerCreate, session: AsyncSession | None = None) -> dict[str, Any]:
+    if session is not None:
+        try:
+            dup = await session.execute(select(Customer).where(Customer.email == payload.email))
+            if dup.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Customer with email '{payload.email}' already exists",
+                )
+            new_cust = Customer(
+                name=payload.name,
+                email=payload.email,
+                tier=payload.tier,
+                status=payload.status,
+                mrr=float(payload.mrr),
+                tokens_used=payload.tokens_used,
+                token_limit=payload.token_limit,
+                connected_repos=payload.connected_repos,
+                github_handle=payload.github_handle,
+                region=payload.region or "Asia/Dhaka",
+                is_developer_eligible=payload.is_developer_eligible,
+            )
+            session.add(new_cust)
+            await session.commit()
+            await session.refresh(new_cust)
+            record = new_cust.to_dict()
+            _MEMORY_CUSTOMERS.insert(0, record)
+            if broadcaster is not None:
+                try:
+                    asyncio.create_task(broadcaster.broadcast_customer_updated(record))
+                except Exception:
+                    pass
+            return record
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+
     # Check duplicate email
     for existing in _MEMORY_CUSTOMERS:
         if existing["email"].lower() == payload.email.lower():
@@ -304,7 +369,34 @@ async def _create_customer_impl(payload: CustomerCreate) -> dict[str, Any]:
     return record
 
 
-async def _update_customer_impl(customer_id: str, payload: CustomerUpdate) -> dict[str, Any]:
+async def _update_customer_impl(
+    customer_id: str, payload: CustomerUpdate, session: AsyncSession | None = None
+) -> dict[str, Any]:
+    if session is not None:
+        try:
+            res = await session.execute(select(Customer).where(Customer.id == customer_id))
+            cust = res.scalar_one_or_none()
+            if cust:
+                data = payload.model_dump(exclude_unset=True)
+                for k, v in data.items():
+                    if v is not None and hasattr(cust, k):
+                        setattr(cust, k, v)
+                cust.last_active = "Just now"
+                await session.commit()
+                await session.refresh(cust)
+                rec = cust.to_dict()
+                mem = _find_memory_customer(customer_id)
+                if mem:
+                    mem.update(rec)
+                if broadcaster is not None:
+                    try:
+                        asyncio.create_task(broadcaster.broadcast_customer_updated(rec))
+                    except Exception:
+                        pass
+                return rec
+        except Exception:
+            pass
+
     record = _find_memory_customer(customer_id)
     if not record:
         raise HTTPException(
@@ -325,11 +417,23 @@ async def _update_customer_impl(customer_id: str, payload: CustomerUpdate) -> di
     return record
 
 
-async def _delete_customer_impl(customer_id: str) -> bool:
+async def _delete_customer_impl(customer_id: str, session: AsyncSession | None = None) -> bool:
+    deleted_db = False
+    if session is not None:
+        try:
+            res = await session.execute(select(Customer).where(Customer.id == customer_id))
+            cust = res.scalar_one_or_none()
+            if cust:
+                await session.delete(cust)
+                await session.commit()
+                deleted_db = True
+        except Exception:
+            pass
+
     global _MEMORY_CUSTOMERS
     initial_len = len(_MEMORY_CUSTOMERS)
     _MEMORY_CUSTOMERS = [c for c in _MEMORY_CUSTOMERS if c.get("id") != customer_id]
-    if len(_MEMORY_CUSTOMERS) == initial_len:
+    if not deleted_db and len(_MEMORY_CUSTOMERS) == initial_len:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Customer with ID '{customer_id}' not found",
@@ -348,37 +452,45 @@ async def _delete_customer_impl(customer_id: str) -> bool:
 
 
 @router.get("/api/customers")
-async def get_customers() -> dict[str, Any]:
+async def get_customers(session: AsyncSession | None = Depends(_db_session_or_none)) -> dict[str, Any]:
     """Retrieve all customers."""
-    customers = await _list_customers_impl()
+    customers = await _list_customers_impl(session)
     return {"customers": customers}
 
 
 @router.post("/api/customers", status_code=status.HTTP_201_CREATED)
-async def create_customer(payload: CustomerCreate) -> dict[str, Any]:
+async def create_customer(
+    payload: CustomerCreate, session: AsyncSession | None = Depends(_db_session_or_none)
+) -> dict[str, Any]:
     """Create a new customer."""
-    customer = await _create_customer_impl(payload)
+    customer = await _create_customer_impl(payload, session)
     return {"success": True, "customer": customer, "customers": _get_memory_customers()}
 
 
 @router.get("/api/customers/{customer_id}")
-async def get_customer_by_id(customer_id: str) -> dict[str, Any]:
+async def get_customer_by_id(
+    customer_id: str, session: AsyncSession | None = Depends(_db_session_or_none)
+) -> dict[str, Any]:
     """Retrieve customer by unique identifier."""
-    customer = await _get_customer_impl(customer_id)
+    customer = await _get_customer_impl(customer_id, session)
     return {"customer": customer}
 
 
 @router.patch("/api/customers/{customer_id}")
-async def patch_customer(customer_id: str, payload: CustomerUpdate) -> dict[str, Any]:
+async def patch_customer(
+    customer_id: str, payload: CustomerUpdate, session: AsyncSession | None = Depends(_db_session_or_none)
+) -> dict[str, Any]:
     """Update customer details."""
-    customer = await _update_customer_impl(customer_id, payload)
+    customer = await _update_customer_impl(customer_id, payload, session)
     return {"success": True, "customer": customer, "customers": _get_memory_customers()}
 
 
 @router.delete("/api/customers/{customer_id}")
-async def delete_customer(customer_id: str) -> dict[str, Any]:
+async def delete_customer(
+    customer_id: str, session: AsyncSession | None = Depends(_db_session_or_none)
+) -> dict[str, Any]:
     """Delete a customer."""
-    await _delete_customer_impl(customer_id)
+    await _delete_customer_impl(customer_id, session)
     return {"success": True, "customers": _get_memory_customers()}
 
 
@@ -388,28 +500,34 @@ async def delete_customer(customer_id: str) -> dict[str, Any]:
 
 
 @router.get("/api/admin/customers")
-async def get_admin_customers() -> dict[str, Any]:
+async def get_admin_customers(session: AsyncSession | None = Depends(_db_session_or_none)) -> dict[str, Any]:
     """Admin dashboard customer directory listing."""
-    customers = await _list_customers_impl()
+    customers = await _list_customers_impl(session)
     return {"customers": customers}
 
 
 @router.post("/api/admin/customers", status_code=status.HTTP_201_CREATED)
-async def create_admin_customer(payload: CustomerCreate) -> dict[str, Any]:
+async def create_admin_customer(
+    payload: CustomerCreate, session: AsyncSession | None = Depends(_db_session_or_none)
+) -> dict[str, Any]:
     """Admin dashboard customer creation."""
-    customer = await _create_customer_impl(payload)
+    customer = await _create_customer_impl(payload, session)
     return {"success": True, "customer": customer, "customers": _get_memory_customers()}
 
 
 @router.patch("/api/admin/customers/{customer_id}")
-async def patch_admin_customer(customer_id: str, payload: CustomerUpdate) -> dict[str, Any]:
+async def patch_admin_customer(
+    customer_id: str, payload: CustomerUpdate, session: AsyncSession | None = Depends(_db_session_or_none)
+) -> dict[str, Any]:
     """Admin dashboard customer update."""
-    customer = await _update_customer_impl(customer_id, payload)
+    customer = await _update_customer_impl(customer_id, payload, session)
     return {"success": True, "customer": customer, "customers": _get_memory_customers()}
 
 
 @router.delete("/api/admin/customers/{customer_id}")
-async def delete_admin_customer(customer_id: str) -> dict[str, Any]:
+async def delete_admin_customer(
+    customer_id: str, session: AsyncSession | None = Depends(_db_session_or_none)
+) -> dict[str, Any]:
     """Admin dashboard customer deletion."""
-    await _delete_customer_impl(customer_id)
+    await _delete_customer_impl(customer_id, session)
     return {"success": True, "customers": _get_memory_customers()}

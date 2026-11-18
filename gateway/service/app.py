@@ -885,24 +885,16 @@ def _extract_user_id(request: Request) -> str:
     (they allowed arbitrary identity spoofing) and the old default no longer
     attributes anonymous calls to the admin user. Identity comes from the
     HMAC-verified bearer key; unauthenticated callers get an explicit
-    anonymous id.
+    anonymous id. Delegates to unified resolve_user_id helper.
     """
-    auth_header = request.headers.get("authorization", "")
-    token = auth_header[7:].strip() if auth_header.lower().startswith("bearer ") else None
-    if token:
-        # verify_key checks the keygen prefix + HMAC signature statelessly and
-        # returns None for any non-keygen token — no prefix sniffing here.
+    try:
+        from service.auth_identity import resolve_user_id
+    except ImportError:
         try:
-            meta = verify_key(token)
-        except Exception:
-            meta = None
-        if meta:
-            client = str(meta.get("client") or "")
-            if client == "studio-admin":
-                return "usr-admin-primary"
-            if client:
-                return client if client.startswith("usr-") else f"usr-{client}"
-    return "usr-anonymous"
+            from gateway.service.auth_identity import resolve_user_id  # type: ignore[no-redef]
+        except ImportError:
+            from .auth_identity import resolve_user_id  # type: ignore[no-redef]
+    return resolve_user_id(request, require_registered=False)
 
 
 # ── Liveness & Readiness Probes ──────────────────────────────────────────────
@@ -2032,7 +2024,11 @@ async def _execute_chat_completion(
         candidates = [c for c in candidates if c[0] == preferred_provider] or candidates
     if not candidates and squad and requested_model not in ("supremeai-web", "supremeai/web"):
         if has_image:
-            candidates = [c for c in squad.get_candidate_slots("auto") if c[0] in ("gemini", "openai")]
+            candidates = [
+                c
+                for c in squad.get_candidate_slots("auto")
+                if c[0] in ("gemini", "openai", "openrouter", "kilo", "unorouter")
+            ]
         else:
             candidates = squad.get_candidate_slots("auto")
 

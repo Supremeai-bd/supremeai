@@ -20,18 +20,17 @@ from .keygen import verify_key
 
 
 def account_id(request: Request) -> str:
-    """Wallet records belong to a registered account, not a guest or shared API key."""
-    auth = request.headers.get('authorization', '')
-    token = auth[7:].strip() if auth.lower().startswith('bearer ') else request.headers.get('x-supremeai-key', '')
-    claims = verify_key(token) or {}
-    client = claims.get('client', '')
-    if client == 'studio-admin':
-        return 'usr-admin-primary'
-    # studio_auth_{login,register} sign 'usr-' + the stored 'usr-<12 hex>' id.
-    match = re.fullmatch(r'usr-(usr-[a-f0-9]{12})', client)
-    if not match:
-        raise HTTPException(401, 'Sign in with a registered Studio account.')
-    return match[1]
+    """Wallet records belong to a registered account, not a guest or shared API key.
+    Delegates to unified resolve_user_id with require_registered=True.
+    """
+    try:
+        from .auth_identity import resolve_user_id
+    except ImportError:
+        try:
+            from gateway.service.auth_identity import resolve_user_id  # type: ignore[no-redef]
+        except ImportError:
+            from service.auth_identity import resolve_user_id  # type: ignore[no-redef]
+    return resolve_user_id(request, require_registered=True)
 
 
 async def _rows(method: str, table: Literal['customers', 'user_wallets', 'transaction_ledger', 'platform_settings'],
