@@ -397,7 +397,7 @@ def execute(
     for position, endpoint in enumerate(plan.ordered_chain):
         try:
             ok, detail = attempt_fn(endpoint)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — transport crash == failed attempt
             ok, detail = False, f"{type(exc).__name__}: {exc}"
         attempts.append({
             "position": position,
@@ -428,7 +428,7 @@ def _self_test() -> int:
         except AssertionError as exc:
             failures.append(f"{name}: {exc}")
             print(f"  FAIL | {name}: {exc}")
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             failures.append(f"{name}: {type(exc).__name__}: {exc}")
             print(f"  ERROR | {name}: {type(exc).__name__}: {exc}")
 

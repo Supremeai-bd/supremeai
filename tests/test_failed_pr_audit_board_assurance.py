@@ -41,7 +41,7 @@ from unittest import mock
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "scripts" / "agents"))
 
-import continuous_agent_loop as cal
+import continuous_agent_loop as cal  # noqa: E402
 
 PR_NOTE = "tower PR probe: RBAC-forbidden (permanent access-control state)"
 

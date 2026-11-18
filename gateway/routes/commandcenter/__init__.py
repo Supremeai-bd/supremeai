@@ -15,9 +15,9 @@ import os
 import time
 from typing import Any
 
-from api.dependencies import get_current_admin
 from fastapi import APIRouter, Depends
 
+from api.dependencies import get_current_admin
 from core.monitoring.logging_config import logger
 
 router = APIRouter(
@@ -32,13 +32,13 @@ router = APIRouter(
 # system}/* route answered 404 and the modules were dead code. Mount them on
 # the package router so ALL_ROUTERS (which registers this package's `router`
 # only) picks them all up under the same admin-auth dependency.
-from api.routes.commandcenter.build import router as _build_router
-from api.routes.commandcenter.money import router as _money_router
-from api.routes.commandcenter.observe import router as _observe_router
-from api.routes.commandcenter.operate import router as _operate_router
-from api.routes.commandcenter.overview import router as _overview_router
-from api.routes.commandcenter.secure import router as _secure_router
-from api.routes.commandcenter.system import router as _system_router
+from api.routes.commandcenter.build import router as _build_router  # noqa: E402
+from api.routes.commandcenter.money import router as _money_router  # noqa: E402
+from api.routes.commandcenter.observe import router as _observe_router  # noqa: E402
+from api.routes.commandcenter.operate import router as _operate_router  # noqa: E402
+from api.routes.commandcenter.overview import router as _overview_router  # noqa: E402
+from api.routes.commandcenter.secure import router as _secure_router  # noqa: E402
+from api.routes.commandcenter.system import router as _system_router  # noqa: E402
 
 router.include_router(_build_router)
 router.include_router(_money_router)

@@ -41,10 +41,9 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, Self
 
+from core.config import settings
 from loguru import logger
 from sqlalchemy import select
-
-from core.config import settings
 
 try:
     from models.wallet import TransactionLedgerEntry, UserWallet

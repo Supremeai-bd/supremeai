@@ -9,6 +9,7 @@ and posts an audit-trail comment. For HIGH risk, escalates to human reviewers.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import sys
@@ -23,17 +24,11 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 try:
-    from ai_pr_evaluator import checks_pending, checks_verdict, classify_pr_risk
-    from ai_pr_evaluator import real_api as _eval_real_api
-except Exception:
+    from ai_pr_evaluator import classify_pr_risk, checks_verdict, checks_pending, real_api as _eval_real_api
+except Exception:  # noqa: BLE001
     try:
-        from scripts.ci.ai_pr_evaluator import (
-            checks_pending,
-            checks_verdict,
-            classify_pr_risk,
-        )
-        from scripts.ci.ai_pr_evaluator import real_api as _eval_real_api
-    except Exception:
+        from scripts.ci.ai_pr_evaluator import classify_pr_risk, checks_verdict, checks_pending, real_api as _eval_real_api
+    except Exception:  # noqa: BLE001
         classify_pr_risk = None
         checks_verdict = None
         checks_pending = None
@@ -93,7 +88,7 @@ def fetch_pr(pr_number: int, api: Api = real_api) -> dict:
     files = None
     try:
         files = api(f"repos/{REPO}/pulls/{pr_number}/files?per_page=100")
-    except Exception:
+    except Exception:  # noqa: BLE001
         files = None
     if isinstance(files, list):
         pr.setdefault("files", files)
@@ -115,7 +110,7 @@ def fetch_pr(pr_number: int, api: Api = real_api) -> dict:
                     }
                     for c in (runs or [])
                 ]
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pr["statusCheckRollup"] = []
     return pr
 
@@ -127,13 +122,13 @@ def _production_environment_id(api: Api = real_api) -> int | None:
         for env in envs or []:
             if isinstance(env, dict) and env.get("name") == "production":
                 return env.get("id")
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
     try:
         data = api(f"repos/{REPO}/environments/production")
         if isinstance(data, dict):
             return data.get("id")
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
     return None
 
@@ -149,7 +144,7 @@ def approve_pending_deployment(run_id: int, api: Api = real_api, comment: str | 
     try:
         api(f"repos/{REPO}/actions/runs/{run_id}/pending_deployments", "POST", payload)
         return True
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -157,7 +152,7 @@ def post_pr_comment(pr_number: int, body: str, api: Api = real_api) -> bool:
     try:
         api(f"repos/{REPO}/issues/{pr_number}/comments", "POST", {"body": body})
         return True
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 

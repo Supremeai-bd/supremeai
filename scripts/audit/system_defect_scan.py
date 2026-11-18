@@ -48,7 +48,7 @@ SKIP_FILE_SUFFIXES = (".min.js", ".map")
 TEST_HINT = re.compile(
     r"(^|[\\/])(tests?|__tests__|e2e)[\\/]|(^|[\\/])test_[^\\/]*\.py$"
     r"|_test\.py$|\.test\.(ts|tsx)$|\.spec\.(ts|tsx)$|conftest\.py$",
-    re.IGNORECASE,
+    re.I,
 )
 
 SECRET_RX = re.compile(

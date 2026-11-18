@@ -57,7 +57,7 @@ def _get_json(url: str, token: str) -> tuple[int, dict]:
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
                 return r.status, json.loads(r.read())
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — transient 5xx retry
             last_exc = exc
             time.sleep(2)
     raise RuntimeError(f"GET {url} failed after retries: {last_exc}")
@@ -90,7 +90,7 @@ def main() -> int:
     try:
         token = _login()
         print("PASS: universal-auth login")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         print(f"FAIL: universal-auth login: {type(exc).__name__}: {exc}")
         return 1
 
@@ -131,7 +131,7 @@ def main() -> int:
         else:
             print(f"INFO: v1 standard listSecrets still {code} — known vendor "
                   "blind-index bug (issue #434); v3 raw workaround remains REQUIRED.")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         print(f"INFO: v1 standard listSecrets probe error: {exc}")
 
     print("✅ Infisical RAW vault contract healthy (production parity path).")

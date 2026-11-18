@@ -318,7 +318,11 @@ def generate_bundle(
     selected: list[dict] = []
     task_scope = f"task:{task_type}" if task_type else None
     for rule in all_rules:
-        if rule["mandatory"] or rule["scope"] == f"role:{role}" or task_scope and rule["scope"] == task_scope:
+        if rule["mandatory"]:
+            selected.append(rule)
+        elif rule["scope"] == f"role:{role}":
+            selected.append(rule)
+        elif task_scope and rule["scope"] == task_scope:
             selected.append(rule)
 
     # বাংলা মন্তব্য: deterministic ordering — (mandatory DESC, scope, rule_id);

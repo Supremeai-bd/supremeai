@@ -15,6 +15,11 @@ from __future__ import annotations
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import event as sa_event
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
+
 from core.missions.models import Mission  # noqa: F401 â€” registers missions table
 from core.models.base import Base
 from core.runs.hitl import InMemoryApprovalHook, PendingTaskApprovalHook, _payload_hash
@@ -27,10 +32,6 @@ from core.runs.state_machine import (
     RUNNING,
     WAITING_APPROVAL,
 )
-from sqlalchemy import event as sa_event
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 
 @pytest_asyncio.fixture

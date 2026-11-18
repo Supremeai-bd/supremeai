@@ -37,9 +37,8 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, Self
 
-from loguru import logger
-
 from core.config import settings
+from loguru import logger
 
 try:
     from google.cloud import firestore

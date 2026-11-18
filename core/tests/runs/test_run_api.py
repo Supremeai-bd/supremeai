@@ -27,11 +27,10 @@ async def runs_api_tables(client):
     """Create the runs tables on the app engine's sqlite test database."""
     global _tables_ready
     if not _tables_ready:
+        import database.session as dbs
         from core.missions.models import Mission
         from core.models.base import Base
         from core.runs.models import Run, RunEvent
-
-        import database.session as dbs
 
         dbs.init_engine()
         engine = dbs.engine

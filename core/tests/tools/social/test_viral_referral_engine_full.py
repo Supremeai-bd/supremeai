@@ -16,9 +16,9 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from core.tools.social.viral_referral_engine import FRAUD_INDICATOR_THRESHOLD, ViralReferralEngine
 
 import tools.social.viral_referral_engine as vre
+from core.tools.social.viral_referral_engine import FRAUD_INDICATOR_THRESHOLD, ViralReferralEngine
 
 # ──────────────────────────────── fake objects ────────────────────────────────
 
@@ -513,8 +513,9 @@ class TestStripePayout:
 
     def test_payout_success(self, engine, monkeypatch):
         import stripe as real_stripe
-        from core.config import settings
         from pydantic import SecretStr
+
+        from core.config import settings
 
         monkeypatch.setattr(
             type(settings),
@@ -537,8 +538,9 @@ class TestStripePayout:
 
     def test_payout_error(self, engine, monkeypatch):
         import stripe as real_stripe
-        from core.config import settings
         from pydantic import SecretStr
+
+        from core.config import settings
 
         monkeypatch.setattr(
             type(settings),
@@ -556,8 +558,9 @@ class TestStripePayout:
         assert "card_declined" in out["reason"]
 
     def test_credit_stripe_payout_below_threshold(self, engine, monkeypatch):
-        from core.config import settings
         from pydantic import SecretStr
+
+        from core.config import settings
 
         monkeypatch.setattr(
             type(settings),
@@ -571,8 +574,9 @@ class TestStripePayout:
 
     def test_credit_stripe_payout_full_cycle(self, engine, monkeypatch):
         import stripe as real_stripe
-        from core.config import settings
         from pydantic import SecretStr
+
+        from core.config import settings
 
         monkeypatch.setattr(
             type(settings),
@@ -594,8 +598,9 @@ class TestStripePayout:
 
     def test_credit_stripe_payout_failure_keeps_balance(self, engine, monkeypatch):
         import stripe as real_stripe
-        from core.config import settings
         from pydantic import SecretStr
+
+        from core.config import settings
 
         monkeypatch.setattr(
             type(settings),

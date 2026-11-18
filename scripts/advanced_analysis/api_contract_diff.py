@@ -1175,7 +1175,7 @@ def main() -> int:
             print(json.dumps(output, indent=2, ensure_ascii=False))
         else:
             print(f"# Backend Routes ({len(backend_routes)} found)")
-            print()
+            print("")
             print("| Method | Path | Response Model | Request Body | Source |")
             print("|--------|------|----------------|--------------|--------|")
             for r in sorted(backend_routes, key=lambda x: (x.path, x.method)):
@@ -1208,7 +1208,7 @@ def main() -> int:
             print(json.dumps(output, indent=2, ensure_ascii=False))
         else:
             print(f"# Frontend API Calls ({len(frontend_calls)} found)")
-            print()
+            print("")
             print("| Method | Path | Pattern | Source |")
             print("|--------|------|---------|--------|")
             for c in sorted(frontend_calls, key=lambda x: (x.path, x.method)):

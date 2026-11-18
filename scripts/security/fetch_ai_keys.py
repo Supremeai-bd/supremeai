@@ -28,8 +28,8 @@ from __future__ import annotations
 import json
 import os
 import sys
-import urllib.error
 import urllib.request
+import urllib.error
 
 INFISICAL_AUTH_URL = "https://app.infisical.com/api/v1/auth/universal-auth/login"
 INFISICAL_SECRETS_URL = "https://app.infisical.com/api/v3/secrets/raw"

@@ -18,11 +18,12 @@ from __future__ import annotations
 
 # বাংলা: শুধুমাত্র স্ট্যান্ডার্ড লাইব্রেরি ব্যবহার করা হচ্ছে — কোনো external dependency নেই
 import argparse
+import ast
 import json
 import os
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 

@@ -27,15 +27,12 @@ def seed_database() -> None:
         # Import the necessary modules from your application
         # This will depend on your actual ORM and setup
         # For example, if using SQLAlchemy:
+        from core.database import SessionLocal  # noqa: F401 নয় — init_db unused ছিল (#2469)
+        from core.security import get_password_hash
         from models.admin import User
 
         # from core.models import Skill # Assuming Skill exists somewhere else or comment out if not real
         from models.system_config import SystemConfig
-
-        from core.database import (
-            SessionLocal,
-        )
-        from core.security import get_password_hash
 
         # Initialize database connection
         db = SessionLocal()

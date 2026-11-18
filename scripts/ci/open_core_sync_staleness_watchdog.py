@@ -152,13 +152,13 @@ def _rpc(method, params=None, session_id=None, notify=False, attempts=3):
             last = exc
             time.sleep(3 * (attempt + 1))
     else:
-        raise last
+        raise last  # noqa: TRY201 — caller maps to the honest-skip exit
     if "text/event-stream" in ctype:
         for line in body.splitlines():
             if line.startswith("data:"):
                 try:
                     return json.loads(line[5:].strip()), sid
-                except ValueError:
+                except ValueError:  # noqa: BLE001 — SSE lines individually skippable by design
                     continue
     if not body.strip():
         return {"accepted": True}, sid

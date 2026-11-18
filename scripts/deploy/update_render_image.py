@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
-from render_client import RenderApiError, RenderClient
+from render_client import RenderApiError, RenderClient  # noqa: E402
 
 SERVICE_ID = os.environ["RENDER_IMAGE_SERVICE_ID"]  # distinct service; no fallback (#3774)
 api_key = os.environ.get("RENDER_API_KEY", "")

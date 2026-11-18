@@ -32,6 +32,7 @@ from typing import Any
 
 import httpx
 
+
 # ---------------------------------------------------------------------------
 # Result dataclasses — প্রতিটি executor নির্দিষ্ট result type রিটার্ন করে।
 # ---------------------------------------------------------------------------
@@ -197,7 +198,7 @@ class LocalExecutor:
             stdout_b, stderr_b = await asyncio.wait_for(
                 proc.communicate(), timeout=timeout
             )
-        except TimeoutError:
+        except asyncio.TimeoutError:
             timed_out = True
             try:
                 proc.kill()
@@ -399,7 +400,7 @@ class LocalExecutor:
             stdout_b, stderr_b = await asyncio.wait_for(
                 proc.communicate(), timeout=timeout
             )
-        except TimeoutError:
+        except asyncio.TimeoutError:
             timed_out = True
             try:
                 proc.kill()
@@ -497,7 +498,7 @@ async def dispatch_task(
             status = "ok" if r.ok else "error"
             return {"task_id": task_id, "status": status, "result": r.to_dict()}
 
-    except TimeoutError:
+    except asyncio.TimeoutError:
         logging.getLogger("supreme_node.executor").warning(
             "task %s (%s) timeout — %.1fs অতিবাহিত",
             task_id, ttype, float(timeout or 0.0),

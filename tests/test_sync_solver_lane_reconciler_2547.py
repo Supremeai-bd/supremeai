@@ -28,7 +28,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.bridge import bridge_intake as intake
+from scripts.bridge import bridge_intake as intake  # noqa: E402
 
 TASK = "bridge-20261030-sync-lane-fix"
 OPEN = intake.OPEN_REPO

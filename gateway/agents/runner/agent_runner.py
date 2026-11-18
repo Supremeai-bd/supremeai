@@ -660,7 +660,7 @@ def _self_test() -> int:
 
     # S8 — determinism: identical options + fixed clock -> byte-identical report.
     def s8() -> None:
-        fixed = lambda: 1792100000.0
+        fixed = lambda: 1792100000.0  # noqa: E731 — injected clock
         runs = []
         with tempfile.TemporaryDirectory() as td:
             for _ in range(2):

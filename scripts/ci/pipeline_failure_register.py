@@ -144,21 +144,21 @@ def load_policy(rules_path: Path = RULES_PATH) -> dict[str, Any]:
     """rules.yml → pipeline_failure_policy (DEFAULT-merge)। ফাইল না থাকলে DEFAULT।"""
     pol = dict(DEFAULT_POLICY)
     try:
-        import yaml
+        import yaml  # noqa: PLC0415 — lazy: CI-রানারে সবসময় থাকে, লোকালে ছাড় না
 
         data = yaml.safe_load(Path(rules_path).read_text(encoding="utf-8")) or {}
         override = data.get("pipeline_failure_policy") or {}
         for key, val in override.items():
             if key in pol:
                 pol[key] = val
-    except Exception:
+    except Exception:  # noqa: BLE001 — policy-লোড ব্যর্থতা স্ক্যান থামাবে না
         pass
     return pol
 
 
 def fingerprint(name: str, branch: str) -> str:
     """workflow @ branch → স্থিতিশীল hash (নতুন push-এও একই ব্যর্থতা-ইনস্ট্যান্স)।"""
-    return hashlib.md5(f"{name} @ {branch}".encode()).hexdigest()[:12]
+    return hashlib.md5(f"{name} @ {branch}".encode()).hexdigest()[:12]  # noqa: S324 — dedup-key, নিরাপত্তা নয়
 
 
 def pr_issue_key(pr_number: int) -> str:
@@ -180,7 +180,7 @@ def now_utc() -> str:
 def real_api(endpoint: str, method: str = "GET", payload: dict | None = None) -> Any:
     """REST কল — token সর্বদা GH_TOKEN প্রথম (workflow-চুক্তি), GITHUB_TOKEN fallback।"""
     token = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310 — github.com API-ই কল-হয়
         f"https://api.github.com/{endpoint.lstrip('/')}",
         data=json.dumps(payload).encode() if payload is not None else None,
         method=method,
@@ -190,7 +190,7 @@ def real_api(endpoint: str, method: str = "GET", payload: dict | None = None) ->
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
         raw = resp.read().decode()
     return json.loads(raw) if raw.strip() else None
 
@@ -263,7 +263,7 @@ def latest_run(gh: Gh, workflow: str, branch: str) -> dict | None:
         )
         rows = json.loads(out or "[]")
         return rows[0] if rows else None
-    except Exception:
+    except Exception:  # noqa: BLE001 — API-down হলে হীল দাবি করা অন্যায়
         return None
 
 
@@ -290,7 +290,7 @@ def branch_exists(api: Api, branch: str) -> bool:
     try:
         api(f"repos/{REPO}/branches/{branch}")
         return True
-    except Exception:
+    except Exception:  # noqa: BLE001 — 404/অন্য কিছু হলে নেই-ই ধরা
         return False
 
 
@@ -298,7 +298,7 @@ def pr_files(api: Api, pr_number: int, pol: dict) -> set[str]:
     try:
         files = api(f"repos/{REPO}/pulls/{pr_number}/files?per_page={pol['max_pr_files']}") or []
         return {f.get("filename", "") for f in files if f.get("filename")}
-    except Exception:
+    except Exception:  # noqa: BLE001
         return set()
 
 
@@ -315,7 +315,7 @@ def pr_checks_green(gh: Gh, pr_number: int) -> bool:
         ok = {"SUCCESS", "SKIPPED", "NEUTRAL"}
         has_success = any(c.get("conclusion") == "SUCCESS" for c in checks)
         return has_success and all(c.get("conclusion") in ok for c in checks)
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -326,7 +326,7 @@ def failed_check_names(gh: Gh, pr_number: int) -> list[str]:
         checks = (json.loads(out or "{}")).get("statusCheckRollup") or []
         ok = {"SUCCESS", "SKIPPED", "NEUTRAL"}
         return [c.get("name", "?") for c in checks if c.get("conclusion") and c["conclusion"] not in ok]
-    except Exception:
+    except Exception:  # noqa: BLE001
         return []
 
 
@@ -334,7 +334,7 @@ def extract_failed_files(gh: Gh, run_id: int, pol: dict) -> set[str]:
     """ব্যর্থ-লগ থেকে repo-relative ফাইল-সংকেত (ক্যাপড — লগ বিশাল হতে পারে)।"""
     try:
         raw = gh("run", "view", str(run_id), "--repo", REPO, "--log-failed")
-    except Exception:
+    except Exception:  # noqa: BLE001 — লগ মুছে গেলে/বিশাল হলে সৎ-খালি
         return set()
     raw = raw[: pol["max_log_bytes"]]
     files: set[str] = set()
@@ -383,7 +383,7 @@ def main_head_sha(api: Api, branch: str = "main") -> str | None:
     try:
         data = api(f"repos/{REPO}/branches/{branch}")
         return ((data or {}).get("commit") or {}).get("sha")
-    except Exception:
+    except Exception:  # noqa: BLE001 — API-down হলে gate-ই স্কিপ (fail-open, পুরনো আচরণ)
         return None
 
 
@@ -401,7 +401,7 @@ def find_recently_closed_fix_issue(api: Api, issue_key: str, pol: dict) -> int |
             f"repos/{REPO}/issues?state=closed&labels=ci-failure"
             "&sort=updated&direction=desc&per_page=100"
         ) or []
-    except Exception:
+    except Exception:  # noqa: BLE001 — ইতিহাস-পাঠ ব্যর্থ হলে দমন-নয় (সৎ-ফাইল)
         return None
     marker = f"{pol['fix_marker_prefix']}{issue_key}-->"
     window_days = int(pol.get("stale_refile_window_days", 7) or 7)
@@ -820,7 +820,7 @@ def comment_merge_first(api: Api, pr_number: int, row: dict, pol: dict) -> None:
         comments = api(f"repos/{REPO}/issues/{pr_number}/comments?per_page=100") or []
         if any(marker in (c.get("body") or "") for c in comments):
             return
-    except Exception:
+    except Exception:  # noqa: BLE001 — dedup-চেক ব্যর্থ হলে কমেন্ট এড়িয়ে যাও (স্প্যাম-নিরাপদ)
         return
     body = (
         f"{marker}\n"
@@ -846,7 +846,7 @@ def close_healed_issue(api: Api, issue_number: int, row: dict, pol: dict) -> Non
         api(f"repos/{REPO}/issues/{issue_number}/comments", method="POST", payload={"body": body})
         api(f"repos/{REPO}/issues/{issue_number}", method="PATCH",
             payload={"state": "closed", "state_reason": "completed"})
-    except Exception:
+    except Exception:  # noqa: BLE001 — close-ব্যর্থতা স্ক্যান থামাবে না (পরের স্ক্যানে আবার চেষ্টা)
         pass
 
 
@@ -857,7 +857,7 @@ def _pr_still_open(api: Api, pr_number: int) -> bool:
     try:
         pr = api(f"repos/{REPO}/pulls/{pr_number}")
         return bool(pr) and pr.get("state") == "open"
-    except Exception:
+    except Exception:  # noqa: BLE001 — 404 = PR নেই → GC-অনুমোদিত
         return False
 
 
@@ -872,7 +872,7 @@ def _close_reconciled(api: Api, issue: dict, why: str, key: str) -> None:
         api(f"repos/{REPO}/issues/{issue['number']}/comments", method="POST", payload={"body": body})
         api(f"repos/{REPO}/issues/{issue['number']}", method="PATCH",
             payload={"state": "closed", "state_reason": "completed"})
-    except Exception:
+    except Exception:  # noqa: BLE001 — পরের স্ক্যানে আবার চেষ্টা
         pass
 
 
@@ -896,14 +896,15 @@ def _claimed_recently(api: Api, issue: dict, pol: dict, now=None) -> bool:
         return True  # অজানা ইস্যু — সৎ-সংরক্ষণ
     try:
         comments = api(f"repos/{REPO}/issues/{num}/comments?per_page=100") or []
-    except Exception:
+    except Exception:  # noqa: BLE001 — পড়তে না পারলে ভুল-GC নয়
         return True
     claim_re = re.compile(r"Atomic\s*Claim", re.IGNORECASE)
     newest_claim = ""
     for c in comments:
         if claim_re.search(c.get("body") or ""):
             ts = str(c.get("created_at") or "")
-            newest_claim = max(newest_claim, ts)
+            if ts > newest_claim:
+                newest_claim = ts
     if not newest_claim:
         return True  # লেবেল আছে কিন্তু কমেন্ট-ইতিহাস নেই — সৎ-সংরক্ষণ
     try:

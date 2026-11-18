@@ -124,13 +124,13 @@ def _rpc(method, params=None, session_id=None, notify=False, attempts=3):
             last = e
             time.sleep(3 * (attempt + 1))
     else:
-        raise last
+        raise last  # noqa: TRY201 — caller maps to the honest-skip exit
     if "text/event-stream" in ctype:
         for line in body.splitlines():
             if line.startswith("data:"):
                 try:
                     return json.loads(line[5:].strip()), sid
-                except Exception:  # nosec B112 — SSE lines individually skippable by design (#2081 audit class)
+                except Exception:  # noqa: BLE001  # nosec B112 — SSE lines individually skippable by design (#2081 audit class)
                     continue
     if not body.strip():
         return {"accepted": True}, sid
@@ -186,7 +186,7 @@ def age_hours(iso_ts: str | None, now_epoch: float) -> float | None:
 
         ts = _dt.datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
         return max(0.0, (now_epoch - ts.timestamp()) / 3600.0)
-    except Exception:
+    except Exception:  # noqa: BLE001 — honest-unknown on any shape drift
         return None
 
 
@@ -404,7 +404,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         summary, intake, _all = fetch_intake_summary(per_page=args.per_page)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — unreachable planes are a skip, never a pass
         print(f"SKIP: intake runs plane unreachable ({e.__class__.__name__}: {e})")
         return 2
 

@@ -44,7 +44,6 @@ except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
     from core.config import settings
     from core.llm.llm_gateway import llm_gateway
-
     from services.config_service import ConfigService
 
 

@@ -7,8 +7,8 @@ every test injects fakes into the pure assertion core and run_live_probe().
 
 from __future__ import annotations
 
-import contextlib
 import io
+import contextlib
 import json
 import sys
 import unittest
@@ -17,7 +17,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "scripts" / "ci"))
 
-import hollow_read_guard as hrg
+import hollow_read_guard as hrg  # noqa: E402
 
 
 class TestNonEmptyAssertion(unittest.TestCase):
@@ -158,7 +158,7 @@ class TestExitContract(unittest.TestCase):
         class _BoomFetch(_FakeRosterFetch):
             def __init__(self):
                 super().__init__([])
-        from unittest import mock
+        import unittest.mock as mock
         with mock.patch.object(hrg, "tower_call", side_effect=RuntimeError("tower down")):
             # tower_call failure lands as UNREADABLE probe rows -> may still be CLEAN
             # unless a HOLLOW fired; here all planes UNREADABLE -> verdict CLEAN(0).
@@ -225,7 +225,7 @@ class TestTowerCallParseBoundary(unittest.TestCase):
 
     def test_unparseable_sse_body_raises_hollow_read_error(self):
         cut = '{"repo": "Supremeai-bd'
-        from unittest import mock
+        import unittest.mock as mock
         with mock.patch.object(hrg, "_tower_rpc",
                                side_effect=[("sid-1", ""), ("", ""),
                                             ("sid-1", self._sse(cut))]):
@@ -236,7 +236,7 @@ class TestTowerCallParseBoundary(unittest.TestCase):
             self.assertEqual(ctx.exception.excerpt, cut)
 
     def test_parseable_sse_body_returns_dict(self):
-        from unittest import mock
+        import unittest.mock as mock
         with mock.patch.object(hrg, "_tower_rpc",
                                side_effect=[("sid-1", ""), ("", ""),
                                             ("sid-1", self._sse('{"ok": true}'))]):

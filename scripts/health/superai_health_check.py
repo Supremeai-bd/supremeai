@@ -64,7 +64,7 @@ from pathlib import Path
 # Try imports
 # SCRIPT-INTELLIGENCE v9: shared discovery lib (stdlib only, first-party).
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # -> scripts/
-from lib.auto_discovery import (
+from lib.auto_discovery import (  # noqa: E402
     DiscoveryError,
     discover_core_modules,
     discover_files,

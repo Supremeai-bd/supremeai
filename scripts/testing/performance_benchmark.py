@@ -67,11 +67,11 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 try:
-    from core.config import settings
+    from core.config import settings  # noqa: F401 — best-effort config import
     from core.llm.llm_gateway import get_llm_gateway
 except ImportError:
     try:
-        from backend.core.config import settings
+        from backend.core.config import settings  # noqa: F401
         from backend.core.llm.llm_gateway import get_llm_gateway
     except ImportError:
         # Running without backend installed — define stub for scripts that need it

@@ -28,11 +28,11 @@ for p in (str(_GATEWAY_DIR.parent),):
 import pytest
 
 fastapi = pytest.importorskip("fastapi")
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
-from fastapi.testclient import TestClient
+from fastapi import FastAPI  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 
-from gateway.middleware.security_headers import (
+from gateway.middleware.security_headers import (  # noqa: E402
     SECURITY_HEADERS,
     SecurityHeadersMiddleware,
 )

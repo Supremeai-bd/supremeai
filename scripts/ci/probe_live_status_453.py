@@ -87,7 +87,7 @@ def _fetch(url: str, method: str = "GET", origin: str | None = None,
             "body": (e.read(2048) if hasattr(e, "read") else b"").decode("utf-8", "replace"),
             "error": f"HTTP {e.code}",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — probe must never crash
         return {
             "ok": False,
             "status": None,

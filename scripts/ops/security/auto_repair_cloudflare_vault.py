@@ -20,8 +20,8 @@ Fail-closed secret resolution (issue #1820):
 import json
 import os
 import sys
-import urllib.error
 import urllib.request
+import urllib.error
 
 INFISICAL_API = os.getenv("INFISICAL_API_URL", "https://app.infisical.com/api")
 CLIENT_ID = os.getenv("INFISICAL_CLIENT_ID", "9f2363cf-3cec-43f6-b155-a8625de19250")

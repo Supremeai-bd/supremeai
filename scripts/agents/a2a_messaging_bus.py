@@ -75,7 +75,7 @@ class A2ABus:
                     line = line.strip()
                     if line:
                         messages.append(json.loads(line))
-        except (OSError, json.JSONDecodeError):
+        except (json.JSONDecodeError, IOError):
             pass
         
         # Clear inbox after read
@@ -94,7 +94,7 @@ class A2ABus:
                     line = line.strip()
                     if line:
                         messages.append(json.loads(line))
-        except (OSError, json.JSONDecodeError):
+        except (json.JSONDecodeError, IOError):
             pass
         return messages
     
@@ -139,7 +139,7 @@ class A2ATaskAdapter:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except (OSError, json.JSONDecodeError):
+        except (json.JSONDecodeError, IOError):
             return None
 
     def send_message(self, request: dict) -> dict:

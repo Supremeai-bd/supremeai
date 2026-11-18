@@ -18,6 +18,10 @@ import uuid
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import event, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
+
 from core.missions.models import Mission  # noqa: F401 â€” registers missions table for the FK
 from core.models.base import Base
 from core.runs.models import Run, RunEvent
@@ -31,9 +35,6 @@ from core.runs.state_machine import (
     SUCCEEDED,
     assert_transition,
 )
-from sqlalchemy import event, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 
 @pytest_asyncio.fixture

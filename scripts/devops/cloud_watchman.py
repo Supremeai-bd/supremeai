@@ -14,6 +14,7 @@ import concurrent.futures
 import json
 import logging
 import os
+from core.utils.api_key_resolver import resolve_numbered_key
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -21,8 +22,6 @@ from pathlib import Path
 from statistics import mean, stdev
 
 import requests
-
-from core.utils.api_key_resolver import resolve_numbered_key
 
 logger = logging.getLogger(__name__)
 

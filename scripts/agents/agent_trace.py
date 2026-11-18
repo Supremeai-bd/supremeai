@@ -28,6 +28,8 @@
 
 from __future__ import annotations
 
+from typing import Any  # #4099 fix: missing import for Any type hints
+
 import argparse
 import hashlib
 import json
@@ -37,7 +39,6 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any  # #4099 fix: missing import for Any type hints
 
 if sys.stdout.encoding != "utf-8":
     try:

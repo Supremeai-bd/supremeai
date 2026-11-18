@@ -33,7 +33,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 
-from core.monitoring.logging_config import logger
+from core.logging_config import logger
 
 # Try imports with graceful fallbacks
 try:
@@ -288,7 +288,7 @@ class SupabaseChecker:
                     data = json.load(f)
                     return data.get("estimated_size_mb", 150)
             except Exception:
-                from core.monitoring.logging_config import logger
+                from core.logging_config import logger
 
                 logger.warning("Ignored exception")
         return 180  # Default estimate
@@ -303,7 +303,7 @@ class SupabaseChecker:
                     data = json.load(f)
                     return data.get("monthly_gb", 0.3)
             except Exception:
-                from core.monitoring.logging_config import logger
+                from core.logging_config import logger
 
                 logger.warning("Ignored exception")
         return 0.25
@@ -319,7 +319,7 @@ class SupabaseChecker:
                     data = json.load(f)
                     return data.get("mau", 120)
             except Exception:
-                from core.monitoring.logging_config import logger
+                from core.logging_config import logger
 
                 logger.warning("Ignored exception")
         return 85  # Conservative default
@@ -419,7 +419,7 @@ class UpstashChecker:
                     data = response.json()
                     return data.get("commandsToday", 3200)
         except Exception:
-            from core.monitoring.logging_config import logger
+            from core.logging_config import logger
 
             logger.warning("Ignored exception")
 
@@ -431,7 +431,7 @@ class UpstashChecker:
                     data = json.load(f)
                     return data.get("today_count", 2800)
             except Exception:
-                from core.monitoring.logging_config import logger
+                from core.logging_config import logger
 
                 logger.warning("Ignored exception")
 
@@ -447,7 +447,7 @@ class UpstashChecker:
                     data = json.load(f)
                     return data.get("used_mb", 45)
             except Exception:
-                from core.monitoring.logging_config import logger
+                from core.logging_config import logger
 
                 logger.warning("Ignored exception")
         return 52  # Default estimate
@@ -618,7 +618,7 @@ class GitHubActionsChecker:
 
                 return 520, is_public
         except Exception:
-            from core.monitoring.logging_config import logger
+            from core.logging_config import logger
 
             logger.warning("Ignored exception")
 
@@ -630,7 +630,7 @@ class GitHubActionsChecker:
                     data = json.load(f)
                     return data.get("minutes_used", 380), data.get("is_public", False)
             except Exception:
-                from core.monitoring.logging_config import logger
+                from core.logging_config import logger
 
                 logger.warning("Ignored exception")
 
@@ -718,7 +718,7 @@ class LLMAPIChecker:
                     data = json.load(f)
                     return data.get("estimated_monthly_usd", 8.50)
             except Exception:
-                from core.monitoring.logging_config import logger
+                from core.logging_config import logger
 
                 logger.warning("Ignored exception")
         return 12.0  # Default estimate
@@ -1226,7 +1226,7 @@ class UsageTracker:
                 with open(file) as f:
                     data = json.load(f)
             except Exception:
-                from core.monitoring.logging_config import logger
+                from core.logging_config import logger
 
                 logger.warning("Ignored exception")
 
@@ -1249,7 +1249,7 @@ class UsageTracker:
                 with open(file) as f:
                     data = json.load(f)
             except Exception:
-                from core.monitoring.logging_config import logger
+                from core.logging_config import logger
 
                 logger.warning("Ignored exception")
 
@@ -1273,7 +1273,7 @@ class UsageTracker:
                 with open(file) as f:
                     data = json.load(f)
             except Exception:
-                from core.monitoring.logging_config import logger
+                from core.logging_config import logger
 
                 logger.warning("Ignored exception")
 

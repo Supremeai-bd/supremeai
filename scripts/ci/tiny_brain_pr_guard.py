@@ -27,10 +27,10 @@ if str(SCRIPT_DIR) not in sys.path:
 
 try:
     from ai_pr_evaluator import classify_pr_risk
-except Exception:
+except Exception:  # noqa: BLE001
     try:
         from scripts.ci.ai_pr_evaluator import classify_pr_risk
-    except Exception:
+    except Exception:  # noqa: BLE001
         classify_pr_risk = None
 
 try:
@@ -40,7 +40,7 @@ try:
         post_pr_comment,
         real_api,
     )
-except Exception:
+except Exception:  # noqa: BLE001
     try:
         from scripts.ci.ai_auto_approver import (
             approve_pending_deployment,
@@ -48,7 +48,7 @@ except Exception:
             post_pr_comment,
             real_api,
         )
-    except Exception:
+    except Exception:  # noqa: BLE001
         approve_pending_deployment = None
         fetch_pr = None
         post_pr_comment = None
@@ -166,7 +166,7 @@ def call_tiny_brain(pr_number: int, files: list[str], diff_stats: dict, ci_statu
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode())
-    except Exception:
+    except Exception:  # noqa: BLE001
         return None
 
 
@@ -305,7 +305,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             with open(gh_out, "a", encoding="utf-8") as fh:
                 fh.write("is_low_risk={}\n".format("true" if result.get("verdict") == "AUTO_MERGE" else "false"))
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
     if opts.as_json:
         print(json.dumps(result))

@@ -27,9 +27,10 @@ import json
 import os
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field as dc_field
 from pathlib import Path
 from typing import Any
+
 
 # ── ত্রুটি কোড ধ্রুবক ───────────────────────────────────────────────────────
 EXIT_CLEAN = 0

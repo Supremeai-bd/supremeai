@@ -744,7 +744,7 @@ def main() -> int:
     print(f'Repo root: {REPO_ROOT}', file=sys.stderr)
     print(f'Backend: {BACKEND_DIR}', file=sys.stderr)
     print(f'Frontend: {FRONTEND_DIR}', file=sys.stderr)
-    print(file=sys.stderr)
+    print('', file=sys.stderr)
 
     try:
         print('Discovering backend routes...', file=sys.stderr)

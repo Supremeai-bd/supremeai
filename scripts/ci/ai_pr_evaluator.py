@@ -55,6 +55,7 @@
 """
 
 from __future__ import annotations
+from core.utils.api_key_resolver import resolve_numbered_key
 
 import argparse
 import datetime as _dt
@@ -67,8 +68,6 @@ import sys
 import urllib.request
 from pathlib import Path
 from typing import Any, Callable
-
-from core.utils.api_key_resolver import resolve_numbered_key
 
 REPO = os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GH_REPO") or "Supremeai-bd/supremeai"
 RULES_PATH = Path(__file__).resolve().parents[2] / ".github" / "constitution" / "rules.yml"
@@ -142,14 +141,14 @@ def load_policy(rules_path: Path = RULES_PATH) -> dict[str, Any]:
     """rules.yml → ai_pr_evaluation_policy (DEFAULT-merge)।"""
     pol = dict(DEFAULT_POLICY)
     try:
-        import yaml
+        import yaml  # noqa: PLC0415 — lazy: CI-রানারে সবসময় থাকে
 
         data = yaml.safe_load(Path(rules_path).read_text(encoding="utf-8")) or {}
         override = data.get("ai_pr_evaluation_policy") or {}
         for key, val in override.items():
             if key in pol:
                 pol[key] = val
-    except Exception:
+    except Exception:  # noqa: BLE001 — policy-লোড ব্যর্থতা মূল্যায়ন থামাবে না
         pass
     return pol
 
@@ -162,7 +161,7 @@ def now_utc() -> str:
 
 def real_api(endpoint: str, method: str = "GET", payload: dict | None = None) -> Any:
     token = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310
         f"https://api.github.com/{endpoint.lstrip('/')}",
         data=json.dumps(payload).encode() if payload is not None else None,
         method=method,
@@ -172,7 +171,7 @@ def real_api(endpoint: str, method: str = "GET", payload: dict | None = None) ->
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
         raw = resp.read().decode()
     return json.loads(raw) if raw.strip() else None
 
@@ -192,7 +191,7 @@ def _check_runs_rest(repo: str, sha: str, token: str) -> list[dict]:
     conclusion mapping: completed+conclusion → UPPER (OK_CONCLUSIONS parity);
     in-progress/queued → conclusion=None (checks_pending() চুক্তি: falsy=চলছে)।
     """
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310
         f"https://api.github.com/repos/{repo}/commits/{sha}/check-runs?per_page=100",
         headers={
             "Authorization": f"token {token}",
@@ -200,7 +199,7 @@ def _check_runs_rest(repo: str, sha: str, token: str) -> list[dict]:
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
         data = json.loads(resp.read().decode())
     out: list[dict] = []
     for c in data.get("check_runs", []):
@@ -266,7 +265,7 @@ def fetch_freshness(api: Api, head_ref: str, base_ref: str = "main") -> dict:
             "behind_by": int(cmp.get("behind_by") or 0),
             "status": cmp.get("status", "unknown"),
         }
-    except Exception:
+    except Exception:  # noqa: BLE001 — #3037: fail-closed (behind_by=999, not 0)
         # বাংলা মন্তব্য (#3037 root-cause): আগে behind_by=0 return করত → "fresh" →
         # AUTO_MERGE on stale PR (API blip এ ভুল রায়)। এখন behind_by=999 → "stale"
         # → HOLD (safe default যখন তথ্য অনুপস্থিত)।
@@ -317,7 +316,7 @@ def parse_linked_issues(body: str, title: str) -> list[int]:
 def fetch_issue(api: Api, number: int) -> dict | None:
     try:
         return api(f"repos/{REPO}/issues/{number}")
-    except Exception:
+    except Exception:  # noqa: BLE001 — #3037: return None but caller must check error flag
         # বাংলা মন্তব্য (#3037): আগে None return করত → caller "issue বন্ধ" ভাবত →
         # false CLOSE verdict। এখন caller _fetch_error flag check করে HOLD করবে
         # যখন issue fetch-এ API error হয় (বন্ধ নয়, অজানা)।
@@ -335,7 +334,7 @@ def fetch_issue(api: Api, number: int) -> dict | None:
 #   ৪. substantive — সত্যিকারের কোড-সংযোজন (whitespace/index-only নয়)
 # security-signal থাকলে verdict কখনো CLOSE নয় — অন্তত HOLD (human review)।
 
-SECURITY_DIFF_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+SECURITY_DIFF_PATTERNS: list[tuple[str, "re.Pattern[str]"]] = [
     # destructive-flag removal — বিপজ্জনক ফ্ল্যাগ সরানো হলে security value
     ("destructive-flag-removal: --accept-data-loss",
      re.compile(r"^-[^\n]*--accept-data-loss", re.MULTILINE)),
@@ -732,16 +731,16 @@ def _llm_call(provider: dict[str, str], prompt: str) -> str | None:
                        "Content-Type": "application/json"}
             if provider["name"] == "openrouter":
                 headers["HTTP-Referer"] = f"https://github.com/{REPO}"
-        req = urllib.request.Request(
+        req = urllib.request.Request(  # noqa: S310
             provider["url"], data=json.dumps(payload).encode(),
             method="POST", headers=headers,
         )
-        with urllib.request.urlopen(req, timeout=LLM_TIMEOUT_SECS) as resp:
+        with urllib.request.urlopen(req, timeout=LLM_TIMEOUT_SECS) as resp:  # noqa: S310
             data = json.loads(resp.read().decode("utf-8"))
         if provider["name"] == "gemini":
             return data["candidates"][0]["content"]["parts"][0]["text"]
         return data["choices"][0]["message"]["content"]
-    except Exception:
+    except Exception:  # noqa: BLE001 — provider ব্যর্থতা পাইপলাইন ভাঙবে না
         return None
 
 
@@ -876,7 +875,7 @@ def evaluate_enrichment(result: dict, pr: dict) -> dict:
 
 def verdict_marker(result: dict, pol: dict) -> str:
     """রায়+কারণ-ফিঙ্গারপ্রিন্ট — রায় বদলালে নতুন কমেন্ট, নাহলে dedup।"""
-    digest = hashlib.md5(
+    digest = hashlib.md5(  # noqa: S324 — dedup-key, নিরাপত্তা নয়
         json.dumps([result["verdict"], result["value_reasons"], result["safety_reasons"]]).encode()
     ).hexdigest()[:12]
     return f"{pol['verdict_marker_prefix']}{result['pr']}:{result['verdict']}:{digest}-->"
@@ -903,8 +902,8 @@ def render_verdict_comment(result: dict, pol: dict) -> str:
         f"**2-ক্রাইটেরিয়া ম্যাট্রিক্স** · মূল্যায়ন: {result['evaluated_at']} · "
         f"কনফিডেন্স: `{result.get('confidence', 'deterministic-evidence')}`",
         "",
-        "| ক্রাইটেরিয়া | ফল |",
-        "|---|---|",
+        f"| ক্রাইটেরিয়া | ফল |",
+        f"|---|---|",
         f"| ১ — Value (বাস্তব সমস্যা সমাধান) | {'✅' if result['criterion_1_value'] else '❌'} |",
         f"| ২ — Safety (রিগ্রেশন-মুক্ত + প্রক্রিয়া-বৈধ) | {'✅' if result['criterion_2_safe'] else '❌'} |",
     ]
@@ -1088,7 +1087,7 @@ def scan(api: Api = real_api, gh: Gh = real_gh, pol: dict | None = None,
             if apply:
                 result["actions"] = apply_verdict(api, result, pol)
             results.append(result)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — এক PR-ব্যর্থতা পুরো স্ক্যান থামাবে না
             skipped.append({"pr": number, "why": f"error: {str(exc)[:120]}"})
     return {
         "evaluated": len(results),

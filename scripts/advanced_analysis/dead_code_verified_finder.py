@@ -29,19 +29,18 @@ import ast
 import json
 import os
 import sys
+import tomllib
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, TextIO
 
-import tomllib
-
 # বাংলা: SCRIPT-INTELLIGENCE v9 — shared auto-discovery লাইব্রেরি
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # scripts/
 from datetime import UTC
 
-from lib.auto_discovery import (
+from lib.auto_discovery import (  # noqa: E402
     DiscoveryError,
     discover_core_modules,
     discover_fastapi_routes,
@@ -262,7 +261,8 @@ class DeadCodeFinder:
         except ValueError:
             return filepath.stem
         parts = list(rel.parts)
-        parts[-1] = parts[-1].removesuffix(".py")
+        if parts[-1].endswith(".py"):
+            parts[-1] = parts[-1][:-3]
         if parts[-1] == "__init__":
             parts = parts[:-1]
             if not parts:

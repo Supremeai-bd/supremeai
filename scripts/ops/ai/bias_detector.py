@@ -7,8 +7,8 @@ Priority: 🟡 Medium
 
 import sys
 from pathlib import Path
-
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "backend"))
+from core.config import settings
 import json
 import logging
 from dataclasses import dataclass

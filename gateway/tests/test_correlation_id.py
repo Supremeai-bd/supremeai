@@ -23,10 +23,10 @@ for p in (str(_GATEWAY_DIR.parent),):
 import pytest
 
 fastapi = pytest.importorskip("fastapi")
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from fastapi import FastAPI  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 
-from gateway.middleware.correlation_id import (
+from gateway.middleware.correlation_id import (  # noqa: E402
     CorrelationIdMiddleware,
     current_correlation_id,
     mint_correlation_id,
