@@ -56,6 +56,8 @@ DEFAULT_IGNORES = (
     "studio/**,"
     # core/github/** is governance mirror (#549, plan_duplicate_refactors.py)
     "core/github/**,"
+    # index.fixed.ts is intentional entry parity anchor (#2391, test_entry_governance.ts)
+    "infrastructure/mcp-control-plane/src/index.fixed.ts,"
     "docs/**,"
     ".agents/**,"
     "**/*.md,"

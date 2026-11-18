@@ -87,6 +87,8 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
   const server = new McpServer({
     name: SERVER_NAME,
     version: SERVER_VERSION,
+    title: "SupremeAI Control Tower",
+    description: "MCP control tower for SupremeAI services, bridge, and federation.",
   });
 
   // Sanitize tool names: replace dots '.' with underscores '_' so that tool names
@@ -494,6 +496,23 @@ async function main(): Promise<void> {
     registerCommandRouter();
 
     const server = await createMcpServer(memoryAdapter);
+
+    // Pre-warm the health snapshot cache asynchronously at boot so /health and
+    // status(scope="all") have immediate telemetry after deploy/restart.
+    import("./health/engine.js")
+      .then(({ globalHealthEngine }) => {
+        globalHealthEngine.runFullSweep().catch((err) => console.error("[HealthEngine] Initial boot sweep error:", err));
+
+        // Recurring 8-minute health sweep (configurable via HEALTH_SWEEP_INTERVAL_MS, bounded [5m..9m] to stay inside 10m watchdog)
+        const sweepIntervalMs = Math.max(300_000, Math.min(540_000, Number(process.env.HEALTH_SWEEP_INTERVAL_MS) || 8 * 60 * 1000));
+        const recurringSweepTimer = setInterval(() => {
+          globalHealthEngine.runFullSweep().catch((err) => console.error("[HealthEngine] Periodic sweep error:", err));
+        }, sweepIntervalMs);
+        if (typeof recurringSweepTimer.unref === "function") {
+          recurringSweepTimer.unref();
+        }
+      })
+      .catch((err) => console.error("[HealthEngine] Initial boot sweep load error:", err));
 
     if (mode === "stdio") {
       await startStdioServer(server);
