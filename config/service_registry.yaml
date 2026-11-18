@@ -1,5 +1,5 @@
-﻿# ============================================================================
-# SupremeAI Canonical Service Registry â€” Single Source of Truth (SSOT)
+# ============================================================================
+# SupremeAI Canonical Service Registry — Single Source of Truth (SSOT)
 # ============================================================================
 # Consolidates service identities, entrypoints, ports, health contracts,
 # canonical service ID / API key environment variables, legacy aliases, and
@@ -9,7 +9,7 @@
 # Invariants:
 #   1. Canonical service ID env vars strictly use `RENDER_*_SERVICE_ID`.
 #   2. Legacy `RENDER_*_SVC_ID` aliases are compatibility-only.
-#   3. No secret values are ever stored here â€” only variable names and contracts.
+#   3. No secret values are ever stored here — only variable names and contracts.
 # ============================================================================
 schema_version: 1
 unknown_policy: conservative-backend

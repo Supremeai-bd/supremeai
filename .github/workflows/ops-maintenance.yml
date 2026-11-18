@@ -1,15 +1,15 @@
-﻿# Nightly Ops â€” consolidated scheduled maintenance & audit (epic #1850 Phase B / W3, issue #1854)
+# Nightly Ops — consolidated scheduled maintenance & audit (epic #1850 Phase B / W3, issue #1854)
 # ==============================================================================================
 # One workflow for every scheduled/daily/weekly/hourly maintenance duty. Each job is
 # guarded by its own cron string (day-guard convention, cf. audit-release.yml) so a
-# single cron firing runs exactly its own arm. NO workflow-level concurrency â€” per-job
+# single cron firing runs exactly its own arm. NO workflow-level concurrency — per-job
 # groups preserve each source workflow's isolation semantics verbatim.
 #
-# Migration map (old file â†’ job here, all job bodies verbatim):
+# Migration map (old file → job here, all job bodies verbatim):
 #   scheduled-deep-audit.yml deep-audit              -> deep-audit        (0 3 * * 0, #67 Tier 2 weekly)
 #   scheduled-deep-audit.yml nightly-ai-safety-audit -> ai-safety         (0 3 * * *)
-#   scheduled-deep-audit.yml mission-reliability-gate + passk-gate        (MERGED â€” one suite
-#     run, gate â‰¥0.8 + always-published scoreboard artifact; was 2 jobs / 6 suite executions)
+#   scheduled-deep-audit.yml mission-reliability-gate + passk-gate        (MERGED — one suite
+#     run, gate ≥0.8 + always-published scoreboard artifact; was 2 jobs / 6 suite executions)
 #                                                       -> mission-passk   (dispatch-only, #67 Tier 3)
 #   qa-live-smoke.yml live-smoke                      -> live-smoke        (0 3 * * *)
 #   db-retention.yml prune                            -> db-retention      (0 3 * * *)
@@ -29,12 +29,12 @@
 # Dedup ledger (#1854): pip-audit exactly ONE copy (deep-audit Auto Vulnerability Scanner
 # --scan-deps; audit-release pip-audit-nightly deleted). pass^k exactly 3 suite
 # executions/night (was 6). Sub-hourly scheduled ticks in the repo drop to the
-# merge-train tick only (72/day today â†’ 48/day after #1855).
+# merge-train tick only (72/day today → 48/day after #1855).
 #
 # ci-doctor watch-list lockstep: absorbed workflow names removed and
-# "ðŸ”§ Nightly Ops & Maintenance" added in this same change (silent-failure doctrine).
+# "🔧 Nightly Ops & Maintenance" added in this same change (silent-failure doctrine).
 
-name: ðŸ”§ Nightly Ops & Maintenance
+name: 🔧 Nightly Ops & Maintenance
 
 on:
   schedule:
@@ -49,7 +49,7 @@ on:
     # weekly bundle (Sun 03:00 off-peak, Tier 2 heavy): deep-audit + platform-deep-audit
     #   + docs-garbage-sweep + e2e-customer + load-locust + chaos-suite + browser-e2e
     #   + silent-error + dast + constitution + self-audit
-    # (Mon 17 3 * * 1 cron retired by #67 â€” its arms moved to Sunday Tier 2 / daily Tier 1)
+    # (Mon 17 3 * * 1 cron retired by #67 — its arms moved to Sunday Tier 2 / daily Tier 1)
     - cron: "0 3 * * 0"
     # Daily 10:00 AM BDT (04:00 UTC) Automated Production Readiness & Health Report
     - cron: "0 4 * * *"
@@ -117,7 +117,7 @@ on:
         default: false
         type: boolean
       run_docs_garbage_sweep:
-        description: 'Run docs garbage tree-sweep arm (#4176 â€” main-tree Zero-Garbage monitoring)'
+        description: 'Run docs garbage tree-sweep arm (#4176 — main-tree Zero-Garbage monitoring)'
         required: false
         default: false
         type: boolean
@@ -156,9 +156,9 @@ on:
         required: false
         default: false
         type: boolean
-      # â”€â”€ à§©-à¦¸à§à¦¤à¦° à¦Ÿà§‡à¦¸à§à¦Ÿà¦¿à¦‚ à¦ªà§à¦²à§à¦¯à¦¾à¦¨ (Phase 4): à¦¨à¦¤à§à¦¨ à¦Ÿà§‡à¦¸à§à¦Ÿà¦¿à¦‚ à¦†à¦°à§à¦®à¦—à§à¦²à§‹à¦° à¦¡à¦¿à¦¸à¦ªà§à¦¯à¦¾à¦š à¦‡à¦¨à¦ªà§à¦Ÿ â”€â”€
+      # ── ৩-স্তর টেস্টিং প্ল্যান (Phase 4): নতুন টেস্টিং আর্মগুলোর ডিসপ্যাচ ইনপুট ──
       run_load_locust:
-        description: 'Run Locust load-test arm (Tier-1, 100 VU Ã— 15m vs staging)'
+        description: 'Run Locust load-test arm (Tier-1, 100 VU × 15m vs staging)'
         required: false
         default: false
         type: boolean
@@ -190,7 +190,7 @@ on:
 
 # Least privilege: workflow-wide read-only; jobs carry their own overrides
 # (issues:write for issue-opening arms, contents:write for branch retention,
-# security-events:write for constitution SARIF â€” each verbatim from its source).
+# security-events:write for constitution SARIF — each verbatim from its source).
 permissions:
   contents: read
   issues: write
@@ -242,7 +242,7 @@ jobs:
     concurrency:
       group: nightly-ops-deep-audit
       cancel-in-progress: false
-    name: ðŸ” Deep Audit (Local Self-Hosted, 0 cloud mins)
+    name: 🔍 Deep Audit (Local Self-Hosted, 0 cloud mins)
     runs-on: [self-hosted, local-pc]
     timeout-minutes: 60
     permissions:
@@ -274,7 +274,7 @@ jobs:
         shell: powershell
         run: python scripts/advanced_analysis/duplicate_detector.py --fail-on-critical --max-findings 50 --engine file_level import
 
-      - name: Feature Parity Sentinel (backend â‡„ frontend drift)
+      - name: Feature Parity Sentinel (backend ⇄ frontend drift)
         id: parity_sentinel
         shell: powershell
         run: |
@@ -296,7 +296,7 @@ jobs:
         id: mutation_testing
         continue-on-error: true
         shell: powershell
-        run: python scripts/testing/mutation_testing.py --target core/health_check.py --threshold 0 # wiring audit 2026-11-11: backend/ â†’ core/
+        run: python scripts/testing/mutation_testing.py --target core/health_check.py --threshold 0 # wiring audit 2026-11-11: backend/ → core/
 
       - name: Performance Benchmark
         id: perf_benchmark
@@ -347,7 +347,7 @@ jobs:
     concurrency:
       group: nightly-ops-deep-audit
       cancel-in-progress: false
-    name: ðŸ” Deep Audit (cloud fallback)
+    name: 🔍 Deep Audit (cloud fallback)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -377,10 +377,10 @@ jobs:
         id: duplicate_detector
         run: python scripts/advanced_analysis/duplicate_detector.py --fail-on-critical --max-findings 50 --engine file_level import
 
-      # à¦¬à¦¾à¦‚à¦²à¦¾: Backend â‡„ Frontend feature-parity drift à¦¸à§‡à¦¨à§à¦Ÿà¦¿à¦¨à§‡à¦² â€” baseline-à¦à¦° à¦¬à¦¾à¦‡à¦°à§‡
-      # à¦¨à¦¤à§à¦¨ mismatch (unmounted router, path drift, dead link, ghost UI) à¦¹à¦²à§‡ job failà¥¤
-      # à¦¬à¦¿à¦¸à§à¦¤à¦¾à¦°à¦¿à¦¤: docs/architecture/BACKEND_FRONTEND_FEATURE_PARITY_AUDIT.md
-      - name: Feature Parity Sentinel (backend â‡„ frontend drift)
+      # বাংলা: Backend ⇄ Frontend feature-parity drift সেন্টিনেল — baseline-এর বাইরে
+      # নতুন mismatch (unmounted router, path drift, dead link, ghost UI) হলে job fail।
+      # বিস্তারিত: docs/architecture/BACKEND_FRONTEND_FEATURE_PARITY_AUDIT.md
+      - name: Feature Parity Sentinel (backend ⇄ frontend drift)
         id: parity_sentinel
         run: |
           python scripts/ops/feature_parity_sentinel.py \
@@ -397,28 +397,28 @@ jobs:
 
       - name: Mutation Testing
         id: mutation_testing
-        # Advisory (non-blocking): experimental mutation testing â€” publish visible failure summary, not green.
+        # Advisory (non-blocking): experimental mutation testing — publish visible failure summary, not green.
         continue-on-error: true
-        run: python scripts/testing/mutation_testing.py --target core/health_check.py --threshold 0 # wiring audit 2026-11-11: backend/ â†’ core/
+        run: python scripts/testing/mutation_testing.py --target core/health_check.py --threshold 0 # wiring audit 2026-11-11: backend/ → core/
 
       - name: Performance Benchmark
         id: perf_benchmark
-        # Advisory (non-blocking): performance baselines â€” collect â‰¥14 nights of data before removing continue-on-error.
+        # Advisory (non-blocking): performance baselines — collect ≥14 nights of data before removing continue-on-error.
         continue-on-error: true
         run: python scripts/testing/performance_benchmark.py --target api
 
-      # à¦¬à¦¾à¦‚à¦²à¦¾ à¦®à¦¨à§à¦¤à¦¬à§à¦¯ (à§©-à¦¸à§à¦¤à¦° à¦Ÿà§‡à¦¸à§à¦Ÿà¦¿à¦‚ à¦ªà§à¦²à§à¦¯à¦¾à¦¨ Phase 4): à¦¬à§‡à¦žà§à¦šà¦®à¦¾à¦°à§à¦• à¦«à¦²à¦¾à¦«à¦² step-summary-à¦¤à§‡
-      # à¦¸à§à¦ªà¦·à§à¦Ÿà¦­à¦¾à¦¬à§‡ à¦ªà§à¦°à¦•à¦¾à¦¶ à¦•à¦°à¦¾ à¦¹à¦²à§‹à¥¤ continue-on-error à¦‡à¦šà§à¦›à¦¾à¦•à§ƒà¦¤ â€” à¦¬à§‡à¦¸à¦²à¦¾à¦‡à¦¨ à¦¸à¦‚à¦—à§à¦°à¦¹à§‡à¦° à¦ªà¦°à§‡à¦‡
-      # à¦°à§à¦¯à¦¾à¦šà§‡à¦Ÿ-à¦—à§‡à¦Ÿ à¦¹à¦¬à§‡ (à¦ªà¦°à¦¿à¦•à¦²à§à¦ªà¦¨à¦¾-à¦¨à¦¥à¦¿à¦¤ à¦¡à¦•à§à¦®à§‡à¦¨à§à¦Ÿà§‡à¦¡); à¦†à¦ªà¦¾à¦¤à¦¤ 'à¦¸à¦¬à§à¦œ CI à¦•à¦¿à¦¨à§à¦¤à§ à¦®à§‡à¦Ÿà§à¦°à¦¿à¦• à¦…à¦¦à§ƒà¦¶à§à¦¯'
-      # à¦¸à¦®à¦¸à§à¦¯à¦¾à¦Ÿà¦¿ à¦¦à§‚à¦° à¦¹à¦²à§‹à¥¤
-      - name: Performance Benchmark â†’ Step Summary
+      # বাংলা মন্তব্য (৩-স্তর টেস্টিং প্ল্যান Phase 4): বেঞ্চমার্ক ফলাফল step-summary-তে
+      # স্পষ্টভাবে প্রকাশ করা হলো। continue-on-error ইচ্ছাকৃত — বেসলাইন সংগ্রহের পরেই
+      # র্যাচেট-গেট হবে (পরিকল্পনা-নথিত ডকুমেন্টেড); আপাতত 'সবুজ CI কিন্তু মেট্রিক অদৃশ্য'
+      # সমস্যাটি দূর হলো।
+      - name: Performance Benchmark → Step Summary
         if: always() && steps.perf_benchmark.outcome != 'skipped'
         run: |
-          echo "### âš¡ Nightly Performance Benchmark (advisory)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### ⚡ Nightly Performance Benchmark (advisory)" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Outcome: \`${{ steps.perf_benchmark.outcome }}\` (continue-on-error â€” advisory until baseline ratchet lands)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Outcome: \`${{ steps.perf_benchmark.outcome }}\` (continue-on-error — advisory until baseline ratchet lands)" >> "$GITHUB_STEP_SUMMARY"
           echo "- SLO ladder (docs/operations/SLO_AND_ALERTS.md): target p95 < 1500 ms / p99 < 2000 ms, 5xx < 0.1% steady-state" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Gate plan: collect â‰¥ 14 nights of baselines â†’ ratchet thresholds â†’ remove continue-on-error" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Gate plan: collect ≥ 14 nights of baselines → ratchet thresholds → remove continue-on-error" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Blocking security detectors (P0/P1)
         id: blocking_security_detectors
@@ -435,7 +435,7 @@ jobs:
       # Dead-code detection (moved here from the deleted code-quality.yml; #67).
       # Continues-on-error: advisory until baseline ratchet lands (per Phase-4 plan).
       - name: Backend dead-code scan (vulture)
-        # Advisory (non-blocking): dead-code reports â€” publish visible failure summary, not green.
+        # Advisory (non-blocking): dead-code reports — publish visible failure summary, not green.
         continue-on-error: true
         run: |
           pip install vulture
@@ -457,10 +457,10 @@ jobs:
           sudo apt-get install -y yamllint curl
           python -m pip install 'poetry==2.4.1'
           corepack enable
-          # #3265: explicit pnpm@pin à¦¸à¦°à¦¾à¦¨à§‹ â€” bare `corepack prepare --activate`
-          # root package.json-à¦à¦° `packageManager` (SSOT) à¦¥à§‡à¦•à§‡ à¦¸à¦‚à¦¸à§à¦•à¦°à¦£ à¦¨à§‡à¦¯à¦¼à¥¤
+          # #3265: explicit pnpm@pin সরানো — bare `corepack prepare --activate`
+          # root package.json-এর `packageManager` (SSOT) থেকে সংস্করণ নেয়।
           corepack prepare --activate
-          # à¦¬à¦¾à¦‚à¦²à¦¾ à¦®à¦¨à§à¦¤à¦¬à§à¦¯ (#2524): mutable main-branch curl|bash â†’ pinned release + sha256 à¦¯à¦¾à¦šà¦¾à¦‡à¥¤
+          # বাংলা মন্তব্য (#2524): mutable main-branch curl|bash → pinned release + sha256 যাচাই।
           curl -fsSL --retry 3 -o /tmp/actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
           echo "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  /tmp/actionlint.tar.gz" | sha256sum -c -
           tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
@@ -512,29 +512,29 @@ jobs:
             https://api.github.com/repos/Supremeai-bd/supremeai/dispatches \
             -d "{\"event_type\": \"federation_ci_failed\", \"client_payload\": {\"repo\": \"${{ github.repository }}\", \"workflow_name\": \"${{ github.workflow }}\", \"run_id\": \"${{ github.run_id }}\", \"html_url\": \"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\", \"branch\": \"${{ github.ref_name }}\", \"commit_sha\": \"${{ github.sha }}\"}}" || true
 
-      # à¦¬à¦¾à¦‚à¦²à¦¾: audit failure-à¦à¦° evidence à¦¹à¦¾à¦°à¦¿à¦¯à¦¼à§‡ à¦¨à¦¾ à¦¯à¦¾à¦“à¦¯à¦¼à¦¾à¦° à¦œà¦¨à§à¦¯ tracking issue
-      # auto-à¦–à§à¦²à§‡/à¦†à¦ªà¦¡à§‡à¦Ÿ à¦•à¦°à¦¿à¥¤ Blocking step-à¦à¦° failure job status-à¦à¦“ à¦¦à§ƒà¦¶à§à¦¯à¦®à¦¾à¦¨ à¦¥à¦¾à¦•à§‡à¥¤
+      # বাংলা: audit failure-এর evidence হারিয়ে না যাওয়ার জন্য tracking issue
+      # auto-খুলে/আপডেট করি। Blocking step-এর failure job status-এও দৃশ্যমান থাকে।
       - name: Open/update maintenance issue on failure
         if: ${{ always() && github.event.inputs.skip_issue != 'true' && (steps.duplicate_detector.outcome == 'failure' || steps.vuln_scanner.outcome == 'failure' || steps.mutation_testing.outcome == 'failure' || steps.perf_benchmark.outcome == 'failure' || steps.full_audit.outcome == 'failure' || steps.parity_sentinel.outcome == 'failure') }}
         uses: actions/github-script@v8 # v9.0.0
         with:
           script: |
-            const title = "ðŸ”§ Scheduled Deep Audit found issues";
+            const title = "🔧 Scheduled Deep Audit found issues";
             const failing = [];
             if ("${{ steps.duplicate_detector.outcome }}" === "failure") failing.push("Duplicate Logic Detector");
             if ("${{ steps.vuln_scanner.outcome }}" === "failure") failing.push("Auto Vulnerability Scanner");
             if ("${{ steps.mutation_testing.outcome }}" === "failure") failing.push("Mutation Testing");
             if ("${{ steps.perf_benchmark.outcome }}" === "failure") failing.push("Performance Benchmark");
             if ("${{ steps.full_audit.outcome }}" === "failure") failing.push("SupremeAI full CI audit");
-            if ("${{ steps.parity_sentinel.outcome }}" === "failure") failing.push("Feature Parity Sentinel (new backend â‡„ frontend drift â€” see ci-reports/feature-parity-report.md)");
+            if ("${{ steps.parity_sentinel.outcome }}" === "failure") failing.push("Feature Parity Sentinel (new backend ⇄ frontend drift — see ci-reports/feature-parity-report.md)");
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const body = [
-              `à¦¸à§à¦¬à¦¯à¦¼à¦‚à¦•à§à¦°à¦¿à¦¯à¦¼à¦­à¦¾à¦¬à§‡ à¦¤à§ˆà¦°à¦¿ â€” Scheduled Deep Audit workflow-à¦à¦° à¦¨à¦¿à¦šà§‡à¦° à¦§à¦¾à¦ªà¦—à§à¦²à§‹ fail à¦•à¦°à§‡à¦›à§‡:`,
+              `স্বয়ংক্রিয়ভাবে তৈরি — Scheduled Deep Audit workflow-এর নিচের ধাপগুলো fail করেছে:`,
               ...failing.map(f => `- ${f}`),
               ``,
-              `à¦°à¦¿à¦ªà§‹à¦°à§à¦Ÿ à¦“ à¦²à¦—: ${runUrl}`,
+              `রিপোর্ট ও লগ: ${runUrl}`,
               ``,
-              `à¦à¦‡ à¦‡à¦¸à§à¦¯à§à¦Ÿà¦¾ merge à¦¬à§à¦²à¦• à¦•à¦°à§‡ à¦¨à¦¾ â€” à¦ªà¦°à¦¬à¦°à§à¦¤à§€ à¦°à¦¾à¦¨à§‡ à¦¸à¦¬ à¦ªà¦¾à¦¸ à¦•à¦°à¦²à§‡ à¦à¦Ÿà¦¾ auto-close à¦¹à¦¬à§‡à¥¤`,
+              `এই ইস্যুটা merge ব্লক করে না — পরবর্তী রানে সব পাস করলে এটা auto-close হবে।`,
             ].join("\n");
 
             const existing = await github.rest.issues.listForRepo({
@@ -566,7 +566,7 @@ jobs:
         uses: actions/github-script@v8 # v9.0.0
         with:
           script: |
-            const title = "ðŸ”§ Scheduled Deep Audit found issues";
+            const title = "🔧 Scheduled Deep Audit found issues";
             const existing = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -579,7 +579,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: match.number,
-                body: "âœ… à¦¸à¦°à§à¦¬à¦¶à§‡à¦· scheduled run-à¦ à¦¸à¦¬ heavy check à¦ªà¦¾à¦¸ à¦•à¦°à§‡à¦›à§‡ â€” à¦‡à¦¸à§à¦¯à§ à¦¬à¦¨à§à¦§ à¦•à¦°à¦¾ à¦¹à¦šà§à¦›à§‡à¥¤",
+                body: "✅ সর্বশেষ scheduled run-এ সব heavy check পাস করেছে — ইস্যু বন্ধ করা হচ্ছে।",
               });
               await github.rest.issues.update({
                 owner: context.repo.owner,
@@ -596,7 +596,7 @@ jobs:
     concurrency:
       group: nightly-ops-ai-safety
       cancel-in-progress: false
-    name: ðŸ›¡ï¸ AI Safety & System Integrity Audit
+    name: 🛡️ AI Safety & System Integrity Audit
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -641,20 +641,20 @@ jobs:
     concurrency:
       group: nightly-ops-mission-passk
       cancel-in-progress: false
-    name: ðŸŽ¯ Mission Reliability Gate (pass^3 â‰¥ 0.8) + Nightly Scoreboard
+    name: 🎯 Mission Reliability Gate (pass^3 ≥ 0.8) + Nightly Scoreboard
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     permissions:
       contents: read
       issues: write
 
-    # à¦¬à¦¾à¦‚à¦²à¦¾ à¦®à¦¨à§à¦¤à¦¬à§à¦¯ (audit V3 fix, 2026-09-17): à¦†à¦—à§‡ à¦à¦‡ à¦œà¦¬à§‡ postgres+redis
-    # service container à¦›à¦¿à¦², à¦•à¦¿à¦¨à§à¦¤à§ conftest `app` fixture sqlite test.db à¦‡à¦¨à¦œà§‡à¦•à§à¦Ÿ
-    # à¦•à¦°à§‡ à¦à¦¬à¦‚ `missions_api_tables` fixture sqlite backend assert à¦•à¦°à§‡ â€” à¦«à¦²à§‡
-    # ambient DATABASE_URL=postgres à¦¹à¦²à§‡ TestMissionsAPI-à¦° à§­à¦Ÿà¦¿ à¦Ÿà§‡à¦¸à§à¦Ÿ setup-à¦
-    # ERROR à¦¹à¦¤à§‹ (à¦ªà§à¦°à¦¤à¦¿ à¦°à¦¾à¦¤à§‡ pass^3=0.6699 < 0.8, à§© run-à¦à¦‡ à¦…à¦­à¦¿à¦¨à§à¦¨ 50/57)à¥¤
-    # à¦²à§‹à¦•à¦¾à¦² à¦ªà§à¦°à¦®à¦¾à¦£: DATABASE_URL=sqlite+aiosqlite à¦¦à¦¿à¦²à§‡ suite à§«à§­/à§«à§­ greenà¥¤
-    # à¦¤à¦¾à¦‡ service container à¦¬à¦¾à¦¦ + à¦¸à§à¦ªà¦·à§à¦Ÿ sqlite URL â€” gate à¦à¦–à¦¨ à¦¸à§Žà¦­à¦¾à¦¬à§‡ à¦šà¦²à¦¬à§‡à¥¤
+    # বাংলা মন্তব্য (audit V3 fix, 2026-09-17): আগে এই জবে postgres+redis
+    # service container ছিল, কিন্তু conftest `app` fixture sqlite test.db ইনজেক্ট
+    # করে এবং `missions_api_tables` fixture sqlite backend assert করে — ফলে
+    # ambient DATABASE_URL=postgres হলে TestMissionsAPI-র ৭টি টেস্ট setup-এ
+    # ERROR হতো (প্রতি রাতে pass^3=0.6699 < 0.8, ৩ run-এই অভিন্ন 50/57)।
+    # লোকাল প্রমাণ: DATABASE_URL=sqlite+aiosqlite দিলে suite ৫৭/৫৭ green।
+    # তাই service container বাদ + স্পষ্ট sqlite URL — gate এখন সৎভাবে চলবে।
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5 # v7.0.1
@@ -684,20 +684,20 @@ jobs:
           from pathlib import Path
           report = Path("reports/mission_passk.json")
           if not report.is_file():
-              print("No mission_passk.json produced â€” gate harness itself is broken")
+              print("No mission_passk.json produced — gate harness itself is broken")
               raise SystemExit(0)
           data = json.loads(report.read_text(encoding="utf-8"))
           verdict = "PASS" if data["gate"]["passed"] else "FAIL"
           line = (
               f"Mission pass^{data['k']} = {data['pass_hat_k']} "
               f"(n={data['n']}, successes_min={data['successes_min']}, "
-              f"gateâ‰¥{data['gate']['threshold']}) â†’ **{verdict}**"
+              f"gate≥{data['gate']['threshold']}) → **{verdict}**"
           )
           print(line)
           summary = os.environ.get("GITHUB_STEP_SUMMARY")
           if summary:
               with open(summary, "a", encoding="utf-8") as handle:
-                  handle.write(f"### ðŸŽ¯ Nightly Reliability Gate\n\n{line}\n")
+                  handle.write(f"### 🎯 Nightly Reliability Gate\n\n{line}\n")
           PY
 
       - name: Open/update reliability issue on gate failure
@@ -705,16 +705,16 @@ jobs:
         uses: actions/github-script@v8 # v9.0.0
         with:
           script: |
-            const title = "ðŸŽ¯ Mission Reliability Gate failed (pass^k < 0.8)";
+            const title = "🎯 Mission Reliability Gate failed (pass^k < 0.8)";
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const body = [
-              "à¦¸à§à¦¬à¦¯à¦¼à¦‚à¦•à§à¦°à¦¿à¦¯à¦¼à¦­à¦¾à¦¬à§‡ à¦¤à§ˆà¦°à¦¿ â€” nightly Mission Reliability Gate à¦¬à§à¦¯à¦°à§à¦¥ à¦¹à¦¯à¦¼à§‡à¦›à§‡:",
-              "- Mission suite pass^k estimator à¦à¦° threshold (0.8) à¦à¦° à¦¨à¦¿à¦šà§‡ à¦¨à§‡à¦®à§‡à¦›à§‡",
-              `- à¦°à¦¾à¦¨ à¦“ à¦²à¦—: ${runUrl}`,
+              "স্বয়ংক্রিয়ভাবে তৈরি — nightly Mission Reliability Gate ব্যর্থ হয়েছে:",
+              "- Mission suite pass^k estimator এর threshold (0.8) এর নিচে নেমেছে",
+              `- রান ও লগ: ${runUrl}`,
               "- report artifact: mission-passk-report",
               "",
-              "Constitution #5: pass^3 â‰¥ 0.8 à¦›à¦¾à¦¡à¦¼à¦¾ à¦•à§‹à¦¨à§‹ à¦ªà¦°à¦¿à¦¬à¦°à§à¦¤à¦¨ promote à¦•à¦°à¦¾ à¦¯à¦¾à¦¬à§‡ à¦¨à¦¾à¥¤",
-              "à¦ªà¦°à§‡à¦° nightly run-à¦ à¦—à§‡à¦Ÿ à¦ªà¦¾à¦¸ à¦•à¦°à¦²à§‡ à¦à¦‡ à¦‡à¦¸à§à¦¯à§ auto-close à¦¹à¦¬à§‡à¥¤",
+              "Constitution #5: pass^3 ≥ 0.8 ছাড়া কোনো পরিবর্তন promote করা যাবে না।",
+              "পরের nightly run-এ গেট পাস করলে এই ইস্যু auto-close হবে।",
             ].join("\n");
             const existing = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
@@ -745,7 +745,7 @@ jobs:
         uses: actions/github-script@v8 # v9.0.0
         with:
           script: |
-            const title = "ðŸŽ¯ Mission Reliability Gate failed (pass^k < 0.8)";
+            const title = "🎯 Mission Reliability Gate failed (pass^k < 0.8)";
             const existing = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -758,7 +758,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: match.number,
-                body: "âœ… à¦¸à¦°à§à¦¬à¦¶à§‡à¦· nightly run-à¦ Mission Reliability Gate à¦ªà¦¾à¦¸ à¦•à¦°à§‡à¦›à§‡ â€” à¦‡à¦¸à§à¦¯à§ à¦¬à¦¨à§à¦§ à¦•à¦°à¦¾ à¦¹à¦šà§à¦›à§‡à¥¤",
+                body: "✅ সর্বশেষ nightly run-এ Mission Reliability Gate পাস করেছে — ইস্যু বন্ধ করা হচ্ছে।",
               });
               await github.rest.issues.update({
                 owner: context.repo.owner,
@@ -777,7 +777,7 @@ jobs:
 
   platform-sweep:
     needs: [resolve-execution-tier]
-    name: ðŸ§¹ Platform Sweep (nightly, dispatch-only)
+    name: 🧹 Platform Sweep (nightly, dispatch-only)
     # #67 Tier 3: dispatch-only (deep platform sweeps on demand)
     if: github.event_name == 'workflow_dispatch' && inputs.run_platform_sweep == true
     concurrency:
@@ -821,12 +821,12 @@ jobs:
     # Issue #72: check_infisical_vault_synth.py was dormant (merged but never wired
     # to any trigger). Synthetic early-warning guard for the Infisical RAW v3 vault
     # contract (#434): vault reachable via universal-auth, prod secret count sane
-    # (>=100), probe keys present â€” catches vendor blind-index / silent API
+    # (>=100), probe keys present — catches vendor blind-index / silent API
     # failures before they crash-loop production consumers.
     # Workflow Diet #67/#69 constraint: nightly-ops is at the GitHub 25-dispatch-input
-    # hard cap, so this arm has NO dispatch toggle â€” Tier-1 daily schedule only
+    # hard cap, so this arm has NO dispatch toggle — Tier-1 daily schedule only
     # (lightweight API probe, 5-min timeout).
-    name: ðŸ§ª Infisical RAW Vault Synthetic Check (#72)
+    name: 🧪 Infisical RAW Vault Synthetic Check (#72)
     if: github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0') # #67 Tier 1 daily
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -848,14 +848,14 @@ jobs:
         run: python scripts/maintenance/check_infisical_vault_synth.py
 
   # Issue #2712: platform_deep_audit.py (PR #2460) was merged but never wired
-  # to any trigger â€” the vault-driven discovery + classification + auto-issue
+  # to any trigger — the vault-driven discovery + classification + auto-issue
   # engine only ran on manual local invocation. This job gives it a nightly
   # home alongside platform-sweep. Runs at the same 0 3 UTC cron as sweep;
   # overlap is safe because the script's existing_issue_for() does two-layer
   # dedup (fingerprint + platform/title) before opening any issue.
   platform-deep-audit:
     needs: [resolve-execution-tier]
-    name: ðŸ§  Platform Deep-Audit (vault-driven discovery + auto-issue)
+    name: 🧠 Platform Deep-Audit (vault-driven discovery + auto-issue)
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_platform_deep_audit == true) ||
@@ -901,7 +901,7 @@ jobs:
 
   rate-limit-trend:
     needs: [resolve-execution-tier]
-    name: ðŸ“Š Rate Limit Trend Snapshot (daily)
+    name: 📊 Rate Limit Trend Snapshot (daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_rate_limit_trend == true) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
@@ -945,13 +945,13 @@ jobs:
 
           if [ "$REMAINING" -lt 100 ]; then
             echo "severity=critical" >> "$GITHUB_OUTPUT"
-            echo "::error::GitHub API rate limit CRITICAL â€” only $REMAINING requests remaining"
+            echo "::error::GitHub API rate limit CRITICAL — only $REMAINING requests remaining"
           elif [ "$REMAINING" -lt 500 ]; then
             echo "severity=warning" >> "$GITHUB_OUTPUT"
-            echo "::warning::GitHub API rate limit LOW â€” $REMAINING requests remaining"
+            echo "::warning::GitHub API rate limit LOW — $REMAINING requests remaining"
           else
             echo "severity=ok" >> "$GITHUB_OUTPUT"
-            echo "âœ… Rate limit OK â€” $REMAINING requests remaining"
+            echo "✅ Rate limit OK — $REMAINING requests remaining"
           fi
 
       - name: Open alert issue (if warning or critical)
@@ -968,28 +968,28 @@ jobs:
             --json number,title --limit 5 --jq ".[] | select(.title | contains(\"$TODAY\")) | .number" | head -1)
 
           if [ -n "$EXISTING" ]; then
-            echo "â„¹ï¸ Already have an open rate-limit alert issue #$EXISTING for today â€” commenting instead of creating new"
-            gh issue comment "$EXISTING" --body "ðŸ“Š Update at $(date -u +'%H:%M UTC'): severity=$SEVERITY, remaining=$REMAINING"
+            echo "ℹ️ Already have an open rate-limit alert issue #$EXISTING for today — commenting instead of creating new"
+            gh issue comment "$EXISTING" --body "📊 Update at $(date -u +'%H:%M UTC'): severity=$SEVERITY, remaining=$REMAINING"
             exit 0
           fi
 
           # Create label if not exists
           # Create label if not exists (issue #904: GitHub label colors are
-          # 6-hex-char strings WITHOUT spaces â€” `"FB CA 04"` was being rejected
+          # 6-hex-char strings WITHOUT spaces — `"FB CA 04"` was being rejected
           # by the API, which cascaded to issue creation failure).
           gh label create "rate-limit-alert" --color "FBCA04" \
             --description "GitHub API rate limit warning" --force 2>/dev/null || true
 
           # Build issue body
           if [ "$SEVERITY" = "critical" ]; then
-            TITLE="ðŸ”´ CRITICAL: GitHub API rate limit critical ($REMAINING remaining)"
-            ICON="ðŸ”´"
+            TITLE="🔴 CRITICAL: GitHub API rate limit critical ($REMAINING remaining)"
+            ICON="🔴"
           else
-            TITLE="ðŸŸ¡ WARNING: GitHub API rate limit low ($REMAINING remaining)"
-            ICON="ðŸŸ¡"
+            TITLE="🟡 WARNING: GitHub API rate limit low ($REMAINING remaining)"
+            ICON="🟡"
           fi
 
-          # Build issue body â€” unquoted heredoc terminator so $SEVERITY,
+          # Build issue body — unquoted heredoc terminator so $SEVERITY,
           # $REMAINING, $TODAY, $ICON actually expand (issue #904: the previous
           # single-quoted 'MD' terminator prevented all variable substitution
           # and the post-hoc sed workaround only patched 4 of them).
@@ -1001,21 +1001,21 @@ jobs:
           **Remaining requests:** $REMAINING (out of 5,000/hour)
 
           ### Impact
-          - à¦¸à¦¬ agents + PR Helper + CI scripts à¦à¦•à¦‡ GITHUB_TOKEN à¦¬à§à¦¯à¦¬à¦¹à¦¾à¦° à¦•à¦°à§‡
-          - Rate limit hit à¦¹à¦²à§‡:
-            - `gh issue edit`, `gh pr review`, `gh pr merge` à¦¸à¦¬ fail à¦•à¦°à¦¬à§‡
-            - PR Helper auto-merge à¦¬à¦¨à§à¦§ à¦¹à¦¬à§‡
+          - সব agents + PR Helper + CI scripts একই GITHUB_TOKEN ব্যবহার করে
+          - Rate limit hit হলে:
+            - `gh issue edit`, `gh pr review`, `gh pr merge` সব fail করবে
+            - PR Helper auto-merge বন্ধ হবে
             - Agent workflow disruption
 
           ### Recommended Action
-          - [ ] à¦¸à¦®à¦¾à¦¨à§à¦¤à¦°à¦¾à¦² agents à¦•à¦®à¦¾à¦¨ (max 3-5 concurrent)
-          - [ ] à¦­à¦¾à¦°à§€ CI jobs à¦¸à§à¦Ÿà§à¦¯à¦¾à¦—à¦¾à¦° à¦•à¦°à§à¦¨
-          - [ ] à¦ªà§à¦°à¦¯à¦¼à§‹à¦œà¦¨à§‡ GitHub App à¦¬à¦¾ à¦¦à§à¦¬à¦¿à¦¤à§€à¦¯à¦¼ PAT à¦¬à§à¦¯à¦¬à¦¹à¦¾à¦° à¦•à¦°à§à¦¨
-          - [ ] à¦†à¦°à§à¦•à¦¿à¦Ÿà§‡à¦•à¦šà¦¾à¦° à¦°à¦¿à¦­à¦¿à¦‰: à¦•à§‹à¦¨ à¦•à¦®à§à¦ªà§‹à¦¨à§‡à¦¨à§à¦Ÿ à¦¸à¦¬à¦šà§‡à¦¯à¦¼à§‡ à¦¬à§‡à¦¶à¦¿ API call à¦•à¦°à¦›à§‡
+          - [ ] সমান্তরাল agents কমান (max 3-5 concurrent)
+          - [ ] ভারী CI jobs স্ট্যাগার করুন
+          - [ ] প্রয়োজনে GitHub App বা দ্বিতীয় PAT ব্যবহার করুন
+          - [ ] আর্কিটেকচার রিভিউ: কোন কম্পোনেন্ট সবচেয়ে বেশি API call করছে
 
           ### Policy
-          - **Max Concurrent Agent Policy** (OPS-06 Safeguard 5): active slots MUST be <= 10 â€” enforced via `AGENT_SLOT_REGISTRY.yaml` active count (cap raised 5â†’10 by the 2026-09-26 registry rewrite; was stale at `<= 5` â€” #1411)
-          - Rate budget: agent ~10 + PR Helper ~20 + CI ~50 calls/cycle â€” see OPS-06 Safeguard 5 table
+          - **Max Concurrent Agent Policy** (OPS-06 Safeguard 5): active slots MUST be <= 10 — enforced via `AGENT_SLOT_REGISTRY.yaml` active count (cap raised 5→10 by the 2026-09-26 registry rewrite; was stale at `<= 5` — #1411)
+          - Rate budget: agent ~10 + PR Helper ~20 + CI ~50 calls/cycle — see OPS-06 Safeguard 5 table
 
           ### Tracking
           - Label: `rate-limit-alert`
@@ -1030,7 +1030,7 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "## ðŸ“Š Rate Limit Monitor Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Rate Limit Monitor Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Run at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_STEP_SUMMARY
           echo "Severity: ${{ steps.check.outputs.severity }}" >> $GITHUB_STEP_SUMMARY
@@ -1038,12 +1038,12 @@ jobs:
 
   docs-garbage-sweep:
     needs: [resolve-execution-tier]
-    # â”€â”€ #4176 Step 3: PR-independent main-tree Zero-Garbage monitoring â”€â”€â”€â”€â”€â”€
-    # PR-path gate (pr.yml â†’ constitution.gates docs_garbage) à¦¶à§à¦§à§ PR-à¦à¦°
-    # changed-files à¦¦à§‡à¦–à§‡ â€” main-à¦ direct push à¦¹à¦²à§‡ à¦•à§‹à¦¨à§‹ gate à¦šà¦²à§‡ à¦¨à¦¾ (à¦ªà§à¦°à¦®à¦¾à¦£:
-    # 9e4d9df/889da16, 2026-10-06)à¥¤ à¦à¦‡ job à¦ªà§à¦°à§‹ docs/ tree à¦¦à¦¿à¦¨à§‡ à¦à¦•à¦¬à¦¾à¦° sweep
-    # à¦•à¦°à§‡ â€” baseline-à¦¬à¦¾à¦‡à¦°à§‡ à¦¨à¦¤à§à¦¨ non-allowlisted docs/*.md = à¦²à¦¾à¦² (fail-closed)à¥¤
-    name: ðŸ§¹ Docs Garbage Tree Sweep (daily, #4176)
+    # ── #4176 Step 3: PR-independent main-tree Zero-Garbage monitoring ──────
+    # PR-path gate (pr.yml → constitution.gates docs_garbage) শুধু PR-এর
+    # changed-files দেখে — main-এ direct push হলে কোনো gate চলে না (প্রমাণ:
+    # 9e4d9df/889da16, 2026-10-06)। এই job পুরো docs/ tree দিনে একবার sweep
+    # করে — baseline-বাইরে নতুন non-allowlisted docs/*.md = লাল (fail-closed)।
+    name: 🧹 Docs Garbage Tree Sweep (daily, #4176)
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_docs_garbage_sweep == true) ||
@@ -1069,23 +1069,23 @@ jobs:
       - name: Tree sweep (fail-closed on new offenders)
         run: |
           set -euo pipefail
-          # #4279: setup-python à¦¹à¦²à§‡à¦“ PyYAML à¦¥à¦¾à¦•à§‡ à¦¨à¦¾ â€” sweep à¦¸à§à¦•à§à¦°à¦¿à¦ªà§à¦Ÿà¦° lazy
-          # `import yaml`-à¦ ModuleNotFoundError à¦›à¦¿à¦² (à¦ªà§à¦°à¦¥à¦® run-à¦à¦‡ à¦§à¦°à¦¾ à¦ªà¦¡à¦¼à§‡à¦›à¦¿à¦²,
-          # à¦à¦¤à¦¦à¦¿à¦¨ nightly parse-à¦­à¦¾à¦™à¦¾ à¦¥à¦¾à¦•à¦¾à¦¯à¦¼ à¦…à¦¦à§ƒà¦¶à§à¦¯ à¦›à¦¿à¦²)à¥¤ runner FS-à¦ à¦à¦•à¦¬à¦¾à¦°
-          # install à¦•à¦°à¦²à§‡ à¦ªà¦°à§‡à¦° summary step-à¦“ à¦²à¦¾à¦­ à¦•à¦°à§‡ (same runner FS)à¥¤
+          # #4279: setup-python হলেও PyYAML থাকে না — sweep স্ক্রিপ্টর lazy
+          # `import yaml`-এ ModuleNotFoundError ছিল (প্রথম run-এই ধরা পড়েছিল,
+          # এতদিন nightly parse-ভাঙা থাকায় অদৃশ্য ছিল)। runner FS-এ একবার
+          # install করলে পরের summary step-ও লাভ করে (same runner FS)।
           python3 -m pip install --quiet --disable-pip-version-check pyyaml
           python3 scripts/ci/docs_garbage_tree_sweep.py
 
       - name: Sweep summary (offender inventory on failure)
         if: failure()
         run: |
-          echo "## ðŸ§¹ Docs Garbage Tree Sweep â€” NEW OFFENDERS (#4176)" >> "$GITHUB_STEP_SUMMARY"
+          echo "## 🧹 Docs Garbage Tree Sweep — NEW OFFENDERS (#4176)" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           python3 scripts/ci/docs_garbage_tree_sweep.py --list >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Remediation:** à¦«à¦¾à¦‡à¦²à¦Ÿà¦¿ \`docs/archive/\`-à¦ à¦¸à¦°à¦¾à¦“, à¦…à¦¥à¦¬à¦¾ rules.yml \`docs_garbage_policy.allowed_patterns\`-à¦ (approved PR-à¦) à¦¯à§‹à¦— à¦•à¦°à§‹, à¦…à¦¥à¦¬à¦¾ liability-audit-à¦ à¦¸à¦¿à¦¦à§à¦§à¦¾à¦¨à§à¦¤ à¦¨à¦¾à¦“à¥¤" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Remediation:** ফাইলটি \`docs/archive/\`-এ সরাও, অথবা rules.yml \`docs_garbage_policy.allowed_patterns\`-এ (approved PR-এ) যোগ করো, অথবা liability-audit-এ সিদ্ধান্ত নাও।" >> "$GITHUB_STEP_SUMMARY"
 
   stale-mutex:
     needs: [resolve-execution-tier]
@@ -1099,7 +1099,7 @@ jobs:
       contents: read
       issues: write
       pull-requests: read
-    name: ðŸ”“ Release Stale Mutex Locks
+    name: 🔓 Release Stale Mutex Locks
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -1122,15 +1122,15 @@ jobs:
         id: find
         run: |
           set -euo pipefail
-          echo "ðŸ” Looking for stale in-progress issues (>$STALE_HOURS h without PR)"
+          echo "🔍 Looking for stale in-progress issues (>$STALE_HOURS h without PR)"
 
           # Get all open issues with status:in-progress label
           ISSUES_JSON=$(gh issue list --label "status:in-progress" --state open \
             --json number,title,createdAt,updatedAt,labels --limit 100)
-          # issue #1321: gh à¦–à¦¾à¦²à¦¿/à¦…-JSON output à¦¦à¦¿à¦²à§‡ à¦ªà§à¦°à§‹ workflow à¦²à¦¾à¦² à¦¹à¦¯à¦¼à§‡ à¦¯à§‡à¦¤ â€”
-          # maintenance job-à¦à¦° à¦¨à§€à¦¤à¦¿: à¦šà§à¦ªà¦šà¦¾à¦ª à¦ªà¦¾à¦¸ à¦¨à¦¯à¦¼, à¦¸à§à¦ªà¦·à§à¦Ÿ à¦“à¦¯à¦¼à¦¾à¦°à§à¦¨à¦¿à¦‚ à¦¦à¦¿à¦¯à¦¼à§‡ à¦¸à¦ à¦¿à¦• exità¥¤
+          # issue #1321: gh খালি/অ-JSON output দিলে পুরো workflow লাল হয়ে যেত —
+          # maintenance job-এর নীতি: চুপচাপ পাস নয়, স্পষ্ট ওয়ার্নিং দিয়ে সঠিক exit।
           if [ -z "$(echo "$ISSUES_JSON" | tr -d '[:space:]')" ]; then
-            echo "::warning::gh issue list returned empty output â€” treating as 0 in-progress claims (input honesty preserved)"
+            echo "::warning::gh issue list returned empty output — treating as 0 in-progress claims (input honesty preserved)"
             echo "[]" > /tmp/issues_json
           else
             echo "$ISSUES_JSON" > /tmp/issues_json
@@ -1144,8 +1144,8 @@ jobs:
           try:
               issues = json.loads(raw) if raw else []
           except json.JSONDecodeError:
-              # issue #1321: malformed gh output â€” à¦¸à§à¦ªà¦·à§à¦Ÿ à¦¸à¦¤à¦°à§à¦•à¦¬à¦¾à¦°à§à¦¤à¦¾, crash à¦¨à¦¯à¦¼
-              print("::warning::gh issue list returned non-JSON output â€” treating as 0 in-progress claims")
+              # issue #1321: malformed gh output — স্পষ্ট সতর্কবার্তা, crash নয়
+              print("::warning::gh issue list returned non-JSON output — treating as 0 in-progress claims")
               issues = []
           stale_hours = int(os.environ.get('STALE_HOURS', '24'))
           dry_run = os.environ.get('DRY_RUN', 'false') == 'true'
@@ -1178,15 +1178,15 @@ jobs:
                   prs = []
 
               if prs:
-                  # Open PR exists â€” not stale, skip
+                  # Open PR exists — not stale, skip
                   continue
 
               # Stale! No PR + older than cutoff
               stale_count += 1
-              print(f"  ðŸŸ¡ Issue #{num} ({title[:50]}) â€” stale since {updated.isoformat()}")
+              print(f"  🟡 Issue #{num} ({title[:50]}) — stale since {updated.isoformat()}")
 
               if dry_run:
-                  print(f"     (dry-run â€” would release)")
+                  print(f"     (dry-run — would release)")
                   continue
 
               # Remove the status:in-progress label
@@ -1196,17 +1196,17 @@ jobs:
                       check=True, capture_output=True, text=True, timeout=15
                   )
                   released_count += 1
-                  print(f"     âœ… released mutex")
+                  print(f"     ✅ released mutex")
 
                   # Post a comment explaining
-                  comment_body = f"""### ðŸ”“ Stale Mutex Released (GAP-03)
+                  comment_body = f"""### 🔓 Stale Mutex Released (GAP-03)
 
-          à¦à¦‡ issue-à¦Ÿà¦¿ {stale_hours}+ à¦˜à¦£à§à¦Ÿà¦¾ à¦§à¦°à§‡ `status:in-progress` à¦›à¦¿à¦², à¦•à¦¿à¦¨à§à¦¤à§ à¦•à§‹à¦¨à§‹ open PR à¦¨à§‡à¦‡à¥¤
-          à¦¸à¦®à§à¦­à¦¬à¦¤ à¦à¦œà§‡à¦¨à§à¦Ÿ à¦•à§à¦°à§à¦¯à¦¾à¦¶ à¦¹à¦¯à¦¼à§‡à¦›à§‡ à¦¬à¦¾ à¦¸à¦‚à¦¯à§‹à¦— à¦¬à¦¿à¦šà§à¦›à¦¿à¦¨à§à¦¨ à¦¹à¦¯à¦¼à§‡à¦›à§‡à¥¤
+          এই issue-টি {stale_hours}+ ঘণ্টা ধরে `status:in-progress` ছিল, কিন্তু কোনো open PR নেই।
+          সম্ভবত এজেন্ট ক্র্যাশ হয়েছে বা সংযোগ বিচ্ছিন্ন হয়েছে।
 
           **Mutex released:** {now.isoformat()}
 
-          à¦à¦‡ issue à¦à¦–à¦¨ à¦…à¦¨à§à¦¯ à¦à¦œà§‡à¦¨à§à¦Ÿ à¦§à¦°à¦¤à§‡ à¦ªà¦¾à¦°à¦¬à§‡à¥¤
+          এই issue এখন অন্য এজেন্ট ধরতে পারবে।
 
           _Automated by stale-mutex-cleanup.yml (GAP-03 fix)_"""
                   subprocess.run(
@@ -1214,15 +1214,15 @@ jobs:
                       check=True, capture_output=True, text=True, timeout=15
                   )
               except subprocess.CalledProcessError as e:
-                  print(f"     âš ï¸ failed: {e.stderr[:100] if e.stderr else 'unknown'}")
+                  print(f"     ⚠️ failed: {e.stderr[:100] if e.stderr else 'unknown'}")
 
-          print(f"\nðŸ“Š Summary: {stale_count} stale issues found, {released_count} released")
+          print(f"\n📊 Summary: {stale_count} stale issues found, {released_count} released")
           PYEOF
 
       - name: Summary
         if: always()
         run: |
-          echo "## ðŸ”“ Stale Mutex Cleanup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔓 Stale Mutex Cleanup Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Run at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_STEP_SUMMARY
           echo "Stale threshold: ${STALE_HOURS} hours" >> $GITHUB_STEP_SUMMARY
@@ -1238,7 +1238,7 @@ jobs:
     concurrency:
       group: qa-live-smoke
       cancel-in-progress: false
-    name: ðŸŒ Live Production Smoke (fail-closed)
+    name: 🌐 Live Production Smoke (fail-closed)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -1255,10 +1255,10 @@ jobs:
       - name: Checkout (canonical resolver lives in-repo)
         uses: actions/checkout@v5 # v7.0.1
 
-      # à¦¬à¦¾à¦‚à¦²à¦¾ (#1132): resolution à¦šà§‡à¦‡à¦¨ à¦à¦–à¦¨ scripts/ci/resolve_production_targets.py â€”
-      # à¦à¦•à¦Ÿà¦¾à¦‡ canonical à¦šà§à¦•à§à¦¤à¦¿, qa-live-smoke + 09-post-deploy-smoke + release
-      # certification à¦¸à¦¬à¦¾à¦‡ à¦à¦•à¦‡ UI/API target + provenance à¦¦à§‡à¦–à¦¾à¦¯à¦¼à¥¤ à¦‡à¦¨à¦²à¦¾à¦‡à¦¨ à¦ªà¦¾à¦‡à¦¥à¦¨
-      # à¦¡à§à¦ªà§à¦²à¦¿à¦•à§‡à¦Ÿ à¦®à§à¦›à§‡ à¦«à§‡à¦²à¦¾ à¦¹à¦¯à¦¼à§‡à¦›à§‡ (drift = à¦†à¦²à¦¾à¦¦à¦¾ à¦†à¦²à¦¾à¦¦à¦¾ à¦¸à¦¤à§à¦¯ â€” à¦†à¦° à¦¸à¦®à§à¦­à¦¬ à¦¨à¦¯à¦¼)à¥¤
+      # বাংলা (#1132): resolution চেইন এখন scripts/ci/resolve_production_targets.py —
+      # একটাই canonical চুক্তি, qa-live-smoke + 09-post-deploy-smoke + release
+      # certification সবাই একই UI/API target + provenance দেখায়। ইনলাইন পাইথন
+      # ডুপ্লিকেট মুছে ফেলা হয়েছে (drift = আলাদা আলাদা সত্য — আর সম্ভব নয়)।
       - name: Resolve live targets (canonical resolver, zero-hardcode, with provenance)
         id: resolve
         env:
@@ -1271,11 +1271,11 @@ jobs:
       - name: Require live target (fail-closed)
         if: ${{ env.UI_ORIGIN == '' && env.API_ORIGIN == '' }}
         run: |
-          echo "### ðŸŒ¡ï¸ Live Production Smoke" >> "$GITHUB_STEP_SUMMARY"
-          echo "**UNVERIFIED** â€” no live target could be resolved. This job is fail-closed by design; it will not fabricate a pass." >> "$GITHUB_STEP_SUMMARY"
+          echo "### 🌡️ Live Production Smoke" >> "$GITHUB_STEP_SUMMARY"
+          echo "**UNVERIFIED** — no live target could be resolved. This job is fail-closed by design; it will not fabricate a pass." >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Owner action: set repo **variable** \`vars.PRODUCTION_URL\` (or secret \`PRODUCTION_URL\`) to the deployed base URL that serves both UI and API, or ensure \`FIREBASE_PROJECT_ID\` / Infisical \`RENDER_CORE_URL\` are configured." >> "$GITHUB_STEP_SUMMARY"
-          echo "::error::PRODUCTION_URL is not configured (and no FIREBASE_PROJECT_ID / RENDER_CORE_URL fallback resolvable) â€” live production path cannot be verified. Honest state: production liveness is UNVERIFIED."
+          echo "::error::PRODUCTION_URL is not configured (and no FIREBASE_PROJECT_ID / RENDER_CORE_URL fallback resolvable) — live production path cannot be verified. Honest state: production liveness is UNVERIFIED."
           exit 1
 
       - name: Probe live chain (customer chain + API direct, fail-closed)
@@ -1293,17 +1293,17 @@ jobs:
           import json, os, sys, time, urllib.error, urllib.request
           from datetime import datetime, timezone
 
-          # à¦¬à¦¾à¦‚à¦²à¦¾: à¦ªà§à¦°à¦¤à¦¿à¦Ÿà¦¿ à¦ªà§à¦°à§‹à¦¬à§‡à¦° à¦¬à§à¦¯à¦°à§à¦¥à¦¤à¦¾ à¦ªà§à¦°à¦®à¦¾à¦£à¦¸à¦¹ à¦°à§‡à¦•à¦°à§à¦¡ à¦¹à¦¬à§‡ â€” à¦•à§‹à¦¨à§‹ à¦¬à§à¦¯à¦¤à¦¿à¦•à§à¦°à¦® à¦šà§à¦ªà¦šà¦¾à¦ª
-          # à¦—à¦¿à¦²à§‡ à¦«à§‡à¦²à¦¾ à¦¹à¦¬à§‡ à¦¨à¦¾; à¦à¦•à¦Ÿà¦¿à¦“ FAIL à¦¹à¦²à§‡ à¦ªà§à¦°à§‹ job à¦²à¦¾à¦² (fail-closed)à¥¤
-          # Render free-tier cold-start (~50s) à¦¸à¦¤à§à¦¯ â€” à¦¤à¦¾à¦‡ à§¨à¦Ÿà¦¿ attempt + à¦¬à¦¡à¦¼ timeout;
-          # retry à¦¬à§à¦¯à¦¬à¦¹à¦¾à¦° à¦¹à¦²à§‡ à¦Ÿà§‡à¦¬à¦¿à¦²à§‡ à¦¸à§à¦¬à¦šà§à¦›à¦­à¦¾à¦¬à§‡ à¦¨à§‹à¦Ÿ à¦¹à¦¯à¦¼ (à¦¨à§€à¦°à¦¬ à¦¨à¦¯à¦¼)à¥¤
+          # বাংলা: প্রতিটি প্রোবের ব্যর্থতা প্রমাণসহ রেকর্ড হবে — কোনো ব্যতিক্রম চুপচাপ
+          # গিলে ফেলা হবে না; একটিও FAIL হলে পুরো job লাল (fail-closed)।
+          # Render free-tier cold-start (~50s) সত্য — তাই ২টি attempt + বড় timeout;
+          # retry ব্যবহার হলে টেবিলে স্বচ্ছভাবে নোট হয় (নীরব নয়)।
           ui = os.environ.get("UI_ORIGIN", "").rstrip("/")
           ui_src = os.environ.get("UI_ORIGIN_SOURCE", "")
           api = os.environ.get("API_ORIGIN", "").rstrip("/")
           api_src = os.environ.get("API_ORIGIN_SOURCE", "")
 
           def probe(label, url, timeout, judge):
-              # judge(status, body_bytes) -> note string; "FAIL:..." à¦®à¦¾à¦¨à§‡ à¦¬à§à¦¯à¦°à§à¦¥à¦¤à¦¾à¥¤
+              # judge(status, body_bytes) -> note string; "FAIL:..." মানে ব্যর্থতা।
               last = None
               for attempt in (1, 2):
                   t0 = time.monotonic()
@@ -1316,62 +1316,62 @@ jobs:
                       retry_note = " (attempt 2, cold-start retry)" if attempt == 2 else ""
                       return code, f"{ms} ms", note + retry_note
                   except urllib.error.HTTPError as exc:
-                      # HTTPError-à¦“ à¦à¦•à¦Ÿà¦¿ à¦¸à¦¾à¦°à§à¦­à¦¾à¦° à¦°à§‡à¦¸à¦ªà¦¨à§à¦¸ â€” judge à¦à¦° à¦¸à¦¾à¦¥à§‡à¦‡ à¦¬à¦¿à¦šà¦¾à¦° à¦¹à§‹à¦•à¥¤
+                      # HTTPError-ও একটি সার্ভার রেসপন্স — judge এর সাথেই বিচার হোক।
                       code, body = exc.code, exc.read()
                       ms = int((time.monotonic() - t0) * 1000)
                       note = judge(code, body)
                       retry_note = " (attempt 2, cold-start retry)" if attempt == 2 else ""
                       return code, f"{ms} ms", note + retry_note
-                  except Exception as exc:  # noqa: BLE001 â€” à¦¬à§à¦¯à¦°à§à¦¥à¦¤à¦¾ à¦ªà§à¦°à¦®à¦¾à¦£à¦¸à¦¹ à¦°à§‡à¦•à¦°à§à¦¡ à¦¹à¦¬à§‡
+                  except Exception as exc:  # noqa: BLE001 — ব্যর্থতা প্রমাণসহ রেকর্ড হবে
                       last = (type(exc).__name__, str(exc))
                       if attempt == 1:
                           time.sleep(15)
-              return "FAIL", "â€”", f"{last[0]}: {last[1]}"
+              return "FAIL", "—", f"{last[0]}: {last[1]}"
 
           def j200(code, body, expect_keys=()):
               if code != 200:
                   return f"FAIL: expected 200, got {code}"
               try:
                   data = json.loads(body)
-              except Exception:  # noqa: BLE001 â€” à¦¶à¦°à§€à¦°à§‡ à¦…-JSON = à¦šà§à¦•à§à¦¤à¦¿ à¦­à¦¾à¦™à¦¾
+              except Exception:  # noqa: BLE001 — শরীরে অ-JSON = চুক্তি ভাঙা
                   return "FAIL: non-JSON body"
               missing = [k for k in expect_keys if k not in data]
               if missing:
                   return f"FAIL: missing key(s) {','.join(missing)}"
-              return "json ok âœ“"
+              return "json ok ✓"
 
           rows, failed = [], False
 
           def record(layer, label, url, code, latency, note):
-              # à¦¬à¦¾à¦‚à¦²à¦¾: heredoc à¦¸à§à¦•à§à¦°à¦¿à¦ªà§à¦Ÿ à¦®à¦¡à¦¿à¦‰à¦²-à¦²à§‡à¦­à§‡à¦² â€” à¦¤à¦¾à¦‡ nonlocal à¦¨à¦¯à¦¼, globalà¥¤
+              # বাংলা: heredoc স্ক্রিপ্ট মডিউল-লেভেল — তাই nonlocal নয়, global।
               global failed
               if note.startswith("FAIL"):
                   failed = True
               rows.append((layer, label, url, str(code), latency, note))
 
-          # ---- à¦¸à§à¦¤à¦° A: à¦•à¦¾à¦¸à§à¦Ÿà¦®à¦¾à¦° à¦šà§‡à¦‡à¦¨ (SPA + CORS-verified direct API call) ----
-          # à¦¬à¦¾à¦‚à¦²à¦¾: à¦¬à§à¦°à¦¾à¦‰à¦œà¦¾à¦° à¦ à¦¿à¦• à¦à¦­à¦¾à¦¬à§‡à¦‡ à¦•à¦² à¦•à¦°à§‡ â€” SPA à¦²à§‹à¦¡ à¦¹à¦¯à¦¼ UI origin à¦¥à§‡à¦•à§‡, à¦¤à¦¾à¦°à¦ªà¦°
-          # JS API origin-à¦ direct à¦•à¦² à¦ªà¦¾à¦ à¦¾à¦¯à¦¼ Origin à¦¹à§‡à¦¡à¦¾à¦°à¦¸à¦¹; à¦¸à¦¾à¦°à§à¦­à¦¾à¦°à¦•à§‡ à¦…à¦¬à¦¶à§à¦¯à¦‡
-          # access-control-allow-origin à¦¦à¦¿à¦¯à¦¼à§‡ à¦¸à¦¾à¦¡à¦¼à¦¾ à¦¦à¦¿à¦¤à§‡ à¦¹à¦¬à§‡ (à¦¨à¦‡à¦²à§‡ à¦¬à§à¦°à¦¾à¦‰à¦œà¦¾à¦°
-          # à¦°à§‡à¦¸à¦ªà¦¨à§à¦¸ à¦¬à§à¦²à¦• à¦•à¦°à§‡)à¥¤ à¦à¦Ÿà¦¿à¦‡ à¦ªà§à¦°à¦•à§ƒà¦¤ à¦ªà§à¦°à§‹à¦¡à¦¾à¦•à¦¶à¦¨ à¦ªà¦¾à¦¥ â€” same-origin rewrite à¦¨à¦¯à¦¼à¥¤
+          # ---- স্তর A: কাস্টমার চেইন (SPA + CORS-verified direct API call) ----
+          # বাংলা: ব্রাউজার ঠিক এভাবেই কল করে — SPA লোড হয় UI origin থেকে, তারপর
+          # JS API origin-এ direct কল পাঠায় Origin হেডারসহ; সার্ভারকে অবশ্যই
+          # access-control-allow-origin দিয়ে সাড়া দিতে হবে (নইলে ব্রাউজার
+          # রেসপন্স ব্লক করে)। এটিই প্রকৃত প্রোডাকশন পাথ — same-origin rewrite নয়।
           if ui and api:
               print(f"Layer A origin (UI): {ui}  (source: {ui_src})")
               c, l, n = probe("frontend /", ui + "/", 45,
-                              lambda c, b: "SPA served âœ“" if c == 200 and b[:15] == b"<!doctype html>" else f"FAIL: expected 200 SPA html, got {c}")
+                              lambda c, b: "SPA served ✓" if c == 200 and b[:15] == b"<!doctype html>" else f"FAIL: expected 200 SPA html, got {c}")
               record("A chain", "frontend / (SPA)", ui + "/", c, l, n)
 
               def cors_judge(code, body):
-                  # à¦¬à¦¾à¦‚à¦²à¦¾: CORS à¦šà§à¦•à§à¦¤à¦¿ â€” Origin: UI origin à¦ªà¦¾à¦ à¦¾à¦²à§‡ à¦¸à¦¾à¦°à§à¦­à¦¾à¦°à§‡à¦°
-                  # allow-origin à¦¹à§‡à¦¡à¦¾à¦° à¦…à¦¬à¦¶à§à¦¯à¦‡ à¦¸à¦¾à¦¡à¦¼à¦¾ à¦¦à§‡à¦¬à§‡; 200 JSON-à¦“ à¦²à¦¾à¦—à¦¬à§‡à¥¤
+                  # বাংলা: CORS চুক্তি — Origin: UI origin পাঠালে সার্ভারের
+                  # allow-origin হেডার অবশ্যই সাড়া দেবে; 200 JSON-ও লাগবে।
                   if code != 200:
                       return f"FAIL: expected 200, got {code}"
                   try:
                       data = json.loads(body)
-                  except Exception:  # noqa: BLE001 â€” à¦…-JSON = à¦šà§à¦•à§à¦¤à¦¿ à¦­à¦¾à¦™à¦¾
+                  except Exception:  # noqa: BLE001 — অ-JSON = চুক্তি ভাঙা
                       return "FAIL: non-JSON body"
                   if "status" not in data:
                       return "FAIL: missing key(s) status"
-                  return "CORS âœ“ + json ok âœ“"
+                  return "CORS ✓ + json ok ✓"
 
               req_headers = {"User-Agent": "supremeai-live-smoke", "Origin": ui}
               last = None
@@ -1382,37 +1382,37 @@ jobs:
                       req = urllib.request.Request(api + "/api/v1/health/live", headers=req_headers)
                       with urllib.request.urlopen(req, timeout=90) as resp:
                           code, body = resp.status, resp.read()
-                          # à¦¬à¦¾à¦‚à¦²à¦¾: resp.headers (HTTPMessage) case-insensitive â€” dict() à¦¨à¦¯à¦¼,
-                          # à¦¨à¦‡à¦²à§‡ HTTP/2-à¦à¦° lowercase à¦¹à§‡à¦¡à¦¾à¦° à¦®à¦¿à¦¸ à¦¹à¦¯à¦¼à¥¤
+                          # বাংলা: resp.headers (HTTPMessage) case-insensitive — dict() নয়,
+                          # নইলে HTTP/2-এর lowercase হেডার মিস হয়।
                           allow = resp.headers.get("Access-Control-Allow-Origin", "")
                       ms = int((time.monotonic() - t0) * 1000)
                       note = cors_judge(code, body)
                       if allow and (allow == ui or allow == "*"):
-                          note = note.replace("CORS âœ“", f"CORS allow-origin={allow} âœ“")
+                          note = note.replace("CORS ✓", f"CORS allow-origin={allow} ✓")
                       elif code == 200:
                           note = "FAIL: 200 but no access-control-allow-origin for UI origin (browser would block)"
                       retry_note = " (attempt 2, cold-start retry)" if attempt == 2 else ""
                       got = (code, f"{ms} ms", note + retry_note)
                       break
-                  except Exception as exc:  # noqa: BLE001 â€” à¦¬à§à¦¯à¦°à§à¦¥à¦¤à¦¾ à¦ªà§à¦°à¦®à¦¾à¦£à¦¸à¦¹ à¦°à§‡à¦•à¦°à§à¦¡ à¦¹à¦¬à§‡
+                  except Exception as exc:  # noqa: BLE001 — ব্যর্থতা প্রমাণসহ রেকর্ড হবে
                       last = (type(exc).__name__, str(exc))
                       if attempt == 1:
                           time.sleep(15)
               if got is None:
-                  got = ("FAIL", "â€”", f"{last[0]}: {last[1]}")
+                  got = ("FAIL", "—", f"{last[0]}: {last[1]}")
               record("A chain", "API direct call w/ Origin (browser path)", api + "/api/v1/health/live", got[0], got[1], got[2])
           elif ui:
-              # à¦¬à¦¾à¦‚à¦²à¦¾: UI origin à¦†à¦›à§‡ à¦•à¦¿à¦¨à§à¦¤à§ API origin à¦¨à§‡à¦‡ â€” SPA à¦ªà§à¦°à§‹à¦¬ à¦¹à¦¬à§‡, API à¦šà§‡à¦‡à¦¨ UNVERIFIEDà¥¤
+              # বাংলা: UI origin আছে কিন্তু API origin নেই — SPA প্রোব হবে, API চেইন UNVERIFIED।
               print(f"Layer A origin (UI): {ui}  (source: {ui_src})")
               c, l, n = probe("frontend /", ui + "/", 45,
-                              lambda c, b: "SPA served âœ“" if c == 200 and b[:15] == b"<!doctype html>" else f"FAIL: expected 200 SPA html, got {c}")
+                              lambda c, b: "SPA served ✓" if c == 200 and b[:15] == b"<!doctype html>" else f"FAIL: expected 200 SPA html, got {c}")
               record("A chain", "frontend / (SPA)", ui + "/", c, l, n)
-              rows.append(("A chain", "API direct call w/ Origin (browser path)", "(no API origin resolvable)", "SKIP", "â€”", "UNVERIFIED â€” no API origin (configure RENDER_CORE_URL in Infisical or PRODUCTION_URL)"))
+              rows.append(("A chain", "API direct call w/ Origin (browser path)", "(no API origin resolvable)", "SKIP", "—", "UNVERIFIED — no API origin (configure RENDER_CORE_URL in Infisical or PRODUCTION_URL)"))
           else:
-              # à¦¬à¦¾à¦‚à¦²à¦¾: UI origin à¦¡à§‡à¦°à¦¾à¦‡à¦­ à¦•à¦°à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿ â€” à¦¨à§€à¦°à¦¬ à¦ªà¦¾à¦¸ à¦¨à¦¯à¦¼; à¦¸à§à¦ªà¦·à§à¦Ÿ UNVERIFIED à¦¸à¦¾à¦°à¦¿à¥¤
-              rows.append(("A chain", "frontend /", "(no UI origin resolvable)", "SKIP", "â€”", "UNVERIFIED â€” no UI origin (configure PRODUCTION_URL or FIREBASE_PROJECT_ID)"))
+              # বাংলা: UI origin ডেরাইভ করা যায়নি — নীরব পাস নয়; স্পষ্ট UNVERIFIED সারি।
+              rows.append(("A chain", "frontend /", "(no UI origin resolvable)", "SKIP", "—", "UNVERIFIED — no UI origin (configure PRODUCTION_URL or FIREBASE_PROJECT_ID)"))
 
-          # ---- à¦¸à§à¦¤à¦° B: API à¦¸à¦°à¦¾à¦¸à¦°à¦¿ ----
+          # ---- স্তর B: API সরাসরি ----
           if api:
               print(f"Layer B origin: {api}  (source: {api_src})")
               c, l, n = probe("health live (direct)", api + "/api/v1/health/live", 90,
@@ -1423,64 +1423,64 @@ jobs:
               record("B api-direct", "/api/v1/health/ready", api + "/api/v1/health/ready", c, l, n)
 
               def plans_judge(code, body):
-                  # à¦¬à¦¾à¦‚à¦²à¦¾: à¦šà§à¦•à§à¦¤à¦¿ â€” plans dict-shaped à¦¹à¦¬à§‡à¥¤ à¦†à¦¨à¦…à¦¥à§‡à¦¨à¦Ÿà¦¿à¦•à§‡à¦Ÿà§‡à¦¡ à¦ªà§à¦°à§‹à¦¬à§‡ à¦¸à¦šà¦²
-                  # à¦®à¦¿à¦¡à¦²à¦“à¦¯à¦¼à§à¦¯à¦¾à¦° 401 à¦¦à§‡à¦¯à¦¼ (à¦°à§à¦Ÿ à¦‰à¦ªà¦¸à§à¦¥à¦¿à¦¤ + à¦¸à§Ž guard) â€” à¦‰à¦­à¦¯à¦¼à¦‡ à¦¸à§Ž à¦…à¦¬à¦¸à§à¦¥à¦¾;
-                  # 404/5xx/à¦…-JSON = à¦­à¦¾à¦™à¦¾à¥¤
+                  # বাংলা: চুক্তি — plans dict-shaped হবে। আনঅথেনটিকেটেড প্রোবে সচল
+                  # মিডলওয়্যার 401 দেয় (রুট উপস্থিত + সৎ guard) — উভয়ই সৎ অবস্থা;
+                  # 404/5xx/অ-JSON = ভাঙা।
                   if code == 200:
                       try:
                           data = json.loads(body)
                       except Exception:  # noqa: BLE001
                           return "FAIL: non-JSON body on 200"
                       if isinstance(data, dict) and "plans" in data:
-                          return "plans-key âœ“ (dict contract)"
+                          return "plans-key ✓ (dict contract)"
                       return "FAIL: plans-key missing (contract drift!)"
                   if code == 401:
-                      return "auth-gated âœ“ (route present, middleware honest)"
+                      return "auth-gated ✓ (route present, middleware honest)"
                   return f"FAIL: expected 200/401, got {code}"
 
               c, l, n = probe("billing plans contract", api + "/api/billing/plans", 90, plans_judge)
               record("B api-direct", "/api/billing/plans", api + "/api/billing/plans", c, l, n)
           else:
-              rows.append(("B api-direct", "API probes", "(no API origin resolvable)", "SKIP", "â€”", "UNVERIFIED â€” no API origin (configure RENDER_CORE_URL in Infisical or PRODUCTION_URL)"))
+              rows.append(("B api-direct", "API probes", "(no API origin resolvable)", "SKIP", "—", "UNVERIFIED — no API origin (configure RENDER_CORE_URL in Infisical or PRODUCTION_URL)"))
 
-          # ---- à¦¸à§à¦¤à¦° C: à¦®à¦¾à¦‡à¦•à§à¦°à§‹à¦¸à¦¾à¦°à§à¦­à¦¿à¦¸ à¦“ à¦«à§‡à¦¡à¦¾à¦°à§‡à¦¶à¦¨ à¦¨à§‹à¦¡à¦¸ (Issue #1290) ----
+          # ---- স্তর C: মাইক্রোসার্ভিস ও ফেডারেশন নোডস (Issue #1290) ----
           worker_url = os.environ.get("RENDER_WORKER_URL", "").rstrip("/")
           scraper_url = os.environ.get("RENDER_SCRAPER_URL", "").rstrip("/")
           mcp_url = os.environ.get("RENDER_MCP_URL", "").rstrip("/")
 
           if worker_url:
-              c, l, n = probe("worker node /health", worker_url + "/health", 45, lambda c, b: "worker alive âœ“" if c == 200 else f"FAIL: expected 200, got {c}")
+              c, l, n = probe("worker node /health", worker_url + "/health", 45, lambda c, b: "worker alive ✓" if c == 200 else f"FAIL: expected 200, got {c}")
               record("C microservices", "supremeai-worker-node", worker_url + "/health", c, l, n)
           else:
-              rows.append(("C microservices", "supremeai-worker-node", "(no RENDER_WORKER_URL)", "SKIP", "â€”", "UNVERIFIED â€” no RENDER_WORKER_URL in Infisical"))
+              rows.append(("C microservices", "supremeai-worker-node", "(no RENDER_WORKER_URL)", "SKIP", "—", "UNVERIFIED — no RENDER_WORKER_URL in Infisical"))
 
           if scraper_url:
-              c, l, n = probe("scraper node /health", scraper_url + "/health", 45, lambda c, b: "scraper alive âœ“" if c == 200 else f"FAIL: expected 200, got {c}")
+              c, l, n = probe("scraper node /health", scraper_url + "/health", 45, lambda c, b: "scraper alive ✓" if c == 200 else f"FAIL: expected 200, got {c}")
               record("C microservices", "supremeai-scraper-node", scraper_url + "/health", c, l, n)
           else:
-              rows.append(("C microservices", "supremeai-scraper-node", "(no RENDER_SCRAPER_URL)", "SKIP", "â€”", "UNVERIFIED â€” no RENDER_SCRAPER_URL in Infisical"))
+              rows.append(("C microservices", "supremeai-scraper-node", "(no RENDER_SCRAPER_URL)", "SKIP", "—", "UNVERIFIED — no RENDER_SCRAPER_URL in Infisical"))
 
           if mcp_url:
-              c, l, n = probe("mcp tower /health", mcp_url + "/health", 45, lambda c, b: "mcp alive âœ“" if c == 200 else f"FAIL: expected 200, got {c}")
+              c, l, n = probe("mcp tower /health", mcp_url + "/health", 45, lambda c, b: "mcp alive ✓" if c == 200 else f"FAIL: expected 200, got {c}")
               record("C microservices", "supremeai-mcp-tower", mcp_url + "/health", c, l, n)
           else:
-              rows.append(("C microservices", "supremeai-mcp-tower", "(no RENDER_MCP_URL)", "SKIP", "â€”", "UNVERIFIED â€” no RENDER_MCP_URL in Infisical"))
+              rows.append(("C microservices", "supremeai-mcp-tower", "(no RENDER_MCP_URL)", "SKIP", "—", "UNVERIFIED — no RENDER_MCP_URL in Infisical"))
 
-          verdict = ("âœ… PASS â€” live production path verified (customer chain + API + microservices)"
-                     if not failed else "âŒ FAIL â€” live production path broken")
+          verdict = ("✅ PASS — live production path verified (customer chain + API + microservices)"
+                     if not failed else "❌ FAIL — live production path broken")
           summary = os.environ.get("GITHUB_STEP_SUMMARY")
           content = [
-              "### ðŸŒ¡ï¸ Live Production Smoke",
+              "### 🌡️ Live Production Smoke",
               f"**{verdict}**",
               "",
-              f"- Layer A origin: `{ui or '(none)'}` â€” source: {ui_src or '-'}",
-              f"- Layer B origin: `{api or '(none)'}` â€” source: {api_src or '-'}",
+              f"- Layer A origin: `{ui or '(none)'}` — source: {ui_src or '-'}",
+              f"- Layer B origin: `{api or '(none)'}` — source: {api_src or '-'}",
               "",
               "| layer | probe | url | status | latency | note |",
               "|---|---|---|---|---|---|",
               *(("| " + " | ".join(r) + " |") for r in rows),
               "",
-              "Root-cause hint: Layer A SPA FAIL = hosting/CDN issue. Layer A CORS call FAIL + Layer B PASS = the backend is alive but rejects/blocks the UI origin â€” check the API CORS config (USER_CORS_ORIGINS / CORS_ORIGINS) and the VITE_* backend URL baked into the SPA build. Layer B FAIL = API service itself down.",
+              "Root-cause hint: Layer A SPA FAIL = hosting/CDN issue. Layer A CORS call FAIL + Layer B PASS = the backend is alive but rejects/blocks the UI origin — check the API CORS config (USER_CORS_ORIGINS / CORS_ORIGINS) and the VITE_* backend URL baked into the SPA build. Layer B FAIL = API service itself down.",
               "",
           ]
           text = "\n".join(content) + "\n"
@@ -1489,11 +1489,11 @@ jobs:
               with open(summary, "a", encoding="utf-8") as fh:
                   fh.write(text)
 
-          # ---- à¦®à§‡à¦¶à¦¿à¦¨-à¦ªà¦¾à¦ à¦¯à§‹à¦—à§à¦¯ production certification artifact (issue #1096) ----
-          # à¦¬à¦¾à¦‚à¦²à¦¾: human table à¦¯à¦¥à§‡à¦·à§à¦Ÿ à¦¨à¦¯à¦¼ â€” release certification + CI-à¦•à§‡ à¦à¦•à¦‡
-          # à¦¸à¦¤à§à¦¯ machine-readable à¦†à¦•à¦¾à¦°à§‡ à¦¦à¦°à¦•à¦¾à¦°à¥¤ à¦¨à§€à¦¤à¦¿: UNVERIFIED != PASS â€”
-          # à¦ªà§à¦°à¦¤à¦¿à¦Ÿà¦¿ à¦¸à¦¾à¦°à¦¿à¦° state à¦¸à§à¦ªà¦·à§à¦Ÿ (PASS/FAIL/UNVERIFIED), provenance à¦¸à¦¹à¥¤
-          # à¦à¦Ÿà¦¿ à¦•à¦®à¦¿à¦Ÿ à¦¹à¦¯à¦¼ à¦¨à¦¾ (runtime à¦¡à§‡à¦Ÿà¦¾) â€” Actions artifact à¦¹à¦¿à¦¸à§‡à¦¬à§‡ à¦¥à¦¾à¦•à§‡à¥¤
+          # ---- মেশিন-পাঠযোগ্য production certification artifact (issue #1096) ----
+          # বাংলা: human table যথেষ্ট নয় — release certification + CI-কে একই
+          # সত্য machine-readable আকারে দরকার। নীতি: UNVERIFIED != PASS —
+          # প্রতিটি সারির state স্পষ্ট (PASS/FAIL/UNVERIFIED), provenance সহ।
+          # এটি কমিট হয় না (runtime ডেটা) — Actions artifact হিসেবে থাকে।
           def row_state(r):
               layer, label, url, status, latency, note = r
               if str(status) == "SKIP":
@@ -1553,7 +1553,7 @@ jobs:
 
   db-retention:
     needs: [resolve-execution-tier]
-    name: ðŸ—‘ï¸ DB Retention Prune (logs + learning store)
+    name: 🗑️ DB Retention Prune (logs + learning store)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_db_retention == true) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
@@ -1608,8 +1608,8 @@ jobs:
         run: |
           set -euo pipefail
           PROJECT_REF=$(echo "$SUPABASE_URL" | sed -E 's#https://([a-zA-Z0-9-]+)\.supabase\.co.*#\1#')
-          # prune_learning_data(retention_days) â€” created by
-          # audit/migrations_out/learning_store.sql â€” prunes learning_events,
+          # prune_learning_data(retention_days) — created by
+          # audit/migrations_out/learning_store.sql — prunes learning_events,
           # task_outcomes, feedback_events, fitness_snapshots, improvement_runs,
           # provider_metrics and skill_metrics (improvement_proposals and
           # prompt_candidates are kept). NOTE: if this function has not yet been
@@ -1629,7 +1629,7 @@ jobs:
           import json, sys
           payload = json.load(open(sys.argv[1], encoding="utf-8"))
           # Same envelope handling as step 1: bare array (current API) or
-          # legacy {"result"}/{"data"} wrapper â€” both must parse.
+          # legacy {"result"}/{"data"} wrapper — both must parse.
           raw = payload if isinstance(payload, list) else payload.get("result", payload.get("data", []))
           if not (isinstance(raw, list) and raw and isinstance(raw[0], dict) and "deleted" in raw[0]):
               raise SystemExit("prune_learning_data response did not contain a deleted count")
@@ -1658,7 +1658,7 @@ jobs:
     concurrency:
       group: nightly-ops-e2e-customer
       cancel-in-progress: true
-    name: ðŸŽ­ Customer E2E (Playwright)
+    name: 🎭 Customer E2E (Playwright)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -1710,7 +1710,7 @@ jobs:
         id: auth_check
         run: |
           if [ -z "$QA_CUSTOMER_EMAIL" ]; then
-            echo "::warning::QA_CUSTOMER_EMAIL is unconfigured â€” credential-dependent steps skipped in scheduled runs."
+            echo "::warning::QA_CUSTOMER_EMAIL is unconfigured — credential-dependent steps skipped in scheduled runs."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
@@ -1738,10 +1738,10 @@ jobs:
             qa/results/html/
           retention-days: 7
 
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  # à§©-à¦¸à§à¦¤à¦° à¦Ÿà§‡à¦¸à§à¦Ÿà¦¿à¦‚ à¦ªà§à¦²à§à¦¯à¦¾à¦¨ (Phase 4) â€” à¦¨à¦¤à§à¦¨ à¦Ÿà§‡à¦¸à§à¦Ÿà¦¿à¦‚ à¦†à¦°à§à¦®à¦—à§à¦²à§‹
+  # ────────────────────────────────────────────────────────────────────────────
+  # ৩-স্তর টেস্টিং প্ল্যান (Phase 4) — নতুন টেস্টিং আর্মগুলো
   # (Tier-1 load / Tier-2 chaos / Tier-3 browser-e2e / DB-pool health)
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # ────────────────────────────────────────────────────────────────────────────
   load-locust:
     needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was daily)
@@ -1751,7 +1751,7 @@ jobs:
     concurrency:
       group: nightly-ops-load-locust
       cancel-in-progress: false
-    name: ðŸ“ˆ Locust Load Test (Tier-1, 100 VU Ã— 15m)
+    name: 📈 Locust Load Test (Tier-1, 100 VU × 15m)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -1769,7 +1769,7 @@ jobs:
         id: target
         run: |
           if [ -z "$STAGING_TARGET" ]; then
-            echo "::warning::STAGING_URL is not configured â€” load test honestly SKIPPED (no fabricated numbers, cf. cloud_db_load_test doctrine)."
+            echo "::warning::STAGING_URL is not configured — load test honestly SKIPPED (no fabricated numbers, cf. cloud_db_load_test doctrine)."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
@@ -1783,9 +1783,9 @@ jobs:
           install-browser-deps: "false"
           mode: prepare
 
-      # à¦¬à¦¾à¦‚à¦²à¦¾ à¦®à¦¨à§à¦¤à¦¬à§à¦¯ (Tier-1): locust dev-dep à¦¨à¦¯à¦¼ â€” à¦à¦‡ isolated job-à¦à¦‡ à¦‡à¦¨à¦¸à§à¦Ÿà¦²
-      # à¦¹à¦¯à¦¼ (gevent monkey-patching à¦Ÿà§‡à¦¸à§à¦Ÿ-à¦¸à§à¦¯à§à¦‡à¦Ÿ à¦ªà§à¦°à¦¸à§‡à¦¸ à¦¥à§‡à¦•à§‡ à¦¦à§‚à¦°à§‡ à¦¥à¦¾à¦•à§‡; à¦¬à¦¿à¦¸à§à¦¤à¦¾à¦°à¦¿à¦¤
-      # backend/pyproject.toml-à¦à¦° locust-à¦•à¦®à§‡à¦¨à§à¦Ÿà§‡)à¥¤
+      # বাংলা মন্তব্য (Tier-1): locust dev-dep নয় — এই isolated job-এই ইনস্টল
+      # হয় (gevent monkey-patching টেস্ট-স্যুইট প্রসেস থেকে দূরে থাকে; বিস্তারিত
+      # backend/pyproject.toml-এর locust-কমেন্টে)।
       - name: Install Locust (isolated to this runner)
         if: steps.target.outputs.skip != 'true'
         working-directory: ./backend
@@ -1820,7 +1820,7 @@ jobs:
                       agg = row
                       break
           if agg is None:
-              print("::error::Locust Aggregated row not found â€” gate cannot verify SLOs")
+              print("::error::Locust Aggregated row not found — gate cannot verify SLOs")
               sys.exit(1)
 
           reqs = int(float(agg["Request Count"]))
@@ -1829,7 +1829,7 @@ jobs:
           fail_ratio = (fails / reqs) if reqs else 1.0
 
           lines = [
-              "### ðŸ“ˆ Nightly Load Test (Tier-1)",
+              "### 📈 Nightly Load Test (Tier-1)",
               "",
               f"- Requests: {reqs}, Failures: {fails} ({fail_ratio:.3%})",
               f"- p95: {p95:.0f} ms (gate < 2000 ms; steady-state target p95 < 1500 ms)",
@@ -1863,7 +1863,7 @@ jobs:
     concurrency:
       group: nightly-ops-chaos-suite
       cancel-in-progress: false
-    name: ðŸ’‰ Chaos Resilience Suite (Tier-2, -m chaos)
+    name: 💉 Chaos Resilience Suite (Tier-2, -m chaos)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -1881,15 +1881,15 @@ jobs:
           install-browser-deps: "false"
           mode: prepare
 
-      # à¦¬à¦¾à¦‚à¦²à¦¾ à¦®à¦¨à§à¦¤à¦¬à§à¦¯ (Tier-2): `chaos` marker PR-CI-à¦¤à§‡ deselect à¦•à¦°à¦¾ â€” à¦à¦‡ à¦°à¦¾à¦¤à§‡à¦°
-      # job-à¦‡ à¦à¦•à¦®à¦¾à¦¤à§à¦° à¦œà¦¾à¦¯à¦¼à¦—à¦¾ à¦¯à§‡à¦–à¦¾à¦¨à§‡ à¦•à§‡à¦“à¦¸-à¦šà¦¿à¦¹à§à¦¨à¦¿à¦¤ à¦¡à§à¦°à¦¿à¦² (429-storm breaker,
-      # memory-pressure hold) à¦šà¦²à§‡à¥¤ à¦¸à¦¬ à¦²à§‹à¦•à¦¾à¦²/mocked â€” à¦¨à§‡à¦Ÿà¦“à¦¯à¦¼à¦¾à¦°à§à¦• à¦¨à§‡à¦‡à¥¤
+      # বাংলা মন্তব্য (Tier-2): `chaos` marker PR-CI-তে deselect করা — এই রাতের
+      # job-ই একমাত্র জায়গা যেখানে কেওস-চিহ্নিত ড্রিল (429-storm breaker,
+      # memory-pressure hold) চলে। সব লোকাল/mocked — নেটওয়ার্ক নেই।
       - name: Run chaos-marked tests
         working-directory: ./backend
         run: |
           set -euo pipefail
           poetry run pytest backend/tests/chaos -m chaos --no-cov -q --timeout=60 -p no:cacheprovider 2>&1 | tee /tmp/chaos_output.txt
-          echo "### ðŸ’‰ Chaos Resilience Suite (Tier-2)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 💉 Chaos Resilience Suite (Tier-2)" >> "$GITHUB_STEP_SUMMARY"
           tail -n 5 /tmp/chaos_output.txt >> "$GITHUB_STEP_SUMMARY"
 
   browser-e2e:
@@ -1901,7 +1901,7 @@ jobs:
     concurrency:
       group: nightly-ops-browser-e2e
       cancel-in-progress: false
-    name: ðŸ¥ Real-Browser E2E (Tier-3, tests/browser)
+    name: 🥁 Real-Browser E2E (Tier-3, tests/browser)
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     permissions:
@@ -1912,8 +1912,8 @@ jobs:
         with:
           persist-credentials: false
 
-      # à¦¬à¦¾à¦‚à¦²à¦¾ à¦®à¦¨à§à¦¤à¦¬à§à¦¯ (Tier-3): install-browser-deps=true â†’ poetry-à¦° optional
-      # browser group (Python Playwright) + à¦¸à¦¿à¦¸à§à¦Ÿà§‡à¦® à¦²à¦¾à¦‡à¦¬à§à¦°à§‡à¦°à¦¿ à¦‡à¦¨à¦¸à§à¦Ÿà¦² à¦¹à¦¯à¦¼à¥¤
+      # বাংলা মন্তব্য (Tier-3): install-browser-deps=true → poetry-র optional
+      # browser group (Python Playwright) + সিস্টেম লাইব্রেরি ইনস্টল হয়।
       - name: Setup Backend Environment (with browser group)
         uses: ./.github/actions/setup-backend
         with:
@@ -1925,14 +1925,14 @@ jobs:
         working-directory: ./backend
         run: poetry run playwright install chromium --with-deps
 
-      # à¦¬à¦¾à¦‚à¦²à¦¾ à¦®à¦¨à§à¦¤à¦¬à§à¦¯ (Tier-3): e2e-à¦šà¦¿à¦¹à§à¦¨à¦¿à¦¤ à¦†à¦¸à¦²-à¦¬à§à¦°à¦¾à¦‰à¦œà¦¾à¦° à¦Ÿà§‡à¦¸à§à¦Ÿ â€” à¦¸à§‡à¦¶à¦¨-à¦¸à¦®à¦¾à¦¨à§à¦¤à¦°à¦¾à¦²à¦¤à¦¾,
-      # RSS/orphan-à¦ªà§à¦°à¦¸à§‡à¦¸ à¦—à¦¾à¦°à§à¦¡, vision-grounding à¦•à§à¦¯à¦¾à¦¸à¦•à§‡à¦¡à¥¤ PR-CI deselect à¦•à¦°à§‡à¥¤
+      # বাংলা মন্তব্য (Tier-3): e2e-চিহ্নিত আসল-ব্রাউজার টেস্ট — সেশন-সমান্তরালতা,
+      # RSS/orphan-প্রসেস গার্ড, vision-grounding ক্যাসকেড। PR-CI deselect করে।
       - name: Run real-browser e2e suite
         working-directory: ./backend
         run: |
           set -euo pipefail
           poetry run pytest backend/tests/browser -m e2e --no-cov -q --timeout=120 -p no:cacheprovider 2>&1 | tee /tmp/browser_e2e_output.txt
-          echo "### ðŸ¥ Real-Browser E2E (Tier-3)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 🥁 Real-Browser E2E (Tier-3)" >> "$GITHUB_STEP_SUMMARY"
           tail -n 5 /tmp/browser_e2e_output.txt >> "$GITHUB_STEP_SUMMARY"
 
   db-pool-health:
@@ -1943,7 +1943,7 @@ jobs:
     concurrency:
       group: nightly-ops-db-pool-health
       cancel-in-progress: false
-    name: ðŸ—„ï¸ DB & Pool Health Probe (pgBouncer/quota report)
+    name: 🗄️ DB & Pool Health Probe (pgBouncer/quota report)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -1962,10 +1962,10 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      # à¦¬à¦¾à¦‚à¦²à¦¾ à¦®à¦¨à§à¦¤à¦¬à§à¦¯ (Tier-1/plan): à¦†à¦—à§‡ pgBouncer à¦¹à§‡à¦²à¦¥ CI-à¦¤à§‡ à¦›à¦¿à¦² à¦¨à¦¾ â€” à¦¶à§à¦§à§
-      # SLO à¦¡à¦•à§‡ 'Supabase dashboard à¦¦à§‡à¦–à§‹' à¦²à§‡à¦–à¦¾ à¦›à¦¿à¦²à¥¤ à¦à¦–à¦¨ /health/ready +
-      # /health/full à¦ªà§à¦°à§‹à¦¬ à¦•à¦°à§‡ DB à¦•à¦®à§à¦ªà§‹à¦¨à§‡à¦¨à§à¦Ÿà§‡à¦° à¦…à¦¬à¦¸à§à¦¥à¦¾ à¦°à¦¿à¦ªà§‹à¦°à§à¦Ÿ à¦¹à¦¯à¦¼; degraded
-      # à¦¹à¦²à§‡ job à¦¬à§à¦¯à¦°à§à¦¥à¥¤ à¦Ÿà¦¾à¦°à§à¦—à§‡à¦Ÿ/à¦Ÿà§‹à¦•à§‡à¦¨ à¦¨à¦¾ à¦¥à¦¾à¦•à¦²à§‡ à¦¸à§Ž à¦¸à§à¦•à¦¿à¦ªà¥¤
+      # বাংলা মন্তব্য (Tier-1/plan): আগে pgBouncer হেলথ CI-তে ছিল না — শুধু
+      # SLO ডকে 'Supabase dashboard দেখো' লেখা ছিল। এখন /health/ready +
+      # /health/full প্রোব করে DB কম্পোনেন্টের অবস্থা রিপোর্ট হয়; degraded
+      # হলে job ব্যর্থ। টার্গেট/টোকেন না থাকলে সৎ স্কিপ।
       - name: Probe /health/ready + /health/full (DB components)
         run: |
           python - <<'PY'
@@ -1976,10 +1976,10 @@ jobs:
           summary = os.environ.get("GITHUB_STEP_SUMMARY")
 
           if not base:
-              print("::warning::STAGING_URL not configured â€” DB pool health honestly SKIPPED.")
+              print("::warning::STAGING_URL not configured — DB pool health honestly SKIPPED.")
               if summary:
                   with open(summary, "a", encoding="utf-8") as h:
-                      h.write("### ðŸ—„ï¸ DB & Pool Health\n\n_SKIPPED â€” STAGING_URL not configured_\n")
+                      h.write("### 🗄️ DB & Pool Health\n\n_SKIPPED — STAGING_URL not configured_\n")
               sys.exit(0)
 
           def probe(path, with_auth):
@@ -1995,7 +1995,7 @@ jobs:
           ready_code, ready = probe("/health/ready", False)
           full_code, full = probe("/health/full", True)
 
-          lines = ["### ðŸ—„ï¸ DB & Pool Health", "", f"- /health/ready: HTTP {ready_code}", f"- /health/full: HTTP {full_code}"]
+          lines = ["### 🗄️ DB & Pool Health", "", f"- /health/ready: HTTP {ready_code}", f"- /health/full: HTTP {full_code}"]
           db_status = "unknown"
           components = full.get("components") or full.get("checks") or {}
           if isinstance(components, dict):
@@ -2018,13 +2018,13 @@ jobs:
               print(f"::error::/health/ready returned {ready_code}")
               sys.exit(1)
           if str(db_status).lower() in ("down", "unhealthy", "error") or str(overall).lower() in ("unhealthy", "down"):
-              print("::error::DB component degraded â€” see summary")
+              print("::error::DB component degraded — see summary")
               sys.exit(1)
           PY
 
   deploy-doctor-fallback:
     needs: [resolve-execution-tier]
-    name: ðŸ” Deploy Doctor (hourly fallback, 90m window)
+    name: 🔍 Deploy Doctor (hourly fallback, 90m window)
     if: false # dormant by design (#67): cron absent from triggers since SCHEDULE DIET v4; 26th dispatch input would exceed GitHub's 25-input limit
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -2033,7 +2033,7 @@ jobs:
       issues: write
       actions: read
     concurrency:
-      # Same group as the ops-console manual arm + the retired */5 cron â€” a scan
+      # Same group as the ops-console manual arm + the retired */5 cron — a scan
       # can never race another scan (source semantics, deploy-doctor.yml #1852 P1).
       group: deploy-doctor-${{ github.ref }}
       cancel-in-progress: false
@@ -2063,7 +2063,7 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "## ðŸ” Deploy Doctor (hourly fallback) Run Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔍 Deploy Doctor (hourly fallback) Run Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Run completed at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_STEP_SUMMARY
           echo "Window: 90 minutes (hourly cadence, #1854 spec; event-driven arm lands in #1855)." >> $GITHUB_STEP_SUMMARY
@@ -2073,7 +2073,7 @@ jobs:
 
   branch-retention:
     needs: [resolve-execution-tier]
-    name: ðŸŒ¿ Branch Retention Cleanup
+    name: 🌿 Branch Retention Cleanup
     # #67 Tier 1: daily storage tidy (was Mon weekly)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_branch_retention == true) ||
@@ -2097,7 +2097,7 @@ jobs:
           CUTOFF=$(date -u -d "-${RETENTION_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)
           OWNER="${REPO%%/*}"
 
-          # #2124: paginate both calls â€” repo is at 100 branches, per_page=100
+          # #2124: paginate both calls — repo is at 100 branches, per_page=100
           # misses anything beyond that as the pool grows.
           open_heads=$(gh api --paginate "repos/${REPO}/pulls?state=open&per_page=100" \
             --jq '.[].head.ref' | sort -u || true)
@@ -2108,7 +2108,7 @@ jobs:
             case "$branch" in
               main|develop|master) skipped=$((skipped+1)); continue ;;
               # #2124: protect CURRENT slot convention (coder-N, super-N, planner-N,
-              # ci-N, pr-helper-N, browser-N, platform-N) â€” 1-2 digit N only.
+              # ci-N, pr-helper-N, browser-N, platform-N) — 1-2 digit N only.
               # Legacy agent-N-* branches are NOT protected (they are stale and
               # should be pruned). Legacy coder-<issue_number> (4+ digits) is
               # also NOT protected.
@@ -2145,7 +2145,7 @@ jobs:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_silent_error == true) ||
         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
-    name: ðŸ¤« Silent Error Scan
+    name: 🤫 Silent Error Scan
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v5
@@ -2178,13 +2178,13 @@ jobs:
     concurrency:
       group: dast-zap-${{ github.ref }}
       cancel-in-progress: true
-    name: ðŸ”Ž OWASP ZAP API + Full scan (blocking)
+    name: 🔎 OWASP ZAP API + Full scan (blocking)
     runs-on: ubuntu-24.04
     env:
-      # (#4276) dast_base_url dispatch-input à¦¬à¦¾à¦¦ â€” 25-input à¦•à§à¦¯à¦¾à¦ª à¦­à¦¾à¦™à¦›à¦¿à¦² (à¦ªà§à¦°à§‹
-      # workflow invalid â†’ à¦¸à¦¬ nightly arm 0-jobs failure)à¥¤ ZAP à¦Ÿà¦¾à¦°à§à¦—à§‡à¦Ÿ à¦à¦–à¦¨ à¦¸à¦°à¦¾à¦¸à¦°à¦¿
-      # SSOT repo var STAGING_BASE_URL à¦¥à§‡à¦•à§‡ (à¦†à¦—à§‡à¦“ default fallback à¦à¦Ÿà¦¾à¦‡ à¦›à¦¿à¦²;
-      # custom override à¦¦à¦°à¦•à¦¾à¦° à¦¹à¦²à§‡ vars.STAGING_BASE_URL à¦à¦¡à¦¿à¦Ÿ à¦•à¦°à¦¾ à¦¹à¦¬à§‡)à¥¤
+      # (#4276) dast_base_url dispatch-input বাদ — 25-input ক্যাপ ভাঙছিল (পুরো
+      # workflow invalid → সব nightly arm 0-jobs failure)। ZAP টার্গেট এখন সরাসরি
+      # SSOT repo var STAGING_BASE_URL থেকে (আগেও default fallback এটাই ছিল;
+      # custom override দরকার হলে vars.STAGING_BASE_URL এডিট করা হবে)।
       ZAP_TARGET: ${{ vars.STAGING_BASE_URL }}
     timeout-minutes: 45
     steps:
@@ -2202,15 +2202,15 @@ jobs:
         with:
           target: '${{ env.ZAP_TARGET }}'
           allow_404_warnings: true
-          fail_action: true # âš ï¸ blocking gate
+          fail_action: true # ⚠️ blocking gate
           cmd_options: '-I'
 
-      - name: ZAP API scan (OpenAPI spec ðŸŽ¯ auth endpoints)
+      - name: ZAP API scan (OpenAPI spec 🎯 auth endpoints)
         uses: zaproxy/action-api-scan@472970930c47c2e1a7394c6b62c83b5f8e6b479a
         with:
           target: '${{ env.ZAP_TARGET }}'
-          spec: core/API-swagger.yaml # wiring audit 2026-11-11: backend/ â†’ core/ (backend/ does not exist)
-          fail_action: true # âš ï¸ blocking gate
+          spec: core/API-swagger.yaml # wiring audit 2026-11-11: backend/ → core/ (backend/ does not exist)
+          fail_action: true # ⚠️ blocking gate
 
       - name: Upload ZAP reports (always)
         if: always()
@@ -2264,7 +2264,7 @@ jobs:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_self_audit == true) ||
         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
-    name: ðŸ” Weekly Self-Audit Scan
+    name: 🔍 Weekly Self-Audit Scan
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v5
@@ -2281,7 +2281,7 @@ jobs:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_workflow_runs_retention == true) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
-    name: ðŸ§¹ Workflow Runs Retention & Purge
+    name: 🧹 Workflow Runs Retention & Purge
     concurrency:
       group: nightly-ops-workflow-runs-retention
       cancel-in-progress: false
@@ -2326,7 +2326,7 @@ jobs:
   # ---------------------------------------------------------------------------
   watchdog:
     needs: [resolve-execution-tier]
-    name: "â° Schedule Watchdog (cron self-heal)"
+    name: "⏰ Schedule Watchdog (cron self-heal)"
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -2354,7 +2354,7 @@ jobs:
   # ---------------------------------------------------------------------------
   template-validate:
     needs: [resolve-execution-tier]
-    name: "ðŸ“ Issue Template Conformance"
+    name: "📝 Issue Template Conformance"
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -2379,7 +2379,7 @@ jobs:
   # ---------------------------------------------------------------------------
   dependency-scan:
     needs: [resolve-execution-tier]
-    name: "ðŸ©º Dependency Health Scan"
+    name: "🩺 Dependency Health Scan"
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -2410,7 +2410,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
-    name: "ðŸ§  Kaggle Empirical Learning"
+    name: "🧠 Kaggle Empirical Learning"
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     concurrency:
@@ -2477,7 +2477,7 @@ jobs:
 
   daily-10am-bdt-health-report:
     needs: [resolve-execution-tier]
-    name: "ðŸ©º Daily 10:00 AM BDT Health & Release Gate Report"
+    name: "🩺 Daily 10:00 AM BDT Health & Release Gate Report"
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.run_daily_health_report == true) ||
       (github.event_name == 'schedule' && github.event.schedule == '0 4 * * *')
@@ -2624,7 +2624,7 @@ jobs:
           python scripts/ops/redis_quota_monitor.py || code=$?
           echo "rqm_exit=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" -ge 3 ]; then exit "$code"; fi
-          echo "monitor exit $code (0=no alert, 1=warn sent, 2=crit sent) â€” delivery channel is Telegram"
+          echo "monitor exit $code (0=no alert, 1=warn sent, 2=crit sent) — delivery channel is Telegram"
           exit 0
 
   garak-redteam:
@@ -2651,7 +2651,7 @@ jobs:
           SUPREME_EVAL_ENDPOINT: ${{ secrets.SUPREME_EVAL_ENDPOINT }}
         run: |
           if [ -z "$SUPREME_EVAL_ENDPOINT" ]; then
-            echo "SUPREME_EVAL_ENDPOINT is not configured â€” skipping live probe sweep (fail-open skip, per EVAL_GARAK quarantine contract)."
+            echo "SUPREME_EVAL_ENDPOINT is not configured — skipping live probe sweep (fail-open skip, per EVAL_GARAK quarantine contract)."
             exit 0
           fi
           echo "Endpoint configured; run the quarantined sweep per docs/EVAL_GARAK_PROBE_2026-10-30.md."

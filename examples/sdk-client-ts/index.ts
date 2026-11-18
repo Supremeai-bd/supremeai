@@ -1,16 +1,16 @@
-﻿/**
- * SupremeAI TypeScript SDK â€” zero-dependency client contracts + core (issue #32).
+/**
+ * SupremeAI TypeScript SDK — zero-dependency client contracts + core (issue #32).
  *
  * Layer-1 client contracts for external integrations, aligned with the
  * repository's published schemas:
- * - Task dispatch vocabulary â†” api-schemas/task-router.schema.json
- * - Status frames â†” api-schemas/websocket-events.schema.json
- * - Agent identity â†” api-schemas/heartbeat.schema.json
- * - Transport etiquette â†” docs/MCP_CONNECT.md (Retry-After, session ids,
+ * - Task dispatch vocabulary ↔ api-schemas/task-router.schema.json
+ * - Status frames ↔ api-schemas/websocket-events.schema.json
+ * - Agent identity ↔ api-schemas/heartbeat.schema.json
+ * - Transport etiquette ↔ docs/MCP_CONNECT.md (Retry-After, session ids,
  *   `?client=` identity, never credentials in URLs)
  *
  * Runtime compatibility: Node 18+ (fetch built-in; EventSource global from
- * Node 20 â€” feature-detected below), Bun, and browsers. No third-party
+ * Node 20 — feature-detected below), Bun, and browsers. No third-party
  * dependencies and no `@types/node`: platform surfaces are reached through
  * `globalThis` casts only.
  *
@@ -30,7 +30,7 @@ export interface TaskDispatchRequest {
   task_id: string;
   /** Tracking issue number in the target repository. */
   issue: string;
-  /** Mission statement â€” specific enough for two agents to scope identically. */
+  /** Mission statement — specific enough for two agents to scope identically. */
   objective: string;
   /** Scope Gate boundary: paths the change may touch. */
   touching_files: string[];
@@ -136,7 +136,7 @@ export class SdkForbidden extends SdkError {
 }
 
 // ---------------------------------------------------------------------------
-// Platform surface (globalThis-only â€” zero @types/node dependency)
+// Platform surface (globalThis-only — zero @types/node dependency)
 // ---------------------------------------------------------------------------
 
 interface PlatformLike {
@@ -205,7 +205,7 @@ class AsyncQueue<T> {
 // ---------------------------------------------------------------------------
 
 export interface SupremeAIClientOptions {
-  /** Tower or gateway base URL. Credentials NEVER go in URLs (MCP_CONNECT Â§5). */
+  /** Tower or gateway base URL. Credentials NEVER go in URLs (MCP_CONNECT §5). */
   baseUrl?: string;
   /** Stable `?client=` identity; role adopts only with verified credentials. */
   clientName?: string;
@@ -252,18 +252,18 @@ export class SupremeAIClient {
     if (resp.status === 429) {
       const ra = resp.headers.get("Retry-After");
       throw new SdkRateLimited(
-        `429 rate limited (Retry-After: ${ra ?? "unknown"}s) â€” ${text.slice(0, 200)}`,
+        `429 rate limited (Retry-After: ${ra ?? "unknown"}s) — ${text.slice(0, 200)}`,
         ra ? Math.ceil(parseFloat(ra) * 1000) : undefined,
       );
     }
     if (resp.status === 403) {
-      throw new SdkForbidden(`403 default-deny RBAC â€” ${text.slice(0, 200)}`);
+      throw new SdkForbidden(`403 default-deny RBAC — ${text.slice(0, 200)}`);
     }
-    if (!resp.ok) throw new SdkError(`HTTP ${resp.status} â€” ${text.slice(0, 200)}`, resp.status);
+    if (!resp.ok) throw new SdkError(`HTTP ${resp.status} — ${text.slice(0, 200)}`, resp.status);
     return JSON.parse(text) as T;
   }
 
-  /** Health probe â€” public, credential-free. */
+  /** Health probe — public, credential-free. */
   async health(signal?: AbortSignal): Promise<unknown> {
     const resp = await requireFetch()(`${this.baseUrl}/health`, { headers: this.headers(), signal });
     return JSON.parse(await resp.text()) as unknown;
@@ -315,7 +315,7 @@ export class SupremeAIClient {
   streamStatus(taskId: string, opts: StatusStreamOptions = {}): AsyncGenerator<StatusFrame> {
     if (!eventSourceAvailable()) {
       throw new SdkError(
-        "EventSource unavailable in this runtime â€” use streamStatusFetch() (fetch-stream based) instead",
+        "EventSource unavailable in this runtime — use streamStatusFetch() (fetch-stream based) instead",
       );
     }
     const EsCtor = platform().EventSource as new (url: string) => EventSourceLike;
@@ -361,8 +361,8 @@ export class SupremeAIClient {
   }
 
   /**
-   * Fetch-stream based status reader â€” works in every runtime with fetch
-   * (no EventSource needed). Parses SSE frames per docs/MCP_CONNECT.md Â§3.
+   * Fetch-stream based status reader — works in every runtime with fetch
+   * (no EventSource needed). Parses SSE frames per docs/MCP_CONNECT.md §3.
    * Terminal frames (`agent:done`/`agent:error`) end the stream; a seq gap is
    * the consumer's resync signal per the websocket-events contract.
    */
@@ -376,7 +376,7 @@ export class SupremeAIClient {
           signal: opts.signal,
         });
         if (resp.status === 503) {
-          throw new SdkError("503 SSE session table full â€” backing off", 503);
+          throw new SdkError("503 SSE session table full — backing off", 503);
         }
         if (!resp.ok || !resp.body) throw new SdkError(`HTTP ${resp.status} on /sse`, resp.status);
         backoffMs = 1000; // reset on successful connect

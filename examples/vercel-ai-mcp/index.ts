@@ -1,20 +1,20 @@
-﻿/**
- * SupremeAI Ã— Vercel AI SDK â€” Node.js agent reference (issue #43).
+/**
+ * SupremeAI × Vercel AI SDK — Node.js agent reference (issue #43).
  *
  * Binds SupremeAI MCP Tower tools into the Vercel AI SDK tool surface:
  *
- * 1. **Connect** â€” preferred: `@modelcontextprotocol/sdk` (Client +
+ * 1. **Connect** — preferred: `@modelcontextprotocol/sdk` (Client +
  *    SSEClientTransport) when installed; fallback: a zero-dependency fetch
- *    bridge implementing the same MCP-over-SSE flow (session announce â†’
+ *    bridge implementing the same MCP-over-SSE flow (session announce →
  *    `tools/list` / `tools/call`), so the demo runs offline.
- * 2. **Expose** â€” declarations become AI SDK tools: `ai.tool({ description,
+ * 2. **Expose** — declarations become AI SDK tools: `ai.tool({ description,
  *    parameters: ai.jsonSchema(inputSchema), execute })` when the `ai`
  *    package is importable; plain-shaped fallback tools otherwise (identical
  *    `execute(args)` surface).
- * 3. **Demo** â€” a deterministic multi-tool loop against an embedded mock
+ * 3. **Demo** — a deterministic multi-tool loop against an embedded mock
  *    tower (`--self-test`, offline, exit code = pass signal), or the live
  *    tower with `--live`. Wiring the converted tools into `generateText` /
- *    `streamText` needs a model provider (bring your own) â€” see README.
+ *    `streamText` needs a model provider (bring your own) — see README.
  *
  * Transport etiquette (docs/MCP_CONNECT.md): `?client=` identity, credentials
  * never in URLs (Authorization header only).
@@ -85,7 +85,7 @@ interface McpTransport {
 class TransportError extends Error {}
 class McpProtocolError extends Error {}
 
-/** Feature-detected dynamic import: non-literal specifier â†’ no module
+/** Feature-detected dynamic import: non-literal specifier → no module
  *  resolution at type-check time; null when the package is absent. */
 async function tryImport(name: string): Promise<any | null> {
   try {
@@ -272,7 +272,7 @@ async function connect(baseUrl: string, clientName: string, token?: string): Pro
 }
 
 // ---------------------------------------------------------------------------
-// MCP â†’ Vercel AI SDK tool conversion (feature-detected, honest fallback)
+// MCP → Vercel AI SDK tool conversion (feature-detected, honest fallback)
 // ---------------------------------------------------------------------------
 
 function outcomeToDict(o: ToolOutcome): Record<string, unknown> {
@@ -354,14 +354,14 @@ async function startMockTower(): Promise<{ port: number; close: () => Promise<vo
       res.write(`event: endpoint\ndata: http://127.0.0.1:${port}/messages?session=mock-1\n\n`);
       sseRes = res;
       res.on("close", () => { if (sseRes === res) sseRes = null; });
-      return; // keep the stream open â€” SDK correlates responses by id on it
+      return; // keep the stream open — SDK correlates responses by id on it
     }
     if (req.method === "POST" && req.url?.startsWith("/messages")) {
       let body = "";
       req.on("data", (c: Buffer) => { body += c.toString(); });
       req.on("end", () => {
         const rpc = JSON.parse(body);
-        // Notifications (no id) get no response â€” just an honest 202.
+        // Notifications (no id) get no response — just an honest 202.
         if (rpc.id === undefined) {
           res.writeHead(202).end();
           return;
@@ -378,7 +378,7 @@ async function startMockTower(): Promise<{ port: number; close: () => Promise<vo
           else if (name === "agent_status") result = { content: [{ type: "text", text: "3 agents, all green" }], isError: false };
           else result = { content: [], isError: true };
         } else {
-          // JSON-RPC error envelope (rare path) â€” stream it the same way.
+          // JSON-RPC error envelope (rare path) — stream it the same way.
           const envelope = { jsonrpc: "2.0", id: rpc.id, error: { code: -32601, message: `unknown method ${rpc.method}` } };
           if (sseRes && !sseRes.writableEnded) sseRes.write(`event: message\ndata: ${JSON.stringify(envelope)}\n\n`);
           res.writeHead(200, { "content-type": "application/json" });
@@ -440,12 +440,12 @@ async function selfTest(): Promise<number> {
     check("invocation ids correlated", outcomes.every((o) => o.invocationId.startsWith("inv-")));
 
     const bad = await transport.callTool("no_such_tool", {});
-    check("unknown tool â†’ honest isError", bad.ok === false);
+    check("unknown tool → honest isError", bad.ok === false);
 
     await transport.close();
 
     const dead = await connect("http://127.0.0.1:1", "selftest").catch(() => null);
-    check("dead tower â†’ connect fails honestly", dead === null);
+    check("dead tower → connect fails honestly", dead === null);
   } finally {
     await tower.close();
   }
@@ -457,7 +457,7 @@ async function selfTest(): Promise<number> {
   }
   const mode = sdk ? "official MCP SDK" : "fetch bridge fallback";
   const aiMode = ai ? "Vercel AI SDK tool()" : "fallback tool shape";
-  console.log(`Self-test (mock MCP tower): ${checks.filter(([, p]) => p).length}/${checks.length} checks passed â€” transport: ${mode}, tools: ${aiMode}`);
+  console.log(`Self-test (mock MCP tower): ${checks.filter(([, p]) => p).length}/${checks.length} checks passed — transport: ${mode}, tools: ${aiMode}`);
   return ok ? 0 : 1;
 }
 
@@ -479,7 +479,7 @@ async function main(argv: string[]): Promise<number> {
     try {
       const outcomes = await runDemoLoop(transport);
       for (const o of outcomes) {
-        console.log(`${o.invocationId.slice(0, 8)}â€¦ ${o.ok ? "OK" : `ERROR ${o.error?.code}`}`);
+        console.log(`${o.invocationId.slice(0, 8)}… ${o.ok ? "OK" : `ERROR ${o.error?.code}`}`);
       }
       return outcomes.every((o) => o.ok) ? 0 : 1;
     } finally {
@@ -487,7 +487,7 @@ async function main(argv: string[]): Promise<number> {
     }
   }
 
-  console.log("SupremeAI Ã— Vercel AI SDK agent reference (issue #43)");
+  console.log("SupremeAI × Vercel AI SDK agent reference (issue #43)");
   console.log("Usage: index.ts --self-test | --live [--base-url=URL]");
   console.log("See README.md for the npm start bootstrap and generateText wiring.");
   return 0;

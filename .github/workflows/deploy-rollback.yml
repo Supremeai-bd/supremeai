@@ -1,4 +1,4 @@
-﻿name: "Deploy Rollback"
+name: "Deploy Rollback"
 
 # Manual, audited rollback lane for the three Render services declared in
 # render.yaml (autoDeploy is false everywhere, so a rollback is just a
@@ -7,7 +7,7 @@
 # This workflow deliberately does NOT reuse unified-pipeline.yml: a rollback
 # must not be planned from a diff, and it must fail closed if the requested
 # SHA cannot be built. Strict mode (REQUIRE_EXPECTED_SHA) is on, so Render's
-# "commit not indexed, fall back to branch HEAD" behavior is refused â€” a
+# "commit not indexed, fall back to branch HEAD" behavior is refused — a
 # rollback that silently deploys HEAD would be worse than no rollback.
 #
 # Runbook: docs/runbooks/rollback.md
@@ -166,7 +166,7 @@ jobs:
             echo "::error::Commit ${TARGET_SHA} is not an ancestor of main; refusing to deploy an unmerged revision."
             exit 1
           fi
-          echo "Target ${TARGET_SHA} is on main âœ“"
+          echo "Target ${TARGET_SHA} is on main ✓"
 
       - name: Trigger the rollback deploy and poll to a terminal state
         env:

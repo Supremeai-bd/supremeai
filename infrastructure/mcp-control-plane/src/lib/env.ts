@@ -1,4 +1,4 @@
-﻿import * as fs from "node:fs";
+import * as fs from "node:fs";
 import * as path from "node:path";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from "node:url";
@@ -6,17 +6,17 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * Type-safe environment loader â€” the SINGLE SSOT for environment config.
- * NEVER hardcodes secret values â€” only reads env var NAMES (and non-secret
+ * Type-safe environment loader — the SINGLE SSOT for environment config.
+ * NEVER hardcodes secret values — only reads env var NAMES (and non-secret
  * public topology defaults from config/service_registry.yaml).
  *
  * Environment precedence (#109), highest first:
  *   1. Real process environment (shell export / Render / Docker injects).
- *   2. Repo-root `.env` file â€” loaded ONCE, below, by the only
+ *   2. Repo-root `.env` file — loaded ONCE, below, by the only
  *      `dotenv.config()` call site in the codebase. dotenv never overrides
  *      already-set variables, so (1) always wins over (2).
  *   3. Infisical vault pull (`pullSecretsIntoProcessEnv()` in index.ts
- *      `main()`) â€” runs at boot AFTER this module has loaded, injecting
+ *      `main()`) — runs at boot AFTER this module has loaded, injecting
  *      vault secrets into process.env for lazy getters to pick up.
  *
  * This module is imported by index.ts BEFORE the rest of the tool/registry
@@ -47,7 +47,7 @@ function optional(name: string, fallback = ""): string {
 }
 
 /**
- * Positive-integer knob (rate limits, timeouts, byte caps). Unset â†’ fallback.
+ * Positive-integer knob (rate limits, timeouts, byte caps). Unset → fallback.
  * A set-but-invalid value (non-numeric, NaN, <= 0) FAILS LOUDLY (#109):
  * the old inline `Number(...) ?? fallback` parsing silently turned garbage
  * into NaN and NaN into the fallback, hiding misconfiguration.
@@ -63,7 +63,7 @@ function positiveInt(name: string, fallback: number): number {
 }
 
 /**
- * Non-negative-integer knob (session caps, idle reap intervals). Unset â†’
+ * Non-negative-integer knob (session caps, idle reap intervals). Unset →
  * fallback; 0 is meaningful ("disable the cap / never reap"); negative or
  * non-numeric fails loudly (same rationale as positiveInt).
  */
@@ -98,17 +98,17 @@ function multiKey(name: string): string[] {
 }
 
 export const env = {
-  // â”€â”€ MCP Server
+  // ── MCP Server
   // INF-05 fix (issue #528): Render injects PORT (not MCP_PORT) and probes
-  // 0.0.0.0:$PORT for readiness â€” preferring MCP_PORT made the control plane
+  // 0.0.0.0:$PORT for readiness — preferring MCP_PORT made the control plane
   // bind :3771 on Render, so port detection never saw a listener. Precedence:
-  // PORT (Render) â†’ MCP_PORT (docker-compose mcp service sets it) â†’ 3771.
+  // PORT (Render) → MCP_PORT (docker-compose mcp service sets it) → 3771.
   get port(): number { return parseInt(optional("PORT", optional("MCP_PORT", "3771"))); },
   get mcpApiKey(): string { return optional("MCP_API_KEY"); },
   // ROOT-CAUSE FIX (#2720): the fallback `optional("MCP_ADMIN_KEY", optional("MCP_API_KEY"))`
   // made MCP_ADMIN_KEY silently equal MCP_API_KEY when unset. Combined with
   // index.ts:523 granting admin role to mcpApiKey holders, this meant the
-  // "agent" key was effectively an admin key. Admin must be a SEPARATE key â€”
+  // "agent" key was effectively an admin key. Admin must be a SEPARATE key —
   // if MCP_ADMIN_KEY is unset, return empty (no admin access via env keys).
   get mcpAdminKey(): string { return optional("MCP_ADMIN_KEY"); },
   get mcpViewerKey(): string { return optional("MCP_VIEWER_KEY"); },
@@ -119,7 +119,7 @@ export const env = {
   get backendUrl(): string { return optional("SUPREMEAI_BACKEND_URL", "https://supremeai-primary-node-5xso.onrender.com"); },
   get backendServiceToken(): string { return optional("SUPREMEAI_BACKEND_SERVICE_TOKEN"); },
 
-  // â”€â”€ Render (canonical RENDER_*_SERVICE_ID first, legacy *_SVC_ID fallback, then config/service_registry.yaml SSOT defaults)
+  // ── Render (canonical RENDER_*_SERVICE_ID first, legacy *_SVC_ID fallback, then config/service_registry.yaml SSOT defaults)
   render: {
     primary: {
       get apiKey(): string { return optional("RENDER_API_KEY_1", optional("RENDER_API_KEY")); },
@@ -158,7 +158,7 @@ export const env = {
     },
   },
 
-  // â”€â”€ Supabase
+  // ── Supabase
   supabase: {
     get url(): string { return optional("SUPABASE_URL"); },
     get anonKey(): string { return optional("SUPABASE_ANON_KEY", optional("SUPABASE_KEY")); },
@@ -166,14 +166,14 @@ export const env = {
     get dbUrl(): string { return optional("SUPABASE_DATABASE_URL"); },
   },
 
-  // â”€â”€ Redis / Upstash (dual mode)
+  // ── Redis / Upstash (dual mode)
   redis: {
     get restUrl(): string { return optional("UPSTASH_REDIS_REST_URL"); },
     get restToken(): string { return optional("UPSTASH_REDIS_REST_TOKEN"); },
     get url(): string { return optional("REDIS_URL"); }, // rediss:// protocol
   },
 
-  // â”€â”€ Infisical (machine identity â€” NOT token)
+  // ── Infisical (machine identity — NOT token)
   infisical: {
     get clientId(): string { return optional("INFISICAL_CLIENT_ID"); },
     get clientSecret(): string { return optional("INFISICAL_CLIENT_SECRET"); },
@@ -182,13 +182,13 @@ export const env = {
     get token(): string { return optional("INFISICAL_TOKEN"); },
   },
 
-  // â”€â”€ GitHub
+  // ── GitHub
   github: {
     get token(): string { return optional("GITHUB_TOKEN", optional("GITHUB_API_TOKEN", optional("GH_TOKEN", optional("GITHUB_PAT_PAYKARIBAZARONLINE")))); },
     get repo(): string { return optional("GITHUB_REPO", "Supremeai-bd/supremeai"); },
   },
 
-  // â”€â”€ Runtime knobs (#109) â€” rate limits, tool governance, session caps.
+  // ── Runtime knobs (#109) — rate limits, tool governance, session caps.
   runtime: {
     /** Transport selector: "http" (default) or "stdio". */
     get transport(): string { return optional("MCP_TRANSPORT", "http"); },
@@ -203,7 +203,7 @@ export const env = {
     get toolRateLimitWindowMs(): number { return positiveInt("MCP_TOOL_RATE_LIMIT_WINDOW_MS", 60_000); },
     /** Anonymous-mutation plane bound (#2363 Option A): per-(caller IP, tool)
      *  hourly window on the 4 anonymous-reachable mutation tools. Default
-     *  30 writes/hour/tool per IP â€” writes/hour scale, read plane untouched. */
+     *  30 writes/hour/tool per IP — writes/hour scale, read plane untouched. */
     get mutationRateLimitMax(): number { return positiveInt("MCP_MUTATION_RATE_LIMIT_MAX", 30); },
     get mutationRateLimitWindowMs(): number { return positiveInt("MCP_MUTATION_RATE_LIMIT_WINDOW_MS", 3_600_000); },
     /** HTTP session hygiene: idle reap interval + bounded session tables. */
@@ -216,12 +216,12 @@ export const env = {
     get sessionAdmissionIdleFloorMs(): number { return nonNegativeInt("MCP_SESSION_ADMISSION_IDLE_FLOOR_MS", 60_000); },
   },
 
-  // â”€â”€ Memory sidecar flags (#109 â€” moved out of index.ts inline reads)
+  // ── Memory sidecar flags (#109 — moved out of index.ts inline reads)
   get disableMemorySidecar(): boolean { return process.env.SUPREMEAI_DISABLE_MEMORY_SIDECAR === "1"; },
   /** Local-dev only: block-and-log when the sidecar becomes ready. */
   get logMemoryReady(): string { return optional("SUPREMEAI_LOG_MEMORY_READY"); },
 
-  // â”€â”€ Event-driven bridge intake (#69)
+  // ── Event-driven bridge intake (#69)
   bridgeIntake: {
     get enabled(): boolean { return process.env.BRIDGE_INTAKE_ENABLED === "true"; },
     get repo(): string { return optional("BRIDGE_INTAKE_REPO", "Supremeai-bd/supremeai"); },
@@ -236,7 +236,7 @@ export const env = {
   federatedCiWatcher: {
     get enabled(): boolean { return process.env.FEDERATED_CI_WATCHER_ENABLED === "true"; },
     get reportRepo(): string { return optional("FEDERATED_CI_WATCHER_REPORT_REPO", "Supremeai-bd/supremeai"); },
-    /** Comma-separated explicit allowlist; empty â†’ same-org-as-reportRepo policy. */
+    /** Comma-separated explicit allowlist; empty → same-org-as-reportRepo policy. */
     get repos(): string[] {
       return optional("FEDERATED_CI_WATCHER_REPOS", "").split(",").map((s) => s.trim()).filter((s) => s.length > 0);
     },
@@ -246,7 +246,7 @@ export const env = {
     get token(): string { return optional("GITHUB_TOKEN", optional("GITHUB_API_TOKEN")); },
   },
 
-  // â”€â”€ Cloudflare (5-account federation pool)
+  // ── Cloudflare (5-account federation pool)
   cloudflare: {
     get apiToken(): string | undefined { return process.env.CLOUDFLARE_API_TOKEN; },
     get accountId(): string | undefined { return process.env.CLOUDFLARE_ACCOUNT_ID; },
@@ -270,7 +270,7 @@ export const env = {
     },
   },
 
-  // â”€â”€ Kaggle (6-account pool)
+  // ── Kaggle (6-account pool)
   kaggle: {
     get tokens(): string[] {
       const explicit = multiKey("KAGGLE_API_TOKENS");
@@ -286,7 +286,7 @@ export const env = {
     },
   },
 
-  // â”€â”€ Notifications
+  // ── Notifications
   notify: {
     get telegramBotToken(): string { return optional("TELEGRAM_BOT_TOKEN"); },
     get telegramChatId(): string { return optional("TELEGRAM_CHAT_ID"); },
@@ -296,30 +296,30 @@ export const env = {
     get whatsappWebhookUrl(): string { return optional("WHATSAPP_WEBHOOK_URL", optional("WHATSAPP_API_URL")); },
   },
 
-  // â”€â”€ Stripe
+  // ── Stripe
   stripe: {
     get secretKey(): string { return optional("STRIPE_SECRET_KEY"); },
     get webhookSecret(): string { return optional("STRIPE_WEBHOOK_SECRET"); },
   },
 
-  // â”€â”€ Qdrant
+  // ── Qdrant
   qdrant: {
     get url(): string { return optional("QDRANT_URL"); },
     get apiKey(): string { return optional("QDRANT_API_KEY"); },
   },
 
-  // â”€â”€ Vercel
+  // ── Vercel
   vercel: {
     get token(): string { return optional("VERCEL_TOKEN"); },
     get projectId(): string { return optional("VERCEL_PROJECT_ID"); },
   },
 
-  // â”€â”€ Firecrawl
+  // ── Firecrawl
   firecrawl: {
     get apiKeys(): string[] { return multiKey("FIRECRAWL_API_KEY"); },
   },
 
-  // â”€â”€ DevTools audit backend (#1673 â€” chrome-devtools-mcp as tool backend)
+  // ── DevTools audit backend (#1673 — chrome-devtools-mcp as tool backend)
   devtools: {
     get chromePath(): string { return optional("DEVTOOLS_CHROME_PATH", "chrome"); },
     get defaultWaitMs(): number { return positiveInt("DEVTOOLS_AUDIT_WAIT_MS", 4000); },
@@ -351,7 +351,7 @@ export function validateRuntimeKnobs(): void {
   void env.runtime.httpSessionIdleMs;
   void env.runtime.maxSseSessions;
   void env.runtime.maxHttpSessions;
-  // #1673 â€” devtools audit knobs (validated the same loud way on boot)
+  // #1673 — devtools audit knobs (validated the same loud way on boot)
   void env.devtools.defaultWaitMs;
   void env.devtools.defaultTimeoutMs;
   void env.devtools.slowRequestMs;
