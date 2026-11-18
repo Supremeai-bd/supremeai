@@ -46,5 +46,11 @@ def build_federation(
     return core
 
 
-__all__ = ["build_circle_registry", "build_federation"]
+# Fix (ruff F401 regression b1ebe2753): the import was dropped as "unused", but
+# it is a deliberate re-export — composition-root singleton API consumed by
+# core/tests/test_governance_core.py (issue #2476). Single source of logic: the
+# implementation lives in governance_core; bootstrap only re-exports it.
+from core.circles.governance_core import get_governance_core, reset_governance_core  # noqa: F401
+
+__all__ = ["build_circle_registry", "build_federation", "get_governance_core", "reset_governance_core"]
 
