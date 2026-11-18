@@ -43,6 +43,7 @@ import { registerDiagnosticTools } from "./diagnostic.tools.js";
 import { registerLearningTools } from "./learning.tools.js";
 import { registerRemediationTools } from "./remediation.tools.js";
 import { registerPlanningTools } from "./planning.tools.js";
+import { registerTinyBrainTools } from "./tiny_brain.tools.js";
 import { registerMasterDiagnoseTools } from "./master_diagnose.tools.js";
 
 /**
@@ -145,4 +146,7 @@ export async function registerAllTools(
 
   // ── Agent Rapid Bootstrap
   await registerAgentBootstrapTools(server);
+
+  // ── Hugging Face Tiny Brain + Top AI Detector
+  registerTinyBrainTools(server);
 }
