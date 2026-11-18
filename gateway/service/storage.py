@@ -192,7 +192,8 @@ def save_conversation(
                 ON CONFLICT(id) DO UPDATE SET
                     title = COALESCE(excluded.title, conversations.title),
                     updated_at = excluded.updated_at,
-                    metadata_json = COALESCE(excluded.metadata_json, conversations.metadata_json);
+                    metadata_json = COALESCE(excluded.metadata_json, conversations.metadata_json)
+                WHERE conversations.user_id = excluded.user_id;
                 """,
                 (conv_id, user_id, clean_title, now, now, meta_str),
             )

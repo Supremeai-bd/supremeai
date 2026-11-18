@@ -444,38 +444,14 @@ MCP_TOWER_SERVICES_CATALOG = [
 ]
 
 
-@router.get("/api/mcp-tower/services")
-async def fe_mcp_services():
-    return {"services": MCP_TOWER_SERVICES_CATALOG, "status": "ok"}
+@router.post("/api/mcp-tower/reboot", dependencies=[Depends(require_github_admin)])
+async def fe_mcp_reboot():
+    raise HTTPException(status_code=503, detail="Remote service reboot is not configured on this gateway.")
 
 
-@router.post("/api/mcp-tower/probe")
-async def fe_mcp_probe():
-    return {"services": MCP_TOWER_SERVICES_CATALOG, "status": "ok"}
-
-
-@router.post("/api/mcp-tower/reboot")
-async def fe_mcp_reboot(body: dict = {}):
-    sid = body.get("serviceId", "render-api")
-    match = next((s for s in MCP_TOWER_SERVICES_CATALOG if s["id"] == sid), MCP_TOWER_SERVICES_CATALOG[0])
-    return {"status": "ok", "serviceId": sid, "service": match}
-
-
-@router.post("/api/mcp-tower/reboot-all")
+@router.post("/api/mcp-tower/reboot-all", dependencies=[Depends(require_github_admin)])
 async def fe_mcp_reboot_all():
-    return {"services": MCP_TOWER_SERVICES_CATALOG, "status": "ok"}
-
-
-@router.get("/api/mcp-tower/stream")
-async def fe_mcp_stream():
-    async def gen():
-        yield "data: {\"status\":\"ok\"}\n\n"
-    return StreamingResponse(gen(), media_type="text/event-stream")
-
-
-@router.get("/api/mcp-tower")
-async def fe_mcp_root():
-    return {"status": "ok"}
+    raise HTTPException(status_code=503, detail="Remote service reboot is not configured on this gateway.")
 
 
 # ---- chat ----
@@ -578,19 +554,30 @@ async def fe_knowledge_add(request: Request):
     return {"document": rec}
 
 
+def _require_uid(request: Request) -> str:
+    try:
+        from . import studio_data
+    except ImportError:
+        from gateway.service import studio_data  # type: ignore[no-redef]
+    return studio_data.account_id(request)
+
+
 @router.delete("/api/user/knowledge/{did}")
-async def fe_knowledge_delete(did: str):
-    _knowledge.pop(did, None)
+async def fe_knowledge_delete(did: str, request: Request):
+    uid = _require_uid(request)
+    _knowledge.setdefault(uid, {}).pop(did, None)
     return {"status": "ok"}
 
 
 @router.post("/api/v1/knowledge/seed")
 async def fe_knowledge_seed(request: Request):
+    uid = _require_uid(request)
     body = await request.json()
     items = body if isinstance(body, list) else [body]
+    bucket = _knowledge.setdefault(uid, {})
     for it in items:
         did = it.get("id") or f"d_{uuid.uuid4().hex[:8]}"
-        _knowledge[did] = {"id": did, "created": _now(), **it}
+        bucket[did] = {"id": did, "created": _now(), **it}
     return {"status": "ok", "count": len(items)}
 
 
@@ -612,42 +599,48 @@ async def fe_graph_path(start_skill: str = "", end_skill: str = ""):
 
 # ---- webhooks ----
 @router.get("/api/user/webhooks")
-async def fe_webhooks_list():
-    return {"webhooks": list(_webhooks.values())}
+async def fe_webhooks_list(request: Request):
+    uid = _require_uid(request)
+    return {"webhooks": list(_webhooks.get(uid, {}).values())}
 
 
 @router.post("/api/user/webhooks")
 async def fe_webhook_create(request: Request):
+    uid = _require_uid(request)
     body = await request.json()
     wid = f"w_{uuid.uuid4().hex[:8]}"
     rec = {"id": wid, "created": _now(), **body}
-    _webhooks[wid] = rec
+    _webhooks.setdefault(uid, {})[wid] = rec
     return {"webhook": rec}
 
 
 @router.delete("/api/user/webhooks/{wid}")
-async def fe_webhook_delete(wid: str):
-    _webhooks.pop(wid, None)
+async def fe_webhook_delete(wid: str, request: Request):
+    uid = _require_uid(request)
+    _webhooks.setdefault(uid, {}).pop(wid, None)
     return {"status": "ok"}
 
 
 @router.post("/api/user/webhooks/{wid}/test")
-async def fe_webhook_test(wid: str):
-    return {"status": "ok", "delivered": True}
+async def fe_webhook_test(wid: str, request: Request):
+    _require_uid(request)
+    raise HTTPException(status_code=503, detail="Webhook delivery testing is not configured on this gateway.")
 
 
 # ---- api keys ----
 @router.get("/api/api-keys")
-async def fe_apikeys_list():
-    return {"keys": list(_api_keys.values())}
+async def fe_apikeys_list(request: Request):
+    uid = _require_uid(request)
+    return {"keys": list(_api_keys.get(uid, {}).values())}
 
 
 @router.post("/api/api-keys/create")
 async def fe_apikey_create(request: Request):
+    uid = _require_uid(request)
     body = await request.json()
     kid = f"k_{uuid.uuid4().hex[:8]}"
     rec = {"id": kid, "key": f"sk-{uuid.uuid4().hex}", "created": _now(), **body}
-    _api_keys[kid] = rec
+    _api_keys.setdefault(uid, {})[kid] = rec
     return {"key": rec}
 
 
@@ -698,10 +691,8 @@ async def fe_billing_add_funds(request: Request):
 
 # ---- research/share ----
 @router.post("/api/research/deep")
-async def fe_research_deep(request: Request):
-    body = await request.json()
-    rid = f"r_{uuid.uuid4().hex[:8]}"
-    return {"id": rid, "status": "completed", "query": body.get("query", "")}
+async def fe_research_deep():
+    raise HTTPException(status_code=503, detail="Deep research is not configured on this gateway.")
 
 
 @router.get("/api/research/history")
@@ -711,50 +702,48 @@ async def fe_research_history():
 
 @router.get("/api/research/{rid}")
 async def fe_research_get(rid: str):
-    return {"id": rid, "status": "completed"}
+    raise HTTPException(status_code=404, detail="Research session not found.")
 
 
 @router.post("/api/share/generate")
-async def fe_share_generate(request: Request):
-    sid = f"s_{uuid.uuid4().hex[:8]}"
-    return {"shareId": sid, "url": f"/share/{sid}"}
+async def fe_share_generate():
+    raise HTTPException(status_code=503, detail="Conversation sharing is not configured on this gateway.")
 
 
 @router.get("/api/share/{sid}")
 async def fe_share_get(sid: str):
-    return {"shareId": sid, "content": ""}
+    raise HTTPException(status_code=404, detail="Shared conversation not found.")
 
 
 # ---- browser automation ----
 @router.post("/api/browser/automation/sessions")
-async def fe_browser_session(request: Request):
-    return {"sessionId": f"bs_{uuid.uuid4().hex[:8]}", "status": "ok"}
+async def fe_browser_session():
+    raise HTTPException(status_code=503, detail="Browser automation is not configured on this gateway.")
 
 
 @router.post("/api/browser/automation/actions")
-async def fe_browser_action(request: Request):
-    return {"status": "ok"}
+async def fe_browser_action():
+    raise HTTPException(status_code=503, detail="Browser automation is not configured on this gateway.")
 
 
 @router.post("/api/browser/automation/pause")
 async def fe_browser_pause():
-    return {"status": "ok"}
+    raise HTTPException(status_code=503, detail="Browser automation is not configured on this gateway.")
 
 
 @router.post("/api/browser/automation/resume")
 async def fe_browser_resume():
-    return {"status": "ok"}
+    raise HTTPException(status_code=503, detail="Browser automation is not configured on this gateway.")
 
 
 @router.get("/api/workspace/browser-proxy")
-async def fe_browser_proxy(url: str = ""):
-    return {"url": url, "status": "ok"}
+async def fe_browser_proxy():
+    raise HTTPException(status_code=503, detail="Browser proxy is not configured on this gateway.")
 
 
 @router.post("/api/workspace/terminal")
-async def fe_terminal(request: Request):
-    body = await request.json()
-    return {"output": "", "command": body.get("command", "")}
+async def fe_terminal():
+    raise HTTPException(status_code=503, detail="Workspace terminal is not configured on this gateway.")
 
 
 @router.get("/api/agent-swarm/stream")
@@ -807,72 +796,72 @@ async def fe_admin_auth_verify(request: Request):
     return {"verified": passkey in expected_keys, "status": "ok"}
 
 
-@router.get("/api/admin/config")
+@router.get("/api/admin/config", dependencies=[Depends(require_github_admin)])
 async def fe_admin_config():
     return {"config": {}, "status": "ok"}
 
 
-@router.get("/api/admin/overview")
+@router.get("/api/admin/overview", dependencies=[Depends(require_github_admin)])
 async def fe_admin_overview():
     return {"overview": {}, "status": "ok"}
 
 
-@router.get("/api/admin/audit")
+@router.get("/api/admin/audit", dependencies=[Depends(require_github_admin)])
 async def fe_admin_audit():
     return {"auditRecords": []}
 
 
-@router.get("/api/admin/security")
+@router.get("/api/admin/security", dependencies=[Depends(require_github_admin)])
 async def fe_admin_security():
     return {"blockedIps": []}
 
 
-@router.post("/api/admin/security/block-ip")
+@router.post("/api/admin/security/block-ip", dependencies=[Depends(require_github_admin)])
 async def fe_admin_block_ip(request: Request):
     return {"blockedIps": []}
 
 
-@router.get("/api/admin/swarm")
+@router.get("/api/admin/swarm", dependencies=[Depends(require_github_admin)])
 async def fe_admin_swarm():
     return {"workers": []}
 
 
-@router.get("/api/admin/queue")
+@router.get("/api/admin/queue", dependencies=[Depends(require_github_admin)])
 async def fe_admin_queue():
     return {"jobs": []}
 
 
-@router.delete("/api/admin/queue/completed")
+@router.delete("/api/admin/queue/completed", dependencies=[Depends(require_github_admin)])
 async def fe_admin_queue_clear():
     return {"status": "ok"}
 
 
-@router.post("/api/admin/queue/flush-dlq")
+@router.post("/api/admin/queue/flush-dlq", dependencies=[Depends(require_github_admin)])
 async def fe_admin_queue_flush():
     return {"status": "ok"}
 
 
-@router.get("/api/admin/providers")
+@router.get("/api/admin/providers", dependencies=[Depends(require_github_admin)])
 async def fe_admin_providers():
     return {"providers": []}
 
 
-@router.post("/api/admin/providers")
+@router.post("/api/admin/providers", dependencies=[Depends(require_github_admin)])
 async def fe_admin_providers_create(request: Request):
     return {"provider": {}, "status": "ok"}
 
 
-@router.post("/api/admin/providers/priority")
+@router.post("/api/admin/providers/priority", dependencies=[Depends(require_github_admin)])
 async def fe_admin_providers_priority(request: Request):
     return {"providers": [], "status": "ok"}
 
 
-@router.post("/api/admin/providers/probe")
+@router.post("/api/admin/providers/probe", dependencies=[Depends(require_github_admin)])
 async def fe_admin_providers_probe(request: Request):
     return {"status": "ok"}
 
 
-@router.post("/api/admin/providers/probe-all")
+@router.post("/api/admin/providers/probe-all", dependencies=[Depends(require_github_admin)])
 async def fe_admin_providers_probe_all():
     return {"status": "ok"}
 
@@ -898,12 +887,12 @@ async def fe_admin_feature_flags_set(request: Request):
     return {"flags": config["featureFlags"]}
 
 
-@router.get("/api/admin/infisical/vault-keys")
+@router.get("/api/admin/infisical/vault-keys", dependencies=[Depends(require_github_admin)])
 async def fe_admin_vault_keys():
     return {"keys": []}
 
 
-@router.post("/api/admin/infisical/sync")
+@router.post("/api/admin/infisical/sync", dependencies=[Depends(require_github_admin)])
 async def fe_admin_infisical_sync():
     return {"status": "ok"}
 
@@ -931,7 +920,7 @@ _CP_STUBS = [
 ]
 
 
-@router.get("/api/admin/control-plane/overview")
+@router.get("/api/admin/control-plane/overview", dependencies=[Depends(require_github_admin)])
 async def cp_overview():
     pending_count = len([t for t in _pending_hitl.values() if t.get("status") == "pending"])
     return {
@@ -960,23 +949,23 @@ async def cp_overview():
     }
 
 
-@router.get("/api/admin/control-plane/safety-mode")
+@router.get("/api/admin/control-plane/safety-mode", dependencies=[Depends(require_github_admin)])
 async def cp_safety_mode():
     return {"mode": "normal", "status": "ok"}
 
 
-@router.post("/api/admin/control-plane/safety-mode")
+@router.post("/api/admin/control-plane/safety-mode", dependencies=[Depends(require_github_admin)])
 async def cp_safety_mode_set(request: Request):
     return {"mode": "normal", "status": "ok"}
 
 
-@router.get("/api/admin/control-plane/hitl")
+@router.get("/api/admin/control-plane/hitl", dependencies=[Depends(require_github_admin)])
 async def cp_hitl():
     items = list(_pending_hitl.values())
     return {"items": items, "tickets": items, "status": "ok"}
 
 
-@router.post("/api/admin/control-plane/hitl/{hid}/resolve")
+@router.post("/api/admin/control-plane/hitl/{hid}/resolve", dependencies=[Depends(require_github_admin)])
 async def cp_hitl_resolve(hid: str, request: Request):
     decision = "approved"
     try:
@@ -989,7 +978,7 @@ async def cp_hitl_resolve(hid: str, request: Request):
     return await fe_hitl_reject(hid, request)
 
 
-@router.get("/api/admin/control-plane/memory")
+@router.get("/api/admin/control-plane/memory", dependencies=[Depends(require_github_admin)])
 async def cp_memory():
     return {
         "status": "ok",
@@ -1004,22 +993,22 @@ async def cp_memory():
     }
 
 
-@router.post("/api/admin/control-plane/memory/promote")
+@router.post("/api/admin/control-plane/memory/promote", dependencies=[Depends(require_github_admin)])
 async def cp_memory_promote(request: Request):
     return {"status": "ok", "success": True, "entries": []}
 
 
-@router.post("/api/admin/control-plane/memory/learn")
+@router.post("/api/admin/control-plane/memory/learn", dependencies=[Depends(require_github_admin)])
 async def cp_memory_learn(request: Request):
     return {"status": "ok", "success": True, "entries": []}
 
 
-@router.post("/api/admin/control-plane/memory/wipe")
+@router.post("/api/admin/control-plane/memory/wipe", dependencies=[Depends(require_github_admin)])
 async def cp_memory_wipe():
     return {"status": "ok", "success": True, "removed": 0, "entries": []}
 
 
-@router.get("/api/admin/control-plane/mcp-tools")
+@router.get("/api/admin/control-plane/mcp-tools", dependencies=[Depends(require_github_admin)])
 async def cp_mcp_tools(refresh: int = 0):
     return {
         "status": "ok",
@@ -1036,12 +1025,12 @@ async def cp_mcp_tools(refresh: int = 0):
     }
 
 
-@router.post("/api/admin/control-plane/mcp-call")
+@router.post("/api/admin/control-plane/mcp-call", dependencies=[Depends(require_github_admin)])
 async def cp_mcp_call(request: Request):
     return {"result": {"success": True, "output": "Tool execution verified on MCP Tower"}, "status": "ok"}
 
 
-@router.get("/api/admin/control-plane/release-gate")
+@router.get("/api/admin/control-plane/release-gate", dependencies=[Depends(require_github_admin)])
 async def cp_release_gate():
     now_iso = datetime.now(timezone.utc).isoformat()
     return {
@@ -1059,17 +1048,17 @@ async def cp_release_gate():
     }
 
 
-@router.post("/api/admin/control-plane/release-execute")
+@router.post("/api/admin/control-plane/release-execute", dependencies=[Depends(require_github_admin)])
 async def cp_release_execute(request: Request):
     return {"status": "ok", "success": True, "dryRun": False, "message": "Execution acknowledged"}
 
 
-@router.post("/api/admin/control-plane/remediation-plan")
+@router.post("/api/admin/control-plane/remediation-plan", dependencies=[Depends(require_github_admin)])
 async def cp_remediation(request: Request):
     return {"status": "ok", "plan": {"id": "plan-1", "title": "Automated cluster heal", "steps": []}, "plans": []}
 
 
-@router.post("/api/admin/control-plane/deep-diagnose")
+@router.post("/api/admin/control-plane/deep-diagnose", dependencies=[Depends(require_github_admin)])
 async def cp_deep_diagnose(request: Request):
     now_iso = datetime.now(timezone.utc).isoformat()
     return {
@@ -1088,7 +1077,7 @@ async def cp_deep_diagnose(request: Request):
     }
 
 
-@router.post("/api/admin/control-plane/devtools-audit")
+@router.post("/api/admin/control-plane/devtools-audit", dependencies=[Depends(require_github_admin)])
 async def cp_devtools_audit(request: Request):
     now_iso = datetime.now(timezone.utc).isoformat()
     report = {
@@ -1106,17 +1095,17 @@ async def cp_devtools_audit(request: Request):
     return {"status": "ok", "report": report, "devToolsAudits": [report]}
 
 
-@router.post("/api/admin/control-plane/kaggle-dispatch")
+@router.post("/api/admin/control-plane/kaggle-dispatch", dependencies=[Depends(require_github_admin)])
 async def cp_kaggle(request: Request):
     return {"status": "ok", "success": True, "dryRun": False, "message": "Kernel queued", "kaggleRuns": []}
 
 
-@router.post("/api/admin/control-plane/telegram-dispatch")
+@router.post("/api/admin/control-plane/telegram-dispatch", dependencies=[Depends(require_github_admin)])
 async def cp_telegram(request: Request):
     return {"status": "ok", "success": True, "dryRun": False, "message": "Notification dispatched", "telegramLogs": []}
 
 
-@router.get("/api/admin/control-plane/finops-omnichannel")
+@router.get("/api/admin/control-plane/finops-omnichannel", dependencies=[Depends(require_github_admin)])
 async def cp_finops():
     return {
         "status": "ok",
@@ -1131,7 +1120,7 @@ async def cp_finops():
     }
 
 
-@router.get("/api/admin/control-plane/compute-browser")
+@router.get("/api/admin/control-plane/compute-browser", dependencies=[Depends(require_github_admin)])
 async def cp_compute_browser():
     return {
         "status": "ok",
@@ -1141,7 +1130,7 @@ async def cp_compute_browser():
     }
 
 
-@router.get("/api/admin/control-plane/external-agents")
+@router.get("/api/admin/control-plane/external-agents", dependencies=[Depends(require_github_admin)])
 async def cp_external_agents():
     return {
         "status": "ok",
@@ -1151,12 +1140,12 @@ async def cp_external_agents():
     }
 
 
-@router.post("/api/admin/control-plane/graph-query")
+@router.post("/api/admin/control-plane/graph-query", dependencies=[Depends(require_github_admin)])
 async def cp_graph_query(request: Request):
     return {"status": "ok", "provenance": "live-gateway", "matches": []}
 
 
-@router.get("/api/admin/control-plane/service-health")
+@router.get("/api/admin/control-plane/service-health", dependencies=[Depends(require_github_admin)])
 async def cp_service_health(refresh: int = 0):
     now_iso = datetime.now(timezone.utc).isoformat()
     return {
@@ -1220,39 +1209,39 @@ async def cp_service_health(refresh: int = 0):
     }
 
 
-@router.post("/api/admin/control-plane/service-health/probe")
+@router.post("/api/admin/control-plane/service-health/probe", dependencies=[Depends(require_github_admin)])
 async def cp_service_health_probe(request: Request):
     return await cp_service_health(refresh=1)
 
 
-@router.post("/api/admin/control-plane/service-health/thresholds")
+@router.post("/api/admin/control-plane/service-health/thresholds", dependencies=[Depends(require_github_admin)])
 async def cp_service_health_thresholds(request: Request):
     return {"status": "ok", "success": True, "thresholds": {"p95LatencyMs": 500, "errorRatePercent": 5.0, "cpuWarningPercent": 80.0, "memoryWarningPercent": 85.0}}
 
 
-@router.get("/api/admin/control-plane/service-health/stream")
+@router.get("/api/admin/control-plane/service-health/stream", dependencies=[Depends(require_github_admin)])
 async def cp_service_health_stream():
     async def gen():
         yield "data: {\"status\":\"ok\"}\n\n"
     return StreamingResponse(gen(), media_type="text/event-stream")
 
 
-@router.post("/api/admin/control-plane/policies/{pid}/toggle")
+@router.post("/api/admin/control-plane/policies/{pid}/toggle", dependencies=[Depends(require_github_admin)])
 async def cp_policy_toggle(pid: str, request: Request):
     return {"id": pid, "status": "toggled"}
 
 
-@router.post("/api/admin/control-plane/takeover/{tid}")
+@router.post("/api/admin/control-plane/takeover/{tid}", dependencies=[Depends(require_github_admin)])
 async def cp_takeover(tid: str, request: Request):
     return {"id": tid, "status": "ok"}
 
 
-@router.post("/api/admin/control-plane/bridge/{issue}/action")
+@router.post("/api/admin/control-plane/bridge/{issue}/action", dependencies=[Depends(require_github_admin)])
 async def cp_bridge_action(issue: str, request: Request):
     return {"issue": issue, "status": "ok"}
 
 
-@router.post("/api/admin/control-plane/cron/{cid}/trigger")
+@router.post("/api/admin/control-plane/cron/{cid}/trigger", dependencies=[Depends(require_github_admin)])
 async def cp_cron_trigger(cid: str):
     return {"id": cid, "status": "triggered"}# appended endpoints
 @router.post("/api/auth/verify-2fa")
