@@ -1,0 +1,13 @@
+name = "supremeai-kaggle-shadow"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+[triggers]
+# Rotate to the next Kaggle account every 10 hours (2h overlap before 12h session limit)
+crons = ["0 */10 * * *"]
+
+# Create with: npx wrangler kv namespace create SHADOW_STATE
+# Then replace the id below with the generated namespace id.
+[[kv_namespaces]]
+binding = "SHADOW_STATE"
+id = "a5cd5c3de9b0479cb063bdb946cade2a"
