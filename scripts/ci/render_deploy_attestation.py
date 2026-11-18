@@ -92,6 +92,35 @@ def main() -> int:
         return fail("RENDER_API_KEY is missing")
     if not service_id:
         return fail("RENDER_SERVICE_ID is missing; service identity is not reconciled")
+
+    if os.environ.get("RENDER_SERVICE_SUSPENDED", "").strip() in ("1", "true", "yes"):
+        print(
+            f"::warning::Service {service_id} is SUSPENDED on Render. "
+            "Skipping deploy attestation without failing CI."
+        )
+        return 0
+
+    for _env_name, api_key in candidate_keys:
+        probe_client = RenderClient(api_key=api_key, service_id=service_id)
+        try:
+            svc_info = probe_client.get_service(service_id)
+            if isinstance(svc_info, dict):
+                svc_obj = svc_info.get("service", svc_info) if isinstance(svc_info.get("service"), dict) else svc_info
+                suspended_state = str(svc_obj.get("suspended") or "").strip().lower()
+                if suspended_state == "suspended":
+                    print(
+                        f"::warning::Service {service_id} is SUSPENDED on Render. "
+                        "Skipping deploy attestation without failing CI."
+                    )
+                    return 0
+            break
+        except RenderApiError as exc:
+            if exc.status in (401, 403, 404):
+                continue
+            break
+        except Exception:
+            break
+
     if not expected:
         return fail("EXPECTED_SHA is missing; refusing health-only verification")
     if not release_url:

@@ -223,6 +223,13 @@ def main() -> int:
                     f"::warning::Service {svc_id} is SUSPENDED on Render. "
                     "Skipping deploy trigger without failing CI."
                 )
+                gh_env = os.environ.get("GITHUB_ENV")
+                if gh_env:
+                    try:
+                        with open(gh_env, "a", encoding="utf-8") as fh:
+                            fh.write("RENDER_SERVICE_SUSPENDED=1\n")
+                    except OSError:
+                        pass
                 return 0
 
             if exc.status == 404 and "does not have a commit" in err_body and commit_id is not None:

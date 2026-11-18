@@ -66,8 +66,8 @@ jobs:
     needs: [resolve-execution-tier]
     runs-on: ubuntu-24.04
     outputs:
-      extension: ${{ steps.filter.outputs.extension }}
-      desktop: ${{ steps.filter.outputs.desktop }}
+      extension: ${{ steps.check-dirs.outputs.extension }}
+      desktop: ${{ steps.check-dirs.outputs.desktop }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -86,6 +86,20 @@ jobs:
               - 'vscode/desktop/**'
               - 'vscode/package.json'
               - 'vscode/package-lock.json'
+
+      - name: Guard Sovereign Satellite Decoupling
+        id: check-dirs
+        run: |
+          if [ "${{ steps.filter.outputs.extension }}" = "true" ] && [ -f "vscode/extension/package.json" ]; then
+            echo "extension=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "extension=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "${{ steps.filter.outputs.desktop }}" = "true" ] && [ -f "vscode/desktop/package.json" ]; then
+            echo "desktop=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "desktop=false" >> "$GITHUB_OUTPUT"
+          fi
 
   package-extension:
     name: "Package & Release Extension (.vsix)"
