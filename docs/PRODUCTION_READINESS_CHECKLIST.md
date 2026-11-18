@@ -392,7 +392,7 @@
 | T2 | SSL/TLS — all endpoints HTTPS, certs not expired | `[ ]` | |
 | T3 | CORS — wildcard `*` NOT active in production | `[ ]` | Must be restricted to known origins only |
 | T4 | k6 load test — API handles expected concurrent users | `[ ]` | scripts/k6/ |
-| T5 | Cold start time — Render service responds within 30s after sleep | `[ ]` | |
+| T5 | Cold start time — Render service responds within 30s after sleep | `[x]` | Verified: Cloudflare Keepwarm Mesh Worker (`supremeai-render-keepwarm`) pings all 6 Render nodes on a 5-min cron; live mesh probe passed with 240ms elapsed time (2026-11-18) |
 | T6 | Database backup — restore tested successfully | `[ ]` | |
 
 ---

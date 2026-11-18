@@ -1,19 +1,24 @@
 name: Render Services Keepwarm
 
 on:
-  schedule:
-    # Run every 10 minutes to prevent Render free-tier containers from spinning down
-    - cron: '*/10 * * * *'
+  # Render keep-warm is dedicated to Cloudflare Edge Worker (infrastructure/cloudflare-render-keepwarm)
+  # running on a 5-minute cron SSOT with zero compute and bandwidth overhead.
+  # This GitHub Actions workflow is maintained as a manual fallback (workflow_dispatch)
+  # and optional off-peak health probe to avoid duplicate pings that exhaust Render's 5 GB limit.
   workflow_dispatch:
+  schedule:
+    # Run once every 6 hours as a backup verification probe (instead of aggressive 10-minute duplicate pings)
+    - cron: '0 */6 * * *'
 
 jobs:
   keepwarm:
     name: Ping Services
     runs-on: ubuntu-latest
     steps:
-      - name: Ping SupremeAI API & MCP Tower
+      - name: Trigger Cloudflare Keepwarm Mesh & Render Edge Probes
         run: |
-          echo "Pinging SupremeAI Gateway..."
-          curl -sf --max-time 10 https://supremeai-api-ulw0.onrender.com/healthz || echo "Gateway ping returned non-200"
-          echo "Pinging SupremeAI MCP Tower..."
-          curl -sf --max-time 10 https://supremeai-mcp-tower.onrender.com/health || echo "MCP Tower ping returned non-200"
+          echo "Pinging Cloudflare Keepwarm Mesh Trigger..."
+          curl -sf --max-time 15 -H "User-Agent: GitHub-Keepwarm-Probe/1.0" https://supremeai-render-keepwarm.paykaribazaronline.workers.dev/trigger || echo "Mesh trigger returned non-200"
+
+          echo "Lightweight HEAD probe to API Gateway..."
+          curl -s -I --max-time 10 https://supremeai-api-ulw0.onrender.com/healthz || echo "Gateway ping returned non-200"
