@@ -20,10 +20,11 @@ All archived documentation is preserved with full git history in:
 
 ## 📚 Active Monorepo Documentation (SSOT)
 
-The active documents in this repository govern live production operations, architecture, and autonomous agent loops:
+The active documents in this repository govern live production operations, architecture, and autonomous agent loops. The simplification plan records the reviewed local baseline, verified findings, open operational questions and a phased, evidence-led backlog; it does not claim the whole suite or production services passed verification.
 
 | Document | Purpose |
 |---|---|
+| [`MASTER_SIMPLIFICATION_PLAN.md`](MASTER_SIMPLIFICATION_PLAN.md) | Whole-repository evidence-based audit, single-source-of-truth decisions, component plans, blockers, priorities and measurable verification criteria |
 | [`AGENTS.md`](../AGENTS.md) | Universal Agent Constitution & the 5 Universal Invariants |
 | [`docs/AGENT_OPERATING_SYSTEM.md`](AGENT_OPERATING_SYSTEM.md) | Multi-Agent Operating System & verification ladder |
 | [`docs/AGENT_LOOP_SPEC.md`](AGENT_LOOP_SPEC.md) | Continuous loop contract and dispatch roles |
