@@ -75,7 +75,7 @@ function makeValidEnvelope(issue = "331", objective = "Implement the dispatch re
     },
     section_3_governing_rules: {
       policies: [
-        { id: "smallest-safe-change", statement: "Smallest safe change only.", source: "AGENT_RULES.md U1" },
+        { id: "smallest-safe-change", statement: "Smallest safe change only.", source: "AGENTS.md" },
       ],
       admin_gate: { required: false, status: "NOT_REQUIRED" },
     },

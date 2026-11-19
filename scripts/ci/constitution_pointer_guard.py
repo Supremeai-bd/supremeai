@@ -128,14 +128,6 @@ ALLOWLIST: dict[str, tuple[str, str]] = {
         "historical",
         "pins the deleted-file freshness-gate behavior (#1526 contract)",
     ),
-    "core/github/scripts/constitution/freshness_gate.py": (
-        "mirror-parity",
-        "private .github/scripts twin; 2026-10-01 incident record",
-    ),
-    "core/github/scripts/constitution/template_gate.py": (
-        "mirror-parity",
-        "private .github/scripts twin; historical template contract note",
-    ),
     "scripts/agents/instruction_builder.py": (
         "historical",
         "documents the drift discovery that motivated the SSOT consolidation",
@@ -145,18 +137,39 @@ ALLOWLIST: dict[str, tuple[str, str]] = {
         "one line records 'the former AGENT_RULES.md was deleted by #1526'",
     ),
     # -- protected: admin-owned .github/ ------------------------------------
-    ".github/ISSUE_TEMPLATE/auditor-rule-breaker-report.yml": (
-        "protected",
-        "admin-owned issue template (bridge contract: admin review)",
+    # -- protected: admin-owned .github/scripts/constitution/ (2026-11-19) --
+    # `.github/scripts/constitution/` is a PROTECTED_PREFIX (tiny_brain_pr_guard
+    # :37) — a bridge agent cannot edit these, so the citations are declared
+    # here with an explicit admin-sweep request instead of being silently
+    # tolerated. Each is a real stale pointer, not a pattern definition.
+    ".github/scripts/constitution/freshness_gate.py": (
+        "historical",
+        "2026-10-01 old-code-push incident narrative names the file as it was then",
     ),
-    ".github/ISSUE_TEMPLATE/feature-request.yml": (
-        "protected",
-        "admin-owned issue template (bridge contract: admin review)",
+    ".github/scripts/constitution/gates.py": (
+        "debt",
+        (
+            "ADMIN SWEEP: CONSTITUTION_BOUNDARY_PATHS still lists the deleted "
+            "file; harmless (no path can match) but it is a ghost boundary entry"
+        ),
     ),
-    ".github/workflows/pipeline.yml": (
-        "protected",
-        "admin-owned workflow (bridge contract: admin review)",
+    ".github/scripts/constitution/template_gate.py": (
+        "debt",
+        "ADMIN SWEEP: docstring still cites the former contract as authority",
     ),
+    # -- pruned 2026-11-19 ------------------------------------------------
+    # Five entries were ghosts (guard doctrine #3, and the guard's own
+    # self-test "shipped ALLOWLIST has no stale entries" had been red because
+    # of them, so the guard could not be used as a gate at all):
+    #   core/github/scripts/constitution/{freshness,template}_gate.py — the
+    #     mirror twin directory no longer exists (private-mirror relocation);
+    #   .github/ISSUE_TEMPLATE/auditor-rule-breaker-report.yml — deleted;
+    #   .github/ISSUE_TEMPLATE/feature-request.yml — renamed to
+    #     feature_request.yml (hyphen -> underscore), and the live name carries
+    #     no citation;
+    #   .github/workflows/pipeline.yml — deleted (unified-pipeline.yml is live).
+    # Re-adding any of these requires a live tracked file again.
+
     # -- debt: live stale pointers, enumerated for the fast-follow sweep ----
     # বাংলা (#3524-অভিঘাত, 2026-10-31): #3524-এর archive-migration 473টি doc
     # supremeai-এ সরিয়েছে; সেই ২৩টি এন্ট্রি এখানে ghost ছিল (untracked) —

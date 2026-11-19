@@ -16,7 +16,13 @@ so no future edit can silently widen the public surface:
 
   1. public_viewer early-return requires the CONJUNCTION
      access "safe" AND dataClassification "public" (default-deny core).
-  2. Rank ladder: secret => rank >= 4, restricted => rank >= 3.
+  2. Rank ladder, pinned SEMANTICALLY (see _check_rank_ladder): the secret
+     threshold must be at least the rank of `admin` and the restricted
+     threshold at least the rank of `agent`, both read from ROLE_RANK in
+     auth.context.ts. The ladder was consolidated from six tiers to four
+     0-based ranks (#110/#474) and the numbers moved; pinning literals made the
+     guard report a security regression that did not exist, so the guard now
+     pins the RELATIONSHIP between the thresholds and the declared ranks.
   3. classifyToolCapability's default fallback stays
      access "restricted" + dataClassification "internal" (unknown/dynamic
      tools deny public_viewer by construction).
@@ -124,15 +130,81 @@ def _check_public_viewer_predicate(source: str) -> list[str]:
     return violations
 
 
-def _check_rank_ladder(source: str) -> list[str]:
+def parse_role_rank(text: str) -> dict[str, int]:
+    """Extract the `ROLE_RANK` ladder (`viewer: 0, agent: 1, ...`) from a source."""
+    block = re.search(r"ROLE_RANK[^=]*=\s*\{(.*?)\}\s*as const", text, re.DOTALL)
+    if block is None:
+        block = re.search(r"ROLE_RANK[^=]*=\s*\{(.*?)\}", text, re.DOTALL)
+    if block is None:
+        return {}
+    return {
+        role: int(value)
+        for role, value in re.findall(r"([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(\d+)", block.group(1))
+    }
+
+
+def load_role_rank(policy_path: Path) -> tuple[dict[str, int], str | None]:
+    """Read the RBAC ladder from auth.context.ts (sibling) or the policy file."""
+    for candidate in (policy_path.parent / "auth.context.ts", policy_path):
+        if not candidate.is_file():
+            continue
+        try:
+            ranks = parse_role_rank(candidate.read_text(encoding="utf-8"))
+        except OSError as exc:
+            return {}, f"ROLE_RANK unreadable in {candidate.name} ({exc})"
+        if ranks:
+            return ranks, None
+    return (), (
+        "ROLE_RANK ladder not found next to the SSOT (auth.context.ts) - fail-closed: "
+        "the rank thresholds below cannot be verified without it"
+    )
+
+
+def _check_rank_ladder(source: str, ranks: dict[str, int]) -> list[str]:
+    """Pin the ladder SEMANTICALLY: thresholds vs the declared role ranks.
+
+    Literal numbers are not an invariant — the ladder was renumbered from six
+    1-based tiers to four 0-based ranks (#110/#474, `ROLE_RANK` in
+    auth.context.ts) while the policy meaning stayed identical. Pinning `>= 4`
+    made this guard report an admin-only leak that did not exist; pinning the
+    relationship cannot be fooled by a renumber, and still catches a real
+    weakening (secret opened up to `agent`, restricted opened up to `viewer`).
+    """
     violations: list[str] = []
     body = _function_body(source, "export function canAccessCapability")
     if body is None:
         return ["canAccessCapability not found in SSOT (fail-closed)"]
-    if not re.search(r'dataClassification === "secret"\s*\)\s*return rank >= 4', body):
-        violations.append('secret classification no longer maps to rank >= 4 (admin-only) in canAccessCapability')
-    if not re.search(r'access === "restricted"\s*\)\s*return rank >= 3', body):
-        violations.append('restricted access no longer maps to rank >= 3 (agent+) in canAccessCapability')
+    for missing in ("admin", "agent", "viewer"):
+        if missing not in ranks:
+            return [f"ROLE_RANK has no `{missing}` rank - fail-closed (cannot verify the ladder)"]
+
+    secret = re.search(r'dataClassification === "secret"\s*\)\s*return rank >= (\d+)', body)
+    restricted = re.search(r'access === "restricted"\s*\)\s*return rank >= (\d+)', body)
+    if secret is None:
+        violations.append(
+            'secret classification no longer maps to a rank threshold in canAccessCapability'
+        )
+    elif int(secret.group(1)) < ranks["admin"]:
+        violations.append(
+            f"secret classification is reachable below `admin` in canAccessCapability "
+            f"(threshold {secret.group(1)} < admin rank {ranks['admin']}) - admin-only data "
+            "must not reach a lower role"
+        )
+    if restricted is None:
+        violations.append(
+            'restricted access no longer maps to a rank threshold in canAccessCapability'
+        )
+    elif int(restricted.group(1)) < ranks["agent"]:
+        violations.append(
+            f"restricted access is reachable below `agent` in canAccessCapability "
+            f"(threshold {restricted.group(1)} < agent rank {ranks['agent']})"
+        )
+    for label, match in (("secret", secret), ("restricted", restricted)):
+        if match is not None and int(match.group(1)) <= ranks["viewer"]:
+            violations.append(
+                f"{label} threshold {match.group(1)} is at or below the `viewer` rank "
+                f"{ranks['viewer']} - anonymous surface widened"
+            )
     return violations
 
 
@@ -214,7 +286,11 @@ def run_checks(policy_path: Path) -> list[str]:
 
     violations: list[str] = []
     violations += _check_public_viewer_predicate(source)
-    violations += _check_rank_ladder(source)
+    ranks, rank_error = load_role_rank(policy_path)
+    if rank_error:
+        violations.append(rank_error)
+    else:
+        violations += _check_rank_ladder(source, ranks)
     violations += _check_default_deny_fallback(source)
     array_body = _public_safe_array(source)
     violations += _check_overexposed_tools(source, array_body)
@@ -241,8 +317,8 @@ export function canAccessCapability(context: McpAccessContext, capability: McpCa
     return capability.access === "safe" && capability.dataClassification === "public";
   }
   const rank = roleRank(context.mode as UserRole);
-  if (capability.dataClassification === "secret") return rank >= 4;
-  if (capability.access === "restricted") return rank >= 3;
+  if (capability.dataClassification === "secret") return rank >= 2;
+  if (capability.access === "restricted") return rank >= 1;
   if (capability.requiredScope && !context.scopes.includes("*") && !context.scopes.includes(capability.requiredScope)) return false;
   return true;
 }
@@ -288,8 +364,27 @@ export function classifyToolCapability(name: string): McpCapabilityMetadata {
 '''
 
 
-def _write_fixture(fixture_dir: Path, content: str) -> Path:
+ROLE_RANK_FIXTURE = """export type UserRole = "supremeadmin" | "admin" | "agent" | "viewer";
+
+export const ROLE_RANK: Readonly<Record<UserRole, number>> = {
+  viewer: 0,
+  restricted_viewer: 0,
+  repo_viewer: 0,
+  agent: 1,
+  admin: 2,
+  supremeadmin: 3,
+} as const;
+
+export function roleRank(role: UserRole | undefined | null): number {
+  return role ? (ROLE_RANK[role] ?? 0) : 0;
+}
+"""
+
+
+def _write_fixture(fixture_dir: Path, content: str, ladder: str | None = None) -> Path:
+    """Write the policy fixture plus its sibling RBAC ladder (auth.context.ts)."""
     fixture_dir.mkdir(parents=True, exist_ok=True)
+    (fixture_dir / "auth.context.ts").write_text(ladder or ROLE_RANK_FIXTURE, encoding="utf-8")
     path = fixture_dir / "mcp-access.ts"
     path.write_text(content, encoding="utf-8")
     return path
@@ -324,10 +419,46 @@ def run_self_test() -> int:
     expect("github_list_secrets secret/R4 pin removed", tampered, want_violation=True)
 
     tampered = base.replace(
-        'if (capability.dataClassification === "secret") return rank >= 4;',
-        'if (capability.dataClassification === "secret") return rank >= 3;',
+        'if (capability.dataClassification === "secret") return rank >= 2;',
+        'if (capability.dataClassification === "secret") return rank >= 1;',
     )
-    expect("secret rank ladder weakened to >=3", tampered, want_violation=True)
+    expect("secret ladder widened to `agent`", tampered, want_violation=True)
+
+    tampered = base.replace(
+        'if (capability.access === "restricted") return rank >= 1;',
+        'if (capability.access === "restricted") return rank >= 0;',
+    )
+    expect("restricted ladder widened to `viewer`", tampered, want_violation=True)
+
+    # Renumbering the ladder while keeping the same policy meaning must PASS:
+    # this is the regression that made the guard cried wolf on 2026-11-19.
+    renumbered_ladder = ROLE_RANK_FIXTURE.replace("viewer: 0", "viewer: 10").replace(
+        "restricted_viewer: 0", "restricted_viewer: 10"
+    ).replace("repo_viewer: 0", "repo_viewer: 10").replace(
+        "agent: 1,", "agent: 20,"
+    ).replace("admin: 2,", "admin: 30,").replace("supremeadmin: 3,", "supremeadmin: 40,")
+    renumbered = base.replace("rank >= 2", "rank >= 30").replace("rank >= 1", "rank >= 20")
+    with tempfile.TemporaryDirectory() as td:
+        cases += 1
+        policy = _write_fixture(Path(td) / "policy", renumbered, ladder=renumbered_ladder)
+        violations = run_checks(policy)
+        ok = not violations
+        if not ok:
+            failed += 1
+        print(f"  [{'PASS' if ok else 'FAIL'}] renumbered ladder keeps the same policy"
+              f" ({'clean' if not violations else violations[0][:70]})")
+
+    # A ladder that disagrees with the thresholds must still fail.
+    strict_ladder = ROLE_RANK_FIXTURE.replace("admin: 2,", "admin: 3,")
+    with tempfile.TemporaryDirectory() as td:
+        cases += 1
+        policy = _write_fixture(Path(td) / "policy", base, ladder=strict_ladder)
+        violations = run_checks(policy)
+        ok = bool(violations)
+        if not ok:
+            failed += 1
+        print(f"  [{'PASS' if ok else 'FAIL'}] threshold below the declared admin rank"
+              f" ({'clean' if not violations else violations[0][:70]})")
 
     tampered = base.replace(
         'return capability.access === "safe" && capability.dataClassification === "public";',

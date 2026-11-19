@@ -20,7 +20,7 @@ Refs #<issue-number>
 - `path/to/file.py`
 
 ## Test Evidence (3-Tier যাচাই-চুক্তি)
-<!-- ৬-পয়েন্ট যাচাই-চুক্তির (AGENT_RULES.md ভাগ ৪) প্রমাণ -->
+<!-- ৬-পয়েন্ট যাচাই-চুক্তির (AGENTS.md — Single Door) প্রমাণ -->
 1. **Reflection Check:** `git grep -n "<symbol>"` → ফলাফল
 2. **Syntax/Boot:** YAML/JSON/Python পার্স + বুট-স্মোক প্রমাণ
 3. **Tests:** `pytest <test-file> -v` → পাস-আউটপুট

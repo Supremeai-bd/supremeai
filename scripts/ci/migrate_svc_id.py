@@ -14,27 +14,28 @@ MAPPING = {
 
 
 def migrate(text):
+    """Rewrite `<getter>("SVC_ID")` reads to `<getter>("SERVICE_ID", <getter>("SVC_ID", ""))`.
+
+    Two properties matter and the original four-regex version had neither:
+
+    * **no nesting** — the plain shape (`get("SVC")`, no default) was rewritten
+      first, and the with-default pattern then matched the *inner* call the
+      rewrite had just produced, yielding
+      `get("NEW", get("NEW", get("SVC", "")))`. The shapes are now applied
+      longest-first inside a single pass over a placeholder, so a produced
+      fallback is never re-matched.
+    * **idempotent** — an already-migrated call is detected and left alone, so
+      re-running the migration (or running it over an already-migrated file)
+      cannot double-wrap and change behaviour.
+    """
     for svc, service in MAPPING.items():
-        text = re.sub(
-            r'os\.environ\.get\("' + svc + r'"\)',
-            'os.environ.get("' + service + '", os.environ.get("' + svc + '", ""))',
-            text,
-        )
-        text = re.sub(
-            r'os\.environ\.get\("' + svc + r'",\s*""\)',
-            'os.environ.get("' + service + '", os.environ.get("' + svc + '", ""))',
-            text,
-        )
-        text = re.sub(
-            r'os\.getenv\("' + svc + r'"\)',
-            'os.getenv("' + service + '", os.getenv("' + svc + '", ""))',
-            text,
-        )
-        text = re.sub(
-            r'os\.getenv\("' + svc + r'",\s*""\)',
-            'os.getenv("' + service + '", os.getenv("' + svc + '", ""))',
-            text,
-        )
+        for getter in ("os.environ.get", "os.getenv"):
+            migrated = f'{getter}("{service}", {getter}("{svc}", ""))'
+            token = f"\x00migrate-svc:{service}:{getter}\x00"
+            text = text.replace(migrated, token)
+            text = re.sub(re.escape(getter) + r'\("' + svc + r'",\s*""\)', migrated, text)
+            text = re.sub(re.escape(getter) + r'\("' + svc + r'"\)', migrated, text)
+            text = text.replace(token, migrated)
     return text
 
 

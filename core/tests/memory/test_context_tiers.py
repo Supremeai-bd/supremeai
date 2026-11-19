@@ -70,13 +70,9 @@ class FakeMemoryRepo:
 
 @pytest.fixture
 def constitution_dir(tmp_path):
-    """চারটি constitutional ফাইলসহ ছোট fake repo root।"""
+    """দুটি constitutional ফাইলসহ ছোট fake repo root (AGENTS.md, SECURITY.md)।"""
     (tmp_path / "AGENTS.md").write_text(
         "# C\n\n## 1. Authority\nAdmin rule highest.\n\n## 2. Lifecycle\nClaim before PR.\n",
-        encoding="utf-8",
-    )
-    (tmp_path / "AGENT_RULES.md").write_text(
-        "# R\n\n## U1 — Scope\nWork inside scope.\n\n## U7 — Verification\nTests pass.\n",
         encoding="utf-8",
     )
     (tmp_path / "SECURITY.md").write_text(
@@ -91,12 +87,11 @@ def constitution_dir(tmp_path):
 class TestL0:
     def test_l0_loads_parsed_sections_from_all_sources(self, constitution_dir):
         l0 = L0Context.load(repo_root=constitution_dir)
-        assert l0.source_files == ("AGENTS.md", "AGENT_RULES.md", "SECURITY.md")
+        assert l0.source_files == ("AGENTS.md", "SECURITY.md")
         assert l0.missing_files == ()
         headings = [s.heading for s in l0.sections]
         # parsed (heading-bearing sections), not a raw single dump
         assert "AGENTS.md::1. Authority" in headings
-        assert "AGENT_RULES.md::U1 — Scope" in headings
         assert "SECURITY.md::Secrets" in headings
         assert l0.token_count > 0
         assert len(l0.constitution_hash) == 64
@@ -126,8 +121,9 @@ class TestL0:
     def test_l0_missing_file_is_fail_honest(self, tmp_path):
         (tmp_path / "AGENTS.md").write_text("# C\n\n## A\nx\n", encoding="utf-8")
         l0 = L0Context.load(repo_root=tmp_path)
-        assert "AGENT_RULES.md" in l0.missing_files
-        assert "SECURITY.md" in l0.missing_files
+        # CONSTITUTION_FILES is (AGENTS.md, SECURITY.md) — every declared file
+        # that is absent must be announced, never silently skipped.
+        assert l0.missing_files == ("SECURITY.md",)
         assert l0.sections, "loaded file must still be parsed"
 
     def test_l0_render_contains_headings(self, constitution_dir):

@@ -68,6 +68,21 @@ ALLOWLIST: dict[str, str] = {
     "scripts/ci/vendored_tree_guard.py": "covered by test_ci_guards",
     "scripts/ci/federation_ci_watchdog.py": "covered by test_ci_guards",
     "scripts/ci/contract_parity_guard.py": "covered by --self-test and contract guards",
+    # -- live-network / external-CLI scripts (2026-11-19) --------------------
+    # Each needs a live dependency a hermetic test cannot provide. The reason
+    # names the workflow that actually exercises it, so the claim is checkable
+    # instead of "trust me".
+    "scripts/agents/skill_effectiveness_report.py": "reads runtime skill_usage.jsonl logs; no produced-data fixture is checked in",
+    "scripts/ci/check_opportunistic_audit.py": "clock gate (24h/48h); exercised by nightly-ops.yml",
+    "scripts/ci/nightly_repo_hygiene.py": "runs git/gh sweeps against the live repo; exercised by nightly-ops.yml",
+    "scripts/ci/plan_duplicate_refactors.py": "consumes a jscpd report from the duplicate job; exercised by unified-pipeline.yml",
+    "scripts/ci/plan_render_deploys.py": "diffs the real merge range via `git rev-parse HEAD^`; exercised by the deploy path",
+    "scripts/ci/pr_conflict_check.py": "requires --pr and hits the GitHub API; exercised by the landing gate",
+    "scripts/ci/publish_ci_attestation.py": "posts to the live MCP Tower with MCP_TOWER_AUTH_TOKEN; exercised by unified-pipeline.yml",
+    "scripts/ci/render_deploy_attestation.py": "queries the live Render API; exercised by the deploy job",
+    "scripts/ci/validate_ci_runner_sha.py": "needs PR_HEAD_SHA plus live Render deploys; exercised by the CI-runner lane",
+    "scripts/ci/vault_push_missing.py": "shells out to the Infisical CLI with real credentials; admin-only, never in CI",
+    "scripts/ci/verify_ci_attestation.py": "reads a live attestation from MCP Tower; exercised by the landing gate",
 }
 
 
@@ -129,15 +144,27 @@ def load_baseline(path: Path | None = None) -> frozenset[str]:
     return frozenset(str(x) for x in items)
 
 
-def run_guard(root: Path) -> tuple[bool, list[str]]:
+def discover_missing(root: Path) -> list[str]:
+    """Scripts with no test and no allowlist entry — the baseline is NOT applied.
+
+    `--freeze` needs this view. It used to be fed the post-baseline diff, so a
+    freeze recorded only the *new* debt and silently dropped the ~179 entries
+    already in the ledger (observed 2026-11-19: one `--freeze` turned a green
+    guard red for 180 scripts and lost the accumulated record).
+    """
     missing: list[str] = []
-    baseline = load_baseline()
     for script in discover_scripts(root):
         rel = script.relative_to(root).as_posix()
-        if rel in ALLOWLIST or rel in baseline:
+        if rel in ALLOWLIST:
             continue
         if find_test(root, script) is None:
             missing.append(rel)
+    return missing
+
+
+def run_guard(root: Path) -> tuple[bool, list[str]]:
+    baseline = load_baseline()
+    missing = [rel for rel in discover_missing(root) if rel not in baseline]
     return (len(missing) == 0, missing)
 
 
@@ -154,6 +181,16 @@ def main() -> int:
     root = Path(args.root).resolve()
     ok, missing = run_guard(root)
     if args.freeze:
+        # Union semantics: a freeze re-records the WHOLE known-debt set, so an
+        # existing ledger can never be lost. Growth stays visible — every entry
+        # this freeze adds is printed for review.
+        previous = load_baseline()
+        recorded = sorted(previous | set(discover_missing(root)))
+        added = sorted(set(recorded) - previous)
+        if added:
+            print(f"::warning::--freeze adds {len(added)} known-debt entr(ies):")
+            for item in added:
+                print(f"   + {item}")
         payload = {
             "_comment": (
                 "Parity baseline (shrink-only ratchet), recorded by "
@@ -163,12 +200,12 @@ def main() -> int:
                 "FAIL the guard. Shrink it by adding tests or allowlist entries "
                 "(each with a reason)."
             ),
-            "scripts": sorted(missing),
+            "scripts": recorded,
         }
         BASELINE_PATH.write_text(
             json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
-        print(f"Froze parity baseline: {len(missing)} scripts -> {BASELINE_PATH}")
+        print(f"Froze parity baseline: {len(recorded)} scripts -> {BASELINE_PATH}")
         return 0
     if args.json:
         print(json.dumps({"passed": ok, "missing": missing}, sort_keys=True))
