@@ -53,7 +53,7 @@ export function registerTinyBrainTools(server: McpServer): void {
     "kaggle_shadow.status",
     "Kaggle Shadow is disabled (phone verification unavailable).",
     {},
-    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     async () => {
       return {
         content: [{ type: "text", text: JSON.stringify({ ok: false, disabled: true, reason: "Kaggle Shadow disabled (phone verification unavailable)" }) }],
