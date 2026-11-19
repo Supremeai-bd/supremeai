@@ -25,6 +25,8 @@ Usage:
     python scripts/ci/generate_gateway_keys.py --count 6
     python scripts/ci/generate_gateway_keys.py --count 6 --scopes chat,models \
         --max-requests 120 --write-policy        # patch routing_policy.json (no secrets)
+    python scripts/ci/generate_gateway_keys.py --count 6 \
+        --secrets-out ~/gateway-keys.env         # 0600 file to import, never stdout
     python scripts/ci/generate_gateway_keys.py --write-policy --dry-run
 
 The key id is random and looks like `supremeai-key-<32 url-safe chars>`; it is
@@ -37,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import secrets
 import sys
 from pathlib import Path
@@ -114,6 +117,20 @@ def merge_policy(existing: dict, keys: list[dict], *, replace_owners: bool) -> d
     return policy
 
 
+def write_secrets_file(path: Path, keys: list[dict]) -> None:
+    """Write `ENV=secret` lines, readable by the owner only (0600).
+
+    Written with O_CREAT|O_EXCL|O_WRONLY so an existing file is never silently
+    overwritten (which would destroy secrets that are already in the vault).
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = "".join(f"{key['env']}={key['secret']}\n" for key in keys)
+    fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(payload)
+    os.chmod(path, 0o600)
+
+
 def generated_by_owner(block: dict[str, dict]) -> dict[str, str]:
     """owner -> env name for a generated policy block."""
     return {meta["owner"]: meta["env"] for meta in block.values()}
@@ -134,6 +151,10 @@ def main(argv: list[str] | None = None) -> int:
                     help="write the public entries into the policy file (no secrets)")
     ap.add_argument("--replace-owners", action="store_true",
                     help="drop existing entries for the same owners before merging")
+    ap.add_argument("--secrets-out", type=Path, default=None,
+                    help="write ENV=secret lines here (0600), outside the repo")
+    ap.add_argument("--allow-in-repo", action="store_true",
+                    help="permit --secrets-out inside the repository (do not commit it)")
     ap.add_argument("--dry-run", action="store_true", help="print, write nothing")
     args = ap.parse_args(argv)
 
@@ -149,11 +170,21 @@ def main(argv: list[str] | None = None) -> int:
     print("# --- routing_policy.json: api_keys (public, commit this) ---")
     print(json.dumps(policy_block(keys), indent=2, ensure_ascii=False))
     print()
-    print("# --- secret values: paste into the secret manager, NEVER commit ---")
-    for key in keys:
-        print(f"{key['env']}={key['secret']}")
-    print()
     print("# clients send the key id in the `X-SupremeAI-Key` header.")
+    print("# secret values are NOT printed: pass --secrets-out <file> instead.")
+
+    if args.secrets_out is not None:
+        target = args.secrets_out.expanduser().resolve()
+        if REPO_ROOT in target.parents and not args.allow_in_repo:
+            print(
+                f"::error::{target} is inside the repository; secrets must not be "
+                "committed. Pick a path outside it or pass --allow-in-repo.",
+                file=sys.stderr,
+            )
+            return 2
+        write_secrets_file(target, keys)
+        print(f"# wrote {len(keys)} secret lines to {target} (mode 0600) — import them "
+              "into the secret manager, then delete the file.")
 
     if args.write_policy:
         policy = json.loads(args.policy.read_text(encoding="utf-8"))

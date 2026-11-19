@@ -59,19 +59,23 @@ Two facts that shape this setup:
   (`gateway/main.py::build_key_limiters`), and both the 429 body and the
   `X-RateLimit-*` headers report that budget.
 
-Generate a pool (secrets are printed once and never written to the repo):
+Generate a pool. Secrets are **never printed to stdout** (a terminal is a log,
+and CI captures it) — they go to an owner-only `0600` file outside the checkout:
 
 ```bash
 python scripts/ci/generate_gateway_keys.py --count 6 --scopes chat \
-    --max-requests 120 --write-policy --replace-owners
+    --max-requests 120 --write-policy --replace-owners \
+    --secrets-out ~/gateway-keys.env
 ```
 
-That prints:
+That does two things:
 
-1. the `api_keys` block to commit in `gateway/routing_policy.json`
-   (`owner`, `scopes`, `env`, `rate_limit` — no secret), and
-2. six `SUPREMEAI_API_KEY_CLIENT_<n>=<secret>` lines to paste into Infisical /
-   Render → Environment.
+1. writes the `api_keys` block into `gateway/routing_policy.json`
+   (`owner`, `scopes`, `env`, `rate_limit` — **no secret**) for you to commit, and
+2. writes six `SUPREMEAI_API_KEY_CLIENT_<n>=<secret>` lines to
+   `~/gateway-keys.env` (mode `0600`). Import them into Infisical / Render →
+   Environment, then delete the file. An existing file is never overwritten, and
+   a path inside the repository is refused (exit 2).
 
 Clients then send the **key id** (`supremeai-key-…`) in `X-SupremeAI-Key`.
 Verify after deploying: `curl -s -D- -o/dev/null -H "X-SupremeAI-Key: <id>"

@@ -105,13 +105,33 @@ def test_cli_write_policy_never_writes_a_secret(tmp_path, capsys):
     written = json.loads(policy_path.read_text(encoding="utf-8"))
     assert len(written["api_keys"]) == 6
     assert "secret" not in policy_path.read_text(encoding="utf-8")
+    # Nothing secret reaches stdout either: a terminal is a captured log.
+    assert "SUPREMEAI_API_KEY_CLIENT_1=" not in capsys.readouterr().out
 
-    printed = capsys.readouterr().out
-    secrets_printed = [line.split("=", 1)[1] for line in printed.splitlines()
-                       if line.startswith("SUPREMEAI_API_KEY_")]
-    assert len(secrets_printed) == 6
-    for secret in secrets_printed:
-        assert secret not in json.dumps(written)
+
+def test_secrets_go_to_an_owner_only_file_outside_the_repo(tmp_path):
+    secrets_path = tmp_path / "gateway-keys.env"
+    assert gen.main(["--count", "3", "--secrets-out", str(secrets_path),
+                     "--dry-run"]) == 0
+    lines = secrets_path.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 3
+    assert all(line.startswith("SUPREMEAI_API_KEY_CLIENT_") for line in lines)
+    assert secrets_path.stat().st_mode & 0o777 == 0o600
+
+
+def test_secrets_out_inside_the_repo_is_refused(tmp_path, monkeypatch):
+    monkeypatch.setattr(gen, "REPO_ROOT", tmp_path)
+    target = tmp_path / "leaked.env"
+    assert gen.main(["--count", "1", "--secrets-out", str(target)]) == 2
+    assert not target.exists()
+
+
+def test_existing_secrets_file_is_never_overwritten(tmp_path):
+    secrets_path = tmp_path / "gateway-keys.env"
+    secrets_path.write_text("KEEP=me\n", encoding="utf-8")
+    with pytest.raises(FileExistsError):
+        gen.main(["--count", "1", "--secrets-out", str(secrets_path)])
+    assert secrets_path.read_text(encoding="utf-8") == "KEEP=me\n"
 
 
 def test_cli_dry_run_writes_nothing(tmp_path):
