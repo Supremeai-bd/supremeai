@@ -22,3 +22,6 @@ jobs:
 
           echo "Lightweight HEAD probe to API Gateway..."
           curl -s -I --max-time 10 https://supremeai-api-ulw0.onrender.com/healthz || echo "Gateway ping returned non-200"
+
+          echo "Lightweight GET probe to MCP Control Tower..."
+          curl -sf --max-time 15 https://supremeai-mcp-tower-live.onrender.com/health > /dev/null || echo "MCP Tower ping returned non-200"

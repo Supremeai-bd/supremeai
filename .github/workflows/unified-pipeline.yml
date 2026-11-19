@@ -531,7 +531,7 @@ jobs:
       needs.ai-evaluate-and-approve.outputs.decision == 'OWNER_REVIEW'
     runs-on: ubuntu-24.04
     needs: [ai-evaluate-and-approve]
-    environment: production
+    environment: production-approval
     permissions: {}
     steps:
       - run: echo "Protected changes approved via the production environment."

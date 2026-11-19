@@ -61,7 +61,7 @@ services:
         sync: false
 
   - type: web
-    name: supremeai-mcp-tower
+    name: supremeai-mcp-tower-live
     env: node
     plan: free
     autoDeploy: false

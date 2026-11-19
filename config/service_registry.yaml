@@ -109,7 +109,7 @@ services:
       - "scripts/lib/render_client.py"
 
   mcp:
-    render_name: supremeai-mcp-tower
+    render_name: supremeai-mcp-tower-live
     role: "MCP Control Plane & Governed Agent Single Door"
     platform: render
     plan: free
