@@ -13,6 +13,7 @@ gateway/tests/test_stream_first_token_timeout.py
 gateway/tests/test_paid_avoid.py
 tests/ci/test_plan_render_deploys.py
 tests/ci/test_resolve_execution_tier.py
+tests/ci/test_deploy_environment_split.py
 tests/test_render_canary.py
 core/tests/llm/test_advanced_model_router_regression.py
 tests/test_ai_semantic_pr_verifier.py
