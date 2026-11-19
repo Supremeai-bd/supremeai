@@ -107,6 +107,22 @@ jobs:
         run: python -m pip install -r core/requirements.lock pytest pytest-asyncio pytest-timeout
       - name: Run Windows routing and filesystem assertions
         run: python -m pytest core/tests/llm/test_advanced_model_router_regression.py --timeout=60 --junitxml=pytest-windows.xml
+      - name: Report Windows test counts and skips
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          if (!(Test-Path -LiteralPath pytest-windows.xml)) {
+            Write-Host '::warning::Windows pytest did not produce a JUnit report.'
+            return
+          }
+          [xml]$report = Get-Content -Raw -LiteralPath pytest-windows.xml
+          $suite = $report.testsuites.testsuite
+          $counts = "tests=$($suite.tests), failures=$($suite.failures), errors=$($suite.errors), skipped=$($suite.skipped)"
+          Write-Host "::notice title=Windows pytest::$counts"
+          "### Windows pytest — $env:GITHUB_SHA`n`n$counts" >> $env:GITHUB_STEP_SUMMARY
+          foreach ($case in $suite.testcase | Where-Object { $_.skipped }) {
+            "- Skipped: $($case.name)" >> $env:GITHUB_STEP_SUMMARY
+          }
       - name: Upload Windows evidence
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
