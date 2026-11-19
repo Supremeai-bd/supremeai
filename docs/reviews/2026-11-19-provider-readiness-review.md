@@ -50,7 +50,7 @@ Probed directly, since the Tower itself could not be used as the handshake point
 ### P0-2 · Rate limiter applies one global bucket to all anonymous traffic
 **File:** `gateway/main.py:177` (`check_rate_limit`) — fixed on this branch
 **Evidence (reproduced):** with `max_requests=2`, two different clients (`X-Forwarded-For` last hops `…10` and `…11`) → `200, 200, 429`. Behind Render the socket peer is the proxy, so `request.client.host` is identical for every caller: one abuser spends everyone's budget, and rotating IPs buys nothing.
-**Fix landed:** bucket on `_client_ip(request)` (the trusted last XFF hop, already used by the guest-daily limiter) and hash key-scoped buckets with SHA-256 so raw keys never become limiter keys. Regression test: `gateway/tests/test_provider_transport_and_limits.py::test_anonymous_rate_limit_is_per_proxy_resolved_ip`.
+**Fix landed:** bucket on `_client_ip(request)` (the trusted last XFF hop, already used by the guest-daily limiter); authenticated traffic is bucketed on the key's non-secret **owner label** (resolved by `authenticate`), so no credential — raw or hashed — becomes a limiter key. Regression test: `gateway/tests/test_provider_transport_and_limits.py::test_anonymous_rate_limit_is_per_proxy_resolved_ip`.
 **Still to do:** `gateway/rate_limit.py:126` — the Redis limiter does `ZREMRANGEBYSCORE → ZCARD → ZADD` as three round-trips, so N concurrent requests can all pass the check and overshoot the limit N-fold. Replace with a single Lua script. Also `gateway/rate_limit.py:63` evicts the *insertion-oldest* key, so an attacker cycling keys evicts honest clients' counters; use LRU-by-last-seen.
 
 ### P0-3 · Every fallback-configured provider is called at `…/v1/v1/chat/completions`
@@ -199,7 +199,7 @@ Model/route inventory refreshed from live probes instead of hardcoded IDs (P2-8)
 
 | File | Change | Verification |
 |---|---|---|
-| `gateway/main.py:177` | Per-client-IP rate-limit bucketing (hash of key when authenticated) | `test_anonymous_rate_limit_is_per_proxy_resolved_ip`, `test_rate_limit_does_not_key_on_raw_api_key` |
+| `gateway/main.py:177` | Per-client-IP bucketing for guests; per-owner bucketing for keys (no credential in limiter keys) | `test_anonymous_rate_limit_is_per_proxy_resolved_ip`, `test_rate_limit_buckets_on_owner_label_not_the_credential` |
 | `gateway/main.py:809` | Forward `temperature`/`max_tokens`/`tools`/`response_format`/… to providers | `test_default_attempt_forwards_sampling_and_tools` |
 | `gateway/provider_chain.py` | `_completions_url()` — correct join for `/v1`, `/openai`, bare-host bases; `_forwarded_body()` | `test_completions_url_is_joined_exactly_once` (6 cases), `test_default_attempt_uses_fallback_base_without_doubling_v1` |
 | `gateway/tests/test_provider_transport_and_limits.py` | New regression suite for the four defects above | `10 passed`; `tests/test_gateway_foundation.py` + `test_streaming_gateway.py` + `test_guest_daily_limit.py` → `36 passed, 1 failed` (the pre-existing P1-2 enum drift only) |

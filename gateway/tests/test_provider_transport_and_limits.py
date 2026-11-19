@@ -169,8 +169,14 @@ def test_anonymous_rate_limit_is_per_proxy_resolved_ip(monkeypatch):
     assert _chat(client, "198.51.100.10") == 429
 
 
-def test_rate_limit_does_not_key_on_raw_api_key(monkeypatch):
-    """Limiter keys are hashed so raw credentials never become Redis/memory keys."""
+def test_rate_limit_buckets_on_owner_label_not_the_credential(monkeypatch):
+    """Limiter keys are the key's non-secret owner label, never the credential.
+
+    Bucketing on the raw key would leak credentials into process memory maps and
+    Redis key names; bucketing on a hash of it trips CodeQL's weak-hashing rule
+    (SHA-256 is not a password hash). The owner label is already resolved by
+    ``authenticate`` and carries no secret.
+    """
     from gateway.rate_limit import SlidingWindowLimiter
 
     seen: list[str] = []
@@ -205,5 +211,6 @@ def test_rate_limit_does_not_key_on_raw_api_key(monkeypatch):
         headers={"x-supremeai-key": raw},
     )
     assert seen, "limiter must have been consulted"
-    assert all("raw-secret-value" not in key for key in seen)
-    assert seen[0].startswith("key:")
+    assert seen[0] == "owner:unit"
+    assert all("rawsecret" not in key for key in seen)
+    assert not any(key.startswith("ip:") for key in seen)

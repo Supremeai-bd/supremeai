@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import hashlib
 import json
 import time
 import uuid
@@ -175,17 +174,23 @@ def _client_ip(request: Request) -> str:
 
 
 async def check_rate_limit(request: Request, limiter: SlidingWindowLimiter):
-    """Per-key sliding window (proxy-aware client IP fallback).
+    """Per-identity sliding window (proxy-aware client IP fallback).
 
     Bucketing MUST use :func:`_client_ip`, never ``request.client.host``:
     behind Render/Fastly the socket peer is the platform proxy, so every
     anonymous caller would share one global bucket (one client could 429 the
-    whole fleet). The credential itself is hashed before it becomes a limiter
-    key so raw API keys never sit in process memory maps or Redis key names.
+    whole fleet).
+
+    Authenticated traffic is bucketed by the key's non-secret **owner label**
+    (``request.state.key_record``, already resolved by ``authenticate``), so no
+    credential — raw or hashed — ever becomes a limiter key in process memory
+    or in a Redis key name. Keys sharing an owner share that owner's budget,
+    which is the intended per-tenant semantics.
     """
-    api_key = request.headers.get("x-supremeai-key")
-    if api_key:
-        key_id = "key:" + hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:32]
+    record = getattr(request.state, "key_record", None)
+    owner = getattr(record, "owner", None)
+    if owner and owner != "guest":
+        key_id = f"owner:{owner}"
     else:
         key_id = "ip:" + _client_ip(request)
     return await limiter.check(key_id)
