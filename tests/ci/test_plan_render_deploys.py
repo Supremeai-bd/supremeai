@@ -42,7 +42,14 @@ def test_changed_paths_emit_expected_matrix(monkeypatch, tmp_path, capsys, path,
     assert {item["service"]: item["service_id"] for item in matrix} == {svc: f"srv-{svc}" for svc in services}
     assert outputs["has_services"] == ("true" if services else "false")
     assert json.loads(outputs["unregistered"]) == unregistered
-    assert ("::warning::api:" in capsys.readouterr().err) == bool(unregistered)
+    log = capsys.readouterr()
+    # The workflow gets the real matrix; the run log only gets a summary.
+    assert json.loads(log.out) == {
+        "changed_files": [path],
+        "selected_service_count": len(services),
+        "unregistered": unregistered,
+    }
+    assert ("::warning::api:" in log.err) == bool(unregistered)
 
 
 @pytest.mark.parametrize("force", [False, True], ids=["push", "rollback"])

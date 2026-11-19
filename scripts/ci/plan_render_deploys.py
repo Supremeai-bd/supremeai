@@ -99,7 +99,12 @@ def main() -> int:
             handle.write(f"matrix={json.dumps(matrix, separators=(',', ':'))}\n")
             handle.write(f"has_services={'true' if selected else 'false'}\n")
             handle.write(f"unregistered={json.dumps(unregistered, separators=(',', ':'))}\n")
-    print(json.dumps({"changed_files": files, "matrix": matrix, "unregistered": unregistered}, indent=2))
+    # Keep environment-sourced IDs in the workflow output, not the run log.
+    print(json.dumps({
+        "changed_files": files,
+        "selected_service_count": len(selected),
+        "unregistered": unregistered,
+    }, indent=2))
     return 0
 
 
