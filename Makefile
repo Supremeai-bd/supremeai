@@ -52,8 +52,11 @@ test: ## Run the PR battery (@config/ci/pr-battery.args)
 test-all: ## Run the full configured suite (tests/ core/tests/ gateway/tests/)
 	$(PY) -m pytest
 
-lint: ## ruff check (pass ARGS=<paths> to narrow, e.g. make lint ARGS=gateway/)
-	$(PY) -m ruff check $(ARGS)
+lint: ## ruff check (fatal subset, matches CI) (pass ARGS=<paths> to narrow)
+	$(PY) -m ruff check --select E9,F63,F7,F82 $(if $(ARGS),$(ARGS),core/ gateway/ browser/)
+
+lint-all: ## ruff check (all rules, advisory)
+	$(PY) -m ruff check $(if $(ARGS),$(ARGS),core/ gateway/ browser/)
 
 guards: ## Full guard roster (slower; the same list CI runs in Tier 1/2)
 	$(PY) scripts/ci/run_all_guards.py

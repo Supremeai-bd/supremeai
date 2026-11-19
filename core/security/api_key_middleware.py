@@ -156,7 +156,7 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
         if not api_key_header or not api_key_header.startswith(self.prefix):
             return await call_next(request)
 
-        if is_test_environment():
+        if is_test_environment() and settings.is_bypass_allowed:
             user_principal = {
                 "sub": "test_api_key_user",
                 "role": "api_key_user",

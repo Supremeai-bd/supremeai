@@ -109,12 +109,12 @@ class BlueGreenDeployer:
         try:
             # Build deployment command
             deploy_cmd = self._build_deploy_command(target_env, image_tag, config_overrides)
-            logger.info(f"Deploying to {target_env}: {deploy_cmd[:50]}...")
+            logger.info(f"Deploying to {target_env}: {' '.join(deploy_cmd)[:50]}...")
 
             # Execute deployment
             proc = subprocess.run(
                 deploy_cmd,
-                shell=True,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=self.deployment_timeout
@@ -143,20 +143,20 @@ class BlueGreenDeployer:
         environment: str,
         image_tag: str,
         config_overrides: dict[str, Any] | None = None
-    ) -> str:
-        """Build deployment command with shell quoting."""
+    ) -> list[str]:
+        """Build deployment command as an argv list (no shell)."""
         base_cmd = self.config.get('deploy_script', 'echo "Deploy simulation"')
-        config_flag = ""
+        cmd = shlex.split(base_cmd) if isinstance(base_cmd, str) else list(base_cmd)
+        cmd += ["--env", environment, "--image", image_tag]
         if config_overrides:
             config_str = json.dumps(config_overrides)
-            config_flag = f" --config {shlex.quote(config_str)}"
-        return f"{base_cmd} --env {shlex.quote(environment)} --image {shlex.quote(image_tag)}{config_flag}"
+            cmd += ["--config", config_str]
+        return cmd
 
-    def _build_switch_command(self, environment: str) -> str:
-        """Build traffic switch command with shell quoting."""
-        shlex.quote(environment)
+    def _build_switch_command(self, environment: str) -> list[str]:
+        """Build traffic switch command as an argv list (no shell)."""
         patch_payload = json.dumps({"spec": {"selector": {"version": environment}}})
-        return f"kubectl patch svc/app-router -p {shlex.quote(patch_payload)}"
+        return ["kubectl", "patch", "svc/app-router", "-p", patch_payload]
 
     async def run_health_checks(
         self,
@@ -202,7 +202,7 @@ class BlueGreenDeployer:
 
             proc = subprocess.run(
                 switch_cmd,
-                shell=True,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=60

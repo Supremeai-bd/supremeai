@@ -283,7 +283,7 @@ async def receive_ci_webhook(payload: WebhookPayload):
     # (২) আগে raw os.environ.get() ব্যবহার হতো যা Settings-এর Single Source of
     # Truth bypass করত — এখন settings.ci_webhook_secret (config_secrets.py);
     # (৩) আগে plain != তুলনা ছিল — timing attack এড়াতে constant-time compare।
-    expected_secret = settings.ci_webhook_secret
+    expected_secret = settings._get_cached_secret("CI_WEBHOOK_SECRET")
     if not expected_secret:
         logger.error(
             "CI_WEBHOOK_SECRET is not configured! "

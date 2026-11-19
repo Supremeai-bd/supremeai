@@ -42,7 +42,7 @@ class CallbackQuery(BaseModel):
 async def _verify_telegram_secret(request: Request) -> bool:
     # বাংলা মন্তব্য: secret কনফিগার না থাকলে আগের মতো সব রিকোয়েস্ট গ্রহণ করা হবে না —
     # n8n/cdc-র মতো কঠোর fail-closed নীতি; অপারেটরকে জোরালোভাবে জানানো হচ্ছে।
-    secret = settings.telegram_webhook_secret
+    secret = settings._get_cached_secret("TELEGRAM_WEBHOOK_SECRET")
     if not secret:
         logger.error(
             "TELEGRAM_WEBHOOK_SECRET is not configured! "

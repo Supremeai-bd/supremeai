@@ -217,6 +217,19 @@ class Settings(BaseSettings, SettingsFieldsMixin, SettingsValidationMixin):
             self._secrets_cache = {}
         return self._secrets_cache
 
+    def _get_cached_secret(self, key: str) -> str:
+        # Resolve a cached secret by key: env first, then the in-memory cache.
+        val = (os.getenv(key) or "").strip()
+        if val:
+            return val
+        try:
+            cache = self._cached_secrets
+            if isinstance(cache, dict):
+                return str(cache.get(key, "") or "").strip()
+        except Exception:  # noqa: BLE001
+            return ""
+        return ""
+
     @property
     def supremeai_api_token(self) -> str:
         """Resolve SUPREMEAI_API_TOKEN or SUPREMEAI_API_KEY from environment or secret vault."""

@@ -738,7 +738,13 @@ def create_app(
         return response
 
     @app.get("/metrics")
-    async def _prometheus_metrics() -> Response:
+    async def _prometheus_metrics(request: Request) -> Response:
+        import os
+        expected = (os.getenv("METRICS_SCRAPE_TOKEN") or "").strip()
+        if expected:
+            supplied = (request.headers.get("x-metrics-token") or request.query_params.get("token") or "").strip()
+            if supplied != expected:
+                return Response(status_code=403, content="forbidden")
         body, ctype = render_metrics()
         return Response(content=body, media_type=ctype)
     @app.get("/command/health")

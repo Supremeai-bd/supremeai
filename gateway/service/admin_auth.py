@@ -240,7 +240,8 @@ def _b64url_decode(data: str) -> bytes:
 
 def get_jwt_secret() -> str:
     secret = (
-        get_vault_secret("SUPREMEAI_JWT_SECRET")
+        get_vault_secret("SUPREMEAI_ADMIN_JWT_SECRET")
+        or get_vault_secret("SUPREMEAI_JWT_SECRET")
         or get_vault_secret("JWT_SECRET")
         or get_vault_secret("SUPREMEAI_MASTER_KEY")
         or get_vault_secret("API_KEY_SIGNING_SECRET")
@@ -271,6 +272,8 @@ def issue_admin_jwt(
         "email": email,
         "role": role,
         "type": "access",
+        "iss": "supremeai-gateway",
+        "aud": "supremeai-admin",
         "iat": now,
         "exp": now + 3600 * expiry_hours,
         "jti": uuid.uuid4().hex,
@@ -316,6 +319,12 @@ def verify_admin_jwt(token: str) -> dict[str, Any]:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expiry is required")
     if expiry <= now:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
+
+    # Optional iss/aud validation (fail-closed when present).
+    if payload.get("iss") is not None and payload.get("iss") != "supremeai-gateway":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token issuer")
+    if payload.get("aud") is not None and payload.get("aud") != "supremeai-admin":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token audience")
 
     return payload
 
@@ -431,10 +440,11 @@ def verify_trusted_browser_token(token: str | None) -> dict[str, Any] | None:
         if payload.get("type") != "trusted_browser":
             return None
         token_hash = _hash_trusted_token(token)
-        if get_valid_trusted_browser is not None:
-            record = get_valid_trusted_browser(token_hash)
-            if not record:
-                return None
+        if get_valid_trusted_browser is None:
+            return None
+        record = get_valid_trusted_browser(token_hash)
+        if not record:
+            return None
         return payload
     except Exception as exc:
         logger.debug("Trusted browser verification failed: %s", exc)
@@ -785,6 +795,30 @@ async def platform_tenant_overview(authorization: str | None = Header(None)):
     return {"scope": "platform", "total": len(safe_tenants), "tenants": safe_tenants, "usages": usages, "truncated": len(tenants) == 1000}
 
 
+# --- Admin auth rate limiting (per-IP sliding window) ---
+_ADMIN_AUTH_RATE_WINDOW_S = 60
+_ADMIN_AUTH_RATE_MAX = 20
+_admin_auth_attempts: dict[str, list[float]] = {}
+_admin_auth_lock = asyncio.Lock()
+
+
+async def _enforce_admin_auth_rate_limit(client_ip: str) -> None:
+    """Fail-closed sliding-window guard for /login and /totp-verify."""
+    now = time.time()
+    cutoff = now - _ADMIN_AUTH_RATE_WINDOW_S
+    async with _admin_auth_lock:
+        hits = _admin_auth_attempts.setdefault(client_ip or "unknown", [])
+        # prune
+        while hits and hits[0] <= cutoff:
+            hits.pop(0)
+        if len(hits) >= _ADMIN_AUTH_RATE_MAX:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many admin authentication attempts. Try again later.",
+            )
+        hits.append(now)
+
+
 # --- Endpoint Handlers ---
 
 @router.post("/login")
@@ -801,6 +835,8 @@ async def admin_login(
     credential অনুপস্থিত হলে fail-closed 401 — কোনো bypass নেই।
     """
     # --- Path 1: DB-backed trusted browser (7-day remember) — BEFORE credentials ---
+    client_ip = getattr(request.client, "host", None) or request.headers.get("x-forwarded-for", "unknown")
+    await _enforce_admin_auth_rate_limit(str(client_ip).split(",")[0].strip())
     trusted_token = (
         payload.trusted_browser_token
         or request.headers.get("X-Trusted-Browser")
@@ -848,7 +884,7 @@ async def admin_login(
 
     allowed_emails = _get_admin_emails()
     # If explicit admin emails configured, enforce email allowlist
-    if allowed_emails and clean_email not in allowed_emails and clean_email != DEFAULT_ADMIN_EMAIL:
+    if allowed_emails and clean_email not in allowed_emails:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized as admin.",
@@ -975,9 +1011,12 @@ async def admin_totp_setup(request: Request):
 @router.post("/totp-verify")
 async def admin_totp_verify(
     payload: AdminTotpVerifyRequest,
+    request: Request,
     response: Response,
 ):
     """Verify a 6-digit TOTP code and issue an admin JWT token (with trusted browser persistence)."""
+    client_ip = getattr(request.client, "host", None) or request.headers.get("x-forwarded-for", "unknown")
+    await _enforce_admin_auth_rate_limit(str(client_ip).split(",")[0].strip())
     otp = payload.otp.strip()
     if len(otp) != 6 or not otp.isdigit():
         raise HTTPException(

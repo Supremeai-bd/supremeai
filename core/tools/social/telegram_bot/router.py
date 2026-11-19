@@ -48,7 +48,7 @@ def create_telegram_router(handler: TelegramBotHandler):
         # বাংলা মন্তব্য (Wave-1 security fix): HTTP সীমানায় secret-token যাচাই —
         # internal caller (polling loop সরাসরি handle_update কল করে) অপরিবর্তিত থাকবে।
         # secret কনফিগার না থাকলে n8n/cdc-র মতোই কঠোর fail-closed: কোনো update গ্রহণ নয়।
-        secret = settings.telegram_webhook_secret
+        secret = settings._get_cached_secret("TELEGRAM_WEBHOOK_SECRET")
         if not secret:
             logger.error(
                 "TELEGRAM_WEBHOOK_SECRET is not configured! "

@@ -179,7 +179,7 @@ async def trigger_quick_action(action_type: str, admin_user: dict = Depends(get_
                     backup_data[table] = rows
 
             backend_dir = Path(__file__).resolve().parent.parent.parent
-            backup_dir = backend_dir / "backup"
+            backup_dir = backend_dir.parent / "data" / "backups"
             backup_dir.mkdir(parents=True, exist_ok=True)
             backup_path = backup_dir / f"db_backup_{int(datetime.now(UTC).timestamp())}.json"
 

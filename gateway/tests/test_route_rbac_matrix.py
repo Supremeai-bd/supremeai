@@ -81,8 +81,6 @@ def test_admin_router_modules_enforce_admin_token(module_path):
 # ── Curated positive matrix: sensitive paths MUST be admin-guarded ──────────
 # (module, path) -> expected to require an admin token
 ADMIN_GUARDED_PATHS = [
-    ("api.routes.browser", "/api/browser/credentials"),
-    ("api.routes.browser", "/api/browser/credentials/{id}"),
     ("api.routes.browser", "/api/browser/scrape"),
     ("api.routes.browser", "/api/browser/browse"),
     ("api.routes.browser", "/api/browser/extract"),

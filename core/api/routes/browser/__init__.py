@@ -12,8 +12,7 @@ cohesive submodules. The public contract is unchanged:
 * routes are registered on ``router`` in exactly the original order (the
   submodule imports below are intentionally ordered to reproduce the old
   file top-to-bottom), so OpenAPI output and route matching are identical;
-* ``tests/core/test_browser_credentials.py`` clears
-  ``CREDENTIALS`` / ``RECENT_ACTIVITIES`` / ``FINDINGS`` through
+* tests clear ``CREDENTIALS`` / ``RECENT_ACTIVITIES`` / ``FINDINGS`` through
   this package namespace — the re-exported names are the SAME objects the
   endpoint modules use, so the in-place ``.clear()`` calls behave exactly
   as they did against the monolithic module.
