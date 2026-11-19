@@ -33,3 +33,8 @@ The active documents in this repository govern live production operations, archi
 | [`docs/specs/`](specs/) | Active feature specifications (Spec-Driven Development) |
 | [`.agents/`](../.agents/) | Executable agent skills, workflows, and prompts |
 
+## Project simplification
+
+- [Master Simplification & Quality Plan](MASTER_SIMPLIFICATION_PLAN.md) — final implementation roadmap, decision gates, and the single M01–M07 queue.
+- [Earlier repo audit (বাংলা)](PROJECT_SIMPLIFICATION_MASTER_PLAN.md) — supporting inventory, wiring, and checks for the `aa11e0b` snapshot.
+
