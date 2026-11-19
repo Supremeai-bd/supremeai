@@ -9,7 +9,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 try:
     from dotenv import load_dotenv

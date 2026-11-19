@@ -217,10 +217,10 @@ def main() -> int:
             "",
             "## 🛡️ Advanced Pre-Merge Audit — Detailed Results",
             "",
-            "> ⚠️ `supremeai-ci-audit-reports` was not available in the "
-            "Smart Summary job.",
-            "> The Advanced Pre-Merge job may have been skipped or its "
-            "artifact may not have been produced.",
+            ("> ⚠️ `supremeai-ci-audit-reports` was not available in the "
+            "Smart Summary job."),
+            ("> The Advanced Pre-Merge job may have been skipped or its "
+            "artifact may not have been produced."),
             "",
         ]
     else:
@@ -244,9 +244,9 @@ def main() -> int:
             f"| ❌ Errors | **{errors}** |",
             f"| 📦 Detailed report files | **{len(report_paths)}** |",
             "",
-            "> The compact Smart Summary remains first; this section surfaces "
+            ("> The compact Smart Summary remains first; this section surfaces "
             "the deeper audit evidence in the same page. Full raw artifacts "
-            "remain downloadable.",
+            "remain downloadable."),
             "",
         ]
 

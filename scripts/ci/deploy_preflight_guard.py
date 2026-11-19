@@ -444,12 +444,12 @@ def run_step4_migrations() -> tuple[bool, list[str]]:
         try:
             py_compile.compile(str(f), doraise=True)
         except py_compile.PyCompileError as e:
-            errors.append("compile error in %s: %s" % (f.name, e))
+            errors.append(f"compile error in {f.name}: {e}")
             continue
         try:
             tree = ast.parse(f.read_text(encoding="utf-8"))
         except (SyntaxError, OSError) as e:
-            errors.append("parse error in %s: %s" % (f.name, e))
+            errors.append(f"parse error in {f.name}: {e}")
             continue
         rev = None
         down = None
@@ -472,10 +472,10 @@ def run_step4_migrations() -> tuple[bool, list[str]]:
                     elif isinstance(value, ast.Tuple):
                         down = tuple((e.value if isinstance(e, ast.Constant) else None) for e in value.elts)
         if rev is None:
-            errors.append("%s: missing revision assignment" % f.name)
+            errors.append(f"{f.name}: missing revision assignment")
             continue
         if rev in revisions:
-            errors.append("duplicate revision id %r" % rev)
+            errors.append(f"duplicate revision id {rev!r}")
         revisions[rev] = f
         down_revisions[rev] = down
     for rev, down in down_revisions.items():
@@ -484,13 +484,13 @@ def run_step4_migrations() -> tuple[bool, list[str]]:
         if isinstance(down, tuple):
             for d in down:
                 if d is not None and d not in revisions:
-                    errors.append("revision %r references unknown down_revision %r" % (rev, d))
+                    errors.append(f"revision {rev!r} references unknown down_revision {d!r}")
         else:
             if down not in revisions:
-                errors.append("revision %r references unknown down_revision %r" % (rev, down))
+                errors.append(f"revision {rev!r} references unknown down_revision {down!r}")
     if errors:
         for e in errors:
-            print("[Step 4: Migration Guard] %s" % e)
+            print(f"[Step 4: Migration Guard] {e}")
         return False, errors
     print("[Step 4: Migration Guard] OK: %d migration files, %d revisions, chain consistent" % (len(files), len(revisions)))
     return True, []

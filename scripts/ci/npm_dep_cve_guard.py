@@ -383,7 +383,7 @@ def evaluate(repo_root: Path, files: list[str] | None = None) -> tuple[int, list
             lock = repo_root / rel
             if not lock.is_file():
                 raise FileNotFoundError(f"tracked lockfile missing: {rel}")
-            pairs, skipped = load_lock_pairs(lock)
+            pairs, _skipped = load_lock_pairs(lock)
             scanned += len(pairs)
             found = query_osv_batch(pairs)
             for (n, v), ids in found.items():
@@ -458,7 +458,7 @@ def main(argv: list[str] | None = None) -> int:
         _evidence("changed set empty — nothing to check")
         return EXIT_PASS
 
-    exit_code, drift, improvements, notes = evaluate(REPO_ROOT, files)
+    exit_code, _drift, _improvements, notes = evaluate(REPO_ROOT, files)
     for n in notes:
         _evidence(f"note | {n}")
     return exit_code
@@ -609,7 +609,7 @@ def run_self_test() -> int:
             check("off-surface --files honest skip", code == EXIT_PASS
                   and any("does not touch" in n for n in notes))
             # --files on-surface (render.yaml counts) -> full check runs
-            code, drift, imp, notes = evaluate(
+            code, drift, _imp, notes = evaluate(
                 root, files=["infrastructure/mcp-control-plane/render.yaml"])
             check("render.yaml in surface runs check", code == EXIT_PASS and not drift)
         finally:

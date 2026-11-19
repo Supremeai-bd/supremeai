@@ -1,7 +1,5 @@
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from core.browser_session_vault import BrowserSessionVault
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 

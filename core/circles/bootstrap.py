@@ -8,7 +8,7 @@ from collections.abc import Iterable
 
 from core.circles.centers import CircleCenter, build_default_centers
 from core.circles.centers.realtime_center import RealtimeCenter
-from core.circles.contracts import CircleManifest, CircleName
+from core.circles.contracts import CircleManifest
 from core.circles.governance_core import GovernanceCore, PolicyEvaluator
 from core.circles.manifests import default_manifests
 from core.circles.registry import CircleRegistry
@@ -46,6 +46,11 @@ def build_federation(
     return core
 
 
-__all__ = ["build_circle_registry", "build_federation"]
+# Fix (ruff F401 regression b1ebe2753): the import was dropped as "unused", but
+# it is a deliberate re-export — composition-root singleton API consumed by
+# core/tests/test_governance_core.py (issue #2476). Single source of logic: the
+# implementation lives in governance_core; bootstrap only re-exports it.
+from core.circles.governance_core import get_governance_core, reset_governance_core  # noqa: F401
 
-from core.circles.governance_core import get_governance_core, reset_governance_core
+__all__ = ["build_circle_registry", "build_federation", "get_governance_core", "reset_governance_core"]
+

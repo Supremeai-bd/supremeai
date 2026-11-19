@@ -62,7 +62,7 @@ import urllib.error
 import urllib.request
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -508,7 +508,7 @@ class TrendAnalyzer:
 
             # Weighted prediction (recent matters more)
             weights = [0.1, 0.15, 0.2, 0.25, 0.3]
-            weighted_sum = sum(w * s for w, s in zip(weights[-len(recent_5):], recent_5))
+            weighted_sum = sum(w * s for w, s in zip(weights[-len(recent_5):], recent_5, strict=False))
 
             prediction_confidence = min(len(success_rates) / 10, 0.95)
 

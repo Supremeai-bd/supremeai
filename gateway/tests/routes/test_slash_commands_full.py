@@ -13,17 +13,14 @@ downstream-failure branches) plus dispatch/401/unknown-command paths.
 
 from __future__ import annotations
 
-import base64
-import json
 from typing import Any
 
+import api.routes.slash_commands as sc
 import pytest
 import pytest_asyncio
+from api.deps import get_current_user_token
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-
-import api.routes.slash_commands as sc
-from api.deps import get_current_user_token
 
 SUB = "user-1"
 
@@ -193,7 +190,7 @@ class TestDispatch:
     async def test_invalid_token_401(self, commands_env):
         http, *_ = commands_env
         app = http._transport.app
-        app.dependency_overrides[get_current_user_token] = lambda: {}
+        app.dependency_overrides[get_current_user_token] = dict
         try:
             resp = await http.post("/api/commands/execute", json={"command": "/help"})
         finally:
@@ -236,7 +233,7 @@ class TestResearchCommand:
         assert llm_calls[0]["context"].task_type == "research"
 
     async def test_llm_failure_fallback_summary(self, commands_env, monkeypatch):
-        http, _, kb_calls, _ = commands_env
+        http, _, _kb_calls, _ = commands_env
 
         async def boom(**kwargs):
             raise RuntimeError("llm down")
@@ -252,7 +249,7 @@ class TestResearchCommand:
 @pytest.mark.unit
 class TestSummarizeCommand:
     async def test_default_conversation_and_llm(self, commands_env):
-        http, llm_calls, _, shared = commands_env
+        http, llm_calls, _, _shared = commands_env
         body = await execute(http, "/summarize", {})
         assert body["status"] == "success"
         result = body["result"]

@@ -1,10 +1,8 @@
 import logging
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.plugin_manifest import PluginManifest
 from models.user_plugin_installation import UserPluginInstallation
 
 logger = logging.getLogger(__name__)

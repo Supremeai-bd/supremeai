@@ -202,7 +202,7 @@ async def get_completion(request: Request, payload: ChatPayload, db=Depends(get_
                 )
 
         # Governed Intelligence Routing check
-        from core.intelligence import IntelligenceRouter, VerificationEngine, synaptic_memory
+        from core.intelligence import IntelligenceRouter, synaptic_memory
 
         router = IntelligenceRouter()
         routing_decision = router.route(payload.prompt)

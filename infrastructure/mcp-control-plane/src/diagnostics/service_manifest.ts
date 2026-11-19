@@ -130,7 +130,7 @@ export const CANONICAL_TOPOLOGY_DEFAULTS: Record<string, AuthoritativeServiceTar
     platform: "render",
     renderAccountId: "render-mcp",
     renderServiceId: env.render.controlTower.serviceId || "srv-dabm7inqj5pc738jkrt0",
-    runtimeUrl: env.render.controlTower.url || "https://supremeai-mcp-tower.onrender.com",
+    runtimeUrl: env.render.controlTower.url || "https://supremeai-mcp-tower-live.onrender.com",
     healthPath: "/health",
     readinessPath: "/health",
     releasePath: "/release",

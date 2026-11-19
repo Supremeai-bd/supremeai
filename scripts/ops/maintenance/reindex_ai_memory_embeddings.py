@@ -108,7 +108,6 @@ def row_text(row: dict) -> str:
 def embed_content(text: str) -> tuple[list[float], str]:
     """Return (vector, provider_label) using the current provider chain."""
     from core.embeddings import (
-        embed_for_pgvector,
         remote_embed_cf,
         local_embed,
         hash_vectorize,

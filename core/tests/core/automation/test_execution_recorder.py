@@ -7,7 +7,7 @@ block the dispatch (core-operation isolation, Plan Section 10).
 """
 
 from contextlib import asynccontextmanager
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 

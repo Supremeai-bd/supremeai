@@ -307,13 +307,7 @@ def calculate_pr_tier(pr: Dict[str, Any]) -> Tuple[int, str]:
     is_governance = any(lbl in ("type:governance", "area:ci", "constitution", "charter") for lbl in labels)
     is_governance_title = any(prefix in title for prefix in ("feat(governance)", "fix(governance)", "fix(ci)", "chore(governance)", "refactor(tooling)", "fix(deploy-train)"))
     is_governance_code_files = any(
-        f.startswith(".github/workflows/")
-        or f.startswith(".github/scripts/")
-        or f.startswith(".github/constitution/")
-        or f.startswith("scripts/agents/")
-        or f.startswith("scripts/ci/")
-        or f == "agents.md"
-        or f == ".github/constitution/rules.yml"
+        f.startswith((".github/workflows/", ".github/scripts/", ".github/constitution/", "scripts/agents/", "scripts/ci/")) or f == "agents.md" or f == ".github/constitution/rules.yml"
         for f in files
         if not f.endswith(".md") or f == "agents.md"
     )
@@ -1364,8 +1358,8 @@ class SpeculativeStagingRunner:
             code, out, err = run_cmd(
                 [
                     sys.executable, "-c",
-                    "import sys, os; sys.path.insert(0, os.getcwd());"
-                    "import scripts; print('[OK] staging smoke: scripts package imports')",
+                    ("import sys, os; sys.path.insert(0, os.getcwd());"
+                    "import scripts; print('[OK] staging smoke: scripts package imports')"),
                 ]
             )
             if code != 0:
@@ -1750,7 +1744,7 @@ def main() -> None:
             continue
 
         fresh_mergeable = fresh_data.get("mergeable", "UNKNOWN")
-        fresh_summary, fresh_ready, fresh_held, _, fresh_reasons = evaluate_pr_checks(
+        _fresh_summary, fresh_ready, _fresh_held, _, fresh_reasons = evaluate_pr_checks(
             fresh_data, allow_holds=args.release_holds
         )
 
@@ -1800,8 +1794,8 @@ def main() -> None:
                                 logger.info(f"🩹 PR #{item.number} self-healed: {_msg}")
                                 run_cmd([
                                     "gh", "pr", "comment", str(item.number), "--body",
-                                    "🩹 **Self-Healing সম্পন্ন** — lint/format ত্রুটি স্বয়ংক্রিয়ভাবে ঠিক করে "
-                                    f"ফিক্স-কমিট পুশ করা হয়েছে (`{_msg}`)। CI সবুজ হলেই ট্রেইনে ফিরবে।",
+                                    ("🩹 **Self-Healing সম্পন্ন** — lint/format ত্রুটি স্বয়ংক্রিয়ভাবে ঠিক করে "
+                                    f"ফিক্স-কমিট পুশ করা হয়েছে (`{_msg}`)। CI সবুজ হলেই ট্রেইনে ফিরবে।"),
                                 ])
                             else:
                                 logger.info(f"ℹ️ Self-healing skipped for PR #{item.number}: {_msg}")
@@ -1840,9 +1834,9 @@ def main() -> None:
                     run_cmd([
                         "gh", "pr", "comment", str(item.number),
                         "--body",
-                        "🛑 **AI Sentinel BLOCK** — নিরাপত্তা/কোড-স্ক্যানে সন্দেহজনক পরিবর্তন "
+                        ("🛑 **AI Sentinel BLOCK** — নিরাপত্তা/কোড-স্ক্যানে সন্দেহজনক পরিবর্তন "
                         f"ধরা পড়েছে: {', '.join(sentinel_verdict.get('issues', [])[:3])}। "
-                        "বিস্তারিত যাচাইয়ের পর পুশ করলে ট্রেইন আবার মূল্যায়ন করবে।",
+                        "বিস্তারিত যাচাইয়ের পর পুশ করলে ট্রেইন আবার মূল্যায়ন করবে।"),
                     ])
                 logger.warning(f"⏩ PR #{item.number} Sentinel-BLOCK হওয়ায় স্কিপ।")
                 continue
@@ -1859,10 +1853,10 @@ def main() -> None:
                     run_cmd([
                         "gh", "pr", "comment", str(item.number),
                         "--body",
-                        "🧪 **Speculative Staging ব্যর্থ** — origin/main-এর ওপর ভার্চুয়াল মার্জ/স্মোক "
+                        ("🧪 **Speculative Staging ব্যর্থ** — origin/main-এর ওপর ভার্চুয়াল মার্জ/স্মোক "
                         f"সবুজ হয়নি:\n```\n{_st_report[:800]}\n```\n"
                         "_বাংলা মন্তব্য: main-এ মার্জ করা হয়নি (Zero-Broken-Main গ্যারান্টি)। "
-                        "ঠিক করে পুশ করলেই ট্রেইন আবার চেষ্টা করবে।_",
+                        "ঠিক করে পুশ করলেই ট্রেইন আবার চেষ্টা করবে।_"),
                     ])
                     logger.warning(f"⏩ PR #{item.number} স্টেজিং-ব্যর্থ হওয়ায় স্কিপ: {_st_report[:120]}")
                     continue

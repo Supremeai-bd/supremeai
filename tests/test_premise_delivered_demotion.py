@@ -275,7 +275,7 @@ class TestPremiseDeliveredCheckB(unittest.TestCase):
             (root / "docs").mkdir()
             (root / "docs" / "x.md").write_text("landed", encoding="utf-8")
             row = _row(3000, body="lands in-repo as `docs/x.md`.")
-            rows = [_pr(9999, "merged landing for #3000")]
+            [_pr(9999, "merged landing for #3000")]
 
             def _guard_fetch(per_page):
                 raise AssertionError("landing fetch must not run when Check A already demoted")

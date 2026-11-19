@@ -19,7 +19,6 @@ import json
 import os
 import sys
 import types
-from unittest.mock import patch
 
 import pytest
 

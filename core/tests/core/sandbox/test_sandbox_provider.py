@@ -10,7 +10,6 @@ import pytest
 
 from core.sandbox import (
     CloudSandboxProvider,
-    ExecutionResult,
     LocalDevSandboxProvider,
     SandboxConfig,
     SandboxRegistry,

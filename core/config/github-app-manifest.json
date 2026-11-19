@@ -3,7 +3,7 @@
   "url": "https://github.com/paykaribazaronline/supremeai",
   "redirect_url": "https://github.com/paykaribazaronline/supremeai",
   "hook_attributes": {
-    "url": "https://supremeai-mcp-tower.onrender.com/webhooks/github",
+    "url": "https://supremeai-mcp-tower-live.onrender.com/webhooks/github",
     "active": false
   },
   "public": false,

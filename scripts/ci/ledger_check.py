@@ -172,8 +172,8 @@ def check_append_only(old_lines: list[str], new_lines: list[str], v: Violations)
     Deletion OR modification of an existing line is a violation — the ledger
     records evidence; rewriting evidence is fabrication (roadmap Section 1).
     """
-    old_set = set(line.strip() for line in old_lines if line.strip())
-    new_set = set(line.strip() for line in new_lines if line.strip())
+    old_set = {line.strip() for line in old_lines if line.strip()}
+    new_set = {line.strip() for line in new_lines if line.strip()}
     for line in sorted(old_set - new_set):
         v.add(f"append-only violated — historical line removed/modified: {line[:120]}...")
 

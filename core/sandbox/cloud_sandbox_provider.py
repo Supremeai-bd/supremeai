@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, Optional
 
 from core.monitoring.logging_config import logger
 from core.sandbox.base import ExecutionResult, SandboxConfig, SandboxProvider

@@ -121,7 +121,7 @@ services:
     container_port: 3771
     health_path: /health
     readiness_path: /health
-    production_url: "https://supremeai-mcp-tower.onrender.com"
+    production_url: "https://supremeai-mcp-tower-live.onrender.com"
     canonical_service_id_env: RENDER_MCP_SERVICE_ID
     service_id_aliases:
       - RENDER_MCP_SVC_ID

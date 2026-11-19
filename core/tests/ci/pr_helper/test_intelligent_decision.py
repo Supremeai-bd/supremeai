@@ -8,11 +8,9 @@ Tests the 3 new modules:
 And the failure taxonomy in delta_analysis.py (Phase 1).
 """
 
-import json
 import sys
 from pathlib import Path
 
-import pytest
 
 # Add scripts to path — file is at backend/tests/ci/pr_helper/, so repo root
 # is parents[4] (pr_helper → ci → tests → backend → repo root).

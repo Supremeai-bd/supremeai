@@ -3,10 +3,8 @@ import json
 import os
 import time
 
-import httpx
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
-from core.config import settings
 from core.monitoring.logging_config import logger
 from core.security import verify_token_async
 from database.supabase_client import db

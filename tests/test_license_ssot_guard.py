@@ -297,7 +297,7 @@ def test_live_scan_covers_every_tracked_package_json() -> None:
     code, findings, notes = guard.evaluate(REPO_ROOT)
     assert code in (guard.EXIT_PASS, guard.EXIT_DRIFT)
     flagged = {f["path"] for f in findings if f["code"].startswith("PACKAGE")}
-    covered = {n for n in [n for n in notes]}
+    {n for n in [n for n in notes]}
     # Every tracked manifest is either clean, flagged, or explicitly skipped
     # with evidence — never silently ignored.
     for path in tracked:

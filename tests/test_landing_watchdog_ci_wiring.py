@@ -98,11 +98,11 @@ def test_census_shallow_self_heal_pinned_in_tool() -> None:
         ('"fetch", f"--deepen={depth}", "origin", "main"',
          "census lost the bounded deepen fetch — shallow checkouts go blind again"),
         ("::warning::landing-watchdog census",
-         "census lost the loud ::warning:: degradation — a truncated join "
-         "window would be silently trusted again"),
+         ("census lost the loud ::warning:: degradation — a truncated join "
+         "window would be silently trusted again")),
         ('.git" / "shallow',
-         "census lost the shallow probe — truncation would be mistaken for "
-         "genuinely short history"),
+         ("census lost the shallow probe — truncation would be mistaken for "
+         "genuinely short history")),
     ):
         assert needle in src, f"{needle!r} missing from the watchdog: {why}"
 
@@ -122,10 +122,10 @@ def test_apply_leg_reports_gh_failures_honestly() -> None:
         ("def _close_result",
          "apply leg lost the honest-result helper — unread exit codes again"),
         ("[FAIL] #",
-         "apply leg lost the failure line — a failing gh would be logged "
-         "as success again (false-OK class)"),
+         ("apply leg lost the failure line — a failing gh would be logged "
+         "as success again (false-OK class)")),
         ("gh exit",
-         "apply leg lost the exit-code echo that makes the janitor log a "
-         "trustworthy attribution witness"),
+         ("apply leg lost the exit-code echo that makes the janitor log a "
+         "trustworthy attribution witness")),
     ):
         assert needle in src, f"{needle!r} missing from the watchdog: {why}"

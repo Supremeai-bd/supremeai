@@ -457,7 +457,7 @@ def build_baseline_report(repo_root: Path) -> dict:
         tmp: Path | None = None
         if path.name == "pyproject.toml":
             # admin flow: malformed poetry TOML fails the baseline loudly
-            tmp, skips = synth_poetry_plane(rel, repo_root)
+            tmp, _skips = synth_poetry_plane(rel, repo_root)
             if tmp is None:
                 continue
         try:
@@ -623,7 +623,7 @@ def render(drift: list[dict], improvements: list[dict], notes: list[str]) -> Non
 def _classify_spec(spec: str) -> str:
     """One pip-install spec -> pinned | unpinned | direct | dynamic | local."""
     s = spec.strip().strip('"').strip("'")
-    if s in (".", "./") or s.startswith("./") or s.startswith("file://"):
+    if s in (".", "./") or s.startswith(("./", "file://")):
         return "local"
     if "${" in s:
         return "dynamic"
@@ -776,7 +776,7 @@ def scan_inline_pip_installs(repo_root: Path) -> dict:
             continue
         for parsed in parse_pip_install_sites(text):
             sites.append({"file": rel, **parsed})
-    blindspot_sites = [s for s in sites if s["class"] in ("inline-unpinned", "inline-mixed")]
+    [s for s in sites if s["class"] in ("inline-unpinned", "inline-mixed")]
     spec_counts: dict[str, int] = {}
     for s in sites:
         for sp in s["specs"]:
@@ -1191,7 +1191,7 @@ def self_test() -> bool:
         pep621 = Path(td) / "other" / "pyproject.toml"
         pep621.parent.mkdir()
         pep621.write_text('[project]\nname = "x"\ndependencies = ["requests"]\n', encoding="utf-8")
-        text2, skips2, stats2 = g.synthesize_poetry_requirements(pep621)
+        text2, _skips2, _stats2 = g.synthesize_poetry_requirements(pep621)
         if text2.strip() != "":
             raise AssertionError(f"PEP-621 pyproject must synthesize empty: {text2!r}")
     print("  PASS | poetry synthesis: fixture text, extras, skips, groups, PEP-621 off-plane")
@@ -1207,7 +1207,7 @@ def self_test() -> bool:
         surface = g.discover_py_surface(root)
         if surface != ["core/pyproject.toml", "core/requirements.txt"]:
             raise AssertionError(surface)
-        tmp, skips3 = g.synth_poetry_plane("core/pyproject.toml", root)
+        tmp, _skips3 = g.synth_poetry_plane("core/pyproject.toml", root)
         try:
             if tmp is None or "requests>=2.28.0,<3.0.0" not in tmp.read_text(encoding="utf-8"):
                 raise AssertionError(tmp)

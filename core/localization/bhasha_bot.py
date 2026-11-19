@@ -12,7 +12,6 @@ for cost optimization.
 from __future__ import annotations
 
 import hashlib
-import os
 from typing import Any
 
 from core.monitoring.logging_config import logger

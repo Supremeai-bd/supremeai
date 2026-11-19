@@ -13,11 +13,11 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
-from core.services.auto_healer import AutoHealer, IssueCategory, Severity
+from core.services.auto_healer import AutoHealer
 from workers.precognitive_watcher import PrecognitiveWatcher, SentinelAlert
 
 

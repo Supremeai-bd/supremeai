@@ -25,7 +25,7 @@ import signal
 import subprocess
 import sys
 import uuid
-from collections.abc import Callable, Coroutine
+from collections.abc import Coroutine
 from typing import Any, Literal
 
 import uvicorn
@@ -82,7 +82,7 @@ def _is_safe_scrape_url(url: str) -> bool:
         from core.services.scraper.security import is_safe_url
     except ImportError:
         try:
-            from gateway.services.scraper.security import is_safe_url
+            from core.services.scraper.security import is_safe_url
         except ImportError:
             # Fail closed: if the guard module is unavailable, no URL is safe.
             return False

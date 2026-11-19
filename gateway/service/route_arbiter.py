@@ -182,8 +182,8 @@ class DynamicRouteArbiter:
         api_snap = api_route.snapshot(available=bool(candidates)) if api_route else RouteSnapshot("api-pool", available=False)
 
         # Determine winner
-        score_stealth = route_score(stealth_snap, latency_target_ms=target_latency)
-        score_api = route_score(api_snap, latency_target_ms=target_latency)
+        route_score(stealth_snap, latency_target_ms=target_latency)
+        route_score(api_snap, latency_target_ms=target_latency)
 
         # Prioritize high-speed streaming API pool when healthy candidates exist.
         # Stealth webhook is reserved for explicit web requests or total API pool exhaustion.

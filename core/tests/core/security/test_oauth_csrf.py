@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 import base64
-import hashlib
-import hmac
 import time
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
-from fastapi import Depends, FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from core.api.routes.integrations import _sign_oauth_state, _verify_oauth_state, router
-from core.config import settings
 
 
 @pytest.mark.asyncio

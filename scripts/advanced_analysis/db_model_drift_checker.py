@@ -235,7 +235,7 @@ def _extract_col_type_from_assignment(value: ast.expr) -> str:
     """
     if isinstance(value, ast.Call):
         func_name = _ast_name(value.func)
-        if func_name.endswith("mapped_column") or func_name.endswith("Column"):
+        if func_name.endswith(("mapped_column", "Column")):
             # প্রথম positional argument হলো টাইপ
             if value.args:
                 arg = value.args[0]
@@ -408,7 +408,7 @@ def parse_models(models_dir: Path) -> dict[str, ModelTable]:
                             continue
 
                         func_name = _ast_name(stmt.value.func)
-                        if not (func_name and (func_name.endswith("Column") or func_name.endswith("mapped_column"))):
+                        if not (func_name and (func_name.endswith(("Column", "mapped_column")))):
                             continue
 
                         col_type_raw = _extract_col_type_from_assignment(stmt.value)
@@ -583,9 +583,9 @@ def _handle_create_table(
     for arg in call_node.args[1:]:
         if isinstance(arg, ast.Call):
             func = _ast_name(arg.func)
-            if func and (func.endswith(".Column") or func.endswith("Column")):
+            if func and (func.endswith((".Column", "Column"))):
                 _parse_sa_column(arg, table)
-            elif func and (func.endswith(".PrimaryKeyConstraint") or func.endswith("PrimaryKeyConstraint")):
+            elif func and (func.endswith((".PrimaryKeyConstraint", "PrimaryKeyConstraint"))):
                 # PrimaryKeyConstraint("col1", "col2", ...)
                 for pk_arg in arg.args:
                     if isinstance(pk_arg, ast.Constant):
@@ -729,8 +729,7 @@ def _handle_drop_table(
     table_name = _ast_name(call_node.args[0])
     if isinstance(call_node.args[0], ast.Constant):
         table_name = str(call_node.args[0].value)
-    if table_name in tables:
-        del tables[table_name]
+    tables.pop(table_name, None)
 
 
 def _handle_create_index(
@@ -753,12 +752,11 @@ def _handle_create_index(
     if not index_name or not table_name:
         return
 
-    if table_name in tables:
-        if index_name not in tables[table_name].indexes:
-            tables[table_name].indexes.append(index_name)
-            tables[table_name].operations.append(
-                f"[{migration_name}] CREATE INDEX {index_name} ON {table_name}"
-            )
+    if table_name in tables and index_name not in tables[table_name].indexes:
+        tables[table_name].indexes.append(index_name)
+        tables[table_name].operations.append(
+            f"[{migration_name}] CREATE INDEX {index_name} ON {table_name}"
+        )
 
 
 def _handle_drop_index(
@@ -894,8 +892,7 @@ def _apply_sql_to_schema(
     )
     for m in drop_table_pattern.finditer(sql_normalized):
         table_name = m.group(1).lower()
-        if table_name in tables:
-            del tables[table_name]
+        tables.pop(table_name, None)
 
     # DROP TABLE ... CASCADE
     drop_cascade_pattern = re.compile(
@@ -904,8 +901,7 @@ def _apply_sql_to_schema(
     )
     for m in drop_cascade_pattern.finditer(sql_normalized):
         table_name = m.group(1).lower()
-        if table_name in tables:
-            del tables[table_name]
+        tables.pop(table_name, None)
 
 
 def _parse_sql_columns(body: str, table: MigrationTable) -> None:
@@ -1375,7 +1371,7 @@ def main() -> int:
                 print(f"   Source: `{t.source_file}`")
                 if t.indexes:
                     print(f"   Indexes: {', '.join(f'`{i}`' for i in t.indexes)}")
-                print("")
+                print()
                 print("   | Column | Type | Nullable | Unique | PK | FK |")
                 print("   |--------|------|----------|--------|----|----|")
                 for cname in sorted(t.columns):
@@ -1388,7 +1384,7 @@ def main() -> int:
                         f"{'PK' if c.is_primary_key else ''} | "
                         f"{fk_str} |"
                     )
-                print("")
+                print()
         return 0 if not had_errors else 2
 
     # ── শুধু মাইগ্রেশন দেখান ──
@@ -1412,7 +1408,7 @@ def main() -> int:
                 print(f"   Created in: `{t.created_in}`")
                 if t.indexes:
                     print(f"   Indexes: {', '.join(f'`{i}`' for i in t.indexes)}")
-                print("")
+                print()
                 print("   | Column | Type | Nullable | PK |")
                 print("   |--------|------|----------|----|")
                 for cname in sorted(t.columns):
@@ -1422,12 +1418,12 @@ def main() -> int:
                         f"{'✓' if c.nullable else '✗'} | "
                         f"{'PK' if c.is_primary_key else ''} |"
                     )
-                print("")
+                print()
                 if t.operations:
                     print("   **Operations:**")
                     for op in t.operations:
                         print(f"   - {op}")
-                    print("")
+                    print()
         return 0 if not had_errors else 2
 
     # ── ড্রিফট সনাক্তকরণ ──

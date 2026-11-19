@@ -26,9 +26,7 @@
 
 from __future__ import annotations
 
-import ipaddress
 import socket
-from unittest.mock import patch
 
 import pytest
 

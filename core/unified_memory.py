@@ -23,11 +23,7 @@ from core.monitoring.logging_config import logger
 from memory.sliding_window import SlidingWindowMemory
 
 # Import the underlying services
-from services.memory_service import CascadeMemoryService
 from services.memory_service import memory_service as global_memory_service
-from tools.checkpoint_manager import (
-    CheckpointManager,
-)
 from tools.checkpoint_manager import (
     checkpoint_manager as global_checkpoint_manager,
 )

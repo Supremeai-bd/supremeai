@@ -13,7 +13,7 @@ if "core.security.security_vault" in sys.modules:
 
 # Wave 3.9 (issue #1265): implementation folded into secure_credential_store;
 # security_vault is a re-export shim. The _vault instance lives in the impl module.
-from core.security import secure_credential_store, security_vault
+from core.security import secure_credential_store
 from core.security.security_vault import decrypt_token, encrypt_token
 
 

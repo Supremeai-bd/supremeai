@@ -19,7 +19,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from context_engine.budget import (
-    SECTION_CAPS,
     estimate_tokens,
     resolve_input_budget,
     resolve_section_caps,

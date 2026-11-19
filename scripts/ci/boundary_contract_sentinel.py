@@ -136,7 +136,7 @@ def run_probes(base_url: str, timeout: float = 15.0) -> list[dict]:
         results.append({"probe": name, "observed": observed, "pass": bool(ok)})
 
     # 1. GET / — exactly the four consumer fields (#1729)
-    s, h, b = _get(base_url, "/", timeout=timeout)
+    s, _h, b = _get(base_url, "/", timeout=timeout)
     try:
         fields = set(json.loads(b).keys())
     except Exception:

@@ -1,4 +1,3 @@
-from core.messaging.interfaces import MessagingProvider
 from core.messaging.models import MessageEvent, MessageResult
 
 

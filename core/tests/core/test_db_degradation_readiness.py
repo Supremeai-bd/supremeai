@@ -15,11 +15,9 @@ See docs/deployment/HEALTH_CONTRACT.md ("DB degradation policy").
 
 from __future__ import annotations
 
-import asyncio
 
 import pytest
 from fastapi import Response
-from fastapi.responses import JSONResponse
 
 import api.routes.health as legacy_health
 import core.health_routes as hr

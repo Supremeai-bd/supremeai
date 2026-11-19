@@ -10,7 +10,6 @@ Tests cover:
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from core.services.hitl.engine import HITLEngine, HITLStateError

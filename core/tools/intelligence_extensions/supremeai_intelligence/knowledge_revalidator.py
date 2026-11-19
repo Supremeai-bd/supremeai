@@ -1,5 +1,5 @@
 import asyncio
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 
 class KnowledgeRevalidator:

@@ -279,7 +279,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="STALE-এর জন্য গভীর re-check সম্পন্ন হয়েছে — স্বীকার করে এগোও")
     args = parser.parse_args(argv)
 
-    ctx, errors = build_context(args.issue)
+    ctx, _errors = build_context(args.issue)
     verdict = revalidate(ctx)
     if args.acknowledge_stale and verdict.state == STALE:
         verdict.acknowledged_stale = True

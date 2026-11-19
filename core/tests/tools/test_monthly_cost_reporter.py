@@ -19,14 +19,13 @@ from __future__ import annotations
 
 import importlib
 import sqlite3
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 import pytest
 from core.tools.billing.monthly_cost_reporter import MonthlyCostReporter
 
-import tools.billing.monthly_cost_reporter as mcr_mod
 
 MODULE_NAME = "tools.billing.monthly_cost_reporter"
 

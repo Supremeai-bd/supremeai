@@ -127,8 +127,8 @@ def check_freshness(repo_root: Path, txt_rel: str, lock_rel: str) -> tuple[str, 
     uv = shutil.which("uv")
     if not uv:
         return "skipped", [
-            "A3 SKIP (honest-dark): 'uv' not on PATH — recompile+diff freshness check not run; "
-            "P2 remains machine-verified the moment uv is available (never a silent pass)"
+            ("A3 SKIP (honest-dark): 'uv' not on PATH — recompile+diff freshness check not run; "
+            "P2 remains machine-verified the moment uv is available (never a silent pass)")
         ]
     txt = repo_root / txt_rel
     lock = repo_root / lock_rel
@@ -154,8 +154,8 @@ def check_freshness(repo_root: Path, txt_rel: str, lock_rel: str) -> tuple[str, 
         )
         if proc.returncode != 0:
             return "skipped", [
-                f"A3 SKIP (honest-dark): uv recompile failed (rc={proc.returncode}): "
-                f"{(proc.stderr or '').strip()[:300]}"
+                (f"A3 SKIP (honest-dark): uv recompile failed (rc={proc.returncode}): "
+                f"{(proc.stderr or '').strip()[:300]}")
             ]
         if not out.exists():
             return "skipped", ["A3 SKIP (honest-dark): uv produced no output file"]
@@ -168,9 +168,9 @@ def check_freshness(repo_root: Path, txt_rel: str, lock_rel: str) -> tuple[str, 
                                for l in map(str.strip, body) if LOCK_BODY_LINE_RE.match(l))
             })
             return "verified", [
-                f"A3 FAIL: recompiled lock body diverges from committed {LOCK_REL} "
+                (f"A3 FAIL: recompiled lock body diverges from committed {LOCK_REL} "
                 f"(first diverging pins among: {', '.join(diff_pkgs[:8])}) — "
-                "lock is stale vs txt; recompile and commit"
+                "lock is stale vs txt; recompile and commit")
             ]
         return "verified", []
 
@@ -185,10 +185,10 @@ def check_pipeline_wiring(repo_root: Path) -> list[str]:
     lock_refs = len(re.findall(r"requirements-dev\.lock", text))
     if lock_refs == 0:
         return [
-            "B1 SKIP (pending handoff): pipeline.yml has 0 references to requirements-dev.lock — "
+            ("B1 SKIP (pending handoff): pipeline.yml has 0 references to requirements-dev.lock — "
             "header P1 ('CI installs from the lock') is currently UNWIRED (scout #3481 receipt); "
             "ADMIN RECIPE: fast-lint job → `pip install -r requirements-dev.lock`; "
-            "this guard permanently enforces B1 the moment the first reference lands"
+            "this guard permanently enforces B1 the moment the first reference lands")
         ]
     problems: list[str] = []
     for m in re.finditer(r"pip install -r requirements-dev\.(lock|txt)", text):
@@ -227,7 +227,7 @@ def run_checks(repo_root: Path) -> tuple[bool, list[str]]:
         for p in check_consistency(txt, lock):
             lines.append(p)
             ok = False
-        mode, probs = check_freshness(repo_root, TXT_REL, LOCK_REL)
+        _mode, probs = check_freshness(repo_root, TXT_REL, LOCK_REL)
         for p in probs:
             lines.append(p)
             if p.startswith("A3 FAIL"):

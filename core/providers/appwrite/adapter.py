@@ -4,7 +4,6 @@ from typing import BinaryIO
 import httpx
 from core.config import settings
 from core.monitoring.logging_config import logger
-from core.storage.interfaces import StorageProvider
 from core.storage.models import StorageFile, StorageResult
 
 

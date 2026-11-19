@@ -137,10 +137,7 @@ def _is_test_file(path: str) -> bool:
         return True
     name = p.name
     return (
-        name.startswith("test_")
-        or name.endswith("_test.py")
-        or name.endswith("_tests.py")
-        or name == "conftest.py"
+        name.startswith("test_") or name.endswith(("_test.py", "_tests.py")) or name == "conftest.py"
     )
 
 
@@ -258,7 +255,7 @@ def build_graph(roots: list[str], include_tests: bool = True) -> ImporterGraph:
                 graph.soft_refs.setdefault(tf, []).append(s)
 
     # ধাপ ৩: reverse index তৈরি
-    for _f, edges in graph.file_edges.items():
+    for edges in graph.file_edges.values():
         for e in edges:
             graph.reverse.setdefault(e.target, []).append(e)
 

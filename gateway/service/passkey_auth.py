@@ -143,7 +143,7 @@ def _extract_spki_and_credential_id(attestation_object_bytes: bytes) -> Tuple[by
 
     # attestedCredentialData starts at byte 37:
     # 16 bytes AAGUID + 2 bytes credentialIdLength + credentialId + credentialPublicKey (COSE)
-    aaguid = auth_data[37:53]
+    auth_data[37:53]
     cred_id_len = struct.unpack(">H", auth_data[53:55])[0]
     cred_id = auth_data[55:55 + cred_id_len]
     cose_key = auth_data[55 + cred_id_len:]
@@ -313,7 +313,7 @@ async def verify_login(req: LoginVerifyRequest, request: Request, response: Resp
     if not challenge_b64 or challenge_b64 not in _challenges:
         raise HTTPException(status_code=400, detail="Invalid or expired challenge")
 
-    _, _, expected_role, ceremony = _challenges.pop(challenge_b64)
+    _, _, _expected_role, ceremony = _challenges.pop(challenge_b64)
     if ceremony != "login":
         raise HTTPException(status_code=400, detail="Challenge ceremony mismatch")
 

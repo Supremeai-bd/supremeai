@@ -6,7 +6,6 @@ Vendor-neutral registry for discovering and routing to Sandbox Providers.
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 from core.monitoring.logging_config import logger
 from core.sandbox.base import SandboxProvider

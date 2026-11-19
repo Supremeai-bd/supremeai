@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 
 from adaptive_engine.correlation import new_correlation_context
 from ecosystem import (
-    Capability,
     CapabilityLifecycleState,
     ProviderKind,
     ResourceRecord,

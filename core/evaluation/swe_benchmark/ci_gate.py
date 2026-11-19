@@ -33,7 +33,7 @@ import json
 import sys
 from pathlib import Path
 
-from .runner import corpus_fingerprint, load_corpus, run_benchmark
+from .runner import load_corpus, run_benchmark
 
 BASELINE_PATH = Path(__file__).resolve().parent / "baseline.json"
 

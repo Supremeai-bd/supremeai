@@ -130,7 +130,7 @@ class SentinelVerification(unittest.TestCase):
         orig = sync._fetch_remote_bytes
         sync._fetch_remote_bytes = lambda repo, path, token, ref="main": None
         try:
-            clean, drift, errors = sync.verify_sentinels(self.root, "t")
+            _clean, drift, errors = sync.verify_sentinels(self.root, "t")
             self.assertEqual(len(drift), 2)
             self.assertIn("absent", drift[0]["detail"])
             self.assertEqual(errors, [])
@@ -156,7 +156,7 @@ class SentinelVerification(unittest.TestCase):
         orig = sync._fetch_remote_bytes
         sync._fetch_remote_bytes = lambda repo, path, token, ref="main": b"hardened-main"
         try:
-            clean, drift, errors = sync.verify_sentinels(
+            clean, _drift, _errors = sync.verify_sentinels(
                 self.root, "t", only_satellites=["Supremeai-bd/supremeai-api"]
             )
             self.assertEqual(len(clean), 1)
@@ -171,7 +171,7 @@ class SentinelVerification(unittest.TestCase):
             with tempfile.TemporaryDirectory() as td:
                 root = Path(td)
                 self._write_manifest(root, [{"open": "only-open"}])
-                clean, drift, errors = sync.verify_sentinels(root, "t")
+                _clean, _drift, errors = sync.verify_sentinels(root, "t")
                 self.assertEqual(len(errors), 1)
                 self.assertIn("malformed", errors[0]["detail"])
         finally:
@@ -184,7 +184,7 @@ class SentinelVerification(unittest.TestCase):
             with tempfile.TemporaryDirectory() as td:
                 root = Path(td)
                 self._write_manifest(root, self.pairs)
-                clean, drift, errors = sync.verify_sentinels(root, "t")
+                _clean, _drift, errors = sync.verify_sentinels(root, "t")
                 self.assertEqual(len(errors), 2)
                 self.assertIn("missing in checkout", errors[0]["detail"])
         finally:

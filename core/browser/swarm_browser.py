@@ -19,10 +19,11 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from core.logging_config import logger
+
 from brain.reasoning_orchestrator import ReasoningOrchestrator
 from browser.autonomous_browser import AutonomousBrowserAgent
 from browser.session_manager import BrowserSessionManager
-from core.logging_config import logger
 
 __all__ = ["SwarmBrowser"]
 

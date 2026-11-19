@@ -29,27 +29,24 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import os
 import time
 import uuid
 from collections import defaultdict
-from collections.abc import Awaitable, Callable, Coroutine
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from functools import wraps
 from typing import (
     Any,
-    Optional,
     TypeVar,
-    Union,
 )
 
 import aiohttp
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field
 
 from core.monitoring.logging_config import logger
 

@@ -208,16 +208,16 @@ class TaskContract:
             f"GROUP: {self.group} · PRIORITY: {self.priority} · SEQUENCE: {self.sequence or '-'}",
             f"SCOPE: {', '.join(self.touching_files) or '-'}"
             + (f" | FORBIDDEN: {', '.join(self.forbidden_paths)}" if self.forbidden_paths else ""),
-            f"DEPENDENCIES: {', '.join(self.dependencies) or '-'} · PREDECESSOR: {self.predecessor or '-'}"
-            f" · ADMIN GATE: {'required/' + gate.status if gate.required else 'not-required'}",
+            (f"DEPENDENCIES: {', '.join(self.dependencies) or '-'} · PREDECESSOR: {self.predecessor or '-'}"
+            f" · ADMIN GATE: {'required/' + gate.status if gate.required else 'not-required'}"),
             f"UNIVERSAL RULES: {'; '.join(self.rules_universal) or '-'}",
-            f"REQUIRED ACTIONS: {', '.join(self.required_evidence) or '-'}"
-            f" · FORBIDDEN ACTIONS: {', '.join(self.forbidden_actions) or '-'}",
-            f"REQUIRED EVIDENCE: {', '.join(self.required_evidence) or '-'}"
+            (f"REQUIRED ACTIONS: {', '.join(self.required_evidence) or '-'}"
+            f" · FORBIDDEN ACTIONS: {', '.join(self.forbidden_actions) or '-'}"),
+            (f"REQUIRED EVIDENCE: {', '.join(self.required_evidence) or '-'}"
             f" · VERIFICATION: {', '.join(self.verification) or '-'}"
-            f" · ACCEPTANCE: {', '.join(self.acceptance) or '-'}",
-            f"STOP CONDITIONS: {', '.join(self.stop_conditions) or '-'}"
-            f" · OUTPUT FORMAT: {self.output_format} (steps: {' → '.join(STANDARD_OUTPUTS.get(self.task_type, []))})",
+            f" · ACCEPTANCE: {', '.join(self.acceptance) or '-'}"),
+            (f"STOP CONDITIONS: {', '.join(self.stop_conditions) or '-'}"
+            f" · OUTPUT FORMAT: {self.output_format} (steps: {' → '.join(STANDARD_OUTPUTS.get(self.task_type, []))})"),
         ])
 
 

@@ -87,10 +87,10 @@ for m in re.finditer(r'"path"\s*:\s*"([^"]+)"', routers_src):
 
 DECOR = re.compile(
     r"@(?:router|app)\.(get|post|put|patch|delete|websocket|api_route)\(\s*[rf]?[\"']([^\"']*)[\"']",
-    re.I,
+    re.IGNORECASE,
 )
-PREFIX_DEF = re.compile(r"APIRouter\(\s*(?:[^)]*?)prefix\s*=\s*[\"']([^\"']*)[\"']", re.S)
-INCLUDE = re.compile(r"include_router\(\s*([A-Za-z_][\w\.]*)\s*(?:,[^)]*?prefix\s*=\s*[\"']([^\"']*)[\"'])?", re.S)
+PREFIX_DEF = re.compile(r"APIRouter\(\s*(?:[^)]*?)prefix\s*=\s*[\"']([^\"']*)[\"']", re.DOTALL)
+INCLUDE = re.compile(r"include_router\(\s*([A-Za-z_][\w\.]*)\s*(?:,[^)]*?prefix\s*=\s*[\"']([^\"']*)[\"'])?", re.DOTALL)
 
 
 def module_candidates(mod: str) -> list[str]:
@@ -163,8 +163,7 @@ print(f"[stage] route rows: {len(route_rows)}", flush=True)
 with open(os.path.join(OUT, "backend_routes.txt"), "w", encoding="utf-8") as fh:
     fh.write(f"# registered modules: {len(mounts)}  route rows: {len(route_rows)}\n")
     fh.write(f"# UNRESOLVED MODULES ({len(unresolved)})\n")
-    for u in unresolved:
-        fh.write(f"  !! {u}\n")
+    fh.writelines(f"  !! {u}\n" for u in unresolved)
     fh.write("#\n")
     for mod, mprefix, oprefix, method, full in sorted(route_rows, key=lambda r: r[4]):
         fh.write(f"{method:9} {full:70} <- {mod} (mount={mprefix!r} own={oprefix!r})\n")
@@ -244,8 +243,7 @@ with open(os.path.join(OUT, "orphan_routes.txt"), "w", encoding="utf-8") as fh:
     fh.write("# NOTE: candidates - a family may be used via a different naming or by admin tooling.\n")
     for fam, rows in orphans:
         fh.write(f"\n== {fam}  ({len(rows)} routes)\n")
-        for r in sorted(set(rows)):
-            fh.write(f"     {r}\n")
+        fh.writelines(f"     {r}\n" for r in sorted(set(rows)))
 
 # ------------------------------------------------------------- stub scanning
 TEST_HINT = re.compile(r"(^|[\\/])(tests?|__tests__)[\\/]|(^|[\\/])test_[^\\/]*\.py$|\.test\.(ts|tsx)$|\.spec\.(ts|tsx)$|conftest\.py$")

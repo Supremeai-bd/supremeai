@@ -559,7 +559,7 @@ def stage_live() -> dict[str, Any]:
             "name": "control unsigned GET status", "actual": c_status, "pass": c_status == 200,
         })
     except Exception as exc:
-        c_status, c_hdrs, c_body = None, {}, b""
+        c_status, _c_hdrs, _c_body = None, {}, b""
         out["checks"].append({"name": "control unsigned GET", "error": str(exc), "pass": False})
 
     # 3. signed request with the published test key — two interop modes:

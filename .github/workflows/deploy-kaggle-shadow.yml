@@ -1,0 +1,39 @@
+name: Deploy Kaggle Shadow Node
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infrastructure/cloudflare-kaggle-shadow/**"
+      - "infrastructure/mcp-control-plane/**"
+  workflow_dispatch:
+
+jobs:
+  deploy-and-rotate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy Cloudflare Kaggle Shadow Worker
+        working-directory: infrastructure/cloudflare-kaggle-shadow
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "${CLOUDFLARE_API_TOKEN}" ]; then
+            npx wrangler deploy
+          else
+            echo "CLOUDFLARE_API_TOKEN not set; skipping wrangler deploy."
+          fi
+
+      - name: Trigger Immediate Kaggle Rotation
+        env:
+          SHADOW_REGISTER_SECRET: ${{ secrets.SHADOW_REGISTER_SECRET }}
+        run: |
+          if [ -n "${SHADOW_REGISTER_SECRET}" ]; then
+            curl -fsS -X POST "https://supremeai-kaggle-shadow.paykaribazaronline.workers.dev/rotate" \
+              -H "Authorization: Bearer ${SHADOW_REGISTER_SECRET}" \
+              -H "Content-Type: application/json" \
+              -d '{}'
+          else
+            echo "SHADOW_REGISTER_SECRET not set; skipping /rotate."
+          fi

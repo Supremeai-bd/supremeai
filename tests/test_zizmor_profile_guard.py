@@ -139,7 +139,7 @@ def _static_unpinned_uses() -> list[str]:
             if not m:
                 continue
             ref = m.group(1).strip("\"'")
-            if ref.startswith("./") or ref.startswith(".\\"):
+            if ref.startswith(("./", ".\\")):
                 continue
             if "@" not in ref or not _SHA_AT_LINE_END.search(line):
                 hits.append(f"{f.relative_to(_ROOT)}:{i} {ref}")

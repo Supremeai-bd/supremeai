@@ -5,7 +5,6 @@ Empirically verifies:
 2. Dynamic Discovery ($N >= 1$): System auto-activates whatever provider is present.
 """
 
-import os
 
 import pytest
 

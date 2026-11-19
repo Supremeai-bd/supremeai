@@ -70,7 +70,7 @@ class TestPRPatchRecorder(unittest.TestCase):
                 {"path": "gateway/src/index.ts", "additions": 5, "deletions": 1},
             ],
         }
-        content_bad, warnings_bad = format_patch_content(meta_bad, "diff --git a/test b/test\n+content\n")
+        _content_bad, warnings_bad = format_patch_content(meta_bad, "diff --git a/test b/test\n+content\n")
         self.assertTrue(any("Multi-domain violation" in w for w in warnings_bad))
         self.assertTrue(any("Missing issue reference" in w for w in warnings_bad))
 

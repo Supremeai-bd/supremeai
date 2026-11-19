@@ -161,7 +161,7 @@ async def test_verify_token_async_user_ok_when_redis_down():
 
 def _make_admin_token() -> str:
     from core.config import settings
-    from core.security import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, create_access_token
+    from core.security import create_access_token
 
     admin_email = (
         sorted(settings.admin_emails)[0] if settings.admin_emails else "admin@supremeai.dev"

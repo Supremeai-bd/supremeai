@@ -21,7 +21,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 INFISICAL_HOST = os.environ.get("INFISICAL_HOST", "https://app.infisical.com")
 REPO = os.environ.get("GITHUB_REPOSITORY", "SaifulHaqueNiloy/supremeai")

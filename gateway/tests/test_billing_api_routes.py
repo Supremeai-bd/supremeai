@@ -37,16 +37,15 @@ import pytest_asyncio
 pytest.importorskip(
     "greenlet", reason="greenlet not installed — required for SQLAlchemy asyncio engine"
 )
-from fastapi import FastAPI
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
-import api.routes.billing_api as billing_api
 from api.dependencies import get_current_user_token
+from api.routes import billing_api
 from api.routes.billing_api import router as billing_router
 from database.session import get_db_session
+from fastapi import FastAPI
 from models.base import Base
 from models.wallet import TransactionLedgerEntry, UserWallet
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 
 @pytest_asyncio.fixture
@@ -109,7 +108,7 @@ async def test_wallet_bootstrap_single_row(billing_app):
 async def test_wallet_invalid_token_returns_401(billing_app):
     client, _factory, _auth = billing_app
     # Rebind the override to a token payload without a subject.
-    client._transport.app.dependency_overrides[get_current_user_token] = lambda: {}
+    client._transport.app.dependency_overrides[get_current_user_token] = dict
     response = await client.get("/api/billing/wallet")
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid token"
@@ -117,7 +116,7 @@ async def test_wallet_invalid_token_returns_401(billing_app):
 
 async def test_history_invalid_token_returns_401(billing_app):
     client, _factory, _auth = billing_app
-    client._transport.app.dependency_overrides[get_current_user_token] = lambda: {}
+    client._transport.app.dependency_overrides[get_current_user_token] = dict
     response = await client.get("/api/billing/history")
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid token"
@@ -233,7 +232,7 @@ async def test_add_funds_happy_path_uses_origin_header(billing_app):
 
 async def test_add_funds_invalid_token_returns_401(billing_app):
     client, _factory, _auth = billing_app
-    client._transport.app.dependency_overrides[get_current_user_token] = lambda: {}
+    client._transport.app.dependency_overrides[get_current_user_token] = dict
     response = await client.post(
         "/api/billing/add-funds",
         params={"amount": 25.5},
@@ -351,7 +350,7 @@ async def test_stripe_webhook_credits_wallet_exactly_once(billing_app, monkeypat
 
 
 async def test_stripe_webhook_missing_metadata_is_ignored(billing_app, monkeypatch):
-    client, factory, _auth = billing_app
+    client, _factory, _auth = billing_app
     event = {
         "type": "payment_intent.succeeded",
         "data": {"object": {"id": "pi_nometa", "amount_received": 100, "metadata": {}}},

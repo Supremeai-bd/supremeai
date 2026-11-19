@@ -111,7 +111,7 @@ jobs:
                 sid="$SVC_ID_MCP_TOWER"
                 name="supremeai-mcp-tower"
                 hint="RENDER_SERVICE_ID_MCP_TOWER"
-                url="https://supremeai-mcp-tower.onrender.com/release"
+                url="https://supremeai-mcp-tower-live.onrender.com/release"
                 ;;
             esac
             if [ -z "$sid" ]; then

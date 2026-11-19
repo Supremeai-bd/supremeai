@@ -24,11 +24,6 @@ import uuid
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import event as sa_event
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
-
 from core.missions.models import Mission  # noqa: F401 â€” registers missions table
 from core.models.base import Base
 from core.runs.budgets import BudgetDimension
@@ -48,6 +43,10 @@ from core.runs.state_machine import (
     SUCCEEDED,
     IllegalTransition,
 )
+from sqlalchemy import event as sa_event
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 
 @pytest_asyncio.fixture

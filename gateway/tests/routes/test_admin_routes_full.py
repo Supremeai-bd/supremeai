@@ -167,7 +167,7 @@ async def _enroll(http: AsyncClient) -> dict:
 @pytest.mark.unit
 class TestFirebaseLogin:
     async def test_mock_token_direct_auth(self, admin_env):
-        http, fs, _ = admin_env
+        http, _fs, _ = admin_env
         resp = await http.post("/api/admin/firebase-login", json={"id_token": MOCK_TOKEN})
         assert resp.status_code == 200
         body = resp.json()
@@ -220,7 +220,7 @@ class TestFirebaseLogin:
         assert resp.status_code == 403
 
     async def test_login_trusted_browser_short_circuit(self, admin_env):
-        http, fs, fake = admin_env
+        http, _fs, fake = admin_env
         cookie_token = "trusted-browser-cookie-token"
         key = "admin:trusted-browser:" + hashlib.sha256(cookie_token.encode()).hexdigest()
         await fake.set(key, json.dumps({"uid": UID, "email": "a@b.c"}))
@@ -321,7 +321,7 @@ class TestTotpSetup:
         assert "strictly forbidden" in resp.json()["detail"]
 
     async def test_setup_non_admin_firebase_uid_blocked(self, admin_env, monkeypatch):
-        http, fs, _ = admin_env
+        http, _fs, _ = admin_env
         import api.routes.admin_routes as ar
 
         class FakeFirebaseAuth:
@@ -375,7 +375,7 @@ class TestTotpVerify:
         assert "temp_totp_secret" not in doc
 
     async def test_verify_without_secret_500(self, admin_env, monkeypatch):
-        http, fs, _ = admin_env
+        http, _fs, _ = admin_env
         monkeypatch.delenv("SUPREMEAI_ADMIN_TOTP_SECRET", raising=False)
         resp = await http.post(
             "/api/admin/firebase-totp-verify",
@@ -385,7 +385,7 @@ class TestTotpVerify:
         assert "not enrolled" in resp.json()["detail"]
 
     async def test_verify_env_fallback_secret(self, admin_env, monkeypatch):
-        http, fs, _ = admin_env
+        http, _fs, _ = admin_env
         env_secret = "JBSWY3DPEHPK3PXP"
         monkeypatch.setenv("SUPREMEAI_ADMIN_TOTP_SECRET", env_secret)
         resp = await http.post(
@@ -441,7 +441,7 @@ class TestTotpVerify:
         assert resp.status_code == 503
 
     async def test_verify_remember_browser_sets_cookie(self, admin_env):
-        http, fs, fake = admin_env
+        http, fs, _fake = admin_env
         body = await _enroll(http)
         resp = await http.post(
             "/api/admin/firebase-totp-verify",
@@ -497,7 +497,7 @@ class TestTotpRecovery:
         assert not await fake.get(f"admin:totp:recover:attempts:{UID}")
 
     async def test_recover_invalid_code_lockout(self, admin_env):
-        http, fs, fake = admin_env
+        http, _fs, fake = admin_env
         await _enroll(http)
         for i in range(5):
             resp = await http.post(
@@ -514,7 +514,7 @@ class TestTotpRecovery:
         assert resp.status_code == 429
 
     async def test_recover_lockout_preset_429(self, admin_env):
-        http, fs, fake = admin_env
+        http, _fs, fake = admin_env
         await _enroll(http)
         await fake.set(f"admin:totp:recover:lockout:{UID}", "locked")
         resp = await http.post(
@@ -535,7 +535,7 @@ class TestTotpRecovery:
         assert resp.status_code == 503
 
     async def test_recover_redis_failure_fail_closed_503(self, admin_env, monkeypatch):
-        http, fs, _ = admin_env
+        http, _fs, _ = admin_env
         await _enroll(http)
 
         class BrokenRedis:
@@ -558,7 +558,7 @@ class TestTrustedBrowsers:
     async def test_issue_list_revoke_one_and_all(self, admin_env):
         import api.routes.admin_routes as ar
 
-        http, _, fake = admin_env
+        http, _, _fake = admin_env
 
         issued = {}
 
@@ -631,7 +631,7 @@ class TestTrustedBrowsers:
 class TestObservabilityEndpoints:
     @pytest_asyncio.fixture
     async def svc_env(self, admin_env, monkeypatch):
-        http, fs, _ = admin_env
+        http, _fs, _ = admin_env
         import api.routes.admin_routes as ar
 
         services = SimpleNamespace(

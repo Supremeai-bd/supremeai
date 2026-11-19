@@ -24,7 +24,6 @@ import importlib.util
 import json
 import logging
 import sys
-import types as _stdlib_types
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from uuid import uuid4

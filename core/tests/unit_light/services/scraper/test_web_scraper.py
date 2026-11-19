@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import httpx
 from core.services.scraper.web_scraper import WebScraper

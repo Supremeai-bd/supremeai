@@ -43,6 +43,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
+from typing_extensions import Self
+
 # ---------------------------------------------------------------------------
 # Contract pins (synced against api-schemas/*.json by the test battery)
 # ---------------------------------------------------------------------------
@@ -394,7 +396,7 @@ class AutonomyPersistence:
         except sqlite3.Error:
             pass
 
-    def __enter__(self) -> AutonomyPersistence:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *exc_info: object) -> None:

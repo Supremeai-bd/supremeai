@@ -317,7 +317,7 @@ async def epistemic_health() -> dict[str, Any]:
 
     # 3. ChronoFact Pillar 3 (Memory Gate)
     try:
-        MemoryEntry, MemoryGate = _import_memory_gate()
+        _MemoryEntry, MemoryGate = _import_memory_gate()
         gate = MemoryGate(threshold=0.72)
         results["chronofact_memory_gate"] = {
             "status": "healthy",

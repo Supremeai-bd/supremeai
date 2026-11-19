@@ -16,7 +16,6 @@ from urllib.parse import urljoin
 
 import httpx
 from bs4 import BeautifulSoup
-
 from core.monitoring.logging_config import logger
 
 # বাংলা মন্তব্য: Dual-path import — standalone scraper service-এ `security`

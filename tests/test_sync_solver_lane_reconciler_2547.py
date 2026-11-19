@@ -28,7 +28,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.bridge import bridge_intake as intake  # noqa: E402
+from scripts.bridge import bridge_intake as intake
 
 TASK = "bridge-20261030-sync-lane-fix"
 OPEN = intake.OPEN_REPO
@@ -97,7 +97,6 @@ def test_solver_lane_merged_pr_closes_public_issue(fake_github: _FakeGitHub):
     """The stranded-class fix: solver PR `bridge/<tid>` merged on OPEN repo."""
     fake_github.feed(f"/repos/{OPEN}/pulls?state=closed", [_pr(3300, OPEN, f"bridge/{TASK}")])
     fake_github.feed(f"/repos/{OPEN}/issues?state=open", [_wo_issue(2547, TASK)])
-    state = fake_github.feed  # keep type-checkers happy about fixture reuse
     rc = intake.cmd_sync("t0k3n")
     assert rc == 0
     # The public work-order must be closed via PATCH (state completed).

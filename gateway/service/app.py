@@ -867,10 +867,7 @@ def _is_admin_principal(
             from service.admin_auth import is_admin_token  # type: ignore[no-redef]
         except ImportError:
             is_admin_token = None  # type: ignore[assignment]
-    if is_admin_token is not None and is_admin_token(token, verify_key_fn=verify_key):
-        return True
-
-    return False
+    return bool(is_admin_token is not None and is_admin_token(token, verify_key_fn=verify_key))
 
 
 def _require_operator_key(request: Request, x_supremeai_key: Optional[str] = None) -> bool:
@@ -1283,13 +1280,13 @@ async def stream_preferences(
             yield "event: connected\ndata: " + json.dumps(
                 {"status": "connected", "user_id": user_id}
             ) + "\n\n"
-            last_activity = time.time()
+            time.time()
             while True:
                 try:
                     entry = await asyncio.wait_for(
                         queue.get(), timeout=_SSE_IDLE_TIMEOUT_SECONDS
                     )
-                    last_activity = time.time()
+                    time.time()
                     yield f"data: {json.dumps(entry)}\n\n"
                 except asyncio.TimeoutError:
                     # Idle timeout: close the stream rather than leaking it.

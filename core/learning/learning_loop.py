@@ -17,7 +17,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .pattern_miner import (
-    DecisionPattern,
     filter_failed_patterns,
     filter_successful_patterns,
     mine_patterns,

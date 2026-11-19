@@ -2616,7 +2616,7 @@ jobs:
       - name: Run quota monitor (live; alerts -> Telegram)
         id: rqm
         env:
-          SUPREMEAI_TOWER_URL: https://supremeai-mcp-tower.onrender.com/mcp
+          SUPREMEAI_TOWER_URL: https://supremeai-mcp-tower-live.onrender.com/mcp
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |

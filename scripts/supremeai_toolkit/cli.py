@@ -41,7 +41,7 @@ def _cmd_audit(args: argparse.Namespace) -> int:
     total, report = reusability_audit.run_audit(REPO_ROOT, roots, out_md, out_json)
     if not out_md:
         # বাংলা মন্তব্য: --out ছাড়া চালালে সারসংক্ষেপ stdout-এ — কোনো ফাইল-লেখা নয়।
-        summary = [ln for ln in report.splitlines() if ln.startswith("**মোট") or ln.startswith("| keep") or ln.startswith("| prune") or ln.startswith("| review")]
+        summary = [ln for ln in report.splitlines() if ln.startswith(("**মোট", "| keep", "| prune", "| review"))]
         print("\n".join(summary))
     print(f"[OK] audit complete — {total} files scanned across roots: {', '.join(roots)}")
     return 0
@@ -68,7 +68,7 @@ def _cmd_plan_guard(args: argparse.Namespace) -> int:
     if not root.is_dir():
         print(f"[ERROR] রুট ডিরেক্টরি নেই: {root}")
         return 2
-    scanned, problems, summary = plan_guard.run_scan(
+    _scanned, problems, summary = plan_guard.run_scan(
         root,
         Path(args.out_json) if args.out_json else None,
         Path(args.out_txt) if args.out_txt else None,

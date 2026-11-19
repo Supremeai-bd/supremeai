@@ -27,7 +27,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from core.missions.service import MissionNotFound, MissionService
+from core.missions.service import MissionService
 from core.missions.state_machine import (
     APPROVED,
     ASSIGNED,

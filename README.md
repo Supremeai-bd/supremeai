@@ -154,7 +154,7 @@ flowchart TD
 | Service | Live URL | Description |
 |---|---|---|
 | **SupremeAI Studio (Web UI) — retired** | [https://supremeai-studio.vercel.app](https://supremeai-studio.vercel.app) | Former user-facing React/Vite console interface and agent workspace (surface retired; archived read-only) |
-| **MCP Control Tower** | [`https://supremeai-mcp-tower.onrender.com`](https://supremeai-mcp-tower.onrender.com) | Remote Streamable HTTP (`/mcp`) & SSE (`/sse`) tool plane |
+| **MCP Control Tower** | [`https://supremeai-mcp-tower-live.onrender.com`](https://supremeai-mcp-tower-live.onrender.com) | Remote Streamable HTTP (`/mcp`) & SSE (`/sse`) tool plane |
 | **API Gateway** | [`https://supremeai-api-ulw0.onrender.com`](https://supremeai-api-ulw0.onrender.com) | Unified OpenAI-compatible multi-LLM provider gateway |
 
 | Path | What it is |

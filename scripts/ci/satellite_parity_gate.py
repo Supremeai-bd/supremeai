@@ -138,8 +138,8 @@ def hunk_summary(open_bytes: bytes, sat_bytes: bytes, context: bool = True) -> s
     delta = len(open_bytes) - len(sat_bytes)
     sign = "+" if delta > 0 else ("-" if delta < 0 else "0")
     lines: list[str] = [
-        f"- byte-size delta: open {len(open_bytes):,} B vs satellite {len(sat_bytes):,} B "
-        f"(open {sign}{abs(delta):,} B)",
+        (f"- byte-size delta: open {len(open_bytes):,} B vs satellite {len(sat_bytes):,} B "
+        f"(open {sign}{abs(delta):,} B)"),
         f"- sha256: open {sha256_hex(open_bytes)[:16]} / satellite {sha256_hex(sat_bytes)[:16]}",
     ]
     diff = list(difflib.unified_diff(s_txt, o_txt,
@@ -256,12 +256,12 @@ def build_issue_body(report: dict) -> str:
     lines = [
         f"## {title}",
         "",
-        f"- Gate: `scripts/ci/satellite_parity_gate.py` (#1792, scheduled; kernel: "
-        f"#1689 sentinel SHA method). Ref `{report['ref']}`.",
-        "- **Report-only**: no push, no merge, no dispatch was performed by this "
-        "gate. Dispatch authority stays with humans/admins per the bridge contract.",
-        "- Fail-closed note: `errors` are infrastructure/verification failures — "
-        "the gate could NOT see; treat as blind, not clean.",
+        (f"- Gate: `scripts/ci/satellite_parity_gate.py` (#1792, scheduled; kernel: "
+        f"#1689 sentinel SHA method). Ref `{report['ref']}`."),
+        ("- **Report-only**: no push, no merge, no dispatch was performed by this "
+        "gate. Dispatch authority stays with humans/admins per the bridge contract."),
+        ("- Fail-closed note: `errors` are infrastructure/verification failures — "
+        "the gate could NOT see; treat as blind, not clean."),
         "",
         "### Drift detail (byte-size delta + hunk summary)",
         "",
@@ -287,14 +287,14 @@ def build_issue_body(report: dict) -> str:
         "",
         "1. Confirm the drift is not a satellite-side intended change (read the",
         "   satellite repo's history for the surface first).",
-        "2. If the mirror is ahead intentionally: re-dispatch "
-        "`federation_satellite_sync.py` (heal) per the #1689 runbook.",
+        ("2. If the mirror is ahead intentionally: re-dispatch "
+        "`federation_satellite_sync.py` (heal) per the #1689 runbook."),
         "3. If the drift is a regression: revert the satellite surface to the",
         "   mirror blob SHA listed above.",
         "",
-        f"_Provenance: #1792 R38 (scout radar XII); detection latency target <=6 h; "
+        (f"_Provenance: #1792 R38 (scout radar XII); detection latency target <=6 h; "
         f"generated {report['checkedAt']} by the scheduled parity gate. "
-        f"Labels: audit:finding, federation:drift._",
+        f"Labels: audit:finding, federation:drift._"),
     ]
     return "\n".join(lines)
 

@@ -217,7 +217,7 @@ class TestDeepResearchSync:
         assert inserts[-1][1][0]["conversation_id"] == "conv-9"
 
     async def test_honest_no_sources_report(self, research_env, monkeypatch):
-        http, fake_db, _, _ = research_env
+        http, _fake_db, _, _ = research_env
 
         async def no_results(query: str, user_id: str = ""):
             return []

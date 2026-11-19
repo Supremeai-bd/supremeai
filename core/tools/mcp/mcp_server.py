@@ -602,7 +602,7 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
 
         elif name == "audit_query":
             # ── MCP Tower gap-4 (#928): per-agent verified audit query ──
-            from datetime import UTC, datetime
+            from datetime import datetime
 
             since_raw = str(arguments.get("since") or "").strip()
             since = datetime.fromisoformat(since_raw) if since_raw else None

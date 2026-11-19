@@ -72,7 +72,7 @@ class KnowledgeSqueezer:
         raw_candidates = await self._parallel(candidate_jobs)
         candidates = [
             Candidate(model=p.name, role="generator", content=c)
-            for p, c in zip(self.providers, raw_candidates)
+            for p, c in zip(self.providers, raw_candidates, strict=False)
         ]
 
         audit_jobs: list[tuple[LLMProvider, str, str]] = []

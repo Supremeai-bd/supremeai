@@ -1,5 +1,4 @@
 # backend/skills/core_knowledge_qa.py
-import os
 from typing import Any
 
 from core.config_cache import config_cache

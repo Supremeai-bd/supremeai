@@ -30,30 +30,25 @@ function buildNotebookPayload(username, workerUrl, registerSecret) {
   const notebookCode = `
 import json, os, shutil, subprocess, time, urllib.request
 
-!pip install -q fastapi uvicorn nest-asyncio cloudflared
+!pip install -q cloudflared
+!rm -rf /tmp/supremeai
+!git clone --depth 1 https://github.com/Supremeai-bd/supremeai.git /tmp/supremeai
+!cd /tmp/supremeai/infrastructure/mcp-control-plane && npm ci --silent && npm run build
 
-import nest_asyncio
-nest_asyncio.apply()
-import uvicorn
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
+mcp_env = os.environ.copy()
+mcp_env["MCP_PORT"] = "3771"
+mcp_env["TINY_BRAIN_URL"] = "https://njelitltd-tiny-brain.hf.space"
+mcp_env["KAGGLE_SHADOW_URL"] = "${workerUrl}"
 
-app = FastAPI(title="SupremeAI Kaggle Shadow Node")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-
-@app.get("/health/live")
-@app.get("/health")
-def health():
-    return {"status": "healthy", "type": "kaggle_shadow_node", "account": "${username}"}
-
-@app.post("/mcp/call")
-async def mcp_call(request: Request):
-    data = await request.json()
-    return {"status": "ok", "shadow_handled": True, "account": "${username}", "payload": data}
+mcp_proc = subprocess.Popen(
+    ["node", "dist/index.js"],
+    cwd="/tmp/supremeai/infrastructure/mcp-control-plane",
+    env=mcp_env,
+)
 
 cf_bin = shutil.which("cloudflared") or "/usr/local/bin/cloudflared"
 tunnel_proc = subprocess.Popen(
-    [cf_bin, "tunnel", "--url", "http://localhost:8000"],
+    [cf_bin, "tunnel", "--url", "http://localhost:3771"],
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT,
     text=True,
@@ -83,11 +78,11 @@ if public_url and "${workerUrl}":
     )
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
-            print("Registered with Cloudflare Worker:", resp.status)
+            print("Registered real MCP Tower:", resp.status, public_url)
     except Exception as e:
         print("Registration failed:", e)
 
-uvicorn.run(app, host="0.0.0.0", port=8000)
+mcp_proc.wait()
 `.trim();
 
   const ipynb = {

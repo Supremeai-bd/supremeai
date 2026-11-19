@@ -36,7 +36,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Migration contract guard")
     parser.add_argument("--check", action="store_true", help="Perform check")
     parser.add_argument("--disposable-db", action="store_true", help="Validate against disposable test database if available")
-    args = parser.parse_args()
+    parser.parse_args()
 
     migrations_dir = find_migrations_dir()
     if not migrations_dir:

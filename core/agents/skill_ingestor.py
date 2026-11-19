@@ -12,8 +12,10 @@ from typing import Any
 
 from core.monitoring.logging_config import logger
 from core.sandbox.docker_sandbox import DockerSandbox
-from schemas.skill_index import SkillIndexManager
-from schemas.skill_manifest import SkillManifest, SkillStatus
+# Fix (satellite decoupling): schemas/ moved to core/schemas/ — first-party
+# imports must stay inside the core package so core/tests resolve them.
+from core.schemas.skill_index import SkillIndexManager
+from core.schemas.skill_manifest import SkillManifest, SkillStatus
 
 # রিলেটিভ ইম্পোর্ট ব্যবহার করে টাইপ চেকিং এবং পাথ রেজোলিউশন ঠিক করা হলো
 from .morphic_adapter import MorphicAdapter  # Using relative import from same directory

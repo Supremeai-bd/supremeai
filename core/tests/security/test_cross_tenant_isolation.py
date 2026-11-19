@@ -9,8 +9,6 @@ full model registry and app fixtures (JSONB is Postgres-only and cannot compile
 against the local sqlite test DB).
 """
 
-import os
-import uuid
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -18,7 +16,6 @@ import pytest
 from fastapi import HTTPException
 
 from core.models.pending_tasks import (
-    TaskStatus,
     TaskType,
     create_pending_task,
     get_task,

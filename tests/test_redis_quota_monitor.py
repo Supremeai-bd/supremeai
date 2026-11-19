@@ -194,7 +194,7 @@ class TestBurnProjection(unittest.TestCase):
         ]
         for prior, current, limit in cases:
             result = rqm.project_burn(prior, current, limit, None, "2026-11-01T00:01:00Z")
-            self.assertIsNotNone(result["skip"], "case must skip honestly: %r" % (prior,))
+            self.assertIsNotNone(result["skip"], f"case must skip honestly: {prior!r}")
 
     def test_projection_math(self):
         proj = rqm.project_burn(self.PRIOR, self.CURRENT, 500000, 480000, "2026-11-01T00:01:00Z")

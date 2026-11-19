@@ -8,7 +8,6 @@ directly (session handshake + CORS), so Core API acts as the bridge:
 
 from __future__ import annotations
 
-import asyncio
 import json
 import os
 from datetime import UTC, datetime

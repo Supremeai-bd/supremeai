@@ -268,9 +268,7 @@ def _scannable(p: Path, doc: bool) -> bool:
         return False
     if any(part in f"/{rel}/" for part in SKIP_PATH_PARTS):
         return False
-    if doc and rel.startswith(SKIP_DOC_PREFIXES):
-        return False
-    return True
+    return not (doc and rel.startswith(SKIP_DOC_PREFIXES))
 
 
 def _scan_text_files(globs: list[str], doc: bool = False) -> list[Path]:

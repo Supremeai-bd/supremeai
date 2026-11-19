@@ -467,7 +467,7 @@ def test_poetry_pep621_pyproject_is_off_plane() -> None:
         proj.write_text(
             '[project]\nname = "x"\ndependencies = ["requests"]\n', encoding="utf-8"
         )
-        text, skips, stats = guard.synthesize_poetry_requirements(proj)
+        text, _skips, stats = guard.synthesize_poetry_requirements(proj)
         assert text.strip() == ""
         assert stats["main_keys"] == 0
 
@@ -516,7 +516,7 @@ def test_evaluate_dispatches_poetry_plane_hermetically() -> None:
         guard.audit_manifest = fake_audit
         try:
             with _pip_audit_present():
-                code, drift, improvements, notes = guard.evaluate(tmp)
+                code, drift, _improvements, notes = guard.evaluate(tmp)
         finally:
             guard.audit_manifest = real_audit
         assert code == guard.EXIT_PASS, (code, drift, notes)
@@ -548,7 +548,7 @@ def test_evaluate_malformed_poetry_toml_fail_closes() -> None:
             json.dumps({"meta": {}, "findings": {}}), encoding="utf-8"
         )
         with _pip_audit_present():
-            code, drift, _, notes = guard.evaluate(tmp)
+            code, drift, _, _notes = guard.evaluate(tmp)
         assert code == guard.EXIT_DRIFT
         assert drift and drift[0]["kind"] == "malformed-poetry-manifest"
         assert drift[0]["ids"] == ["POETRY-MANIFEST"]
@@ -577,7 +577,7 @@ def test_files_mode_triggers_on_pyproject_touch() -> None:
         guard.audit_manifest = fake_audit
         try:
             with _pip_audit_present():
-                code, _, _, notes = guard.evaluate(tmp, files=["core/pyproject.toml"])
+                code, _, _, _notes = guard.evaluate(tmp, files=["core/pyproject.toml"])
         finally:
             guard.audit_manifest = real_audit
         assert code == guard.EXIT_PASS

@@ -113,7 +113,7 @@ def _inspect(repo: Path, rel: str) -> tuple[list[str], int, int]:
         text = fp.read_text(errors="ignore")
     except OSError:
         return [], 0, 0
-    broken = len(_BROKEN_PATH_RE.findall(text))
+    len(_BROKEN_PATH_RE.findall(text))
     defs = len(re.findall(r"^\s*def\s+\w+", text, re.MULTILINE))
     classes = len(re.findall(r"^\s*class\s+\w+", text, re.MULTILINE))
     return text, defs, classes

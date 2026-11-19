@@ -188,7 +188,7 @@ def _is_in_type_checking_block(source_lines: list[str], line_no: int) -> bool:
     for i in range(max(0, line_no - 2), max(0, line_no - 30), -1):
         line = source_lines[i]
         stripped = line.strip()
-        if stripped.startswith("if TYPE_CHECKING") or stripped.startswith("if typing.TYPE_CHECKING"):
+        if stripped.startswith(("if TYPE_CHECKING", "if typing.TYPE_CHECKING")):
             tc_indent = len(line) - len(line.lstrip())
             # ইম্পোর্ট লাইনটি TYPE_CHECKING এর চেয়ে বেশি ইনডেন্টেড হতে হবে
             if import_indent > tc_indent:
@@ -370,7 +370,6 @@ def _build_import_graph(
     # টার্গেট মডিউল ফিল্টার
     if target_module:
         # টার্গেট এবং তার সাব-মডিউলের সাথে সম্পর্কিত এজ রাখি
-        relevant_prefixes = {target_module}
         # যে মডিউলগুলো টার্গেটকে ইম্পোর্ট করে বা টার্গেট যাদেরকে ইম্পোর্ট করে
         keep_srcs: set[str] = set()
         for src, edges in graph.items():

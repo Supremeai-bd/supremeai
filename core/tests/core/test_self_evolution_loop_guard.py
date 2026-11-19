@@ -14,7 +14,6 @@ New contract:
 
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 
 from core.self_evolution.self_evolution_agent import SelfEvolutionAgent
 

@@ -1,7 +1,6 @@
 import logging
 
 # tests/test_doc_summarizer_run.py
-import os
 import sys
 import time
 

@@ -11,7 +11,7 @@ except ImportError:
 
 from core.monitoring.logging_config import logger
 from models.system_config import SystemConfig
-from services.config_registry import get_definition, safe_defaults, validate_value
+from services.config_registry import get_definition, validate_value
 
 
 class ConfigService:

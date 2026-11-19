@@ -870,23 +870,16 @@ def detect_changed_targets(
 
         for f in files:
             if (
-                f.startswith("studio/")
-                or f.startswith("examples/dashboard-preview/")
-                or f.startswith("infrastructure/cloudflare-studio-proxy/")
+                f.startswith(("studio/", "examples/dashboard-preview/", "infrastructure/cloudflare-studio-proxy/"))
             ):
                 targets.add("Supremeai-bd/supremeai-studio")
-            elif f.startswith("core/") or f.startswith("api-schemas/task-router."):
+            elif f.startswith(("core/", "api-schemas/task-router.")):
                 targets.add("Supremeai-bd/supremeai-core")
             elif (
-                f.startswith("gateway/")
-                or f.startswith("api/")
-                or f.startswith("command/")
-                or f.startswith("skills/")
-                or f.startswith("agents/")
-                or f.startswith("infrastructure/mcp-control-plane/")
+                f.startswith(("gateway/", "api/", "command/", "skills/", "agents/", "infrastructure/mcp-control-plane/"))
             ):
                 targets.add("Supremeai-bd/supremeai-api")
-            elif f.startswith("browser/") or f.startswith("sandbox/"):
+            elif f.startswith(("browser/", "sandbox/")):
                 targets.add("Supremeai-bd/supremeai-browser")
             elif f.startswith("vscode/"):
                 targets.add("Supremeai-bd/supremeai-vscode")

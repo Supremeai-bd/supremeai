@@ -29,7 +29,6 @@ manually-triggered integration job, not the default unit suite.
 """
 
 import ast
-import inspect
 from pathlib import Path
 
 import pytest

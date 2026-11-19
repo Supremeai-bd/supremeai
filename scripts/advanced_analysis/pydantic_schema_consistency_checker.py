@@ -205,9 +205,7 @@ def _is_optional_annotation(node: ast.expr | None, source_code: str) -> bool:
     if re.search(r"\|\s*None\s*$", annotation_str):
         return True
     # Union[X, None] প্যাটার্ন
-    if re.search(r"Union\s*\[[^\]]*\bNone\b", annotation_str):
-        return True
-    return False
+    return bool(re.search(r"Union\s*\[[^\]]*\bNone\b", annotation_str))
 
 
 def _has_default_value(node: ast.AnnAssign) -> bool:
@@ -215,9 +213,7 @@ def _has_default_value(node: ast.AnnAssign) -> bool:
     
     বাংলা: Field(default=...) বা সরাসরি = value দুটোই চিনতে পারে।
     """
-    if node.value is not None:
-        return True
-    return False
+    return node.value is not None
 
 
 def _get_field_constraints(annotation_node: ast.expr | None) -> dict[str, Any]:
@@ -454,7 +450,6 @@ def parse_route_file(py_file: Path) -> list[RouteInfo]:
         # ডেকোরেটর থেকে route info বের করা
         for dec in node.decorator_list:
             # with_error_bus ইত্যাদি wrapper decorator থেকে ভেতরেরটি খোঁজা
-            actual_dec = dec
             if isinstance(dec, ast.Call):
                 # with_error_bus("...") — এর ভেতরে nested call থাকতে পারে
                 pass
@@ -575,7 +570,7 @@ def parse_typescript_interface(
     if not match:
         return None
 
-    interface_name = match.group(1)
+    match.group(1)
     body = match.group(2)
     # বাংলা: JSDoc comments (/** ... */) সরিয়ে ফেলা — এগুলো split(';') এ multi-line entry তৈরি করে
     body_clean = re.sub(r'/\*\*[^*]*\*/', '', body)
@@ -712,23 +707,22 @@ def check_route_model_consistency(
                 ))
 
     # ── request body model চেক ────────────────────────────────────────────
-    if route.request_body_model:
-        if route.request_body_model not in all_models:
-            # বাংলা: built-in types skip
-            if route.request_body_model in _BUILTIN_TYPE_NAMES:
-                pass
-            else:
-                findings.append(Finding(
-                    severity=Severity.ERROR,
-                    code="MISSING_MODEL",
-                    route_path=route_label,
-                    model_name=route.request_body_model,
-                    message=(
-                        f"রাউটে request body হিসেবে '{route.request_body_model}' ব্যবহার"
-                        f" করা হয়েছে কিন্তু মডেল পাওয়া যায়নি"
-                    ),
-                    source_file=route.source_file,
-                ))
+    if route.request_body_model and route.request_body_model not in all_models:
+        # বাংলা: built-in types skip
+        if route.request_body_model in _BUILTIN_TYPE_NAMES:
+            pass
+        else:
+            findings.append(Finding(
+                severity=Severity.ERROR,
+                code="MISSING_MODEL",
+                route_path=route_label,
+                model_name=route.request_body_model,
+                message=(
+                    f"রাউটে request body হিসেবে '{route.request_body_model}' ব্যবহার"
+                    f" করা হয়েছে কিন্তু মডেল পাওয়া যায়নি"
+                ),
+                source_file=route.source_file,
+            ))
 
     return findings
 
@@ -779,7 +773,6 @@ def check_optional_mismatch(
             continue
 
         model = all_models[resp_model_name]
-        route_label = f"{route.method} {route.path}"
 
         for field_name in route.constructor_keys:
             if field_name not in model.fields:

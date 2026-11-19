@@ -11,7 +11,6 @@ complete cloud-parity and 512MB RAM compliance.
 
 from __future__ import annotations
 
-import asyncio
 import inspect
 import uuid
 from collections.abc import Awaitable, Callable

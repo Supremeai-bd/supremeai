@@ -385,7 +385,7 @@ def detect_structural_duplicates(funcs: list[FunctionInfo]) -> list[DuplicateFin
     for f in funcs:
         by_fingerprint[f.ast_fingerprint].append(f)
 
-    for fp, group in by_fingerprint.items():
+    for group in by_fingerprint.values():
         if len(group) < 2:
             continue
         for i in range(len(group)):

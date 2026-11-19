@@ -204,7 +204,7 @@ class DynamicLLMRouter:
         return eligible
 
     def record_success(self, alias: str, latency_ms: float = 0.0) -> None:
-        now = self._clock()
+        self._clock()
         for a in self._accounts:
             if a.alias == alias:
                 a.healthy = True

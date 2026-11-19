@@ -180,7 +180,7 @@ def generate_firebase_config(require_build: bool = False) -> None:
     # API origin অবশ্যই API সার্ভিস (Render core) হবে, Hosting সাইট নয় —
     # এই ভুল কনফিগ নীরবে ডিপ্লয় হতে পারবে না — fail-closed।
     _backend_host = (urlsplit(backend_url or "").hostname or "").lower()
-    if _backend_host.endswith(".web.app") or _backend_host.endswith(".firebaseapp.com"):
+    if _backend_host.endswith((".web.app", ".firebaseapp.com")):
         print(
             "❌ ERROR: BACKEND_URL points at a Firebase Hosting domain "
             f"({_backend_host}). The /api/** rewrite destination must be the API "

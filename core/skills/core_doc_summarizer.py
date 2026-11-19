@@ -1,5 +1,4 @@
 # backend/skills/core_doc_summarizer.py
-import os
 
 from core.config_cache import config_cache
 from core.logging_config import logger

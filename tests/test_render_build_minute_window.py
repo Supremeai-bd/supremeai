@@ -211,8 +211,7 @@ class BudgetGuardWindow(unittest.TestCase):
                 calls["n"] += 1
                 calls["path"] = path
                 calls["page_size"] = page_size
-                for page in pages:
-                    yield page
+                yield from pages
 
         # Pin the clock: the budget guard derives month_start from
         # datetime.now() (no month_start param, unlike the quota guard), so a

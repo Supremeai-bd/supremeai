@@ -296,7 +296,7 @@ def _parse_config_file(path: Path, whitelist: dict[str, ConfigField]) -> None:
                     # সরাসরি assignment: PORT: int = 8080
                     default = node.value.value
                     alias = field_name
-                elif isinstance(node.value, ast.List) or isinstance(node.value, ast.Dict):
+                elif isinstance(node.value, (ast.List, ast.Dict)):
                     default = _ast_literal_value(node.value)
                     alias = field_name
                 elif isinstance(node.value, ast.Lambda):
@@ -480,9 +480,7 @@ def is_test_file(file_path: Path) -> bool:
     if "tests" in parts:
         return True
     name = file_path.name
-    if name.startswith("test_") or name.endswith("_test.py"):
-        return True
-    return False
+    return bool(name.startswith("test_") or name.endswith("_test.py"))
 
 
 def is_config_source(file_path: Path) -> bool:
@@ -571,7 +569,7 @@ def _is_comment_line(line: str) -> bool:
 def _is_docstring_line(line: str) -> bool:
     """বাংলা: লাইনটি docstring-এর অংশ কিনা আনুমানিকভাবে চেক করে।"""
     stripped = line.strip()
-    return stripped.startswith('"""') or stripped.startswith("'''")
+    return stripped.startswith(('"""', "'''"))
 
 
 def _value_matches_default(value: Any, default_values: set) -> bool:
@@ -580,9 +578,7 @@ def _value_matches_default(value: Any, default_values: set) -> bool:
     # বাংলা: সংখ্যাগত তুলনা — int ও float মেলানো
     if isinstance(value, (int, float)) and value in default_values:
         return True
-    if isinstance(value, str) and value in default_values:
-        return True
-    return False
+    return bool(isinstance(value, str) and value in default_values)
 
 
 def scan_magic_numbers(

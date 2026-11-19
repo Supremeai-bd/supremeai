@@ -52,7 +52,7 @@ def get_github_token() -> str:
         or ""
     )
 
-def gh_api_request(url: str, method: str = "GET", data: dict = None) -> tuple[int, dict]:
+def gh_api_request(url: str, method: str = "GET", data: dict | None = None) -> tuple[int, dict]:
     token = get_github_token()
     headers = {
         "Accept": "application/vnd.github+json",

@@ -261,9 +261,8 @@ def check_unguarded_localhost(root: Path, report: Report) -> None:
             assign = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*[:=]", stripped)
             if assign and not stripped.endswith((",", ")", "]")):
                 container_stack.append(assign.group(1))
-            elif stripped in (")", "]", "}"):
-                if container_stack:
-                    container_stack.pop()
+            elif stripped in (")", "]", "}") and container_stack:
+                container_stack.pop()
 
             is_url_form = LOCALHOST_URL_RE.search(line)
             is_bare = BARE_LOCALHOST_RE.search(line)

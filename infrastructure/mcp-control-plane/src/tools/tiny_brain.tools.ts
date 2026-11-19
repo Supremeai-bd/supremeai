@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 const DEFAULT_TINY_BRAIN_URL = "https://njelitltd-tiny-brain.hf.space";
-const DEFAULT_KAGGLE_SHADOW_URL = "https://supremeai-kaggle-shadow.paykaribazaronline.workers.dev";
+const DEFAULT_KAGGLE_SHADOW_URL = "https://supremeai-kaggle-mcp.paykaribazaronline.workers.dev";
 
 function getTinyBrainBaseUrl(): string {
   return (process.env.TINY_BRAIN_URL || DEFAULT_TINY_BRAIN_URL).replace(/\/+$/, "");

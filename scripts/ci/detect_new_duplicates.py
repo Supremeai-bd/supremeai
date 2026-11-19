@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
-"""Fail a pull request when it introduces new code clones.
+"""Fail a pull request when it introduces genuinely new code clones.
 
 This is a small, dependency-free wrapper around jscpd. It compares the
-checkout against the pull request base ref using jscpd's ``--baseline-from-ref``
-mode and runs two passes:
+checkout against the pull request base ref and runs two passes:
 
 * exact token clones, which catch copied blocks;
 * AST-similar clones, which catch renamed/reworded implementations.
+
+A clone is reported as *new* only when the two files did **not** already clone
+each other in the base ref. This is deliberately *relationship*-aware rather
+than *content*-aware: editing a file that already participates in a pre-existing
+duplication (for example a hygiene/import-cleanup PR) must not fail the gate,
+while introducing duplication between two files that were previously distinct
+still does. The base ref's clone set is computed once by scanning a throwaway
+``git worktree`` of the base ref.
 
 Typical GitHub Actions usage::
 
@@ -14,10 +21,10 @@ Typical GitHub Actions usage::
       --base-ref "origin/${GITHUB_BASE_REF}" \
       --max-new 0
 
-The script exits 1 when the number of new clone records is greater than
-``--max-new``. It emits GitHub Actions warnings for each new clone when running
-inside GitHub Actions and always writes a JSON summary when ``--report-dir`` is
-provided.
+The script exits 1 when the number of genuinely new clone records is greater
+than ``--max-new``. It emits GitHub Actions warnings for each new clone when
+running inside GitHub Actions and always writes a JSON summary when
+``--report-dir`` is provided.
 """
 
 from __future__ import annotations
@@ -56,6 +63,10 @@ DEFAULT_IGNORES = (
     "studio/**,"
     # core/github/** is governance mirror (#549, plan_duplicate_refactors.py)
     "core/github/**,"
+    # scripts/ops/** is an intentional mirror of scripts/** (tracked by
+    # scripts/ci/mirror_drift_guard.py). Mirror similarity is expected, not a
+    # defect, so it is excluded here; drift itself is covered by that guard.
+    "scripts/ops/**,"
     # index.fixed.ts is intentional entry parity anchor (#2391, test_entry_governance.ts)
     "infrastructure/mcp-control-plane/src/index.fixed.ts,"
     "docs/**,"
@@ -100,13 +111,14 @@ class Clone:
     start_b: int
     end_b: int
 
+    def pair(self) -> tuple[str, str]:
+        a, b = self.file_a, self.file_b
+        return (a, b) if a <= b else (b, a)
+
 
 @dataclass(frozen=True)
 class PassResult:
     name: str
-    command: list[str]
-    returncode: int
-    report_path: str
     clones: list[Clone]
     new_clones: list[Clone]
 
@@ -125,7 +137,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--max-new",
         type=int,
         default=0,
-        help="Maximum number of new clone records allowed; default: 0.",
+        help="Maximum number of genuinely new clone records allowed; default: 0.",
     )
     parser.add_argument(
         "--min-lines", type=int, default=8, help="Minimum clone length; default: 8."
@@ -195,18 +207,26 @@ def run_command(command: list[str], cwd: Path) -> subprocess.CompletedProcess[st
     return subprocess.run(command, cwd=cwd, text=True, check=False, shell=use_shell)
 
 
-def clone_from_json(item: dict[str, Any]) -> Clone:
+def _norm(path_str: str) -> str:
+    """Normalise a jscpd-reported path to a repo-relative, forward-slash path."""
+    p = path_str.replace("\\", "/")
+    while p.startswith("./"):
+        p = p[2:]
+    return p
+
+
+def clone_from_json(item: dict[str, Any], kind: str) -> Clone:
     first = item["firstFile"]
     second = item["secondFile"]
     return Clone(
-        kind=str(item.get("kind", "unknown")),
+        kind=kind,
         format=str(item.get("format", "unknown")),
         lines=int(item.get("lines", 0)),
         tokens=int(item.get("tokens", 0)),
-        file_a=str(first.get("name", "")),
+        file_a=_norm(str(first.get("name", ""))),
         start_a=int(first.get("start", 0)),
         end_a=int(first.get("end", 0)),
-        file_b=str(second.get("name", "")),
+        file_b=_norm(str(second.get("name", ""))),
         start_b=int(second.get("start", 0)),
         end_b=int(second.get("end", 0)),
     )
@@ -223,46 +243,18 @@ def _changed_files_against_base(base_ref: str, root: Path) -> set[str] | None:
         )
         if res.returncode == 0:
             return {
-                line.strip().replace("\\", "/")
+                _norm(line.strip())
                 for line in res.stdout.splitlines()
                 if line.strip()
             }
     return None
 
 
-def _rel_norm(path_str: str, root: Path) -> str:
-    p = Path(path_str)
-    try:
-        rel = p.resolve().relative_to(root.resolve())
-        return str(rel).replace("\\", "/")
-    except ValueError:
-        return path_str.replace("\\", "/").lstrip("./")
-
-
-def load_report(
-    path: Path,
-    changed_files: set[str] | None = None,
-    root: Path | None = None,
-) -> tuple[list[Clone], list[Clone]]:
-    if not path.exists():
-        raise RuntimeError(f"jscpd did not produce its JSON report: {path}")
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    clones = [clone_from_json(item) for item in payload.get("duplicates", [])]
-    raw_new = [
-        clone_from_json(item)
-        for item in payload.get("duplicates", [])
-        if item.get("isNew") is True
-    ]
-    if changed_files is not None and root is not None:
-        new_clones = [
-            c
-            for c in raw_new
-            if _rel_norm(c.file_a, root) in changed_files
-            or _rel_norm(c.file_b, root) in changed_files
-        ]
-    else:
-        new_clones = raw_new
-    return clones, new_clones
+def _load_clones(report_path: Path, kind: str) -> list[Clone]:
+    if not report_path.exists():
+        raise RuntimeError(f"jscpd did not produce its JSON report: {report_path}")
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    return [clone_from_json(item, kind) for item in payload.get("duplicates", [])]
 
 
 def emit_annotation(clone: Clone, pass_name: str) -> None:
@@ -276,29 +268,24 @@ def emit_annotation(clone: Clone, pass_name: str) -> None:
     print(f"::warning file={clone.file_a},line={clone.start_a}::{message}")
 
 
-def run_pass(
+def scan_clones(
     *,
-    name: str,
     kind: str,
     jscpd: list[str],
-    base_ref: str,
-    root: Path,
+    scan_root: Path,
     args: argparse.Namespace,
     output_dir: Path,
-) -> PassResult:
-    report_name = f"jscpd-{name}"
+    report_name: str,
+) -> list[Clone]:
     command = [
         *jscpd,
-        str(root),
+        str(scan_root),
         "--reporters",
         "json",
         "--output",
         str(output_dir),
         "--report-name",
         report_name,
-        "--baseline-from-ref",
-        base_ref,
-        "--fail-on-new-clones=0",
         "--min-lines",
         str(args.min_lines),
         "--min-tokens",
@@ -310,20 +297,129 @@ def run_pass(
         "--similarity",
         str(args.similarity),
     ]
-    completed = run_command(command, root)
-    report_path = output_dir / f"{report_name}.json"
-    changed_files = _changed_files_against_base(base_ref, root)
-    clones, new_clones = load_report(report_path, changed_files=changed_files, root=root)
+    run_command(command, scan_root)
+    return _load_clones(output_dir / f"{report_name}.json", kind)
+
+
+def _isolated_clone_exists(
+    *,
+    iso_parent: Path,
+    root: Path,
+    base_ref: str,
+    clone: Clone,
+    jscpd: list[str],
+    args: argparse.Namespace,
+) -> bool:
+    """Return True when the two files already clone each other in ``base_ref``.
+
+    jscpd reports clones relative to the whole scanned file set, so two
+    independent full scans (working tree vs base worktree) are not always
+    directly comparable: a clone can be reported in one scan and absorbed into a
+    larger clone group in the other. To decide whether a clone pair is genuinely
+    new we therefore re-scan just that pair at the base ref, in isolation, and
+    trust only that result.
+    """
+    pair_dir = Path(tempfile.mkdtemp(prefix="pair-", dir=iso_parent))
+    try:
+        for rel in (clone.file_a, clone.file_b):
+            res = subprocess.run(
+                ["git", "show", f"{base_ref}:{rel}"],
+                cwd=root,
+                capture_output=True,
+                check=False,
+            )
+            if res.returncode != 0:
+                # File does not exist at the base ref -> cannot be a pre-existing clone.
+                return False
+            dest = pair_dir / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(res.stdout)
+        out_dir = Path(tempfile.mkdtemp(prefix="out-", dir=iso_parent))
+        report = out_dir / "iso.json"
+        command = [
+            *jscpd,
+            str(pair_dir),
+            "--reporters",
+            "json",
+            "--output",
+            str(out_dir),
+            "--report-name",
+            "iso",
+            "--min-lines",
+            str(args.min_lines),
+            "--min-tokens",
+            str(args.min_tokens),
+            "--ignore",
+            args.ignore,
+            "--kind",
+            clone.kind,
+            "--similarity",
+            str(args.similarity),
+        ]
+        run_command(command, pair_dir)
+        return len(_load_clones(report, clone.kind)) > 0
+    finally:
+        shutil.rmtree(pair_dir, ignore_errors=True)
+
+
+def run_pass(
+    *,
+    name: str,
+    kind: str,
+    jscpd: list[str],
+    root: Path,
+    base_ref: str,
+    baseline_root: Path,
+    changed_files: set[str] | None,
+    args: argparse.Namespace,
+    output_dir: Path,
+) -> PassResult:
+    current = scan_clones(
+        kind=kind,
+        jscpd=jscpd,
+        scan_root=root,
+        args=args,
+        output_dir=output_dir,
+        report_name=f"jscpd-{name}",
+    )
+    baseline = scan_clones(
+        kind=kind,
+        jscpd=jscpd,
+        scan_root=baseline_root,
+        args=args,
+        output_dir=output_dir,
+        report_name=f"jscpd-{name}-baseline",
+    )
+    baseline_pairs = {clone.pair() for clone in baseline}
+
+    iso_parent = Path(tempfile.mkdtemp(prefix="jscpd-iso-"))
+    new_clones: list[Clone] = []
+    try:
+        for clone in current:
+            if clone.pair() in baseline_pairs:
+                continue
+            if changed_files is not None and (
+                clone.file_a not in changed_files and clone.file_b not in changed_files
+            ):
+                continue
+            # Confirm against the base ref in isolation to avoid the whole-set
+            # grouping false positive described in _isolated_clone_exists.
+            if _isolated_clone_exists(
+                iso_parent=iso_parent,
+                root=root,
+                base_ref=base_ref,
+                clone=clone,
+                jscpd=jscpd,
+                args=args,
+            ):
+                continue
+            new_clones.append(clone)
+    finally:
+        shutil.rmtree(iso_parent, ignore_errors=True)
+
     for clone in new_clones:
         emit_annotation(clone, name)
-    return PassResult(
-        name=name,
-        command=command,
-        returncode=completed.returncode,
-        report_path=str(report_path),
-        clones=clones,
-        new_clones=new_clones,
-    )
+    return PassResult(name=name, clones=current, new_clones=new_clones)
 
 
 def write_summary(path: Path, base_ref: str, results: Iterable[PassResult]) -> None:
@@ -335,6 +431,35 @@ def write_summary(path: Path, base_ref: str, results: Iterable[PassResult]) -> N
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+def _add_baseline_worktree(base_ref: str, root: Path) -> Path:
+    parent = Path(tempfile.mkdtemp(prefix="jscpd-baseline-"))
+    wt_path = parent / "wt"
+    res = subprocess.run(
+        ["git", "worktree", "add", "--detach", str(wt_path), base_ref],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if res.returncode != 0:
+        shutil.rmtree(parent, ignore_errors=True)
+        raise RuntimeError(
+            f"git worktree add failed for {base_ref!r}: {res.stderr.strip()}"
+        )
+    return wt_path
+
+
+def _remove_baseline_worktree(wt_path: Path, root: Path) -> None:
+    subprocess.run(
+        ["git", "worktree", "remove", "--force", str(wt_path)],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    shutil.rmtree(wt_path.parent, ignore_errors=True)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -381,15 +506,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         pass_specs.append(("ast", "ast"))
 
     results: list[PassResult] = []
+    baseline_root: Path | None = None
     try:
+        baseline_root = _add_baseline_worktree(base_ref, root)
         for name, kind in pass_specs:
             results.append(
                 run_pass(
                     name=name,
                     kind=kind,
                     jscpd=jscpd,
-                    base_ref=base_ref,
                     root=root,
+                    base_ref=base_ref,
+                    baseline_root=baseline_root,
+                    changed_files=changed_files,
                     args=args,
                     output_dir=report_dir,
                 )
@@ -398,6 +527,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"[duplicate-regression] ERROR: {exc}", file=sys.stderr)
         return 2
     finally:
+        if baseline_root is not None:
+            _remove_baseline_worktree(baseline_root, root)
         if temporary is not None and args.report_dir is None:
             # Reports are intentionally temporary unless --report-dir is supplied.
             temporary.cleanup()

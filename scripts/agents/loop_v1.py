@@ -158,10 +158,7 @@ def is_claimable(item: dict[str, Any]) -> bool:
     # test_claim_lease_ssot::test_02).
 
     state = item.get("state")
-    if state is not None and str(state).lower() != "open":
-        return False
-
-    return True
+    return not (state is not None and str(state).lower() != "open")
 
 
 def pick_next_issue(issues: list[dict[str, Any]]) -> dict[str, Any] | None:

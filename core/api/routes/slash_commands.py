@@ -13,7 +13,6 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from api.deps import get_current_user_token

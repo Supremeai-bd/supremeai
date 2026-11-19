@@ -1,5 +1,4 @@
 import time
-from typing import Optional
 
 from core.monitoring.logging_config import logger
 

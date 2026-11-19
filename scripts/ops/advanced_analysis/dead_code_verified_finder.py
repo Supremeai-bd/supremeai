@@ -28,7 +28,6 @@ from __future__ import annotations
 import ast
 import json
 import os
-import re
 import sys
 import tomllib
 from collections import defaultdict, deque

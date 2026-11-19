@@ -19,10 +19,8 @@ import importlib
 import inspect
 import os
 import sys
-from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 # ─────────────────────────────────────────────────────────────────────────────
 # FIX 1: pooled_pg.execute_ddl exists and routes through the WRITER URL

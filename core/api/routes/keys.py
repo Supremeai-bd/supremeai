@@ -16,12 +16,11 @@ import base64
 import hashlib
 import os
 import uuid
-from datetime import UTC, datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
 
 import httpx
 from cryptography.fernet import Fernet
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from core.monitoring.logging_config import logger

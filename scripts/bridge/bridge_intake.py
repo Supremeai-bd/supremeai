@@ -497,8 +497,8 @@ def build_pr_body(wo: dict, task_id: str, intake_issue: int, public_url: str, ag
             "",
             "## Reflection Evidence (why + alternatives_rejected)",
             f"- **why:** external agent contribution via public bridge; agent identity `{agent}`",
-            "- **alternatives_rejected:** direct private-repo access (unavailable to public agents by design);"
-            " manual owner copy-paste (no audit trail)",
+            ("- **alternatives_rejected:** direct private-repo access (unavailable to public agents by design);"
+            " manual owner copy-paste (no audit trail)"),
         ]
     )
 
@@ -733,7 +733,7 @@ def route_files(files: list[str], explicit_target: str | None = None) -> tuple[s
         elif f.startswith(("studio/", "public/dashboard-preview/", "examples/dashboard-preview/")):
             repo = "Supremeai-bd/supremeai-studio"
             canon = f
-        elif f.startswith(("api/", "gateway/", "api-schemas/gateway.")) or f.startswith(("core/", "api-schemas/task-router.")) or f.startswith(("command/", "handlers/telegram")) or f.startswith(("skills/", "examples/langchain-", "examples/vercel-")) or f.startswith("vscode/") or f.startswith(("agents/", "runner/")) or f.startswith(("browser/", "sandbox/")) or f.startswith(("sdk/", "examples/sdk-", "api-schemas/telemetry-log.", "api-schemas/websocket-events.")) or f.startswith(("infrastructure/mcp-control-plane/", "api-schemas/heartbeat.")) or f.startswith(("deployments/", "infra/")) or f.startswith("archive/"):
+        elif f.startswith(("api/", "gateway/", "api-schemas/gateway.", "core/", "api-schemas/task-router.", "command/", "handlers/telegram", "skills/", "examples/langchain-", "examples/vercel-", "vscode/", "agents/", "runner/", "browser/", "sandbox/", "sdk/", "examples/sdk-", "api-schemas/telemetry-log.", "api-schemas/websocket-events.", "infrastructure/mcp-control-plane/", "api-schemas/heartbeat.", "deployments/", "infra/", "archive/")):
             repo = PRIVATE_REPO
             canon = f
         else:
@@ -893,7 +893,7 @@ def process_issue(issue: dict, token: str, work: Path, results: list[str]) -> No
         reject(f"too many files ({len(files)} > {MAX_FILES})")
         return
 
-    ok_paths, admin_paths = classify_paths(files)
+    _ok_paths, admin_paths = classify_paths(files)
     if admin_paths:
         body = sanitize_public_comment(
             "## 🌉 Bridge Intake — **ADMIN-REVIEW**\n\n"

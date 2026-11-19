@@ -12,7 +12,6 @@ import json
 from typing import Any
 
 import httpx
-import pytest
 
 from core.integrations.telegram_bot import MeshTelegramBot, TowerClient
 from core.integrations.telegram_config import MeshTelegramConfig

@@ -60,9 +60,8 @@ except ImportError:
     DataLoader = None  # type: ignore
     TORCH_UTILS_AVAILABLE = False
 
-from sympy.parsing.sympy_parser import parse_expr
-
 from core.monitoring.logging_config import logger
+from sympy.parsing.sympy_parser import parse_expr
 
 
 class SymbolicOperation(Enum):
