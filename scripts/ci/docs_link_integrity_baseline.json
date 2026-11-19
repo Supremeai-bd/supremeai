@@ -1,78 +1,1130 @@
 {
   "schema": "docs-link-integrity-baseline/1",
-  "generatedAt": "2026-10-28",
-  "headAtGeneration": "10a4727 (feat(bridge): docs(scout): register R52 row + next-free R53 (#2172). #2161 landed via #2165 (622)",
+  "generatedAt": "2026-11-19",
+  "headAtGeneration": "3c89b2080 (fix(ci): align production-approval test and restore production env on deploy jobs)",
   "probe": "scripts/ci/docs_link_integrity_guard.py",
-  "note": "shrink-only floor: ratchetedFloor is an entry list; each entry pins (file, target, reason) -> allowed occurrence count; report_only = vendored .agents/skills (#1725 lane); excluded = AGENT_RULES.md ghosts (#1642->#1708). The floor may never grow. GENESIS RATCHET (2026-10-28, bridge-20261028-r42-docs-link-integrity-r3): pinned core/_archive/MANIFEST.md as satellite-lane debt while its fix shipped via bridge-20261028-r42-manifest-satellite-fix. SHRUNK TO 0 same day: the satellite fix landed as bc810e7 (PR #2028) and mirrored to this tree before the r3 landing CI window closed — floor is EMPTY, the original r3 empty-floor endgame reached by the routing-legal route.",
-  "ratchetedFloor": [],
+  "note": "shrink-only floor: ratchetedFloor is an entry list; each entry pins (file, target, reason) -> allowed occurrence count; report_only = vendored .agents/skills (#1725 lane); excluded = AGENT_RULES.md ghosts (#1642->#1708). The floor may never grow.",
+  "ratchetedFloor": [
+    {
+      "file": "CONTRIBUTING.md",
+      "target": ".github/ISSUE_TEMPLATE/agent-task.yml",
+      "reason": "missing-file",
+      "allowed": 1
+    },
+    {
+      "file": "CONTRIBUTING.md",
+      "target": ".github/ISSUE_TEMPLATE/bridge-work-order.yml",
+      "reason": "missing-file",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/autonomous_browser.py#L199-L256",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/autonomous_browser.py#L258-L324",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/autonomous_browser.py#L39-L54",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/autonomous_browser.py#L84-L165",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/browser_session.py#L111-L162",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/browser_session.py#L56-L78",
+      "reason": "missing-anchor",
+      "allowed": 5
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/browser_session_manager.py#L100-L128",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/browser_session_manager.py#L130-L165",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/browser_session_manager.py#L49-L89",
+      "reason": "missing-anchor",
+      "allowed": 5
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/browser_session_manager.py#L61-L89",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/main.py#L21-L97",
+      "reason": "missing-anchor",
+      "allowed": 4
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/main.py#L62-L95",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/playwright_manager.py#L24-L57",
+      "reason": "missing-anchor",
+      "allowed": 6
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/playwright_manager.py#L60-L72",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/playwright_manager.py#L75-L104",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/runtime/cookie_bridge.py#L153-L174",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/runtime/cookie_bridge.py#L54-L91",
+      "reason": "missing-anchor",
+      "allowed": 7
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/runtime/cookie_bridge.py#L94-L150",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/runtime/session_manager.py#L40-L105",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/runtime/session_manager.py#L85-L105",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/runtime/stealth_profile.py#L107-L154",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/runtime/stealth_profile.py#L161-L192",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/runtime/stealth_profile.py#L55-L85",
+      "reason": "missing-anchor",
+      "allowed": 7
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/server.py#L136-L183",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/server.py#L185-L247",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/server.py#L308-L343",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/server.py#L34-L59",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/server.py#L367-L477",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/server.py#L454-L477",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/server.py#L594-L663",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/server.py#L678-L695",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/server.py#L698-L716",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/server.py#L719-L742",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/server.py#L84-L477",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/web_scraper.py#L63-L74",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/BROWSER_AUTOMATION_SUBSYSTEM.md",
+      "target": "../../browser/web_scraper.py#L76-L146",
+      "reason": "missing-anchor",
+      "allowed": 6
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../README.md#L22-L60",
+      "reason": "missing-anchor",
+      "allowed": 4
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../browser/main.py#L1-L105",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../browser/main.py#L21-L103",
+      "reason": "missing-anchor",
+      "allowed": 4
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../browser/main.py#L62-L95",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../core/app.py#L1-L17",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../core/app_builder.py#L323-L452",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../core/app_builder.py#L44-L607",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../core/app_builder.py#L84-L228",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../core/health_check.py#L1-L536",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../core/health_check.py#L151-L241",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../core/health_check.py#L65-L536",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../core/main.py#L1-L166",
+      "reason": "missing-anchor",
+      "allowed": 4
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../core/service_registry.py#L1-L110",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../core/service_registry.py#L36-L70",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../core/startup_validator.py#L1-L184",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../core/startup_validator.py#L27-L142",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../gateway/main.py#L1-L800",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../gateway/main.py#L107-L180",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../gateway/main.py#L147-L180",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../gateway/main.py#L214-L314",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../gateway/main.py#L334-L548",
+      "reason": "missing-anchor",
+      "allowed": 5
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../gateway/main.py#L424-L473",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../gateway/main.py#L529-L548",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../gateway/main.py#L627-L775",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../skills/registry/__init__.py#L1-L26",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../skills/registry/manifest_schema.py#L1-L171",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../skills/registry/manifest_schema.py#L22-L171",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../skills/registry/progressive_loader.py#L1-L42",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/COMPONENT_ARCHITECTURE_AND_BOUNDARIES.md",
+      "target": "../../skills/registry/progressive_loader.py#L24-L42",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/MCP_BRIDGE_SYSTEM.md",
+      "target": "../../README.md#L16-L20",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/MCP_BRIDGE_SYSTEM.md",
+      "target": "../../core/api/routes/mcp_tower.py#L31-L117",
+      "reason": "missing-anchor",
+      "allowed": 5
+    },
+    {
+      "file": "docs/architecture/MCP_BRIDGE_SYSTEM.md",
+      "target": "../../core/api/routes/mcp_tower.py#L46-L117",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/MCP_BRIDGE_SYSTEM.md",
+      "target": "../../core/brain/mcp_client.py#L107-L158",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/MCP_BRIDGE_SYSTEM.md",
+      "target": "../../core/brain/mcp_client.py#L23-L162",
+      "reason": "missing-anchor",
+      "allowed": 4
+    },
+    {
+      "file": "docs/architecture/MCP_BRIDGE_SYSTEM.md",
+      "target": "../../core/external_agents/channels/mcp_channel.py#L188-L251",
+      "reason": "missing-anchor",
+      "allowed": 5
+    },
+    {
+      "file": "docs/architecture/MCP_BRIDGE_SYSTEM.md",
+      "target": "../../core/external_agents/channels/mcp_channel.py#L51-L184",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/MCP_BRIDGE_SYSTEM.md",
+      "target": "../../core/mcp_allowlist.py#L216-L237",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/MCP_BRIDGE_SYSTEM.md",
+      "target": "../../core/mcp_client.py#L128-L231",
+      "reason": "missing-anchor",
+      "allowed": 6
+    },
+    {
+      "file": "docs/architecture/MCP_BRIDGE_SYSTEM.md",
+      "target": "../../core/mcp_client.py#L137-L198",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/MCP_BRIDGE_SYSTEM.md",
+      "target": "../../core/mcp_policy.py#L121-L218",
+      "reason": "missing-anchor",
+      "allowed": 5
+    },
+    {
+      "file": "docs/architecture/MCP_BRIDGE_SYSTEM.md",
+      "target": "../../scripts/tower/tool_consolidation_reference.py#L40-L62",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/MCP_BRIDGE_SYSTEM.md",
+      "target": "../../tests/test_dispatch_honesty_floor.py#L20-L39",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/MCP_BRIDGE_SYSTEM.md",
+      "target": "../../tests/test_tower_queue_tool_name_epochs.py#L51-L81",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/api/routers.py#L1-L630",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/api/routers.py#L15-L512",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/api/routers.py#L515-L600",
+      "reason": "missing-anchor",
+      "allowed": 4
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/api/routes/agents.py#L23-L27",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/api/routes/agents.py#L80-L164",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/api/routes/browser_action_registry.py#L14-L18",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/api/routes/browser_action_registry.py#L178-L200",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/api/routes/browser_action_registry.py#L64-L75",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/api/routes/browser_action_registry.py#L98-L200",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/api/routes/memory.py#L12-L16",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/api/routes/memory.py#L19-L16",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/api/routes/memory.py#L217-L258",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/api/routes/memory.py#L96-L187",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/api/routes/plugin_submissions.py#L1-L61",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/app_builder.py#L44-L624",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/app_builder.py#L512-L527",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../core/database/supabase_client.py#L94-L100",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../gateway/main.py#L1-L21",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../gateway/main.py#L110-L141",
+      "reason": "missing-anchor",
+      "allowed": 5
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../gateway/main.py#L147-L179",
+      "reason": "missing-anchor",
+      "allowed": 4
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../gateway/main.py#L184-L314",
+      "reason": "missing-anchor",
+      "allowed": 2
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../gateway/main.py#L214-L314",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../gateway/main.py#L334-L405",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../gateway/main.py#L407-L461",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../gateway/main.py#L463-L473",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../gateway/main.py#L483-L527",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../gateway/main.py#L529-L582",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../gateway/main.py#L584-L607",
+      "reason": "missing-anchor",
+      "allowed": 3
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../gateway/main.py#L609-L616",
+      "reason": "missing-anchor",
+      "allowed": 1
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../gateway/main.py#L626-L775",
+      "reason": "missing-anchor",
+      "allowed": 5
+    },
+    {
+      "file": "docs/architecture/REST_API_ENDPOINTS_CATALOG.md",
+      "target": "../../gateway/main.py#L69-L104",
+      "reason": "missing-anchor",
+      "allowed": 1
+    }
+  ],
   "knownReportOnly": [
     {
-      "file": ".agents/skills/developing-genkit-python/references/agents-http.md",
-      "target": "agents.md",
+      "file": ".agents/skills/build-dashboard/SKILL.md",
+      "target": "../../CONNECTORS.md",
       "reason": "missing-file"
     },
     {
-      "file": ".agents/skills/developing-genkit-python/references/dev-workflow.md",
-      "target": "agents.md",
+      "file": ".agents/skills/deployment-release-verification/SKILL.md",
+      "target": "../../../../infrastructure/mcp-control-plane/src/diagnostics/service_manifest.ts",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/setup.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/dotprompt.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-sessions.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-human-in-the-loop.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-branching.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-background.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-state.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-artifacts.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-multi-agent.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-custom.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-deployment.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/a2ui.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/middleware.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/middleware-custom.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/common-errors.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/common-errors.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/best-practices.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/common-errors.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/common-errors.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/docs-and-cli.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/best-practices.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/dotprompt.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/docs-and-cli.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/common-errors.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/setup.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/examples.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-sessions.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-human-in-the-loop.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-branching.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-background.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-state.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-artifacts.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-multi-agent.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-custom.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/agents-deployment.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/middleware.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/middleware-custom.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/developing-genkit-js/SKILL.md",
+      "target": "references/a2ui.md",
       "reason": "missing-file"
     },
     {
       "file": ".agents/skills/github-actions-debugger/SKILL.md",
       "target": "file:///f:/supremeai%20backup/docs/devops/CI_DEBUGGING_ROADMAP.md",
       "reason": "file-uri"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/SKILL.md",
+      "target": "references/current-rendering.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/decision_record.md",
+      "target": "../references/markdown_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/decision_record.md",
+      "target": "../references/mermaid_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/how_to_guide.md",
+      "target": "../references/markdown_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/how_to_guide.md",
+      "target": "../references/mermaid_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/how_to_guide.md",
+      "target": "#-whats-next",
+      "reason": "missing-anchor"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/how_to_guide.md",
+      "target": "#-troubleshooting",
+      "reason": "missing-anchor"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/how_to_guide.md",
+      "target": "../references/markdown_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/how_to_guide.md",
+      "target": "[value]",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/how_to_guide.md",
+      "target": "[value]",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/how_to_guide.md",
+      "target": "[value]",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/how_to_guide.md",
+      "target": "[value]",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/issue.md",
+      "target": "../references/markdown_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/kanban.md",
+      "target": "../references/markdown_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/presentation.md",
+      "target": "../references/markdown_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/presentation.md",
+      "target": "../references/markdown_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/presentation.md",
+      "target": "../references/mermaid_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/project_documentation.md",
+      "target": "../references/markdown_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/project_documentation.md",
+      "target": "../references/mermaid_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/project_documentation.md",
+      "target": "#-quick-start",
+      "reason": "missing-anchor"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/project_documentation.md",
+      "target": "#-architecture",
+      "reason": "missing-anchor"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/project_documentation.md",
+      "target": "#-configuration",
+      "reason": "missing-anchor"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/project_documentation.md",
+      "target": "#-api-reference",
+      "reason": "missing-anchor"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/project_documentation.md",
+      "target": "#-deployment",
+      "reason": "missing-anchor"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/project_documentation.md",
+      "target": "#-troubleshooting",
+      "reason": "missing-anchor"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/project_documentation.md",
+      "target": "#-contributing",
+      "reason": "missing-anchor"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/project_documentation.md",
+      "target": "#-references",
+      "reason": "missing-anchor"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/project_documentation.md",
+      "target": "#-troubleshooting",
+      "reason": "missing-anchor"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/pull_request.md",
+      "target": "../references/markdown_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/research_paper.md",
+      "target": "../references/markdown_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/research_paper.md",
+      "target": "../references/mermaid_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/status_report.md",
+      "target": "../references/markdown_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/markdown-mermaid-writing/templates/status_report.md",
+      "target": "../references/mermaid_style_guide.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/performance-optimization/SKILL.md",
+      "target": "references/optimization-patterns.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/performance-optimization/SKILL.md",
+      "target": "references/optimization-patterns.md#n1-queries-backend",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/performance-optimization/SKILL.md",
+      "target": "references/optimization-patterns.md#unbounded-data-fetching",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/performance-optimization/SKILL.md",
+      "target": "references/optimization-patterns.md#queries-that-ignore-their-index",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/performance-optimization/SKILL.md",
+      "target": "references/optimization-patterns.md#connection-pool-exhaustion",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/performance-optimization/SKILL.md",
+      "target": "references/optimization-patterns.md#missing-caching-backend",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/performance-optimization/SKILL.md",
+      "target": "references/optimization-patterns.md#missing-image-optimization-frontend",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/performance-optimization/SKILL.md",
+      "target": "references/optimization-patterns.md#unnecessary-re-renders-react",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/performance-optimization/SKILL.md",
+      "target": "references/optimization-patterns.md#large-bundle-size",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/web-design-reviewer/SKILL.md",
+      "target": "references/visual-checklist.md",
+      "reason": "missing-file"
+    },
+    {
+      "file": ".agents/skills/web-design-reviewer/SKILL.md",
+      "target": "references/framework-fixes.md",
+      "reason": "missing-file"
     }
   ],
-  "knownExcluded": [
-    {
-      "file": "docs/AUDIT_2026-10-15.md",
-      "target": "../AGENT_RULES.md",
-      "reason": "missing-file"
-    },
-    {
-      "file": "docs/AUDIT_2026-10-16-external-audit.md",
-      "target": "../AGENT_RULES.md",
-      "reason": "missing-file"
-    },
-    {
-      "file": "docs/AUTONOMY_LOOP_CONTRACT.md",
-      "target": "../AGENT_RULES.md",
-      "reason": "missing-file"
-    },
-    {
-      "file": "docs/CI_MINIMUM_PIPELINE_STANDARD.md",
-      "target": "../AGENT_RULES.md",
-      "reason": "missing-file"
-    },
-    {
-      "file": "docs/CONTRIBUTING_BN.md",
-      "target": "../AGENT_RULES.md",
-      "reason": "missing-file"
-    },
-    {
-      "file": "docs/FAQ.md",
-      "target": "../AGENT_RULES.md",
-      "reason": "missing-file"
-    },
-    {
-      "file": "docs/GUARDIAN_EVALUATION.md",
-      "target": "../AGENT_RULES.md",
-      "reason": "missing-file"
-    },
-    {
-      "file": "docs/INGRESS_SECURITY_POLICY.md",
-      "target": "../AGENT_RULES.md",
-      "reason": "missing-file"
-    },
-    {
-      "file": "docs/ZERO_ADMIN_GUIDE.md",
-      "target": "../AGENT_RULES.md",
-      "reason": "missing-file"
-    },
-    {
-      "file": "docs/adrs/README.md",
-      "target": "../../AGENT_RULES.md",
-      "reason": "missing-file"
-    }
-  ],
-  "checkedAtGeneration": 268
+  "knownExcluded": [],
+  "checkedAtGeneration": 613
 }
