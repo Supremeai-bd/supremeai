@@ -11,6 +11,11 @@ services:
     dockerContext: .
     healthCheckPath: /healthz
     envVars:
+      # `ENV` drives security defaults in gateway/service/admin_auth.py
+      # (Secure/SameSite cookie flags, dev-secret refusal). Without it the app
+      # falls back to "local", which issues admin cookies without Secure.
+      - key: ENV
+        value: production
       - key: INFISICAL_PROJECT_ID
         sync: false
       - key: INFISICAL_ENV
@@ -61,7 +66,7 @@ services:
         sync: false
 
   - type: web
-    name: supremeai-mcp-tower
+    name: supremeai-mcp-tower-live
     env: node
     plan: free
     autoDeploy: false

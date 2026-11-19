@@ -505,12 +505,59 @@ jobs:
           flags = set(re.findall(r"--[a-z][a-z-]+", subprocess.check_output([*guard, "--help"], text=True)))
           required = {"--head-sha", "--base-sha", "--merge-sha", "--recheck-candidate"}
           if required <= flags:
-              sys.exit(subprocess.call([
+              rc = subprocess.call([
                   *guard, "--pr", os.environ["PR_NUMBER"],
                   "--head-sha", os.environ["EXPECTED_HEAD_SHA"],
                   "--base-sha", os.environ["EXPECTED_BASE_SHA"],
                   "--merge-sha", os.environ["TESTED_MERGE_SHA"],
-              ]))
+              ])
+
+              # --- Advisor pass: downgrade-only, fail-open ---------------
+              # tiny_brain_pr_guard.py (trusted base) is the AUTHORITY.
+              # ai_pr_evaluator.py is a second opinion that may only HOLD an
+              # auto-merge (AUTO_MERGE -> OWNER_REVIEW), never widen it.
+              # Any advisor problem is a no-op, so a broken advisor can never
+              # block or auto-land a PR by itself.
+              def _read_outputs() -> dict:
+                  values = {}
+                  try:
+                      with open(os.environ["GITHUB_OUTPUT"], encoding="utf-8") as fh:
+                          for line in fh:
+                              if "=" in line:
+                                  key, _, value = line.strip().partition("=")
+                                  values[key] = value
+                  except OSError:
+                      pass
+                  return values
+
+              before = _read_outputs()
+              if rc == 0 and before.get("decision") == "AUTO_MERGE":
+                  advisor_out = os.path.join(os.environ.get("RUNNER_TEMP", "."), "advisor.json")
+                  try:
+                      with open(advisor_out, "w", encoding="utf-8") as fh:
+                          subprocess.run(
+                              [sys.executable, "scripts/ci/ai_pr_evaluator.py",
+                               "--pr", os.environ["PR_NUMBER"], "--json"],
+                              stdout=fh, stderr=subprocess.DEVNULL, timeout=180,
+                          )
+                      composed = subprocess.run(
+                          [sys.executable, "scripts/ci/landing_decision_compose.py",
+                           "--decision", before.get("decision", ""),
+                           "--reason", before.get("reason", ""),
+                           "--advisor-stdout", advisor_out],
+                          capture_output=True, text=True, timeout=30,
+                      ).stdout
+                      fields = dict(
+                          line.split("=", 1) for line in composed.splitlines() if "=" in line
+                      )
+                      if fields.get("decision") and fields["decision"] != before.get("decision"):
+                          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+                              out.write(f"decision={fields['decision']}\n")
+                              out.write(f"reason={fields.get('reason', '')}\n")
+                          print(f"::warning::Advisor held the auto-merge: {fields.get('reason')}")
+                  except Exception as exc:  # fail-open by design
+                      print(f"::notice::Advisor unavailable, authority decision stands ({exc})")
+              sys.exit(rc)
 
           # First rollout only: the known old CLI cannot issue a landing decision.
           # Record the hold without calling legacy approval or using the PR's policy.
@@ -524,6 +571,12 @@ jobs:
               sys.exit("Unsupported trusted base landing guard CLI; no landing authorized.")
           PY
 
+  # The ONLY job in this pipeline carrying `environment: production`, and the
+  # reason that environment exists: protected changes (provider core, auth,
+  # workflows, registry/blueprint) get a required reviewer here. Deploy jobs
+  # deliberately carry NO environment — gating them re-introduces a manual
+  # approval on every merge and stalls auto-deploy. Invariant pinned by
+  # tests/ci/test_deploy_environment_split.py.
   auto-merge-high-risk:
     name: "Owner Review (Protected PR)"
     if: >-

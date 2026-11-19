@@ -24,6 +24,7 @@ Features:
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
 import hashlib
@@ -33,6 +34,7 @@ import logging
 import os
 import secrets
 import struct
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -94,22 +96,75 @@ def _hash_trusted_token(token: str) -> str:
 
 
 _pending_totp_setups: dict[str, dict[str, Any]] = {}
-_vault_cache: dict[str, str] = {}
+# key -> (value, fetched_at_epoch). Before the TTL the cache grew forever and,
+# worse, a *miss* was never remembered: every admin request for an unset secret
+# re-ran the two-step Infisical login+fetch (up to 20 s of blocking I/O in the
+# middle of an async handler).
+_vault_cache: dict[str, tuple[str, float]] = {}
+# key -> monotonic expiry of a negative result. Short, so a secret added in the
+# vault shows up quickly, but long enough to stop a stampede.
+_vault_misses: dict[str, float] = {}
+_VAULT_FETCH_LOCK = threading.Lock()
+# Keys this module copied into os.environ from the vault (see ordering note).
+_vault_promoted: set[str] = set()
+
+
+def _vault_ttl() -> float:
+    try:
+        return max(0.0, float(os.environ.get("INFISICAL_CACHE_TTL", "300")))
+    except ValueError:
+        return 300.0
+
+
+def _negative_ttl() -> float:
+    try:
+        return max(0.0, float(os.environ.get("INFISICAL_MISS_TTL", "30")))
+    except ValueError:
+        return 30.0
 
 
 def get_vault_secret(key_name: str) -> str | None:
-    """Read a secret from os.environ, falling back to Infisical Vault if configured."""
+    """Read a secret from os.environ, falling back to Infisical Vault if configured.
+
+    Blocking on purpose (callers are sync helpers, and `get_vault_secret_async`
+    exists for async handlers). Results are cached with a TTL, misses are cached
+    briefly, and concurrent fetches are serialised so one cold start cannot make
+    N requests hammer Infisical from the same process.
+
+    Ordering note: an operator-set env var always wins, but a value this module
+    itself promoted into `os.environ` does not — otherwise the TTL would be
+    meaningless and a rotated secret would never be picked up.
+    """
+    cached = _vault_cache.get(key_name)
+    if cached is not None and time.time() - cached[1] < _vault_ttl():
+        return cached[0]
+
     val = os.environ.get(key_name)
-    if val:
+    if val and key_name not in _vault_promoted:
         return val.strip()
-    if key_name in _vault_cache:
-        return _vault_cache[key_name]
+
+    if _vault_misses.get(key_name, 0.0) > time.monotonic():
+        return None
 
     client_id = os.environ.get("INFISICAL_CLIENT_ID")
     client_secret = os.environ.get("INFISICAL_CLIENT_SECRET")
     project_id = os.environ.get("INFISICAL_PROJECT_ID")
     env = os.environ.get("INFISICAL_ENV", "prod")
 
+    if client_id and client_secret and project_id:
+        # Re-check under the lock: a concurrent caller may have just filled it.
+        with _VAULT_FETCH_LOCK:
+            cached = _vault_cache.get(key_name)
+            if cached is not None and time.time() - cached[1] < _vault_ttl():
+                return cached[0]
+            return _fetch_vault_secret(key_name, client_id, client_secret, project_id, env)
+    return None
+
+
+def _fetch_vault_secret(
+    key_name: str, client_id: str, client_secret: str, project_id: str, env: str
+) -> str | None:
+    """Blocking Infisical fetch. Caller must hold `_VAULT_FETCH_LOCK`."""
     if client_id and client_secret and project_id:
         try:
             req_data = json.dumps({"clientId": client_id, "clientSecret": client_secret}).encode("utf-8")
@@ -135,13 +190,26 @@ def get_vault_secret(key_name: str) -> str | None:
                         k = item.get("secretKey")
                         v = item.get("secretValue")
                         if k and v:
-                            _vault_cache[k] = str(v).strip()
+                            _vault_cache[k] = (str(v).strip(), time.time())
                             if k not in os.environ:
                                 os.environ[k] = str(v).strip()
-            return _vault_cache.get(key_name)
+                                _vault_promoted.add(k)
+            found = _vault_cache.get(key_name)
+            if found is not None:
+                return found[0]
+            # Remember the miss so the next requests do not re-login.
+            _vault_misses[key_name] = time.monotonic() + _negative_ttl()
+            return None
         except Exception as exc:
+            # Do not negative-cache a transport failure for long; a retry in a
+            # few seconds is the self-healing behaviour we want here.
             logger.warning("[admin_auth] Infisical secret fetch for %s failed: %s", key_name, exc)
     return None
+
+
+async def get_vault_secret_async(key_name: str) -> str | None:
+    """Async-safe variant: never run the blocking vault fetch on the loop."""
+    return await asyncio.to_thread(get_vault_secret, key_name)
 
 
 def _resolve_totp_secret(email: str) -> str | None:
@@ -526,8 +594,9 @@ def _require_platform_owner(authorization: str | None) -> dict[str, Any]:
     return claims
 
 
-def _supabase_base_url() -> str:
-    value = get_vault_secret("SUPABASE_URL") or ""
+async def _supabase_base_url() -> str:
+    """Resolved off the event loop: a cold vault fetch costs up to 20 s of I/O."""
+    value = await get_vault_secret_async("SUPABASE_URL") or ""
     if not value.startswith("https://"):
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Tenant administration is unavailable.")
     return value.rstrip("/")
@@ -536,8 +605,8 @@ def _supabase_base_url() -> str:
 async def _supabase_password_login(email: str, password: str) -> dict[str, Any]:
     import httpx
 
-    base_url = _supabase_base_url()
-    api_key = get_vault_secret("SUPABASE_ANON_KEY") or get_vault_secret("SUPABASE_KEY")
+    base_url = await _supabase_base_url()
+    api_key = await get_vault_secret_async("SUPABASE_ANON_KEY") or await get_vault_secret_async("SUPABASE_KEY")
     if not api_key:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Tenant authentication is unavailable.")
     try:
@@ -578,8 +647,8 @@ async def _supabase_rows(table: str, params: dict[str, str]) -> list[dict[str, A
 
     if table not in {"tenant_limits", "tenant_usage"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported tenant data request.")
-    base_url = _supabase_base_url()
-    service_key = get_vault_secret("SUPABASE_SERVICE_ROLE_KEY")
+    base_url = await _supabase_base_url()
+    service_key = await get_vault_secret_async("SUPABASE_SERVICE_ROLE_KEY")
     if not service_key:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Tenant administration is unavailable.")
     try:
@@ -919,8 +988,8 @@ async def admin_totp_verify(
     email = os.environ.get("ADMIN_EMAIL", DEFAULT_ADMIN_EMAIL)
     secret = _resolve_totp_secret(email)
     if not secret:
-        # Check fallback global vault secret
-        secret = get_vault_secret("SUPREMEAI_ADMIN_TOTP_SECRET")
+        # Check fallback global vault secret (offloaded: never block the loop)
+        secret = await get_vault_secret_async("SUPREMEAI_ADMIN_TOTP_SECRET")
 
     # Vault pattern: TOTP secret MUST come from env/vault. No hardcoded
     # fallback (fail-closed) — see secret-scan policy.

@@ -315,10 +315,27 @@ async def execute_chain(
     - 401/403 from a provider → that endpoint is misconfigured; ledger +
       failover (a different provider may be configured correctly).
     - Exhaustion → ProviderChainExhausted with the FULL ledger (→ 502).
+
+    ``circuit_breaker`` (``gateway/circuit_breaker.py``) is consulted per
+    provider: while a provider is OPEN it is skipped without paying its
+    transport timeout. The breaker is **fail-open**: if every endpoint in the
+    chain is open, the chain is retried once with the breaker ignored — a stale
+    breaker must never turn a recoverable upstream into a guaranteed 502.
     """
     attempt = attempt_fn or _default_attempt
     ledger = ChainLedger()
+    skipped_open = 0
     for idx, endpoint in enumerate(chain):
+        provider = endpoint.provider
+        if circuit_breaker is not None and not circuit_breaker.allow(provider):
+            skipped_open += 1
+            ledger.record(
+                index=idx,
+                provider=provider,
+                model=endpoint.model,
+                outcome="circuit_open",
+            )
+            continue
         try:
             result = await attempt(endpoint, payload)
         except (
@@ -327,9 +344,11 @@ async def execute_chain(
             OSError,
             asyncio.TimeoutError,
         ) as exc:  # transport-level failure — honest ledger entry
+            if circuit_breaker is not None:
+                circuit_breaker.record_failure(provider)
             ledger.record(
                 index=idx,
-                provider=endpoint.provider,
+                provider=provider,
                 model=endpoint.model,
                 outcome="transport_error",
                 detail=str(exc)[:200],
@@ -344,11 +363,23 @@ async def execute_chain(
             latency_ms=result.latency_ms,
         )
         if result.status < 400:
+            if circuit_breaker is not None:
+                circuit_breaker.record_success(provider)
             return result
-        if result.status not in FAILOVER_STATUS and result.status not in (401, 403):
+        if result.status in FAILOVER_STATUS or result.status in (401, 403):
+            if circuit_breaker is not None:
+                circuit_breaker.record_failure(provider)
+        else:
             # Non-retryable, non-auth provider error (e.g. 400 bad request
-            # shaped by the gateway itself): honest 4xx passthrough.
+            # shaped by the gateway itself): honest 4xx passthrough. The
+            # upstream answered, so it is not a provider-health failure.
             return result
+    if circuit_breaker is not None and skipped_open and skipped_open == len(chain):
+        # Fail-open: every route was skipped by the breaker, so try the whole
+        # chain once with the breaker ignored rather than guaranteeing a 502.
+        return await execute_chain(
+            chain, payload, attempt_fn=attempt, circuit_breaker=None
+        )
     raise ProviderChainExhausted(
         "all providers in the chain failed — 502 upstream (zero silent fallback)",
         ledger=ledger.entries,

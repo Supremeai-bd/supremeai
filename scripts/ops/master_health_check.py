@@ -193,7 +193,7 @@ def probe_http_endpoint(
 
 
 def discover_and_evaluate(
-    tower_url: str = "https://supremeai-mcp-tower.onrender.com",
+    tower_url: str = "https://supremeai-mcp-tower-live.onrender.com",
     timeout: float = 6.0,
 ) -> MasterHealthReport:
     results: list[ServiceHealthResult] = []

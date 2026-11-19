@@ -188,7 +188,7 @@ class UnitAtomicTransaction(unittest.TestCase):
 
 
 TOWER_URL = os.environ.get(
-    "SUPREMEAI_TOWER_URL", "https://supremeai-mcp-tower.onrender.com/mcp"
+    "SUPREMEAI_TOWER_URL", "https://supremeai-mcp-tower-live.onrender.com/mcp"
 )
 
 

@@ -1,24 +1,111 @@
 name: Render Services Keepwarm
 
+# Keep-warm ownership:
+#   * PRIMARY: Cloudflare Edge Worker (infrastructure/cloudflare-render-keepwarm)
+#     on a 5-minute cron — zero compute, zero Render bandwidth cost.
+#   * THIS workflow: a 6-hourly *verification* probe plus a manual fallback.
+#
+# Why it exists at all: the 2026-11-19 incident proved a dead control-plane host
+# can sit unnoticed for weeks (the un-suffixed Tower host was suspended by its
+# owner while every MCP-dependent gate kept dialing it — see
+# docs/operations/2026-11-19-provider-core-hardening.md). Render only spins a service
+# down after ~15 idle minutes, and a cold Tower costs a client ~30 s on its
+# first MCP handshake — so the control plane is probed here too, and a failure
+# is LOUD (red run) instead of a printed warning nobody reads.
+
 on:
-  # Render keep-warm is dedicated to Cloudflare Edge Worker (infrastructure/cloudflare-render-keepwarm)
-  # running on a 5-minute cron SSOT with zero compute and bandwidth overhead.
-  # This GitHub Actions workflow is maintained as a manual fallback (workflow_dispatch)
-  # and optional off-peak health probe to avoid duplicate pings that exhaust Render's 5 GB limit.
   workflow_dispatch:
   schedule:
-    # Run once every 6 hours as a backup verification probe (instead of aggressive 10-minute duplicate pings)
     - cron: '0 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keepwarm
+  cancel-in-progress: false
 
 jobs:
   keepwarm:
     name: Ping Services
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
       - name: Trigger Cloudflare Keepwarm Mesh & Render Edge Probes
         run: |
           echo "Pinging Cloudflare Keepwarm Mesh Trigger..."
-          curl -sf --max-time 15 -H "User-Agent: GitHub-Keepwarm-Probe/1.0" https://supremeai-render-keepwarm.paykaribazaronline.workers.dev/trigger || echo "Mesh trigger returned non-200"
+          curl -sf --max-time 15 -H "User-Agent: GitHub-Keepwarm-Probe/1.0" \
+            https://supremeai-render-keepwarm.paykaribazaronline.workers.dev/trigger \
+            || echo "Mesh trigger returned non-200 (worker owns the 5-minute mesh)"
 
-          echo "Lightweight HEAD probe to API Gateway..."
-          curl -s -I --max-time 10 https://supremeai-api-ulw0.onrender.com/healthz || echo "Gateway ping returned non-200"
+      # Hosts come from config/service_registry.yaml (SSOT) — never re-typed
+      # here. Hardcoding them is exactly how the previous host drifted.
+      - name: Probe control plane + gateway (registry SSOT)
+        env:
+          # Registry keys, not raw hostnames: `api` serves users, `mcp` is the
+          # control plane every CI gate handshakes with. Both are hard
+          # requirements; satellites are advisory (cold start is expected).
+          REQUIRED_SERVICES: api,mcp
+        run: |
+          python3 -c "import yaml" 2>/dev/null || python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import concurrent.futures as cf
+          import os, sys, time, urllib.error, urllib.request
+          import yaml
+
+          registry = yaml.safe_load(open("config/service_registry.yaml", encoding="utf-8"))
+          services = registry.get("services", {})
+          required = {s.strip() for s in os.environ["REQUIRED_SERVICES"].split(",") if s.strip()}
+          # /health/live is the cheapest liveness route (it does not trigger the
+          # fleet sweep); the rest only expose /health.
+          LIVENESS_PATH = {"mcp": "/health/live"}
+
+          def probe(key: str, url: str) -> tuple[int | None, int]:
+              # Required services get a retry (Render cold start ~30 s);
+              # advisory ones get a single bounded attempt. Both run in
+              # parallel so total wall time stays under the job timeout.
+              attempts = 2 if key in required else 1
+              start = time.monotonic()
+              for attempt in range(attempts):
+                  try:
+                      req = urllib.request.Request(
+                          url, headers={"User-Agent": "GitHub-Keepwarm-Probe/1.0"})
+                      with urllib.request.urlopen(req, timeout=15) as resp:
+                          resp.read(64)
+                          return resp.status, int((time.monotonic() - start) * 1000)
+                  except urllib.error.HTTPError as exc:
+                      return exc.code, int((time.monotonic() - start) * 1000)
+                  except Exception:
+                      if attempt + 1 < attempts:
+                          time.sleep(3)
+              return None, int((time.monotonic() - start) * 1000)
+
+          targets = []
+          for key, entry in services.items():
+              if isinstance(entry, dict) and entry.get("production_url"):
+                  base = str(entry["production_url"]).rstrip("/")
+                  targets.append((key, entry.get("render_name", key),
+                                  base + LIVENESS_PATH.get(key, "/health")))
+
+          with cf.ThreadPoolExecutor(max_workers=8) as pool:
+              results = list(pool.map(lambda t: probe(t[0], t[2]), targets))
+
+          failures = []
+          print(f"{'key':10} {'render_name':30} {'code':>5} {'ms':>6}  verdict url")
+          for (key, name, url), (code, ms) in zip(targets, results):
+              ok = code is not None and 200 <= code < 400
+              print(f"{key:10} {name:30} {str(code):>5} {ms:>6}  {'OK   ' if ok else 'DOWN '} {url}")
+              if not ok and key in required:
+                  failures.append(f"{key} ({name}) <- {url} status={code}")
+
+          if failures:
+              print("\n::error::Control plane unhealthy — required service(s) down:")
+              for f in failures:
+                  print(f"  - {f}")
+              print("  Fix: check the Render dashboard for a suspended/idle service,")
+              print("  then confirm the registry production_url is canonical.")
+              sys.exit(1)
+          print(f"\nRequired services healthy ({len(targets)} probed).")
+          PY

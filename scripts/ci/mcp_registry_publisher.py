@@ -37,7 +37,7 @@ TOWER_SERVER_JSON: Dict[str, Any] = {
     "remotes": [
         {
             "type": "streamable-http",
-            "url": "https://supremeai-mcp-tower.onrender.com/mcp"
+            "url": "https://supremeai-mcp-tower-live.onrender.com/mcp"
         }
     ]
 }

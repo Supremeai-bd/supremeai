@@ -67,7 +67,7 @@ def main() -> int:
     target_urls = args.url or [
         "primary=https://supremeai-primary-node.onrender.com/health",
         "worker=https://supremeai-worker-node.onrender.com/health",
-        "tower=https://supremeai-mcp-tower.onrender.com/",
+        "tower=https://supremeai-mcp-tower-live.onrender.com/",
     ]
 
     results = []

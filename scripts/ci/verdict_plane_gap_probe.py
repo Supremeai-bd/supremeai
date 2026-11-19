@@ -109,7 +109,7 @@ except ImportError:  # pragma: no cover — package-style load (tests, CI runner
     from scripts.ci.tower_name_tolerance import tolerant_tool_call
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TOWER = "https://supremeai-mcp-tower.onrender.com/mcp"
+TOWER = "https://supremeai-mcp-tower-live.onrender.com/mcp"
 OPEN_REPO = "Supremeai-bd/supremeai"
 MONOREPO = "Supremeai-bd/supremeai"
 

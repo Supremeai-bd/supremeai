@@ -82,7 +82,7 @@ def resolve_mcp_server_url() -> str:
                     return strip_endpoint_suffixes(server_url)
         except Exception:
             pass
-    return "https://supremeai-mcp-tower.onrender.com"
+    return "https://supremeai-mcp-tower-live.onrender.com"
 
 
 MCP_SERVER_URL = resolve_mcp_server_url()

@@ -65,7 +65,7 @@ def test_contract_pins():
     assert mod.INTAKE_REPO == "Supremeai-bd/supremeai"
     # Zero-credential Tower surface, not api.github.com (anonymous 60/h cap
     # is a documented field trap, CONTRIBUTING §11).
-    assert mod.TOWER.startswith("https://supremeai-mcp-tower.onrender.com")
+    assert mod.TOWER.startswith("https://supremeai-mcp-tower-live.onrender.com")
     # The needle must be lowercase-comparable and survive display-suffix
     # renames ("Bridge Intake (public work orders → private gates)").
     assert mod.WORKFLOW_NEEDLE == "bridge intake"

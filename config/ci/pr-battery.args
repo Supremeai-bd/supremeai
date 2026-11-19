@@ -20,3 +20,5 @@ core/tests/api/test_health_check_redis.py
 gateway/tests/test_model_cascades.py
 gateway/tests/test_docker_gateway_chat.py
 tests/ci/test_nightly_vulnerability_scanner.py
+gateway/tests/test_circuit_breaker_wiring.py
+gateway/tests/test_provider_transport_and_limits.py

@@ -47,7 +47,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-DEFAULT_TOWER_URL = "https://supremeai-mcp-tower.onrender.com/mcp"
+DEFAULT_TOWER_URL = "https://supremeai-mcp-tower-live.onrender.com/mcp"
 DEFAULT_WARN_PCT = 80.0
 DEFAULT_CRIT_PCT = 95.0
 

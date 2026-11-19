@@ -1,4 +1,22 @@
-"""Hybrid Top AI Detector: 30-min proactive latency/health probe + instant reactive failover."""
+"""Hybrid Top AI Detector: 30-min proactive latency/health probe + instant reactive failover.
+
+.. deprecated:: 2026-11-19
+   **Unused in production.** Nothing outside `tests/test_top_ai_detector.py`
+   imports this module (verified repo-wide), so the live request path never
+   consults it — while `gateway/provider_chain.py` now implements the same
+   two-signal idea (proactive skip via `gateway/circuit_breaker.py` +
+   reactive `record_failure`) *and* is actually wired into
+   `execute_chain()`.
+
+   Two implementations of the same policy is how the two diverge, so do not
+   wire this one up. Either adopt it deliberately (replacing the breaker) or
+   delete it with its test; `tests/test_top_ai_detector_deprecation.py` fails
+   the day something starts importing it in production code, which is the
+   signal to make that decision instead of silently growing a third path.
+
+   Kept for now because its probe list is the only place the per-provider
+   liveness URLs are written down.
+"""
 
 from __future__ import annotations
 

@@ -66,7 +66,7 @@ STRATEGIC_FILE = REPO_ROOT / "data" / "strategic_decisions.jsonl"
 # initialize -> Mcp-Session-Id -> notifications/initialized -> tools/call.
 TOWER_MCP_URL = os.environ.get(
     "SUPREMEAI_MCP_TOWER_URL",
-    os.environ.get("MCP_TOWER_URL", "https://supremeai-mcp-tower.onrender.com"),
+    os.environ.get("MCP_TOWER_URL", "https://supremeai-mcp-tower-live.onrender.com"),
 ).rstrip("/")
 if not TOWER_MCP_URL.endswith("/mcp"):
     TOWER_MCP_URL += "/mcp"

@@ -34,7 +34,7 @@ import time
 import urllib.error
 import urllib.request
 
-DEFAULT_URL = "https://supremeai-mcp-tower.onrender.com/mcp"
+DEFAULT_URL = "https://supremeai-mcp-tower-live.onrender.com/mcp"
 
 SECRET_PATTERNS = (
     "secret", "env_var", "envvar", "credential", "token", "_key", "key_",

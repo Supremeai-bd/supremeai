@@ -19,7 +19,27 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-CLASSIFICATION = ROOT / "backend" / "core" / "config_classification.py"
+def _config_dir() -> Path:
+    """Locate the config-classification source after the monorepo flattening.
+
+    The module used to live at `backend/core/config_classification.py`; it is now
+    `core/config_classification.py`. Both guards hard-coded the old path and
+    crashed with FileNotFoundError — i.e. the two things that validate
+    `config/service_registry.yaml` had been silently not running. Resolve it,
+    and fail loudly if neither location exists (a guard that skips itself is
+    worse than no guard).
+    """
+    for candidate in (ROOT / "core", ROOT / "backend" / "core"):
+        if (candidate / "config_classification.py").is_file():
+            return candidate
+    raise SystemExit(
+        "[config-guard] FATAL: config_classification.py not found in core/ or "
+        "backend/core/ — refusing to pass without validating the registry"
+    )
+
+
+CONFIG_DIR = _config_dir()
+CLASSIFICATION = CONFIG_DIR / "config_classification.py"
 ENV_EXAMPLE = ROOT / ".env.example"
 
 ENV_PATTERNS = (

@@ -74,7 +74,7 @@ By auditing the repository source code and automation pipelines, five primary co
 - **Location:** `.github/workflows/keepwarm.yml`
 - **Mechanism:** Cron scheduled at `*/10 * * * *` (every 10 minutes) executes:
   ```bash
-  curl -sf --max-time 10 https://supremeai-mcp-tower.onrender.com/health
+  curl -sf --max-time 10 https://supremeai-mcp-tower-live.onrender.com/health
   ```
 - **Frequency:** 144 requests/day = **2,592 requests over 18 days**.
 - **Payload:** The `/health` endpoint in `http_server.ts` computes the aggregated snapshot, service health, and watchdog state, serializing full JSON payloads on every ping.
@@ -88,7 +88,7 @@ By auditing the repository source code and automation pipelines, five primary co
   - `bridge_landing_watchdog.py`
   - `verdict_plane_gap_probe.py`
   - `ops-maintenance.yml` (nightly matrix)
-- **Mechanism:** Every push to `main` and every pull request runs end-to-end integration probes hitting `https://supremeai-mcp-tower.onrender.com/health`, `/release`, and `/mcp`. High PR velocity multiplies request counts exponentially.
+- **Mechanism:** Every push to `main` and every pull request runs end-to-end integration probes hitting `https://supremeai-mcp-tower-live.onrender.com/health`, `/release`, and `/mcp`. High PR velocity multiplies request counts exponentially.
 
 ### Driver 4: Absence of HTTP Response Compression (Gzip/Brotli)
 - **Location:** `infrastructure/mcp-control-plane/src/http_server.ts`
@@ -135,7 +135,7 @@ flowchart TD
   1. Increase cron interval from `*/10 * * * *` to `*/14 * * * *` (Render free containers idle-sleep after 15 minutes; 14 minutes maintains warm state while reducing pings by 28.5%).
   2. Use HTTP `HEAD` instead of `GET`:
      ```bash
-     curl -s -I --max-time 10 https://supremeai-mcp-tower.onrender.com/health
+     curl -s -I --max-time 10 https://supremeai-mcp-tower-live.onrender.com/health
      ```
 - **Projected Savings:** Eliminates response body transfer for 3,000+ pings/month.
 

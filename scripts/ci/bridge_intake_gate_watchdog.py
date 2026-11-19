@@ -63,7 +63,7 @@ import urllib.request
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TOWER = "https://supremeai-mcp-tower.onrender.com/mcp"
+TOWER = "https://supremeai-mcp-tower-live.onrender.com/mcp"
 # The intake gate lives in the PRIVATE repo (agents never touch it — the
 # watchdog only READS its runs plane through the zero-credential Tower).
 INTAKE_REPO = "Supremeai-bd/supremeai"

@@ -109,10 +109,13 @@ services:
       - "scripts/lib/render_client.py"
 
   mcp:
-    render_name: supremeai-mcp-tower
+    render_name: supremeai-mcp-tower-live
     role: "MCP Control Plane & Governed Agent Single Door"
     platform: render
     plan: free
+    # Canonical public origin. The retired `supremeai-mcp-tower` service is
+    # suspended by the owner; nothing may resolve to it any more.
+    production_url: "https://supremeai-mcp-tower-live.onrender.com"
     memory_budget_mb: 512
     estimated_ram_mb: 90
     deploy_key: mcp

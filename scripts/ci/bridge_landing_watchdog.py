@@ -135,7 +135,7 @@ except ImportError:  # pragma: no cover — package-style load (tests, CI runner
     from scripts.ci.tower_name_tolerance import call_across_names, epoch_spellings
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TOWER = "https://supremeai-mcp-tower.onrender.com/mcp"
+TOWER = "https://supremeai-mcp-tower-live.onrender.com/mcp"
 
 # Landing-latency threshold: past this age with neither a landing nor an open
 # PR, the WO's deliverable is at risk (#1964 class). Hours.

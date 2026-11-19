@@ -29,7 +29,7 @@ import urllib.request
 
 LOGGER = logging.getLogger("docs_ingest")
 
-TOWER_URL = os.environ.get("SUPREMEAI_MCP_URL", "https://supremeai-mcp-tower.onrender.com/mcp")
+TOWER_URL = os.environ.get("SUPREMEAI_MCP_URL", "https://supremeai-mcp-tower-live.onrender.com/mcp")
 # MCP-Protocol-Version on every request: streamable HTTP (spec rev >= 2025-06-18)
 # requires the negotiated version post-initialize; a missing header makes the server
 # assume 2025-03-26, voiding the 2025-11-25 floor (#2568, radar R70). Mirrors

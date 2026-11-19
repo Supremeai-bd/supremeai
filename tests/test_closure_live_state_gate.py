@@ -92,7 +92,7 @@ def test_contract_pins():
     # Zero-credential Tower surface, not api.github.com (anonymous 60/h cap,
     # CONTRIBUTING §11 trap).
     assert mod.DEFAULT_TOWER_URL.startswith(
-        "https://supremeai-mcp-tower.onrender.com")
+        "https://supremeai-mcp-tower-live.onrender.com")
     # The #2925 scope note: platform-audit scoping keeps fix-lane closures
     # un-gated — pin the default scope set.
     assert mod.DEFAULT_AUDIT_LABELS == ("audit:finding",)

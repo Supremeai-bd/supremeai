@@ -41,10 +41,17 @@ from gateway.rate_limit import SlidingWindowLimiter
 class TestGatewayConfig(unittest.TestCase):
     def test_allowed_providers_ssot(self):
         # Gateway-plane enum = task-router.schema.json's 7 schema providers
-        # PLUS the gateway-only providers with live drivers + policy hops:
-        # "web" (web_session.py) and "perplexity" (adapters.py, sonar cascade).
-        # A copy that lags the runtime makes load_config() reject the shipped
-        # routing_policy.json (drift class F-J, 2026-10-28) — extend, don't lag.
+        # PLUS the gateway-only providers that provider_chain has a real
+        # transport for: "web" (cookie relay).
+        #
+        # Rule (2026-11-19): a provider may only appear here if
+        # gateway/provider_chain._default_attempt can actually call it. The
+        # enum is validated fail-closed at boot, so advertising a provider with
+        # no transport turns a config typo into a runtime 502. `perplexity` and
+        # `manus` were removed for exactly that reason: the production adapter
+        # plane (gateway/service/providers/adapters.py, gateway/service/pool.py)
+        # supports them, but the policy-driven gateway chain does not — the two
+        # planes have different provider sets by design.
         expected = {
             "openai",
             "anthropic",
@@ -54,8 +61,6 @@ class TestGatewayConfig(unittest.TestCase):
             "mistral",
             "deepseek",
             "web",
-            "perplexity",
-            "manus",
         }
         self.assertEqual(ALLOWED_PROVIDERS, frozenset(expected))
 

@@ -7,7 +7,7 @@ or Render CI runner) completed successfully for the target commit SHA within
 an acceptable freshness window.
 
 Environment:
-  MCP_TOWER_ATTESTATION_URL  (endpoint e.g. https://supremeai-mcp-tower.onrender.com/api/ci/attestation)
+  MCP_TOWER_ATTESTATION_URL  (endpoint e.g. https://supremeai-mcp-tower-live.onrender.com/api/ci/attestation)
   MCP_TOWER_AUTH_TOKEN       (bearer auth token)
   EXPECTED_SHA               (target commit SHA)
   GITHUB_REPOSITORY          (repo e.g. Supremeai-bd/supremeai)

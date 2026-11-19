@@ -92,7 +92,7 @@ FLEET: list[dict] = [
     {
         "id": "tower",
         "name": "MCP Control Tower",
-        "url": os.getenv("RENDER_MCP_URL", "https://supremeai-mcp-tower.onrender.com/health"),
+        "url": os.getenv("RENDER_MCP_URL", "https://supremeai-mcp-tower-live.onrender.com/health"),
         # Tower serves body status "degraded" + HTTP 200 when downstream nodes
         # degrade (aggregation contract) — shape-only pin, body-status surfaced.
         "expect_status": None,

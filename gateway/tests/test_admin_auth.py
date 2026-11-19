@@ -595,7 +595,10 @@ def test_supabase_mfa_challenge_is_not_bypassed(monkeypatch):
     import httpx
 
     auth = _admin_auth_module()
-    monkeypatch.setattr(auth, "_supabase_base_url", lambda: "https://project.supabase.co")
+    async def _fake_base_url():
+        return "https://project.supabase.co"
+
+    monkeypatch.setattr(auth, "_supabase_base_url", _fake_base_url)
     monkeypatch.setattr(auth, "get_vault_secret", lambda _name: "test-anon-key")
 
     class FakeResponse:

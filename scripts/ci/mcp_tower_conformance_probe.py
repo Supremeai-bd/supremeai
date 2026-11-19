@@ -18,7 +18,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict
 
-DEFAULT_TOWER_URL = "https://supremeai-mcp-tower.onrender.com/mcp"
+DEFAULT_TOWER_URL = "https://supremeai-mcp-tower-live.onrender.com/mcp"
 TESTED_SPEC_VERSIONS = ["2025-06-18", "2025-11-25", "2026-07-28"]
 USER_AGENT = "SupremeAI-MCP-Conformance-Probe/1.0.0"
 

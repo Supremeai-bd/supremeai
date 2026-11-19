@@ -39,7 +39,11 @@ from pathlib import Path
 from typing import Any
 
 # Provider SSOT — closed enum byte-matched to api-schemas/task-router.schema.json
-# (providerId pattern SSOT'd in provider-registry.schema.json).
+# (providerId pattern SSOT'd in provider-registry.schema.json), plus `web` for the
+# cookie-relay provider that provider_chain has a real transport for.
+# `perplexity`/`manus` were removed: they had no transport in provider_chain, so a
+# chain could validate and then fail at request time (drift caught by
+# gateway/tests/test_streaming_gateway.py::test_config_provider_enum_matches_task_router_ssot).
 ALLOWED_PROVIDERS: frozenset[str] = frozenset(
     {
         "openai",
@@ -50,8 +54,6 @@ ALLOWED_PROVIDERS: frozenset[str] = frozenset(
         "mistral",
         "deepseek",
         "web",
-        "perplexity",
-        "manus",
     }
 )
 
