@@ -2431,14 +2431,16 @@ jobs:
           fi
 
   secret-hygiene-guards:
-    needs: [resolve-execution-tier]
+    # Read-only: no privileged runner probe is needed for candidate rehearsals.
     name: "Secret and Naming Hygiene Guards"
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"
       - name: Install PyYAML
@@ -2455,7 +2457,7 @@ jobs:
         run: python scripts/ci/secret_graph_regen.py --check
 
   daily-10am-bdt-health-report:
-    needs: [resolve-execution-tier]
+    # Read-only: no privileged runner probe is needed for candidate rehearsals.
     name: "🩺 Daily 10:00 AM BDT Health & Release Gate Report"
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.run_daily_health_report == true) ||
