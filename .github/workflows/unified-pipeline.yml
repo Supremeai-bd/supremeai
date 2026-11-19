@@ -513,8 +513,34 @@ jobs:
           TESTED_MERGE_SHA: ${{ github.sha }}
           PR_GATE_RESULTS: ${{ toJSON(needs) }}
         run: |
-          python3 scripts/ci/tiny_brain_pr_guard.py --pr "$PR_NUMBER" \
-            --head-sha "$EXPECTED_HEAD_SHA" --base-sha "$EXPECTED_BASE_SHA" --merge-sha "$TESTED_MERGE_SHA"
+          python3 - <<'PY'
+          import os
+          import re
+          import subprocess
+          import sys
+
+          guard = [sys.executable, "scripts/ci/tiny_brain_pr_guard.py"]
+          flags = set(re.findall(r"--[a-z][a-z-]+", subprocess.check_output([*guard, "--help"], text=True)))
+          required = {"--head-sha", "--base-sha", "--merge-sha", "--recheck-candidate"}
+          if required <= flags:
+              sys.exit(subprocess.call([
+                  *guard, "--pr", os.environ["PR_NUMBER"],
+                  "--head-sha", os.environ["EXPECTED_HEAD_SHA"],
+                  "--base-sha", os.environ["EXPECTED_BASE_SHA"],
+                  "--merge-sha", os.environ["TESTED_MERGE_SHA"],
+              ]))
+
+          # First rollout only: the known old CLI cannot issue a landing decision.
+          # Record the hold without calling legacy approval or using the PR's policy.
+          legacy = {"--run-id", "--brain-url", "--dry-run", "--json"}
+          if legacy <= flags and required.isdisjoint(flags):
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+                  output.write("decision=BLOCKED\nreason=legacy_trusted_base_guard\n")
+              print("::notice::Automatic landing blocked: the trusted base still has the legacy guard. "
+                    "This policy rollout needs normal owner review under the repository rules.")
+          else:
+              sys.exit("Unsupported trusted base landing guard CLI; no landing authorized.")
+          PY
 
   auto-merge-high-risk:
     name: "Owner Review (Protected PR)"

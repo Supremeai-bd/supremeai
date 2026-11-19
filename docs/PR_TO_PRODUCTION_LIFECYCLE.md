@@ -139,7 +139,7 @@ flowchart TD
 
 **একটিই merge job।** এটি approval-এর পরেও বর্তমান PR head, `main` tip এবং CI-তে ব্যবহৃত merge revision মিলিয়ে দেখে। `gh pr merge --match-head-commit` মিউটেশনে head শর্তও প্রয়োগ করে। workflow আর CI-এর পর branch update করে না বা `--auto` দিয়ে পরের merge queue করে না। Candidate বদলালে নতুন PR event/run-এ যাচাই করুন; পুরনো run পুনরায় চালালে তার SHA বদলায় না। টার্মিনাল থেকে merge দিয়ে gate পাশ কাটানো নিষিদ্ধ।
 
-**Trust ও rollout:** guard পরীক্ষাধীন PR থেকে নয়, তার base commit থেকে চলে। তাই প্রথম policy-change PR-টি বিদ্যমান owner review ও repository rules মেনে land করতে হবে; fallback দিয়ে নিজেকে অনুমোদন করা যাবে না। Repository branch rules ও `production` required reviewers অক্ষত রাখুন। `--match-head-commit` শুধু head atomically পিন করে; শেষ recheck-এর পর অন্য পথে `main` বদলানোর race বন্ধ রাখতে GitHub-এর up-to-date branch protection (merge identity-র জন্যও, bypass ছাড়া) প্রয়োজন।
+**Trust ও rollout:** guard পরীক্ষাধীন PR থেকে নয়, তার base commit থেকে চলে। পুরোনো base-এর CLI নতুন SHA arguments না চিনলে workflow সেটি চালিয়ে approval চায় না: `BLOCKED` ও `legacy_trusted_base_guard` কারণটি দেখায়। অন্য CI checks স্বাভাবিকভাবেই চলে; এই notice কোনও check মওকুফ বা merge authorization নয়। প্রথম policy-change PR-টি বিদ্যমান owner review ও repository rules মেনে land করতে হবে। Repository branch rules ও `production` required reviewers অক্ষত রাখুন। `--match-head-commit` শুধু head atomically পিন করে; শেষ recheck-এর পর অন্য পথে `main` বদলানোর race বন্ধ রাখতে GitHub-এর up-to-date branch protection (merge identity-র জন্যও, bypass ছাড়া) প্রয়োজন।
 
 ---
 

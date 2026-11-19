@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -195,6 +199,49 @@ def test_fetch_failure_blocks():
 def jobs():
     path = ROOT / ".github/workflows/unified-pipeline.yml"
     return yaml.safe_load(path.read_text(encoding="utf-8"))["jobs"]
+
+
+@pytest.mark.parametrize(("contract", "guard_exit", "exit_code"), [
+    ("legacy", 0, 0), ("current", 0, 0), ("current", 1, 1), ("partial", 0, 1),
+])
+def test_trusted_guard_cli_rollout(jobs, tmp_path, contract, guard_exit, exit_code):
+    script = tmp_path / "scripts/ci/tiny_brain_pr_guard.py"
+    script.parent.mkdir(parents=True)
+    output = tmp_path / "output"
+    calls = tmp_path / "calls"
+    current = ["--head-sha", "--base-sha", "--merge-sha", "--recheck-candidate"]
+    legacy = ["--run-id", "--brain-url", "--dry-run", "--json"]
+    flags = {"legacy": legacy, "current": current, "partial": legacy + current[:1]}[contract]
+    script.write_text(
+        "import json, sys\nfrom pathlib import Path\n"
+        f"if sys.argv[1:] == ['--help']:\n    print({' '.join(flags)!r})\n"
+        f"else:\n    Path({str(calls)!r}).write_text(json.dumps(sys.argv[1:]))\n    sys.exit({guard_exit})\n",
+        encoding="utf-8",
+    )
+    step = jobs["ai-evaluate-and-approve"]["steps"][-1]
+    start, *python, end = step["run"].splitlines()
+    assert (start, end) == ("python3 - <<'PY'", "PY")
+    result = subprocess.run(
+        [sys.executable, "-c", "\n".join(python)],
+        cwd=tmp_path,
+        env={
+            **os.environ, "GITHUB_OUTPUT": str(output), "PR_NUMBER": "1",
+            "EXPECTED_HEAD_SHA": HEAD, "EXPECTED_BASE_SHA": BASE, "TESTED_MERGE_SHA": MERGE,
+        },
+        capture_output=True, text=True, timeout=15,
+    )
+    assert result.returncode == exit_code, result.stderr
+    if contract == "current":
+        assert json.loads(calls.read_text(encoding="utf-8")) == [
+            "--pr", "1", "--head-sha", HEAD, "--base-sha", BASE, "--merge-sha", MERGE,
+        ]
+    else:
+        assert not calls.exists()  # Never evaluate a legacy or partially upgraded guard.
+    if contract == "legacy":
+        assert output.read_text(encoding="utf-8") == "decision=BLOCKED\nreason=legacy_trusted_base_guard\n"
+        assert "normal owner review" in result.stdout
+    else:
+        assert not output.exists()
 
 
 def test_required_ci_and_candidate_bindings_are_from_this_run(jobs):
