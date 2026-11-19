@@ -35,6 +35,9 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from .config import ConfigError, GatewayConfig
 from .provider_chain import (
+    _FORWARDED_KEYS as FORWARDED_KEYS,
+)
+from .provider_chain import (
     AttemptFn,
     AttemptResult,
     ProviderChainExhausted,
@@ -171,10 +174,25 @@ def _client_ip(request: Request) -> str:
 
 
 async def check_rate_limit(request: Request, limiter: SlidingWindowLimiter):
-    """Per-key sliding window (IP fallback); returns the full decision."""
-    key_id = request.headers.get("x-supremeai-key") or (
-        request.client.host if request.client else "anonymous"
-    )
+    """Per-identity sliding window (proxy-aware client IP fallback).
+
+    Bucketing MUST use :func:`_client_ip`, never ``request.client.host``:
+    behind Render/Fastly the socket peer is the platform proxy, so every
+    anonymous caller would share one global bucket (one client could 429 the
+    whole fleet).
+
+    Authenticated traffic is bucketed by the key's non-secret **owner label**
+    (``request.state.key_record``, already resolved by ``authenticate``), so no
+    credential — raw or hashed — ever becomes a limiter key in process memory
+    or in a Redis key name. Keys sharing an owner share that owner's budget,
+    which is the intended per-tenant semantics.
+    """
+    record = getattr(request.state, "key_record", None)
+    owner = getattr(record, "owner", None)
+    if owner and owner != "guest":
+        key_id = f"owner:{owner}"
+    else:
+        key_id = "ip:" + _client_ip(request)
     return await limiter.check(key_id)
 
 
@@ -790,7 +808,15 @@ def create_app(
         else:
             chain = resolved_chain
 
-        payload = json.dumps({"messages": messages, "stream": wants_stream}).encode()
+        # Forward OpenAI-compatible knobs (temperature, max_tokens, tools,
+        # response_format, ...). Dropping them silently made the gateway ignore
+        # tool calling and every sampling parameter, so agents could not act.
+        forwarded = {
+            key: body[key] for key in FORWARDED_KEYS if body.get(key) is not None
+        }
+        payload = json.dumps(
+            {"messages": messages, "stream": wants_stream, **forwarded}
+        ).encode()
         request.state.capability_alias = resolved_alias
         request.state.capability_name = resolved_cap
         completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
