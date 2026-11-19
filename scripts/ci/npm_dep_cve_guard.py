@@ -118,11 +118,9 @@ LOCK_PATHS = (
     Path(".agents/skills/devtools-audit/package-lock.json"),
     # R46 widening (#2075): the remaining tracked npm lockfiles. The worker
     # lock is the headline (wrangler-deployed edge worker, 87 production
-    # pairs, dev-zero); the two vscode locks are editor planes (10 and 0
-    # production pairs — the extension lock is an all-dev honest zero).
+    # pairs, dev-zero); the vscode editor-plane lock is an honest zero.
     Path("browser/cloudflare-worker/package-lock.json"),
     Path("vscode/package-lock.json"),
-    Path("vscode/extension/package-lock.json"),
 )
 # render.yaml carries the buildCommand that consumes both locks; its
 # supply-chain claims (#707 uv pin comment vs command) are part of this

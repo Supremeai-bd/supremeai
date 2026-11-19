@@ -319,7 +319,11 @@ def self_test() -> bool:
         except TowerBoundaryViolation:
             pass
     assert assert_tower_target("Supremeai-bd/supremeai-studio") == STUDIO_SATELLITE
-    assert assert_tower_target(PUBLIC_EMBASSY) == PUBLIC_EMBASSY
+    # 2-repo consolidation: PUBLIC_EMBASSY now IS the monorepo
+    # (Supremeai-bd/supremeai), which the #492 boundary above already asserts
+    # raises. The old `== PUBLIC_EMBASSY` passthrough is stale from when the
+    # embassy was a separate `supremeai-open` repo — the monorepo must never be
+    # a direct tower target, so there is no embassy passthrough to assert here.
     for sat in CANONICAL_SATELLITES:
         assert assert_tower_target(f"Supremeai-bd/supremeai-{sat}")
     try:

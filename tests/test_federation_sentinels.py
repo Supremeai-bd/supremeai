@@ -60,12 +60,14 @@ class SentinelPairLoading(unittest.TestCase):
         for p in sync.DEFAULT_SENTINEL_PAIRS:
             self.assertTrue(p.get("open") and p.get("satellite") and p.get("path"), p)
             self.assertIn(p["satellite"], sync.DOMAIN_MAP)
+        # 2-repo topology: the api satellite is retired into the monorepo, so the
+        # built-in default pairs reduce to the studio desk. The api gateway/main.py
+        # -> main.py root mirror still runs inside sync_satellite (asserted by
+        # test_api_root_main_mapping_present_in_source), it is just no longer a
+        # cross-repo sentinel default.
         self.assertTrue(
-            any(
-                p["open"] == "gateway/main.py" and p["path"] == "main.py"
-                for p in sync.DEFAULT_SENTINEL_PAIRS
-            ),
-            "api satellite root main.py parity pair is mandatory (#1689)",
+            all(p["satellite"] == "Supremeai-bd/supremeai-studio" for p in sync.DEFAULT_SENTINEL_PAIRS),
+            "default sentinel pairs must be studio-only under the 2-repo SSOT",
         )
 
     def test_api_root_main_mapping_present_in_source(self):
