@@ -1,102 +1,202 @@
-"""test_free_model_discovery.py — per-key free-model discovery regression tests.
+"""Free-tier evidence is exact, expires, and never comes from a paid inference probe."""
 
-Locks in the 2026-11-16 fixes:
-- A 402 (payment required) on one aggregator model must NOT mark the whole key dead;
-  discovery must keep probing and pick the working free model (kilo: efficient=402, free=200).
-- Free/preferred models are probed before paid ones so a paid entry cannot shadow them.
-- A 401/403 still marks the key dead (auth/forbidden).
-"""
-from unittest.mock import AsyncMock, patch
+import asyncio
+import hashlib
+import hmac
+import json
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
+import httpx
 import pytest
 
-import gateway.service.free_model_discovery as fmd
-from gateway.service.pool import KeySlot
+from gateway.service import app as edge
+from gateway.service import free_model_discovery as discovery
+from gateway.service.free_route_policy import HMAC_KEY_ENV, POLICY_ENV, approved_route, credential_identity
+from gateway.service.pool import KeySlot, ProviderKeyPool
+from gateway.service.providers import adapters
+
+MODEL = "vendor/fixture:free"
+KEY = "fixture-provider-secret"
+BINDING_KEY = bytes(range(32)).hex()
+BASE = adapters.PROVIDER_CONFIGS["openrouter"]["base_url"]
+ZERO = {"prompt": "0", "completion": "0.0"}
 
 
-def _slot(provider="kilo", name="KILO_API_KEY"):
-    return KeySlot(name=name, key="test-key", provider=provider)
+def _approve(monkeypatch, provider="openrouter", *, binding_key=BINDING_KEY, **overrides):
+    monkeypatch.setenv(HMAC_KEY_ENV, binding_key)
+    base_url = adapters.PROVIDER_CONFIGS[provider]["base_url"]
+    identity = credential_identity(provider, base_url, KEY)
+    assert identity is not None
+    entry = {
+        "provider": provider,
+        "base_url": base_url,
+        "key_hmac_sha256": identity[2],
+        "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+        "models": [MODEL],
+    }
+    monkeypatch.setenv(POLICY_ENV, json.dumps([{**entry, **overrides}]))
 
 
-async def _validate_with(slot, fetch, probe):
-    """Run validate_slot with model-list + probe + redis mocked out."""
-    with patch.object(fmd, "_fetch_model_ids", side_effect=fetch), \
-         patch.object(fmd, "_probe_model", side_effect=probe), \
-         patch.object(fmd, "_redis_get", new=AsyncMock(return_value=None)), \
-         patch.object(fmd, "_redis_set", new=AsyncMock(return_value=None)):
-        await fmd.validate_slot(slot)
+def test_approval_binds_credential_origin_and_model(monkeypatch):
+    _approve(monkeypatch)
+    route = approved_route("openrouter", BASE, KEY)
+    assert route is not None and route.models == (MODEL,)
+    assert approved_route("openrouter", BASE, "rotated-key") is None
+    assert approved_route("openrouter", BASE + "/next", KEY) is None
+    assert approved_route("kilo", BASE, KEY) is None
+
+    payload = json.dumps(["openrouter", BASE, KEY], separators=(",", ":")).encode()
+    expected = hmac.new(bytes.fromhex(BINDING_KEY), b"supremeai:free-route:v1\x00" + payload, "sha256").hexdigest()
+    assert credential_identity("openrouter", BASE + "/", KEY) == ("openrouter", BASE, expected)
+
+
+def test_legacy_sha_only_approval_never_authorizes(monkeypatch):
+    monkeypatch.setenv(HMAC_KEY_ENV, BINDING_KEY)
+    monkeypatch.setenv(POLICY_ENV, json.dumps([{
+        "provider": "openrouter", "base_url": BASE, "models": [MODEL],
+        "key_sha256": hashlib.sha256(KEY.encode()).hexdigest(),
+        "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+    }]))
+    assert approved_route("openrouter", BASE, KEY) is None
+
+
+@pytest.mark.parametrize("binding_key", [None, "invalid-hex", "ab" * 31, "cd" * 32])
+def test_missing_invalid_or_rotated_binding_key_disables_approval(monkeypatch, binding_key):
+    _approve(monkeypatch)
+    if binding_key is None:
+        monkeypatch.delenv(HMAC_KEY_ENV)
+    else:
+        monkeypatch.setenv(HMAC_KEY_ENV, binding_key)
+    assert approved_route("openrouter", BASE, KEY) is None
+
+
+@pytest.mark.parametrize("override", [
+    {"expires_at": "2000-01-01T00:00:00Z"},
+    {"expires_at": "2099-01-01T00:00:00"},
+    {"models": ["openrouter/free"]},
+    {"models": ["kilo-auto/efficient"]},
+    {"base_url": "http://example.invalid"},
+    {"base_url": "https://example.invalid/api?flag=1"},
+])
+def test_unproven_approval_is_ineligible(monkeypatch, override):
+    _approve(monkeypatch, **override)
+    assert approved_route("openrouter", BASE, KEY) is None
+
+
+@pytest.mark.parametrize("item", [
+    MODEL,
+    {"id": MODEL},
+    {"id": MODEL, "pricing": {"prompt": "0"}},
+    {"id": MODEL, "pricing": {**ZERO, "completion": "0.00001"}},
+    {"id": MODEL, "pricing": {**ZERO, "request": "0.0001"}},
+    {"id": MODEL, "pricing": {**ZERO, "image": None}},
+    {"id": "openrouter/free", "pricing": ZERO},
+])
+def test_price_record_must_confirm_concrete_zero_cost(item):
+    assert discovery._extract_free_aggregator_model(item) is None
 
 
 @pytest.mark.asyncio
-async def test_402_on_paid_model_does_not_kill_key():
-    """kilo: paid model->402 must be skipped; concrete :free model->200 must be chosen; key stays alive."""
-    slot = _slot()
-
-    async def fake_fetch(provider, base_url, api_key):
-        return ["kilo-auto/efficient", "nvidia/nemotron-3.5-lightning:free"]
-
-    async def fake_probe(provider, base_url, api_key, model):
-        if model == "kilo-auto/efficient":
-            return (False, 120.0, 402)   # paid model -> skip, not dead
-        return (True, 90.0, 200)          # concrete free model -> works
-
-    await _validate_with(slot, fake_fetch, fake_probe)
-
-    assert slot.cooldown_until == 0.0, "key must NOT be cooled down (402 != dead)"
-    assert slot.preferred_model == "nvidia/nemotron-3.5-lightning:free"
-    assert "nvidia/nemotron-3.5-lightning:free" in slot.discovered_models
-    assert "kilo-auto/efficient" not in slot.discovered_models
-
-
-@pytest.mark.asyncio
-async def test_free_model_probed_before_paid():
-    """Free models must be ordered ahead of paid ones regardless of /models order."""
-    slot = _slot()
-    probed = []
-
-    async def fake_fetch(provider, base_url, api_key):
-        # paid model listed first, free second
-        return ["kilo-auto/efficient", "baidu/ernie-5.5-flash-preview:free"]
-
-    async def fake_probe(provider, base_url, api_key, model):
-        probed.append(model)
-        if model.endswith(":free"):
-            return (True, 80.0, 200)
-        return (False, 100.0, 402)
-
-    await _validate_with(slot, fake_fetch, fake_probe)
-
-    assert probed[0].endswith(":free"), f"free model must be probed first, got {probed}"
-    assert slot.preferred_model == "baidu/ernie-5.5-flash-preview:free"
+async def test_catalog_refresh_uses_same_origin_and_only_approved_zero_price_models(monkeypatch):
+    withdrawn = "vendor/withdrawn:free"
+    _approve(monkeypatch, models=[MODEL, withdrawn])
+    slot = KeySlot("fixture-slot", KEY, "openrouter")
+    assert adapters.eligible_chat_models("openrouter", KEY, slot) == ()
+    transport = Mock(return_value=httpx.Response(200, json={"data": [
+        {"id": "vendor/other:free", "pricing": ZERO},
+        {"id": withdrawn, "pricing": {**ZERO, "image": "1"}},
+        {"id": MODEL, "pricing": ZERO},
+    ]}))
+    async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
+        await discovery.validate_slot(slot, client)
+        transport.assert_called_once()
+        request = transport.call_args.args[0]
+        assert request.method == "GET" and str(request.url) == BASE + "/models"
+        assert request.headers["authorization"] == f"Bearer {KEY}"
+        assert adapters.eligible_chat_models("openrouter", KEY, slot) == (MODEL,)
+        monkeypatch.delenv(POLICY_ENV)
+        await discovery.validate_slot(slot, client)
+        assert transport.call_count == 1
+        assert adapters.eligible_chat_models("openrouter", KEY, slot) == ()
 
 
 @pytest.mark.asyncio
-async def test_401_marks_key_dead():
-    """A 401 (invalid token) must still cool the key down for an hour."""
-    slot = _slot()
+async def test_inflight_catalog_cannot_prove_a_rotated_approval(monkeypatch):
+    _approve(monkeypatch)
+    slot = KeySlot("fixture-slot", KEY, "openrouter")
+    rotated = False
 
-    async def fake_fetch(provider, base_url, api_key):
-        return ["some-model"]
+    def respond(request):
+        nonlocal rotated
+        assert request.headers["authorization"] == f"Bearer {KEY}"
+        if not rotated:
+            rotated = True
+            _approve(monkeypatch, binding_key="ab" * 32)
+        return httpx.Response(200, json={"data": [{"id": MODEL, "pricing": ZERO}]})
 
-    async def fake_probe(provider, base_url, api_key, model):
-        return (False, 50.0, 401)
-
-    await _validate_with(slot, fake_fetch, fake_probe)
-
-    assert slot.cooldown_until > 0, "401 must mark the key dead"
-    assert slot.discovered_models == []
-
-
-def test_extract_free_aggregator_model_excludes_paid_and_meta_routers():
-    """Paid models, meta-routers (kilo-auto/free, openrouter/free), and non-chat models must be excluded."""
-    assert fmd._extract_free_aggregator_model({"id": "kilo-auto/free", "pricing": {"prompt": "0", "completion": "0"}}) is None
-    assert fmd._extract_free_aggregator_model({"id": "openrouter/free", "pricing": {"prompt": "0", "completion": "0"}}) is None
-    assert fmd._extract_free_aggregator_model({"id": "kilo-auto/efficient", "pricing": {"prompt": "0.001", "completion": "0.002"}}) is None
-    assert fmd._extract_free_aggregator_model({"id": "anthropic/claude-opus-5.5", "pricing": {"prompt": "0.015", "completion": "0.075"}}) is None
-    assert fmd._extract_free_aggregator_model({"id": "google/lyria-3-pro-preview", "pricing": {"prompt": "0", "completion": "0"}}) is None
-    assert fmd._extract_free_aggregator_model({"id": "nvidia/nemotron-3.5-lightning:free", "pricing": {"prompt": "0", "completion": "0"}}) == "nvidia/nemotron-3.5-lightning:free"
-    assert fmd._extract_free_aggregator_model("cohere/north-mini-code:free") == "cohere/north-mini-code:free"
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        await discovery.validate_slot(slot, client)
+        assert approved_route("openrouter", BASE, KEY) is not None
+        assert adapters.eligible_chat_models("openrouter", KEY, slot) == ()
+        await discovery.validate_slot(slot, client)
+        assert adapters.eligible_chat_models("openrouter", KEY, slot) == (MODEL,)
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+@pytest.mark.asyncio
+async def test_stale_or_failed_catalog_is_not_routes_evidence(monkeypatch):
+    _approve(monkeypatch)
+    slot = KeySlot("fixture-slot", KEY, "openrouter", discovered_models=[MODEL])
+    slot.catalog_identity = credential_identity("openrouter", BASE, KEY)
+    assert adapters.eligible_chat_models("openrouter", KEY, slot) == ()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(lambda _: httpx.Response(503))) as client:
+        await discovery.validate_slot(slot, client)
+    assert adapters.eligible_chat_models("openrouter", KEY, slot) == ()
+
+
+def test_pool_deduplicates_credential_aliases(monkeypatch):
+    monkeypatch.setenv("FIXTURE_KEY", KEY)
+    monkeypatch.setenv("FIXTURE_KEY_BACKUP", KEY)
+    monkeypatch.setenv("FIXTURE_KEYS", f"{KEY},fixture-other-secret")
+    pool = ProviderKeyPool("groq", ["FIXTURE_KEY", "FIXTURE_KEYS"])
+    assert {slot.key for slot in pool.slots} == {KEY, "fixture-other-secret"}
+    assert len(pool.slots) == 2
+
+
+@pytest.mark.asyncio
+async def test_only_one_refresh_task_runs_and_shutdown_cancels_it(monkeypatch):
+    started = asyncio.Event()
+    refresh = AsyncMock(side_effect=lambda: None)
+
+    async def loop(_squad):
+        await refresh()
+        started.set()
+        await asyncio.Future()
+
+    monkeypatch.setattr(discovery, "discovery_loop", loop)
+    monkeypatch.setattr(edge, "hydrate_vault_secrets", AsyncMock())
+    monkeypatch.setattr(edge, "close_stealth_client", AsyncMock())
+    await edge._on_startup()
+    await asyncio.wait_for(started.wait(), timeout=1)
+    task = edge.app.state.discovery_task
+    await edge._close_stealth_http_client()
+    refresh.assert_awaited_once()
+    assert task.cancelled() and edge.app.state.discovery_task is None
+
+
+@pytest.mark.asyncio
+async def test_catalog_pass_cancels_a_stuck_refresh(monkeypatch):
+    slot = KeySlot("fixture-slot", KEY, "openrouter")
+    cancelled = asyncio.Event()
+
+    async def stuck(*_):
+        try:
+            await asyncio.Future()
+        finally:
+            cancelled.set()
+
+    monkeypatch.setattr(discovery, "validate_slot", stuck)
+    monkeypatch.setattr(discovery, "REFRESH_DEADLINE_S", 0.05)
+    await discovery.run_discovery(SimpleNamespace(pools={"openrouter": SimpleNamespace(slots=[slot])}))
+    assert cancelled.is_set()

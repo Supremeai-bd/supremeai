@@ -108,3 +108,16 @@ async def test_committed_stream_is_not_cut():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+@pytest.mark.asyncio
+async def test_api_deadline_caps_first_token_wait():
+    import time
+
+    async def blocked():
+        yield ("status", {"status": 200})
+        await asyncio.Future()
+
+    with pytest.raises(TimeoutError):
+        _ = [item async for item in _aiter_stream_first_token(
+            blocked(), connect_timeout_s=8, first_token_timeout_s=8, route_deadline=time.monotonic() + 0.05,
+        )]

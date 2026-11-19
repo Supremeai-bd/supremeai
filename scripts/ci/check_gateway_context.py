@@ -1,7 +1,7 @@
 # scripts/ci/check_gateway_context.py
-"""M03 P0-পূর্ণাংশ — ১৩ serving route-এ বাধ্যতামূলক InferenceContext গেট।
+"""M03 — serving route-এ বাধ্যতামূলক InferenceContext গেট।
 
-বাংলা মন্তব্য: নীতি — backend/api/routes/-এ LLMGateway-এর inference-কল
+বাংলা মন্তব্য: নীতি — core/api/routes/-এ LLMGateway-এর inference-কল
 (``acompletion``/``complete``/``async_generate``) প্রতিটিতে ``context=``
 (InferenceContext) বাধ্যতামূলক। ফলে টেন্যান্ট/টাস্ক অ্যাট্রিবিউশন ছাড়া
 অদৃশ্য-খরচ (CostGuard-বাইপাসড) serving-পথ কাঠামোগতভাবে অসম্ভব।
@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-ROUTES_DIR = REPO_ROOT / "backend" / "api" / "routes"
+ROUTES_DIR = REPO_ROOT / "core" / "api" / "routes"
 
 #: গেটওয়ে-ইনস্ট্যান্স মনে রাখা নাম — `from core.llm.llm_gateway import <n>`।
 GATEWAY_IMPORT_NAMES = {"llm_gateway", "get_llm_gateway", "GatewayManager"}
@@ -87,10 +87,13 @@ def main() -> int:
     print(f"[gateway-context] context-less violations: {len(violations)} (baseline {BASELINE})")
     for v in violations:
         print(f"  VIOLATION {v}")
+    if not total_sites:
+        print("[gateway-context] FAIL — no serving inference call-sites inspected")
+        return 2
     if len(violations) > BASELINE:
         print("[gateway-context] FAIL — ratchet exceeded; নতুন কলে context= যোগ করুন")
         return 2
-    print("[gateway-context] PASS — ১৩-route context-coverage অটুট")
+    print("[gateway-context] PASS — scanned gateway calls include context=")
     return 0
 
 

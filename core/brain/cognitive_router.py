@@ -24,8 +24,7 @@ COMPLEX_KEYWORDS = (
 # 2026-11-17 (#645 follow-up): llama-3.3-70b-versatile and llama-3.1-8b-instant
 # return 404 on Groq's /models with the deployment key. Routing to them burned a
 # full provider attempt before failing, so every Groq fallback here must use a
-# model that is verified live. Keep this in sync with
-# gateway/service/providers/adapters.py::PROVIDER_MODEL_CASCADES["groq"].
+# model that is verified live. These Core hints do not approve Gateway routes.
 GROQ_DEFAULT_MODEL = "openai/gpt-oss-20b"
 DEFAULT_GENERAL_MODEL = f"groq/{GROQ_DEFAULT_MODEL}"
 

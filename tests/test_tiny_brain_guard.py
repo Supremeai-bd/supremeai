@@ -262,6 +262,14 @@ def test_required_ci_and_candidate_bindings_are_from_this_run(jobs):
     assert jobs[guard.RENDER]["outputs"]["verified_sha"] == "${{ steps.render-ci.outputs.verified_sha }}"
 
 
+def test_drafts_skip_landing_but_ready_for_review_runs_it(jobs):
+    assert "github.event.pull_request.draft == false" in jobs["ai-evaluate-and-approve"]["if"]
+    path = ROOT / ".github/workflows/unified-pipeline.yml"
+    # PyYAML SafeLoader treats the workflow key `on` as the boolean True.
+    events = yaml.safe_load(path.read_text(encoding="utf-8"))[True]
+    assert "ready_for_review" in events["pull_request"]["types"]
+
+
 def test_workflow_has_one_merge_path_and_positive_owner_gate(jobs):
     owner = jobs["auto-merge-high-risk"]
     assert owner["environment"] == "production"

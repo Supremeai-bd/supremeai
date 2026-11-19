@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from service.app import app
@@ -8,7 +9,11 @@ from service.pool import KeySlot, squad
 
 class GatewayEndpointsTest(unittest.TestCase):
     def setUp(self):
+        fixture = patch.dict("os.environ", {"SUPREMEAI_MASTER_KEY": "fixture-signing-key"})
+        fixture.start()
+        self.addCleanup(fixture.stop)
         self.client = TestClient(app)
+        self.addCleanup(self.client.close)
 
     def test_healthz(self):
         resp = self.client.get("/healthz")
@@ -16,7 +21,9 @@ class GatewayEndpointsTest(unittest.TestCase):
         data = resp.json()
         self.assertEqual(data["status"], "healthy")
         self.assertEqual(data["service_name"], "supremeai-api")
-        self.assertIn("total_keys", data)
+        self.assertIn("chat_ready", data)
+        self.assertNotIn("total_keys", data)
+        self.assertNotIn("providers", data)
 
     def test_models_endpoint(self):
         resp = self.client.get("/v1/models")
@@ -25,8 +32,9 @@ class GatewayEndpointsTest(unittest.TestCase):
         self.assertEqual(data["object"], "list")
         model_ids = [m["id"] for m in data["data"]]
         self.assertIn("auto", model_ids)
-        self.assertIn("supremeai/gemini", model_ids)
-        self.assertIn("supremeai/groq", model_ids)
+        self.assertIn("supremeai-api", model_ids)
+        self.assertIn("supremeai-webhook", model_ids)
+        self.assertNotIn("supremeai/gemini", model_ids)
 
     def test_keygen_and_verification(self):
         # 1. Generate client key
@@ -46,6 +54,8 @@ class GatewayEndpointsTest(unittest.TestCase):
     def test_pool_cooldown_mechanism(self):
         pool = squad.pools["gemini"]
         slot = KeySlot(name="TEST_KEY", key="test-key-123", provider="gemini")
+        original_slots = pool.slots
+        self.addCleanup(setattr, pool, "slots", original_slots)
         pool.slots = [slot]
         self.assertTrue(slot.is_healthy)
 

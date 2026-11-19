@@ -20,12 +20,25 @@ import socket
 import time
 import uuid
 from collections import deque
+from contextlib import suppress
 from datetime import datetime, timezone
 from typing import Any, Optional, Tuple
 
 from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
+
+from .pool import squad
+from .providers.adapters import (
+    PROVIDER_CONFIGS,
+    close_stealth_client,
+    forward_chat_completion,
+    forward_stealth_webhook,
+    has_image_input,
+    normalize_stealth_url,
+    stream_chat_completion_events,
+)
+from .telegram_webhook import telegram_router
 
 try:
     from service.branding import build_brand
@@ -49,31 +62,8 @@ except ImportError:  # pragma: no cover - package-relative fallback
 
 try:
     from service.keygen import generate_key, get_signing_secret, verify_key
-    try:
-        from service.pool import squad
-    except ImportError:
-        squad = None  # type: ignore[assignment]
-    try:
-        from service.cache import response_cache
-    except ImportError:
-        try:
-            from gateway.service.cache import response_cache
-        except ImportError:
-            response_cache = None  # type: ignore[assignment]
-    from service.providers.adapters import (
-        PROVIDER_CONFIGS,
-        forward_chat_completion,
-        forward_stealth_webhook,
-        normalize_stealth_url,
-        stream_chat_completion_events,
-    )
     from service.providers.web_session import web_bridge
-    from service.telegram_webhook import telegram_router
 except ImportError:
-    try:
-        from gateway.service.cache import response_cache
-    except ImportError:
-        response_cache = None  # type: ignore[assignment]
     try:
         from gateway.service.keygen import generate_key, get_signing_secret, verify_key
     except ImportError:
@@ -95,52 +85,14 @@ except ImportError:
                 "gateway.service.keygen is importable): no signing secret"
             )
     try:
-        from gateway.service.pool import squad
-    except ImportError:
-        squad = None  # type: ignore[assignment]
-    try:
-        from gateway.service.providers.adapters import (
-            PROVIDER_CONFIGS,
-            forward_chat_completion,
-            forward_stealth_webhook,
-            normalize_stealth_url,
-            stream_chat_completion_events,
-        )
-    except ImportError:
-        try:
-            from service.providers.adapters import (
-                PROVIDER_CONFIGS,
-                forward_chat_completion,
-                forward_stealth_webhook,
-                normalize_stealth_url,
-                stream_chat_completion_events,
-            )
-        except ImportError:
-            PROVIDER_CONFIGS = {}  # type: ignore[assignment]
-            def forward_chat_completion(*a, **k):  # type: ignore[no-redef]
-                return 503, {"error": "adapters unavailable"}
-            def forward_stealth_webhook(*a, **k):  # type: ignore[no-redef]
-                return 503, {"error": "adapters unavailable"}
-            def normalize_stealth_url(url: str) -> str:  # type: ignore[no-redef]
-                return ""
-            def stream_chat_completion_events(*a, **k):  # type: ignore[no-redef]
-                async def _unavailable():
-                    yield ("error", {"error": "adapters unavailable"})
-                return _unavailable()
-    try:
         from gateway.service.providers.web_session import web_bridge
     except ImportError:
         try:
             from service.providers.web_session import web_bridge
         except ImportError:
             web_bridge = None  # type: ignore[assignment]
-    try:
-        from gateway.service.telegram_webhook import telegram_router
-    except ImportError:
-        try:
-            from service.telegram_webhook import telegram_router
-        except ImportError:
-            telegram_router = None  # type: ignore[assignment]
+
+
 try:
     from service.webhook_scout import webhook_scout
 except ImportError:
@@ -313,6 +265,7 @@ async def _aiter_stream_first_token(
     *,
     connect_timeout_s: float,
     first_token_timeout_s: float,
+    route_deadline: float | None = None,
 ):
     """Yield ``(kind, data)`` from ``stream_iter``, enforcing time-to-first-token.
 
@@ -324,19 +277,18 @@ async def _aiter_stream_first_token(
       the caller can fail over to the next candidate before forwarding anything
       downstream (headers alone are not treated as success).
     """
-    deadline: float | None = None
+    deadline = time.monotonic() + connect_timeout_s
     committed = False
     while True:
         try:
             if committed:
                 item = await stream_iter.__anext__()
-            elif deadline is not None:
-                remaining = deadline - time.monotonic()
+            else:
+                attempt_deadline = deadline if route_deadline is None else min(deadline, route_deadline)
+                remaining = attempt_deadline - time.monotonic()
                 if remaining <= 0:
                     raise asyncio.TimeoutError()
                 item = await asyncio.wait_for(stream_iter.__anext__(), timeout=remaining)
-            else:
-                item = await asyncio.wait_for(stream_iter.__anext__(), timeout=connect_timeout_s)
         except StopAsyncIteration:
             return
         kind, data = item
@@ -345,11 +297,10 @@ async def _aiter_stream_first_token(
         elif kind == "event" and not committed:
             if (data.get("delta") or "") or data.get("tool_calls"):
                 committed = True
-                deadline = None
         yield kind, data
 
 try:
-    from service.adaptive_routing import RouteState, choose_route
+    from service.adaptive_routing import RouteState
 except ImportError:  # pragma: no cover - package-relative fallback
     from gateway.service.adaptive_routing import RouteState
 
@@ -377,8 +328,6 @@ _adaptive_routes = {
         limit=_optional_int_env("SUPREMEAI_API_FREE_LIMIT"),
     ),
 }
-_last_vault_hydration_at = 0.0
-_vault_hydration_interval = max(15.0, float(os.getenv("VAULT_HYDRATION_INTERVAL_SECONDS", "60")))
 
 app = FastAPI(title="SupremeAI API Gateway", version="2.0.0", docs_url=None, redoc_url=None, openapi_url=None)  # docs lockdown completion: the openapi_url default served the full route inventory (incl. admin route names) unauthenticated.
 
@@ -416,7 +365,10 @@ async def hydrate_vault_secrets() -> int:
             for s in secrets:
                 k = s.get("secretKey")
                 v = s.get("secretValue")
-                if k and v and any(term in k for term in ("KEY", "TOKEN", "SECRET", "STEALTH")):
+                if k and v and (
+                    k == "SUPREMEAI_FREE_ROUTE_POLICY"
+                    or any(term in k for term in ("KEY", "TOKEN", "SECRET", "STEALTH"))
+                ):
                     os.environ[k] = v
                     loaded += 1
             if squad and loaded > 0:
@@ -430,22 +382,12 @@ async def hydrate_vault_secrets() -> int:
 
 @app.on_event("startup")
 async def _on_startup():
+    from .free_model_discovery import discovery_loop
+
     await hydrate_vault_secrets()
-    try:
-        from gateway.service.free_model_discovery import hydrate_slots_from_redis
-        await hydrate_slots_from_redis(squad)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("slot hydration failed: %s", exc)
-    # Proactive background health & latency probe
-    from gateway.dual_pool_priority_router import start_background_recheck_loop
-    asyncio.create_task(start_background_recheck_loop(interval_seconds=120.0))
-    # Root-level free-model discovery: per-key /models + micro-probe + dead-key pruning
-    try:
-        from gateway.service.free_model_discovery import discovery_loop, run_discovery
-        asyncio.create_task(run_discovery(squad))
-        asyncio.create_task(discovery_loop(squad, interval_seconds=900.0))
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("free-model discovery startup failed: %s", exc)
+    # One catalog refresh loop; do not send periodic or per-error inference probes.
+    app.state.discovery_task = asyncio.create_task(discovery_loop(squad))
+
 
 # CORS setup for Studio and web agents - Restricted origins (no wildcard with credentials)
 _default_cors = [
@@ -524,8 +466,7 @@ from gateway.middleware.security_headers import SecurityHeadersMiddleware
 app.add_middleware(SecurityHeadersMiddleware)
 
 # Telegram Inbound Webhook Listener
-if telegram_router is not None:
-    app.include_router(telegram_router)
+app.include_router(telegram_router)
 
 # Native Admin Authentication Router (Zero-Firebase)
 try:
@@ -1123,67 +1064,31 @@ async def webhook_scout_status(
 
 @app.get("/readyz")
 async def readiness_check():
-    """Capability probe (distinct from liveness): 200 only when a chat reply path
-    is configured AND its host resolves. Monitors should target /readyz — /health
-    alone cannot detect a relay outage because API fallback is disabled by mandate
-    (single reply path). A configured-but-unresolvable host (the Oct-23 failure:
-    [Errno -2] on every chat call while /health reported healthy) fails this probe
-    loudly with a 503.
-
-    Redacted (#1902, closing the #1729 class): the loud-failure design used to
-    ship the stealth posture block (stealth_dns detail with the masked relay
-    host + stealth_priority1_configured) to unauthenticated callers. The
-    capability semantics are preserved — HTTP 200/503 + chat_ready branching,
-    unchanged for monitors — while the posture detail moved behind the operator
-    gate: GET /internal/status with a key carries the full stealth_dns block.
-    Body built by build_readiness_payload (operator-field guard, structural).
-    """
+    """Configuration-based capability signal; no private provider details or inference."""
     timestamp = datetime.now(timezone.utc).isoformat()
+    if squad and squad.get_candidate_slots():
+        return build_readiness_payload("ready", True, timestamp)
     if STEALTH_WEBHOOK_URL:
         stealth_dns = await _stealth_dns_snapshot()
-        if stealth_dns.get("ok") is False:
-            return JSONResponse(
-                status_code=503,
-                content=build_readiness_payload(
-                    "degraded",
-                    False,
-                    timestamp,
-                    reason=(
-                        "chat reply path host does not resolve — "
-                        "operator detail behind the key-gated /internal/status"
-                    ),
-                ),
-            )
-        return build_readiness_payload("ready", True, timestamp)
+        if stealth_dns.get("ok") is not False:
+            return build_readiness_payload("ready", True, timestamp)
+        reason = "chat reply path host does not resolve — operator detail behind the key-gated /internal/status"
+    else:
+        reason = "chat reply path not configured or no approved route available"
     return JSONResponse(
-        status_code=503,
-        content=build_readiness_payload(
-            "degraded",
-            False,
-            timestamp,
-            reason=(
-                "chat reply path not configured — no chat reply path "
-                "(API fallback disabled per mandate)"
-            ),
-        ),
+        status_code=503, content=build_readiness_payload("degraded", False, timestamp, reason=reason),
     )
 
 
 # Graceful shutdown: close pooled stealth HTTP client
 @app.on_event("shutdown")
 async def _close_stealth_http_client():
-    try:
-        from service.providers.adapters import close_stealth_client
-    except ImportError:
-        try:
-            from gateway.service.providers.adapters import close_stealth_client
-        except ImportError:
-            close_stealth_client = None  # type: ignore[assignment]
-    if close_stealth_client is not None:
-        try:
-            await close_stealth_client()
-        except Exception:  # noqa: BLE001
-            pass
+    if task := getattr(app.state, "discovery_task", None):
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+        app.state.discovery_task = None
+    await close_stealth_client()
 
 
 @app.get("/api/config/public")
@@ -1844,50 +1749,35 @@ async def _execute_chat_completion(
                 headers={"Retry-After": str(int(retry_after) + 1)},
             )
 
+    from .route_arbiter import API_ONLY_MODELS, RELAY_ONLY_MODELS, route_arbiter
+
     requested_model = body.get("model") or "supreme-spark"
+    if not isinstance(requested_model, str):
+        raise HTTPException(status_code=400, detail="model must be a string")
+    requested_model = requested_model.strip() or "supreme-spark"
+    model_alias = requested_model.lower()
+    relay_only = model_alias in RELAY_ONLY_MODELS
+    if relay_only and not STEALTH_WEBHOOK_URL:
+        raise HTTPException(status_code=503, detail="Stealth Webhook relay is currently unconfigured")
     preferred_provider = None
 
-    # Vision/image input detection -> route to vision-capable model
-    has_image = False
-    for m in (body.get("messages") or []):
-        content = m.get("content") if isinstance(m, dict) else None
-        if isinstance(content, list):
-            for part in content:
-                if isinstance(part, dict) and (part.get("type") == "image_url" or "image" in str(part.get("type", ""))):
-                    has_image = True
-                    break
-        if has_image:
-            break
+    has_image = has_image_input(body)
     if has_image:
+        if relay_only:
+            raise HTTPException(status_code=503, detail="Vision input is unavailable on the webhook-only route")
         preferred_provider = "gemini"
-        requested_model = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
-    else:
-        # Optional: let dual-pool priority router influence preferred provider (soft switch)
-        try:
-            from gateway.dual_pool_priority_router import get_dual_pool_router
-            _dual_pick = get_dual_pool_router().select_best_model(requested_model or "general")
-            if _dual_pick:
-                _m, _slot = _dual_pick
-                _prov_map = {"groq_cerebras": "groq", "gemini": "gemini", "openrouter_kilo": "openrouter"}
-                _mapped = _prov_map.get(getattr(_m, "provider", ""))
-                if _mapped:
-                    preferred_provider = _mapped
-        except Exception:  # noqa: BLE001
-            pass
-        if requested_model.startswith("supremeai/"):
-            preferred_provider = requested_model.split("/", 1)[1]
-        elif requested_model in ("supremeai-web", "supremeai/web", "supremeai-webhook", "supremeai/webhook"):
-            preferred_provider = "ghost_gemini"
-        elif requested_model in ("supreme-spark", "supremeai-fast"):
-            preferred_provider = "groq" if (squad and squad.pools.get("groq") and squad.pools["groq"].healthy_slots) else "gemini"
-        elif requested_model in ("supreme-reason", "supremeai-reasoning"):
-            preferred_provider = "gemini"
-        elif requested_model in ("supremeai-api", "supremeai/api"):
-            preferred_provider = "auto"
-        elif requested_model in ("supreme-core", "supreme-deep", "supremeai-turbo", "auto"):
-            preferred_provider = None
-        elif requested_model in PROVIDER_CONFIGS:
-            preferred_provider = requested_model
+    elif relay_only:
+        preferred_provider = "ghost_gemini"
+    elif model_alias in API_ONLY_MODELS:
+        preferred_provider = "auto"
+    elif model_alias.startswith("supremeai/"):
+        preferred_provider = model_alias.split("/", 1)[1]
+    elif model_alias in ("supreme-spark", "supremeai-spark", "supremeai-fast"):
+        preferred_provider = "groq"
+    elif model_alias in ("supreme-reason", "supremeai-reasoning"):
+        preferred_provider = "gemini"
+    elif model_alias in PROVIDER_CONFIGS:
+        preferred_provider = model_alias
 
     # Normalize multimodal/structured content blocks (e.g. from Kilo Code/Roo Code/Cursor)
     # into clean strings so downstream schemas and relays never fail with 422.
@@ -1951,11 +1841,6 @@ async def _execute_chat_completion(
         except Exception as exc:
             logger.warning(f"Context compiler error, continuing with incoming messages: {exc}")
 
-    # ═══════════════════════════════════════════════════════════════════════
-    # Route selection is adaptive rather than a fixed stealth-first policy.
-    # The relay and the API key pool compete on observed latency and remaining
-    # free-tier budget. Explicit provider/model requests remain deterministic.
-    # ═══════════════════════════════════════════════════════════════════════
     def _format_sse_chunk(chunk_id: str, m_name: str, delta_text: str, is_final: bool, branding: Any) -> dict[str, Any]:
         p = {
             "id": chunk_id or "chatcmpl-stream",
@@ -1976,83 +1861,26 @@ async def _execute_chat_completion(
             p["session_id"] = conv_id
         return p
 
-    if not STEALTH_WEBHOOK_URL and requested_model in ("supremeai/ghost_gemini", "supremeai/web_session"):
-        raise HTTPException(
-            status_code=503,
-            detail="Stealth Webhook relay is currently unconfigured or offline. API key replies disabled per user mandate."
-        )
-
-    _cache_key: Optional[str] = None
+    # Do not share private completions or bypass current lane/approval checks
+    # through the legacy prompt-only cache namespace.
     relay_detail = None
-    if response_cache is not None and response_cache.is_cacheable(body, dict(request.headers)):
-        _cache_key = response_cache.build_key(body)
-        cached_resp = await response_cache.get(_cache_key)
-        if cached_resp is not None:
-            return JSONResponse(
-                status_code=200,
-                content=cached_resp,
-                headers={"X-SupremeAI-Cache": "HIT", "X-SupremeAI-Provider": "response-cache"},
-            )
-
-    global _last_vault_hydration_at
-    adaptive_candidates = squad.get_candidate_slots(preferred_provider) if squad else []
-    # Vault hydration is a cold-path repair, not a per-request dependency. The
-    # old code fetched the entire secret set whenever fewer than five keys were
-    # healthy, adding a network round-trip to every degraded request. Refresh
-    # at most once per interval and immediately rebuild the candidate view.
-    if squad and not adaptive_candidates and (time.monotonic() - _last_vault_hydration_at) >= _vault_hydration_interval:
-        _last_vault_hydration_at = time.monotonic()
-        await hydrate_vault_secrets()
-        adaptive_candidates = squad.get_candidate_slots(preferred_provider)
-        if not adaptive_candidates and preferred_provider not in (None, "auto"):
-            adaptive_candidates = squad.get_candidate_slots("auto")
-    if not adaptive_candidates and preferred_provider not in (None, "auto") and squad:
-        adaptive_candidates = squad.get_candidate_slots("auto")
-    api_remaining = [slot.remaining_free for _, slot in adaptive_candidates if slot.remaining_free is not None]
-    if api_remaining:
-        _adaptive_routes["api-pool"].remaining = sum(api_remaining)
-    # ═══════════════════════════════════════════════════════════════════════
-    # Dynamic Route Arbiter & Multi-Provider Decision Engine
-    # Evaluates latency targets (spark: 1.5s, core: 1.8s, reason/deep: 2.0-2.5s)
-    # and balances quota and speed without hardcoded priority bias.
-    # ═══════════════════════════════════════════════════════════════════════
-    from gateway.dual_pool_priority_router import get_dual_pool_router
-    from gateway.service.route_arbiter import RoutingDecision, route_arbiter
     route_arbiter.squad = squad
-    dual_router = get_dual_pool_router()
-    dual_pick = dual_router.select_best_model(requested_model or "general")
-
-    decision: RoutingDecision = route_arbiter.choose_best_route(
+    decision = route_arbiter.choose_best_route(
         requested_model=requested_model,
         preferred_provider=preferred_provider,
         adaptive_routes=_adaptive_routes,
         stealth_available=bool(STEALTH_WEBHOOK_URL),
         has_image=has_image,
     )
-
     use_priority_1 = decision.route_type == "stealth-webhook"
     candidates = decision.candidate_slots or []
-    # Hard/soft router mode
     router_mode = os.getenv("ROUTER_MODE", "soft").strip().lower()
     if router_mode == "hard" and preferred_provider:
         candidates = [c for c in candidates if c[0] == preferred_provider] or candidates
-    if not candidates and squad and requested_model not in ("supremeai-web", "supremeai/web"):
-        if has_image:
-            candidates = [
-                c
-                for c in squad.get_candidate_slots("auto")
-                if c[0] in ("gemini", "openai", "openrouter", "kilo", "unorouter")
-            ]
-        else:
-            candidates = squad.get_candidate_slots("auto")
+    if not candidates and not use_priority_1:
+        reason = "Vision analysis is temporarily unavailable" if has_image else "No approved free API route available"
+        raise HTTPException(status_code=503, detail=reason)
 
-    # If image input is present but all vision-capable providers are exhausted or unavailable,
-    # fail-closed with 503 instead of cascading to a text-only model that will refuse images.
-    if has_image and not candidates:
-        raise HTTPException(
-            status_code=503,
-            detail="Vision analysis is temporarily unavailable: all vision-capable model quotas are currently exhausted. Please try again shortly or attach a personal API key."
-        )
     if use_priority_1:
         w_status, w_response = None, None
         start_time = time.time()
@@ -2066,16 +1894,6 @@ async def _execute_chat_completion(
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"Priority-1 Web Relay attempt exception: {exc}")
             w_status, w_response = 500, None
-
-        if dual_pick is not None:
-            elapsed_ms = (time.time() - start_time) * 1000.0
-            dual_router.report_outcome(
-                dual_pick[0].model_id,
-                dual_pick[1].alias,
-                success=(w_status == 200 and w_response is not None),
-                latency_ms=elapsed_ms,
-                status_code=w_status or 500,
-            )
 
         # Auto-wrap raw {"reply": "..."} payloads if received
         if isinstance(w_response, dict) and "reply" in w_response and "choices" not in w_response and str(w_response["reply"]).strip():
@@ -2240,21 +2058,12 @@ async def _execute_chat_completion(
             (time.time() - start_time) * 1000,
             success=False,
         )
-        logger.warning(
-            f"Stealth Webhook relay returned non-chat or error status ({w_status}): {relay_detail}. "
-            f"Failing over to sovereign Multi-Key Squad Pool..."
-        )
+        logger.warning("Stealth Webhook relay failed or returned no chat reply (status=%s)", w_status)
+        if relay_only:
+            raise HTTPException(status_code=502, detail="Stealth Webhook relay is unavailable")
 
-    # ── [SOVEREIGN MULTI-KEY SQUAD POOL EXECUTION] ────────────────────────────
-    # Priority 2 Fallback & Direct execution for supremeai-api / enterprise pool.
-    # Completely preserves the SupremeAI Sole Identity doctrine.
     last_error = None
-    if squad:
-        if not candidates:
-            candidates = decision.candidate_slots or squad.get_candidate_slots(preferred_provider) or []
-        if not candidates and preferred_provider not in (None, "auto"):
-            candidates = squad.get_candidate_slots("auto")
-
+    if squad and candidates:
         # Audit P0-5 fix: TRUE streaming. When the client asks for SSE, live-
         # proxy upstream chunks via stream_chat_completion_events (internal
         # model cascade included) instead of buffering the whole reply and
@@ -2293,6 +2102,7 @@ async def _execute_chat_completion(
                             stream_iter,
                             connect_timeout_s=CHAT_CONNECT_TIMEOUT_S,
                             first_token_timeout_s=CHAT_FIRST_TOKEN_TIMEOUT_S,
+                            route_deadline=route_deadline,
                         ):
                             if kind == "status":
                                 header_at = time.monotonic()
@@ -2351,22 +2161,8 @@ async def _execute_chat_completion(
                                 call_latency = (time.monotonic() - call_start) * 1000
                                 pool = squad.pools.get(provider) if squad else None
                                 if pool:
-                                    pool.report_injury(slot, 500, call_latency)
-                                try:
-                                    from gateway.service.free_model_discovery import (
-                                        persist_slot,
-                                    )
-                                    asyncio.create_task(persist_slot(slot))
-                                except Exception:  # noqa: BLE001
-                                    pass
+                                    pool.report_injury(slot, data.get("status", 500), call_latency)
                                 _adaptive_routes["api-pool"].record(call_latency, success=False)
-                                try:
-                                    from gateway.service.free_model_discovery import (
-                                        validate_slot,
-                                    )
-                                    asyncio.create_task(validate_slot(slot))
-                                except Exception:  # noqa: BLE001
-                                    pass
                                 logger.warning(
                                     f"[stream] Provider {provider} slot {slot.name} failed before stream start: {last_stream_err}. "
                                     f"Failing over to next squad player..."
@@ -2440,7 +2236,8 @@ async def _execute_chat_completion(
 
         route_deadline = time.monotonic() + CHAT_ROUTE_DEADLINE_S
         for provider, slot in candidates:
-            if time.monotonic() > route_deadline:
+            remaining = route_deadline - time.monotonic()
+            if remaining <= 0:
                 logger.warning(
                     "Route deadline (%.0fs) exceeded; stopping provider failover.",
                     CHAT_ROUTE_DEADLINE_S,
@@ -2450,26 +2247,17 @@ async def _execute_chat_completion(
             call_start = time.monotonic()
 
             try:
-                status, response_data = await forward_chat_completion(provider, slot.key, body, slot=slot)
+                status, response_data = await asyncio.wait_for(
+                    forward_chat_completion(provider, slot.key, body, slot=slot), timeout=remaining,
+                )
+            except asyncio.TimeoutError:
+                status, response_data = 504, {"error": "API route deadline exceeded"}
             except Exception as exc:
                 status, response_data = 500, {"error": str(exc)}
             call_latency = (time.monotonic() - call_start) * 1000
 
-            if status in (401, 402, 403, 429):
-                try:
-                    from gateway.service.free_model_discovery import validate_slot
-                    asyncio.create_task(validate_slot(slot))
-                except Exception:  # noqa: BLE001
-                    pass
-
             if 200 <= status < 300 and isinstance(response_data, dict):
-                if squad:
-                    squad.report_success(provider, slot, call_latency)
-                    try:
-                        from gateway.service.free_model_discovery import persist_slot
-                        asyncio.create_task(persist_slot(slot))
-                    except Exception:  # noqa: BLE001
-                        pass
+                squad.report_success(provider, slot, call_latency)
                 _adaptive_routes["api-pool"].record(call_latency, success=True)
                 # 1. Enforce SupremeAI Sole Identity branding
                 served_model = requested_model or "supremeai-api"
@@ -2515,8 +2303,6 @@ async def _execute_chat_completion(
                 # (Audit P0-5: removed the fake word-by-word re-simulation —
                 # streaming clients are now served by the live upstream proxy
                 # branch above, before any buffering happens.)
-                if _cache_key and response_cache is not None:
-                    asyncio.create_task(response_cache.set(_cache_key, response_data))
                 return JSONResponse(status_code=status, content=response_data, headers=headers)
 
             pool = squad.pools.get(provider)
@@ -2669,11 +2455,10 @@ async def generate_ui_component(
     }
     candidates = squad.get_candidate_slots("v0") if squad else []
     for provider, slot in candidates:
-        status, resp = await forward_chat_completion(provider, slot.key, ui_payload)
+        status, resp = await forward_chat_completion(provider, slot.key, ui_payload, slot=slot)
         if 200 <= status < 300:
             return JSONResponse(status_code=status, content=resp)
-    # If V0 slot unavailable, fallback to primary chat completion
-    return await chat_completions(request, x_supremeai_key)
+    raise HTTPException(status_code=503, detail="Approved UI generation route unavailable")
 
 
 # ── MCP Control Tower & Superadmin Management Surface ────────────────────────
@@ -3107,7 +2892,7 @@ async def get_latency_telemetry(
     return {
         "status": "ok",
         "squad": squad_stats,
-        "cache": response_cache.stats() if response_cache else {"l1_size": 0, "hits": 0, "misses": 0},
+        "cache": {"enabled": False, "l1_size": 0, "hits": 0, "misses": 0},
         "routes": {k: {"latency_ms": v.latency_ms, "failures": v.failures, "remaining": v.remaining} for k, v in _adaptive_routes.items()},
     }
 

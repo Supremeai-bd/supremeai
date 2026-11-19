@@ -131,6 +131,10 @@ flowchart TD
 
 `main` লক্ষ করে একই রিপোজিটরির PR-এ `PR Landing Decision` এই রান-এর নির্দিষ্ট job result দেখে। Runner preflight, Syntax & Governance এবং GoldenEval gate সফল হতে হবে (লাইভ GoldenEval endpoint কনফিগার করা থাকলেই লাইভ পরীক্ষা চলে)। লোকাল combined battery সফল হলে আলাদা cloud fast/readiness job দরকার নেই। অন্যথায় cloud fast/readiness এবং নির্বাচিত heavy lane সফল হতে হবে। Render CI একই merge revision-এর প্রমাণ দিতে না পারলে কেবল অনুমোদিত fallback-এর সফল ফল গ্রহণযোগ্য; Render-এর প্রকৃত build failure fallback দিয়ে মওকুফ হয় না।
 
+Draft PR-এ CI checks চলবে, কিন্তু `PR Landing Decision` skip হবে।
+`ready_for_review` ইভেন্টে নতুন run সেই সিদ্ধান্ত নেবে। Trusted guard তখনও
+সর্বশেষ PR অবস্থায় draft বা বন্ধ PR-কে land করতে দেবে না।
+
 | সিদ্ধান্ত | ফলাফল |
 | --- | --- |
 | `AUTO_MERGE` | যাচাই সফল, পরিবর্তিত paths সুরক্ষিত নীতির আওতায় নয়; কোনও owner prompt নেই। |
@@ -169,6 +173,14 @@ flowchart TD
 > **🚀 Deployment Independence Invariant:** প্রোডাকশন ডিপ্লয়মেন্ট (`Deploy changed Render services`, `Deploy Cloudflare Edge Mesh`, `Deploy Vercel Frontend Hook`, `Harness CD Rollout`) এই ৩-টায়ার/৪-টায়ার রানার হায়ারার্কি **অনুসরণ করে না**। 
 > - **কেন?** ডিপ্লয়মেন্ট হলো ক্লাউড API (Render, Cloudflare, Vercel) অর্কেস্ট্রেশন। এটি লোকাল পিসিতে চালানো বা লোকাল পিসির জন্য অপেক্ষা করানো সম্পূর্ণ নিষিদ্ধ (অন্যথায় ডেভেলপার ল্যাপটপ বন্ধ করলে প্রোডাকশন ডিপ্লয় আটকে যাবে)।
 > - **কোথায় চলে?** ডিপ্লয় জবসমূহ সবসময় সরাসরি ক্লাউড রানারে (`ubuntu-latest`) চলে এবং ক্লাউড এপিআই-তে অনুমোদিত টোকেনসহ ডিপ্লয় ট্রিগার ও লাইভ হেলথ ভেরিফিকেশন পরিচালনা করে।
+
+**Render release evidence:** the Unified Pipeline deploys the exact `main` SHA
+from push or an explicit dispatch from `main`. The production job records the
+triggered deploy ID; attestation matches that `live` record and the runtime
+`/release` SHA. Canaries are separate. A suspended or metadata-only CI runner is
+not a verified runtime and does not stand in for the full test battery. See the
+[manual rollout checklist](operations/manual-rollout-checklist.md) for GitHub
+settings, staging and rollback evidence.
 
 ### ধাপ ১: লোকাল ডকার বিল্ড ও GHCR পুশ (Zero Render Build Minutes)
 - লোকাল রানারে কোড মার্জ হওয়ার সাথে সাথে ডকার ইমেজ বিল্ড হয়ে `ghcr.io/supremeai-bd/supremeai:latest`-এ পুশ হবে।

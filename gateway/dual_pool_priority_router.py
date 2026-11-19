@@ -1,4 +1,4 @@
-"""SupremeAI 6-Model Dual-Pool Priority Router & Live Telemetry Engine.
+"""Legacy dual-pool ranking and telemetry model (does not perform I/O).
 
 Combines `supremeai-api` (API Key pools) and `supremeai-web` (Stealth Webhooks &
 Web Session bridges) into a single pre-ranked Priority List:
@@ -6,18 +6,14 @@ Web Session bridges) into a single pre-ranked Priority List:
 - Task-Fit capability filtering + Lowest Latency priority.
 - Multi-key rotation per model before demoting a model.
 - Instant Rank-2 -> Rank-1 promotion on 429/402/403 or latency spike.
-- Background recheck & auto-recovery back to the top.
+- Recheck against caller-supplied observations only.
 - Safe Admin Dashboard telemetry snapshot (never exposes raw secrets).
 """
 
 from __future__ import annotations
 
-import asyncio
-import json
 import os
 import time
-import urllib.error
-import urllib.request
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -350,90 +346,3 @@ def get_dual_pool_router() -> DualPoolPriorityRouter:
     if _ROUTER_SINGLETON is None:
         _ROUTER_SINGLETON = DualPoolPriorityRouter()
     return _ROUTER_SINGLETON
-
-
-def _probe_url_for(model: PoolModelEntry, slot: KeySlot, secret: str) -> tuple[str, dict[str, str], bytes | None]:
-    if model.provider == "gemini":
-        body = json.dumps({"contents": [{"parts": [{"text": "ping"}]}], "generationConfig": {"maxOutputTokens": 1}}).encode("utf-8")
-        return f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key={secret}", {"Content-Type": "application/json"}, body
-    if model.provider == "openrouter_kilo":
-        if slot.env_key.startswith("KILO"):
-            return "https://api.kilo.ai/api/gateway/models", {"Authorization": f"Bearer {secret}"}, None
-        return "https://openrouter.ai/api/v1/models", {"Authorization": f"Bearer {secret}"}, None
-    if model.provider == "groq_cerebras":
-        if slot.env_key.startswith("CEREBRAS"):
-            return "https://api.cerebras.ai/v1/models", {"Authorization": f"Bearer {secret}"}, None
-        model_name = model.active_model_name or "qwen/qwen3.8-27b"
-        body = json.dumps({"model": model_name, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1}).encode("utf-8")
-        return "https://api.groq.com/openai/v1/chat/completions", {"Authorization": f"Bearer {secret}", "Content-Type": "application/json"}, body
-    if model.pool == "supremeai-web":
-        url = os.getenv("STEALTH_WEBHOOK_URL", "").strip()
-        if not url:
-            return "", {}, None
-        headers = {"X-Stealth-Secret": os.getenv("STEALTH_WEBHOOK_SECRET", "")}
-        return (url.rstrip("/") + "/health"), headers, None
-    return "", {}, None
-
-
-def live_http_probe(model: PoolModelEntry, slot: KeySlot, timeout: float = 5.0) -> tuple[bool, float, int, str | None]:
-    """Real HTTP live probe with 1-token chat completion for real inference latency."""
-    secret = os.getenv(slot.env_key, "").strip()
-    if not secret:
-        if model.pool == "supremeai-web":
-            return True, model.latency_ms, 200, None
-        return False, model.latency_ms, 401, None
-    url, headers, body = _probe_url_for(model, slot, secret)
-    if not url:
-        if model.pool == "supremeai-web":
-            return True, model.latency_ms, 200, None
-        return False, model.latency_ms, 0, None
-
-    started = time.monotonic()
-    req = urllib.request.Request(
-        url,
-        data=body,
-        headers={"User-Agent": "SupremeAI-Prober/1.0", **headers},
-        method="POST" if body else "GET",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            latency_ms = round((time.monotonic() - started) * 1000.0, 1)
-            status = getattr(resp, "status", 200)
-            discovered: str | None = None
-            if model.provider == "openrouter_kilo" and status == 200 and not body:
-                data = json.loads(resp.read().decode("utf-8", errors="ignore") or "{}")
-                for item in data.get("data", []):
-                    mid = item.get("id", "")
-                    if mid.endswith(":free"):
-                        discovered = mid
-                        break
-            return 200 <= status < 300, latency_ms, status, discovered
-    except urllib.error.HTTPError as exc:
-        latency_ms = round((time.monotonic() - started) * 1000.0, 1)
-        if body and exc.code in (400, 404):
-            fallback_url = (
-                f"https://generativelanguage.googleapis.com/v1beta/models?key={secret}"
-                if model.provider == "gemini"
-                else "https://api.groq.com/openai/v1/models"
-            )
-            fallback_headers = {} if model.provider == "gemini" else {"Authorization": f"Bearer {secret}"}
-            try:
-                fallback_req = urllib.request.Request(
-                    fallback_url,
-                    headers={"User-Agent": "SupremeAI-Prober/1.0", **fallback_headers},
-                )
-                with urllib.request.urlopen(fallback_req, timeout=timeout) as f_resp:
-                    return 200 <= getattr(f_resp, "status", 200) < 300, latency_ms, f_resp.status, None
-            except Exception:
-                pass
-        return False, latency_ms, exc.code, None
-    except Exception:
-        return False, round((time.monotonic() - started) * 1000.0, 1), 0, None
-
-
-async def start_background_recheck_loop(interval_seconds: float = 900.0) -> None:
-    """Background scheduler: re-probes all 6 models every 15 minutes without blocking."""
-    router = get_dual_pool_router()
-    while True:
-        await asyncio.to_thread(router.run_background_recheck, live_http_probe)
-        await asyncio.sleep(interval_seconds)

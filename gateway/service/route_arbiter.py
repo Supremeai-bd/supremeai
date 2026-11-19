@@ -19,9 +19,16 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from .adaptive_routing import RouteSnapshot, route_score
+from .free_route_policy import VISION_PROVIDERS
 from .pool import FederationSquad, KeySlot
 
 logger = logging.getLogger("supremeai.arbiter")
+
+RELAY_ONLY_MODELS = frozenset({
+    "supremeai-web", "supremeai/web", "supremeai-webhook", "supremeai/webhook",
+    "supremeai/stealth", "supremeai/ghost_gemini", "supremeai/web_session",
+})
+API_ONLY_MODELS = frozenset({"supremeai-api", "supremeai/api"})
 
 # Per-model latency thresholds from architectural plan
 MODEL_LATENCY_THRESHOLDS_MS: Dict[str, float] = {
@@ -78,7 +85,7 @@ class DynamicRouteArbiter:
         target_latency = MODEL_LATENCY_THRESHOLDS_MS.get(model_clean, 1800.0)
 
         # 1. Enforce strict model boundary contracts
-        if model_clean in ("supremeai-web", "supremeai/web", "supremeai-webhook", "supremeai/webhook"):
+        if model_clean in RELAY_ONLY_MODELS:
             return RoutingDecision(
                 route_type="stealth-webhook",
                 target_latency_ms=target_latency,
@@ -86,17 +93,17 @@ class DynamicRouteArbiter:
                 candidate_slots=[],
             )
 
-        if model_clean in ("supremeai-api", "supremeai/api"):
+        if model_clean in API_ONLY_MODELS:
             candidates: List[Tuple[str, KeySlot]] = []
             seen_slot_names = set()
             if self.squad and preferred_provider and preferred_provider not in ("auto", "stealth"):
-                for p, s in self.squad.get_candidate_slots(preferred_provider):
-                    if s.name not in seen_slot_names:
+                for p, s in self.squad.get_candidate_slots(preferred_provider, vision=has_image):
+                    if (not has_image or p in VISION_PROVIDERS) and s.name not in seen_slot_names:
                         candidates.append((p, s))
                         seen_slot_names.add(s.name)
             if self.squad:
-                for p, s in self.squad.get_candidate_slots("auto"):
-                    if s.name not in seen_slot_names:
+                for p, s in self.squad.get_candidate_slots("auto", vision=has_image):
+                    if (not has_image or p in VISION_PROVIDERS) and s.name not in seen_slot_names:
                         candidates.append((p, s))
                         seen_slot_names.add(s.name)
             return RoutingDecision(
@@ -117,8 +124,8 @@ class DynamicRouteArbiter:
 
             # Primary: if preferred_provider specified, queue its candidate slots first
             if preferred_provider and preferred_provider not in ("auto", "stealth"):
-                for prov, slot in self.squad.get_candidate_slots(preferred_provider):
-                    if slot.name not in seen_slot_names:
+                for prov, slot in self.squad.get_candidate_slots(preferred_provider, vision=has_image):
+                    if (not has_image or prov in VISION_PROVIDERS) and slot.name not in seen_slot_names:
                         primary_candidates.append((prov, slot))
                         seen_slot_names.add(slot.name)
 
@@ -126,29 +133,18 @@ class DynamicRouteArbiter:
             provider_sequence = list(allowed_providers or ["groq", "gemini", "openrouter", "sambanova", "mistral", "kilo"])
             if has_image:
                 # Strictly isolate vision tasks to multimodal providers (never text-only models like Groq/Mistral/Kilo)
-                provider_sequence = [p for p in provider_sequence if p in ("gemini", "openai", "openrouter")]
-            try:
-                from gateway.dual_pool_priority_router import get_dual_pool_router
-                active_pick = get_dual_pool_router().select_best_model(model_clean)
-                if active_pick:
-                    top_prov = active_pick[0].provider
-                    target_prov = "groq" if "groq" in top_prov else ("gemini" if "gemini" in top_prov else ("openrouter" if "openrouter" in top_prov else None))
-                    if target_prov and target_prov in provider_sequence:
-                        provider_sequence.remove(target_prov)
-                        provider_sequence.insert(0, target_prov)
-            except Exception:
-                pass
+                provider_sequence = [p for p in provider_sequence if p in VISION_PROVIDERS]
             for prov in provider_sequence:
                 if prov == preferred_provider:
                     continue
-                for prov_item, slot in self.squad.get_candidate_slots(prov):
+                for prov_item, slot in self.squad.get_candidate_slots(prov, vision=has_image):
                     if slot.name not in seen_slot_names:
                         fallback_candidates.append((prov_item, slot))
                         seen_slot_names.add(slot.name)
 
             # Tertiary: add any other healthy squad auto slots
-            for prov_item, slot in self.squad.get_candidate_slots("auto"):
-                if has_image and prov_item not in ("gemini", "openai", "openrouter"):
+            for prov_item, slot in self.squad.get_candidate_slots("auto", vision=has_image):
+                if has_image and prov_item not in VISION_PROVIDERS:
                     continue
                 if slot.name not in seen_slot_names:
                     fallback_candidates.append((prov_item, slot))
@@ -170,32 +166,10 @@ class DynamicRouteArbiter:
 
             candidates = primary_candidates + fallback_candidates
 
-        # Re-sort all candidate slots by route_score using model's latency threshold
-        if candidates:
-            candidates = sorted(candidates, key=sort_key, reverse=True)
-
-        # 3. Dynamic route competition between Stealth Webhook and API Key Pool
-        stealth_route = adaptive_routes.get("stealth-webhook")
-        api_route = adaptive_routes.get("api-pool")
-
-        stealth_snap = stealth_route.snapshot(available=stealth_available) if stealth_route else RouteSnapshot("stealth-webhook", available=False)
-        api_snap = api_route.snapshot(available=bool(candidates)) if api_route else RouteSnapshot("api-pool", available=False)
-
-        # Determine winner
-        route_score(stealth_snap, latency_target_ms=target_latency)
-        route_score(api_snap, latency_target_ms=target_latency)
-
-        # Prioritize high-speed streaming API pool when healthy candidates exist.
-        # Stealth webhook is reserved for explicit web requests or total API pool exhaustion.
-        allow_stealth = bool(stealth_available and model_clean not in ("supremeai-api", "supremeai/api"))
-        if preferred_provider in ("stealth", "ghost_gemini", "web_session") or model_clean in ("supremeai-web", "supremeai/web"):
-            route_type = "stealth-webhook"
-        elif candidates:
-            route_type = "api-pool"
-        elif stealth_available:
-            route_type = "stealth-webhook"
-        else:
-            route_type = "api-pool"
+        # Keep the relay as the text fallback when no approved API route exists.
+        # An explicitly selected API lane or image request never switches lanes.
+        allow_stealth = bool(stealth_available and not has_image)
+        route_type = "stealth-webhook" if allow_stealth and not candidates else "api-pool"
 
         return RoutingDecision(
             route_type=route_type,

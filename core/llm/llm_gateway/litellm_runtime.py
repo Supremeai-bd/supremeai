@@ -44,11 +44,7 @@ class LitellmSetupMixin:
             litellm.telemetry = False
             litellm.use_litellm_proxy = False
 
-            # Setup Redis Cache for LiteLLM built-in cache/rate-limiting
-            from ...config import settings  # Fixed import path - using relative import
-
-            if getattr(settings, "redis_url", None):
-                litellm.cache = litellm.Cache(type="redis", url=settings.redis_url)
+            # Do not install an unscoped process-wide LiteLLM response cache.
 
             # Performance Optimization: Share a single aiohttp ClientSession across all LiteLLM requests
             # to prevent repeated session creation overhead

@@ -364,6 +364,8 @@ class CascadeMemoryService:
 
         বাংলা মন্তব্য: ডেটাবেসে মেমোরি এন্ট্রি স্টোর বা আপডেট করার কোর মেথড।
         """
+        if user_id and not self._use_pg:
+            raise RuntimeError("Owner-scoped memory storage is unavailable")
         if metadata is None:
             metadata = {}
         embedding = self._embed(summary)
@@ -401,6 +403,8 @@ class CascadeMemoryService:
                 )
             except Exception as exc:
                 logger.error(f"CascadeMemoryService.store_memory: Postgres write failed: {exc}")
+                if user_id:
+                    raise
             return
 
         if self._degraded_memory:
@@ -523,6 +527,8 @@ class CascadeMemoryService:
 
         বাংলা মন্তব্য: ডেটাবেসে থাকা সকল মেমোরি এন্ট্রি রিট্রিভ করার কোর মেথড।
         """
+        if (user_id or session_id) and not self._use_pg:
+            return []  # The file stores have no ownership/session columns.
         results = []
         if self._use_pg:
             try:
@@ -668,7 +674,8 @@ class CascadeMemoryService:
         most relevant structural contexts using cosine similarity.
         Can be filtered by session_id.
         """
-        logger.info(f"Querying context for prompt: {prompt[:30]}...")
+        if (user_id or session_id) and not self._use_pg:
+            return []  # Never fall back to shared file memories for a scoped query.
         query_vector = self._embed(prompt)
 
         results = []
@@ -924,9 +931,7 @@ async def save_memory(
     Returns ``{"success": True, "id": <id>}`` on success.
     """
     try:
-        from datetime import datetime
-
-        embedding = get_embedding(summary)
+        embedding = await asyncio.to_thread(get_embedding, summary)
         supabase = _get_supabase()
         now = datetime.now(UTC).isoformat()
         record = {
@@ -962,7 +967,8 @@ async def save_memory(
                 )
 
         # Local / PostgreSQL Cascade Fallback
-        memory_service.store_memory(
+        await asyncio.to_thread(
+            memory_service.store_memory,
             file_path=f"{session_id}:{task_type}",
             content=summary,
             summary=summary,
@@ -985,39 +991,57 @@ async def recall_memories(
     limit: int = 10,
     threshold: float = 0.65,
     user_id: str | None = None,
+    session_id: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Semantic-search ai_memory and return the top *limit* matches."""
+    """Recall only memories whose returned ownership and session can be verified."""
+    if not isinstance(user_id, str) or not user_id.strip():
+        return []
+
+    def owned_matches(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        matches = []
+        for row in rows:
+            if not isinstance(row, dict) or row.get("user_id") != user_id:
+                continue
+            if session_id is not None and row.get("session_id") != session_id:
+                continue
+            score = row.get("similarity", row.get("score"))
+            if type(score) in (float, int) and score >= threshold:
+                matches.append(row)
+        return matches[:limit]
+
     try:
-        embedding = get_embedding(task_description)
         supabase = _get_supabase()
         if supabase:
             try:
-                # FIX (P1, review 2026-09-12): sync RPC call was blocking the event
-                # loop (~100-300ms per recall). Offload to a worker thread.
+                embedding = await asyncio.to_thread(get_embedding, task_description)
+                # Unlike the legacy singular RPC, this returns user_id and can
+                # filter on both owner and session. Also verify the returned rows.
                 result = await asyncio.to_thread(
                     lambda: supabase.rpc(
-                        "match_ai_memory",
+                        "match_ai_memories",
                         {
                             "query_embedding": embedding,
                             "match_threshold": threshold,
                             "match_count": limit,
-                            "p_user_id": user_id,  # Assume RPC handles it, or fails safely to fallback
+                            "filter_user_id": user_id,
+                            "filter_session_id": session_id,
                         },
                     ).execute()
                 )
-                memories = result.data or []
-                logger.info(
-                    f"Memory recall (Supabase) | query='{task_description[:60]}...' | found={len(memories)}"
-                )
-                return memories
-            except Exception as sb_err:
-                logger.debug(f"Supabase RPC failed ({sb_err}), falling back to cascade service.")
+                return owned_matches(result.data or [])
+            except Exception as exc:
+                logger.warning(f"Scoped memory RPC unavailable; checking scoped cascade: {exc}")
 
-        # Local / Cascade Fallback
-        matches = memory_service.query_context(task_description, top_k=limit, user_id=user_id)
-        return matches
+        matches = await asyncio.to_thread(
+            memory_service.query_context,
+            task_description,
+            top_k=limit,
+            user_id=user_id,
+            session_id=session_id,
+        )
+        return owned_matches(matches)
     except Exception as exc:
-        logger.error(f"Memory recall exception: {exc}")
+        logger.error(f"Scoped memory recall failed: {exc}")
         return []
 
 

@@ -118,7 +118,7 @@ jobs:
 
       - name: Critical Security & Architecture Guards Suite
         run: |
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py core/tests/agents/test_agents_unified.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py core/tests/agents/test_agents_unified.py
           python scripts/ops/wiring_atlas.py --check
 
       - name: Subsystem Paths Filter
@@ -258,7 +258,7 @@ jobs:
       - name: Tier 1 — Critical Security & Architecture Guards Suite
         shell: powershell
         run: |
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py core/tests/agents/test_agents_unified.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py core/tests/agents/test_agents_unified.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ops/wiring_atlas.py --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -316,7 +316,7 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Running full verification battery on local self-hosted runner (0 cloud mins)..."
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py tests/test_tiny_brain_guard.py gateway/tests/test_free_model_discovery.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ops/wiring_atlas.py --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -406,7 +406,7 @@ jobs:
       - name: Run Full Unit & Component Guard Battery
         run: |
           echo "Local runner offline. Render CI busy. Running heavy battery on GitHub Ubuntu (Priority 3)..."
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py tests/test_tiny_brain_guard.py gateway/tests/test_free_model_discovery.py
           python scripts/ops/wiring_atlas.py --check
 
       - name: Fast Compile Integrity
@@ -447,7 +447,7 @@ jobs:
       - name: Run Full Unit & Component Guard Battery
         run: |
           echo "EMERGENCY: Render quota exhausted. Running heavy battery on GitHub Ubuntu (Priority 4)..."
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py tests/test_tiny_brain_guard.py gateway/tests/test_free_model_discovery.py
           python scripts/ops/wiring_atlas.py --check
 
       - name: Fast Compile Integrity
@@ -469,11 +469,13 @@ jobs:
   # =========================================================================
   # STAGE 2b: LANDING DECISION — one policy after the required checks finish.
   # These needs are job results for this run's github.sha, not a PR-head rollup.
+  # Drafts run CI, but no landing decision is requested until ready_for_review.
   # =========================================================================
   ai-evaluate-and-approve:
     name: "PR Landing Decision"
     if: >-
       always() && !cancelled() && github.event_name == 'pull_request' &&
+      github.event.pull_request.draft == false &&
       github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
@@ -599,7 +601,7 @@ jobs:
   deploy-and-verify:
     name: "Post-Merge: Plan changed Render services"
     needs: [resolve-execution-tier]
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true)
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -635,17 +637,19 @@ jobs:
           RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
           RENDER_BRAIN_SERVICE_ID: ${{ vars.RENDER_BRAIN_SERVICE_ID }}
           RENDER_CI_RUNNER_SERVICE_ID: ${{ vars.RENDER_CI_RUNNER_SERVICE_ID }}
+          FORCE_DEPLOY: ${{ inputs.force_deploy }}
+          DEPLOY_TARGETS: ${{ inputs.target_service || 'all' }}
         id: plan
         run: |
           FORCE_FLAG=""
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force_deploy }}" = "true" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "$FORCE_DEPLOY" = "true" ]; then
             FORCE_FLAG="--force"
           fi
           python scripts/ci/plan_render_deploys.py \
             --base "${{ github.event.before }}" \
             --head "${{ github.sha }}" \
             $FORCE_FLAG \
-            --targets "${{ inputs.target_service || 'all' }}" \
+            --targets "$DEPLOY_TARGETS" \
             --output "$GITHUB_OUTPUT"
 
       # A changed service whose ID is not configured is UNREGISTERED, not a
@@ -670,21 +674,26 @@ jobs:
   deploy-render-services:
     name: "Deploy changed Render services"
     needs: deploy-and-verify
-    if: needs.deploy-and-verify.outputs.has_services == 'true'
+    if: github.ref == 'refs/heads/main' && needs.deploy-and-verify.outputs.has_services == 'true'
     runs-on: ubuntu-24.04
+    environment: production
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.deploy-and-verify.outputs.matrix) }}
     concurrency:
-      group: render-${{ matrix.service }}-main
+      group: render-service-${{ matrix.service_id }}
       cancel-in-progress: false
     steps:
       - name: Checkout Code
         uses: actions/checkout@v5
 
-      - name: Trigger and poll only the changed Render service
+      - name: Trigger and poll the exact source revision
+        id: deploy
         env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REQUIRE_EXPECTED_SHA: "1"
+          RENDER_AUXILIARY: ${{ matrix.service == 'ci-runner' && '1' || '0' }}
           RENDER_API_KEY_ENV: ${{ matrix.api_key_env }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
           RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY }}
@@ -715,8 +724,10 @@ jobs:
           RENDER_WAIT_TIMEOUT_SECONDS: "600"
         run: python scripts/ci/render_trigger_deploy.py
 
-      - name: Verify source revision, not only HTTP health
+      - name: Attest runtime SHA (auxiliary CI runner is not release evidence)
         env:
+          RENDER_DEPLOY_ID: ${{ steps.deploy.outputs.deploy_id }}
+          RENDER_AUXILIARY: ${{ matrix.service == 'ci-runner' && '1' || '0' }}
           RENDER_API_KEY_ENV: ${{ matrix.api_key_env }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
           RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY }}
@@ -759,7 +770,7 @@ jobs:
     name: "Deploy Cloudflare Edge Mesh (path-filtered)"
     needs: deploy-and-verify
     if: |
-      always() &&
+      always() && github.ref == 'refs/heads/main' &&
       (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true)) &&
       (
         contains(inputs.target_service, 'all') ||
@@ -767,6 +778,7 @@ jobs:
         contains(inputs.target_service, 'studio')
       )
     runs-on: ubuntu-24.04
+    environment: production
     timeout-minutes: 15
     steps:
       - name: Checkout Code
@@ -778,11 +790,14 @@ jobs:
       - name: Detect Cloudflare-relevant changes
         id: cf_changes
         shell: bash
+        env:
+          FORCE_DEPLOY: ${{ inputs.force_deploy }}
+          DEPLOY_TARGETS: ${{ inputs.target_service }}
         run: |
           set -euo pipefail
           SHOULD_DEPLOY="false"
           # Manual force or explicit cloudflare target always deploys
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && { [ "${{ inputs.force_deploy }}" = "true" ] || echo "${{ inputs.target_service || '' }}" | grep -qiE '(^|,)(all|cloudflare|studio)(,|$)'; }; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && { [ "$FORCE_DEPLOY" = "true" ] || printf '%s\n' "$DEPLOY_TARGETS" | grep -qiE '(^|,)(all|cloudflare|studio)(,|$)'; }; then
             SHOULD_DEPLOY="true"
           elif [ "${{ github.event_name }}" = "push" ]; then
             BASE="${{ github.event.before }}"
@@ -870,7 +885,7 @@ jobs:
     name: "Deploy Vercel Frontend Hook"
     needs: deploy-and-verify
     if: |
-      always() &&
+      always() && github.ref == 'refs/heads/main' &&
       (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true)) &&
       (
         (github.event_name == 'push' && (
@@ -888,6 +903,7 @@ jobs:
         ))
       )
     runs-on: ubuntu-24.04
+    environment: production
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
@@ -915,8 +931,13 @@ jobs:
     name: "Tier 1: Syntax & Governance Checks (<15s)"
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@v7
         with:
@@ -966,6 +987,37 @@ jobs:
               print("\n".join(bad)); sys.exit(1)
           print(f"{len(files)} YAML files valid.")
           PY
+
+      - name: Check the real Core routes build inference context
+        run: python scripts/ci/check_gateway_context.py
+
+      - name: Detect Tower contract changes
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        id: tower
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            contracts:
+              - 'infrastructure/mcp-control-plane/**'
+              - '.github/workflows/unified-pipeline.yml'
+
+      - uses: actions/setup-node@v7
+        if: steps.tower.outputs.contracts == 'true'
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: infrastructure/mcp-control-plane/package-lock.json
+
+      - name: Build and verify Tower tool contracts (offline)
+        if: steps.tower.outputs.contracts == 'true'
+        working-directory: infrastructure/mcp-control-plane
+        run: |
+          npm ci
+          npm run build
+          npm run test:annotations-floor
+          npm run test:tool-visibility
+          npm run test:access
+          npm run test:entry-governance
 
   # =========================================================================
   # Golden-Eval Regression Gate (archive workorder bridge-20261028-golden-eval-gate,

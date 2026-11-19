@@ -1,279 +1,105 @@
 #!/usr/bin/env python3
-"""Verify that a Render deployment is the expected source revision.
+"""Attest the exact triggered Render deployment and the running release SHA.
 
-This deliberately treats HTTP health as only one signal. A service is green
-only when:
-  1. Render deployment reaches a successful terminal state.
-  2. Render deployment metadata identifies the expected commit when available.
-  3. The service release endpoint exposes the expected commit when configured.
-  4. The configured health endpoint returns an acceptable status.
-
-Environment:
-  RENDER_API_KEY
-  RENDER_SERVICE_ID
-  EXPECTED_SHA
-  RELEASE_URL (optional but strongly recommended; e.g. /health/ready or /release)
-  EXPECTED_CAPABILITY (optional JSON capability assertion)
-
-Canonical transport: scripts/ops/lib/render_client.py (DRY Phase 2-C3).
+Health checks remain a separate canary. Missing, stale or mismatched evidence
+must never emit 'verified'. An explicitly optional auxiliary target that was
+not deployed may emit 'not_run', which is not release evidence.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import sys
-import time
-import urllib.error
 import urllib.request
-from pathlib import Path
 
-# scripts/ci/ -> scripts/ops/lib/render_client.py
-_LIB = Path(__file__).resolve().parents[1] / "ops" / "lib"
-if str(_LIB) not in sys.path:
-    sys.path.insert(0, str(_LIB))
-from render_client import RenderApiError, RenderClient  # type: ignore
-
-CANDIDATE_KEY_ENVS = (
-    "RENDER_API_KEY_1",
-    "RENDER_API_KEY_2",
-    "RENDER_API_KEY_3",
-    "RENDER_API_KEY_4",
-    "RENDER_API_KEY_5",
-    "RENDER_API_KEY_6",
-    "RENDER_API_KEY_PAYKARI",
-    "RENDER_API_KEY",
-)
-
-
-def _collect_candidate_keys(preferred_env: str) -> list[tuple[str, str]]:
-    seen: set[str] = set()
-    pairs: list[tuple[str, str]] = []
-    for env_name in (preferred_env, *CANDIDATE_KEY_ENVS):
-        if not env_name:
-            continue
-        val = os.environ.get(env_name, "").strip()
-        if val and val not in seen:
-            seen.add(val)
-            pairs.append((env_name, val))
-    return pairs
-
-
-def fail(message: str) -> int:
-    print(f"::error::{message}", file=sys.stderr)
-    return 1
-
-
-def _probe_health_fallback(release_url: str) -> bool:
-    """When /release is not yet exposed or returns 401/404 on a legacy build, verify /health."""
-    base = release_url.rsplit("/release", 1)[0]
-    for suffix in ("/health", "/health/live", "/api/v1/health"):
-        probe_url = f"{base}{suffix}"
-        req = urllib.request.Request(
-            probe_url, headers={"User-Agent": "SupremeAI-Deploy-Attestor/1.0"}
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                if resp.status == 200:
-                    return True
-        except Exception:
-            continue
-    return False
+if __package__:
+    from .render_trigger_deploy import (
+        RenderApiError, RenderClient, _collect_candidate_keys, deploy_commit, deploy_record,
+    )
+else:
+    from render_trigger_deploy import (
+        RenderApiError, RenderClient, _collect_candidate_keys, deploy_commit, deploy_record,
+    )
 
 
 def main() -> int:
-    key_env = os.environ.get("RENDER_API_KEY_ENV", "").strip() or "RENDER_API_KEY"
-    candidate_keys = _collect_candidate_keys(key_env)
     service_id = os.environ.get("RENDER_SERVICE_ID", "").strip()
+    deploy_id = os.environ.get("RENDER_DEPLOY_ID", "").strip()
     expected = os.environ.get("EXPECTED_SHA", "").strip().lower()
     release_url = os.environ.get("RELEASE_URL", "").strip()
+    optional = os.environ.get("RENDER_AUXILIARY") == "1"
 
-    if not candidate_keys:
-        return fail("RENDER_API_KEY is missing")
-    if not service_id:
-        return fail("RENDER_SERVICE_ID is missing; service identity is not reconciled")
+    def report(status: str, reason: str = "") -> int:
+        result = {"status": status, "service_id": service_id}
+        if status == "verified":
+            result.update(commit=expected, deploy_id=deploy_id)
+        else:
+            result["reason"] = reason
+            level = "error" if status == "unverified" else "warning"
+            print(f"::{level}::Render release {status}: {reason}", file=sys.stderr)
+        print(json.dumps(result, sort_keys=True))
+        return 1 if status == "unverified" else 0
 
-    if os.environ.get("RENDER_SERVICE_SUSPENDED", "").strip() in ("1", "true", "yes"):
-        print(
-            f"::warning::Service {service_id} is SUSPENDED on Render. "
-            "Skipping deploy attestation without failing CI."
-        )
-        return 0
+    if not service_id or not re.fullmatch(r"[0-9a-f]{40}", expected):
+        return report("unverified", "Missing service ID or full EXPECTED_SHA")
+    if os.environ.get("RENDER_SERVICE_SUSPENDED") == "1":
+        state = "not_run" if optional and not deploy_id else "unverified"
+        return report(state, "Render service suspended")
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", deploy_id):
+        return report("unverified", "Triggered deploy ID is required")
+    if not release_url.startswith("https://") and not (optional and not release_url):
+        return report("unverified", "HTTPS RELEASE_URL is required")
 
-    for _env_name, api_key in candidate_keys:
-        probe_client = RenderClient(api_key=api_key, service_id=service_id)
+    key_env = os.environ.get("RENDER_API_KEY_ENV", "").strip() or "RENDER_API_KEY"
+    candidate_keys = _collect_candidate_keys(key_env)
+    record = None
+    for _, key in candidate_keys:
         try:
-            svc_info = probe_client.get_service(service_id)
-            if isinstance(svc_info, dict):
-                svc_obj = svc_info.get("service", svc_info) if isinstance(svc_info.get("service"), dict) else svc_info
-                suspended_state = str(svc_obj.get("suspended") or "").strip().lower()
-                if suspended_state == "suspended":
-                    print(
-                        f"::warning::Service {service_id} is SUSPENDED on Render. "
-                        "Skipping deploy attestation without failing CI."
-                    )
-                    return 0
+            client = RenderClient(api_key=key, service_id=service_id)
+            record = deploy_record(client.get_deploy(deploy_id, service_id))
             break
         except RenderApiError as exc:
             if exc.status in (401, 403, 404):
                 continue
-            break
-        except Exception:
-            break
-
-    if not expected:
-        return fail("EXPECTED_SHA is missing; refusing health-only verification")
+            return report("unverified", "Render deploy metadata unavailable")
+        except (OSError, ValueError):
+            return report("unverified", "Render deploy metadata unavailable or invalid")
+    if not record:
+        return report("unverified", "No metadata for the triggered Render deploy")
+    if record.get("id") != deploy_id or record.get("status") != "live":
+        return report("unverified", "The triggered Render deploy is not live")
+    if deploy_commit(record) != expected:
+        return report("unverified", "Render deploy commit does not match EXPECTED_SHA")
     if not release_url:
-        print("::warning::RELEASE_URL not configured for this service; skipping running-SHA verification (Render metadata SHA still checked).")
-        release_url = ""
+        return report("metadata_only", "CI runner has no runtime release target; not release evidence")
 
-    poll_timeout_seconds = int(os.environ.get("RENDER_WAIT_TIMEOUT_SECONDS", "600"))
-    poll_interval_seconds = 15
-    deadline = time.monotonic() + poll_timeout_seconds
-
-    latest = None
-    status = ""
-    last_exc: RenderApiError | None = None
-
-    while True:
-        last_exc = None
-        for env_name, api_key in candidate_keys:
-            client = RenderClient(api_key=api_key, service_id=service_id)
-            try:
-                latest = client.get_latest_deploy(service_id)
-                break
-            except RenderApiError as exc:
-                last_exc = exc
-                if exc.status == 404 and "not found: service" in (exc.body or "").lower():
-                    continue
-                break
-
-        if latest is not None:
-            status = (
-                latest.get("status")
-                or latest.get("deploy", {}).get("status", "")
-                or ""
-            ).lower()
-            if status in {"live", "succeeded", "success", "pre_live"}:
-                break
-            if status in {"build_failed", "update_failed", "deactivated", "canceled"}:
-                return fail(f"Render deployment reached terminal failure state: status={status!r}")
-            if time.monotonic() >= deadline:
-                print(
-                    f"::warning::Deploy {service_id} still {status!r} after {poll_timeout_seconds}s; "
-                    f"checking live health fallback."
-                )
-                break
-            print(
-                f"Render deploy for {service_id} in progress (status={status!r}); "
-                f"waiting {poll_interval_seconds}s for terminal state..."
-            )
-        else:
-            if time.monotonic() >= deadline:
-                break
-            if last_exc is not None and last_exc.status != 404:
-                print(f"Render API probe warning: {last_exc}")
-
-        time.sleep(poll_interval_seconds)
-
-    if latest is None:
-        if last_exc is not None:
-            return fail(f"Render API get_latest_deploy failed for {service_id}: HTTP {last_exc.status} {last_exc.body}")
-        return fail(f"Unable to query latest deploy for {service_id}")
-
-    if status not in {"live", "succeeded", "success", "pre_live"}:
-        if release_url and _probe_health_fallback(release_url):
-            print(
-                f"::warning::Render deployment metadata status is {status!r}, "
-                f"but live release/health probe returned HTTP 200; accepting as healthy."
-            )
-        else:
-            return fail(f"Render deployment is not successful: status={status!r}")
-
-    commit = None
-    commit_field = latest.get("commit")
-    if isinstance(commit_field, dict):
-        commit = commit_field.get("id") or commit_field.get("sha")
-    commit = commit or latest.get("commitId") or latest.get("commitSha")
-    # Render's deploy API nests the record under .deploy
-    if commit is None:
-        nested = latest.get("deploy") if isinstance(latest.get("deploy"), dict) else {}
-        nested_commit = nested.get("commit") if isinstance(nested.get("commit"), dict) else None
-        if nested_commit:
-            commit = nested_commit.get("id") or nested_commit.get("sha")
-        commit = commit or nested.get("commitId") or nested.get("commitSha")
-    if commit and not expected.startswith(str(commit).lower()):
-        print(
-            f"::warning::Render metadata SHA ({commit}) differs from monorepo SHA ({expected}) "
-            f"— service may track a satellite branch or latest HEAD."
-        )
-    if not commit:
-        print("::warning::Render metadata did not expose a commit SHA; checking release endpoint")
-
-    actual = str(commit or "").lower()
-    if release_url:
+    try:
         request = urllib.request.Request(
             release_url, headers={"User-Agent": "SupremeAI-Deploy-Attestor/1.0"}
         )
-        payload = None
+        with urllib.request.urlopen(request, timeout=45) as response:
+            if response.status != 200 or response.geturl() != release_url:
+                return report("unverified", "Configured runtime release endpoint did not answer directly with HTTP 200")
+            payload = json.loads(response.read(64 * 1024).decode("utf-8"))
+    except (OSError, ValueError):
+        return report("unverified", "Runtime release endpoint unavailable or invalid")
+    if not isinstance(payload, dict) or (payload.get("commit") or payload.get("sha")) != expected:
+        return report("unverified", "Running release commit does not match EXPECTED_SHA")
+
+    if wanted := os.environ.get("EXPECTED_CAPABILITY", "").strip():
         try:
-            with urllib.request.urlopen(request, timeout=45) as response:
-                if response.status != 200:
-                    return fail(f"Release endpoint returned HTTP {response.status}")
-                payload = json.loads(response.read(64 * 1024).decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            if exc.code in (401, 404) and _probe_health_fallback(release_url):
-                print(
-                    f"::warning::Release endpoint {release_url} returned HTTP {exc.code}, "
-                    f"but service /health is HTTP 200 and Render deploy status is {status!r}."
-                )
-                payload = None
-            else:
-                return fail(f"Release endpoint unavailable: HTTP {exc.code}")
-        except Exception as exc:
-            if _probe_health_fallback(release_url):
-                print(f"::warning::Release endpoint {release_url} error ({exc}), but /health is HTTP 200.")
-                payload = None
-            else:
-                return fail(f"Release endpoint unavailable: {exc}")
-
-        if isinstance(payload, dict):
-            endpoint_sha = str(
-                payload.get("commit") or payload.get("sha") or payload.get("version", "")
-            ).lower()
-            if endpoint_sha and endpoint_sha not in ("unknown", "none", ""):
-                actual = endpoint_sha
-                if not expected.startswith(actual) and actual != str(commit or "").lower():
-                    print(
-                        f"::warning::Running release SHA ({actual}) differs from expected ({expected}); "
-                        f"Render deploy status is {status!r}."
-                    )
-            else:
-                print(
-                    f"::warning::Release endpoint {release_url} returned empty/unknown commit field; "
-                    f"falling back to Render deploy metadata SHA ({actual or 'live'})."
-                )
-
-            expected_capability = os.environ.get("EXPECTED_CAPABILITY", "").strip()
-            if expected_capability:
-                wanted = json.loads(expected_capability)
-                for key, value in wanted.items():
-                    if payload.get("capabilities", {}).get(key) != value:
-                        return fail(f"Capability mismatch for {key}: expected {value!r}")
-    else:
-        print("::warning::RELEASE_URL not configured; running-SHA verification skipped.")
-
-    if not actual:
-        actual = str(commit or "live").lower()
-
-    print(
-        json.dumps(
-            {"status": "verified", "service_id": service_id, "commit": actual},
-            sort_keys=True,
-        )
-    )
-    return 0
+            expected_capabilities = json.loads(wanted)
+        except ValueError:
+            return report("unverified", "Invalid EXPECTED_CAPABILITY configuration")
+        actual = payload.get("capabilities")
+        if not isinstance(expected_capabilities, dict) or not isinstance(actual, dict) or any(
+            actual.get(key) != value for key, value in expected_capabilities.items()
+        ):
+            return report("unverified", "Runtime capabilities do not match")
+    return report("verified")
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())

@@ -65,7 +65,7 @@ GitHub → **Actions** → **Deploy Rollback** → *Run workflow* (branch `main`
 CLI equivalent:
 
 ```bash
-gh workflow run deploy-rollback.yml \
+gh workflow run deploy-rollback.yml --ref main \
   -f service=api \
   -f target_sha=<40-char-sha> \
   -f reason="5xx spike after <bad-sha>; last known good"
@@ -74,15 +74,18 @@ gh workflow run deploy-rollback.yml \
 What the run does, per service:
 
 1. Requires the **`production`** environment approval (required reviewers).
-2. Checks out the repository **at `target_sha`** (not `main`).
-3. Validates the SHA exists and is an ancestor of `main`.
+2. Rejects non-`main` dispatches and checks out the exact dispatch revision
+   of `main` for all release scripts. The target revision is not executed by CI.
+3. Validates that `target_sha` is an ancestor of that dispatch revision.
 4. Triggers the deploy with strict mode: `EXPECTED_SHA=<target_sha>`,
    `REQUIRE_EXPECTED_SHA=1`, and waits for a terminal Render state. If Render
    cannot build that commit, the run **fails** — it will not fall back to
    branch HEAD.
-5. Runs `scripts/ci/render_deploy_attestation.py` (`EXPECTED_SHA` +
-   `RELEASE_URL`) to confirm the *running* revision, not just HTTP health.
-6. Prints a summary annotation: service, previous SHA (main HEAD at dispatch),
+5. Attests the exact `RENDER_DEPLOY_ID` from step 4. Render must report that
+   record as `live` at `target_sha`, and the HTTPS `/release` endpoint must
+   report the same full commit. HTTP health, a different deploy with the same
+   commit, or missing evidence cannot satisfy attestation.
+6. Prints a summary annotation: service, dispatch SHA (main HEAD, not the prior live deploy),
    rolled-back-to SHA, reason, operator, outcome.
 
 `service: all` produces one approval-gated job per service, so `all` may need
@@ -100,8 +103,8 @@ loudly instead of skipping.
 
 1. **Health:** `curl -fsS https://supremeai-api-ulw0.onrender.com/healthz`,
    `.../health` on `supremeai-browser` and `supremeai-mcp-tower`. Expect 200.
-2. **Running revision:** check the attestation step output and `/release` on
-   each service — the reported commit must equal `target_sha`.
+2. **Running revision:** record the exact deploy ID and attestation plus
+   `/release` on each service. Both commits must equal `target_sha`.
 3. **Smoke tests:** sign-in, one read path, one write path, and one agent or
    tool invocation through the gateway; MCP Tower `/health` plus one tool call.
 4. **Monitoring:** confirm the error rate and latency return to the pre-deploy

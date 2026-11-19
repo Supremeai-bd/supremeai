@@ -9,6 +9,7 @@ function getTinyBrainBaseUrl(): string {
 }
 
 export function registerTinyBrainTools(server: McpServer): void {
+  // Both Tiny Brain calls may refresh provider state; do not advertise them as reads.
   server.tool(
     "tiny_brain.route",
     "Route a user prompt (Bangla/Banglish/English) via Hugging Face Tiny Brain to get intent, capability_tier, dispatch_mode, and top_available_ai.",
@@ -16,6 +17,7 @@ export function registerTinyBrainTools(server: McpServer): void {
       prompt: z.string().min(1).describe("User prompt to classify and route"),
       context: z.string().optional().default("").describe("Optional short conversation context"),
     },
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     async ({ prompt, context }) => {
       const resp = await fetch(`${getTinyBrainBaseUrl()}/route`, {
         method: "POST",
@@ -36,6 +38,7 @@ export function registerTinyBrainTools(server: McpServer): void {
     {
       force: z.boolean().optional().default(false).describe("Force an immediate probe refresh"),
     },
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     async ({ force }) => {
       const resp = await fetch(`${getTinyBrainBaseUrl()}/top-ai?force=${force ? "true" : "false"}`);
       const text = await resp.text();
@@ -50,6 +53,7 @@ export function registerTinyBrainTools(server: McpServer): void {
     "kaggle_shadow.status",
     "Check which Kaggle account and shadow node URL is currently active in the 24/7 Cloudflare-Kaggle rotator.",
     {},
+    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     async () => {
       const baseUrl = (process.env.KAGGLE_SHADOW_URL || DEFAULT_KAGGLE_SHADOW_URL).replace(/\/+$/, "");
       const resp = await fetch(`${baseUrl}/status`, {

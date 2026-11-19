@@ -4,15 +4,14 @@
 coverage target: completion.py was measured at ~49% by the CI aggregate gate and
 named a worst critical-tier offender. These tests drive ``acompletion`` through
 a stub gateway (real mixin, stubbed collaborators) to cover the branches the
-endpoint-level tests never reach: semantic-cache hit/telemetry, pre-flight cost
+endpoint-level tests never reach: private cache bypass, pre-flight cost
 guard (healthy / estimate-failure / no-db), Tier-0 deterministic bypass,
-adaptive exploration append, TokenJuice gating, single-flight coalescing
-(follower/leader/publish), LOCAL-mode execution matrix, BYOK key reuse across
+adaptive exploration append, TokenJuice gating, isolation of in-flight
+requests, LOCAL-mode execution matrix, BYOK key reuse across
 fallbacks, retired-model skip, circuit-breaker skip, the full HTTPStatusError
 matrix (429 retry / 5xx backoff / 401-403 key cooldown), and the all-fail
-exhaustion path (error-bus emit, self-healer proposal, coalescer failure fan-out).
+exhaustion path (error-bus emit and self-healer proposal).
 
-WIRE-FIRST: no source change here is required — the suite only ADDS evidence.
 Patching seam note: module docstring of completion.py promises
 ``patch("core.llm.llm_gateway.get_firestore_db")`` keeps working through the
 package-split proxy; a dedicated regression test pins that contract.
@@ -22,7 +21,7 @@ import asyncio
 import contextlib
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import httpx
 import pytest
@@ -30,25 +29,6 @@ import pytest
 from core.llm.interfaces import ExecutionMode
 from core.llm.llm_gateway import completion as completion_mod
 from core.llm.llm_gateway.completion import CompletionMixin
-
-
-# --------------------------------------------------------------------------- #
-# Test isolation (#2840)
-# --------------------------------------------------------------------------- #
-@pytest.fixture(autouse=True)
-def reset_request_coalescer():
-    """Clear the module-level request-coalescer singleton between tests.
-
-    বাংলা মন্তব্য (#2840): coalescer প্রসেস-লেভেল singleton — এক টেস্টের leader
-    flight অন্য টেস্টের identical কলকে follower বানিয়ে follower_timeout (৬০s)
-    ধরে ব্লক করতে পারে (TBV hang-এর আসল কারণ)। প্রতিটি টেস্টের আগে in-flight
-    map ফাঁকা করা হয় যেন টেস্টগুলো পরস্পরের ওপর নির্ভর না করে।
-    """
-    from core.learning.dedup import get_request_coalescer
-
-    get_request_coalescer()._inflight.clear()
-    yield
-    get_request_coalescer()._inflight.clear()
 
 
 # --------------------------------------------------------------------------- #
@@ -185,66 +165,25 @@ def make_http_error(status: int) -> httpx.HTTPStatusError:
 
 
 # --------------------------------------------------------------------------- #
-# Semantic cache
+# Private inference must not consult the shared vector response store.
 # --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("tenant_id", [None, "fixture-tenant"])
 @pytest.mark.asyncio
-async def test_cache_hit_returns_zero_cost_response(monkeypatch):
+async def test_inference_ignores_shared_experience_cache(tenant_id):
     gw = make_gateway()
-    gw.cache.query_similar.return_value = SimpleNamespace(response="cached!", model="m-cache")
-    record = MagicMock()
-    monkeypatch.setattr("core.learning.record_llm_event", record)
-
-    result = await gw.acompletion(prompt="repeatable question", tenant_id="t1")
-
-    assert result == {
-        "success": True,
-        "text": "cached!",
-        "model": "m-cache",
-        "cost": 0.0,
-        "cached": True,
-    }
-    gw.cloud_adapter.generate.assert_not_awaited()
-    record.assert_called_once()
-    assert record.call_args.kwargs["cache_hit"] is True
-    assert record.call_args.kwargs["provider"] == "semantic-cache"
-
-
-@pytest.mark.asyncio
-async def test_cache_hit_survives_telemetry_failure(monkeypatch):
-    gw = make_gateway()
-    gw.cache.query_similar.return_value = SimpleNamespace(response="cached!", model="m-cache")
-    monkeypatch.setattr(
-        "core.learning.record_llm_event", MagicMock(side_effect=RuntimeError("telemetry down"))
-    )
-
-    result = await gw.acompletion(prompt="repeatable question")
-
-    assert result["cached"] is True and result["text"] == "cached!"
+    gw.cache.query_similar.return_value = SimpleNamespace(response="unscoped fixture", model="cached")
+    result = await gw.acompletion(prompt="repeatable question", tenant_id=tenant_id)
+    gw.cache.query_similar.assert_not_awaited()
+    gw.cloud_adapter.generate.assert_awaited_once()
+    assert result["text"] == "hello world"
 
 
 @pytest.mark.asyncio
 async def test_stream_returns_stream_gen_and_forwards_context():
-    """Streaming returns the stream generator and forwards tenant/tier context.
-
-    PR #2772 (root-cause #2729) makes the streaming path consult the semantic
-    cache so identical concurrent prompts dedup (read + later write). The old
-    ``assert_not_awaited()`` encoded the pre-fix contract and blocked #2772 —
-    see issue #2780.
-
-    বাংলা মন্তব্য (#2780 strengthening review): stream-path cache-consult এখন
-    ইচ্ছাকৃত চুক্তি — completion.py-এর নিজস্ব কমেন্ট প্রমাণ: ``cache check for
-    BOTH stream + non-stream``। তাই ``await_count <= 1``-এর শিথিলতা প্রি-ফিক্স
-    বাগআচরণ (0 consult = #2729 regression) পাস করাত; সঠিক পিন হলো exactly-once
-    — ভবিষ্যৎ regression-এ stream-path থেকে consult সরে গেলে টেস্ট জোরে ব্যর্থ
-    হবে। স্টাব `query_similar` None রিটার্ন করে — cache-miss ধরে স্ট্রিম
-    জেনারেটর-চুক্তি অক্ষত থাকে।
-    """
     gw = make_gateway()
     result = await gw.acompletion(prompt="hi", stream=True)
     assert result == "STREAM-SENTINEL"
-    # PR #2772 / issue #2729: streaming MUST consult the semantic cache exactly
-    # once (read-path dedup contract). 0 consults = #2729 regression returns.
-    gw.cache.query_similar.assert_awaited_once_with("hi", task_type="general")
+    gw.cache.query_similar.assert_not_awaited()
     messages, chain, timeout, spend_context = gw.stream_calls[0]
     # M16 P-A: streaming generator-এ tenant/tier context পৌঁছায় কিনা চুক্তি-পিন।
     assert spend_context == {"tenant_id": None, "tier": None, "task_type": "general"}
@@ -545,88 +484,44 @@ async def test_token_juice_ignores_short_content(monkeypatch):
     juice.detect_content_type.assert_not_called()
 
 
-# --------------------------------------------------------------------------- #
-# Single-flight request coalescing (Sprint 5 §13.3)
-# --------------------------------------------------------------------------- #
-def make_coalescer(entry="LEADER-ENTRY", shared=None):
-    coalescer = SimpleNamespace(
-        try_claim=MagicMock(return_value=entry),
-        wait_for_leader=AsyncMock(return_value=shared),
-        publish_success=MagicMock(),
-        publish_failure=MagicMock(),
-    )
-    return coalescer
-
-
+@pytest.mark.parametrize("second_tenant,second_session,second_key", [
+    ("another-owner", "session-a", "fixture-key-a"),
+    ("fixture-owner", "session-b", "fixture-key-a"),
+    ("fixture-owner", "session-a", "fixture-key-b"),
+])
 @pytest.mark.asyncio
-async def test_dedup_follower_joins_inflight_result(monkeypatch):
+async def test_inference_never_shares_a_private_inflight_result(monkeypatch, second_tenant, second_session, second_key):
+    monkeypatch.setenv("ENABLE_REQUEST_DEDUP", "true")
+    monkeypatch.setattr(completion_mod, "get_firestore_db", lambda: None)
     gw = make_gateway()
-    shared = {"success": True, "text": "leader got it"}
-    coalescer = make_coalescer(entry="ENTRY", shared=shared)
-    monkeypatch.setattr("core.learning.dedup.request_dedup_enabled", lambda: True)
-    monkeypatch.setattr("core.learning.dedup.get_request_coalescer", lambda: coalescer)
-    monkeypatch.setattr("core.learning.dedup.dedup_key", lambda *a, **k: "dedup-k")
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    calls = []
 
-    result = await gw.acompletion(prompt="hi")
+    async def generate(**kwargs):
+        calls.append(kwargs["api_key"])
+        if len(calls) == 1:
+            entered.set()
+            await release.wait()
+            return make_response("leader result")
+        return make_response("independent result")
 
-    assert result["deduplicated"] is True
-    assert result["text"] == "leader got it"
-    gw.cloud_adapter.generate.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_dedup_leader_publishes_success(monkeypatch):
-    gw = make_gateway()
-    coalescer = make_coalescer(entry=None)
-    monkeypatch.setattr("core.learning.dedup.request_dedup_enabled", lambda: True)
-    monkeypatch.setattr("core.learning.dedup.get_request_coalescer", lambda: coalescer)
-    monkeypatch.setattr("core.learning.dedup.dedup_key", lambda *a, **k: "dedup-k")
-
-    result = await gw.acompletion(prompt="hi")
-
-    assert result["success"] is True
-    coalescer.publish_success.assert_called_once()
-    assert coalescer.publish_success.call_args.args[0] == "dedup-k"
-    assert coalescer.publish_success.call_args.args[1]["success"] is True
-
-
-@pytest.mark.asyncio
-async def test_dedup_leader_publishes_failure_on_exhaustion(monkeypatch):
-    gw = make_gateway(chain=["prov/model-a"])
-    gw.cloud_adapter.generate.side_effect = ValueError("upstream exploded")
-    coalescer = make_coalescer(entry=None)
-    monkeypatch.setattr("core.learning.dedup.request_dedup_enabled", lambda: True)
-    monkeypatch.setattr("core.learning.dedup.get_request_coalescer", lambda: coalescer)
-    monkeypatch.setattr("core.learning.dedup.dedup_key", lambda *a, **k: "dedup-k")
-    monkeypatch.setattr(completion_mod, "error_event_bus", SimpleNamespace(emit=MagicMock()))
-
-    with pytest.raises(ValueError, match="upstream exploded"):
-        await gw.acompletion(prompt="hi")
-
-    coalescer.publish_failure.assert_called_once()
-    assert coalescer.publish_failure.call_args.args[0] == "dedup-k"
-
-
-@pytest.mark.asyncio
-async def test_dedup_disabled_never_touches_coalescer():
-    gw = make_gateway()
-    result = await gw.acompletion(prompt="hi")
-    assert result["success"] is True  # request_dedup_enabled() default-off: no patch needed
-
-
-@pytest.mark.asyncio
-async def test_dedup_follower_wake_with_none_executes_normally(monkeypatch):
-    gw = make_gateway()
-    coalescer = make_coalescer(entry="ENTRY", shared=None)
-    monkeypatch.setattr("core.learning.dedup.request_dedup_enabled", lambda: True)
-    monkeypatch.setattr("core.learning.dedup.get_request_coalescer", lambda: coalescer)
-    monkeypatch.setattr("core.learning.dedup.dedup_key", lambda *a, **k: "dedup-k")
-
-    result = await gw.acompletion(prompt="hi")
-
-    # wait_for_leader returned None (leader died) → claim holder executes normally
-    assert result["success"] is True and "deduplicated" not in result
-    gw.cloud_adapter.generate.assert_awaited_once()
+    gw.cloud_adapter.generate.side_effect = generate
+    first = asyncio.create_task(gw.acompletion(
+        prompt="same prompt", tenant_id="fixture-owner", session_id="session-a", api_key="fixture-key-a",
+    ))
+    try:
+        await asyncio.wait_for(entered.wait(), timeout=1)
+        second = await asyncio.wait_for(gw.acompletion(
+            prompt="same prompt", tenant_id=second_tenant, session_id=second_session, api_key=second_key,
+        ), timeout=1)
+    finally:
+        release.set()
+        leader = await first
+    assert calls == ["fixture-key-a", second_key]
+    assert leader["text"] == "leader result"
+    assert second["text"] == "independent result"
+    assert "deduplicated" not in second
 
 
 # --------------------------------------------------------------------------- #
@@ -695,62 +590,6 @@ async def test_local_mode_without_adapter_raises_runtime_error():
 
     with pytest.raises(RuntimeError, match="Ollama is not healthy"):
         await gw.acompletion(prompt="hi")
-
-
-# --------------------------------------------------------------------------- #
-# Coalescer leader-failure contract (#2840)
-# --------------------------------------------------------------------------- #
-@pytest.mark.asyncio
-async def test_local_failure_leader_publishes_failure_no_stale_entry():
-    """A failed LOCAL-mode leader must publish_failure — no stale in-flight entry.
-
-    বাংলা মন্তব্য (#2840): regression প্রমাণ — leader ব্যর্থ হলে entry সঙ্গে সঙ্গে
-    মুছে যাবে; নইলে identical follow-up কল follower_timeout (৬০s) ব্লক হয়ে
-    pytest-timeout-এ suite kill করে (TBV hang)।
-    """
-    from core.learning.dedup import get_request_coalescer
-
-    gw = make_gateway(mode=ExecutionMode.LOCAL)
-    gw.local_adapter = make_local_adapter(
-        generate=AsyncMock(side_effect=RuntimeError("ollama down"))
-    )
-
-    with pytest.raises(RuntimeError, match="ollama down"):
-        await gw.acompletion(prompt="dedup-fail-probe")
-
-    # বাংলা মন্তব্য: leader-flight publish হয়েছে — in-flight map ফাঁকা।
-    assert get_request_coalescer().get_stats()["in_flight"] == 0
-
-    # বাংলা মন্তব্য: identical follow-up এখন fresh leader — সঙ্গে সঙ্গে ব্যর্থ,
-    # কোনো ৬০s অপেক্ষা নেই (fixture-ছাড়া এই দাবি production-fix ছাড়া ভাঙত)।
-    with pytest.raises(RuntimeError, match="ollama down"):
-        await gw.acompletion(prompt="dedup-fail-probe")
-    assert get_request_coalescer().get_stats()["in_flight"] == 0
-
-
-@pytest.mark.asyncio
-async def test_no_adapter_raise_publishes_failure_and_followup_unblocked():
-    """The no-adapter LOCAL raise must also release the leader flight.
-
-    বাংলা মন্তব্য (#2840): no-adapter শাখার raise-ও leader-flight-এর মৃত্যু —
-    publish হলে follow-up identical কল সঙ্গে সঙ্গে নিজেই চলে (≤৫s), ব্লক হয় না।
-    """
-    import time
-
-    from core.learning.dedup import get_request_coalescer
-
-    gw = make_gateway(mode=ExecutionMode.LOCAL)
-    gw.local_adapter = None
-
-    with pytest.raises(RuntimeError, match="Ollama is not healthy"):
-        await gw.acompletion(prompt="dedup-noadapter-probe")
-    assert get_request_coalescer().get_stats()["in_flight"] == 0
-
-    t0 = time.monotonic()
-    with pytest.raises(RuntimeError, match="Ollama is not healthy"):
-        await gw.acompletion(prompt="dedup-noadapter-probe")
-    elapsed = time.monotonic() - t0
-    assert elapsed < 5.0, f"identical follow-up blocked {elapsed:.1f}s — stale leader entry (#2840)"
 
 
 @pytest.mark.asyncio
@@ -848,7 +687,8 @@ async def test_success_records_observability_and_fitness(monkeypatch):
     trace_kwargs = gw.observability.trace_generation.await_args.kwargs
     assert trace_kwargs["model"] == "prov/model-a"
     assert trace_kwargs["usage"] == {"prompt_tokens": 10, "completion_tokens": 5}
-    assert trace_kwargs["privacy_mode"] == completion_mod.PrivacyMode.FULL
+    assert trace_kwargs["privacy_mode"] == completion_mod.PrivacyMode.METADATA_ONLY
+    assert trace_kwargs["prompt"] == "" and "response_text" not in trace_kwargs
     fitness.track_execution.assert_called_once()
     fe_kwargs = fitness.track_execution.call_args.kwargs
     assert fe_kwargs["success"] is True and fe_kwargs["token_cost"] == 5.0
@@ -867,31 +707,13 @@ async def test_fitness_engine_failure_never_breaks_success(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_evolution_learning_wired_when_enabled(monkeypatch):
+async def test_inference_does_not_write_shared_evolution_history(monkeypatch):
     gw = make_gateway()
-    monkeypatch.setattr(
-        completion_mod,
-        "settings",
-        SimpleNamespace(
-            token_juice_enabled=False, enable_evolution_learning=True, llm_cost_per_token=0.00001
-        ),
-    )
-    fitness = SimpleNamespace(track_execution=MagicMock())
-    monkeypatch.setattr("api.deps.get_fitness_engine", lambda: fitness)
-    evolution_instances = []
-
-    class StubEvolutionEngine:
-        def __init__(self, fitness_engine=None):
-            self.fitness_engine = fitness_engine
-            self.learn_from_success = MagicMock()
-            evolution_instances.append(self)
-
-    monkeypatch.setattr("core.self_evolution.evolution_engine.EvolutionEngine", StubEvolutionEngine)
-
-    await gw.acompletion(prompt="hi", task_type="general")
-
-    assert evolution_instances and evolution_instances[0].learn_from_success.called
-    assert evolution_instances[0].fitness_engine is fitness
+    completion_mod.settings.enable_evolution_learning = True
+    evolution = MagicMock()
+    monkeypatch.setattr("core.self_evolution.evolution_engine.EvolutionEngine", evolution)
+    await gw.acompletion(prompt="private fixture", task_type="chat")
+    evolution.assert_not_called()
 
 
 # --------------------------------------------------------------------------- #
@@ -1308,3 +1130,42 @@ async def test_streaming_without_usage_records_nothing(spend_recorder):
 
     assert chunks == ["data only"]
     assert spend_recorder.calls == []
+
+
+@pytest.mark.parametrize("before_output", [True, False])
+@pytest.mark.asyncio
+async def test_streaming_fallback_runs_only_before_output(monkeypatch, before_output):
+    import sys
+
+    from core.llm.llm_gateway.streaming import StreamingMixin
+
+    breaker = RecordingBreaker()
+    gateway = StreamingMixin()
+    monkeypatch.setattr(gateway, "_ensure_litellm_ready", Mock(), raising=False)
+    monkeypatch.setattr(gateway, "_get_or_create_circuit_breaker", Mock(return_value=breaker), raising=False)
+    monkeypatch.setattr(gateway, "_get_api_key_for_model", AsyncMock(return_value="fixture-key"), raising=False)
+
+    async def failed():
+        if not before_output:
+            yield SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="first"))])
+        raise ConnectionError("fixture interrupted")
+
+    async def next_model():
+        yield SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="alternate"))])
+
+    request = AsyncMock(side_effect=[failed(), next_model()])
+    monkeypatch.setitem(sys.modules, "litellm", SimpleNamespace(acompletion=request))
+    result = []
+
+    async def drain():
+        async for part in gateway._stream_completion([], ["prov/model-a", "prov/model-b"], 1.0):
+            result.append(part)
+
+    if before_output:
+        await drain()
+        assert result == ["alternate"] and request.await_count == 2
+    else:
+        with pytest.raises(ConnectionError):
+            await drain()
+        assert result == ["first"]
+        request.assert_awaited_once()

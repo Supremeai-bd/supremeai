@@ -104,12 +104,14 @@ if "pytest" in sys.modules:
         restore. Plain-script mode keeps main()'s final cleanup."""
         saved_env = {k: os.environ.get(k) for k in _TEST_ENV_KEYS}
         saved_global = getattr(app_module, "STEALTH_WEBHOOK_URL", None)
+        saved_forward = app_module.forward_stealth_webhook
         yield
         for k, v in saved_env.items():
             if v is None:
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
+        app_module.forward_stealth_webhook = saved_forward
         if saved_global is not None:
             app_module.STEALTH_WEBHOOK_URL = saved_global
 
@@ -122,6 +124,10 @@ def reload_app(**env):
     cleans up in plain-script mode)."""
     os.environ.update(env)
     importlib.reload(app_module)
+    if env.get("STEALTH_WEBHOOK_URL") == "http://127.0.0.1:9/unreachable":
+        from unittest.mock import AsyncMock
+
+        app_module.forward_stealth_webhook = AsyncMock(return_value=(502, {"error": "fixture relay unavailable"}))
     if hasattr(app_module, "_guest_hits"):
         app_module._guest_hits.clear()  # absent on pre-fix code — differential mode
     return TestClient(app_module.app)
@@ -180,14 +186,16 @@ def test_keyed_auth_unthrottled():
 
 def test_per_ip_isolation():
     print("[D1] buckets are per client IP (last XFF hop), memory-bounded")
-    c = reload_app(STEALTH_WEBHOOK_URL="http://127.0.0.1:9/unreachable", GUEST_RATE_LIMIT_PER_MIN="2")
+    c = reload_app(STEALTH_WEBHOOK_URL="http://127.0.0.1:9/unreachable", GUEST_RATE_LIMIT_PER_MIN="2",
+                   ENVIRONMENT="development", SUPREMEAI_API_KEY="")
 
     a = [guest_post(c, ip="spoof, 10.0.0.1").status_code for _ in range(3)]
     b = [guest_post(c, ip="spoof, 10.0.0.2").status_code for _ in range(3)]
     check("IP A: first 2 pass, 3rd throttled", a == [502, 502, 429], f"got {a}")
     check("IP B independent bucket", b == [502, 502, 429], f"got {b}")
 
-    c2 = reload_app(STEALTH_WEBHOOK_URL="http://127.0.0.1:9/unreachable", GUEST_RATE_LIMIT_PER_MIN="1")
+    c2 = reload_app(STEALTH_WEBHOOK_URL="http://127.0.0.1:9/unreachable", GUEST_RATE_LIMIT_PER_MIN="1",
+                    ENVIRONMENT="development", SUPREMEAI_API_KEY="")
     for i in range(50):
         guest_post(c2, ip=f"10.1.{i}.7")
     if hasattr(app_module, "_guest_hits"):

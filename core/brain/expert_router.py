@@ -19,8 +19,7 @@ class SupremeMoERouter:
     # 2026-11-17 (#645 follow-up): every Groq id below is verified live on
     # Groq's /models. llama-3.3-70b-versatile, llama-3.1-8b-instant,
     # qwen-2.5-coder-32b and deepseek-r1-distill-llama-70b all 404/400 — routing
-    # to them wasted a full attempt before failing. Keep in sync with
-    # gateway/service/providers/adapters.py::PROVIDER_MODEL_CASCADES["groq"].
+    # to them wasted a full attempt. Gateway uses separate operator approvals.
     EXPERT_MODEL_MAP: dict[ExpertType, list[str]] = {
         ExpertType.BENGALI: [
             "hf_space/supreme-hybrid-8b",

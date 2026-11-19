@@ -328,14 +328,16 @@ def test_render_trigger_deploy_strict_ci_sha_and_fallback_guard(monkeypatch, tmp
     assert gh_out.read_text(encoding="utf-8") == ""
 
 
-@pytest.mark.parametrize(("deploy_status", "actual_sha", "exit_code", "output"), [
-    ("live", "a" * 40, 0, f"verified_sha={'a' * 40}"),
-    ("live", "b" * 40, 2, "fallback_allowed=true"),
-    ("live", None, 2, "fallback_allowed=true"),
-    ("build_failed", "a" * 40, 1, ""),
+@pytest.mark.parametrize(("deploy_status", "actual_sha", "actual_id", "exit_code", "output"), [
+    ("live", "a" * 40, "dep-test", 0, f"verified_sha={'a' * 40}\ndeploy_id=dep-test"),
+    ("live", "b" * 40, "dep-test", 2, "fallback_allowed=true"),
+    ("live", None, "dep-test", 2, "fallback_allowed=true"),
+    ("live", "a" * 40, None, 2, "fallback_allowed=true"),
+    ("live", "a" * 40, "dep-other", 2, "fallback_allowed=true"),
+    ("build_failed", "a" * 40, "dep-test", 1, ""),
 ])
 def test_render_ci_attests_only_live_deploy_of_the_tested_revision(
-    monkeypatch, tmp_path, deploy_status, actual_sha, exit_code, output,
+    monkeypatch, tmp_path, deploy_status, actual_sha, actual_id, exit_code, output,
 ):
     import scripts.ci.render_trigger_deploy as rtd
 
@@ -347,7 +349,7 @@ def test_render_ci_attests_only_live_deploy_of_the_tested_revision(
 
         def get_deploy(self, deploy_id, svc_id):
             assert deploy_id == "dep-test"
-            return {"deploy": {"status": deploy_status, "commit": {"id": actual_sha}}}
+            return {"deploy": {"id": actual_id, "status": deploy_status, "commit": {"id": actual_sha}}}
 
     gh_output = tmp_path / "output"
     gh_output.touch()
