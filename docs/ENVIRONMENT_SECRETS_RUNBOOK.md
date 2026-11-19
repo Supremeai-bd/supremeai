@@ -44,6 +44,40 @@ Navigate to: **Render Dashboard ➔ `supremeai-api` ➔ Environment**
 | `INFISICAL_CLIENT_SECRET` | `<secret>` | Infisical machine identity client secret. | **Optional** |
 | `INFISICAL_ENV` | `prod` | Infisical environment scope. | **Optional** |
 
+### 2.1.1 Gateway client keys — the "N independent keys" plan
+
+Each consumer (client, agent, internal service) gets **its own** `SUPREMEAI_API_KEY`
+so that revoking one, or one client going noisy, cannot affect the others.
+
+Two facts that shape this setup:
+
+* A key's secret env name is `SUPREMEAI_API_KEY_<OWNER>` by default, so **two keys
+  can never share an owner** unless each declares its own `env` (the loader
+  rejects a duplicate env name instead of silently dropping the second key).
+* `rate_limit` in the policy is global; a key that declares
+  `rate_limit: {max_requests, window_seconds}` gets **its own budget**
+  (`gateway/main.py::build_key_limiters`), and both the 429 body and the
+  `X-RateLimit-*` headers report that budget.
+
+Generate a pool (secrets are printed once and never written to the repo):
+
+```bash
+python scripts/ci/generate_gateway_keys.py --count 6 --scopes chat \
+    --max-requests 120 --write-policy --replace-owners
+```
+
+That prints:
+
+1. the `api_keys` block to commit in `gateway/routing_policy.json`
+   (`owner`, `scopes`, `env`, `rate_limit` — no secret), and
+2. six `SUPREMEAI_API_KEY_CLIENT_<n>=<secret>` lines to paste into Infisical /
+   Render → Environment.
+
+Clients then send the **key id** (`supremeai-key-…`) in `X-SupremeAI-Key`.
+Verify after deploying: `curl -s -D- -o/dev/null -H "X-SupremeAI-Key: <id>"
+https://supremeai-api-ulw0.onrender.com/v1/models` and check that
+`X-RateLimit-Limit` shows that key's budget.
+
 ---
 
 ### 2.2 Cloudflare Pages — Project: `supremeai-studio`

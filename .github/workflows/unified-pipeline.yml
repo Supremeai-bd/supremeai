@@ -982,6 +982,14 @@ jobs:
           fi
           echo "No file:// pointer drift in docs/."
 
+      # AGENTS.md is a GENERATED file (`.github/constitution/rules.yml` is the
+      # SSOT). It had been replaced by six lines of hand-written notes — while
+      # 50+ docs and guards still cite it as the Single Door — because the drift
+      # check the generator header promises was never wired anywhere.
+      - name: AGENTS.md must match the constitution SSOT
+        run: |
+          python scripts/ci/generate_agents_md.py --check
+
       - name: Compile-check every deploy-critical Python path
         run: |
           set -e

@@ -304,6 +304,7 @@ firebase.json
 !/CONTRIBUTING.md
 !/ECOSYSTEM_MAP.md
 !/LICENSE
+!/Makefile
 !/README.md
 !/mcp.json
 !/render.yaml

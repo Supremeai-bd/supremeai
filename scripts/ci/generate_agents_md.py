@@ -52,6 +52,14 @@ def render(rules: dict) -> str:
         lines.append(">")
         lines.append(f"> 🏛️ {constitution.get('separation_note')}")
 
+    creed = constitution.get("operator_creed") or []
+    if creed:
+        lines.append("")
+        lines.append("### Operator Creed (admin — non-negotiable)")
+        lines.append("")
+        for item in creed:
+            lines.append(f"- {item}")
+
     lines.append("")
     lines.append("---")
     lines.append("")

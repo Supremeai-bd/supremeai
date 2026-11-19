@@ -21,18 +21,28 @@ Reference routing_policy.json format (documented, deterministic)::
       "default_chain": "auto",
       "rate_limit": {"window_seconds": 60, "max_requests": 30},
       "api_keys": {
-        "supremeai-key-...": {"owner": "dev", "scopes": ["chat", "models"]}
+        "supremeai-key-...": {"owner": "dev", "scopes": ["chat", "models"]},
+        "supremeai-key-...": {
+          "owner": "client-1",
+          "scopes": ["chat"],
+          "env": "SUPREMEAI_API_KEY_CLIENT_1",        # optional: per-key secret
+          "rate_limit": {"max_requests": 120}         # optional: per-key budget
+        }
       }
     }
 
-Secrets: api_keys values are loaded from the environment in production
-(``SUPREMEAI_API_KEY_<NAME>``); this module never logs key material.
+Secrets: api_keys values are loaded from the environment in production. The
+variable name is ``env`` when declared, else ``SUPREMEAI_API_KEY_<OWNER>``; a
+name claimed by two entries is a hard config error (the second key would
+otherwise never load). This module never logs key material, and the JSON may
+never carry a secret value — only the variable name.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -75,8 +85,21 @@ class Endpoint:
 
 @dataclass(frozen=True, slots=True)
 class ApiKeyRecord:
+    """One client credential: who it is, what it may do, how much it may spend.
+
+    `env` is the environment variable that carries the secret. Before it
+    existed the name was derived from `owner` alone, so two keys with the same
+    owner could never hold different secrets — which is exactly why a
+    "give every client its own key" plan could not be expressed. `max_requests`
+    / `window_seconds` override the global budget for this key's owner; `None`
+    means "use the global rate_limit".
+    """
+
     owner: str
     scopes: frozenset[str]
+    env: str | None = None
+    max_requests: int | None = None
+    window_seconds: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -200,6 +223,7 @@ def parse_routing_policy(
     _require(isinstance(api_keys_raw, dict), "api_keys must be an object")
     env = env if env is not None else dict(os.environ)
     api_keys: dict[str, ApiKeyRecord] = {}
+    seen_env: dict[str, str] = {}
     for key_id, meta in api_keys_raw.items():
         # NOTE: ids deliberately avoid OpenAI/GitHub-shaped credential prefixes
         # bridge secret scan never mistakes reference ids for live credentials.
@@ -210,8 +234,10 @@ def parse_routing_policy(
             "api_keys: key ids must look like supremeai-key-<id> (>=20 chars)",
         )
         _require(
-            isinstance(meta, dict) and set(meta) == {"owner", "scopes"},
-            f"api_keys entry {key_id[:14]}…: must have exactly owner+scopes",
+            isinstance(meta, dict) and {"owner", "scopes"} <= set(meta)
+            and set(meta) <= {"owner", "scopes", "env", "rate_limit"},
+            f"api_keys entry {key_id[:14]}…: allowed fields are "
+            "owner, scopes, and optional env / rate_limit",
         )
         scopes_raw = meta["scopes"]
         _require(
@@ -220,14 +246,54 @@ def parse_routing_policy(
             and set(scopes_raw) <= set(ALLOWED_SCOPES),
             f"api_keys entry {key_id[:14]}…: scopes must be a non-empty subset of {sorted(ALLOWED_SCOPES)}",
         )
+        rate_limit_meta = meta.get("rate_limit")
+        key_max: int | None = None
+        key_window: int | None = None
+        if rate_limit_meta is not None:
+            _require(
+                isinstance(rate_limit_meta, dict)
+                and set(rate_limit_meta) <= {"max_requests", "window_seconds"}
+                and rate_limit_meta,
+                f"api_keys entry {key_id[:14]}…: rate_limit takes max_requests "
+                "and/or window_seconds",
+            )
+            for field_name in ("max_requests", "window_seconds"):
+                value = rate_limit_meta.get(field_name)
+                if value is None:
+                    continue
+                _require(
+                    isinstance(value, int) and not isinstance(value, bool)
+                    and 0 < value <= 100000,
+                    f"api_keys entry {key_id[:14]}…: rate_limit.{field_name} must "
+                    "be an integer in (0, 100000]",
+                )
+            key_max = rate_limit_meta.get("max_requests")
+            key_window = rate_limit_meta.get("window_seconds")
+
         # Secret material: in production the VALUE rides the environment; a
-        # literal second field in the JSON is rejected (never commit secrets).
-        env_name = f"SUPREMEAI_API_KEY_{meta['owner'].upper().replace('-', '_')}"
+        # literal value field in the JSON is rejected (never commit secrets).
+        env_name = meta.get("env") or f"SUPREMEAI_API_KEY_{str(meta['owner']).upper().replace('-', '_')}"
+        _require(
+            isinstance(env_name, str)
+            and re.fullmatch(r"SUPREMEAI_API_KEY_[A-Z0-9_]+", env_name) is not None,
+            f"api_keys entry {key_id[:14]}…: env must look like SUPREMEAI_API_KEY_<NAME>",
+        )
+        if env_name in seen_env:
+            raise ConfigError(
+                f"api_keys: {env_name} is claimed by two entries "
+                f"({seen_env[env_name][:14]}… and {key_id[:14]}…) — give each key "
+                "its own `env`, otherwise the second one silently never loads"
+            )
+        seen_env[env_name] = key_id
         if env.get(env_name) is None:
             # Missing key material: skip entry; gateway runs guest-only.
             continue
         api_keys[key_id] = ApiKeyRecord(
-            owner=str(meta["owner"]), scopes=frozenset(scopes_raw)
+            owner=str(meta["owner"]),
+            scopes=frozenset(scopes_raw),
+            env=env_name,
+            max_requests=key_max,
+            window_seconds=key_window,
         )
 
     return GatewayConfig(
