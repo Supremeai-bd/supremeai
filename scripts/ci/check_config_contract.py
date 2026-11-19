@@ -7,8 +7,14 @@ import importlib.util
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from config_classification_locator import config_dir
+
 ROOT = Path(__file__).resolve().parents[2]
-CLASSIFICATION = ROOT / "backend" / "core" / "config_classification.py"
+
+
+CONFIG_DIR = config_dir()
+CLASSIFICATION = CONFIG_DIR / "config_classification.py"
 
 
 def load_registry():
@@ -33,7 +39,10 @@ def load_registry():
 
 def runtime_aliases() -> set[str]:
     result: set[str] = set()
-    for path in (ROOT / "backend" / "core").glob("config*.py"):
+    paths = sorted(CONFIG_DIR.glob("config*.py"))
+    if not paths:
+        raise SystemExit(f"[config-contract] FATAL: no config*.py under {CONFIG_DIR}")
+    for path in paths:
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
         except (OSError, SyntaxError):

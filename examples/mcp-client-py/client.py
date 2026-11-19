@@ -23,7 +23,7 @@ import urllib.error
 import urllib.request
 
 DEFAULT_BASE_URL = os.getenv(
-    "SUPREMEAI_MCP_TOWER_URL", "https://supremeai-mcp-tower.onrender.com"
+    "SUPREMEAI_MCP_TOWER_URL", "https://supremeai-mcp-tower-live.onrender.com"
 )
 DEFAULT_CLIENT_NAME = os.getenv("SUPREMEAI_CLIENT_NAME", "demo-py-client")
 MCP_ACCEPT = "application/json, text/event-stream"

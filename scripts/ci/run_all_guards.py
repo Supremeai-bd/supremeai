@@ -68,6 +68,12 @@ GUARDS: list[list[str]] = [
     ["python", "scripts/ci/skill_conformance_guard.py", "--check"],
     ["python", "scripts/ci/ghost_host_guard.py", "--self-test"],
     ["python", "scripts/ci/ghost_host_guard.py", "--check"],
+    # Config-plane guards. Both existed but were never in this roster AND both
+    # crashed on the post-flattening path (backend/core/config_classification.py),
+    # so `config/service_registry.yaml` had no working validator at all until
+    # 2026-11-19. They are ~0.4 s each and stdlib-only.
+    ["python", "scripts/ci/validate_config_registry.py"],
+    ["python", "scripts/ci/check_config_contract.py"],
     # satellite_residue_guard: #1676 satellite nested-anchor residue detection
     ["python", "scripts/ci/satellite_residue_guard.py", "--self-test"],
 ]

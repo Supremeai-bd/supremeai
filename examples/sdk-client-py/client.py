@@ -33,7 +33,7 @@ from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-DEFAULT_BASE_URL = "https://supremeai-mcp-tower.onrender.com"
+DEFAULT_BASE_URL = "https://supremeai-mcp-tower-live.onrender.com"
 DEFAULT_CLIENT_NAME = "sdk-py-client"
 MCP_ACCEPT = "application/json, text/event-stream"
 

@@ -77,7 +77,7 @@ SERVICES = [
         "key_env": "RENDER_API_KEY_4",
         "fallback_key_env": None,
         "svc_env": "RENDER_MCP_SVC_ID",
-        "url": "https://supremeai-mcp-tower.onrender.com",
+        "url": "https://supremeai-mcp-tower-live.onrender.com",
     },
 ]
 

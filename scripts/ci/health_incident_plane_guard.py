@@ -43,7 +43,7 @@ Verdict contract (mirrors hollow_read_guard):
 
 Usage:
     python3 scripts/ci/health_incident_plane_guard.py --probe live \
-        [--tower-url https://supremeai-mcp-tower.onrender.com/mcp] \
+        [--tower-url https://supremeai-mcp-tower-live.onrender.com/mcp] \
         [--evidence-out /tmp/incident_plane_probe.json]
     python3 scripts/ci/health_incident_plane_guard.py --sweep-file sweep.json
     (offline tests inject fakes directly; see tests/test_health_incident_plane_guard.py)
@@ -57,7 +57,7 @@ import sys
 import urllib.request
 from datetime import datetime, timezone
 
-TOWER_URL_DEFAULT = "https://supremeai-mcp-tower.onrender.com/mcp"
+TOWER_URL_DEFAULT = "https://supremeai-mcp-tower-live.onrender.com/mcp"
 
 GUARD = "health_incident_plane_guard"
 LINEAGE = ("#3111 sentry family: 8 consecutive passes of incidents=[] while "

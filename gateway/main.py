@@ -69,6 +69,66 @@ try:
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
     from sanitization import *  # type: ignore
 
+# --- request bounding (bandwidth + memory protection) ----------------------
+# Before this guard the chat route read `await request.json()` with no ceiling:
+# a single client could POST a 500 MB body and the gateway would buffer it all
+# in RAM (the process is capped at 512 MB on the free Render plan, so the
+# failure mode is an OOM kill of the public API, not a 413). Render also bills
+# bandwidth per byte, so an unbounded body is simultaneously a cost bug.
+DEFAULT_MAX_REQUEST_BYTES = 1024 * 1024
+# A chat request with >200 messages is either an attack or a client bug; the
+# provider APIs reject it anyway, so reject it here first (cheaper and it keeps
+# the failover chain from spending 8 upstream calls learning the same thing).
+DEFAULT_MAX_MESSAGES = 200
+
+
+def _limit(name: str, default: int) -> int:
+    """Read a positive int env knob per request (no import-time freeze)."""
+    try:
+        value = int(__import__("os").getenv(name, str(default)))
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+async def _read_limited_body(request: Request, limit: int) -> tuple[bytes | None, JSONResponse | None]:
+    """Read the request body, refusing anything larger than `limit`.
+
+    Content-Length is honoured as a fast reject; chunked bodies (no header) are
+    read incrementally and abandoned the moment they cross the limit, so the
+    oversized payload never lands in memory in full.
+    """
+    declared = request.headers.get("content-length")
+    if declared is not None:
+        try:
+            if int(declared) > limit:
+                return None, _too_large(limit)
+        except ValueError:
+            return None, error_response(
+                400,
+                err_type="invalid_request_error",
+                code="invalid_content_length",
+                message="Content-Length header is not a valid integer.",
+            )
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > limit:
+            return None, _too_large(limit)
+        chunks.append(chunk)
+    return b"".join(chunks), None
+
+
+def _too_large(limit: int) -> JSONResponse:
+    return error_response(
+        413,
+        err_type="invalid_request_error",
+        code="request_too_large",
+        message=f"Request body exceeds the {limit}-byte limit.",
+    )
+
+
 # --- standardized JSON error contract (AC2) --------------------------------
 
 
@@ -399,6 +459,14 @@ def create_app(
     circuit_breaker: Any = None,
 ) -> FastAPI:
     """Build the gateway. Every collaborator is injectable for offline tests."""
+    # Provider-health breaker: built per app so two apps in one process (tests,
+    # or a gateway + an admin app) never share cooldown state. One that is never
+    # consulted is worse than none, so it is wired into execute_chain below.
+    if circuit_breaker is None:
+        from .circuit_breaker import CircuitBreaker
+
+        circuit_breaker = CircuitBreaker()
+
     if limiter is None:
         import os
 
@@ -493,6 +561,10 @@ def create_app(
         redoc_url=None,
         openapi_url=None,  # docs lockdown completion: /openapi.json served the full 70-path route inventory (incl. admin route names) to unauthenticated callers.
     )
+
+    # Observability seam: operator reads of provider health do not need the
+    # private closure.
+    app.state.circuit_breaker = circuit_breaker
 
     import os as _cors_os
 
@@ -752,8 +824,13 @@ def create_app(
                     },
                 )
 
+        raw_body, too_large = await _read_limited_body(
+            request, _limit("GATEWAY_MAX_REQUEST_BYTES", DEFAULT_MAX_REQUEST_BYTES)
+        )
+        if too_large is not None:
+            return too_large
         try:
-            body = await request.json()
+            body = json.loads(raw_body or b"")
         except (json.JSONDecodeError, ValueError, UnicodeDecodeError):
             return error_response(
                 400,
@@ -768,6 +845,14 @@ def create_app(
                 err_type="invalid_request_error",
                 code="missing_messages",
                 message="'messages' must be a non-empty array (OpenAPI ChatCompletionRequest).",
+            )
+        max_messages = _limit("GATEWAY_MAX_MESSAGES", DEFAULT_MAX_MESSAGES)
+        if len(messages) > max_messages:
+            return error_response(
+                400,
+                err_type="invalid_request_error",
+                code="too_many_messages",
+                message=f"'messages' exceeds the {max_messages}-entry limit.",
             )
         model = body.get("model", "auto")
         wants_stream = bool(body.get("stream", False))

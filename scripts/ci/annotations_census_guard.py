@@ -32,7 +32,7 @@ Usage:
   python scripts/ci/annotations_census_guard.py --self-test
   python scripts/ci/annotations_census_guard.py --check
   python scripts/ci/annotations_census_guard.py --check --census-json /tmp/tl.json
-  python scripts/ci/annotations_census_guard.py --check --baseline 33 --tower-url https://supremeai-mcp-tower.onrender.com
+  python scripts/ci/annotations_census_guard.py --check --baseline 33 --tower-url https://supremeai-mcp-tower-live.onrender.com
 
 Exit codes: 0 = close justified; 1 = usage/infra error; 2 = fail-closed
 (the close is NOT justified by the live plane).
@@ -269,7 +269,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--self-test", action="store_true", help="offline verdict-core self-test (no network)")
     parser.add_argument("--check", action="store_true", help="live census verdict against the tower")
-    parser.add_argument("--tower-url", default="https://supremeai-mcp-tower.onrender.com")
+    parser.add_argument("--tower-url", default="https://supremeai-mcp-tower-live.onrender.com")
     parser.add_argument("--baseline", type=int, default=DEFAULT_BASELINE, help="filing-time annotated census")
     parser.add_argument("--census-json", type=Path, default=None, help="pre-fetched tools/list receipt (offline check)")
     args = parser.parse_args()

@@ -64,6 +64,16 @@ PROTECTED_PATHS = {
     "core/cache/multi_layer_cache.py",  # Stores tenant/user-scoped sessions.
     "core/middleware/cors_policy.py",
     "core/middleware/security.py",
+    # Provider core: a single bad edit here silently degrades every chat
+    # request (transport URLs, failover order, circuit breaker, rate limits).
+    # Every path below has live-customer blast radius, so it needs a human.
+    "gateway/provider_chain.py",
+    "gateway/circuit_breaker.py",
+    "gateway/routing_policy.json",
+    "gateway/main.py",
+    "gateway/config.py",
+    "gateway/service/providers/adapters.py",
+    "gateway/service/providers/pool.py",
     "gateway/service/admin_auth.py",
     "gateway/service/auth_identity.py",
     "gateway/service/keygen.py",

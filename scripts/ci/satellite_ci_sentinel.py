@@ -46,7 +46,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-TOWER_URL = "https://supremeai-mcp-tower.onrender.com/mcp"
+TOWER_URL = "https://supremeai-mcp-tower-live.onrender.com/mcp"
 ORG = "Supremeai-bd"
 # The 6 satellite mains from #2111's sweep table. supremeai itself is
 # EXCLUDED on purpose: the open repo's CI plane is already covered by the

@@ -2439,6 +2439,32 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         frozenset({"ci", "security"}),
         description="Password for staging/production smoke runner authentication.",
     ),
+    # The three below are read at runtime (`core/config_fields.py` pydantic
+    # validation_alias, `core/brain/model_router.py`, `core/otp_router.py`) but
+    # were never classified, so `scripts/ci/check_config_contract.py` reported
+    # them as drift — and it could not report anything at all until 2026-11-19
+    # because the guard itself crashed on a stale path.
+    ConfigSpec(
+        "ROUTEME_API_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV, ConfigSource.VAULT}),
+        frozenset({"backend"}),
+        description="RouteMe routing API key; optional, only used when the RouteMe provider is enabled.",
+    ),
+    ConfigSpec(
+        "DISCORD_OTP_WEBHOOK_URL",
+        frozenset({ConfigClass.SECRET, ConfigClass.OPTIONAL}),
+        frozenset({ConfigSource.ENV, ConfigSource.VAULT}),
+        frozenset({"backend"}),
+        description="Discord webhook that delivers OTP notifications; unset means OTP delivery is skipped.",
+    ),
+    ConfigSpec(
+        "ADMIN_NOTIFICATION_EMAIL",
+        frozenset({ConfigClass.OPTIONAL}),
+        frozenset({ConfigSource.ENV, ConfigSource.VAULT}),
+        frozenset({"backend"}),
+        description="Recipient address for admin/OTP notifications.",
+    ),
     ConfigSpec(
         "SMOKE_SKIP_AUTH",
         frozenset({ConfigClass.OPTIONAL}),

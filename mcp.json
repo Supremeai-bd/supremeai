@@ -9,14 +9,14 @@
       }
     },
     "supremeai-control-tower": {
-      "url": "https://supremeai-mcp-tower.onrender.com/mcp",
+      "url": "https://supremeai-mcp-tower-live.onrender.com/mcp",
       "headers": {
         "Authorization": "Bearer ${SUPREMEAI_TOWER_TOKEN}"
       }
     },
     "supremeai-control-tower-sse": {
       "type": "sse",
-      "url": "https://supremeai-mcp-tower.onrender.com/sse",
+      "url": "https://supremeai-mcp-tower-live.onrender.com/sse",
       "transport": "sse"
     },
     "supremeai-mcp-tower": {

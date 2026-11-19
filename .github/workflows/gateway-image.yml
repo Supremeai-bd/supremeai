@@ -1,0 +1,156 @@
+name: Gateway Image (GHCR publish + CVE scan)
+
+# Why this exists: Render builds `gateway/Dockerfile` on every deploy, and those
+# build minutes are what exhausted the free-tier quota (`EMERGENCY: Render quota
+# exhausted` in unified-pipeline.yml). Building the same image here — on the
+# GitHub-hosted minutes we already pay for — gives:
+#
+#   1. a reproducible, SHA-tagged artefact at
+#      ghcr.io/<owner>/supremeai-gateway:sha-<short-sha>;
+#   2. one place to switch Render to a pre-built image
+#      (`image: { url: ghcr.io/... }` in render.yaml) where the switch is a
+#      one-line blueprint edit, not a re-architecture;
+#   3. a CVE scan of the exact bytes that would be deployed, not of the
+#      Dockerfile (see the `scan` job).
+#
+# Stage-1 scope: publish + scan only. render.yaml is deliberately NOT switched
+# yet — that needs a Render registry credential (`SUPREMEAI_GHCR_*`), which is
+# a console/secret step, not a code change.
+#
+# Pinned by full commit SHA (never a mutable tag).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "gateway/**"
+      - ".github/workflows/gateway-image.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "gateway/**"
+      - ".github/workflows/gateway-image.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write   # required to publish to GHCR
+
+concurrency:
+  group: gateway-image-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: "Build (and publish on main)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GHCR (main only — PRs never push)
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image name and tags
+        id: meta
+        run: |
+          owner=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          short=$(echo "${GITHUB_SHA}" | cut -c1-12)
+          echo "image=ghcr.io/${owner}/supremeai-gateway" >> "$GITHUB_OUTPUT"
+          echo "short=${short}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: gateway/Dockerfile
+          # Always load into the local daemon so the scan job can inspect the
+          # exact image that was built; push is main-only.
+          load: true
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ steps.meta.outputs.image }}:sha-${{ steps.meta.outputs.short }}
+            ${{ steps.meta.outputs.image }}:main
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          # Render injects this at build time today; mirror it so /release can
+          # report a commit SHA in the pre-built image too.
+          build-args: |
+            RENDER_GIT_COMMIT=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Enable Trivy cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: /tmp/trivy-cache
+          key: trivy-${{ github.sha }}
+          restore-keys: trivy-
+
+      - name: Trivy image scan (SARIF)
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ steps.meta.outputs.image }}:sha-${{ steps.meta.outputs.short }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-image.sarif
+          cache-dir: /tmp/trivy-cache
+          exit-code: "0"   # report-only: baseline first, blocking later
+
+      - name: Upload SARIF to the Security tab
+        if: always() && hashFiles('trivy-image.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-image.sarif
+          category: gateway-image
+
+      - name: Summarise the scan
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          p = pathlib.Path("trivy-image.sarif")
+          if not p.is_file():
+              print("no SARIF produced (scan did not run)")
+              raise SystemExit(0)
+          data = json.loads(p.read_text(encoding="utf-8"))
+          counts = {}
+          for run in data.get("runs", []):
+              for result in run.get("results", []):
+                  level = result.get("level", "warning")
+                  counts[level] = counts.get(level, 0) + 1
+          print(f"image: {pathlib.Path('trivy-image.sarif')} results by level: {counts or 'none (clean)'}")
+          if counts:
+              print("::warning::Gateway image carries fixable HIGH/CRITICAL findings — see the Security tab.")
+          PY
+
+      - name: Print the deployable reference
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "### Pre-built gateway image" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.meta.outputs.image }}:sha-${{ steps.meta.outputs.short }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "digest: ${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "To deploy this artefact instead of rebuilding on Render, set the service to" \
+               "an image in render.yaml and add the GHCR credential in the Render dashboard." \
+               >> "$GITHUB_STEP_SUMMARY"

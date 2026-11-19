@@ -1569,7 +1569,7 @@ async def health_aggregation():
     nodes = [
         {"id": "api", "name": "API Gateway", "url": os.getenv("RENDER_API_URL", "https://supremeai-api-ulw0.onrender.com/health")},
         {"id": "scraper", "name": "Scraper Relay", "url": os.getenv("RENDER_SCRAPER_URL", "")},
-        {"id": "tower", "name": "MCP Control Tower", "url": os.getenv("RENDER_MCP_URL", "https://supremeai-mcp-tower.onrender.com/health")},
+        {"id": "tower", "name": "MCP Control Tower", "url": os.getenv("RENDER_MCP_URL", "https://supremeai-mcp-tower-live.onrender.com/health")},
         {"id": "primary", "name": "Primary Core Node", "url": os.getenv("RENDER_PRIMARY_URL", "")},
         {"id": "worker", "name": "Worker Node", "url": os.getenv("RENDER_WORKER_URL", "")},
     ]

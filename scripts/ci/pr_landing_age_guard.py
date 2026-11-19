@@ -44,7 +44,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-TOWER = "https://supremeai-mcp-tower.onrender.com/mcp"
+TOWER = "https://supremeai-mcp-tower-live.onrender.com/mcp"
 OPEN_REPO = "Supremeai-bd/supremeai"
 
 # Strand SLA: an open non-draft PR older than this with no landing is a

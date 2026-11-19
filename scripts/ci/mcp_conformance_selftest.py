@@ -9,7 +9,7 @@ Asserts that everything the tower ADVERTISES is actually usable:
   3. devtools_audit -> never reports verdict PASS while mode is a fallback.
 
 Usage (CI or local):
-  python scripts/ci/mcp_conformance_selftest.py [--url https://supremeai-mcp-tower.onrender.com/mcp]
+  python scripts/ci/mcp_conformance_selftest.py [--url https://supremeai-mcp-tower-live.onrender.com/mcp]
 
 Exit codes: 0 = conformant, 1 = violations found, 2 = tower unreachable.
 Stdlib-only so it can run in any CI lane.
@@ -22,7 +22,7 @@ import sys
 import urllib.error
 import urllib.request
 
-DEFAULT_URL = "https://supremeai-mcp-tower.onrender.com/mcp"
+DEFAULT_URL = "https://supremeai-mcp-tower-live.onrender.com/mcp"
 # Streamable floor — one constant per site, mirrors PROTOCOL_VERSION_STREAMABLE in
 # scripts/agents/mcp_tower_client.py (landed via #2533, radar R68).
 PROTOCOL_VERSION = "2025-11-25"

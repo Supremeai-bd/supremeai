@@ -18,8 +18,14 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from config_classification_locator import config_dir
+
 ROOT = Path(__file__).resolve().parents[2]
-CLASSIFICATION = ROOT / "backend" / "core" / "config_classification.py"
+# Shared locator: see scripts/ci/config_classification_locator.py (the guard
+# infrastructure moved to core/ during the monorepo flattening).
+CONFIG_DIR = config_dir()
+CLASSIFICATION = CONFIG_DIR / "config_classification.py"
 ENV_EXAMPLE = ROOT / ".env.example"
 
 ENV_PATTERNS = (

@@ -46,7 +46,7 @@ Verdict contract:
 
 Usage:
     python3 scripts/ci/hollow_read_guard.py --probe live \
-        [--tower-url https://supremeai-mcp-tower.onrender.com/mcp] \
+        [--tower-url https://supremeai-mcp-tower-live.onrender.com/mcp] \
         [--evidence-out /tmp/hollow_probe.json]
     (offline tests inject fakes directly; see tests/test_hollow_read_guard.py)
 """
@@ -64,7 +64,7 @@ try:
 except ImportError:  # pragma: no cover — package-style load (tests, CI runner)
     from scripts.ci.tower_name_tolerance import tolerant_tool_call
 
-TOWER_URL_DEFAULT = "https://supremeai-mcp-tower.onrender.com/mcp"
+TOWER_URL_DEFAULT = "https://supremeai-mcp-tower-live.onrender.com/mcp"
 
 GUARD = "hollow_read_guard"
 LINEAGE = ("#2673 silent-empty class, Unified remedy 1/2/3(+5); #2704 fail-loud "

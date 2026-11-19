@@ -79,7 +79,7 @@ try:
 except ImportError:  # pragma: no cover — package-style load (tests, CI runner)
     from scripts.ci.tower_name_tolerance import tolerant_tool_call
 
-DEFAULT_TOWER_URL = "https://supremeai-mcp-tower.onrender.com/mcp"
+DEFAULT_TOWER_URL = "https://supremeai-mcp-tower-live.onrender.com/mcp"
 # #2925 scope note: গেট কেবল platform-audit পরিবারের সাবজেক্টে ফায়ার করে
 # (#2225/#2557-এর লেবেল-প্লেন পর্যবেক্ষণ থেকে গ্রাউন্ডেড)। --labels দিয়ে
 # ওভাররাইডযোগ্য।

@@ -23,7 +23,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts" / "ops" / "operations"))
 
 import mcp_tower_client
 
-ORIGIN = "https://supremeai-mcp-tower.onrender.com"
+ORIGIN = "https://supremeai-mcp-tower-live.onrender.com"
 
 
 @pytest.fixture(autouse=True)
@@ -36,10 +36,10 @@ def _clean_env(monkeypatch):
     ("raw", "expected"),
     [
         # the documented dispatch-mandate form — the bug case (#2300)
-        ("https://supremeai-mcp-tower.onrender.com/mcp", ORIGIN),
+        ("https://supremeai-mcp-tower-live.onrender.com/mcp", ORIGIN),
         # legacy forms and combinations, all order-tolerant
-        ("https://supremeai-mcp-tower.onrender.com/sse", ORIGIN),
-        ("https://supremeai-mcp-tower.onrender.com/mcp/sse", ORIGIN),
+        ("https://supremeai-mcp-tower-live.onrender.com/sse", ORIGIN),
+        ("https://supremeai-mcp-tower-live.onrender.com/mcp/sse", ORIGIN),
         (ORIGIN, ORIGIN),
         (ORIGIN + "/", ORIGIN),
         # exact-suffix matching: a path that merely CONTAINS /mcp is untouched

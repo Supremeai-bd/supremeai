@@ -82,7 +82,7 @@ VERDICT_CATCHING_UP = "CATCHING_UP"
 VERDICT_HEALTHY = "HEALTHY"
 VERDICT_INCONCLUSIVE = "INCONCLUSIVE"
 
-TOWER = "https://supremeai-mcp-tower.onrender.com/mcp"
+TOWER = "https://supremeai-mcp-tower-live.onrender.com/mcp"
 
 USER_AGENT = "supremeai-core-sync-watchdog (zero-credential guard)"
 

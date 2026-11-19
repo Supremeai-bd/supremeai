@@ -6,7 +6,7 @@
  */
 
 const TARGET_SERVICES = [
-  { name: "MCP Control Tower", url: "https://supremeai-mcp-tower.onrender.com/health/live" },
+  { name: "MCP Control Tower", url: "https://supremeai-mcp-tower-live.onrender.com/health/live" },
   { name: "Primary Core Node", url: "https://supremeai-primary-node-5xso.onrender.com/health/live" },
   { name: "Browser Scraper Node", url: "https://supremeai-scraper-node.onrender.com/health" },
   { name: "Async Worker Node", url: "https://supremeai-worker-node.onrender.com/health" },

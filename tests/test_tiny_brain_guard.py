@@ -135,6 +135,10 @@ def test_render_requires_exact_sha_or_an_eligible_successful_fallback(
     PROTECTED, "scripts/ci/tiny_brain_pr_guard.py", "core/alembic_migrations/example.py",
     "gateway/service/keygen.py", "scripts/runtime/infisical_bootstrap.py", "render.yaml",
     "core/api/dependencies.py",
+    # Provider core: one bad edit degrades every chat request.
+    "gateway/provider_chain.py", "gateway/circuit_breaker.py",
+    "gateway/routing_policy.json", "gateway/config.py",
+    "gateway/service/providers/adapters.py", "gateway/service/providers/pool.py",
 ])
 def test_verified_protected_changes_need_owner_review(snapshot, path):
     result = decide(snapshot, [{"filename": path}])

@@ -93,16 +93,23 @@ def test_prod_loopback_entries_stripped(monkeypatch):
 
 
 def test_prod_render_external_url_derived(monkeypatch):
-    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://supremeai-api.onrender.com/")
+    # Fixture host is the live gateway (README service-table SSOT). The
+    # unsuffixed service-name form is a no-server ghost host
+    # (x-render-routing: no-server) — asserting on it would enshrine a dead
+    # hostname in the suite that scripts/ci/ghost_host_guard.py protects.
+    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://supremeai-api-ulw0.onrender.com/")
     settings = _prod_settings(monkeypatch, ALLOWED_HOSTS=[])
-    assert settings.allowed_hosts == ["supremeai-api.onrender.com"]
+    assert settings.allowed_hosts == ["supremeai-api-ulw0.onrender.com"]
 
 
 def test_prod_render_service_name_derived(monkeypatch):
+    # RENDER_SERVICE_NAME derivation is a *fallback*; production always sets
+    # RENDER_EXTERNAL_URL (covered above) because a service's public hostname
+    # carries a random suffix that the service name alone does not.
     monkeypatch.setenv("RENDER", "true")
-    monkeypatch.setenv("RENDER_SERVICE_NAME", "supremeai-api")
+    monkeypatch.setenv("RENDER_SERVICE_NAME", "supremeai-api-ulw0")
     settings = _prod_settings(monkeypatch, ALLOWED_HOSTS=[])
-    assert settings.allowed_hosts == ["supremeai-api.onrender.com"]
+    assert settings.allowed_hosts == ["supremeai-api-ulw0.onrender.com"]
 
 
 # ---------------------------------------------------------------------------

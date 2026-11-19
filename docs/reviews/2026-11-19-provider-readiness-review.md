@@ -4,6 +4,7 @@
 **Revision reviewed:** `b5d47ba` (`main`)
 **Scope:** the chat / provider / agent-execution path (`gateway/`, `core/`, `infrastructure/mcp-control-plane/`, CI + docs)
 **Method:** static read of the hot paths, four live service handshakes, two runnable reproductions, and the existing pytest suites executed locally.
+> **tower-host-retired: 2026-11-19** — the `supremeai-mcp-tower.onrender.com` references below are the measured evidence that produced this review; the host was suspended and has since been replaced by `supremeai-mcp-tower-live.onrender.com` (registry SSOT). The findings are kept verbatim as a dated snapshot.
 
 ---
 
