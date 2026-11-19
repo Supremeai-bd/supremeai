@@ -11,7 +11,7 @@ from core.request_context import get_correlation_id
 from pydantic import BaseModel
 
 from admin.god import AdminGodLayer  # Your existing god.py
-from api.dependencies import get_current_admin
+from api.dependencies import get_current_admin, get_current_platform_admin
 from core.cache.redis_manager import redis_manager
 from core.health.self_healer import SelfHealerService
 from utils.firestore_helpers import get_firestore_db
@@ -81,6 +81,9 @@ async def update_constitutional_rule(
 @router.post("/actions/{action_type}")
 async def trigger_quick_action(action_type: str, admin_user: dict = Depends(get_current_admin)):
     """Trigger 1-click Quick Actions from Dashboard"""
+    # Cache purge spans every owner. A tenant admin must not clear it.
+    if action_type == "cache":
+        get_current_platform_admin(admin_user)
     # Verify if admin actions are currently allowed by god.py
     god_layer.enforce("admin_action")
     # বাংলা মন্তব্য: Structured audit log entry
@@ -114,16 +117,23 @@ async def trigger_quick_action(action_type: str, admin_user: dict = Depends(get_
                 "health:*",
             ]
             total_deleted = 0
-            for pattern in patterns:
-                keys = await redis_client.keys(pattern)
-                if keys:
-                    await redis_client.delete(*keys)
-                    total_deleted += len(keys)
-            logger.info(f"Successfully cleared {total_deleted} cache keys from Redis.")
+            from core.cache.multi_layer_cache import invalidate_session_cache
+            from core.swarm_pubsub import swarm_streamer
+
+            try:
+                for pattern in patterns:
+                    async for key in redis_client.scan_iter(match=pattern):
+                        total_deleted += await redis_client.delete(key)
+                invalidate_session_cache(all_scopes=True)
+                await swarm_streamer.broadcast("CACHE_INVALIDATE_REQUESTED", {"scope": "global"})
+            except Exception:
+                logger.exception("Cache purge or invalidation notification failed")
+                _admin_action_audit("failed - cache purge or notification incomplete")
+                raise HTTPException(status_code=503, detail="Cache purge or worker notification incomplete") from None
             _admin_action_audit("success")
             return {
                 "status": "success",
-                "message": f"Selective cache cleared. Deleted {total_deleted} keys.",
+                "message": f"Deleted {total_deleted} Redis keys; active worker invalidation requested.",
                 "audit_id": audit_id,
             }
         else:

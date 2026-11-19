@@ -40,7 +40,7 @@ class LLMGateway(
     - os.environ secrets injection সম্পূর্ণ নিষিদ্ধ — per-call api_key passing।
     - litellm global state mutation নিষিদ্ধ।
     - Heavy import (litellm) function level-এ lazy load।
-    - Semantic cache, fallback chain, cost guard intact।
+    - Fallback chain and cost guard remain in the completion mixin।
     - CancelledError সবসময় re-raise।
     """
 
@@ -72,8 +72,6 @@ class LLMGateway(
         self._request_count = 0
         self._error_count = 0
 
-        # Performance Optimization: Lazy initialize cache on demand to prevent circular imports
-        self._cache = None
         self._router_obj = None
 
     @property
@@ -99,18 +97,6 @@ class LLMGateway(
 
             self._performance_optimizer = get_performance_optimizer()
         return self._performance_optimizer
-
-    @property
-    def cache(self):
-        if self._cache is None:
-            from core.cache.semantic_cache import SemanticCache
-
-            self._cache = SemanticCache()
-        return self._cache
-
-    @cache.setter
-    def cache(self, value):
-        self._cache = value
 
     async def _get_api_key_for_model(self, model: str) -> str | None:
         """

@@ -429,11 +429,3 @@ class TestIsolationSourceContract:
         assert "_owned_window_session(user, session_id)" in src, (
             "GET/DELETE /api/memory/recall অবশ্যই user-scoped session ব্যবহার করবে (#3155)"
         )
-
-    def test_vector_recall_passes_user_sub(self):
-        src = (Path(__file__).resolve().parents[2] / "api/routes/memory.py").read_text(
-            encoding="utf-8"
-        )
-        assert 'user_id=user.get("sub")' in src, (
-            "vector recall/save-এ owner sub বাঁধা থাকতে হবে (AUD-5.1)"
-        )

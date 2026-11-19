@@ -1,5 +1,5 @@
 # backend/core/llm/llm_gateway/completion.py
-"""Main async completion interface (fallback chain, cache, cost guard).
+"""Main async completion interface (fallback chain, cost guard).
 
 Task 4-a package split: code moved VERBATIM from core/llm/llm_gateway.py into
 the CompletionMixin used by LLMGateway (core/llm/llm_gateway/gateway.py).
@@ -13,7 +13,6 @@ exactly as before the split; at runtime it resolves to the same
 utils.firestore_helpers.get_firestore_db function.
 """
 
-import contextlib
 import json
 import random
 from dataclasses import replace
@@ -104,7 +103,6 @@ class CompletionMixin:
 
         self._ensure_litellm_ready()
 
-
         # বাংলা মন্তব্য: context এলে সেটিই একক-সত্যের উৎস — attribution-যাচাই
         # ব্যর্থ হলে fail-closed লাউড এরর (নীরব অজানা-টেন্যান্ট খরচ নিষিদ্ধ)।
         if context is not None:
@@ -145,34 +143,8 @@ class CompletionMixin:
 
         prompt_text = normalize_prompt(prompt)
 
-        # বাংলা মন্তব্য: Semantic cache check — API call আগে cost-zero response
-        if prompt_text:
-            cached = await self.cache.query_similar(prompt_text, task_type=task_type)
-            if cached and not stream:
-                # Sprint 3 (learning loop): durable cache-hit observation — evidence
-                # for cache-effectiveness measurement (plan §13.1). Best-effort.
-                try:
-                    from core.learning import record_llm_event as _cache_hit_event
-
-                    _cache_hit_event(
-                        provider="semantic-cache",
-                        model=str(getattr(cached, "model", "") or "unknown"),
-                        task_type=task_type,
-                        success=True,
-                        latency_ms=0,
-                        cache_hit=True,
-                        session_id=str(tenant_id or ""),
-                    )
-                except Exception as exc:  # best-effort telemetry — never block cache-hit
-                    logger.warning("[LLMGateway] cache-hit telemetry record failed: %s", exc)
-                return {
-                    "success": True,
-                    "text": cached.response,
-                    "model": cached.model,
-                    "cost": 0.0,
-                    "cached": True,
-                }
-
+        # No shared ExperienceDB response lookup: inference attribution alone
+        # is not a verified user/session/model cache scope.
         # বাংলা মন্তব্ব: Pre-flight cost guard
         if tenant_id:
             db = get_firestore_db()
@@ -307,27 +279,8 @@ class CompletionMixin:
                 task_type=task_type,
             )
 
-        # Sprint 5 (§13.3): single-flight request coalescing — identical
-        # in-flight requests share one upstream call. Flag-gated (default off);
-        # bounded map + bounded follower wait; any failure degrades to
-        # executing normally, so dedup can never reduce availability.
-        _coalescer = None
-        _dedup_k = None
-        _is_leader = False
-        from core.learning.dedup import dedup_key, get_request_coalescer, request_dedup_enabled
-
-        if request_dedup_enabled() and call_chain:
-            _coalescer = get_request_coalescer()
-            _dedup_k = dedup_key(call_chain[0], task_type, messages_payload)
-            _leader_entry = _coalescer.try_claim(_dedup_k)
-            if _leader_entry is not None:
-                _shared = await _coalescer.wait_for_leader(_leader_entry)
-                if _shared is not None:
-                    _shared["deduplicated"] = True
-                    logger.info("[LLMGateway] request coalesced onto in-flight duplicate")
-                    return _shared
-            _is_leader = _leader_entry is None
-
+        # Do not coalesce private inference: an attribution context alone
+        # cannot prove the same verified owner, session, or BYOK credential.
         last_exception: Exception | None = None
         mode = kwargs.pop("mode", getattr(self, "mode", ExecutionMode.AUTO))
 
@@ -343,28 +296,16 @@ class CompletionMixin:
                         max_tokens=kwargs.get("max_tokens"),
                         timeout=timeout,
                     )
-                    _local_result = {
+                    return {
                         "success": True,
                         "text": response["choices"][0]["message"]["content"],
                         "model": local_model,
                         "cost": 0.0,
                     }
-                    if _is_leader and _coalescer is not None and _dedup_k:
-                        with contextlib.suppress(Exception):
-                            _coalescer.publish_success(_dedup_k, _local_result)
-                    return _local_result
                 except Exception as e:
                     logger.warning(f"[LLMGateway] Local execution failed: {e}")
                     if mode == ExecutionMode.LOCAL:
                         raise e
-                else:
-                    await self.observability.trace_generation(
-                        model=local_model,
-                        prompt=messages_payload,
-                        response_text=response["choices"][0]["message"]["content"],
-                        cost=0.0,
-                        privacy_mode=PrivacyMode.METADATA_ONLY,
-                    )
             elif mode == ExecutionMode.LOCAL:
                 raise RuntimeError("Local execution requested but Ollama is not healthy.")
 
@@ -381,6 +322,7 @@ class CompletionMixin:
         # FIX (P2, review 2026-09-12): pop BYOK key once, BEFORE the chain loop,
         # so every fallback attempt can reuse the caller's custom key.
         _byok_api_key = kwargs.pop("api_key", None)
+        session_id = kwargs.pop("session_id", "") or str(tenant_id or "")
 
         for _chain_index, current_model in enumerate(call_chain):
             # FINAL-TEST FIX (2026-09-13): skip models verified retired at
@@ -404,7 +346,6 @@ class CompletionMixin:
                 # বাংলা মন্তব্ব: api_key per-call pass — os.environ injection সম্পূর্ণ নিষিদ্ধ।
                 # কাস্টম api_key পাস করা হলে সেটি ব্যবহার করা হবে, অন্যথায় মডেলের ডিফল্ট কী ব্যবহার হবে।
                 api_key = _byok_api_key or await self._get_api_key_for_model(current_model)
-                session_id = kwargs.pop("session_id", "") or str(tenant_id or "")
                 provider_name = current_model.split("/")[0] if "/" in current_model else "unknown"
                 # Issue #685 (Domain 15): thread the request correlation id into
                 # the telemetry record's EXISTING ``request_id`` field — it is
@@ -458,52 +399,18 @@ class CompletionMixin:
                     except Exception as fit_err:
                         logger.debug(f"FitnessEngine.track_execution skipped: {fit_err}")
 
-                    # FIX (ANALYSIS-D): Wire EvolutionEngine.learn_from_success into
-                    # the success path. Original code never called this method, so
-                    # the auto-learning was write-only (ExperienceDatabase.record_experience
-                    # in task.py) and never fed back into the evolution engine.
-                    # Gated behind env ENABLE_EVOLUTION_LEARNING (default false) so
-                    # admins can opt-in after verifying the EvolutionEngine works.
-                    if settings.enable_evolution_learning:
-                        try:
-                            # SELF-EVOLVE FIX (real): wire EvolutionEngine to the SHARED
-                            # FitnessEngine singleton (from api.deps.get_fitness_engine).
-                            # Previously EvolutionEngine() was called with no args, so
-                            # self.fitness_engine was always None → learn_from_success
-                            # wrote to DB but never called track_execution →
-                            # SelfEvolutionAgent._tick() always saw empty metrics →
-                            # no auto-refactor ever triggered (the "loop" was NOT closed).
-                            # Now both EvolutionEngine AND SelfEvolutionAgent use the
-                            # SAME FitnessEngine singleton, so metrics are shared.
-                            from api.deps import get_fitness_engine
-                            from core.self_evolution.evolution_engine import EvolutionEngine
-
-                            _evolution_engine = EvolutionEngine(fitness_engine=get_fitness_engine())
-                            _evolution_engine.learn_from_success(
-                                task=prompt_text,
-                                approach=current_model,
-                                result=response["choices"][0]["message"]["content"],
-                            )
-                        except Exception as evo_err:
-                            logger.debug(f"EvolutionEngine.learn_from_success skipped: {evo_err}")
-
+                    # Serving traffic feeds aggregate metrics, not a shared raw
+                    # prompt/response history. This trace also omits content.
                     await self.observability.trace_generation(
                         model=current_model,
-                        prompt=messages_payload,
-                        response_text=response["choices"][0]["message"]["content"],
+                        prompt="",
                         usage=response.get("usage"),
                         cost=cost,
                         session_id=session_id,
                         metadata={"task_type": task_type},
-                        privacy_mode=PrivacyMode.FULL,
+                        privacy_mode=PrivacyMode.METADATA_ONLY,
                     )
 
-                    _result = {
-                        "success": True,
-                        "text": response["choices"][0]["message"]["content"],
-                        "model": current_model,
-                        "cost": cost,
-                    }
                     # M16 P-A: বাস্তব খরচ meter — successful call-এর provider usage
                     # থেকে record_spend ফিড (ড্যাশবোর্ডের চিরস্থায়ী $0-র অবসান)।
                     # metering ব্যর্থ হলেও inference ফলাফল অক্ষত থাকে।
@@ -524,10 +431,12 @@ class CompletionMixin:
                         logger.warning(
                             f"[LLMGateway] key-pool mark_success failed for {provider_name}: {pool_exc}"
                         )
-                    if _is_leader and _coalescer is not None and _dedup_k:
-                        with contextlib.suppress(Exception):
-                            _coalescer.publish_success(_dedup_k, _result)
-                    return _result
+                    return {
+                        "success": True,
+                        "text": response["choices"][0]["message"]["content"],
+                        "model": current_model,
+                        "cost": cost,
+                    }
             except asyncio.CancelledError:
                 # বাংলা মন্তব্ব: CancelledError re-raise — কখনো suppress করা যাবে না
                 logger.warning(f"[LLMGateway] acompletion cancelled during model {current_model}")
@@ -652,9 +561,6 @@ class CompletionMixin:
         final_exception = last_exception or RuntimeError(
             "All routing models failed to produce a completion."
         )
-        if _is_leader and _coalescer is not None and _dedup_k:
-            with contextlib.suppress(Exception):
-                _coalescer.publish_failure(_dedup_k, final_exception)
         if tenant_id:
             db = get_firestore_db()
             if db:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -24,11 +25,17 @@ _checkpoint: CheckpointResume | None = None
 _window: SlidingWindowMemory | None = None
 
 
+def _vector_owner(user: dict) -> str:
+    owner = user.get("sub")
+    if not isinstance(owner, str) or not owner.strip():
+        raise HTTPException(status_code=401, detail="Authenticated subject required")
+    return owner
+
+
 def _checkpoint_prefix(user: dict) -> str:
-    """Owner prefix for checkpoint keys (AUD-5.1 tenant binding)."""
-    sub = user.get("sub") or "anonymous"
-    safe = str(sub).replace(":", "_").replace("/", "_")
-    return f"u:{safe}:"
+    """Avoid collisions and never read legacy lossy or anonymous keys."""
+    owner = hashlib.sha256(_vector_owner(user).encode()).hexdigest()
+    return f"u:v2:{owner}:"
 
 
 def _owned_checkpoint_key(user: dict, task_id: str) -> str:
@@ -36,10 +43,7 @@ def _owned_checkpoint_key(user: dict, task_id: str) -> str:
 
 
 def _owned_window_session(user: dict, session_id: str) -> str:
-    """Namespace sliding-window storage by the authenticated owner."""
-    sub = str(user.get("sub") or "anonymous").strip()
-    safe = sub.replace(":", "_").replace("/", "_")
-    return f"u:{safe}:window:{session_id or 'default'}"
+    return f"{_checkpoint_prefix(user)}window:{session_id or 'default'}"
 
 
 def get_checkpoint() -> CheckpointResume:
@@ -223,7 +227,7 @@ async def vector_recall(req: VectorRecallRequest, user: dict = Depends(get_curre
         task_description=req.task_description,
         limit=req.limit,
         threshold=req.threshold,
-        user_id=user.get("sub"),  # AUD-5.1: no cross-tenant recall
+        user_id=_vector_owner(user),
     )
     return {"success": True, "memories": memories, "count": len(memories)}
 
@@ -239,7 +243,7 @@ async def vector_save(req: VectorSaveRequest, user: dict = Depends(get_current_u
         task_type=req.task_type,
         agent_type=req.agent_type,
         metadata=req.metadata,
-        user_id=user.get("sub"),  # AUD-5.1: bind memory to owner
+        user_id=_vector_owner(user),
     )
     return result
 
@@ -253,7 +257,7 @@ async def save_session(req: SessionSaveRequest, user: dict = Depends(get_current
         session_id=req.session_id,
         messages=req.messages,
         task_type=req.task_type,
-        user_id=user.get("sub"),
+        user_id=_vector_owner(user),
     )
     return result
 

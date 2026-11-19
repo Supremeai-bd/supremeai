@@ -110,30 +110,24 @@ class TestAcompletionContextContract:
 
     @pytest.mark.asyncio
     async def test_context_carries_prompt_payload(self, monkeypatch):
-        # context-এর prompt/task_type কল-আর্গকে অগ্রাধিকার দেয় — একক-সত্যের
-        # উৎস context। cache-seam-এ capture করে sentinel দিয়ে থামাই।
+        # Capture the resolved prompt at the normal input normalization seam.
         gw = _MinimalStubGateway()
         captured: dict = {}
 
         class _Stop(Exception):
             pass
 
-        async def _fake_cache_query(prompt, task_type=None):
+        from core.llm.llm_gateway import completion as completion_mod
+
+        def capture_prompt(prompt):
             captured["prompt"] = prompt
-            captured["task_type"] = task_type
             raise _Stop()
 
-        gw.cache = SimpleNamespaceCache(_fake_cache_query)
+        monkeypatch.setattr(completion_mod, "normalize_prompt", capture_prompt)
         ctx = InferenceContext(prompt="context payload", tenant_id="t1", task_type="research")
         with pytest.raises(_Stop):
             await gw.acompletion(prompt="arg payload", context=ctx)
         assert captured["prompt"] == "context payload"
-        assert captured["task_type"] == "research"
-
-
-class SimpleNamespaceCache:
-    def __init__(self, query):
-        self.query_similar = query
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +182,7 @@ class TestGatewayContextGate:
 
     def test_route_files_build_context_ast_level(self):
         """প্রতিটি serving route-কলে context= keyword AST-স্তরেই প্রমাণিত।"""
-        routes_dir = REPO_ROOT / "backend" / "api" / "routes"
+        routes_dir = context_gate.ROUTES_DIR
         files_with_calls = set()
         for py_file in routes_dir.glob("*.py"):
             tree = ast.parse(py_file.read_text(encoding="utf-8"))

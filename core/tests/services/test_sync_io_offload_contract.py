@@ -52,9 +52,21 @@ async def test_recall_memories_offloads_blocking_embedding(monkeypatch):
         gate.block_until_released()
         return [0.0] * 384
 
-    monkeypatch.setattr(ms, "get_embedding", blocking_embed)
+    class EmptyVectorStore:
+        def rpc(self, _name, _params):
+            return self
 
-    task = asyncio.create_task(ms.recall_memories(task_description="loop-liveness probe", limit=1))
+        def execute(self):
+            from types import SimpleNamespace
+
+            return SimpleNamespace(data=[])
+
+    monkeypatch.setattr(ms, "get_embedding", blocking_embed)
+    monkeypatch.setattr(ms, "_get_supabase", EmptyVectorStore)
+
+    task = asyncio.create_task(
+        ms.recall_memories(task_description="loop-liveness probe", limit=1, user_id="fixture-user")
+    )
     await gate.wait_started()
 
     # বাংলা মন্তব্য: embedding এখনো worker-thread-এ আটকে আছে — লুপ জীবিত হলেই

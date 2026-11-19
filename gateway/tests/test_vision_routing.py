@@ -30,7 +30,7 @@ def test_choose_best_route_with_image_excludes_text_only_providers():
         ewma_latency_ms=50.0,
     )
 
-    def mock_get_candidate_slots(provider="auto"):
+    def mock_get_candidate_slots(provider="auto", *, vision=False):
         if provider == "gemini":
             return [("gemini", gemini_slot)]
         if provider == "groq":

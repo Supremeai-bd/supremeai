@@ -335,16 +335,31 @@ class ConversationOrchestrator:
 
 async def _chat_handler(command: ConversationCommand) -> Any:
     from core.llm.llm_gateway import llm_gateway
+    from core.llm.llm_gateway.context import InferenceContext
 
-    result = await llm_gateway.acompletion(prompt=command.prompt, task_type="chat", stream=False)
-    return result.get("text", "") if isinstance(result, dict) else str(result)
+    result = await llm_gateway.acompletion(
+        prompt=command.prompt,
+        context=InferenceContext(
+            tenant_id=command.tenant_id,
+            task_type="chat",
+            correlation_id=command.metadata.get("correlation_id"),
+        ),
+    )
+    text = result.get("text") if isinstance(result, dict) and result.get("success") else None
+    if not isinstance(text, str) or not text.strip():
+        raise RuntimeError("No chat result received")
+    return text
 
 
 async def _memory_handler(command: ConversationCommand) -> Any:
     from services.memory_service import recall_memories
 
     return await recall_memories(
-        task_description=command.prompt, limit=3, threshold=0.55, user_id=command.user_id
+        task_description=command.prompt,
+        limit=3,
+        threshold=0.55,
+        user_id=command.user_id,
+        session_id=command.metadata.get("session_id"),
     )
 
 

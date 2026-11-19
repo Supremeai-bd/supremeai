@@ -1,18 +1,13 @@
 from typing import Any
 
-from core.cache.multi_layer_cache import MultiLayerCache
 from core.monitoring.logging_config import logger
 
 
 class AutoCacheProxy:
-    """
-    প্রম্পট এবং কুয়েরি ক্যাটাগরি বিশ্লেষণ করে Dynamic TTL Allocation করার জন্য Proxy Engine।
-    Stale-While-Revalidate (SWR) এবং Semantic Similarity Cache প্যাটার্ন অনুসরণ করা হয়েছে।
-    """
+    """Legacy TTL/category helpers; unowned get_or_compute calls bypass reuse."""
 
     def __init__(self, semantic_cache: Any | None = None):
         self.semantic_cache = semantic_cache
-        self.cache = MultiLayerCache()
         from cachetools import TTLCache  # type: ignore[import-untyped]
 
         self.request_history = TTLCache(maxsize=1000, ttl=300)
@@ -73,23 +68,8 @@ class AutoCacheProxy:
     async def get_or_compute(
         self, key: str, category: str, compute_fn: Any, *args, **kwargs
     ) -> Any:
-        """
-        ক্যাশ চেক করা এবং মিস হলে ডাইনামিক টিটিএল সহ মান হিসাব করে সঞ্চয় করা।
-        """
-        ttl = self.get_ttl_for_category(category)
-        if ttl == 0:
-            return await compute_fn(*args, **kwargs)
-
-        cached_val = await self.cache.get(key)  # type: ignore
-        if cached_val is not None:
-            logger.debug(f"[AutoCacheProxy] Cache hit for key '{key}' (Category: {category})")
-            return cached_val
-
-        # Compute new value
-        computed_val = await compute_fn(*args, **kwargs)
-        if computed_val is not None:
-            await self.cache.set(key, computed_val, ttl_seconds=ttl)  # type: ignore
-            logger.debug(f"[AutoCacheProxy] Cached key '{key}' with TTL {ttl}s")
+        """Compute only: the legacy proxy has no authenticated reuse scope."""
+        return await compute_fn(*args, **kwargs)
 
     def _calculate_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
         """

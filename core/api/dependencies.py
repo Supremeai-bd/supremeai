@@ -190,12 +190,16 @@ def get_tenant_db(
     and returns a hard-isolated Firestore client.
     """
     tenant_id = payload.get("sub")
-    if not tenant_id:
+    if not isinstance(tenant_id, str) or not tenant_id.strip():
         logger.error("Token payload missing 'sub' (tenant_id) claim.")
         raise HTTPException(status_code=401, detail="Invalid token structure.")
 
     # রিটার্ন করছে আইসোলেটেড ডিবি ক্লায়েন্ট
-    return TenantAwareFirestore(tenant_id=tenant_id)
+    workspace_id = payload.get("tenant_id") or payload.get("org_id")
+    return TenantAwareFirestore(
+        tenant_id=tenant_id,
+        workspace_id=workspace_id if isinstance(workspace_id, str) and workspace_id.strip() else None,
+    )
 
 
 def get_current_tenant(

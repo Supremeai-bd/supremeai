@@ -30,7 +30,7 @@ class TenantAwareFirestore:
     Forces all queries and writes into a specific user's subcollection.
     """
 
-    def __init__(self, tenant_id: str):
+    def __init__(self, tenant_id: str, *, workspace_id: str | None = None):
         if not tenant_id:
             logger.critical("🚨 SECURITY BREACH: Attempted to initialize DB without a tenant_id!")
             raise HTTPException(
@@ -39,6 +39,8 @@ class TenantAwareFirestore:
             )
 
         self.tenant_id = tenant_id
+        # Workspace is an additional cache partition, never the storage owner.
+        self.workspace_id = workspace_id
         # Use existing configured firestore client if available, fallback to default
         from utils.environment import is_test_environment
 

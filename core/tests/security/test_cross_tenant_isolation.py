@@ -157,31 +157,11 @@ class TestMemoryTenantScoping:
 
     def test_memory_recall_passes_user_id(self):
         src = _source_of("api/routes/memory.py")
-        assert "user_id=user.get" in src
+        assert "user_id=_vector_owner(user)" in src
 
     def test_checkpoints_namespaced_by_user(self):
         src = _source_of("api/routes/memory.py")
         assert "_owned_checkpoint_key" in src
-
-    def test_chat_rag_scoped_and_cache_scoped(self):
-        src = _source_of("api/routes/chat.py")
-        assert "user_id=db.tenant_id" in src
-
-    def test_multi_layer_cache_user_scoped_keys(self):
-        """AUD-5.6: user-scoped cache keys differ from global keys."""
-        import hashlib
-
-        prompt, model, user_a, user_b = "hello", "gemini", "alice", "bob"
-        k_global = f"exact:{hashlib.sha256(f'{prompt}:{model}'.encode()).hexdigest()}"
-        k_a = f"exact:{hashlib.sha256(f'{user_a}:{prompt}:{model}'.encode()).hexdigest()}"
-        k_b = f"exact:{hashlib.sha256(f'{user_b}:{prompt}:{model}'.encode()).hexdigest()}"
-        assert k_a != k_b != k_global
-
-    def test_multi_layer_cache_get_signature_has_user_id(self):
-        src = _source_of("core/cache/multi_layer_cache.py")
-        assert "user_id: str | None = None" in src
-        assert "query_similar(\n                prompt, user_id=user_id" in src
-
 
 # ---------------------------------------------------------------------------
 # AUD-3.5/Phase 4: HITL approval surface is mounted and hard-guarded

@@ -5,20 +5,18 @@
 
 import datetime
 import json
-import os
 import re
 
 # বাংলা মন্তব্য: টাইপিং এরর এড়ানোর জন্য Any ইমপোর্ট করা হলো
 from typing import Any
 
 import anyio
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, model_validator
 
 # --- Local Imports ---
 # Moved imports to the top of the file to improve performance by avoiding repeated imports inside functions.
-from adaptive_engine.experience_db import Experience
 from api.dependencies import get_current_user_token
 
 # STABILIZE FIX: PromptAction now lives in core.intent_router_v2 (canonical).
@@ -26,25 +24,8 @@ from api.dependencies import get_current_user_token
 from core.intent_router import PromptAction
 from core.monitoring.logging_config import logger
 from core.prompt_handler import format_unified_chat_prompt
-from engine.memory_middleware import memory_mw
 
 router = APIRouter(dependencies=[Depends(get_current_user_token)])
-
-_semantic_cache = None
-
-
-def get_semantic_cache():
-    # বাংলা মন্তব্য: মেমরি ওভারহেড এবং স্টার্টআপ ওওএম (OOM) এড়াতে VectorSemanticCache অলসভাবে (lazy) লোড করা হচ্ছে।
-    global _semantic_cache
-    if _semantic_cache is None:
-        try:
-            from core.cache.semantic_cache import SemanticCache
-
-            _semantic_cache = SemanticCache()
-        except ImportError:
-            _semantic_cache = False
-    return _semantic_cache if _semantic_cache is not False else None
-
 
 # --- Agentic Security & Context: Task Request Schema ---
 # Added messages and session_id parameters on 2026-06-21 to prevent context loss.
@@ -317,7 +298,7 @@ def format_response(text: str, task_type: str) -> str:
 # বাংলা মন্তব্য: টেস্ট ও ক্লায়েন্ট উভয়ের সামঞ্জস্যের জন্য /task/execute এবং /api/task/execute উভয় রুটই সাপোর্ট করা হলো
 @router.post("/task/execute")
 @router.post("/api/task/execute")
-async def execute_task(req: TaskRequest, background_tasks: BackgroundTasks):
+async def execute_task(req: TaskRequest):
     import core.services as app_mod
 
     admin_god = app_mod.admin_god
@@ -336,10 +317,6 @@ async def execute_task(req: TaskRequest, background_tasks: BackgroundTasks):
 
     prompt_action: PromptAction = await intent_router_v2.route(req.task)
 
-    # Offload heavy CPU-bound Intent classification to background thread pool
-    app_spec = await anyio.to_thread.run_sync(
-        app_mod.intent_parser.parse_intent, req.task, req.messages
-    )
     intent = await anyio.to_thread.run_sync(intent_clf.classify, req.task)
 
     task_type = req.task_type
@@ -351,78 +328,13 @@ async def execute_task(req: TaskRequest, background_tasks: BackgroundTasks):
     # Build prompt context if chat messages are provided
     prompt = format_unified_chat_prompt(req.task, req.messages)
 
-    # --- Neural Memory Augmentation (RAG over past experiences, zero-cost) ---
-    # বাংলা: free sentence-transformers দিয়ে past experiences retrieve করে prompt কে augment করে।
-    # memory_mw নিজেই graceful fallback করে (vector_db down হলে original prompt ফেরত দেয়)।
-    # default-OFF যাতে deploy হওয়ার সাথে সাথে সব live task-এ vector_db query না যায় (free-tier latency/cost সচেতনতা)।
-    # enable করতে: ENABLE_MEMORY_AUGMENT=true
-    if os.environ.get("ENABLE_MEMORY_AUGMENT", "false").lower() in ("true", "1", "yes"):
-        prompt = await memory_mw.augment_task(prompt)
-
-    # --- True Vector Semantic Caching ---
-    raw = None
-    sem_cache = get_semantic_cache()
-    if sem_cache:
-        # FIX: original called get_cached_inference (doesn't exist) — actual method is query_similar
-        # which returns CacheEntry(provider, model, response) or None
-        cached_entry = await sem_cache.query_similar(prompt=prompt, task_type=task_type)
-        if cached_entry and getattr(cached_entry, "response", None):
-            raw = {
-                "success": True,
-                "text": cached_entry.response,
-                "provider": "semantic-vector-hit",
-                "cost": 0.0,
-            }
-
-    if not raw:
-        raw = await model_router.async_route_and_generate(
-            prompt=prompt,
-            task_type=task_type,
-            max_cost=req.max_cost,
-        )
-        if raw.get("success") and sem_cache:
-            try:
-                # FIX: original called set_cache_inference (doesn't exist) — actual method is set
-                await sem_cache.set(prompt=prompt, response=raw.get("text"), task_type=task_type)
-            except Exception as exc:
-                logger.exception(f"Semantic cache write failed: {exc}")
-
-    # Log to ExperienceDatabase in the background to improve user-perceived latency.
-    exp = Experience(
-        timestamp=datetime.datetime.now(datetime.UTC).isoformat(),
-        user_id=req.session_id or "default-user",
-        request=req.task,
-        context={
-            "task_type": task_type,
-            "session_id": req.session_id,
-            "app_type": app_spec.app_type,
-            "features": app_spec.features,
-            "tech_stack": app_spec.tech_stack,
-            "pages": app_spec.pages,
-            "integrations": app_spec.integrations,
-            "deployment_target": app_spec.deployment_target,
-        },
-        action_taken=f"Executed task on provider {raw.get('provider')}",
-        result="success" if raw.get("success") else "failure",
-        error_message=raw.get("error"),
-        generated_code=raw.get("text") if ("```" in raw.get("text", "")) else None,
-        what_worked=["Intent parsed successfully"] if raw.get("success") else [],
-        what_failed=([] if raw.get("success") else [str(raw.get("error", "Unknown error"))]),
+    # A request's session ID is not an owner. Do not inject shared past
+    # experiences or return their responses on this authenticated task route.
+    raw = await model_router.async_route_and_generate(
+        prompt=prompt,
+        task_type=task_type,
+        max_cost=req.max_cost,
     )
-    background_tasks.add_task(app_mod.experience_db.record_experience, exp)
-
-    # --- Neural Memory Feedback Loop: store result for future RAG retrieval ---
-    # বাংলা: এই execution-এর result store করা হচ্ছে যাতে ভবিষ্যতে similar task-এ এটি retrieve হয়।
-    # background-এ চলে যাতে response latency না বাড়ে। success/failure দুটোই store হয় (self-healing-এর জন্য)।
-    # default-OFF (augment-এর সাথে symmetric)।
-    if os.environ.get("ENABLE_MEMORY_AUGMENT", "false").lower() in ("true", "1", "yes"):
-        background_tasks.add_task(
-            memory_mw.intercept_result,
-            task_prompt=req.task,
-            intent_domain=task_type,
-            execution_result=raw,
-            success=bool(raw.get("success")),
-        )
 
     if not raw.get("success"):
         return ProblemDetailsResponse(

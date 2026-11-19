@@ -64,6 +64,8 @@ class KeySlot:
     unsupported_models: set[str] = field(default_factory=set)
     preferred_model: Optional[str] = None
     discovered_models: List[str] = field(default_factory=list)
+    catalog_identity: tuple[str, str] | None = None
+    catalog_valid_until: float = 0.0
 
     @property
     def rank_latency_ms(self) -> float:
@@ -113,8 +115,8 @@ class ProviderKeyPool:
             for env_name, env_val in os.environ.items():
                 val = env_val.strip().strip("'\"")
                 if pattern.match(env_name) and is_valid_secret(val):
-                    if not any(env_name.upper().endswith(s) for s in ("_MODEL", "_BASE_URL", "_URL")):
-                        if (env_name, val) not in found:
+                    if "," not in val and not any(env_name.upper().endswith(s) for s in ("_MODEL", "_BASE_URL", "_URL")):
+                        if not any(key == val for _, key in found):
                             found.append((env_name, val))
 
         for prefix in self.prefixes:
@@ -224,19 +226,7 @@ class ProviderKeyPool:
 class FederationSquad:
     """Master orchestrator for all discovered provider key pools."""
 
-    # Discovery set only. get_candidate_slots ranks all healthy keys by score.
-    # 2026-11-16: huggingface re-enabled as a last-resort free-tier fallback. The
-    #   free-model discovery loop (free_model_discovery.py) probes /models per key
-    #   with max_tokens=1 and keeps only models that actually return 200 on the free
-    #   tier (402 -> model skipped, 401/403 -> key benched). That makes the old
-    #   "serverless router needs paid credits / wrong model format -> 400" failure
-    #   self-healing instead of requiring the whole provider to be hard-excluded.
-    #   HF's 900ms latency baseline ranks it after the faster providers, so it only
-    #   serves once groq/gemini/openrouter/kilo/sambanova/mistral/perplexity/openai
-    #   are exhausted or cooling down.
-    # 2026-11-16: "v0" removed — v0 chat/completions returns 404 for all keys (Premium plan
-    # required); keeping it only added a wasted round-trip per request. Config retained for
-    # explicit preferred_provider="v0" with a premium key.
+    # Discovery set only; serving requires separate account/model approval.
     DEFAULT_PROVIDER_ORDER = [
         "groq", "gemini", "openrouter", "kilo", "sambanova", "mistral", "perplexity", "openai",
         "huggingface", "routesme", "bynara", "bai", "unorouter", "cohere", "llm7",
@@ -290,15 +280,19 @@ class FederationSquad:
             summary["total_healthy_keys"] += len(healthy)
         return summary
 
-    def get_candidate_slots(self, preferred_provider: Optional[str] = None) -> List[Tuple[str, KeySlot]]:
-        """Return healthy keys ranked by latency, free quota and failures."""
+    def get_candidate_slots(self, preferred_provider: Optional[str] = None, *, vision: bool = False) -> List[Tuple[str, KeySlot]]:
+        """Return approved healthy keys ranked by latency, quota and failures."""
+        from .providers.adapters import eligible_chat_models
+
         candidates: List[Tuple[str, KeySlot]] = []
-        for provider in self.DEFAULT_PROVIDER_ORDER:
+        providers = (preferred_provider,) if preferred_provider not in (None, "auto", "") else self.DEFAULT_PROVIDER_ORDER
+        for provider in providers:
             pool = self.pools.get(provider)
             if pool:
-                candidates.extend((provider, slot) for slot in pool.healthy_slots)
-        if preferred_provider and preferred_provider not in ("auto", ""):
-            candidates = [item for item in candidates if item[0] == preferred_provider]
+                candidates.extend(
+                    (provider, slot) for slot in pool.healthy_slots
+                    if eligible_chat_models(provider, slot.key, slot, vision=vision)
+                )
         ranked = sorted(
             candidates,
             key=lambda item: route_score(RouteSnapshot(

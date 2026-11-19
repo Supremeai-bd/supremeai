@@ -4,6 +4,8 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { registerHarnessTools } from "./src/tools/harness.tools.js";
+import { registerTinyBrainTools } from "./src/tools/tiny_brain.tools.js";
 import { RequestContextStore } from "./src/policy/auth.context.js";
 import { defaultClientScopes, changeClientProfile, registerClient } from "./src/policy/client-registry.js";
 import { autoRegisterGuestClient } from "./src/policy/auto-register.js";
@@ -98,7 +100,7 @@ await RequestContextStore.run({ role: "admin", accessMode: "admin", authenticate
 });
 
 // ─── ৪. attachDiscoveryFilter — real InMemoryTransport e2e ────────────────
-async function makeFilteredServer(): Promise<McpServer> {
+async function makeFilteredServer(includeIntegrations = false): Promise<McpServer> {
   const server = new McpServer({ name: "tower-visibility-test", version: "1.0.0" });
   // Mirror index.ts: sanitize names + wrap EVERY handler in the RBAC gate.
   const originalTool = server.tool.bind(server);
@@ -126,6 +128,10 @@ async function makeFilteredServer(): Promise<McpServer> {
   server.tool("autonomy.kill_switch", "Destructive admin action", {}, async () => ({ content: [{ type: "text", text: "killed" }] }));
   server.tool("echo.with_schema", "Nested schema echo", { payload: z.object({ value: z.string() }) }, async (toolArgs: unknown) => ({ content: [{ type: "text", text: JSON.stringify(toolArgs) }] }));
 
+  if (includeIntegrations) {
+    registerHarnessTools(server);
+    registerTinyBrainTools(server);
+  }
   attachDiscoveryFilter(server);
   return server;
 }
@@ -245,6 +251,48 @@ for (const [label, context, list] of [
   } finally {
     try { await client.close(); } catch { /* already closed */ }
     try { await server.close(); } catch { /* already closed */ }
+  }
+}
+
+// Verify the six real tool descriptors as they appear on the SDK wire.
+{
+  const server = await makeFilteredServer(true);
+  const client = new Client({ name: "integration-descriptor-client", version: "1.0.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const hints = new Map([
+    ["harness_ping", true], ["harness_pipeline_status", true], ["harness_list_environments", true],
+    ["tiny_brain_route", false], ["tiny_brain_top_ai", false], ["kaggle_shadow_status", true],
+  ]);
+  const originalFetch = globalThis.fetch;
+  let refreshCalls = 0;
+  globalThis.fetch = async () => {
+    refreshCalls++;
+    return new Response("{}", { status: 200 });
+  };
+  try {
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    await RequestContextStore.run(adminCtx, async () => {
+      const tools = (await client.listTools()).tools;
+      for (const [name, isRead] of hints) {
+        const descriptor = tools.find((tool) => tool.name === name);
+        assert.ok(descriptor, `${name} should be listed for an admin`);
+        assert.deepEqual(descriptor.annotations, {
+          readOnlyHint: isRead, destructiveHint: false, idempotentHint: isRead, openWorldHint: true,
+        }, name);
+      }
+    });
+    await RequestContextStore.run(agentChatgptCtx, async () => {
+      const list = await client.listTools();
+      assert.ok(list.tools.every((tool) => !hints.has(tool.name)), "profile still curates discovery");
+      const call = await client.callTool({ name: "tiny_brain_top_ai", arguments: { force: true } });
+      assert.notEqual(call.isError, true, "the hidden tool still uses the original call policy");
+    });
+    assert.equal(refreshCalls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await client.close();
+    await server.close();
   }
 }
 

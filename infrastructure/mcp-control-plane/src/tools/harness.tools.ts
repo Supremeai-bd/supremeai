@@ -20,6 +20,7 @@ export function registerHarnessTools(server: McpServer): void {
     "harness.ping",
     "Check connectivity and access to the Harness Next-Gen platform.",
     {},
+    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     async () => {
       const err = assertHarnessAccess("harness.ping", "viewer");
       if (err) return { content: [{ type: "text", text: err }] };
@@ -36,6 +37,7 @@ export function registerHarnessTools(server: McpServer): void {
     {
       executionId: z.string().describe("The execution UUID to inspect"),
     },
+    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     async ({ executionId }) => {
       const err = assertHarnessAccess("harness.pipeline_status", "viewer");
       if (err) return { content: [{ type: "text", text: err }] };
@@ -50,6 +52,7 @@ export function registerHarnessTools(server: McpServer): void {
     "harness.list_environments",
     "List registered deployment environments in Harness (e.g. Production).",
     {},
+    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     async () => {
       const err = assertHarnessAccess("harness.list_environments", "viewer");
       if (err) return { content: [{ type: "text", text: err }] };

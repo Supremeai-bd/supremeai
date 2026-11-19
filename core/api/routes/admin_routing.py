@@ -157,11 +157,5 @@ async def get_dual_pool_live_state(
 async def force_dual_pool_recheck(
     _admin: Any = Depends(get_current_admin),
 ) -> dict[str, Any]:
-    """Trigger an immediate background recheck of all 6 models and return updated telemetry."""
-    import asyncio
-
-    from gateway.dual_pool_priority_router import get_dual_pool_router, live_http_probe
-
-    r = get_dual_pool_router()
-    await asyncio.to_thread(r.run_background_recheck, live_http_probe)
-    return r.get_live_telemetry()
+    """Keep legacy callers from accidentally sending billable inference probes."""
+    raise HTTPException(status_code=503, detail="Legacy inference recheck is unavailable; consult Gateway readiness.")

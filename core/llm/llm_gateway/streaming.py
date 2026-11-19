@@ -41,6 +41,7 @@ class StreamingMixin:
 
         last_exception: Exception | None = None
         for current_model in call_chain:
+            started = False
             # FINAL-TEST FIX (2026-09-13): skip retired models + route
             # OpenAI-compatible routers (BYNARA/BAI) via their base URL.
             try:
@@ -70,7 +71,10 @@ class StreamingMixin:
                 )
                 usage_out: dict[str, Any] = {}
                 async for content in self._drain_stream_collect_usage(response_stream, usage_out):
+                    started = True
                     yield content
+                if not started:
+                    raise RuntimeError("Provider returned an empty stream")
                 cb.mark_success()
                 # M16 P-A: stream শেষে বাস্তব usage দিয়ে খরচ meter — provider usage
                 # না থাকলে settle নিজেই দৃশ্যমান gap-warning দেবে, কিছু বানাবে না।
@@ -93,6 +97,9 @@ class StreamingMixin:
                 )
                 raise
             except httpx.HTTPStatusError as exc:
+                if started:
+                    cb.mark_failure()
+                    raise
                 if exc.response.status_code == 429:
                     # Handle rate limit in streaming case too
                     handled = await self._handle_rate_limit_error(current_model, exc)
@@ -114,7 +121,10 @@ class StreamingMixin:
                             async for content in self._drain_stream_collect_usage(
                                 response_stream, usage_out
                             ):
+                                started = True
                                 yield content
+                            if not started:
+                                raise RuntimeError("Provider returned an empty stream")
                             cb.mark_success()
                             # M16 P-A: 429-retry stream-ও বাস্তব খরচ — একই parity।
                             await settle_gateway_spend(
@@ -127,6 +137,9 @@ class StreamingMixin:
                             )
                             return
                         except Exception as retry_exc:
+                            if started:
+                                cb.mark_failure()
+                                raise
                             logger.warning(
                                 f"[LLMGateway] Retry failed for streaming {current_model}: {retry_exc}"
                             )
@@ -137,8 +150,11 @@ class StreamingMixin:
                 )
                 continue
             except Exception as exc:
-                last_exception = exc
                 cb.mark_failure()
+                # Once a token is visible, a different model cannot resume it.
+                if started:
+                    raise
+                last_exception = exc
                 logger.opt(exception=True).warning(
                     f"[LLMGateway] Stream model {current_model} failed."
                 )

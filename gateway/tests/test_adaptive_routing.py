@@ -21,6 +21,7 @@ def test_pool_ranks_keys_by_latency_and_quota_without_provider_order(monkeypatch
     monkeypatch.setenv("GEMINI_API_KEY", "e" * 20)
     monkeypatch.setenv("SUPREMEAI_FREE_LIMIT_GROQ", "10")
     monkeypatch.setenv("SUPREMEAI_FREE_LIMIT_GEMINI", "100")
+    monkeypatch.setattr("gateway.service.providers.adapters.approved_models", lambda *_, **_kw: ("fixture-model",))
     squad = FederationSquad()
     groq = squad.pools["groq"].slots[0]
     gemini = squad.pools["gemini"].slots[0]

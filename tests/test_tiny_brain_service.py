@@ -40,6 +40,21 @@ def test_route_task_caching():
     data2 = res2.json()
     assert data2["cached"] is True
 
+def test_route_task_does_not_reuse_a_different_context_bucket():
+    DECISION_CACHE.clear()
+    try:
+        payload = {"task": "summarize a fixture", "complexity": "low"}
+        small = client.post("/v1/brain/route", json={**payload, "context_length": 10})
+        large = client.post("/v1/brain/route", json={**payload, "context_length": 8001})
+        assert small.status_code == large.status_code == 200
+        assert small.json()["tier"] == "zero-cost-micro"
+        assert large.json()["tier"] == "flagship"
+        assert large.json()["cached"] is False
+        assert client.post("/v1/brain/route", json={**payload, "context_length": None}).status_code == 200
+    finally:
+        DECISION_CACHE.clear()
+
+
 def test_evaluate_options():
     payload = {
         "prompt": "We need to fix a critical database connection bug immediately",

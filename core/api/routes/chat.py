@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+import json
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -55,12 +58,13 @@ async def orchestrate_chat(
 ):
     """Canonical governed hub for conversational capability dispatch."""
     principal = user.get("tenant_id")
-    if not principal:
-        raise HTTPException(status_code=401, detail="Authenticated tenant claim required")
+    subject = user.get("sub")
+    if not principal or not isinstance(subject, str) or not subject.strip():
+        raise HTTPException(status_code=401, detail="Authenticated tenant and subject required")
     result = await get_conversation_orchestrator().dispatch(
         ConversationCommand(
             prompt=payload.prompt,
-            user_id=str(user.get("sub") or principal),
+            user_id=subject,
             tenant_id=str(principal),
             role=str(user.get("role", "user")),
             project_id=payload.project_id,
@@ -113,35 +117,30 @@ async def get_chat_task(task_id: str, user: dict = Depends(get_current_user_toke
     return {"success": True, "task": task.model_dump(mode="json")}
 
 
-# ⚡ ১. Fully Async Standard Completion with Multi-Layer Caching
-@router.post("/get_completion")
-async def get_completion(request: Request, payload: ChatPayload, db=Depends(get_tenant_db)):
-    """Non-blocking Async LLM Completion with 5-Layer Caching"""
-    logger.info(f"⚡ Async API Hit: Generating completion for tenant: {db.tenant_id}")
+async def _recall_chat_memories(
+    prompt: str, *, owner: str, session_id: str | None, limit: int, threshold: float
+):
+    # The session header is a selector within the verified owner's records,
+    # never authority to query a global or other owner's knowledge base.
+    if not owner or not session_id:
+        return []
+    from services.memory_service import recall_memories
 
-    # Extract session ID from headers for session-based caching
-    session_id = request.headers.get("X-Session-ID")
-
-    # Check multi-layer cache first
-    cached_result = await multi_layer_cache.get(
-        prompt=payload.prompt,
-        model_name=payload.model_name,
-        session_id=session_id,
-        user_id=db.tenant_id,  # AUD-5.6: user-scoped cache keys
+    return await recall_memories(
+        task_description=prompt, user_id=owner, session_id=session_id, limit=limit, threshold=threshold
     )
 
-    if cached_result:
-        logger.info(f"🚀 CACHE HIT: {cached_result['source']}")
-        return {
-            "success": True,
-            "response": cached_result["response"],
-            "cached": True,
-            "cache_source": cached_result["source"],
-            "latency_ms": cached_result.get("latency_ms", 0),
-        }
 
-    # Cache miss - generate response from AI model with memory context
-    logger.info("❌ CACHE MISS: Generating new response from AI model with memory recall")
+@router.post("/get_completion")
+async def get_completion(request: Request, payload: ChatPayload, db=Depends(get_tenant_db)):
+    """Async completion with owner-scoped exact response reuse."""
+    logger.info(f"⚡ Async API Hit: Generating completion for tenant: {db.tenant_id}")
+    session_id = request.headers.get("X-Session-ID")
+    cache_scope = {
+        "user_id": db.tenant_id,
+        "tenant_id": db.workspace_id,
+        "session_id": session_id,
+    }
     try:
         # M2 Context Engine: memory/RAG ফ্যাক্ট এখন budgeted block হিসেবে যোগ হয়
         # (আগে অবাধ্য concatenation হতো — ERR-F03 context bloat)
@@ -149,21 +148,9 @@ async def get_completion(request: Request, payload: ChatPayload, db=Depends(get_
             ContextBlock(section=Section.USER, text=payload.prompt, priority=0, block_id="user")
         ]
 
-        # (#1834) মৃত LTM no-op block মুছে ফেলা হয়েছে (instance-local facts কখনো persist হতো না)
-        # build_context()
-        # সবসময় "No memory available." ফেরত দিত, আর প্রতি cache-miss চ্যাটে
-        # অপ্রয়োজনীয় একটি Supabase client তৈরি হতো। আসল recall নিচের
-        # recall_memories (pgvector ai_memory) — সেটিই একমাত্র memory path।
-
-        # Retrieve System Knowledge Base (Cold-Start RAG)
         try:
-            from services.memory_service import recall_memories
-
-            rag_results = await recall_memories(
-                task_description=payload.prompt,
-                limit=3,
-                threshold=0.55,
-                user_id=db.tenant_id,  # AUD-5.1: only the caller's memories
+            rag_results = await _recall_chat_memories(
+                payload.prompt, owner=db.tenant_id, session_id=session_id, limit=3, threshold=0.55
             )
             if rag_results:
                 rag_facts = []
@@ -202,7 +189,7 @@ async def get_completion(request: Request, payload: ChatPayload, db=Depends(get_
                 )
 
         # Governed Intelligence Routing check
-        from core.intelligence import IntelligenceRouter, synaptic_memory
+        from core.intelligence import IntelligenceRouter
 
         router = IntelligenceRouter()
         routing_decision = router.route(payload.prompt)
@@ -252,6 +239,24 @@ async def get_completion(request: Request, payload: ChatPayload, db=Depends(get_
                 "raw prompt passthrough; budget assembly skipped"
             )
 
+        # Use the same server-selected model for lookup and inference. The
+        # legacy model_name field is not authorization to select a provider.
+        selected_model = await llm_gateway.performance_optimizer.optimize_model_selection("chat", enriched_prompt)
+        cache_scope["model_name"] = selected_model
+        try:
+            cached_result = await multi_layer_cache.get(prompt=enriched_prompt, **cache_scope)
+        except Exception:
+            logger.warning("Chat cache unavailable; attempting inference")
+            cached_result = None
+        if cached_result:
+            return {
+                "success": True,
+                "response": cached_result["response"],
+                "cached": True,
+                "cache_source": cached_result["source"],
+                "latency_ms": cached_result.get("latency_ms", 0),
+            }
+
         if await main_llm_circuit.should_attempt_external():
             try:
                 # বাংলা মন্তব্য: সরাসরি গুগল নেটিভ ক্লায়েন্ট কল না করে ইউনিভার্সাল llm_gateway ব্যবহার করে এপিআই কল করা হচ্ছে
@@ -260,6 +265,7 @@ async def get_completion(request: Request, payload: ChatPayload, db=Depends(get_
                 # খরচ অদৃশ্য থাকত)।
                 response = await llm_gateway.acompletion(
                     prompt=enriched_prompt,
+                    model=selected_model,
                     # M03 P0-পূর্ণাংশ: InferenceContext বাধ্যতামূলক — টেন্যান্ট/
                     # টাস্ক অ্যাট্রিবিউশন এক-কাঠামোয় (M16 P-A spend feed এই পথেই)।
                     context=InferenceContext(
@@ -268,26 +274,17 @@ async def get_completion(request: Request, payload: ChatPayload, db=Depends(get_
                         stream=False,
                     ),
                 )
+                response_text = response.get("text") if isinstance(response, dict) and response.get("success") else None
+                if not isinstance(response_text, str) or not response_text.strip():
+                    raise RuntimeError("Provider returned no answer")
                 await main_llm_circuit.record_success()
-                response_text = (
-                    response.get("text", "") if isinstance(response, dict) else str(response)
-                )
 
-                # Synaptic memory safe ingestion in memory layer
-                synaptic_memory.remember(
-                    block_id=f"chat_{db.tenant_id}_{routing_decision.audit_id}",
-                    payload={"prompt": payload.prompt, "response": response_text[:200]},
-                    importance=0.4 if routing_decision.tier.value == "fast" else 0.8,
-                )
-
-                # Store response in multi-layer cache for future requests
-                await multi_layer_cache.set(
-                    prompt=payload.prompt,
-                    response=response_text,
-                    model_name=payload.model_name,
-                    session_id=session_id,
-                    user_id=db.tenant_id,  # AUD-5.6: user-scoped cache keys
-                )
+                # Do not use a fallback model's answer as a future primary hit.
+                if response.get("model") == selected_model:
+                    try:
+                        await multi_layer_cache.set(prompt=enriched_prompt, response=response_text, **cache_scope)
+                    except Exception:
+                        logger.warning("Chat cache write unavailable; returning the generated answer")
 
                 return {
                     "success": True,
@@ -303,10 +300,8 @@ async def get_completion(request: Request, payload: ChatPayload, db=Depends(get_
 
         # --- Fallback Path ---
         try:
-            from services.memory_service import recall_memories
-
-            fallback_results = await recall_memories(
-                task_description=payload.prompt, limit=1, threshold=0.75
+            fallback_results = await _recall_chat_memories(
+                payload.prompt, owner=db.tenant_id, session_id=session_id, limit=1, threshold=0.75
             )
             if fallback_results:
                 best = fallback_results[0]
@@ -328,7 +323,7 @@ async def get_completion(request: Request, payload: ChatPayload, db=Depends(get_
             logger.exception(f"Knowledge base fallback query failed: {e}")
 
         return {
-            "success": True,
+            "success": False,
             "response": "দুঃখিত, এই মুহূর্তে আপনার প্রশ্নের উত্তর দিতে পারছি না। একটু পরে আবার চেষ্টা করুন।",
             "cached": False,
             "cache_source": "FALLBACK_NO_MATCH",
@@ -341,7 +336,11 @@ async def get_completion(request: Request, payload: ChatPayload, db=Depends(get_
 
 # ⚡ ২. Fully Async Streaming Generator
 @router.post("/stream_chat")
-async def stream_chat(payload: ChatPayload, db=Depends(get_tenant_db)):
+async def stream_chat(
+    payload: ChatPayload,
+    db=Depends(get_tenant_db),
+    session_id: Annotated[str | None, Header(alias="X-Session-ID")] = None,
+):
     """High-Concurrency Async SSE Streamer."""
     logger.info(f"🌊 SSE Stream Initiated for tenant: {db.tenant_id}")
 
@@ -359,15 +358,8 @@ async def stream_chat(payload: ChatPayload, db=Depends(get_tenant_db)):
                 ContextBlock(section=Section.USER, text=payload.prompt, priority=0, block_id="user")
             ]
             try:
-                from services.memory_service import recall_memories
-
-                # BUGFIX: আগে user_id পাঠানো হতো না — ফলে অন্য tenant-এর মেমরিও
-                # recall হতো (tenant isolation miss)। এখন db.tenant_id স্কোপড।
-                rag_results = await recall_memories(
-                    task_description=payload.prompt,
-                    limit=3,
-                    threshold=0.55,
-                    user_id=db.tenant_id,
+                rag_results = await _recall_chat_memories(
+                    payload.prompt, owner=db.tenant_id, session_id=session_id, limit=3, threshold=0.55
                 )
                 if rag_results:
                     rag_facts = []
@@ -422,6 +414,7 @@ async def stream_chat(payload: ChatPayload, db=Depends(get_tenant_db)):
                 )
 
             if await main_llm_circuit.should_attempt_external():
+                started = False
                 try:
                     # বাংলা: ইউনিভার্সাল llm_gateway ব্যবহার করে স্ট্রিমিং সম্পন্ন করা হচ্ছে
                     # M16 P-A: streaming পথেও tenant_id propagate — non-streaming
@@ -437,8 +430,6 @@ async def stream_chat(payload: ChatPayload, db=Depends(get_tenant_db)):
                         ),
                     )
 
-                    import json
-
                     meta_payload = json.dumps(
                         {"meta": {"provider": "llm_gateway", "status": "streaming"}}
                     )
@@ -447,24 +438,28 @@ async def stream_chat(payload: ChatPayload, db=Depends(get_tenant_db)):
                     async for chunk in response_stream:
                         if chunk:
                             # SSE (Server-Sent Events) স্ট্যান্ডার্ড ফরম্যাট with JSON chunking
+                            started = True
                             chunk_payload = json.dumps({"token": chunk})
                             yield f"data: {chunk_payload}\n\n"
 
-                    yield "data: [DONE]\n\n"
+                    if not started:
+                        raise RuntimeError("Provider returned an empty stream")
                     await main_llm_circuit.record_success()
+                    yield "data: [DONE]\n\n"
 
                     return
 
                 except Exception as e:
-                    logger.warning(f"External LLM API stream fail: {e!s} — falling back")
+                    logger.warning("External LLM API stream failed (%s)", type(e).__name__)
                     await main_llm_circuit.record_failure()
+                    if started:
+                        yield 'data: {"error": "Provider stream interrupted"}\n\n'
+                        return
 
             # --- Fallback Path ---
             try:
-                from services.memory_service import recall_memories
-
-                fallback_results = await recall_memories(
-                    task_description=payload.prompt, limit=1, threshold=0.75
+                fallback_results = await _recall_chat_memories(
+                    payload.prompt, owner=db.tenant_id, session_id=session_id, limit=1, threshold=0.75
                 )
                 if fallback_results:
                     best = fallback_results[0]
@@ -475,8 +470,6 @@ async def stream_chat(payload: ChatPayload, db=Depends(get_tenant_db)):
                     disclaimer = " (এই উত্তরটি সম্পূর্ণ নিশ্চিত নাও হতে পারে।)" if similarity < 0.8 else ""
 
                     response_text = answer + disclaimer
-                    import json
-
                     chunk_payload = json.dumps({"token": response_text})
                     meta_payload = json.dumps(
                         {"meta": {"provider": "cache_fallback", "status": "completed"}}
@@ -488,8 +481,7 @@ async def stream_chat(payload: ChatPayload, db=Depends(get_tenant_db)):
             except Exception as e:
                 logger.exception(f"Knowledge base stream fallback failed: {e}")
 
-            yield "data: দুঃখিত, এই মুহূর্তে আপনার প্রশ্নের উত্তর দিতে পারছি না। একটু পরে আবার চেষ্টা করুন।\n\n"
-            yield "data: [DONE]\n\n"
+            yield 'data: {"error": "No chat route available"}\n\n'
         except Exception as e:
             logger.error(f"Stream broken: {e!s}")
             yield 'data: {"error": "Internal Stream Error"}\n\n'

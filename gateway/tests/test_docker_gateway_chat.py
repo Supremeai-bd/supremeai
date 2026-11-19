@@ -1,7 +1,11 @@
 """Offline chat contract for the ASGI app selected by gateway/Dockerfile."""
 
+import asyncio
+import hashlib
 import json
+import os
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 from importlib import import_module
 from unittest.mock import AsyncMock, Mock
 
@@ -10,7 +14,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from gateway.service import app as edge
-from gateway.service import free_model_discovery
 from gateway.service.pool import FederationSquad, KeySlot
 from gateway.service.route_arbiter import route_arbiter
 
@@ -46,13 +49,19 @@ def gateway(monkeypatch):
         async with httpx.AsyncClient(transport=httpx.MockTransport(upstream)) as client:
             yield client
 
-    # Patch the adapter module actually used by the Docker entrypoint, including
-    # under the repo test harness's legacy `service.*` import path.
+    # Patch the HTTP boundary of the adapter used by the Docker entrypoint.
     adapters = import_module(edge.stream_chat_completion_events.__module__)
     monkeypatch.setattr(adapters, "_pooled_http_client", http_client)
-    monkeypatch.setattr(free_model_discovery, "validate_slot", AsyncMock())
-    monkeypatch.setattr(free_model_discovery, "persist_slot", AsyncMock())
-    monkeypatch.setattr(FederationSquad, "PREFIX_MAP", {"groq": []})
+    monkeypatch.setattr(adapters, "_PAID_MODELS", set())
+    monkeypatch.setenv("SUPREMEAI_FREE_ROUTE_POLICY", json.dumps([
+        {
+            "provider": "groq", "base_url": adapters.PROVIDER_CONFIGS["groq"]["base_url"],
+            "key_sha256": hashlib.sha256(key.encode()).hexdigest(), "models": models,
+            "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+        }
+        for key, models in (("fixture-provider-key", ["first", "second"]), ("fixture-backup-key", ["backup"]))
+    ]))
+    monkeypatch.setattr(FederationSquad, "PREFIX_MAP", {"groq": [], "gemini": [], "v0": []})
     squad = FederationSquad()
     squad.pools["groq"].slots = [
         KeySlot(
@@ -66,7 +75,6 @@ def gateway(monkeypatch):
     monkeypatch.setenv("SUPREMEAI_API_KEY", "fixture-client-key")
     monkeypatch.setattr(edge, "STEALTH_WEBHOOK_URL", "")
     monkeypatch.setattr(edge, "compile_chat_context", None)
-    monkeypatch.setattr(edge, "response_cache", None)
     monkeypatch.setattr(edge, "add_message", None)
     monkeypatch.setattr(edge, "append_canonical_message", Mock())
 
@@ -177,3 +185,175 @@ def test_tool_call_is_finished_only_after_clean_end(gateway, interrupt):
         assert frames[1]["choices"][0]["finish_reason"] == "tool_calls"
     upstream.assert_called_once()
     assert stream.closed
+
+
+@pytest.mark.parametrize("model", ["supremeai-web", "supremeai/web", "supremeai-webhook", "supremeai/ghost_gemini"])
+@pytest.mark.parametrize("stream", [False, True])
+def test_webhook_only_alias_never_crosses_into_api_pool(gateway, monkeypatch, model, stream):
+    client, upstream = gateway
+    relay = AsyncMock(return_value=(503, {"error": "fixture outage"}))
+    monkeypatch.setattr(edge, "forward_stealth_webhook", relay)
+    monkeypatch.setattr(edge, "STEALTH_WEBHOOK_URL", "https://relay.example.invalid")
+    result = client.post("/v1/chat/completions", json={**_CHAT, "model": model, "stream": stream}, headers=_HEADERS)
+    assert result.status_code == 502
+    relay.assert_awaited_once()
+    upstream.assert_not_called()
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_missing_approval_does_not_use_configured_keys_or_relay_for_api_alias(gateway, monkeypatch, stream):
+    client, upstream = gateway
+    monkeypatch.delenv("SUPREMEAI_FREE_ROUTE_POLICY")
+    monkeypatch.setattr(edge, "STEALTH_WEBHOOK_URL", "https://relay.example.invalid")
+    relay = AsyncMock()
+    monkeypatch.setattr(edge, "forward_stealth_webhook", relay)
+    result = client.post("/v1/chat/completions", json={**_CHAT, "stream": stream}, headers=_HEADERS)
+    assert result.status_code == 503
+    relay.assert_not_called()
+    upstream.assert_not_called()
+
+
+def test_payload_cannot_select_unapproved_model_or_paid_extension(gateway):
+    client, upstream = gateway
+    upstream.return_value = httpx.Response(200, json={"choices": [{"message": {"content": "Safe route"}}]})
+    body = {**_CHAT, "model": "not-approved", "models": ["not-approved"], "plugins": [{"id": "web"}],
+            "web_search_options": {}, "service_tier": "priority"}
+    result = client.post("/v1/chat/completions", json=body, headers=_HEADERS)
+    assert result.status_code == 200
+    sent = json.loads(upstream.call_args.args[0].content)
+    assert sent["model"] == "first"
+    assert not any(field in sent for field in ("models", "plugins", "web_search_options", "service_tier"))
+
+
+def test_402_withdraws_model_even_if_it_was_preferred(gateway):
+    client, upstream = gateway
+    upstream.side_effect = [
+        httpx.Response(402),
+        httpx.Response(200, json={"choices": [{"message": {"content": "Approved alternate"}}]}),
+        httpx.Response(200, json={"choices": [{"message": {"content": "Approved alternate"}}]}),
+    ]
+    for _ in range(2):
+        assert client.post("/v1/chat/completions", json={**_CHAT, "model": "first"}, headers=_HEADERS).status_code == 200
+    assert [json.loads(call.args[0].content)["model"] for call in upstream.call_args_list] == ["first", "second", "second"]
+
+
+@pytest.mark.parametrize("approval", ["expired", "wrong-base", "wrong-credential", "invalid-json"])
+@pytest.mark.parametrize("stream", [False, True])
+def test_unproven_route_never_dispatches(gateway, monkeypatch, approval, stream):
+    client, upstream = gateway
+    policy = json.loads(os.environ["SUPREMEAI_FREE_ROUTE_POLICY"])
+    override = {
+        "expired": {"expires_at": "2000-01-01T00:00:00Z"},
+        "wrong-base": {"base_url": "https://other.example.invalid/v1"},
+        "wrong-credential": {"key_sha256": "f" * 64},
+        "invalid-json": {},
+    }[approval]
+    updated = "{" if approval == "invalid-json" else json.dumps([{**entry, **override} for entry in policy])
+    monkeypatch.setenv("SUPREMEAI_FREE_ROUTE_POLICY", updated)
+    assert client.get("/readyz").status_code == 503
+    response = client.post("/v1/chat/completions", json={**_CHAT, "stream": stream}, headers=_HEADERS)
+    assert response.status_code == 503
+    upstream.assert_not_called()
+
+
+@pytest.mark.parametrize("model", ["supremeai-api", "supremeai-web", "auto"])
+def test_unapproved_image_never_uses_text_api_or_relay(gateway, monkeypatch, model):
+    client, upstream = gateway
+    monkeypatch.setattr(edge, "STEALTH_WEBHOOK_URL", "https://relay.example.invalid")
+    relay = AsyncMock()
+    monkeypatch.setattr(edge, "forward_stealth_webhook", relay)
+    body = {"model": model, "messages": [{"role": "user", "content": [
+        {"type": "image_url", "image_url": {"url": "https://image.example.invalid/photo.png"}},
+    ]}]}
+    assert client.post("/v1/chat/completions", json=body, headers=_HEADERS).status_code == 503
+    upstream.assert_not_called()
+    relay.assert_not_awaited()
+
+
+def test_api_only_image_uses_only_the_approved_multimodal_model(gateway, monkeypatch):
+    client, upstream = gateway
+    slot = KeySlot("vision-slot", "fixture-vision-key", "gemini", preferred_model="text-only")
+    edge.squad.pools["gemini"].slots = [slot]
+    policy = json.loads(os.environ["SUPREMEAI_FREE_ROUTE_POLICY"])
+    policy.append({
+        "provider": "gemini", "base_url": edge.PROVIDER_CONFIGS["gemini"]["base_url"],
+        "key_sha256": hashlib.sha256(slot.key.encode()).hexdigest(),
+        "models": ["text-only", "vision-fixture"], "vision_models": ["vision-fixture"],
+        "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+    })
+    monkeypatch.setenv("SUPREMEAI_FREE_ROUTE_POLICY", json.dumps(policy))
+    upstream.return_value = httpx.Response(200, json={"choices": [{"message": {"content": "Image result"}}]})
+    body = {**_CHAT, "messages": [{"role": "user", "content": [
+        {"type": "image_url", "image_url": {"url": "https://image.example.invalid/photo.png"}},
+    ]}]}
+    assert client.post("/v1/chat/completions", json=body, headers=_HEADERS).status_code == 200
+    upstream.assert_called_once()
+    request = upstream.call_args.args[0]
+    assert str(request.url).startswith(policy[-1]["base_url"])
+    assert json.loads(request.content)["model"] == "vision-fixture"
+
+
+@pytest.mark.parametrize("approved", [False, True])
+def test_v0_uses_only_its_approved_slot(gateway, monkeypatch, approved):
+    client, upstream = gateway
+    slot = KeySlot("v0-slot", "fixture-v0-key", "v0")
+    edge.squad.pools["v0"].slots = [slot]
+    relay = AsyncMock()
+    monkeypatch.setattr(edge, "STEALTH_WEBHOOK_URL", "https://relay.example.invalid")
+    monkeypatch.setattr(edge, "forward_stealth_webhook", relay)
+    if approved:
+        policy = json.loads(os.environ["SUPREMEAI_FREE_ROUTE_POLICY"])
+        policy.append({
+            "provider": "v0", "base_url": edge.PROVIDER_CONFIGS["v0"]["base_url"],
+            "key_sha256": hashlib.sha256(slot.key.encode()).hexdigest(), "models": ["ui-fixture"],
+            "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+        })
+        monkeypatch.setenv("SUPREMEAI_FREE_ROUTE_POLICY", json.dumps(policy))
+        upstream.return_value = httpx.Response(200, json={"choices": [{"message": {"content": "fixture UI"}}]})
+    response = client.post("/v1/ui/generate", json={"prompt": "fixture UI"}, headers=_HEADERS)
+    relay.assert_not_awaited()
+    if approved:
+        assert response.status_code == 200
+        upstream.assert_called_once()
+        request = upstream.call_args.args[0]
+        assert request.headers["authorization"] == "Bearer fixture-v0-key"
+        assert json.loads(request.content)["model"] == "ui-fixture"
+    else:
+        assert response.status_code == 503
+        upstream.assert_not_called()
+
+
+def test_response_is_not_reused_across_caller_keys(gateway, monkeypatch):
+    client, upstream = gateway
+    upstream.side_effect = [
+        httpx.Response(200, json={"choices": [{"message": {"content": value}}]})
+        for value in ("first result", "second result")
+    ]
+    body = {**_CHAT, "temperature": 0}
+    first = client.post("/v1/chat/completions", json=body, headers=_HEADERS)
+    monkeypatch.setenv("SUPREMEAI_API_KEY", "second-fixture-client-key")
+    second = client.post("/v1/chat/completions", json=body, headers={"Authorization": "Bearer second-fixture-client-key"})
+    assert first.status_code == second.status_code == 200
+    assert first.json()["choices"][0]["message"]["content"] == "first result"
+    assert second.json()["choices"][0]["message"]["content"] == "second result"
+    assert upstream.call_count == 2
+
+
+def test_api_attempt_is_cancelled_at_the_route_deadline(gateway, monkeypatch):
+    client, upstream = gateway
+    cancelled = Mock()
+
+    async def slow(*_args, **_kwargs):
+        try:
+            await asyncio.Future()
+        finally:
+            cancelled()
+
+    adapter = AsyncMock(side_effect=slow)
+    monkeypatch.setattr(edge, "forward_chat_completion", adapter)
+    monkeypatch.setattr(edge, "CHAT_ROUTE_DEADLINE_S", 0.05)
+    response = client.post("/v1/chat/completions", json=_CHAT, headers=_HEADERS)
+    assert response.status_code == 502
+    cancelled.assert_called_once()
+    adapter.assert_awaited_once()
+    upstream.assert_not_called()

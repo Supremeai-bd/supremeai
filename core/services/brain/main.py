@@ -34,8 +34,8 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 BRAIN_AUTH_TOKEN = os.getenv("BRAIN_AUTH_TOKEN", "")
 
-# In-memory LRU cache for ultra-fast responses without Redis overhead
-DECISION_CACHE: dict[str, dict[str, Any]] = {}
+# Bounded worker-local cache for deterministic route decisions.
+DECISION_CACHE: dict[tuple[str, str | None, str | None, bool], dict[str, Any]] = {}
 CACHE_MAX_ENTRIES = 500
 
 
@@ -149,14 +149,14 @@ def release():
 @app.post("/v1/brain/route", response_model=RouteDecision)
 def route_task(req: RouteRequest, authorized: bool = Depends(verify_brain_token)):
     """Ultra-fast deterministic model routing based on memory footprint and complexity."""
-    cache_key = f"{req.task[:100]}_{req.complexity}_{req.preferred_provider}"
-    if cache_key in DECISION_CACHE:
-        cached_result = DECISION_CACHE[cache_key]
-        cached_result["cached"] = True
-        return cached_result
+    # Cache the context bucket used by the rule, not an unrelated prior decision.
+    use_flagship = req.complexity == "high" or (req.context_length or 0) > 8000
+    cache_key = (req.task[:100], req.complexity, req.preferred_provider, use_flagship)
+    if cached_result := DECISION_CACHE.get(cache_key):
+        return {**cached_result, "cached": True}
 
     # Minimal deterministic routing logic
-    if req.complexity == "high" or req.context_length > 8000:
+    if use_flagship:
         decision = {
             "recommended_model": "google/gemini-2.5-pro",
             "tier": "flagship",

@@ -134,6 +134,16 @@ Keep one authoritative implementation per behavior/trust boundary, not one file 
 - **Reliability and cost:** measure p95 first-token/total latency, error and completion rates, retry/fallback use, queue lag, RSS/cold start, CI wall time and cost per *successful* operation under the same workload. No “zero-cost” or performance guarantee based on comments. Agree budgets after baselining them.
 - **Release and data safety:** verify intended/deployed/runtime SHA and required feature/schema state; preserve permission, tenant isolation, migration history, data retention and restore evidence. `not run` is not `healthy` or `passed`.
 
+### Exact-main audit follow-up
+
+The follow-up from `0e5070f5918fa9ab9b89e61b2cb5b73e1f99cd1d` addresses locally
+reproducible failures: scoped Core reuse and recall, unsupported outbound
+webhooks, approved Gateway routes, Tiny Brain cache buckets, Tower tool hints,
+and exact-deploy Render attestation. The roadmap above still owns product
+scope. The [manual rollout checklist](operations/manual-rollout-checklist.md)
+records the remaining operator actions and evidence; local tests are not a
+release approval.
+
 ## 6. Questions that source alone cannot answer
 
 1. **What must a user be able to do today?** Name the highest-value current journey and actual client: API chat/IDE use, a tenant workspace doing a real task, or governed MCP work. More than one may be supported; start with the one customers or operators will notice breaking.

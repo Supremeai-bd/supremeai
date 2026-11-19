@@ -12,6 +12,7 @@ All 6 providers are connected via their OpenAI-compatible HTTP surfaces:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -21,6 +22,8 @@ from typing import Any, AsyncIterator, Dict, Optional, Tuple
 from urllib.parse import urlsplit
 
 import httpx
+
+from ..free_route_policy import CATALOG_REQUIRED, approved_models
 
 logger = logging.getLogger("supremeai.adapters")
 
@@ -124,146 +127,14 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
 }
 
-# Meta-routers ("kilo-auto/free", "openrouter/free") and paid auto-routers ("kilo-auto/efficient")
-# are strictly excluded so aggregators only route to verified, deterministic `:free` models.
-EXCLUDED_META_OR_PAID_MODELS: frozenset[str] = frozenset({
-    "kilo-auto/free",
-    "openrouter/free",
-    "kilo-auto/efficient",
-    "auto",
-})
-
 # Global "paid avoid": any (provider, model) that returns HTTP 402 (payment required) is
 # added here at runtime and filtered out of that provider's candidate cascade, so a paid
 # model is never retried on any slot/key of that provider for the lifetime of the process.
 # Keyed per-provider because a model slug may be free on one router and paid on another.
-# Complements the per-slot unsupported_models blacklist and free_model_discovery's 402 skip —
-# this makes the whole pool behave like Kilo's free-only routing (paid models auto-excluded).
+# This cannot replace the approval check: a paid request may succeed without HTTP 402.
 _PAID_MODELS: set[tuple[str, str]] = set()
 
-# Exhaustive zero-waste model cascades: if top model hits quota/limit (429) or is unavailable (404/400),
-# the adapter seamlessly tries the next model in sequence without failing the client request.
-PROVIDER_MODEL_CASCADES: Dict[str, list[str]] = {
-    "groq": [
-        # 2026-11-17: only models verified live on Groq's /models with the
-        # deployment key. Removed llama-3.3-70b-versatile / llama-3.1-8b-instant
-        # (404) and qwen-2.5-32b / deepseek-r1-distill-llama-70b (400
-        # decommissioned) — they made every groq attempt cascade through dead
-        # models before failing with "No models available for provider groq".
-        "qwen/qwen3.8-27b",
-        "openai/gpt-oss-20b",
-        "openai/gpt-oss-120b",
-        "openai/gpt-oss-safeguard-20b",
-        "allam-2-7b",
-    ],
-    # 2026-11-16: gemini-1.5-* and gemini-2.0-flash were retired (HTTP 404 on the
-    # OpenAI-compat surface). Keeping them made every quota-limited key cascade
-    # through ~6 dead models (~500-700ms each) before failing — the root cause of
-    # multi-second "hi" latency. Cascade now lists only live, verified models.
-    "gemini": [
-        "gemini-flash-lite-latest",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-flash",
-        "gemini-2.5-pro",
-        "gemini-flash-latest",
-    ],
-    # 2026-11-16: Concrete `:free` models verified against /api/v1/models (excluding
-    # blind meta-router "openrouter/free" and retired 404 slugs).
-    "openrouter": [
-        "nvidia/nemotron-3.5-lightning:free",
-        "nvidia/nemotron-3.5-super-vl:free",
-        "meta-llama/llama-3.2-11b-vision-instruct:free",
-        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-        "nvidia/nemotron-3-ultra-550b-a55b:free",
-        "cohere/north-mini-code:free",
-        "baidu/ernie-5.5-flash-preview:free",
-    ],
-    "mistral": [
-        "open-mistral-7b",
-        "open-mixtral-8x7b",
-        "open-mixtral-8x22b",
-        "mistral-small-latest",
-    ],
-    "sambanova": [
-        "Meta-Llama-3.3-70B-Instruct",
-        "Meta-Llama-3.1-8B-Instruct",
-        "Qwen2.5-72B-Instruct",
-    ],
-    # Concrete `:free` models verified on Kilo gateway (excluding "kilo-auto/free"
-    # meta-router and paid "kilo-auto/efficient").
-    "kilo": [
-        "nvidia/nemotron-3.5-lightning:free",
-        "nvidia/nemotron-3.5-super-vl:free",
-        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-        "nvidia/nemotron-3-ultra-550b-a55b:free",
-        "cohere/north-mini-code:free",
-        "baidu/ernie-5.5-flash-preview:free",
-    ],
-    "openai": [
-        "gpt-4o-mini",
-        "gpt-4o",
-    ],
-    "huggingface": [
-        "meta-llama/Llama-3.2-3B-Instruct",
-        "meta-llama/Llama-3.3-70B-Instruct",
-        "Qwen/Qwen2.5-Coder-32B-Instruct",
-    ],
-    "perplexity": [
-        "sonar",
-        "sonar-pro",
-    ],
-    "v0": [
-        "v0-1.0-md",
-        "v0-1.5-md",
-    ],
-    # RoutesMe (routesme.online) — OpenAI-compatible free aggregator. "GLM-5.3-Flash"
-    # and "Step-5-preview" verified HTTP 200 with the deployment key (2026-11-17).
-    "routesme": [
-        "GLM-5.3-Flash",
-        "Step-5-preview",
-        "GLM5.3",
-        "Deepseek-v4.1-flash",
-        "Kimi-k3",
-        "Minimax-M3",
-        "Step-3.7-Flash",
-    ],
-    # Bynara (router.bynara.id) — OpenAI-compatible free aggregator. Models verified
-    # on /models (2026-11-17); agnes-2.5-flash is the routing_policy primary.
-    "bynara": [
-        "agnes-2.5-flash",
-        "glm-5.3-flash",
-        "deepseek-v4.1-flash",
-        "qwen3.8-flash",
-        "mimo-v2.6-flash",
-    ],
-    # B.ai (api.b.ai) — OpenAI-compatible free aggregator. qwen3.8-flash is the
-    # routing_policy primary; gemini-3.5-flash-lite is a fast fallback.
-    "bai": [
-        "qwen3.8-flash",
-        "gemini-3.5-flash-lite",
-        "glm-5.3-flash",
-        "mimo-v2.6-flash",
-        "gpt-5.4-mini",
-    ],
-    # UnoRouter (api.unorouter.com) — free `:free` models. Verified HTTP 200
-    # (2026-11-17); glm/qwen/gpt-oss :free variants return 403 consent_required.
-    "unorouter": [
-        "gemini-3.1-flash-lite:free",
-        "step-5-preview:free",
-        "agnes-2.5-flash:free",
-    ],
-    # Cohere (api.cohere.ai compatibility) — trial keys, verified HTTP 200.
-    "cohere": [
-        "command-r-08-2024",
-        "command-a-03-2025",
-        "command-r7b-12-2024",
-    ],
-    # LLM7.io (api.llm7.io) — verified HTTP 200; gemini/deepseek/mimo need balance (402).
-    "llm7": [
-        "glm-5.3-flash",
-        "gpt-oss:20b",
-    ],
-}
+# Candidate slugs and their order come from the verified operator approval.
 
 
 def normalize_stealth_url(url: str) -> str:
@@ -335,61 +206,75 @@ def normalize_stealth_url(url: str) -> str:
     return base + query
 
 
+def eligible_chat_models(provider: str, api_key: str, slot: Any = None, *, vision: bool = False) -> tuple[str, ...]:
+    config = PROVIDER_CONFIGS.get(provider)
+    if not config:
+        return ()
+    base_url = config["base_url"].rstrip("/")
+    approved = approved_models(provider, base_url, api_key, vision=vision)
+    if not approved:
+        return ()
+    if provider in CATALOG_REQUIRED:
+        identity = (base_url, hashlib.sha256(api_key.encode()).hexdigest())
+        if (
+            not slot
+            or getattr(slot, "catalog_identity", None) != identity
+            or getattr(slot, "catalog_valid_until", 0.0) <= time.monotonic()
+        ):
+            return ()
+        approved = tuple(model for model in approved if model in slot.discovered_models)
+    unsupported = getattr(slot, "unsupported_models", ())
+    return tuple(model for model in approved if (provider, model) not in _PAID_MODELS and model not in unsupported)
+
+
+def has_image_input(payload: dict) -> bool:
+    return any(
+        isinstance(part, dict) and "image" in str(part.get("type", "")).lower()
+        for message in (payload.get("messages") or [])
+        if isinstance(message, dict) and isinstance(message.get("content"), list)
+        for part in message["content"]
+    )
+
 
 def _resolve_candidate_models(
-    provider: str,
-    config: dict[str, Any],
-    slot: Any,
-    client_model: str,
+    provider: str, api_key: str, slot: Any, client_model: str, *, vision: bool = False
 ) -> list[str]:
-    cascade = list(PROVIDER_MODEL_CASCADES.get(provider, [config["default_model"]]))
-    discovered = getattr(slot, "discovered_models", None) if slot else None
-    if discovered:
-        cascade = [m for m in discovered if str(m).lower() not in EXCLUDED_META_OR_PAID_MODELS]
-    # Global paid avoid: drop any model that has 402'd on this provider in this process.
-    if _PAID_MODELS:
-        cascade = [m for m in cascade if (provider, m) not in _PAID_MODELS]
-    candidate_models: list[str] = []
-    preferred_slot_model = getattr(slot, "preferred_model", None) if slot else None
-    unsupported_set = getattr(slot, "unsupported_models", set()) if slot else set()
-    supported_set = getattr(slot, "supported_models", set()) if slot else set()
-    if (
-        client_model
-        and client_model not in ("auto", "default", "")
-        and str(client_model).lower() not in EXCLUDED_META_OR_PAID_MODELS
-        and not str(client_model).startswith("supremeai/")
-        and not str(client_model).startswith("supreme-")
-        and not str(client_model).startswith("supremeai-")
-        and (str(client_model) in cascade or provider == "openrouter")
-    ):
-        if str(client_model) not in candidate_models and str(client_model) not in unsupported_set:
-            candidate_models.append(str(client_model))
+    eligible = eligible_chat_models(provider, api_key, slot, vision=vision)
+    order = (client_model, getattr(slot, "preferred_model", None), *eligible)
+    return list(dict.fromkeys(model for model in order if model in eligible))
 
-    if (
-        preferred_slot_model
-        and str(preferred_slot_model).lower() not in EXCLUDED_META_OR_PAID_MODELS
-        and preferred_slot_model not in unsupported_set
-        and preferred_slot_model not in candidate_models
-    ):
-        candidate_models.append(preferred_slot_model)
 
-    for m in cascade:
-        if str(m).lower() in EXCLUDED_META_OR_PAID_MODELS:
-            continue
-        if m in unsupported_set and m not in supported_set:
-            continue
-        if m not in candidate_models:
-            candidate_models.append(m)
+# Only standard text/chat controls go upstream. Vendor options such as
+# alternate models, plugins, native tools and paid service tiers are not
+# part of the approved model route.
+_CHAT_FIELDS = frozenset({
+    "messages", "model", "temperature", "top_p", "max_tokens", "max_completion_tokens",
+    "stop", "seed", "presence_penalty", "frequency_penalty", "response_format",
+    "tools", "tool_choice", "parallel_tool_calls", "stream_options", "reasoning_effort",
+})
 
-    if not candidate_models:
-        if slot and hasattr(slot, "unsupported_models"):
-            slot.unsupported_models.clear()
-        default_m = config.get("default_model")
-        if default_m and str(default_m).lower() not in EXCLUDED_META_OR_PAID_MODELS:
-            candidate_models = [default_m]
-        else:
-            candidate_models = [m for m in cascade if str(m).lower() not in EXCLUDED_META_OR_PAID_MODELS][:2]
-    return candidate_models
+
+def _provider_payload(payload: dict, provider: str, *, stream: bool) -> dict:
+    body = {key: value for key, value in payload.items() if key in _CHAT_FIELDS}
+    body["stream"] = stream
+    if not stream:
+        body.pop("stream_options", None)
+    if provider == "gemini":
+        body.pop("frequency_penalty", None)
+        body.pop("presence_penalty", None)
+    tools = body.get("tools")
+    if isinstance(tools, list):
+        body["tools"] = [
+            {"type": "function", "function": tool["function"]}
+            for tool in tools
+            if isinstance(tool, dict) and tool.get("type") == "function" and isinstance(tool.get("function"), dict)
+        ]
+    else:
+        body.pop("tools", None)
+    if not body.get("tools"):
+        body.pop("tool_choice", None)
+        body.pop("parallel_tool_calls", None)
+    return body
 
 
 @asynccontextmanager
@@ -432,40 +317,21 @@ async def forward_chat_completion(
         )
         headers["X-Title"] = "SupremeAI Gateway"
 
-    # Build prioritized candidate models list
-    body = dict(payload)
-    # Strip internal routing & non-standard keys to prevent provider 400 Bad Request
-    # (e.g. OpenRouter rejects requests containing both "prompt" and "messages")
-    for non_openai_key in (
-        "preferred_provider",
-        "temp",
-        "provider",
-        "prompt",
-        "message",
-        "session_id",
-        "conversation_id",
-        "task_type",
-        "deepResearch",
-        "userContext",
-        "language_pref",
-        "response_style",
-        "mode",
-    ):
-        body.pop(non_openai_key, None)
-    # Always request non-streaming JSON from upstream providers; gateway handles client SSE streaming
-    body["stream"] = False
-    if provider == "gemini":
-        body.pop("frequency_penalty", None)
-        body.pop("presence_penalty", None)
+    body = _provider_payload(payload, provider, stream=False)
+    vision = has_image_input(body)
+    candidate_models = _resolve_candidate_models(provider, api_key, slot, body.get("model", "auto"), vision=vision)
+    if not candidate_models:
+        return 503, {"error": "No approved free model available"}
 
-    client_model = body.get("model", "auto")
-    candidate_models = _resolve_candidate_models(provider, config, slot, client_model)
-
-    last_status = 500
-    last_data: Any = {"error": f"No models available for provider {provider}"}
+    last_status = 503
+    last_data: Any = {"error": "No approved free model available"}
 
     async with _pooled_http_client(timeout) as client:
         for model_name in candidate_models:
+            # Another request may have withdrawn the model or approval may
+            # have expired while earlier candidates were being attempted.
+            if model_name not in eligible_chat_models(provider, api_key, slot, vision=vision):
+                continue
             body["model"] = model_name
             try:
                 response = await client.post(url, json=body, headers=headers, timeout=timeout)
@@ -564,23 +430,19 @@ async def stream_chat_completion_events(
         )
         headers["X-Title"] = "SupremeAI Gateway"
 
-    body = dict(payload)
-    for non_openai_key in (
-        "preferred_provider", "temp", "provider", "prompt", "message",
-        "session_id", "conversation_id", "task_type", "deepResearch",
-        "userContext", "language_pref", "response_style", "mode",
-    ):
-        body.pop(non_openai_key, None)
-    body["stream"] = True
-    if provider == "gemini":
-        body.pop("frequency_penalty", None)
-        body.pop("presence_penalty", None)
-
-    client_model = body.get("model", "auto")
-    candidate_models = _resolve_candidate_models(provider, config, slot, client_model)
+    body = _provider_payload(payload, provider, stream=True)
+    vision = has_image_input(body)
+    candidate_models = _resolve_candidate_models(provider, api_key, slot, body.get("model", "auto"), vision=vision)
+    if not candidate_models:
+        yield ("error", {"error": "No approved free model available", "status": 503})
+        return
 
     async with _pooled_http_client(timeout) as client:
         for model_name in candidate_models:
+            # Another request may have withdrawn the model or approval may
+            # have expired while earlier candidates were being attempted.
+            if model_name not in eligible_chat_models(provider, api_key, slot, vision=vision):
+                continue
             body["model"] = model_name
             committed = False
             saw_finish = False
@@ -652,7 +514,7 @@ async def stream_chat_completion_events(
                     # Fatal auth/other errors: do not loop other models with same key
                     await response.aread()
                     logger.warning(f"[{provider}] Model {model_name} returned {status_code}; aborting stream.")
-                    yield ("error", {"error": f"Provider {provider} returned {status_code}"})
+                    yield ("error", {"error": f"Provider {provider} returned {status_code}", "status": status_code})
                     return
             except httpx.TimeoutException:
                 if committed:

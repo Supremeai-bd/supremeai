@@ -70,7 +70,7 @@ SERVICE_RULES = {
         "RENDER_MCP_SERVICE_ID",
         "RENDER_API_KEY_4",
         ("infrastructure/mcp-control-plane/", "scripts/runtime/", "render.yaml"),
-        "https://supremeai-mcp-tower.onrender.com/release",
+        "https://supremeai-mcp-tower-live.onrender.com/release",
     ),
     "worker": (
         "RENDER_WORKER_SERVICE_ID",
