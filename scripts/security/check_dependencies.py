@@ -60,9 +60,12 @@ def main():
     # (braces/http-cache-semantics/node-forge <0.0.0) — সেগুলো আলাদা
     # ট্র্যাকিংয়ে (issue #3704), false-RED CI-signal নয়।
     studio_dir = PROJECT_ROOT / "studio"
-    if not run_command("pnpm audit --prod", studio_dir):
-        print("\n🚨 Node.js ইকোসিস্টেমে নিরাপত্তা ঝুঁকি পাওয়া গেছে!")
-        overall_success = False
+    if studio_dir.is_dir() and (studio_dir / "package.json").exists():
+        if not run_command("pnpm audit --prod", studio_dir):
+            print("\n🚨 Node.js ইকোসিস্টেমে নিরাপত্তা ঝুঁকি পাওয়া গেছে!")
+            overall_success = False
+    else:
+        print("\nℹ️ studio/ ডিরেক্টরি অনুপস্থিত — Node.js pnpm audit স্কিপ করা হয়েছে (retired surface)।")
 
     # --- Python / Poetry Dependency Scan ---
     print("\n" + "="*60)

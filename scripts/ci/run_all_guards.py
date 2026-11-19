@@ -75,6 +75,8 @@ GUARDS: list[list[str]] = [
     ["python", "scripts/ci/generate_agents_md.py", "--check"],
     ["python", "scripts/ci/validate_config_registry.py"],
     ["python", "scripts/ci/check_config_contract.py"],
+    ["python", "scripts/ci/service_entrypoint_census.py", "--self-test"],
+    ["python", "scripts/ci/service_entrypoint_census.py", "--check"],
     # satellite_residue_guard: #1676 satellite nested-anchor residue detection
     ["python", "scripts/ci/satellite_residue_guard.py", "--self-test"],
     # A SARIF upload without `security-events: write` fails only on main (the
