@@ -1,5 +1,7 @@
 # Provider Core Hardening — 2026-11-19
 
+> **tower-host-retired: 2026-11-19** — the un-suffixed Tower host named below was suspended by its owner; the canonical control plane is `supremeai-mcp-tower-live.onrender.com` (registry SSOT).
+
 **Scope:** the chat/provider path (`gateway/`), the landing pipeline
 (`.github/workflows/unified-pipeline.yml`), and the guards that keep both
 honest. Every item below is a code change already on this branch, with the
