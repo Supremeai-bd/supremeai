@@ -35,6 +35,11 @@ on:
 permissions:
   contents: read
   packages: write   # required to publish to GHCR
+  # Required by `github/codeql-action/upload-sarif` below. Without it the build
+  # and the Trivy scan succeed and only the upload fails — and because the
+  # upload only runs on main, every PR stayed green while main went red
+  # (PR #685 and #686 both merged into a red post-merge run).
+  security-events: write
 
 concurrency:
   group: gateway-image-${{ github.ref }}

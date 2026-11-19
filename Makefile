@@ -42,6 +42,8 @@ gates: ## Fast fail-closed gates (same set the local guard roster runs first)
 	$(PY) scripts/ci/check_config_contract.py
 	$(PY) scripts/ci/ghost_host_guard.py --self-test
 	$(PY) scripts/ci/ghost_host_guard.py --check
+	$(PY) scripts/ci/sarif_permission_guard.py --self-test
+	$(PY) scripts/ci/sarif_permission_guard.py --check
 	$(PY) scripts/ci/deploy_preflight_guard.py --step1-syntax
 
 test: ## Run the PR battery (@config/ci/pr-battery.args)

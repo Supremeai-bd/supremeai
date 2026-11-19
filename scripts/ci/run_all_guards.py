@@ -77,12 +77,20 @@ GUARDS: list[list[str]] = [
     ["python", "scripts/ci/check_config_contract.py"],
     # satellite_residue_guard: #1676 satellite nested-anchor residue detection
     ["python", "scripts/ci/satellite_residue_guard.py", "--self-test"],
+    # A SARIF upload without `security-events: write` fails only on main (the
+    # step is main-only, so PRs stay green) — it did, twice, on 2026-11-19.
+    ["python", "scripts/ci/sarif_permission_guard.py", "--self-test"],
+    ["python", "scripts/ci/sarif_permission_guard.py", "--check"],
 ]
 
 
 def main() -> int:
     failed = 0
     for cmd in GUARDS:
+        # Run every guard with the interpreter that is executing THIS script:
+        # a bare `python` can resolve to a different install (and then a guard
+        # that needs PyYAML fails for reasons the operator cannot see).
+        cmd = [sys.executable, *cmd[1:]] if cmd[0] == "python" else cmd
         print(f"=== {' '.join(cmd)} ===")
         r = subprocess.run(cmd, cwd=REPO_ROOT, check=False)
         if r.returncode != 0:
