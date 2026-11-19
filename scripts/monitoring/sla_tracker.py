@@ -43,7 +43,6 @@ import logging
 import os
 import sys
 from pathlib import Path
-
 from core.utils.api_key_resolver import resolve_numbered_key
 
 sys.path.append(str(Path(__file__).parent.parent.parent / "backend"))
@@ -57,7 +56,6 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-
 from core.config import settings
 from core.deployment_fallback_defaults import SCRAPER_URL_DEFAULT
 
