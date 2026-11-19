@@ -180,6 +180,15 @@ def test_tier0_list_files_rejects_absolute_and_traversal(monkeypatch):
         assert result.get("error") == "path outside sandbox", prompt
 
 
+def _symlink(target, link):
+    try:
+        link.symlink_to(target, target_is_directory=target.is_dir())
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("Windows runner has no symlink creation privilege (error 1314)")
+        raise
+
+
 def test_tier0_list_files_symlink_escape_rejected(tmp_path, monkeypatch):
     """sandbox-এর ভিতরে symlink যদি বাইরের ডিরেক্টরি পয়েন্ট করে, realpath
     resolve করে containment ভাঙবে → reject (TOCTOU-বহির্ভূত স্ট্যাটিক গার্ড)।"""
@@ -188,7 +197,7 @@ def test_tier0_list_files_symlink_escape_rejected(tmp_path, monkeypatch):
     (outside / "secret.txt").write_text("x" * 100)
     sandbox = tmp_path / "sandbox"
     (sandbox / "sub").mkdir(parents=True)
-    os.symlink(str(outside), str(sandbox / "sub" / "escape"))
+    _symlink(outside, sandbox / "sub" / "escape")
     monkeypatch.setenv("SUPREMEAI_TIER0_SANDBOX_ROOT", str(sandbox))
     monkeypatch.setenv("SUPREMEAI_TIER0_ALLOW_LIST_FILES", "1")
     result = Tier0Dispatcher.execute("list_files", "list files in sub/escape")
@@ -203,7 +212,7 @@ def test_tier0_list_files_symlink_entry_meta_not_followed(tmp_path, monkeypatch)
     sandbox = tmp_path / "sandbox"
     sandbox.mkdir()
     (sandbox / "real.txt").write_text("hello")
-    os.symlink(str(outside_file), str(sandbox / "link.txt"))
+    _symlink(outside_file, sandbox / "link.txt")
     monkeypatch.setenv("SUPREMEAI_TIER0_SANDBOX_ROOT", str(sandbox))
     monkeypatch.setenv("SUPREMEAI_TIER0_ALLOW_LIST_FILES", "1")
     # Issue #1843: #1688 whitelist স্তর — sandbox root-এর জন্য explicit opt-in।

@@ -100,6 +100,7 @@ apps/desktop/src-tauri/target/
 # Package locks (Using pnpm consistently; exceptions for npm-based subsystems)
 **/package-lock.json
 !infrastructure/mcp-control-plane/package-lock.json
+!browser/cloudflare-worker/package-lock.json
 !vscode/package-lock.json
 
 # Firebase Functions compiled lib
@@ -307,6 +308,7 @@ firebase.json
 !/render.yaml
 !/requirements*.txt
 !/requirements*.lock
+!/config/ci/full-test-requirements.txt
 !/ruff.toml
 !/pytest.ini
 !/VERSION

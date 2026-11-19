@@ -13,11 +13,10 @@ if str(_ROOT_SKILLS_DIR) not in __path__:
 
 def _load_root_skill_module(rel_path: str, pkg: str = "skills") -> ModuleType:
     target = _ROOT_SKILLS_DIR / rel_path
-    mod_name = f"skills._root_{rel_path.replace('/', '_').removesuffix('.py')}"
+    mod_name = f"{pkg}._root_{rel_path.replace('/', '_').removesuffix('.py')}"
     spec = importlib.util.spec_from_file_location(mod_name, target)
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
-    mod.__package__ = pkg
     sys.modules[mod_name] = mod
     spec.loader.exec_module(mod)
     return mod

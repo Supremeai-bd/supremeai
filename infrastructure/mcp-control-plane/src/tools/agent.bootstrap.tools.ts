@@ -1,7 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import * as fs from "node:fs";
-import * as path from "node:path";
+import { env } from "../lib/env.js";
 
 /**
  * Universal Agent Context Bootstrap Tool
@@ -30,7 +29,7 @@ export async function registerAgentBootstrapTools(server: McpServer): Promise<vo
       if (scope === "all" || scope === "topology") {
         summary.topology = {
           model: "Pure Single-Repository Monorepo SSOT Topology",
-          primaryMonorepo: "Supremeai-bd/supremeai (Unified Monorepo SSOT: Core, Gateway, Browser, VSCode, Studio, Infrastructure)",
+          primaryMonorepo: "Supremeai-bd/supremeai (Core, Gateway, Browser relay, and MCP Control Plane)",
           retiredSatellites: [
             "supremeai-studio (Archived)",
             "supremeai-core (Archived)",
@@ -55,7 +54,7 @@ export async function registerAgentBootstrapTools(server: McpServer): Promise<vo
 
       if (scope === "all" || scope === "endpoints") {
         summary.endpoints = {
-          mcpControlTower: "https://supremeai-mcp-tower-live.onrender.com",
+          mcpControlTower: env.render.controlTower.url || null,
           supabaseProject: "https://xtvkltzmberxekoamala.supabase.co",
           cloudflareWorker: "https://supremeai-keepwarm-worker (Edge Mesh)",
           authProvider: "Supabase Native Auth (Zero-Firebase)",

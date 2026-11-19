@@ -1,215 +1,105 @@
 #!/usr/bin/env python3
-"""Plan changed Render services from the commit diff.
-
-The script emits GitHub Actions output:
-  matrix={"include":[{"service":"core", "service_id":"..."}]}
-  has_services=true|false
-  unregistered=service:env_name,...
-
-Service IDs are read from GitHub Actions variables (preferring canonical
-`RENDER_*_SERVICE_ID` with compatibility fallback to legacy `RENDER_*_SVC_ID`),
-not committed source:
-  RENDER_CORE_SERVICE_ID
-  RENDER_API_SERVICE_ID
-  RENDER_SCRAPER_SERVICE_ID  (legacy alias: RENDER_BROWSER_SERVICE_ID)
-  RENDER_MCP_SERVICE_ID
-  RENDER_WORKER_SERVICE_ID
-  RENDER_BRAIN_SERVICE_ID
-  RENDER_CI_RUNNER_SERVICE_ID
-
-Failure policy (run 41918034520 root cause):
-  A topology change (render.yaml, config/service_registry.yaml, this planner)
-  previously required EVERY declared service ID to be configured, and failed
-  the whole job when any one was missing. That is fail-closed to the point of
-  self-sabotage: the planner could not run at all until an operator manually
-  configured four variables, so no deployment ever happened and the job stayed
-  red.
-
-  New policy: a missing ID is never a workflow failure. The affected service is
-  marked UNREGISTERED and skipped from the deploy matrix, but the skip is
-  LOUD — written to GITHUB_OUTPUT as `unregistered` and printed as a
-  GitHub warning. Silence is the bug we are fixing; a skipped service must be
-  visible in the run log and in MCP Tower attestation, not invisible.
-"""
+"""Plan Render deploy and rollback matrices from the canonical service registry."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
+from fnmatch import fnmatchcase
 from pathlib import Path
 
-SERVICE_RULES = {
-    "core": (
-        "RENDER_CORE_SERVICE_ID",
-        "RENDER_API_KEY_1",
-        ("core/", "requirements", "pyproject.toml", "Dockerfile", "scripts/lib/", "scripts/runtime/"),
-        "https://supremeai-primary-node-5xso.onrender.com/release",
-    ),
-    "api": (
-        "RENDER_API_SERVICE_ID",
-        "RENDER_API_KEY_5",
-        (
-            "gateway/",
-            "config/routing_policy",
-            "render.yaml",
-            "scripts/lib/",
-            "scripts/runtime/infisical_bootstrap.py",  # Copied by gateway/Dockerfile.
-        ),
-        "https://supremeai-api-ulw0.onrender.com/release",
-    ),
-    "scraper": (
-        "RENDER_SCRAPER_SERVICE_ID",
-        "RENDER_API_KEY_3",
-        ("browser/", "core/", "render.yaml", "scripts/lib/", "scripts/runtime/"),
-        "https://supremeai-scraper-node.onrender.com/release",
-    ),
-    "mcp": (
-        "RENDER_MCP_SERVICE_ID",
-        "RENDER_API_KEY_4",
-        ("infrastructure/mcp-control-plane/", "scripts/runtime/", "render.yaml"),
-        "https://supremeai-mcp-tower-live.onrender.com/release",
-    ),
-    "worker": (
-        "RENDER_WORKER_SERVICE_ID",
-        "RENDER_API_KEY_2",
-        ("core/", "scripts/lib/", "scripts/runtime/"),
-        "https://supremeai-worker-node.onrender.com/release",
-    ),
-    "brain": (
-        "RENDER_BRAIN_SERVICE_ID",
-        "RENDER_API_KEY_6",
-        ("core/services/brain/", "core/", "scripts/lib/"),
-        "https://supremeai-tiny-brain.onrender.com/release",
-    ),
-    "ci-runner": (
-        "RENDER_CI_RUNNER_SERVICE_ID",
-        "RENDER_API_KEY_PAYKARI",
-        ("scripts/ci/", "scripts/ops/", "scripts/lib/"),
-        "",
-    ),
-}
+import yaml
 
-SERVICE_ID_ALIASES = {
-    "RENDER_CORE_SERVICE_ID": ("RENDER_CORE_SVC_ID", "RENDER_PRIMARY_SVC_ID"),
-    "RENDER_API_SERVICE_ID": ("RENDER_API_SVC_ID", "RENDER_SVC_ID"),
-    "RENDER_SCRAPER_SERVICE_ID": ("RENDER_SCRAPER_SVC_ID", "RENDER_BROWSER_SERVICE_ID"),
-    "RENDER_MCP_SERVICE_ID": ("RENDER_MCP_SVC_ID",),
-    "RENDER_WORKER_SERVICE_ID": ("RENDER_WORKER_SVC_ID",),
-    "RENDER_BRAIN_SERVICE_ID": ("RENDER_BRAIN_SVC_ID",),
-    "RENDER_CI_RUNNER_SERVICE_ID": ("RENDER_CI_RUNNER_SVC_ID",),
-}
-
-# Files that widen the contract: when any of these change, every declared
-# service must be re-verified even if its own paths did not change.
-TOPOLOGY_FILES = {
-    "render.yaml",
-    "config/service_registry.yaml",
-    "core/config/service_topology.yaml",
-    "scripts/ci/plan_render_deploys.py",
-}
+REGISTRY = Path(__file__).resolve().parents[2] / "config" / "service_registry.yaml"
+# Blueprint changes warrant checking all registered targets. CI logic and
+# registry metadata alone are not runtime source changes.
+TOPOLOGY_FILES = {"render.yaml", "core/config/service_topology.yaml"}
 
 
-def resolve_service_id(canonical_env: str) -> str:
-    val = os.environ.get(canonical_env, "").strip()
-    if val:
-        return val
-    for alias in SERVICE_ID_ALIASES.get(canonical_env, ()):
-        alias_val = os.environ.get(alias, "").strip()
-        if alias_val:
-            return alias_val
-    return ""
+def render_services() -> dict:
+    services = yaml.safe_load(REGISTRY.read_text(encoding="utf-8"))["services"]
+    return {name: spec for name, spec in services.items() if spec["platform"] == "render"}
 
 
 def changed_files(base: str, head: str) -> list[str]:
     if not base or set(base) == {"0"}:
         base = subprocess.check_output(["git", "rev-parse", f"{head}^"], text=True).strip()
-    result = subprocess.check_output(
-        ["git", "diff", "--name-only", base, head], text=True
-    )
-    return [line.strip() for line in result.splitlines() if line.strip()]
+    return subprocess.check_output(["git", "diff", "--name-only", base, head], text=True).splitlines()
 
 
-def _matches(path: str, prefixes) -> bool:
-    return any(path == prefix or path.startswith(prefix) for prefix in prefixes)
+def resolve_service_id(spec: dict) -> str:
+    for name in (spec["canonical_service_id_env"], *spec.get("service_id_aliases", ())):
+        if value := os.environ.get(name, "").strip():
+            return value
+    return ""
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base", required=False, default="")
-    parser.add_argument("--head", required=False, default="HEAD")
-    parser.add_argument("--force", action="store_true", default=False)
-    parser.add_argument("--targets", default="", help="Comma-separated target list or 'all'")
+    parser.add_argument("--base", default="")
+    parser.add_argument("--head", default="HEAD")
+    parser.add_argument("--force", action="store_true")
+    parser.add_argument("--targets", default="", help="Comma-separated targets or 'all'")
+    parser.add_argument("--require-configured", action="store_true", help="Fail on missing targets (rollback)")
     parser.add_argument("--output", default="")
     args = parser.parse_args()
-
-    files: list[str] = []
-    if not args.force:
-        files = changed_files(args.base, args.head)
-    topology_changed = any(path in TOPOLOGY_FILES for path in files)
+    files = [] if args.force else changed_files(args.base, args.head)
+    targets = {t.strip().lower() for t in args.targets.split(",") if t.strip()}
+    services = render_services()
+    configured_ids = {name: resolve_service_id(spec) for name, spec in services.items()}
+    all_targets = not targets or bool(targets & {"all", "render-all"})
+    if args.require_configured and not (targets and targets <= services.keys()):
+        parser.error("strict planning requires explicit, known Render targets")
 
     selected: list[dict[str, str]] = []
     unregistered: list[str] = []
+    for service, spec in services.items():
+        # The suspended CI runner is not a production runtime. No builds for
+        # it unless explicitly selected in a forced dispatch.
+        if service == "ci-runner" and not (args.force and service in targets):
+            continue
+        if not all_targets and service not in targets:
+            continue
+        if not (args.force or TOPOLOGY_FILES.intersection(files) or any(
+            any(fnmatchcase(path, pattern) for pattern in spec["watch_paths"])
+            and not any(fnmatchcase(path, pattern) for pattern in spec.get("exclude_paths", ()))
+            for path in files
+        )):
+            continue
+        service_id = configured_ids[service]
+        id_env = spec["canonical_service_id_env"]
+        if not re.fullmatch(r"srv-[a-z0-9]+", service_id):
+            unregistered.append(f"{service}:{id_env}")
+            print(f"::warning::{service}: missing or invalid {id_env}; UNREGISTERED", file=sys.stderr)
+            continue
+        api_key_env = spec["canonical_api_key_env"]
+        selected.append({
+            "service": service,
+            "service_id": service_id,
+            "api_key_env": api_key_env,
+            "api_key_alias_env": next(iter(spec.get("api_key_aliases", ())), api_key_env),
+            "health_path": spec.get("liveness_path") or spec.get("health_path", ""),
+        })
 
-    services = list(SERVICE_RULES.items())
+    # Check inactive roles as well: e.g. the separate auxiliary CI runner is
+    # never a valid MCP replacement even when only MCP is being deployed.
+    for entry in selected:
+        if any(name != entry["service"] and sid == entry["service_id"] for name, sid in configured_ids.items()):
+            parser.error(f"{entry['service']} resolves to a service ID registered to another role")
+    if args.require_configured and unregistered:
+        parser.error("rollback targets are not configured: " + ", ".join(unregistered))
 
-    # Target filtering (for manual runs or selective forced deploys)
-    raw_targets = [t.strip().lower() for t in args.targets.split(",") if t.strip()]
-    is_all_targets = not raw_targets or "all" in raw_targets or "render-all" in raw_targets
-
-    if args.force or topology_changed:
-        # Candidate set is either all or specifically matched targets
-        if is_all_targets:
-            candidates = services
-        else:
-            candidates = [
-                (svc, rule) for svc, rule in services
-                if svc in raw_targets
-            ]
-    else:
-        candidates = [
-            (service, rule)
-            for service, rule in services
-            if any(_matches(path, rule[2]) for path in files)
-        ]
-
-    for service, rule in candidates:
-        env_name, api_key_env, _prefixes = rule[0], rule[1], rule[2]
-        default_release_url = rule[3] if len(rule) > 3 else ""
-        if service == "core":
-            release_url = os.environ.get("RENDER_CORE_RELEASE_URL", "").strip() or default_release_url
-        else:
-            release_url = default_release_url
-        service_id = resolve_service_id(env_name)
-        if not service_id:
-            unregistered.append(f"{service}:{env_name}")
-            print(
-                f"::warning::{service} changed but {env_name} is not configured — "
-                f"marking UNREGISTERED and skipping deploy (visible, not silent)",
-                file=sys.stderr,
-            )
-        else:
-            selected.append(
-                {
-                    "service": service,
-                    "service_id": service_id,
-                    "api_key_env": api_key_env,
-                    "release_url": release_url,
-                }
-            )
-
-    matrix = json.dumps({"include": selected}, separators=(",", ":"))
-    output = args.output or os.environ.get("GITHUB_OUTPUT", "")
-    if output:
+    matrix = {"include": selected}
+    if output := args.output or os.environ.get("GITHUB_OUTPUT"):
         with Path(output).open("a", encoding="utf-8") as handle:
-            handle.write(f"matrix={matrix}\n")
+            handle.write(f"matrix={json.dumps(matrix, separators=(',', ':'))}\n")
             handle.write(f"has_services={'true' if selected else 'false'}\n")
-            handle.write(
-                f"unregistered={json.dumps(unregistered, separators=(',', ':'))}\n"
-            )
-    print(json.dumps({"changed_files": files, "matrix": json.loads(matrix)}, indent=2))
+            handle.write(f"unregistered={json.dumps(unregistered, separators=(',', ':'))}\n")
+    print(json.dumps({"changed_files": files, "matrix": matrix, "unregistered": unregistered}, indent=2))
     return 0
 
 

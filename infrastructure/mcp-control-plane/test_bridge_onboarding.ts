@@ -21,7 +21,7 @@ import {
  * Bridge onboarding contract tests (#123).
  *
  * বাংলা মন্তব্য: যাচাই হয় —
- *   ১. তিনটি bridge tool public_viewer-এর কাছে callable + listable (list ⊆ call)
+ *   ১. তিনটি bridge tool public_viewer-এর কাছে callable; discovery কেবল registered client-এর জন্য
  *   ২. anonymous surface-এ কোনো write/destructive/secret tool ফাঁসি হয় না
  *   ৩. чистая queue normalization (PR বাদ, sanitize, cap, sort)
  *   ৪. guide payload-এর বাধ্যতামূলক contract keys
@@ -170,11 +170,15 @@ async function makeBridgeServer(): Promise<McpServer> {
     await server.connect(serverTransport);
     await client.connect(clientTransport);
     await RequestContextStore.run(anonCtx, async () => {
-      // Discovery: the anonymous caller sees the bridge tools (and the safe system tools).
+      // The strict discovery gate deliberately advertises nothing to an
+      // unregistered caller, even though a direct call to the public guide is safe.
+      assert.deepEqual((await client.listTools()).tools, []);
+    });
+    await RequestContextStore.run({ ...agentCtx, toolProfile: "readonly" }, async () => {
       const list = await client.listTools();
       const names = (list.tools ?? []).map((tool) => tool.name);
       for (const name of ["bridge_guide", "bridge_work_queue", "bridge_work_order"]) {
-        assert.ok(names.includes(name), `anonymous discovery must list ${name}`);
+        assert.ok(names.includes(name), `registered read-only discovery must list ${name}`);
       }
       // No write/destructive/secret tool leaks into the anonymous list.
       for (const name of names) {
@@ -182,6 +186,8 @@ async function makeBridgeServer(): Promise<McpServer> {
       }
       assert.ok(!names.includes("notify_telegram"), "no mutating tool in the anonymous surface");
       assert.ok(!names.includes("autonomy_kill_switch"), "no destructive tool in the anonymous surface");
+    });
+    await RequestContextStore.run(anonCtx, async () => {
       // Execution: bridge.guide is static — an anonymous caller gets the contract with zero network.
       const call = await client.callTool({ name: "bridge_guide", arguments: {} });
       assert.notEqual((call as { isError?: boolean }).isError, true, "bridge.guide must execute for anonymous callers");

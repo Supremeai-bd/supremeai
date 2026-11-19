@@ -4,7 +4,7 @@ name: SupremeAI Unified CI/CD Pipeline
 # SINGLE UNIFIED CI/CD SSOT (Zero Duplicate Runs)
 # 1. On Pull Request / Schedule:
 #    - Tier 1 Fast Safety Gates (GitHub Actions: Lint, Boundaries, Contracts <30s)
-#    - Tier 2 Heavy CI Runner (Render supremeai-ci-runner: Full Test & Security Suite)
+#    - Tier 2 Focused verification (hosted for PRs, local only for trusted main)
 # 2. On Merge / Push to Main:
 #    - Detect changed service boundaries
 #    - Deploy only the required Render services
@@ -35,7 +35,6 @@ on:
 permissions:
   contents: read
   actions: read
-  security-events: write
 
 concurrency:
   group: unified-pipeline-${{ github.event.pull_request.number || github.ref }}
@@ -55,38 +54,28 @@ jobs:
     outputs:
       execution_tier: ${{ steps.runner-check.outputs.execution_tier }}
       is_local_online: ${{ steps.runner-check.outputs.is_local_online }}
-      render_quota_exhausted: ${{ steps.runner-check.outputs.render_quota_exhausted }}
     steps:
-      # SECURITY: resolve the tier from DEFAULT-BRANCH code, never the PR head.
-      # This job carries merge-capable PATs and Render API keys; a malicious PR
-      # could otherwise edit the very script it executes and exfiltrate them.
-      - uses: actions/checkout@v5
+      # Use privileged runner-list access only for trusted main verification,
+      # not for a pull request or release planning.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.base_ref || github.ref }}
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
       - name: Check 4-Level Execution Hierarchy
         id: runner-check
         env:
-          GH_TOKEN: ${{ secrets.OPEN_SYNC_PAT || secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.OPEN_DISPATCH_TOKEN || secrets.GITHUB_TOKEN }}
-          OPEN_SYNC_PAT: ${{ secrets.OPEN_SYNC_PAT }}
-          SELF_HEAL_PAT: ${{ secrets.SELF_HEAL_PAT }}
-          SYNC_PAT: ${{ secrets.SYNC_PAT }}
-          OPEN_DISPATCH_TOKEN: ${{ secrets.OPEN_DISPATCH_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY_1 }}
-          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
-          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
-          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
-          RENDER_API_KEY_5: ${{ secrets.RENDER_API_KEY_5 }}
-          RENDER_API_KEY_6: ${{ secrets.RENDER_API_KEY_6 }}
-          RENDER_CI_RUNNER_SERVICE_ID: ${{ vars.RENDER_CI_RUNNER_SERVICE_ID || 'srv-dbl8tbmtlv9c73bbkvqg' }}
-        run: python scripts/ci/resolve_execution_tier.py
+          GH_TOKEN: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.force_deploy)) && (secrets.OPEN_SYNC_PAT || secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.OPEN_DISPATCH_TOKEN) || secrets.GITHUB_TOKEN }}
+          ALLOW_LOCAL_CI: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.force_deploy)) }}
+        run: |
+          if [ "$ALLOW_LOCAL_CI" = true ]; then
+            python scripts/ci/resolve_execution_tier.py
+          else
+            # Also safe while the trusted base still has the old resolver.
+            printf 'execution_tier=github-ubuntu-render-backend\nis_local_online=false\n' >> "$GITHUB_OUTPUT"
+          fi
 
   # =========================================================================
   # STAGE 1: TIER 1 - MINIMAL FAST GATES (Cloud fallback only)
@@ -98,12 +87,17 @@ jobs:
     name: "Tier 1: Fast Safety Gate (<30s, cloud fallback)"
     needs: [resolve-execution-tier]
     if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true'
+    permissions:
+      contents: read
+      pull-requests: read
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
           cache: pip
@@ -111,7 +105,7 @@ jobs:
       - name: Install minimal dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy redis pyjwt requests aiosqlite
+          pip install -c core/requirements.lock -c gateway/requirements.lock ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy redis pyjwt requests aiosqlite
 
       - name: Fast fatal error & syntax lint
         run: ruff check core/ gateway/ scripts/ci/ --select E9,F63,F7,F82 --exclude core/tests/
@@ -123,7 +117,7 @@ jobs:
 
       - name: Subsystem Paths Filter
         id: filter
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
           filters: |
             vscode:
@@ -131,7 +125,7 @@ jobs:
 
       - name: Setup Node.js (for Subsystems)
         if: steps.filter.outputs.vscode == 'true'
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
 
@@ -152,14 +146,39 @@ jobs:
     name: "Tier 1: Runtime Readiness & Boundaries (<30s, cloud fallback)"
     needs: [resolve-execution-tier]
     if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true'
+    permissions:
+      contents: read
+      pull-requests: read
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      # This runs before any candidate checkout or code executes in this job.
+      # The verifier reads PR data via the API from the exact trusted base.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        if: github.event_name == 'pull_request'
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: _verifier-base
+          persist-credentials: false
+      - name: AI Semantic PR Verification Gate (High-Risk Enforcement)
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        working-directory: _verifier-base
+        run: python3 scripts/ci/ai_semantic_pr_verifier.py --pr "${{ github.event.pull_request.number }}"
+
+      - name: Clean up verifier base checkout
+        if: always() && github.event_name == 'pull_request'
+        run: rm -rf _verifier-base
+
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
 
@@ -185,29 +204,6 @@ jobs:
       - name: Check public export allowlist
         run: python scripts/ci/public_surface_guard.py --manifest scripts/ci/public_surface_manifest.txt
 
-      # SECURITY: run the verifier from the DEFAULT BRANCH so LLM provider
-      # keys are never handed to PR-head-modifiable code. It audits the PR via
-      # the GitHub API; only its own (trusted) code executes here.
-      - uses: actions/checkout@v5
-        if: github.event_name == 'pull_request'
-        with:
-          ref: ${{ github.base_ref }}
-          path: _verifier-base
-          persist-credentials: false
-      - name: AI Semantic PR Verification Gate (High-Risk Enforcement)
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        working-directory: _verifier-base
-        run: python scripts/ci/ai_semantic_pr_verifier.py --pr "${{ github.event.pull_request.number }}"
-
-      - name: Clean up verifier base checkout
-        if: always() && github.event_name == 'pull_request'
-        run: rm -rf _verifier-base
-
       - name: Anti-Duplication Regression Guard (Zero New Code Clones)
         run: |
           git fetch origin ${{ github.base_ref || 'main' }}:refs/remotes/origin/${{ github.base_ref || 'main' }} --depth=50
@@ -219,36 +215,31 @@ jobs:
   # =========================================================================
   render-heavy-gate:
     name: "Tier 1+2: Full Verification Battery (Local Self-Hosted, 0 cloud mins)"
-    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.force_deploy)) && needs.resolve-execution-tier.outputs.is_local_online == 'true'
     runs-on: [self-hosted, local-pc]
     timeout-minutes: 20
     needs: [resolve-execution-tier]
     steps:
-      # SECURITY (full audit 2026-11-13 F-002): this job runs on a PERSONAL machine
-      # (self-hosted). PR-head code must never execute with provider API keys in env
-      # or with a persisted GITHUB_TOKEN credential.
-      # - persist-credentials: false on every checkout
-      # - the AI verifier runs from a BASE-REF checkout (_verifier-base) so
-      #   LLM provider keys only execute trusted code, mirroring fast-gate pattern.
-      - uses: actions/checkout@v5
+      # The persistent personal runner only receives code from trusted main.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: |
-            core/requirements.txt
-            gateway/requirements.txt
+            core/requirements.lock
+            gateway/requirements.lock
 
       - name: Install verification dependencies
         shell: powershell
         run: |
           python -m pip install --upgrade pip
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -m pip install --prefer-binary -r core/requirements.txt -r gateway/requirements.txt ruff pytest pytest-asyncio pytest-cov pytest-timeout pytest-mock aiosqlite fakeredis "mcp>=1.28.1,<2"
+          python -m pip install --prefer-binary -r core/requirements.lock -r gateway/requirements.lock ruff pytest pytest-asyncio pytest-cov pytest-timeout pytest-mock aiosqlite fakeredis "mcp>=1.28.1,<2"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Tier 1 — Fast fatal error & syntax lint
@@ -284,26 +275,6 @@ jobs:
           python scripts/agents/check_loop_contract_parity.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      # SECURITY (full audit 2026-11-13 F-002): run the AI verifier from the DEFAULT
-      # BRANCH so LLM provider keys are never handed to PR-head-modifiable code on
-      # the self-hosted (personal) runner. It audits the PR via the GitHub API;
-      # only trusted base-ref code executes with secrets in env.
-      - uses: actions/checkout@v5
-        if: github.event_name == 'pull_request'
-        with:
-          ref: ${{ github.base_ref }}
-          path: _verifier-base
-          persist-credentials: false
-      - name: Tier 1 — AI Semantic PR Verification Gate (High-Risk Enforcement)
-        if: github.event_name == 'pull_request'
-        shell: powershell
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python _verifier-base/scripts/ci/ai_semantic_pr_verifier.py --pr "${{ github.event.pull_request.number }}"
-
       - name: Tier 1 — Anti-Duplication Regression Guard
         shell: powershell
         run: |
@@ -316,7 +287,7 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Running full verification battery on local self-hosted runner (0 cloud mins)..."
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py tests/test_tiny_brain_guard.py gateway/tests/test_free_model_discovery.py
+          python -m pytest "@config/ci/pr-battery.args"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ops/wiring_atlas.py --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -327,11 +298,8 @@ jobs:
         if: always()
         shell: powershell
         env:
-          # SECURITY (full audit 2026-11-13 F-002): MCP tower token is NOT handed to
-          # pull_request arm on the self-hosted job — PR-authored code could exfiltrate it.
-          # Trusted events (schedule/workflow_dispatch) still publish attestations.
-          MCP_TOWER_ATTESTATION_URL: ${{ github.event_name != 'pull_request' && vars.MCP_TOWER_ATTESTATION_URL || '' }}
-          MCP_TOWER_AUTH_TOKEN: ${{ github.event_name != 'pull_request' && secrets.MCP_TOWER_AUTH_TOKEN || '' }}
+          MCP_TOWER_ATTESTATION_URL: ${{ vars.MCP_TOWER_ATTESTATION_URL }}
+          MCP_TOWER_AUTH_TOKEN: ${{ secrets.MCP_TOWER_AUTH_TOKEN }}
           EXPECTED_SHA: ${{ github.sha }}
           CI_RESULT: ${{ job.status }}
           RUNNER_TARGET: "local-self-hosted"
@@ -344,7 +312,8 @@ jobs:
 
   render-heavy-gate-render-ci:
     name: "Tier 2: Heavy Test Battery (Render CI Runner - Priority 2)"
-    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && needs.resolve-execution-tier.outputs.execution_tier == 'render-ci-runner' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    # Dormant: the resolver cannot choose Priority 2 without authoritative quota.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.force_deploy)) && needs.resolve-execution-tier.outputs.is_local_online != 'true' && needs.resolve-execution-tier.outputs.execution_tier == 'render-ci-runner'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [resolve-execution-tier, fast-gate, runtime-readiness]
@@ -353,7 +322,7 @@ jobs:
       verified_sha: ${{ steps.render-ci.outputs.verified_sha }}
     steps:
       # The trigger has a Render credential; only the CI payload targets github.sha.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.event.pull_request.base.sha || github.sha }}
           persist-credentials: false
@@ -362,7 +331,7 @@ jobs:
         id: render-ci
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
-          RENDER_SERVICE_ID: "srv-dbl8tbmtlv9c73bbkvqg"
+          RENDER_SERVICE_ID: ${{ vars.RENDER_CI_RUNNER_SERVICE_ID }}
           RENDER_WAIT: "1"
           RENDER_WAIT_TIMEOUT_SECONDS: "900"
           REQUIRE_EXPECTED_SHA: "1"
@@ -385,35 +354,40 @@ jobs:
           fi
 
   render-heavy-gate-fallback:
-    name: "Tier 2: Heavy Test Battery (GitHub Ubuntu + Render Backend - Priority 3)"
-    if: always() && !cancelled() && needs.fast-gate.result == 'success' && needs.runtime-readiness.result == 'success' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && (needs.resolve-execution-tier.outputs.execution_tier == 'github-ubuntu-render-backend' || (needs.resolve-execution-tier.outputs.execution_tier == 'render-ci-runner' && needs.render-heavy-gate-render-ci.result == 'failure' && needs.render-heavy-gate-render-ci.outputs.fallback_allowed == 'true')) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    name: "Tier 2: Heavy Test Battery (GitHub Ubuntu - Priority 3)"
+    if: always() && !cancelled() && needs.fast-gate.result == 'success' && needs.runtime-readiness.result == 'success' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && (needs.resolve-execution-tier.outputs.execution_tier == 'github-ubuntu-render-backend' || (needs.resolve-execution-tier.outputs.execution_tier == 'render-ci-runner' && needs.render-heavy-gate-render-ci.result == 'failure' && needs.render-heavy-gate-render-ci.outputs.fallback_allowed == 'true'))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [resolve-execution-tier, fast-gate, runtime-readiness, render-heavy-gate-render-ci]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
           cache: pip
+          cache-dependency-path: |
+            core/requirements.lock
+            gateway/requirements.lock
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r core/requirements.txt -r gateway/requirements.txt ruff pytest pytest-asyncio pytest-cov pytest-timeout pytest-mock aiosqlite fakeredis "mcp>=1.28.1,<2"
+          python -m pip install -r core/requirements.lock -r gateway/requirements.lock ruff pytest pytest-asyncio pytest-cov pytest-timeout pytest-mock aiosqlite fakeredis "mcp>=1.28.1,<2"
 
       - name: Run Full Unit & Component Guard Battery
         run: |
-          echo "Local runner offline. Render CI busy. Running heavy battery on GitHub Ubuntu (Priority 3)..."
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py tests/test_tiny_brain_guard.py gateway/tests/test_free_model_discovery.py
+          echo "Running the isolated GitHub Ubuntu verification battery (Priority 3)..."
+          python -m pytest "@config/ci/pr-battery.args"
           python scripts/ops/wiring_atlas.py --check
 
       - name: Fast Compile Integrity
         run: python -m compileall -q core/ gateway/ scripts/
 
       - name: Publish CI Attestation to MCP Tower
-        if: always()
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
         env:
           MCP_TOWER_ATTESTATION_URL: ${{ vars.MCP_TOWER_ATTESTATION_URL }}
           MCP_TOWER_AUTH_TOKEN: ${{ secrets.MCP_TOWER_AUTH_TOKEN }}
@@ -427,34 +401,39 @@ jobs:
 
   render-heavy-gate-emergency:
     name: "Tier 2: Heavy Test Battery (GitHub Ubuntu Emergency - Priority 4)"
-    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && needs.resolve-execution-tier.outputs.execution_tier == 'github-ubuntu-emergency' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && needs.resolve-execution-tier.outputs.execution_tier == 'github-ubuntu-emergency'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [resolve-execution-tier, fast-gate, runtime-readiness]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
           cache: pip
+          cache-dependency-path: |
+            core/requirements.lock
+            gateway/requirements.lock
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r core/requirements.txt -r gateway/requirements.txt ruff pytest pytest-asyncio pytest-cov pytest-timeout pytest-mock aiosqlite fakeredis "mcp>=1.28.1,<2"
+          python -m pip install -r core/requirements.lock -r gateway/requirements.lock ruff pytest pytest-asyncio pytest-cov pytest-timeout pytest-mock aiosqlite fakeredis "mcp>=1.28.1,<2"
 
       - name: Run Full Unit & Component Guard Battery
         run: |
           echo "EMERGENCY: Render quota exhausted. Running heavy battery on GitHub Ubuntu (Priority 4)..."
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py tests/test_tiny_brain_guard.py gateway/tests/test_free_model_discovery.py
+          python -m pytest "@config/ci/pr-battery.args"
           python scripts/ops/wiring_atlas.py --check
 
       - name: Fast Compile Integrity
         run: python -m compileall -q core/ gateway/ scripts/
 
       - name: Publish CI Attestation to MCP Tower
-        if: always()
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
         env:
           MCP_TOWER_ATTESTATION_URL: ${{ vars.MCP_TOWER_ATTESTATION_URL }}
           MCP_TOWER_AUTH_TOKEN: ${{ secrets.MCP_TOWER_AUTH_TOKEN }}
@@ -471,16 +450,40 @@ jobs:
   # These needs are job results for this run's github.sha, not a PR-head rollup.
   # Drafts run CI, but no landing decision is requested until ready_for_review.
   # =========================================================================
+  verify-pr:
+    name: "PR Verification"
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    needs: [resolve-execution-tier, fast-gate, runtime-readiness, render-heavy-gate-fallback, syntax-and-governance-gate, golden-eval-gate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Require successful verification of this run's merge revision
+        env:
+          TIER: ${{ needs.resolve-execution-tier.outputs.execution_tier }}
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          results = json.loads(os.environ["RESULTS"])
+          failed = [name for name, job in results.items() if job["result"] != "success"]
+          if not results or failed or os.environ["TIER"] != "github-ubuntu-render-backend":
+              raise SystemExit(f"PR verification did not pass on the hosted lane: {', '.join(failed)}")
+          print(f"PR verification passed at {os.environ['GITHUB_SHA']}")
+          PY
+
   ai-evaluate-and-approve:
     name: "PR Landing Decision"
     if: >-
       always() && !cancelled() && github.event_name == 'pull_request' &&
+      needs.verify-pr.result == 'success' &&
       github.event.pull_request.draft == false &&
       github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     needs:
+      - verify-pr
       - resolve-execution-tier
       - fast-gate
       - runtime-readiness
@@ -499,7 +502,7 @@ jobs:
     steps:
       # Run the policy from the trusted base commit; a PR cannot edit the
       # Python policy it is being evaluated against.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           path: _verifier-base
@@ -574,7 +577,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           path: _verifier-base
@@ -610,29 +613,18 @@ jobs:
       unregistered: ${{ steps.plan.outputs.unregistered }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
 
-      - name: Render free-build quota preflight
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
-          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY }}
-          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
-          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
-          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
-          RENDER_API_KEY_5: ${{ secrets.RENDER_API_KEY_5 }}
-          RENDER_API_KEY_6: ${{ secrets.RENDER_API_KEY_6 }}
-          RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
-          RENDER_ESTIMATED_BUILD_MINUTES: "20"
-        run: python scripts/ci/render_quota_preflight.py
+      - name: Install service registry parser
+        run: python -m pip install pyyaml
 
       - name: Compute changed Render service matrix
         env:
           RENDER_CORE_SERVICE_ID: ${{ vars.RENDER_CORE_SERVICE_ID }}
-          RENDER_CORE_RELEASE_URL: ${{ vars.RENDER_CORE_RELEASE_URL }}
           RENDER_API_SERVICE_ID: ${{ vars.RENDER_API_SERVICE_ID }}
-          RENDER_SCRAPER_SERVICE_ID: ${{ vars.RENDER_SCRAPER_SERVICE_ID }}
+          RENDER_SCRAPER_SERVICE_ID: ${{ vars.RENDER_SCRAPER_SERVICE_ID || vars.RENDER_BROWSER_SERVICE_ID }}
           RENDER_MCP_SERVICE_ID: ${{ vars.RENDER_MCP_SERVICE_ID }}
           RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
           RENDER_BRAIN_SERVICE_ID: ${{ vars.RENDER_BRAIN_SERVICE_ID }}
@@ -657,7 +649,7 @@ jobs:
       # log it, surface it in the summary, and publish it to MCP Tower so the
       # dashboard shows UNREGISTERED instead of silently looking healthy.
       - name: Surface UNREGISTERED services
-        if: always()
+        if: ${{ !cancelled() && steps.plan.outcome == 'success' }}
         env:
           UNREGISTERED: ${{ steps.plan.outputs.unregistered }}
           MCP_TOWER_ATTESTATION_URL: ${{ vars.MCP_TOWER_ATTESTATION_URL }}
@@ -665,19 +657,19 @@ jobs:
           EXPECTED_SHA: ${{ github.sha }}
         run: |
           if [ -n "$UNREGISTERED" ] && [ "$UNREGISTERED" != "[]" ]; then
-            echo "⚠️ UNREGISTERED Render services (skipped, visible): $UNREGISTERED"
+            echo "⚠️ UNREGISTERED Render services (skipped, visible): $UNREGISTERED" | tee -a "$GITHUB_STEP_SUMMARY"
             python scripts/ci/publish_ci_attestation.py || true
           else
             echo "✅ All changed Render services are registered"
           fi
 
   deploy-render-services:
-    name: "Deploy changed Render services"
+    name: "Deploy and verify Render (${{ matrix.service }})"
     needs: deploy-and-verify
     if: github.ref == 'refs/heads/main' && needs.deploy-and-verify.outputs.has_services == 'true'
     runs-on: ubuntu-24.04
     environment: production
-    timeout-minutes: 15
+    timeout-minutes: 18
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.deploy-and-verify.outputs.matrix) }}
@@ -686,7 +678,9 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Trigger and poll the exact source revision
         id: deploy
@@ -694,77 +688,62 @@ jobs:
           EXPECTED_SHA: ${{ github.sha }}
           REQUIRE_EXPECTED_SHA: "1"
           RENDER_AUXILIARY: ${{ matrix.service == 'ci-runner' && '1' || '0' }}
-          RENDER_API_KEY_ENV: ${{ matrix.api_key_env }}
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
-          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY }}
-          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
-          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
-          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
-          RENDER_API_KEY_5: ${{ secrets.RENDER_API_KEY_5 }}
-          RENDER_API_KEY_6: ${{ secrets.RENDER_API_KEY_6 }}
-          RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
-          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
-          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
-          INFISICAL_PROJECT_SLUG: ${{ secrets.INFISICAL_PROJECT_SLUG }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPEN_SYNC_PAT: ${{ secrets.OPEN_SYNC_PAT }}
-          SYNC_PAT: ${{ secrets.SYNC_PAT }}
-          SELF_HEAL_PAT: ${{ secrets.SELF_HEAL_PAT }}
+          RENDER_API_KEY: ${{ secrets[matrix.api_key_env] || secrets[matrix.api_key_alias_env] }}
           RENDER_SERVICE_ID: ${{ matrix.service_id }}
-          RENDER_WAIT: "1"
+          RENDER_HEALTH_PATH: ${{ matrix.health_path }}
           RENDER_WAIT_TIMEOUT_SECONDS: "600"
         run: python scripts/ci/render_trigger_deploy.py
 
-      - name: Attest runtime SHA (auxiliary CI runner is not release evidence)
+      - name: Attest the triggered deploy ID and runtime SHA
+        id: attest
         env:
           RENDER_DEPLOY_ID: ${{ steps.deploy.outputs.deploy_id }}
           RENDER_AUXILIARY: ${{ matrix.service == 'ci-runner' && '1' || '0' }}
-          RENDER_API_KEY_ENV: ${{ matrix.api_key_env }}
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_PAYKARI }}
-          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY }}
-          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
-          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
-          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
-          RENDER_API_KEY_5: ${{ secrets.RENDER_API_KEY_5 }}
-          RENDER_API_KEY_6: ${{ secrets.RENDER_API_KEY_6 }}
-          RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
+          RENDER_API_KEY: ${{ secrets[matrix.api_key_env] || secrets[matrix.api_key_alias_env] }}
           RENDER_SERVICE_ID: ${{ matrix.service_id }}
           EXPECTED_SHA: ${{ github.sha }}
-          RELEASE_URL: ${{ matrix.release_url }}
+          RELEASE_URL: ${{ steps.deploy.outputs.release_url }}
         run: python scripts/ci/render_deploy_attestation.py
 
-  verify-render-services:
-    name: "Verify changed Render services"
-    needs: [deploy-and-verify, deploy-render-services]
-    if: needs.deploy-and-verify.outputs.has_services == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v5
-
-      - name: Smoke-check configured authoritative targets only
+      # Siblings still verify after a partial failure. A canary after a
+      # failed deploy checks the currently serving revision, not the release.
+      - name: Canary for this Render service
+        id: canary
+        if: ${{ !cancelled() && steps.deploy.outputs.health_url != '' }}
         env:
-          RENDER_CANARY_URLS_JSON: ${{ vars.RENDER_CANARY_URLS_JSON }}
+          RENDER_SERVICE_NAME: ${{ matrix.service }}
+          RENDER_CANARY_URL: ${{ steps.deploy.outputs.health_url }}
         run: python scripts/ci/render_canary.py
+
+      - name: Report the service release outcome
+        if: ${{ !cancelled() }}
+        env:
+          SERVICE: ${{ matrix.service }}
+          EXPECTED_SHA: ${{ github.sha }}
+          DEPLOY_ID: ${{ steps.deploy.outputs.deploy_id }}
+          DEPLOY: ${{ steps.deploy.outputs.deploy_status || steps.deploy.outcome }}
+          ATTESTATION: ${{ steps.attest.outputs.release_status || steps.attest.outcome }}
+          CANARY: ${{ steps.canary.outcome }}
+        run: |
+          printf '### Render / %s\n\n- Requested SHA: `%s`\n- Deploy: %s (`%s`)\n- Release attestation: %s\n- Health canary: %s\n' \
+            "$SERVICE" "$EXPECTED_SHA" "$DEPLOY" "${DEPLOY_ID:-no deploy ID}" "$ATTESTATION" "$CANARY" >> "$GITHUB_STEP_SUMMARY"
 
 
   no-render-deploy:
-    name: "No Render deploy required"
+    name: "Check Render target registration"
     needs: deploy-and-verify
-    if: needs.deploy-and-verify.outputs.has_services != 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 2
     steps:
-      - run: echo "No deployable Render service changed; skipping Render build and deploy."
+      - name: Fail on an unregistered release target without blocking registered siblings
+        env:
+          UNREGISTERED: ${{ needs.deploy-and-verify.outputs.unregistered }}
+        run: |
+          if [ "$UNREGISTERED" != '[]' ]; then
+            echo "::error::Changed Render services are not registered: $UNREGISTERED"
+            exit 1
+          fi
+          echo "All selected Render targets are registered."
 
   deploy-cloudflare:
     name: "Deploy Cloudflare Edge Mesh (path-filtered)"
@@ -782,7 +761,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           lfs: true
           fetch-depth: 0
@@ -817,7 +796,7 @@ jobs:
 
       - name: Setup Node.js
         if: steps.cf_changes.outputs.should_deploy == 'true'
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
 
@@ -906,7 +885,7 @@ jobs:
     environment: production
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 2
       - name: Trigger Vercel Deployment Preflight & API Check
@@ -935,11 +914,11 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: "3.11"
 
@@ -988,25 +967,59 @@ jobs:
           print(f"{len(files)} YAML files valid.")
           PY
 
+      - name: Check workflow job names and generated script index
+        run: |
+          python scripts/ci/workflow_job_name_guard.py --check
+          python scripts/ops/generate_script_index.py --check-committed
+
+      - name: Detect runtime dependency changes
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        id: runtime-locks
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        with:
+          filters: |
+            dependencies:
+              - 'core/requirements.*'
+              - 'gateway/requirements.*'
+              - '.github/workflows/unified-pipeline.yml'
+            browser-lock:
+              - 'browser/cloudflare-worker/package*.json'
+              - '.github/workflows/unified-pipeline.yml'
+
+      - name: Verify Python runtime lock coverage (without upgrades)
+        if: steps.runtime-locks.outputs.dependencies == 'true'
+        run: |
+          set -euo pipefail
+          python -m pip install 'uv==0.13.9'
+          for service in core gateway; do
+            lock="$service/requirements.lock"
+            uv pip compile --no-header --no-annotate --python-version 3.12 --universal \
+              --constraint "$lock" "$service/requirements.txt" -o "$RUNNER_TEMP/$service.lock"
+            diff -u "$lock" "$RUNNER_TEMP/$service.lock"
+          done
+
       - name: Check the real Core routes build inference context
         run: python scripts/ci/check_gateway_context.py
 
       - name: Detect Tower contract changes
         if: github.event_name == 'pull_request' || github.event_name == 'push'
         id: tower
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
           filters: |
             contracts:
               - 'infrastructure/mcp-control-plane/**'
               - '.github/workflows/unified-pipeline.yml'
 
-      - uses: actions/setup-node@v7
-        if: steps.tower.outputs.contracts == 'true'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        if: steps.tower.outputs.contracts == 'true' || steps.runtime-locks.outputs.browser-lock == 'true'
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: infrastructure/mcp-control-plane/package-lock.json
+
+      - name: Verify the Browser worker npm lock
+        if: steps.runtime-locks.outputs.browser-lock == 'true'
+        working-directory: browser/cloudflare-worker
+        run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Build and verify Tower tool contracts (offline)
         if: steps.tower.outputs.contracts == 'true'
@@ -1018,6 +1031,7 @@ jobs:
           npm run test:tool-visibility
           npm run test:access
           npm run test:entry-governance
+          npm run test:render-logs
 
   # =========================================================================
   # Golden-Eval Regression Gate (archive workorder bridge-20261028-golden-eval-gate,
@@ -1028,7 +1042,9 @@ jobs:
     name: "G-GoldenEval harness — scorer self-test + fixture mechanics (#1362)"
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
       - name: Scorer self-test (must stay deterministic)
         run: python evals/golden/run_eval.py --self-test
       - name: Fixture mechanics run (calibration subset, honest coverage label)
@@ -1039,7 +1055,11 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [golden-eval-harness]
     steps:
-      - uses: actions/checkout@v5
+      # Candidate fixture mechanics run in the separate unprivileged job.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
       - name: Live golden eval (90% threshold, fail-closed)
         env:
           SUPREME_EVAL_ENDPOINT: ${{ secrets.SUPREME_EVAL_ENDPOINT }}

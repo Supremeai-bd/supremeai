@@ -17,8 +17,8 @@ ENV RENDER_GIT_COMMIT=${RENDER_GIT_COMMIT} GIT_COMMIT=${RENDER_GIT_COMMIT}
 RUN apt-get update && apt-get install -y --no-install-recommends curl perl-base bash && rm -rf /var/lib/apt/lists/* \
     && addgroup --system supremeai && adduser --system supremeai --ingroup supremeai
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.lock ./
+RUN pip install --no-cache-dir -r requirements.lock
 
 # Fail the image build rather than production boot if SQLAlchemy's async
 # runtime dependency or required route packages are missing.

@@ -30,16 +30,15 @@ except ImportError:
 
 router = APIRouter(prefix="/api/mcp-tower", tags=["mcp-tower"])
 
-TOWER_URL = os.getenv(
-    "MCP_TOWER_URL", os.getenv("RENDER_MCP_URL", "https://supremeai-mcp-tower.onrender.com/mcp")
-)
+TOWER_URL = os.getenv("RENDER_MCP_URL") or os.getenv("MCP_TOWER_URL", "")
 TOWER_TOKEN = os.getenv("MCP_TOWER_TOKEN", os.getenv("MCP_API_KEY", ""))
 RENDER_API_KEY = os.getenv("RENDER_API_KEY", "")
-RENDER_MCP_SERVICE_ID = os.getenv("RENDER_MCP_SERVICE_ID", os.getenv("RENDER_MCP_SVC_ID", ""))
 
 
 def _tower_base() -> str:
-    url = TOWER_URL.strip()
+    url = TOWER_URL.strip().rstrip("/")
+    if not url:
+        raise HTTPException(status_code=503, detail="MCP Tower URL not configured")
     if not url.endswith("/mcp"):
         url = url.rstrip("/") + "/mcp"
     return url
@@ -202,8 +201,8 @@ _RENDER_SVC_MAP = {
     "render-scraper": (("RENDER_SCRAPER_SVC_ID", "RENDER_SCRAPER_SERVICE_ID"), "RENDER_API_KEY_3"),
     "render-browser": (("RENDER_SCRAPER_SERVICE_ID", "RENDER_SCRAPER_SVC_ID"), "RENDER_API_KEY_3"),
     # MCP Tower
-    "render-mcp": (("RENDER_MCP_SVC_ID", "RENDER_MCP_SERVICE_ID"), "RENDER_API_KEY_4"),
-    "render-mcp-tower": (("RENDER_MCP_SERVICE_ID", "RENDER_MCP_SVC_ID"), "RENDER_API_KEY_4"),
+    "render-mcp": (("RENDER_MCP_SERVICE_ID",), "RENDER_API_PAYKARI"),
+    "render-mcp-tower": (("RENDER_MCP_SERVICE_ID",), "RENDER_API_PAYKARI"),
     # API Gateway
     "render-api": (("RENDER_API_SERVICE_ID", "RENDER_API_SVC_ID"), "RENDER_API_KEY_5"),
     "render-gateway": (("RENDER_API_SERVICE_ID", "RENDER_API_SVC_ID"), "RENDER_API_KEY_5"),
@@ -238,7 +237,12 @@ async def reboot(
             rid = os.getenv(env_k, "")
             if rid:
                 break
-        api_key = os.getenv(key_env, "") or RENDER_API_KEY
+        if key_env == "RENDER_API_PAYKARI":
+            api_key = os.getenv(key_env) or os.getenv("RENDER_API_KEY_PAYKARI")
+            if not rid or not api_key:
+                raise HTTPException(status_code=503, detail="Paykari MCP controls not configured")
+        else:
+            api_key = os.getenv(key_env, "") or RENDER_API_KEY
         if rid and api_key:
             try:
                 async with httpx.AsyncClient(timeout=30.0) as client:

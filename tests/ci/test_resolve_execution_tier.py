@@ -12,6 +12,8 @@ from scripts.ci import resolve_execution_tier as ret
 
 
 def _patch(monkeypatch: pytest.MonkeyPatch, *, local: bool, remaining: float, known: bool, worker: bool) -> None:
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "schedule")
+    monkeypatch.setenv("ALLOW_LOCAL_CI", "true")
     monkeypatch.setattr(ret, "is_local_runner_online", lambda: local)
     monkeypatch.setattr(ret, "get_render_quota_remaining", lambda: (remaining, known))
     monkeypatch.setattr(ret, "is_render_ci_worker_available", lambda: worker)
@@ -72,4 +74,12 @@ def test_constants_values() -> None:
     assert ret.RENDER_FREE_MONTHLY_LIMIT_MINS == 500.0
     assert ret.RENDER_QUOTA_REMAINING_P2_MINS == 50.0
     assert ret.RENDER_QUOTA_MAX_USED_P3_MINS == 450.0
-    assert ret.QUOTA_UNKNOWN_REMAINING == 120.0
+    assert ret.get_render_quota_remaining()[1] is False
+
+
+@pytest.mark.parametrize("event", ["pull_request", "pull_request_target"])
+def test_untrusted_events_never_probe_the_personal_runner(monkeypatch, event):
+    monkeypatch.setenv("GITHUB_EVENT_NAME", event)
+    monkeypatch.setattr(ret, "is_local_runner_online", lambda: pytest.fail("private runner probe"))
+    monkeypatch.setattr(ret, "is_render_ci_worker_available", lambda: pytest.fail("quota unknown"))
+    assert ret.resolve_tier() == "github-ubuntu-render-backend"

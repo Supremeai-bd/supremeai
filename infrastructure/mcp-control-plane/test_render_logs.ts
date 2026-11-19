@@ -2,7 +2,7 @@
  * Unit tests for the Render Logs API fix (render.get_logs → GET /v1/logs).
  *
  * Covers the analysis findings (#render-logs):
- *   1. Account-registry fallback: RENDER_API_KEY_4 vs render.yaml RENDER_API_KEY
+ *   1. MCP account is bound to Paykari and does not try the retired account or ID
  *   2. Fail-honest errors (unknown account / no key / unavailable) — no silent
  *      empty results
  *   3. buildRenderLogQuery: 15-min default window, limit clamp to API cap 100,
@@ -11,7 +11,7 @@
  *      (URL userinfo, bearer, JWT, key=value) and prose preservation
  *
  * No network, no credentials required. Live smoke test (optional):
- *   RENDER_API_KEY=… RENDER_MCP_SVC_ID=srv-… tsx test_render_logs.ts --live
+ *   RENDER_API_PAYKARI=… RENDER_MCP_SERVICE_ID=srv-… tsx test_render_logs.ts --live
  */
 import {
   buildRenderLogQuery,
@@ -47,10 +47,10 @@ function expectThrows(name: string, fn: () => unknown, needle?: string): void {
 }
 
 async function liveSmoke(): Promise<void> {
-  const accountId = "render-primary";
-  const serviceId = process.env.RENDER_MCP_SERVICE_ID || process.env.RENDER_MCP_SVC_ID || process.env.RENDER_PRIMARY_SERVICE_ID || process.env.RENDER_PRIMARY_SVC_ID || "";
+  const accountId = "render-mcp";
+  const serviceId = process.env.RENDER_MCP_SERVICE_ID || "";
   if (!serviceId) {
-    console.error("[live] Set RENDER_MCP_SVC_ID (or RENDER_PRIMARY_SVC_ID) to run the live smoke test.");
+    console.error("[live] Set RENDER_MCP_SERVICE_ID to run the live smoke test.");
     return;
   }
   console.log(`\n=== Live smoke: listLogs(${accountId}, ${serviceId}) ===`);
@@ -69,30 +69,35 @@ async function liveSmoke(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  // ── 1. Account registry fallback (RENDER_API_KEY_4 vs RENDER_API_KEY) ──
-  console.log("\n=== 1. Account registry fallback ===");
-  process.env.RENDER_API_KEY = "fallback-test-key-1234567890abcdef";
-  delete process.env.RENDER_API_KEY_4;
+  // ── 1. Account registry cutover ──────────────────────────────────────
+  const keys = ["RENDER_API_KEY", "RENDER_API_KEY_4", "RENDER_API_KEY_1",
+    "RENDER_API_PAYKARI", "RENDER_API_KEY_PAYKARI", "RENDER_MCP_URL",
+    "RENDER_MCP_SERVICE_ID", "RENDER_MCP_SVC_ID", "RENDER_EXTERNAL_URL"];
+  const saved = keys.map((key) => [key, process.env[key]] as const);
   try {
-    const mcp = buildAccountRegistry().find((a) => a.id === "render-mcp");
-    check("render-mcp marked available via RENDER_API_KEY fallback", mcp?.available === true, mcp?.available);
-    check("resolveRenderApiKey falls back to RENDER_API_KEY", resolveRenderApiKey("render-mcp") === process.env.RENDER_API_KEY);
-
-    const primary = buildAccountRegistry().find((a) => a.id === "render-primary");
-    delete process.env.RENDER_API_KEY_1;
-    check("render-primary resolvable via RENDER_API_KEY fallback", primary !== undefined && resolveRenderApiKey("render-primary") === process.env.RENDER_API_KEY);
-
-    delete process.env.RENDER_API_KEY;
-    expectThrows(
-      "no key → explicit 'not configured/available' error (no silent empty result)",
-      () => resolveRenderApiKey("render-mcp"),
-      "not configured/available"
-    );
+    for (const key of keys) delete process.env[key];
+    process.env.RENDER_API_KEY = "unrelated-test-key";
+    process.env.RENDER_API_KEY_4 = "retired-test-key";
+    process.env.RENDER_MCP_SVC_ID = "srv-retired";
+    const mcp = () => buildAccountRegistry().find((a) => a.id === "render-mcp");
+    check("no implicit legacy MCP service", mcp()?.serviceId === "" && mcp()?.url === "");
+    expectThrows("unrelated Render accounts cannot supply the MCP key",
+      () => resolveRenderApiKey("render-mcp"), "not configured/available");
+    process.env.RENDER_MCP_SERVICE_ID = "srv-replacement";
+    process.env.RENDER_EXTERNAL_URL = "https://replacement.onrender.com";
+    process.env.RENDER_API_KEY_PAYKARI = "paykari-alias-test-key";
+    check("MCP resolves replacement metadata and Paykari alias",
+      mcp()?.serviceId === "srv-replacement" && mcp()?.url === process.env.RENDER_EXTERNAL_URL
+        && resolveRenderApiKey("render-mcp") === process.env.RENDER_API_KEY_PAYKARI);
+    process.env.RENDER_API_PAYKARI = "paykari-canonical-test-key";
+    check("canonical Paykari name wins", resolveRenderApiKey("render-mcp") === process.env.RENDER_API_PAYKARI);
+    check("non-MCP compatibility unaffected", resolveRenderApiKey("render-primary") === process.env.RENDER_API_KEY);
     expectThrows("unknown account → explicit error", () => resolveRenderApiKey("render-nope"), "not found");
   } finally {
-    delete process.env.RENDER_API_KEY;
-    delete process.env.RENDER_API_KEY_1;
-    delete process.env.RENDER_API_KEY_4;
+    for (const [key, value] of saved) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   }
 
   // ── 2. buildRenderLogQuery (pure) ────────────────────────────────────────

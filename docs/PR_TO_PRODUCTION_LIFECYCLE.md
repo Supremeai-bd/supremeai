@@ -1,18 +1,17 @@
 # SupremeAI Universal CI/CD, Lowest-Runtime & Production Deployment Architecture (Single Door SSOT)
 
-> **SSOT Notice:** এই ডকুমেন্টটি SupremeAI ইকোসিস্টেমের **GitHub Actions, Local Host Runner (`local-pc`), Render CI Runner, Render Auto-Deployment, এবং Harness CD Engine**-এর একমাত্র ও প্রামাণ্য একক উৎস (Single Door SSOT)। বর্তমান ও ভবিষ্যতের যে কোনো পাইপলাইন (১,০০,০০০+ ওয়ার্কফ্লো, Dependabot, Dependency Graph, Maintenance Sweeps, Client Releases)—সকল ক্ষেত্রে এই আর্কিটেকচার অপরিবর্তনীয় সাংবিধানিক আইন হিসেবে প্রযোজ্য। পূর্বের সমস্ত বিচ্ছিন্ন ডকুমেন্টেশন এই একমাত্র ফাইলে একীভূত করা হলো।
+Current release policy for this monorepo. PRs run on GitHub-hosted runners;
+only trusted `main` verification may use the persistent personal runner.
+Routine PRs may auto-land; protected changes and production releases keep
+their existing approval gates.
 
 ---
 
 ## ১. মূল সাংবিধানিক উদ্দেশ্য (Prime Directive: Lowest Runtime & Zero Cloud Waste)
 
-1. **সর্বনিম্ন ক্লাউড মিনিটস খরচ (Lowest GitHub Runtime):** GitHub Actions ক্লাউড রানারের কাজ সীমাবদ্ধ থাকবে শুধুমাত্র প্রি-ফ্লাইট ট্রিগার ও অটো-মার্জ গেটকিপিং-এ। প্রতি পিআরে ক্লাউড রানটাইম উইন্ডো **সর্বোচ্চ ১০–২০ সেকেন্ড**।
-2. **১০০% স্বয়ংক্রিয় মেইন মার্জ (Zero Manual Merge — 100% Autonomous):** `main` ব্রাঞ্চে কোড মার্জ কোনো মানুষের ম্যানুয়াল কাজ নয়। সব টেস্ট (Tier 1 + Tier 2) ১০০% সবুজ হলে স্বয়ংক্রিয়ভাবে স্কোয়াশ মার্জ হবে; একটি টেস্টও ফেইল করলে মার্জ কঠোরভাবে ব্লক থাকবে।
-3. **জিরো-আনচেকড পিআর (Zero Unchecked PRs Invariant):** কোনো পিআরে যেন `Checks 0` না দেখায়। রিপোজিটরির যেকোনো ফাইলে পরিবর্তন আসলেই সিআই পাইপলাইন সক্রিয় হবে এবং স্ট্যাটাস চেক রান সম্পন্ন করবে।
-4. **লোকাল রানার প্রথম অগ্রাধিকার (Priority 1: Local Host `local-pc`):** পিআর পুশ হওয়া মাত্রই ৯০–৯৫% ভারী টেস্ট ব্যাটারি, কম্পাইল ও ডকার বিল্ড লোকাল মেশিনে চলবে (০ ক্লাউড মিনিটস খরচ)।
-5. **একক সার্বজনীন নীতি বনাম নিয়মের বিস্তার রোধ (Single Universal Rule — Zero Rule Proliferation):** একই ধরনের ১০, ১০,০০০ বা ১০,০০,০০০ (১০ লক্ষ) পাইপলাইন বা টাস্ক থাকুক না কেন, তাদের জন্য ১০ লক্ষ আলাদা নিয়ম তৈরি নিষিদ্ধ। **সবগুলো কাজ একটিমাত্র সার্বজনীন নিয়ম মেনে চলবে।**
-6. **সুপ্রিমএআই এআই ভেরিফিকেশন গেট (AI Semantic Gate via SupremeAI Key Pool):** কোড রিফ্লেকশন ও টেস্টের পাশাপাশি সুপ্রিমএআই-এর নিজস্ব ইন্টারনাল API Key Pool ব্যবহার করে এলএলএম দ্বারা পিআর ডিফ ও সিকিউরিটি বাউন্ডারি স্বয়ংক্রিয়ভাবে অডিট করার সুনির্দিষ্ট গেট।
-7. **হারনেস সিডি ইঞ্জিন ও অটো-রোলব্যাক (Harness CD Engine):** প্রোডাকশন ডিপ্লয়মেন্ট রেন্ডার ও ক্লাউডফ্লেয়ারে রোলআউট করবে হারনেস; লাইভ এন্ডপয়েন্টে অস্বাভাবিক ল্যাটেন্সি বা ক্র্যাশ ধরা পড়া মাত্রই জিরো-টাচ স্বয়ংক্রিয় রোলব্যাক (Auto-Rollback) কার্যকর হবে।
+1. **দ্রুত যাচাই:** হোস্টেড PR-এ focused tests, আর পূর্ণ suite আলাদা schedule-এ। সব change-এ full Docker build নয়।
+2. **স্বয়ংক্রিয় মার্জ:** সব আবশ্যিক ফল সফল এবং পরীক্ষিত merge SHA বর্তমান হলে routine PR squash-merge হয়। Protected path-এ owner approval অপরিবর্তিত।
+3. **আলাদা deploy প্রমাণ:** কেবল বদলানো সার্ভিস deploy হয়। Runtime SHA এবং health আলাদাভাবে যাচাই হয়; অসুস্থ release নিজে থেকে rollback করে না।
 
 ---
 
@@ -22,7 +21,7 @@
 
 | ব্যাতিক্রম (Exception) | প্রযোজ্য ক্ষেত্র | কেন এটি ব্যাতিক্রম? (Rationale) | বিকল্প সুরক্ষা মেকানিজম |
 | :--- | :--- | :--- | :--- |
-| **Fork PR Cloud Sandbox** | বহিরাগত বা ফর্ক করা পিআর | ফর্ক পিআরে থার্ড-পার্টির অপিরীক্ষিত কোড থাকে, যা লোকাল মেশিনে চালালে লোকাল হোস্টের নিরাপত্তা ঝুঁকিতে পড়তে পারে। | লোকাল রানারের পরিবর্তে নিরাপদ ও আইসোলেটেড GitHub Cloud Runner (`ubuntu-24.04`)-এ চলবে। |
+| **PR Cloud Sandbox** | সব পিআর, একই রিপোজিটরির PR-ও | ফর্ক পিআরে থার্ড-পার্টির অপিরীক্ষিত কোড থাকে, যা লোকাল মেশিনে চালালে লোকাল হোস্টের নিরাপত্তা ঝুঁকিতে পড়তে পারে। | লোকাল রানারের পরিবর্তে নিরাপদ ও আইসোলেটেড GitHub Cloud Runner (`ubuntu-24.04`)-এ চলবে। |
 | **Short Preflight Gate (<30s)** | সিনট্যাক্স, লিন্ট ও রানার প্রাক-যাচাই | লোকাল রানার সচল আছে কি না তা আগে যাচাই করতে ১০-১৫ সেকেন্ডের একটি লাইটওয়েট ক্লাউড চেক প্রয়োজন। | ডিপেনডেন্সি বিল্ড সম্পূর্ণ বাদ দিয়ে শুধু রফ ও পাইথন রানার স্ক্রিপ্ট চালানো হয়। |
 
 ---
@@ -41,7 +40,7 @@
 > 4. **Job 4: যাচাইকৃত মার্জ সিদ্ধান্ত (`PR Landing Decision`)**
 >    - যাচাইকৃত সাধারণ PR স্বয়ংক্রিয়ভাবে স্কোয়াশ মার্জ হবে। সুরক্ষিত পরিবর্তনে আগে অনুমোদিত owner-এর সম্মতি লাগবে।
 > 5. **ডিপ্লয়মেন্ট স্বাধীনতা (Deployment Independence Invariant):**  
->    - প্রোডাকশন ডিপ্লয়মেন্ট (`deploy-render-services`, `deploy-cloudflare`, `deploy-vercel`, `Harness CD`) এই রানার হায়ারার্কি অনুসরণ করে না। ডিপ্লয়মেন্ট সবসময় সরাসরি ক্লাউড রানারে (`ubuntu-latest`) এপিআই কলের মাধ্যমে চলে।
+>    - প্রোডাকশন ডিপ্লয়মেন্ট (`deploy-render-services`, `deploy-cloudflare`, `deploy-vercel`) এই রানার হায়ারার্কি অনুসরণ করে না। ডিপ্লয়মেন্ট সবসময় সরাসরি ক্লাউড রানারে (`ubuntu-latest`) এপিআই কলের মাধ্যমে চলে।
 
 ---
 
@@ -49,45 +48,18 @@
 
 ```mermaid
 flowchart TD
-    PR["1. PR Created / Pushed\n(Any of 100,000+ Workflows)"] --> TierCheck{"2. Pre-Check: Local Host Runner Online?\n(resolve_execution_tier.py)"}
-    
-    TierCheck -- "🟢 Online (Main Path: 95% Work)" --> LocalPC["Priority 1: Local Host Runner (local-pc)\n• Windows PC Native Execution\n• Full Heavy Battery + 11,000+ Tests\n• Local Docker Build (0 Render Mins)\n• 0 Cloud Minutes Spent"]
-    
-    LocalPC --> LocalPassed{"Local Tests Green?"}
-    
-    TierCheck -- "🔴 Offline / Quota Fallback" --> CheckRender{"Render Build Quota >= 50m?"}
-    
-    CheckRender -- "Yes" --> RenderCI["Priority 2 (1st Alternative): Render CI Runner\n• Service: srv-dbl8tbmtlv9c73bbkvqg\n• Render 500m Monthly Free Pool\n• Saves GitHub Cloud Allowance"]
-    
-    CheckRender -- "No" --> GitHubHeavy["Priority 3 (2nd/3rd Alternative): GitHub Cloud Fallback\n• Ubuntu 24.04 Runner\n• Full Battery as Last Line of Defense"]
-    
-    RenderCI --> LocalPassed
-    GitHubHeavy --> LocalPassed
-    
-    LocalPassed -- "Failed or incomplete" --> BlockMerge["BLOCKED — no merge or approval request"]
-
-    LocalPassed -- "Required checks passed" --> Landing{"Verify the PR head, tested merge revision and changed paths"}
-    Landing -- "Stale or unknown" --> BlockMerge
-    Landing -- "OWNER_REVIEW" --> Owner["Existing production environment approval"]
-    Landing -- "AUTO_MERGE" --> CloudMerge["Recheck the candidate and squash merge"]
-    Owner -- "Approved" --> CloudMerge
-    
-    CloudMerge --> PostMerge["3. Post-Merge CD Orchestration\n(Harness CD / Render Parallel Matrix)"]
-    
-    subgraph CD_Matrix["Production Rollout Matrix"]
-        PostMerge --> D_Core["Core API (srv-dau7c9ek...)"]
-        PostMerge --> D_API["Gateway API (srv-dbappass...)"]
-        PostMerge --> D_Scraper["Scraper Node (srv-dabm7gfq...)"]
-        PostMerge --> D_Brain["Tiny Brain (srv-dbirv58a...)"]
-        PostMerge --> D_Worker["Async Worker (srv-dabm7evq...)"]
-        PostMerge --> D_CF["Cloudflare Edge Keepwarm & Studio Proxy"]
-        PostMerge --> D_Vercel["Vercel Frontend Hook"]
-    end
-    
-    CD_Matrix --> LiveProbe{"Live 2xx Health Probe\n(/healthz & latency)"}
-    LiveProbe -- "Healthy (2xx)" --> Stable["Production Live & Stable 🎉"]
-    LiveProbe -- "5xx / Latency Spike" --> AutoRollback["Harness Instant Auto-Rollback 🚨\nReverts to Last Known Good Revision"]
+    PR["PR opened, updated or ready"] --> Hosted["GitHub-hosted syntax, safety and focused battery"]
+    Hosted --> Check{"PR Verification passed?"}
+    Check -- "No" --> Block["Blocked: no merge"]
+    Check -- "Yes, ready same-repo PR" --> Policy["Trusted-base decision on tested merge SHA"]
+    Policy -- "Protected paths" --> Owner["Owner approval"] --> Land["Recheck exact candidate and squash merge"]
+    Policy -- "Routine" --> Land
+    Policy -- "Stale / unknown" --> Block
+    Land --> Plan["main: plan changed service targets"]
+    Plan --> Deploy["Per-service deploy + SHA attestation + health canary"]
+    Trusted["Trusted main schedule / verification dispatch"] --> Runner["Local if available; otherwise hosted. Render CI dormant."]
 ```
+
 
 ---
 
@@ -97,7 +69,7 @@ flowchart TD
 - **উদ্দেশ্য:** দ্রুত পিআরের সিনট্যাক্স, বাউন্ডারি গার্ড ও রানার স্ট্যাটাস যাচাই করা।
 - **জব:** `fast-gate` এবং `runtime-readiness`।
 - **রানটাইম অপটিমাইজেশন:** কোনো ভারি ডিপেনডেন্সি ইনস্টল না করে সরাসরি পাইথন স্ক্রিপ্ট ও `ruff` চালাবে।
-- **রানার স্ট্যাটাস কুয়েরি:** GitHub API-এর মাধ্যমে `local-pc` সেলফ-হোস্টেড রানার অনলাইনে আছে কি না নিশ্চিত করা।
+- **রানার স্ট্যাটাস কুয়েরি:** কেবল trusted-main verification-এ `local-pc` প্রোব হয়।
 
 ### স্তর ২: ভারী টেস্ট ব্যাটারি (কঠোর ক্রমানুসারে Tier 1-এর পরে)
 
@@ -114,22 +86,23 @@ flowchart TD
 - **ক্লাউড খরচ:** **০ মিনিট (Zero Cloud Minutes)**।
 - **অ্যাটেস্টেশন:** সফল হলে MCP Tower-এ রেজাল্ট প্রকাশ করে (`publish_ci_attestation.py`)।
 
-#### 🥈 অগ্রাধিকার ২ (১ম বিকল্প): Render CI Runner
-- **কখন চলবে:** লোকাল পিসি বন্ধ বা স্লিপে থাকলে।
-- **টার্গেট সার্ভিস:** `srv-dbl8tbmtlv9c73bbkvqg` (Render ফ্রি টায়ার কোটায় ব্যাকড)।
-- **টাইমআউট ও বাজেট:** `timeout-minutes: 20` (ভারী টেস্ট ব্যাটারি রেন্ডার কন্টেইনারে সম্পন্ন হতে ৩–৮ মিনিট সময় নিতে পারে; ২০ মিনিট ফেইল-সেফ টাইমআউট)।
-- **সুবিধা:** GitHub Actions-এর ২০০০ মিনিটের ক্লাউড কোটা অক্ষত থাকে।
+#### অগ্রাধিকার ২ — Render CI (বর্তমানে নিষ্ক্রিয়)
+Render থেকে নির্ভরযোগ্য build-quota তথ্য না পাওয়ায় resolver `known=False` ফেরত দেয়।
+Quota অজানা হলে runner probe বা build নয়। Suspended runner বা metadata-only
+ফলকে test evidence ধরা হয় না। Priority 4-ও কেবল নির্ভরযোগ্য quota সংকেত পেলে প্রযোজ্য।
 
-#### 🥉 অগ্রাধিকার ৩ ও ৪ (২য় ও ৩য় বিকল্প): GitHub Cloud Fallback
-- **কখন চলবে:** লোকাল হোস্ট ও Render CI উভয়ই অনুপলব্ধ থাকলে।
-- **টার্গেট রানার:** `ubuntu-24.04` (Fast, isolated fallback)।
-- **উদ্দেশ্য:** কোনো অবস্থাতেই যেন পিআর আটকে না থাকে (Fail-safe continuity)।
+#### অগ্রাধিকার ৩ — সক্রিয় GitHub-hosted fallback
+PR (same-repository সহ) ব্যক্তিগত `local-pc`-তে চলে না; cloud fallback ব্যবহার করে।
+Priority 1 শুধু বিশ্বস্ত `main`-এর scheduled/verification dispatch-এ প্রযোজ্য।
+Unified-এর focused suite মার্জ যাচাই করে; আলাদা [Full Test Battery](../.github/workflows/full-test-suite.yml)
+প্রতিদিন এবং test workflow/runtime lock বদলালে `main`-এ স্বয়ংক্রিয়ভাবে Core, Gateway,
+repo suite, Windows path contracts ও Tower যাচাই করে। ফল আলাদাভাবে প্রকাশিত হয়।
 
 ---
 
 ## ৪. স্তর ২খ: যাচাইকৃত PR-এর মার্জ সিদ্ধান্ত
 
-`main` লক্ষ করে একই রিপোজিটরির PR-এ `PR Landing Decision` এই রান-এর নির্দিষ্ট job result দেখে। Runner preflight, Syntax & Governance এবং GoldenEval gate সফল হতে হবে (লাইভ GoldenEval endpoint কনফিগার করা থাকলেই লাইভ পরীক্ষা চলে)। লোকাল combined battery সফল হলে আলাদা cloud fast/readiness job দরকার নেই। অন্যথায় cloud fast/readiness এবং নির্বাচিত heavy lane সফল হতে হবে। Render CI একই merge revision-এর প্রমাণ দিতে না পারলে কেবল অনুমোদিত fallback-এর সফল ফল গ্রহণযোগ্য; Render-এর প্রকৃত build failure fallback দিয়ে মওকুফ হয় না।
+`PR Verification` একই রান-এর syntax, readiness, safety, GoldenEval এবং hosted battery ফল পরীক্ষা করে। Skipped বা failed job গ্রহণযোগ্য নয়। লাইভ GoldenEval endpoint না থাকলে শুধু offline fixture check চলে। তারপর ready same-repo PR-এর `PR Landing Decision` base, head এবং পরীক্ষিত merge SHA আবার যাচাই করে।
 
 Draft PR-এ CI checks চলবে, কিন্তু `PR Landing Decision` skip হবে।
 `ready_for_review` ইভেন্টে নতুন run সেই সিদ্ধান্ত নেবে। Trusted guard তখনও
@@ -170,29 +143,25 @@ Draft PR-এ CI checks চলবে, কিন্তু `PR Landing Decision` sk
 
 ## ৬. হারনেস সিডি ও প্রোডাকশন ডিপ্লয়মেন্ট (Cloud-Native Direct API Deployment)
 
-> **🚀 Deployment Independence Invariant:** প্রোডাকশন ডিপ্লয়মেন্ট (`Deploy changed Render services`, `Deploy Cloudflare Edge Mesh`, `Deploy Vercel Frontend Hook`, `Harness CD Rollout`) এই ৩-টায়ার/৪-টায়ার রানার হায়ারার্কি **অনুসরণ করে না**। 
+> **🚀 Deployment Independence Invariant:** প্রোডাকশন ডিপ্লয়মেন্ট (`Deploy changed Render services`, `Deploy Cloudflare Edge Mesh`, `Deploy Vercel Frontend Hook`) এই ৩-টায়ার/৪-টায়ার রানার হায়ারার্কি **অনুসরণ করে না**।
 > - **কেন?** ডিপ্লয়মেন্ট হলো ক্লাউড API (Render, Cloudflare, Vercel) অর্কেস্ট্রেশন। এটি লোকাল পিসিতে চালানো বা লোকাল পিসির জন্য অপেক্ষা করানো সম্পূর্ণ নিষিদ্ধ (অন্যথায় ডেভেলপার ল্যাপটপ বন্ধ করলে প্রোডাকশন ডিপ্লয় আটকে যাবে)।
 > - **কোথায় চলে?** ডিপ্লয় জবসমূহ সবসময় সরাসরি ক্লাউড রানারে (`ubuntu-latest`) চলে এবং ক্লাউড এপিআই-তে অনুমোদিত টোকেনসহ ডিপ্লয় ট্রিগার ও লাইভ হেলথ ভেরিফিকেশন পরিচালনা করে।
 
-**Render release evidence:** the Unified Pipeline deploys the exact `main` SHA
-from push or an explicit dispatch from `main`. The production job records the
-triggered deploy ID; attestation matches that `live` record and the runtime
-`/release` SHA. Canaries are separate. A suspended or metadata-only CI runner is
-not a verified runtime and does not stand in for the full test battery. See the
-[manual rollout checklist](operations/manual-rollout-checklist.md) for GitHub
-settings, staging and rollback evidence.
+**Render release evidence:** forward deploy and rollback resolve the target and
+credential name from [the service registry](../config/service_registry.yaml).
+Each matrix job gets only its assigned deploy credential. CI never copies Vault,
+provider, database or GitHub credentials to a service. For MCP the canonical
+`RENDER_MCP_SERVICE_ID` selects the replacement Paykari service; CI resolves its
+HTTPS host from the Render response for that ID. The old service/key is not tried.
 
-### ধাপ ১: লোকাল ডকার বিল্ড ও GHCR পুশ (Zero Render Build Minutes)
-- লোকাল রানারে কোড মার্জ হওয়ার সাথে সাথে ডকার ইমেজ বিল্ড হয়ে `ghcr.io/supremeai-bd/supremeai:latest`-এ পুশ হবে।
-- রেন্ডার সরাসরি প্রি-বিল্ট ডকার ইমেজ টানবে, ফলে রেন্ডারের ৫০০ মিনিটের ফ্রি বিল্ড কোটার ১ মিনিটও অপচয় হবে না।
+The trigger requests the exact SHA, then the attestor matches the triggered
+`deploy_id`, its `live` commit and the runtime `/release` SHA. Every runtime matrix
+job also checks health if it could resolve its bound URL, even when another deploy
+fails. The summary separates deploy, attestation and health: a healthy older
+revision does not verify a failed release. Rollback stays explicitly approved
+and exact-SHA; automatic schema or production rollback is not claimed.
 
-### ধাপ ২: হারনেস ডিপ্লয়মেন্ট অর্কেস্ট্রেশন
-- **কানেক্টর:** হারনেস `default_project`-এ পূর্বে কনফিগারকৃত GitHub Connector, Render API, Cloudflare ও Vercel কানেক্টর ব্যবহার করবে।
-- **ট্রিগার:** GitHub Actions মার্জের পর মাত্র ১টি লাইটওয়েট ওয়েবহুক কল করে হারনেস সিডি শুরু করবে।
-
-### ধাপ ৩: লাইভ প্রোব ও অটো-রোলব্যাক (Instant Fail-Safe)
-- ডিপ্লয়মেন্ট শেষে লাইভ অ্যান্ডপয়েন্টে (`https://supremeai.onrender.com/healthz`) কন্টিনিউয়াস হেলথ প্রোব চলবে।
-- ডিপ্লয় পরবর্তী ৫ মিনিটে যদি কোনো ক্র্যাশ (5xx), মেমোরি লিক বা রেসপন্স টাইম অস্বাভাবিক বাড়ে, হারনেস স্বয়ংক্রিয়ভাবে পূর্ববর্তী স্টেবল রিলিজে রোলব্যাক করবে।
+See [automated verification and one-time owner setup](operations/manual-rollout-checklist.md).
 
 ---
 
@@ -208,10 +177,10 @@ settings, staging and rollback evidence.
 
 | সমস্যা | কারণ | স্বয়ংক্রিয় প্রতিকার |
 | :--- | :--- | :--- |
-| `MCP_TOWER_ATTESTATION_URL not configured` | রিপো ভ্যারিয়েবল অনুপস্থিত ছিল | রিপো ভ্যারিয়েবলে `https://supremeai-mcp-tower-live.onrender.com/api/ci/attestation` কনফিগার করা হয়েছে। |
+| `MCP_TOWER_ATTESTATION_URL not configured` | রিপো ভ্যারিয়েবল অনুপস্থিত ছিল | Tower publication ঐচ্ছিক; সেট করা থাকলে বর্তমান backend URL ব্যবহার করতে হবে। |
 | PR-এ `Checks 0` দেখানো (যেমন PR #543) | `pull_request.paths` ফিল্টারে `.github` অনুপস্থিত ছিল | `unified-pipeline.yml`-এ সব পিআরের জন্য চেক বাধ্যতামূলক করা হয়েছে, কোনো পিআর আনচেকড থাকবে না। |
-| Render ডিপ্লয় এটেস্টেশনে `build_in_progress` ফেইলিওর (PR #542) | এটেস্টেশন স্ক্রিপ্টে পোলিং লুপ ছিল না | `render_deploy_attestation.py`-এ ১৫ সেকেন্ড অন্তর টার্মিনাল স্টেট (`live`) পোলিং কার্যকর করা হয়েছে। |
+| Render ডিপ্লয় এটেস্টেশনে `build_in_progress` ফেইলিওর (PR #542) | এটেস্টেশন স্ক্রিপ্টে পোলিং লুপ ছিল না | `render_trigger_deploy.py` exact deploy ID পোল করে; attestor provider/runtime SHA যাচাই করে। |
 | লোকাল রানার অনলাইন থাকা সত্ত্বেও ফলব্যাকে যাওয়া | Actions API-তে `actions: read` পারমিশন ঘাটতি | `.github/workflows/unified-pipeline.yml`-এ পারমিশন নিশ্চিত করা হয়েছে। |
 | ফর্ক পিআরে লোকাল রানার চলা | সিকিউরিটি থ্রেট | ফর্ক পিআর স্বয়ংক্রিয়ভাবে ক্লাউড ফলব্যাকে চলবে, লোকাল মেশিনে কখনো চলবে না (অনুমোদিত ব্যাতিক্রম)। |
-| Render কোটা সংকট | অতিরিক্ত বিল্ড মিনিট খরচ | `render_quota_preflight.py` প্রতি বিল্ডের আগে রেন্ডার কোটা অডিট করে। |
+| Render কোটা সংকট | অতিরিক্ত বিল্ড মিনিট খরচ | Quota অজানা হলে Priority 2 build চালানো হয় না। Priority 3 checkout/test Render quota ব্যবহার করে না। |
 | টেস্ট ফেইল সত্ত্বেও মার্জের চেষ্টা | আনঅথরাইজড বাইপাস | ইনভেরিয়েন্ট #৪ ও #১২ অনুযায়ী মার্জ গেট ১০০% সবুজ টেস্ট ছাড়া মার্জ ব্লক রাখে। |

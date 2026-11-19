@@ -1,24 +1,9 @@
 #!/usr/bin/env python3
-"""
-Shared Render deploy trigger script used by all CI deploy jobs
-(Core / Worker / Scraper / MCP Control Tower).
+"""Trigger and optionally wait for a Render deploy using only the assigned service key.
 
-Reads configuration from environment variables so no secret interpolation
-or f-string quoting inside a `python -c "..."` YAML block is ever needed:
-
-    RENDER_API_KEY   - Render API key (required to actually trigger a deploy)
-    RENDER_SVC_ID    - Render service ID to deploy (if unset, the job is skipped)
-
-Note: For the Service Modularization/OOM Mitigation feature, ensure that the
-Render Dashboard is configured with the `SUPREMEAI_SERVICE_ROLE` environment
-variable for each respective service (`core`, `worker`, `scraper`).
-
-Exits 0 when a deploy is skipped (missing service id) or successfully
-triggered. Exits non-zero after exhausting retries on failure.
-
-DRY Phase 2-C3: transport migrated onto scripts/lib/render_client.py —
-the retry policy (5 attempts / 10 s) stays here because it is this job's
-own concern; auth/URL/error normalization is the client's.
+Runtime credentials are provisioned on the service, never read or written by CI.
+When RENDER_HEALTH_PATH is set, resolve release and canary URLs from the exact
+service ID in Render's metadata. No hardcoded host or other account is tried.
 """
 
 from __future__ import annotations
@@ -46,261 +31,97 @@ POLL_TIMEOUT_SECONDS = int(os.environ.get("RENDER_WAIT_TIMEOUT_SECONDS", "660"))
 FAIL_STATES = {"build_failed", "update_failed", "deactivated", "canceled"}
 OK_STATES = {"live"}
 
-CANDIDATE_KEY_ENVS = (
-    "RENDER_API_KEY_1",
-    "RENDER_API_KEY_2",
-    "RENDER_API_KEY_3",
-    "RENDER_API_KEY_4",
-    "RENDER_API_KEY_5",
-    "RENDER_API_KEY_6",
-    "RENDER_API_KEY_PAYKARI",
-    "RENDER_API_KEY",
-)
-
-BOOTSTRAP_ENV_SYNC_KEYS = (
-    "INFISICAL_CLIENT_ID",
-    "INFISICAL_CLIENT_SECRET",
-    "INFISICAL_PROJECT_ID",
-    "INFISICAL_PROJECT_SLUG",
-    "SUPABASE_URL",
-    "SUPABASE_SERVICE_ROLE_KEY",
-    "SUPABASE_KEY",
-    "CLOUDFLARE_API_TOKEN",
-    "CLOUDFLARE_ACCOUNT_ID",
-    "VERCEL_TOKEN",
-    "GEMINI_API_KEY",
-    "GROQ_API_KEY",
-    "OPENAI_API_KEY",
-    "RENDER_API_KEY_1",
-    "RENDER_API_KEY_2",
-    "RENDER_API_KEY_3",
-    "RENDER_API_KEY_4",
-    "RENDER_API_KEY_5",
-    "RENDER_API_KEY_6",
-    "RENDER_API_KEY_PAYKARI",
-)
+def _write_output(**fields: str) -> None:
+    if output := os.environ.get("GITHUB_OUTPUT"):
+        with open(output, "a", encoding="utf-8") as stream:
+            for name, value in fields.items():
+                stream.write(f"{name}={value}\n")
 
 
 def _allow_ci_fallback() -> None:
     """Mark only strict CI attempts without a valid result as eligible for fallback."""
-    output = os.environ.get("GITHUB_OUTPUT")
-    if REQUIRE_EXPECTED_SHA and output:
-        with open(output, "a", encoding="utf-8") as f:
-            f.write("fallback_allowed=true\n")
+    if REQUIRE_EXPECTED_SHA:
+        _write_output(fallback_allowed="true")
 
 
-def _collect_candidate_keys(preferred_env: str) -> list[tuple[str, str]]:
-    """Return deduplicated (env_name, key_value) pairs starting with preferred_env."""
-    seen: set[str] = set()
-    pairs: list[tuple[str, str]] = []
-    for env_name in (preferred_env, *CANDIDATE_KEY_ENVS):
-        if not env_name:
-            continue
-        val = os.environ.get(env_name, "").strip()
-        if val and val not in seen:
-            seen.add(val)
-            pairs.append((env_name, val))
-    return pairs
+def _unavailable(reason: str) -> int:
+    print(f"::error::{reason}")
+    _allow_ci_fallback()
+    return 2 if REQUIRE_EXPECTED_SHA else 1
 
 
-def _resolve_owning_client(
-    svc_id: str, candidate_keys: list[tuple[str, str]]
-) -> tuple[str, RenderClient]:
-    """Probe candidate API keys via get_service(svc_id) to find the owning workspace key."""
-    for env_name, api_key in candidate_keys:
-        probe = RenderClient(api_key=api_key, service_id=svc_id)
-        try:
-            probe.get_service(svc_id)
-            return env_name, probe
-        except RenderApiError as exc:
-            if exc.status in (401, 403, 404):
-                continue
-            return env_name, probe
-        except Exception:
-            continue
-    first_env, first_key = candidate_keys[0]
-    return first_env, RenderClient(api_key=first_key, service_id=svc_id)
+def _suspended(svc_id: str) -> int:
+    _write_output(deploy_status="not_run")
+    if REQUIRE_EXPECTED_SHA and os.environ.get("RENDER_AUXILIARY") != "1":
+        return _unavailable(f"Render service {svc_id} is suspended; no verified result.")
+    print(f"::warning::Render service {svc_id} is suspended; deployment not run.")
+    if gh_env := os.environ.get("GITHUB_ENV"):
+        with open(gh_env, "a", encoding="utf-8") as stream:
+            stream.write("RENDER_SERVICE_SUSPENDED=1\n")
+    return 0
 
 
-def _sync_bootstrap_env_vars(client: RenderClient, svc_id: str) -> None:
-    """Merge non-empty CI bootstrap env vars into the Render service before deploy (zero secret logging)."""
-    desired: dict[str, str] = {}
-    for key in BOOTSTRAP_ENV_SYNC_KEYS:
-        val = os.environ.get(key, "").strip()
-        if val:
-            desired[key] = val
-    # Ensure generic RENDER_API_KEY and GITHUB_TOKEN are also populated if fallback keys exist
-    if not desired.get("RENDER_API_KEY") and client.api_key:
-        desired["RENDER_API_KEY"] = client.api_key
-    gh_pat = (
-        os.environ.get("OPEN_SYNC_PAT", "").strip()
-        or os.environ.get("SYNC_PAT", "").strip()
-        or os.environ.get("SELF_HEAL_PAT", "").strip()
-    )
-    if gh_pat:
-        desired["GITHUB_PAT_PAYKARIBAZARONLINE"] = gh_pat
-        desired["GITHUB_TOKEN"] = gh_pat
-
-    if not desired:
-        return
-
-    try:
-        current_items = client.get_env_vars(svc_id, limit=100)
-        merged: dict[str, str] = {}
-        for item in current_items:
-            ev = item.get("envVar", item) if isinstance(item, dict) else {}
-            k = ev.get("key")
-            v = ev.get("value")
-            if k and v is not None:
-                merged[str(k)] = str(v)
-
-        added_or_updated: list[str] = []
-        for k, v in desired.items():
-            if merged.get(k) != v:
-                merged[k] = v
-                added_or_updated.append(k)
-
-        if added_or_updated:
-            payload = [{"key": k, "value": v} for k, v in merged.items()]
-            client.update_env_vars(svc_id, payload)
-            print(
-                f"Synced {len(added_or_updated)} bootstrap env var key(s) on {svc_id}: "
-                f"{', '.join(sorted(added_or_updated))}"
-            )
-        else:
-            print(f"Bootstrap env vars on {svc_id} already up-to-date ({len(desired)} checked).")
-    except Exception as exc:
-        print(f"::warning::Bootstrap env var sync skipped on {svc_id}: {exc}")
+def _service_origin(service: object, svc_id: str) -> str:
+    record = service.get("service", service) if isinstance(service, dict) else None
+    if not isinstance(record, dict) or record.get("id") != svc_id:
+        raise ValueError("Render returned a different service ID")
+    details = record.get("serviceDetails")
+    origin = details.get("url") if isinstance(details, dict) else None
+    if not isinstance(origin, str) or not re.fullmatch(r"https://[a-z0-9-]+\.onrender\.com/?", origin):
+        raise ValueError("Render service has no direct HTTPS onrender.com URL")
+    return origin.rstrip("/")
 
 
 def main() -> int:
-    svc_id = (os.environ.get("RENDER_SERVICE_ID", "") or os.environ.get("RENDER_SVC_ID", "")).strip()
-    key_env = os.environ.get("RENDER_API_KEY_ENV", "").strip() or "RENDER_API_KEY"
-    candidate_keys = _collect_candidate_keys(key_env)
-
-    if not svc_id:
-        if REQUIRE_EXPECTED_SHA:
-            print("::error::Strict CI deploy has no Render service ID; allow GitHub fallback.")
-            _allow_ci_fallback()
-            return 2
-        print("Skipping Render deploy - service ID not set")
-        return 0
-
-    if not candidate_keys:
-        if REQUIRE_EXPECTED_SHA:
-            print("::error::Strict CI deploy has no Render API key; allow GitHub fallback.")
-            _allow_ci_fallback()
-            return 2
-        print("Skipping Render deploy - RENDER_API_KEY not set")
-        return 0
+    svc_id = (os.environ.get("RENDER_SERVICE_ID") or os.environ.get("RENDER_SVC_ID", "")).strip()
+    api_key = os.environ.get("RENDER_API_KEY", "").strip()
+    if not re.fullmatch(r"srv-[a-z0-9]+", svc_id):
+        return _unavailable("A valid Render service ID is required.")
+    if not api_key:
+        return _unavailable("No Render credential configured for this service.")
 
     expected_sha = os.environ.get("EXPECTED_SHA", "").strip().lower()
     if REQUIRE_EXPECTED_SHA and not re.fullmatch(r"[0-9a-f]{40}", expected_sha):
-        print("::error::Strict deploy requires a full EXPECTED_SHA.")
-        _allow_ci_fallback()
-        return 2
+        return _unavailable("Strict deploy requires a full EXPECTED_SHA.")
     strict_sha = expected_sha if REQUIRE_EXPECTED_SHA else None
     commit_id = expected_sha or os.environ.get("GITHUB_SHA", "").strip() or None
+    client = RenderClient(api_key=api_key, service_id=svc_id)
 
-    active_env, client = _resolve_owning_client(svc_id, candidate_keys)
-    _sync_bootstrap_env_vars(client, svc_id)
-    key_idx = next(
-        (idx for idx, (env_name, _) in enumerate(candidate_keys) if env_name == active_env),
-        0,
-    )
+    if health_path := os.environ.get("RENDER_HEALTH_PATH", ""):
+        if not re.fullmatch(r"/[A-Za-z0-9_/-]+", health_path) or health_path.startswith("//"):
+            return _unavailable("Invalid Render canary path.")
+        try:
+            origin = _service_origin(client.get_service(svc_id), svc_id)
+        except (RenderApiError, OSError, ValueError):
+            return _unavailable(f"Cannot resolve release target for {svc_id} with its assigned Render credential.")
+        _write_output(release_url=f"{origin}/release", health_url=f"{origin}{health_path}")
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
             body = client.trigger_deploy(svc_id, commit_id=commit_id)
-            print(f"Deploy triggered via {active_env}:", body)
-            if not (RENDER_WAIT or REQUIRE_EXPECTED_SHA):
-                return 0
-            return wait_for_terminal_state(client, svc_id, body, expected_sha=strict_sha)
+            break
         except RenderApiError as exc:
             err_body = (exc.body or "").lower()
             if exc.status == 400 and "cannot deploy suspended service" in err_body:
-                if REQUIRE_EXPECTED_SHA and os.environ.get("RENDER_AUXILIARY") != "1":
-                    print(f"::error::Render service {svc_id} is suspended; no verified result.")
-                    _allow_ci_fallback()
-                    return 2
-                print(f"::warning::Render service {svc_id} is suspended; deployment not run.")
-                gh_env = os.environ.get("GITHUB_ENV")
-                if gh_env:
-                    try:
-                        with open(gh_env, "a", encoding="utf-8") as fh:
-                            fh.write("RENDER_SERVICE_SUSPENDED=1\n")
-                    except OSError:
-                        pass
-                return 0
+                return _suspended(svc_id)
+            if exc.status == 404 and "does not have a commit" in err_body:
+                return _unavailable(f"Render service cannot build {commit_id}; refusing branch-HEAD fallback.")
+            # No credential discovery or retries on permanent client errors.
+            if exc.status not in (0, 408, 429) and exc.status < 500:
+                return _unavailable(f"Render rejected the deploy for {svc_id} (HTTP {exc.status}).")
+            print(f"Render trigger attempt {attempt}/{MAX_ATTEMPTS} failed (status {exc.status}).")
+        except (OSError, ValueError):
+            print(f"Render trigger attempt {attempt}/{MAX_ATTEMPTS} did not return a valid response.")
+        if attempt == MAX_ATTEMPTS:
+            return _unavailable(f"Render did not return a deploy for {svc_id}.")
+        time.sleep(RETRY_DELAY_SECONDS)
+    else:
+        return 1
 
-            if exc.status == 404 and "does not have a commit" in err_body and commit_id is not None:
-                if REQUIRE_EXPECTED_SHA:
-                    print(f"::error::Render CI service cannot build the required commit {commit_id}; refusing branch-HEAD fallback.")
-                    _allow_ci_fallback()
-                    return 2
-                print(
-                    f"::warning::Service {svc_id} does not index commit {commit_id}; "
-                    f"retrying deploy trigger at branch HEAD (commit_id=None)."
-                )
-                commit_id = None
-                try:
-                    body = client.trigger_deploy(svc_id, commit_id=None)
-                    print(f"Deploy triggered (branch HEAD) via {active_env}:", body)
-                    if not RENDER_WAIT:
-                        return 0
-                    return wait_for_terminal_state(client, svc_id, body)
-                except RenderApiError as inner_exc:
-                    exc = inner_exc
-                    err_body = (exc.body or "").lower()
-
-            if exc.status == 404 and "not found: service" in err_body:
-                matched_client = None
-                while key_idx + 1 < len(candidate_keys):
-                    key_idx += 1
-                    next_env, next_key = candidate_keys[key_idx]
-                    probe_client = RenderClient(api_key=next_key, service_id=svc_id)
-                    try:
-                        body = probe_client.trigger_deploy(svc_id, commit_id=commit_id)
-                        active_env = next_env
-                        client = probe_client
-                        matched_client = probe_client
-                        print(f"Deploy triggered after key discovery via {active_env}:", body)
-                        break
-                    except RenderApiError as probe_exc:
-                        probe_body = (probe_exc.body or "").lower()
-                        if probe_exc.status == 404 and "does not have a commit" in probe_body:
-                            if REQUIRE_EXPECTED_SHA:
-                                print(f"::error::Render CI service cannot build the required commit {commit_id}; refusing branch-HEAD fallback.")
-                                _allow_ci_fallback()
-                                return 2
-                            body = probe_client.trigger_deploy(svc_id, commit_id=None)
-                            active_env = next_env
-                            client = probe_client
-                            matched_client = probe_client
-                            commit_id = None
-                            print(f"Deploy triggered (branch HEAD) after key discovery via {active_env}:", body)
-                            break
-                        continue
-                if matched_client is not None:
-                    if not (RENDER_WAIT or REQUIRE_EXPECTED_SHA):
-                        return 0
-                    return wait_for_terminal_state(
-                        matched_client, svc_id, body, expected_sha=strict_sha,
-                    )
-
-            print(f"Attempt {attempt}/{MAX_ATTEMPTS} failed with HTTP {exc.status}: {exc.body or exc}")
-            if attempt == MAX_ATTEMPTS:
-                _allow_ci_fallback()
-                return 2 if REQUIRE_EXPECTED_SHA else 1
-            time.sleep(RETRY_DELAY_SECONDS)
-        except Exception as exc:
-            print(f"Attempt {attempt}/{MAX_ATTEMPTS} unexpected transport error: {exc}")
-            if attempt == MAX_ATTEMPTS:
-                _allow_ci_fallback()
-                return 2 if REQUIRE_EXPECTED_SHA else 1
-            time.sleep(RETRY_DELAY_SECONDS)
-
-    return 1
+    if not (RENDER_WAIT or REQUIRE_EXPECTED_SHA):
+        print(f"Deploy triggered for {svc_id} (not verified).")
+        return 0
+    return wait_for_terminal_state(client, svc_id, body, expected_sha=strict_sha)
 
 
 def deploy_record(payload: object) -> dict:
@@ -335,13 +156,14 @@ def wait_for_terminal_state(
         print("Deploy trigger response carried no id — cannot poll; treating as triggered (legacy behavior)")
         return 0
 
+    _write_output(deploy_id=deploy_id)
     deadline = time.monotonic() + POLL_TIMEOUT_SECONDS
     last = None
     while time.monotonic() < deadline:
         try:
             deploy = client.get_deploy(deploy_id, svc_id)
-        except Exception as exc:
-            print(f"poll error (will retry): {exc}")
+        except (RenderApiError, OSError, ValueError):
+            print("Render deploy poll failed; will retry.")
             time.sleep(POLL_INTERVAL_SECONDS)
             continue
         deploy = deploy_record(deploy)
@@ -352,9 +174,7 @@ def wait_for_terminal_state(
                     print("::error::Live Render deploy did not match the triggered ID and commit.")
                     _allow_ci_fallback()
                     return 2
-                if output := os.getenv("GITHUB_OUTPUT"):
-                    with open(output, "a", encoding="utf-8") as stream:
-                        stream.write(f"verified_sha={expected_sha}\ndeploy_id={deploy_id}\n")
+                _write_output(verified_sha=expected_sha)
             print(f"Deploy {deploy_id} reached terminal state: live ✓")
             return 0
         if last in FAIL_STATES:

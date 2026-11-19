@@ -118,3 +118,16 @@ def test_render_canary_critical_service_failure_blocks(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert "Render canary failed:" in captured.err
     assert "primary: HTTP Error 500: Internal Server Error" in captured.err
+
+
+def test_matrix_mcp_canary_is_critical_and_rejects_redirects(monkeypatch):
+    monkeypatch.setenv("RENDER_CANARY_URL", "https://replacement.onrender.com/health")
+    monkeypatch.setenv("RENDER_SERVICE_NAME", "mcp")
+    monkeypatch.setenv("RENDER_CANARY_URLS_JSON", '[{"name":"old","url":"https://old.onrender.com/health"}]')
+    reply = MagicMock()
+    reply.status = 200
+    reply.geturl.return_value = "https://old.onrender.com/health"
+    reply.__enter__.return_value = reply
+    with patch("urllib.request.urlopen", return_value=reply) as probe, patch("time.sleep"):
+        assert render_canary.main() == 1
+    assert all(call.args[0].full_url == "https://replacement.onrender.com/health" for call in probe.call_args_list)

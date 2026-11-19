@@ -4,25 +4,7 @@
 # পিউর/ডিটারমিনিস্টিক মেথডগুলো (সিকিউরিটি স্ক্যান, ভালনারেবিলিটি ম্যাচিং,
 # অ্যানোমালি ডিটেকশন, স্কিল-আইডি ভ্যালিডেশন) কভার করে।
 
-import sys
 from unittest.mock import MagicMock
-
-# Import guard: agents package init may import optional google.genai or DB drivers.
-sys.modules.setdefault("google", MagicMock())
-sys.modules.setdefault("google.genai", MagicMock())
-for _pkg in (
-    "sqlalchemy",
-    "sqlalchemy.orm",
-    "sqlalchemy.ext",
-    "sqlalchemy.ext.asyncio",
-    "sqlalchemy.dialects",
-    "sqlalchemy.dialects.postgresql",
-):
-    if _pkg not in sys.modules:
-        try:
-            __import__(_pkg)
-        except ImportError:
-            sys.modules[_pkg] = MagicMock()
 
 import core.agents as agents  # noqa: E402
 from core.agents.performance_guardian import AnomalyDetector  # noqa: E402

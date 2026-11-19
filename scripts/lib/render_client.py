@@ -91,7 +91,7 @@ class RenderClient:
             data=json.dumps(body).encode() if body is not None else None,
         )
         try:
-            with urllib.request.urlopen(req) as response:
+            with urllib.request.urlopen(req, timeout=20) as response:
                 payload = response.read().decode()
             return json.loads(payload) if payload else None
         except urllib.error.HTTPError as exc:  # non-2xx

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Smoke-check only Render URLs explicitly configured by the deployment owner.
+"""Smoke-check the exact Render service selected by CI, without release credentials.
 
-Expected GitHub Actions variable:
+CI sets RENDER_CANARY_URL to the provider-resolved URL and RENDER_SERVICE_NAME
+to the matrix role. Standalone usage also accepts:
   RENDER_CANARY_URLS_JSON='[{"name":"primary","url":"https://.../health/live"}]'
   (Also tolerates PowerShell-stripped unquoted object syntax such as
    '[{name:primary,url:https://.../health/live}]'.)
@@ -57,6 +58,10 @@ def parse_canary_targets(raw: str) -> list[dict[str, Any]]:
 
 
 def main() -> int:
+    if url := os.environ.get("RENDER_CANARY_URL", "").strip():
+        # CI is strict for every runtime service (including MCP); a redirect
+        # cannot prove the health of the URL bound to the selected service.
+        return check_targets([{"name": os.environ.get("RENDER_SERVICE_NAME", "render"), "url": url}], strict=True)
     raw = os.environ.get("RENDER_CANARY_URLS_JSON", "").strip()
     if not raw:
         print("RENDER_CANARY_URLS_JSON is not configured; refusing an unverified canary.", file=sys.stderr)
@@ -70,6 +75,10 @@ def main() -> int:
         print("RENDER_CANARY_URLS_JSON must be a non-empty list.", file=sys.stderr)
         return 1
 
+    return check_targets(targets)
+
+
+def check_targets(targets: list[dict[str, Any]], *, strict: bool = False) -> int:
     failed: list[str] = []
     for target in targets:
         name = str(target.get("name", "unnamed"))
@@ -80,7 +89,7 @@ def main() -> int:
         ok = False
         is_suspended = False
         last_error = "unknown error"
-        is_auxiliary = (
+        is_auxiliary = not strict and (
             name in ("ci-runner", "supremeai-ci-runner", "mcp-tower", "supremeai-mcp-tower")
             or target.get("critical") in (False, "false", "False", "0")
         )
@@ -89,9 +98,10 @@ def main() -> int:
             try:
                 request = urllib.request.Request(url, headers={"User-Agent": "SupremeAI-Canary/2.0"})
                 with urllib.request.urlopen(request, timeout=45) as response:
-                    body = response.read(4096).decode("utf-8", errors="replace")
                     if response.status != 200:
-                        raise RuntimeError(f"HTTP {response.status}: {body[:200]}")
+                        raise RuntimeError(f"HTTP {response.status}")
+                    if strict and response.geturl() != url:
+                        raise RuntimeError("Health endpoint redirected")
                 print(f"OK {name}: {url}")
                 ok = True
                 break

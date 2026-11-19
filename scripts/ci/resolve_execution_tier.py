@@ -7,7 +7,9 @@ Evaluation logic (4-Tier SSOT per docs/PR_TO_PRODUCTION_LIFECYCLE.md):
   - Priority 3: Local offline + Render CI worker busy but quota < 450m used -> 'github-ubuntu-render-backend'
   - Priority 4: Local offline + Render quota exhausted (>= 450m used) -> 'github-ubuntu-emergency'
 
-Job 1 budget: probes run in parallel with tight timeouts to stay <10s.
+Pull requests are not eligible for the persistent personal runner. Render
+quota is unknown without an authoritative source, so the active cloud path
+is Priority 3. Do not probe the dormant CI runner when quota is unknown.
 """
 from __future__ import annotations
 
@@ -15,8 +17,6 @@ import json
 import os
 import sys
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import TimeoutError as FuturesTimeout
 from pathlib import Path
 
 # Reuse the canonical local-runner probe to avoid code duplication (Zero-Recurrence Invariant).
@@ -24,28 +24,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_opportunistic_audit import is_local_runner_online
 
 PROBE_TIMEOUT_S = 4.0
-PROBE_BUDGET_S = 7.0
-QUOTA_UNKNOWN_REMAINING = 120.0  # transient probe failure: avoid P4 jump, still block P2 unless worker+quota known safe
+QUOTA_UNKNOWN_REMAINING = 0.0  # sentinel only; never compare when known=False
 RENDER_FREE_MONTHLY_LIMIT_MINS = 500.0  # Render free tier monthly build minutes
 RENDER_QUOTA_REMAINING_P2_MINS = 50.0  # min remaining minutes required to select Priority 2 (render-ci-runner)
 RENDER_QUOTA_MAX_USED_P3_MINS = 450.0  # max used minutes to still allow Priority 3 (github-ubuntu-render-backend)
-
-
-def _render_api_key() -> str | None:
-    for name in (
-        "RENDER_API_KEY_PAYKARI",
-        "RENDER_API_KEY",
-        "RENDER_API_KEY_1",
-        "RENDER_API_KEY_2",
-        "RENDER_API_KEY_3",
-        "RENDER_API_KEY_4",
-        "RENDER_API_KEY_5",
-        "RENDER_API_KEY_6",
-    ):
-        val = (os.environ.get(name) or "").strip()
-        if val:
-            return val
-    return None
 
 
 def get_render_quota_remaining() -> tuple[float, bool]:
@@ -55,8 +37,8 @@ def get_render_quota_remaining() -> tuple[float, bool]:
 
 def is_render_ci_worker_available() -> bool:
     """Check if the Render CI runner service is reachable with valid credentials."""
-    api_key = _render_api_key()
-    svc_id = (os.environ.get("RENDER_CI_RUNNER_SERVICE_ID") or "srv-dbl8tbmtlv9c73bbkvqg").strip()
+    api_key = (os.environ.get("RENDER_API_KEY_PAYKARI") or "").strip()
+    svc_id = (os.environ.get("RENDER_CI_RUNNER_SERVICE_ID") or "").strip()
     if not api_key or not svc_id:
         return False
     try:
@@ -80,50 +62,21 @@ def is_render_ci_worker_available() -> bool:
 
 
 def resolve_tier() -> str:
-    # Priority 1: Local PC Online (fast path)
-    try:
-        if is_local_runner_online():
-            return "local-self-hosted"
-    except Exception as exc:
-        print(f"::warning::Local runner probe error ({exc}); continuing to cloud tiers", file=sys.stderr)
+    event = os.environ.get("GITHUB_EVENT_NAME", "")
+    if event not in {"pull_request", "pull_request_target"} and os.environ.get("ALLOW_LOCAL_CI", "true") == "true":
+        try:
+            if is_local_runner_online():
+                return "local-self-hosted"
+        except Exception as exc:
+            print(f"::warning::Local runner probe error ({exc}); continuing to cloud tiers", file=sys.stderr)
 
-    # Parallel quota + worker probes with budget
-    remaining, quota_known = QUOTA_UNKNOWN_REMAINING, False
-    worker_ok = False
-    try:
-        with ThreadPoolExecutor(max_workers=2) as ex:
-            fq = ex.submit(get_render_quota_remaining)
-            fw = ex.submit(is_render_ci_worker_available)
-            try:
-                remaining, quota_known = fq.result(timeout=PROBE_BUDGET_S)
-            except FuturesTimeout:
-                print("::warning::Quota probe budget exceeded; quota unknown", file=sys.stderr)
-                remaining, quota_known = QUOTA_UNKNOWN_REMAINING, False
-            except Exception as exc:
-                print(f"::warning::Quota probe error ({exc}); quota unknown", file=sys.stderr)
-                remaining, quota_known = QUOTA_UNKNOWN_REMAINING, False
-            try:
-                worker_ok = bool(fw.result(timeout=max(0.5, PROBE_BUDGET_S - 0.5)))
-            except FuturesTimeout:
-                print("::warning::Worker probe budget exceeded; worker unavailable", file=sys.stderr)
-                worker_ok = False
-            except Exception as exc:
-                print(f"::warning::Worker probe error ({exc}); worker unavailable", file=sys.stderr)
-                worker_ok = False
-    except Exception as exc:
-        print(f"::warning::Parallel probe execution failed ({exc}); using safe defaults", file=sys.stderr)
-
-    used = 500.0 - remaining
-
-    # Priority 2: Render CI Runner (quota > 50m remaining AND known)
-    if quota_known and remaining >= RENDER_QUOTA_REMAINING_P2_MINS and worker_ok:
-        return "render-ci-runner"
-
-    # Priority 3: GitHub Ubuntu + Render backend free build time (< 450m used) or quota unknown (prefer P3 over P4)
-    if used < RENDER_QUOTA_MAX_USED_P3_MINS or not quota_known:
+    remaining, quota_known = get_render_quota_remaining()
+    if not quota_known:
         return "github-ubuntu-render-backend"
-
-    # Priority 4: GitHub Ubuntu Emergency (quota exhausted, known)
+    if remaining >= RENDER_QUOTA_REMAINING_P2_MINS and is_render_ci_worker_available():
+        return "render-ci-runner"
+    if RENDER_FREE_MONTHLY_LIMIT_MINS - remaining < RENDER_QUOTA_MAX_USED_P3_MINS:
+        return "github-ubuntu-render-backend"
     return "github-ubuntu-emergency"
 
 

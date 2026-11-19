@@ -91,20 +91,20 @@ What the run does, per service:
 `service: all` produces one approval-gated job per service, so `all` may need
 to be approved more than once.
 
-**Required configuration:** secret `RENDER_API_KEY`, plus one service ID per
-service — secrets `RENDER_SERVICE_ID_API`, `RENDER_SERVICE_ID_BROWSER`,
-`RENDER_SERVICE_ID_MCP_TOWER`. The workflow falls back to the repository
-variables already used by `scripts/ci/plan_render_deploys.py`
-(`RENDER_API_SERVICE_ID`, `RENDER_SCRAPER_SERVICE_ID` / `RENDER_BROWSER_SERVICE_ID`,
-`RENDER_MCP_SERVICE_ID`). If a service ID cannot be resolved, the run fails
-loudly instead of skipping.
+**Required configuration:** rollback uses the same registry, service IDs and
+service-scoped deploy credentials as forward releases. MCP uses
+`RENDER_MCP_SERVICE_ID` and `RENDER_API_PAYKARI` (or `RENDER_API_KEY_PAYKARI`),
+never the previous account key. A missing target stops rollback before any
+deploy. CI does not copy or restore runtime credentials.
 
 ## 4. Post-rollback verification (within 10 minutes)
 
-1. **Health:** `curl -fsS https://supremeai-api-ulw0.onrender.com/healthz`,
-   `.../health` on `supremeai-browser` and `supremeai-mcp-tower`. Expect 200.
-2. **Running revision:** record the exact deploy ID and attestation plus
-   `/release` on each service. Both commits must equal `target_sha`.
+1. **Automatic evidence:** review the matrix summary. The triggered deploy ID,
+   provider commit and runtime `/release` SHA must match `target_sha`; the
+   independent canary checks that exact service's health path. A healthy result
+   alone is not a successful rollback.
+2. **Routing:** if services changed together, confirm each affected service has
+   its own successful attestation rather than inferring fleet health from one.
 3. **Smoke tests:** sign-in, one read path, one write path, and one agent or
    tool invocation through the gateway; MCP Tower `/health` plus one tool call.
 4. **Monitoring:** confirm the error rate and latency return to the pre-deploy

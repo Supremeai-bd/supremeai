@@ -246,7 +246,8 @@ def test_trusted_guard_cli_rollout(jobs, tmp_path, contract, guard_exit, exit_co
 
 def test_required_ci_and_candidate_bindings_are_from_this_run(jobs):
     decision = jobs["ai-evaluate-and-approve"]
-    assert set(decision["needs"]) == set(job_results())
+    assert set(decision["needs"]) == set(job_results()) | {"verify-pr"}
+    assert "needs.verify-pr.result == 'success'" in decision["if"]
     for job in (decision, jobs["merge-verified-pr"]):
         checkout, run = job["steps"]
         assert checkout["with"]["ref"] == "${{ github.event.pull_request.base.sha }}"
@@ -288,3 +289,27 @@ def test_workflow_has_one_merge_path_and_positive_owner_gate(jobs):
     assert merges[0].index("--recheck-candidate") < merges[0].index("gh pr merge")
     assert '--match-head-commit "$EXPECTED_HEAD_SHA"' in merges[0]
     assert "--auto" not in merges[0] and "--admin" not in merges[0]
+
+
+@pytest.mark.parametrize(("failed_result", "tier", "expected"), [
+    ("success", "github-ubuntu-render-backend", 0),
+    ("skipped", "github-ubuntu-render-backend", 1),
+    ("failure", "github-ubuntu-render-backend", 1),
+    ("success", "local-self-hosted", 1),
+])
+def test_hosted_pr_verdict_requires_success_on_the_tested_lane(jobs, failed_result, tier, expected):
+    job = jobs["verify-pr"]
+    assert job["if"] == "${{ always() && github.event_name == 'pull_request' }}"
+    assert job["permissions"] == {}
+    outcomes = {name: {"result": "success"} for name in job["needs"]}
+    outcomes["render-heavy-gate-fallback"]["result"] = failed_result
+    start, *python, end = job["steps"][0]["run"].splitlines()
+    assert (start, end) == ("python3 - <<'PY'", "PY")
+    result = subprocess.run(
+        [sys.executable, "-c", "\n".join(python)],
+        env={**os.environ, "RESULTS": json.dumps(outcomes), "TIER": tier, "GITHUB_SHA": MERGE},
+        capture_output=True, text=True, timeout=10,
+    )
+    assert result.returncode == expected, result.stderr
+    if expected == 0:
+        assert MERGE in result.stdout

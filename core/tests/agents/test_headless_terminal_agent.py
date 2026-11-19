@@ -1,14 +1,7 @@
-import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 from unittest.mock import MagicMock as _MagicMock
 
 import pytest
-
-# Import guard: agents package init may import optional google.genai.
-if "google" not in sys.modules:
-    sys.modules["google"] = MagicMock()
-if "google.genai" not in sys.modules:
-    sys.modules["google.genai"] = MagicMock()
 
 from core.agents.headless_terminal_agent import CommandSafety, HeadlessTerminalAgent
 

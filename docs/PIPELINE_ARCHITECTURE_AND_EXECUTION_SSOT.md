@@ -1,26 +1,8 @@
 # SupremeAI Pipeline Architecture & Execution SSOT
-> **Universal Master Blueprint: সকল পাইপলাইনের পূর্ণাঙ্গ তালিকা, বর্তমান ত্রুটি ও কাঙ্ক্ষিত আদর্শ আর্কিটেকচার**  
-> **Document Status:** Canonical Single Source of Truth (SSOT)  
-> **Target Cloud Budget:** ≤ 15–20 Seconds GitHub Cloud Runtime per PR | Work Budget ≤ 0.01%
-
----
-
-## সূচিপত্র (Table of Contents)
-1. [মূল সাংবিধানিক নীতিমালা (Core Constitutional Invariants)](#১-মূল-সাংবিধানিক-নীতিমালা-core-constitutional-invariants)
-2. [সকল পাইপলাইনের পূর্ণাঙ্গ রেজিস্ট্রি ও অডিট (Comprehensive Pipeline Audit)](#২-সকল-পাইপলাইনের-পূর্ণাঙ্গ-রেজিস্ট্রি-ও-অডিট)
-   - [২.১ Unified CI/CD Pipeline (`unified-pipeline.yml`)](#২১-supremeai-unified-cicd-pipeline-unified-pipelineyml)
-   - [২.২ Client Release Pipeline (`client-release.yml`)](#২২-client-release-pipeline-client-releaseyml)
-   - [২.৩ Nightly Ops & Maintenance (`ops-maintenance.yml`)](#২৩-nightly-ops--maintenance-ops-maintenanceyml)
-   - [২.৪ Opportunistic 24h+ Audit (`opportunistic-nightly-audit.yml`)](#২৪-opportunistic-24h-audit-opportunistic-nightly-audityml)
-   - [২.৫ Test Local Runner (`test-local-runner.yml`)](#২৫-test-local-runner-test-local-runneryml)
-3. [শনাক্তকৃত প্রধান ত্রুটি ও অপচয় বিশ্লেষণ (Cloud Waste & Gap Analysis)](#৩-শনাক্তকৃত-প্রধান-ত্রুটি-ও-অপচয়-বিশ্লেষণ)
-   - [গ্যাপ ১: লোকাল পিসি অনলাইন থাকা সত্ত্বেও ক্লাউডে ফাস্ট গেট চলা](#গ্যাপ-১-লোকাল-পিসি-অনলাইন-থাকা-সত্ত্বেও-ক্লাউডে-ফাস্ট-গেট-চলা)
-   - [গ্যাপ ২: Cloudflare Deploy-এ Path-Filter না থাকা ও ক্লাউডে ভারী বিল্ড](#গ্যাপ-২-cloudflare-deploy-এ-path-filter-না-থাকা-ও-ক্লাউডে-ভারী-বিল্ড)
-   - [গ্যাপ ৩: ডিপ্লয়মেন্ট জবের ক্লাউড ও লোকাল আইসোলেশন](#গ্যাপ-৩-ডিপ্লয়মেন্ট-জবের-ক্লাউড-ও-লোকাল-আইসোলেশন)
-4. [সার্বজনীন আদর্শ এক্সিকিউশন মেট্রিক্স ও ফ্লোচার্ট (Ideal Execution Flowchart & Matrix)](#৪-সার্বজনীন-আদর্শ-এক্সিকিউশন-মেট্রিক্স-ও-ফ্লোচার্ট)
-5. [বাস্তবায়ন কর্মপরিকল্পনা ও নির্দেশিকা (Action Plan)](#৫-বাস্তবায়ন-কর্মপরিকল্পনা-ও-নির্দেশিকা)
-
----
+This document preserves the earlier architecture proposal. For the current PR,
+runner and deployment contracts, use [PR to Production Lifecycle](PR_TO_PRODUCTION_LIFECYCLE.md).
+In particular, candidate PR code never runs on the persistent personal runner,
+and the proposed Render CI lane is not active without verified quota and tests.
 
 ## ১. মূল সাংবিধানিক নীতিমালা (Core Constitutional Invariants)
 
@@ -75,7 +57,6 @@ SupremeAI রিপোজিটরির `.github/workflows/` ডিরেক্
 ```
 .github/workflows/
 ├── unified-pipeline.yml             # প্রধান CI/CD ও প্রোডাকশন রোলআউট পাইপলাইন
-├── client-release.yml               # ভিএস কোড এক্সটেনশন, ডেস্কটপ ও মোবাইল রিলিজ
 ├── ops-maintenance.yml              # নাইটলি অপারেশনস, সিকিউরিটি অডিট ও রক্ষণাবেক্ষণ
 ├── opportunistic-nightly-audit.yml  # ২৪ ঘণ্টার লোকাল-ওয়েক অপোরচুনিস্টিক অডিট
 └── test-local-runner.yml            # লোকাল সেলফ-হোস্টেড রানার সংযোগ ভেরিফায়ার
@@ -138,17 +119,8 @@ flowchart LR
 
 ### ২.২ Client Release Pipeline (`client-release.yml`)
 
-#### বর্তমান কাজের পরিধি (Scope):
-ভিএস কোড এক্সটেনশন (`.vsix`), ডেস্কটপ ক্লায়েন্ট (`.exe`/NSIS via Tauri), এবং মোবাইল ক্লায়েন্ট (`.apk` via Capacitor) রিলিজ তৈরি করে।
-
-#### বর্তমান অবস্থা:
-- এতে ইতিমধ্যে Job 1 হিসেবে `runner-check` (`resolve_execution_tier.py`) আছে।
-- এতে `detect-changes` (paths-filter) কাজ করছে।
-- ডেস্কটপ বিল্ড লোকাল পিসিতে এবং ক্লাউড ফলব্যাকে বিভক্ত রয়েছে।
-
-#### ✅ পরিকল্পনা অনুযায়ী ফাইনাল টিউনিং:
-- Job 1-এর নাম স্ট্যান্ডার্ডাইজেশন: `resolve-execution-tier` (SSOT অনুসারে)।
-- এক্সটেনশন ও মোবাইল বিল্ডেও লোকাল রানার প্রিফারেন্স কার্যকর করা যাতে কোনো ক্লাউড মিনিট খরচ না হয়।
+অবসরপ্রাপ্ত। `vscode/`-এ শুধু reference/examples আছে; root monorepo-তে
+`.vsix` বা desktop release-এর source ও lockfile নেই।
 
 ---
 
@@ -212,7 +184,6 @@ flowchart LR
 | পাইপলাইনের নাম | ট্রিগার ইভেন্ট | Job 1 Preflight | লোকাল পিসি অনলাইন থাকলে (Priority 1) | লোকাল পিসি অফ থাকলে (Priority 2-4) | ডিপ্লয়মেন্ট রুট ও ফিল্টার | টার্গেট ক্লাউড রানটাইম |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Unified CI/CD** (`unified-pipeline.yml`) | Pull Request, Push to `main` | `resolve-execution-tier` (<10s) | সম্পূর্ণ টেস্টিং ব্যাটারি লোকাল পিসিতে (০ মিনিট) | Render CI Runner (০ মিনিট) -> ক্লাউড ফলব্যাক | Path-Filtered (Render/CF/Vercel API) | **≤ ২০–২৫ সেকেন্ড** |
-| **Client Release** (`client-release.yml`) | Push to `vscode/**`, Dispatch | `resolve-execution-tier` (<10s) | লোকাল উইন্ডোজ ডেস্কটপ বিল্ড | Cloud Windows Fallback | GitHub Releases & Artifact Attestation | **০ মিনিট (লোকাল)** / ৫ মিনিট (ফলব্যাক) |
 | **Ops Maintenance** (`ops-maintenance.yml`) | Sunday 03:00, Daily 04:00 | `resolve-execution-tier` (<10s) | লোকাল মেশিনে ডিপ অডিট | Render CI Runner | কোনো ডিপ্লয় নেই (অডিট রিপোর্ট Tower-এ পোস্ট) | **০ মিনিট (লোকাল)** |
 | **Opportunistic Audit** (`opportunistic-nightly-audit.yml`) | ২ ঘণ্টা অন্তর ওয়েক-চেক | `evaluate-audit-timing` (<5s) | লোকাল মেশিনে ডিপ অডিট | স্কিপ (পিসি অন হওয়া পর্যন্ত অপেক্ষা) | কোনো ডিপ্লয় নেই | **০ মিনিট** |
 | **Test Local Runner** (`test-local-runner.yml`) | Manual Dispatch | — | সরাসরি লোকাল রানার টেস্ট | — | — | **০ মিনিট** |
