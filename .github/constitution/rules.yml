@@ -201,6 +201,15 @@ constitution:
   model: "kite-and-spool"
   philosophy_quote: "যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।"
   philosophy_line: "Agent-কে ঘুড়ির মতো স্বাধীনভাবে উড়তে দাও; কিন্তু নাটাই সবসময় SupremeAI Admin / Control Plane-এর হাতে থাকবে।"
+  # ── Operator creed (admin, verbatim intent) ──────────────────────────────
+  # These lines used to live as a hand-edited stub *inside* AGENTS.md, which is
+  # a GENERATED file — the next regeneration would have deleted them. They are
+  # rules, so they belong here.
+  operator_creed:
+    - "Fastest, lightest, secure, zero-cost — and actually used. Every feature must earn its place."
+    - "Single source of logic: the same job always follows the same code path. A justified exception ships with a comment explaining why it exists."
+    - "Find a problem → fix it at the root. No over-engineering."
+    - "Never hoard defensive copies 'in case something breaks'. Fixing it a hundred times beats creating one layer of speculative waste."
 
 living_protocols:
   # ── #4205 (admin-approved 2026-10-08): legacy group-branch lifecycle retired —

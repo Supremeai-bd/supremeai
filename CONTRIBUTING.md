@@ -189,8 +189,11 @@ This repository (`Supremeai-bd/supremeai`) is the **Pure Single Monorepo SSOT** 
 | **B. MCP Tower work order** | Autonomous agents, zero credentials | §5 above (Pathway 1) |
 | **C. Bridge branch** | Collaborator proxy bots / org agents only | Push `bridge/<task-id>` + Bridge Work Order issue (see `README.md` §Bridge) |
 
-Work orders use the [Bridge Work Order template](.github/ISSUE_TEMPLATE/bridge-work-order.yml);
-task envelopes use the [Agent Task template](.github/ISSUE_TEMPLATE/agent-task.yml).
+Work orders are created by `scripts/bridge/bridge_intake.py` (it builds the issue body
+from the submitted patch and anchors the private audit trail — there is no
+`bridge-work-order.yml` form any more); batched refactors use the
+[Group Sequence template](.github/ISSUE_TEMPLATE/group_sequence_issue.yml), and task
+envelopes use the [Agent Task template](.github/ISSUE_TEMPLATE/agent_task.yml).
 
 ## 11. Troubleshooting (field-tested)
 

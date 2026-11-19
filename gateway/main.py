@@ -233,7 +233,31 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "anonymous"
 
 
-async def check_rate_limit(request: Request, limiter: SlidingWindowLimiter):
+def build_key_limiters(config: GatewayConfig) -> dict[str, SlidingWindowLimiter]:
+    """One limiter per owner that declared its own budget in the policy.
+
+    Owners without a `rate_limit` override share the global limiter (unchanged
+    behaviour). This is what makes a multi-key setup actually useful: six
+    clients each get six *independent* budgets, so one noisy client cannot
+    429 the other five — before this, `rate_limit` was global and every
+    authenticated caller drained the same window.
+    """
+    limiters: dict[str, SlidingWindowLimiter] = {}
+    for record in config.api_keys.values():
+        if record.max_requests is None and record.window_seconds is None:
+            continue
+        limiters[record.owner] = SlidingWindowLimiter(
+            window_s=record.window_seconds or config.rate_limit_window_s,
+            max_requests=record.max_requests or config.rate_limit_max_requests,
+        )
+    return limiters
+
+
+async def check_rate_limit(
+    request: Request,
+    limiter: SlidingWindowLimiter,
+    key_limiters: dict[str, SlidingWindowLimiter] | None = None,
+):
     """Per-identity sliding window (proxy-aware client IP fallback).
 
     Bucketing MUST use :func:`_client_ip`, never ``request.client.host``:
@@ -251,6 +275,8 @@ async def check_rate_limit(request: Request, limiter: SlidingWindowLimiter):
     owner = getattr(record, "owner", None)
     if owner and owner != "guest":
         key_id = f"owner:{owner}"
+        if key_limiters and owner in key_limiters:
+            return await key_limiters[owner].check(key_id)
     else:
         key_id = "ip:" + _client_ip(request)
     return await limiter.check(key_id)
@@ -776,20 +802,39 @@ def create_app(
         )
 
     def attach_rate_headers(request: Request, response: Response) -> Response:
-        """Success responses carry the standardized X-RateLimit-* contract."""
+        """Success responses carry the standardized X-RateLimit-* contract.
+
+        Uses the limiter that actually decided (see `limit_request`), so a key
+        with its own budget sees its own limit instead of the global one.
+        """
         decision = getattr(request.state, "rate_decision", None)
         if decision is not None:
-            response.headers["X-RateLimit-Limit"] = str(limiter.max_requests)
-            response.headers["X-RateLimit-Remaining"] = str(decision.remaining)
-            response.headers["X-RateLimit-Reset"] = str(decision.reset_epoch)
+            rate_limit_headers(
+                response, getattr(request.state, "rate_limiter", limiter), decision
+            )
         return response
+
+    key_limiters = build_key_limiters(config)
+
+    async def limit_request(request: Request):
+        """Apply the right budget (per-owner override or global) once per request.
+
+        Returns the limiter that actually decided, so both the 429 body and the
+        success headers report *that* budget instead of the global one.
+        """
+        record = getattr(request.state, "key_record", None)
+        owner = getattr(record, "owner", None)
+        active = key_limiters.get(owner, limiter) if owner else limiter
+        decision = await check_rate_limit(request, limiter, key_limiters)
+        request.state.rate_limiter = active
+        request.state.rate_decision = decision  # per-request, no shared-state race
+        return active, decision
 
     async def gate(request: Request, scope: str) -> JSONResponse | None:
         """Shared per-request gate: rate limit first-class, scope pinned."""
-        decision = await check_rate_limit(request, limiter)
+        active, decision = await limit_request(request)
         if not decision.allowed:
-            return build_429(limiter, decision)
-        request.state.rate_decision = decision  # per-request, no shared-state race
+            return build_429(active, decision)
         return require_scope(request, scope)
 
     # ---- /v1/chat/completions ----
@@ -1110,10 +1155,9 @@ def create_app(
     async def memory_store_endpoint(request: Request) -> Response:
         if (err := authenticate(request, config)) is not None:
             return err
-        decision = await check_rate_limit(request, limiter)
+        active, decision = await limit_request(request)
         if not decision.allowed:
-            return build_429(limiter, decision)
-        request.state.rate_decision = decision
+            return build_429(active, decision)
         try:
             body = await request.json()
         except (json.JSONDecodeError, ValueError, UnicodeDecodeError):
@@ -1202,10 +1246,9 @@ def create_app(
     async def memory_search_endpoint(request: Request) -> Response:
         if (err := authenticate(request, config)) is not None:
             return err
-        decision = await check_rate_limit(request, limiter)
+        active, decision = await limit_request(request)
         if not decision.allowed:
-            return build_429(limiter, decision)
-        request.state.rate_decision = decision
+            return build_429(active, decision)
         try:
             body = await request.json()
         except (json.JSONDecodeError, ValueError, UnicodeDecodeError):
@@ -1277,10 +1320,9 @@ def create_app(
     async def memory_search_get(request: Request) -> Response:
         if (err := authenticate(request, config)) is not None:
             return err
-        decision = await check_rate_limit(request, limiter)
+        active, decision = await limit_request(request)
         if not decision.allowed:
-            return build_429(limiter, decision)
-        request.state.rate_decision = decision
+            return build_429(active, decision)
         query = request.query_params.get("q") or request.query_params.get("query")
         if not query:
             return error_response(

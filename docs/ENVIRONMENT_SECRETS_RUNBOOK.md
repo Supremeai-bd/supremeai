@@ -44,6 +44,44 @@ Navigate to: **Render Dashboard ➔ `supremeai-api` ➔ Environment**
 | `INFISICAL_CLIENT_SECRET` | `<secret>` | Infisical machine identity client secret. | **Optional** |
 | `INFISICAL_ENV` | `prod` | Infisical environment scope. | **Optional** |
 
+### 2.1.1 Gateway client keys — the "N independent keys" plan
+
+Each consumer (client, agent, internal service) gets **its own** `SUPREMEAI_API_KEY`
+so that revoking one, or one client going noisy, cannot affect the others.
+
+Two facts that shape this setup:
+
+* A key's secret env name is `SUPREMEAI_API_KEY_<OWNER>` by default, so **two keys
+  can never share an owner** unless each declares its own `env` (the loader
+  rejects a duplicate env name instead of silently dropping the second key).
+* `rate_limit` in the policy is global; a key that declares
+  `rate_limit: {max_requests, window_seconds}` gets **its own budget**
+  (`gateway/main.py::build_key_limiters`), and both the 429 body and the
+  `X-RateLimit-*` headers report that budget.
+
+Generate a pool. Secrets are **never printed to stdout** (a terminal is a log,
+and CI captures it) — they go to an owner-only `0600` file outside the checkout:
+
+```bash
+python scripts/ci/generate_gateway_keys.py --count 6 --scopes chat \
+    --max-requests 120 --write-policy --replace-owners \
+    --secrets-out ~/gateway-keys.env
+```
+
+That does two things:
+
+1. writes the `api_keys` block into `gateway/routing_policy.json`
+   (`owner`, `scopes`, `env`, `rate_limit` — **no secret**) for you to commit, and
+2. writes six `SUPREMEAI_API_KEY_CLIENT_<n>=<secret>` lines to
+   `~/gateway-keys.env` (mode `0600`). Import them into Infisical / Render →
+   Environment, then delete the file. An existing file is never overwritten, and
+   a path inside the repository is refused (exit 2).
+
+Clients then send the **key id** (`supremeai-key-…`) in `X-SupremeAI-Key`.
+Verify after deploying: `curl -s -D- -o/dev/null -H "X-SupremeAI-Key: <id>"
+https://supremeai-api-ulw0.onrender.com/v1/models` and check that
+`X-RateLimit-Limit` shows that key's budget.
+
 ---
 
 ### 2.2 Cloudflare Pages — Project: `supremeai-studio`
