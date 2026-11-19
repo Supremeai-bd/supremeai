@@ -9,12 +9,11 @@ class TestFederationSatelliteSync(unittest.TestCase):
         self.assertTrue(sync_mod.self_test())
 
     def test_domain_map_coverage(self):
+        # 2-repo topology SSOT: the satellite-sync plane now tracks only the
+        # studio desk (the others retired to the monorepo). This mirrors
+        # DOMAIN_MAP and the module's own self_test (len == 1).
         expected_slugs = {
             "Supremeai-bd/supremeai-studio",
-            "Supremeai-bd/supremeai-core",
-            "Supremeai-bd/supremeai-api",
-            "Supremeai-bd/supremeai-browser",
-            "Supremeai-bd/supremeai-vscode",
         }
         self.assertEqual(set(sync_mod.DOMAIN_MAP.keys()), expected_slugs)
 
@@ -203,10 +202,12 @@ class TestFederationSatelliteSync(unittest.TestCase):
         # (dual-SSOT drift class) — both sets must stay inside DOMAIN_MAP.
         self.assertTrue(set(sync_mod.PACKAGE_SHADOW_REFRESH_TARGETS) <= set(sync_mod.DOMAIN_MAP))
         self.assertTrue(set(sync_mod.SATELLITE_CLOAK_ALLOWLIST) <= set(sync_mod.DOMAIN_MAP))
-        self.assertIn("Supremeai-bd/supremeai-core", sync_mod.PACKAGE_SHADOW_REFRESH_TARGETS)
-        # (#3649) the api satellite's Dockerfile imports gateway.service.app:app
-        # from the nested copy — it must never ride the default prune policy.
-        self.assertIn("Supremeai-bd/supremeai-api", sync_mod.PACKAGE_SHADOW_REFRESH_TARGETS)
+        # 2-repo topology: core/api retired into the monorepo, so the package-
+        # shadow refresh surface (satellite-root/<domain>/ import mirrors) is
+        # legitimately empty — the retired satellites are no longer sync targets.
+        self.assertEqual(sync_mod.PACKAGE_SHADOW_REFRESH_TARGETS, set())
+        self.assertNotIn("Supremeai-bd/supremeai-core", sync_mod.DOMAIN_MAP)
+        self.assertNotIn("Supremeai-bd/supremeai-api", sync_mod.DOMAIN_MAP)
 
     def test_cloak_allowlist_default_is_empty(self):
         # Fail-closed default: nothing may silently degrade until an admin

@@ -339,13 +339,16 @@ def test_live_baseline_check() -> None:
 # ---------------------------------------------------------------------------
 
 def test_widened_surface_constants() -> None:
-    paths = [str(p) for p in guard.LOCK_PATHS]
+    # Compare POSIX-normalised: the guard stores native Path objects, whose
+    # str() is backslash-separated on Windows and slash-separated on POSIX. The
+    # R46 roster is the four real tracked npm locks (the bogus vscode/extension
+    # entry — no package.json there — was dropped).
+    paths = [p.as_posix() for p in guard.LOCK_PATHS]
     assert paths == [
         "infrastructure/mcp-control-plane/package-lock.json",
         ".agents/skills/devtools-audit/package-lock.json",
         "browser/cloudflare-worker/package-lock.json",
         "vscode/package-lock.json",
-        "vscode/extension/package-lock.json",
     ]
     assert "browser/cloudflare-worker/wrangler.toml" in guard.SURFACE_PATHS
     assert "infrastructure/mcp-control-plane/render.yaml" in guard.SURFACE_PATHS

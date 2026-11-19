@@ -1,16 +1,23 @@
-"""Pin the deploy/approval split in `.github/workflows/unified-pipeline.yml`.
+"""Pin the approval split in `.github/workflows/unified-pipeline.yml`.
 
-Two failures are possible here and both are silent until production:
+Two environments exist and they mean different things:
 
-1. **Deploys re-gated.** Adding `environment: production` to a deploy job
-   re-introduces a human approval on every merge, so auto-deploy dies and the
-   queue backs up — the exact regression `bea2978` fixed.
-2. **Protected merges ungated.** Removing `environment: production` from the
-   owner-review job means a protected PR (provider core, workflows, auth)
-   lands on a green CI signal alone.
+* `production` — scoping/secret context. Many jobs carry it; it gates nothing.
+* `production-approval` — the environment **with a required reviewer**. Exactly
+  one job may use it: the owner-review gate for protected changes.
 
-So the invariant is: exactly one job carries a `production` environment, and
-it is the owner-review gate that runs only on an OWNER_REVIEW decision.
+Two failures are silent until production:
+
+1. **Deploys re-gated.** Putting `production-approval` on a deploy or merge job
+   re-introduces a manual approval on every merge, so auto-deploy stalls and
+   the queue backs up.
+2. **Protected merges ungated.** Moving `auto-merge-high-risk` off
+   `production-approval` means a protected PR (provider core, auth, workflows,
+   registry/blueprint) lands on a green CI signal alone.
+
+Upstream owns the exact environment names (`tests/test_tiny_brain_guard.py`
+asserts the gate's name), so this suite asserts the *relationship* between them
+rather than a hardcoded total.
 """
 
 from __future__ import annotations
@@ -22,8 +29,9 @@ import yaml
 
 PIPELINE = Path(__file__).resolve().parents[2] / ".github" / "workflows" / "unified-pipeline.yml"
 GATE_JOB = "auto-merge-high-risk"
-DEPLOY_JOBS = ("deploy-render-services", "deploy-cloudflare", "deploy-and-verify",
-               "merge-verified-pr")
+APPROVAL_ENV = "production-approval"
+DEPLOY_JOBS = ("deploy-render-services", "deploy-cloudflare", "deploy-vercel",
+               "deploy-and-verify", "merge-verified-pr")
 
 
 @pytest.fixture(scope="module")
@@ -36,18 +44,19 @@ def test_pipeline_parses(jobs):
     assert "ai-evaluate-and-approve" in jobs
 
 
-def test_exactly_one_job_requires_the_production_environment(jobs):
+def test_only_the_owner_gate_uses_the_approval_environment(jobs):
     gated = {name: spec.get("environment") for name, spec in jobs.items()
-             if spec.get("environment")}
-    assert gated == {"auto-merge-high-risk": "production"}, (
-        "only the owner-review gate may carry `environment: production`; "
-        "deploy jobs must stay un-gated or auto-deploy stalls"
+             if spec.get("environment") == APPROVAL_ENV}
+    assert gated == {GATE_JOB: APPROVAL_ENV}, (
+        f"`{APPROVAL_ENV}` carries the required reviewer; gating a deploy or "
+        "merge job with it stalls auto-deploy, and un-gating the owner path "
+        "lets protected changes land on CI signal alone"
     )
 
 
 @pytest.mark.parametrize("name", DEPLOY_JOBS)
 def test_deploy_and_merge_jobs_are_not_human_gated(jobs, name):
-    assert jobs[name].get("environment") is None
+    assert jobs[name].get("environment") != APPROVAL_ENV
 
 
 def test_gate_job_only_runs_for_owner_review(jobs):

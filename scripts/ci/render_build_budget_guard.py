@@ -106,7 +106,7 @@ SERVICES = [
         "key_env": "RENDER_API_KEY_4",
         "fallback_key": None,
         "svc_env": "RENDER_MCP_SVC_ID",
-        "default_svc": "srv-dabm7inqj5pc738jkrt0"
+        "default_svc": "srv-dbv1u0ou01pc73cil0tg"
     }
 ]
 

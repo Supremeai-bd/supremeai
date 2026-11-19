@@ -281,7 +281,10 @@ class TestLaneClassification(unittest.TestCase):
         self.assertIn("status:runway", labels)
         self.assertIn("status:unclaimed", labels)
         self.assertIn("area:ci", labels)
-        self.assertIn("repo:open", labels)
+        # 2-repo SSOT: the monorepo desk now labels `repo:monorepo` (the old
+        # `repo:open` was renamed when open→monorepo consolidated).
+        self.assertIn("repo:monorepo", labels)
+        self.assertNotIn("repo:open", labels)
 
     def test_production_body_has_no_lane_note(self):
         body = build_issue_body(

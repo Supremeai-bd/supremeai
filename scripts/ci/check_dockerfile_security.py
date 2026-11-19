@@ -67,6 +67,7 @@ BASELINE_PATH = Path("scripts/ci/dockerfile_from_baseline.json")
 FROM_ALLOWLIST_PREFIXES = (
     "docs/devcontainer/",          # non-prod dev image (#2084 never-do note)
     "core/ecosystem/Dockerfile.test",  # non-prod test image (#2084 never-do note)
+    "infrastructure/ci-runner/",   # self-hosted CI runner image, not a production service
 )
 
 FROM_RE = re.compile(r"^FROM\s+(.+)$", re.IGNORECASE)

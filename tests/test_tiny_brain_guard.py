@@ -277,7 +277,7 @@ def test_drafts_skip_landing_but_ready_for_review_runs_it(jobs):
 
 def test_workflow_has_one_merge_path_and_positive_owner_gate(jobs):
     owner = jobs["auto-merge-high-risk"]
-    assert owner["environment"] == "production"
+    assert owner["environment"] == "production-approval"
     assert owner["permissions"] == {}
     assert "needs.ai-evaluate-and-approve.result == 'success'" in owner["if"]
     assert "decision == 'OWNER_REVIEW'" in owner["if"] and "!=" not in owner["if"]

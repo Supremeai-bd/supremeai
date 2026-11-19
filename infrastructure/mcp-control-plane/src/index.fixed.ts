@@ -419,7 +419,11 @@ async function main(): Promise<void> {
   // #109: single SSOT read for transport + fail-fast validation of every
   // numeric knob — a garbage value aborts boot here, loudly.
   validateRuntimeKnobs();
-  const mode = env.runtime.transport;
+  const mode = process.env.MCP_MODE === "stdio" ? "stdio" : env.runtime.transport;
+  if (mode === "stdio") {
+    // MCP stdio transport reserves stdout exclusively for JSON-RPC frames.
+    console.log = console.error;
+  }
 
   // #3297 auto-presence: TCP-fallback account-গুলোর জন্য ioredis ctor
   // presence-মডিউলে রেজিস্টার করা (Upstash REST হলে দরকারই পড়ে না)।

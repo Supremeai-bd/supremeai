@@ -90,6 +90,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-24.04
+    environment: production
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -127,6 +128,7 @@ jobs:
       contents: read
       pull-requests: read
     runs-on: ubuntu-24.04
+    environment: production
     timeout-minutes: 5
     steps:
       # This runs before any candidate checkout or code executes in this job.
@@ -334,6 +336,7 @@ jobs:
     name: "Tier 2: Heavy Test Battery (GitHub Ubuntu - Priority 3)"
     if: always() && !cancelled() && needs.fast-gate.result == 'success' && needs.runtime-readiness.result == 'success' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && (needs.resolve-execution-tier.outputs.execution_tier == 'github-ubuntu-render-backend' || (needs.resolve-execution-tier.outputs.execution_tier == 'render-ci-runner' && needs.render-heavy-gate-render-ci.result == 'failure' && needs.render-heavy-gate-render-ci.outputs.fallback_allowed == 'true'))
     runs-on: ubuntu-24.04
+    environment: production
     timeout-minutes: 15
     needs: [resolve-execution-tier, fast-gate, runtime-readiness, render-heavy-gate-render-ci]
     steps:
@@ -380,6 +383,7 @@ jobs:
     name: "Tier 2: Heavy Test Battery (GitHub Ubuntu Emergency - Priority 4)"
     if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && needs.resolve-execution-tier.outputs.execution_tier == 'github-ubuntu-emergency'
     runs-on: ubuntu-24.04
+    environment: production
     timeout-minutes: 15
     needs: [resolve-execution-tier, fast-gate, runtime-readiness]
     steps:
@@ -458,6 +462,7 @@ jobs:
       github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
+    environment: production
     timeout-minutes: 5
     needs:
       - verify-pr
@@ -571,12 +576,13 @@ jobs:
               sys.exit("Unsupported trusted base landing guard CLI; no landing authorized.")
           PY
 
-  # The ONLY job in this pipeline carrying `environment: production`, and the
-  # reason that environment exists: protected changes (provider core, auth,
-  # workflows, registry/blueprint) get a required reviewer here. Deploy jobs
-  # deliberately carry NO environment — gating them re-introduces a manual
-  # approval on every merge and stalls auto-deploy. Invariant pinned by
-  # tests/ci/test_deploy_environment_split.py.
+  # The ONLY job in this pipeline using the approval-bearing environment
+  # (`production-approval`, the one with a required reviewer): protected changes
+  # — provider core, auth, workflows, registry/blueprint — stop here for a human.
+  # `environment: production` elsewhere is scoping/secret context only and gates
+  # nothing; putting `production-approval` on a deploy or merge job would
+  # re-introduce a manual approval on every merge and stall auto-deploy.
+  # Invariant pinned by tests/ci/test_deploy_environment_split.py.
   auto-merge-high-risk:
     name: "Owner Review (Protected PR)"
     if: >-
@@ -584,7 +590,7 @@ jobs:
       needs.ai-evaluate-and-approve.outputs.decision == 'OWNER_REVIEW'
     runs-on: ubuntu-24.04
     needs: [ai-evaluate-and-approve]
-    environment: production
+    environment: production-approval
     permissions: {}
     steps:
       - run: echo "Protected changes approved via the production environment."
@@ -636,6 +642,7 @@ jobs:
     needs: [resolve-execution-tier]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true))
     runs-on: ubuntu-24.04
+    environment: production
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
@@ -698,6 +705,7 @@ jobs:
     needs: deploy-and-verify
     if: github.ref == 'refs/heads/main' && needs.deploy-and-verify.outputs.has_services == 'true'
     runs-on: ubuntu-24.04
+    environment: production
     timeout-minutes: 18
     strategy:
       fail-fast: false
@@ -786,6 +794,7 @@ jobs:
         contains(inputs.target_service, 'studio')
       )
     runs-on: ubuntu-24.04
+    environment: production
     timeout-minutes: 15
     steps:
       - name: Checkout Code
@@ -910,6 +919,7 @@ jobs:
         ))
       )
     runs-on: ubuntu-24.04
+    environment: production
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -936,6 +946,7 @@ jobs:
   syntax-and-governance-gate:
     name: "Tier 1: Syntax & Governance Checks (<15s)"
     runs-on: ubuntu-24.04
+    environment: production
     timeout-minutes: 5
     permissions:
       contents: read

@@ -101,12 +101,19 @@ by design). Regressions: `tests/ci/test_landing_decision_compose.py`.
 
 ## 5. Deploy/approval split is now an invariant, not a comment
 
-Exactly one job may carry `environment: production`: `auto-merge-high-risk`,
-the owner-review gate. Gating a deploy job re-introduces a human approval on
-every merge and stalls auto-deploy (the regression `bea2978` fixed);
-un-gating the review job lets protected changes land on CI signal alone.
-`tests/ci/test_deploy_environment_split.py` pins both directions, plus
-"decision runs from the trusted base commit" and "the gate cannot merge".
+Two environments with two meanings:
+
+* `production` — scoping/secret context. Many jobs carry it; it gates nothing.
+* `production-approval` — the environment **with a required reviewer**. Exactly
+  one job may use it: `auto-merge-high-risk`, the owner-review gate for
+  protected changes.
+
+Putting `production-approval` on a deploy or merge job re-introduces a manual
+approval on every merge and stalls auto-deploy; moving the owner gate off it
+lets protected changes land on CI signal alone.
+`tests/ci/test_deploy_environment_split.py` pins both directions, plus "the
+decision runs from the trusted base commit" and "the gate cannot merge".
+(`tests/test_tiny_brain_guard.py` owns the exact environment name.)
 
 ## 6. Guards — make the classes un-reintroducible
 

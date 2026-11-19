@@ -39,6 +39,10 @@ jobs:
           curl -sf --max-time 15 -H "User-Agent: GitHub-Keepwarm-Probe/1.0" \
             https://supremeai-render-keepwarm.paykaribazaronline.workers.dev/trigger \
             || echo "Mesh trigger returned non-200 (worker owns the 5-minute mesh)"
+          # NOTE: origin/main added a standalone Tower GET here (#683). The
+          # registry-driven probe below supersedes it — it covers the Tower via
+          # `config/service_registry.yaml` with the cheaper /health/live route
+          # and treats a Tower failure as a red run instead of an echoed warning.
 
       # Hosts come from config/service_registry.yaml (SSOT) — never re-typed
       # here. Hardcoding them is exactly how the previous host drifted.

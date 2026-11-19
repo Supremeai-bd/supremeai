@@ -52,12 +52,17 @@ ORG = "Supremeai-bd"
 # EXCLUDED on purpose: the open repo's CI plane is already covered by the
 # pipeline_failure_register / bridge_landing_watchdog family (#1964 lineage).
 SATELLITES = (
-    "supremeai",
+    # 2-repo topology SSOT: the sentinel monitors the satellite CI surface only —
+    # the monorepo `supremeai` is NOT a satellite and must be excluded (the old
+    # tuple listed it, failing both this module's own `open-excluded` self-test
+    # and tests/test_satellite_ci_sentinel.py::test_roster_integrity). `command`
+    # is the 6th tracked satellite per the federation roster.
     "supremeai-core",
     "supremeai-api",
     "supremeai-browser",
     "supremeai-studio",
     "supremeai-vscode",
+    "supremeai-command",
 )
 DEFAULT_MAX_AGE_HOURS = 48.0
 PROTOCOL_VERSION = "2024-11-05"
