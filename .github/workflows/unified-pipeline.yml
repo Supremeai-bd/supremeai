@@ -40,6 +40,41 @@ concurrency:
   group: unified-pipeline-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# =============================================================================
+# ENVIRONMENT RULE — read before adding `environment:` to any job
+# -----------------------------------------------------------------------------
+# The `production` environment has REQUIRED REVIEWERS configured in GitHub
+# (Settings > Environments > production). GitHub therefore pauses EVERY job
+# that declares `environment: production` until a human clicks "Review
+# deployments" — one prompt per job, per run.
+#
+# That is why no PR-triggered job in this file declares an environment: a PR
+# check that waits for a human is not a check. Jobs here were carrying
+# `environment: production` purely as "scoping/secret context" and that silently
+# converted every pull request into a stack of manual approvals.
+#
+# `environment:` is now allowed in exactly two situations, and both are pinned
+# by tests/ci/test_deploy_environment_split.py:
+#   1. `auto-merge-high-risk` -> `production-approval`: the owner review gate for
+#      protected changes (this approval is the protection, keep it).
+#   2. The post-merge deploy path -> `production`: `deploy-and-verify` (resolves
+#      the deploy matrix from `vars.RENDER_*_SERVICE_ID`), `deploy-render-services`
+#      (production `RENDER_API_KEY_*`), `deploy-cloudflare`, `deploy-vercel`.
+#      All four are pinned to main and consume credentials or variables that may
+#      be environment-scoped. Cost: one approval per deploy — and for
+#      `deploy-render-services` one per MATRIX LEG, because GitHub asks per job.
+#
+# Everything else — every Tier 1/Tier 2 gate and the landing decision — runs
+# with NO environment and therefore never prompts. Net effect: a pull request
+# needs zero approvals (except the deliberate owner review for protected paths);
+# a merge needs one approval, or none at all once the required reviewers are
+# removed from `production`.
+#
+# To remove the prompts entirely without touching this file: delete the required
+# reviewers from the `production` environment in GitHub. Keep the reviewers on
+# `production-approval` (see the comment above `auto-merge-high-risk`).
+# =============================================================================
+
 jobs:
   # =========================================================================
   # STAGE 0: 4-LEVEL RUNNER HIERARCHY PREFLIGHT (<10s)
@@ -90,7 +125,6 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-24.04
-    environment: production
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -112,7 +146,7 @@ jobs:
 
       - name: Critical Security & Architecture Guards Suite
         run: |
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py core/tests/agents/test_agents_unified.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py tests/ci/test_deploy_environment_split.py core/tests/agents/test_agents_unified.py
           python scripts/ops/wiring_atlas.py --check
 
       # Core and Gateway changes can break satellite contracts without touching
@@ -128,7 +162,6 @@ jobs:
       contents: read
       pull-requests: read
     runs-on: ubuntu-24.04
-    environment: production
     timeout-minutes: 5
     steps:
       # This runs before any candidate checkout or code executes in this job.
@@ -143,6 +176,10 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Repo-level secrets, not environment secrets: if these live only in
+          # the `production` environment they arrive empty here and the verifier
+          # degrades to its deterministic boundary scan (it prints a warning and
+          # still passes). Add them as repository secrets to keep the LLM verdict.
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -228,7 +265,7 @@ jobs:
       - name: Tier 1 — Critical Security & Architecture Guards Suite
         shell: powershell
         run: |
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py core/tests/agents/test_agents_unified.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py tests/ci/test_deploy_environment_split.py core/tests/agents/test_agents_unified.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ops/wiring_atlas.py --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -336,7 +373,6 @@ jobs:
     name: "Tier 2: Heavy Test Battery (GitHub Ubuntu - Priority 3)"
     if: always() && !cancelled() && needs.fast-gate.result == 'success' && needs.runtime-readiness.result == 'success' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && (needs.resolve-execution-tier.outputs.execution_tier == 'github-ubuntu-render-backend' || (needs.resolve-execution-tier.outputs.execution_tier == 'render-ci-runner' && needs.render-heavy-gate-render-ci.result == 'failure' && needs.render-heavy-gate-render-ci.outputs.fallback_allowed == 'true'))
     runs-on: ubuntu-24.04
-    environment: production
     timeout-minutes: 15
     needs: [resolve-execution-tier, fast-gate, runtime-readiness, render-heavy-gate-render-ci]
     steps:
@@ -383,7 +419,6 @@ jobs:
     name: "Tier 2: Heavy Test Battery (GitHub Ubuntu Emergency - Priority 4)"
     if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && needs.resolve-execution-tier.outputs.execution_tier == 'github-ubuntu-emergency'
     runs-on: ubuntu-24.04
-    environment: production
     timeout-minutes: 15
     needs: [resolve-execution-tier, fast-gate, runtime-readiness]
     steps:
@@ -462,7 +497,6 @@ jobs:
       github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    environment: production
     timeout-minutes: 5
     needs:
       - verify-pr
@@ -579,9 +613,12 @@ jobs:
   # The ONLY job in this pipeline using the approval-bearing environment
   # (`production-approval`, the one with a required reviewer): protected changes
   # — provider core, auth, workflows, registry/blueprint — stop here for a human.
-  # `environment: production` elsewhere is scoping/secret context only and gates
-  # nothing; putting `production-approval` on a deploy or merge job would
-  # re-introduce a manual approval on every merge and stall auto-deploy.
+  # `production-approval` is the ONLY human stop in the whole pipeline. No other
+  # job may declare it: putting it on a deploy or merge job re-introduces a manual
+  # approval on every merge and stalls auto-deploy. (`production` is a different
+  # thing — it also has required reviewers and is restricted to the two
+  # main-only platform deploys; read the ENVIRONMENT RULE at the top of this file
+  # before adding `environment:` anywhere.)
   # Invariant pinned by tests/ci/test_deploy_environment_split.py.
   auto-merge-high-risk:
     name: "Owner Review (Protected PR)"
@@ -642,6 +679,12 @@ jobs:
     needs: [resolve-execution-tier]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true))
     runs-on: ubuntu-24.04
+    # KEEP the environment: this job resolves the deploy matrix from
+    # `vars.RENDER_*_SERVICE_ID` / `vars.MCP_TOWER_ATTESTATION_URL`, which may be
+    # environment-scoped. Without them the planner silently plans nothing (an
+    # empty matrix is indistinguishable from "no services changed"). Main-only,
+    # so it costs one approval per merge — removed entirely by deleting the
+    # required reviewers from `production` (see the ENVIRONMENT RULE above).
     environment: production
     timeout-minutes: 5
     outputs:
@@ -705,6 +748,11 @@ jobs:
     needs: deploy-and-verify
     if: github.ref == 'refs/heads/main' && needs.deploy-and-verify.outputs.has_services == 'true'
     runs-on: ubuntu-24.04
+    # KEEP the environment: this job consumes production `RENDER_API_KEY_*`
+    # credentials (possibly environment-scoped) and triggers the real Render
+    # deploy, main-only. Note the cost: this job is a MATRIX, so GitHub asks
+    # for one approval per service leg. Cutting that needs a single-job loop
+    # (tracked as a follow-up) or removing the required reviewers.
     environment: production
     timeout-minutes: 18
     strategy:
@@ -794,6 +842,8 @@ jobs:
         contains(inputs.target_service, 'studio')
       )
     runs-on: ubuntu-24.04
+    # Kept on `production` for its environment-scoped Cloudflare credentials.
+    # Main-only (see `if:` above), so this approval can never fire on a PR.
     environment: production
     timeout-minutes: 15
     steps:
@@ -919,6 +969,8 @@ jobs:
         ))
       )
     runs-on: ubuntu-24.04
+    # Kept on `production` for its environment-scoped Vercel credentials.
+    # Main-only (see `if:` above), so this approval can never fire on a PR.
     environment: production
     timeout-minutes: 5
     steps:
@@ -946,7 +998,6 @@ jobs:
   syntax-and-governance-gate:
     name: "Tier 1: Syntax & Governance Checks (<15s)"
     runs-on: ubuntu-24.04
-    environment: production
     timeout-minutes: 5
     permissions:
       contents: read

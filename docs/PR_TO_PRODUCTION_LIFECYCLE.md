@@ -112,11 +112,11 @@ Draft PR-এ CI checks চলবে, কিন্তু `PR Landing Decision` sk
 | --- | --- |
 | `AUTO_MERGE` | যাচাই সফল, পরিবর্তিত paths সুরক্ষিত নীতির আওতায় নয়; কোনও owner prompt নেই। |
 | `BLOCKED` | আবশ্যিক CI অসম্পূর্ণ/ব্যর্থ, candidate বদলেছে, অথবা প্রমাণ বা verdict অজানা; কারণ লগে থাকে, অনুমোদন চাওয়া হয় না। |
-| `OWNER_REVIEW` | যাচাই সফল, কিন্তু PR সুরক্ষিত approval, security/data boundary, production migration বা release policy path ছুঁয়েছে; বিদ্যমান `production` environment-এ অনুমোদন লাগে। |
+| `OWNER_REVIEW` | যাচাই সফল, কিন্তু PR সুরক্ষিত approval, security/data boundary, production migration বা release policy path ছুঁয়েছে; `production-approval` environment-এ owner অনুমোদন লাগে। |
 
 **একটিই merge job।** এটি approval-এর পরেও বর্তমান PR head, `main` tip এবং CI-তে ব্যবহৃত merge revision মিলিয়ে দেখে। `gh pr merge --match-head-commit` মিউটেশনে head শর্তও প্রয়োগ করে। workflow আর CI-এর পর branch update করে না বা `--auto` দিয়ে পরের merge queue করে না। Candidate বদলালে নতুন PR event/run-এ যাচাই করুন; পুরনো run পুনরায় চালালে তার SHA বদলায় না। টার্মিনাল থেকে merge দিয়ে gate পাশ কাটানো নিষিদ্ধ।
 
-**Trust ও rollout:** guard পরীক্ষাধীন PR থেকে নয়, তার base commit থেকে চলে। পুরোনো base-এর CLI নতুন SHA arguments না চিনলে workflow সেটি চালিয়ে approval চায় না: `BLOCKED` ও `legacy_trusted_base_guard` কারণটি দেখায়। অন্য CI checks স্বাভাবিকভাবেই চলে; এই notice কোনও check মওকুফ বা merge authorization নয়। প্রথম policy-change PR-টি বিদ্যমান owner review ও repository rules মেনে land করতে হবে। Repository branch rules ও `production` required reviewers অক্ষত রাখুন। `--match-head-commit` শুধু head atomically পিন করে; শেষ recheck-এর পর অন্য পথে `main` বদলানোর race বন্ধ রাখতে GitHub-এর up-to-date branch protection (merge identity-র জন্যও, bypass ছাড়া) প্রয়োজন।
+**Trust ও rollout:** guard পরীক্ষাধীন PR থেকে নয়, তার base commit থেকে চলে। পুরোনো base-এর CLI নতুন SHA arguments না চিনলে workflow সেটি চালিয়ে approval চায় না: `BLOCKED` ও `legacy_trusted_base_guard` কারণটি দেখায়। অন্য CI checks স্বাভাবিকভাবেই চলে; এই notice কোনও check মওকুফ বা merge authorization নয়। প্রথম policy-change PR-টি বিদ্যমান owner review ও repository rules মেনে land করতে হবে। Repository branch rules অক্ষত রাখুন, এবং **required reviewers শুধু `production-approval` environment-এ** রাখুন — `production` environment-এ reviewer রাখলে GitHub প্রতি job-এ আলাদা "Review deployments" prompt দেয় (matrix deploy-এ প্রতি service leg-এ একটি), ফলে প্রতি PR-এ manual approval লাগে কিন্তু কোনও বাড়তি সুরক্ষা আসে না। বিস্তারিত নিয়ম: `.github/workflows/unified-pipeline.yml`-এর ENVIRONMENT RULE। `--match-head-commit` শুধু head atomically পিন করে; শেষ recheck-এর পর অন্য পথে `main` বদলানোর race বন্ধ রাখতে GitHub-এর up-to-date branch protection (merge identity-র জন্যও, bypass ছাড়া) প্রয়োজন।
 
 ---
 
@@ -138,6 +138,26 @@ Draft PR-এ CI checks চলবে, কিন্তু `PR Landing Decision` sk
 ```
 
 এই যাচাই landing সিদ্ধান্তের একটি ইনপুট। AI কোনও আবশ্যিক check মওকুফ করতে পারে না বা protected environment অনুমোদন করে না। PR-এর line count অথবা model confidence দিয়ে owner review চাওয়া হয় না।
+
+---
+
+## ৫.১ অনুমোদন বাজেট: কখন approve চাইতে হবে, আর কখন কখনও না
+
+GitHub-এ **প্রতিটি job আলাদাভাবে** approval চায়, যদি সেই job-এ `environment:` থাকে আর সেই environment-এ required reviewer থাকে। আগে `unified-pipeline.yml`-এর **১০টি job**-এ `environment: production` ছিল — তাই একটি সাধারণ PR-ও ১০টি "Review deployments" prompt-এ আটকে থাকত, আর matrix deploy-এ প্রতি service leg-এ আরও একটি। এটা কোনও নিরাপত্তা দিত না, শুধু সময় নষ্ট করত।
+
+এখন নিয়ম (workflow-এর উপরে **ENVIRONMENT RULE** কমেন্টে লেখা আছে, এবং `tests/ci/test_deploy_environment_split.py` + PR battery-তে pinned):
+
+| job | environment | কেন |
+| --- | --- | --- |
+| `fast-gate`, `runtime-readiness`, `syntax-and-governance-gate`, `ai-evaluate-and-approve`, `render-heavy-gate-fallback`, `render-heavy-gate-emergency` | **নেই** | এদের environment-scoped credential দরকার নেই; approval নিলে শুধু প্রতি PR আটকাত |
+| `auto-merge-high-risk` | `production-approval` | এটিই একমাত্র আসল human gate — protected path-এর owner review |
+| `deploy-and-verify`, `deploy-render-services`, `deploy-cloudflare`, `deploy-vercel` | `production` | প্রোডাকশন platform credential / `vars.RENDER_*_SERVICE_ID`; শুধু `main`-এ চলে, PR-এ কখনও নয়। `deploy-render-services` matrix, তাই প্রতি service leg-এ একটি approval |
+
+**একবারের কাজ (manual, GitHub UI):** Settings → Environments → `production` → Required reviewers → দুইজনকেই মুছে Save করুন। এতে বাকি ৩টি deploy job-ও approve ছাড়া চলবে। `production-approval`-এর reviewer **অবশ্যই থাকবে** — সেটাই protected PR-এর সুরক্ষা।
+
+**যদি LLM verdict ফিরিয়ে চান:** `GEMINI_API_KEY` / `GROQ_API_KEY` / `OPENAI_API_KEY` কেবল environment secret হলে `runtime-readiness`-এ সেগুলো খালি আসে এবং verifier deterministic boundary scan-এ নেমে আসে (warning দিয়ে পাশ করে)। চাইলে এই তিনটি **repository** secret হিসেবে যোগ করুন।
+
+**নিয়ম ভাঙলে কেমন দেখায়:** PR check ঘণ্টার পর ঘণ্টা `waiting`-এ বসে থাকে, কোনও error নেই — কারণ GitHub অনুমোদনের অপেক্ষায়। নতুন `environment:` যোগ করার আগে এই টেবিল ও ENVIRONMENT RULE পড়ুন।
 
 ---
 
