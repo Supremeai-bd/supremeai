@@ -22,7 +22,7 @@ Design contracts:
 - PR GENERATION FAIL-CLOSED (acceptance criterion 3): the Record step refuses
   to build a PR body without a numeric issue reference (``Closes #N``) and at
   least the three passed verification tiers; the body carries the Test
-  Evidence block and the squash auto-close doctrine note (AGENT_RULES U8:
+  Evidence block and the squash auto-close doctrine note (AGENTS.md, Living
   ``Closes #N`` must also ride in the commit message).
 - FAIL-CLOSED STEPS: any step failure aborts the run; downstream steps are
   recorded as ``not_run`` — the report never upgrades UNKNOWN to PASS.
@@ -60,7 +60,7 @@ STEPS: tuple[str, ...] = (
     "understand", "rules", "inspect", "claim", "work", "verify", "record", "return",
 )
 
-# 3-tier verification contract (AGENT_LOOP_SPEC.md §6 / AGENT_RULES.md §7).
+# 3-tier verification contract (AGENT_LOOP_SPEC.md §6 / AGENTS.md).
 REQUIRED_TIERS: dict[int, str] = {
     1: "reflection",
     2: "boot smoke",

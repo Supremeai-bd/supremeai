@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """tests/test_agent_runner.py — suite for runner/agent_runner.py (issue #334).
 
-Dual-mode by design (zero-dependency doctrine, AGENT_RULES.md §13):
+Dual-mode by design (zero-dependency doctrine, AGENTS.md):
   - pytest:  pytest tests/test_agent_runner.py -v
   - stdlib:  python3 tests/test_agent_runner.py   (plain runner, no pytest import)
 

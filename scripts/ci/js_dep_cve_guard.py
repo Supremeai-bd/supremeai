@@ -339,6 +339,25 @@ def evaluate(repo_root: Path, files: list[str] | None = None) -> tuple[int, list
         return EXIT_PASS, [], [], notes
 
     lock = repo_root / LOCK_PATH
+    # Distinguish "the project is not in this tree" from "the project is here but
+    # unpinned": an existing `studio/` (or its package.json) without a lockfile
+    # is real drift, but when the directory itself is absent the studio SPA is
+    # simply not part of this repo (config/service_registry.yaml:282 deploys it
+    # as the Cloudflare Pages project `supremeai-studio`) and the honest answer
+    # is a documented skip — the behaviour this module's own docstring promises
+    # ("otherwise honest skip") and never implemented.
+    surface_present = [
+        rel for rel in LOCKFILE_SURFACE if (repo_root / rel).is_file()
+    ] or (["studio/"] if (repo_root / "studio").is_dir() else [])
+    if not surface_present:
+        notes.append(
+            "JS dependency surface absent from this tree — skipped with evidence "
+            f"(no studio/ directory, no {LOCKFILE_SURFACE[0]}; the "
+            "studio SPA is deployed as the Cloudflare Pages project "
+            "`supremeai-studio`, config/service_registry.yaml:282). Nothing is "
+            "claimed to be scanned."
+        )
+        return EXIT_PASS, [], [], notes
     if not lock.is_file():
         return EXIT_DRIFT, [{"pair": str(LOCK_PATH), "ids": ["LOCKFILE"], "kind": "missing-lockfile"}], [], notes
 

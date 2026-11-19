@@ -31,7 +31,7 @@ def _load_module() -> Any:
 mod = _load_module()
 
 
-AGENT_RULES_FIXTURE = """# SupremeAI — AGENT_RULES.md (test fixture)
+AGENT_RULES_FIXTURE = """# SupremeAI — AGENTS.md (test fixture)
 
 # 1. Universal Agent Contract
 
@@ -70,19 +70,19 @@ style:
     category: style
 """
 
-AGENTS_MD_FIXTURE = "# SupremeAI — AGENTS.md (test fixture)\nentry contract body\n"
+# The universal contract sections live in AGENTS.md (the single door), and
+# AGENT_RULES_FIXTURE above IS that document's fixture body.
+AGENTS_MD_FIXTURE = AGENT_RULES_FIXTURE
 
 
 @pytest.fixture()
 def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Path]:
     """বাংলা মন্তব্য: canonical ফাইলগুলো tmp fixture-এ monkeypatch —
     টেস্ট সবসময় নিজের ডেটায় চলে, রিপোর বর্তমান ডকুমেন্টের ওপর নির্ভর করে না।"""
-    rules_md = tmp_path / "AGENT_RULES.md"
-    rules_md.write_text(AGENT_RULES_FIXTURE, encoding="utf-8")
-    rules_yml = tmp_path / "rules.yml"
-    rules_yml.write_text(RULES_YML_FIXTURE, encoding="utf-8")
     agents_md = tmp_path / "AGENTS.md"
     agents_md.write_text(AGENTS_MD_FIXTURE, encoding="utf-8")
+    rules_yml = tmp_path / "rules.yml"
+    rules_yml.write_text(RULES_YML_FIXTURE, encoding="utf-8")
     db = tmp_path / "policy.db"
 
     monkeypatch.setattr(
@@ -90,7 +90,6 @@ def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Path]:
         "CANONICAL_FILES",
         {
             "agents_md": agents_md,
-            "agent_rules_md": rules_md,
             "constitution_rules_yml": rules_yml,
         },
     )
@@ -130,23 +129,44 @@ def test_generation_is_deterministic(env):
 # Contract bullet 2: mandatory global rules cannot be omitted by filtering
 # ---------------------------------------------------------------------------
 def test_mandatory_rules_always_injected_and_foreign_roles_excluded(env):
+    """Mandatory rules survive filtering; other roles' non-mandatory rules do not.
+
+    Rule ids changed when the former rules document was consolidated into
+    AGENTS.md (#1526/#1642): every `## ` section of the Single Door becomes
+    `agents-md:<slug>` with scope `universal` and mandatory=1
+    (scripts/agents/skill_bundle.py:158). Role rules now come from the DB.
+    """
     _seed(env)
+    conn = sqlite3.connect(str(env["db"]))
+    for rule_id, scope in (("role:coder", "role:coder"), ("role:auditor", "role:auditor")):
+        conn.execute(
+            "INSERT INTO policy_rules (rule_id, version, scope, category, title, body,"
+            " mandatory, superseded, created_at, source)"
+            " VALUES (?, 1, ?, 'role', 'Role policy', 'body', 0, 0,"
+            " '2026-01-01T00:00:00Z', 'admin')",
+            (rule_id, scope),
+        )
+    conn.commit()
+    conn.close()
+
     coder_bundle = mod.generate_bundle("coder", "100", db_path=env["db"])
     ids = {r["rule_id"] for r in coder_bundle["rules"]}
 
-    # mandatory: U1, U2, P1 + constitution BLOCK rule_010 — সব থাকতে হবে
-    for required in ("U1", "U2", "P1", "constitution:security:rule_010"):
+    # mandatory: every AGENTS.md section + the constitution BLOCK rule
+    for required in (
+        "agents-md:u1-scope",
+        "agents-md:u2-truth-evidence",
+        "agents-md:p1-simple-effective",
+        "constitution:security:rule_010",
+    ):
         assert required in ids, f"mandatory rule {required} omitted — contract violation"
-    # coder role rule থাকবে
     assert "role:coder" in ids
-    # অন্য role-এর rule ও WARN constitution rule বাদ যাবে
     assert "role:auditor" not in ids
     assert "constitution:style:rule_020" not in ids
 
     auditor_bundle = mod.generate_bundle("auditor", "100", db_path=env["db"])
     auditor_ids = {r["rule_id"] for r in auditor_bundle["rules"]}
-    # mandatory সেট অপরিবর্তিত — role filter শুধু non-mandatory বদলায়
-    for required in ("U1", "U2", "P1", "constitution:security:rule_010"):
+    for required in ("agents-md:u1-scope", "constitution:security:rule_010"):
         assert required in auditor_ids
     assert "role:auditor" in auditor_ids
     assert "role:coder" not in auditor_ids
@@ -224,7 +244,7 @@ def test_db_rule_version_bump_changes_bundle_without_touching_files(env):
         [
             "rule-upsert",
             "--rule-id",
-            "U1",
+            "agents-md:u1-scope",
             "--scope",
             "universal",
             "--category",
@@ -242,17 +262,17 @@ def test_db_rule_version_bump_changes_bundle_without_touching_files(env):
 
     after = mod.generate_bundle("coder", "3194", db_path=env["db"])
     assert after["content_hash"] != before["content_hash"]
-    assert after["policy_versions"]["U1"] == 2
+    assert after["policy_versions"]["agents-md:u1-scope"] == 2
 
     bodies = {r["rule_id"]: r["body"] for r in after["rules"]}
-    assert bodies["U1"] == "Scope narrowed by admin (v2)."
+    assert bodies["agents-md:u1-scope"] == "Scope narrowed by admin (v2)."
 
     # স্ট্যাটিক ফাইল অক্ষত — fixture monkeypatched ফাইলের content অপরিবর্তিত
-    assert "Stay in scope" in env["tmp"].joinpath("AGENT_RULES.md").read_text()
+    assert "Stay in scope" in env["agents_md"].read_text()
 
     # পুরনো version superseded — latest query-তে শুধু v2
     rules = _rules(env)
-    assert rules["U1"]["version"] == 2
+    assert rules["agents-md:u1-scope"]["version"] == 2
 
 
 def test_policy_write_guard_refuses_without_confirm(env):
@@ -283,15 +303,14 @@ def test_seed_is_idempotent_and_force_creates_new_version(env):
     assert first["added"] == 7  # fixture-এ ৭টি canonical rule
 
     # canonical fixture বদলে force re-seed → নতুন version
-    rules_md = env["tmp"] / "AGENT_RULES.md"
-    rules_md.write_text(
+    env["agents_md"].write_text(
         AGENT_RULES_FIXTURE.replace("Stay in scope. (fixture)", "Scope tightened. (v2)"),
         encoding="utf-8",
     )
     forced = mod.seed_from_canonical(db_path=env["db"], force=True)
     assert forced["updated"] >= 1
     rules = _rules(env)
-    assert rules["U1"]["version"] == 2
+    assert rules["agents-md:u1-scope"]["version"] == 2
 
 
 def test_verify_bundle_detects_tampering(env):
