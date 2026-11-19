@@ -12,7 +12,6 @@ All 6 providers are connected via their OpenAI-compatible HTTP surfaces:
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import logging
 import os
@@ -23,7 +22,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from ..free_route_policy import CATALOG_REQUIRED, approved_models
+from ..free_route_policy import CATALOG_REQUIRED, approved_route
 
 logger = logging.getLogger("supremeai.adapters")
 
@@ -210,15 +209,14 @@ def eligible_chat_models(provider: str, api_key: str, slot: Any = None, *, visio
     config = PROVIDER_CONFIGS.get(provider)
     if not config:
         return ()
-    base_url = config["base_url"].rstrip("/")
-    approved = approved_models(provider, base_url, api_key, vision=vision)
-    if not approved:
+    route = approved_route(provider, config["base_url"], api_key, vision=vision)
+    if route is None:
         return ()
+    approved = route.models
     if provider in CATALOG_REQUIRED:
-        identity = (base_url, hashlib.sha256(api_key.encode()).hexdigest())
         if (
             not slot
-            or getattr(slot, "catalog_identity", None) != identity
+            or getattr(slot, "catalog_identity", None) != route.identity
             or getattr(slot, "catalog_valid_until", 0.0) <= time.monotonic()
         ):
             return ()

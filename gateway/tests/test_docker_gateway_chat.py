@@ -1,7 +1,6 @@
 """Offline chat contract for the ASGI app selected by gateway/Dockerfile."""
 
 import asyncio
-import hashlib
 import json
 import os
 from contextlib import asynccontextmanager
@@ -14,6 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from gateway.service import app as edge
+from gateway.service.free_route_policy import HMAC_KEY_ENV, POLICY_ENV, credential_identity
 from gateway.service.pool import FederationSquad, KeySlot
 from gateway.service.route_arbiter import route_arbiter
 
@@ -53,10 +53,12 @@ def gateway(monkeypatch):
     adapters = import_module(edge.stream_chat_completion_events.__module__)
     monkeypatch.setattr(adapters, "_pooled_http_client", http_client)
     monkeypatch.setattr(adapters, "_PAID_MODELS", set())
-    monkeypatch.setenv("SUPREMEAI_FREE_ROUTE_POLICY", json.dumps([
+    monkeypatch.setenv(HMAC_KEY_ENV, bytes(range(32)).hex())
+    monkeypatch.setenv(POLICY_ENV, json.dumps([
         {
             "provider": "groq", "base_url": adapters.PROVIDER_CONFIGS["groq"]["base_url"],
-            "key_sha256": hashlib.sha256(key.encode()).hexdigest(), "models": models,
+            "key_hmac_sha256": credential_identity("groq", adapters.PROVIDER_CONFIGS["groq"]["base_url"], key)[2],
+            "models": models,
             "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
         }
         for key, models in (("fixture-provider-key", ["first", "second"]), ("fixture-backup-key", ["backup"]))
@@ -203,7 +205,7 @@ def test_webhook_only_alias_never_crosses_into_api_pool(gateway, monkeypatch, mo
 @pytest.mark.parametrize("stream", [False, True])
 def test_missing_approval_does_not_use_configured_keys_or_relay_for_api_alias(gateway, monkeypatch, stream):
     client, upstream = gateway
-    monkeypatch.delenv("SUPREMEAI_FREE_ROUTE_POLICY")
+    monkeypatch.delenv(POLICY_ENV)
     monkeypatch.setattr(edge, "STEALTH_WEBHOOK_URL", "https://relay.example.invalid")
     relay = AsyncMock()
     monkeypatch.setattr(edge, "forward_stealth_webhook", relay)
@@ -237,19 +239,26 @@ def test_402_withdraws_model_even_if_it_was_preferred(gateway):
     assert [json.loads(call.args[0].content)["model"] for call in upstream.call_args_list] == ["first", "second", "second"]
 
 
-@pytest.mark.parametrize("approval", ["expired", "wrong-base", "wrong-credential", "invalid-json"])
+@pytest.mark.parametrize("approval", [
+    "expired", "wrong-base", "wrong-credential", "invalid-json", "missing-binding-key", "rotated-binding-key",
+])
 @pytest.mark.parametrize("stream", [False, True])
 def test_unproven_route_never_dispatches(gateway, monkeypatch, approval, stream):
     client, upstream = gateway
-    policy = json.loads(os.environ["SUPREMEAI_FREE_ROUTE_POLICY"])
-    override = {
-        "expired": {"expires_at": "2000-01-01T00:00:00Z"},
-        "wrong-base": {"base_url": "https://other.example.invalid/v1"},
-        "wrong-credential": {"key_sha256": "f" * 64},
-        "invalid-json": {},
-    }[approval]
-    updated = "{" if approval == "invalid-json" else json.dumps([{**entry, **override} for entry in policy])
-    monkeypatch.setenv("SUPREMEAI_FREE_ROUTE_POLICY", updated)
+    if approval == "missing-binding-key":
+        monkeypatch.delenv(HMAC_KEY_ENV)
+    elif approval == "rotated-binding-key":
+        monkeypatch.setenv(HMAC_KEY_ENV, "f0" * 32)
+    else:
+        policy = json.loads(os.environ[POLICY_ENV])
+        override = {
+            "expired": {"expires_at": "2000-01-01T00:00:00Z"},
+            "wrong-base": {"base_url": "https://other.example.invalid/v1"},
+            "wrong-credential": {"key_hmac_sha256": "f" * 64},
+            "invalid-json": {},
+        }[approval]
+        updated = "{" if approval == "invalid-json" else json.dumps([{**entry, **override} for entry in policy])
+        monkeypatch.setenv(POLICY_ENV, updated)
     assert client.get("/readyz").status_code == 503
     response = client.post("/v1/chat/completions", json={**_CHAT, "stream": stream}, headers=_HEADERS)
     assert response.status_code == 503
@@ -274,14 +283,14 @@ def test_api_only_image_uses_only_the_approved_multimodal_model(gateway, monkeyp
     client, upstream = gateway
     slot = KeySlot("vision-slot", "fixture-vision-key", "gemini", preferred_model="text-only")
     edge.squad.pools["gemini"].slots = [slot]
-    policy = json.loads(os.environ["SUPREMEAI_FREE_ROUTE_POLICY"])
+    policy = json.loads(os.environ[POLICY_ENV])
     policy.append({
         "provider": "gemini", "base_url": edge.PROVIDER_CONFIGS["gemini"]["base_url"],
-        "key_sha256": hashlib.sha256(slot.key.encode()).hexdigest(),
+        "key_hmac_sha256": credential_identity("gemini", edge.PROVIDER_CONFIGS["gemini"]["base_url"], slot.key)[2],
         "models": ["text-only", "vision-fixture"], "vision_models": ["vision-fixture"],
         "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
     })
-    monkeypatch.setenv("SUPREMEAI_FREE_ROUTE_POLICY", json.dumps(policy))
+    monkeypatch.setenv(POLICY_ENV, json.dumps(policy))
     upstream.return_value = httpx.Response(200, json={"choices": [{"message": {"content": "Image result"}}]})
     body = {**_CHAT, "messages": [{"role": "user", "content": [
         {"type": "image_url", "image_url": {"url": "https://image.example.invalid/photo.png"}},
@@ -302,13 +311,14 @@ def test_v0_uses_only_its_approved_slot(gateway, monkeypatch, approved):
     monkeypatch.setattr(edge, "STEALTH_WEBHOOK_URL", "https://relay.example.invalid")
     monkeypatch.setattr(edge, "forward_stealth_webhook", relay)
     if approved:
-        policy = json.loads(os.environ["SUPREMEAI_FREE_ROUTE_POLICY"])
+        policy = json.loads(os.environ[POLICY_ENV])
         policy.append({
             "provider": "v0", "base_url": edge.PROVIDER_CONFIGS["v0"]["base_url"],
-            "key_sha256": hashlib.sha256(slot.key.encode()).hexdigest(), "models": ["ui-fixture"],
+            "key_hmac_sha256": credential_identity("v0", edge.PROVIDER_CONFIGS["v0"]["base_url"], slot.key)[2],
+            "models": ["ui-fixture"],
             "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
         })
-        monkeypatch.setenv("SUPREMEAI_FREE_ROUTE_POLICY", json.dumps(policy))
+        monkeypatch.setenv(POLICY_ENV, json.dumps(policy))
         upstream.return_value = httpx.Response(200, json={"choices": [{"message": {"content": "fixture UI"}}]})
     response = client.post("/v1/ui/generate", json={"prompt": "fixture UI"}, headers=_HEADERS)
     relay.assert_not_awaited()

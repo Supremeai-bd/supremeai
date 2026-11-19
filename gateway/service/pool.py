@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from .adaptive_routing import RouteSnapshot, is_valid_secret, route_score
+from .free_route_policy import RouteIdentity
 
 logger = logging.getLogger("supremeai.pool")
 
@@ -64,7 +65,7 @@ class KeySlot:
     unsupported_models: set[str] = field(default_factory=set)
     preferred_model: Optional[str] = None
     discovered_models: List[str] = field(default_factory=list)
-    catalog_identity: tuple[str, str] | None = None
+    catalog_identity: RouteIdentity | None = None
     catalog_valid_until: float = 0.0
 
     @property

@@ -1,7 +1,6 @@
 """Refresh explicit zero-price catalog evidence; never probe with inference."""
 
 import asyncio
-import hashlib
 import logging
 import time
 from decimal import Decimal, InvalidOperation
@@ -9,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from .free_route_policy import CATALOG_REQUIRED, approved_models
+from .free_route_policy import CATALOG_REQUIRED, approved_route
 from .providers.adapters import PROVIDER_CONFIGS
 
 logger = logging.getLogger("supremeai.free_model_discovery")
@@ -39,14 +38,16 @@ async def validate_slot(slot: Any, client: httpx.AsyncClient) -> None:
     provider = slot.provider
     if provider not in CATALOG_REQUIRED:
         return
-    base_url = PROVIDER_CONFIGS[provider]["base_url"].rstrip("/")
-    approved = approved_models(provider, base_url, slot.key)
-    if not approved:
+    # Keep the credential used for the request aligned with the evidence even
+    # if the slot or the operator's binding key rotates while the GET is pending.
+    credential = slot.key
+    route = approved_route(provider, PROVIDER_CONFIGS[provider]["base_url"], credential)
+    if route is None:
         slot.catalog_valid_until = 0.0
         return
-    fingerprint = hashlib.sha256(slot.key.encode()).hexdigest()
+    _, base_url, _ = route.identity
     try:
-        response = await client.get(base_url + "/models", headers={"Authorization": f"Bearer {slot.key}"})
+        response = await client.get(base_url + "/models", headers={"Authorization": f"Bearer {credential}"})
         response.raise_for_status()
         document = response.json()
         listings = document.get("data", []) if isinstance(document, dict) else []
@@ -62,8 +63,8 @@ async def validate_slot(slot: Any, client: httpx.AsyncClient) -> None:
         slot.catalog_valid_until = 0.0
         logger.warning("Free catalog unavailable for %s (%s)", provider, type(exc).__name__)
         return
-    slot.discovered_models = [model for model in approved if model in free]
-    slot.catalog_identity = (base_url, fingerprint)
+    slot.discovered_models = [model for model in route.models if model in free]
+    slot.catalog_identity = route.identity
     slot.catalog_valid_until = time.monotonic() + CATALOG_TTL_S
 
 

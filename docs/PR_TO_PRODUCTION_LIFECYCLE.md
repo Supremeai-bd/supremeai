@@ -131,6 +131,10 @@ flowchart TD
 
 `main` লক্ষ করে একই রিপোজিটরির PR-এ `PR Landing Decision` এই রান-এর নির্দিষ্ট job result দেখে। Runner preflight, Syntax & Governance এবং GoldenEval gate সফল হতে হবে (লাইভ GoldenEval endpoint কনফিগার করা থাকলেই লাইভ পরীক্ষা চলে)। লোকাল combined battery সফল হলে আলাদা cloud fast/readiness job দরকার নেই। অন্যথায় cloud fast/readiness এবং নির্বাচিত heavy lane সফল হতে হবে। Render CI একই merge revision-এর প্রমাণ দিতে না পারলে কেবল অনুমোদিত fallback-এর সফল ফল গ্রহণযোগ্য; Render-এর প্রকৃত build failure fallback দিয়ে মওকুফ হয় না।
 
+Draft PR-এ CI checks চলবে, কিন্তু `PR Landing Decision` skip হবে।
+`ready_for_review` ইভেন্টে নতুন run সেই সিদ্ধান্ত নেবে। Trusted guard তখনও
+সর্বশেষ PR অবস্থায় draft বা বন্ধ PR-কে land করতে দেবে না।
+
 | সিদ্ধান্ত | ফলাফল |
 | --- | --- |
 | `AUTO_MERGE` | যাচাই সফল, পরিবর্তিত paths সুরক্ষিত নীতির আওতায় নয়; কোনও owner prompt নেই। |

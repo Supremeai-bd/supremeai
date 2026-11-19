@@ -1,6 +1,6 @@
 """Local approval for zero-cost Gateway API routes. Defaults and keys are not approval."""
 
-import hashlib
+import hmac
 import json
 import logging
 import os
@@ -8,13 +8,22 @@ import re
 import time
 from datetime import datetime
 from functools import lru_cache
+from typing import NamedTuple
 from urllib.parse import urlsplit
 
 logger = logging.getLogger("supremeai.free_route_policy")
 POLICY_ENV = "SUPREMEAI_FREE_ROUTE_POLICY"
+HMAC_KEY_ENV = "SUPREMEAI_FREE_ROUTE_HMAC_KEY"
 VISION_PROVIDERS = frozenset({"gemini", "openai", "openrouter"})
 CATALOG_REQUIRED = frozenset({"openrouter", "kilo"})
 EXCLUDED_MODELS = frozenset({"auto", "default", "kilo-auto/free", "kilo-auto/efficient", "openrouter/free"})
+
+RouteIdentity = tuple[str, str, str]
+
+
+class ApprovedRoute(NamedTuple):
+    identity: RouteIdentity
+    models: tuple[str, ...]
 
 
 def _https_base(url: str) -> str:
@@ -24,8 +33,23 @@ def _https_base(url: str) -> str:
     return url.rstrip("/")
 
 
+def credential_identity(provider: str, base_url: str, api_key: str) -> RouteIdentity | None:
+    key_hex = os.getenv(HMAC_KEY_ENV, "")
+    if not api_key or not re.fullmatch(r"[a-fA-F0-9]{64}", key_hex):
+        return None
+    try:
+        base_url = _https_base(base_url)
+        payload = json.dumps([provider, base_url, api_key], separators=(",", ":")).encode("utf-8")
+        # A leaked approval tag must not enable guessing the provider secret
+        # offline. The HMAC key is independent of provider and client keys.
+        tag = hmac.digest(bytes.fromhex(key_hex), b"supremeai:free-route:v1\x00" + payload, "sha256")
+        return provider, base_url, tag.hex()
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
 @lru_cache(maxsize=1)
-def _policy(raw: str) -> dict[tuple[str, str, str], tuple[float, tuple[str, ...], tuple[str, ...]]]:
+def _policy(raw: str) -> dict[RouteIdentity, tuple[float, tuple[str, ...], tuple[str, ...]]]:
     try:
         entries = json.loads(raw)
         if not isinstance(entries, list):
@@ -35,7 +59,7 @@ def _policy(raw: str) -> dict[tuple[str, str, str], tuple[float, tuple[str, ...]
             if not isinstance(entry, dict):
                 raise ValueError("expected an entry")
             provider = entry["provider"]
-            digest = entry["key_sha256"]
+            digest = entry["key_hmac_sha256"]
             if not isinstance(provider, str) or not re.fullmatch(r"[a-z0-9_]+", provider):
                 raise ValueError("invalid provider")
             if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
@@ -64,14 +88,15 @@ def _policy(raw: str) -> dict[tuple[str, str, str], tuple[float, tuple[str, ...]
         return {}
 
 
-def approved_models(provider: str, base_url: str, api_key: str, *, vision: bool = False) -> tuple[str, ...]:
-    if not api_key:
-        return ()
-    try:
-        identity = (provider, _https_base(base_url), hashlib.sha256(api_key.encode()).hexdigest())
-    except (ValueError, TypeError, AttributeError):
-        return ()
-    expiry, models, vision_models = _policy(os.getenv(POLICY_ENV, "[]")).get(identity, (0.0, (), ()))
-    if time.time() >= expiry:
-        return ()
-    return vision_models if vision else models
+def approved_route(provider: str, base_url: str, api_key: str, *, vision: bool = False) -> ApprovedRoute | None:
+    raw_policy = os.getenv(POLICY_ENV)
+    if not raw_policy or (identity := credential_identity(provider, base_url, api_key)) is None:
+        return None
+    entry = _policy(raw_policy).get(identity)
+    if entry is None:
+        return None
+    expiry, models, vision_models = entry
+    allowed_models = vision_models if vision else models
+    if not allowed_models or time.time() >= expiry:
+        return None
+    return ApprovedRoute(identity, allowed_models)

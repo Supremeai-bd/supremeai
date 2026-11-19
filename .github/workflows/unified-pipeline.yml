@@ -316,7 +316,7 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Running full verification battery on local self-hosted runner (0 cloud mins)..."
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py tests/test_tiny_brain_guard.py gateway/tests/test_free_model_discovery.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ops/wiring_atlas.py --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -406,7 +406,7 @@ jobs:
       - name: Run Full Unit & Component Guard Battery
         run: |
           echo "Local runner offline. Render CI busy. Running heavy battery on GitHub Ubuntu (Priority 3)..."
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py tests/test_tiny_brain_guard.py gateway/tests/test_free_model_discovery.py
           python scripts/ops/wiring_atlas.py --check
 
       - name: Fast Compile Integrity
@@ -447,7 +447,7 @@ jobs:
       - name: Run Full Unit & Component Guard Battery
         run: |
           echo "EMERGENCY: Render quota exhausted. Running heavy battery on GitHub Ubuntu (Priority 4)..."
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py core/tests/test_audit_regressions.py core/tests/test_no_auth_stubs.py tests/test_tiny_brain_guard.py gateway/tests/test_free_model_discovery.py
           python scripts/ops/wiring_atlas.py --check
 
       - name: Fast Compile Integrity
@@ -469,11 +469,13 @@ jobs:
   # =========================================================================
   # STAGE 2b: LANDING DECISION — one policy after the required checks finish.
   # These needs are job results for this run's github.sha, not a PR-head rollup.
+  # Drafts run CI, but no landing decision is requested until ready_for_review.
   # =========================================================================
   ai-evaluate-and-approve:
     name: "PR Landing Decision"
     if: >-
       always() && !cancelled() && github.event_name == 'pull_request' &&
+      github.event.pull_request.draft == false &&
       github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04

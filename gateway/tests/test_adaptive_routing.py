@@ -1,3 +1,4 @@
+from gateway.service.free_route_policy import ApprovedRoute
 from gateway.service.adaptive_routing import RouteSnapshot, choose_route, route_score
 from gateway.service.pool import FederationSquad
 
@@ -21,7 +22,7 @@ def test_pool_ranks_keys_by_latency_and_quota_without_provider_order(monkeypatch
     monkeypatch.setenv("GEMINI_API_KEY", "e" * 20)
     monkeypatch.setenv("SUPREMEAI_FREE_LIMIT_GROQ", "10")
     monkeypatch.setenv("SUPREMEAI_FREE_LIMIT_GEMINI", "100")
-    monkeypatch.setattr("gateway.service.providers.adapters.approved_models", lambda *_, **_kw: ("fixture-model",))
+    monkeypatch.setattr("gateway.service.providers.adapters.approved_route", lambda provider, url, _key, **_kw: ApprovedRoute((provider, url, "fixture-tag"), ("fixture-model",)))
     squad = FederationSquad()
     groq = squad.pools["groq"].slots[0]
     gemini = squad.pools["gemini"].slots[0]

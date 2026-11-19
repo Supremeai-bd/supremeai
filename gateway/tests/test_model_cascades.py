@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, Mock
 import httpx
 import pytest
 
+from gateway.service.free_route_policy import ApprovedRoute
 from gateway.service.pool import FederationSquad, KeySlot
 from gateway.service.providers import adapters
 from gateway.service.route_arbiter import DynamicRouteArbiter
@@ -14,7 +15,7 @@ from gateway.service.route_arbiter import DynamicRouteArbiter
 
 @pytest.fixture(autouse=True)
 def _approval(monkeypatch):
-    monkeypatch.setattr(adapters, "approved_models", lambda *_, **_kw: ("first-approved", "second-approved"))
+    monkeypatch.setattr(adapters, "approved_route", lambda provider, url, _key, **_kw: ApprovedRoute((provider, url, "fixture-tag"), ("first-approved", "second-approved")))
     monkeypatch.setattr(adapters, "_PAID_MODELS", set())
 
 
@@ -55,7 +56,7 @@ async def test_model_exhaustion_does_not_reset_unsupported_set(monkeypatch):
 def test_jules_key_discovery_does_not_confer_approval(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "fixture-gemini-a")
     monkeypatch.setenv("JULES_API_KEY", "fixture-gemini-b")
-    monkeypatch.setattr(adapters, "approved_models", lambda *_, **_kw: ())
+    monkeypatch.setattr(adapters, "approved_route", lambda *_, **_kw: None)
     squad = FederationSquad()
     assert {s.name for s in squad.pools["gemini"].slots} == {"GEMINI_API_KEY", "JULES_API_KEY"}
     assert squad.get_candidate_slots("gemini") == []
