@@ -62,9 +62,10 @@ SATELLITE_CONTRACT_RULES: tuple[dict[str, Any], ...] = (
         "required_tokens": ("/api/mobile/bff", "/orchestrate", "MobileChatRequest"),
     },
     {
-        "client": "supremeai-apk (Gateway Mobile BFF Re-export)",
-        "file": "gateway/routes/mobile_bff.py",
-        "required_tokens": ("core.api.routes.mobile_bff",),
+        # The mobile BFF is mounted by Core, not by a Gateway re-export.
+        "client": "supremeai-apk (Core Mobile BFF registration)",
+        "file": "core/api/routers.py",
+        "required_tokens": ('"path": "api.routes.mobile_bff"',),
     },
     {
         "client": "supremeai-apk & supremeai-desktop (SSE Chat Stream)",
@@ -73,8 +74,8 @@ SATELLITE_CONTRACT_RULES: tuple[dict[str, Any], ...] = (
     },
     {
         "client": "supremeai-apk, supremeai-desktop & supremeai-vscode (OpenAI Gateway)",
-        "file": "gateway/main.py",
-        "required_tokens": ("/v1/chat/completions",),
+        "file": "gateway/service/app.py",
+        "required_tokens": ('@app.post("/v1/chat/completions")',),
     },
     {
         "client": "Satellite Hub Registry Sentinel",

@@ -89,7 +89,6 @@ jobs:
     if: (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true'
     permissions:
       contents: read
-      pull-requests: read
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -115,32 +114,10 @@ jobs:
           pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py core/tests/agents/test_agents_unified.py
           python scripts/ops/wiring_atlas.py --check
 
-      - name: Subsystem Paths Filter
-        id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
-        with:
-          filters: |
-            vscode:
-              - 'vscode/**'
-
-      - name: Setup Node.js (for Subsystems)
-        if: steps.filter.outputs.vscode == 'true'
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
-        with:
-          node-version: 24
-
-      - name: VSCode Extension / Satellite Sentinel Check
-        if: steps.filter.outputs.vscode == 'true'
-        run: |
-          if [ -f "vscode/extension/package.json" ]; then
-            cd vscode
-            npm ci
-            npm run compile --workspace=extension
-            npm test --workspace=extension
-          else
-            echo "vscode/extension decoupled to Supremeai-bd/supremeai-vscode — verifying satellite contract sentinel..."
-            python scripts/ci/nightly_repo_hygiene.py --verify-client-contracts
-          fi
+      # Core and Gateway changes can break satellite contracts without touching
+      # vscode/. This check is read-only; there is no in-tree extension to build.
+      - name: Verify Satellite Client API Contracts
+        run: python scripts/ci/nightly_repo_hygiene.py --verify-client-contracts
 
   runtime-readiness:
     name: "Tier 1: Runtime Readiness & Boundaries (<30s, cloud fallback)"
