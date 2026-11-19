@@ -38,8 +38,8 @@
 >    - সিনট্যাক্স, লিন্ট, বাউন্ডারি গার্ড ও স্যানিটেশন চেক দ্রুত সম্পন্ন হবে (`fast-gate`, `runtime-readiness`)।
 > 3. **Job 3 (Stage 2): Tier 2 Heavy Test Battery (কঠোর ক্রমানুসারে Tier 1-এর পরে)**  
 >    - হেভি টেস্ট ব্যাটারি বা বিল্ড কাজসমূহ **কঠোরভাবে Tier 1 Fast Safety Gate এবং Runtime Readiness ১০০% সবুজ হওয়ার পরে** শুরু হবে এবং Job 1 দ্বারা নির্ধারিত রানার টায়ারে এক্সিকিউট হবে।
-> 4. **Job 4 (Stage 3): 100% অটোনমাস অটো-মার্জ গেট (`auto-merge`)**  
->    - সমস্ত গেট ১০০% সবুজ হলে অ্যাকশনস নিজে পিআর স্কোয়াশ মার্জ করবে।
+> 4. **Job 4: যাচাইকৃত মার্জ সিদ্ধান্ত (`PR Landing Decision`)**
+>    - যাচাইকৃত সাধারণ PR স্বয়ংক্রিয়ভাবে স্কোয়াশ মার্জ হবে। সুরক্ষিত পরিবর্তনে আগে অনুমোদিত owner-এর সম্মতি লাগবে।
 > 5. **ডিপ্লয়মেন্ট স্বাধীনতা (Deployment Independence Invariant):**  
 >    - প্রোডাকশন ডিপ্লয়মেন্ট (`deploy-render-services`, `deploy-cloudflare`, `deploy-vercel`, `Harness CD`) এই রানার হায়ারার্কি অনুসরণ করে না। ডিপ্লয়মেন্ট সবসময় সরাসরি ক্লাউড রানারে (`ubuntu-latest`) এপিআই কলের মাধ্যমে চলে।
 
@@ -64,11 +64,13 @@ flowchart TD
     RenderCI --> LocalPassed
     GitHubHeavy --> LocalPassed
     
-    LocalPassed -- "❌ Test Failed" --> BlockMerge["🚫 Merge BLOCKED\n• Report in-place failure\n• Zero broken code lands on main"]
-    
-    LocalPassed -- "✅ Tests 100% Green" --> AIGate{"SupremeAI API Pool\nAI Semantic Verification\n(Optional / High-Risk PRs)"}
-    
-    AIGate -- "Approved" --> CloudMerge["Auto-Merge Gate (GitHub Cloud: 10-15s)\n• gh pr merge --squash --delete-branch\n• 100% Autonomous (Zero Manual Work)"]
+    LocalPassed -- "Failed or incomplete" --> BlockMerge["BLOCKED — no merge or approval request"]
+
+    LocalPassed -- "Required checks passed" --> Landing{"Verify the PR head, tested merge revision and changed paths"}
+    Landing -- "Stale or unknown" --> BlockMerge
+    Landing -- "OWNER_REVIEW" --> Owner["Existing production environment approval"]
+    Landing -- "AUTO_MERGE" --> CloudMerge["Recheck the candidate and squash merge"]
+    Owner -- "Approved" --> CloudMerge
     
     CloudMerge --> PostMerge["3. Post-Merge CD Orchestration\n(Harness CD / Render Parallel Matrix)"]
     
@@ -125,17 +127,19 @@ flowchart TD
 
 ---
 
-## ৪. স্তর ২খ: ১০০% অটোনমাস অটো-মার্জ গেট (Zero Manual Merge)
+## ৪. স্তর ২খ: যাচাইকৃত PR-এর মার্জ সিদ্ধান্ত
 
-- **সম্পূর্ণ স্বয়ংক্রিয় ও ইন-ওয়ার্কফ্লো নিয়ন্ত্রিত:** কোড মার্জ করার জন্য কোনো ম্যানুয়াল ক্লিকের প্রয়োজন নেই।
-- **টার্মিনাল থেকে `gh pr merge --auto` নিষিদ্ধ:** প্রাইভেট রিপোজিটরিতে (GitHub Free Plan) ব্র্যাঞ্চ প্রোটেকশন রুলস না থাকায় টার্মিনাল থেকে `--auto` দিলে গিটহাব কোনো চেক ছাড়াই তৎক্ষণাৎ পিআর মার্জ করে দেয়! তাই টার্মিনাল থেকে মার্জ কমান্ড দেওয়া সম্পূর্ণ নিষিদ্ধ।
-- **একমাত্র মার্জ অথরিটি (`Auto-Merge PR (gated)`):** সিআই পাইপলাইনের শেষ ধাপ হিসেবে গিটহাব অ্যাকশনস নিজে পিআর মার্জ করবে।
-- **কঠোর মার্জ পূর্বশর্ত:** 
-  1. `fast-gate` এবং `runtime-readiness` সবুজ হতে হবে।
-  2. `render-heavy-gate` (লোকাল পিসি অথবা ক্লাউড ফলব্যাক) সম্পূর্ণ পাস হতে হবে।
-  3. কোনো টেস্ট ফেইল থাকলে বা স্কিপ করা হলে `Squash merge PR` স্টেপ স্কিপ হবে এবং পিআর মার্জ কঠোরভাবে আটকে থাকবে।
-- **মার্জ অ্যাকশন:** সমস্ত গেট ১০০% সবুজ হলে অ্যাকশনস নিজে `gh pr merge "$PR_NUMBER" --squash --delete-branch` চালাবে।
-- **রানটাইম:** মাত্র ১০–১৫ সেকেন্ড।
+`main` লক্ষ করে একই রিপোজিটরির PR-এ `PR Landing Decision` এই রান-এর নির্দিষ্ট job result দেখে। Runner preflight, Syntax & Governance এবং GoldenEval gate সফল হতে হবে (লাইভ GoldenEval endpoint কনফিগার করা থাকলেই লাইভ পরীক্ষা চলে)। লোকাল combined battery সফল হলে আলাদা cloud fast/readiness job দরকার নেই। অন্যথায় cloud fast/readiness এবং নির্বাচিত heavy lane সফল হতে হবে। Render CI একই merge revision-এর প্রমাণ দিতে না পারলে কেবল অনুমোদিত fallback-এর সফল ফল গ্রহণযোগ্য; Render-এর প্রকৃত build failure fallback দিয়ে মওকুফ হয় না।
+
+| সিদ্ধান্ত | ফলাফল |
+| --- | --- |
+| `AUTO_MERGE` | যাচাই সফল, পরিবর্তিত paths সুরক্ষিত নীতির আওতায় নয়; কোনও owner prompt নেই। |
+| `BLOCKED` | আবশ্যিক CI অসম্পূর্ণ/ব্যর্থ, candidate বদলেছে, অথবা প্রমাণ বা verdict অজানা; কারণ লগে থাকে, অনুমোদন চাওয়া হয় না। |
+| `OWNER_REVIEW` | যাচাই সফল, কিন্তু PR সুরক্ষিত approval, security/data boundary, production migration বা release policy path ছুঁয়েছে; বিদ্যমান `production` environment-এ অনুমোদন লাগে। |
+
+**একটিই merge job।** এটি approval-এর পরেও বর্তমান PR head, `main` tip এবং CI-তে ব্যবহৃত merge revision মিলিয়ে দেখে। `gh pr merge --match-head-commit` মিউটেশনে head শর্তও প্রয়োগ করে। workflow আর CI-এর পর branch update করে না বা `--auto` দিয়ে পরের merge queue করে না। Candidate বদলালে নতুন PR event/run-এ যাচাই করুন; পুরনো run পুনরায় চালালে তার SHA বদলায় না। টার্মিনাল থেকে merge দিয়ে gate পাশ কাটানো নিষিদ্ধ।
+
+**Trust ও rollout:** guard পরীক্ষাধীন PR থেকে নয়, তার base commit থেকে চলে। পুরোনো base-এর CLI নতুন SHA arguments না চিনলে workflow সেটি চালিয়ে approval চায় না: `BLOCKED` ও `legacy_trusted_base_guard` কারণটি দেখায়। অন্য CI checks স্বাভাবিকভাবেই চলে; এই notice কোনও check মওকুফ বা merge authorization নয়। প্রথম policy-change PR-টি বিদ্যমান owner review ও repository rules মেনে land করতে হবে। Repository branch rules ও `production` required reviewers অক্ষত রাখুন। `--match-head-commit` শুধু head atomically পিন করে; শেষ recheck-এর পর অন্য পথে `main` বদলানোর race বন্ধ রাখতে GitHub-এর up-to-date branch protection (merge identity-র জন্যও, bypass ছাড়া) প্রয়োজন।
 
 ---
 
@@ -153,11 +157,10 @@ flowchart TD
   ├── Anti-Bloat Invariant (Occam's razor, minimal patch verification)
   └── Zero-Recurrence Check (Regression test coverage)
           ↓
-[Sign CI Attestation / Approve Auto-Merge]
+[CI verification result — not landing authorization]
 ```
 
-- **খরচ:** জিরো এক্সটার্নাল ক্লাউড খরচ; সুপ্রিমএআই-এর অভ্যন্তরীণ মাল্টি-প্রোভাইডার কী-পুল রাউটার ব্যবহারের মাধ্যমে সম্পন্ন হয়।
-- **সুবিধা:** হিউম্যান কোড রিভিউর উপর নির্ভর না করে স্বয়ংক্রিয় ইন্টেলিজেন্ট কোড গার্ড নিশ্চিত করা।
+এই যাচাই landing সিদ্ধান্তের একটি ইনপুট। AI কোনও আবশ্যিক check মওকুফ করতে পারে না বা protected environment অনুমোদন করে না। PR-এর line count অথবা model confidence দিয়ে owner review চাওয়া হয় না।
 
 ---
 

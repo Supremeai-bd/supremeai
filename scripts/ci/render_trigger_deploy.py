@@ -24,6 +24,7 @@ own concern; auth/URL/error normalization is the client's.
 from __future__ import annotations
 
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -193,32 +194,35 @@ def main() -> int:
         print("Skipping Render deploy - RENDER_API_KEY not set")
         return 0
 
+    expected_sha = os.environ.get("EXPECTED_SHA", "").strip().lower()
+    if REQUIRE_EXPECTED_SHA and not re.fullmatch(r"[0-9a-f]{40}", expected_sha):
+        print("::error::Strict deploy requires a full EXPECTED_SHA.")
+        _allow_ci_fallback()
+        return 2
+    strict_sha = expected_sha if REQUIRE_EXPECTED_SHA else None
+    commit_id = expected_sha or os.environ.get("GITHUB_SHA", "").strip() or None
+
     active_env, client = _resolve_owning_client(svc_id, candidate_keys)
     _sync_bootstrap_env_vars(client, svc_id)
     key_idx = next(
         (idx for idx, (env_name, _) in enumerate(candidate_keys) if env_name == active_env),
         0,
     )
-    commit_id = (
-        os.environ.get("PR_HEAD_SHA", "").strip()
-        or os.environ.get("EXPECTED_SHA", "").strip()
-        or os.environ.get("GITHUB_SHA", "").strip()
-    ) or None
-    if REQUIRE_EXPECTED_SHA and not commit_id:
-        print("::error::Strict CI deploy requires an expected commit SHA.")
-        _allow_ci_fallback()
-        return 2
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
             body = client.trigger_deploy(svc_id, commit_id=commit_id)
             print(f"Deploy triggered via {active_env}:", body)
-            if not RENDER_WAIT:
+            if not (RENDER_WAIT or REQUIRE_EXPECTED_SHA):
                 return 0
-            return wait_for_terminal_state(client, svc_id, body, require_deploy_id=REQUIRE_EXPECTED_SHA)
+            return wait_for_terminal_state(client, svc_id, body, expected_sha=strict_sha)
         except RenderApiError as exc:
             err_body = (exc.body or "").lower()
             if exc.status == 400 and "cannot deploy suspended service" in err_body:
+                if REQUIRE_EXPECTED_SHA:
+                    print(f"::error::Render service {svc_id} is suspended; no verified result.")
+                    _allow_ci_fallback()
+                    return 2
                 print(
                     f"::warning::Service {svc_id} is SUSPENDED on Render. "
                     "Skipping deploy trigger without failing CI."
@@ -247,7 +251,7 @@ def main() -> int:
                     print(f"Deploy triggered (branch HEAD) via {active_env}:", body)
                     if not RENDER_WAIT:
                         return 0
-                    return wait_for_terminal_state(client, svc_id, body, require_deploy_id=REQUIRE_EXPECTED_SHA)
+                    return wait_for_terminal_state(client, svc_id, body)
                 except RenderApiError as inner_exc:
                     exc = inner_exc
                     err_body = (exc.body or "").lower()
@@ -281,9 +285,11 @@ def main() -> int:
                             break
                         continue
                 if matched_client is not None:
-                    if not RENDER_WAIT:
+                    if not (RENDER_WAIT or REQUIRE_EXPECTED_SHA):
                         return 0
-                    return wait_for_terminal_state(matched_client, svc_id, body, require_deploy_id=REQUIRE_EXPECTED_SHA)
+                    return wait_for_terminal_state(
+                        matched_client, svc_id, body, expected_sha=strict_sha,
+                    )
 
             print(f"Attempt {attempt}/{MAX_ATTEMPTS} failed with HTTP {exc.status}: {exc.body or exc}")
             if attempt == MAX_ATTEMPTS:
@@ -301,18 +307,17 @@ def main() -> int:
 
 
 def wait_for_terminal_state(
-    client: RenderClient, svc_id: str, trigger_body: dict, *, require_deploy_id: bool = False
+    client: RenderClient, svc_id: str, trigger_body: dict, *, expected_sha: str | None = None
 ) -> int:
     """Poll the triggered deploy to a terminal state (issue #1855).
 
-    live -> 0. build_failed/update_failed/deactivated/canceled -> 1 (the enclosing
-    job fails -> the event-driven deploy-doctor arm + notify-failure fire IN-RUN).
-    Timeout: exit 1 unless the deploy already reached pre_live (deploy essentially
-    complete; loud warning instead of a false failure).
+    A completed build failure is never eligible for fallback. In strict mode,
+    success also requires the full expected SHA; missing evidence returns 2.
+    Non-strict deployments retain the legacy pre_live timeout tolerance.
     """
     deploy_id = (trigger_body or {}).get("id")
     if not deploy_id:
-        if require_deploy_id:
+        if expected_sha:
             print("::error::Deploy trigger response carried no id; strict CI cannot verify this deploy.")
             _allow_ci_fallback()
             return 2
@@ -328,8 +333,20 @@ def wait_for_terminal_state(
             print(f"poll error (will retry): {exc}")
             time.sleep(POLL_INTERVAL_SECONDS)
             continue
-        last = deploy.get("status") or deploy.get("deploy", {}).get("status") if isinstance(deploy, dict) else None
+        deploy = deploy.get("deploy", deploy) if isinstance(deploy, dict) else {}
+        last = deploy.get("status") if isinstance(deploy, dict) else None
         if last in OK_STATES:
+            if expected_sha:
+                commit = deploy.get("commit")
+                actual_sha = (commit.get("id") or commit.get("sha")) if isinstance(commit, dict) else None
+                actual_sha = actual_sha or deploy.get("commitId") or deploy.get("commitSha")
+                if actual_sha != expected_sha:
+                    print("::error::Live Render deploy did not report the expected commit; no verified result.")
+                    _allow_ci_fallback()
+                    return 2
+                if output := os.getenv("GITHUB_OUTPUT"):
+                    with open(output, "a", encoding="utf-8") as stream:
+                        stream.write(f"verified_sha={expected_sha}\n")
             print(f"Deploy {deploy_id} reached terminal state: live ✓")
             return 0
         if last in FAIL_STATES:
@@ -339,7 +356,7 @@ def wait_for_terminal_state(
         time.sleep(POLL_INTERVAL_SECONDS)
 
     if last == "pre_live":
-        if require_deploy_id:
+        if expected_sha:
             print("::error::Strict CI deploy did not reach live; allow GitHub fallback.")
             _allow_ci_fallback()
             return 2
@@ -347,7 +364,7 @@ def wait_for_terminal_state(
         return 0
     print(f"::error::Deploy {deploy_id} did not reach a terminal state within {POLL_TIMEOUT_SECONDS}s (last: {last}).")
     _allow_ci_fallback()
-    return 2 if require_deploy_id else 1
+    return 2 if expected_sha else 1
 
 
 if __name__ == "__main__":

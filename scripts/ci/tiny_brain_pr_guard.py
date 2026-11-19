@@ -1,316 +1,236 @@
 #!/usr/bin/env python3
-"""SupremeAI Tiny Brain PR Guard — AI-Gated Auto-Merge client.
-
-Tier 1: deterministic hard guard (forbidden paths + diff size floor).
-Tier 2: SupremeAI Tiny Brain backend (/v1/brain/pr-risk).
-Tier 3: human escalation comment when not auto-approved.
-Fail-closed when Tiny Brain is unreachable.
-"""
+"""Read-only landing decision for the unified PR workflow; no model or approval API."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import os
-import sys
-import urllib.request
-from datetime import datetime, timezone
+import re
+import subprocess
 from pathlib import Path
 from typing import Any, Callable
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-SCRIPT_DIR = Path(__file__).resolve().parent
-if str(SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPT_DIR))
+REPO = "Supremeai-bd/supremeai"
+AUTO_MERGE = "AUTO_MERGE"
+BLOCKED = "BLOCKED"
+OWNER_REVIEW = "OWNER_REVIEW"
 
-try:
-    from ai_pr_evaluator import classify_pr_risk
-except Exception:
-    try:
-        from scripts.ci.ai_pr_evaluator import classify_pr_risk
-    except Exception:
-        classify_pr_risk = None
+RESOLVE = "resolve-execution-tier"
+LOCAL = "render-heavy-gate"
+RENDER = "render-heavy-gate-render-ci"
+FALLBACK = "render-heavy-gate-fallback"
+HEAVY_JOBS = {
+    "local-self-hosted": LOCAL,
+    "render-ci-runner": RENDER,
+    "github-ubuntu-render-backend": FALLBACK,
+    "github-ubuntu-emergency": "render-heavy-gate-emergency",
+}
 
-try:
-    from ai_auto_approver import (
-        approve_pending_deployment,
-        fetch_pr,
-        post_pr_comment,
-        real_api,
-    )
-except Exception:
-    try:
-        from scripts.ci.ai_auto_approver import (
-            approve_pending_deployment,
-            fetch_pr,
-            post_pr_comment,
-            real_api,
-        )
-    except Exception:
-        approve_pending_deployment = None
-        fetch_pr = None
-        post_pr_comment = None
-        real_api = None
-
-REPO = os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GH_REPO") or "Supremeai-bd/supremeai"
-DIFF_SIZE_FLOOR = 3000
-FORBIDDEN_PATH_PREFIXES = (
+# Paths with authority over approval, credentials, data isolation or production.
+# No diff-size or model-confidence inputs to the owner decision.
+PROTECTED_PREFIXES = (
+    ".github/workflows/",
+    ".github/actions/",
+    ".github/constitution/",
+    ".github/codeql/",
+    ".github/scripts/constitution/",
+    "core/security/",
+    "core/services/hitl/",
     "gateway/middleware/",
-    "infrastructure/supabase/",
+    "core/alembic_migrations/",
     "core/database/migrations/",
+    "core/database/supabase/",
+    "core/scripts/migrations/",
+    "infrastructure/supabase/",
+    "infrastructure/mcp-control-plane/src/policy/",
+    "infrastructure/mcp-control-plane/src/tenancy/",
     "migrations/",
     "liquibase/",
+    "scripts/deploy/",
+    "scripts/ops/deploy/",
 )
-FORBIDDEN_PATH_EXACT = {"gateway/service/keygen.py", "admin_auth.py", "render.yaml", "ai_pr_evaluator.py", "ai_auto_approver.py", "tiny_brain_pr_guard.py"}
+PROTECTED_PATHS = {
+    ".github/codeowners",
+    "config/service_registry.yaml",
+    "core/config/service_topology.yaml",
+    "core/api/dependencies.py",
+    "core/api/routes/admin_auth.py",
+    "core/api/routes/api_keys.py",
+    "core/api/routes/auth.py",
+    "core/api/routes/keys.py",
+    "core/api/routes/tenant_admin.py",
+    "core/cache/multi_layer_cache.py",  # Stores tenant/user-scoped sessions.
+    "core/middleware/cors_policy.py",
+    "core/middleware/security.py",
+    "gateway/service/admin_auth.py",
+    "gateway/service/auth_identity.py",
+    "gateway/service/keygen.py",
+    "gateway/service/passkey_auth.py",
+    "infrastructure/mcp-control-plane/src/guardian/policy.ts",
+    "render.yaml",
+    "scripts/ci/ai_auto_approver.py",
+    "scripts/ci/ai_pr_evaluator.py",
+    "scripts/ci/ai_semantic_pr_verifier.py",
+    "scripts/ci/infisical_loader.py",
+    "scripts/ci/merge_gate.py",
+    "scripts/ci/plan_render_deploys.py",
+    "scripts/ci/production_release_gate.py",
+    "scripts/ci/readiness_contract.py",
+    "scripts/ci/render_deploy_attestation.py",
+    "scripts/ci/render_trigger_deploy.py",
+    "scripts/ci/resolve_execution_tier.py",
+    "scripts/ci/tiny_brain_pr_guard.py",
+    "scripts/lib/render_client.py",
+    "scripts/runtime/infisical_bootstrap.py",
+}
+
+Api = Callable[[str], Any]
 
 
-if real_api is None:
-    import urllib.request
-
-    def real_api(endpoint: str, method: str = "GET", payload: Any = None) -> Any:
-        tok = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
-        h = {"Authorization": f"token {tok}", "Accept": "application/vnd.github+json"}
-        r = urllib.request.Request(f"https://api.github.com/{endpoint.lstrip('/')}", headers=h, method=method)
-        with urllib.request.urlopen(r, timeout=30) as s:
-            t = s.read().decode()
-        return json.loads(t) if t.strip() else None
+def read_api(endpoint: str) -> Any:
+    result = subprocess.run(
+        ["gh", "api", "--method", "GET", endpoint],
+        check=True, capture_output=True, text=True, timeout=20,
+    )
+    return json.loads(result.stdout)
 
 
-Api = Callable[[str, str, Any], Any]
+def ci_block_reason(needs: dict | None, merge_sha: str) -> str | None:
+    """Require named successes in this run, with only the configured Render alternative."""
+    if not isinstance(needs, dict):
+        return "ci_evidence_invalid"
+
+    def result(job: str) -> str | None:
+        return needs.get(job, {}).get("result")
+
+    def not_successful(jobs: tuple[str, ...]) -> str | None:
+        return next((f"ci_not_success:{job}" for job in jobs if result(job) != "success"), None)
+
+    reason = not_successful((RESOLVE, "syntax-and-governance-gate", "golden-eval-gate"))
+    if reason:
+        return reason
+    tier = needs[RESOLVE].get("outputs", {}).get("execution_tier")
+    heavy_job = HEAVY_JOBS.get(tier)
+    if heavy_job is None:
+        return "unknown_execution_tier"
+    if heavy_job == LOCAL:
+        return not_successful((LOCAL,))
+    if heavy_job == RENDER:
+        render_outputs = needs.get(RENDER, {}).get("outputs", {})
+        if result(RENDER) == "failure" and render_outputs.get("fallback_allowed") == "true":
+            heavy_job = FALLBACK
+        elif result(RENDER) == "success" and render_outputs.get("verified_sha") != merge_sha:
+            return "render_tested_sha_missing_or_mismatched"
+    return not_successful(("fast-gate", "runtime-readiness", heavy_job))
 
 
-def is_forbidden_path(path: str) -> bool:
-    p = str(path or "").replace("\\", "/").strip().lstrip("/").lower()
-    if not p:
-        return False
-    base = p.rsplit("/", 1)[-1]
-    if p in FORBIDDEN_PATH_EXACT or base in FORBIDDEN_PATH_EXACT:
-        return True
-    if any("auth" in base for _ in [0]) and "auth" in base:
-        # auth-related files
-        pass
-    if base.startswith(".env"):
-        return True
-    if "infisical" in p:
-        return True
-    if base in ("admin_auth.py", "keygen.py") or p.endswith(("/admin_auth.py", "/keygen.py")):
-        return True
-    for prefix in FORBIDDEN_PATH_PREFIXES:
-        if p.startswith(prefix):
-            return True
-    return False
+class BlockLanding(ValueError):
+    """Known, actionable reason to do nothing, not to ask the owner."""
 
 
-def tier1_violations(files: Any, diff_stats: dict | None = None) -> list[str]:
-    paths = []
-    if isinstance(files, list):
-        for f in files:
-            if isinstance(f, str):
-                paths.append(f)
-            elif isinstance(f, dict):
-                paths.append(f.get("path") or f.get("filename") or f.get("name") or "")
-    violations = [p for p in paths if is_forbidden_path(p)]
-    stats = diff_stats or {}
-    try:
-        if int(stats.get("additions", 0) or 0) > DIFF_SIZE_FLOOR:
-            violations.append(f"diff_size_floor_exceeded:{stats.get('additions')}")
-    except (TypeError, ValueError):
-        pass
-    return violations
-
-
-_imported_fetch_pr = fetch_pr
-
-
-def fetch_pr(pr_number: int, api: Api = real_api) -> dict:
-    if _imported_fetch_pr is not None and _imported_fetch_pr is not fetch_pr:
-        return _imported_fetch_pr(pr_number, api=api)
-    pr = api(f"repos/{REPO}/pulls/{pr_number}") or {}
-    if not isinstance(pr, dict):
-        pr = {}
-    files = api(f"repos/{REPO}/pulls/{pr_number}/files?per_page=100") if api else []
-    pr["files"] = files if isinstance(files, list) else []
+def _current_pr(pr_number: int, *, repo: str, head_sha: str, base_sha: str, merge_sha: str, api: Api) -> dict:
+    if not all(re.fullmatch(r"[0-9a-f]{40}", sha) for sha in (head_sha, base_sha, merge_sha)):
+        raise BlockLanding("candidate_sha_missing_or_invalid")
+    pr = api(f"repos/{repo}/pulls/{pr_number}")
+    if pr.get("number") != pr_number or pr.get("state") != "open" or pr.get("draft") is not False:
+        raise BlockLanding("pr_not_open_and_ready")
+    head, base = pr["head"], pr["base"]
+    if head["repo"]["full_name"].lower() != repo.lower() or base["repo"]["full_name"].lower() != repo.lower():
+        raise BlockLanding("pr_not_same_repository")
+    if base["ref"] != "main":
+        raise BlockLanding("pr_not_targeting_main")
+    if head["sha"] != head_sha:
+        raise BlockLanding("pr_head_changed")
+    if base["sha"] != base_sha or api(f"repos/{repo}/git/ref/heads/main")["object"]["sha"] != base_sha:
+        raise BlockLanding("pr_base_changed")
+    if pr.get("mergeable") is not True or pr.get("merge_commit_sha") != merge_sha:
+        raise BlockLanding("tested_merge_revision_not_current")
     return pr
 
 
-def _checks_green(pr: dict) -> bool:
-    checks = pr.get("statusCheckRollup") or []
-    if not checks:
-        return False
-    failed = [
-        c for c in checks
-        if c.get("conclusion") and str(c["conclusion"]).upper() not in ("SUCCESS", "SKIPPED", "NEUTRAL")
-    ]
-    return len(failed) == 0
+def _changed_paths(endpoint: str, count: int, api: Api) -> set[str]:
+    # GitHub's PR files endpoint caps the list at 3,000. Never classify a partial diff.
+    if type(count) is not int or not 0 < count <= 3000:
+        raise BlockLanding("changed_paths_incomplete")
+    filenames: set[str] = set()
+    previous: set[str] = set()
+    for page in range(1, (count + 99) // 100 + 1):
+        items = api(f"{endpoint}/files?per_page=100&page={page}")
+        if not isinstance(items, list) or len(items) != min(100, count - 100 * (page - 1)):
+            raise BlockLanding("changed_paths_incomplete")
+        for item in items:
+            filename = item["filename"]
+            old_name = item.get("previous_filename")
+            if not isinstance(filename, str) or not filename or filename in filenames:
+                raise BlockLanding("changed_paths_incomplete")
+            if old_name is not None or item.get("status") == "renamed":
+                if not isinstance(old_name, str) or not old_name:
+                    raise BlockLanding("changed_paths_incomplete")
+                previous.add(old_name)
+            filenames.add(filename)
+    return filenames | previous
 
 
-def call_tiny_brain(pr_number: int, files: list[str], diff_stats: dict, ci_status: str,
-                    url: str, token: str | None = None, timeout: int = 8) -> dict | None:
-    payload = {
-        "pr_number": pr_number,
-        "files": files,
-        "diff_stats": diff_stats,
-        "ci_test_status": ci_status,
-    }
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["x-brain-token"] = token
+def is_protected_path(path: str) -> bool:
+    path = path.lower()
+    return path.startswith(PROTECTED_PREFIXES) or path in PROTECTED_PATHS or path.rsplit("/", 1)[-1].startswith(".env")
+
+
+def evaluate(
+    pr_number: int, *, needs: dict | None, head_sha: str, base_sha: str, merge_sha: str,
+    repo: str = REPO, api: Api = read_api, recheck: bool = False,
+) -> dict:
+    candidate = dict(repo=repo, head_sha=head_sha, base_sha=base_sha, merge_sha=merge_sha, api=api)
     try:
-        req = urllib.request.Request(
-            f"{url.rstrip('/')}/v1/brain/pr-risk",
-            data=json.dumps(payload).encode(),
-            method="POST",
-            headers=headers,
-        )
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode())
-    except Exception:
-        return None
+        if recheck:
+            _current_pr(pr_number, **candidate)
+            return {"reason": "tested_candidate_current"}
 
-
-def register_hitl_request(
-    pr_number: int,
-    run_id: int | None,
-    reason: str,
-    violations: list[str],
-    pr: dict[str, Any],
-    gateway_url: str | None = None,
-) -> bool:
-    url_base = gateway_url or os.environ.get("GATEWAY_URL", "https://supremeai-api.onrender.com")
-    url = f"{url_base.rstrip('/')}/api/v1/hitl/register"
-    title = str(pr.get("title") or f"PR #{pr_number}")
-    user = pr.get("user")
-    author = user.get("login") if isinstance(user, dict) else "unknown"
-    head_sha = ""
-    if isinstance(pr.get("head"), dict):
-        head_sha = pr["head"].get("sha", "")
-
-    payload = {
-        "id": f"pr-{pr_number}",
-        "action_name": f"Auto-Merge Review Required for PR #{pr_number}",
-        "command": f"gh pr merge {pr_number} --auto --squash",
-        "module": "ci/tiny_brain_guard",
-        "severity": "high",
-        "context": {
-            "pr_number": pr_number,
-            "run_id": run_id,
-            "title": title,
-            "author": author,
-            "reason": reason,
-            "violations": violations,
-            "head_sha": head_sha,
-        },
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "status": "pending",
-    }
-    body = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=body, method="POST")
-    req.add_header("Content-Type", "application/json")
-    admin_key = os.environ.get("SUPREMEAI_ADMIN_KEY") or os.environ.get("MCP_ADMIN_KEY") or ""
-    if admin_key:
-        req.add_header("X-SupremeAI-Key", admin_key)
-        req.add_header("Authorization", f"Bearer {admin_key}")
-    try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            return resp.status in (200, 201)
-    except Exception as e:
-        print(f"Note: HITL registration on Gateway ({url}) skipped or deferred: {e}", file=sys.stderr)
-        return False
-
-
-def evaluate(pr_number: int, run_id: int | None = None, api: Api = real_api,
-             brain_url: str | None = None, brain_token: str | None = None,
-             dry_run: bool = False,
-             gateway_url: str | None = None) -> dict[str, Any]:
-    url = brain_url or os.environ.get("TINY_BRAIN_URL", "https://supremeai-tiny-brain.onrender.com")
-    token = brain_token if brain_token is not None else os.environ.get("BRAIN_AUTH_TOKEN")
-    pr = fetch_pr(pr_number, api)
-    files = pr.get("files") or []
-    paths = [ (f.get("path") or f.get("filename") or f.get("name")) if isinstance(f, dict) else str(f) for f in files ]
-    paths = [p for p in paths if p]
-    diff_stats = {"additions": pr.get("additions", 0), "deletions": pr.get("deletions", 0)}
-    ci_status = "100%_PASS" if _checks_green(pr) else "FAIL"
-
-    violations = tier1_violations(paths, diff_stats)
-    if violations:
-        reason_msg = f"tier1_forbidden ({', '.join(violations[:3])})"
-        if not dry_run:
-            post_pr_comment(pr_number, "🚨 **Human Review Required (Major Decision Detected)**: "
-                            f"PR touches sensitive domain ({', '.join(violations[:3])}). "
-                            "Escalated to @SaifulHaqueNiloy and @paykaribazaronline.", api)
-            register_hitl_request(pr_number, run_id, reason_msg, violations, pr, gateway_url)
-        return {"pr": pr_number, "verdict": "HUMAN_REVIEW", "risk": "HIGH",
-                "reason": "tier1_forbidden", "violations": violations}
-
-    if ci_status != "100%_PASS":
-        if not dry_run:
-            post_pr_comment(pr_number, "⏳ Tiny Brain: CI not fully green; holding auto-approval.", api)
-            register_hitl_request(pr_number, run_id, "CI not fully green", [], pr, gateway_url)
-        return {"pr": pr_number, "verdict": "HUMAN_REVIEW", "risk": "HIGH",
-                "reason": "ci_not_green"}
-
-    decision = call_tiny_brain(pr_number, paths, diff_stats, ci_status, url, token)
-    if not decision:
-        # fail-closed
-        if not dry_run:
-            post_pr_comment(pr_number, "⚠️  Tiny Brain unreachable; failing closed to human review.", api)
-            register_hitl_request(pr_number, run_id, "Tiny Brain service unreachable (fail-closed)", [], pr, gateway_url)
-        return {"pr": pr_number, "verdict": "HUMAN_REVIEW", "risk": "HIGH",
-                "reason": "brain_unreachable"}
-
-    verdict = str(decision.get("verdict", "HUMAN_REVIEW"))
-    confidence = float(decision.get("confidence", 0.0) or 0.0)
-    if verdict == "AUTO_MERGE" and confidence >= 0.75:
-        if not dry_run:
-            if run_id is not None:
-                approve_pending_deployment(int(run_id), api=api)
-            post_pr_comment(pr_number, f"✅ Tiny AI Brain Approved (Confidence: {confidence*100:.1f}%): Auto-landing enabled.", api)
-        return {"pr": pr_number, "verdict": "AUTO_MERGE", "risk": "LOW",
-                "confidence": confidence, "reasoning": decision.get("reasoning")}
-    if not dry_run:
-        post_pr_comment(pr_number, "⚠️ Tiny AI Brain requested manual review due to low confidence or complexity.", api)
-    return {"pr": pr_number, "verdict": "HUMAN_REVIEW", "risk": "HIGH",
-            "confidence": confidence, "reasoning": decision.get("reasoning")}
+        reason = ci_block_reason(needs, merge_sha)
+        if reason:
+            raise BlockLanding(reason)
+        pr = _current_pr(pr_number, **candidate)
+        merge = api(f"repos/{repo}/git/commits/{merge_sha}")
+        if merge["sha"] != merge_sha or [p["sha"] for p in merge["parents"]] != [base_sha, head_sha]:
+            raise BlockLanding("tested_merge_parents_mismatch")
+        paths = _changed_paths(f"repos/{repo}/pulls/{pr_number}", pr["changed_files"], api)
+        # PR files are mutable API data. Re-read the PR after pagination.
+        _current_pr(pr_number, **candidate)
+        protected = sorted(p for p in paths if is_protected_path(p))
+        if protected:
+            return {"decision": OWNER_REVIEW, "reason": "protected_paths_changed", "paths": protected}
+        return {"decision": AUTO_MERGE, "reason": "required_ci_passed_routine_scope"}
+    except BlockLanding as exc:
+        return {"decision": BLOCKED, "reason": str(exc)}
+    except (AttributeError, KeyError, TypeError, ValueError, OSError, subprocess.SubprocessError):
+        return {"decision": BLOCKED, "reason": "candidate_or_ci_evidence_unavailable"}
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="SupremeAI Tiny Brain PR Guard")
-    ap.add_argument("--pr", type=int, required=True, help="Target PR number")
-    ap.add_argument("--run-id", type=int, default=None, dest="run_id")
-    ap.add_argument("--repo", default=None, help="Target repository override")
-    ap.add_argument("--brain-url", default=None, dest="brain_url")
-    ap.add_argument("--brain-token", default=None, dest="brain_token")
-    ap.add_argument("--gateway-url", default=None, dest="gateway_url")
-    ap.add_argument("--dry-run", action="store_true", dest="dry_run")
-    ap.add_argument("--json", action="store_true", dest="as_json")
-    opts = ap.parse_args(argv)
-
-    if opts.repo:
-        globals()["REPO"] = opts.repo
-
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--pr", type=int, required=True)
+    parser.add_argument("--repo", default=os.getenv("GITHUB_REPOSITORY", REPO))
+    parser.add_argument("--head-sha", required=True)
+    parser.add_argument("--base-sha", required=True)
+    parser.add_argument("--merge-sha", required=True)
+    parser.add_argument("--recheck-candidate", action="store_true")
+    args = parser.parse_args(argv)
+    try:
+        needs = {} if args.recheck_candidate else json.loads(os.getenv("PR_GATE_RESULTS", "{}"))
+    except ValueError:
+        needs = None
     result = evaluate(
-        pr_number=opts.pr,
-        run_id=opts.run_id,
-        api=real_api,
-        brain_url=opts.brain_url,
-        brain_token=opts.brain_token,
-        dry_run=opts.dry_run,
-        gateway_url=opts.gateway_url,
+        args.pr, needs=needs, repo=args.repo, head_sha=args.head_sha,
+        base_sha=args.base_sha, merge_sha=args.merge_sha, recheck=args.recheck_candidate,
     )
-    # Emit GitHub Actions output for downstream job gating
-    gh_out = os.environ.get("GITHUB_OUTPUT")
-    if gh_out:
-        try:
-            with open(gh_out, "a", encoding="utf-8") as fh:
-                fh.write("is_low_risk={}\n".format("true" if result.get("verdict") == "AUTO_MERGE" else "false"))
-        except Exception:
-            pass
-    if opts.as_json:
-        print(json.dumps(result))
-    else:
-        print(f"PR #{result['pr']}: verdict={result['verdict']} risk={result.get('risk')}")
+    print(json.dumps(result))
+    if not args.recheck_candidate and (output := os.getenv("GITHUB_OUTPUT")):
+        with Path(output).open("a", encoding="utf-8") as stream:
+            stream.write(f"decision={result['decision']}\nreason={result['reason']}\n")
+    if result.get("decision") == BLOCKED:
+        print(f"::error::PR landing blocked: {result['reason']}")
+        return 1
     return 0
 
 
