@@ -31,7 +31,7 @@ const candidateEnvPaths = [
 ];
 for (const envPath of candidateEnvPaths) {
   if (fs.existsSync(envPath)) {
-    dotenv.config({ path: envPath });
+    dotenv.config({ path: envPath, quiet: true });
     break;
   }
 }

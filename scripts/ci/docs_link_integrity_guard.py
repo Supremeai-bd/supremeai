@@ -61,6 +61,14 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
+# বাংলা/Unicode evidence সবসময় utf-8-তে print করতে হবে — নাহলে Windows cp1252
+# console-এ (এবং locale-sensitive CI runner-এ) UnicodeEncodeError-এ guard crash করে।
+# federation_anchors.py-এর একই SSOT pattern এখানেও প্রয়োগ।
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GUARD_TAG = "[docs-link-integrity-guard]"
 BASELINE_PATH = Path("scripts/ci/docs_link_integrity_baseline.json")

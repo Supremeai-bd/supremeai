@@ -59,23 +59,13 @@ async def get_health_map():
 
 @router.get("/shadow-hf/status")
 async def get_shadow_and_hf_status():
-    """Fetch live status from Kaggle 6-account Shadow Node & Hugging Face Tiny Brain Space."""
-    kaggle_url = os.getenv(
-        "KAGGLE_SHADOW_URL", "https://supremeai-kaggle-shadow.paykaribazaronline.workers.dev"
-    ).rstrip("/")
+    """Fetch live status from Hugging Face Tiny Brain Space (Kaggle Shadow disabled)."""
     hf_url = os.getenv("TINY_BRAIN_URL", "https://njelitltd-tiny-brain.hf.space").rstrip("/")
+    kaggle_data = {"ok": False, "disabled": True, "reason": "Kaggle Shadow disabled (phone verification unavailable)"}
 
     async with httpx.AsyncClient(timeout=6.0) as client:
-        kaggle_data = {"ok": False, "error": "unreachable"}
         hf_health = {"status": "unreachable"}
         hf_top_ai = {"top_providers": []}
-
-        try:
-            r = await client.get(f"{kaggle_url}/status", headers={"User-Agent": "SupremeAI-Admin/1.0"})
-            if r.status_code == 200:
-                kaggle_data = r.json()
-        except Exception as exc:
-            kaggle_data = {"ok": False, "error": str(exc)}
 
         try:
             r = await client.get(f"{hf_url}/health")
@@ -95,21 +85,8 @@ async def get_shadow_and_hf_status():
 
 @router.post("/shadow-hf/kaggle-rotate")
 async def trigger_kaggle_rotate():
-    """Manually trigger rotation to the next Kaggle account on the Cloudflare Shadow Worker."""
-    kaggle_url = os.getenv(
-        "KAGGLE_SHADOW_URL", "https://supremeai-kaggle-shadow.paykaribazaronline.workers.dev"
-    ).rstrip("/")
-    secret = os.getenv("SHADOW_REGISTER_SECRET", "").strip()
-    if not secret:
-        return {"ok": False, "error": "SHADOW_REGISTER_SECRET not configured"}
-
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        r = await client.post(
-            f"{kaggle_url}/rotate",
-            headers={"Authorization": f"Bearer {secret}", "User-Agent": "SupremeAI-Admin/1.0"},
-            json={},
-        )
-        return r.json() if r.headers.get("content-type", "").startswith("application/json") else {"status": r.status_code, "body": r.text}
+    """Kaggle Shadow is disabled (phone verification unavailable)."""
+    return {"ok": False, "disabled": True, "reason": "Kaggle Shadow disabled (phone verification unavailable)"}
 
 
 @router.post("/shadow-hf/top-ai-refresh")

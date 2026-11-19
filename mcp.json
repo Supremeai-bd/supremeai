@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://json.schemastore.org/mcp",
   "mcpServers": {
     "github-reader": {
@@ -9,14 +9,14 @@
       }
     },
     "supremeai-control-tower": {
-      "url": "https://supremeai-mcp-tower-live.onrender.com/mcp",
+      "url": "https://supremeai-mcp-tower.onrender.com/mcp",
       "headers": {
         "Authorization": "Bearer ${SUPREMEAI_TOWER_TOKEN}"
       }
     },
     "supremeai-control-tower-sse": {
       "type": "sse",
-      "url": "https://supremeai-mcp-tower-live.onrender.com/sse",
+      "url": "https://supremeai-mcp-tower.onrender.com/sse",
       "transport": "sse"
     },
     "supremeai-mcp-tower": {
@@ -26,8 +26,7 @@
       ],
       "env": {
         "MCP_MODE": "stdio",
-        "TINY_BRAIN_URL": "https://njelitltd-tiny-brain.hf.space",
-        "KAGGLE_SHADOW_URL": "https://supremeai-kaggle-mcp.paykaribazaronline.workers.dev"
+        "TINY_BRAIN_URL": "https://njelitltd-tiny-brain.hf.space"
       }
     }
   }

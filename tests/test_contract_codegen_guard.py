@@ -176,17 +176,16 @@ def test_roster_wiring_live():
 
 
 def test_pre_push_wiring_live():
-    """The guard is wired as a self-contained pre-push section (#1846)."""
+    """The guard reaches pre-push via the run_all_guards roster SSOT.
+
+    2026-11-17: the hook delegates Sections 1-12 to run_all_guards.py instead of
+    inlining each guard, so wiring is asserted against the roster + the hook's
+    roster delegation rather than a stale inline section marker.
+    """
     hook = HOOK.read_text(encoding="utf-8")
-    assert "scripts/ci/contract_codegen_guard.py" in hook, "guard missing from pre-push hook"
-    assert "CONTRACT CODEGEN GUARD (#1846)" in hook
-    # engages only on the contract/generated surface:
-    m = re.search(r"grep -qE '\(.*\)'; then\n            hook_py=\"\"", hook) or re.search(
-        r"grep -qE '([^']+)'; then", hook
-    )
-    assert m, "engage grep not found in hook"
-    # section numbering: 10 = license (#1773), 11 = contract codegen (#1846)
-    assert "# 11. CONTRACT CODEGEN GUARD (#1846)" in hook, "hook section numbering drifted"
+    assert "run_all_guards" in hook, "pre-push must delegate the guard roster to run_all_guards (SSOT)"
+    roster = ROSTER.read_text(encoding="utf-8")
+    assert "scripts/ci/contract_codegen_guard.py" in roster, "guard missing from run_all_guards roster"
 
 
 def test_contract_yaml_still_intact():

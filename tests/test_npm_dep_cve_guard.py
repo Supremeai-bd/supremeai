@@ -397,13 +397,15 @@ def test_all_dev_lock_is_honest_zero() -> None:
 
 
 def test_wiring_ssot() -> None:
+    # 2026-11-17: the pre-push hook delegates the guard roster to
+    # run_all_guards.py (SSOT) instead of inlining each guard. Assert the roster
+    # wiring and that the hook invokes the roster — not a stale inline marker.
     roster = (REPO_ROOT / "scripts/ci/run_all_guards.py").read_text()
     assert "scripts/ci/npm_dep_cve_guard.py" in roster, \
         "guard must be wired into the run_all_guards roster"
     prepush = (REPO_ROOT / ".githooks/pre-push").read_text()
-    assert "npm_dep_cve_guard.py" in prepush, \
-        "guard must be wired into the pre-push hook"
-    assert BASELINE in prepush or "npm_dep_cve_baseline" in prepush
+    assert "run_all_guards" in prepush, \
+        "pre-push must delegate the guard roster to run_all_guards (SSOT)"
 
 
 # ---------------------------------------------------------------------------

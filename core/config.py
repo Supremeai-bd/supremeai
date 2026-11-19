@@ -77,8 +77,16 @@ except ImportError:
 
 # বাংলা মন্তব্য: pytest environment-এ .env load করা হয় না — test isolation নিশ্চিত।
 if "pytest" not in sys.modules:
-    root_env = Path(__file__).resolve().parents[2] / ".env"
-    load_dotenv(root_env)
+    # বাংলা মন্তব্য: `parents[2]` hard-index করা ছিল — /core যদি /app-এ symlink হয়
+    # এবং resolved path-এ ৩টির কম parent থাকে তাহলে IndexError হয়ে startup crash করত।
+    # যেহেতু env_file নিচে তালিকা হিসেবেও দেওয়া আছে (["../.env", ".env", ...]),
+    # তাই এখানে graceful skipই যথেষ্ট — missing parent মানে load_dotenv-এর কাজ env_file fallback করবে।
+    try:
+        root_env = Path(__file__).resolve().parents[2] / ".env"
+    except IndexError:
+        root_env = None
+    if root_env is not None:
+        load_dotenv(root_env)
 
 
 class Settings(BaseSettings, SettingsFieldsMixin, SettingsValidationMixin):

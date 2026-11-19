@@ -51,18 +51,13 @@ export function registerTinyBrainTools(server: McpServer): void {
 
   server.tool(
     "kaggle_shadow.status",
-    "Check which Kaggle account and shadow node URL is currently active in the 24/7 Cloudflare-Kaggle rotator.",
+    "Kaggle Shadow is disabled (phone verification unavailable).",
     {},
-    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async () => {
-      const baseUrl = (process.env.KAGGLE_SHADOW_URL || DEFAULT_KAGGLE_SHADOW_URL).replace(/\/+$/, "");
-      const resp = await fetch(`${baseUrl}/status`, {
-        headers: { "User-Agent": "SupremeAI-MCP-Tower/1.0" },
-      });
-      const text = await resp.text();
       return {
-        content: [{ type: "text", text }],
-        isError: !resp.ok,
+        content: [{ type: "text", text: JSON.stringify({ ok: false, disabled: true, reason: "Kaggle Shadow disabled (phone verification unavailable)" }) }],
+        isError: false,
       };
     },
   );

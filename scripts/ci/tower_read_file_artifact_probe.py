@@ -154,11 +154,23 @@ def run_self_test() -> int:
     # blob sha sanity against a known-good git value shape
     sha = git_blob_sha(b"hello\n")
     assert re.fullmatch(r"[0-9a-f]{40}", sha), sha
-    # fixture sanity (offline): fixture must exist in the worktree and carry
-    # at least one suspect span, so live mode has something to catch.
+    # fixture sanity (offline): the self-test is hermetic, so it must not depend
+    # on an uncommitted fixture file (scripts/ci/fixtures/ is gitignored). Use the
+    # canonical tracked fixture when present; otherwise synthesise a temp one that
+    # carries a suspect span so live mode still has a shape to catch.
     fx = REPO_ROOT / DEFAULT_FIXTURE
-    assert fx.exists(), f"fixture missing: {fx}"
-    fx_text = fx.read_text(encoding="utf-8")
+    if fx.exists():
+        fx_text = fx.read_text(encoding="utf-8")
+    else:
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".txt", encoding="utf-8", delete=False
+        ) as tmp:
+            tmp.write("branches: [main]\ncolor: [0;32m\n")
+            tmp_name = tmp.name
+        fx_text = Path(tmp_name).read_text(encoding="utf-8")
+        Path(tmp_name).unlink(missing_ok=True)
     assert SUSPECT.search(fx_text), "fixture carries no suspect spans"
     if failures:
         print(f"SELF-TEST FAIL: {len(failures)} case(s): {failures}")

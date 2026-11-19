@@ -50,8 +50,11 @@ ANCHOR_HUBS: dict[str, int] = {
     "Supremeai-bd/supremeai-sdk": 757,
     "Supremeai-bd/supremeai-infrastructure": 758,
     "Supremeai-bd/supremeai-mcp-control-plane": 759,
-    "Supremeai-bd/supremeai": 760,
-# 1 Central Monorepo
+    # 1 Archive/Bridge Desk — owns #760. Previously the dict listed
+    # "Supremeai-bd/supremeai" here AND again at #761, so the duplicate key
+    # silently collapsed the map to 12 entries and the 13-hub self-test failed.
+    "Supremeai-bd/supremeai-archive": 760,
+    # 1 Central Monorepo
     "Supremeai-bd/supremeai": 761,
 }
 
@@ -73,7 +76,7 @@ RETIRED_ANCHOR_HUBS: dict[str, int] = {
     "Supremeai-bd/supremeai-sdk": 757,
     "Supremeai-bd/supremeai-infrastructure": 758,
     "Supremeai-bd/supremeai-mcp-control-plane": 759,
-    "Supremeai-bd/supremeai": 760,
+    "Supremeai-bd/supremeai-archive": 760,
 }
 
 # Specialized Hubs

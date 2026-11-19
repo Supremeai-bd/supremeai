@@ -27,8 +27,13 @@ class TestFederationAnchors(unittest.TestCase):
         self.assertEqual(len(unique_numbers), len(ANCHOR_HUBS))
 
     def test_sequential_anchor_range(self):
-        """Anchor issue numbers must span 749 through 762."""
-        expected = set(range(749, 763))
+        """Anchor issue numbers must span 749 through 761 (13 distinct hubs).
+
+        2-repo topology SSOT: the monorepo `Supremeai-bd/supremeai` owns #761
+        (CI-failure/incident desk); the archive/bridge desk owns #760. This
+        matches federation_anchors.ANCHOR_HUBS and its hermetic self_test().
+        """
+        expected = set(range(749, 762))
         self.assertEqual(set(ANCHOR_HUBS.values()), expected)
 
     def test_specialized_hub_constants(self):
@@ -50,7 +55,7 @@ class TestFederationAnchors(unittest.TestCase):
             ("Supremeai-bd/supremeai-sdk", 757),
             ("Supremeai-bd/supremeai-infrastructure", 758),
             ("Supremeai-bd/supremeai-mcp-control-plane", 759),
-            ("Supremeai-bd/supremeai", 762),
+            ("Supremeai-bd/supremeai", 761),
         ]
         for repo, expected_num in satellites:
             with self.subTest(repo=repo):
@@ -72,7 +77,8 @@ class TestFederationAnchors(unittest.TestCase):
         self.assertEqual(get_anchor_issue_number("mcp"), 759)
         self.assertEqual(get_anchor_issue_number("bridge"), 760)
         self.assertEqual(get_anchor_issue_number("ci"), 761)
-        self.assertEqual(get_anchor_issue_number("open"), 762)
+        self.assertEqual(get_anchor_issue_number("monorepo"), 761)
+        self.assertEqual(get_anchor_issue_number("supremeai"), 761)
 
     def test_self_test_passes(self):
         """Hermetic self_test function must return 0."""

@@ -402,6 +402,9 @@ def self_test() -> bool:
         print("  PASS | sandbox git: trailer escape hatch + committed-blob reads")
 
     # G: roster/hook wiring (SSOT-extraction style — assert the LIVE files).
+    # 2026-11-17: the pre-push hook delegates Sections 1-12 to the roster SSOT,
+    # so the guard is wired via run_all_guards.py — assert that, not an inline
+    # hook reference (which the refactor deliberately removed).
     roster = REPO_ROOT / "scripts" / "ci" / "run_all_guards.py"
     if roster.is_file():
         text = roster.read_text(encoding="utf-8")
@@ -409,8 +412,7 @@ def self_test() -> bool:
     hook = REPO_ROOT / ".githooks" / "pre-push"
     if hook.is_file():
         htext = hook.read_text(encoding="utf-8")
-        assert "openapi_breaking_guard.py" in htext, "guard missing from pre-push hook"
-        assert APPROVAL_TRAILER in htext, "hook must document the escape hatch"
+        assert "run_all_guards" in htext, "pre-push must delegate the guard roster to run_all_guards (SSOT)"
     print("  PASS | roster + pre-push wiring present (when run inside the repo)")
 
     print("[self-test] openapi breaking guard self-tests PASSED (7 test cases)!")

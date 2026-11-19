@@ -111,6 +111,11 @@ def full_repo_name(satellite: str) -> str:
         raise TrainError(f"unknown rolling-train satellite: {satellite!r}")
     if norm == "infra":
         return _INFRA_CANONICAL
+    # `open` is the monorepo/embassy desk — it owns the bare `Supremeai-bd/supremeai`
+    # repo, not a `-open` satellite (the old f-string produced supremeai-open, a
+    # repo that does not exist, breaking consolidation targets + the self-test).
+    if norm == "open":
+        return "Supremeai-bd/supremeai"
     return f"Supremeai-bd/supremeai-{norm}"
 
 

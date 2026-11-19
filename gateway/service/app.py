@@ -911,6 +911,44 @@ async def _stealth_dns_snapshot(force: bool = False) -> dict:
     return dict(_stealth_dns_state)
 
 
+# Audit 2026-11-19 (#2): /healthz is process liveness by contract, but /readyz
+# used to answer "ready" from configuration alone even while the configured L2
+# cache tier (Upstash REST) was quota-exhausted or unreachable. Probe the
+# dependency the gateway actually configured, cache the verdict for a short TTL,
+# and never let the probe raise into the readiness route.
+_READINESS_DEPENDENCY_TTL_SECONDS = float(os.getenv("READINESS_DEPENDENCY_TTL_SECONDS", "30"))
+_upstash_readiness_state: dict = {"ok": None, "checked_at": 0.0}
+
+
+async def _probe_upstash_redis(url: str, token: str) -> bool:
+    """True only when the configured Upstash REST tier answers PING."""
+    import httpx
+
+    async with httpx.AsyncClient(timeout=1.5) as client:
+        resp = await client.get(f"{url}/ping", headers={"Authorization": f"Bearer {token}"})
+    return resp.status_code == 200
+
+
+async def _upstash_readiness_snapshot() -> bool | None:
+    """TTL-cached L2 cache verdict; None means no Upstash tier is configured."""
+    url = os.getenv("UPSTASH_REDIS_REST_URL", "").strip().rstrip("/")
+    token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "").strip()
+    if not url or len(token) < 8:
+        return None
+    now = time.time()
+    if (
+        _upstash_readiness_state["checked_at"]
+        and (now - _upstash_readiness_state["checked_at"]) < _READINESS_DEPENDENCY_TTL_SECONDS
+    ):
+        return _upstash_readiness_state["ok"]
+    try:
+        ok = await _probe_upstash_redis(url, token)
+    except Exception:  # noqa: BLE001 - readiness probes never raise
+        ok = False
+    _upstash_readiness_state.update(ok=ok, checked_at=now)
+    return ok
+
+
 @app.api_route("/", methods=["GET", "HEAD"])
 async def public_root():
     """Public landing status (#1729): exactly the four consumer-relevant fields.
@@ -1066,6 +1104,16 @@ async def webhook_scout_status(
 async def readiness_check():
     """Configuration-based capability signal; no private provider details or inference."""
     timestamp = datetime.now(timezone.utc).isoformat()
+    if await _upstash_readiness_snapshot() is False:
+        return JSONResponse(
+            status_code=503,
+            content=build_readiness_payload(
+                "degraded",
+                False,
+                timestamp,
+                reason="configured cache dependency unavailable",
+            ),
+        )
     if squad and squad.get_candidate_slots():
         return build_readiness_payload("ready", True, timestamp)
     if STEALTH_WEBHOOK_URL:

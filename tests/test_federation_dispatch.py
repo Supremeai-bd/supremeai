@@ -18,8 +18,11 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(len(fd.SATELLITE_REPOS), 12)
 
     def test_full_repo_names(self):
+        # 2-repo consolidation: the `archive` desk now resolves to the monorepo
+        # `Supremeai-bd/supremeai` (no trailing dash), so assert the org prefix
+        # rather than a per-satellite dash that the monorepo legitimately lacks.
         for full in fd.SATELLITE_REPOS.values():
-            self.assertTrue(full.startswith("Supremeai-bd/supremeai-"), full)
+            self.assertTrue(full.startswith("Supremeai-bd/supremeai"), full)
 
 
 class RoutingTests(unittest.TestCase):

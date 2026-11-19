@@ -67,12 +67,22 @@ def test_roster_carries_guard_line() -> None:
 
 
 def test_pre_push_hook_carries_guard_section() -> None:
+    # 2026-11-17 refactor: the hook delegates Sections 1-12 to the
+    # run_all_guards.py roster SSOT (see .githooks/pre-push header) instead of
+    # inlining each guard. Wiring is therefore asserted against the roster; the
+    # hook must invoke the roster, never re-implement the guard inline.
+    roster = REPO_ROOT / "scripts" / "ci" / "run_all_guards.py"
+    assert roster.is_file(), f"roster missing: {roster}"
+    roster_text = roster.read_text(encoding="utf-8")
+    assert "scripts/ci/openapi_breaking_guard.py" in roster_text, (
+        "guard must be wired into the run_all_guards roster SSOT"
+    )
     hook = REPO_ROOT / ".githooks" / "pre-push"
     assert hook.is_file(), f"hook missing: {hook}"
-    text = hook.read_text(encoding="utf-8")
-    assert "openapi_breaking_guard.py" in text, "pre-push must wire the guard"
-    assert TRAILER in text, "hook must document the escape hatch for intentional breaks"
-    assert "run_all_guards" not in text, "hook runs the guard directly, not the whole roster"
+    hook_text = hook.read_text(encoding="utf-8")
+    assert "run_all_guards" in hook_text, (
+        "pre-push must delegate the guard roster to run_all_guards (SSOT)"
+    )
 
 
 # --------------------------------------------------------------------------- #

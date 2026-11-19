@@ -523,11 +523,13 @@ def test_board_sweep_predicate_offline() -> None:
 
 
 def test_wiring_roster_and_pre_push() -> None:
+    # 2026-11-17: the pre-push hook delegates the guard roster to
+    # run_all_guards.py (SSOT) instead of inlining each guard. Assert the roster
+    # wiring and that the hook invokes the roster — not a stale inline marker.
     roster = (REPO_ROOT / "scripts" / "ci" / "run_all_guards.py").read_text(encoding="utf-8")
     assert "scripts/ci/radar_index_freshness_guard.py" in roster, "guard missing from the live roster"
     hook = (REPO_ROOT / ".githooks" / "pre-push").read_text(encoding="utf-8")
-    assert "RADAR INDEX FRESHNESS GUARD (#2091)" in hook, "guard missing from the live pre-push hook"
-    assert guard.GUARD_TAG in hook, "hook must invoke the guard's evidence tag"
+    assert "run_all_guards" in hook, "pre-push must delegate the guard roster to run_all_guards (SSOT)"
 
 
 # --------------------------------------------------------------------------- #

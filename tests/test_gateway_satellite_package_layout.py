@@ -32,7 +32,8 @@ def _read(path: Path) -> str:
 
 def test_dockerfile_ships_gateway_package() -> None:
     text = _read(DOCKERFILE)
-    assert "COPY gateway/ gateway/" in text, (
+    # Audit 2026-11-19 (#6): COPY is now --chown'ed to the unprivileged user.
+    assert "COPY gateway/ gateway/" in text or "COPY --chown=supremeai:supremeai gateway/ gateway/" in text, (
         "Dockerfile must ship the gateway/ package (namespace-true layout)"
     )
 
@@ -59,14 +60,15 @@ def test_dockerfile_has_no_flat_service_copy() -> None:
     )
 
 
-def test_dockerfile_keeps_liveness_fallbacks() -> None:
+def test_dockerfile_boot_is_fail_closed_and_liveness_preserving() -> None:
     text = _read(DOCKERFILE)
-    # Render-safe boot chain: requirements install with bare-deps fallback,
-    # bootstrap exec with direct-uvicorn fallback.
-    assert "pip install --no-cache-dir -r requirements.txt" in text
-    assert "|| pip install --no-cache-dir fastapi" in text
+    # Audit 2026-11-19 (#5): a broken configured vault must abort boot instead
+    # of silently starting a secretless gateway. The bootstrap still starts the
+    # app normally when no vault is configured, so local/dev liveness is intact.
     assert "runtime/infisical_bootstrap.py" in text
-    assert "|| (uvicorn gateway.service.app:app" in text
+    assert "exec python runtime/infisical_bootstrap.py" in text
+    assert "|| (uvicorn gateway.service.app:app" not in text
+    assert "|| uvicorn gateway.service.app:app" not in text
 
 
 def test_sync_no_longer_creates_flat_service_tree() -> None:

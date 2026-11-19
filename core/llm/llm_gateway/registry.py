@@ -36,6 +36,7 @@ _MODEL_KEY_MAP: dict[str, str] = {
     "v0": "v0_api_key",
     "mistral": "mistral_api_key",
     "routesme": "routeme_api_key",
+    "kilo": "kilo_api_key",
 }
 
 # Provider → OpenAI-compatible base URL. When a model's provider appears here,
@@ -46,6 +47,7 @@ _PROVIDER_API_BASES: dict[str, str] = {
     "bai": "https://api.b.ai/v1",
     "v0": "https://api.v0.dev/v1",
     "routesme": "https://routesme.online/v1",
+    "kilo": "https://ai-gateway.kilo.ai/api/v1",
 }
 
 # Models that are no longer served by their provider (verified 2026-09-13).
