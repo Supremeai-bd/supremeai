@@ -101,6 +101,7 @@ apps/desktop/src-tauri/target/
 **/package-lock.json
 !infrastructure/mcp-control-plane/package-lock.json
 !browser/cloudflare-worker/package-lock.json
+!.agents/skills/devtools-audit/package-lock.json
 !vscode/package-lock.json
 
 # Firebase Functions compiled lib

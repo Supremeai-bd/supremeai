@@ -111,10 +111,11 @@ def full_repo_name(satellite: str) -> str:
         raise TrainError(f"unknown rolling-train satellite: {satellite!r}")
     if norm == "infra":
         return _INFRA_CANONICAL
-    # `open` is the monorepo/embassy desk — it owns the bare `Supremeai-bd/supremeai`
-    # repo, not a `-open` satellite (the old f-string produced supremeai-open, a
-    # repo that does not exist, breaking consolidation targets + the self-test).
-    if norm == "open":
+    # `open` (embassy/CI desk) and `archive` (docs/ledger archive) are monorepo-
+    # destined desks under the 2-repo topology SSOT: they consolidate into the
+    # bare `Supremeai-bd/supremeai`, not a `-open`/`-archive` satellite repo that
+    # does not exist (the old f-string produced those phantom repos).
+    if norm in ("open", "archive"):
         return "Supremeai-bd/supremeai"
     return f"Supremeai-bd/supremeai-{norm}"
 
