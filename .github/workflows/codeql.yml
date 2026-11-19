@@ -44,10 +44,10 @@ jobs:
         language: ['javascript-typescript', 'python']
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           config-file: .github/codeql/codeql-config.yml
@@ -55,9 +55,9 @@ jobs:
       # JS/TS and Python are interpreted — autobuild is a no-op for them but is
       # kept so the workflow stays valid if a compiled language is added later.
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"
