@@ -1725,13 +1725,17 @@ jobs:
           if [ -n "$STAGING" ]; then
             echo "base_url=$STAGING" >> "$GITHUB_OUTPUT"
             echo "mode=remote" >> "$GITHUB_OUTPUT"
-          else
+          elif [ -d studio ] && [ -f studio/package.json ]; then
             echo "mode=local-preview" >> "$GITHUB_OUTPUT"
             export VITE_USE_RELATIVE_PATH=true
             pnpm --filter supremeai-studio-client build
             pnpm --filter supremeai-studio-client exec vite preview --host 127.0.0.1 --port 3000 --strictPort &
             pnpm exec wait-on http://127.0.0.1:3000 -t 120000
             echo "base_url=http://127.0.0.1:3000" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=retired-skip" >> "$GITHUB_OUTPUT"
+            echo "base_url=" >> "$GITHUB_OUTPUT"
+            echo "studio retired to external repository — local-preview skipped"
           fi
 
       - name: Check Credentials if Project Requires Auth
@@ -2364,15 +2368,26 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+      - name: Check studio surface presence
+        id: check_studio
+        run: |
+          if [ -f studio/pnpm-lock.yaml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: pnpm/action-setup@v4
+        if: steps.check_studio.outputs.present == 'true'
         with:
           version: 9.15.4
       - uses: actions/setup-node@v7
+        if: steps.check_studio.outputs.present == 'true'
         with:
           node-version: '24'
           cache: 'pnpm'
           cache-dependency-path: studio/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+        if: steps.check_studio.outputs.present == 'true'
         working-directory: studio
       - uses: actions/setup-python@v6
         with:

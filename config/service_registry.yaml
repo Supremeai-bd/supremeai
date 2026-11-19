@@ -281,6 +281,8 @@ services:
   frontend:
     render_name: supremeai-studio
     role: "User-Facing SvelteKit/Vite Studio & Mission Control Cockpit"
+    status: retired
+    retired_evidence: "Surface retired to Supremeai-bd/supremeai-studio per ECOSYSTEM_MAP.md:24 (commit fef2bbfcf). Reference client preserved for lineage."
     platform: cloudflare
     deploy_key: frontend
     entrypoint: "studio/package.json"

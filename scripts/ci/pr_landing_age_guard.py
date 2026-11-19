@@ -176,7 +176,7 @@ def run_check(fetch_text=_tower_text, now_epoch: float | None = None,
 
 def self_test() -> list[tuple[str, bool, str]]:
     """Hermetic verdict-matrix proof: every class reachable, zero network."""
-    now = datetime.strptime("2026-10-31T17:22:00Z", "%Y-%m-%dT%H:%M:%SZ").timestamp()
+    now = datetime.strptime("2026-10-31T17:22:00Z", "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp()
     cases: list[tuple[str, bool, str]] = []
 
     v = classify_pr({"number": 1, "createdAt": "2026-10-31T17:18:57Z",
