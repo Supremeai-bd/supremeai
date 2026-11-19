@@ -77,7 +77,7 @@ Current checkout inventory: **4,427 tracked files**, **3,629 Python files**, 2,1
 
 ### Chat, API, webhook and routing registry review
 
-The supplied registry names **32 distinct paths** (31 tracked files and the Core `llm_gateway` package); all are present at this SHA. It is a useful discovery list, **not** evidence that files were deleted, a feature mounts, or a provider is active. Use repository-relative links instead of `file:///` paths. For each supported journey, record **build + role → method/path → handler → effect or data owner → caller → check** in the existing contract or PR. Reuse installed-app route inspection and [Core's mount report](../core/api/routers.py), not a second hand-maintained router registry or a public route dump.
+The supplied registry names **32 distinct paths** (31 tracked files and the Core `llm_gateway` package); all are present at this SHA. It is a useful discovery list, **not** evidence that files were deleted, a feature mounts, or a provider is active. Use repository-relative links instead of paths that only work on a local machine. For each supported journey, record **build + role → method/path → handler → effect or data owner → caller → check** in the existing contract or PR. Reuse installed-app route inspection and [Core's mount report](../core/api/routers.py), not a second hand-maintained router registry or a public route dump.
 
 | Journey and likely reason | What the current code or offline fixture proves | Smallest useful fix |
 |---|---|---|
