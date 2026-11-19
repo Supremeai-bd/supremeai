@@ -13,6 +13,8 @@ name: SupremeAI Unified CI/CD Pipeline
 
 on:
   pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   schedule:
@@ -116,7 +118,7 @@ jobs:
 
       - name: Critical Security & Architecture Guards Suite
         run: |
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py core/tests/agents/test_agents_unified.py
           python scripts/ops/wiring_atlas.py --check
 
       - name: Subsystem Paths Filter
@@ -256,7 +258,7 @@ jobs:
       - name: Tier 1 — Critical Security & Architecture Guards Suite
         shell: powershell
         run: |
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py core/tests/agents/test_agents_unified.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py core/tests/agents/test_agents_unified.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ops/wiring_atlas.py --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -348,8 +350,13 @@ jobs:
     needs: [resolve-execution-tier, fast-gate, runtime-readiness]
     outputs:
       fallback_allowed: ${{ steps.render-ci.outputs.fallback_allowed }}
+      verified_sha: ${{ steps.render-ci.outputs.verified_sha }}
     steps:
+      # The trigger has a Render credential; only the CI payload targets github.sha.
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
 
       - name: Trigger Render CI Runner Service
         id: render-ci
@@ -359,7 +366,6 @@ jobs:
           RENDER_WAIT: "1"
           RENDER_WAIT_TIMEOUT_SECONDS: "900"
           REQUIRE_EXPECTED_SHA: "1"
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           EXPECTED_SHA: ${{ github.sha }}
         run: |
           echo "Triggering Render CI Runner for heavy test battery..."
@@ -380,7 +386,7 @@ jobs:
 
   render-heavy-gate-fallback:
     name: "Tier 2: Heavy Test Battery (GitHub Ubuntu + Render Backend - Priority 3)"
-    if: always() && !cancelled() && needs.fast-gate.result == 'success' && needs.runtime-readiness.result == 'success' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && (needs.resolve-execution-tier.outputs.execution_tier == 'github-ubuntu-render-backend' || needs.render-heavy-gate-render-ci.outputs.fallback_allowed == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: always() && !cancelled() && needs.fast-gate.result == 'success' && needs.runtime-readiness.result == 'success' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.resolve-execution-tier.outputs.is_local_online != 'true' && (needs.resolve-execution-tier.outputs.execution_tier == 'github-ubuntu-render-backend' || (needs.resolve-execution-tier.outputs.execution_tier == 'render-ci-runner' && needs.render-heavy-gate-render-ci.result == 'failure' && needs.render-heavy-gate-render-ci.outputs.fallback_allowed == 'true')) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [resolve-execution-tier, fast-gate, runtime-readiness, render-heavy-gate-render-ci]
@@ -461,245 +467,103 @@ jobs:
           fi
 
   # =========================================================================
-  # STAGE 2b: AUTO-MERGE (separate gated job; only after all tier gates pass)
-  # Zero Early Landing Invariant: Main is NEVER triggered before PR tests pass 100%.
-  # If any tier gate fails, this job fails closed (exit 1) and blocks the merge.
-  # =========================================================================
-  # =========================================================================
-  # STAGE 2c: AI-GATED AUTO-APPROVAL (Dual-Layer AI + Human Gate)
-  # Low risk PRs are auto-approved; high risk PRs escalate to human reviewers.
+  # STAGE 2b: LANDING DECISION — one policy after the required checks finish.
+  # These needs are job results for this run's github.sha, not a PR-head rollup.
   # =========================================================================
   ai-evaluate-and-approve:
-    name: "AI PR Semantic Evaluation & Auto-Approval"
-    outputs:
-      is_low_risk: ${{ steps.guard.outputs.is_low_risk }}
-    if: always() && github.event_name == 'pull_request' && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository
+    name: "PR Landing Decision"
+    if: >-
+      always() && !cancelled() && github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    needs: [resolve-execution-tier, fast-gate, runtime-readiness, render-heavy-gate, render-heavy-gate-render-ci, render-heavy-gate-fallback, render-heavy-gate-emergency]
+    timeout-minutes: 5
+    needs:
+      - resolve-execution-tier
+      - fast-gate
+      - runtime-readiness
+      - render-heavy-gate
+      - render-heavy-gate-render-ci
+      - render-heavy-gate-fallback
+      - render-heavy-gate-emergency
+      - syntax-and-governance-gate
+      - golden-eval-gate
     permissions:
       contents: read
-      pull-requests: write
-      actions: write
+      pull-requests: read
+    outputs:
+      decision: ${{ steps.guard.outputs.decision }}
+      reason: ${{ steps.guard.outputs.reason }}
     steps:
+      # Run the policy from the trusted base commit; a PR cannot edit the
+      # Python policy it is being evaluated against.
       - uses: actions/checkout@v5
-        if: github.event_name == 'pull_request'
         with:
-          # SECURITY: check out the TRUSTED base branch, never the PR head SHA.
-          # The verifier scripts (pr_conflict_check.py, tiny_brain_pr_guard.py)
-          # fetch PR diffs/metadata via the GitHub API (gh CLI / fetch_pr), so
-          # they do NOT need the untrusted PR code locally. Running them from the
-          # base branch prevents a malicious PR from executing its own code with
-          # privileged secrets (SELF_HEAL_PAT, SUPREMEAI_ADMIN_KEY, etc.).
-          ref: ${{ github.base_ref || github.sha }}
+          ref: ${{ github.event.pull_request.base.sha }}
           path: _verifier-base
           persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - name: PR Conflict Pre-Check & Auto-Rebase
-        id: conflict-check
-        if: github.event_name == 'pull_request'
-        working-directory: _verifier-base
-        env:
-          GH_TOKEN: ${{ secrets.OPEN_DISPATCH_TOKEN || secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          if [ -f scripts/ci/pr_conflict_check.py ]; then
-            python scripts/ci/pr_conflict_check.py --pr "$PR_NUMBER" --auto-rebase --json || true
-          else
-            echo "Conflict check script not present; skipping."
-          fi
-
-      - name: Run AI Risk & Auto-Approval Gate
+      - name: Decide whether the tested PR can land
         id: guard
-        if: github.event_name == 'pull_request'
         working-directory: _verifier-base
         env:
-          GH_TOKEN: ${{ secrets.OPEN_DISPATCH_TOKEN || secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          RUN_ID: ${{ github.run_id }}
-          GATEWAY_URL: ${{ secrets.GATEWAY_URL || 'https://supremeai-api.onrender.com' }}
-          SUPREMEAI_ADMIN_KEY: ${{ secrets.SUPREMEAI_ADMIN_KEY || secrets.MCP_ADMIN_KEY }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          TESTED_MERGE_SHA: ${{ github.sha }}
+          PR_GATE_RESULTS: ${{ toJSON(needs) }}
         run: |
-          if [ -f scripts/ci/tiny_brain_pr_guard.py ]; then
-            python scripts/ci/tiny_brain_pr_guard.py --pr "$PR_NUMBER" --run-id "$RUN_ID"
-          else
-            echo "Guard script not present on base; defaulting to human review."
-            echo "is_low_risk=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Clean up verifier base checkout
-        if: always() && github.event_name == 'pull_request'
-        run: rm -rf _verifier-base
-
-  auto-merge-low-risk:
-    name: "Auto-Merge PR (Low Risk - AI Approved)"
-    if: always() && github.event_name == 'pull_request' && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository && needs.ai-evaluate-and-approve.outputs.is_low_risk == 'true'
-    runs-on: ubuntu-24.04
-    needs: [resolve-execution-tier, fast-gate, runtime-readiness, render-heavy-gate, render-heavy-gate-render-ci, render-heavy-gate-fallback, render-heavy-gate-emergency, ai-evaluate-and-approve]
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v5
-      - name: Verify all tier gates and squash merge PR
-        env:
-          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          FAST_RES: ${{ needs.fast-gate.result }}
-          READY_RES: ${{ needs.runtime-readiness.result }}
-          HEAVY_LOCAL: ${{ needs.render-heavy-gate.result }}
-          HEAVY_RENDER_CI: ${{ needs.render-heavy-gate-render-ci.result }}
-          RENDER_CI_FALLBACK_ALLOWED: ${{ needs.render-heavy-gate-render-ci.outputs.fallback_allowed }}
-          HEAVY_PRIORITY3: ${{ needs.render-heavy-gate-fallback.result }}
-          HEAVY_PRIORITY4: ${{ needs.render-heavy-gate-emergency.result }}
-        run: |
-          echo "=== Auto-Merge Pre-Landing Gate Evaluation ==="
-          echo "Tier 1 Fast Gate: $FAST_RES"
-          echo "Tier 1 Runtime Readiness: $READY_RES"
-          echo "Tier 1+2 Heavy Local Runner: $HEAVY_LOCAL"
-          echo "Tier 2 Heavy Render CI Runner: $HEAVY_RENDER_CI (fallback_allowed=$RENDER_CI_FALLBACK_ALLOWED)"
-          echo "Tier 2 Heavy Priority 3 (GitHub+Render Backend): $HEAVY_PRIORITY3"
-          echo "Tier 2 Heavy Priority 4 (GitHub Emergency): $HEAVY_PRIORITY4"
-
-          if [ "$HEAVY_LOCAL" = "success" ]; then
-            echo "Local full-battery verification succeeded (Tier 1+2, 0 cloud mins)."
-          elif [ "$HEAVY_LOCAL" = "failure" ] || [ "$HEAVY_LOCAL" = "cancelled" ]; then
-            echo "::error::Tier 1+2 Local Self-Hosted full verification did not succeed (status: $HEAVY_LOCAL). Auto-merge blocked."
-            exit 1
-          else
-            if [ "$FAST_RES" != "success" ]; then
-              echo "::error::Tier 1 Fast Safety Gate did not succeed (status: $FAST_RES). Auto-merge blocked."
-              exit 1
-            fi
-            if [ "$READY_RES" != "success" ]; then
-              echo "::error::Tier 1 Runtime Readiness Gate did not succeed (status: $READY_RES). Auto-merge blocked."
-              exit 1
-            fi
-          fi
-
-          if [ "$HEAVY_RENDER_CI" = "failure" ] && [ "$RENDER_CI_FALLBACK_ALLOWED" != "true" ]; then
-            echo "::error::Tier 2 Heavy Render CI Runner failed without fallback eligibility. Auto-merge blocked."
-            exit 1
-          fi
-
-          HEAVY_OK="false"
-          for res in "$HEAVY_LOCAL" "$HEAVY_RENDER_CI" "$HEAVY_PRIORITY3" "$HEAVY_PRIORITY4"; do
-            if [ "$res" = "success" ]; then
-              HEAVY_OK="true"
-              break
-            fi
-          done
-
-          if [ "$HEAVY_OK" = "false" ]; then
-            ACTIVE_COUNT=0
-            for res in "$HEAVY_LOCAL" "$HEAVY_RENDER_CI" "$HEAVY_PRIORITY3" "$HEAVY_PRIORITY4"; do
-              if [ "$res" != "skipped" ]; then
-                ACTIVE_COUNT=$((ACTIVE_COUNT + 1))
-              fi
-            done
-            if [ "$ACTIVE_COUNT" -eq 0 ]; then
-              echo "::error::No heavy test tier was activated. Auto-merge blocked."
-              exit 1
-            fi
-            echo "::error::Tier 2 Heavy Test Battery did not succeed (local: $HEAVY_LOCAL, render-ci: $HEAVY_RENDER_CI, p3: $HEAVY_PRIORITY3, p4: $HEAVY_PRIORITY4). Auto-merge blocked."
-            exit 1
-          fi
-
-          echo "All required tier gates 100% green."
-          echo "Low-risk AI-approved: queueing squash landing to main..."
-          if gh pr merge "$PR_NUMBER" --auto --squash --delete-branch; then
-            echo "PR #$PR_NUMBER queued for autonomous auto-landing."
-          else
-            echo "::error::Auto-merge queueing failed for PR #$PR_NUMBER."
-            exit 1
-          fi
+          python3 scripts/ci/tiny_brain_pr_guard.py --pr "$PR_NUMBER" \
+            --head-sha "$EXPECTED_HEAD_SHA" --base-sha "$EXPECTED_BASE_SHA" --merge-sha "$TESTED_MERGE_SHA"
 
   auto-merge-high-risk:
-    name: "Auto-Merge PR (High Risk - Human Gate)"
-    if: always() && github.event_name == 'pull_request' && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository && needs.ai-evaluate-and-approve.outputs.is_low_risk != 'true'
+    name: "Owner Review (Protected PR)"
+    if: >-
+      !cancelled() && needs.ai-evaluate-and-approve.result == 'success' &&
+      needs.ai-evaluate-and-approve.outputs.decision == 'OWNER_REVIEW'
     runs-on: ubuntu-24.04
-    needs: [resolve-execution-tier, fast-gate, runtime-readiness, render-heavy-gate, render-heavy-gate-render-ci, render-heavy-gate-fallback, render-heavy-gate-emergency, ai-evaluate-and-approve]
+    needs: [ai-evaluate-and-approve]
     environment: production
+    permissions: {}
+    steps:
+      - run: echo "Protected changes approved via the production environment."
+
+  merge-verified-pr:
+    name: "Merge Verified PR"
+    if: >-
+      always() && !cancelled() && needs.ai-evaluate-and-approve.result == 'success' &&
+      (needs.ai-evaluate-and-approve.outputs.decision == 'AUTO_MERGE' ||
+       (needs.ai-evaluate-and-approve.outputs.decision == 'OWNER_REVIEW' &&
+        needs.auto-merge-high-risk.result == 'success'))
+    runs-on: ubuntu-24.04
+    needs: [ai-evaluate-and-approve, auto-merge-high-risk]
+    timeout-minutes: 5
+    # Serialize our own landings so one cannot move main during another's recheck.
+    concurrency:
+      group: unified-main-landing
+      cancel-in-progress: false
     permissions:
       contents: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v5
-      - name: Verify all tier gates and squash merge PR
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: _verifier-base
+          persist-credentials: false
+      - name: Recheck the candidate and squash merge
+        shell: bash
+        working-directory: _verifier-base
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          FAST_RES: ${{ needs.fast-gate.result }}
-          READY_RES: ${{ needs.runtime-readiness.result }}
-          HEAVY_LOCAL: ${{ needs.render-heavy-gate.result }}
-          HEAVY_RENDER_CI: ${{ needs.render-heavy-gate-render-ci.result }}
-          RENDER_CI_FALLBACK_ALLOWED: ${{ needs.render-heavy-gate-render-ci.outputs.fallback_allowed }}
-          HEAVY_PRIORITY3: ${{ needs.render-heavy-gate-fallback.result }}
-          HEAVY_PRIORITY4: ${{ needs.render-heavy-gate-emergency.result }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          TESTED_MERGE_SHA: ${{ github.sha }}
         run: |
-          echo "=== Auto-Merge Pre-Landing Gate Evaluation ==="
-          echo "Tier 1 Fast Gate: $FAST_RES"
-          echo "Tier 1 Runtime Readiness: $READY_RES"
-          echo "Tier 1+2 Heavy Local Runner: $HEAVY_LOCAL"
-          echo "Tier 2 Heavy Render CI Runner: $HEAVY_RENDER_CI (fallback_allowed=$RENDER_CI_FALLBACK_ALLOWED)"
-          echo "Tier 2 Heavy Priority 3 (GitHub+Render Backend): $HEAVY_PRIORITY3"
-          echo "Tier 2 Heavy Priority 4 (GitHub Emergency): $HEAVY_PRIORITY4"
-
-          if [ "$HEAVY_LOCAL" = "success" ]; then
-            echo "Local full-battery verification succeeded (Tier 1+2, 0 cloud mins)."
-          elif [ "$HEAVY_LOCAL" = "failure" ] || [ "$HEAVY_LOCAL" = "cancelled" ]; then
-            echo "::error::Tier 1+2 Local Self-Hosted full verification did not succeed (status: $HEAVY_LOCAL). Auto-merge blocked."
-            exit 1
-          else
-            if [ "$FAST_RES" != "success" ]; then
-              echo "::error::Tier 1 Fast Safety Gate did not succeed (status: $FAST_RES). Auto-merge blocked."
-              exit 1
-            fi
-            if [ "$READY_RES" != "success" ]; then
-              echo "::error::Tier 1 Runtime Readiness Gate did not succeed (status: $READY_RES). Auto-merge blocked."
-              exit 1
-            fi
-          fi
-
-          if [ "$HEAVY_RENDER_CI" = "failure" ] && [ "$RENDER_CI_FALLBACK_ALLOWED" != "true" ]; then
-            echo "::error::Tier 2 Heavy Render CI Runner failed without fallback eligibility. Auto-merge blocked."
-            exit 1
-          fi
-
-          HEAVY_OK="false"
-          for res in "$HEAVY_LOCAL" "$HEAVY_RENDER_CI" "$HEAVY_PRIORITY3" "$HEAVY_PRIORITY4"; do
-            if [ "$res" = "success" ]; then
-              HEAVY_OK="true"
-              break
-            fi
-          done
-
-          if [ "$HEAVY_OK" = "false" ]; then
-            ACTIVE_COUNT=0
-            for res in "$HEAVY_LOCAL" "$HEAVY_RENDER_CI" "$HEAVY_PRIORITY3" "$HEAVY_PRIORITY4"; do
-              if [ "$res" != "skipped" ]; then
-                ACTIVE_COUNT=$((ACTIVE_COUNT + 1))
-              fi
-            done
-            if [ "$ACTIVE_COUNT" -eq 0 ]; then
-              echo "::error::No heavy test tier was activated. Auto-merge blocked."
-              exit 1
-            fi
-            echo "::error::Tier 2 Heavy Test Battery did not succeed (local: $HEAVY_LOCAL, render-ci: $HEAVY_RENDER_CI, p3: $HEAVY_PRIORITY3, p4: $HEAVY_PRIORITY4). Auto-merge blocked."
-            exit 1
-          fi
-
-          echo "All required tier gates 100% green."
-          echo "High-risk: awaiting authorized human approval via production environment..."
-          if gh pr merge "$PR_NUMBER" --auto --squash --delete-branch; then
-            echo "PR #$PR_NUMBER queued for landing after approval."
-          else
-            echo "::error::Auto-merge queueing failed for PR #$PR_NUMBER."
-            exit 1
-          fi
+          python3 scripts/ci/tiny_brain_pr_guard.py --recheck-candidate --pr "$PR_NUMBER" \
+            --head-sha "$EXPECTED_HEAD_SHA" --base-sha "$EXPECTED_BASE_SHA" --merge-sha "$TESTED_MERGE_SHA"
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --delete-branch --match-head-commit "$EXPECTED_HEAD_SHA"
 
   # =========================================================================
   # STAGE 3: POST-MERGE PRODUCTION DEPLOY & CANARY (Push to Main or Manual Dispatch)

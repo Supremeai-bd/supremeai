@@ -268,19 +268,16 @@ def test_render_trigger_deploy_strict_ci_sha_and_fallback_guard(monkeypatch, tmp
     """Verify strict CI mode (REQUIRE_EXPECTED_SHA=1) fails closed with exit 2 and
     writes fallback_allowed=true when service ID, API key, or commit indexing is missing,
     while terminal build_failed returns exit 1 without fallback_allowed."""
-    import importlib
-
     import scripts.ci.render_trigger_deploy as rtd
 
     gh_out = tmp_path / "github_output.txt"
     monkeypatch.setenv("GITHUB_OUTPUT", str(gh_out))
-    monkeypatch.setenv("REQUIRE_EXPECTED_SHA", "1")
-    monkeypatch.setenv("RENDER_WAIT", "1")
+    monkeypatch.setattr(rtd, "REQUIRE_EXPECTED_SHA", True)
+    monkeypatch.setattr(rtd, "RENDER_WAIT", True)
     for k in rtd.CANDIDATE_KEY_ENVS:
         monkeypatch.delenv(k, raising=False)
     monkeypatch.delenv("RENDER_SERVICE_ID", raising=False)
     monkeypatch.delenv("RENDER_SVC_ID", raising=False)
-    importlib.reload(rtd)
 
     # 1. Missing service ID -> exit 2 + fallback_allowed=true
     assert rtd.main() == 2
@@ -290,7 +287,6 @@ def test_render_trigger_deploy_strict_ci_sha_and_fallback_guard(monkeypatch, tmp
     gh_out.write_text("", encoding="utf-8")
     monkeypatch.setenv("RENDER_SERVICE_ID", "srv-test")
     monkeypatch.setenv("RENDER_API_KEY", "rnd_test")
-    monkeypatch.delenv("PR_HEAD_SHA", raising=False)
     monkeypatch.delenv("EXPECTED_SHA", raising=False)
     monkeypatch.delenv("GITHUB_SHA", raising=False)
     monkeypatch.setattr(rtd, "_resolve_owning_client", lambda svc_id, keys: ("RENDER_API_KEY", object()))
@@ -300,14 +296,16 @@ def test_render_trigger_deploy_strict_ci_sha_and_fallback_guard(monkeypatch, tmp
 
     # 3. Unindexed commit SHA (404 "does not have a commit") -> refuses branch-HEAD fallback, exit 2
     gh_out.write_text("", encoding="utf-8")
-    monkeypatch.setenv("PR_HEAD_SHA", "deadbeef1234")
+    monkeypatch.setenv("EXPECTED_SHA", "a" * 40)
 
     class _UnindexedCommitClient:
         def trigger_deploy(self, svc_id: str, commit_id: str | None = None):
+            if commit_id != "a" * 40:
+                pytest.fail("Refusing to trigger a different commit")
             raise rtd.RenderApiError(
-                "Service does not have a commit deadbeef1234",
+                "Service does not have a commit",
                 status=404,
-                body="Service does not have a commit deadbeef1234",
+                body="Service does not have a commit",
             )
 
     monkeypatch.setattr(
@@ -325,9 +323,45 @@ def test_render_trigger_deploy_strict_ci_sha_and_fallback_guard(monkeypatch, tmp
             return {"id": deploy_id, "status": "build_failed"}
 
     assert (
-        rtd.wait_for_terminal_state(_BuildFailedClient(), "srv-test", {"id": "dep-123"}, require_deploy_id=True) == 1
+        rtd.wait_for_terminal_state(_BuildFailedClient(), "srv-test", {"id": "dep-123"}, expected_sha="a" * 40) == 1
     )
     assert gh_out.read_text(encoding="utf-8") == ""
+
+
+@pytest.mark.parametrize(("deploy_status", "actual_sha", "exit_code", "output"), [
+    ("live", "a" * 40, 0, f"verified_sha={'a' * 40}"),
+    ("live", "b" * 40, 2, "fallback_allowed=true"),
+    ("live", None, 2, "fallback_allowed=true"),
+    ("build_failed", "a" * 40, 1, ""),
+])
+def test_render_ci_attests_only_live_deploy_of_the_tested_revision(
+    monkeypatch, tmp_path, deploy_status, actual_sha, exit_code, output,
+):
+    import scripts.ci.render_trigger_deploy as rtd
+
+    class _Client:
+        def trigger_deploy(self, svc_id, *, commit_id):
+            if commit_id != "a" * 40:
+                pytest.fail("Wrong CI commit requested")
+            return {"id": "dep-test"}
+
+        def get_deploy(self, deploy_id, svc_id):
+            assert deploy_id == "dep-test"
+            return {"deploy": {"status": deploy_status, "commit": {"id": actual_sha}}}
+
+    gh_output = tmp_path / "output"
+    gh_output.touch()
+    monkeypatch.setenv("GITHUB_OUTPUT", str(gh_output))
+    monkeypatch.setenv("RENDER_SERVICE_ID", "srv-test")
+    monkeypatch.setenv("RENDER_API_KEY", "fixture-key")
+    monkeypatch.setenv("EXPECTED_SHA", "a" * 40)
+    monkeypatch.setenv("PR_HEAD_SHA", "c" * 40)  # Never use a different PR head.
+    monkeypatch.setattr(rtd, "REQUIRE_EXPECTED_SHA", True)
+    monkeypatch.setattr(rtd, "RENDER_WAIT", False)  # Strict mode must still poll.
+    monkeypatch.setattr(rtd, "_resolve_owning_client", lambda *_: ("RENDER_API_KEY", _Client()))
+    monkeypatch.setattr(rtd, "_sync_bootstrap_env_vars", lambda *_: None)
+    assert rtd.main() == exit_code
+    assert gh_output.read_text(encoding="utf-8").strip() == output
 
 
 def test_studio_vite_chunk_splitting_and_frontend_pulse_guards() -> None:
