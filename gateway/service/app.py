@@ -2268,6 +2268,8 @@ async def _execute_chat_completion(
             async def squad_true_stream_generator():
                 acc: list = []
                 started = False
+                completed = False
+                saw_tool_calls = False
                 last_stream_err = "Upstream stream failed"
                 last_brand = build_brand("api", candidates[0][0], stream_served_model)
                 route_deadline = time.monotonic() + CHAT_ROUTE_DEADLINE_S
@@ -2283,7 +2285,6 @@ async def _execute_chat_completion(
                     call_start = time.monotonic()
                     stream_brand = build_brand("api", provider, stream_served_model)
                     last_brand = stream_brand
-                    candidate_failed_before_start = False
 
                     header_at: float | None = None
                     stream_iter = stream_chat_completion_events(provider, slot.key, body, slot=slot).__aiter__()
@@ -2296,10 +2297,13 @@ async def _execute_chat_completion(
                             if kind == "status":
                                 header_at = time.monotonic()
                                 continue
+                            if kind == "done":
+                                # The first delta commits the provider, not the result.
+                                completed = started
+                                break
                             if kind == "event":
                                 tool_calls = data.get("tool_calls")
                                 text = data.get("delta") or ""
-                                finish = data.get("finish_reason")
                                 if not started and (text or tool_calls):
                                     started = True
                                     first_token_ms = (time.monotonic() - call_start) * 1000
@@ -2316,6 +2320,7 @@ async def _execute_chat_completion(
                                         first_token_ms,
                                     )
                                 if tool_calls:
+                                    saw_tool_calls = True
                                     chunk_payload = {
                                         "id": stream_chunk_id,
                                         "object": "chat.completion.chunk",
@@ -2325,7 +2330,7 @@ async def _execute_chat_completion(
                                             {
                                                 "index": 0,
                                                 "delta": {"role": "assistant", "tool_calls": tool_calls},
-                                                "finish_reason": "tool_calls",
+                                                "finish_reason": None,
                                             }
                                         ],
                                         "supremeai": stream_brand,
@@ -2334,41 +2339,39 @@ async def _execute_chat_completion(
                                 elif text:
                                     acc.append(text)
                                     chunk_payload = _format_sse_chunk(
-                                        stream_chunk_id, stream_served_model, text, bool(finish), stream_brand
+                                        stream_chunk_id, stream_served_model, text, False, stream_brand
                                     )
                                     yield f"data: {json.dumps(chunk_payload)}\n\n"
                                 continue
                             if kind == "error":
-                                if not started:
-                                    candidate_failed_before_start = True
-                                    last_stream_err = data.get("error", "Upstream stream failed")
-                                    call_latency = (time.monotonic() - call_start) * 1000
-                                    pool = squad.pools.get(provider) if squad else None
-                                    if pool:
-                                        pool.report_injury(slot, 500, call_latency)
-                                    try:
-                                        from gateway.service.free_model_discovery import (
-                                            persist_slot,
-                                        )
-                                        asyncio.create_task(persist_slot(slot))
-                                    except Exception:  # noqa: BLE001
-                                        pass
-                                    _adaptive_routes["api-pool"].record(call_latency, success=False)
-                                    try:
-                                        from gateway.service.free_model_discovery import (
-                                            validate_slot,
-                                        )
-                                        asyncio.create_task(validate_slot(slot))
-                                    except Exception:  # noqa: BLE001
-                                        pass
-                                    logger.warning(
-                                        f"[stream] Provider {provider} slot {slot.name} failed before stream start: {last_stream_err}. "
-                                        f"Failing over to next squad player..."
+                                if started:
+                                    logger.warning("[stream] Provider %s failed mid-stream.", provider)
+                                    break
+                                last_stream_err = data.get("error", "Upstream stream failed")
+                                call_latency = (time.monotonic() - call_start) * 1000
+                                pool = squad.pools.get(provider) if squad else None
+                                if pool:
+                                    pool.report_injury(slot, 500, call_latency)
+                                try:
+                                    from gateway.service.free_model_discovery import (
+                                        persist_slot,
                                     )
-                                    break
-                                else:
-                                    logger.warning(f"[stream] Provider {provider} failed mid-stream.")
-                                    break
+                                    asyncio.create_task(persist_slot(slot))
+                                except Exception:  # noqa: BLE001
+                                    pass
+                                _adaptive_routes["api-pool"].record(call_latency, success=False)
+                                try:
+                                    from gateway.service.free_model_discovery import (
+                                        validate_slot,
+                                    )
+                                    asyncio.create_task(validate_slot(slot))
+                                except Exception:  # noqa: BLE001
+                                    pass
+                                logger.warning(
+                                    f"[stream] Provider {provider} slot {slot.name} failed before stream start: {last_stream_err}. "
+                                    f"Failing over to next squad player..."
+                                )
+                                break
                     except asyncio.TimeoutError:
                         if not started:
                             call_latency = (time.monotonic() - call_start) * 1000
@@ -2385,14 +2388,8 @@ async def _execute_chat_completion(
                             _adaptive_routes["api-pool"].record(call_latency, success=False)
                             continue
                         logger.warning("[stream] Provider %s stream read timed out mid-stream.", provider)
-                        break
                     except Exception as exc:  # noqa: BLE001 - never crash a live stream silently
                         logger.warning("[stream] candidate %s failed: %s", provider, type(exc).__name__)
-                        if started:
-                            yield f"data: {json.dumps({'error': 'Stream interrupted', 'supremeai': stream_brand})}\n\n"
-                            yield "data: [DONE]\n\n"
-                            return
-                        continue
                     finally:
                         try:
                             await stream_iter.aclose()
@@ -2400,13 +2397,11 @@ async def _execute_chat_completion(
                             pass
 
                     if started:
-                        break
-                    if candidate_failed_before_start:
-                        continue
+                        break  # Never replay text or tool deltas from another slot.
 
-                if not started:
-                    # Total squad failure before any content was yielded:
-                    yield f"data: {json.dumps({'error': last_stream_err, 'supremeai': last_brand})}\n\n"
+                if not completed:
+                    error = "Stream interrupted" if started else last_stream_err
+                    yield f"data: {json.dumps({'error': error, 'supremeai': last_brand})}\n\n"
                     yield "data: [DONE]\n\n"
                     return
 
@@ -2425,8 +2420,10 @@ async def _execute_chat_completion(
                         )
                     except Exception:
                         pass
-                if acc:
-                    yield f"data: {json.dumps(_format_sse_chunk(stream_chunk_id, stream_served_model, '', True, last_brand))}\n\n"
+                final_chunk = _format_sse_chunk(stream_chunk_id, stream_served_model, "", True, last_brand)
+                if saw_tool_calls:
+                    final_chunk["choices"][0]["finish_reason"] = "tool_calls"
+                yield f"data: {json.dumps(final_chunk)}\n\n"
                 yield "data: [DONE]\n\n"
 
             return StreamingResponse(

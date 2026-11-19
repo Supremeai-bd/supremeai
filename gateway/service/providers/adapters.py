@@ -535,13 +535,12 @@ async def stream_chat_completion_events(
     """True upstream SSE streaming with in-flight model cascade (audit P0-5 fix).
 
     Yields tuples:
-      ("status", {"status": 200, "model": <model>})  once, on first successful stream
+      ("status", {"status": 200, "model": <model>})  on upstream 2xx headers
       ("event",  {"delta": str, "finish_reason": ..., "tool_calls": ..., "model": ...})
-      ("done",   None)                                on clean upstream [DONE]
-      ("error",  {"error": ...})                      on total failure (no status was yielded)
+      ("done",   None)                                on [DONE] or EOF after a finish reason
+      ("error",  {"error": ...})                      if the stream fails before or after output
 
-    Mirrors forward_chat_completion's cascade: 400/402/404/429/503 on a model
-    cascades to the next candidate; 401/403 and connection errors fail fast.
+    Model fallback is allowed only before the first text/tool delta.
     """
     config = PROVIDER_CONFIGS.get(provider)
     if not config:
@@ -583,6 +582,8 @@ async def stream_chat_completion_events(
     async with _pooled_http_client(timeout) as client:
         for model_name in candidate_models:
             body["model"] = model_name
+            committed = False
+            saw_finish = False
             try:
                 stream_timeout = httpx.Timeout(timeout, connect=4.0)
                 async with client.stream("POST", url, json=body, headers=headers, timeout=stream_timeout) as response:
@@ -622,14 +623,18 @@ async def stream_chat_completion_events(
                                 continue
                             if not isinstance(chunk, dict):
                                 continue
-                            chs = chunk.get("choices") or []
-                            if not chs or not isinstance(chs[0], dict):
-                                continue
-                            delta = chs[0].get("delta") or {}
+                            choices = chunk.get("choices") or []
+                            choice = choices[0] if choices and isinstance(choices[0], dict) else {}
+                            finish_reason = choice.get("finish_reason")
+                            if chunk.get("error") is not None or finish_reason == "error":
+                                yield ("error", {"error": "Upstream provider returned a stream error"})
+                                return
+                            delta = choice.get("delta") or {}
                             content = delta.get("content") or ""
-                            finish_reason = chs[0].get("finish_reason")
                             tool_calls = delta.get("tool_calls")
                             if content or finish_reason or tool_calls:
+                                committed = committed or bool(content or tool_calls)
+                                saw_finish = saw_finish or bool(finish_reason)
                                 yield (
                                     "event",
                                     {
@@ -639,7 +644,10 @@ async def stream_chat_completion_events(
                                         "model": model_name,
                                     },
                                 )
-                        yield ("done", None)
+                        if saw_finish:
+                            yield ("done", None)
+                        else:
+                            yield ("error", {"error": "Upstream stream ended before completion"})
                         return
                     # Fatal auth/other errors: do not loop other models with same key
                     await response.aread()
@@ -647,6 +655,9 @@ async def stream_chat_completion_events(
                     yield ("error", {"error": f"Provider {provider} returned {status_code}"})
                     return
             except httpx.TimeoutException:
+                if committed:
+                    yield ("error", {"error": "Upstream stream timed out"})
+                    return
                 logger.warning(f"[{provider}] Model {model_name} timed out after {timeout}s; trying next model...")
                 continue
             except httpx.RequestError as exc:

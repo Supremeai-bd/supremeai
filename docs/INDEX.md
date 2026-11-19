@@ -24,7 +24,6 @@ The active documents in this repository govern live production operations, archi
 
 | Document | Purpose |
 |---|---|
-| [`MASTER_SIMPLIFICATION_PLAN.md`](MASTER_SIMPLIFICATION_PLAN.md) | Whole-repository evidence-based audit, single-source-of-truth decisions, component plans, blockers, priorities and measurable verification criteria |
 | [`AGENTS.md`](../AGENTS.md) | Universal Agent Constitution & the 5 Universal Invariants |
 | [`docs/AGENT_OPERATING_SYSTEM.md`](AGENT_OPERATING_SYSTEM.md) | Multi-Agent Operating System & verification ladder |
 | [`docs/AGENT_LOOP_SPEC.md`](AGENT_LOOP_SPEC.md) | Continuous loop contract and dispatch roles |
@@ -33,4 +32,9 @@ The active documents in this repository govern live production operations, archi
 | [`docs/ECOSYSTEM_MAP.md`](../ECOSYSTEM_MAP.md) | Complete capability and architectural ecosystem map |
 | [`docs/specs/`](specs/) | Active feature specifications (Spec-Driven Development) |
 | [`.agents/`](../.agents/) | Executable agent skills, workflows, and prompts |
+
+## Project simplification
+
+- [Master Simplification & Quality Plan](MASTER_SIMPLIFICATION_PLAN.md) — final implementation roadmap, decision gates, and the single M01–M07 queue.
+- [Earlier repo audit (বাংলা)](PROJECT_SIMPLIFICATION_MASTER_PLAN.md) — supporting inventory, wiring, and checks for the `aa11e0b` snapshot.
 

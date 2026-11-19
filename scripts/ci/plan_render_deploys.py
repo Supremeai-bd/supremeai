@@ -51,7 +51,13 @@ SERVICE_RULES = {
     "api": (
         "RENDER_API_SERVICE_ID",
         "RENDER_API_KEY_5",
-        ("gateway/", "config/routing_policy", "render.yaml", "scripts/lib/"),
+        (
+            "gateway/",
+            "config/routing_policy",
+            "render.yaml",
+            "scripts/lib/",
+            "scripts/runtime/infisical_bootstrap.py",  # Copied by gateway/Dockerfile.
+        ),
         "https://supremeai-api-ulw0.onrender.com/release",
     ),
     "scraper": (
