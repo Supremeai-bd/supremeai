@@ -238,12 +238,18 @@ def test_heavy_ci_jobs_discover_all_domains_and_enforce_coverage():
     pipeline = yaml.safe_load(
         (REPO / ".github/workflows/unified-pipeline.yml").read_text(encoding="utf-8")
     )
+    roster = (REPO / "config/ci/pr-battery.args").read_text(encoding="utf-8").splitlines()
+    for test_path in (
+        "core/tests/test_audit_regressions.py",
+        "core/tests/test_no_auth_stubs.py",
+        "core/tests/agents/test_agents_unified.py",
+        "gateway/tests/test_stream_first_token_timeout.py",
+    ):
+        assert test_path in roster
     for job in ("render-heavy-gate", "render-heavy-gate-fallback", "render-heavy-gate-emergency"):
         scripts = [step.get("run", "") for step in pipeline["jobs"][job]["steps"]]
-        full = next(script for script in scripts if "test_audit_regressions.py" in script)
+        full = next(script for script in scripts if 'pytest "@config/ci/pr-battery.args"' in script)
         assert any('"mcp>=1.28.1,<2"' in script for script in scripts)
-        for test_name in ("test_audit_regressions.py", "test_no_auth_stubs.py", "test_agents_unified.py"):
-            assert test_name in full
         if job == "render-heavy-gate":
             assert "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }" in full
 

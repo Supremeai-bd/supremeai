@@ -193,7 +193,6 @@ on:
 # security-events:write for constitution SARIF — each verbatim from its source).
 permissions:
   contents: read
-  issues: write
 
 # QUEUE STORM FIX: workflow-level concurrency. Nightly jobs are idempotent but
 # long-running; cancel-in-progress: false ensures a 2nd dispatch does NOT kill
@@ -214,6 +213,7 @@ jobs:
   # Resolves Priority 1 (Local PC: 0m) -> Priority 2 (Render CI) -> Priority 3 -> Priority 4 (Emergency)
   # =========================================================================
   resolve-execution-tier:
+    if: github.ref == 'refs/heads/main'
     name: "Tier 1: 4-Level Runner Hierarchy Preflight (<10s)"
     runs-on: ubuntu-24.04
     timeout-minutes: 3
@@ -221,14 +221,15 @@ jobs:
       execution_tier: ${{ steps.runner-check.outputs.execution_tier }}
       is_local_online: ${{ steps.runner-check.outputs.is_local_online }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Check 4-Level Execution Hierarchy
         id: runner-check
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
+          ALLOW_LOCAL_CI: "true"
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python scripts/ci/resolve_execution_tier.py
 
@@ -250,12 +251,12 @@ jobs:
       issues: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -284,13 +285,25 @@ jobs:
             --markdown ci-reports/feature-parity-report.md
 
       - name: Install Vulnerability Scanner Deps
+        id: scanner_setup
+        if: ${{ !cancelled() }}
         shell: powershell
         run: pip install pip-audit "bandit[sarif]" httpx loguru pydantic
 
       - name: Auto Vulnerability Scanner (deps + code + SBOM)
         id: vuln_scanner
+        if: ${{ !cancelled() && steps.scanner_setup.outcome == 'success' }}
         shell: powershell
         run: python scripts/ops/security/auto_vulnerability_scanner.py --scan-deps --scan-code --generate-sbom
+
+      - name: Upload vulnerability scan evidence
+        if: ${{ !cancelled() && steps.vuln_scanner.outcome != 'skipped' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: security-scan-local-${{ github.sha }}
+          path: reports/security/vuln-scan-*.json
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Mutation Testing
         id: mutation_testing
@@ -355,12 +368,12 @@ jobs:
       issues: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5 # v7.0.1
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@v6 # v7.0.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -389,11 +402,23 @@ jobs:
             --markdown ci-reports/feature-parity-report.md
 
       - name: Install Vulnerability Scanner Deps
+        id: scanner_setup
+        if: ${{ !cancelled() }}
         run: pip install pip-audit "bandit[sarif]" httpx loguru pydantic
 
       - name: Auto Vulnerability Scanner (deps + code + SBOM)
         id: vuln_scanner
+        if: ${{ !cancelled() && steps.scanner_setup.outcome == 'success' }}
         run: python scripts/ops/security/auto_vulnerability_scanner.py --scan-deps --scan-code --generate-sbom
+
+      - name: Upload vulnerability scan evidence
+        if: ${{ !cancelled() && steps.vuln_scanner.outcome != 'skipped' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: security-scan-hosted-${{ github.sha }}
+          path: reports/security/vuln-scan-*.json
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Mutation Testing
         id: mutation_testing
@@ -442,10 +467,10 @@ jobs:
           python scripts/security/find_dead_code.py || echo "[WARN] Dead code detected"
 
       - name: Setup PNPM (SSOT from package.json)
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
 
       - name: Setup Node
-        uses: actions/setup-node@v7 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
@@ -515,8 +540,8 @@ jobs:
       # বাংলা: audit failure-এর evidence হারিয়ে না যাওয়ার জন্য tracking issue
       # auto-খুলে/আপডেট করি। Blocking step-এর failure job status-এও দৃশ্যমান থাকে।
       - name: Open/update maintenance issue on failure
-        if: ${{ always() && github.event.inputs.skip_issue != 'true' && (steps.duplicate_detector.outcome == 'failure' || steps.vuln_scanner.outcome == 'failure' || steps.mutation_testing.outcome == 'failure' || steps.perf_benchmark.outcome == 'failure' || steps.full_audit.outcome == 'failure' || steps.parity_sentinel.outcome == 'failure') }}
-        uses: actions/github-script@v8 # v9.0.0
+        if: ${{ !cancelled() && (steps.duplicate_detector.outcome == 'failure' || steps.vuln_scanner.outcome == 'failure' || steps.mutation_testing.outcome == 'failure' || steps.perf_benchmark.outcome == 'failure' || steps.full_audit.outcome == 'failure' || steps.parity_sentinel.outcome == 'failure') }}
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const title = "🔧 Scheduled Deep Audit found issues";
@@ -562,8 +587,8 @@ jobs:
             }
 
       - name: Auto-close maintenance issue if everything passed
-        if: ${{ always() && steps.duplicate_detector.outcome != 'failure' && steps.vuln_scanner.outcome != 'failure' && steps.mutation_testing.outcome != 'failure' && steps.perf_benchmark.outcome != 'failure' && steps.full_audit.outcome != 'failure' && steps.parity_sentinel.outcome != 'failure' }}
-        uses: actions/github-script@v8 # v9.0.0
+        if: ${{ success() && steps.duplicate_detector.outcome == 'success' && steps.vuln_scanner.outcome == 'success' && steps.mutation_testing.outcome == 'success' && steps.perf_benchmark.outcome == 'success' && steps.full_audit.outcome == 'success' && steps.parity_sentinel.outcome == 'success' }}
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const title = "🔧 Scheduled Deep Audit found issues";
@@ -701,7 +726,7 @@ jobs:
           PY
 
       - name: Open/update reliability issue on gate failure
-        if: ${{ failure() && github.event.inputs.skip_issue != 'true' }}
+        if: ${{ failure() }}
         uses: actions/github-script@v8 # v9.0.0
         with:
           script: |
@@ -790,10 +815,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v5 # v7.0.1
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Setup Python
-        uses: actions/setup-python@v6 # v7.0.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"
 
@@ -806,12 +831,12 @@ jobs:
           RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY_1 }}
           RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
           RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
-          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
-          RENDER_MCP_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
+          RENDER_API_PAYKARI: ${{ secrets.RENDER_API_PAYKARI || secrets.RENDER_API_KEY_PAYKARI }}
+          RENDER_MCP_SERVICE_ID: ${{ vars.RENDER_MCP_SERVICE_ID }}
           RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
           RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID }}
           RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
-          RENDER_MCP_URL: ${{ secrets.RENDER_MCP_URL }}
+          RENDER_MCP_URL: ${{ vars.RENDER_MCP_URL || secrets.RENDER_MCP_URL }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
         run: python .github/scripts/platform_agent_check.py
@@ -858,8 +883,9 @@ jobs:
     name: 🧠 Platform Deep-Audit (vault-driven discovery + auto-issue)
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_platform_deep_audit == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
+        github.ref == 'refs/heads/main' &&
+        ((github.event_name == 'workflow_dispatch' && inputs.run_platform_deep_audit == true) ||
+         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0'))
     concurrency:
       group: platform-deep-audit
       cancel-in-progress: false
@@ -870,10 +896,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v5 # v7.0.1
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Setup Python
-        uses: actions/setup-python@v6 # v7.0.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"
 
@@ -883,12 +909,14 @@ jobs:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
-          GITHUB_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          RENDER_MCP_SERVICE_ID: ${{ vars.RENDER_MCP_SERVICE_ID }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           mkdir -p ci-reports
-          python .github/scripts/platform_deep_audit.py \
-            --json ci-reports/platform_deep_audit.json \
-            ${{ inputs.dry_run == true && '--dry-run' || '' }}
+          args=(--json ci-reports/platform_deep_audit.json)
+          # On-demand evidence only. Scheduled reconciliation keeps its existing issue policy.
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then args+=(--dry-run); fi
+          python .github/scripts/platform_deep_audit.py "${args[@]}"
 
       - name: Upload audit JSON
         if: always()
@@ -1105,8 +1133,8 @@ jobs:
     env:
       GH_REPO: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
-      STALE_HOURS: ${{ github.event.inputs.stale_hours || '24' }}
-      DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+      STALE_HOURS: "24"
+      DRY_RUN: "false"
     steps:
       - name: Ensure in-progress label exists (self-healing, issue #903)
         run: |
@@ -1567,7 +1595,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          RETENTION_DAYS: ${{ github.event.inputs.db_retention_days || '30' }}
+          RETENTION_DAYS: "30"
         run: |
           set -euo pipefail
           PROJECT_REF=$(echo "$SUPABASE_URL" | sed -E 's#https://([a-zA-Z0-9-]+)\.supabase\.co.*#\1#')
@@ -1604,7 +1632,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          RETENTION_DAYS: ${{ github.event.inputs.db_retention_days || '30' }}
+          RETENTION_DAYS: "30"
         run: |
           set -euo pipefail
           PROJECT_REF=$(echo "$SUPABASE_URL" | sed -E 's#https://([a-zA-Z0-9-]+)\.supabase\.co.*#\1#')
@@ -2022,55 +2050,6 @@ jobs:
               sys.exit(1)
           PY
 
-  deploy-doctor-fallback:
-    needs: [resolve-execution-tier]
-    name: 🔍 Deploy Doctor (hourly fallback, 90m window)
-    if: false # dormant by design (#67): cron absent from triggers since SCHEDULE DIET v4; 26th dispatch input would exceed GitHub's 25-input limit
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      issues: write
-      actions: read
-    concurrency:
-      # Same group as the ops-console manual arm + the retired */5 cron — a scan
-      # can never race another scan (source semantics, deploy-doctor.yml #1852 P1).
-      group: deploy-doctor-${{ github.ref }}
-      cancel-in-progress: false
-    env:
-      GH_REPO: ${{ github.repository }}
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5 # v7.0.1
-      - name: Setup Python
-        uses: actions/setup-python@v6 # v7.0.0
-        with:
-          python-version: '3.11'
-      - name: Run Deploy Doctor (fallback window 90m)
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY_1 }}
-          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
-          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
-          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
-          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
-          RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID }}
-          RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
-          RENDER_MCP_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
-        run: |
-          python scripts/ci/deploy_doctor.py --window-minutes 90
-      - name: Summary
-        if: always()
-        run: |
-          echo "## 🔍 Deploy Doctor (hourly fallback) Run Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Run completed at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_STEP_SUMMARY
-          echo "Window: 90 minutes (hourly cadence, #1854 spec; event-driven arm lands in #1855)." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Check the logs above for any detected failures." >> $GITHUB_STEP_SUMMARY
-          echo "Open issues: [deploy-doctor label](https://github.com/${{ github.repository }}/issues?q=label%3Adeploy-doctor)" >> $GITHUB_STEP_SUMMARY
-
   branch-retention:
     needs: [resolve-execution-tier]
     name: 🌿 Branch Retention Cleanup
@@ -2372,7 +2351,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-        run: python .github/scripts/constitution/template_gate.py --issue "${{ github.event.inputs.issue_number || 0 }}"
+        run: python .github/scripts/constitution/template_gate.py --issue 0
 
   # ---------------------------------------------------------------------------
   # Dependency Health Scan (from dependency-health-check.yml)
@@ -2452,14 +2431,16 @@ jobs:
           fi
 
   secret-hygiene-guards:
-    needs: [resolve-execution-tier]
+    # Read-only: no privileged runner probe is needed for candidate rehearsals.
     name: "Secret and Naming Hygiene Guards"
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"
       - name: Install PyYAML
@@ -2476,7 +2457,7 @@ jobs:
         run: python scripts/ci/secret_graph_regen.py --check
 
   daily-10am-bdt-health-report:
-    needs: [resolve-execution-tier]
+    # Read-only: no privileged runner probe is needed for candidate rehearsals.
     name: "🩺 Daily 10:00 AM BDT Health & Release Gate Report"
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.run_daily_health_report == true) ||
@@ -2484,10 +2465,30 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"
+      - name: Report effective main branch safeguards (read-only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          protected=$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.protected')
+          effective=$(gh api "repos/$GITHUB_REPOSITORY/rules/branches/main")
+          rules=$(jq -r '[.[].type] | unique | join(", ")' <<< "$effective")
+          printf '### Main branch protection\n\n- Protected: %s\n- Effective ruleset rules: %s\n\n' \
+            "$protected" "${rules:-none}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$protected" != true ] && [ -z "$rules" ]; then
+            echo '::warning::main has no visible server-side protection; workflow-based landing alone is not enforcement.'
+          fi
+          # Legacy protection is not described by this endpoint. Never infer it
+          # from a green report or from the protected bit alone.
+          missing=$(jq -r '["pull_request", "required_status_checks", "non_fast_forward", "deletion"] - [.[].type] | join(", ")' <<< "$effective")
+          checks=$(jq -r '[.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[]?.context] | unique | join(", ")' <<< "$effective")
+          printf -- '- Rules not visible in effective rulesets: %s\n- Required status contexts in rulesets: %s\n\n' \
+            "${missing:-none}" "${checks:-none}" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Run 5-Point Production Release Gate & Generate 10:00 AM BDT Report
         run: |
           mkdir -p ci-reports
@@ -2598,17 +2599,17 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout monorepo mirror
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: "3.11"
 
       - name: Restore alert state (persistent [BURN] history)
-        uses: actions/cache@v4
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
-          path: ~/.supremeai
+          path: ~/.supremeai/redis_quota_alert_state.json
           key: rqm-state-${{ github.run_id }}
           restore-keys: |
             rqm-state-
@@ -2616,12 +2617,18 @@ jobs:
       - name: Run quota monitor (live; alerts -> Telegram)
         id: rqm
         env:
-          SUPREMEAI_TOWER_URL: https://supremeai-mcp-tower-live.onrender.com/mcp
+          RENDER_MCP_URL: ${{ vars.RENDER_MCP_URL || secrets.RENDER_MCP_URL }}
+          REDIS_QUOTA_STRICT: "1"
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           code=0
-          python scripts/ops/redis_quota_monitor.py || code=$?
+          base="${RENDER_MCP_URL%/}"
+          if [ -z "$base" ]; then
+            echo '::warning::Redis quota not checked: RENDER_MCP_URL is not configured.'
+            exit 3
+          fi
+          python scripts/ops/redis_quota_monitor.py --tower-url "${base%/mcp}/mcp" || code=$?
           echo "rqm_exit=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" -ge 3 ]; then exit "$code"; fi
           echo "monitor exit $code (0=no alert, 1=warn sent, 2=crit sent) — delivery channel is Telegram"

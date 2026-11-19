@@ -16,11 +16,11 @@ import urllib.request
 
 if __package__:
     from .render_trigger_deploy import (
-        RenderApiError, RenderClient, _collect_candidate_keys, deploy_commit, deploy_record,
+        RenderApiError, RenderClient, _write_output, deploy_commit, deploy_record,
     )
 else:
     from render_trigger_deploy import (
-        RenderApiError, RenderClient, _collect_candidate_keys, deploy_commit, deploy_record,
+        RenderApiError, RenderClient, _write_output, deploy_commit, deploy_record,
     )
 
 
@@ -39,6 +39,7 @@ def main() -> int:
             result["reason"] = reason
             level = "error" if status == "unverified" else "warning"
             print(f"::{level}::Render release {status}: {reason}", file=sys.stderr)
+        _write_output(release_status=status)
         print(json.dumps(result, sort_keys=True))
         return 1 if status == "unverified" else 0
 
@@ -52,20 +53,14 @@ def main() -> int:
     if not release_url.startswith("https://") and not (optional and not release_url):
         return report("unverified", "HTTPS RELEASE_URL is required")
 
-    key_env = os.environ.get("RENDER_API_KEY_ENV", "").strip() or "RENDER_API_KEY"
-    candidate_keys = _collect_candidate_keys(key_env)
-    record = None
-    for _, key in candidate_keys:
-        try:
-            client = RenderClient(api_key=key, service_id=service_id)
-            record = deploy_record(client.get_deploy(deploy_id, service_id))
-            break
-        except RenderApiError as exc:
-            if exc.status in (401, 403, 404):
-                continue
-            return report("unverified", "Render deploy metadata unavailable")
-        except (OSError, ValueError):
-            return report("unverified", "Render deploy metadata unavailable or invalid")
+    key = os.environ.get("RENDER_API_KEY", "").strip()
+    if not key:
+        return report("unverified", "No Render credential configured for this service")
+    try:
+        client = RenderClient(api_key=key, service_id=service_id)
+        record = deploy_record(client.get_deploy(deploy_id, service_id))
+    except (RenderApiError, OSError, ValueError):
+        return report("unverified", "Render deploy metadata unavailable or invalid")
     if not record:
         return report("unverified", "No metadata for the triggered Render deploy")
     if record.get("id") != deploy_id or record.get("status") != "live":

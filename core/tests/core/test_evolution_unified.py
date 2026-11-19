@@ -3,12 +3,7 @@
 # এজেন্ট ব্রিডিং, ফিটনেস স্কোরিং, স্কিল গ্রাফ ফলব্যাক, রিঅ্যাক্ট স্কিল
 # জেনারেশন এবং ডেইলি লার্নার ডিসকভারি-স্কোরিং কভার করে।
 
-import sys
 from unittest.mock import MagicMock
-
-# Import guard: evolution modules may transitively import optional google.genai.
-sys.modules.setdefault("google", MagicMock())
-sys.modules.setdefault("google.genai", MagicMock())
 
 from core.self_evolution.agent_breeder import AgentBreeder  # noqa: E402
 from core.self_evolution.daily_learner import DailyLearner, PriorityScorer  # noqa: E402

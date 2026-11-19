@@ -134,7 +134,7 @@ flowchart LR
 ### Phase 3: Render 750h Free-Tier Rule Enforcer
 - [ ] **Task 3.1:** `infrastructure/mcp-control-plane/src/diagnostics/service_manifest.ts`-এ অ্যাকাউন্ট-ম্যাপিং ভ্যালিডেশন যোগ করা।
   - ভেরিফাই করা যে একই Render API Key একাধিক সার্ভিসে শেয়ার হচ্ছে না।
-- [ ] **Task 3.2:** `scripts/ci/render_quota_preflight.py`-এর নিরাপত্তা চেক টাওয়ারের `system_health` এন্ডপয়েন্টে অন্তর্ভুক্ত করা।
+- **Task 3.2 (revised):** Render quota অজানা থাকলে Priority 2 স্থগিত। অনুমান করা budget দিয়ে build চালানো হবে না।
 
 ---
 

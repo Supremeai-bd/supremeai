@@ -7,11 +7,10 @@ WORKDIR /app
 ARG RENDER_GIT_COMMIT=""
 ENV RENDER_GIT_COMMIT=${RENDER_GIT_COMMIT} GIT_COMMIT=${RENDER_GIT_COMMIT}
 
-# Requirements live at gateway/requirements.txt in monorepo root context (and
-# at requirements.txt when built from satellite root). Copy explicitly and fail
-# closed if dependency installation fails.
-COPY gateway/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+# Use the reviewed resolution from the monorepo-root build context.
+# Dependency installation must succeed; never resolve a floating fallback.
+COPY gateway/requirements.lock /app/requirements.lock
+RUN pip install --no-cache-dir -r /app/requirements.lock
 
 COPY gateway/contracts/ contracts/
 COPY gateway/config/ config/

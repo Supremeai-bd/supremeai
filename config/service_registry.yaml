@@ -57,7 +57,6 @@ services:
     canonical_api_key_env: RENDER_API_KEY_5
     api_key_aliases:
       - RENDER_API_KEY_API
-      - RENDER_API_KEY
     canonical_url_env: RENDER_API_URL
     url_aliases:
       - SUPREMEAI_API_URL
@@ -67,6 +66,9 @@ services:
       - "config/routing_policy*"
       - "render.yaml"
       - "scripts/lib/**"
+      - "scripts/runtime/infisical_bootstrap.py"
+    exclude_paths:
+      - "scripts/lib/render_client.py"
 
   scraper:
     render_name: supremeai-browser
@@ -92,8 +94,6 @@ services:
       - RENDER_SCRAPER_SVC_ID
       - RENDER_BROWSER_SERVICE_ID
     canonical_api_key_env: RENDER_API_KEY_3
-    api_key_aliases:
-      - RENDER_API_KEY
     canonical_url_env: RENDER_SCRAPER_URL
     url_aliases:
       - STEALTH_WEBHOOK_URL
@@ -105,6 +105,8 @@ services:
       - "render.yaml"
       - "scripts/lib/**"
       - "scripts/runtime/**"
+    exclude_paths:
+      - "scripts/lib/render_client.py"
 
   mcp:
     render_name: supremeai-mcp-tower
@@ -121,13 +123,12 @@ services:
     container_port: 3771
     health_path: /health
     readiness_path: /health
-    production_url: "https://supremeai-mcp-tower-live.onrender.com"
+    # This role must not reuse the auxiliary CI runner ID. CI resolves the
+    # replacement's URL from this service ID's Render metadata.
     canonical_service_id_env: RENDER_MCP_SERVICE_ID
-    service_id_aliases:
-      - RENDER_MCP_SVC_ID
-    canonical_api_key_env: RENDER_API_KEY_4
+    canonical_api_key_env: RENDER_API_PAYKARI
     api_key_aliases:
-      - RENDER_API_KEY
+      - RENDER_API_KEY_PAYKARI
     canonical_url_env: RENDER_MCP_URL
     url_aliases:
       - MCP_URL
@@ -176,6 +177,8 @@ services:
       - "Dockerfile"
       - "scripts/lib/**"
       - "scripts/runtime/**"
+    exclude_paths:
+      - "scripts/lib/render_client.py"
 
   worker:
     render_name: supremeai-worker
@@ -196,8 +199,6 @@ services:
     service_id_aliases:
       - RENDER_WORKER_SVC_ID
     canonical_api_key_env: RENDER_API_KEY_2
-    api_key_aliases:
-      - RENDER_API_KEY
     canonical_url_env: RENDER_WORKER_URL
     url_aliases: []
     watch_paths:
@@ -205,6 +206,8 @@ services:
       - "backend/**"
       - "scripts/lib/**"
       - "scripts/runtime/**"
+    exclude_paths:
+      - "scripts/lib/render_client.py"
 
   brain:
     render_name: supremeai-brain
@@ -227,14 +230,14 @@ services:
     service_id_aliases:
       - RENDER_BRAIN_SVC_ID
     canonical_api_key_env: RENDER_API_KEY_6
-    api_key_aliases:
-      - RENDER_API_KEY
     canonical_url_env: RENDER_BRAIN_URL
     url_aliases: []
     watch_paths:
       - "core/services/brain/**"
       - "core/**"
       - "scripts/lib/**"
+    exclude_paths:
+      - "scripts/lib/render_client.py"
 
   ci-runner:
     render_name: supremeai-ci-runner
@@ -250,7 +253,6 @@ services:
     canonical_api_key_env: RENDER_API_KEY_PAYKARI
     api_key_aliases:
       - RENDER_API_KEY_7
-      - RENDER_API_KEY
     canonical_url_env: RENDER_CI_RUNNER_URL
     url_aliases: []
     watch_paths:

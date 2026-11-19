@@ -9,7 +9,7 @@ import pytest
 import yaml
 
 from scripts.ci import render_deploy_attestation as attestor
-from scripts.ci.render_trigger_deploy import CANDIDATE_KEY_ENVS
+from scripts.ci import render_trigger_deploy as trigger
 
 SHA = "a" * 40
 OTHER = "b" * 40
@@ -17,8 +17,7 @@ OTHER = "b" * 40
 
 @pytest.fixture
 def evidence(monkeypatch):
-    for key in CANDIDATE_KEY_ENVS:
-        monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
     for key, value in {
         "RENDER_API_KEY": "fixture-key",
         "RENDER_SERVICE_ID": "srv-fixture",
@@ -122,11 +121,19 @@ def test_release_workflows_pin_the_deploy_id_and_keep_rollback_verifier_current(
     unified = yaml.safe_load((workflows / "unified-pipeline.yml").read_text())
     rollback = yaml.safe_load((workflows / "deploy-rollback.yml").read_text())
     for job in (unified["jobs"]["deploy-render-services"], rollback["jobs"]["rollback"]):
-        steps = job["steps"]
-        trigger = next(step for step in steps if step.get("run") == "python scripts/ci/render_trigger_deploy.py")
-        attest = next(step for step in steps if step.get("run") == "python scripts/ci/render_deploy_attestation.py")
-        assert trigger["env"]["REQUIRE_EXPECTED_SHA"] == "1"
-        assert attest["env"]["RENDER_DEPLOY_ID"] == f"${{{{ steps.{trigger['id']}.outputs.deploy_id }}}}"
+        steps = {step["id"]: step for step in job["steps"] if "id" in step}
+        assert job["strategy"]["fail-fast"] is False
+        assert steps["deploy"]["env"]["REQUIRE_EXPECTED_SHA"] == "1"
+        assert steps["attest"]["env"]["RENDER_DEPLOY_ID"] == "${{ steps.deploy.outputs.deploy_id }}"
+        assert steps["attest"]["env"]["RELEASE_URL"] == "${{ steps.deploy.outputs.release_url }}"
+        assert steps["canary"]["env"]["RENDER_CANARY_URL"] == "${{ steps.deploy.outputs.health_url }}"
+        assert "!cancelled()" in steps["canary"]["if"]  # run even after this job's deploy or SHA step fails
+        for name in ("deploy", "attest"):
+            # One assigned credential, no Supabase/provider/Vault/PAT env.
+            assert [key for key, value in steps[name]["env"].items() if "secrets" in value] == ["RENDER_API_KEY"]
+            assert steps[name]["env"]["RENDER_API_KEY"] == "${{ secrets[matrix.api_key_env] || secrets[matrix.api_key_alias_env] }}"
+        assert not any("secrets" in value for value in steps["canary"]["env"].values())
+    assert "verify-render-services" not in unified["jobs"]
     checkout = rollback["jobs"]["rollback"]["steps"][0]
     assert checkout["with"]["ref"] == "${{ github.sha }}"
 
@@ -152,3 +159,76 @@ def test_production_release_dispatches_require_main_and_environment():
     rollback = yaml.safe_load((workflows / "deploy-rollback.yml").read_text(encoding="utf-8"))
     assert rollback["jobs"]["rollback"]["environment"] == "production"
     assert jobs["deploy-render-services"]["concurrency"]["group"] == rollback["jobs"]["rollback"]["concurrency"]["group"]
+
+
+def test_attestation_never_discovers_another_key(evidence, monkeypatch, capsys):
+    provider, release, _ = evidence
+    monkeypatch.delenv("RENDER_API_KEY")
+    monkeypatch.setenv("RENDER_API_KEY_4", "unused-fixture-value")
+    assert attestor.main() == 1
+    assert _result(capsys)["status"] == "unverified"
+    provider.get_deploy.assert_not_called()
+    release.assert_not_called()
+
+
+@pytest.fixture
+def deploy(monkeypatch, tmp_path):
+    path = tmp_path / "outputs"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(path))
+    monkeypatch.setenv("RENDER_API_KEY", "assigned-test-key")
+    monkeypatch.setenv("RENDER_SERVICE_ID", "srv-replacement")
+    monkeypatch.setenv("EXPECTED_SHA", SHA)
+    monkeypatch.setenv("RENDER_HEALTH_PATH", "/health")
+    monkeypatch.setattr(trigger, "REQUIRE_EXPECTED_SHA", True)
+    client = Mock()
+    client.get_service.return_value = {"id": "srv-replacement", "serviceDetails": {"url": "https://replacement.onrender.com"}}
+    client.trigger_deploy.return_value = {"id": "dep-new"}
+    client.get_deploy.return_value = {"id": "dep-new", "status": "live", "commit": {"id": SHA}}
+    monkeypatch.setattr(trigger, "RenderClient", Mock(return_value=client))
+    return client, path
+
+
+def test_trigger_does_not_read_or_write_runtime_secrets(deploy, monkeypatch):
+    client, outputs = deploy
+    for env in ("SUPABASE_SERVICE_ROLE_KEY", "INFISICAL_CLIENT_SECRET", "SYNC_PAT", "GEMINI_API_KEY", "RENDER_API_KEY_4"):
+        monkeypatch.setenv(env, "do-not-propagate")
+    assert trigger.main() == 0
+    trigger.RenderClient.assert_called_once_with(api_key="assigned-test-key", service_id="srv-replacement")
+    client.get_service.assert_called_once_with("srv-replacement")
+    client.trigger_deploy.assert_called_once_with("srv-replacement", commit_id=SHA)
+    client.get_env_vars.assert_not_called()
+    client.update_env_vars.assert_not_called()
+    assert "do-not-propagate" not in outputs.read_text()
+    assert dict(line.split("=", 1) for line in outputs.read_text().splitlines()) == {
+        "release_url": "https://replacement.onrender.com/release",
+        "health_url": "https://replacement.onrender.com/health",
+        "deploy_id": "dep-new",
+        "verified_sha": SHA,
+    }
+
+
+@pytest.mark.parametrize("case", ["wrong-service", "wrong-host", "other-key-only", "unauthorized"])
+def test_trigger_refuses_unbound_targets(deploy, monkeypatch, case):
+    client, outputs = deploy
+    if case == "wrong-service":
+        client.get_service.return_value["id"] = "srv-other"
+    elif case == "wrong-host":
+        client.get_service.return_value["serviceDetails"]["url"] = "https://other.example.invalid"
+    elif case == "other-key-only":
+        monkeypatch.delenv("RENDER_API_KEY")
+        monkeypatch.setenv("RENDER_API_KEY_4", "do-not-try")
+    else:
+        client.get_service.side_effect = trigger.RenderApiError("not found", status=404)
+    assert trigger.main() == 2
+    client.trigger_deploy.assert_not_called()
+    assert "health_url" not in outputs.read_text()
+
+
+def test_failed_build_can_report_health_without_release_evidence(deploy):
+    client, outputs = deploy
+    client.get_deploy.return_value["status"] = "build_failed"
+    assert trigger.main() == 1
+    output = outputs.read_text()
+    assert "health_url=https://replacement.onrender.com/health" in output
+    assert "deploy_id=dep-new" in output
+    assert "verified_sha" not in output and "fallback_allowed" not in output

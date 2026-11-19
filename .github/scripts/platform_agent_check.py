@@ -156,9 +156,9 @@ def probe_upstash_chain(sec: dict) -> None:
 def probe_render() -> None:
     # Service ↔ key map (verified live; each service lives on a different
     # Render account, so its own API key must be used):
-    #   tower   → RENDER_API_KEY_4 · primary → KEY_1 · worker → KEY_2 · scraper → KEY_3
+    #   tower → Paykari · primary → KEY_1 · worker → KEY_2 · scraper → KEY_3
     services = [
-        ("tower", "RENDER_MCP_SVC_ID", "RENDER_API_KEY_4"),
+        ("tower", "RENDER_MCP_SERVICE_ID", "RENDER_API_PAYKARI"),
         ("primary", "RENDER_PRIMARY_SVC_ID", "RENDER_API_KEY_1"),
         ("worker", "RENDER_WORKER_SVC_ID", "RENDER_API_KEY_2"),
         ("scraper", "RENDER_SCRAPER_SVC_ID", "RENDER_API_KEY_3"),

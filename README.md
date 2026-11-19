@@ -3,15 +3,15 @@
 > **The Single Door Monorepo SSOT for the SupremeAI Federation.**  
 > <!-- Fix (wiring audit 2026-11-11): docs/README.bn.md does not exist — dead link removed. -->
 
-This repository (`Supremeai-bd/supremeai`) is the **Single Door Monorepo SSOT** containing Core, Gateway, Browser, VSCode, Infrastructure, and the MCP Control Plane (the former `studio/` frontend surface is retired):
+This repository (`Supremeai-bd/supremeai`) is the **Single Door Monorepo SSOT** for Core, Gateway, Browser relay, and the MCP Control Plane. The former `studio/` frontend is retired; `vscode/` is reference material, not a monorepo release target.
 
 > [!IMPORTANT]
 > ### 🤖 AI Agent & MCP Contributor Quickstart (Where & How to Work)
 > If you are an external AI (Claude, Cursor, Antigravity, etc.) connecting via MCP Tower or GitHub:
 > 1. **Single Door for Work:** All tasks, bug reports, and PRs live exclusively in **`Supremeai-bd/supremeai`**. Satellite repositories maintain a strict 0 Issues / 0 PRs policy. <!-- Fix (wiring audit 2026-11-11): docs/FEDERATION_CHARTER.md does not exist — dead link removed. -->
-> 2. **Where to Write Code:** Edit the corresponding domain folders inside this repository (`command/`, `core/`, `vscode/`, `gateway/`, `browser/`, `infrastructure/`, etc.). Do NOT attempt to push to retired satellite repos. Note: the `studio/` frontend surface is retired — do not add new work there.
-> 3. **Autonomous Auto-Landing & Zero Cloud Waste:** When your PR passes all Tier 1 fast safety gates and Tier 2 verification, the in-workflow auto-landing gate merges your changes automatically ([`docs/PR_TO_PRODUCTION_LIFECYCLE.md`](./docs/PR_TO_PRODUCTION_LIFECYCLE.md)).
-> 4. **Universal Runner Hierarchy:** Verification executes on the 4-level runner tier (local-pc runner priority 1 -> Render CI priority 2 -> GitHub Cloud priority 3/4).
+> 2. **Where to Write Code:** Edit the corresponding domain folders inside this repository (`core/`, `gateway/`, `browser/`, `infrastructure/`, or `scripts/`). See the ownership map below before adding a build or a deploy target.
+> 3. **Autonomous Auto-Landing & Zero Cloud Waste:** Routine PRs can auto-merge after verification. Changes to protected release, authorization, or data boundaries require owner review ([`docs/PR_TO_PRODUCTION_LIFECYCLE.md`](./docs/PR_TO_PRODUCTION_LIFECYCLE.md)).
+> 4. **Universal Runner Hierarchy:** PR code runs on hosted runners. The personal runner is reserved for trusted-main CI; Render CI is inactive without verified quota and runner evidence.
 >
 > **MCP Tower call conventions (avoid argument/format errors):**
 > - Tool names are **wave-split** (2026-10-29/30 rename waves, #2493): the core github + bridge queue/order tools are **dotted** (`github.read_file`, `github.list_prs`, `github.workflow_runs`, `bridge.work_queue`, `bridge.work_order`) — their old snake_case forms are dead (-32602). The external-repo explorer family (`github_repo_tree`, `github_search_repos`, ...) and the claim/feedback family (`work_claim`, `bridge_read_feedback`, `bridge_work_renew`, `bridge_work_release`) stay **snake_case**. Never guess: probe `tools/list` first.
@@ -21,46 +21,14 @@ This repository (`Supremeai-bd/supremeai`) is the **Single Door Monorepo SSOT** 
 
 ## 📐 Architecture & Single Monorepo SSOT Topology
 
-The SupremeAI Federation operates under the **Pure Single Monorepo SSOT Topology**:
-1. **`Supremeai-bd/supremeai`**: The Single Door Unified Monorepo SSOT containing Core, Gateway, Browser, VSCode, Infrastructure, and MCP Control Plane. The former `studio/` frontend surface is retired. All PRs, issues, deployments, and CI workflows (`unified-pipeline.yml`) live exclusively here.
-2. **All Satellites Retired**: External satellite repositories (`supremeai-studio`, `supremeai-core`, `supremeai-api`, `supremeai-browser`, `supremeai-vscode`) are permanently retired, archived, and frozen read-only.
+| Owner / source | Status in this repository |
+|---|---|
+| `core/`, `gateway/`, `browser/`, `infrastructure/mcp-control-plane/` | Active service source. [Service registry](config/service_registry.yaml) owns the Render deploy roles and watch paths. Browser's production build is a relay, not a full browse/scrape product. |
+| `infrastructure/`, `scripts/`, `.github/` | Edge services, operations and CI/CD. The Render CI runner is auxiliary, not a production runtime. |
+| `vscode/` | Reference and examples only; this checkout has no extension or desktop release source. No root client-release workflow. |
+| Former `studio/`, and historical satellite copies | Retired from this monorepo's release path. Do not infer an active release from an old diagram, mirror, or URL. |
 
-```mermaid
-flowchart TD
-    subgraph FEDERATION_UNIVERSE ["🌐 SupremeAI Single Monorepo SSOT Topology"]
-        direction TB
-        MONO["Supremeai-bd/supremeai<br>(Unified Monorepo SSOT & Control Tower)"]
-        CORE["core/<br>(Agent Intelligence & Workflows)"]
-        GATEWAY["gateway/<br>(API Gateway & Proxy Mesh)"]
-        STUDIO["studio/<br>(Retired — archived and read-only)"]
-        INFRA["infrastructure/<br>(Edge Workers, Cloudflare, Render)"]
-        
-        MONO --> CORE
-        MONO --> GATEWAY
-        MONO --> STUDIO
-        MONO --> INFRA
-    end
-
-    classDef open fill:#1d76db,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef sats fill:#059669,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef mono fill:#7c3aed,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef archive fill:#475569,stroke:#fff,stroke-width:1px,color:#fff;
-    class OPEN open;
-    class S_STUDIO,S_API,S_CORE,S_BROWSER,S_VSCODE sats;
-    class MONO mono;
-    class ARCHIVE archive;
-```
-
-#### Core Set Equations:
-- **Public Boundary Partition:** $\mathbf{Open} = T_{\text{transit}} \cup U_{\text{open}} \quad \text{where } T_{\text{transit}} \cap U_{\text{open}} = \emptyset$
-  - **$U_{\text{open}}$:** Public front door, CI guards, Federation Anchor Hub configs, and constitution. **Never dispatched to satellites.**
-  - **$T_{\text{transit}}$:** Scoped mirror surfaces (`gateway/*`, `browser/*`, `vscode/*`, `core/*`); the former `studio/*` surface is retired.
-- **Active Federation Surface:** $\mathbf{S_{\text{active}}} = S_{\text{api}} \cup S_{\text{vscode}} \cup S_{\text{browser}} \cup S_{\text{core}}$ (the former $S_{\text{studio}}$ surface is retired)
-- **The Blocked State Law:** Any file in `supremeai` not in $U_{\text{open}}$ represents an in-flight or blocked transit payload.
-
----
-
-### 2. End-to-End PR-to-Production Lifecycle Architecture
+### PR-to-production lifecycle
 
 For complete end-to-end documentation of our deterministic multi-tier gates, automated landing, federation sync, and edge deployment, see [`docs/PR_TO_PRODUCTION_LIFECYCLE.md`](docs/PR_TO_PRODUCTION_LIFECYCLE.md).
 
@@ -71,51 +39,33 @@ flowchart TD
         PR --> RuntimeReadiness["Tier 1: Runtime Readiness"]
     end
 
-    subgraph S2["2. Heavy Verification (Local Self-Hosted Runner)"]
-        FastSafety --> HeavyGate["Tier 2: Heavy Test Battery (Local PC)"]
+    subgraph S2["2. Hosted PR Verification"]
+        FastSafety --> HeavyGate["Focused regression battery"]
         RuntimeReadiness --> HeavyGate
-        HeavyGate --> CorePytest["Full Backend Pytest Suite"]
-        HeavyGate --> Typecheck["TypeScript Typecheck (studio/ — retired)"]
+        HeavyGate --> CorePytest["Python and Gateway contracts"]
+        HeavyGate --> Typecheck["MCP Tower build and contract tests"]
     end
 
     subgraph S3["3. Autonomous Landing & Post-Merge Triggers"]
-        HeavyGate --> PRMerge["Squash Merge into main"]
+        HeavyGate --> Decision{"Protected change?"}
+        Decision -- "Yes" --> Review["Owner review"] --> PRMerge["Squash Merge into main"]
+        Decision -- "No" --> PRMerge
         PRMerge --> ResolveTargets["Plan Changed Render Services"]
         PRMerge --> EdgeDeploy["Deploy Cloudflare Edge Mesh"]
-        PRMerge --> VercelHook["Deploy Vercel / Cloudflare Studio Hook (studio/ — retired)"]
     end
 
     subgraph S4["4. Production Deployment Matrix"]
         ResolveTargets --> RenderTrigger["Trigger Render Backend Deploy"]
-        RenderTrigger --> CanaryVerify["Canary & Health Check Verification"]
-        VercelHook --> CloudflarePages["Studio Live Edge Deploy (studio/ — retired)"]
+        RenderTrigger --> CanaryVerify["Per-service SHA attestation and health canary"]
     end
 ```
 
-### 3. 2-Step Cascading Bridge & Zero-Residue Lifecycle (#416)
-
-```mermaid
-flowchart TD
-    PR["Autonomous PR / Patch Submission<br>(supremeai:main)"] --> GATES{"Constitutional Gates &<br>Verification Battery"}
-    
-    GATES -- "Pass" --> LAND["Autonomous Landing<br>(Squash Merge into main)"]
-    GATES -- "Fail" --> REJECT["Fail-Closed Block & Feedback<br>(CI Incident Logged)"]
-    
-    LAND --> STEP1["🌉 Bridge Step 1:<br>supremeai ➔ Active Target Satellite<br>(api, browser, vscode, core; studio retired)"]
-    
-    STEP1 --> VERIFY1{"Satellite Ingestion<br>Verified?"}
-    VERIFY1 -- "Yes" --> STEP2["🌉 Bridge Step 2:<br>Satellite ➔ Central Monorepo (supremeai)<br>(Full Product Parity Ingestion)"]
-    
-    STEP2 --> VERIFY2{"Monorepo Sync<br>Verified?"}
-    
-    VERIFY2 -- "Verified Completed" --> PRUNE["🧹 Zero-Residue Auto-Prune (#416):<br>1. Delete ephemeral transit patch files<br>2. Delete bridge/* transit sync branches"]
-    
-    PRUNE --> CLEAN["✨ Clean Steady State<br>Open repo preserved at clean U_open boundary"]
-```
 
 ---
 
-### 3. Federation CI Watchdog & Federation Anchor Hubs Architecture
+### Historical federation integrations
+
+The older federation map below records integrations, not current release ownership.
 
 ```mermaid
 flowchart TD
@@ -149,12 +99,11 @@ flowchart TD
 > Gateway surface. Contributing? [`AGENTS.md`](./AGENTS.md) and
 > [`docs/ZERO_ADMIN_GUIDE.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/ZERO_ADMIN_GUIDE.md) are the entry points.
 
-### 🌐 Live Federation Services
+### Production endpoint configuration
 
 | Service | Live URL | Description |
 |---|---|---|
-| **SupremeAI Studio (Web UI) — retired** | [https://supremeai-studio.vercel.app](https://supremeai-studio.vercel.app) | Former user-facing React/Vite console interface and agent workspace (surface retired; archived read-only) |
-| **MCP Control Tower** | [`https://supremeai-mcp-tower-live.onrender.com`](https://supremeai-mcp-tower-live.onrender.com) | Remote Streamable HTTP (`/mcp`) & SSE (`/sse`) tool plane |
+| **MCP Control Tower** | Configured `RENDER_MCP_URL` | Remote `/mcp` and `/sse`. Releases use the exact configured Paykari service ID and resolve its direct URL from Render. |
 | **API Gateway** | [`https://supremeai-api-ulw0.onrender.com`](https://supremeai-api-ulw0.onrender.com) | Unified OpenAI-compatible multi-LLM provider gateway |
 
 | Path | What it is |
@@ -167,8 +116,8 @@ flowchart TD
 | [`docs/AGENT_PORTAL_SPEC.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/AGENT_PORTAL_SPEC.md) | **Agent Portal & Federation Bridge architecture spec** (#23): two-repo relationship, the 3 submission pathways mapped to machinery, guard/gate/router map, clickable contract-schema references |
 | [`docs/FAQ.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/FAQ.md) | **Operational FAQ** (#23): symptom→cause→fix for every known validation-error class (naming, duplicates, boundary, stale-base, force-push, keyword propagation, env-skips) |
 | `AGENTS.md` | Agent entrypoint: autonomous work-submission loop, submission pathways, bridge lane |
-| `.github/workflows/unified-pipeline.yml` | Unified validation & cron engine (#155): guards → Python 3.10–3.13 matrix + Tower TS verification + secret scan, plus the agent-loop dispatch job (`scripts/agents/continuous_agent_loop.py --pick-next`) — triggerable by manual `workflow_dispatch`; the */30 schedule is currently disabled per admin directive (AGENTS.md §0 8-step cycle; draft-only scheduled runs with explicit §10 no-op on empty board, PR submission opt-in via manual dispatch; event-driven intake via the MCP Tower, see `infrastructure/mcp-control-plane/docs/BRIDGE_INTAKE.md`) |
-| `.github/workflows/unified-pipeline.yml (auto-merge job)` | Unified autonomous landing & bridge dispatch (#155): auto-squash-merge on full gate success, then the same run streams the landed patch reference into the private bridge queue |
+| `.github/workflows/unified-pipeline.yml` | PR verification, trusted landing decision and path-scoped production release evidence |
+| `.github/workflows/full-test-suite.yml` | Scheduled repository, Core, Gateway, Windows and Tower suites. Separate from PR landing. |
 | `.github/ISSUE_TEMPLATE/agent_task.yml` | Agent task template (task group dropdown; <!-- wiring audit 2026-11-11: replaced dead bridge-work-order.yml reference -->) |
 | `LICENSE` | MIT |
 
@@ -195,7 +144,7 @@ source-of-truth, that check fails closed.
 
 ## 🤖 Continuous Agent Loop & Federation Roles
 
-`supremeai` acts as the **Public Face / Embassy** (`scripts/agents/continuous_agent_loop.py`), providing an open zero-dependency CLI entrypoint for any agent or contributor. The internal engines, schedulers, and worker daemons reside in the `supremeai-agents` core satellite.
+`supremeai` acts as the **Public Face / Embassy** (`scripts/agents/continuous_agent_loop.py`), providing an open zero-dependency CLI entrypoint for any agent or contributor. The in-tree runtime and orchestration code live under `core/`, `gateway/` and `scripts/`.
 
 > **Continuous Loop Core Doctrine:**
 > *"কার কী দায়িত্ব তা বুঝিয়ে দেওয়া, দায়িত্ব পালনের সময় কোন রুলস মানতে হবে আর কোনটা মানবে না তা বেঁধে দেওয়া, এবং কাজে লাঠি লাগবে নাকি ছুরি লাগবে (Weapon Provisioning) তা সুনির্দিষ্ট করে দেওয়াই Continuous Agent Loop-এর মূল কাজ।"*
@@ -207,7 +156,7 @@ source-of-truth, that check fails closed.
   - **Task Auditor:** Pre-landing verification for boundaries, secret leaks, and decision ledgers.
 - **Time-Driven / Platform-Driven Roles (Scheduled Cron & Periodic Probing):**
   - **Ecosystem Scout:** Global tech radar scouring outside innovations (Meta, Anthropic, OpenAI) with full-spectrum evaluation (pros, cons, "এটা করা যাবে না", risks) producing min. 10 proposals.
-  - **Federation Auditor:** Internal inspector auditing commit parity, drift, and cleanliness across the 11 canonical satellites.
+  - **Federation Auditor:** Internal inspector auditing commit parity, drift, and cleanliness for explicitly configured mirror relationships.
   - **Human Eye (Visual QA):** SupremeAI's PR & Styling Team (*"বস, এই ড্রেসে ভালো লাগছে না, ওই ড্রেস পরেন"*), profiling visual polish, typography, and premium user experience (Issue create only).
   - **Rules Breaker:** Dual-vector chaos hacker (breaks existing guards + exploits unprotected gaps to measure worst-case damage, filing failing tests and P0 issues).
   - **3rd-Party Platform Guardian:** High-frequency prober for external model latency and quotas (auto-failovers if possible, else creates issues).

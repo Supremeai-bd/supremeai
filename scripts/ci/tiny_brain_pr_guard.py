@@ -52,6 +52,7 @@ PROTECTED_PREFIXES = (
 )
 PROTECTED_PATHS = {
     ".github/codeowners",
+    "config/ci/pr-battery.args",
     "config/service_registry.yaml",
     "core/config/service_topology.yaml",
     "core/api/dependencies.py",
@@ -77,6 +78,7 @@ PROTECTED_PATHS = {
     "scripts/ci/plan_render_deploys.py",
     "scripts/ci/production_release_gate.py",
     "scripts/ci/readiness_contract.py",
+    "scripts/ci/render_canary.py",
     "scripts/ci/render_deploy_attestation.py",
     "scripts/ci/render_trigger_deploy.py",
     "scripts/ci/resolve_execution_tier.py",

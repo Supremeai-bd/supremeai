@@ -153,17 +153,13 @@ def test_phase0_canonical_service_registry_and_ssot_alignment() -> None:
     assert brain["production_url"] == "https://supremeai-tiny-brain.onrender.com"
     assert brain["health_path"] == "/health"
 
-    # 2. Verify plan_render_deploys.py rules match canonical_service_id_env and canonical_api_key_env
-    from scripts.ci.plan_render_deploys import SERVICE_ID_ALIASES, SERVICE_RULES
+    # 2. The deploy planner reads the canonical registry, not a second mapping.
+    from scripts.ci.plan_render_deploys import render_services
 
-    for svc_name, rule in SERVICE_RULES.items():
-        env_id, api_key_env = rule[0], rule[1]
-        assert svc_name in services, f"Planner service {svc_name} missing from service_registry.yaml"
-        reg_svc = services[svc_name]
-        assert reg_svc["canonical_service_id_env"] == env_id
-        assert reg_svc["canonical_api_key_env"] == api_key_env
-        assert env_id.endswith("_SERVICE_ID"), f"Canonical ID {env_id} must end with _SERVICE_ID (not _SVC_ID)"
-        assert env_id in SERVICE_ID_ALIASES
+    assert render_services() == {name: spec for name, spec in services.items() if spec["platform"] == "render"}
+    for spec in render_services().values():
+        assert spec["canonical_service_id_env"].endswith("_SERVICE_ID")
+        assert spec["canonical_api_key_env"].startswith("RENDER_API_")
 
     # 3. Verify core/config/service_topology.yaml watches active monorepo directories (core/**, studio/**, gateway/**)
     topo = yaml.safe_load((REPO_ROOT / "core" / "config" / "service_topology.yaml").read_text(encoding="utf-8"))
@@ -195,7 +191,7 @@ def test_phase0_canonical_service_registry_and_ssot_alignment() -> None:
 
 def test_phase3_dockerfile_hygiene_and_post_merge_release_attestation_wiring() -> None:
     """Verify Phase 3 Dockerfile pin hygiene (zero gate-defeat '|| pip install')
-    and post-merge /release public-path + per-service release_url matrix wiring."""
+    and post-merge /release public-path + per-service release_url wiring."""
     # 1. /release must be in supremeai_public_paths so AuthMiddleware does not block attestation with 401
     from core.config import Settings
 
@@ -206,16 +202,16 @@ def test_phase3_dockerfile_hygiene_and_post_merge_release_attestation_wiring() -
     # 2. gateway/Dockerfile (and nested if present) must not contain '|| pip install' gate-defeat
     gw_docker = (REPO_ROOT / "gateway" / "Dockerfile").read_text(encoding="utf-8")
     assert "|| pip install" not in gw_docker
-    assert "COPY gateway/requirements.txt /app/requirements.txt" in gw_docker
+    assert "COPY gateway/requirements.lock /app/requirements.lock" in gw_docker
 
     gw_nested = REPO_ROOT / "gateway" / "gateway" / "Dockerfile"
     if gw_nested.exists():
         gw_nested_docker = gw_nested.read_text(encoding="utf-8")
         assert "|| pip install" not in gw_nested_docker
 
-    # 3. unified-pipeline.yml must pass matrix.release_url (not hardcoded RENDER_CORE_RELEASE_URL)
+    # 3. unified-pipeline.yml must pass the release URL resolved for the exact service ID
     unified_wf = (REPO_ROOT / ".github" / "workflows" / "unified-pipeline.yml").read_text(encoding="utf-8")
-    assert "RELEASE_URL: ${{ matrix.release_url }}" in unified_wf
+    assert "RELEASE_URL: ${{ steps.deploy.outputs.release_url }}" in unified_wf
     assert "python scripts/ops/wiring_atlas.py --check" in unified_wf
 
     # 4. render_canary.py must parse both quoted JSON and CLI-stripped unquoted RENDER_CANARY_URLS_JSON
@@ -236,12 +232,14 @@ def test_mcp_tower_production_readiness_guards() -> None:
     - Canonical Render serviceId/url and Infisical projectId fallbacks in env.ts
     - Optional providers do not force overallStatus to 'down' when unconfigured
     - Remediation rules do not hardcode 'srv-auto-fix-demo' and KillSwitch guards L2 mode
-    - render_trigger_deploy.py syncs bootstrap env vars before triggering deploy
+    - Deploy trigger never fetches or modifies runtime credentials
     """
     mcp_root = REPO_ROOT / "infrastructure" / "mcp-control-plane" / "src"
     env_ts = (mcp_root / "lib" / "env.ts").read_text(encoding="utf-8")
     assert "srv-dau7c9ek1f9s73almn0g" in env_ts
-    assert "srv-dabm7inqj5pc738jkrt0" in env_ts
+    assert 'optional("RENDER_MCP_SERVICE_ID")' in env_ts
+    assert 'optional("RENDER_API_PAYKARI")' in env_ts
+    assert "srv-dabm7inqj5pc738jkrt0" not in env_ts
     assert "92aa20c4-aef5-4e33-82bd-efb06058aaf0" in env_ts
     assert "https://supremeai.live/cf-health" in env_ts
 
@@ -258,8 +256,8 @@ def test_mcp_tower_production_readiness_guards() -> None:
     assert "getEffectiveMode" in killswitch_ts
 
     trigger_py = (REPO_ROOT / "scripts" / "ci" / "render_trigger_deploy.py").read_text(encoding="utf-8")
-    assert "_sync_bootstrap_env_vars" in trigger_py
-    assert "INFISICAL_CLIENT_ID" in trigger_py
+    assert "get_env_vars(" not in trigger_py
+    assert "update_env_vars(" not in trigger_py
     assert "REQUIRE_EXPECTED_SHA" in trigger_py
     assert "_allow_ci_fallback" in trigger_py
 
@@ -274,8 +272,8 @@ def test_render_trigger_deploy_strict_ci_sha_and_fallback_guard(monkeypatch, tmp
     monkeypatch.setenv("GITHUB_OUTPUT", str(gh_out))
     monkeypatch.setattr(rtd, "REQUIRE_EXPECTED_SHA", True)
     monkeypatch.setattr(rtd, "RENDER_WAIT", True)
-    for k in rtd.CANDIDATE_KEY_ENVS:
-        monkeypatch.delenv(k, raising=False)
+    monkeypatch.delenv("RENDER_API_KEY", raising=False)
+    monkeypatch.delenv("RENDER_HEALTH_PATH", raising=False)
     monkeypatch.delenv("RENDER_SERVICE_ID", raising=False)
     monkeypatch.delenv("RENDER_SVC_ID", raising=False)
 
@@ -289,8 +287,6 @@ def test_render_trigger_deploy_strict_ci_sha_and_fallback_guard(monkeypatch, tmp
     monkeypatch.setenv("RENDER_API_KEY", "rnd_test")
     monkeypatch.delenv("EXPECTED_SHA", raising=False)
     monkeypatch.delenv("GITHUB_SHA", raising=False)
-    monkeypatch.setattr(rtd, "_resolve_owning_client", lambda svc_id, keys: ("RENDER_API_KEY", object()))
-    monkeypatch.setattr(rtd, "_sync_bootstrap_env_vars", lambda client, svc_id: None)
     assert rtd.main() == 2
     assert "fallback_allowed=true" in gh_out.read_text(encoding="utf-8")
 
@@ -309,9 +305,8 @@ def test_render_trigger_deploy_strict_ci_sha_and_fallback_guard(monkeypatch, tmp
             )
 
     monkeypatch.setattr(
-        rtd, "_resolve_owning_client", lambda svc_id, keys: ("RENDER_API_KEY", _UnindexedCommitClient())
+        rtd, "RenderClient", lambda **_kwargs: _UnindexedCommitClient()
     )
-    monkeypatch.setattr(rtd, "_sync_bootstrap_env_vars", lambda client, svc_id: None)
     assert rtd.main() == 2
     assert "fallback_allowed=true" in gh_out.read_text(encoding="utf-8")
 
@@ -325,11 +320,11 @@ def test_render_trigger_deploy_strict_ci_sha_and_fallback_guard(monkeypatch, tmp
     assert (
         rtd.wait_for_terminal_state(_BuildFailedClient(), "srv-test", {"id": "dep-123"}, expected_sha="a" * 40) == 1
     )
-    assert gh_out.read_text(encoding="utf-8") == ""
+    assert gh_out.read_text(encoding="utf-8") == "deploy_id=dep-123\n"
 
 
 @pytest.mark.parametrize(("deploy_status", "actual_sha", "actual_id", "exit_code", "output"), [
-    ("live", "a" * 40, "dep-test", 0, f"verified_sha={'a' * 40}\ndeploy_id=dep-test"),
+    ("live", "a" * 40, "dep-test", 0, f"verified_sha={'a' * 40}"),
     ("live", "b" * 40, "dep-test", 2, "fallback_allowed=true"),
     ("live", None, "dep-test", 2, "fallback_allowed=true"),
     ("live", "a" * 40, None, 2, "fallback_allowed=true"),
@@ -360,10 +355,12 @@ def test_render_ci_attests_only_live_deploy_of_the_tested_revision(
     monkeypatch.setenv("PR_HEAD_SHA", "c" * 40)  # Never use a different PR head.
     monkeypatch.setattr(rtd, "REQUIRE_EXPECTED_SHA", True)
     monkeypatch.setattr(rtd, "RENDER_WAIT", False)  # Strict mode must still poll.
-    monkeypatch.setattr(rtd, "_resolve_owning_client", lambda *_: ("RENDER_API_KEY", _Client()))
-    monkeypatch.setattr(rtd, "_sync_bootstrap_env_vars", lambda *_: None)
+    monkeypatch.delenv("RENDER_HEALTH_PATH", raising=False)
+    monkeypatch.setattr(rtd, "RenderClient", lambda **_kwargs: _Client())
     assert rtd.main() == exit_code
-    assert gh_output.read_text(encoding="utf-8").strip() == output
+    outputs = dict(line.split("=", 1) for line in gh_output.read_text(encoding="utf-8").splitlines())
+    assert outputs.pop("deploy_id") == "dep-test"
+    assert outputs == dict(line.split("=", 1) for line in output.splitlines())
 
 
 def test_studio_vite_chunk_splitting_and_frontend_pulse_guards() -> None:

@@ -13,11 +13,7 @@ export interface ProviderAccount {
   capabilities: Capability[];
   /** Env var name for API key — NOT the value itself */
   apiKeyRef: string;
-  /** Optional fallback env var NAMES, tried in order when apiKeyRef is
-   *  absent. Fixes the render-mcp / render.yaml mismatch: render.yaml
-   *  declares RENDER_API_KEY while accounts referenced RENDER_API_KEY_4 —
-   *  deployment only receives RENDER_API_KEY, so the account must be
-   *  resolvable (and marked available) via the generic key. */
+  /** Compatibility aliases for the same account's key. */
   apiKeyRefs?: string[];
   /** Optional: URL or endpoint */
   url?: string;
@@ -187,12 +183,12 @@ export function buildAccountRegistry(): ProviderAccount[] {
       role: "mcp-control",
       environment: "production",
       capabilities: ["health", "logs", "deploy", "restart", "env_vars"],
-      apiKeyRef: "RENDER_API_KEY_4",
-      apiKeyRefs: ["RENDER_API_KEY", "RENDER_API_TOKEN", "RENDER_API_KEY_PAYKARI"],
+      apiKeyRef: "RENDER_API_PAYKARI",
+      apiKeyRefs: ["RENDER_API_KEY_PAYKARI"],
       url: env.render.controlTower.url,
       serviceId: env.render.controlTower.serviceId,
       healthPath: "/health",
-      available: isAvailable("RENDER_API_KEY_4") || hasAnyRenderKey || Boolean(env.render.controlTower.url),
+      available: Boolean(env.render.controlTower.apiKey || env.render.controlTower.url),
     },
     {
       id: "render-api",

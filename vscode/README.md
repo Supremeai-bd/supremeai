@@ -1,30 +1,17 @@
-# SupremeAI Unified Client Hub (`supremeai-vscode`)
+# VS Code client references
 
-Native client applications and developer workflows for SupremeAI.  
-Per [`ARCHITECTURE_PLAN.md`](https://github.com/Supremeai-bd/supremeai/blob/main/ARCHITECTURE_PLAN.md), this hub hosts desktop and IDE client applications, while the native Android app lives in [`Supremeai-bd/supremeai-apk`](https://github.com/Supremeai-bd/supremeai-apk):
+This directory holds client examples and compatibility reference material. The
+monorepo does not contain a shippable VS Code extension or a desktop package,
+so it no longer dispatches or publishes those releases.
 
-| Client Application | Repository | Target Platform | Release Artifacts |
-|---|---|---|---|
-| **IDE Extension** | [`Supremeai-bd/supremeai-vscode`](https://github.com/Supremeai-bd/supremeai-vscode) | VS Code / Cursor / Windsurf | `.vsix` Packages & VS Code Marketplace |
-| **Desktop Workstation** | [`Supremeai-bd/supremeai-desktop`](https://github.com/Supremeai-bd/supremeai-desktop) | Windows / macOS / Linux | `.exe`, `.msi`, `.dmg`, `.AppImage` |
-| **Mobile Studio** | [`Supremeai-bd/supremeai-apk`](https://github.com/Supremeai-bd/supremeai-apk) | Android Phones & Tablets | `.apk` Installers & Google Play Store |
-| **Web Studio** | [`Supremeai-bd/supremeai-frontend`](https://github.com/Supremeai-bd/supremeai-frontend) | Web Browsers | Cloud Web Application |
+Historical client repository references (not evidence of active releases):
 
-> **Satellite Sovereignty Policy**:
-> All external client applications are decoupled into sovereign satellite repositories under the `Supremeai-bd` organization.
-> The root repository `Supremeai-bd/supremeai` serves exclusively as the single source of truth for the **AI Core Engine, Gateway Router, Swarm Supervisor, and MCP Control Plane**.
+- VS Code: [Supremeai-bd/supremeai-vscode](https://github.com/Supremeai-bd/supremeai-vscode)
+- Android: [Supremeai-bd/supremeai-apk](https://github.com/Supremeai-bd/supremeai-apk)
+- Desktop: [Supremeai-bd/supremeai-desktop](https://github.com/Supremeai-bd/supremeai-desktop)
 
----
+Any satellite release belongs to the repository that tracks the corresponding
+package, dependency lock, and release workflow.
 
-## 🛠️ Quick Start
-
-```bash
-# Install dependencies across all workspaces
-npm install
-
-# Compile the VS Code extension
-npm run build:extension
-
-# Run extension tests
-npm run test
-```
+The [agent monitor example](examples/vscode-agent-monitor/) is not the released
+client. For the supported Gateway API, see the [consumer guide](../docs/CONSUMERS.md).

@@ -291,12 +291,17 @@ def probe_upstash(kv: dict) -> list[dict]:
 
 def probe_render(kv: dict) -> list[dict]:
     out = []
-    services = [("tower", "RENDER_MCP_SVC_ID", "RENDER_API_KEY_4"),
+    services = [("tower", "RENDER_MCP_SERVICE_ID", "RENDER_API_PAYKARI"),
                 ("primary", "RENDER_PRIMARY_SVC_ID", "RENDER_API_KEY_1"),
                 ("worker", "RENDER_WORKER_SVC_ID", "RENDER_API_KEY_2"),
                 ("scraper", "RENDER_SCRAPER_SVC_ID", "RENDER_API_KEY_3")]
     for name, se, ke in services:
-        sid, akey = kv.get(se, "") or kv.get(se.replace("_SVC_ID", "_SERVICE_ID"), ""), kv.get(ke, "")
+        if name == "tower":
+            # Match forward/rollback; never probe the superseded ID/key pair.
+            sid = os.environ.get(se) or kv.get(se, "")
+            akey = kv.get(ke) or kv.get("RENDER_API_KEY_PAYKARI", "")
+        else:
+            sid, akey = kv.get(se, "") or kv.get(se.replace("_SVC_ID", "_SERVICE_ID"), ""), kv.get(ke, "")
         if not sid or not akey:
             out.append(mk("render", f"settings[{name}]", None,
                           f"{se}/{ke} নেই", category="CONFIG_MISSING"))

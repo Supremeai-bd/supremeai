@@ -1,0 +1,7 @@
+# Only the scheduled full suite installs these optional integration SDKs.
+# They are not part of the production images or the focused PR battery.
+docker
+google-auth
+grpcio
+psycopg2-binary
+sqlglot

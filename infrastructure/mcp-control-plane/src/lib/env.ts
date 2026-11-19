@@ -137,9 +137,9 @@ export const env = {
       get url(): string { return optional("RENDER_SCRAPER_URL", "https://supremeai-scraper-node.onrender.com"); },
     },
     controlTower: {
-      get apiKey(): string { return optional("RENDER_API_KEY_4", optional("RENDER_API_KEY")); },
-      get serviceId(): string { return optional("RENDER_MCP_SERVICE_ID", optional("RENDER_MCP_SVC_ID", "srv-dabm7inqj5pc738jkrt0")); },
-      get url(): string { return optional("RENDER_MCP_URL", "https://supremeai-mcp-tower-live.onrender.com"); },
+      get apiKey(): string { return optional("RENDER_API_PAYKARI") || optional("RENDER_API_KEY_PAYKARI"); },
+      get serviceId(): string { return optional("RENDER_MCP_SERVICE_ID"); },
+      get url(): string { return (optional("RENDER_MCP_URL") || optional("RENDER_EXTERNAL_URL")).replace(/\/+$/, ""); },
     },
     api: {
       get apiKey(): string { return optional("RENDER_API_KEY_5", optional("RENDER_API_KEY_API", optional("RENDER_API_KEY"))); },

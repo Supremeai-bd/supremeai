@@ -233,6 +233,7 @@ markers = [
     "unit: marks tests as unit tests",
     "chaos: marks tests requiring chaos engine",
     "requires_network: marks tests requiring network",
+    "external: marks tests requiring provider infrastructure",
     "requires_redis: marks tests requiring redis",
     "e2e: marks tests as end-to-end tests",
     "security: marks tests as security tests",
