@@ -25,6 +25,25 @@ from .service.adaptive_routing import is_valid_secret
 # Provider outcomes that justify failing over to the next endpoint.
 FAILOVER_STATUS = frozenset({429, 500, 502, 503, 504})
 
+# OpenAI-compatible request fields the gateway forwards verbatim. Sampling and
+# tool-calling knobs live here; ``model`` is deliberately excluded because the
+# routed endpoint owns it.
+_FORWARDED_KEYS: tuple[str, ...] = (
+    "temperature",
+    "top_p",
+    "max_tokens",
+    "max_completion_tokens",
+    "stop",
+    "presence_penalty",
+    "frequency_penalty",
+    "seed",
+    "user",
+    "n",
+    "tools",
+    "tool_choice",
+    "response_format",
+)
+
 
 class ProviderChainExhausted(RuntimeError):
     """Every endpoint in the chain failed — 502 upstream, ledger attached."""
@@ -56,6 +75,51 @@ class AttemptResult:
 
 
 AttemptFn = Callable[[Endpoint, bytes], Awaitable[AttemptResult]]
+
+
+def _completions_url(api_base: str) -> str:
+    """Join a provider base URL to its OpenAI-compatible completions path.
+
+    Provider bases are configured in three shapes and concatenating
+    ``/v1/chat/completions`` onto all of them is wrong:
+
+    - ``https://api.openai.com/v1``            → already versioned
+    - ``https://generativelanguage.googleapis.com/v1beta/openai``
+                                               → OpenAI-compat shim, no /v1
+    - ``https://api.example.com``               → bare host, needs /v1
+
+    Getting this wrong produced ``.../openai/v1/v1/chat/completions`` (404 on
+    every fallback-configured provider), so the join is explicit and tested.
+    """
+    base = api_base.rstrip("/")
+    if base.endswith("/chat/completions"):
+        return base
+    if base.endswith(("/v1", "/openai")):
+        return base + "/chat/completions"
+    return base + "/v1/chat/completions"
+
+
+def _forwarded_body(payload: bytes) -> dict[str, Any]:
+    """Build the provider request body from the gateway payload.
+
+    Only OpenAI-compatible knobs are forwarded — never ``model`` (the endpoint
+    owns it) and never unknown keys (a provider 400s on those). Tools /
+    response_format are included because an agent platform that silently drops
+    ``tools`` cannot do work at all.
+    """
+    data = json.loads(payload)
+    out: dict[str, Any] = {
+        "messages": data.get("messages", []),
+        # This transport is non-streaming by contract; the gateway fabricates
+        # SSE at its own layer. Forwarding a client's stream:true here would
+        # make the provider return an event stream that json.loads() cannot
+        # parse (and broke /v1/consensus).
+        "stream": False,
+    }
+    for key in _FORWARDED_KEYS:
+        if key in data and data[key] is not None:
+            out[key] = data[key]
+    return out
 
 
 def _http_client() -> httpx.AsyncClient:
@@ -193,12 +257,8 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
             f"provider {endpoint.provider} not configured (set SUPREMEAI_PROVIDER_BASE_/KEY_)"
         )
 
-    url = api_base.rstrip("/") + "/v1/chat/completions"
-    body = {
-        "model": endpoint.model,
-        "messages": json.loads(payload).get("messages", []),
-        "stream": False,
-    }
+    url = _completions_url(api_base)
+    body = {"model": endpoint.model, **_forwarded_body(payload)}
     client = _http_client()
     last_result: AttemptResult | None = None
     for key in keys:

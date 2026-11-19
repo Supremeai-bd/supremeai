@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import json
 import time
 import uuid
@@ -34,6 +35,9 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from .config import ConfigError, GatewayConfig
+from .provider_chain import (
+    _FORWARDED_KEYS as FORWARDED_KEYS,
+)
 from .provider_chain import (
     AttemptFn,
     AttemptResult,
@@ -171,10 +175,19 @@ def _client_ip(request: Request) -> str:
 
 
 async def check_rate_limit(request: Request, limiter: SlidingWindowLimiter):
-    """Per-key sliding window (IP fallback); returns the full decision."""
-    key_id = request.headers.get("x-supremeai-key") or (
-        request.client.host if request.client else "anonymous"
-    )
+    """Per-key sliding window (proxy-aware client IP fallback).
+
+    Bucketing MUST use :func:`_client_ip`, never ``request.client.host``:
+    behind Render/Fastly the socket peer is the platform proxy, so every
+    anonymous caller would share one global bucket (one client could 429 the
+    whole fleet). The credential itself is hashed before it becomes a limiter
+    key so raw API keys never sit in process memory maps or Redis key names.
+    """
+    api_key = request.headers.get("x-supremeai-key")
+    if api_key:
+        key_id = "key:" + hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:32]
+    else:
+        key_id = "ip:" + _client_ip(request)
     return await limiter.check(key_id)
 
 
@@ -790,7 +803,15 @@ def create_app(
         else:
             chain = resolved_chain
 
-        payload = json.dumps({"messages": messages, "stream": wants_stream}).encode()
+        # Forward OpenAI-compatible knobs (temperature, max_tokens, tools,
+        # response_format, ...). Dropping them silently made the gateway ignore
+        # tool calling and every sampling parameter, so agents could not act.
+        forwarded = {
+            key: body[key] for key in FORWARDED_KEYS if body.get(key) is not None
+        }
+        payload = json.dumps(
+            {"messages": messages, "stream": wants_stream, **forwarded}
+        ).encode()
         request.state.capability_alias = resolved_alias
         request.state.capability_name = resolved_cap
         completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
