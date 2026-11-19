@@ -263,7 +263,6 @@ def parse_alembic_file(filepath: str) -> MigrationFile:
         return result
 
     upgrade_ops = []
-    downgrade_ops = []
 
     for node in ast.walk(tree):
         if not isinstance(node, ast.FunctionDef):
@@ -276,7 +275,7 @@ def parse_alembic_file(filepath: str) -> MigrationFile:
             non_pass_stmts = [s for s in node.body if not isinstance(s, ast.Pass)]
             if not non_pass_stmts:
                 result.downgrade_is_empty = True
-            downgrade_ops = _extract_ops_from_body(node, source)
+            _extract_ops_from_body(node, source)
             continue
 
         if node.name == "upgrade":

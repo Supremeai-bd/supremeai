@@ -10,7 +10,6 @@ from typing import Any
 from fastapi import (
     APIRouter,
     HTTPException,
-    Query,
     Request,
     WebSocket,
     WebSocketDisconnect,

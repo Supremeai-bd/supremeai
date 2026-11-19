@@ -288,7 +288,7 @@ def parse_json_registry(repo_root: Path) -> list[RegistryEntry]:
     try:
         data = json.loads(json_file.read_text(encoding="utf-8"))
         if isinstance(data, dict):
-            for key in data.keys():
+            for key in data:
                 entries.append(RegistryEntry(
                     registry_name="agent_registry_json",
                     registry_file=str(json_file.relative_to(repo_root)),
@@ -429,7 +429,7 @@ def discover_all_agents(repo_root: Path) -> list[AgentClass]:
             py_files.extend(target.rglob("*.py"))
 
     # বাংলা: বাকি ডিরেক্টরিও স্ক্যান
-    seen: set[str] = set(str(f) for f in py_files)
+    seen: set[str] = {str(f) for f in py_files}
     for py_file in backend_dir.rglob("*.py"):
         if str(py_file) not in seen:
             py_files.append(py_file)
@@ -497,7 +497,7 @@ def cross_reference(
         registry_names[reg_name] = {normalize_name(e.entry_name) for e in entries}
 
     # বাংলা: এজেন্ট নাম সেট
-    agent_names = {normalize_name(a.name) for a in agents}
+    {normalize_name(a.name) for a in agents}
 
     # বাংলা: রেজিস্ট্রি ঘোস্ট (রেজিস্ট্রিতে আছে কিন্তু কোডে নেই)
     ghosts: list[RegistryEntry] = []

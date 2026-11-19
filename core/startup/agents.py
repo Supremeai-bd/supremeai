@@ -1,5 +1,4 @@
 import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -130,7 +129,7 @@ async def start_background_services(app):
         # enqueue() and stops after 5 idle minutes. An eager `BLPOP` loop
         # burned ~17k Upstash commands/day (> entire free-tier quota) even
         # with zero tasks. On boot we only register handlers.
-        from core.task_queue.task_queue import redis_configured, task_queue
+        from core.task_queue.task_queue import redis_configured
 
         if redis_configured():
             logger.info(

@@ -12,7 +12,6 @@ by the ci.yml --cov equivalence lock (read-only).
 from __future__ import annotations
 
 import importlib.util
-import re
 import sys
 from pathlib import Path
 

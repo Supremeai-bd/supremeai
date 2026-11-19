@@ -113,7 +113,7 @@ no GitHub account, no fork, no token:
 
 1. **Connect** to the streamable-HTTP endpoint with a persistent named client:
    ```
-   https://supremeai-mcp-tower.onrender.com/mcp?client=<your-unique-name>
+   https://supremeai-mcp-tower-live.onrender.com/mcp?client=<your-unique-name>
    ```
    The `?client=` parameter gives you a stable identity across sessions
    (auto-registered guest → authenticated agent scope).

@@ -34,7 +34,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.bridge import bridge_intake as intake  # noqa: E402
+from scripts.bridge import bridge_intake as intake
 
 TASK = "bridge-20261028-render2225-buildplane-evidence"
 OPEN = intake.OPEN_REPO

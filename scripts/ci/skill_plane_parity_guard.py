@@ -68,7 +68,7 @@ def main() -> int:
         for e in errors:
             print(f"  - {e}")
         return 1
-    shared = sorted(set(p.parent.name for p in AGENTS.glob("*/SKILL.md")) & set(p.parent.name for p in RUNTIME.glob("*/SKILL.md")))
+    shared = sorted({p.parent.name for p in AGENTS.glob("*/SKILL.md")} & {p.parent.name for p in RUNTIME.glob("*/SKILL.md")})
     print(f"skill-plane-parity-guard: OK ({len(shared)} shared skills)")
     return 0
 

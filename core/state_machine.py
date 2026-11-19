@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import ClassVar
 
 
-class AgentState(str, Enum):
+class AgentState(StrEnum):
     IDLE = "IDLE"
     PLANNING = "PLANNING"
     CLAIMED = "CLAIMED"

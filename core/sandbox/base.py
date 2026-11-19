@@ -13,9 +13,8 @@ from __future__ import annotations
 import abc
 import fnmatch
 import os
-import re
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 # Default sensitive environment variable patterns that must NEVER leak into sandboxes
 DEFAULT_SENSITIVE_ENV_PATTERNS: tuple[str, ...] = (

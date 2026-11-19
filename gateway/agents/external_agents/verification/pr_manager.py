@@ -20,16 +20,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
-
 from external_agents.contracts.code_artifact import CodeArtifact
 from external_agents.control.state_manager import AgentStateManager
 from external_agents.verification.git_verifier import GitVerifier, VerificationReport
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
 
-__all__ = ["PRResult", "PrManager", "SubprocessGitHubClient", "OwnershipLocks"]
+__all__ = ["OwnershipLocks", "PRResult", "PrManager", "SubprocessGitHubClient"]
 
 
 def _utcnow() -> datetime:

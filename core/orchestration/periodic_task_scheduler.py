@@ -19,7 +19,6 @@ from core.monitoring.logging_config import logger
 from core.observability.telemetry import trace_span
 
 # Assuming OpenTelemetry tracer is set up in core.telemetry
-from core.self_evolution.fitness_engine import FitnessEngine
 from core.self_evolution.self_evolution_agent import SelfEvolutionAgent
 from core.self_evolution.skill_graph import EvolutionSkillGraph
 

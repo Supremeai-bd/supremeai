@@ -147,7 +147,6 @@ class TestStorageAndEndpoints(unittest.TestCase):
         self.assertIn(test_msg, logs[-1]["message"])
 
     def test_04_conversation_endpoints(self):
-        headers = {"X-Guest-Mode": "true", "X-User-Id": "usr-endpoint-test"}
 
         # Create conversation with Alice
         token_alice = app_module._issue_signed_token("alice", "standard")

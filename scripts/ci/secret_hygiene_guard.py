@@ -136,7 +136,7 @@ def main():
         print("   ", ", ".join(single[:20]), "..." if len(single) > 20 else "")
 
     # 3. VITE (frontend-only by Vite convention)
-    vite_findings, vite_keys = check_vite_parity()
+    _vite_findings, vite_keys = check_vite_parity()
     print(f"== VITE_* keys: {len(vite_keys)} (frontend-only, no parity check)")
 
     # 4. .env.example hygiene

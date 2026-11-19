@@ -342,7 +342,7 @@ def comment_on_issue(issue_number: int, deploy: dict, commit_sha: str,
 
 _(Deploy Doctor is tracking this — no new issue opened to avoid duplicates.)_
 """
-    code, out = gh_cli(["issue", "comment", str(issue_number), "--body", body])
+    code, _out = gh_cli(["issue", "comment", str(issue_number), "--body", body])
     return code == 0
 
 
@@ -412,9 +412,7 @@ def main() -> int:
                 continue
             # Render-এর failure status variants: failed, build_failed, update_failed, deploy_failed, error, canceled
             is_failure = (
-                status in ("failed", "error", "canceled") or
-                status.endswith("_failed") or
-                status.endswith("_error")
+                status in ("failed", "error", "canceled") or status.endswith(("_failed", "_error"))
             )
             if is_failure and created_at >= window_start:
                 # Get commit SHA from deploy record

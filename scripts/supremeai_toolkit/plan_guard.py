@@ -148,7 +148,7 @@ def main(argv: list[str] | None = None) -> int:
     root = Path(args.root).resolve()
     if not root.is_dir():
         parser.error(f"রুট ডিরেক্টরি নেই: {root}")
-    scanned, problems, summary = run_scan(root, Path(args.out_json) if args.out_json else None, Path(args.out_txt) if args.out_txt else None)
+    _scanned, problems, summary = run_scan(root, Path(args.out_json) if args.out_json else None, Path(args.out_txt) if args.out_txt else None)
     print(summary)
     # বাংলা মন্তব্য: exit-code = সমস্যা-সংখ্যা ক্ল্যাম্প — CI গেটে ব্যবহারযোগ্য।
     return 0 if problems == 0 else min(problems, 2)

@@ -125,9 +125,8 @@ def _lint_schema(node: Any, root: dict[str, Any], path: str) -> None:
         raise GenerateError(f"{path}: missing 'type' (subset requires explicit types)")
     if t not in KNOWN_TYPES:
         raise GenerateError(f"{path}: unknown type {t!r} (known: {sorted(KNOWN_TYPES)})")
-    if "enum" in node:
-        if not isinstance(node["enum"], list) or not node["enum"]:
-            raise GenerateError(f"{path}: enum must be a non-empty array")
+    if "enum" in node and (not isinstance(node["enum"], list) or not node["enum"]):
+        raise GenerateError(f"{path}: enum must be a non-empty array")
     if "const" in node and "enum" in node:
         raise GenerateError(f"{path}: const and enum are mutually exclusive in this subset")
     if "nullable" in node and not isinstance(node["nullable"], bool):
@@ -179,7 +178,7 @@ def _ts_type(node: dict[str, Any]) -> str:
     if "$ref" in node:
         return node["$ref"].rsplit("/", 1)[-1]
     t = node["type"]
-    base = TS_PRIMITIVES[t] if t in TS_PRIMITIVES else None
+    base = TS_PRIMITIVES.get(t, None)
     if t == "array":
         base = f"Array<{_ts_type(node['items'])}>"
     elif t == "object":

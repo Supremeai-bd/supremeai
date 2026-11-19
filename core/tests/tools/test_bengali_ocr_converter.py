@@ -16,7 +16,6 @@ pandas, openpyxl and all file I/O are REAL.
 
 from __future__ import annotations
 
-import os
 import sys
 import types
 from types import SimpleNamespace

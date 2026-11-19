@@ -94,8 +94,6 @@ def scan_secret_hardcoding(limit: int) -> list[dict]:
                     "archives", "archive", "fixtures", "test_fixtures"}
     fixture_markers = ("fixture-", "test-token", "example-", "dummy-", "smoke@",
                        "placeholder", "test-pass", "fixture-pass", "fake-token")
-    test_file_patterns = ("_test.py", "test_", "smoke_test", "production_smoke",
-                          "conftest.py", "fixtures.py")
 
     files_scanned = 0
     for root, dirs, files in os.walk(ROOT_DIR):
@@ -359,7 +357,6 @@ def scan_test_manipulation(limit: int) -> list[dict]:
         (r'assert\s+False\s*#', "Fake assertion"),
         (r'#\s*TODO.*test', "Skipped test TODO"),
     ]
-    exts = {".py"}
     exclude_dirs = {".venv", "node_modules", "__pycache__", ".git"}
 
     for root, dirs, files in os.walk(ROOT_DIR):

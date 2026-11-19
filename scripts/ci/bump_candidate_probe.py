@@ -154,7 +154,7 @@ def parse_npm_lock(path: Path) -> list[dict]:
         if isinstance(deps, dict):
             stack = [(name, meta, False) for name, meta in sorted(deps.items())]
             while stack:
-                name, meta, nested = stack.pop()
+                name, meta, _nested = stack.pop()
                 version = meta.get("version") if isinstance(meta, dict) else None
                 if version and isinstance(version, str):
                     pairs[f"{name}@{version}"] = {
@@ -478,7 +478,7 @@ def run_plan(repo_root: Path) -> int:
 
 def run_live(repo_root: Path) -> int:
     surfaces = collect_surfaces(repo_root)
-    lines, counters = build_report(surfaces)
+    lines, _counters = build_report(surfaces)
     for line in lines:
         print(line)
     return EXIT_OK  # report-only: never red, by contract
@@ -521,16 +521,7 @@ def _selftest() -> int:
 
     # 3. requirements parse: extras, markers, comments, options, normalization
     req = tmp / "requirements-test.txt"
-    req.write_text("\n".join([
-        "# comment",
-        "requests==2.31.0",
-        "uvicorn[standard]==0.30.1 ; python_version >= '3.9'",
-        "-r other.txt",
-        "-e ./local",
-        "Dask_Utils==3.1.2  # trailing note",
-        "flask >= 2.0",
-        "",
-    ]), encoding="utf-8")
+    req.write_text("# comment\nrequests==2.31.0\nuvicorn[standard]==0.30.1 ; python_version >= '3.9'\n-r other.txt\n-e ./local\nDask_Utils==3.1.2  # trailing note\nflask >= 2.0\n", encoding="utf-8")
     got3 = {(p["name"], p["version"]) for p in parse_requirements(req)}
     checks.append(("requirements parse", got3 == {("requests", "2.31.0"), ("uvicorn", "0.30.1"), ("dask-utils", "3.1.2")}))
 
@@ -538,18 +529,7 @@ def _selftest() -> int:
     #     function; dict/optional/local/wildcard forms skip with notes;
     #     caret/exact/extras/open-floor give honest (floor, upper) pairs
     pyproject = tmp / "pyproject.toml"
-    pyproject.write_text("\n".join([
-        "[tool.poetry.dependencies]",
-        'python = "^3.11"',
-        'fastapi = "^0.136.0"',
-        'requests = "2.31.0"',
-        'httpx = { version = "^0.28.0", extras = ["http2"] }',
-        'pillow = { version = "^11.0", optional = true }',
-        'mypkg = { path = "../mypkg" }',
-        'starlette = "*"',
-        'cachetools = ">=5.0.0"',
-        "",
-    ]), encoding="utf-8")
+    pyproject.write_text('[tool.poetry.dependencies]\npython = "^3.11"\nfastapi = "^0.136.0"\nrequests = "2.31.0"\nhttpx = { version = "^0.28.0", extras = ["http2"] }\npillow = { version = "^11.0", optional = true }\nmypkg = { path = "../mypkg" }\nstarlette = "*"\ncachetools = ">=5.0.0"\n', encoding="utf-8")
     try:
         pyg = _load_py_guard()
         gotp, skipsp = parse_poetry_pyproject(pyproject, synth=pyg.synthesize_poetry_requirements)

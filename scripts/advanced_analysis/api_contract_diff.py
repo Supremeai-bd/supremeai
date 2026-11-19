@@ -355,9 +355,7 @@ class RouteASTVisitor(ast.NodeVisitor):
             if arg.annotation.id in ("str", "int", "float", "bool"):
                 return True
         # বাংলা: str | None style
-        if isinstance(arg.annotation, ast.BinOp) and isinstance(arg.annotation.op, ast.BitOr):
-            return True
-        return False
+        return bool(isinstance(arg.annotation, ast.BinOp) and isinstance(arg.annotation.op, ast.BitOr))
 
     def _combine_path(self, *parts: str) -> str:
         """বাংলা: একাধিক path segment কে একটি পূর্ণ path হিসেবে যুক্ত করা।"""
@@ -911,7 +909,7 @@ def compare_routes(
             be.method == call.method for be in matched_backends
         )
         if not has_matching_method:
-            be_methods = sorted(set(be.method for be in matched_backends))
+            be_methods = sorted({be.method for be in matched_backends})
             result.method_mismatches.append({
                 "frontend_method": call.method,
                 "backend_methods": be_methods,
@@ -1175,7 +1173,7 @@ def main() -> int:
             print(json.dumps(output, indent=2, ensure_ascii=False))
         else:
             print(f"# Backend Routes ({len(backend_routes)} found)")
-            print("")
+            print()
             print("| Method | Path | Response Model | Request Body | Source |")
             print("|--------|------|----------------|--------------|--------|")
             for r in sorted(backend_routes, key=lambda x: (x.path, x.method)):
@@ -1208,7 +1206,7 @@ def main() -> int:
             print(json.dumps(output, indent=2, ensure_ascii=False))
         else:
             print(f"# Frontend API Calls ({len(frontend_calls)} found)")
-            print("")
+            print()
             print("| Method | Path | Pattern | Source |")
             print("|--------|------|---------|--------|")
             for c in sorted(frontend_calls, key=lambda x: (x.path, x.method)):

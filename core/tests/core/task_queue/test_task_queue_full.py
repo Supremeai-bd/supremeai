@@ -15,7 +15,6 @@ import asyncio
 import contextlib
 import json
 import sys
-import types
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

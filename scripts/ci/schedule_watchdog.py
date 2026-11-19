@@ -125,7 +125,7 @@ def main() -> int:
         print("WATCHDOG: GH_TOKEN/GH_REPO missing — fail-closed (non-zero)", file=sys.stderr)
         return 2
 
-    owner, name = repo.split("/", 1)
+    _owner, _name = repo.split("/", 1)
     code, repo_info = api("GET", f"/repos/{repo}", token)
     if code != 200:
         print(f"WATCHDOG: repo lookup failed ({code})", file=sys.stderr)
@@ -257,7 +257,7 @@ def main() -> int:
                 line += " | comp=skipped(recent-activity)"
         report.append(line)
 
-    print("WATCHDOG sweep report (UTC %s)" % now.isoformat(timespec="seconds"))
+    print("WATCHDOG sweep report (UTC {})".format(now.isoformat(timespec="seconds")))
     for ln in report:
         print("  " + ln)
     print(f"WATCHDOG summary: re_armed={re_armed} compensated={compensated} dry_run={args.dry_run}")

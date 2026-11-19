@@ -1,7 +1,6 @@
 """Provides the MCPRegistryClient for connecting to external MCP servers using the Official SDK (V2.1)."""
 
-import json
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 

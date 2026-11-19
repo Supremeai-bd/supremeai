@@ -55,7 +55,7 @@ export async function registerAgentBootstrapTools(server: McpServer): Promise<vo
 
       if (scope === "all" || scope === "endpoints") {
         summary.endpoints = {
-          mcpControlTower: "https://supremeai-mcp-tower.onrender.com",
+          mcpControlTower: "https://supremeai-mcp-tower-live.onrender.com",
           supabaseProject: "https://xtvkltzmberxekoamala.supabase.co",
           cloudflareWorker: "https://supremeai-keepwarm-worker (Edge Mesh)",
           authProvider: "Supabase Native Auth (Zero-Firebase)",

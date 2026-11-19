@@ -1,5 +1,4 @@
 """Smoke tests for config_classification canonical/alias resolution."""
-import pytest
 
 from core.config_classification import (
     ALIAS_TO_CANONICAL,

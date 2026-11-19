@@ -55,21 +55,21 @@ class FuncInfo:
     """একটি ফাংশন/মেথডের বিশ্লেষণাত্মক তথ্য ধারণ করে।"""
 
     __slots__ = (
-        "file",
-        "line",
+        "body_line_count",
+        "body_lines",
+        "class_name",
+        "docstring_length",
         "end_line",
+        "file",
+        "has_docstring",
+        "is_method",
+        "line",
         "name",
+        "normalized_source",
         "param_count",
         "param_names",
-        "body_line_count",
-        "structural_hash",
-        "normalized_source",
-        "body_lines",
-        "has_docstring",
-        "docstring_length",
-        "is_method",
-        "class_name",
         "qname",
+        "structural_hash",
     )
 
     def __init__(
@@ -139,12 +139,12 @@ class ClassInfo:
     """একটি ক্লাসের কাঠামোগত তথ্য ধারণ করে।"""
 
     __slots__ = (
+        "base_classes",
         "file",
         "line",
-        "name",
-        "method_names",
         "method_count",
-        "base_classes",
+        "method_names",
+        "name",
     )
 
     def __init__(

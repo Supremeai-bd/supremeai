@@ -177,6 +177,6 @@ class TestSubscriptionPlansListCompat:
         )
 
         by_id = {p["id"]: p for p in SUBSCRIPTION_PLANS_LIST}
-        for key, plan in SUBSCRIPTION_PLANS.items():
+        for plan in SUBSCRIPTION_PLANS.values():
             assert by_id[plan.id]["name"] == plan.name
             assert by_id[plan.id]["price"] == plan.price

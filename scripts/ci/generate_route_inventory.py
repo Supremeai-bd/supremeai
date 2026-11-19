@@ -12,7 +12,7 @@ DEFAULT_OUTPUT = REPO_ROOT / "docs" / "generated" / "route_inventory.json"
 
 
 def _security(operation: dict[str, Any], root: dict[str, Any]) -> dict[str, Any]:
-    schemes = root.get("components", {}).get("securitySchemes", {})
+    root.get("components", {}).get("securitySchemes", {})
     declared = operation.get("security", root.get("security", []))
     return {"required": bool(declared), "schemes": sorted({name for item in declared for name in item}) if declared else []}
 

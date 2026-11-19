@@ -5,7 +5,6 @@ and token budget were fixed under #1685/#1687). Redis-down must degrade to an
 in-memory guard — never unlimited allow, never full deny-outage.
 """
 
-import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

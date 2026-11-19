@@ -958,7 +958,7 @@ def self_test() -> bool:
     r = sweep(root)
     base = {"schema": "radar-index-freshness-baseline/1",
             "floor": [{"key": ["citation-ghost", "docs/d.md", 98], "allowed": 1}]}
-    drift, im = compare(base, r["cits"])
+    drift, _im = compare(base, r["cits"])
     check("F10a-grown-ghost-fails", len(drift) == 1 and drift[0]["kind"] == "grown"
           and drift[0]["now"] == 2)
     root2 = tree({INDEX_REL: index(4, [1])})

@@ -5,11 +5,11 @@ Hierarchical Context Budgeter & Progressive Disclosure Engine — Core Decision 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import ClassVar
 
 
-class ContextStage(str, Enum):
+class ContextStage(StrEnum):
     STAGE1_DISCOVERY = "STAGE1_DISCOVERY"  # Metadata only (< 1,000 tokens)
     STAGE2_ACTIVATION = "STAGE2_ACTIVATION"  # Contract + Instructions (< 4,000 tokens)
     STAGE3_EXECUTION = (

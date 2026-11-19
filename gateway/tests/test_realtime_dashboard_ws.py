@@ -90,7 +90,7 @@ async def _wait_until(predicate, timeout: float = 3.0) -> bool:
 
 @pytest.mark.asyncio
 async def test_connect_starts_subscription_task_before_return(manager_with_event):
-    manager, streamer = manager_with_event
+    manager, _streamer = manager_with_event
     ws = FakeWebSocket()
 
     connected = await manager.connect(ws, {"sub": "user-1"})

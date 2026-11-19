@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 try:
@@ -20,7 +20,7 @@ except ImportError:
         from monitoring.logging_config import logger
 
 
-class AgentRole(str, Enum):
+class AgentRole(StrEnum):
     CODER = "CODER"  # Standard implementation agent
     SCOUT = "SCOUT"  # Reconnaissance and discovery
     AUDITOR = "AUDITOR"  # Security, sanitization and invariant checker

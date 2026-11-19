@@ -197,7 +197,7 @@ def category_for(scopes: frozenset[str]) -> str:
     for cat in CATEGORY_ORDER:
         if cat in scopes:
             return cat
-    return sorted(scopes)[0] if scopes else "backend"
+    return min(scopes) if scopes else "backend"
 
 
 def non_placeholder_desc(desc: str) -> str:

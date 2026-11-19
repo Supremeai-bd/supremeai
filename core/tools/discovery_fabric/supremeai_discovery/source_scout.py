@@ -137,7 +137,7 @@ def _freshness(updated_at: str | None) -> float:
     if not updated_at:
         return 0.35
     try:
-        from datetime import datetime, timezone
+        from datetime import datetime
         ts = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
         days = max(0, (datetime.now(UTC) - ts).days)
         return max(0.05, 1.0 - min(days, 3650) / 3650)

@@ -98,17 +98,7 @@ class TestRequirementsParsing(TmpCase):
 
     def test_pins_extras_markers_comments_options(self):
         req = self.tmp / "requirements-test.txt"
-        req.write_text("\n".join([
-            "# comment line",
-            "requests==2.31.0",
-            "uvicorn[standard]==0.30.1 ; python_version >= '3.9'",
-            "-r other.txt",
-            "-e ./local",
-            "--hash=sha256:abc",
-            "Dask_Utils==3.1.2  # trailing note",
-            "flask >= 2.0",
-            "",
-        ]), encoding="utf-8")
+        req.write_text("# comment line\nrequests==2.31.0\nuvicorn[standard]==0.30.1 ; python_version >= '3.9'\n-r other.txt\n-e ./local\n--hash=sha256:abc\nDask_Utils==3.1.2  # trailing note\nflask >= 2.0\n", encoding="utf-8")
         got = {(p["name"], p["version"]) for p in P.parse_requirements(req)}
         self.assertEqual(got, {
             ("requests", "2.31.0"),
@@ -170,7 +160,7 @@ class TestReportPipeline(TmpCase):
             calls.append(name)
             return "2.32.3"
 
-        lines, counters = P.build_report(surfaces, fetch=fetch)
+        _lines, counters = P.build_report(surfaces, fetch=fetch)
         self.assertEqual(calls, ["requests"])               # cached: one probe
         self.assertEqual(counters["BUMP"], 2)               # both surfaces BUMP
         self.assertEqual(counters["unknown"], 0)            # no false unknown
@@ -214,18 +204,7 @@ class TestPoetryPlaneParsing(TmpCase):
 
     def _poetry_fixture(self) -> Path:
         pyproject = self.tmp / "pyproject.toml"
-        pyproject.write_text("\n".join([
-            "[tool.poetry.dependencies]",
-            'python = "^3.11"',
-            'fastapi = "^0.136.0"',
-            'requests = "2.31.0"',
-            'httpx = { version = "^0.28.0", extras = ["http2"] }',
-            'pillow = { version = "^11.0", optional = true }',
-            'mypkg = { path = "../mypkg" }',
-            'starlette = "*"',
-            'cachetools = ">=5.0.0"',
-            "",
-        ]), encoding="utf-8")
+        pyproject.write_text('[tool.poetry.dependencies]\npython = "^3.11"\nfastapi = "^0.136.0"\nrequests = "2.31.0"\nhttpx = { version = "^0.28.0", extras = ["http2"] }\npillow = { version = "^11.0", optional = true }\nmypkg = { path = "../mypkg" }\nstarlette = "*"\ncachetools = ">=5.0.0"\n', encoding="utf-8")
         return pyproject
 
     def test_poetry_forms_to_freshness_pairs(self):

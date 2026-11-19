@@ -32,7 +32,7 @@ def parse_requirements(text: str) -> list[dict[str, str]]:
     out: list[dict[str, str]] = []
     for raw in (text or "").splitlines():
         line = raw.strip()
-        if not line or line.startswith("#") or line.startswith("-"):
+        if not line or line.startswith(("#", "-")):
             continue
         # strip inline comments
         line = line.split("#", 1)[0].strip()

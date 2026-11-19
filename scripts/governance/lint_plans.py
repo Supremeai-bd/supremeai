@@ -169,7 +169,7 @@ class PlanDocument:
                 except yaml.YAMLError as exc:
                     self.fm_error = f"invalid YAML frontmatter: {str(exc)[:160]}"
             body_start = (end + 1) if end is not None else 0
-        body = "\n".join(lines[body_start:])
+        "\n".join(lines[body_start:])
         for line in lines[body_start:]:
             if line.startswith("# ") and not self.title:
                 self.title = line[2:].strip()
@@ -405,7 +405,7 @@ def competing_plans(docs: list[PlanDocument]) -> list[list[PlanDocument]]:
         groups[(family, role, authority)].append(doc)
 
     competing: list[list[PlanDocument]] = []
-    for (_family, _role, _authority), members in groups.items():
+    for members in groups.values():
         if len(members) < 2:
             continue
         linked = {t for d in members for t in d.supersedes() + d.superseded_by()}
@@ -491,8 +491,8 @@ def render_report(docs: list[PlanDocument], findings: list[Finding], competing: 
         "",
         f"- Documents scanned: **{registry['totals']['documents']}**",
         f"- With valid frontmatter: **{registry['totals']['with_frontmatter']}**",
-        f"- Findings: **{sum(1 for f in findings if f.severity == 'error')} errors / "
-        f"{sum(1 for f in findings if f.severity == 'warning')} warnings**",
+        (f"- Findings: **{sum(1 for f in findings if f.severity == 'error')} errors / "
+        f"{sum(1 for f in findings if f.severity == 'warning')} warnings**"),
         "",
         "## Family distribution (content-derived)",
         "",
@@ -546,7 +546,7 @@ def render_readme_catalog(docs: list[PlanDocument]) -> str:
         lines.append("| Plan | Role | Authority | Scope | Family |")
         lines.append("|---|---|---|---|---|")
         for m in sorted(members, key=lambda d: d.rel_path):
-            title = (m.meta.get("subject") or m.title or m.path.stem).replace("|", "\\|")
+            (m.meta.get("subject") or m.title or m.path.stem).replace("|", "\\|")
             family = detect_family(m)
             scope = m.meta.get("target_scope") or "—"
             lines.append(

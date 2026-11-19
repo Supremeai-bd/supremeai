@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
 from typing import Any
 
 from core.messaging.event_bus import ErrorEvent, error_event_bus

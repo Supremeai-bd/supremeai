@@ -24,7 +24,6 @@ from core.monitoring.logging_config import logger
 from governance.policy_rules import get_active_rules, load_policy_rules
 from governance.policy_types import PolicyAction, PolicyEvaluation, PolicyRule
 from governance.routing_tiers import (
-    DecisionResult,
     RoutingDecision,
     RoutingTier,
     is_blocked,

@@ -99,9 +99,7 @@ class WebSessionAccount:
             return False
         # Sliding-window check
         self._prune_timestamps()
-        if len(self._request_timestamps) >= self.rate_limit_cap:
-            return False
-        return True
+        return not len(self._request_timestamps) >= self.rate_limit_cap
 
     def _prune_timestamps(self):
         cutoff = time.time() - self.rate_limit_window

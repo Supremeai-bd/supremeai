@@ -627,7 +627,7 @@ def test_invariant_d_honest_skip_without_git() -> None:
 
 
 def test_invariant_d_joins_ratchet_as_fresh_drift() -> None:
-    ghosts = [guard_scan := {"kind": "commit-subject-ghost", "subject": "feat: R97 lane",
+    ghosts = [_guard_scan := {"kind": "commit-subject-ghost", "subject": "feat: R97 lane",
                              "token": "R97", "base": 97}]
     baseline = {"schema": "radar-index-freshness-baseline/1", "floor": []}
     drift, _ = guard.compare(baseline, ghosts)

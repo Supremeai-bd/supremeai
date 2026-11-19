@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 try:
     from opentelemetry import trace

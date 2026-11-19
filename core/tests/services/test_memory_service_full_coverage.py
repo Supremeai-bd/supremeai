@@ -7,10 +7,7 @@ CascadeMemoryService, hash_vectorize, memory_dedup, recall/save ফাংশন
 
 from __future__ import annotations
 
-import math
-from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 
 # -- hash_vectorize tests ------------------------------------------------------
 

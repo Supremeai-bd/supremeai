@@ -31,9 +31,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.monitoring.logging_config import logger
-from runs.budgets import BudgetDimension, BudgetSnapshot, check_budgets
+from runs.budgets import BudgetSnapshot, check_budgets
 from runs.models import Run, RunEvent, RunType
-from runs.retry import RetryClass, is_retryable
+from runs.retry import RetryClass
 from runs.state_machine import (
     CANCELLED,
     FAILED,
@@ -42,7 +42,6 @@ from runs.state_machine import (
     RUNNING,
     TERMINAL_STATES,
     WAITING_APPROVAL,
-    IllegalTransition,
     assert_transition,
 )
 

@@ -115,7 +115,7 @@ async def test_message_search_titles_batched_single_query():
 @pytest.mark.asyncio
 async def test_message_search_preserves_title_phase_titles():
     """title-phase-এ থাকা ভালো score-এর entry-র title batch দিয়ে overwrite হয় না।"""
-    db, _queries = _make_fake_db()
+    _db, _queries = _make_fake_db()
 
     def route(name, select, ops):
         op_kinds = [o[0] for o in ops]

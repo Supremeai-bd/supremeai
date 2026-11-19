@@ -67,7 +67,7 @@ def delete_secret(token: str, secret_name: str) -> bool:
         method="DELETE",
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15):
             print(f"✅ Successfully deleted {secret_name} from Infisical ({ENVIRONMENT}).")
             return True
     except urllib.error.HTTPError as err:

@@ -31,7 +31,6 @@ sys.path.insert(0, str(ROOT))
 from scripts.advanced_analysis.circular_import_mapper import (  # noqa: E402
     _build_import_graph,
     _discover_py_files,
-    _extract_imports,
     _file_to_module,
     _tarjan_scc,
 )

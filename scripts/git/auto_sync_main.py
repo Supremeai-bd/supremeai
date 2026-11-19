@@ -179,7 +179,7 @@ def main() -> int:
         print(f"Branch: {branch} | Behind origin/main: {behind} | Ahead of origin/main: {ahead}")
         return 0 if behind == 0 else 1
 
-    success, msg = auto_sync_branch(strategy=args.strategy, verbose=not args.quiet)
+    success, _msg = auto_sync_branch(strategy=args.strategy, verbose=not args.quiet)
     return 0 if success else 1
 
 

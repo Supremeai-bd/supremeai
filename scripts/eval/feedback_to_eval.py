@@ -78,9 +78,7 @@ def is_negative(rec: dict[str, Any]) -> bool:
         return True
     if rec.get("correction"):
         return True
-    if rec.get("report"):
-        return True
-    return False
+    return bool(rec.get("report"))
 
 
 def to_case(rec: dict[str, Any], max_chars: int = 2000) -> dict[str, Any] | None:

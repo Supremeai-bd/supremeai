@@ -10,7 +10,6 @@ drive `_checks` and the cache deterministically without a live DB.
 
 from __future__ import annotations
 
-import asyncio
 import importlib.util
 import sys
 from pathlib import Path

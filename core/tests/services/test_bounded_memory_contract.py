@@ -14,8 +14,7 @@ House-pattern: stdlib-only, monkeypatch-based, --noconftest-safe (precedent
 from __future__ import annotations
 
 import asyncio
-import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from core.monitoring.metrics_collector import _HISTOGRAM_WINDOW, MetricsCollector

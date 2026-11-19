@@ -12,7 +12,6 @@ Exit codes:
   2 = স্ক্রিপ্ট নিজেই ত্রুটিতে পড়েছে
 """
 
-import ast
 import argparse
 import json
 import os

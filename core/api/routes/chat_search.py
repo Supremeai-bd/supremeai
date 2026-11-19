@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from api.deps import get_current_user_token
 from core.monitoring.logging_config import logger

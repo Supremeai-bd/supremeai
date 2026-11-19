@@ -1150,22 +1150,22 @@ class TestAutomationAndIntegrations:
 
 
 def _exec_record(**over):
-    base = dict(
-        id="x1",
-        event_id="ev1",
-        workflow_key="wf_a",
-        provider="jira",
-        status="SUCCESS",
-        attempt=1,
-        started_at=datetime(2026, 9, 15, 10, 0, 0),
-        completed_at=datetime(2026, 9, 15, 10, 0, 1),
-        duration_ms=1000,
-        http_status=200,
-        external_execution_id=None,
-        trace_id="tr1",
-        error_code=None,
-        error_message=None,
-    )
+    base = {
+        "id": "x1",
+        "event_id": "ev1",
+        "workflow_key": "wf_a",
+        "provider": "jira",
+        "status": "SUCCESS",
+        "attempt": 1,
+        "started_at": datetime(2026, 9, 15, 10, 0, 0),
+        "completed_at": datetime(2026, 9, 15, 10, 0, 1),
+        "duration_ms": 1000,
+        "http_status": 200,
+        "external_execution_id": None,
+        "trace_id": "tr1",
+        "error_code": None,
+        "error_message": None,
+    }
     base.update(over)
     return SimpleNamespace(**base)
 

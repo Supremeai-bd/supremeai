@@ -12,7 +12,6 @@ explicit existence queries before insert, so re-running never raises.
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 

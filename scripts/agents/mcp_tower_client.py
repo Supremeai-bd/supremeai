@@ -46,6 +46,7 @@ from queue import Empty, Queue
 from typing import Any
 
 import requests
+from typing_extensions import Self
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
@@ -374,7 +375,7 @@ class McpTowerClient:
         except Exception:
             pass
 
-    def __enter__(self) -> McpTowerClient:
+    def __enter__(self) -> Self:
         self.connect()
         return self
 

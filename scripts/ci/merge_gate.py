@@ -279,8 +279,8 @@ def freshness_verdict(
         return False, [f"evidence-fetch-failed: freshness git ({exc})"]
     if merge_base != main_head:
         return False, [
-            f"freshness: PR-head main-এর পেছনে (merge-base {str(merge_base)[:12]} "
-            f"≠ main {str(main_head)[:12]}) — self-heal: fetch → merge main → push"
+            (f"freshness: PR-head main-এর পেছনে (merge-base {str(merge_base)[:12]} "
+            f"≠ main {str(main_head)[:12]}) — self-heal: fetch → merge main → push")
         ]
     return True, []
 
@@ -323,8 +323,8 @@ def predecessor_verdict(gw: Gateway, group: str, seq: int) -> tuple[bool, list[s
     ]
     if not pred:
         return False, [
-            f"evidence-missing: group:{group} seq:{target}-এর কোনো PR-ই পাওয়া যায়নি "
-            "(unknown ≠ green — assumption নিষিদ্ধ)"
+            (f"evidence-missing: group:{group} seq:{target}-এর কোনো PR-ই পাওয়া যায়নি "
+            "(unknown ≠ green — assumption নিষিদ্ধ)")
         ]
     pred.sort(key=lambda p: int(p.get("number", 0)))
     p = pred[-1]

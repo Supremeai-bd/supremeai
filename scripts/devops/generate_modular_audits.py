@@ -44,7 +44,7 @@ from pathlib import Path
 
 # SCRIPT-INTELLIGENCE v9: make the shared discovery lib importable from any cwd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # -> scripts/
-from lib.auto_discovery import (  # noqa: E402
+from lib.auto_discovery import (
     DiscoveryError,
     discover_files,
     discover_py_files,
@@ -492,7 +492,7 @@ def _get_git_log(filepath: Path, root_path: Path) -> str:
         if lines:
             return "\n".join(f"  - `{ln}`" for ln in lines)
         return "  - *(no commits yet)*"
-    except Exception:  # noqa: BLE001
+    except Exception:
         return "  - *(git log unavailable)*"
 
 
@@ -512,12 +512,12 @@ def _embed_file(filepath: Path, rel_path: str, root_path: Path) -> tuple[str, di
     size_bytes = filepath.stat().st_size
     try:
         mtime = datetime.fromtimestamp(filepath.stat().st_mtime, tz=UTC).strftime("%Y-%m-%d")
-    except Exception:  # noqa: BLE001
+    except Exception:
         mtime = "unknown"
 
     try:
         content = filepath.read_text(encoding="utf-8", errors="replace")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         content = f"# Error reading file: {exc}"
 
     line_count = content.count("\n") + 1

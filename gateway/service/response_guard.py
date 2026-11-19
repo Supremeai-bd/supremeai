@@ -60,9 +60,7 @@ def is_stub_content(text: Any) -> bool:
     for marker in STUB_MARKERS:
         if marker.lower() in low:
             return True
-    if len(stripped) < 4:
-        return True
-    return False
+    return len(stripped) < 4
 
 
 def repair_markdown(text: Any) -> str:

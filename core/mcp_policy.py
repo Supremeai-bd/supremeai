@@ -20,7 +20,7 @@ Constitution Compliance:
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
 RiskLevel = Literal["R0", "R1", "R2", "R3", "R4", "R5", "R6"]
 PolicyDecision = Literal["ALLOW", "REQUIRE_APPROVAL", "DENY"]

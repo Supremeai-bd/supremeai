@@ -11,7 +11,6 @@ from core.agent_factory import DynamicAgentFactory
 from core.intelligence import IntelligenceRouter, VerificationEngine
 from core.intelligence.manual_tasks import ManualTaskRegistry
 from core.mcp_client import MCPRegistryClient
-from core.monitoring.logging_config import logger
 from core.orchestration.swarm_agent_roles import (
     ArchitectureAgent,
     CodeGeneratorAgent,

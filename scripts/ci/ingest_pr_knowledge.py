@@ -358,7 +358,7 @@ def read_text_safe(path: str) -> str:
     """Read text file with auto-detection of UTF-16 and UTF-8 encoding."""
     with open(path, "rb") as fh:
         raw = fh.read()
-    if raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
         return raw.decode("utf-16", errors="replace")
     elif raw.startswith(b"\xef\xbb\xbf"):
         return raw.decode("utf-8-sig", errors="replace")

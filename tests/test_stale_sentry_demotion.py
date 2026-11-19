@@ -71,7 +71,7 @@ def _row(number: int, title: str | None = None, labels: list[str] | None = None)
     }
 
 
-_LIVE = dict(claim_probe=lambda n: (False, "no active claim on the feedback plane"))
+_LIVE = {"claim_probe": lambda n: (False, "no active claim on the feedback plane")}
 
 
 class TestSentryFamilyHelpers(unittest.TestCase):

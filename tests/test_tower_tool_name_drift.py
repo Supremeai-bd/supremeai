@@ -84,25 +84,25 @@ ALLOWLISTED_PREFIXES: tuple[tuple[str, str], ...] = (
     ("tests/test_tower_tool_name_drift.py",
      "this guard's own pin data quotes the dead names as data"),
     ("tests/test_tower_queue_tool_name_epochs.py",
-     "oscillation-epoch tolerance test — quotes BOTH spellings of the "
+     ("oscillation-epoch tolerance test — quotes BOTH spellings of the "
      "oscillating queue tool as test data (wave-1 dotted / wave-3 underscore, "
      "live-verified 2026-10-31): the drift pin model is one-directional per "
      "wave, this test pins the bidirectional try-in-order cure; same "
-     "name-as-data doctrine as this guard's own self-allowlist above"),
+     "name-as-data doctrine as this guard's own self-allowlist above")),
     ("tests/test_tower_name_tolerance.py",
-     "contract tests for the shared rename-wave tolerance cure "
+     ("contract tests for the shared rename-wave tolerance cure "
      "(scripts/ci/tower_name_tolerance.py) — assert the epoch ledger contains "
      "BOTH documented spellings per oscillating family (wave-1 dotted / "
      "wave-3 underscore, live-verified 2026-10-31) and that first-live-wins "
      "crosses a dead spelling; same name-as-data doctrine as this guard's "
-     "own self-allowlist above"),
+     "own self-allowlist above")),
     ("scripts/ci/tower_name_tolerance.py",
-     "shared rename-wave tolerance cure (caller-side try-in-order across "
+     ("shared rename-wave tolerance cure (caller-side try-in-order across "
      "documented name epochs) — its TOOL_NAME_EPOCHS map IS the name-as-data "
      "ledger: every spelling it quotes is one of the two live-in-some-wave "
      "forms of the same oscillating family, called only via first-live-wins, "
      "never hardcoded at a call site; the docstring's wave-3 narrative also "
-     "names both forms as history"),
+     "names both forms as history")),
     ("scripts/tower/tool_consolidation_reference.py",
      "historical consolidation-mapping SSOT (MERGED records of old->new)"),
     ("scripts/ci/mcp_access_policy_guard.py",
@@ -110,15 +110,15 @@ ALLOWLISTED_PREFIXES: tuple[tuple[str, str], ...] = (
     ("tests/test_mcp_access_policy_guard.py",
      "tests the control-plane registry guard, quotes its embedded pins"),
     ("core/tools/mcp/",
-     "core satellite's OWN MCP tool surface — its own registry names, calls "
+     ("core satellite's OWN MCP tool surface — its own registry names, calls "
      "GitHub REST directly, never the tower (same doctrine as the "
-     "control-plane pins, #2493 scope note)"),
+     "control-plane pins, #2493 scope note)")),
     ("infrastructure/mcp-control-plane/",
-     "control-plane's OWN registry/policy pins + tombstones that exist "
-     "precisely to record retired names (#2493: self-consistent, out of scope)"),
+     ("control-plane's OWN registry/policy pins + tombstones that exist "
+     "precisely to record retired names (#2493: self-consistent, out of scope)")),
     ("docs/",
-     "historical receipts/specs — the evidence trail is allowed to name the "
-     "past; the strict surface is code"),
+     ("historical receipts/specs — the evidence trail is allowed to name the "
+     "past; the strict surface is code")),
 )
 
 # Tracked text extensions scanned. Code + config + docs that carry wire

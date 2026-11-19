@@ -10,6 +10,7 @@ import threading
 from pathlib import Path
 
 import litellm
+
 from core.utils.api_key_resolver import resolve_numbered_key
 
 # --- Merged from ai_scribe_historian.py ---

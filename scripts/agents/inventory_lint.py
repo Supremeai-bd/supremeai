@@ -182,7 +182,7 @@ def _check_integration_files_on_disk(seen_files: set[str]) -> list[str]:
 def _lint_llm_providers(inventory: dict[str, Any]) -> list[str]:
     """Cross-check _MODEL_KEY_MAP providers against inventory.yaml llm_providers."""
     errors: list[str] = []
-    yaml_module = _try_import_yaml()
+    _try_import_yaml()
 
     if not LLM_GATEWAY_REGISTRY.exists():
         errors.append(f"LLM gateway registry missing: {LLM_GATEWAY_REGISTRY}")
@@ -259,7 +259,7 @@ def _check_md_exists() -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Capability Inventory CI Guard (#4043)")
     parser.add_argument("--strict", action="store_true", help="fail on warnings too")
-    args = parser.parse_args()
+    parser.parse_args()
 
     yaml_module = _try_import_yaml()
     inventory = _load_inventory(yaml_module)

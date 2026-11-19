@@ -16,7 +16,6 @@ Verifies importability + interface for:
 
 from __future__ import annotations
 
-import pytest
 
 
 class TestPredictiveCircuitBreaker:

@@ -7,7 +7,7 @@ boundary ঘোষণা করে। এই registry কোনো নতুন 
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)

@@ -75,7 +75,7 @@ def render(rules: dict) -> str:
         if "step" in entry:
             command = entry["step"]
         else:
-            label, command = next(iter(entry.items()))
+            _label, command = next(iter(entry.items()))
         note = entry.get("note", "")
         line = f"{step_no}. `{command}`"
         if note:

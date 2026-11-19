@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import time
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -43,7 +43,6 @@ from core.resilience.circuit_breaker import (
 )
 from core.resilience.circuit_breaker_manager import (
     CircuitBreakerManager,
-    get_circuit_breaker_manager,
 )
 
 # ---------------------------------------------------------------------------

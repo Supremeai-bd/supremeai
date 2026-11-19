@@ -221,7 +221,7 @@ def validate_issue(issue: dict, policy: dict) -> tuple:
     labels = _labels_of(issue)
     exempt_labels = set(ip.get("exempt_labels") or [])
     if labels & exempt_labels:
-        hit = sorted(labels & exempt_labels)[0]
+        hit = min(labels & exempt_labels)
         return "skip", [], f"exempt label '{hit}' (ops telemetry / explicit override)"
 
     body = issue.get("body") or ""

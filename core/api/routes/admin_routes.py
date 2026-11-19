@@ -942,7 +942,6 @@ async def list_tenant_limits_contract_alias(
     """Issue #1493 contract alias: GET /api/admin/tenant-limits.
 
     Real implementation: /admin-api/tenant-limits (api.routes.tenant_admin)."""
-    from api.routes.tenant_admin import TenantLimitUpdate
     from api.routes.tenant_admin import list_tenants as _real_list_tenants
 
     return await _real_list_tenants(include_usage=include_usage)

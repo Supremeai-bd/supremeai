@@ -4,7 +4,6 @@
 # প্রতিটি মডেলের আইডি, প্রোভাইডার, ক্ষমতা (capabilities), রেটিং/র‍্যাংক এবং রিটায়ারমেন্ট স্ট্যাটাস এখানে ডিফাইন করা।
 
 from dataclasses import dataclass, field
-from typing import Any
 
 
 @dataclass(frozen=True)

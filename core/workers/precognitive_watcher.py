@@ -8,12 +8,9 @@ Autonomous System Observability & Proactive Sentinel:
 
 from __future__ import annotations
 
-import asyncio
 import time
 from datetime import UTC, datetime
-from typing import Any
 
-from core.monitoring.logging_config import logger
 from pydantic import BaseModel, Field
 
 

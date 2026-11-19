@@ -4,7 +4,6 @@ When a base key (e.g. GEMINI_API_KEY) is unset, tries numbered variants
 (GEMINI_API_KEY_2, GEMINI_API_KEY_3, ...) and returns the first non-empty value.
 """
 import os
-from typing import Optional
 
 
 def resolve_numbered_key(base: str, max_n: int = 10) -> str | None:

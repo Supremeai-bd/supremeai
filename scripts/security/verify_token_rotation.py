@@ -66,7 +66,7 @@ def probe_github(token: str, fetcher=None) -> ProbeResult:
     }
     try:
         status, _body = fetcher("https://api.github.com/user", headers)
-    except Exception:  # noqa: BLE001 — probe must degrade to INCONCLUSIVE
+    except Exception:
         return ProbeResult(
             Verdict.INCONCLUSIVE, None, "network error (details suppressed)"
         )

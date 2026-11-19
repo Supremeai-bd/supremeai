@@ -254,7 +254,7 @@ def regenerate_baseline(dockerfiles: list[Path]) -> int:
 
 def self_test() -> int:
     """Hermetic proof: classification, parsing, ratchet polarity. No repo writes."""
-    tmp = Path(tempfile.mkdtemp(prefix="frompin-selftest-"))
+    Path(tempfile.mkdtemp(prefix="frompin-selftest-"))
     checks: list[tuple[str, bool]] = []
 
     # 1. classification
@@ -265,12 +265,7 @@ def self_test() -> int:
     checks.append(("bare name classified", classify_image("alpine") == "float"))
 
     # 2. parsing: flags, aliases, comments
-    content = "\n".join([
-        "# FROM python:3.9 (a comment, ignored)",
-        "FROM --platform=linux/amd64 python:3.11-slim AS builder",
-        "FROM python:3.11.14-slim",
-        "FROM node:24-alpine AS runtime",
-    ])
+    content = "# FROM python:3.9 (a comment, ignored)\nFROM --platform=linux/amd64 python:3.11-slim AS builder\nFROM python:3.11.14-slim\nFROM node:24-alpine AS runtime"
     froms = parse_froms(content)
     checks.append(("comment skipped", len(froms) == 3))
     checks.append(("flag stripped", froms[0][1] == "python:3.11-slim"))

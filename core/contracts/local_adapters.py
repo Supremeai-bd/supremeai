@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 from .adapters import Artifact, ArtifactKind, validate_artifact
 from .canonical import ExecutionContext
-from .security_policy import SandboxMode, validate_workspace_path
+from .security_policy import SandboxMode
 
 
 @dataclass

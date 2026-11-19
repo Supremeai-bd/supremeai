@@ -119,7 +119,7 @@ def test_traffic_live_single_eval_command():
         "p95_latency_ms",
     }
     assert len(fake.eval_calls) == 1, "window must be read in ONE command"
-    script, numkeys, keys = fake.eval_calls[0]
+    _script, numkeys, keys = fake.eval_calls[0]
     assert numkeys == 30
     assert len(keys) == 30
     assert fake.lrange_calls == [], "healthy path must not fire per-key reads"

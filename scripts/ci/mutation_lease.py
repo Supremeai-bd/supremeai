@@ -335,7 +335,7 @@ class MutationLease:
                 ["git", "rev-list", "--count", f"origin/main..{self.branch}"],
                 capture_output=True, text=True, timeout=10,
             )
-            behind = int(result.stdout.strip()) if result.returncode == 0 else 0
+            int(result.stdout.strip()) if result.returncode == 0 else 0
 
             # Check if main is ahead
             result = subprocess.run(

@@ -25,9 +25,10 @@ import inspect
 from collections.abc import Callable
 from typing import Any
 
+from core.logging_config import logger
+
 from browser.semantic_dom import CONFIDENCE_EXECUTE, CONFIDENCE_VERIFY, confidence_band
 from browser.vision_grounding import LowConfidenceGrounding, VisionGrounding
-from core.logging_config import logger
 
 __all__ = [
     "CONFIDENCE_EXECUTE",
@@ -131,7 +132,7 @@ async def execute_click_cascade(
     """
     # ── Step 1: SemanticDOM ────────────────────────────────────────────
     try:
-        from browser.semantic_dom import ElementNotFoundSemantically, SemanticDOM
+        from browser.semantic_dom import SemanticDOM
 
         sdom = SemanticDOM(page)
         element = await sdom.query(target, threshold=CONFIDENCE_VERIFY)

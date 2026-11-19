@@ -13,7 +13,6 @@ exactly as before the split; at runtime it resolves to the same
 utils.firestore_helpers.get_firestore_db function.
 """
 
-import asyncio
 import contextlib
 import json
 import random
@@ -105,7 +104,6 @@ class CompletionMixin:
 
         self._ensure_litellm_ready()
 
-        import litellm  # lazy import
 
         # বাংলা মন্তব্য: context এলে সেটিই একক-সত্যের উৎস — attribution-যাচাই
         # ব্যর্থ হলে fail-closed লাউড এরর (নীরব অজানা-টেন্যান্ট খরচ নিষিদ্ধ)।

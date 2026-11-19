@@ -94,7 +94,4 @@ class NoSecretHardcodingRule(BaseRule):
             return True
 
         # Variable definitions in examples
-        if "=" in line and any(x in line for x in ["example", "demo", "tutorial"]):
-            return True
-
-        return False
+        return bool("=" in line and any(x in line for x in ["example", "demo", "tutorial"]))

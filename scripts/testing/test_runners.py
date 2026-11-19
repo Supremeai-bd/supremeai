@@ -894,7 +894,7 @@ class SuperAIVerifier:
         per-role literal/glob candidates resolved with existing_paths, so
         renames (cache.py -> cache/ package) never rot the check.
         """
-        layout = get_layout()
+        get_layout()
         core = discover_core_modules()
 
         def role(label: str, cands: list[str]) -> tuple[str, list[Path]]:

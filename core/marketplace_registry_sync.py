@@ -18,8 +18,8 @@ import tempfile
 import urllib.error
 import urllib.request
 from collections.abc import Callable
-from datetime import UTC, datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 REGISTRY_BASE = "https://registry.modelcontextprotocol.io"
 SERVERS_PATH = "/v0/servers"          # /v0 verified live 2026-10-30 (scout R80); /v0.1 also serves

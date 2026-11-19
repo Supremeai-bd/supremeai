@@ -4,7 +4,7 @@ import asyncio
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 from core.api.dependencies import get_current_user_token
 

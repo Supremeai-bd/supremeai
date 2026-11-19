@@ -6,7 +6,6 @@
 # Listener failure → DLQ — silent drop সম্পূর্ণ নিষিদ্ধ।
 
 import asyncio
-import logging
 import os
 import threading
 from collections import defaultdict

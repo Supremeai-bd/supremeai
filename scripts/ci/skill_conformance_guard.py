@@ -328,7 +328,7 @@ def self_test() -> int:
                "nested metadata warns W3 without erroring")
 
         (root / "empty-folder").mkdir()
-        err_rows, warn_rows, _ = scan(root)
+        err_rows, _warn_rows, _ = scan(root)
         names = {n for n, _ in err_rows}
         expect("empty-folder" in names, "E1 missing SKILL.md fires at scan level")
 
@@ -341,7 +341,7 @@ def self_test() -> int:
         expect(not violations and any("other-name" in s for s in shrinks),
                "ratchet: resolved pin shrinks with note, never violates")
 
-        grown_errs = err_rows + [("empty-folder", [])]
+        err_rows + [("empty-folder", [])]
         violations, _ = ratchet(err_rows, {"clean-skill": ["E1"]})
         expect(any("NEW error" in v for v in violations),
                "ratchet: new unpinned folder fails closed")

@@ -26,7 +26,6 @@ from datetime import UTC, datetime
 import httpx
 from sqlalchemy import select
 
-from core.config import settings
 from core.monitoring.logging_config import logger
 from database.session import AsyncSessionLocal
 from models.sentinel import ApiEndpoint, SystemDependency, SystemIncident

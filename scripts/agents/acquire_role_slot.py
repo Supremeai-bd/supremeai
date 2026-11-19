@@ -105,7 +105,7 @@ def infer_role_from_context(
             return normalized
         if normalized.startswith("plan"):
             return "planner"
-        if normalized.startswith("code") or normalized.startswith("solve"):
+        if normalized.startswith(("code", "solve")):
             return "coder"
         if normalized.startswith("ci"):
             return "ci"
@@ -232,7 +232,7 @@ def fetch_existing_role_branches(role: str, repo_dir: Path = ROOT_DIR) -> List[i
     except (OSError, subprocess.SubprocessError) as err:
         logger.debug("Failed to list role branches: %s", err)
 
-    return sorted(list(indices))
+    return sorted(indices)
 
 
 def evaluate_slot_occupancy(

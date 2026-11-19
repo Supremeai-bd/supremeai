@@ -484,9 +484,7 @@ def acquire_role_lock(role: str, agent_name: str, ttl: int = 3600) -> bool:
     if not _git_push_atomic(lock_branch):
         # Lock race lost — তবে metadata পড়ে দেখো আমার নাম আছে কিনা
         existing = _read_role_lock_metadata(role)
-        if existing and existing.agent_name == agent_name:
-            return True
-        return False
+        return bool(existing and existing.agent_name == agent_name)
 
     # Step 3: lock metadata লিখো (agent_name + TTL)
     return _write_role_lock_metadata(role, agent_name, ttl)

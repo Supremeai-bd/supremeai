@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -18,7 +17,6 @@ from fastapi.testclient import TestClient
 from core.api.routes.auth import create_access_token
 from core.api.routes.studio_compat import _format_studio_user
 from core.app_builder import create_app
-from core.config import settings
 
 
 @pytest.fixture(scope="module")

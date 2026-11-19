@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Mapping
 from typing import Any
 from uuid import UUID

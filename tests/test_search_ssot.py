@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 import pytest
+from typing_extensions import Self
 
 from core import search as search_mod
 from core.search import web_search
@@ -41,7 +42,7 @@ class _FakeClient:
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    def __enter__(self) -> _FakeClient:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *exc: object) -> None:

@@ -2,9 +2,7 @@
 # Test configuration and fixtures for SupremeAI backend
 import asyncio
 import os
-import re
 import sys
-import uuid
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch

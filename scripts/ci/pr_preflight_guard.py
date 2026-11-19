@@ -28,7 +28,7 @@ def run(cmd): return subprocess.run(cmd, capture_output=True, text=True, encodin
 
 def check_branch(branch):
     if branch in ("main","master"): return []
-    return [] if BRANCH_RE.match(branch) else ["branch name %r invalid" % branch]
+    return [] if BRANCH_RE.match(branch) else [f"branch name {branch!r} invalid"]
 
 def check_issue_ref(text):
     errs = []
@@ -51,10 +51,10 @@ def check_lint(files):
     for f in files:
         if f.endswith(".py") and Path(f).is_file():
             if run([sys.executable, "-m", "py_compile", f]).returncode != 0:
-                errs.append("python syntax error: %s" % f)
+                errs.append(f"python syntax error: {f}")
         if f.endswith(".json") and Path(f).is_file():
             if run([sys.executable, "-c", "import json,sys; json.load(open(sys.argv[1],encoding='utf-8'))", f]).returncode != 0:
-                errs.append("json syntax error: %s" % f)
+                errs.append(f"json syntax error: {f}")
     return errs
 
 # Shield 1: Task-Scope Domain Fence
@@ -75,7 +75,7 @@ def check_scope_fence(branch: str | None, files: list[str]) -> list[str]:
             break
     if not matched_domain:
         return []
-    prefix = domain_tags[matched_domain]
+    domain_tags[matched_domain]
     errs = []
     for f in files:
         f_norm = f.replace("\\", "/")
@@ -99,8 +99,8 @@ def check_stale_base() -> list[str]:
         count = r_behind.stdout.strip()
         if count.isdigit() and int(count) > 0:
             return [
-                f"stale base: local branch is {count} commit(s) behind origin/main. "
-                f"Rebase or merge origin/main to prevent overwriting co-landed agent work."
+                (f"stale base: local branch is {count} commit(s) behind origin/main. "
+                f"Rebase or merge origin/main to prevent overwriting co-landed agent work.")
             ]
     return []
 
@@ -114,11 +114,11 @@ def check_ast_regressions(files: list[str]) -> list[str]:
         if r_diff.returncode == 0 and r_diff.stdout:
             deleted_tests = [
                 line for line in r_diff.stdout.splitlines()
-                if line.startswith("-def test_") or line.startswith("-    def test_")
+                if line.startswith(("-def test_", "-    def test_"))
             ]
             added_tests = [
                 line for line in r_diff.stdout.splitlines()
-                if line.startswith("+def test_") or line.startswith("+    def test_")
+                if line.startswith(("+def test_", "+    def test_"))
             ]
             if deleted_tests and len(deleted_tests) > len(added_tests):
                 errs.append(

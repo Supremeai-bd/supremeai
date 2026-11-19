@@ -14,7 +14,6 @@ from .config_classification import (
     ALIAS_TO_CANONICAL,
     BY_NAME,
     ConfigClass,
-    ConfigSource,
     canonical_name,
 )
 

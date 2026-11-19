@@ -1,11 +1,11 @@
 import os
 import time
 from collections import OrderedDict
-from typing import Optional, Protocol
+from typing import Protocol
 
 from core.monitoring.logging_config import logger
 
-from .models import AutomationResult, AutomationStatus
+from .models import AutomationResult
 
 
 class IdempotencyStore(Protocol):

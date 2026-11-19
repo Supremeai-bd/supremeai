@@ -166,7 +166,6 @@ def test_retry_with_budget_sync_success(monkeypatch):
 
 
 def test_retry_with_budget_sync_exhausted(monkeypatch):
-    import asyncio
 
     import core.retry_budget as rb
     from core.retry_budget import RetryBudget

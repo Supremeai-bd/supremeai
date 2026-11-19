@@ -246,7 +246,7 @@ def guard_learning_guards(
 
     frontend_changed = any(_is_frontend_source(f) for f in changed)
     backend_changed = any(
-        f.startswith("backend/") or f.startswith("scripts/ci/") for f in changed
+        f.startswith(("backend/", "scripts/ci/")) for f in changed
     )
 
     # ── L2: test-file deletion ────────────────────────────────────────────
@@ -448,7 +448,7 @@ def main() -> int:
         print(json.dumps({
             "frontend_changed": any(_is_frontend_source(f) for f in changed),
             "backend_changed": any(
-                f.startswith("backend/") or f.startswith("scripts/ci/") for f in changed
+                f.startswith(("backend/", "scripts/ci/")) for f in changed
             ),
         }))
         return 0

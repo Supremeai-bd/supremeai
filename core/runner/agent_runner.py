@@ -1000,7 +1000,8 @@ def self_test() -> int:
         )
         pass_cmd = [sys.executable, "-c", "print('tier ok')"]
         fail_cmd = [sys.executable, "-c", "import sys; sys.exit(3)"]
-        noop_callable: Callable[[dict[str, Any]], dict[str, Any]] = lambda env: {"worked": True}
+        def noop_callable(env: dict[str, Any]) -> dict[str, Any]:
+            return {"worked": True}
 
         def fresh_runner(**kw: Any) -> AgentRunner:
             base = dict(

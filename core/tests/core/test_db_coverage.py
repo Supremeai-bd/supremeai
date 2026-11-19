@@ -1,6 +1,5 @@
 """Coverage tests for core/db.py (engine setup, sessions, health-check, slow-query)."""
 
-import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 

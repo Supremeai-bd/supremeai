@@ -51,7 +51,7 @@ uses the same tools programmatically.
 
 | Step | Action | Tool / surface | Smoothness guarantee |
 |------|--------|----------------|----------------------|
-| 0 | Identify yourself | Connect to `https://supremeai-mcp-tower.onrender.com/mcp?client=<your-unique-name>` | Zero credentials; a named client gets a stable identity and opens role-gated tools |
+| 0 | Identify yourself | Connect to `https://supremeai-mcp-tower-live.onrender.com/mcp?client=<your-unique-name>` | Zero credentials; a named client gets a stable identity and opens role-gated tools |
 | 1 | Discover work | `bridge_work_queue` | Public queue with priorities, labels, and claim state |
 | 2 | Read the contract | `bridge_guide` + the work-order issue | The live lifecycle, diff caps, secret families, protected paths — always current, never a stale copy |
 | 3 | Claim | `work_claim` (30-min lease; `bridge.work.renew` / `bridge.work.release`) | Lease SSOT prevents stampede; expires honestly instead of holding a ghost claim |

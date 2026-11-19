@@ -290,7 +290,7 @@ class CheckBranchTests(unittest.TestCase):
         api = FakeApi(
             issues={2891: OPEN_ISSUE}, comments={2891: [CLAIM_COMMENT_PLANNER]}
         )
-        verdict, reason, num = guard.check_branch(
+        verdict, reason, _num = guard.check_branch(
             "coder-1-2891-x", "supremeai-coder-1-bot[bot]", policy(), api=api, repo=REPO
         )
         self.assertEqual(verdict, "VIOLATION")
@@ -382,7 +382,7 @@ class CheckBranchTests(unittest.TestCase):
             },
             comments={2829: [], 2833: [CLAIM_COMMENT_CODER]},
         )
-        verdict, reason, num = guard.check_branch(
+        verdict, _reason, num = guard.check_branch(
             "coder-1-2829-2833-test-assertion-fixes",
             "supremeai-coder-1-bot[bot]",
             policy(),
@@ -607,7 +607,7 @@ class TemplateChainTests(unittest.TestCase):
             },
             comments={2885: [CLAIM_COMMENT_CODER]},
         )
-        verdict, reason, _ = guard.check_branch(
+        verdict, _reason, _ = guard.check_branch(
             "coder-1-2885-x", "supremeai-coder-1-bot[bot]", policy(), api=api, repo=REPO
         )
         self.assertEqual(verdict, "ALLOW")
@@ -883,7 +883,7 @@ class LaneSlotPatternTests(unittest.TestCase):
             issues={3227: OPEN_ISSUE},
             comments={3227: [CLAIM_COMMENT_CODER]},
         )
-        verdict, reason, _ = guard.check_branch(
+        verdict, _reason, _ = guard.check_branch(
             "coder-1-3227-ci-false-green",
             "supremeai-coder-1-bot[bot]",
             policy(),
@@ -927,7 +927,7 @@ class LaneSlotPatternTests(unittest.TestCase):
     def test_human_actor_unaffected_by_lane_slot_check(self):
         # humans are not agent actors → lane-slot check skipped
         api = FakeApi(issues={3227: OPEN_ISSUE})
-        verdict, reason, _ = guard.check_branch(
+        verdict, _reason, _ = guard.check_branch(
             "fix/3227-my-feature",
             "SaifulHaqueNiloy",
             policy(),

@@ -11,7 +11,7 @@ class FakeCache:
         self.value = value
         self.saved = None
 
-    async def get(self, prompt: str, model_name: str, session_id: str = None, user_id: str = None):
+    async def get(self, prompt: str, model_name: str, session_id: str | None = None, user_id: str | None = None):
         # AUD-5.6: chat now passes user_id for user-scoped cache keys.
         return self.value
 
@@ -20,8 +20,8 @@ class FakeCache:
         prompt: str,
         response: str,
         model_name: str,
-        session_id: str = None,
-        user_id: str = None,
+        session_id: str | None = None,
+        user_id: str | None = None,
     ):
         self.saved = {
             "prompt": prompt,

@@ -147,9 +147,6 @@ class TestVerifyLiveQuotaPreflight(unittest.TestCase):
 
     def test_preflight_degrades_gracefully(self):
         """Probe failure (None,None) must NOT block a verification with budget."""
-        rate_limit_body = {
-            "resources": {"core": {"limit": 60, "remaining": 5000, "reset": 1790000000}}
-        }
         # /rate_limit raises → degrade; then SSOT-derived happy path.
         code, out = self.run_verify(
             self.scripted_happy_path(first=[ConnectionError("probe down")])

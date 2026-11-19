@@ -2,7 +2,6 @@
 import sys
 import ast
 import os
-from pathlib import Path
 
 # Common blocking functions that shouldn't be in async routes
 BLOCKING_CALLS = {

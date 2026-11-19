@@ -35,7 +35,7 @@ except ImportError:
 try:
     import httpx as requests
 except ImportError:
-    import httpx as requests  # type: ignore
+    pass  # type: ignore
 
 from core.monitoring.logging_config import logger
 

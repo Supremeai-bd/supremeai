@@ -6,7 +6,6 @@ None (mirror-only degradation) or a tiny fake async client (durable path).
 
 from __future__ import annotations
 
-import asyncio
 
 import pytest
 

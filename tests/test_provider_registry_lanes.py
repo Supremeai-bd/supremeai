@@ -23,7 +23,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from gateway.services.dynamic_ai.provider_registry import (
+from core.services.dynamic_ai.provider_registry import (
     ProviderRegistry,
     ProviderStatus,
 )

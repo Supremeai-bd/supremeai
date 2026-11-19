@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import os
 
-from core.monitoring.logging_config import logger
 
 
 class AIAssignmentHandlerMixin:

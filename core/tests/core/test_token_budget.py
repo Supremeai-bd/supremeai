@@ -54,14 +54,11 @@ async def test_prepare_prompt_budget_exhaustion_raises_and_emits(monkeypatch):
 # CRITICAL-PATH COVERAGE (final-test hardening-2): core/llm/** is tier-critical
 # in coverage_policy.yaml; these tests lock the remaining sync + Redis contracts.
 # ─────────────────────────────────────────────────────────────────────────────
-import asyncio  # noqa: E402
-import time  # noqa: E402
 from unittest.mock import AsyncMock, MagicMock  # noqa: E402
 
 from core.llm.token_budget import (  # noqa: E402
     PROVIDER_TOKEN_BUDGETS,
     TokenBudgetStats,
-    get_budget_manager,
     truncate_to_token_limit,
 )
 

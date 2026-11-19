@@ -11,7 +11,6 @@ Covers the Self-Evolution Zero-Cost plan requirements:
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 import pytest
@@ -25,7 +24,6 @@ from core.learning import (
     get_learning_store,
     get_ratio,
     record_feedback,
-    record_llm_event,
     reset_calibration,
     update_ratio,
 )
@@ -33,7 +31,7 @@ from core.learning.loop import (
     ERROR_PATTERN_MIN_OCCURRENCES,
     LearningLoopAgent,
 )
-from core.llm.telemetry import LLMCallRecord, classify_llm_error, track_llm_call
+from core.llm.telemetry import classify_llm_error, track_llm_call
 
 # --------------------------------------------------------------- classification
 

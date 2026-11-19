@@ -12,7 +12,6 @@ from __future__ import annotations
 import os
 from unittest import mock
 
-import pytest
 
 
 def test_scraper_resolution_defaults_empty():
