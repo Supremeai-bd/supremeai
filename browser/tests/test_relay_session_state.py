@@ -15,17 +15,12 @@ tests pin the two halves of the fix on the relay side:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 import pytest
 
-BROWSER_ROOT = Path(__file__).resolve().parents[1]
-if str(BROWSER_ROOT) not in sys.path:
-    sys.path.insert(0, str(BROWSER_ROOT))
-
+# `conftest.py` already put browser/ on sys.path; importing the relay is then
+# ordinary, and there is one copy of that bootstrap instead of one per file.
 import server  # noqa: E402
 
 

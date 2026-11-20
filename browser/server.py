@@ -4,6 +4,15 @@ Connects directly to gemini.google.com session over HTTP using stored session co
 with fast-fail $0 pure-HTTP fallback cascades (Duck.ai + Zero-Auth Pollinations OpenAI).
 Zero Headless Browser overhead, zero Playwright memory bloat on the chat path.
 Runs seamlessly on Render 512MB Free Tier or local machine (port 8788). Refs #756.
+
+`/v1/chat/completions` answers both ways: one JSON body, or — when the caller
+sends `stream: true` — server-sent events. The SSE path exists because the
+gateway reads every provider as SSE; before it, a streamed request to a web
+engine burned the full engine latency and then failed with "stream ended before
+completion" on an answer that had already been produced. The frames are honest
+about what they are: Duck.ai is read incrementally, the cookie engine answers
+whole, and the final chunk carries `delivery: incremental|buffered` so nobody has
+to guess which one they got.
 """
 
 from __future__ import annotations
@@ -20,12 +29,12 @@ import random
 import re
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, field_validator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -512,6 +521,15 @@ def classify_failure(exc: BaseException) -> tuple[str, str]:
     healthy surface.
     """
     detail = str(getattr(exc, "detail", exc) or "")
+    # An HTTPException carries its status explicitly, so reading it is not a
+    # guess. Engines that raise `HTTPException(403, "...")` with a generic detail
+    # used to classify as UNKNOWN and keep a dead cookie in rotation; a genuine
+    # auth code is exactly what this function exists to catch.
+    status = getattr(exc, "status_code", None)
+    if status in (401, 403):
+        return "EXPIRED", detail or f"HTTP {status}"
+    if status == 429:
+        return "CHALLENGED", detail or "HTTP 429"
     lowered = detail.lower()
     if "challenge" in lowered:
         return "CHALLENGED", detail
@@ -564,6 +582,30 @@ def session_snapshot() -> dict[str, dict]:
             entry["cookie_count"] = len(cookies)
         snapshot[PUBLISHED_ENGINE_IDS[engine]] = entry
     return snapshot
+
+
+async def iter_duck_deltas(lines: Any) -> AsyncIterator[str]:
+    """Duck.ai SSE lines → text deltas.
+
+    Kept pure and module-level so the frame format can be tested without a
+    socket, a token, or an upstream. `data: [DONE]` ends the stream; anything
+    that is not a `message` frame (vqd metadata, action frames, keep-alive
+    comments) is skipped, exactly as the old whole-body parser skipped it.
+    """
+    async for raw in lines:
+        line = str(raw).strip()
+        if not line.startswith("data:"):
+            continue
+        data = line[5:].strip()
+        if data == "[DONE]":
+            return
+        try:
+            parsed = json.loads(data)
+        except ValueError:
+            continue
+        message = parsed.get("message") if isinstance(parsed, dict) else None
+        if message:
+            yield str(message)
 
 
 class DuckAiEngine:
@@ -677,76 +719,97 @@ class DuckAiEngine:
             logger.warning(f"[FreeHTTPRelay] Zero-auth HTTP relay failed: {exc}")
         return None
 
+    def _duck_headers(self, token: str) -> Dict[str, str]:
+        return {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+            "Referer": "https://duck.ai/",
+            "Origin": "https://duck.ai",
+            "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-site",
+            "x-vqd-4": token,
+        }
+
     async def ask(self, prompt: str, model: Optional[str] = None) -> str:
-        """Query zero-cost fast HTTP relay with human micro-jitter, then fall back to duck.ai."""
-        # 1. Human micro-jitter (50-150ms) to eliminate robotic machine cadence
+        """Whole answer (the non-streaming contract)."""
+        parts = [delta async for delta in self.ask_stream(prompt, model=model)]
+        if not parts:
+            raise HTTPException(
+                status_code=502, detail="Stealth HTTP relay encountered upstream challenge or timeout"
+            )
+        return "".join(parts)
+
+    async def ask_stream(self, prompt: str, model: Optional[str] = None) -> AsyncIterator[str]:
+        """The answer in the order it arrives, tier by tier.
+
+        Tier 1 (zero-auth HTTP relay) answers whole, so it yields once. Tier 2
+        (Duck.ai) is an SSE upstream and yields per frame — that is the only tier
+        where anything is genuinely incremental, so the caller labels each answer
+        with what it actually got instead of advertising token streaming for a
+        single-shot body.
+
+        Nothing about the upstream request changed: same jitter, same headers,
+        same payload, same 10s timeout. Only the *reading* of the response is
+        incremental, which is why the ban-risk posture is untouched.
+        """
         await asyncio.sleep(random.uniform(0.05, 0.15))
 
         async with httpx.AsyncClient(timeout=25.0) as client:
-            # 2. Fast Zero-Auth HTTP Relay first (~1.0s latency)
             free_reply = await self._ask_zero_auth_http_relay(client, prompt)
             if free_reply:
-                return free_reply
+                yield free_reply
+                return
 
-            # 3. Duck.ai SSE stream fallback
             token = await self._fetch_vqd_token(client)
-            if token:
-                target_model = self.resolve_model(model)
-                headers = {
-                    "User-Agent": (
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-                    ),
-                    "Content-Type": "application/json",
-                    "Accept": "text/event-stream",
-                    "Referer": "https://duck.ai/",
-                    "Origin": "https://duck.ai",
-                    "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-                    "sec-ch-ua-mobile": "?0",
-                    "sec-ch-ua-platform": '"Windows"',
-                    "sec-fetch-dest": "empty",
-                    "sec-fetch-mode": "cors",
-                    "sec-fetch-site": "same-site",
-                    "x-vqd-4": token,
-                }
-                payload = {
-                    "model": target_model,
-                    "messages": [{"role": "user", "content": prompt}],
-                }
-                try:
-                    resp = await client.post(
-                        "https://duckduckgo.com/duckchat/v1/chat",
-                        headers=headers,
-                        json=payload,
-                        timeout=10.0,
-                    )
-                    if resp.status_code == 200:
-                        new_token = resp.headers.get("x-vqd-4")
-                        if new_token:
-                            self._vqd_token = new_token
-                            self._vqd_expiry = time.time() + 600.0
-                        reply_parts: list[str] = []
-                        for line in resp.text.split("\n"):
-                            line = line.strip()
-                            if line.startswith("data:"):
-                                data_str = line[5:].strip()
-                                if data_str == "[DONE]":
-                                    break
-                                try:
-                                    parsed = json.loads(data_str)
-                                    msg = parsed.get("message")
-                                    if msg:
-                                        reply_parts.append(msg)
-                                except Exception:
-                                    continue
-                        if reply_parts:
-                            return "".join(reply_parts)
-                    else:
-                        logger.warning(f"[DuckAI] HTTP chat returned status {resp.status_code}")
-                except Exception as exc:
-                    logger.warning(f"[DuckAI] HTTP chat request failed: {exc}")
+            if not token:
+                raise HTTPException(
+                    status_code=502, detail="Stealth HTTP relay encountered upstream challenge or timeout"
+                )
 
-        raise HTTPException(status_code=502, detail="Stealth HTTP relay encountered upstream challenge or timeout")
+            target_model = self.resolve_model(model)
+            payload = {"model": target_model, "messages": [{"role": "user", "content": prompt}]}
+            emitted = 0
+            try:
+                async with client.stream(
+                    "POST",
+                    "https://duckduckgo.com/duckchat/v1/chat",
+                    headers=self._duck_headers(token),
+                    json=payload,
+                    timeout=10.0,
+                ) as resp:
+                    if resp.status_code != 200:
+                        logger.warning(f"[DuckAI] HTTP chat returned status {resp.status_code}")
+                        raise HTTPException(
+                            status_code=502,
+                            detail=f"Duck.ai chat returned status {resp.status_code}",
+                        )
+                    new_token = resp.headers.get("x-vqd-4")
+                    if new_token:
+                        self._vqd_token = new_token
+                        self._vqd_expiry = time.time() + 600.0
+                    async for delta in iter_duck_deltas(resp.aiter_lines()):
+                        emitted += 1
+                        yield delta
+            except HTTPException:
+                raise
+            except Exception as exc:
+                logger.warning(f"[DuckAI] HTTP chat request failed: {exc}")
+                raise HTTPException(
+                    status_code=502, detail="Duck.ai chat stream failed before completion"
+                ) from exc
+
+            if not emitted:
+                raise HTTPException(
+                    status_code=502, detail="Stealth HTTP relay encountered upstream challenge or timeout"
+                )
 
 
 duck_engine = DuckAiEngine()
@@ -914,8 +977,216 @@ def _format_stealth_chat_prompt(messages: list[ChatMessage]) -> str:
     return "\n\n".join(dialogue)
 
 
+# --- streaming pass-through ------------------------------------------------
+# The gateway asks for `stream: true` and reads SSE. Until now the relay accepted
+# the flag, ignored it, and answered with one JSON body — so every streamed
+# request to a web engine burned the full engine latency and then failed with
+# "Upstream stream ended before completion". These frames fix that without
+# pretending the engines got faster: Duck.ai is read incrementally, the cookie
+# engine is not, and each answer says which one it was.
+STREAM_HEARTBEAT_S = float(os.getenv("SUPREMEAI_RELAY_HEARTBEAT_S", "4"))
+
+
+def sse_frame(payload: Dict[str, Any]) -> str:
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+def sse_comment(text: str) -> str:
+    return f": {text}\n\n"
+
+
+def completion_chunk(
+    chunk_id: str,
+    *,
+    model: str,
+    content: Optional[str] = None,
+    finish_reason: Optional[str] = None,
+    role: Optional[str] = None,
+    meta: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """One OpenAI `chat.completion.chunk`; `meta` is the part our clients read."""
+    delta: Dict[str, Any] = {}
+    if role:
+        delta["role"] = role
+    if content is not None:
+        delta["content"] = content
+    body: Dict[str, Any] = {
+        "id": chunk_id,
+        "object": "chat.completion.chunk",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [{"index": 0, "delta": delta, "finish_reason": finish_reason}],
+    }
+    if meta:
+        body["supremeai"] = meta
+    return body
+
+
+def engine_brand(engine_name: str) -> Tuple[str, str, str]:
+    """`(served_model, engine_code, label)` — one table for both response shapes."""
+    if engine_name == "duck":
+        return "supremeai-fast", "dk", "SupremeAI w.dk Turbo"
+    return "gemini-web", "ge", "SupremeAI w.ge Turbo"
+
+
+class EngineStream:
+    """Run one engine's delta iterator in a task and hand out deltas via a queue.
+
+    The queue is not decoration. Waiting on an async generator's `__anext__` with
+    `asyncio.wait_for` *cancels the generator* when the timeout fires, so a
+    keep-alive implemented that way would kill the very request it was trying to
+    keep alive. Here the engine runs independently and the writer only ever waits
+    on the queue, so a silent engine costs a comment frame and nothing else.
+    """
+
+    def __init__(self, deltas: AsyncIterator[str]) -> None:
+        self._queue: asyncio.Queue = asyncio.Queue()
+        self._task = asyncio.create_task(self._pump(deltas))
+
+    async def _pump(self, deltas: AsyncIterator[str]) -> None:
+        try:
+            async for delta in deltas:
+                await self._queue.put(("delta", delta))
+            await self._queue.put(("done", None))
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - reported as an SSE error frame
+            await self._queue.put(("error", exc))
+
+    async def next(self, timeout: float) -> Tuple[str, Any]:
+        return await asyncio.wait_for(self._queue.get(), timeout=timeout)
+
+    async def aclose(self) -> None:
+        if not self._task.done():
+            self._task.cancel()
+        try:
+            await self._task
+        except (asyncio.CancelledError, Exception):  # noqa: B014 - CancelledError is BaseException
+            pass
+
+
+async def engine_deltas(engine_name: str, prompt: str, req_model: str) -> AsyncIterator[str]:
+    """One engine's text, with its session outcome recorded exactly once.
+
+    The outcome is recorded on the *whole* answer, not on the first byte: a
+    stream the client abandoned must never count as a success (that is how a dead
+    cookie used to keep looking healthy), and a mid-stream failure is classified
+    the same way a request-level one is.
+    """
+    start = time.time()
+    try:
+        if engine_name == "duck":
+            async for delta in duck_engine.ask_stream(prompt, model=req_model):
+                yield delta
+        else:
+            yield await relay_engine.ask(prompt)
+    except Exception as exc:
+        state, detail = classify_failure(exc)
+        note_session(engine_name, state, detail)
+        logger.warning(f"{engine_name} relay stream failed ({state}: {exc})")
+        raise
+    else:
+        latency = (time.time() - start) * 1000.0
+        _engine_latency[engine_name] = (_engine_latency.get(engine_name, latency) * 0.7) + (
+            latency * 0.3
+        )
+        note_session(engine_name, "OK")
+
+
+async def sse_completion(prompt: str, req_model: str) -> AsyncIterator[str]:
+    """Relay one completion as SSE frames, fastest engine first, commit at byte one.
+
+    Fallback stays where it was: only *before* the first delta. Once a byte has
+    been sent, switching engines would splice two answers together, so a
+    mid-stream failure is reported as an error frame instead.
+    """
+    chunk_id = "chatcmpl-stealth-relay-" + os.urandom(6).hex()
+    order = sorted(("duck", "gemini"), key=lambda name: _engine_latency.get(name, 9999.0))
+    last_exc: Optional[Exception] = None
+
+    for engine_name in order:
+        served_model, engine_code, engine_label = engine_brand(engine_name)
+        pump = EngineStream(engine_deltas(engine_name, prompt, req_model))
+        committed = False
+        deltas = 0
+        try:
+            while True:
+                try:
+                    kind, value = await pump.next(STREAM_HEARTBEAT_S)
+                except asyncio.TimeoutError:
+                    yield sse_comment("waiting")
+                    continue
+                if kind == "delta":
+                    committed = True
+                    deltas += 1
+                    meta = None
+                    if deltas == 1:
+                        meta = {
+                            "channel": "w",
+                            "engine": engine_code,
+                            "tier": "Turbo",
+                            "label": engine_label,
+                            "stream": "sse",
+                        }
+                    yield sse_frame(
+                        completion_chunk(
+                            chunk_id,
+                            model=served_model,
+                            content=value,
+                            role="assistant" if deltas == 1 else None,
+                            meta=meta,
+                        )
+                    )
+                elif kind == "done":
+                    yield sse_frame(
+                        completion_chunk(
+                            chunk_id,
+                            model=served_model,
+                            finish_reason="stop",
+                            meta={
+                                "channel": "w",
+                                "engine": engine_code,
+                                "tier": "Turbo",
+                                "label": engine_label,
+                                "delivery": "incremental" if deltas > 1 else "buffered",
+                                "deltas": deltas,
+                            },
+                        )
+                    )
+                    yield "data: [DONE]\n\n"
+                    return
+                else:  # error
+                    last_exc = value
+                    if committed:
+                        logger.warning(f"{engine_name} failed mid-stream: {value}")
+                        yield sse_frame(
+                            {
+                                "error": {
+                                    "message": "relay engine failed mid-stream",
+                                    "type": "upstream_error",
+                                }
+                            }
+                        )
+                        yield "data: [DONE]\n\n"
+                        return
+                    logger.warning(f"{engine_name} produced no first delta ({value}); trying next")
+                    break
+        finally:
+            await pump.aclose()
+
+    yield sse_frame(
+        {
+            "error": {
+                "message": f"relay engines unavailable: {last_exc}",
+                "type": "upstream_error",
+            }
+        }
+    )
+    yield "data: [DONE]\n\n"
+
+
 @app.post("/v1/chat/completions")
-async def chat_completions(req: ChatRequest, request: Request) -> JSONResponse:
+async def chat_completions(req: ChatRequest, request: Request) -> Response:
     _verify_stealth_secret(request)
     prompt = _format_stealth_chat_prompt(req.messages)
     if not prompt.strip():
@@ -924,6 +1195,21 @@ async def chat_completions(req: ChatRequest, request: Request) -> JSONResponse:
         raise HTTPException(status_code=400, detail="Missing user message in payload")
 
     req_model = str(req.model or "auto").strip().lower()
+
+    if req.stream:
+        # Headers now, body as it arrives. `X-Accel-Buffering: no` stops a proxy
+        # from collecting the whole stream and handing it over at the end, which
+        # would silently undo the point of this branch.
+        return StreamingResponse(
+            sse_completion(prompt.strip(), req_model),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
     served_model = "supremeai-fast"
     engine_code = "dk"
     engine_label = "SupremeAI w.dk Turbo"
@@ -936,14 +1222,9 @@ async def chat_completions(req: ChatRequest, request: Request) -> JSONResponse:
             start = time.time()
             if engine_name == "duck":
                 reply = await duck_engine.ask(prompt.strip(), model=req_model)
-                served_model = "supremeai-fast"
-                engine_code = "dk"
-                engine_label = "SupremeAI w.dk Turbo"
             else:
                 reply = await relay_engine.ask(prompt.strip())
-                served_model = "gemini-web"
-                engine_code = "ge"
-                engine_label = "SupremeAI w.ge Turbo"
+            served_model, engine_code, engine_label = engine_brand(engine_name)
             latency = (time.time() - start) * 1000.0
             _engine_latency[engine_name] = (_engine_latency.get(engine_name, latency) * 0.7) + (latency * 0.3)
             note_session(engine_name, "OK")

@@ -390,6 +390,97 @@ async def forward_chat_completion(
     return last_status, last_data
 
 
+_STREAM_BODY_LIMIT = 2 * 1024 * 1024
+
+
+def _single_shot_event(raw: bytes, model_name: str) -> Tuple[str, Dict[str, Any]]:
+    """Interpret a non-SSE 2xx body as one whole completion.
+
+    A relay (or a proxy in front of one) is free to answer a `stream: true`
+    request with a single JSON body. The line loop below only understands
+    `data:` frames, so it used to find nothing, fall through to
+    "Upstream stream ended before completion" and throw away an answer that had
+    already been generated. Buffering one completion is not streaming, but
+    reporting it is the difference between a slow answer and no answer.
+    """
+    try:
+        document = json.loads(raw[:_STREAM_BODY_LIMIT].decode("utf-8", "replace"))
+    except ValueError:
+        return "error", {"error": "Upstream returned a non-JSON body on a streaming request"}
+    if not isinstance(document, dict):
+        return "error", {"error": "Upstream returned an unexpected body on a streaming request"}
+    if document.get("error"):
+        return "error", {"error": "Upstream provider returned an error body"}
+    choices = document.get("choices") or []
+    choice = choices[0] if choices and isinstance(choices[0], dict) else {}
+    message = choice.get("message") or {}
+    content = message.get("content")
+    if isinstance(content, list):
+        content = "".join(
+            part.get("text", "") for part in content if isinstance(part, dict)
+        )
+    content = content if isinstance(content, str) else ""
+    if not content.strip():
+        return "error", {"error": "Upstream returned an empty completion"}
+    return "event", {
+        "delta": content,
+        "finish_reason": choice.get("finish_reason") or "stop",
+        "tool_calls": message.get("tool_calls"),
+        "model": model_name,
+    }
+
+
+
+async def _sse_stream_events(lines: Any, model_name: str) -> AsyncIterator[Tuple[str, Any]]:
+    """SSE lines → `(kind, payload)`, always ending in a terminal `done` or `error`."""
+    saw_finish = False
+    async for line in lines:
+        line = line.strip()
+        if line.startswith(":"):
+            # SSE comment / keep-alive. The relay sends these while a buffered
+            # engine is still working; the first-token window extends on them,
+            # because a slow upstream that keeps proving it is alive is not the
+            # dead upstream that timeout is looking for.
+            yield ("heartbeat", {"comment": line[1:].strip()[:120]})
+            continue
+        if not line.startswith("data:"):
+            continue
+        data_str = line[5:].strip()
+        if data_str == "[DONE]":
+            yield ("done", None)
+            return
+        try:
+            chunk = json.loads(data_str)
+        except ValueError:
+            continue
+        if not isinstance(chunk, dict):
+            continue
+        choices = chunk.get("choices") or []
+        choice = choices[0] if choices and isinstance(choices[0], dict) else {}
+        finish_reason = choice.get("finish_reason")
+        if chunk.get("error") is not None or finish_reason == "error":
+            yield ("error", {"error": "Upstream provider returned a stream error"})
+            return
+        delta = choice.get("delta") or {}
+        content = delta.get("content") or ""
+        tool_calls = delta.get("tool_calls")
+        if content or finish_reason or tool_calls:
+            saw_finish = saw_finish or bool(finish_reason)
+            yield (
+                "event",
+                {
+                    "delta": content,
+                    "finish_reason": finish_reason,
+                    "tool_calls": tool_calls,
+                    "model": model_name,
+                },
+            )
+    if saw_finish:
+        yield ("done", None)
+    else:
+        yield ("error", {"error": "Upstream stream ended before completion"})
+
+
 async def stream_chat_completion_events(
     provider: str,
     api_key: str,
@@ -402,6 +493,7 @@ async def stream_chat_completion_events(
     Yields tuples:
       ("status", {"status": 200, "model": <model>})  on upstream 2xx headers
       ("event",  {"delta": str, "finish_reason": ..., "tool_calls": ..., "model": ...})
+      ("heartbeat", {"comment": str})                 on an SSE keep-alive comment
       ("done",   None)                                on [DONE] or EOF after a finish reason
       ("error",  {"error": ...})                      if the stream fails before or after output
 
@@ -444,7 +536,6 @@ async def stream_chat_completion_events(
                 continue
             body["model"] = model_name
             committed = False
-            saw_finish = False
             try:
                 stream_timeout = httpx.Timeout(timeout, connect=4.0)
                 async with client.stream("POST", url, json=body, headers=headers, timeout=stream_timeout) as response:
@@ -470,46 +561,46 @@ async def stream_chat_completion_events(
                             slot.preferred_model = model_name
                             slot.unsupported_models.discard(model_name)
                         yield ("status", {"status": 200, "model": model_name})
-                        async for line in response.aiter_lines():
-                            line = line.strip()
-                            if not line.startswith("data:"):
-                                continue
-                            data_str = line[5:].strip()
-                            if data_str == "[DONE]":
-                                yield ("done", None)
-                                return
-                            try:
-                                chunk = json.loads(data_str)
-                            except Exception:  # noqa: BLE001 - skip malformed keep-alive lines
-                                continue
-                            if not isinstance(chunk, dict):
-                                continue
-                            choices = chunk.get("choices") or []
-                            choice = choices[0] if choices and isinstance(choices[0], dict) else {}
-                            finish_reason = choice.get("finish_reason")
-                            if chunk.get("error") is not None or finish_reason == "error":
-                                yield ("error", {"error": "Upstream provider returned a stream error"})
-                                return
-                            delta = choice.get("delta") or {}
-                            content = delta.get("content") or ""
-                            tool_calls = delta.get("tool_calls")
-                            if content or finish_reason or tool_calls:
-                                committed = committed or bool(content or tool_calls)
-                                saw_finish = saw_finish or bool(finish_reason)
-                                yield (
-                                    "event",
-                                    {
-                                        "delta": content,
-                                        "finish_reason": finish_reason,
-                                        "tool_calls": tool_calls,
-                                        "model": model_name,
-                                    },
+                        content_type = (response.headers.get("content-type") or "").lower()
+                        # One pass, two readings. The lines go through the SSE
+                        # parser as they arrive — so a body that dies halfway keeps
+                        # the text it already produced — and are also kept, so a
+                        # response that turns out to be one JSON completion can be
+                        # read as exactly that. Reading the body up front instead
+                        # would have been simpler and would have thrown away that
+                        # partial text, which is the whole reason this path exists.
+                        buffered: list[str] = []
+
+                        async def _tee(source=response.aiter_lines()):
+                            async for raw_line in source:
+                                buffered.append(raw_line)
+                                yield raw_line
+
+                        seen = 0
+                        async for sse_kind, sse_payload in _sse_stream_events(_tee(), model_name):
+                            if sse_kind in ("event", "heartbeat"):
+                                seen += 1
+                            if (
+                                sse_kind == "error"
+                                and seen == 0
+                                and "text/event-stream" not in content_type
+                            ):
+                                one_kind, one_payload = _single_shot_event(
+                                    "\n".join(buffered).encode("utf-8"), model_name
                                 )
-                        if saw_finish:
-                            yield ("done", None)
-                        else:
-                            yield ("error", {"error": "Upstream stream ended before completion"})
-                        return
+                                if one_kind == "event":
+                                    yield ("event", one_payload)
+                                    yield ("done", None)
+                                else:
+                                    yield ("error", one_payload)
+                                return
+                            if sse_kind == "event":
+                                committed = committed or bool(
+                                    sse_payload.get("delta") or sse_payload.get("tool_calls")
+                                )
+                            yield (sse_kind, sse_payload)
+                            if sse_kind in ("done", "error"):
+                                return
                     # Fatal auth/other errors: do not loop other models with same key
                     await response.aread()
                     logger.warning(f"[{provider}] Model {model_name} returned {status_code}; aborting stream.")
