@@ -1,7 +1,9 @@
-"""Keep-alive heartbeat for the Render scraper node.
+"""Keep-alive heartbeat for the scraper node.
 
-Pings https://supremeai-scraper-node.onrender.com/health every 10 minutes
-to prevent the free-tier container from idling/sleeping.
+Pings the scraper's health path every 10 minutes to prevent the free-tier
+container from idling/sleeping. The host is resolved from
+config/service_registry.yaml (env SCRAPER_HEALTH_URL wins), so this docstring
+deliberately names no deployment URL.
 """
 
 from __future__ import annotations
@@ -12,7 +14,12 @@ import urllib.request
 
 
 def main() -> None:
-    url = os.getenv("SCRAPER_HEALTH_URL", "https://supremeai-scraper-node.onrender.com/health")
+    try:
+        from repo_paths import service_endpoint as _service_endpoint
+        _default = _service_endpoint("scraper") or ""
+    except Exception:  # pragma: no cover
+        _default = ""
+    url = os.getenv("SCRAPER_HEALTH_URL", _default)
     interval = int(os.getenv("KEEPALIVE_INTERVAL_SECONDS", "600"))
     while True:
         try:

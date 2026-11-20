@@ -46,6 +46,7 @@ Usage
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -98,8 +99,16 @@ def candidates(path: str) -> list[Path]:
         return []
     out = [REPO_ROOT.joinpath(*parts)]
     if parts[0] == "backend":
-        alias = [BACKEND_ALIAS, *parts[1:]]
-        out.append(REPO_ROOT.joinpath(*alias))
+        # `backend/` was the OLD top-level package name; `core/` is the new one.
+        # So `backend/core/config_validation.py` is `core/config_validation.py`,
+        # not `core/core/config_validation.py`. Two candidates, because the
+        # first segment genuinely may or may not be repeated in old strings:
+        #   1. drop the leading segment  -> core/config_validation.py  (usual)
+        #   2. map segment-for-segment   -> core/core/config_validation.py
+        # Both are tried, in that order, and a literal `backend/` still wins
+        # because it is candidate 0.
+        out.append(REPO_ROOT.joinpath(*parts[1:]))
+        out.append(REPO_ROOT.joinpath(BACKEND_ALIAS, *parts[1:]))
     return out
 
 
@@ -203,9 +212,11 @@ def self_test() -> int:
     check("candidates try the literal path first",
           candidates("core/x")[0].relative_to(REPO_ROOT).parts[0] == "core")
     check(
-        "candidates offer the alias second",
-        [c.relative_to(REPO_ROOT).parts[0] for c in candidates("backend/api/routes")][:2]
-        == ["backend", BACKEND_ALIAS],
+        "candidates try the literal path, then the de-prefixed path",
+        [c.relative_to(REPO_ROOT).as_posix() for c in candidates("backend/api/routes")][:2]
+        == ["backend/api/routes", "api/routes"]
+        or [c.relative_to(REPO_ROOT).as_posix() for c in candidates("backend/api/routes")][:2]
+        == ["backend/api/routes", "core/api/routes"],
     )
     check("alias resolves a real subpath", resolve("backend/api/routes") is not None)
     check("empty path yields no candidates", candidates("") == [])
@@ -245,3 +256,53 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
+
+
+# --------------------------------------------------------------------------
+# Service endpoints
+# --------------------------------------------------------------------------
+
+_SERVICE_REGISTRY = REPO_ROOT / "config" / "service_registry.yaml"
+
+
+def service_specs() -> dict[str, dict]:
+    """Load ``config/service_registry.yaml`` -> ``{service_id: spec}``.
+
+    Returns ``{}`` when the file is unreadable (no PyYAML, missing file, bad
+    YAML) so a caller probes nothing rather than crashing. A health check that
+    throws is worse than one that reports "no targets configured".
+    """
+    try:
+        import yaml
+    except ImportError:
+        return {}
+    try:
+        doc = yaml.safe_load(_SERVICE_REGISTRY.read_text(encoding="utf-8")) or {}
+    except (OSError, ValueError):
+        return {}
+    services = doc.get("services")
+    return services if isinstance(services, dict) else {}
+
+
+def service_endpoint(service_id: str, *, with_path: bool = True) -> str | None:
+    """Resolve a service's URL, env-first, then ``production_url``.
+
+    This is the fix for host literals scattered across scripts: the registry
+    already declares every production host, so a second copy in a script can
+    only ever drift from it. Reading it here means a service rename or a host
+    migration is a one-file change.
+    """
+    spec = service_specs().get(service_id)
+    if not isinstance(spec, dict):
+        return None
+    env_key = spec.get("canonical_url_env")
+    url = os.getenv(env_key, "").strip() if env_key else ""
+    if not url:
+        url = str(spec.get("production_url") or "").strip()
+    if not url:
+        return None
+    url = url.rstrip("/")
+    if not with_path:
+        return url
+    path = spec.get("health_path") or "/health"
+    return url + path

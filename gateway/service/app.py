@@ -17,11 +17,13 @@ import json
 import logging
 import os
 import socket
+import sys
 import time
 import uuid
 from collections import deque
 from contextlib import suppress
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Optional, Tuple
 
 from fastapi import FastAPI, Header, HTTPException, Request, Response
@@ -514,6 +516,30 @@ async def _on_startup():
         )
     if transport["rejected_envs"]:
         logger.warning("Ignored relay env vars (not usable as a base URL): %s", transport["rejected_envs"])
+
+
+def _registry_url(service_id: str) -> str:
+    """Health URL for a service, from the registry (env first), or "".
+
+    An empty string means "not configured", which the caller already renders as
+    "unknown" rather than probing a meaningless localhost.
+    """
+    try:
+        from repo_paths import service_endpoint  # scripts/ci on sys.path in tooling
+    except ImportError:
+        try:
+            sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "ci"))
+            from repo_paths import service_endpoint
+        except Exception:
+            return ""
+    try:
+        return service_endpoint(service_id) or ""
+    except Exception as exc:  # pragma: no cover - defensive
+        # Never swallow silently: an empty URL renders as "unknown", and a
+        # warning is what tells you the registry drifted rather than the
+        # service being down.
+        logger.warning("service registry lookup failed for %r: %s", service_id, exc)
+        return ""
 
 
 # CORS setup for Studio and web agents - Restricted origins (no wildcard with credentials)
@@ -1733,12 +1759,19 @@ async def health_aggregation():
     # FIX(health 2026-10-24): stale/localhost defaults replaced. Defaults now point
     # only at hosts verified live on 2026-10-24 (api-ulw0, mcp-tower); nodes without
     # a configured URL report "unknown" instead of a meaningless localhost probe.
+    # Every URL resolved from config/service_registry.yaml (env always wins).
+    # This list used to be half-literal and half-empty: api and tower carried a
+    # hardcoded fallback while scraper, primary and worker fell back to "" — so
+    # the same endpoint behaved differently depending on which line you read.
     nodes = [
-        {"id": "api", "name": "API Gateway", "url": os.getenv("RENDER_API_URL", "https://supremeai-api-ulw0.onrender.com/health")},
-        {"id": "scraper", "name": "Scraper Relay", "url": os.getenv("RENDER_SCRAPER_URL", "")},
-        {"id": "tower", "name": "MCP Control Tower", "url": os.getenv("RENDER_MCP_URL", "https://supremeai-mcp-tower-live.onrender.com/health")},
-        {"id": "primary", "name": "Primary Core Node", "url": os.getenv("RENDER_PRIMARY_URL", "")},
-        {"id": "worker", "name": "Worker Node", "url": os.getenv("RENDER_WORKER_URL", "")},
+        {"id": sid, "name": name, "url": _registry_url(sid)}
+        for sid, name in (
+            ("api", "API Gateway"),
+            ("scraper", "Scraper Relay"),
+            ("mcp", "MCP Control Tower"),
+            ("core", "Primary Core Node"),
+            ("worker", "Worker Node"),
+        )
     ]
 
     import httpx

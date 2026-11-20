@@ -82,7 +82,18 @@ def resolve_mcp_server_url() -> str:
                     return strip_endpoint_suffixes(server_url)
         except Exception:
             pass
-    return "https://supremeai-mcp-tower-live.onrender.com"
+    # Derived from config/service_registry.yaml — see repo_paths.service_endpoint.
+    try:
+        from repo_paths import service_endpoint as _service_endpoint
+        resolved = _service_endpoint("mcp", with_path=False)
+        if resolved:
+            return resolved
+    except Exception:  # pragma: no cover - partial checkout
+        pass
+    raise RuntimeError(
+        "no MCP Tower URL configured: set RENDER_MCP_URL or add `mcp` to "
+        "config/service_registry.yaml"
+    )
 
 
 MCP_SERVER_URL = resolve_mcp_server_url()

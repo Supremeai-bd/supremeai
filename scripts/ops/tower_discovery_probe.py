@@ -34,7 +34,13 @@ import time
 import urllib.error
 import urllib.request
 
-DEFAULT_URL = "https://supremeai-mcp-tower-live.onrender.com/mcp"
+# Resolved from config/service_registry.yaml (env RENDER_MCP_URL wins), so a
+# host migration does not leave this probe pointing at a retired deployment.
+try:
+    from repo_paths import service_endpoint as _service_endpoint
+    DEFAULT_URL = (_service_endpoint("mcp", with_path=False) or "") + "/mcp"
+except Exception:  # pragma: no cover - offline/partial checkout
+    DEFAULT_URL = ""
 
 SECRET_PATTERNS = (
     "secret", "env_var", "envvar", "credential", "token", "_key", "key_",

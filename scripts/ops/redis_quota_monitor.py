@@ -47,7 +47,12 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-DEFAULT_TOWER_URL = "https://supremeai-mcp-tower-live.onrender.com/mcp"
+# Resolved from config/service_registry.yaml (env RENDER_MCP_URL wins).
+try:
+    from repo_paths import service_endpoint as _service_endpoint
+    DEFAULT_TOWER_URL = (_service_endpoint("mcp", with_path=False) or "") + "/mcp"
+except Exception:  # pragma: no cover
+    DEFAULT_TOWER_URL = ""
 DEFAULT_WARN_PCT = 80.0
 DEFAULT_CRIT_PCT = 95.0
 

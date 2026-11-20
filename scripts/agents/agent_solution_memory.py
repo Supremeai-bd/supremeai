@@ -64,9 +64,18 @@ STRATEGIC_FILE = REPO_ROOT / "data" / "strategic_decisions.jsonl"
 # --- Tower semantic-memory tier (#1747 slice 1: Gold Pearl, stdlib-only) ---
 # Session pattern mirrors examples/mcp-client-py/client.py (docs/MCP_CONNECT.md):
 # initialize -> Mcp-Session-Id -> notifications/initialized -> tools/call.
+# Resolved from config/service_registry.yaml rather than a literal, so a host
+# migration is a registry edit. Falls back to an empty string, which the
+# endswith("/mcp") normalisation below turns into an explicit configuration
+# error instead of a call to a retired host.
+try:
+    from repo_paths import service_endpoint as _service_endpoint
+    _TOWER_DEFAULT = _service_endpoint("mcp", with_path=False) or ""
+except Exception:  # pragma: no cover - partial checkout
+    _TOWER_DEFAULT = ""
 TOWER_MCP_URL = os.environ.get(
     "SUPREMEAI_MCP_TOWER_URL",
-    os.environ.get("MCP_TOWER_URL", "https://supremeai-mcp-tower-live.onrender.com"),
+    os.environ.get("MCP_TOWER_URL", _TOWER_DEFAULT),
 ).rstrip("/")
 if not TOWER_MCP_URL.endswith("/mcp"):
     TOWER_MCP_URL += "/mcp"
