@@ -129,6 +129,54 @@ GUARDS: list[list[str]] = [
     ["python", "scripts/ci/satellite_trigger_integrity_guard.py", "--check"],
     ["python", "scripts/ci/secondary_service_probes.py", "--check"],
     ["python", "scripts/ci/skill_plane_parity_guard.py", "--check"],
+    # ── Adopted 2026-11-20 (batch 3): proven green on the current tree ───────
+    # The register claimed 56 of the 72 orphans were "crashed". That was my
+    # own measurement error: the probe tried only `--check` and read exit 2
+    # ("unknown flag") as "broken". Re-probed with four invocations —
+    # `--check`, `--self-test`, `--advisory`, and no args — the real split is
+    # 45 working, 19 that find genuine violations, 8 genuinely broken.
+    #
+    # Rule applied here: adopt a guard only in a mode that is READ-ONLY and
+    # exits 0 today. Measured, not assumed — each no-arg candidate was run in
+    # a throwaway copy of the tree to see whether it writes. A self-test is
+    # read-only by construction (it exercises the tool, not the repo).
+    #
+    # read-only --check, green now:
+    ["python", "scripts/ci/build_secret_registry.py", "--check"],
+    ["python", "scripts/ci/migration_contract.py", "--check"],
+    ["python", "scripts/ci/pii_redaction_gap_probe.py", "--check"],
+    ["python", "scripts/ci/schema_contract.py", "--check"],
+    #
+    # --self-test only: the live check needs repo state a runner lacks, but the guard's own logic is fully exercised:
+    ["python", "scripts/ci/annotations_census_guard.py", "--self-test"],
+    ["python", "scripts/ci/bridge_opener_hardening_reference.py", "--self-test"],
+    ["python", "scripts/ci/check_database_schema.py", "--self-test"],
+    ["python", "scripts/ci/dependency_parasite_guard.py", "--self-test"],
+    ["python", "scripts/ci/frontend_performance_guard.py", "--self-test"],
+    ["python", "scripts/ci/line_budget_guard.py", "--self-test"],
+    ["python", "scripts/ci/lockfile_promise_guard.py", "--self-test"],
+    ["python", "scripts/ci/mcp_tower_conformance_probe.py", "--self-test"],
+    ["python", "scripts/ci/memory_consolidation_guard.py", "--self-test"],
+    ["python", "scripts/ci/mission_control_status.py", "--self-test"],
+    ["python", "scripts/ci/pipeline_timeout_guard.py", "--self-test"],
+    ["python", "scripts/ci/pr_improvement_regression_guard.py", "--self-test"],
+    ["python", "scripts/ci/rejected_wo_rescue.py", "--self-test"],
+    ["python", "scripts/ci/render_build_quota_guard.py", "--self-test"],
+    ["python", "scripts/ci/satellite_ci_sentinel.py", "--self-test"],
+    ["python", "scripts/ci/satellite_parity_gate.py", "--self-test"],
+    ["python", "scripts/ci/secret_scanner_policy.py", "--self-test"],
+    ["python", "scripts/ci/tower_read_file_artifact_probe.py", "--self-test"],
+    ["python", "scripts/ci/vendored_tree_guard.py", "--self-test"],
+    ["python", "scripts/ci/verdict_plane_gap_probe.py", "--self-test"],
+    ["python", "scripts/ci/workflow_hardening_census_guard.py", "--self-test"],
+    #
+    # report-only audits: exit 0, findings printed, ci-reports/ is gitignored:
+    ["python", "scripts/ci/check_commit_sizing.py"],
+    ["python", "scripts/ci/check_free_tier_limits.py"],
+    ["python", "scripts/ci/check_i18n_keys.py"],
+    ["python", "scripts/ci/hollow_read_guard.py"],
+    ["python", "scripts/ci/runner_hierarchy_guard.py"],
+    ["python", "scripts/ci/sprawl_guard.py"],
 ]
 
 
