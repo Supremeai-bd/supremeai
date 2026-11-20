@@ -10,6 +10,7 @@ import time
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 try:
     from dotenv import load_dotenv
@@ -22,12 +23,36 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
-# Fallback Services Dictionary
+def _registry_url(service_id: str) -> str:
+    """Production URL from config/service_registry.yaml, env-first, or "".
+
+    This script verifies a deploy by health-checking the service's URL. The
+    fallback below used to be the literal host supremeai-backend-docker, which
+    is RETIRED — so the fallback path verified a host that no longer serves
+    anything and reported the deploy as failed (or, worse, unreachable-but-not-
+    obviously-wrong). The registry already declares the live host per service;
+    reading it here means a host migration needs no edit in this file.
+    """
+    root = Path(__file__).resolve().parents[3]
+    ci_dir = root / "scripts" / "ci"
+    if str(ci_dir) not in sys.path:
+        sys.path.insert(0, str(ci_dir))
+    try:
+        from repo_paths import service_endpoint
+
+        return service_endpoint(service_id, with_path=False) or ""
+    except Exception:  # pragma: no cover - defensive; caller reports the gap
+        return ""
+
+
+# Fallback Services Dictionary. `url` is resolved from the registry at import:
+# empty means "not configured", which the callers surface rather than probing a
+# meaningless localhost or a retired host.
 SERVICES = {
     "srv-da07ogmgekts739amqa0": {
         "name": "Backend",
         "service_id": "srv-da07ogmgekts739amqa0",
-        "url": "https://supremeai-backend-docker.onrender.com"
+        "url": _registry_url("core"),
     }
 }
 
@@ -215,7 +240,9 @@ def main():
         svc = SERVICES.get(args.service_id, {
             "name": args.name or f"Service ({args.service_id})",
             "service_id": args.service_id,
-            "url": "https://supremeai-backend-docker.onrender.com"
+            # No literal fallback: an unknown service id has no declared host, so
+            # resolve by the same registry key the known one uses.
+            "url": os.getenv("RENDER_SERVICE_URL", "") or _registry_url("core"),
         })
         targets = [svc]
     else:

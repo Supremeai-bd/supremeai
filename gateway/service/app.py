@@ -542,8 +542,36 @@ def _registry_url(service_id: str) -> str:
         return ""
 
 
+def _registry_origin(service_id: str) -> str:
+    """Scheme+host only, for use as a CORS origin (never a health URL).
+
+    `_registry_url` appends the health path on purpose — right for a probe,
+    wrong for an Origin header, which must match exactly.
+    """
+    try:
+        from repo_paths import service_endpoint  # scripts/ci on sys.path in tooling
+    except ImportError:
+        try:
+            sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "ci"))
+            from repo_paths import service_endpoint
+        except Exception:
+            return ""
+    try:
+        return (service_endpoint(service_id, with_path=False) or "").rstrip("/")
+    except Exception:  # pragma: no cover - defensive
+        return ""
+
+
 # CORS setup for Studio and web agents - Restricted origins (no wildcard with credentials)
+#
+# The canonical Studio origin comes from the registry, not from a literal here:
+# config/service_registry.yaml declares `frontend` as platform=cloudflare with
+# production_url https://studio.supremeai.lat, and the Vercel/pages.dev hosts
+# below were listed INSTEAD of it — so the deployed frontend's real origin was
+# the one origin missing from the allowlist, while retired ones were allowed.
+# `_registry_url` is defined directly above for exactly this purpose.
 _default_cors = [
+    *filter(None, [_registry_origin("frontend")]),
     "https://supremeai-studio.vercel.app",
     "https://supremeai-studio.pages.dev",
     "https://supremeai-studio.paykaribazaronline.workers.dev",

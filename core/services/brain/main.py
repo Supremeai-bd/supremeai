@@ -53,16 +53,28 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS â€” explicit trusted origins only (no wildcard with credentials)
-_raw_brain_origins = [
+# CORS — explicit trusted origins only (no wildcard with credentials)
+#
+# The default used to be one comma-joined string literal, which had two problems
+# the other CORS defaults did not: no env var could ADD an origin (the literal
+# replaced the list rather than seeding it), and the canonical Studio origin
+# from config/service_registry.yaml was absent while retired hosts were present.
+# The floor now comes from core.middleware.cors_policy, the same source the
+# gateway and the settings Field use, so all three cannot drift apart.
+from core.middleware.cors_policy import (  # noqa: E402
+    DEFAULT_USER_ALLOWED_ORIGINS as _BRAIN_ORIGIN_FLOOR,
+)
+
+_DEV_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")
+
+_env_origins = [
     o.strip()
-    for o in os.getenv(
-        "CORS_ORIGINS",
-        "https://studio.supremeai.bd,https://supremeai-studio.vercel.app,http://localhost:5173,http://127.0.0.1:5173",
-    ).split(",")
+    for o in os.getenv("CORS_ORIGINS", "").split(",")
     if o.strip() and o.strip() != "*"
 ]
-ALLOWED_ORIGINS = _raw_brain_origins or ["https://studio.supremeai.bd"]
+ALLOWED_ORIGINS = list(
+    dict.fromkeys([*_env_origins, *_BRAIN_ORIGIN_FLOOR, *_DEV_ORIGINS])
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,

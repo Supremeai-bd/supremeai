@@ -68,12 +68,49 @@ def _load_origins(env_var: str, default: tuple[str, ...]) -> tuple[str, ...]:
 # hardcode_config_scanner.py's banned-domain list, so any reintroduction
 # gets flagged. Operators who still need it can re-add it via
 # USER_CORS_ORIGINS (env values can only ADD origins — see #1518 floor).
-DEFAULT_USER_ALLOWED_ORIGINS: tuple[str, ...] = (
-    "https://supremeai-a.web.app",  # Firebase Hosting user portal (production)
-    "https://supremeai-studio.vercel.app",
-    "https://supremeai-studio-live.vercel.app",  # Vercel studio
-    "https://supremeai-studio.pages.dev",  # Cloudflare Pages Studio (production)
-    "https://supremeai-studio.paykaribazaronline.workers.dev",
+def _registry_frontend_origin() -> str:
+    """The Studio origin config/service_registry.yaml declares, or "".
+
+    Issue: the defaults below listed five Studio hosts but NOT the canonical
+    one. The registry says `frontend` is platform=cloudflare with
+    production_url https://studio.supremeai.lat — and that origin appeared
+    nowhere in this file, so the origin the frontend is actually served from
+    was the one origin the floor did not guarantee.
+
+    Read lazily and defensively: this module is deliberately dependency-free
+    and must keep importing with no repo checkout around it. A missing registry
+    yields "" and the literal defaults still apply — unchanged behaviour on a
+    bare install, correct behaviour in the repo.
+    """
+    try:
+        from pathlib import Path as _Path
+        import sys as _sys
+
+        root = _Path(__file__).resolve().parents[2]
+        ci_dir = root / "scripts" / "ci"
+        if str(ci_dir) not in _sys.path:
+            _sys.path.insert(0, str(ci_dir))
+        from repo_paths import service_endpoint
+
+        return (service_endpoint("frontend", with_path=False) or "").rstrip("/")
+    except Exception:  # noqa: BLE001 - optional enrichment, never fatal
+        return ""
+
+
+DEFAULT_USER_ALLOWED_ORIGINS: tuple[str, ...] = tuple(
+    dict.fromkeys(
+        filter(
+            None,
+            (
+                "https://supremeai-a.web.app",  # Firebase Hosting user portal (production)
+                _registry_frontend_origin(),  # canonical Studio (from the registry)
+                "https://supremeai-studio.vercel.app",
+                "https://supremeai-studio-live.vercel.app",  # Vercel studio
+                "https://supremeai-studio.pages.dev",  # Cloudflare Pages Studio (production)
+                "https://supremeai-studio.paykaribazaronline.workers.dev",
+            ),
+        )
+    )
 )
 
 # Issue #1484 (CRITICAL): same story for the admin console — the admin origin

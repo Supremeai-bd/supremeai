@@ -13,6 +13,13 @@ from pydantic_settings import NoDecode
 # pydantic-free, and this module deliberately pulls in pydantic.
 from core.config_parsers import parse_origin_list  # re-export (do not remove)
 
+#: The user-origin floor, owned by cors_policy.py. Imported lazily-safe: that
+#: module is dependency-free by design, so this import cannot create a cycle or
+#: pull in FastAPI at settings-import time.
+from core.middleware.cors_policy import (
+    DEFAULT_USER_ALLOWED_ORIGINS as _DEFAULT_USER_CORS_FLOOR,
+)
+
 __all__ = ["SettingsFieldsMixin", "parse_origin_list"]
 
 
@@ -229,15 +236,16 @@ class SettingsFieldsMixin:
     # a static Field on this mixin would shadow the property in the MRO and
     # silently disable env-driven CORS validation (incl. STRICT_CORS_TEST bypass).
 
-    # Kept in sync with middleware/cors_policy.py defaults. Issue #1491:
-    # https://supremeai-lac.vercel.app is dead in production (HTTP 404) and was
-    # removed from the code-level defaults.
+    # DERIVED from middleware/cors_policy.py, not copied. This block used to say
+    # "kept in sync with cors_policy.py defaults" and then list a hand-typed
+    # subset — by 2026-11-20 it was missing three origins that the policy module
+    # did list (studio.supremeai.lat, .pages.dev, .workers.dev), so a deploy that
+    # relied on this Field shipped a narrower allowlist than the one the policy
+    # module describes. A comment asking future editors to stay in sync is not a
+    # mechanism; the import is. Issue #1491 (supremeai-lac.vercel.app, HTTP 404)
+    # is dropped at the source in cors_policy.py, so it cannot reappear here.
     user_cors_origins: str | list[str] = Field(
-        default=[
-            "https://supremeai-a.web.app",  # Firebase Hosting user portal
-            "https://supremeai-studio.vercel.app",
-            "https://supremeai-studio-live.vercel.app",  # Vercel studio
-        ],
+        default=list(_DEFAULT_USER_CORS_FLOOR),
         validation_alias="USER_CORS_ORIGINS",
     )
     admin_cors_origins: str | list[str] = Field(

@@ -100,12 +100,42 @@ def check_render(label: str, api_key: str, service_id: str) -> str | None:
     )
 
 
+def _registry_url(service_id: str) -> str:
+    """Production URL from config/service_registry.yaml, or "".
+
+    Both warm-up URLs used to default to literals — supremeai-backend-docker and
+    supremeai-backend, the first RETIRED and the second absent from the registry.
+    So on a run where the env vars were unset, preflight "warmed" two hosts that
+    serve nothing, and the ping failure made a healthy deploy look cold.
+
+    Empty is a legitimate result: ping_render_warmup is non-blocking, and an
+    empty URL now means "not configured" instead of "a host we invented".
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    ci_dir = root / "scripts" / "ci"
+    if str(ci_dir) not in sys.path:
+        sys.path.insert(0, str(ci_dir))
+    try:
+        from repo_paths import service_endpoint
+
+        return service_endpoint(service_id, with_path=False) or ""
+    except Exception:  # pragma: no cover - defensive
+        return ""
+
+
 def ping_render_warmup(label: str, service_url: str) -> None:
     """
     বাংলা মন্তব্য: Render-এর Free-tier সার্ভিস যদি ঘুমে (sleep mode) থাকে,
     তবে pipeline-এর শুরুতেই ping পাঠিয়ে তাকে আগেই জাগিয়ে (warm-up) নেওয়া হয়।
     এটি non-blocking — fail হলেও warning দেবে, CI থামাবে না।
     """
+    if not service_url:
+        # An unconfigured service has no host to wake. Saying so is honest and
+        # cheap; pinging "" would report a cold start for a host we never named.
+        print(f"  ⚪ [{label}-WARMUP] skipped — no URL configured (set RENDER_*_URL or the registry)")
+        return
     health_url = f"{service_url.rstrip('/')}/health"
     code = http_get(health_url, headers={"User-Agent": "SupremeAI-Preflight-Warmup/1.0"}, timeout=5)
     if code == 200:
@@ -263,8 +293,8 @@ def main() -> None:
     render_key_backup   = os.environ.get("RENDER_API_KEY_BACKUP", "") or render_key_primary
     primary_svc_id      = os.environ.get("PRIMARY_SVC_ID", "srv-da07ogmgekts739amqa0")
     backup_svc_id       = os.environ.get("BACKUP_SVC_ID",  "srv-da35gg2bkg8c73fp1mu0")
-    primary_svc_url     = os.environ.get("RENDER_PRIMARY_URL", "https://supremeai-backend-docker.onrender.com")
-    backup_svc_url      = os.environ.get("RENDER_BACKUP_URL",  "https://supremeai-backend.onrender.com")
+    primary_svc_url     = os.environ.get("RENDER_PRIMARY_URL") or _registry_url("core")
+    backup_svc_url      = os.environ.get("RENDER_BACKUP_URL", "")
     vercel_token        = resolve_numbered_key("VERCEL_TOKEN") or ""
     firebase_sa         = os.environ.get("FIREBASE_SERVICE_ACCOUNT", "")
     mirror_token        = os.environ.get("MIRROR_REPO_TOKEN", "")
