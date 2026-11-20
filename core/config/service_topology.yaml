@@ -82,7 +82,12 @@ services:
       - "infrastructure/mcp-control-plane/**"   # mcp-টাওয়ার পাথ cloudflare-কে আর ট্রিগার করবে না (#4246)
 
   frontend:
-    platform: vercel
+    # The Studio is served from Cloudflare Pages (supremeai-studio.pages.dev)
+    # through the edge proxy. This said `vercel` while config/service_registry.yaml
+    # said `cloudflare` — two SSOT files disagreeing about the same platform,
+    # which is exactly the drift the topology audit reported. Vercel hosting is
+    # retired (ECOSYSTEM_MAP.md:24 records the build as an archived console).
+    platform: cloudflare
     deploy_key: frontend
     watch_paths:
       - "studio/**"

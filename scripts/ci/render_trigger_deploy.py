@@ -157,6 +157,60 @@ def deploy_commit(record: dict) -> str | None:
     return sha if isinstance(sha, str) else None
 
 
+def _brief(payload: object, limit: int = 240) -> str:
+    """Truncated repr of an API payload, for a useful error line."""
+    text = repr(payload)
+    return text if len(text) <= limit else text[:limit] + "…"
+
+
+def _same_sha(a: str | None, b: str | None) -> bool:
+    """Compare SHAs tolerantly: Render may echo a short form of the commit."""
+    if not a or not b:
+        return False
+    a, b = a.strip().lower(), b.strip().lower()
+    return a == b or a.startswith(b) or b.startswith(a)
+
+
+def recover_deploy_id(
+    client: "RenderClient", svc_id: str, trigger_body: object, expected_sha: str | None
+) -> str | None:
+    """Recover a deploy id when the trigger response omitted it.
+
+    Render accepted the trigger but sometimes answers POST /deploys with a body
+    that carries no `id` — on 2026-11-21 that failed the `mcp` deploy job with
+    rc 2 ("strict CI cannot verify this deploy") even though the deploy had
+    been created. The id is one GET away, so fetch the service's latest deploy
+    instead of giving up.
+
+    Recovery is only accepted when the recovered deploy's commit matches the
+    expected SHA: otherwise an older deploy could be polled and reported as
+    this one, which is the false-green this strict mode exists to prevent.
+    """
+    try:
+        latest = client.get_latest_deploy(svc_id)
+    except Exception as exc:  # noqa: BLE001 - any transport failure means "no recovery"
+        print(f"Deploy id recovery failed for {svc_id}: {type(exc).__name__}: {exc}")
+        return None
+
+    record = deploy_record(latest)
+    candidate = record.get("id")
+    if not isinstance(candidate, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", candidate):
+        print(f"Deploy id recovery found no usable id for {svc_id}: {_brief(latest)}")
+        return None
+
+    if expected_sha:
+        built = deploy_commit(record)
+        if not _same_sha(built, expected_sha):
+            print(
+                f"Recovered deploy {candidate} for {svc_id} builds {built!r}, "
+                f"not the expected {expected_sha!r} — refusing to poll it."
+            )
+            return None
+
+    print(f"Recovered deploy id {candidate} for {svc_id} from the deploy list (trigger body carried none).")
+    return candidate
+
+
 def wait_for_terminal_state(
     client: RenderClient, svc_id: str, trigger_body: dict, *, expected_sha: str | None = None
 ) -> int:
@@ -168,8 +222,13 @@ def wait_for_terminal_state(
     """
     deploy_id = deploy_record(trigger_body).get("id")
     if not isinstance(deploy_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", deploy_id):
+        deploy_id = recover_deploy_id(client, svc_id, trigger_body, expected_sha)
+    if not isinstance(deploy_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", deploy_id):
         if expected_sha:
-            print("::error::Deploy trigger response carried no id; strict CI cannot verify this deploy.")
+            print(
+                "::error::Deploy trigger response carried no id and none could be "
+                f"recovered; strict CI cannot verify this deploy. trigger body={_brief(trigger_body)}"
+            )
             _allow_ci_fallback()
             return 2
         print("Deploy trigger response carried no id — cannot poll; treating as triggered (legacy behavior)")

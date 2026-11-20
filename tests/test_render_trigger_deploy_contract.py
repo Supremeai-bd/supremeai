@@ -133,3 +133,98 @@ def test_deploy_job_sets_strict_sha_mode():
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+# ---------------------------------------------------------------------------
+# Deploy-id recovery (2026-11-21: the `mcp` deploy job failed rc 2 because the
+# trigger body carried no id — the deploy existed, we just never learned its id)
+# ---------------------------------------------------------------------------
+sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci"))
+
+
+def _caller():
+    """Import the caller script (scripts/lib is already on sys.path)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("render_trigger_deploy_t", CALLER)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+class _LatestDeployClient:
+    def __init__(self, record: dict | Exception) -> None:
+        self.record = record
+        self.calls = 0
+
+    def get_latest_deploy(self, svc_id: str):  # noqa: D102
+        self.calls += 1
+        if isinstance(self.record, Exception):
+            raise self.record
+        return self.record
+
+
+SHA = "2a7c2e0a742b7f9a9055c869e9f52e435e4630d2"
+
+
+def test_recovers_the_id_when_the_trigger_body_carried_none():
+    caller = _caller()
+    client = _LatestDeployClient({"id": "dep-recovered1", "commit": {"id": SHA}})
+    recovered = caller.recover_deploy_id(client, "srv-abc", {}, SHA)
+    assert recovered == "dep-recovered1"
+    assert client.calls == 1
+
+
+def test_recovery_refuses_a_deploy_building_another_commit():
+    """Polling someone else's deploy is how a false green happens."""
+    caller = _caller()
+    client = _LatestDeployClient({"id": "dep-old", "commit": {"id": "b5809960"}})
+    assert caller.recover_deploy_id(client, "srv-abc", {}, SHA) is None
+
+
+def test_recovery_refuses_a_body_without_a_usable_id():
+    caller = _caller()
+    client = _LatestDeployClient({"message": "not a deploy", "commit": {"id": SHA}})
+    assert caller.recover_deploy_id(client, "srv-abc", {}, SHA) is None
+
+
+def test_recovery_survives_a_transport_error():
+    caller = _caller()
+    client = _LatestDeployClient(RuntimeError("network down"))
+    assert caller.recover_deploy_id(client, "srv-abc", {}, SHA) is None
+
+
+def test_strict_failure_surfaces_the_trigger_body():
+    """rc 2 used to say only "carried no id" — with no way to see what came back."""
+    src = CALLER.read_text(encoding="utf-8")
+    assert "_brief(trigger_body)" in src, (
+        "the rc-2 message no longer includes the trigger body; the next failure "
+        "will again be undiagnosable from the annotation alone"
+    )
+
+
+def test_wait_polls_a_recovered_id_instead_of_failing_strict_mode():
+    """End-to-end: trigger body has no id, recovery finds it, poll verifies live.
+
+    Without recovery this run returns 2 (the real `mcp` failure on 2026-11-21).
+    """
+    caller = _caller()
+
+    class _Client(RenderClient):
+        def __init__(self) -> None:
+            self.paths: list[str] = []
+
+        def _request(self, method, path, body=None, query=None):  # noqa: D102
+            self.paths.append(path)
+            if path.endswith("/deploys"):
+                return [{"id": "dep-rec1", "commit": {"id": SHA}}]
+            return {"id": "dep-rec1", "status": "live", "commit": {"id": SHA}}
+
+    client = _Client()
+    rc = caller.wait_for_terminal_state(client, "srv-x", {}, expected_sha=SHA)
+
+    assert rc == 0, f"strict deploy did not verify (rc={rc}); paths={client.paths}"
+    assert any(p.endswith("/deploys/dep-rec1") for p in client.paths), (
+        f"the recovered id was never polled: {client.paths}"
+    )
