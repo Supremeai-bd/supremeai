@@ -172,6 +172,9 @@ class Report:
     #: CI; ``ossinsight``, an optional integration). These may be perfectly fine
     #: at runtime, so they are reported as UNVERIFIED and never fail the guard.
     unverified_refs: List[str] = field(default_factory=list)
+    #: Dotted strings that resemble module paths but resolve to nothing and look
+    #: like capability names. Reported for visibility, never a failure.
+    string_hints: List[str] = field(default_factory=list)
     #: Modules that call ``import_module(<non-literal>)``. Their reach is unknown,
     #: so their whole subtree is treated as reachable instead of dead.
     opaque_importers: List[str] = field(default_factory=list)
@@ -553,6 +556,31 @@ def _looks_like_hostname(value: str) -> bool:
     return len(parts) >= 3 and parts[-1] in _HOSTNAME_TLDS
 
 
+#: Trailing segments that mark a dotted string as a callable/capability name
+#: rather than a module (``browser.session.close``, ``core.router.execute``).
+#:
+#: Deliberately a small, high-precision list of verbs: guessing from case or
+#: length alone produced false positives, and wrongly classifying a real module
+#: path here would HIDE a defect, which is the failure mode this tool exists to
+#: avoid. A name that is a genuine module and also on this list would simply be
+#: reported as a hint instead of an edge — conservative by construction.
+_VERB_SEGMENTS = frozenset({
+    "close", "open", "start", "stop", "run", "execute", "call", "invoke",
+    "send", "recv", "receive", "emit", "publish", "subscribe", "connect",
+    "disconnect", "read", "write", "create", "delete", "update", "patch",
+    "get", "post", "put", "list", "search", "query", "fetch", "load", "save",
+    "upload", "download", "cancel", "retry", "restart", "shutdown", "boot",
+    "health", "status", "ping", "sync", "flush", "clear", "reset", "register",
+    "login", "logout", "refresh", "validate", "verify", "scan", "crawl",
+    "navigate", "click", "type", "screenshot", "record", "capture", "stream",
+})
+
+
+def _looks_like_callable_name(value: str) -> bool:
+    """True when the last dotted segment is a verb, i.e. a capability name."""
+    return value.rsplit(".", 1)[-1] in _VERB_SEGMENTS
+
+
 def _is_dynamic_module_string(value: str) -> bool:
     if _looks_like_hostname(value):
         return False
@@ -561,6 +589,15 @@ def _is_dynamic_module_string(value: str) -> bool:
         and value.startswith(_DYNAMIC_PREFIXES)
     )
 
+
+#: Files outside Python that also dispatch Python modules: CI workflows and the
+#: Makefile. They are real callers — a script invoked only from
+#: `.github/workflows/*.yml` is live, and ignoring them was measured to make every
+#: roster-driven guard look unreachable (the roster is invoked from YAML only).
+_NON_PYTHON_DISPATCHERS = (
+    ".github/workflows/*.yml",
+    "Makefile",
+)
 
 #: Top-level names that belong to this repo, derived from the module map and the
 #: derived sys.path roots. Populated by :func:`compute_first_party_heads`.
@@ -834,6 +871,7 @@ def extract_edges(
     missing: Optional[List[str]] = None,
     opaque: Optional[List[str]] = None,
     unverified: Optional[List[str]] = None,
+    hint_sink: Optional[List[str]] = None,
 ) -> Tuple[List[Edge], int]:
     """Return (edges, unparseable_flag) for one module source.
 
@@ -855,6 +893,7 @@ def extract_edges(
     missing = missing if missing is not None else []
     opaque = opaque if opaque is not None else []
     unverified = unverified if unverified is not None else []
+    hints: List[str] = []
 
     def add(dst: Optional[str], kind: str) -> None:
         if dst and dst != module:
@@ -893,8 +932,12 @@ def extract_edges(
             missing.append(raw)
 
     def add_unresolved_hint(raw: str) -> None:
-        if raw not in unverified:
-            unverified.append(raw)
+        # HINTS are strings that merely resemble a module path. They belong in
+        # their own bucket: `unverified` means "external package we cannot
+        # check", and mixing the two made a control-plane vocabulary
+        # ("browser.session.close") look like an unresolvable dependency.
+        if raw not in hints:
+            hints.append(raw)
 
     # Import nodes that sit inside a ``try: ... except ImportError`` block are
     # OPTIONAL by construction: the author already decided the module may be
@@ -1025,21 +1068,76 @@ def extract_edges(
                     opaque.append(module)
 
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            # SCRIPT PATHS stored as data. The dispatcher pattern — a list of
+            # ``"scripts/ci/<name>.py"`` strings that a runner iterates — used to
+            # contribute NO edges, so every module invoked that way was reported
+            # unreachable. Measured: `scripts.ci.guard_inventory` was newly
+            # created, correctly registered in run_all_guards.py, and still
+            # reported as dead code by --check.
+            if node.value.endswith(".py") and "/" in node.value:
+                via_path = _module_from_path_token(node.value, modules)
+                if via_path:
+                    add(via_path, "string")
+                    continue
             # Module paths stored as data (the router mount table, plugin lists).
             if _is_dynamic_module_string(node.value):
+                # Verb-like trailing segments are capability/event names, not
+                # modules: ``"browser.session.close"`` is a capability id whose
+                # first segment happens to be a real package. Measured: two such
+                # strings were excused into the UNVERIFIED bucket, which is how a
+                # control-plane vocabulary silently pollutes the dependency report.
                 dst = resolve_module(node.value, modules, strict=True)
-                add(dst, "string")
-                if dst is None:
-                    # A string that merely LOOKS like a module path is a guess.
-                    # It is reported as an unresolved mount hint, never as a
-                    # dangling reference: measured failure mode was this tool's
-                    # own test fixtures ({"core.tests.test_x": ...}) being
-                    # reported as a deleted module.
-                    if _is_first_party_reference(node.value):
-                        add_unresolved_hint(node.value)
+                if dst is not None:
+                    # Resolution is the authority. Vocabulary must never veto a
+                    # real module: `api.routes.health` ends in the verb "health"
+                    # but IS a module, and an earlier verb-only rule dropped that
+                    # edge (measured regression).
+                    add(dst, "string")
+                    continue
+                if _looks_like_callable_name(node.value):
+                    add_unresolved_hint(node.value)
+                    continue
+                add(None, "string")
+                # A string that merely LOOKS like a module path is a guess. It
+                # becomes a HINT, never a dangling reference: the measured
+                # failure mode was this tool's own test fixtures
+                # ({"core.tests.test_x": ...}) being reported as deleted modules.
+                if _is_first_party_reference(node.value):
+                    add_unresolved_hint(node.value)
 
     # Deduplicate identical (src, dst, kind) triples.
+    if hint_sink is not None:
+        hint_sink.extend(hints)
     return list({(e.src, e.dst, e.kind): e for e in edges}.values()), 0
+
+
+def extract_dispatcher_edges(root: Path, modules: Dict[str, Path]) -> List[Edge]:
+    """Edges from non-Python dispatchers (workflows, Makefile) into modules.
+
+    A shell/YAML file cannot be parsed as Python, but it names the scripts it
+    runs, and that *is* the call graph. Without this, the only caller of
+    `run_all_guards.py` (and therefore of 60+ guards) is invisible, so the
+    guardian reports its own roster as dead code.
+
+    The synthetic source id is the file path with slashes replaced; it is
+    prefixed so it can never collide with a real module name.
+    """
+    edges: List[Edge] = []
+    for pattern in _NON_PYTHON_DISPATCHERS:
+        for path in sorted(root.glob(pattern)):
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            src = "@" + path.relative_to(root).as_posix()
+            for match in re.finditer(
+                r"[\w./-]*(?:scripts|core|gateway|browser|skills|tests)/[\w./-]+\.py", text
+            ):
+                token = match.group(0).lstrip("./")
+                dst = _module_from_path_token(token, modules)
+                if dst:
+                    edges.append(Edge(src=src, dst=dst, kind="dispatch"))
+    return edges
 
 
 def build_graph(root: Path) -> Report:
@@ -1087,6 +1185,7 @@ def build_graph(root: Path) -> Report:
     missing: List[str] = []
     opaque: List[str] = []
     unverified: List[str] = []
+    hints: List[str] = []
 
     for module in sorted(modules):
         try:
@@ -1096,9 +1195,13 @@ def build_graph(root: Path) -> Report:
         module_missing: List[str] = []
         module_opaque: List[str] = []
         module_unverified: List[str] = []
+        module_hints: List[str] = []
         edges, _bad = extract_edges(
-            module, source, modules, module_missing, module_opaque, module_unverified
+            module, source, modules, module_missing, module_opaque,
+            module_unverified, module_hints,
         )
+        for raw in module_hints:
+            hints.append(f"{module} -> {raw}")
         for raw in module_missing:
             missing.append(f"{module} -> {raw}")
         for raw in module_unverified:
@@ -1108,10 +1211,24 @@ def build_graph(root: Path) -> Report:
             report.edges.append(edge)
             kind_counts[edge.kind] += 1
 
+    # Non-Python dispatchers (CI workflows, Makefile) are callers too.
+    for edge in extract_dispatcher_edges(root, modules):
+        report.edges.append(edge)
+        kind_counts[edge.kind] += 1
+    dispatcher_ids = sorted(
+        {"@" + p.relative_to(root).as_posix()
+         for pattern in _NON_PYTHON_DISPATCHERS
+         for p in root.glob(pattern)}
+    )
+    report.entrypoints_found = sorted(
+        {e for e in report.entrypoints_found if not e.startswith("@")}
+    ) + dispatcher_ids
+
     report.edges.sort(key=lambda e: (e.src, e.dst, e.kind))
     report.edge_kind_counts = dict(sorted(kind_counts.items()))
     report.missing_refs = sorted(set(missing))
     report.unverified_refs = sorted(set(unverified))
+    report.string_hints = sorted(set(hints))
     report.opaque_importers = sorted(set(opaque))
     return report
 
@@ -1250,6 +1367,10 @@ def update_readme(report: Report) -> bool:
         return False
 
     total = len(report.modules)
+    # Service anchors and non-Python dispatchers are listed separately: nineteen
+    # "@.github/workflows/..." ids in one line made the README table unreadable.
+    dispatch_anchors = [e for e in report.entrypoints_found if e.startswith("@")]
+    svc_anchors = [e for e in report.entrypoints_found if not e.startswith("@")]
     edge_summary = ", ".join(f"{k}: {v}" for k, v in sorted(report.edge_kind_counts.items()))
     live = len(report.reachable)
     pct = (100.0 * live / total) if total else 0.0
@@ -1259,7 +1380,8 @@ def update_readme(report: Report) -> bool:
 ### 🗺️ Architecture Reality & Gap Map (generated from the import graph)
 
 > **Modules:** `{total}` | **Reachable from live entrypoints:** `{live}` ({pct:.1f}%) | **Unreachable:** `{dead}`  
-> **Entrypoints:** `{', '.join(report.entrypoints_found) or 'none found'}` | **Edges:** `{len(report.edges)}` ({edge_summary})  
+> **Service entrypoints:** `{', '.join(svc_anchors) or 'none found'}` | **Dispatcher entrypoints:** `{len(dispatch_anchors)}` (CI workflows + Makefile)  
+> **Edges:** `{len(report.edges)}` ({edge_summary})  
 > _Generated by `scripts/ci/architecture_gap_guardian.py`. Recounted from every `import`, router-mount string and `importlib` call — no hand-maintained module list. Full data: `docs/generated/architecture_gap_map.json`._
 
 ```mermaid
@@ -1302,10 +1424,19 @@ def build_json(report: Report) -> dict:
             # The highest-signal category: it is a guaranteed runtime failure path.
             "dangling_references": report.missing_refs,
             "dangling_count": len(report.missing_refs),
-            # Not verifiable statically (not installed here, not in a lock file):
-            # reported for visibility, never a failure.
+            # ENVIRONMENT-DEPENDENT, informational only. A package that is
+            # importable here but absent elsewhere moves in and out of this list
+            # (measured: 87 entries in one venv, 98 in another — differing only by
+            # sse_starlette). It is NOT part of the verdict: reachability, the
+            # dangling set and the unreachable set are byte-identical across venvs.
+            # Consumers must not gate on this key.
             "unverified_references": report.unverified_refs,
             "unverified_count": len(report.unverified_refs),
+            "unverified_is_environment_dependent": True,
+            # Capability-style dotted strings ("browser.session.close") that
+            # resolve to nothing. Vocabulary, not dependencies; never a failure.
+            "string_hints": report.string_hints,
+            "string_hint_count": len(report.string_hints),
             # Declared services whose entrypoint maps to no real module.
             "unresolved_services": report.entrypoints_missing,
         },

@@ -1101,6 +1101,22 @@ jobs:
       - name: Check the real Core routes build inference context
         run: python scripts/ci/check_gateway_context.py
 
+      # ── The guard roster, actually executed ────────────────────────────────
+      # `scripts/ci/run_all_guards.py` existed and was documented as "the same
+      # list CI runs in Tier 1/2" — but NO workflow invoked it (grep .github/ →
+      # 0 hits, 2026-11-20). 56 guards were maintained, documented and never run.
+      # Measured runtime for the full roster: ~31 s on 4 vCPU, so the fast lane
+      # costs seconds, not minutes.
+      - name: Install guard dependencies
+        run: |
+          pip install --quiet pyyaml pytest pyjwt requests
+          echo "Roster needs only PyYAML/pytest/pyjwt/requests (measured: 56/56"
+          echo "pass in a venv with exactly these four). Nothing heavier, so this"
+          echo "step cannot drift into a 5-minute install."
+
+      - name: Architecture + config + wiring guard roster (fast lane)
+        run: python scripts/ci/run_all_guards.py --fast
+
       - name: Detect Tower contract changes
         if: github.event_name == 'pull_request' || github.event_name == 'push'
         id: tower

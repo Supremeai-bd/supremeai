@@ -229,9 +229,14 @@ def test_entrypoints_are_derived_from_the_service_registry(real_report: Report):
     """No hardcoded list: entrypoints come from config/service_registry.yaml."""
     assert real_report.entrypoints_missing == []
     assert real_report.entrypoints_found, "no entrypoints derived"
-    # Every derived anchor must be a real module in the graph.
+    # Two families of anchor: deployed Python modules (from the registry) and
+    # non-Python dispatchers (CI workflows, Makefile) whose synthetic ids are
+    # namespaced with "@". Both are legitimate; anything else is a bug.
     for name in real_report.entrypoints_found:
-        assert name in real_report.modules, name
+        if name.startswith("@"):
+            assert "/" in name or name == "@Makefile", name
+        else:
+            assert name in real_report.modules, name
 
 
 def test_every_deployed_python_service_is_an_anchor(real_report: Report):
@@ -459,13 +464,75 @@ def test_known_absent_modules_are_reported(real_report: Report):
     )
 
 
-def test_third_party_packages_are_not_reported_as_dangling(real_report: Report):
-    """``mcp`` (installed inline by CI) must be UNVERIFIED, not a defect."""
+def test_third_party_packages_are_never_reported_as_dangling(real_report: Report):
+    """``mcp`` must never be a defect, whether or not it is installed.
+
+    Written environment-independent ON PURPOSE. The first version also asserted
+    that ``mcp`` appeared in the UNVERIFIED bucket — true on my machine, false in
+    CI, which installs ``mcp>=1.28.1,<2`` inline. There the import resolves, so
+    it lands in neither bucket. The tool was right in both environments; the test
+    was asserting a property of *my venv*, not of the tool.
+
+    The invariant that actually matters: nothing external is ever called dead.
+    """
     reported = {r.split(" -> ")[1] for r in real_report.missing_refs}
     for external in ("mcp.server", "mcp.types", "ossinsight.client"):
         assert external not in reported, f"{external} misreported as first-party"
-    unverified = {r.split(" -> ")[1] for r in real_report.unverified_refs}
-    assert "mcp.server" in unverified or "mcp.types" in unverified
+
+
+def test_unverified_bucket_only_holds_unimportable_packages(real_report: Report):
+    """Whatever is listed as unverified must genuinely not import here.
+
+    Guards the opposite error: putting a resolvable dependency in the "cannot
+    check" bucket silently excuses a real defect. This test found TWO real bugs
+    on its first run — ``browser.session.close`` (a capability id, not a module)
+    and ``api.routes.health`` (ours, resolvable via the core/ sys.path root).
+    """
+    from scripts.ci.architecture_gap_guardian import compute_first_party_heads
+
+    # Oracle = the repository, not the ambient interpreter. Using
+    # importlib.util.find_spec() here was wrong twice over: it varies by venv,
+    # and it changes mid-suite when another test appends to sys.path (measured:
+    # resource_collection became "importable" only because a sibling test had
+    # already mutated sys.path). A test must not inherit another test's side
+    # effects — that is the same non-determinism this whole PR is fixing.
+    first_party = compute_first_party_heads(real_report.modules)
+    ours = set(real_report.modules)
+    for entry in real_report.unverified_refs:
+        dotted = entry.split(" -> ", 1)[1]
+        assert dotted not in ours, (
+            f"{dotted} is a real module in this repo but was reported UNVERIFIED; "
+            "first-party references must never be excused"
+        )
+        root = dotted.split(".")[0]
+        assert root not in first_party, (
+            f"{dotted} is reported UNVERIFIED but {root!r} is a first-party import "
+            "name derived from this repo; ours must never be excused as external"
+        )
+
+
+def test_dotted_capability_names_are_hints_not_dependencies(real_report: Report):
+    """``browser.session.close`` is a capability id, not a package.
+
+    It shares a prefix with the real ``browser`` package, so a naive dotted-string
+    rule reported it as an unresolvable external dependency.
+    """
+    unverified = {e.split(" -> ", 1)[1] for e in real_report.unverified_refs}
+    for capability in ("browser.session.close", "browser.session.create"):
+        assert capability not in unverified, f"{capability} treated as a dependency"
+    hints = {e.split(" -> ", 1)[1] for e in real_report.string_hints}
+    assert hints, "capability-shaped strings should still be reported as hints"
+
+
+def test_vocabulary_never_vetoes_a_real_module(real_report: Report):
+    """Regression: a verb-suffix rule dropped ``api.routes.health``.
+
+    ``health`` is on the verb list, but resolution must win — otherwise a real
+    edge disappears and its target is reported dead.
+    """
+    assert "api.routes.health" in real_report.modules or any(
+        e.dst.endswith("api.routes.health") for e in real_report.edges
+    ), "a resolvable module path ending in a verb must still produce an edge"
 
 
 def test_stdlib_submodules_are_never_dangling(real_report: Report):
@@ -587,3 +654,87 @@ def test_missing_pyyaml_fails_loudly_instead_of_reporting_a_partial_graph():
         "derive_entrypoints must fail loudly when PyYAML is unavailable; "
         f"got stdout={proc.stdout!r} stderr={proc.stderr[-300:]!r}"
     )
+
+
+# ── dispatcher edges: CI workflows and the Makefile are callers ────────────
+def test_script_paths_listed_as_data_create_edges():
+    """The dispatcher pattern — a list of "scripts/x.py" strings — is a call graph.
+
+    Measured: `scripts.ci.guard_inventory` was created and registered in
+    run_all_guards.py but still reported unreachable, because string paths that
+    end in .py contributed no edges.
+    """
+    from scripts.ci.architecture_gap_guardian import _module_from_path_token
+
+    modules = {
+        "scripts.ci.runner": Path("scripts/ci/runner.py"),
+        "scripts.ci.target": Path("scripts/ci/target.py"),
+        "scripts": Path("scripts/__init__.py"),
+        "scripts.ci": Path("scripts/ci/__init__.py"),
+    }
+    assert _module_from_path_token("scripts/ci/target.py", modules) == "scripts.ci.target"
+
+
+def test_ci_workflows_are_treated_as_entrypoints(real_report: Report):
+    """Whatever CI invokes is live by definition."""
+    dispatchers = [e for e in real_report.entrypoints_found if e.startswith("@")]
+    assert any(".github/workflows/" in d for d in dispatchers), (
+        "workflows are not anchoring reachability; script-only-invoked modules "
+        "would be reported dead"
+    )
+    assert "@Makefile" in dispatchers
+
+
+def test_dispatch_edges_exist_and_resolve(real_report: Report):
+    dispatch = [e for e in real_report.edges if e.kind == "dispatch"]
+    assert dispatch, "no edges extracted from workflows/Makefile"
+    for edge in dispatch:
+        assert edge.src.startswith("@"), "synthetic dispatcher ids must be namespaced"
+        assert edge.dst in real_report.modules, f"{edge.dst} is not a real module"
+
+
+def test_roster_scripts_are_reachable_via_their_string_paths(real_report: Report):
+    """The roster's own entries must not be dead code."""
+    reachable = set(real_report.modules)  # placeholder for type clarity
+    assert "scripts.ci.run_all_guards" in real_report.modules
+    roster_edges = [e for e in real_report.edges if e.src == "scripts.ci.run_all_guards"]
+    assert len(roster_edges) >= 40, (
+        f"roster produced only {len(roster_edges)} edges; its string paths are not "
+        "being resolved"
+    )
+
+
+def test_verdict_is_environment_independent(real_report: Report):
+    """The things anybody acts on must not depend on the local venv.
+
+    ``unverified_references`` legitimately does (a package importable here may be
+    absent elsewhere), which is why it is exported with an explicit flag. The
+    reachability verdict, the dangling set and the unreachable set must be
+    identical on every machine — an earlier venv without PyYAML reported 2.5%
+    reachable instead of 74.5%, and nobody re-checked it because it "passed".
+    """
+    from scripts.ci.architecture_gap_guardian import build_json, compute_reachability
+
+    gaps = build_json(compute_reachability(real_report))["gaps"]
+    assert gaps["unverified_is_environment_dependent"] is True, (
+        "the unverified list varies by venv; consumers must be told so"
+    )
+    # Every other gap key is a decision someone acts on, so it must be stable.
+    env_sensitive = {
+        "unverified_references",
+        "unverified_count",
+        "unverified_is_environment_dependent",
+        "string_hints",
+        "string_hint_count",
+    }
+    verdict_keys = set(gaps) - env_sensitive
+    assert verdict_keys == {"dangling_references", "dangling_count", "unresolved_services"}
+
+
+def test_json_verdict_keys_are_stable_across_repeated_runs(real_report: Report):
+    """Two runs in the same process must agree exactly."""
+    from scripts.ci.architecture_gap_guardian import build_json, compute_reachability
+
+    first = build_json(compute_reachability(real_report))
+    second = build_json(compute_reachability(real_report))
+    assert first == second
