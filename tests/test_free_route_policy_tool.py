@@ -30,6 +30,11 @@ CREDENTIAL = "cookie-bundle-value"
 BASE = "https://relay.example.com"
 
 
+def live_evidence(engine="duck", **kwargs):
+    """Evidence block for a relay that just confirmed the engine."""
+    return tool.make_evidence(engine, **kwargs)
+
+
 @pytest.fixture
 def minted():
     return tool.build_entry(
@@ -40,6 +45,7 @@ def minted():
         vision_models=[],
         ttl_hours=24,
         hmac_key_hex=HMAC_KEY,
+        evidence=live_evidence(),
     )
 
 
@@ -58,11 +64,12 @@ def test_the_gateway_parser_accepts_the_minted_policy(minted):
 
     parsed = _policy(json.dumps([minted]))
     assert len(parsed) == 1, "the gateway would have silently approved nothing"
-    (provider, base_url, _tag), (expiry, models, vision) = next(iter(parsed.items()))
+    (provider, base_url, _tag), (expiry, models, vision, evidence) = next(iter(parsed.items()))
     assert provider == "claude_web"
     assert base_url == BASE
     assert models == ("duck-claude",)
     assert vision == ()
+    assert evidence is not None and evidence.engine == "duck"
 
 
 def test_secret_never_appears_in_the_output(minted):
@@ -107,6 +114,7 @@ def test_rules_the_parser_enforces_are_refused_early(models, vision, provider, r
             vision_models=vision,
             ttl_hours=24,
             hmac_key_hex=HMAC_KEY,
+            evidence=live_evidence(),
         )
     assert reason in str(excinfo.value)
 
@@ -132,7 +140,9 @@ def test_expiry_is_timezone_aware(minted):
 def test_check_reports_missing_and_expired(monkeypatch):
     monkeypatch.delenv("SUPREMEAI_FREE_ROUTE_POLICY", raising=False)
     lines = tool.check_approvals("", ["claude_web"])
-    assert lines == [f"MISSING  claude_web: no approval entry in {tool.POLICY_ENV}"]
+    assert lines == [
+        f"MISSING  claude_web: no approval entry in {tool.POLICY_ENV} (web slot: mint with --from-relay)"
+    ]
 
 
 def test_self_test_passes():
@@ -151,9 +161,200 @@ def test_main_refuses_without_an_hmac_key(monkeypatch, capsys):
 def test_main_mints_parseable_json(monkeypatch, capsys):
     monkeypatch.setenv(tool.HMAC_KEY_ENV, HMAC_KEY)
     monkeypatch.setenv("RELAY_CREDENTIAL", CREDENTIAL)
-    code = tool.main(["--provider", "claude_web", "--base-url", BASE,
+    monkeypatch.setattr(tool, "fetch_relay_health", lambda *_a, **_k: {"duck": {"state": "OK"}})
+    code = tool.main(["--provider", "claude_web", "--base-url", BASE, "--from-relay",
                       "--credential-env", "RELAY_CREDENTIAL", "--models", "duck-claude"])
     assert code == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload[0]["provider"] == "claude_web"
+    assert payload[0]["evidence"]["engine"] == "duck"
     assert CREDENTIAL not in json.dumps(payload)
+
+
+# --- B5: a web slot is approved on evidence, not on a promise ---------------
+# A catalog provider proves it is free with a `:free` model. A web slot has no
+# catalog — it is a browser session — so the only proof is the relay that holds
+# the session. These tests pin that an approval cannot be minted (or keep
+# serving) without a recent OK reading, and that one unproven slot does not take
+# the rest of the policy down with it.
+
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
+import urllib.error  # noqa: E402
+
+
+class _FakeResponse:
+    def __init__(self, body: bytes):
+        self._body = body
+
+    def read(self) -> bytes:
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def _opener(body: bytes = b"{}", *, error: Exception | None = None):
+    def open_url(request, timeout=None):  # noqa: ARG001 - mirrors urlopen's signature
+        if error is not None:
+            raise error
+        return _FakeResponse(body)
+
+    return open_url
+
+
+def test_engine_ids_match_the_gateway_mapping():
+    """The tool duplicates the engine map to stay dependency-free; drift fails here."""
+    from gateway.service.providers.web_engines import WEB_ENGINES_BY_PROVIDER
+
+    assert tool.WEB_ENGINE_IDS == {
+        provider: engine.engine for provider, engine in WEB_ENGINES_BY_PROVIDER.items()
+    }
+
+
+def test_a_web_slot_cannot_be_minted_on_a_promise():
+    with pytest.raises(tool.PolicyError, match="--from-relay"):
+        tool.build_entry(
+            provider="claude_web",
+            base_url=BASE,
+            credential=CREDENTIAL,
+            models=["duck-claude"],
+            vision_models=[],
+            ttl_hours=24,
+            hmac_key_hex=HMAC_KEY,
+        )
+
+
+def test_evidence_from_the_wrong_engine_cannot_approve_a_slot():
+    """`claude_web` routes to `duck`; a healthy gemini session proves nothing about it."""
+    with pytest.raises(tool.PolicyError, match="routes to `duck`"):
+        tool.build_entry(
+            provider="claude_web",
+            base_url=BASE,
+            credential=CREDENTIAL,
+            models=["duck-claude"],
+            vision_models=[],
+            ttl_hours=24,
+            hmac_key_hex=HMAC_KEY,
+            evidence=live_evidence("gemini-web"),
+        )
+
+
+def test_stale_evidence_is_refused_at_mint_time():
+    aged = live_evidence(observed_at=datetime.now(timezone.utc) - timedelta(hours=7))
+    with pytest.raises(tool.PolicyError, match="7.0h old"):
+        tool.build_entry(
+            provider="claude_web",
+            base_url=BASE,
+            credential=CREDENTIAL,
+            models=["duck-claude"],
+            vision_models=[],
+            ttl_hours=24,
+            hmac_key_hex=HMAC_KEY,
+            evidence=aged,
+        )
+
+
+def test_evidence_for_uses_the_relays_clock_not_the_mint_clock():
+    """`observed_at` is when the relay confirmed the session, not when we ran the tool."""
+    now = datetime.now(timezone.utc)
+    sessions = {"duck": {"state": "OK", "updated_at": (now - timedelta(hours=5)).timestamp()}}
+    evidence = tool.evidence_for("claude_web", sessions, now=now)
+    observed = datetime.fromisoformat(evidence["observed_at"])
+    assert 4.9 < (now - observed).total_seconds() / 3600 < 5.1
+    assert evidence["engine"] == "duck" and evidence["state"] == "OK"
+
+
+@pytest.mark.parametrize("state", ["EXPIRED", "CHALLENGED", "UNKNOWN"])
+def test_evidence_for_refuses_a_surface_that_is_not_ok(state):
+    with pytest.raises(tool.PolicyError, match="only a live OK surface"):
+        tool.evidence_for("claude_web", {"duck": {"state": state}})
+
+
+def test_evidence_for_refuses_an_engine_the_relay_never_mentioned():
+    with pytest.raises(tool.PolicyError, match="no `duck` session"):
+        tool.evidence_for("claude_web", {"gemini-web": {"state": "OK"}})
+
+
+def test_evidence_does_not_apply_to_a_catalog_provider():
+    with pytest.raises(tool.PolicyError, match="not a web slot"):
+        tool.evidence_for("kilo", {"duck": {"state": "OK"}})
+
+
+def test_fetch_relay_health_refuses_a_localhost_relay():
+    with pytest.raises(tool.PolicyError, match="https"):
+        tool.fetch_relay_health("http://127.0.0.1:8788")
+
+
+def test_fetch_relay_health_reports_http_errors():
+    error = urllib.error.HTTPError(BASE, 503, "down", {}, None)
+    with pytest.raises(tool.PolicyError, match="HTTP 503"):
+        tool.fetch_relay_health(BASE, opener=_opener(error=error))
+
+
+def test_fetch_relay_health_reports_a_body_that_is_not_json():
+    with pytest.raises(tool.PolicyError, match="not JSON"):
+        tool.fetch_relay_health(BASE, opener=_opener(b"<html>no</html>"))
+
+
+def test_fetch_relay_health_requires_session_evidence():
+    with pytest.raises(tool.PolicyError, match="no session evidence"):
+        tool.fetch_relay_health(BASE, opener=_opener(b'{"status": "ok"}'))
+
+
+def test_fetch_relay_health_parses_the_sessions_block():
+    body = json.dumps({"sessions": {"duck": {"state": "OK"}, "junk": 3}}).encode()
+    sessions = tool.fetch_relay_health(BASE, opener=_opener(body))
+    assert sessions == {"duck": {"state": "OK"}}
+
+
+def test_the_gateway_drops_only_the_unproven_entry(monkeypatch):
+    """One slot without evidence must not disable the providers that never needed it."""
+    from gateway.service.free_route_policy import _policy, approved_route
+
+    monkeypatch.setenv(tool.HMAC_KEY_ENV, HMAC_KEY)
+    kilo = tool.build_entry("kilo", "https://kilo.example.com", "k", ["glm-5:free"], [], 24, HMAC_KEY)
+    unproven = {
+        key: value
+        for key, value in tool.build_entry(
+            "claude_web", BASE, CREDENTIAL, ["duck-claude"], [], 24, HMAC_KEY, evidence=live_evidence()
+        ).items()
+        if key != "evidence"
+    }
+    monkeypatch.setenv(tool.POLICY_ENV, json.dumps([unproven, kilo]))
+    parsed = _policy(json.dumps([unproven, kilo]))
+    assert [identity[0] for identity in parsed] == ["kilo"]
+    assert approved_route("claude_web", BASE, CREDENTIAL) is None
+    assert approved_route("kilo", "https://kilo.example.com", "k") is not None
+
+
+def test_the_gateway_stops_serving_when_evidence_ages_out(monkeypatch):
+    """The approval is still in date; the session it was approving is not."""
+    from gateway.service.free_route_policy import approved_route
+
+    monkeypatch.setenv(tool.HMAC_KEY_ENV, HMAC_KEY)
+    minted = tool.build_entry(
+        "claude_web", BASE, CREDENTIAL, ["duck-claude"], [], 72, HMAC_KEY, evidence=live_evidence()
+    )
+    monkeypatch.setenv(tool.POLICY_ENV, json.dumps([minted]))
+    assert approved_route("claude_web", BASE, CREDENTIAL) is not None
+
+    aged = minted | {
+        "evidence": minted["evidence"]
+        | {"observed_at": (datetime.now(timezone.utc) - timedelta(hours=8)).isoformat()}
+    }
+    monkeypatch.setenv(tool.POLICY_ENV, json.dumps([aged]))
+    assert approved_route("claude_web", BASE, CREDENTIAL) is None
+
+
+def test_check_reports_stale_evidence(minted):
+    aged = minted | {
+        "evidence": minted["evidence"]
+        | {"observed_at": (datetime.now(timezone.utc) - timedelta(hours=8)).isoformat()}
+    }
+    (line,) = tool.check_approvals(json.dumps([aged]), ["claude_web"])
+    assert line.startswith("STALE"), line
+    assert "duck OK" in line

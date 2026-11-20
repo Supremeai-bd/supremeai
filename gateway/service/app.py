@@ -29,6 +29,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from .pool import squad
+from .providers.web_engines import RELAY_BASE_URL_ENVS, transport_report
 from .providers.adapters import (
     PROVIDER_CONFIGS,
     close_stealth_client,
@@ -391,6 +392,23 @@ async def _on_startup():
     # One latency ingest loop for the web relay: the pool ranks by latency, and
     # the relay already measures it per engine. Read-only, no inference, no quota.
     app.state.web_engine_task = asyncio.create_task(web_engine_health_loop(squad))
+    # Which relay the web engines will actually be dispatched to, named once at
+    # startup. A deploy whose env var is misspelled used to look identical to a
+    # working one until the first request 404'd.
+    transport = transport_report()
+    if transport["configured"]:
+        logger.info(
+            "Web relay transport: %s (from %s)", transport["base_url"], transport["source_env"]
+        )
+    else:
+        logger.warning(
+            "Web relay transport: %s — no relay env var set (checked %s); "
+            "web engines will fail outside a local laptop",
+            transport["base_url"],
+            ", ".join(RELAY_BASE_URL_ENVS),
+        )
+    if transport["rejected_envs"]:
+        logger.warning("Ignored relay env vars (not usable as a base URL): %s", transport["rejected_envs"])
 
 
 # CORS setup for Studio and web agents - Restricted origins (no wildcard with credentials)
@@ -1068,6 +1086,7 @@ async def internal_status(
         "chat_ready": bool(STEALTH_WEBHOOK_URL),
         "stealth_priority1_configured": bool(STEALTH_WEBHOOK_URL),
         "stealth_dns": stealth_dns,
+        "web_transport": transport_report(),
         "web_sessions_active": bool(web_bridge and web_bridge.has_active_accounts),
         "web_session_status": web_bridge.status() if web_bridge else {},
         "webhook_scout": webhook_scout.get_status() if webhook_scout else {},
