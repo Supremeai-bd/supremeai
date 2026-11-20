@@ -60,19 +60,8 @@ Zero credentials, read-only. No mutation. Stdlib only.
 from __future__ import annotations
 
 # Host resolved from config/service_registry.yaml (env wins) — never a literal.
-try:
-    from repo_paths import service_endpoint as _service_endpoint
-except ImportError:  # pragma: no cover - direct invocation outside scripts/ci
-    import sys as _sys
-    from pathlib import Path as _Path
-    _sys.path.insert(0, str(_Path(__file__).resolve().parent))
-    from repo_paths import service_endpoint as _service_endpoint
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
 
-
-def _svc(service_id, path=""):
-    """Registry URL for a service, optionally with a sub-path appended."""
-    base = _service_endpoint(service_id, with_path=False) or ""
-    return base + path
 
 import argparse
 import json
@@ -132,52 +121,17 @@ def _head_from_tower_push_runs(runs: list, branch: str):
     return None
 
 
-def _rpc(method, params=None, session_id=None, notify=False, attempts=3):
-    """Minimal zero-credential MCP client (bridge_intake_gate_watchdog `_rpc` shape).
 
-    Full-body `resp.read()` keeps large single-line SSE payloads intact —
-    line-iterating clients split the runs surface mid-line. Backoff 3/6/9s.
-    """
-    payload = {"jsonrpc": "2.0", "method": method}
-    if params is not None:
-        payload["params"] = params
-    if not notify:
-        payload["id"] = 1
-    headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json, text/event-stream",
-        # Streamable HTTP (spec rev >= 2025-06-18): every post-initialize
-        # request must carry the negotiated version (mirrors
-        # PROTOCOL_VERSION_STREAMABLE in mcp_tower_client.py / #2568).
-        "MCP-Protocol-Version": "2025-11-25",
-    }
-    if session_id:
-        headers["Mcp-Session-Id"] = session_id
-    last = None
-    for attempt in range(attempts):
-        req = urllib.request.Request(TOWER, data=json.dumps(payload).encode(),
-                                     headers=headers, method="POST")
-        try:
-            with urllib.request.urlopen(req, timeout=45) as resp:  # nosec B310 — pinned https module constant (house audit #2081 class)
-                sid = resp.headers.get("Mcp-Session-Id")
-                body = resp.read().decode("utf-8", errors="replace")
-                ctype = resp.headers.get("Content-Type") or ""
-                break
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
-            last = exc
-            time.sleep(3 * (attempt + 1))
-    else:
-        raise last
-    if "text/event-stream" in ctype:
-        for line in body.splitlines():
-            if line.startswith("data:"):
-                try:
-                    return json.loads(line[5:].strip()), sid
-                except ValueError:
-                    continue
-    if not body.strip():
-        return {"accepted": True}, sid
-    return json.loads(body), sid
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from tower_rpc_client import rpc as _shared_rpc  # noqa: E402
+
+
+def _rpc(method, params=None, session_id=None, notify=False, attempts=3):
+    """Thin alias for tower_rpc_client.rpc (one implementation, not four)."""
+    return _shared_rpc(method, params, session_id=session_id,
+                       notify=notify, attempts=attempts)
 
 
 def _text_of(res) -> str:

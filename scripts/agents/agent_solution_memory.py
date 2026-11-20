@@ -70,7 +70,7 @@ STRATEGIC_FILE = REPO_ROOT / "data" / "strategic_decisions.jsonl"
 # error instead of a call to a retired host.
 try:
     from repo_paths import service_endpoint as _service_endpoint
-    _TOWER_DEFAULT = _service_endpoint("mcp", with_path=False) or ""
+    _TOWER_DEFAULT = _svc("mcp") or ""
 except Exception:  # pragma: no cover - partial checkout
     _TOWER_DEFAULT = ""
 TOWER_MCP_URL = os.environ.get(

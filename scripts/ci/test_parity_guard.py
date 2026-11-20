@@ -48,7 +48,7 @@ ALLOWLIST: dict[str, str] = {
     "scripts/agents/learning_feedback.py": "covered by test_learning_feedback",
     "scripts/ci/federation_dispatch.py": "covered by test_federation_dispatch, test_federation_transit",
     "scripts/ci/staggered_rolling_train.py": "covered by test_s12_nightly_train",
-    "scripts/ci/probe_live_status.py": "live probe, manual/CI-only",
+    "scripts/ci/tower_rpc_client.py": "covered by tests/unit/test_tower_rpc_client.py",
     "scripts/ci/validate_md_links.py": "covered by test_validate_schemas",
     "scripts/ci/admin_sovereignty_guard.py": "covered by test_admin_sovereignty",
     "scripts/ci/auto_bridge_pr_opener.py": "bridge opener, exercised by CI",

@@ -50,7 +50,7 @@ from pathlib import Path
 # Resolved from config/service_registry.yaml (env RENDER_MCP_URL wins).
 try:
     from repo_paths import service_endpoint as _service_endpoint
-    DEFAULT_TOWER_URL = (_service_endpoint("mcp", with_path=False) or "") + "/mcp"
+    DEFAULT_TOWER_URL = (_svc("mcp") or "") + "/mcp"
 except Exception:  # pragma: no cover
     DEFAULT_TOWER_URL = ""
 DEFAULT_WARN_PCT = 80.0

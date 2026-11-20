@@ -19,7 +19,7 @@ import urllib.request
 # Resolved from config/service_registry.yaml (env wins) instead of a literal.
 try:
     from repo_paths import service_endpoint as _service_endpoint
-    _TOWER_DEFAULT = (_service_endpoint("mcp", with_path=False) or "") + "/mcp"
+    _TOWER_DEFAULT = (_svc("mcp") or "") + "/mcp"
 except Exception:  # pragma: no cover
     _TOWER_DEFAULT = ""
 TOWER_URL = os.environ.get("SUPREMEAI_MCP_URL", _TOWER_DEFAULT)

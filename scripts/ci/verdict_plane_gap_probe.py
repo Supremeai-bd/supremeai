@@ -94,19 +94,8 @@ single negotiated session for its whole run).
 from __future__ import annotations
 
 # Host resolved from config/service_registry.yaml (env wins) — never a literal.
-try:
-    from repo_paths import service_endpoint as _service_endpoint
-except ImportError:  # pragma: no cover - direct invocation outside scripts/ci
-    import sys as _sys
-    from pathlib import Path as _Path
-    _sys.path.insert(0, str(_Path(__file__).resolve().parent))
-    from repo_paths import service_endpoint as _service_endpoint
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
 
-
-def _svc(service_id, path=""):
-    """Registry URL for a service, optionally with a sub-path appended."""
-    base = _service_endpoint(service_id, with_path=False) or ""
-    return base + path
 
 import argparse
 import json
@@ -233,20 +222,12 @@ class TowerSession:
 
 
 def _fetch_work_orders(fetch_text) -> tuple:
-    """Open work orders across the queue-fidelity ladder (watchdog shape)."""
-    last_err: Exception = RuntimeError("queue ladder exhausted")
-    for limit in QUEUE_LIMIT_LADDER:
-        arguments = {} if limit is None else {"limit": limit}
-        try:
-            payload = json.loads(fetch_text("bridge.work_queue", arguments))
-        except json.JSONDecodeError as err:
-            last_err = err
-            continue
-        if not isinstance(payload, dict) or payload.get("isError"):
-            last_err = TypeError(f"queue rung {limit} answered a non-payload")
-            continue
-        return (payload.get("workOrders", []) or [], limit)
-    raise last_err
+    """Alias for tower_rpc_client.fetch_work_orders (one implementation).
+
+    `fetch_text` is required, not defaulted to the local `_tower_text` shim:
+    this probe injects its own transport at every call site.
+    """
+    return _shared_fetch_work_orders(fetch_text)
 
 
 def _fetch_open_prs(fetch_text, repo: str) -> list:

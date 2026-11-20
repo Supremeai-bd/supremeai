@@ -310,3 +310,31 @@ def service_endpoint(service_id: str, *, with_path: bool = True) -> str | None:
         return url
     path = spec.get("health_path") or "/health"
     return url + path
+
+
+def svc(service_id: str, path: str = "") -> str:
+    """Registry URL for a service, with ``path`` appended (may be empty).
+
+    This exists so scripts do not each grow their own copy of:
+
+        try:
+            from repo_paths import service_endpoint as _service_endpoint
+        except ImportError: ... sys.path bootstrap ...
+        def _svc(service_id, path=""): ...
+
+    Fifteen scripts did exactly that, and the repo's anti-duplication gate
+    correctly called it out (23 new clones). One shared helper is the fix that
+    gate is asking for, not an exemption.
+    """
+    return (service_endpoint(service_id, with_path=False) or "") + path
+
+
+def bootstrap_sibling_import() -> None:
+    """Make ``import repo_paths`` work from a sibling ``scripts/*/`` directory.
+
+    Calling this at module top makes a plain ``from repo_paths import svc``
+    sufficient — no try/except, no path arithmetic at each call site.
+    """
+    here = Path(__file__).resolve().parent
+    if str(here) not in sys.path:
+        sys.path.insert(0, str(here))

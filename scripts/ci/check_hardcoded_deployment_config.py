@@ -180,7 +180,6 @@ EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
     ("scripts/ci/health_incident_plane_guard.py", _DOC_EXAMPLE, None),
     ("scripts/ci/hollow_read_guard.py", _DOC_EXAMPLE, None),
     ("scripts/ci/mcp_conformance_selftest.py", _DOC_EXAMPLE, None),
-    ("scripts/ci/probe_live_status.py", _DOC_EXAMPLE, None),
     ("scripts/ci/probe_live_status_453.py", _DOC_EXAMPLE, None),
     ("scripts/ci/tenant_negative_battery.py", _DOC_EXAMPLE, None),
     ("scripts/ci/verify_ci_attestation.py", _DOC_EXAMPLE, None),

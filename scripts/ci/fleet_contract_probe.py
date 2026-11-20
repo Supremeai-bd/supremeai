@@ -56,19 +56,9 @@ Zero credentials, read-only GET, stdlib-only, no production mutation.
 
 from __future__ import annotations
 
-# Hosts resolved from config/service_registry.yaml (env wins) — never literals.
-try:
-    from repo_paths import service_endpoint as _service_endpoint
-except ImportError:  # pragma: no cover
-    import sys as _sys
-    from pathlib import Path as _Path
-    _sys.path.insert(0, str(_Path(__file__).resolve().parent))
-    from repo_paths import service_endpoint as _service_endpoint
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
 
-
-def _svc(service_id, path=""):
-    base = _service_endpoint(service_id, with_path=False) or ""
-    return base + path
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; direct run puts scripts/ci on sys.path)
 
 import argparse
 import json

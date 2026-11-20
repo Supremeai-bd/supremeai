@@ -38,7 +38,7 @@ import urllib.request
 # host migration does not leave this probe pointing at a retired deployment.
 try:
     from repo_paths import service_endpoint as _service_endpoint
-    DEFAULT_URL = (_service_endpoint("mcp", with_path=False) or "") + "/mcp"
+    DEFAULT_URL = (_svc("mcp") or "") + "/mcp"
 except Exception:  # pragma: no cover - offline/partial checkout
     DEFAULT_URL = ""
 
