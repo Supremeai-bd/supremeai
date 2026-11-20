@@ -56,3 +56,15 @@ def test_runner_probe_tries_later_token_after_successful_empty_response(
 
     assert audit.is_local_runner_online(timeout=1.0) is True
     assert calls == ["Bearer first-token", "Bearer second-token"]
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [("{", 0.0), ("[]", 0.0), ('{"timestamp":null}', 0.0), ('{"timestamp":42}', 42.0)],
+)
+def test_marker_timestamp(monkeypatch, tmp_path, content, expected):
+    marker = tmp_path / "audit.json"
+    monkeypatch.setattr(audit, "AUDIT_MARKER_FILE", marker)
+    assert audit.get_last_audit_timestamp() == 0.0
+    marker.write_text(content, encoding="utf-8")
+    assert audit.get_last_audit_timestamp() == expected

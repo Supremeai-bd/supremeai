@@ -20,22 +20,23 @@ class _Gate:
     """বাংলা মন্তব্য: thread-safe গেট — fake sync-কল শুরু/ছাড় নিয়ন্ত্রণ।"""
 
     def __init__(self) -> None:
-        self.started = threading.Event()
+        self.loop = asyncio.get_running_loop()
+        self.loop_thread = threading.get_ident()
+        self.started = asyncio.Event()
         self.release = threading.Event()
 
     def block_until_released(self) -> None:
-        self.started.set()
+        assert threading.get_ident() != self.loop_thread, "sync provider ran on the event loop"
+        self.loop.call_soon_threadsafe(self.started.set)
         assert self.release.wait(timeout=5.0), "test gate never released (timeout)"
 
-    async def wait_started(self, timeout: float = 3.0) -> None:
-        # বাংলা মন্তব্য: threading.Event লুপ-ব্লক না করে অপেক্ষা
-        await asyncio.wait_for(asyncio.to_thread(self.started.wait, timeout), timeout=timeout + 1)
-
-
-async def _prove_loop_is_live() -> float:
-    """বাংলা মন্তব্য: ০.১s-এর কো-রুটিন লুপ-ব্লক ছাড়া সম্পন্ন হয় প্রমাণ।"""
-    await asyncio.sleep(0.1)
-    return 0.1
+    async def release_when_blocked(self, task: asyncio.Task) -> None:
+        # বাংলা: worker আটকে থাকা অবস্থাতেই লুপ notification পায়; sleep লাগে না।
+        try:
+            await asyncio.wait_for(self.started.wait(), timeout=3.0)
+            assert not task.done()
+        finally:
+            self.release.set()
 
 
 # ── 1. recall_memories — embedding offload ────────────────────────────────────
@@ -67,14 +68,7 @@ async def test_recall_memories_offloads_blocking_embedding(monkeypatch):
     task = asyncio.create_task(
         ms.recall_memories(task_description="loop-liveness probe", limit=1, user_id="fixture-user")
     )
-    await gate.wait_started()
-
-    # বাংলা মন্তব্য: embedding এখনো worker-thread-এ আটকে আছে — লুপ জীবিত হলেই
-    # নিচের ০.১s কো-রুটিন ০.৫s-বাজেটে শেষ হবে (আগের sync-কলে এটি অসম্ভব ছিল)
-    elapsed = await asyncio.wait_for(_prove_loop_is_live(), timeout=0.5)
-    assert elapsed == pytest.approx(0.1, abs=0.05)
-
-    gate.release.set()
+    await gate.release_when_blocked(task)
     result = await asyncio.wait_for(task, timeout=3.0)
     assert isinstance(result, list)  # বাংলা: fallback পথ সৎ []/ম্যাচ ফেরত দেয়
 
@@ -97,11 +91,7 @@ async def test_save_memory_offloads_blocking_embedding(monkeypatch):
     task = asyncio.create_task(
         ms.save_memory(session_id="s-offload", summary="offload probe", user_id="u1")
     )
-    await gate.wait_started()
-    elapsed = await asyncio.wait_for(_prove_loop_is_live(), timeout=0.5)
-    assert elapsed == pytest.approx(0.1, abs=0.05)
-
-    gate.release.set()
+    await gate.release_when_blocked(task)
     result = await asyncio.wait_for(task, timeout=3.0)
     assert isinstance(result, dict)
 
@@ -124,11 +114,7 @@ async def test_research_search_offloads_blocking_urlopen(monkeypatch):
     monkeypatch.setattr(ResearchAssistant, "search", blocking_search)
 
     task = asyncio.create_task(research_search(ResearchRequest(query="quantum decoherence")))
-    await gate.wait_started()
-    elapsed = await asyncio.wait_for(_prove_loop_is_live(), timeout=0.5)
-    assert elapsed == pytest.approx(0.1, abs=0.05)
-
-    gate.release.set()
+    await gate.release_when_blocked(task)
     result = await asyncio.wait_for(task, timeout=3.0)
     # বাংলা মন্তব্য: রুট সৎ প্রতিক্রিয়া-শেপ {count, results, source} — ব্লক-মুক্ত সম্পন্নই চুক্তি
     assert isinstance(result, dict)

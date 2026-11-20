@@ -144,6 +144,9 @@ jobs:
       - name: Fast fatal error & syntax lint
         run: ruff check core/ gateway/ scripts/ci/ --select E9,F63,F7,F82 --exclude core/tests/
 
+      - name: Runner probe exception and exec checks
+        run: ruff check --isolated --select BLE001,S110,S102 scripts/ci/check_opportunistic_audit.py scripts/ci/resolve_execution_tier.py
+
       - name: Critical Security & Architecture Guards Suite
         run: |
           pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py tests/ci/test_deploy_environment_split.py tests/test_web_engine_providers.py tests/test_web_engine_health.py tests/test_free_route_policy_tool.py browser/tests/test_relay_session_state.py browser/tests/test_relay_streaming.py browser/tests/test_relay_kill_switch.py gateway/tests/test_web_engine_stream.py gateway/tests/test_injury_hysteresis.py tests/test_web_surfaces_controls.py core/tests/agents/test_agents_unified.py
@@ -261,6 +264,9 @@ jobs:
       - name: Tier 1 — Fast fatal error & syntax lint
         shell: powershell
         run: ruff check core/ gateway/ scripts/ci/ --select E9,F63,F7,F82 --exclude core/tests/
+
+      - name: Runner probe exception and exec checks
+        run: ruff check --isolated --select BLE001,S110,S102 scripts/ci/check_opportunistic_audit.py scripts/ci/resolve_execution_tier.py
 
       - name: Tier 1 — Critical Security & Architecture Guards Suite
         shell: powershell

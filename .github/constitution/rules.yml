@@ -248,8 +248,8 @@ living_protocols:
 bootstrap:
   - step: "git fetch origin --prune && cat AGENTS.md"
     note: "সেশন শুরুতে সর্বদা main sync ও AGENTS.md পড়ো — rules পরিবর্তন হয়েছে কিনা দেখো"
-  - step: "cat docs/architecture/ARCH-LIVING-PIPELINE-01.md"
-    note: "Living Pipeline canon পড়ো — পূর্ণ প্রেক্ষাপট ও গেট-ম্যাপ"
+  - step: "cat docs/PR_TO_PRODUCTION_LIFECYCLE.md"
+    note: "বর্তমান PR, runner ও deployment চুক্তি পড়ো"
   - step: "python scripts/agents/acquire_role_slot.py --role <lane>"
     note: "অটো-ডিসকভারি: পরবর্তী প্রায়োরিটি ইস্যু নিজে খুঁজে স্লট ও ব্রাঞ্চ তৈরি করে। নির্দিষ্ট ইস্যুর জন্য: --issue <id>"
   - step: "./scripts/ci/atomic_claim.sh <issue#> <agent>"

@@ -344,17 +344,19 @@ def resolve_module(
     Each candidate is tried under every derived sys.path root
     (``api.routes.x`` -> ``core.api.routes.x``).
     """
+    if strict:
+        # বাংলা: পূর্ণ নাম চাইলে প্রতিটি prefix-এর জন্য split/join লাগে না।
+        for prefix in _PATH_ROOTS:
+            candidate = prefix + dotted
+            if candidate in modules:
+                return candidate
+        return _MODULE_ALIASES.get(dotted)
     for prefix in _PATH_ROOTS:
         base_parts = f"{prefix}{dotted}".split(".")
-        lowest = len(base_parts) if strict else 1
-        for i in range(len(base_parts), lowest - 1, -1):
+        for i in range(len(base_parts), 0, -1):
             candidate = ".".join(base_parts[:i])
             if candidate in modules:
                 return candidate
-    if strict:
-        # Package-relative import names (``dynamic_router`` for
-        # ``scripts.agents.dynamic_router``), derived from the tree.
-        return _MODULE_ALIASES.get(dotted)
     return None
 
 
@@ -943,8 +945,9 @@ def extract_edges(
     # OPTIONAL by construction: the author already decided the module may be
     # absent. Reporting them as defects teaches people to ignore the report
     # (measured: 6 of the 13 "defects" were deliberate fallback chains).
+    nodes = list(ast.walk(tree))  # বাংলা: একই মডিউলের AST দুবার traverse নয়।
     optional_nodes: Set[int] = set()
-    for node in ast.walk(tree):
+    for node in nodes:
         if not isinstance(node, ast.Try):
             continue
         handles_import_error = any(
@@ -966,7 +969,7 @@ def extract_edges(
     def _is_optional(node: ast.AST) -> bool:
         return id(node) in optional_nodes
 
-    for node in ast.walk(tree):
+    for node in nodes:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 dst = resolve_module(alias.name, modules, strict=True)
@@ -1157,7 +1160,6 @@ def build_graph(root: Path) -> Report:
     modules = discover_modules(root)
     report.modules = modules
     global _FIRST_PARTY_HEADS, _THIRD_PARTY_HEADS, _MODULE_ALIASES
-    global _MODULE_ALIASES
     _MODULE_ALIASES = discover_module_aliases(modules)
     _FIRST_PARTY_HEADS = compute_first_party_heads(modules)
     # ORDER MATTERS: declared requirements feed the external set, and the external

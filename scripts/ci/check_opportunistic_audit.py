@@ -9,24 +9,24 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import time
 import urllib.request
 from datetime import datetime, timezone
+from http.client import HTTPException
 from pathlib import Path
 
 AUDIT_MARKER_FILE = Path("config/ci/last_nightly_audit.json")
 
 
 def get_last_audit_timestamp() -> float:
-    if AUDIT_MARKER_FILE.exists():
-        try:
-            with open(AUDIT_MARKER_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return float(data.get("timestamp", 0))
-        except Exception:
-            pass
-    return 0.0
+    try:
+        with AUDIT_MARKER_FILE.open(encoding="utf-8") as f:
+            data = json.load(f)
+        return float(data.get("timestamp", 0)) if isinstance(data, dict) else 0.0
+    except (OSError, TypeError, ValueError, OverflowError):
+        return 0.0
 
 
 def save_audit_timestamp(ts: float | None = None) -> None:
@@ -62,12 +62,11 @@ def _get_candidate_tokens() -> list[str]:
     # Local development fallback via GitHub CLI if available
     if not tokens:
         try:
-            import subprocess
             out = subprocess.check_output(["gh", "auth", "token"], text=True, stderr=subprocess.DEVNULL).strip()
             if out:
                 tokens.append(out)
-        except Exception:
-            pass
+        except (OSError, subprocess.CalledProcessError, UnicodeError):
+            return tokens
 
     return tokens
 
@@ -109,7 +108,7 @@ def is_local_runner_online(timeout: float = 4.0) -> bool:
             if http_err.code in (401, 403):
                 continue
             print(f"::warning::GitHub runners API HTTP {http_err.code}: {http_err.reason}", file=sys.stderr)
-        except Exception as exc:
+        except (OSError, HTTPException, ValueError, TypeError, AttributeError) as exc:
             print(f"::warning::Failed to query GitHub runners API: {exc}", file=sys.stderr)
 
     return False

@@ -7,13 +7,14 @@ CAS atomic claim, lease/heartbeat renewal, Zero Zombie reap (failover),
 retry/failed lifecycle, role/capability matching, queue visibility।
 
 কোনো fake/mock নেই — আসল TaskRouter (in-memory mode, Redis ছাড়া) দিয়ে।
-asyncio_mode = "auto" (pyproject) — async test সরাসরি চলে।
+প্রতি test নিজস্ব event loop-এ চলে।
 """
 
 from __future__ import annotations
 
 import asyncio
 import unittest
+from unittest.mock import patch
 
 from core.task_router import (
     TaskRouter,
@@ -22,7 +23,7 @@ from core.task_router import (
 )
 
 
-class TaskRouterCoreTest(unittest.TestCase):
+class TaskRouterCoreTest(unittest.IsolatedAsyncioTestCase):
     """TaskRouter-এর ব্যাপক behavior contract।"""
 
     def setUp(self) -> None:
@@ -157,10 +158,10 @@ class TaskRouterCoreTest(unittest.TestCase):
         # 1 সেকেন্ডের lease — মেয়াদ শেষ করে reap যাচাই।
         await self.router.claim_task(node_id="pc-dead", capabilities=["bash"], lease_seconds=1)
         leased = await self.router.get_task(rec.task_id)
-        assert leased is not None
+        assert leased is not None and leased.lease_expires_epoch is not None
         self.assertEqual(leased.status, "leased")
-        await asyncio.sleep(1.1)
-        reaped = await self.router.reap_expired_leases()
+        with patch.object(self.router, "_now_epoch", return_value=leased.lease_expires_epoch + 0.01):
+            reaped = await self.router.reap_expired_leases()
         self.assertIn(rec.task_id, reaped)
         after = await self.router.get_task(rec.task_id)
         assert after is not None
@@ -170,8 +171,10 @@ class TaskRouterCoreTest(unittest.TestCase):
     async def test_reap_after_max_attempts_fails_permanently(self) -> None:
         rec = await self.router.submit_task(task_type="bash", title="zombie-max", max_attempts=1)
         await self.router.claim_task(node_id="pc-dead", capabilities=["bash"], lease_seconds=1)
-        await asyncio.sleep(1.1)
-        await self.router.reap_expired_leases()
+        leased = await self.router.get_task(rec.task_id)
+        assert leased is not None and leased.lease_expires_epoch is not None
+        with patch.object(self.router, "_now_epoch", return_value=leased.lease_expires_epoch + 0.01):
+            await self.router.reap_expired_leases()
         after = await self.router.get_task(rec.task_id)
         assert after is not None
         self.assertEqual(after.status, "failed")
@@ -217,8 +220,6 @@ class TaskRouterCoreTest(unittest.TestCase):
             await self.router._claim_specific("task-missing", node_id="pc-1")
 
     async def test_get_task_router_wires_redis_when_available(self) -> None:
-        from unittest.mock import patch
-
         reset_task_router_for_tests()
         sentinel_redis = object()
         with patch("core.cache.redis_manager.redis_manager") as mock_mgr:

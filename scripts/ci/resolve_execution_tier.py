@@ -17,6 +17,7 @@ import json
 import os
 import sys
 import urllib.request
+from http.client import HTTPException
 from pathlib import Path
 
 # Reuse the canonical local-runner probe to avoid code duplication (Zero-Recurrence Invariant).
@@ -56,7 +57,7 @@ def is_render_ci_worker_available() -> bool:
             if suspended:
                 return False
         return True
-    except Exception as exc:
+    except (OSError, HTTPException, ValueError) as exc:
         print(f"::warning::Render CI worker probe failed ({exc}); not selecting Priority 2", file=sys.stderr)
         return False
 
@@ -67,7 +68,7 @@ def resolve_tier() -> str:
         try:
             if is_local_runner_online():
                 return "local-self-hosted"
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — probe ব্যর্থ হলেও cloud fallback চালাতে হবে
             print(f"::warning::Local runner probe error ({exc}); continuing to cloud tiers", file=sys.stderr)
 
     remaining, quota_known = get_render_quota_remaining()

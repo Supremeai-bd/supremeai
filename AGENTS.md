@@ -52,7 +52,7 @@ PR খোলার সাথে সাথেই gh issue edit <id> --add-label '
 ## Bootstrap Checklist (সেশন শুরু হলে ঠিক এই ক্রমে কাজ করো)
 
 1. `git fetch origin --prune && cat AGENTS.md` — সেশন শুরুতে সর্বদা main sync ও AGENTS.md পড়ো — rules পরিবর্তন হয়েছে কিনা দেখো
-2. `cat docs/architecture/ARCH-LIVING-PIPELINE-01.md` — Living Pipeline canon পড়ো — পূর্ণ প্রেক্ষাপট ও গেট-ম্যাপ
+2. `cat docs/PR_TO_PRODUCTION_LIFECYCLE.md` — বর্তমান PR, runner ও deployment চুক্তি পড়ো
 3. `python scripts/agents/acquire_role_slot.py --role <lane>` — অটো-ডিসকভারি: পরবর্তী প্রায়োরিটি ইস্যু নিজে খুঁজে স্লট ও ব্রাঞ্চ তৈরি করে। নির্দিষ্ট ইস্যুর জন্য: --issue <id>
 4. `./scripts/ci/atomic_claim.sh <issue#> <agent>` — ইস্যু ক্লেইম ও 'Touching files:' ঘোষণা করো (GH_TOKEN অটো-fallback: gh auth login)
 5. `python scripts/agents/mcp_tower_client.py heartbeat --slot agent-<N> --name <id>` — Control Tower Heartbeat: MCP মেশে নিজেকে 'state=online' রেজিস্টার করো

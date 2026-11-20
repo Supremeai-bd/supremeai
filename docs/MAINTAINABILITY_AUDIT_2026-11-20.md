@@ -17,6 +17,9 @@ so the findings that matter are the ones that make *navigation cheap* and *drift
 
 ### G.1 🔴 The roster that "adopted" these guards is never executed
 
+> **Historical finding, since addressed:** `unified-pipeline.yml` now runs
+> `run_all_guards.py --fast`, and the PR battery includes the architecture guardian tests.
+
 §1.2 above records the fix as *"roster entry added (`run_all_guards.py`)"*. That entry does
 exist — but **no workflow invokes the roster**:
 
