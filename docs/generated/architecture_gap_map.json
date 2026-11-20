@@ -1,12 +1,13 @@
 {
   "status_summary": {
-    "total_components": 13,
-    "live_count": 6,
+    "total_components": 14,
+    "live_count": 7,
     "gap_count": 7
   },
   "component_status": {
     "Public_Studio_Web": "LIVE",
     "Public_Studio_Desktop": "LIVE",
+    "Public_Edge_Functions": "LIVE",
     "Gateway_Entry": "LIVE",
     "Gateway_Arbiter": "LIVE",
     "Browser_Relay": "LIVE",

@@ -8,6 +8,7 @@ flowchart TD
     subgraph LiveMesh [Live Production Mesh (Active Traffic)]
         Public_Studio_Web["Web Client (React 19 + Tailwind v4)"]
         Public_Studio_Desktop["Desktop / Android App (Tauri v2 Rust Core)"]
+        Public_Edge_Functions["Cloudflare Pages & Edge Proxy"]
         Gateway_Entry["API Gateway Entry (FastAPI)"]
         Gateway_Arbiter["Gateway Core Service & Route Arbiter"]
         Browser_Relay["Browser Relay (DuckAi / Fast-Path)"]
@@ -26,31 +27,33 @@ flowchart TD
 
     Public_Studio_Web --> Gateway_Entry
     Public_Studio_Desktop --> Gateway_Entry
+    Public_Edge_Functions --> Gateway_Entry
     Gateway_Entry --> Gateway_Arbiter
-    Gateway_Arbiter --> Browser_Relay
     Gateway_Arbiter --> MCP_Control_Tower
+    Gateway_Arbiter --> Browser_Relay
     Gateway_Arbiter --> Gateway_Entry
-    Browser_Relay --> Gateway_Arbiter
     Browser_Relay --> Gateway_Entry
+    Browser_Relay --> Gateway_Arbiter
     MCP_Control_Tower --> Browser_Relay
-    MCP_Control_Tower --> Gateway_Arbiter
     MCP_Control_Tower --> Gateway_Entry
+    MCP_Control_Tower --> Gateway_Arbiter
     Task_Engine --> Gateway_Arbiter
-    Reasoning_Orchestrator --> Task_Engine
     Reasoning_Orchestrator --> Gateway_Arbiter
+    Reasoning_Orchestrator --> Task_Engine
     Autonomous_Browser --> Reasoning_Orchestrator
     Autonomous_Browser --> Gateway_Arbiter
     MCP_Hub_Routes --> Browser_Relay
-    MCP_Hub_Routes --> Gateway_Arbiter
     MCP_Hub_Routes --> Gateway_Entry
-    Redis_Manager --> Gateway_Arbiter
+    MCP_Hub_Routes --> Gateway_Arbiter
     Redis_Manager --> Gateway_Entry
-    Supabase_Client --> Gateway_Arbiter
+    Redis_Manager --> Gateway_Arbiter
     Supabase_Client --> Gateway_Entry
+    Supabase_Client --> Gateway_Arbiter
     RAG_Pipeline --> Gateway_Arbiter
 
     class Public_Studio_Web live;
     class Public_Studio_Desktop live;
+    class Public_Edge_Functions live;
     class Gateway_Entry live;
     class Gateway_Arbiter live;
     class Browser_Relay live;
