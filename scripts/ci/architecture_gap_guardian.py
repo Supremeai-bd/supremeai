@@ -94,10 +94,21 @@ SCAN_ROOTS = ("gateway", "core", "browser")
 
 #: Modules whose import is the definition of "live traffic". A module is LIVE if
 #: it is reachable from any of these by a directed edge chain.
+#:
+#: These are taken from the deployment CMD lines, not from what the code looks
+#: like it should be. The first draft of this list named ``gateway.main`` — which
+#: is the boot-smoke entry point exercised by tests — while production actually
+#: runs ``uvicorn gateway.service.app:app`` (gateway/Dockerfile) and
+#: ``uvicorn main:app`` (browser/Dockerfile, which imports ``browser.server``).
+#: Anchoring on the wrong one made the entire gateway look unreachable. That is
+#: the same class of mistake this module exists to catch, so the anchor list is
+#: now derived from the Dockerfiles and must be re-checked when they change.
 LIVE_ENTRYPOINTS = (
-    "gateway.main",          # uvicorn entrypoint (gateway container)
+    "gateway.service.app",   # gateway/Dockerfile CMD: uvicorn gateway.service.app:app
+    "browser.main",          # browser/Dockerfile CMD: uvicorn main:app
+    "browser.server",        # relay app imported by browser.main (fallback path)
+    "gateway.main",          # app factory + boot-smoke surface (gateway/__init__)
     "core.lifespan",         # core app factory startup path
-    "browser.server",        # relay / stealth-webhook container
 )
 
 #: ``sys.path`` roots the project actually runs with. A dotted name is tried

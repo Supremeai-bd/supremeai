@@ -185,6 +185,35 @@ def test_all_entrypoints_exist(real_report: Report):
     assert set(real_report.entrypoints_found) == set(LIVE_ENTRYPOINTS)
 
 
+def test_entrypoints_match_the_deployment_cmd():
+    """The anchor list must come from the Dockerfiles, not from intuition.
+
+    First draft anchored on ``gateway.main`` (the boot-smoke entry point the
+    tests exercise) while production runs ``uvicorn gateway.service.app:app``.
+    The whole gateway then looked unreachable. This pins the real CMD lines so
+    the same mistake cannot be made silently again.
+    """
+    dockerfile = (ROOT / "gateway/Dockerfile").read_text(encoding="utf-8")
+    assert "gateway.service.app:app" in dockerfile, "gateway Dockerfile CMD changed"
+    assert "gateway.service.app" in LIVE_ENTRYPOINTS
+
+    browser_dockerfile = (ROOT / "browser/Dockerfile").read_text(encoding="utf-8")
+    assert "main:app" in browser_dockerfile, "browser Dockerfile CMD changed"
+    assert "browser.main" in LIVE_ENTRYPOINTS
+
+
+def test_gateway_http_stack_is_reachable(real_report: Report):
+    """The middlewares must be live — they are mounted by gateway.service.app."""
+    un = set(real_report.unreachable)
+    for module in (
+        "gateway.service.app",
+        "gateway.middleware.security_headers",
+        "gateway.middleware.server_timing",
+        "gateway.middleware.http_header_middleware",
+    ):
+        assert module not in un, f"{module} wrongly reported unreachable"
+
+
 def test_graph_is_substantial(real_report: Report):
     """A guardian that sees only 10 files cannot find real gaps."""
     assert len(real_report.modules) > 1000, "scanned too few modules to be meaningful"

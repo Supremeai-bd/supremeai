@@ -7,12 +7,15 @@ flowchart TD
     classDef dead fill:#5c0002,stroke:#ba181b,stroke-width:2px,color:#ffccd5,stroke-dasharray: 5 5;
 
     subgraph LiveEntry [Live Entrypoints]
+        browser__main["browser.main"]
         browser__server["browser.server"]
         core__lifespan["core.lifespan"]
         gateway__main["gateway.main"]
+        gateway__service__app["gateway.service.app"]
     end
 
     subgraph Subsystems [Reachable Subsystems (module counts)]
+        browser__main["browser.main · 1 modules"]
         browser__server["browser.server · 1 modules"]
         core["core · 1 modules"]
         core___monitoring_legacy["core._monitoring_legacy · 1 modules"]
@@ -189,14 +192,23 @@ flowchart TD
         core__web_ai_session_bridge["core.web_ai_session_bridge · 1 modules"]
         core__workers["core.workers · 2 modules"]
         core__zero_cost_architecture["core.zero_cost_architecture · 2 modules"]
+        gateway["gateway · 1 modules"]
         gateway__dual_pool_priority_router["gateway.dual_pool_priority_router · 1 modules"]
+        gateway__frontend_compat["gateway.frontend_compat · 1 modules"]
         gateway__main["gateway.main · 1 modules"]
-        gateway__service["gateway.service · 4 modules"]
+        gateway__memory_gate["gateway.memory_gate · 1 modules"]
+        gateway__middleware["gateway.middleware · 4 modules"]
+        gateway__model_horizon["gateway.model_horizon · 1 modules"]
+        gateway__prompt_injection["gateway.prompt_injection · 1 modules"]
+        gateway__service["gateway.service · 18 modules"]
+        gateway__tool_pruner["gateway.tool_pruner · 1 modules"]
     end
 
+    browser__main --> browser__main
     browser__server --> browser__server
     core__lifespan --> core__lifespan
     gateway__main --> gateway__main
+    gateway__service__app --> gateway__service
 
     subgraph Unreachable [Unreachable from LIVE entrypoints]
         browser__action_cascade["browser.action_cascade"]
@@ -228,7 +240,6 @@ flowchart TD
         browser__ghost_tower__stealth_browser_engine__session_manager["browser.ghost_tower.stealth_browser_engine.session_manager"]
         browser__ghost_tower__stealth_browser_engine__stealth_profile["browser.ghost_tower.stealth_browser_engine.stealth_profile"]
         browser__ghost_tower__sync_cookies_to_infisical["browser.ghost_tower.sync_cookies_to_infisical"]
-        browser__main["browser.main"]
         browser__playwright_manager["browser.playwright_manager"]
         browser__routes["browser.routes"]
         browser__routes___cognitive["browser.routes._cognitive"]
@@ -239,12 +250,16 @@ flowchart TD
         browser__routes___session_store["browser.routes._session_store"]
         browser__runtime["browser.runtime"]
         browser__runtime__config["browser.runtime.config"]
-        _more["… 794 more (see JSON)"]
+        browser__runtime__content_pruner["browser.runtime.content_pruner"]
+        _more["… 770 more (see JSON)"]
     end
 
+    class browser__main live;
     class browser__server live;
     class core__lifespan live;
     class gateway__main live;
+    class gateway__service__app live;
+    class browser__main live;
     class browser__server live;
     class core live;
     class core___monitoring_legacy live;
@@ -421,9 +436,16 @@ flowchart TD
     class core__web_ai_session_bridge live;
     class core__workers live;
     class core__zero_cost_architecture live;
+    class gateway live;
     class gateway__dual_pool_priority_router live;
+    class gateway__frontend_compat live;
     class gateway__main live;
+    class gateway__memory_gate live;
+    class gateway__middleware live;
+    class gateway__model_horizon live;
+    class gateway__prompt_injection live;
     class gateway__service live;
+    class gateway__tool_pruner live;
     class browser__action_cascade dead;
     class browser__autonomous_browser dead;
     class browser__browser_agent dead;
@@ -453,7 +475,6 @@ flowchart TD
     class browser__ghost_tower__stealth_browser_engine__session_manager dead;
     class browser__ghost_tower__stealth_browser_engine__stealth_profile dead;
     class browser__ghost_tower__sync_cookies_to_infisical dead;
-    class browser__main dead;
     class browser__playwright_manager dead;
     class browser__routes dead;
     class browser__routes___cognitive dead;
@@ -464,4 +485,5 @@ flowchart TD
     class browser__routes___session_store dead;
     class browser__runtime dead;
     class browser__runtime__config dead;
+    class browser__runtime__content_pruner dead;
     class _more dead;

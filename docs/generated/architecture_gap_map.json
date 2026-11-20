@@ -1,29 +1,33 @@
 {
   "generated_by": "scripts/ci/architecture_gap_guardian.py",
   "graph": {
-    "modules": 2348,
-    "edges": 7520,
+    "modules": 2349,
+    "edges": 7523,
     "edge_kinds": {
       "dynamic": 46,
-      "import": 7000,
+      "import": 7003,
       "string": 474
     }
   },
   "entrypoints": {
     "found": [
+      "browser.main",
       "browser.server",
       "core.lifespan",
-      "gateway.main"
+      "gateway.main",
+      "gateway.service.app"
     ],
     "missing": []
   },
   "reachability": {
-    "reachable": 710,
-    "unreachable": 834,
-    "reachable_pct": 30.2
+    "reachable": 735,
+    "unreachable": 810,
+    "reachable_pct": 31.3
   },
   "reachable_but_no_real_importer": [
-    "gateway.main"
+    "browser.main",
+    "gateway.main",
+    "gateway.service.app"
   ],
   "unreachable_modules": [
     "browser.action_cascade",
@@ -55,7 +59,6 @@
     "browser.ghost_tower.stealth_browser_engine.session_manager",
     "browser.ghost_tower.stealth_browser_engine.stealth_profile",
     "browser.ghost_tower.sync_cookies_to_infisical",
-    "browser.main",
     "browser.playwright_manager",
     "browser.routes",
     "browser.routes._cognitive",
@@ -782,7 +785,6 @@
     "core.workers.precognitive_watcher",
     "core.ws.command_center",
     "core.zero_cost_architecture",
-    "gateway",
     "gateway.admin_auth",
     "gateway.agents",
     "gateway.agents.external_agents",
@@ -809,17 +811,10 @@
     "gateway.contracts",
     "gateway.contracts.provider_protocol",
     "gateway.dynamic_llm_router",
-    "gateway.frontend_compat",
     "gateway.gateway_shield_reference",
     "gateway.memory",
-    "gateway.memory_gate",
     "gateway.metrics_exporter",
-    "gateway.middleware.correlation_id",
-    "gateway.middleware.security_headers",
-    "gateway.middleware.server_timing",
     "gateway.model_churn_gate",
-    "gateway.model_horizon",
-    "gateway.prompt_injection",
     "gateway.provider_chain",
     "gateway.rate_limit",
     "gateway.routes",
@@ -829,36 +824,21 @@
     "gateway.run_local_gateway",
     "gateway.sanitization",
     "gateway.serve",
-    "gateway.service.adaptive_routing",
-    "gateway.service.app",
-    "gateway.service.auth_identity",
-    "gateway.service.branding",
     "gateway.service.cache",
-    "gateway.service.context_compiler",
-    "gateway.service.epistemic_router",
     "gateway.service.free_model_discovery",
     "gateway.service.free_route_policy",
-    "gateway.service.frontend_compat",
-    "gateway.service.memory_store",
-    "gateway.service.passkey_auth",
     "gateway.service.providers",
     "gateway.service.providers.adapters",
     "gateway.service.providers.web_engines",
-    "gateway.service.providers.web_session",
     "gateway.service.redis_rate_limit",
     "gateway.service.request_trace",
-    "gateway.service.response_guard",
     "gateway.service.route_arbiter",
     "gateway.service.router",
-    "gateway.service.status_publication",
-    "gateway.service.stream_sanitizer",
-    "gateway.service.studio_data",
     "gateway.service.telegram_webhook",
     "gateway.service.trivial_input",
     "gateway.service.version",
     "gateway.service.web_engine_health",
     "gateway.services.rbac",
-    "gateway.stealth_webhook",
-    "gateway.tool_pruner"
+    "gateway.stealth_webhook"
   ]
 }
