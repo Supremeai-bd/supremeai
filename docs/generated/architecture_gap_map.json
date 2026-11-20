@@ -1,0 +1,31 @@
+{
+  "status_summary": {
+    "total_components": 13,
+    "live_count": 6,
+    "gap_count": 7
+  },
+  "component_status": {
+    "Public_Studio_Web": "LIVE",
+    "Public_Studio_Desktop": "LIVE",
+    "Gateway_Entry": "LIVE",
+    "Gateway_Arbiter": "LIVE",
+    "Browser_Relay": "LIVE",
+    "MCP_Control_Tower": "LIVE",
+    "Task_Engine": "ISOLATED_CHAIN",
+    "Reasoning_Orchestrator": "ISOLATED_CHAIN",
+    "Autonomous_Browser": "FLOATING_NO_ENTRY",
+    "MCP_Hub_Routes": "FLOATING_NO_ENTRY",
+    "Redis_Manager": "FLOATING_NO_ENTRY",
+    "Supabase_Client": "FLOATING_NO_ENTRY",
+    "RAG_Pipeline": "FLOATING_NO_ENTRY"
+  },
+  "actionable_recommendations": [
+    "GAP DETECTED: Task_Engine is part of an internal chain disconnected from live Gateway.",
+    "GAP DETECTED: Reasoning_Orchestrator is part of an internal chain disconnected from live Gateway.",
+    "GAP DETECTED: Autonomous_Browser produces output but is NEVER called by live traffic. Wire it or prune it.",
+    "GAP DETECTED: MCP_Hub_Routes produces output but is NEVER called by live traffic. Wire it or prune it.",
+    "GAP DETECTED: Redis_Manager produces output but is NEVER called by live traffic. Wire it or prune it.",
+    "GAP DETECTED: Supabase_Client produces output but is NEVER called by live traffic. Wire it or prune it.",
+    "GAP DETECTED: RAG_Pipeline produces output but is NEVER called by live traffic. Wire it or prune it."
+  ]
+}
