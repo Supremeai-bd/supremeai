@@ -118,10 +118,13 @@ export async function registerContext7Adapter(server: McpServer): Promise<void> 
   );
 
   // Documentation Resources
+  // FIX: SDK resource registration argument order is (name, uriTemplate, ...).
+  // Passing ("docs-" + doc.name, "docs://" + doc.name) ensures the URI matches
+  // the 'docs://...' scheme and prevents 'JSON-RPC -32603: Invalid URL' on resources/read.
   for (const doc of BUILTIN_DOC_SOURCES) {
     server.resource(
-      "docs://" + doc.name,
       "docs-" + doc.name,
+      "docs://" + doc.name,
       { description: doc.description, mimeType: "text/markdown" },
       async () => {
         return {
