@@ -1017,6 +1017,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
@@ -1127,6 +1128,12 @@ jobs:
           echo "step cannot drift into a 5-minute install."
 
       - name: Architecture + config + wiring guard roster (fast lane)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_DATABASE_URL_POOLER: ${{ secrets.SUPABASE_DATABASE_URL_POOLER }}
+          MCP_PRODUCTION_URL: ${{ vars.MCP_PRODUCTION_URL }}
+          WORKER_PRODUCTION_URL: ${{ vars.WORKER_PRODUCTION_URL }}
+          EDGE_WORKER_PRODUCTION_URL: ${{ vars.EDGE_WORKER_PRODUCTION_URL }}
         run: python scripts/ci/run_all_guards.py --fast
 
       - name: Detect Tower contract changes
