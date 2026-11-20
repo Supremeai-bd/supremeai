@@ -21,6 +21,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # scripts/
 from lib.auto_discovery import (
@@ -344,14 +345,62 @@ def should_ignore(path: Path, root: Path) -> bool:
             return True
     return False
 
+_HOST_RE = re.compile(r"https?://([A-Za-z0-9._-]+)")
+
+
+def declared_hosts() -> set[str]:
+    """Every hostname ``config/service_registry.yaml`` declares.
+
+    Derived from the registry at runtime — there is no list to keep in sync, so
+    a service rename or host migration updates this automatically.
+    """
+    try:
+        from repo_paths import service_specs
+    except ImportError:  # pragma: no cover - defensive
+        return set()
+    hosts: set[str] = set()
+    for spec in service_specs().values():
+        if not isinstance(spec, dict):
+            continue
+        for value in spec.values():
+            for item in value if isinstance(value, (list, tuple)) else [value]:
+                if isinstance(item, str) and "://" in item:
+                    host = urlsplit(item).hostname
+                    if host:
+                        hosts.add(host.lower())
+    return hosts
+
+
+def _is_registry_declaration(line: str, declared: set[str]) -> bool:
+    """True when every host on ``line`` is one the registry already declares.
+
+    Data files (mcp.json, the GitHub App manifest, an A2A agent card) are
+    CONSUMER-FACING declarations: an external client reads the URL out of them,
+    so the host must be written down — the same sanctioned class as
+    ``production_url`` in the registry itself. Exempting whole files is how the
+    `supremeai-primary-node` ghost survived before, so the test is per line and
+    requires ALL hosts on it to be declared: a file that also names a host the
+    registry does not know — precisely the stale-host case this policy exists
+    to catch — still fails.
+    """
+    hosts = {h.lower() for h in _HOST_RE.findall(line)}
+    return bool(hosts) and hosts <= declared
+
+
 def scan_file(filepath: Path, root: Path, exceptions: list[tuple[str, str]]) -> list[str]:
     violations = []
     try:
         rel_path = filepath.relative_to(root).as_posix()
         content = filepath.read_text(encoding="utf-8")
 
+        # Data declarations are read by external clients, so their host must be
+        # literal; it is accepted only when the registry already declares it.
+        declared = declared_hosts() if filepath.suffix.lower() == ".json" else set()
+
         for line_num, line in enumerate(content.splitlines(), 1):
             if BANNED_REGEX.search(line):
+                if declared and _is_registry_declaration(line, declared):
+                    continue
                 # Check exceptions
                 is_exception = False
                 for ex_file, ex_pattern in exceptions:
