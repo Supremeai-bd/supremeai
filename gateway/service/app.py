@@ -383,10 +383,14 @@ async def hydrate_vault_secrets() -> int:
 @app.on_event("startup")
 async def _on_startup():
     from .free_model_discovery import discovery_loop
+    from .web_engine_health import web_engine_health_loop
 
     await hydrate_vault_secrets()
     # One catalog refresh loop; do not send periodic or per-error inference probes.
     app.state.discovery_task = asyncio.create_task(discovery_loop(squad))
+    # One latency ingest loop for the web relay: the pool ranks by latency, and
+    # the relay already measures it per engine. Read-only, no inference, no quota.
+    app.state.web_engine_task = asyncio.create_task(web_engine_health_loop(squad))
 
 
 # CORS setup for Studio and web agents - Restricted origins (no wildcard with credentials)
@@ -1131,11 +1135,12 @@ async def readiness_check():
 # Graceful shutdown: close pooled stealth HTTP client
 @app.on_event("shutdown")
 async def _close_stealth_http_client():
-    if task := getattr(app.state, "discovery_task", None):
-        task.cancel()
-        with suppress(asyncio.CancelledError):
-            await task
-        app.state.discovery_task = None
+    for attribute in ("discovery_task", "web_engine_task"):
+        if task := getattr(app.state, attribute, None):
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+            setattr(app.state, attribute, None)
     await close_stealth_client()
 
 
