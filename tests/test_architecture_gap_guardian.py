@@ -534,3 +534,56 @@ def test_known_dangling_is_tracked_but_visible(real_report: Report):
 
     fake = Report(modules={}, missing_refs=["core.brand_new -> core.vanished"])
     assert check_dangling(fake, baseline) == ["core.brand_new -> core.vanished"]
+
+
+# ── reproducibility: the verdict must not depend on the local venv ─────────
+def test_declared_deps_include_httpx_not_skipped_as_url():
+    """``httpx`` must not be filtered by a naive "http" prefix check.
+
+    Measured bug: the dependency parser skipped lines starting with "http" to
+    avoid ``http://`` URL requirements, which silently skipped ``httpx`` — a
+    dependency declared in 8 requirements files. It surfaced as 154 references
+    being reported UNVERIFIED on a machine without httpx installed.
+    """
+    from scripts.ci.architecture_gap_guardian import compute_declared_deps
+
+    deps = compute_declared_deps(Path("."))
+    assert "httpx" in deps, "httpx declared in requirements.lock but not parsed"
+    assert "fastapi" in deps
+
+
+def test_distribution_names_map_to_import_names():
+    """Requirements list DISTRIBUTIONS; code imports MODULES."""
+    from scripts.ci.architecture_gap_guardian import compute_declared_deps
+
+    deps = compute_declared_deps(Path("."))
+    for dist, import_name in (
+        ("pyyaml", "yaml"),
+        ("beautifulsoup4", "bs4"),
+        ("python-dotenv", "dotenv"),
+    ):
+        if dist in deps:
+            assert import_name in deps, f"{dist} declared but {import_name} not aliased"
+
+
+def test_missing_pyyaml_fails_loudly_instead_of_reporting_a_partial_graph():
+    """A silent fallback reported 2.5% reachable instead of 38.1%."""
+    import subprocess
+    import sys
+
+    code = (
+        "import sys; sys.modules['yaml'] = None\n"
+        "sys.path.insert(0, '.')\n"
+        "from pathlib import Path\n"
+        "from scripts.ci.architecture_gap_guardian import derive_entrypoints, discover_modules\n"
+        "try:\n"
+        "    derive_entrypoints(Path('.'), discover_modules(Path('.')))\n"
+        "except RuntimeError as e:\n"
+        "    print('RAISED'); sys.exit(0)\n"
+        "sys.exit('NO RAISE - would emit a partial graph')\n"
+    )
+    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=".")
+    assert "RAISED" in proc.stdout, (
+        "derive_entrypoints must fail loudly when PyYAML is unavailable; "
+        f"got stdout={proc.stdout!r} stderr={proc.stderr[-300:]!r}"
+    )

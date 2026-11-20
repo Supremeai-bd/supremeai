@@ -176,6 +176,36 @@ an estimate. "110 orphan guard-like" is a heuristic (name keywords + flag presen
 libraries. Duplicate-route detection does not simulate `include_router` order, so "which
 handler is dead" needs human confirmation per pair. The 194 sync handlers are mostly fine.
 
+### G.9 🔴 Found while auditing: the guardian's own verdict was venv-dependent
+
+A reproducibility defect in the tool shipped by #706, found by running it in a
+**second environment**. The committed `docs/generated/architecture_gap_map.json` was not
+reproducible across machines.
+
+| Symptom | Cause | Effect |
+|---|---|---|
+| Without PyYAML: reachable **2.5%** instead of 38.1%, entrypoints 3 instead of 6 | `except ImportError: return [], []` in `derive_entrypoints` | A **silent partial graph reported as success**. Anyone without PyYAML would have concluded 2 123 modules were dead. |
+| `unverified` 161 → 315 on a fresh venv | externality read from `sys.modules`/`pkgutil` (i.e. *what is installed here*) | The same commit produced different verdicts on different machines. |
+| 154 references reported unverified | dependency parser skipped any line starting with `"http"` to avoid `http://` URLs — which skipped **`httpx`**, declared in 8 requirements files | A declared dependency treated as unknown. |
+| `pyyaml`/`bs4`/`dotenv`/`dateutil` declared but not recognised | requirements list **distribution** names, code imports **module** names | Systematic noise on every run. |
+
+All four are fixed:
+
+* **fail loud** — missing PyYAML now raises instead of returning a partial graph;
+* **requirements first** — `_DECLARED_DEPS` is computed *before* third-party heads and
+  feeds them, so externality comes from lock files, not the local venv;
+* **`"://" in line`** instead of `startswith("http")`;
+* **distribution→import aliasing** via `importlib.metadata.packages_distributions()` plus
+  a static map for common cases.
+
+**Verified:** identical `md5 5a5734969b4b2c16fd7be71fee4981bb` from a venv with only PyYAML
+and from a venv with 200+ packages. Verdict unchanged: **829 reachable / 1349 unreachable /
+6 dangling**. 48 tests (was 45).
+
+> The general lesson, and it applies to every guard in this repo: **a tool whose output
+> depends on the machine it runs on cannot be a CI gate.** Any guard that reads
+> `sys.modules`, `shutil.which`, or an installed-package list has this bug latent.
+
 ---
 
 ## 0. Scorecard
