@@ -69,10 +69,22 @@ class TestResolution:
         assert resolve("no_such_dir_xyz/deeper") is None
 
     def test_literal_path_is_preferred(self):
-        """If backend/ ever returns, it must win over the alias."""
-        tops = [c.relative_to(REPO_ROOT).parts[0] for c in candidates("backend/api")]
-        assert tops[0] == "backend"
-        assert tops[1] == BACKEND_ALIAS
+        """If backend/ ever returns, it must win over every alias.
+
+        The old package name was `backend/`, so an old string like
+        `backend/core/config_validation.py` means `core/config_validation.py`:
+        the leading segment is DROPPED, not nested. Both readings are offered,
+        but the literal path is always candidate 0.
+        """
+        rels = [c.relative_to(REPO_ROOT).as_posix() for c in candidates("backend/api")]
+        assert rels[0] == "backend/api"
+        assert "api" in rels, "the de-prefixed reading must be offered"
+        assert "core/api" in rels, "the segment-for-segment reading must be offered"
+
+    def test_backend_prefix_is_dropped_not_nested(self):
+        found = resolve("backend/core/config_validation.py")
+        assert found is not None
+        assert found.relative_to(REPO_ROOT).as_posix() == "core/config_validation.py"
 
     def test_alias_resolves_real_subpath(self):
         assert resolve("backend/api/routes") is not None
@@ -111,3 +123,96 @@ class TestDeadReferenceReport:
         count, files = repo_paths._dead_reference_report()
         assert count == len(expected), f"reported {count}, grep sees {len(expected)}"
         assert sorted(files) == sorted(expected)
+
+
+class TestServiceEndpoints:
+    """Hosts must come from config/service_registry.yaml, never from a literal.
+
+    Six scripts used to carry their own copy of a production Render host. A
+    second copy can only ever drift from the registry, and a stale health probe
+    reports a healthy service as unreachable.
+    """
+
+    def test_registry_loads(self):
+        specs = repo_paths.service_specs()
+        assert specs, "config/service_registry.yaml did not load"
+        assert "api" in specs and "mcp" in specs
+
+    def test_every_served_service_declares_url_or_env(self):
+        """A service that serves HTTP must say where it lives.
+
+        Some entries legitimately have no endpoint: `firebase` deploys security
+        rules (nothing to probe) and `ci-runner` is addressed by env only. The
+        invariant is narrower and honest — anything with a `health_path` must
+        be resolvable, because a health check will be pointed at it.
+        """
+        for sid, spec in repo_paths.service_specs().items():
+            if spec.get("health_path"):
+                assert spec.get("production_url") or spec.get("canonical_url_env"), (
+                    f"{sid} has a health_path but declares neither "
+                    "production_url nor canonical_url_env"
+                )
+
+    def test_firebase_has_no_health_endpoint(self):
+        # Guards against someone "fixing" the above by inventing a URL.
+        firebase = repo_paths.service_specs().get("firebase") or {}
+        assert not firebase.get("health_path")
+        assert not firebase.get("production_url")
+
+    def test_endpoint_resolves_with_health_path(self):
+        url = repo_paths.service_endpoint("api")
+        assert url and url.startswith("https://")
+        assert url.endswith(repo_paths.service_specs()["api"]["health_path"])
+
+    def test_endpoint_can_omit_path(self):
+        bare = repo_paths.service_endpoint("mcp", with_path=False)
+        assert bare and not bare.endswith("/health")
+        assert bare.startswith("https://")
+
+    def test_unknown_service_returns_none(self):
+        assert repo_paths.service_endpoint("no_such_service_xyz") is None
+
+    def test_env_overrides_registry(self, monkeypatch):
+        spec = repo_paths.service_specs()["api"]
+        monkeypatch.setenv(spec["canonical_url_env"], "https://override.example")
+        assert repo_paths.service_endpoint("api", with_path=False) == "https://override.example"
+
+    def test_missing_registry_returns_empty_mapping(self, monkeypatch):
+        monkeypatch.setattr(repo_paths, "_SERVICE_REGISTRY", REPO_ROOT / "does_not_exist.yaml")
+        assert repo_paths.service_specs() == {}
+        assert repo_paths.service_endpoint("api") is None
+
+    #: Scripts converted from host literals to registry lookups in this change.
+    #: Deliberately narrow: `scripts/ci` still holds ~30 references, most of
+    #: them CLI usage examples inside docstrings, and a few genuine defaults
+    #: (service_latency_probe, probe_live_status, deploy_doctor). Converting
+    #: those is separate work with its own blast radius — this test locks in
+    #: the ones actually fixed so they cannot regress.
+    CONVERTED = (
+        "scripts/ops/master_health_check.py",
+        "scripts/ops/tower_discovery_probe.py",
+        "scripts/ops/redis_quota_monitor.py",
+        "scripts/ops/keepalive_scraper.py",
+        "scripts/ops/ingest_project_docs.py",
+        "scripts/agents/mcp_tower_client.py",
+        "scripts/agents/agent_solution_memory.py",
+        "scripts/knowledge/ingest_project_docs.py",
+    )
+
+    def test_converted_scripts_have_no_production_host_literal(self):
+        import re
+
+        pattern = re.compile(r"https://[a-z0-9-]+\.(onrender\.com|vercel\.app)")
+        offenders = []
+        for rel in self.CONVERTED:
+            path = REPO_ROOT / rel
+            assert path.is_file(), f"{rel} is listed as converted but does not exist"
+            for num, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if pattern.search(line) and not line.lstrip().startswith("#"):
+                    offenders.append(f"{rel}:{num}")
+        assert not offenders, f"hardcoded production hosts reappeared: {offenders}"
+
+    def test_converted_scripts_use_the_registry(self):
+        for rel in self.CONVERTED:
+            text = (REPO_ROOT / rel).read_text(encoding="utf-8")
+            assert "service_endpoint" in text, f"{rel} no longer resolves via the registry"

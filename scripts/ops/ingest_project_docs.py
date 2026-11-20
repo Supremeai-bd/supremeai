@@ -16,7 +16,13 @@ import os
 import sys
 import urllib.request
 
-TOWER_URL = os.environ.get("SUPREMEAI_MCP_URL", "https://supremeai-mcp-tower-live.onrender.com/mcp")
+# Resolved from config/service_registry.yaml (env wins) instead of a literal.
+try:
+    from repo_paths import service_endpoint as _service_endpoint
+    _TOWER_DEFAULT = (_service_endpoint("mcp", with_path=False) or "") + "/mcp"
+except Exception:  # pragma: no cover
+    _TOWER_DEFAULT = ""
+TOWER_URL = os.environ.get("SUPREMEAI_MCP_URL", _TOWER_DEFAULT)
 # MCP-Protocol-Version on every request: streamable HTTP (spec rev >= 2025-06-18)
 # requires the negotiated version post-initialize; a missing header makes the server
 # assume 2025-03-26, voiding the 2025-11-25 floor (#2568, radar R70). Mirrors

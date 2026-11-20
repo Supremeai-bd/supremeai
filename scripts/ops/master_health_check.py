@@ -35,6 +35,58 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+ROOT = Path(__file__).resolve().parents[2]
+
+#: Where service production URLs are declared. This file used to hold its own
+#: literals, which meant the registry could change and the health check would
+#: keep probing the old hosts — a stale probe reports a healthy service as
+#: unreachable, which is the failure mode that matters least visibly and most.
+_SERVICE_REGISTRY_FILE = ROOT / "config" / "service_registry.yaml"
+
+
+def _registry_services() -> dict[str, dict[str, Any]]:
+    """Load ``config/service_registry.yaml`` -> {service_id: spec}.
+
+    Returns ``{}`` when the file is unreadable so callers fall back to probing
+    nothing rather than crashing: a health check that throws is worse than one
+    that reports "no targets configured".
+    """
+    try:
+        import yaml
+    except ImportError:
+        return {}
+    try:
+        doc = yaml.safe_load(_SERVICE_REGISTRY_FILE.read_text(encoding="utf-8")) or {}
+    except (OSError, ValueError):
+        return {}
+    services = doc.get("services")
+    return services if isinstance(services, dict) else {}
+
+
+def _service_endpoint(service_id: str) -> tuple[str, str] | None:
+    """Resolve ``(display_name, url)`` for one service, env-first.
+
+    Order: the canonical URL env var, then ``production_url`` from the registry.
+    Nothing is hardcoded here — the registry is the single source of truth for
+    which host a service lives on.
+    """
+    spec = _registry_services().get(service_id)
+    if not isinstance(spec, dict):
+        return None
+    env_key = spec.get("canonical_url_env")
+    url = os.getenv(env_key, "").strip() if env_key else ""
+    if not url:
+        url = str(spec.get("production_url") or "").strip()
+    if not url:
+        return None
+    path = spec.get("health_path") or "/health"
+    # `role` is the registry's human label ("Public API Gateway & Multi-LLM
+    # Provider Router"); `render_name` is the deploy name; the id is the floor.
+    # This used to be a second set of literals in this file, which drifted from
+    # the registry and would not have been updated when a service was renamed.
+    label = str(spec.get("role") or spec.get("render_name") or service_id)
+    return (label, url.rstrip("/") + path)
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
@@ -193,10 +245,21 @@ def probe_http_endpoint(
 
 
 def discover_and_evaluate(
-    tower_url: str = "https://supremeai-mcp-tower-live.onrender.com",
+    tower_url: str | None = None,
     timeout: float = 6.0,
 ) -> MasterHealthReport:
     results: list[ServiceHealthResult] = []
+
+    if tower_url is None:
+        resolved = _service_endpoint("mcp")
+        tower_url = resolved[1].rsplit("/health", 1)[0] if resolved else ""
+        if not tower_url:
+            # No registry entry and no env var: report that, do not invent a host.
+            raise SystemExit(
+                "master_health_check: no MCP Tower URL configured. Set "
+                f"{_registry_services().get('mcp', {}).get('canonical_url_env') or 'RENDER_MCP_URL'}"
+                " or add an `mcp` entry to config/service_registry.yaml."
+            )
 
     tower_ok, tower_code, tower_lat, tower_payload, tower_err = probe_http_endpoint(
         f"{tower_url}/health", timeout=timeout
@@ -242,11 +305,11 @@ def discover_and_evaluate(
             error=str(e),
         ))
 
+    # Derived from config/service_registry.yaml — see _service_endpoint().
     core_nodes = [
-        ("render-gateway", "SupremeAI API Gateway", "https://supremeai-api-ulw0.onrender.com/healthz"),
-        ("render-primary", "SupremeAI Primary Node", "https://supremeai-primary-node-5xso.onrender.com/health"),
-        ("render-worker", "SupremeAI Worker Node", "https://supremeai-worker-node.onrender.com/health"),
-        ("render-scraper", "SupremeAI Scraper Node", "https://supremeai-scraper-node.onrender.com/health"),
+        (f"render-{sid}", *endpoint)
+        for sid in ("api", "core", "worker", "scraper")
+        if (endpoint := _service_endpoint(sid)) is not None
     ]
     for sid, sname, surl in core_nodes:
         ok, code, lat, payload, err = probe_http_endpoint(surl, timeout=timeout)
@@ -642,10 +705,17 @@ def deep_dependency_probe(timeout: float = 8.0) -> list[ServiceHealthResult]:
     # local network (IPv6-only pooler, ISP port blocks, local TLS proxies) can
     # make libpq time out even while the DB is perfectly healthy in prod, so a
     # local psycopg2 failure must NOT be reported as a production outage.
-    prod_ok, _prod_code, _prod_ms, prod_payload, _prod_err = probe_http_endpoint(
-        "https://supremeai-primary-node-5xso.onrender.com/health",
-        timeout=max(timeout, 25.0),
-    )
+    # Same registry lookup as the node sweep — this used to repeat the primary
+    # node's URL as a literal, so the two could silently disagree.
+    _primary = _service_endpoint("core")
+    if _primary:
+        prod_ok, _prod_code, _prod_ms, prod_payload, _prod_err = probe_http_endpoint(
+            _primary[1], timeout=max(timeout, 25.0)
+        )
+    else:
+        prod_ok, _prod_code, _prod_ms, prod_payload, _prod_err = (
+            False, 0, 0.0, None, "no core service in registry"
+        )
     db_check = None
     if isinstance(prod_payload, dict):
         for chk in prod_payload.get("checks", []) or []:
