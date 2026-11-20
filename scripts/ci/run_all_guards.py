@@ -106,6 +106,12 @@ GUARDS: list[list[str]] = [
     ["python", "scripts/ci/check_singleton_inits.py", "--check"],
     # Inventory itself: every guard must have a caller (see the tool's docstring).
     ["python", "scripts/ci/guard_inventory.py", "--check"],
+    # 2026-11-20: GitHub enforces structural rules that PyYAML does not. A 26th
+    # `workflow_dispatch` input (the limit is 25) made GitHub reject the whole of
+    # ops-maintenance.yml — zero jobs on push and on the nightly cron, with no
+    # failing step to point at, so the breakage was invisible to the PR that
+    # caused it. This guard validates the rules GitHub actually enforces.
+    ["python", "scripts/ci/workflow_validity_guard.py", "--check"],
     # ── Adopted 2026-11-20 (batch 2): proven green on the current tree ───────
     # Each was executed before adoption; all exit 0 on main today, so adding
     # them cannot make the roster red. They were written, merged and never
