@@ -1,11 +1,180 @@
 # Maintainability Audit & Token-Efficiency Plan
 
-**Date:** 2026-11-20 · **Branch:** `arena/974d6600-supremeai` · **Baseline:** `decb51c`
-**Question asked:** *how do we raise maintainability, find/fix real problems, and stop AI agents burning tokens?*
+**Date:** 2026-11-20 · **Branches:** `arena/974d6600-supremeai` (`decb51c`) + `arena/2b11b165-supremeai` (`17441cf`)
+**Questions asked:** *how do we raise maintainability, find/fix real problems, and stop AI agents
+burning tokens?* — and: *what is hardcoded that should be dynamic, and how much manual work remains?*
 
 **Method:** measured, not read. Every number below is reproducible with the command shown.
 The repo is 4,213 tracked files / 768k Python LOC — no human or agent can hold it in context,
 so the findings that matter are the ones that make *navigation cheap* and *drift impossible*.
+
+> **Companion audit (same date, separate session).** This document covers token-efficiency and
+> structural drift. The section below — *Guard Enforcement & Latency* — covers execution
+> reality: whether the guards listed above actually run, plus hardcoded-value and
+> request-path findings. Both were measured independently on `17441cf`.
+
+## G. Guard Enforcement & Latency (companion audit)
+
+### G.1 🔴 The roster that "adopted" these guards is never executed
+
+§1.2 above records the fix as *"roster entry added (`run_all_guards.py`)"*. That entry does
+exist — but **no workflow invokes the roster**:
+
+```
+$ grep -rn "run_all_guards" .github/   → 0 hits
+$ grep -c "run_all_guards" scripts/ci/run_all_guards.py → (defines GUARDS, 56 entries)
+```
+
+`make guards` runs it locally. CI does not. Direct consequence:
+
+| Metric | Value |
+|---|---|
+| `scripts/ci/*.py` modules | **261** |
+| reachable from any `.github/workflows/*.yml` | **38** |
+| never invoked by CI | **223** |
+| roster entries running `--self-test` **only** | **30** of 56 |
+| roster entries running `--check` (the live check) | **20** |
+
+A guard whose `--check` never runs is documentation, not a gate. `--self-test` verifies the
+guard's own logic against fixtures — valuable, but it cannot detect that the repo is
+currently violating the rule.
+
+**Proven**, `scripts/ci/sprawl_guard.py`:
+* absent from the roster entirely;
+* `--check` exits **1** today with 4 real violations —
+  `scripts/migrate_logging_imports.py`, `scripts/pre_push_shared.sh`,
+  `scripts/setup_git_hooks.py`, `scripts/validate_schemas.py`.
+
+**Also applies to the architecture guardian shipped in #706:**
+`architecture_gap_guardian.py` has roster entries (lines 63–64), but the roster does not run,
+and `tests/test_architecture_gap_guardian.py` is **not** in `config/ci/pr-battery.args`
+(0 matches). The 6 real defects it found are therefore not protected against regression.
+
+**Fix (highest value/effort ratio in either audit):** one workflow step invoking the fast
+roster subset on PRs and the full roster nightly. ~1 hour, activates 56 guards.
+
+### G.2 🔴 Duplicate routes — 8 real, currently silent
+
+Method-aware (`METHOD+PATH`) and router-prefix-resolved. FastAPI keeps the **first** match and
+silently discards the rest, so one handler per pair is dead code that still looks live:
+
+```
+GET  /skills          admin_routes.py:827        vs endpoints_command.py:251
+POST /api/ci/webhook  ci_dashboard_api.py:273    vs ci_webhooks.py:12
+GET  /health          health.py:67               vs scraper.py:67
+POST /scrape          scraper.py:85              vs browser/_scraping.py:87
+POST /browse          scraper.py:99              vs browser/_scraping.py:94
+GET  /sessions        endpoints_crud.py:116      vs browser/_session_store.py:68
+POST /security-scan   endpoints_security.py:16   vs browser/_crown_jewel.py:325
+POST /admin-api/tenant-limits/{tenant_id}/reset  tenant_admin.py:362 (duplicate decorator)
+```
+
+⚠️ **Retracted measurement:** a first pass reported **97** duplicates. 89 of those were
+`POST /rules` vs `GET /rules` — legitimate. Only the method-aware figure (8) is trustworthy.
+Recorded so the wrong number is not reused.
+
+### G.3 Latency: 21 middlewares per request
+
+`core/app_builder.py` chains 21 layers on every request (added last = outermost, so
+`OriginShield`/`ChaosInjector`/`Honeypot` run *before* auth):
+
+```
+CORS · RequestContext · DocsAuth · GZip · RequestId · SecurityHeaders · RequestValidation ·
+TrustedOrigin · SupremeContext · TenantExtraction · Observability · QueryTiming · RateLimit ·
+Idempotency · Auth · APIKeyAuth · AutonoGuard · Honeypot · ChaosInjector ·
+ResponseStandardization · OriginShield
+```
+
+Six of these (`RequestId`, `RequestContext`, `SupremeContext`, `TenantExtraction`,
+`SecurityHeaders`, `ResponseStandardization`) walk the same scope/response and can be folded
+into one: **21 → ~8**. Plus path short-circuiting for `/health`, `/metrics`, static assets.
+Estimated 1–3 ms/request saved (estimate — §G.6 explains why it is not yet measured).
+
+**Already good, do not re-do:** `ServerTimingMiddleware` covers failure paths and is mounted
+outermost (`gateway/service/app.py:607`); `GZipMiddleware(minimum_size=1000)` is present;
+`QueryTimingMiddleware` instruments DB time; TTL/LRU caching in 16 modules. What is missing is
+**aggregation** of Server-Timing into p50/p95.
+
+Sync handlers: **194** `def` vs **654** `async def` in `core/api/routes`. FastAPI threadpools
+sync handlers correctly, and most are CPU-light — only 2 showed blocking I/O in an AST pass
+(`ecosystem_admin.py:514`, `admin_dashboard/__init__.py:112`). Not a defect class; convert
+opportunistically.
+
+### G.4 Hardcoded values ranked by payoff
+
+| Rank | Hardcoded | Scale | Derive from | Impact |
+|---|---|---|---|---|
+| 🔴 1 | `render.yaml` service list | **3** declared | `config/service_registry.yaml` (**12**) | 9 of 12 services unmanaged by Render |
+| 🔴 2 | model IDs in call sites | `gpt-4o-mini` ×**51**, `gemini-2.5-flash` ×34, `gpt-4o` ×24 | `core/brain/model_registry.py` + `gateway/routing_policy.json` (**both exist**) | model swap = 51 edits today |
+| 🟠 3 | service names in code | 85 / 71 / 48 / 40 / 31 / 31 / 29 references | registry + env | rename touches dozens of files |
+| 🟠 4 | route table | 8 collisions (§G.1) | derive at import, fail on collision | wrong-handler bugs |
+| 🟡 5 | ports/hosts | `localhost:8000` ×34, `:3000` ×23, `:6379` ×20 | one `core/ports.py` | dev/prod drift |
+| 🟡 6 | config modules | 10 siblings, `config_validation.py` (828 L) **and** `config_validator.py` (556 L) | one entry point | two validators, unclear authority |
+| 🟢 7 | `_INDEX.md` | 885 lines / 74.9 KB | regenerate on commit + drift guard | covered by §1.3 |
+
+**Not a problem:** 22 files matched a secret regex; the two sampled are test fixtures
+(`"sk-do-not-print-123456"`, `"ghp_SUPERSECRET1234567890"`). No action — noted so it is not
+re-investigated.
+
+### G.5 Architecture guardian — remaining work
+
+| Priority | Gap | Detail |
+|---|---|---|
+| 🔴 P0 | Not enforced in CI | roster never runs (§G.1) |
+| 🔴 P0 | **No cycle detection** | `grep -c cycle` → 0. Circular imports are the top cause of cold-start stalls and partial-import `ImportError`s. |
+| 🟠 P1 | 6 real defects open | §G.5.1 |
+| 🟠 P1 | Route graph absent | It tracks modules, not endpoints → §G.2 invisible to it |
+| 🟠 P1 | Middleware order absent | §G.3 order is load-bearing, human-checked only |
+| 🟡 P2 | Global 38.1% only | No per-package unreachable ratio (`core/zero_cost_architecture` ≫ `gateway/`) |
+| 🟡 P2 | 161 `unverified` never reconciled | should resolve against CI-injected installs |
+| 🟡 P2 | Cold start unmeasured | import-cost table is one AST pass away |
+| 🟢 P3 | `--json` has no schema | consumers cannot validate |
+
+#### G.5.1 The 6 tracked defects (all verified absent on disk, all unguarded imports)
+
+```
+core.agents.governance.bias_detection_agent  -> core.llm.language_model
+core.agents.governance.explainability_agent  -> core.llm.language_model
+core.api.routes.pr_review_api                -> tools.pr_reviewer
+scripts.ops.audit_underutilized_capabilities -> scripts.audit_isolated_components
+scripts.ops.supreme_ops                      -> tools.tool_knowledge_injector
+scripts.ops.verify_capabilities              -> core.evolution.self_evolution_agent
+```
+
+### G.6 Manual work that can be automated
+
+| Manual step | Automate | Recurring saving |
+|---|---|---|
+| `make index` after adding a script | pre-commit + drift guard | removes a churn class |
+| 20 `*baseline*.json` hand-refrozen | `refresh-baselines` rerunning all guards | highest-error chore |
+| `render.yaml` hand-edited | generate from registry | 9 services |
+| ruff `per-file-ignores` per directory | ratchet on count/severity | stops the slide |
+| `CHANGELOG.md` by hand | derive from conventional commits | no stale changelog |
+| 3 818 `except Exception` + 56 bare `except` | `audit_broad_exceptions.py` **already written, never runs** | capacity already paid for |
+| duplicate-route discovery | import-time collision check | 8 today |
+| model ID updates | registry routing | 51 → 1 |
+
+**Several audits are already written and merely unscheduled** (`audit_broad_exceptions.py`,
+`annotations_census_guard.py`, `check_hardcoded_deployment_config.py`, …). Registering them is
+the cheapest available capacity.
+
+### G.7 Order of work
+
+1. **Wire the roster into CI** (Tier-1 subset + nightly full). Unlocks 56 guards + guardian.
+2. Add `tests/test_architecture_gap_guardian.py` to `pr-battery.args`.
+3. Register or delete the 110 orphan guard-like scripts; start with `sprawl_guard`,
+   `audit_broad_exceptions`, `check_hardcoded_deployment_config`.
+4. Guardian: cycle detection → route graph → per-package ratio → import-cost table.
+5. Generate `render.yaml`; route model IDs through the registry.
+6. Collapse 21 middlewares → ~8 with path short-circuiting.
+7. `_INDEX.md` compaction; `refresh-baselines`; ruff ratchet.
+
+### G.8 Limits of this companion audit
+
+Static analysis + targeted greps, **not** runtime profiling — the 1–3 ms middleware figure is
+an estimate. "110 orphan guard-like" is a heuristic (name keywords + flag presence); some are
+libraries. Duplicate-route detection does not simulate `include_router` order, so "which
+handler is dead" needs human confirmation per pair. The 194 sync handlers are mostly fine.
 
 ---
 
@@ -78,8 +247,11 @@ CLASSIFICATION = ROOT / "backend" / "core" / "config_classification.py"   # dir 
 * After the fix, the generator reports a precise, actionable backlog: **57** vars missing from
   `.env.example` — and `--check` now correctly exits 1 on that drift.
 
-**Fixed:** locator adopted + roster entry added (`run_all_guards.py`), wiring-integrity guard
-re-verified PASS. This converts a silent `FileNotFoundError` into a normal CI gate.
+**Fixed (partially — see §G.1):** locator adopted + roster entry added (`run_all_guards.py`),
+wiring-integrity guard re-verified PASS. This converts a silent `FileNotFoundError` into a
+normal CI gate — *but only if the roster actually runs.* It does not: no workflow invokes
+`run_all_guards.py` (§G.1), so the gate is currently local-only. The mechanism is correct; the
+wiring to CI is still missing.
 
 ### 1.3 🔴 Session start-up costs ~40k tokens before any work
 
