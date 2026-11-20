@@ -194,6 +194,10 @@ except ImportError:
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("supremeai.gateway")
+try:
+    from .request_trace import RequestTrace
+except (ImportError, ModuleNotFoundError):  # flat-layout imports (service.app)
+    from request_trace import RequestTrace
 
 
 # ── LiveLogs Ring Buffer (Admin Console Server-Side Log Streaming) ───────────
@@ -1828,11 +1832,16 @@ async def _execute_chat_completion(
     x_supremeai_key: Optional[str] = None
 ):
     """Core completion execution engine for /v1/chat/completions and compatibility aliases."""
+    # Per-request latency attribution (see gateway/service/request_trace.py).
+    # A 6.2s one-word reply was unattributable from logs; every stage below is
+    # now measured so the next one is a grep, not a source audit.
+    trace = RequestTrace(model=str(body.get("model") or "supreme-spark"))
     if not _verify_client_auth(request, x_supremeai_key):
         raise HTTPException(
             status_code=401,
             detail="Unauthorized: Invalid or missing X-SupremeAI-Key / Bearer token"
         )
+    trace.mark("auth")
 
     # Cost guard: throttle ONLY guest-class requests (keyed auth is never limited).
     # Classification here is a cost-guard signal, NOT an auth decision: client
@@ -1916,6 +1925,8 @@ async def _execute_chat_completion(
             except Exception as exc:
                 logger.warning(f"Legacy storage error (user msg): {exc}")
 
+    trace.mark("persist")
+
     # 2. Server-Side Context Compiler (Phase 1):
     # Injects Core Identity Anchor + Platform Grounding Sheet + 3-Tier Memory + Deterministic Sampling Lock
     if compile_chat_context:
@@ -1963,6 +1974,8 @@ async def _execute_chat_completion(
 
     # Do not share private completions or bypass current lane/approval checks
     # through the legacy prompt-only cache namespace.
+    trace.mark("context")
+
     relay_detail = None
     route_arbiter.squad = squad
     decision = route_arbiter.choose_best_route(
@@ -1980,6 +1993,12 @@ async def _execute_chat_completion(
     if not candidates and not use_priority_1:
         reason = "Vision analysis is temporarily unavailable" if has_image else "No approved free API route available"
         raise HTTPException(status_code=503, detail=reason)
+
+    # Lane is known here; record it before any upstream call so a timeout still
+    # tells us WHICH lane timed out.
+    trace.mark("route")
+    trace.lane = decision.route_type
+    trace.provider = preferred_provider or (candidates[0][0] if candidates else None)
 
     if use_priority_1:
         w_status, w_response = None, None
@@ -2147,6 +2166,10 @@ async def _execute_chat_completion(
                     headers={**headers, "Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
                 )
 
+            trace.mark("upstream")
+            trace.provider = engine_src
+            trace.log()
+            headers["Server-Timing"] = trace.server_timing()
             return JSONResponse(status_code=w_status, content=w_response, headers=headers)
 
         relay_detail = None
@@ -2323,6 +2346,11 @@ async def _execute_chat_completion(
                 yield f"data: {json.dumps(final_chunk)}\n\n"
                 yield "data: [DONE]\n\n"
 
+            # Stream started: everything before the first body byte is now
+            # measured. The generator itself is NOT instrumented (per-chunk
+            # timing would add overhead to the path this protects).
+            trace.mark("upstream")
+            trace.log()
             return StreamingResponse(
                 squad_true_stream_generator(),
                 media_type="text/event-stream",
@@ -2332,6 +2360,7 @@ async def _execute_chat_completion(
                     "X-SupremeAI-Tier": "free-tier-adaptive",
                     "Cache-Control": "no-cache",
                     "X-Accel-Buffering": "no",
+                    "Server-Timing": trace.server_timing(),
                 },
             )
 
@@ -2404,6 +2433,10 @@ async def _execute_chat_completion(
                 # (Audit P0-5: removed the fake word-by-word re-simulation —
                 # streaming clients are now served by the live upstream proxy
                 # branch above, before any buffering happens.)
+                trace.mark("upstream")
+                trace.provider = provider
+                trace.log()
+                headers["Server-Timing"] = trace.server_timing()
                 return JSONResponse(status_code=status, content=response_data, headers=headers)
 
             pool = squad.pools.get(provider)
