@@ -330,7 +330,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
     // F-06: CORS allowlist for studio + MCP Apps origins
     const ALLOWED_ORIGINS = new Set([
       "https://supremeai-studio.pages.dev",
-      "https://supremeai-studio.vercel.app",
+      "https://supremeai-studio.paykaribazaronline.workers.dev",
       "http://localhost:5173",
       "http://localhost:3000",
     ]);

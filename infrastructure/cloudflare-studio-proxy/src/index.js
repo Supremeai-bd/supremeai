@@ -191,8 +191,8 @@ export default {
       const apiUrl = new URL(url.pathname + url.search, API_ORIGIN);
       const forwardHeaders = new Headers(request.headers);
       forwardHeaders.set("Host", "supremeai-api-ulw0.onrender.com");
-      // Use whitelisted Vercel origin so Render's CORS never blocks it
-      forwardHeaders.set("Origin", "https://supremeai-studio.vercel.app");
+      // Use whitelisted Pages origin so Render's CORS never blocks it
+      forwardHeaders.set("Origin", ORIGIN);
       if (!forwardHeaders.get("X-SupremeAI-Key")) {
         forwardHeaders.set("X-SupremeAI-Key", "guest");
       }
@@ -262,9 +262,9 @@ export default {
 
     const targetUrl = new URL(url.pathname + url.search, ORIGIN);
 
-    // Forward headers with appropriate Host
+    // Forward headers with appropriate Host matching the target origin
     const forwardHeaders = new Headers(request.headers);
-    forwardHeaders.set("Host", "supremeai-studio.vercel.app");
+    forwardHeaders.set("Host", targetUrl.host);
     forwardHeaders.set("X-Forwarded-Host", url.host);
     forwardHeaders.set("X-Forwarded-Proto", "https");
 

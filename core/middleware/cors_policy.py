@@ -104,8 +104,6 @@ DEFAULT_USER_ALLOWED_ORIGINS: tuple[str, ...] = tuple(
             (
                 "https://supremeai-a.web.app",  # Firebase Hosting user portal (production)
                 _registry_frontend_origin(),  # canonical Studio (from the registry)
-                "https://supremeai-studio.vercel.app",
-                "https://supremeai-studio-live.vercel.app",  # Vercel studio
                 "https://supremeai-studio.pages.dev",  # Cloudflare Pages Studio (production)
                 "https://supremeai-studio.paykaribazaronline.workers.dev",
             ),
