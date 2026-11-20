@@ -27,6 +27,34 @@ from .web_engines import provider_configs as _web_provider_configs
 
 logger = logging.getLogger("supremeai.adapters")
 
+
+def _default_referer() -> str:
+    """This service's own public origin, from the registry — never a literal.
+
+    OpenRouter wants an identifying HTTP-Referer; the value is our published
+    API origin. It used to be typed out at both call sites, which meant a host
+    migration had to be repeated in two places inside one file while
+    `config/service_registry.yaml` already declared it. Resolving through
+    `service_endpoint` keeps the registry as the single declaration point.
+
+    Returns "" when the registry is unreachable (bare install, no checkout):
+    the caller then omits the header rather than advertising a wrong host.
+    """
+    try:
+        from repo_paths import service_endpoint  # scripts/ci on sys.path in tooling
+    except ImportError:
+        try:
+            import sys as _sys
+            from pathlib import Path as _Path
+            _sys.path.insert(0, str(_Path(__file__).resolve().parents[3] / "scripts" / "ci"))
+            from repo_paths import service_endpoint
+        except Exception:  # pragma: no cover - defensive
+            return ""
+    try:
+        return (service_endpoint("api", with_path=False) or "").rstrip("/")
+    except Exception:  # pragma: no cover - defensive
+        return ""
+
 # One-shot config-defect warnings: keyed by defect signature so a hot request
 # path never spams the log, but every distinct misconfiguration surfaces loudly
 # exactly once per process (DNS ENOTFOUND storms are otherwise undiagnosable).
@@ -309,11 +337,13 @@ async def forward_chat_completion(
 
     # OpenRouter requires optional referer/title headers
     if provider == "openrouter":
-        headers["HTTP-Referer"] = (
+        referer = (
             os.getenv("OPENROUTER_REFERER")
             or os.getenv("RENDER_EXTERNAL_URL")
-            or "https://supremeai-api-ulw0.onrender.com"
+            or _default_referer()
         )
+        if referer:
+            headers["HTTP-Referer"] = referer
         headers["X-Title"] = "SupremeAI Gateway"
 
     body = _provider_payload(payload, provider, stream=False)
@@ -514,11 +544,13 @@ async def stream_chat_completion_events(
         "Accept": "text/event-stream",
     }
     if provider == "openrouter":
-        headers["HTTP-Referer"] = (
+        referer = (
             os.getenv("OPENROUTER_REFERER")
             or os.getenv("RENDER_EXTERNAL_URL")
-            or "https://supremeai-api-ulw0.onrender.com"
+            or _default_referer()
         )
+        if referer:
+            headers["HTTP-Referer"] = referer
         headers["X-Title"] = "SupremeAI Gateway"
 
     body = _provider_payload(payload, provider, stream=True)
