@@ -5,6 +5,12 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// বাংলা: handshake ও health একই release জানাবে; cwd নয়, প্যাকেজ থেকেই পড়ি।
+export const SERVER_NAME = "supremeai-control-tower";
+export const SERVER_VERSION: string = JSON.parse(
+  fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+).version;
+
 /**
  * Type-safe environment loader — the SINGLE SSOT for environment config.
  * NEVER hardcodes secret values — only reads env var NAMES (and non-secret

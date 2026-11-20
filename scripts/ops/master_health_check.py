@@ -31,7 +31,9 @@ import time
 import urllib.error
 import urllib.request
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -270,6 +272,102 @@ def probe_http_endpoint(
 # ---------------------------------------------------------------------------
 # Infra sweep
 # ---------------------------------------------------------------------------
+
+
+def pipeline_snapshot(timeout: float, *, quick: bool = False) -> dict:
+    """Public endpoint evidence only; never call the healer, vault or full Tower sweep."""
+    services = _registry_services()
+    if not services:
+        raise ValueError("Service registry unavailable or empty; no health evidence")
+
+    def check(item):
+        key, spec = item
+        preferred = "liveness_path" if quick else "readiness_path"
+        path = spec.get(preferred) or spec.get("health_path")
+        base = spec.get("production_url")
+        row = {"service": key, "path": None, "http": None, "ms": None}
+        if spec.get("status") == "retired":
+            return dict(row, status="retired")
+        if not base or not path:
+            return dict(row, status="not configured")
+        ok, code, ms, payload, _ = probe_http_endpoint(base.rstrip("/") + path, timeout)
+        state = payload.get("status") if isinstance(payload, dict) else None
+        if code is None:
+            verdict = "unreachable"
+        elif not ok:
+            verdict = "HTTP failure" if code not in (401, 403) else "access restricted"
+        elif isinstance(payload, dict) and payload.get("stale") is True:
+            verdict = "stale"
+        elif state in ("healthy", "ready", "ok", "operational", "up"):
+            verdict = "healthy"
+        elif state in ("degraded", "starting", "down", "outage", "unhealthy", "not_ready"):
+            verdict = state
+        else:
+            verdict = "unknown response"
+        return dict(row, path=path, http=code, ms=ms, status=verdict)
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        # বাংলা: quick probe-এ দুই public entrypoint ছাড়া আর কাউকে জাগাই না।
+        targets = [(key, services.get(key, {})) for key in ("api", "mcp")] if quick else services.items()
+        rows = list(pool.map(check, targets))
+
+    report = {"services": rows, "scope": "liveness" if quick else "fleet"}
+    if quick:
+        return {**report, "observed_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+
+    # বাংলা: cached summary পড়ি; provider-গুলোতে দ্বিতীয়বার probe চালাই না।
+    providers = []
+    mcp = services.get("mcp", {})
+    cache_status = "no Tower endpoint"
+    if mcp.get("production_url") and mcp.get("status") != "retired":
+        ok, code, _, data, _ = probe_http_endpoint(mcp["production_url"].rstrip("/") + "/health/summary", timeout)
+        cache_status = f"HTTP {code}" if code else "unreachable"
+        if ok and isinstance(data, dict) and isinstance(data.get("services"), list):
+            for entry in data["services"]:
+                if (not isinstance(entry, dict) or not isinstance(entry.get("provider"), str)
+                        or not re.fullmatch(r"[a-zA-Z0-9_.:-]{1,80}", entry["provider"])):
+                    continue
+                state = entry.get("status")
+                stamp = entry.get("checkedAt")
+                try:
+                    checked = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+                    if checked.tzinfo is None:
+                        raise ValueError("missing timezone")
+                    stamp = checked.astimezone(timezone.utc).isoformat(timespec="seconds")
+                except (ValueError, OverflowError):
+                    stamp = None
+                providers.append({"provider": entry["provider"], "checked_at": stamp,
+                                  "reported_status": state if state in ("healthy", "degraded", "down", "circuit_open") else "unknown"})
+            cache_status = "cached observations" if providers else "no observations"
+        elif ok:
+            cache_status = "unknown response"
+    return {**report, "observed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "tower_summary": cache_status, "providers": providers}
+
+
+def pipeline_markdown(report: dict) -> str:
+    rows = report["services"]
+    measured = [r for r in rows if r["status"] not in ("retired", "not configured")]
+    healthy = sum(r["status"] == "healthy" for r in measured)
+    coverage = f"**{healthy}/{len(measured)} probed endpoints reported healthy** · {len(rows) - len(measured)} not probed."
+    quick = report["scope"] == "liveness"
+    title = "Production liveness (API + Tower)" if quick else "Production service health"
+    description = ("Liveness only — no dependency or readiness checks." if quick else
+                   "One read-only GET per registered public readiness/health endpoint. Not a deploy or inference test.")
+    lines = [f"## {title}", coverage, f"Snapshot completed: **{report['observed_at']}**", "",
+             description, "",
+             "| Service | Path | Result | HTTP | ms |", "|---|---|---|---:|---:|"]
+    for row in report["services"]:
+        lines.append("| " + " | ".join(str(row[k]) if row[k] is not None else "—" for k in ("service", "path", "status", "http", "ms")) + " |")
+    if quick:
+        return "\n".join(lines) + "\n"
+    lines += ["", f"### Provider dependencies — Tower: {report['tower_summary']}",
+              "Last observations, not live provider probes. Check each timestamp before acting.", ""]
+    if report["providers"]:
+        lines += ["| Provider | Last reported state | Checked at (UTC) |", "|---|---|---|"]
+        for row in report["providers"]:
+            lines.append(f"| {row['provider']} | {row['reported_status']} | {row['checked_at'] or 'unknown'} |")
+    return "\n".join(lines) + "\n"
 
 
 def discover_and_evaluate(
@@ -894,7 +992,18 @@ Agent workflow:
     parser.add_argument("--full", action="store_true", help="Run infra + CI sweep combined")
     parser.add_argument("--deep", action="store_true", help="Probe Supabase Postgres, Redis and customer domains")
     parser.add_argument("--heal", action="store_true", help="Auto-heal: sweep full health and trigger agent loop on top priority failure")
+    scope = parser.add_mutually_exclusive_group()
+    scope.add_argument("--quick-liveness", action="store_true", help="Report only gateway and Tower liveness")
+    scope.add_argument("--pipeline-snapshot", type=Path, metavar="JSON", help="Write public health evidence; print the Actions summary")
     args = parser.parse_args(argv)
+    if args.quick_liveness:
+        print(pipeline_markdown(pipeline_snapshot(args.timeout, quick=True)))
+        return 0
+    if args.pipeline_snapshot:
+        snapshot = pipeline_snapshot(args.timeout)
+        args.pipeline_snapshot.write_text(json.dumps(snapshot, indent=2) + "\n", encoding="utf-8")
+        print(pipeline_markdown(snapshot))
+        return 0
 
     if args.self_test:
         return self_test()

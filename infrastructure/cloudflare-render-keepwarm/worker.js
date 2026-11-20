@@ -1,16 +1,15 @@
 /**
  * SupremeAI Render Keepwarm Mesh — Cloudflare Worker
  * 
- * Runs on a 5-minute cron schedule to keep all 6 Render production services alive,
- * eliminating the 50-90s cold start latency on the Free tier.
+ * Wrangler schedules lightweight liveness pings to reduce free-tier cold starts.
  */
 
 const TARGET_SERVICES = [
-  { name: "MCP Control Tower", url: "https://supremeai-mcp-tower-live.onrender.com/health/live" },
+  { required: true, name: "MCP Control Tower", url: "https://supremeai-mcp-tower-live.onrender.com/health/live" },
   { name: "Primary Core Node", url: "https://supremeai-primary-node-5xso.onrender.com/health/live" },
   { name: "Browser Scraper Node", url: "https://supremeai-scraper-node.onrender.com/health" },
   { name: "Async Worker Node", url: "https://supremeai-worker-node.onrender.com/health" },
-  { name: "API Gateway", url: "https://supremeai-api-ulw0.onrender.com/healthz" },
+  { required: true, name: "API Gateway", url: "https://supremeai-api-ulw0.onrender.com/healthz" },
   { name: "Tiny AI Brain", url: "https://supremeai-tiny-brain.onrender.com/health" }
 ];
 
@@ -31,7 +30,7 @@ function buildMetadata(env) {
 
 async function pingServices() {
   const startedAt = Date.now();
-  const results = await Promise.allSettled(
+  const nodes = await Promise.all(
     TARGET_SERVICES.map(async (target) => {
       const nodeStart = Date.now();
       try {
@@ -62,18 +61,21 @@ async function pingServices() {
       }
     })
   );
-  const elapsedMs = Date.now() - startedAt;
+  const requiredDown = nodes.some((node, i) => TARGET_SERVICES[i].required && !node.ok);
   return {
-    elapsed_ms: elapsedMs,
-    nodes: results.map((r) => (r.status === "fulfilled" ? r.value : { error: String(r.reason), ok: false }))
+    elapsed_ms: Date.now() - startedAt,
+    requiredDown,
+    status: requiredDown ? "unavailable" : nodes.every(node => node.ok) ? "warmed" : "degraded",
+    nodes
   };
 }
 
 export default {
-  // Scheduled Cron Event (every 5 minutes)
+  // বাংলা: সময়সূচির একমাত্র উৎস wrangler.toml।
   async scheduled(event, env, ctx) {
     const outcome = await pingServices();
-    console.log(`[Keepwarm Mesh] Executed in ${outcome.elapsed_ms}ms:`, JSON.stringify(outcome.nodes));
+    console.log(JSON.stringify({ cron: event.cron, scheduledTime: event.scheduledTime, ...outcome }));
+    if (outcome.requiredDown) throw new Error("Required Render keepwarm target unavailable");
   },
 
   // HTTP Gateway for health check or status probing
@@ -92,13 +94,13 @@ export default {
       const outcome = await pingServices();
       return new Response(
         JSON.stringify({
-          status: "warmed",
+          status: outcome.status,
           ...meta,
           total_duration_ms: outcome.elapsed_ms,
           services: outcome.nodes
         }, null, 2),
         {
-          status: 200,
+          status: outcome.requiredDown ? 503 : 200,
           headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
         }
       );
@@ -116,7 +118,7 @@ export default {
         status: "active",
         ...meta,
         monitored_nodes: TARGET_SERVICES.length,
-        schedule: "*/5 * * * *"
+        schedule: "*/10 * * * *"
       }, null, 2),
       {
         headers: { "Content-Type": "application/json" }

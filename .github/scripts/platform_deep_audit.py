@@ -318,7 +318,7 @@ def probe_render(kv: dict) -> list[dict]:
         # বাংলা মন্তব্য: সেটিংস-ঝুঁকি যাচাই (#2454 শিক্ষা) — free plan + health-path অনুপস্থিত
         if plan == "free":
             out.append(mk("render", f"settings[{name}].plan", None,
-                          "plan=free — ১৫m idle spin-down + 512MB RAM ঝুঁকি",
+                          "plan=free — idle ও RAM সীমা প্রযোজ্য; এটি outage নয়। Cloudflare keepwarm-এর সর্বশেষ সফল scheduled ping যাচাই করুন।",
                           category="SETTINGS_RISK"))
         if not hcp:
             out.append(mk("render", f"settings[{name}].healthCheckPath", None,

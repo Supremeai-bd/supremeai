@@ -13,7 +13,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { z } from "zod";
-import { env } from "./lib/env.js";
+import { env, SERVER_NAME, SERVER_VERSION } from "./lib/env.js";
 import {
   mcpRateBuckets,
   toolIdentityRateBuckets,
@@ -73,8 +73,6 @@ import {
 } from "./tasks/task-registry.js";
 
 import { startHttpServer } from "./http_server.js";
-const SERVER_NAME = "supremeai-control-tower";
-const SERVER_VERSION = "1.0.0";
 const MAX_REQUEST_BYTES = 1_048_576;
 const MCP_MANIFEST_URI = "control-tower://server/manifest";
 

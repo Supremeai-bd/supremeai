@@ -112,6 +112,26 @@ jobs:
             printf 'execution_tier=github-ubuntu-render-backend\nis_local_online=false\n' >> "$GITHUB_OUTPUT"
           fi
 
+  service-health:
+    name: Production liveness (API + MCP Tower)
+    needs: [resolve-execution-tier]
+    if: >-
+      !cancelled() && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Check the two public entrypoints
+        run: |
+          python3 -c 'import yaml' || python3 -m pip install 'PyYAML==6.0.3'
+          python3 scripts/ops/master_health_check.py --timeout 8 --quick-liveness >> "$GITHUB_STEP_SUMMARY"
+          echo "[Full fleet and provider report — Nightly Ops]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/ops-maintenance.yml?query=event%3Aschedule)" >> "$GITHUB_STEP_SUMMARY"
+
   # =========================================================================
   # STAGE 1: TIER 1 - MINIMAL FAST GATES (Cloud fallback only)
   # Zero Cloud Waste (SSOT): when local PC is online, fast-gate + readiness +
@@ -919,7 +939,7 @@ jobs:
           if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
             if [ -d infrastructure/cloudflare-render-keepwarm ]; then
               cd infrastructure/cloudflare-render-keepwarm
-              npx wrangler deploy --var CF_COMMIT_SHA:${{ github.sha }} || echo "Wrangler keepwarm deploy skipped or non-blocking"
+              npx wrangler deploy --var CF_COMMIT_SHA:${{ github.sha }}
             else
               echo "keepwarm dir not found; skipping"
             fi

@@ -12,7 +12,10 @@ Implements Option B of Issue #2103:
 from __future__ import annotations
 
 # Host resolved from config/service_registry.yaml (env wins) — never a literal.
-from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+if __package__:
+    from .repo_paths import svc as _svc
+else:
+    from repo_paths import svc as _svc
 
 
 import argparse
@@ -20,6 +23,7 @@ import json
 import sys
 import urllib.error
 import urllib.request
+from http.client import HTTPException
 from typing import Any, Dict
 
 DEFAULT_TOWER_URL = _svc("mcp", "/mcp")
@@ -75,51 +79,56 @@ def probe_version(url: str, version: str, timeout: int = 15) -> Dict[str, Any]:
         method="POST"
     )
 
+    sid = None
+    echoed_version = None
+    status = 0
+    report = {"offeredVersion": version, "ok": False}
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            raw_body = resp.read().decode("utf-8")
-            
-            # Streamable HTTP MCP transport returns text/event-stream containing SSE message
-            json_text = raw_body
-            if "data:" in raw_body:
-                for line in raw_body.splitlines():
-                    if line.startswith("data:"):
-                        json_text = line[len("data:"):].strip()
-                        break
-            
-            data = json.loads(json_text)
-            result = data.get("result", {})
-            echoed_version = result.get("protocolVersion")
-            server_info = result.get("serverInfo", {})
-            capabilities = result.get("capabilities", {})
-            analysis = analyze_capabilities(capabilities)
-            session_id = resp.headers.get("Mcp-Session-Id")
-
-            return {
-                "offeredVersion": version,
-                "echoedVersion": echoed_version,
-                "status": resp.status,
-                "ok": True,
-                "serverInfo": server_info,
-                "capabilities": capabilities,
-                "capabilityAnalysis": analysis,
-                "sessionId": session_id,
-            }
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8") if e.fp else ""
-        return {
-            "offeredVersion": version,
-            "status": e.code,
-            "ok": False,
-            "error": body
-        }
-    except Exception as ex:
-        return {
-            "offeredVersion": version,
-            "status": 0,
-            "ok": False,
-            "error": str(ex)
-        }
+            status = resp.status
+            sid = resp.headers.get("Mcp-Session-Id")
+            body = resp.read().decode("utf-8")
+            if "text/event-stream" in resp.headers.get("Content-Type", ""):
+                # বাংলা: SSE keepalive/notification নয়, initialize-এর উত্তরটি চাই।
+                frames = (json.loads(line[5:]) for line in body.splitlines()
+                          if line.startswith("data:") and line[5:].strip())
+                data = next((f for f in frames if isinstance(f, dict) and f.get("id") == f"probe-{version}"), None)
+            else:
+                data = json.loads(body)
+            if (not isinstance(data, dict) or data.get("jsonrpc") != "2.0"
+                    or data.get("id") != f"probe-{version}" or "error" in data):
+                raise ValueError("Missing or rejected initialize response")
+            result = data.get("result")
+            if not isinstance(result, dict) or not isinstance(result.get("capabilities"), dict):
+                raise ValueError("Missing initialize capabilities")
+            negotiated = result.get("protocolVersion")
+            info = result.get("serverInfo")
+            if (not isinstance(negotiated, str) or not negotiated or not isinstance(info, dict)
+                    or not all(isinstance(info.get(k), str) and info[k] for k in ("name", "version"))):
+                raise ValueError("Invalid protocolVersion or serverInfo")
+            echoed_version = negotiated
+            report.update(ok=True, echoedVersion=negotiated, serverInfo=info,
+                          capabilities=result["capabilities"], capabilityAnalysis=analyze_capabilities(result["capabilities"]))
+    except urllib.error.HTTPError as exc:
+        status = exc.code
+        report["error"] = f"HTTP {exc.code}"
+        exc.close()
+    except (OSError, HTTPException, ValueError) as exc:
+        report["error"] = str(exc)
+    finally:
+        if sid:
+            # বাংলা: probe-এর নিজের session বন্ধ করি; ID কখনো report-এ যায় না।
+            headers = {"Mcp-Session-Id": sid}
+            if echoed_version:
+                headers["MCP-Protocol-Version"] = echoed_version
+            close = urllib.request.Request(url, method="DELETE", headers=headers)
+            try:
+                with urllib.request.urlopen(close, timeout=timeout):
+                    report["sessionClosed"] = True
+            except (OSError, HTTPException, ValueError):
+                report["sessionClosed"] = False
+    report["status"] = status
+    return report
 
 
 def run_full_probe(url: str = DEFAULT_TOWER_URL) -> Dict[str, Any]:
@@ -189,7 +198,7 @@ def main() -> int:
         print(f"Probing MCP endpoint at {args.url}...")
         report = run_full_probe(args.url)
         print(json.dumps(report, indent=2))
-        return 0
+        return 0 if any(r["ok"] for r in report["probeResults"].values()) else 1
 
     parser.print_help()
     return 0

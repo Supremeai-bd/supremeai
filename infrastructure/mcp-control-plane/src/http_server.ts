@@ -14,7 +14,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { gzipSync } from "node:zlib";
 import { z } from "zod";
-import { env } from "./lib/env.js";
+import { env, SERVER_NAME, SERVER_VERSION } from "./lib/env.js";
 import {
   mcpRateBuckets,
   toolIdentityRateBuckets,
@@ -75,8 +75,6 @@ import {
   taskQueueStatus,
   isGithubLocked,
 } from "./tasks/task-registry.js";
-const SERVER_NAME = "supremeai-control-tower";
-const SERVER_VERSION = "1.0.0";
 const MAX_REQUEST_BYTES = 1_048_576;
 const MCP_MANIFEST_URI = "control-tower://server/manifest";
 
