@@ -69,6 +69,7 @@ class PayloadContract(unittest.TestCase):
             "webhook_scout",
             "telegram_webhook_configured",
             "active_providers",
+            "web_transport",
         ):
             self.assertIn(field, sp.OPERATOR_ONLY_FIELDS)
 

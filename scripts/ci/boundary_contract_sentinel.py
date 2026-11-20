@@ -92,6 +92,7 @@ except Exception:
         "total_keys", "total_healthy_keys", "stealth_priority1_configured",
         "stealth_dns", "web_sessions_active", "web_session_status",
         "webhook_scout", "telegram_webhook_configured", "active_providers",
+        "web_transport",
     )
 
 LIVENESS_FIELDS = {"status", "service_name", "version", "chat_ready", "timestamp"}
