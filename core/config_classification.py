@@ -2511,6 +2511,624 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         frozenset({"ci"}),
         description="Whether to skip authentication checks during smoke test suites.",
     ),
+
+    # ── Classified 2026-11-20: 67 security-sensitive reads from a repo scan ──
+    # `check_config_control_plane.py` found these referenced in code but absent
+    # from this registry. That gate only looks at names matching
+    # KEY|SECRET|TOKEN|PASSWORD|PRIVATE|CREDENTIAL|AUTH, so it under-reports: the
+    # scan also saw 1085 total env references against 350 registered keys.
+    #
+    # Five entries below are NOT credentials and are registered as OPTIONAL
+    # because the substring rule caught them — a float timeout, an int TTL, a
+    # boolean flag, a QA fixture and a scanner test value. Recording them here
+    # is the honest fix: the alternative is loosening the gate, which would
+    # hide the 62 real credentials alongside them.
+    #
+    # scopes and sources were derived from where each name is actually read
+    # (`git ls-files` + the same five patterns the gate uses), not guessed.
+    ConfigSpec(
+        "ADMIN_ENDPOINT_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"ci"}),
+        description=(
+            "Security-sensitive credential read in ci; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "ADMIN_PASSKEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Security-sensitive credential read in gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "ADMIN_PASSWORD",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Security-sensitive credential read in gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "ADMIN_PASSWORD_HASH",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Security-sensitive credential read in gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "ADMIN_TOTP_SECRET",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway", "infrastructure"}),
+        description=(
+            "Security-sensitive credential read in gateway, infrastructure; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "AGENT_PR_HELPER_PRIVATE_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"ci"}),
+        description=(
+            "Security-sensitive credential read in ci; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "BRAIN_AUTH_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "Security-sensitive credential read in backend; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "BRIDGE_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"ci"}),
+        description=(
+            "Security-sensitive credential read in ci; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "BROWSER_CREDENTIALS_FAIL_CLOSED",
+        frozenset({ConfigClass.OPTIONAL}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "boolean flag selecting fail-closed credential resolution, not a credential"
+        ),
+    ),
+    ConfigSpec(
+        "BROWSER_SERVICE_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "Security-sensitive credential read in backend; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "BROWSER_VAULT_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "Security-sensitive credential read in backend; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "CHAT_FIRST_TOKEN_TIMEOUT_S",
+        frozenset({ConfigClass.OPTIONAL}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "float seconds; a latency budget, not a credential — matched the SENSITIVE regex on 'TOKEN'"
+        ),
+    ),
+    ConfigSpec(
+        "CREDENTIAL_MASTER_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"browser", "test"}),
+        description=(
+            "Security-sensitive credential read in browser, test; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "CUSTOMER_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"ci"}),
+        description=(
+            "Security-sensitive credential read in ci; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "EVALUATOR_MAX_KEYS_PER_PROVIDER",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"ci"}),
+        description=(
+            "Security-sensitive credential read in ci; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "GEMINI_WEB_PASSWORD",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"browser"}),
+        description=(
+            "Security-sensitive credential read in browser; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "GH_FALLBACK_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"ci"}),
+        description=(
+            "Security-sensitive credential read in ci; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "GITHUB_APP_PRIVATE_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"ci"}),
+        description=(
+            "Security-sensitive credential read in ci; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "GITHUB_READONLY_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "Security-sensitive credential read in backend; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "GITHUB_WEBHOOK_SECRET",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "Security-sensitive credential read in backend; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "GRAPHIPHY_API_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"infrastructure"}),
+        description=(
+            "Security-sensitive credential read in infrastructure; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "GRAPIPHY_API_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"infrastructure"}),
+        description=(
+            "Security-sensitive credential read in infrastructure; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "GUEST_TOKEN_TTL_SECONDS",
+        frozenset({ConfigClass.OPTIONAL}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "integer seconds; TTL bound for guest JWTs, not a credential"
+        ),
+    ),
+    ConfigSpec(
+        "HARNESS_API_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"infrastructure"}),
+        description=(
+            "Security-sensitive credential read in infrastructure; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "HARNESS_API_KEY_NILOYJOY7",
+        frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"infrastructure"}),
+        description=(
+            "legacy per-user Harness key; the adapter prefers HARNESS_API_KEY and falls back here"
+        ),
+    ),
+    ConfigSpec(
+        "INFISICAL_GEMINI_COOKIES_SECRET",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"browser"}),
+        description=(
+            "Security-sensitive credential read in browser; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "KAGGLE_API_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"ci"}),
+        description=(
+            "Security-sensitive credential read in ci; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "KAGGLE_API_TOKENS",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"ci"}),
+        description=(
+            "Security-sensitive credential read in ci; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "KAGGLE_CRON_SECRET",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "Security-sensitive credential read in backend; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "KAGGLE_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"ci", "gateway"}),
+        description=(
+            "Security-sensitive credential read in ci, gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "LLM_PROVIDER_KEYS",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "Security-sensitive credential read in backend; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "LOVABLE_API_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "Security-sensitive credential read in backend; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "MCP_CLIENT_REGISTRY_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"infrastructure"}),
+        description=(
+            "Security-sensitive credential read in infrastructure; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "MCP_SUPERADMIN_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Security-sensitive credential read in gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "MCP_TOWER_AUTH_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"ci"}),
+        description=(
+            "Security-sensitive credential read in ci; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "MCP_TOWER_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend", "ci"}),
+        description=(
+            "Security-sensitive credential read in backend, ci; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "METRICS_SCRAPE_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Security-sensitive credential read in gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "MOCK_SECRET_TEST",
+        frozenset({ConfigClass.OPTIONAL}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"ci"}),
+        description=(
+            "fixture value written by deploy_preflight_guard at runtime to exercise the secret scanner; never a real secret"
+        ),
+    ),
+    ConfigSpec(
+        "QA_ADMIN_PASSWORD",
+        frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"test"}),
+        description=(
+            "QA fixture password for the test suite"
+        ),
+    ),
+    ConfigSpec(
+        "QA_ADMIN_TOTP_SECRET",
+        frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"test"}),
+        description=(
+            "QA fixture TOTP secret for the test suite"
+        ),
+    ),
+    ConfigSpec(
+        "QA_CUSTOMER_PASSWORD",
+        frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"test"}),
+        description=(
+            "QA fixture customer password for the test suite"
+        ),
+    ),
+    ConfigSpec(
+        "RENDER_API_KEY_PAYKARI",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend", "ci", "infrastructure"}),
+        description=(
+            "Security-sensitive credential read in backend, ci, infrastructure; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "SSE_FIRST_TOKEN_TIMEOUT_S",
+        frozenset({ConfigClass.OPTIONAL}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "float seconds; first-token latency budget for the SSE route, not a credential"
+        ),
+    ),
+    ConfigSpec(
+        "STEALTH_WEBHOOK_SECRET",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"browser", "gateway"}),
+        description=(
+            "Security-sensitive credential read in browser, gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "STRIPE_API_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "Security-sensitive credential read in backend; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "SUPREMEAI_ADMIN_BOOTSTRAP_SECRET",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Security-sensitive credential read in gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "SUPREMEAI_ADMIN_LOGIN_PASSWORD",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Security-sensitive credential read in gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "SUPREMEAI_ADMIN_PASSWORD",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Security-sensitive credential read in gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "SUPREMEAI_API_KEYS",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Security-sensitive credential read in gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "SUPREMEAI_API_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "Security-sensitive credential read in backend; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "SUPREMEAI_CLOUD_SANDBOX_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "Security-sensitive credential read in backend; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "SUPREMEAI_GITHUB_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend", "gateway"}),
+        description=(
+            "Security-sensitive credential read in backend, gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "SUPREMEAI_MASTER_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Security-sensitive credential read in gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "SUPREMEAI_OPERATOR_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Security-sensitive credential read in gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "SUPREMEAI_SUPERADMIN_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Security-sensitive credential read in gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "SUPREME_EVAL_TOKEN",
+        frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"evals"}),
+        description=(
+            "token the eval harness uses to call the API in CI"
+        ),
+    ),
+    ConfigSpec(
+        "SUPREME_SEARCH_BRAVE_KEY",
+        frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"test"}),
+        description=(
+            "Brave search key referenced by tests"
+        ),
+    ),
+    ConfigSpec(
+        "SUPREME_SEARCH_TAVILY_KEY",
+        frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"test"}),
+        description=(
+            "Tavily search key referenced by tests"
+        ),
+    ),
+    ConfigSpec(
+        "TELEGRAM_WEBHOOK_SECRET",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Security-sensitive credential read in gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "TOWER_ADMIN_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "Security-sensitive credential read in backend; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "UPSTASH_REDIS_QUATERNARY_REST_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"infrastructure"}),
+        description=(
+            "Security-sensitive credential read in infrastructure; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "UPSTASH_REDIS_QUINARY_REST_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"infrastructure"}),
+        description=(
+            "Security-sensitive credential read in infrastructure; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "UPSTASH_REDIS_SECONDARY_REST_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"infrastructure"}),
+        description=(
+            "Security-sensitive credential read in infrastructure; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "UPSTASH_REDIS_TERTIARY_REST_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"infrastructure"}),
+        description=(
+            "Security-sensitive credential read in infrastructure; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "UPSTREAM_WEBHOOK_SECRET",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Security-sensitive credential read in gateway; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "WEBSHARE_API_KEY",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"browser"}),
+        description=(
+            "Security-sensitive credential read in browser; classified from a repo-wide env scan."
+        ),
+    ),
+    ConfigSpec(
+        "ZCODE_MCP_TOKEN",
+        frozenset({ConfigClass.SECRET}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description=(
+            "Security-sensitive credential read in backend; classified from a repo-wide env scan."
+        ),
+    ),
 )
 
 BY_NAME: dict[str, ConfigSpec] = {spec.name: spec for spec in CONFIG_SPECS}

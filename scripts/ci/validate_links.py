@@ -210,6 +210,16 @@ class LinkValidator:
         path = target_path if target_path else os.path.join(self.root, where)
         if not os.path.exists(path):
             return  # missing file is (or will be) reported by the path check
+
+        # A link into a SOURCE file (#L626-L775) is a line range, not a heading.
+        # GitHub scrolls to the line; there is no heading to slug-match. This
+        # validator used to run the heading extractor over every existing file,
+        # so .py targets yielded comment "headings" and every #Lnn link was then
+        # reported as a broken anchor. That produced 254 false failures — about
+        # three quarters of the repo's total — against files that all exist.
+        if not path.lower().endswith(".md"):
+            return
+
         slugs = self._slugs_for(path)
         if frag not in slugs:
             self.broken.append({

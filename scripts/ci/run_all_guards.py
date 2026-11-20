@@ -112,6 +112,14 @@ GUARDS: list[list[str]] = [
     # failing step to point at, so the breakage was invisible to the PR that
     # caused it. This guard validates the rules GitHub actually enforces.
     ["python", "scripts/ci/workflow_validity_guard.py", "--check"],
+    # 2026-11-20: 67 security-sensitive env vars were read in code but absent
+    # from the config SSOT. Registered (350 -> 417 keys), so this gate passes
+    # now and can hold the line going forward.
+    ["python", "scripts/ci/check_config_control_plane.py", "--check"],
+    # Path resolver: `backend/` has never existed here; the package is `core/`.
+    # 101 scripts still hardcode the dead path (measured by --check), so only the
+    # self-test gates for now — the resolver's own logic is what needs pinning.
+    ["python", "scripts/ci/repo_paths.py", "--self-test"],
     # ── Adopted 2026-11-20 (batch 2): proven green on the current tree ───────
     # Each was executed before adoption; all exit 0 on main today, so adding
     # them cannot make the roster red. They were written, merged and never
