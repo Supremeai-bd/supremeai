@@ -49,7 +49,7 @@ from pathlib import Path
 
 # Resolved from config/service_registry.yaml (env RENDER_MCP_URL wins).
 try:
-    from repo_paths import service_endpoint as _service_endpoint
+    from repo_paths import svc as _svc
     DEFAULT_TOWER_URL = (_svc("mcp") or "") + "/mcp"
 except Exception:  # pragma: no cover
     DEFAULT_TOWER_URL = ""

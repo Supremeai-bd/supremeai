@@ -15,7 +15,7 @@ import urllib.request
 
 def main() -> None:
     try:
-        from repo_paths import service_endpoint as _service_endpoint
+        from repo_paths import svc as _svc
         _default = _svc("scraper") or ""
     except Exception:  # pragma: no cover
         _default = ""

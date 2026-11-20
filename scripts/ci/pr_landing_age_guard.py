@@ -43,9 +43,6 @@ import argparse
 import json
 import re
 import sys
-import time
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 
 TOWER = _svc("mcp", "/mcp")

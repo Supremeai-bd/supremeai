@@ -95,6 +95,7 @@ from __future__ import annotations
 
 # Host resolved from config/service_registry.yaml (env wins) — never a literal.
 from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+from tower_rpc_client import fetch_work_orders as _shared_fetch_work_orders  # noqa: E402
 
 
 import argparse

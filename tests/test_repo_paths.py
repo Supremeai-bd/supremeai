@@ -233,9 +233,18 @@ class TestServiceEndpoints:
         assert not offenders, f"hardcoded production hosts reappeared: {offenders}"
 
     def test_converted_scripts_use_the_registry(self):
+        """Every converted script must reach the registry somehow.
+
+        Accepts either entry point: `svc()` (the path+host helper) and
+        `service_endpoint()` (host only) both resolve through the registry. The
+        assertion used to name `service_endpoint` alone, which broke the moment a
+        script switched to `svc` — the thing being tested is "no literal, goes
+        through config", not which of the two wrappers it picked.
+        """
         for rel in self.CONVERTED:
             text = (REPO_ROOT / rel).read_text(encoding="utf-8")
-            assert "service_endpoint" in text, f"{rel} no longer resolves via the registry"
+            via = [name for name in ("service_endpoint", "svc(") if name in text]
+            assert via, f"{rel} no longer resolves via the registry"
 
 
 class TestGuardDoesNotExemptItself:

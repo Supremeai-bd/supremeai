@@ -69,7 +69,7 @@ STRATEGIC_FILE = REPO_ROOT / "data" / "strategic_decisions.jsonl"
 # endswith("/mcp") normalisation below turns into an explicit configuration
 # error instead of a call to a retired host.
 try:
-    from repo_paths import service_endpoint as _service_endpoint
+    from repo_paths import svc as _svc
     _TOWER_DEFAULT = _svc("mcp") or ""
 except Exception:  # pragma: no cover - partial checkout
     _TOWER_DEFAULT = ""

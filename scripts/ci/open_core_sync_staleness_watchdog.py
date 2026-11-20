@@ -66,7 +66,6 @@ from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is
 import argparse
 import json
 import sys
-import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone

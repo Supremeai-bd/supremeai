@@ -18,7 +18,7 @@ import urllib.request
 
 # Resolved from config/service_registry.yaml (env wins) instead of a literal.
 try:
-    from repo_paths import service_endpoint as _service_endpoint
+    from repo_paths import svc as _svc
     _TOWER_DEFAULT = (_svc("mcp") or "") + "/mcp"
 except Exception:  # pragma: no cover
     _TOWER_DEFAULT = ""
