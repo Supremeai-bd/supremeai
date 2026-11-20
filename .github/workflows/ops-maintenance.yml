@@ -50,11 +50,7 @@ on:
     #   + docs-garbage-sweep + e2e-customer + load-locust + chaos-suite + browser-e2e
     #   + silent-error + dast + constitution + self-audit
     # (Mon 17 3 * * 1 cron retired by #67 — its arms moved to Sunday Tier 2 / daily Tier 1)
-    - cron: "0 3 * * 0"
     # Daily 10:00 AM BDT (04:00 UTC) Automated Production Readiness & Health Report
-    - cron: "0 4 * * *"
-    # 2-hourly opportunistic 24h+ audit window check
-    - cron: "0 */2 * * *"
     # Redis Quota & Burn-rate Monitor (every 30 min at :13/:43 UTC)
     - cron: "13,43 * * * *"
     # Weekly LLM Red-Team Garak sweep (Mon 03:00 UTC)
@@ -239,7 +235,7 @@ jobs:
     if: >-
         needs.resolve-execution-tier.outputs.is_local_online == 'true' &&
         ((github.event_name == 'workflow_dispatch' && inputs.run_deep_audit == true) ||
-         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0'))
+         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1'))
     concurrency:
       group: nightly-ops-deep-audit
       cancel-in-progress: false
@@ -356,7 +352,7 @@ jobs:
     if: >-
         needs.resolve-execution-tier.outputs.is_local_online != 'true' &&
         ((github.event_name == 'workflow_dispatch' && inputs.run_deep_audit == true) ||
-         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0'))
+         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1'))
     concurrency:
       group: nightly-ops-deep-audit
       cancel-in-progress: false
@@ -852,7 +848,7 @@ jobs:
     # hard cap, so this arm has NO dispatch toggle — Tier-1 daily schedule only
     # (lightweight API probe, 5-min timeout).
     name: 🧪 Infisical RAW Vault Synthetic Check (#72)
-    if: github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0') # #67 Tier 1 daily
+    if: github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1') # #67 Tier 1 daily
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -885,7 +881,7 @@ jobs:
     if: >-
         github.ref == 'refs/heads/main' &&
         ((github.event_name == 'workflow_dispatch' && inputs.run_platform_deep_audit == true) ||
-         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0'))
+         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1'))
     concurrency:
       group: platform-deep-audit
       cancel-in-progress: false
@@ -932,7 +928,7 @@ jobs:
     name: 📊 Rate Limit Trend Snapshot (daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_rate_limit_trend == true) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
     concurrency:
       group: rate-limit-monitor
       cancel-in-progress: false
@@ -1075,7 +1071,7 @@ jobs:
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_docs_garbage_sweep == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
     concurrency:
       group: docs-garbage-sweep
       cancel-in-progress: false
@@ -1119,7 +1115,7 @@ jobs:
     needs: [resolve-execution-tier]
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_stale_mutex == true) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
     concurrency:
       group: stale-mutex-cleanup
       cancel-in-progress: false
@@ -1262,7 +1258,7 @@ jobs:
     needs: [resolve-execution-tier]
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_live_smoke == true) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
     concurrency:
       group: qa-live-smoke
       cancel-in-progress: false
@@ -1584,7 +1580,7 @@ jobs:
     name: 🗑️ DB Retention Prune (logs + learning store)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_db_retention == true) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
     concurrency:
       group: db-retention
       cancel-in-progress: false
@@ -1682,7 +1678,7 @@ jobs:
 
   e2e-customer:
     needs: [resolve-execution-tier]
-    if: github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0' # #67 Tier 2: weekly Sun off-peak (was daily)
+    if: github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1' # #67 Tier 2: weekly Sun off-peak (was daily)
     concurrency:
       group: nightly-ops-e2e-customer
       cancel-in-progress: true
@@ -1779,7 +1775,7 @@ jobs:
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_load_locust == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
     concurrency:
       group: nightly-ops-load-locust
       cancel-in-progress: false
@@ -1891,7 +1887,7 @@ jobs:
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_chaos_suite == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
     concurrency:
       group: nightly-ops-chaos-suite
       cancel-in-progress: false
@@ -1929,7 +1925,7 @@ jobs:
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_browser_e2e == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
     concurrency:
       group: nightly-ops-browser-e2e
       cancel-in-progress: false
@@ -1971,7 +1967,7 @@ jobs:
     needs: [resolve-execution-tier]
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_db_pool_health == true) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
     concurrency:
       group: nightly-ops-db-pool-health
       cancel-in-progress: false
@@ -2060,7 +2056,7 @@ jobs:
     # #67 Tier 1: daily storage tidy (was Mon weekly)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_branch_retention == true) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
     concurrency:
       group: branch-retention-cleanup
       cancel-in-progress: false
@@ -2170,7 +2166,7 @@ jobs:
     # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_silent_error == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
     name: 🤫 Silent Error Scan
     runs-on: ubuntu-24.04
     steps:
@@ -2200,7 +2196,7 @@ jobs:
     # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_dast == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
     concurrency:
       group: dast-zap-${{ github.ref }}
       cancel-in-progress: true
@@ -2259,7 +2255,7 @@ jobs:
     # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_constitution == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
     concurrency:
       group: nightly-ops-constitution
       cancel-in-progress: true
@@ -2289,7 +2285,7 @@ jobs:
     needs: [resolve-execution-tier]
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_self_audit == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
     name: 🔍 Weekly Self-Audit Scan
     runs-on: ubuntu-24.04
     steps:
@@ -2306,7 +2302,7 @@ jobs:
     needs: [resolve-execution-tier]
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_workflow_runs_retention == true) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
     name: 🧹 Workflow Runs Retention & Purge
     concurrency:
       group: nightly-ops-workflow-runs-retention
@@ -2446,7 +2442,7 @@ jobs:
     needs: [resolve-execution-tier]
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 0'))
+      (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
     name: "🧠 Kaggle Empirical Learning"
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -2519,7 +2515,7 @@ jobs:
     name: "🩺 Daily 10:00 AM BDT Health & Release Gate Report"
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.run_daily_health_report == true) ||
-      (github.event_name == 'schedule' && github.event.schedule == '0 4 * * *')
+      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -2591,8 +2587,7 @@ jobs:
     needs: [resolve-execution-tier]
     name: "Evaluate 24h+ Opportunistic Audit Window"
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.run_opportunistic_audit == true) ||
-      (github.event_name == 'schedule' && github.event.schedule == '0 */2 * * *')
+      (github.event_name == 'workflow_dispatch' && inputs.run_opportunistic_audit == true)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -2697,7 +2692,7 @@ jobs:
     # hierarchy-exception: weekly garak red-team schedule lane (isolated toolchain validation)
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.run_garak_redteam == true) ||
-      (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * 1' || github.event.schedule == '0 3 * * 0'))
+      (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * 1' || github.event.schedule == '0 3 * * 1'))
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

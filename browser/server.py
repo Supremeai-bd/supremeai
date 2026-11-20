@@ -32,6 +32,21 @@ import time
 from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
 
 import httpx
+
+try:
+    from browser.surface_controls import (
+        EngineConcurrencyLimiter,
+        TenantSemanticCache,
+        TenantSessionAffinity,
+        score_response_quality,
+    )
+except ImportError:
+    from surface_controls import (  # type: ignore[no-redef]
+        EngineConcurrencyLimiter,
+        TenantSemanticCache,
+        TenantSessionAffinity,
+        score_response_quality,
+    )
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, StreamingResponse
