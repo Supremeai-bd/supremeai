@@ -23,5 +23,7 @@ gateway/tests/test_docker_gateway_chat.py
 tests/ci/test_nightly_vulnerability_scanner.py
 gateway/tests/test_circuit_breaker_wiring.py
 gateway/tests/test_provider_transport_and_limits.py
+tests/test_free_route_policy_tool.py
+tests/test_web_engine_health.py
 tests/test_web_engine_providers.py
 tests/test_zero_cost_capacity_probe.py
