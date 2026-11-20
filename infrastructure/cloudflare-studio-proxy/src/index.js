@@ -24,7 +24,11 @@ const API_ORIGIN = "https://supremeai-api-ulw0.onrender.com";
 
 /** Point this invocation at the configured Studio origin. Returns it. */
 function resolveOrigin(env) {
-  const host = String(env?.ORIGIN_HOST || "").trim().replace(/\/+$/, "");
+  // Trim trailing slashes with a loop, not a regex: CodeQL flags /\/+$/ on a
+  // config-supplied string as polynomial (each start position rescans the run
+  // of slashes). This is linear and equally simple.
+  let host = String(env?.ORIGIN_HOST || "").trim();
+  while (host.endsWith("/")) host = host.slice(0, -1);
   if (!host) return (ORIGIN = DEFAULT_ORIGIN);
   return (ORIGIN = host.startsWith("http://") || host.startsWith("https://") ? host : `https://${host}`);
 }
