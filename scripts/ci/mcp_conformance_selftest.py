@@ -16,13 +16,28 @@ Stdlib-only so it can run in any CI lane.
 """
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+try:
+    from repo_paths import service_endpoint as _service_endpoint
+except ImportError:  # pragma: no cover - direct invocation outside scripts/ci
+    import sys as _sys
+    from pathlib import Path as _Path
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent))
+    from repo_paths import service_endpoint as _service_endpoint
+
+
+def _svc(service_id, path=""):
+    """Registry URL for a service, optionally with a sub-path appended."""
+    base = _service_endpoint(service_id, with_path=False) or ""
+    return base + path
+
 import argparse
 import json
 import sys
 import urllib.error
 import urllib.request
 
-DEFAULT_URL = "https://supremeai-mcp-tower-live.onrender.com/mcp"
+DEFAULT_URL = _svc("mcp", "/mcp")
 # Streamable floor — one constant per site, mirrors PROTOCOL_VERSION_STREAMABLE in
 # scripts/agents/mcp_tower_client.py (landed via #2533, radar R68).
 PROTOCOL_VERSION = "2025-11-25"

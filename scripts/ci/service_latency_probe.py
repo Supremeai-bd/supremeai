@@ -7,6 +7,20 @@ Outputs structured JSON and human-readable latency summary with p95 metrics.
 """
 from __future__ import annotations
 
+# Hosts resolved from config/service_registry.yaml (env wins) — never literals.
+try:
+    from repo_paths import service_endpoint as _service_endpoint
+except ImportError:  # pragma: no cover
+    import sys as _sys
+    from pathlib import Path as _Path
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent))
+    from repo_paths import service_endpoint as _service_endpoint
+
+
+def _svc(service_id, path=""):
+    base = _service_endpoint(service_id, with_path=False) or ""
+    return base + path
+
 import argparse
 import json
 import statistics
@@ -65,9 +79,9 @@ def main() -> int:
     args = ap.parse_args()
 
     target_urls = args.url or [
-        "primary=https://supremeai-primary-node.onrender.com/health",
-        "worker=https://supremeai-worker-node.onrender.com/health",
-        "tower=https://supremeai-mcp-tower-live.onrender.com/",
+        "primary=" + _svc("core", "/health"),
+        "worker=" + _svc("worker", "/health"),
+        "tower=" + _svc("mcp") + "/",
     ]
 
     results = []

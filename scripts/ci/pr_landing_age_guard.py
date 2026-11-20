@@ -35,6 +35,21 @@ Exit codes: 0 report-only pass · 1 --strict findings · 2 honest-skip
 
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+try:
+    from repo_paths import service_endpoint as _service_endpoint
+except ImportError:  # pragma: no cover - direct invocation outside scripts/ci
+    import sys as _sys
+    from pathlib import Path as _Path
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent))
+    from repo_paths import service_endpoint as _service_endpoint
+
+
+def _svc(service_id, path=""):
+    """Registry URL for a service, optionally with a sub-path appended."""
+    base = _service_endpoint(service_id, with_path=False) or ""
+    return base + path
+
 import argparse
 import json
 import re
@@ -44,7 +59,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-TOWER = "https://supremeai-mcp-tower-live.onrender.com/mcp"
+TOWER = _svc("mcp", "/mcp")
 OPEN_REPO = "Supremeai-bd/supremeai"
 
 # Strand SLA: an open non-draft PR older than this with no landing is a

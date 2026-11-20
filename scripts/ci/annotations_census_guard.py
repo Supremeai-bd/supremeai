@@ -40,6 +40,21 @@ Exit codes: 0 = close justified; 1 = usage/infra error; 2 = fail-closed
 
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+try:
+    from repo_paths import service_endpoint as _service_endpoint
+except ImportError:  # pragma: no cover - direct invocation outside scripts/ci
+    import sys as _sys
+    from pathlib import Path as _Path
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent))
+    from repo_paths import service_endpoint as _service_endpoint
+
+
+def _svc(service_id, path=""):
+    """Registry URL for a service, optionally with a sub-path appended."""
+    base = _service_endpoint(service_id, with_path=False) or ""
+    return base + path
+
 import argparse
 import json
 import re
@@ -269,7 +284,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--self-test", action="store_true", help="offline verdict-core self-test (no network)")
     parser.add_argument("--check", action="store_true", help="live census verdict against the tower")
-    parser.add_argument("--tower-url", default="https://supremeai-mcp-tower-live.onrender.com")
+    parser.add_argument("--tower-url", default=_svc("mcp"))
     parser.add_argument("--baseline", type=int, default=DEFAULT_BASELINE, help="filing-time annotated census")
     parser.add_argument("--census-json", type=Path, default=None, help="pre-fetched tools/list receipt (offline check)")
     args = parser.parse_args()

@@ -25,6 +25,20 @@ GitHub Actions env:
 
 from __future__ import annotations
 
+# Hosts resolved from config/service_registry.yaml (env wins) — never literals.
+try:
+    from repo_paths import service_endpoint as _service_endpoint
+except ImportError:  # pragma: no cover
+    import sys as _sys
+    from pathlib import Path as _Path
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent))
+    from repo_paths import service_endpoint as _service_endpoint
+
+
+def _svc(service_id, path=""):
+    base = _service_endpoint(service_id, with_path=False) or ""
+    return base + path
+
 import argparse
 import json
 import os
@@ -53,7 +67,7 @@ SERVICES = [
         "key_env": "RENDER_API_KEY_1",
         "fallback_key_env": "RENDER_API_KEY",
         "svc_env": "RENDER_PRIMARY_SVC_ID",
-        "url": "https://supremeai-primary-node.onrender.com",
+        "url": _svc("core"),
     },
     {
         "role": "Worker",
@@ -61,7 +75,7 @@ SERVICES = [
         "key_env": "RENDER_API_KEY_2",
         "fallback_key_env": None,
         "svc_env": "RENDER_WORKER_SVC_ID",
-        "url": "https://supremeai-worker-node.onrender.com",
+        "url": _svc("worker"),
     },
     {
         "role": "Scraper",
@@ -69,7 +83,7 @@ SERVICES = [
         "key_env": "RENDER_API_KEY_3",
         "fallback_key_env": None,
         "svc_env": "RENDER_SCRAPER_SVC_ID",
-        "url": "https://supremeai-scraper-node.onrender.com",
+        "url": _svc("scraper"),
     },
     {
         "role": "MCP",
@@ -77,7 +91,7 @@ SERVICES = [
         "key_env": "RENDER_API_KEY_4",
         "fallback_key_env": None,
         "svc_env": "RENDER_MCP_SVC_ID",
-        "url": "https://supremeai-mcp-tower-live.onrender.com",
+        "url": _svc("mcp"),
     },
 ]
 

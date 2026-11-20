@@ -30,6 +30,21 @@ Issue #453 (r1) · base 8e5ed59 · pure-new file, no existing-path hunks.
 """
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+try:
+    from repo_paths import service_endpoint as _service_endpoint
+except ImportError:  # pragma: no cover - direct invocation outside scripts/ci
+    import sys as _sys
+    from pathlib import Path as _Path
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent))
+    from repo_paths import service_endpoint as _service_endpoint
+
+
+def _svc(service_id, path=""):
+    """Registry URL for a service, optionally with a sub-path appended."""
+    base = _service_endpoint(service_id, with_path=False) or ""
+    return base + path
+
 import argparse
 import json
 import re
@@ -40,7 +55,7 @@ import urllib.request
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
-DEFAULT_GATEWAY_URL = "https://supremeai-api-ulw0.onrender.com"
+DEFAULT_GATEWAY_URL = _svc("api")
 PROBE_PATHS = ("/health", "/healthz")
 USER_AGENT = "supremeai-probe-453/1.0 (autonomous contributor)"
 TIMEOUT_S = 20

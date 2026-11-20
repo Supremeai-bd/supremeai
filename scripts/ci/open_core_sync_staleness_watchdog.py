@@ -59,6 +59,21 @@ Zero credentials, read-only. No mutation. Stdlib only.
 
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+try:
+    from repo_paths import service_endpoint as _service_endpoint
+except ImportError:  # pragma: no cover - direct invocation outside scripts/ci
+    import sys as _sys
+    from pathlib import Path as _Path
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent))
+    from repo_paths import service_endpoint as _service_endpoint
+
+
+def _svc(service_id, path=""):
+    """Registry URL for a service, optionally with a sub-path appended."""
+    base = _service_endpoint(service_id, with_path=False) or ""
+    return base + path
+
 import argparse
 import json
 import sys
@@ -82,7 +97,7 @@ VERDICT_CATCHING_UP = "CATCHING_UP"
 VERDICT_HEALTHY = "HEALTHY"
 VERDICT_INCONCLUSIVE = "INCONCLUSIVE"
 
-TOWER = "https://supremeai-mcp-tower-live.onrender.com/mcp"
+TOWER = _svc("mcp", "/mcp")
 
 USER_AGENT = "supremeai-core-sync-watchdog (zero-credential guard)"
 

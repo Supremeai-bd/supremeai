@@ -93,6 +93,21 @@ single negotiated session for its whole run).
 
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+try:
+    from repo_paths import service_endpoint as _service_endpoint
+except ImportError:  # pragma: no cover - direct invocation outside scripts/ci
+    import sys as _sys
+    from pathlib import Path as _Path
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent))
+    from repo_paths import service_endpoint as _service_endpoint
+
+
+def _svc(service_id, path=""):
+    """Registry URL for a service, optionally with a sub-path appended."""
+    base = _service_endpoint(service_id, with_path=False) or ""
+    return base + path
+
 import argparse
 import json
 import re
@@ -109,7 +124,7 @@ except ImportError:  # pragma: no cover — package-style load (tests, CI runner
     from scripts.ci.tower_name_tolerance import tolerant_tool_call
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TOWER = "https://supremeai-mcp-tower-live.onrender.com/mcp"
+TOWER = _svc("mcp", "/mcp")
 OPEN_REPO = "Supremeai-bd/supremeai"
 MONOREPO = "Supremeai-bd/supremeai"
 

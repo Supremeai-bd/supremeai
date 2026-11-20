@@ -4,12 +4,17 @@
 Why this exists
 ---------------
 101 scripts in this repo reference a top-level ``backend/`` directory. That
-directory has never existed here — ``git log --all -- backend/`` is empty.
-Every one of those references is a dead path, and a guard built on one fails
-with a ``FileNotFoundError`` traceback instead of a verdict. A guard that
-crashes cannot tell you whether the code is wrong, and a crash read as an exit
-code looks exactly like a finding (see ``guard_inventory_register.json``, where
-a single-flag probe mislabelled 39 working guards the same way).
+directory was **removed on 2026-11-10** (commit ``8c3c99e3``, "Fix/tools and
+vscode ssot convergence"), when the application package was consolidated into
+``core/``. Every reference to the old name is now a dead path, and a guard built
+on one fails with a ``FileNotFoundError`` traceback instead of a verdict. A
+guard that crashes cannot tell you whether the code is wrong, and a crash read
+as an exit code looks exactly like a finding (see
+``guard_inventory_register.json``, where a single-flag probe mislabelled 39
+working guards the same way).
+
+(A shallow clone makes ``git log --all -- backend/`` look empty. It is not —
+fetch ``--unshallow`` before concluding that a path never existed.)
 
 What went wrong once
 --------------------
@@ -53,11 +58,10 @@ from pathlib import Path
 
 #: Directory standing in for the missing top-level ``backend/`` package.
 #:
-#: This is a *structural* statement, not a list of files: this repository keeps
-#: its application package at the top level as ``core/``, and every sub-path
-#: under ``backend/`` in old scripts (api, services, tests, ...) exists under
-#: ``core/``. Verified by measurement, not by assumption — see
-#: ``--check`` output.
+#: This is a *structural* statement, not a list of files: ``backend/`` was
+#: renamed to ``core/`` on 2026-11-10, and every sub-path old scripts name
+#: (api, services, tests, ...) exists under ``core/``. Verified by measurement,
+#: not by assumption — see ``--check`` output.
 BACKEND_ALIAS = "core"
 
 #: Sub-paths confirmed to exist under both names, used to justify the alias.

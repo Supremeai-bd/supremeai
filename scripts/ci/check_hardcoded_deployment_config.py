@@ -50,7 +50,14 @@ IGNORE_PATHS = {
     "venv",
     "tests",
     "docs",
-    "scripts/ci",
+    # NOTE: `scripts/ci` used to be listed here. Exempting the guard's own
+    # directory from the policy it enforces is how `supremeai-primary-node`
+    # (retired; the live host is `supremeai-primary-node-5xso`) survived in
+    # `deploy_doctor.py` and `service_latency_probe.py` for as long as it did:
+    # the probes were pointed at a dead host and this gate could not see it.
+    # Those scripts now read config/service_registry.yaml via
+    # repo_paths.service_endpoint(). One one-shot generator
+    # (`generate_route_client_inventory.py`) is exempted individually below.
     "scripts/docs",
     "scripts/patches",
     "scripts/advanced_analysis",
@@ -81,6 +88,20 @@ IGNORE_PATHS = {
     # URLs from render.yaml service names (it holds no deployment pins of
     # its own).
     "scripts/lib/auto_discovery.py",
+    # One-shot generator: its OUTPUT is a route inventory whose payload embeds
+    # deployment hosts. The generator is not a probe and never runs in CI.
+    "scripts/ci/generate_route_client_inventory.py",
+    # This file. Its BANNED_PATTERNS table is the policy itself, and its
+    # exception specs name hosts in order to permit or describe them; scanning
+    # it reports the definition of the rule as a breach of the rule.
+    "scripts/ci/check_hardcoded_deployment_config.py",
+    # Denylist of RETIRED hosts. The strings exist precisely so the build can
+    # reject them; removing them would delete the check.
+    "scripts/ci/validate_frontend_build.py",
+    # Detector for stale hosts: GHOST_HOST / REAL_HOST / TOWER_HOST are the
+    # fixtures it asserts against. Deriving them would make the test agree with
+    # its own input, which is the one thing it must not do.
+    "scripts/ci/ghost_host_guard.py",
     "out"
 }
 
@@ -142,7 +163,36 @@ BANNED_REGEX = re.compile("|".join(BANNED_PATTERNS), re.IGNORECASE)
 # (Illustrative-only example, kept for format documentation: the historical
 #  ("frontend/src/api.ts", r"// Legacy endpoint: .*\.onrender\.com") entry —
 #  that file no longer exists, so today it would warn-and-skip.)
+# Usage examples inside module docstrings name a host so the reader knows what
+# a realistic value looks like. They are documentation, not configuration —
+# nothing executes them. Rather than exempt whole files (which is how a stale
+# host hid in this directory before), the exception is line-anchored: it only
+# applies to lines that are clearly CLI examples.
+_DOC_EXAMPLE = (
+    r"--?[a-z-]+[\s=]https?://"      # --tower-url https://...  / --url=https://...
+    r"|e\.g\.[,\s]+\[?https?://"      # (endpoint e.g. https://...)
+    r"|^\s+[A-Z_]+\s+e\.g\."          # GATEWAY_URL  e.g. https://...
+    r"|^\s+[-\w]+=https?://"            # GATEWAY_URL=https://...
+)
+
 EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
+    ("scripts/ci/annotations_census_guard.py", _DOC_EXAMPLE, None),
+    ("scripts/ci/health_incident_plane_guard.py", _DOC_EXAMPLE, None),
+    ("scripts/ci/hollow_read_guard.py", _DOC_EXAMPLE, None),
+    ("scripts/ci/mcp_conformance_selftest.py", _DOC_EXAMPLE, None),
+    ("scripts/ci/probe_live_status.py", _DOC_EXAMPLE, None),
+    ("scripts/ci/probe_live_status_453.py", _DOC_EXAMPLE, None),
+    ("scripts/ci/tenant_negative_battery.py", _DOC_EXAMPLE, None),
+    ("scripts/ci/verify_ci_attestation.py", _DOC_EXAMPLE, None),
+    # PROJECT-DERIVED hosting domains, the same sanctioned class as
+    # core/config_validation.py's ALLOWED_HOSTS: `f"https://{project}.web.app"`
+    # builds a per-project hostname from a config value. There is no pinned
+    # production host here to go stale, which is what the policy exists to
+    # prevent.
+    ("scripts/ci/resolve_production_targets.py", r"\.web\.app|\.firebaseapp\.com", None),
+    # render.yaml service names -> https://<name>.onrender.com: a template,
+    # not a host. `supremeai-primary-node` is escaped in a regex, not pinned.
+    ("scripts/ops/pre_merge_guard.py", r"<name>\.onrender\.com|primary-node\.onrender", None),
     (".github/scripts/ci_summary_v2.py", r"\.onrender\.com", None),
     # Zero-hardcode ALLOWED_HOSTS derivation (#298): the ONLY sanctioned
     # .onrender.com usage — building the REAL per-service hostname
