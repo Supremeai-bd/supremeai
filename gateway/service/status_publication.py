@@ -42,6 +42,9 @@ OPERATOR_ONLY_FIELDS: tuple[str, ...] = (
     "webhook_scout",
     "telegram_webhook_configured",
     "active_providers",
+    # Where the web engines dispatch, and which env var said so: a relay base
+    # URL is infrastructure, not something a public liveness probe may name.
+    "web_transport",
 )
 
 

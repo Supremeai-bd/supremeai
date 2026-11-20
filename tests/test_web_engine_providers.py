@@ -157,3 +157,87 @@ def test_cookie_backed_engines_are_named_for_the_health_probe():
         "gemini_v0_web",
         "ghost_gemini",
     }
+
+
+# --- B6: the transport must name itself ------------------------------------
+# `relay_base_url()` walked a five-name precedence list and returned the first
+# value that looked non-empty. Nothing could distinguish a deliberate
+# `STEALTH_WEBHOOK_URL` from the localhost default, and an env var pointing at
+# `/health` (a copy-paste accident that answers 200 on a curl) resolved happily
+# and then 404'd every chat request. The tests below pin the replacement: every
+# resolution names its env var, and values that cannot be a base URL are
+# rejected *with a reason* instead of being used.
+
+
+def test_the_transport_names_the_env_var_it_came_from():
+    transport = web_engines.transport_for("claude_web", {"STEALTH_WEBHOOK_URL": "relay.example.com"})
+    assert transport is not None
+    assert transport.kind == web_engines.TRANSPORT_RELAY
+    assert transport.base_url == "https://relay.example.com"
+    assert transport.source_env == "STEALTH_WEBHOOK_URL"
+    assert transport.configured is True
+
+
+def test_precedence_is_first_configured_and_says_which():
+    transport, rejected = web_engines.resolve_transport(
+        {"WEB_SESSION_URL": "https://session.example.com", "STEALTH_WEBHOOK_URL": "https://relay.example.com"}
+    )
+    assert transport.source_env == "WEB_SESSION_URL"
+    assert rejected == {}, "a usable value must not be reported as rejected"
+
+
+def test_nothing_configured_is_named_as_the_localhost_default():
+    transport, rejected = web_engines.resolve_transport({})
+    assert transport.base_url == web_engines.DEFAULT_RELAY_BASE_URL
+    assert transport.source_env == ""
+    assert transport.configured is False, "a localhost default must not look configured"
+    assert rejected == {}
+
+
+@pytest.mark.parametrize(
+    ("raw", "reason"),
+    [
+        ("https://relay.example.com/health", "/health endpoint"),
+        ("https://relay.example.com/models/", "/models endpoint"),
+        ("ftp://relay.example.com", "scheme must be http or https"),
+    ],
+)
+def test_an_unusable_env_is_rejected_with_a_reason_and_skipped(raw, reason):
+    """The bad value must not win, and the operator must be told why it lost."""
+    transport, rejected = web_engines.resolve_transport(
+        {"GHOST_TOWER_URL": raw, "STEALTH_WEBHOOK_URL": "https://good.example.com"}
+    )
+    assert transport.base_url == "https://good.example.com", "a broken high-priority env won"
+    assert transport.source_env == "STEALTH_WEBHOOK_URL"
+    assert reason in rejected["GHOST_TOWER_URL"]
+
+
+def test_a_rejected_env_with_no_fallback_still_names_itself():
+    transport, rejected = web_engines.resolve_transport({"GHOST_TOWER_URL": "https://relay.example.com/health"})
+    assert transport.base_url == web_engines.DEFAULT_RELAY_BASE_URL
+    assert transport.configured is False
+    assert "GHOST_TOWER_URL" in rejected
+
+
+def test_transport_report_lists_every_engine_and_its_providers():
+    report = web_engines.transport_report({"STEALTH_WEBHOOK_URL": "https://relay.example.com"})
+    assert report["source_env"] == "STEALTH_WEBHOOK_URL"
+    assert report["configured"] is True
+    assert report["rejected_envs"] == {}
+    assert set(report["engines"]) == {engine.engine for engine in web_engines.WEB_ENGINES}
+    assert report["engines"]["duck"]["providers"] == ["claude_web", "chatgpt_web"]
+    assert report["engines"]["gemini-web"]["requires_cookie"] is True
+    assert report["engines"]["duck"]["requires_cookie"] is False
+
+
+def test_every_web_provider_resolves_through_the_same_transport():
+    """One answer, not two: `provider_config` may not compute its own base URL."""
+    env = {"SUPREMEAI_WEB_RELAY_URL": "https://relay.example.com"}
+    expected = web_engines.transport_for("chatgpt_web", env).base_url
+    for engine in web_engines.WEB_ENGINES:
+        assert web_engines.provider_config(engine.provider, env)["base_url"] == expected
+
+
+def test_a_provider_that_is_not_a_web_engine_has_no_transport():
+    assert web_engines.transport_for("openrouter", {}) is None
+    assert web_engines.transport_for("openrouter_kilo", {}) is None
