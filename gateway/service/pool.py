@@ -24,6 +24,26 @@ COOLDOWN_RATE_LIMIT = 300  # 5 minutes per plan
 COOLDOWN_SERVER_ERROR = 30
 COOLDOWN_AUTH_ERROR = 600
 
+# Hysteresis: cool fast, come back only on evidence.
+#
+# A slot re-entered rotation purely because a timer expired, so a dead cookie got
+# re-admitted every 30s/5min/10min, failed again, and the pool spent its time
+# rediscovering the same fact. Now an injured slot doubles its cooldown each time
+# it fails again without an intervening success (1x, 2x, 4x, 8x), and while it
+# has not yet succeeded it is *recovering*: still usable (a pool of only-recovering
+# slots must still answer), but ranked strictly behind every slot with a clean
+# record. Only a real success clears the count.
+INJURY_BACKOFF_CAP = 8
+INJURY_COOLDOWN_CEILING_S = 3600
+MAX_INJURY_LEVEL = 10
+
+
+def injury_backoff(level: int) -> int:
+    """Multiplier for the n-th consecutive injury: 1, 2, 4, 8, 8, …"""
+    if level <= 1:
+        return 1
+    return min(INJURY_BACKOFF_CAP, 1 << min(level - 1, 3))
+
 # Baseline (ms) latency seed for providers so rotation is latency-aware before
 # any real measurement exists. Lower = faster. Unknown providers default 500.
 PROVIDER_BASELINE_LATENCY_MS: dict[str, float] = {
@@ -75,6 +95,9 @@ class KeySlot:
     discovered_models: List[str] = field(default_factory=list)
     catalog_identity: RouteIdentity | None = None
     catalog_valid_until: float = 0.0
+    # Consecutive injuries since the last success. Drives the cooldown backoff
+    # and marks the slot as `recovering` until a request actually works again.
+    injury_level: int = 0
 
     @property
     def rank_latency_ms(self) -> float:
@@ -85,6 +108,11 @@ class KeySlot:
         general ``ewma_latency_ms`` so a fresh slot still ranks sensibly.
         """
         return self.ewma_first_token_ms or self.ewma_latency_ms
+
+    @property
+    def recovering(self) -> bool:
+        """Injured and not yet proven. Servable, but only as a last resort."""
+        return self.injury_level > 0
 
     @property
     def is_healthy(self) -> bool:
@@ -163,13 +191,16 @@ class ProviderKeyPool:
             return None
         return max(
             healthy,
-            key=lambda slot: route_score(RouteSnapshot(
-                name=slot.name,
-                latency_ms=slot.rank_latency_ms,
-                remaining=slot.remaining_free,
-                limit=slot.free_limit,
-                failures=slot.consecutive_failures,
-            )),
+            key=lambda slot: (
+                0 if slot.recovering else 1,
+                route_score(RouteSnapshot(
+                    name=slot.name,
+                    latency_ms=slot.rank_latency_ms,
+                    remaining=slot.remaining_free,
+                    limit=slot.free_limit,
+                    failures=slot.consecutive_failures,
+                )),
+            ),
         )
 
     def report_model_capability(self, slot: KeySlot, model: str, success: bool, status_code: int = 200):
@@ -198,10 +229,28 @@ class ProviderKeyPool:
             else:
                 slot.ewma_first_token_ms = (slot.ewma_first_token_ms * 0.7) + (float(first_token_ms) * 0.3)
         slot.consecutive_failures = 0
+        # The only thing that ends probation: a request that worked.
+        slot.injury_level = 0
         if slot.remaining_free is not None:
             slot.remaining_free = max(0, slot.remaining_free - 1)
 
-    def report_injury(self, slot: KeySlot, status_code: int, latency_ms: float = 0.0):
+    def report_injury(
+        self,
+        slot: KeySlot,
+        status_code: int,
+        latency_ms: float = 0.0,
+        *,
+        ceiling_s: float | None = None,
+    ):
+        """Bench a slot, doubling the bench for each failure since its last success.
+
+        `ceiling_s` lets a caller whose evidence refreshes on a known cadence (the
+        relay probe, every 30 minutes) cap the escalation. A cookie can be renewed
+        at any moment, and the only way to discover that is to send it a request —
+        so benching a session-injured slot for an hour would hide the recovery for
+        two refresh cycles. The default ceiling stays an hour: an API key does not
+        start working again on its own.
+        """
         slot.total_errors += 1
         slot.consecutive_failures += 1
         if latency_ms > 0:
@@ -223,12 +272,15 @@ class ProviderKeyPool:
             duration, reason = COOLDOWN_AUTH_ERROR * 2, "payment_required"
         else:
             duration, reason = COOLDOWN_SERVER_ERROR, "server_error"
-        slot.cooldown_until = time.time() + duration
+        slot.injury_level = min(slot.injury_level + 1, MAX_INJURY_LEVEL)
+        backoff = injury_backoff(slot.injury_level)
+        benched = min(duration * backoff, INJURY_COOLDOWN_CEILING_S if ceiling_s is None else ceiling_s)
+        slot.cooldown_until = time.time() + benched
         if status_code == 429 and slot.remaining_free is not None:
             slot.remaining_free = 0
         logger.warning(
-            "[%s] Key %s injured (%s, HTTP %s). Benched for %ss.",
-            self.provider, slot.name, reason, status_code, duration,
+            "[%s] Key %s injured (%s, HTTP %s). Benched for %.0fs (injury %s, backoff x%s).",
+            self.provider, slot.name, reason, status_code, benched, slot.injury_level, backoff,
         )
 
 
@@ -286,6 +338,9 @@ class FederationSquad:
                 "total": len(pool.slots),
                 "healthy": len(healthy),
                 "cooling_down": len(pool.slots) - len(healthy),
+                # Servable but not yet proven: they answer only if nothing better
+                # is left, which is what keeps a flapping key from owning traffic.
+                "recovering": sum(1 for slot in healthy if slot.recovering),
                 "avg_latency_ms": round(sum(tested) / len(tested), 2) if tested else 0.0,
                 "remaining_free": (
                     sum(slot.remaining_free for slot in healthy if slot.remaining_free is not None)
@@ -312,13 +367,21 @@ class FederationSquad:
                 )
         ranked = sorted(
             candidates,
-            key=lambda item: route_score(RouteSnapshot(
-                name=item[1].name,
-                latency_ms=item[1].rank_latency_ms,
-                remaining=item[1].remaining_free,
-                limit=item[1].free_limit,
-                failures=item[1].consecutive_failures,
-            )),
+            key=lambda item: (
+                # Rank first, then score: a slot coming back from an injury is
+                # still tried (a pool with nothing else must answer), but only
+                # after every slot that has not just failed. That ordering is the
+                # whole point of probation — a recovering slot gets one request
+                # to prove itself instead of being handed the traffic again.
+                0 if item[1].recovering else 1,
+                route_score(RouteSnapshot(
+                    name=item[1].name,
+                    latency_ms=item[1].rank_latency_ms,
+                    remaining=item[1].remaining_free,
+                    limit=item[1].free_limit,
+                    failures=item[1].consecutive_failures,
+                )),
+            ),
             reverse=True,
         )
         return ranked
