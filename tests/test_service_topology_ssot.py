@@ -81,3 +81,41 @@ def test_vercel_auto_deploy_is_retired():
     assert "workflow_dispatch" in condition, (
         "deploy-vercel should remain reachable by an explicit dispatch"
     )
+
+
+def test_no_job_condition_contains_a_comment_line():
+    """A `#` inside an `if: |` block scalar is EXPRESSION TEXT, not a comment.
+
+    Exactly this shipped in #723: explanatory comments were placed inside
+    deploy-vercel's `if: |`, so the condition began with "# Vercel hosting…".
+    GitHub rejected the workflow at parse time — the run failed with ZERO jobs
+    and no annotation, which reads like an infra outage rather than a typo.
+    Comments belong above the `if:` key.
+    """
+    jobs = yaml.safe_load(PIPELINE.read_text(encoding="utf-8"))["jobs"]
+    offenders = [
+        name
+        for name, spec in jobs.items()
+        if any(
+            line.strip().startswith("#")
+            for line in str((spec or {}).get("if") or "").splitlines()
+        )
+    ]
+    assert not offenders, (
+        "these jobs put comments inside their `if:` expression (GitHub will "
+        f"reject the whole workflow): {offenders}"
+    )
+
+
+def test_every_job_condition_is_a_single_expression():
+    """Guard the same class from the other side: no stray prose in `if:`."""
+    jobs = yaml.safe_load(PIPELINE.read_text(encoding="utf-8"))["jobs"]
+    for name, spec in jobs.items():
+        condition = (spec or {}).get("if")
+        if condition is None:
+            continue
+        text = str(condition).strip()
+        assert text, f"{name} has an empty if:"
+        assert "This job" not in text and "RETIRED:" not in text, (
+            f"{name}'s if: contains prose — it must be an expression only"
+        )

@@ -966,21 +966,19 @@ jobs:
   deploy-vercel:
     name: "Deploy Vercel Frontend Hook"
     needs: deploy-and-verify
+    # Vercel hosting is RETIRED: the Studio is served by the Cloudflare Pages
+    # deployment through the edge proxy. This job used to fire automatically on
+    # any `studio/`, `frontend/` or `vercel` change — i.e. the retired platform
+    # was the one being redeployed, while deploy-cloudflare (the live one) could
+    # not run on push at all. Auto-deploy is removed so a retired surface cannot
+    # be resurrected by a stray path match; the job stays for an explicit,
+    # human-initiated dispatch.
     if: |
       always() && github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true)) &&
-      # Vercel hosting is RETIRED: the Studio is served by the Cloudflare Pages
-      # deployment through the edge proxy. This job used to fire automatically
-      # on any `studio/`, `frontend/` or `vercel` change — i.e. the retired
-      # platform was the one being redeployed, while deploy-cloudflare (the live
-      # one) could not run on push at all. Auto-deploy is removed so a retired
-      # surface cannot be resurrected by a stray path match; the job stays for
-      # an explicit, human-initiated dispatch.
+      github.event_name == 'workflow_dispatch' && inputs.force_deploy == true &&
       (
-        github.event_name == 'workflow_dispatch' && inputs.force_deploy == true && (
-          contains(inputs.target_service, 'all') ||
-          contains(inputs.target_service, 'vercel')
-        )
+        contains(inputs.target_service, 'all') ||
+        contains(inputs.target_service, 'vercel')
       )
     runs-on: ubuntu-24.04
     # Kept on `production` for its environment-scoped Vercel credentials.
