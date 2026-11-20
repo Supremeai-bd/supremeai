@@ -125,6 +125,8 @@ services:
     local_port: 3771
     container_port: 3771
     health_path: /health
+    # Advisory CI smoke only; deploy/rollback must still verify health_path.
+    quick_check_path: /health/live
     readiness_path: /health
     # This role must not reuse the auxiliary CI runner ID. CI resolves the
     # replacement's URL from this service ID's Render metadata.

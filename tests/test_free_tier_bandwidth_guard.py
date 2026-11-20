@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -73,3 +74,9 @@ def test_blocks_duplicate_high_freq_keepwarm_cron(tmp_path: Path) -> None:
     kw = tmp_path / ".github" / "workflows" / "keepwarm.yml"
     kw.write_text("on:\n  schedule:\n    - cron: '*/10 * * * *'\n", encoding="utf-8")
     assert guard.check_bandwidth_and_polling_guard(tmp_path) is True
+
+
+def test_worker_advertises_configured_cron():
+    worker = ROOT / "infrastructure" / "cloudflare-render-keepwarm"
+    cron, = tomllib.loads((worker / "wrangler.toml").read_text())["triggers"]["crons"]
+    assert f'schedule: "{cron}"' in (worker / "worker.js").read_text()

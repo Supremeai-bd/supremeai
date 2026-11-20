@@ -22,6 +22,7 @@ These tests compare the three declaration points against each other, so no
 single one can drift silently.
 """
 from __future__ import annotations
+import pytest
 
 import sys
 import tomllib
@@ -141,3 +142,77 @@ def test_edge_dns_probe_list_is_not_hardcoded():
     assert 'for domain in ("supremeai.live", "studio.supremeai.lat")' not in src, (
         "the hardcoded edge-domain tuple is back"
     )
+
+
+def test_pipeline_health_snapshot_uses_contracts_and_sanitizes_evidence(monkeypatch, tmp_path):
+    import json
+
+    module = _health_module()
+    base = "https://example.invalid"
+    registry = {
+        "api": {"production_url": base, "health_path": "/live", "readiness_path": "/ready"},
+        "mcp": {"production_url": base, "health_path": "/health"},
+        "new-service": {"production_url": base, "health_path": "/new"},
+        "missing": {}, "inactive": {"status": "retired", "production_url": base},
+    }
+    checked = "2026-11-20T10:00:00Z"
+    payloads = {
+        "/ready": (False, 503, 6, None, "private error"),
+        "/health": (True, 200, 1, {"status": "ok", "stale": True}, None),
+        "/new": (True, 200, 3, {"status": "healthy", "debug": "private data"}, None),
+        "/health/summary": (True, 200, 1, {"services": [
+            {"provider": "redis", "status": "degraded", "checkedAt": checked, "token": "private token"}
+        ]}, None),
+    }
+    monkeypatch.setattr(module, "_registry_services", lambda: registry)
+    monkeypatch.setattr(module, "probe_http_endpoint", lambda url, timeout: payloads[url.removeprefix(base)])
+    monkeypatch.setattr(module, "_get_gh_token", lambda: pytest.fail("snapshot must not request credentials"))
+    output = tmp_path / "report.json"
+    assert module.main(["--pipeline-snapshot", str(output)]) == 0
+    report = json.loads(output.read_text())
+    assert {r["service"]: r["status"] for r in report["services"]} == {
+        "api": "HTTP failure", "mcp": "stale", "new-service": "healthy",
+        "missing": "not configured", "inactive": "retired",
+    }
+    assert report["providers"] == [{"provider": "redis", "reported_status": "degraded",
+                                    "checked_at": "2026-11-20T10:00:00+00:00"}]
+    assert "private" not in output.read_text()
+    assert "1/3 probed endpoints reported healthy" in module.pipeline_markdown(report)
+
+
+def test_pipeline_snapshot_never_turns_no_evidence_green(monkeypatch):
+    module = _health_module()
+    monkeypatch.setattr(module, "_registry_services", lambda: {})
+    with pytest.raises(ValueError, match="no health evidence"):
+        module.pipeline_snapshot(1)
+    monkeypatch.setattr(module, "_registry_services", lambda: {
+        "mcp": {"production_url": "https://example.invalid", "health_path": "/health"}})
+    monkeypatch.setattr(module, "probe_http_endpoint", lambda url, timeout: (True, 200, 1, None, None))
+    report = module.pipeline_snapshot(1)
+    assert report["services"][0]["status"] == report["tower_summary"] == "unknown response"
+    assert report["providers"] == []
+
+
+def test_quick_liveness_only_calls_the_two_cheap_routes(monkeypatch, capsys):
+    module = _health_module()
+    registry = module._registry_services()
+    responses = {
+        registry['api']['production_url'] + '/healthz': (False, 503, 2, None, None),
+        registry['mcp']['production_url'] + '/health/live': (True, 200, 1, {'status': 'ok'}, None),
+    }
+    monkeypatch.setattr(module, 'probe_http_endpoint', lambda url, timeout: responses.pop(url))
+    assert module.main(['--quick-liveness']) == 0  # advisory, not a release gate
+    assert not responses
+    summary = capsys.readouterr().out
+    assert '1/2 probed endpoints reported healthy' in summary and '503' in summary
+    assert '### Provider dependencies' not in summary
+
+
+def test_full_health_belongs_to_the_daily_arm_not_unified():
+    workflows = REPO_ROOT / '.github/workflows'
+    daily = yaml.safe_load((workflows / 'ops-maintenance.yml').read_text())['jobs']['daily-10am-bdt-health-report']
+    quick = yaml.safe_load((workflows / 'unified-pipeline.yml').read_text())['jobs']['service-health']
+    assert "github.event.schedule == '0 3 * * *'" in daily['if']
+    assert any('--pipeline-snapshot' in step.get('run', '') for step in daily['steps'])
+    assert any('--quick-liveness' in step.get('run', '') for step in quick['steps'])
+    assert not any('--pipeline-snapshot' in step.get('run', '') for step in quick['steps'])
