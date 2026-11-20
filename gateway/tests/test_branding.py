@@ -27,6 +27,15 @@ def test_api_reasoning_is_ultra():
     assert branding.build_brand("a", "anthropic", "claude-opus")["label"] == "SupremeAI a.cl Ultra"
 
 
+def test_webhook_relay_engines():
+    # বাংলা মন্তব্য: ডাকডাকগো এবং পলিনেশনস ইঞ্জিনের জন্য ব্র্যান্ডিং যাচাই
+    b_duck = branding.build_brand("w", "duck", "auto")
+    assert b_duck == {"channel": "w", "engine": "dk", "tier": "Turbo", "label": "SupremeAI w.dk Turbo"}
+
+    b_poll = branding.build_brand("w", "pollinations", "auto")
+    assert b_poll == {"channel": "w", "engine": "po", "tier": "Turbo", "label": "SupremeAI w.po Turbo"}
+
+
 def test_unknown_engine_and_channel_safe():
     b = branding.build_brand("zz", None, None)
     assert b["label"] == "SupremeAI w.xx Turbo"

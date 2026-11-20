@@ -2131,12 +2131,15 @@ async def _execute_chat_completion(
             w_status, w_response = 500, None
 
         # Auto-wrap raw {"reply": "..."} payloads if received
+        # বাংলা মন্তব্য: কাঁচা {"reply": ...} পে-লোডে যদি source বা engine থাকে, তা নতুন ডিকশনারিতে প্রিজার্ভ করি যেন ব্র্যান্ডিং ব্যাজ w.xx না হয়ে আসল ইঞ্জিন দেখায়।
         if isinstance(w_response, dict) and "reply" in w_response and "choices" not in w_response and str(w_response["reply"]).strip():
+            raw_engine = w_response.get("supremeai_engine") or w_response.get("engine") or w_response.get("source")
             w_response = {
                 "id": "chatcmpl-stealth-" + os.urandom(6).hex(),
                 "object": "chat.completion",
                 "created": int(time.time()),
                 "model": body.get("model", "auto"),
+                "supremeai_engine": raw_engine,
                 "choices": [
                     {
                         "index": 0,

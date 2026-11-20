@@ -11,6 +11,8 @@ from typing import Optional
 
 ENGINE_HINTS = {
     "gemini": "ge", "google": "ge", "ghost_gemini": "ge",
+    "duck": "dk", "ddg": "dk",
+    "pollinations": "po",
     "grok": "gr", "xai": "gr",
     "openai": "gp", "chatgpt": "gp", "gpt": "gp",
     "claude": "cl", "anthropic": "cl",
