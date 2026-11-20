@@ -106,6 +106,48 @@ GUARDS: list[list[str]] = [
     ["python", "scripts/ci/check_singleton_inits.py", "--check"],
     # Inventory itself: every guard must have a caller (see the tool's docstring).
     ["python", "scripts/ci/guard_inventory.py", "--check"],
+    # ── Adopted 2026-11-20 (batch 4): live check needs repo state we do not
+    # have on a runner (a deleted workflows file, a live fleet, a baseline
+    # payload), but the guard's own logic is fully exercised by --self-test.
+    # Same doctrine as the watchdogs already in this roster.
+    ["python", "scripts/ci/annotations_census_guard.py", "--self-test"],
+    ["python", "scripts/ci/bridge_opener_hardening_reference.py", "--self-test"],
+    ["python", "scripts/ci/check_database_schema.py", "--self-test"],
+    ["python", "scripts/ci/dependency_parasite_guard.py", "--self-test"],
+    ["python", "scripts/ci/generate_types.py", "--self-test"],
+    ["python", "scripts/ci/memory_consolidation_guard.py", "--self-test"],
+    ["python", "scripts/ci/mission_control_status.py", "--self-test"],
+    ["python", "scripts/ci/pipeline_timeout_guard.py", "--self-test"],
+    ["python", "scripts/ci/pr_improvement_regression_guard.py", "--self-test"],
+    ["python", "scripts/ci/rejected_wo_rescue.py", "--self-test"],
+    ["python", "scripts/ci/satellite_ci_sentinel.py", "--self-test"],
+    ["python", "scripts/ci/satellite_parity_gate.py", "--self-test"],
+    ["python", "scripts/ci/secret_scanner_policy.py", "--self-test"],
+    ["python", "scripts/ci/self_healing_reporter.py", "--self-test"],
+    ["python", "scripts/ci/stale_claim_releaser.py", "--self-test"],
+    ["python", "scripts/ci/sync_graph_to_memory.py", "--self-test"],
+    ["python", "scripts/ci/tower_read_file_artifact_probe.py", "--self-test"],
+    ["python", "scripts/ci/vendored_tree_guard.py", "--self-test"],
+    ["python", "scripts/ci/verdict_plane_gap_probe.py", "--self-test"],
+
+    # ── Adopted 2026-11-20 (batch 3): report-only audits, proven green ──────
+    # These were recorded as "crashes" by the first probe, which only tried
+    # --check. They simply take no flag: they scan the tree, print findings and
+    # exit 0. A guard does not have to speak --check to be a gate; the roster
+    # only needs a stable exit code, which these have.
+    ["python", "scripts/ci/audit_broad_exceptions.py"],
+    ["python", "scripts/ci/audit_definition_shadowing.py"],
+    ["python", "scripts/ci/audit_resilience_boundaries.py"],
+    ["python", "scripts/ci/check_free_tier_limits.py"],
+    ["python", "scripts/ci/frontend_performance_guard.py"],
+    ["python", "scripts/ci/hollow_read_guard.py"],
+    ["python", "scripts/ci/line_budget_guard.py"],
+    ["python", "scripts/ci/lockfile_promise_guard.py"],
+    ["python", "scripts/ci/mcp_tower_conformance_probe.py"],
+    ["python", "scripts/ci/render_build_quota_guard.py"],
+    ["python", "scripts/ci/runner_hierarchy_guard.py"],
+    ["python", "scripts/ci/workflow_hardening_census_guard.py"],
+
     # ── Adopted 2026-11-20 (batch 2): proven green on the current tree ───────
     # Each was executed before adoption; all exit 0 on main today, so adding
     # them cannot make the roster red. They were written, merged and never
