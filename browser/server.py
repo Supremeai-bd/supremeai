@@ -576,6 +576,9 @@ def session_snapshot() -> dict[str, dict]:
         )
         updated = float(entry.get("updated_at") or 0.0)
         entry["age_s"] = round(now - updated, 1) if updated else None
+        entry["disabled"] = engine_disabled(engine)
+        if entry["disabled"]:
+            entry["disabled_reason"] = _engine_disabled[engine]["reason"]
         if engine == "gemini":
             cookies = loaded_cookies()
             entry["cookie_present"] = bool(cookies)
@@ -848,12 +851,135 @@ async def health() -> Dict[str, Any]:
     }
 
 
+# --- operator kill switch ---------------------------------------------------
+# The only ways to take a web engine out of rotation used to be "wait for a
+# cooldown the gateway inferred" or "change an env var and redeploy". Neither is
+# a switch an operator can throw at 3am when one engine starts answering with
+# garbage, and the relay is the only place that actually decides which engine a
+# request goes to — so the switch lives here and is enforced at dispatch.
+#
+# It is deliberately not magic: an engine is either enabled or it is not, the
+# reason and the moment are recorded, and /health publishes the same truth the
+# gateway reads. Nothing is silently re-enabled by a success.
+DISABLED_ENGINES_ENV = "SUPREMEAI_RELAY_DISABLED_ENGINES"
+
+# Engine name → {"reason": str, "since": epoch seconds}. Empty means "nothing is
+# switched off", which is the state every deploy starts in.
+_engine_disabled: Dict[str, Dict[str, Any]] = {}
+
+
+def _seed_disabled_engines(raw: str) -> Dict[str, Dict[str, Any]]:
+    """Parse `duck,gemini` / `gemini-web` / `duck:reason,gemini` into the table.
+
+    Accepts both the relay's internal name and the id `/models` publishes,
+    because an operator reading a dashboard should not have to know which one
+    they are looking at.
+    """
+    published_to_internal = {published: internal for internal, published in PUBLISHED_ENGINE_IDS.items()}
+    seeded: Dict[str, Dict[str, Any]] = {}
+    for chunk in (raw or "").split(","):
+        token = chunk.strip()
+        if not token:
+            continue
+        name, _, reason = token.partition(":")
+        engine = name.strip()
+        engine = published_to_internal.get(engine, engine)
+        if engine not in PUBLISHED_ENGINE_IDS:
+            logger.warning(f"[kill-switch] ignoring unknown engine `{token}` in {DISABLED_ENGINES_ENV}")
+            continue
+        seeded[engine] = {"reason": reason.strip() or f"disabled by {DISABLED_ENGINES_ENV}", "since": time.time()}
+    return seeded
+
+
+_engine_disabled.update(_seed_disabled_engines(os.getenv(DISABLED_ENGINES_ENV, "")))
+
+
+def engine_disabled(engine_name: str) -> bool:
+    return engine_name in _engine_disabled
+
+
+def disabled_engines() -> Dict[str, Dict[str, Any]]:
+    """Copy of the switch table, for publishing — never a live reference."""
+    return {engine: dict(entry) for engine, entry in _engine_disabled.items()}
+
+
+def set_engine_disabled(engine_name: str, disabled: bool, reason: str = "") -> Dict[str, Any]:
+    """Throw the switch. Returns the engine's new state; raises on a bad name."""
+    if engine_name not in PUBLISHED_ENGINE_IDS:
+        raise HTTPException(status_code=404, detail=f"unknown relay engine `{engine_name}`")
+    if disabled:
+        _engine_disabled[engine_name] = {
+            "reason": (reason or "disabled by operator").strip()[:200],
+            "since": time.time(),
+        }
+        logger.warning(f"[kill-switch] {engine_name} DISABLED ({_engine_disabled[engine_name]['reason']})")
+    else:
+        _engine_disabled.pop(engine_name, None)
+        logger.info(f"[kill-switch] {engine_name} enabled")
+    return {"engine": engine_name, "disabled": engine_name in _engine_disabled, **_engine_disabled.get(engine_name, {})}
+
+
+def available_engines() -> List[str]:
+    """Engines that may serve right now, fastest first. Empty means "none"."""
+    candidates = [name for name in ("duck", "gemini") if not engine_disabled(name)]
+    return sorted(candidates, key=lambda name: _engine_latency.get(name, 9999.0))
+
+
+@app.get("/admin/engines")
+async def admin_engines(request: Request) -> Dict[str, Any]:
+    """Current switch state. Operator-authenticated: engine posture is not public."""
+    _verify_stealth_secret(request)
+    return {
+        "engines": [
+            {
+                "engine": internal,
+                "published_id": published,
+                "disabled": engine_disabled(internal),
+                "latency_ms": _engine_latency.get(internal, 0.0),
+                **_engine_disabled.get(internal, {}),
+            }
+            for internal, published in PUBLISHED_ENGINE_IDS.items()
+        ]
+    }
+
+
+@app.post("/admin/engines")
+async def admin_set_engine(request: Request) -> Dict[str, Any]:
+    """Disable or re-enable one engine without a deploy.
+
+    Body: `{"engine": "duck", "disabled": true, "reason": "returning garbage"}`.
+    The published id (`duck`, `gemini-web`) is accepted as well as the internal
+    name, so the value an operator copies out of `/health` is always usable.
+    """
+    _verify_stealth_secret(request)
+    try:
+        payload = await request.json()
+    except Exception:  # noqa: BLE001 - a malformed body is a client error, not a crash
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Expected a JSON object")
+    published_to_internal = {published: internal for internal, published in PUBLISHED_ENGINE_IDS.items()}
+    engine = str(payload.get("engine") or "").strip()
+    engine = published_to_internal.get(engine, engine)
+    disabled = payload.get("disabled")
+    if not isinstance(disabled, bool):
+        raise HTTPException(status_code=400, detail="`disabled` must be true or false")
+    return set_engine_disabled(engine, disabled, str(payload.get("reason") or ""))
+
+
 @app.get("/models")
 async def models() -> Dict[str, Any]:
+    # Rows come from PUBLISHED_ENGINE_IDS, the same table /health uses: a second
+    # hand-written list is exactly how the two endpoints drifted before (#695).
+    # A disabled engine keeps its row (the gateway joins on that id) and says so.
     return {
         "data": [
-            {"id": "duck", "latency_ms": _engine_latency.get("duck", 0.0)},
-            {"id": "gemini-web", "latency_ms": _engine_latency.get("gemini", 0.0)},
+            {
+                "id": published,
+                "latency_ms": _engine_latency.get(internal, 0.0),
+                "disabled": engine_disabled(internal),
+            }
+            for internal, published in PUBLISHED_ENGINE_IDS.items()
         ]
     }
 
@@ -1101,7 +1227,18 @@ async def sse_completion(prompt: str, req_model: str) -> AsyncIterator[str]:
     mid-stream failure is reported as an error frame instead.
     """
     chunk_id = "chatcmpl-stealth-relay-" + os.urandom(6).hex()
-    order = sorted(("duck", "gemini"), key=lambda name: _engine_latency.get(name, 9999.0))
+    order = available_engines()
+    if not order:
+        yield sse_frame(
+            {
+                "error": {
+                    "message": "every relay engine is switched off by the operator",
+                    "type": "operator_disabled",
+                }
+            }
+        )
+        yield "data: [DONE]\n\n"
+        return
     last_exc: Optional[Exception] = None
 
     for engine_name in order:
@@ -1214,8 +1351,14 @@ async def chat_completions(req: ChatRequest, request: Request) -> Response:
     engine_code = "dk"
     engine_label = "SupremeAI w.dk Turbo"
 
-    # Latency-aware engine selection (fastest first), with fallback
-    engine_order = sorted(("duck", "gemini"), key=lambda name: _engine_latency.get(name, 9999.0))
+    # Latency-aware engine selection (fastest first), switch-aware, with fallback.
+    engine_order = available_engines()
+    if not engine_order:
+        # 503, not 502: nothing upstream failed, the operator turned everything
+        # off. The gateway must not treat that as an engine injury.
+        raise HTTPException(
+            status_code=503, detail="every relay engine is switched off by the operator"
+        )
     last_exc = None
     for engine_name in engine_order:
         try:
