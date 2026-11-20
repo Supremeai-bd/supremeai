@@ -59,11 +59,18 @@ app = FastAPI(
 # the other CORS defaults did not: no env var could ADD an origin (the literal
 # replaced the list rather than seeding it), and the canonical Studio origin
 # from config/service_registry.yaml was absent while retired hosts were present.
-# The floor now comes from core.middleware.cors_policy, the same source the
-# gateway and the settings Field use, so all three cannot drift apart.
-from core.middleware.cors_policy import (  # noqa: E402
-    DEFAULT_USER_ALLOWED_ORIGINS as _BRAIN_ORIGIN_FLOOR,
-)
+# The floor comes from core.middleware.cors_policy when available; if deployed
+# in an isolated container context where `core` is not packaged, a defensive fallback is used.
+try:
+    from core.middleware.cors_policy import (  # noqa: E402
+        DEFAULT_USER_ALLOWED_ORIGINS as _BRAIN_ORIGIN_FLOOR,
+    )
+except (ImportError, ModuleNotFoundError):
+    # বাংলা মন্তব্য: আইসোলেটেড ব্রেন ডকার কন্টেইনারে `core` প্যাকেজ অনুপস্থিত থাকলে নিরাপদ ফলব্যাক অরিজিন
+    _BRAIN_ORIGIN_FLOOR = (
+        "https://supremeai-studio.pages.dev",
+        "https://studio.supremeai.lat",
+    )
 
 _DEV_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")
 
