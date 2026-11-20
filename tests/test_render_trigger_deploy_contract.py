@@ -105,6 +105,23 @@ def test_http_client_has_a_timeout():
     )
 
 
+def test_exhausted_retries_name_the_cause():
+    """The terminal message must carry the last error, not just "no deploy".
+
+    On 2026-11-20 the brain deploy failed after the 5x retry loop and the only
+    evidence was "Process completed with exit code 1" — the loop discarded what
+    Render actually said. A named cause is the difference between a five-minute
+    diagnosis and an hour of guessing.
+    """
+    src = CALLER.read_text(encoding="utf-8")
+    assert "last_reason" in src, (
+        "render_trigger_deploy no longer records why the last attempt failed"
+    )
+    assert "last error:" in src, (
+        "the terminal failure message no longer includes the underlying error"
+    )
+
+
 def test_deploy_job_sets_strict_sha_mode():
     """Guards the workflow side: strict mode is what makes pinning mandatory."""
     workflow = PIPELINE.read_text(encoding="utf-8")
