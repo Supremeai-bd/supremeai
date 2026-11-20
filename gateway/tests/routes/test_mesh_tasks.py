@@ -21,8 +21,9 @@ REST আবরণ ও MESH-1 integration যাচাই:
 
 from __future__ import annotations
 
-import time
+import os
 import unittest
+from unittest.mock import patch
 
 from api.routes.mesh import router as mesh_router
 from api.routes.mesh_tasks import router as tasks_router
@@ -55,9 +56,12 @@ class MeshTasksEndpointTest(unittest.TestCase):
     """POST/GET /api/v1/mesh/tasks endpoints-এর ব্যাপক contract যাচাই।"""
 
     def setUp(self) -> None:
+        token = "mesh-task-test-token"
+        self.enterContext(patch.dict(os.environ, WORKER_AUTH_TOKEN=token, ALLOW_TEST_AUTH_BYPASS="false"))
         self.registry = PresenceRegistry()
         self.task_router = TaskRouter(lease_seconds=600, max_active_per_node=2)
         self.app, self.client = _make_app(self.registry, self.task_router)
+        self.client.headers["X-Worker-Token"] = token
 
     def tearDown(self) -> None:
         self.app.dependency_overrides.clear()
@@ -198,13 +202,18 @@ class MeshTasksEndpointTest(unittest.TestCase):
     def test_reap_requeues_expired(self) -> None:
         data = self._submit()
         tid = data["task_id"]
-        # 1-সেকেন্ড lease নিয়ে মেয়াদ শেষ করা হচ্ছে
-        self.client.post(
-            f"/api/v1/mesh/tasks/{tid}/claim",
-            json={"node_id": "pc-dead", "capabilities": ["pytest"], "lease_seconds": 1},
-        )
-        time.sleep(1.1)
-        res = self.client.post("/api/v1/mesh/tasks/reap")
+        with patch.object(self.task_router, "_now_epoch", return_value=100.0) as clock:
+            claim = self.client.post(
+                f"/api/v1/mesh/tasks/{tid}/claim",
+                json={"node_id": "pc-dead", "capabilities": ["pytest"], "lease_seconds": 1},
+            )
+            self.assertEqual(claim.status_code, 200, claim.text)
+            clock.return_value = 100.99
+            before = self.client.post("/api/v1/mesh/tasks/reap")
+            self.assertEqual(before.status_code, 200)
+            self.assertNotIn(tid, before.json()["reaped"])
+            clock.return_value = 101.01
+            res = self.client.post("/api/v1/mesh/tasks/reap")
         self.assertEqual(res.status_code, 200)
         self.assertIn(tid, res.json()["reaped"])
         after = self.client.get(f"/api/v1/mesh/tasks/{tid}").json()

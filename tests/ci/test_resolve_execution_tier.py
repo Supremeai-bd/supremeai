@@ -1,14 +1,22 @@
-from __future__ import annotations
+"""Which runner executes CI is a cost/availability decision — pin its ladder.
 
-import sys
-from pathlib import Path
+`resolve_tier` decides between the free local runner, the Render CI runner and
+two GitHub fallbacks. Getting it wrong is expensive in either direction (Render
+minutes burned, or a PR that never runs). Every branch is pinned here with the
+probes stubbed, so no network or Render API is involved.
+"""
+
+from __future__ import annotations
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT))
-
 from scripts.ci import resolve_execution_tier as ret
+
+
+@pytest.fixture(autouse=True)
+def _clean_env(monkeypatch):
+    monkeypatch.delenv("GITHUB_EVENT_NAME", raising=False)
+    monkeypatch.setenv("ALLOW_LOCAL_CI", "true")
 
 
 def _patch(monkeypatch: pytest.MonkeyPatch, *, local: bool, remaining: float, known: bool, worker: bool) -> None:
@@ -83,3 +91,40 @@ def test_untrusted_events_never_probe_the_personal_runner(monkeypatch, event):
     monkeypatch.setattr(ret, "is_local_runner_online", lambda: pytest.fail("private runner probe"))
     monkeypatch.setattr(ret, "is_render_ci_worker_available", lambda: pytest.fail("quota unknown"))
     assert ret.resolve_tier() == "github-ubuntu-render-backend"
+
+
+def test_pull_request_never_uses_the_local_runner(monkeypatch):
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
+    monkeypatch.setattr(ret, "is_local_runner_online", lambda: True)
+    monkeypatch.setattr(ret, "get_render_quota_remaining", lambda: (0.0, False))
+    assert ret.resolve_tier() == "github-ubuntu-render-backend"
+
+
+def test_offline_local_runner_falls_through_to_cloud(monkeypatch):
+    monkeypatch.setattr(ret, "is_local_runner_online", lambda: False)
+    monkeypatch.setattr(ret, "get_render_quota_remaining", lambda: (0.0, False))
+    assert ret.resolve_tier() == "github-ubuntu-render-backend"
+
+
+def test_unknown_quota_never_selects_the_render_runner(monkeypatch):
+    monkeypatch.setattr(ret, "is_local_runner_online", lambda: False)
+    monkeypatch.setattr(ret, "get_render_quota_remaining", lambda: (0.0, False))
+    assert ret.resolve_tier() != "render-ci-runner"
+
+
+def test_render_runner_requires_quota_and_availability(monkeypatch):
+    monkeypatch.setattr(ret, "is_local_runner_online", lambda: False)
+    monkeypatch.setattr(
+        ret, "get_render_quota_remaining",
+        lambda: (ret.RENDER_QUOTA_REMAINING_P2_MINS + 1, True),
+    )
+    monkeypatch.setattr(ret, "is_render_ci_worker_available", lambda: True)
+    assert ret.resolve_tier() == "render-ci-runner"
+
+
+def test_emergency_tier_is_the_last_resort(monkeypatch):
+    monkeypatch.setattr(ret, "is_local_runner_online", lambda: False)
+    # Known quota, below the P2 floor, and most of the monthly budget already used.
+    monkeypatch.setattr(ret, "get_render_quota_remaining", lambda: (1.0, True))
+    monkeypatch.setattr(ret, "is_render_ci_worker_available", lambda: True)
+    assert ret.resolve_tier() == "github-ubuntu-emergency"

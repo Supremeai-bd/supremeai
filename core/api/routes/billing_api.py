@@ -348,13 +348,13 @@ async def stripe_webhook(request: Request, session: AsyncSession = Depends(get_d
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
-    except getattr(stripe, "error", Exception).SignatureVerificationError if hasattr(stripe, "error") else Exception as e:
+    except stripe.SignatureVerificationError as e:
         logger.warning("Invalid Stripe signature detected. Dropping request.")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature"
         ) from e
-    except Exception as e:
-        logger.error(f"Webhook payload validation error: {e!s}")
+    except (ValueError, AttributeError) as e:
+        logger.warning("Invalid Stripe webhook payload")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Payload validation failed"
         ) from e
