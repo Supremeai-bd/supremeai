@@ -46,6 +46,45 @@ class ConfigSpec:
 
 
 CONFIG_SPECS: tuple[ConfigSpec, ...] = (
+    # ── Chat latency / relay tuning (2026-11-20 latency work) ──────────────
+    # Registered so these can never become "read in code but undocumented" —
+    # the class that left 700 vars out of .env.example before the env-SSOT
+    # generator was revived.
+    ConfigSpec(
+        "SUPREMEAI_RELAY_HEDGE_AFTER_S",
+        frozenset({ConfigClass.OPTIONAL}),
+        frozenset({ConfigSource.ENV, ConfigSource.CODE_DEFAULT}),
+        frozenset({"backend"}),
+        description=(
+            "Seconds the relay's preferred tier may run alone before the backup "
+            "tier is started concurrently (hedged request). 0 disables hedging "
+            "and restores strictly serial behaviour. Fast answers never trigger "
+            "the backup, so quota use is unchanged in the common case."
+        ),
+    ),
+    ConfigSpec(
+        "SUPREMEAI_TRIVIAL_FASTPATH",
+        frozenset({ConfigClass.OPTIONAL}),
+        frozenset({ConfigSource.ENV, ConfigSource.CODE_DEFAULT}),
+        frozenset({"backend"}),
+        description=(
+            "Answer closed-set greetings/thanks from a template with no model "
+            "call, no persistence and no context injection. Defaults ON in "
+            "production and OFF elsewhere so self-hosted and test deployments "
+            "keep model behaviour deterministic."
+        ),
+    ),
+    ConfigSpec(
+        "RELAY_MIN_TIMEOUT_S",
+        frozenset({ConfigClass.OPTIONAL}),
+        frozenset({ConfigSource.ENV, ConfigSource.CODE_DEFAULT}),
+        frozenset({"backend"}),
+        description=(
+            "Floor for the stealth-relay socket timeout. Prevents a tight "
+            "per-model latency budget from handing the upstream a sub-second "
+            "timeout, which would record a healthy-but-slow relay as a failure."
+        ),
+    ),
     ConfigSpec(
         "SUPREMEAI_SERVICE_ROLE",
         frozenset({ConfigClass.OPTIONAL}),

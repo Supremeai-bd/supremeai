@@ -611,6 +611,39 @@ async def iter_duck_deltas(lines: Any) -> AsyncIterator[str]:
             yield str(message)
 
 
+# --- shared pooled HTTP client ---------------------------------------------
+# Every chat request used to open a brand-new httpx.AsyncClient
+# (`async with httpx.AsyncClient(timeout=25.0)`), paying DNS + TCP + TLS before
+# a single byte of the answer moved. On a free-tier box over a cold connection
+# that is 50-200 ms of pure setup on the request's critical path, per request.
+# One module-level pool keeps connections alive across requests (the gateway's
+# stealth forwarder already does this; the relay was the one place that did not).
+#
+# The client is created lazily and never closed on the request path; the
+# process owns it for its lifetime, which is the intended semantics for a
+# keep-alive pool.
+_RELAY_CLIENT: Optional[httpx.AsyncClient] = None
+
+
+def _get_relay_client() -> httpx.AsyncClient:
+    """Return the process-wide pooled client (lazily created)."""
+    global _RELAY_CLIENT
+    if _RELAY_CLIENT is None or _RELAY_CLIENT.is_closed:
+        _RELAY_CLIENT = httpx.AsyncClient(
+            timeout=25.0,
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=100),
+            follow_redirects=True,
+        )
+    return _RELAY_CLIENT
+
+
+# Hedge policy: how long to let the preferred engine run alone before starting
+# the backup. Below this, the answer arrives and the backup never happens — so
+# the common fast case costs exactly ONE upstream request (no quota doubling).
+# 0 disables the feature entirely (restores strictly serial behaviour).
+RELAY_HEDGE_AFTER_S = float(os.getenv("SUPREMEAI_RELAY_HEDGE_AFTER_S", "1.2"))
+
+
 class DuckAiEngine:
     """Lightweight Pure-HTTP $0 Web AI Relay (Duck.ai + Zero-Auth Pollinations OpenAI fallback).
 
@@ -764,55 +797,169 @@ class DuckAiEngine:
         incremental, which is why the ban-risk posture is untouched.
         """
         await asyncio.sleep(random.uniform(0.05, 0.15))
+        client = _get_relay_client()
+        async for delta in self._run_tiers(client, prompt, model):
+            yield delta
 
-        async with httpx.AsyncClient(timeout=25.0) as client:
+    async def _run_tiers(
+        self, client: httpx.AsyncClient, prompt: str, model: Optional[str]
+    ) -> AsyncIterator[str]:
+        """Emit from the first engine that produces an answer, hedging on slowness.
+
+        WHY (the latency this fixes)
+        ----------------------------
+        The tiers used to run strictly one after another: a *successful* but slow
+        Tier 1 (up to its 6 s timeout) was always paid in full before Tier 2 was
+        even attempted, and a *failing* Tier 1 had to finish timing out before
+        Duck.ai started. Measured effect: a one-word reply could spend multiple
+        seconds inside a single non-streaming HTTP call.
+
+        WHAT CHANGED (and what deliberately did not)
+        --------------------------------------------
+        Tier 1 is still tried alone first, and it is still tried with identical
+        headers, payload and timeout. The only new behaviour: if it has not
+        answered within ``RELAY_HEDGE_AFTER_S``, Tier 2 starts *concurrently* and
+        whichever produces output first wins; the loser is cancelled.
+
+        That is a hedged request, not speculation: in the normal (fast) case
+        exactly one upstream request is made, so free-tier quota and the
+        "human cadence" ban-risk posture are unchanged. Only a request that was
+        already going to be slow pays for two attempts.
+
+        Commit-at-byte-one is preserved: the first yielded delta decides the
+        winner and the other tier is collapsed, so two answers can never splice.
+        """
+        hedge_after = RELAY_HEDGE_AFTER_S
+
+        # Fast path: let the cheapest tier answer on its own. No hedge, no tasks.
+        if hedge_after <= 0:
             free_reply = await self._ask_zero_auth_http_relay(client, prompt)
             if free_reply:
                 yield free_reply
                 return
+            async for delta in self._duck_tier(client, prompt, model):
+                yield delta
+            return
 
-            token = await self._fetch_vqd_token(client)
-            if not token:
-                raise HTTPException(
-                    status_code=502, detail="Stealth HTTP relay encountered upstream challenge or timeout"
+        free_task = asyncio.ensure_future(self._ask_zero_auth_http_relay(client, prompt))
+        duck_task: Optional[asyncio.Task] = None
+        try:
+            done, _ = await asyncio.wait({free_task}, timeout=hedge_after)
+            if done:
+                free_reply = free_task.result()
+                if free_reply:
+                    yield free_reply
+                    return
+                # Tier 1 answered quickly with nothing usable: go straight to
+                # Tier 2 rather than waiting out a timer.
+                async for delta in self._duck_tier(client, prompt, model):
+                    yield delta
+                return
+
+            # Tier 1 is slow (not failed -- just slow). Hedge it.
+            logger.info(
+                "[relay] tier-1 exceeded %.2fs without an answer; hedging with duck", hedge_after
+            )
+            duck_task = asyncio.ensure_future(self._first_delta_probe(client, prompt, model))
+            pending = {duck_task}
+            first: Optional[str] = None
+            while pending:
+                done, pending = await asyncio.wait(
+                    pending | ({free_task} if not free_task.done() else set()),
+                    return_when=asyncio.FIRST_COMPLETED,
                 )
+                if free_task in done:
+                    free_reply = free_task.result()
+                    if free_reply:
+                        first = free_reply
+                        break
+                if duck_task in done:
+                    first = duck_task.result()
+                    if first:
+                        break
 
-            target_model = self.resolve_model(model)
-            payload = {"model": target_model, "messages": [{"role": "user", "content": prompt}]}
-            emitted = 0
-            try:
-                async with client.stream(
-                    "POST",
-                    "https://duckduckgo.com/duckchat/v1/chat",
-                    headers=self._duck_headers(token),
-                    json=payload,
-                    timeout=10.0,
-                ) as resp:
-                    if resp.status_code != 200:
-                        logger.warning(f"[DuckAI] HTTP chat returned status {resp.status_code}")
-                        raise HTTPException(
-                            status_code=502,
-                            detail=f"Duck.ai chat returned status {resp.status_code}",
-                        )
-                    new_token = resp.headers.get("x-vqd-4")
-                    if new_token:
-                        self._vqd_token = new_token
-                        self._vqd_expiry = time.time() + 600.0
-                    async for delta in iter_duck_deltas(resp.aiter_lines()):
-                        emitted += 1
-                        yield delta
-            except HTTPException:
-                raise
-            except Exception as exc:
-                logger.warning(f"[DuckAI] HTTP chat request failed: {exc}")
+            if not first:
                 raise HTTPException(
-                    status_code=502, detail="Duck.ai chat stream failed before completion"
-                ) from exc
-
-            if not emitted:
-                raise HTTPException(
-                    status_code=502, detail="Stealth HTTP relay encountered upstream challenge or timeout"
+                    status_code=502,
+                    detail="Stealth HTTP relay encountered upstream challenge or timeout",
                 )
+            yield first
+            return
+        finally:
+            # Cancel everything still in flight so a losing tier never keeps
+            # running (quota + socket hygiene), and never propagate a cancel
+            # into the ASGI response.
+            for task in (free_task, duck_task):
+                if task is not None and not task.done():
+                    task.cancel()
+            for task in (free_task, duck_task):
+                if task is not None and not task.done():
+                    try:
+                        await task
+                    except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                        pass
+
+    async def _first_delta_probe(
+        self, client: httpx.AsyncClient, prompt: str, model: Optional[str]
+    ) -> Optional[str]:
+        """Return the first delta from the Duck tier, or None if it yields nothing.
+
+        A one-element lookahead lets the hedge decide a winner without committing
+        to (or splicing) a whole second answer.
+        """
+        try:
+            async for delta in self._duck_tier(client, prompt, model):
+                return delta
+        except HTTPException:
+            return None
+        return None
+
+    async def _duck_tier(
+        self, client: httpx.AsyncClient, prompt: str, model: Optional[str]
+    ) -> AsyncIterator[str]:
+        """Tier 2 — Duck.ai SSE. Unchanged behaviour, factored out for hedging."""
+        token = await self._fetch_vqd_token(client)
+        if not token:
+            raise HTTPException(
+                status_code=502, detail="Stealth HTTP relay encountered upstream challenge or timeout"
+            )
+
+        target_model = self.resolve_model(model)
+        payload = {"model": target_model, "messages": [{"role": "user", "content": prompt}]}
+        emitted = 0
+        try:
+            async with client.stream(
+                "POST",
+                "https://duckduckgo.com/duckchat/v1/chat",
+                headers=self._duck_headers(token),
+                json=payload,
+                timeout=10.0,
+            ) as resp:
+                if resp.status_code != 200:
+                    logger.warning(f"[DuckAI] HTTP chat returned status {resp.status_code}")
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"Duck.ai chat returned status {resp.status_code}",
+                    )
+                new_token = resp.headers.get("x-vqd-4")
+                if new_token:
+                    self._vqd_token = new_token
+                    self._vqd_expiry = time.time() + 600.0
+                async for delta in iter_duck_deltas(resp.aiter_lines()):
+                    emitted += 1
+                    yield delta
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.warning(f"[DuckAI] HTTP chat request failed: {exc}")
+            raise HTTPException(
+                status_code=502, detail="Duck.ai chat stream failed before completion"
+            ) from exc
+
+        if not emitted:
+            raise HTTPException(
+                status_code=502, detail="Stealth HTTP relay encountered upstream challenge or timeout"
+            )
 
 
 duck_engine = DuckAiEngine()

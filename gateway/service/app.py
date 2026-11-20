@@ -194,6 +194,14 @@ except ImportError:
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("supremeai.gateway")
+try:
+    from .request_trace import RequestTrace
+except (ImportError, ModuleNotFoundError):  # flat-layout imports (service.app)
+    from request_trace import RequestTrace
+try:
+    from .trivial_input import trivial_reply
+except (ImportError, ModuleNotFoundError):  # flat-layout imports (service.app)
+    from trivial_input import trivial_reply
 
 
 # ── LiveLogs Ring Buffer (Admin Console Server-Side Log Streaming) ───────────
@@ -259,6 +267,75 @@ CHAT_ROUTE_DEADLINE_S = float(os.getenv("CHAT_ROUTE_DEADLINE_S", "15"))
 # upstream and try the next healthy candidate before forwarding anything downstream.
 CHAT_CONNECT_TIMEOUT_S = float(os.getenv("CHAT_CONNECT_TIMEOUT_S", "8"))
 CHAT_FIRST_TOKEN_TIMEOUT_S = float(os.getenv("CHAT_FIRST_TOKEN_TIMEOUT_S", "8"))
+
+# ── Per-model latency budget: rank → deadline ────────────────────────────────
+# route_arbiter.MODEL_LATENCY_THRESHOLDS_MS declares per-model budgets and says
+# so in prose ("supreme-spark: Ultra-low latency (<1.5s)"), but every read of
+# that table feeds route_score() — a RANKING input that sorts candidate slots.
+# Nothing turned the number into a clock, so the enforced envelope stayed flat at
+# 8s first-token / 15s route while the product advertised 1.5s. A one-word reply
+# measured at 6.2s is that gap being spent.
+#
+# The helpers below derive real clocks from the declared budget. Precedence is
+# deliberate: an explicit env override always wins (ops can widen a lane without
+# a deploy), then the model's own budget, then a sane default. They are pure so
+# they can be unit-tested without standing up the app.
+_DEFAULT_ROUTE_BUDGET_S = 1.8
+# Never hand the upstream a sub-second socket timeout: a legitimately slow but
+# healthy relay would then be recorded as a failure and cooled down.
+RELAY_MIN_TIMEOUT_S = float(os.getenv("RELAY_MIN_TIMEOUT_S", "3.0"))
+
+
+def _route_budget_s(model: str) -> float:
+    """Declared latency budget for ``model`` in seconds (from the arbiter table)."""
+    try:
+        from .route_arbiter import MODEL_LATENCY_THRESHOLDS_MS
+    except (ImportError, ModuleNotFoundError):  # flat-layout import
+        from route_arbiter import MODEL_LATENCY_THRESHOLDS_MS
+
+    key = (model or "").strip().lower()
+    budget_ms = MODEL_LATENCY_THRESHOLDS_MS.get(key)
+    if budget_ms is None:
+        return _DEFAULT_ROUTE_BUDGET_S
+    return float(budget_ms) / 1000.0
+
+
+def _route_deadline_for(model: str) -> float:
+    """End-to-end failover deadline: the model budget, unless ops widened it.
+
+    ``min`` is intentional on the env path: an operator can only ever widen the
+    envelope deliberately via CHAT_ROUTE_DEADLINE_S, and the result can never be
+    tighter than the model's declared budget (which would make a healthy slow
+    model impossible to serve).
+    """
+    budget = _route_budget_s(model)
+    # Only an EXPLICIT setting counts as an operator override. Reading the
+    # module-level CHAT_ROUTE_DEADLINE_S here would make its 15s code default
+    # look like an override and silently re-create the flat envelope this
+    # function exists to remove (caught by test_spark_budget_is_tighter).
+    explicit = float(os.getenv("CHAT_ROUTE_DEADLINE_S", "") or 0)
+    if explicit > 0:
+        return explicit
+    # No override: fall back to the module value ONLY if it is tighter than the
+    # model budget (tests and callers may lower it); never widen past the budget.
+    return min(budget, CHAT_ROUTE_DEADLINE_S) if CHAT_ROUTE_DEADLINE_S < budget else budget
+
+
+def _first_token_timeout_for(model: str) -> float:
+    """Time allowed before abandoning a candidate for the next one.
+
+    Bounded by the budget so a slow upstream is cancelled *within* the promise
+    instead of 5x past it. Never below the flat floor for tiny budgets, so a
+    mis-set threshold cannot make every request fail instantly.
+    """
+    budget = _route_budget_s(model)
+    ceiling = min(CHAT_FIRST_TOKEN_TIMEOUT_S, budget)
+    return max(ceiling, 0.25)
+
+
+def _connect_timeout_for(model: str) -> float:
+    """TCP/TLS budget — a fraction of the first-token clock, never larger."""
+    return min(CHAT_CONNECT_TIMEOUT_S, _first_token_timeout_for(model))
 # How long SSE keep-alives may hold a stream open past the first-token window.
 # A relay that buffers a slow engine answers in 10-25s; the engine's own request
 # timeout (25s) is the real bound, this is the last line of defence.
@@ -1828,11 +1905,16 @@ async def _execute_chat_completion(
     x_supremeai_key: Optional[str] = None
 ):
     """Core completion execution engine for /v1/chat/completions and compatibility aliases."""
+    # Per-request latency attribution (see gateway/service/request_trace.py).
+    # A 6.2s one-word reply was unattributable from logs; every stage below is
+    # now measured so the next one is a grep, not a source audit.
+    trace = RequestTrace(model=str(body.get("model") or "supreme-spark"))
     if not _verify_client_auth(request, x_supremeai_key):
         raise HTTPException(
             status_code=401,
             detail="Unauthorized: Invalid or missing X-SupremeAI-Key / Bearer token"
         )
+    trace.mark("auth")
 
     # Cost guard: throttle ONLY guest-class requests (keyed auth is never limited).
     # Classification here is a cost-guard signal, NOT an auth decision: client
@@ -1848,6 +1930,43 @@ async def _execute_chat_completion(
                 ),
                 headers={"Retry-After": str(int(retry_after) + 1)},
             )
+
+    # ── Trivial-input fast-path ─────────────────────────────────────────────
+    # A greeting needs no memory write, no identity anchor and no model. Before
+    # this, "hi" paid for two SQLite commits, a ~776-token context compile, a
+    # squad route decision and an upstream call. Answering it here costs a regex
+    # and is the single highest-ratio latency change for that class of request.
+    # Closed-set matching only (see trivial_input.py); anything ambiguous falls
+    # through to the real pipeline, because a wrong fast answer is worse than a
+    # slow correct one.
+    try:
+        # Default-OFF outside production. This intercepts before any upstream
+        # call, so it is exactly the kind of behaviour a self-hosted or test
+        # deployment must be able to keep deterministic ("Hello" to a fixture
+        # model must reach that model). Production opts in by default because it
+        # is the deployment the 6.2s complaint came from.
+        _trivial_on = os.getenv(
+            "SUPREMEAI_TRIVIAL_FASTPATH",
+            "1" if os.getenv("ENVIRONMENT", "").strip().lower() == "production" else "0",
+        ).strip().lower() in ("1", "true", "yes", "on")
+        _trivial = trivial_reply(body) if _trivial_on else None
+    except Exception:  # noqa: BLE001 - the fast-path must never break a request
+        _trivial = None
+    if _trivial is not None:
+        _trivial["created"] = int(time.time())
+        trace.mark("upstream")  # nothing was sent upstream; keeps the trace honest
+        trace.lane = "trivial"
+        trace.provider = "template"
+        trace.log()
+        return JSONResponse(
+            status_code=200,
+            content=_trivial,
+            headers={
+                "X-SupremeAI-Provider": "trivial-template",
+                "X-SupremeAI-Tier": "zero-cost",
+                "Server-Timing": trace.server_timing(),
+            },
+        )
 
     from .route_arbiter import API_ONLY_MODELS, RELAY_ONLY_MODELS, route_arbiter
 
@@ -1916,6 +2035,8 @@ async def _execute_chat_completion(
             except Exception as exc:
                 logger.warning(f"Legacy storage error (user msg): {exc}")
 
+    trace.mark("persist")
+
     # 2. Server-Side Context Compiler (Phase 1):
     # Injects Core Identity Anchor + Platform Grounding Sheet + 3-Tier Memory + Deterministic Sampling Lock
     if compile_chat_context:
@@ -1963,6 +2084,8 @@ async def _execute_chat_completion(
 
     # Do not share private completions or bypass current lane/approval checks
     # through the legacy prompt-only cache namespace.
+    trace.mark("context")
+
     relay_detail = None
     route_arbiter.squad = squad
     decision = route_arbiter.choose_best_route(
@@ -1981,15 +2104,27 @@ async def _execute_chat_completion(
         reason = "Vision analysis is temporarily unavailable" if has_image else "No approved free API route available"
         raise HTTPException(status_code=503, detail=reason)
 
+    # Lane is known here; record it before any upstream call so a timeout still
+    # tells us WHICH lane timed out.
+    trace.mark("route")
+    trace.lane = decision.route_type
+    trace.provider = preferred_provider or (candidates[0][0] if candidates else None)
+
     if use_priority_1:
         w_status, w_response = None, None
         start_time = time.time()
         try:
+            # The relay is the lane a slow 6.2s reply actually came from: its
+            # timeout was a flat 8s regardless of the model's declared budget.
+            relay_timeout_s = min(
+                STEALTH_WEBHOOK_TIMEOUT,
+                max(_route_deadline_for(requested_model), RELAY_MIN_TIMEOUT_S),
+            )
             w_status, w_response = await forward_stealth_webhook(
                 STEALTH_WEBHOOK_URL,
                 STEALTH_WEBHOOK_SECRET,
                 body,
-                timeout=STEALTH_WEBHOOK_TIMEOUT,
+                timeout=relay_timeout_s,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"Priority-1 Web Relay attempt exception: {exc}")
@@ -2147,6 +2282,10 @@ async def _execute_chat_completion(
                     headers={**headers, "Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
                 )
 
+            trace.mark("upstream")
+            trace.provider = engine_src
+            trace.log()
+            headers["Server-Timing"] = trace.server_timing()
             return JSONResponse(status_code=w_status, content=w_response, headers=headers)
 
         relay_detail = None
@@ -2181,13 +2320,20 @@ async def _execute_chat_completion(
                 saw_tool_calls = False
                 last_stream_err = "Upstream stream failed"
                 last_brand = build_brand("api", candidates[0][0], stream_served_model)
-                route_deadline = time.monotonic() + CHAT_ROUTE_DEADLINE_S
+                # Per-model budget (route_arbiter's declared threshold), not the
+                # flat global envelope: supreme-spark may not spend 8s of a 1.5s
+                # promise on one candidate.
+                stream_deadline_s = _route_deadline_for(requested_model)
+                stream_connect_s = _connect_timeout_for(requested_model)
+                stream_first_token_s = _first_token_timeout_for(requested_model)
+                route_deadline = time.monotonic() + stream_deadline_s
 
                 for provider, slot in candidates:
                     if not started and time.monotonic() > route_deadline:
                         logger.warning(
-                            "[stream] Route deadline (%.0fs) exceeded before first token; stopping failover.",
-                            CHAT_ROUTE_DEADLINE_S,
+                            "[stream] Route deadline (%.1fs, budget for %s) exceeded before first token; stopping failover.",
+                            stream_deadline_s,
+                            requested_model,
                         )
                         break
                     slot.total_calls += 1
@@ -2200,8 +2346,8 @@ async def _execute_chat_completion(
                     try:
                         async for kind, data in _aiter_stream_first_token(
                             stream_iter,
-                            connect_timeout_s=CHAT_CONNECT_TIMEOUT_S,
-                            first_token_timeout_s=CHAT_FIRST_TOKEN_TIMEOUT_S,
+                            connect_timeout_s=stream_connect_s,
+                            first_token_timeout_s=stream_first_token_s,
                             route_deadline=route_deadline,
                             heartbeat_ceiling_s=CHAT_STREAM_HEARTBEAT_CEILING_S,
                         ):
@@ -2323,6 +2469,11 @@ async def _execute_chat_completion(
                 yield f"data: {json.dumps(final_chunk)}\n\n"
                 yield "data: [DONE]\n\n"
 
+            # Stream started: everything before the first body byte is now
+            # measured. The generator itself is NOT instrumented (per-chunk
+            # timing would add overhead to the path this protects).
+            trace.mark("upstream")
+            trace.log()
             return StreamingResponse(
                 squad_true_stream_generator(),
                 media_type="text/event-stream",
@@ -2332,16 +2483,19 @@ async def _execute_chat_completion(
                     "X-SupremeAI-Tier": "free-tier-adaptive",
                     "Cache-Control": "no-cache",
                     "X-Accel-Buffering": "no",
+                    "Server-Timing": trace.server_timing(),
                 },
             )
 
-        route_deadline = time.monotonic() + CHAT_ROUTE_DEADLINE_S
+        ns_deadline_s = _route_deadline_for(requested_model)
+        route_deadline = time.monotonic() + ns_deadline_s
         for provider, slot in candidates:
             remaining = route_deadline - time.monotonic()
             if remaining <= 0:
                 logger.warning(
-                    "Route deadline (%.0fs) exceeded; stopping provider failover.",
-                    CHAT_ROUTE_DEADLINE_S,
+                    "Route deadline (%.1fs, budget for %s) exceeded; stopping provider failover.",
+                    ns_deadline_s,
+                    requested_model,
                 )
                 break
             slot.total_calls += 1
@@ -2404,6 +2558,10 @@ async def _execute_chat_completion(
                 # (Audit P0-5: removed the fake word-by-word re-simulation —
                 # streaming clients are now served by the live upstream proxy
                 # branch above, before any buffering happens.)
+                trace.mark("upstream")
+                trace.provider = provider
+                trace.log()
+                headers["Server-Timing"] = trace.server_timing()
                 return JSONResponse(status_code=status, content=response_data, headers=headers)
 
             pool = squad.pools.get(provider)
