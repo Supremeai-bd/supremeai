@@ -47,10 +47,12 @@ Local test:
 from __future__ import annotations
 
 import time
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from starlette.datastructures import MutableHeaders
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.types import Message, Scope
+
+from gateway.middleware.http_header_middleware import HttpHeaderMiddleware
 
 #: Header name (W3C Server-Timing, https://www.w3.org/TR/server-timing/).
 HEADER = b"server-timing"
@@ -64,38 +66,30 @@ FALLBACK_DESC = "gw"
 SCOPE_KEY = "supremeai.timing_start"
 
 
-class ServerTimingMiddleware:
+class ServerTimingMiddleware(HttpHeaderMiddleware):
     """Stamp a coarse ``Server-Timing`` on any response that lacks one."""
 
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
+    def before_http(self, scope: Scope) -> float:
         started = time.monotonic()
         # Stash on the scope so a global exception handler — which runs inside
         # the stack, unlike Starlette's outermost ServerErrorMiddleware — can
         # still measure the request it is about to turn into a 500.
         scope[SCOPE_KEY] = started
+        return started
 
-        async def send_with_timing(message: Message) -> None:
-            if message["type"] == "http.response.start":
-                # Preserve a richer, route-level trace if the handler produced
-                # one; only fill the gap when nothing is there.
-                existing = _find_header(message.get("headers") or [], HEADER)
-                if existing is None:
-                    total_ms = (time.monotonic() - started) * 1000.0
-                    headers = MutableHeaders(scope=message)
-                    headers.append(
-                        "Server-Timing",
-                        f"total;dur={total_ms:.1f};desc={FALLBACK_DESC}",
-                    )
-            await send(message)
-
-        await self.app(scope, receive, send_with_timing)
+    def stamp(self, message: Message, state: Any = None) -> None:
+        # Preserve a richer, route-level trace if the handler produced one;
+        # only fill the gap when nothing is there.
+        existing = _find_header(message.get("headers") or [], HEADER)
+        if existing is not None:
+            return
+        started = state if state is not None else time.monotonic()
+        total_ms = (time.monotonic() - started) * 1000.0
+        headers = MutableHeaders(scope=message)
+        headers.append(
+            "Server-Timing",
+            f"total;dur={total_ms:.1f};desc={FALLBACK_DESC}",
+        )
 
 
 def _find_header(headers: List[Tuple[bytes, bytes]], name: bytes):

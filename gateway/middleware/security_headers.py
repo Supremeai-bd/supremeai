@@ -32,8 +32,12 @@ Local test:
 
 from __future__ import annotations
 
+from typing import Any
+
 from starlette.datastructures import MutableHeaders
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.types import Message
+
+from gateway.middleware.http_header_middleware import HttpHeaderMiddleware
 
 # #1728 proposal step 1: the four baseline headers + the two optional hardeners.
 # Report-only phase (#1728 AC3): the CSP policy travels in the -Report-Only
@@ -50,22 +54,12 @@ SECURITY_HEADERS: dict[str, str] = {
 }
 
 
-class SecurityHeadersMiddleware:
+class SecurityHeadersMiddleware(HttpHeaderMiddleware):
     """Stamp the baseline security headers onto every HTTP response."""
 
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        async def send_with_security_headers(message: Message) -> None:
-            if message["type"] == "http.response.start":
-                headers = MutableHeaders(scope=message)
-                for name, value in SECURITY_HEADERS.items():
-                    headers[name] = value
-            await send(message)
-
-        await self.app(scope, receive, send_with_security_headers)
+    def stamp(self, message: Message, state: Any = None) -> None:
+        # SET semantics (replace, not append): the docstring contract requires
+        # exactly one occurrence of each header per response.
+        headers = MutableHeaders(scope=message)
+        for name, value in SECURITY_HEADERS.items():
+            headers[name] = value
