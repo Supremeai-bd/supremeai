@@ -55,6 +55,25 @@ def _default_referer() -> str:
     except Exception:  # pragma: no cover - defensive
         return ""
 
+
+def _apply_openrouter_headers(headers: Dict[str, str], provider: str) -> None:
+    """Set OpenRouter's optional identity headers.
+
+    Both the streaming and non-streaming paths need the same two headers. They
+    used to be written out at each call site, which is how one of them kept a
+    hardcoded fallback host after the other had been fixed. One place now.
+    """
+    if provider != "openrouter":
+        return
+    referer = (
+        os.getenv("OPENROUTER_REFERER")
+        or os.getenv("RENDER_EXTERNAL_URL")
+        or _default_referer()
+    )
+    if referer:
+        headers["HTTP-Referer"] = referer
+    headers["X-Title"] = "SupremeAI Gateway"
+
 # One-shot config-defect warnings: keyed by defect signature so a hot request
 # path never spams the log, but every distinct misconfiguration surfaces loudly
 # exactly once per process (DNS ENOTFOUND storms are otherwise undiagnosable).
@@ -335,16 +354,7 @@ async def forward_chat_completion(
         "User-Agent": "SupremeAI-Gateway/2.0",
     }
 
-    # OpenRouter requires optional referer/title headers
-    if provider == "openrouter":
-        referer = (
-            os.getenv("OPENROUTER_REFERER")
-            or os.getenv("RENDER_EXTERNAL_URL")
-            or _default_referer()
-        )
-        if referer:
-            headers["HTTP-Referer"] = referer
-        headers["X-Title"] = "SupremeAI Gateway"
+    _apply_openrouter_headers(headers, provider)
 
     body = _provider_payload(payload, provider, stream=False)
     vision = has_image_input(body)
@@ -543,15 +553,7 @@ async def stream_chat_completion_events(
         "User-Agent": "SupremeAI-Gateway/2.0",
         "Accept": "text/event-stream",
     }
-    if provider == "openrouter":
-        referer = (
-            os.getenv("OPENROUTER_REFERER")
-            or os.getenv("RENDER_EXTERNAL_URL")
-            or _default_referer()
-        )
-        if referer:
-            headers["HTTP-Referer"] = referer
-        headers["X-Title"] = "SupremeAI Gateway"
+    _apply_openrouter_headers(headers, provider)
 
     body = _provider_payload(payload, provider, stream=True)
     vision = has_image_input(body)
