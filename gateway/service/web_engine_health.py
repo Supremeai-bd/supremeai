@@ -146,6 +146,12 @@ SESSION_INJURY_STATUS: dict[str, int] = {"EXPIRED": 403, "CHALLENGED": 429}
 DISABLED_STATE = "DISABLED"
 DISABLED_PARK_S = ENGINE_REFRESH_S
 
+# A session injury is capped at one refresh interval (not the pool's hour): a
+# cookie can be renewed at any time, and the *only* way to find out is to send the
+# engine a request. A longer bench would hide the recovery for two probe cycles,
+# because a cooled slot is precisely what the probe stops choosing.
+SESSION_INJURY_CEILING_S = ENGINE_REFRESH_S
+
 # (provider, slot name) → (cooldown before parking, cooldown we set). Only slots
 # *we* parked are ever released, and only while our value is still the one in
 # place: an auth cooldown that arrived while the engine was off must survive
@@ -257,7 +263,7 @@ def apply_session_states(squad: Any, states: Mapping[str, str], *, now: float | 
             for slot in getattr(pool, "slots", ()) or ():
                 if getattr(slot, "cooldown_until", 0.0) > clock:
                     continue
-                pool.report_injury(slot, status)
+                pool.report_injury(slot, status, ceiling_s=SESSION_INJURY_CEILING_S)
                 cooled += 1
     if cooled:
         logger.warning("Relay reported dead sessions; cooled %s slot(s)", cooled)

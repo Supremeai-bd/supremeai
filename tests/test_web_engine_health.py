@@ -177,7 +177,7 @@ def _slots_squad(*, cooldown_until: float = 0.0):
             self.provider = provider
             self.slots = [SimpleNamespace(cooldown_until=cooldown_until, ewma_latency_ms=0.0)]
 
-        def report_injury(self, slot, status_code, latency_ms=0.0):
+        def report_injury(self, slot, status_code, latency_ms=0.0, *, ceiling_s=None):
             reported.append((self.provider, status_code))
             slot.cooldown_until = 10_000.0
 
