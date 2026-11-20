@@ -12,6 +12,9 @@ Implements Option A of Issue #2358:
 
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+
 import argparse
 import json
 import sys
@@ -37,7 +40,7 @@ TOWER_SERVER_JSON: Dict[str, Any] = {
     "remotes": [
         {
             "type": "streamable-http",
-            "url": "https://supremeai-mcp-tower-live.onrender.com/mcp"
+            "url": _svc("mcp", "/mcp")
         }
     ]
 }

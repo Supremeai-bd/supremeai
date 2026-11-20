@@ -114,6 +114,10 @@ enriches only the local object store — no ref update, no Tower/repo write.
 
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+
+
 import argparse
 import importlib.util
 import json
@@ -135,7 +139,7 @@ except ImportError:  # pragma: no cover — package-style load (tests, CI runner
     from scripts.ci.tower_name_tolerance import call_across_names, epoch_spellings
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TOWER = "https://supremeai-mcp-tower-live.onrender.com/mcp"
+TOWER = _svc("mcp", "/mcp")
 
 # Landing-latency threshold: past this age with neither a landing nor an open
 # PR, the WO's deliverable is at risk (#1964 class). Hours.
@@ -161,48 +165,18 @@ MAX_FEEDBACK_PROBES = 24
 _id = [100]
 
 
-def _rpc(method, params=None, session_id=None, notify=False, attempts=4):
-    """Minimal zero-credential MCP client (same protocol as the bridge lane)."""
-    payload = {"jsonrpc": "2.0", "method": method}
-    if params is not None:
-        payload["params"] = params
-    if not notify:
-        _id[0] += 1
-        payload["id"] = _id[0]
-    headers = {"Content-Type": "application/json",
-               "Accept": "application/json, text/event-stream",
-               # Streamable HTTP (spec rev >= 2025-06-18): every post-initialize request
-               # must carry the negotiated version; a missing header makes the server
-               # assume 2025-03-26, voiding the 2025-11-25 floor (#2568, radar R70).
-               # Mirrors PROTOCOL_VERSION_STREAMABLE in scripts/agents/mcp_tower_client.py.
-               "MCP-Protocol-Version": "2025-11-25"}
-    if session_id:
-        headers["Mcp-Session-Id"] = session_id
-    last = None
-    for attempt in range(attempts):
-        req = urllib.request.Request(TOWER, data=json.dumps(payload).encode(),
-                                     headers=headers, method="POST")
-        try:
-            with urllib.request.urlopen(req, timeout=45) as resp:  # nosec B310 — tower URL is a pinned https module constant; audited #2081
-                sid = resp.headers.get("Mcp-Session-Id")
-                body = resp.read().decode("utf-8", errors="replace")
-                ctype = resp.headers.get("Content-Type") or ""
-                break
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as e:
-            last = e
-            time.sleep(10 * (attempt + 1))
-    else:
-        raise last
-    if "text/event-stream" in ctype:
-        for line in body.splitlines():
-            if line.startswith("data:"):
-                try:
-                    return json.loads(line[5:].strip()), sid
-                except Exception:  # nosec B112 — SSE lines are individually skippable by design; continue IS the contract (#2081 audit)
-                    continue
-    if not body.strip():
-        return {"accepted": True}, sid
-    return json.loads(body), sid
+
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from tower_rpc_client import fetch_work_orders as _shared_fetch_work_orders  # noqa: E402
+from tower_rpc_client import rpc as _shared_rpc  # noqa: E402
+
+
+def _rpc(method, params=None, session_id=None, notify=False, attempts=3):
+    """Thin alias for tower_rpc_client.rpc (one implementation, not four)."""
+    return _shared_rpc(method, params, session_id=session_id,
+                       notify=notify, attempts=attempts)
 
 
 def _text_of(res) -> str:
@@ -237,35 +211,8 @@ QUEUE_LIMIT_LADDER: tuple = (200, 50, None)
 
 
 def _fetch_work_orders(fetch_text=_tower_text) -> tuple:
-    """Fetch open work orders across the queue-fidelity deploy window.
-
-    r2 (#2115/#2123) makes bridge.work_queue paginate (short-page-stop,
-    number-dedupe merge) and raises its limit cap 50 -> 200, but the
-    DEPLOYED tower can keep running the pre-r2 single-page handler while
-    the redeploy lags — and a single-page window is a creation-rank
-    window: rows drop as traffic flows (#2115: 98 open issues read as
-    20-35 rows; the default window observed at ~20 rows). Ladder: ask for
-    200 first (an r2 tower answers with full pagination); only an
-    argument-validation rejection (non-JSON error text, or an isError
-    envelope) falls through to 50 (the pre-r2 cap), then to the tower
-    default — exact pre-ladder behavior as the last rung. Transport
-    failures propagate so main() keeps its fail-close SKIP. A rung that
-    answers is served as-is (never retried). Returns (workOrders,
-    serving_limit); serving_limit is None for the tower-default rung.
-    """
-    last_err: Exception = RuntimeError("queue ladder exhausted")
-    for limit in QUEUE_LIMIT_LADDER:
-        arguments = {} if limit is None else {"limit": limit}
-        try:
-            payload = json.loads(fetch_text("bridge.work_queue", arguments))
-        except json.JSONDecodeError as err:  # error-envelope text, not JSON
-            last_err = err
-            continue
-        if not isinstance(payload, dict) or payload.get("isError"):
-            last_err = TypeError(f"queue rung {limit} answered a non-payload")
-            continue
-        return (payload.get("workOrders", []) or [], limit)
-    raise last_err
+    """Alias for tower_rpc_client.fetch_work_orders (one implementation)."""
+    return _shared_fetch_work_orders(fetch_text)
 
 
 # ── rejected plane: GitHub-side enumeration of rows the queue omits (#2158) ──

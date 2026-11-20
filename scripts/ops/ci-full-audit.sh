@@ -338,9 +338,25 @@ if [[ -d "${FRONTEND_DIR}" ]]; then
       pnpm --dir "${FRONTEND_DIR}" test -- --run
 
     # VITE_USER_BACKEND is required by the vite production build (fail-fast guard).
-    # CI builds use the deployed primary node URL — same value the live frontend uses.
+    # Resolved from config/service_registry.yaml so the build cannot bake in a
+    # retired host: this literal said `supremeai-primary-node`, but the live
+    # service is `supremeai-primary-node-5xso`, so every CI-built frontend was
+    # being pointed at a dead backend. VITE_USER_BACKEND still wins if set.
+    VITE_USER_BACKEND="$(
+      "${PYTHON:-python3}" - <<'PYEOF_URL'
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "ci"))
+from repo_paths import service_endpoint
+print(service_endpoint("core", with_path=False) or "")
+PYEOF_URL
+    )"
+    if [ -z "${VITE_USER_BACKEND}" ]; then
+      error "no core service URL: set VITE_USER_BACKEND or add `core` to config/service_registry.yaml"
+      exit 1
+    fi
     run_check "Frontend production build" \
-      env VITE_USER_BACKEND="https://supremeai-primary-node.onrender.com" \
+      env VITE_USER_BACKEND="${VITE_USER_BACKEND}" \
       pnpm --dir "${FRONTEND_DIR}" build
   else
     error "pnpm is not installed"

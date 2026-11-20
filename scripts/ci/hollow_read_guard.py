@@ -53,6 +53,10 @@ Usage:
 
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+
+
 import argparse
 import json
 import sys
@@ -64,7 +68,7 @@ try:
 except ImportError:  # pragma: no cover — package-style load (tests, CI runner)
     from scripts.ci.tower_name_tolerance import tolerant_tool_call
 
-TOWER_URL_DEFAULT = "https://supremeai-mcp-tower-live.onrender.com/mcp"
+TOWER_URL_DEFAULT = _svc("mcp", "/mcp")
 
 GUARD = "hollow_read_guard"
 LINEAGE = ("#2673 silent-empty class, Unified remedy 1/2/3(+5); #2704 fail-loud "

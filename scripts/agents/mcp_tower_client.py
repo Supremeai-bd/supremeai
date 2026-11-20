@@ -84,8 +84,8 @@ def resolve_mcp_server_url() -> str:
             pass
     # Derived from config/service_registry.yaml — see repo_paths.service_endpoint.
     try:
-        from repo_paths import service_endpoint as _service_endpoint
-        resolved = _service_endpoint("mcp", with_path=False)
+        from repo_paths import svc as _svc
+        resolved = _svc("mcp")
         if resolved:
             return resolved
     except Exception:  # pragma: no cover - partial checkout

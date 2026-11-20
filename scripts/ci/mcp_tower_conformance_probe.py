@@ -11,6 +11,10 @@ Implements Option B of Issue #2103:
 
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+
+
 import argparse
 import json
 import sys
@@ -18,7 +22,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict
 
-DEFAULT_TOWER_URL = "https://supremeai-mcp-tower-live.onrender.com/mcp"
+DEFAULT_TOWER_URL = _svc("mcp", "/mcp")
 TESTED_SPEC_VERSIONS = ["2025-06-18", "2025-11-25", "2026-07-28"]
 USER_AGENT = "SupremeAI-MCP-Conformance-Probe/1.0.0"
 

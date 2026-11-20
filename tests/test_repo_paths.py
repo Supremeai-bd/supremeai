@@ -52,13 +52,33 @@ class TestAliasIsJustifiedByTheTree:
     def test_alias_target_exists(self):
         assert (REPO_ROOT / BACKEND_ALIAS).is_dir()
 
-    def test_history_never_contained_backend(self):
-        """Guards against someone "fixing" this by recreating backend/."""
+    def test_backend_existed_and_was_removed(self):
+        """Record WHY the alias exists: backend/ was real, then renamed.
+
+        An earlier version of this test asserted the directory had never
+        existed. That was wrong — the clone was shallow and `git log` showed
+        nothing. `--unshallow` revealed the deletion (commit 8c3c99e3,
+        2026-11-10). The alias is a rename migration, not a workaround for a
+        path that was always wrong.
+        """
         out = subprocess.run(
             ["git", "log", "--oneline", "--all", "--", "backend/"],
             cwd=REPO_ROOT, capture_output=True, text=True,
         ).stdout.strip()
-        assert out == "", f"backend/ unexpectedly has history: {out[:200]}"
+        assert out, "expected backend/ to have history (was it a shallow clone?)"
+        assert not (REPO_ROOT / "backend").exists(), "backend/ was recreated"
+
+    def test_shallow_clone_would_hide_the_history(self):
+        """Document the trap: a shallow clone makes --all look empty."""
+        out = subprocess.run(
+            ["git", "rev-parse", "--is-shallow-repository"],
+            cwd=REPO_ROOT, capture_output=True, text=True,
+        ).stdout.strip()
+        # The history assertions above are only meaningful in a full clone.
+        if out == "true":
+            import pytest
+
+            pytest.skip("shallow clone: backend/ history is not fetched")
 
 
 class TestResolution:
@@ -213,6 +233,77 @@ class TestServiceEndpoints:
         assert not offenders, f"hardcoded production hosts reappeared: {offenders}"
 
     def test_converted_scripts_use_the_registry(self):
+        """Every converted script must reach the registry somehow.
+
+        Accepts either entry point: `svc()` (the path+host helper) and
+        `service_endpoint()` (host only) both resolve through the registry. The
+        assertion used to name `service_endpoint` alone, which broke the moment a
+        script switched to `svc` — the thing being tested is "no literal, goes
+        through config", not which of the two wrappers it picked.
+        """
         for rel in self.CONVERTED:
             text = (REPO_ROOT / rel).read_text(encoding="utf-8")
-            assert "service_endpoint" in text, f"{rel} no longer resolves via the registry"
+            via = [name for name in ("service_endpoint", "svc(") if name in text]
+            assert via, f"{rel} no longer resolves via the registry"
+
+
+class TestGuardDoesNotExemptItself:
+    """The policy guard must scan its own directory.
+
+    `scripts/ci` was in the guard's IGNORE_PATHS, so the directory where the
+    policy lives was the one directory exempt from it. That is how
+    `supremeai-primary-node` (retired; live host is `supremeai-primary-node-5xso`)
+    survived in deploy_doctor.py and service_latency_probe.py: the probes were
+    pointed at a dead host and the gate could not see them.
+    """
+
+    def _guard(self):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "hc_guard", REPO_ROOT / "scripts" / "ci" / "check_hardcoded_deployment_config.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_scripts_ci_is_not_blanket_ignored(self):
+        guard = self._guard()
+        assert "scripts/ci" not in guard.IGNORE_PATHS
+
+    def test_scripts_ci_files_are_scanned(self):
+        guard = self._guard()
+        target = (REPO_ROOT / "scripts" / "ci" / "deploy_doctor.py").resolve()
+        assert not guard.should_ignore(target, REPO_ROOT)
+
+    def test_doc_example_exception_covers_examples_not_defaults(self):
+        import re
+
+        guard = self._guard()
+        pattern = re.compile(guard._DOC_EXAMPLE)
+        examples = [
+            "  python x.py --check --tower-url https://x.onrender.com",
+            "  MCP_URL  (endpoint e.g. https://x.onrender.com/api)",
+            "  GATEWAY_URL=https://x.onrender.com \\",
+        ]
+        defaults = [
+            'DEFAULT_TOWER_URL = "https://x.onrender.com/mcp"',
+            'url = os.getenv("R", "https://x.onrender.com")',
+            '    "url": "https://x.onrender.com",',
+        ]
+        for line in examples:
+            assert pattern.search(line), f"example not exempted: {line}"
+        for line in defaults:
+            assert not pattern.search(line), f"real default wrongly exempted: {line}"
+
+    def test_retired_primary_host_is_gone_from_scripts(self):
+        """`supremeai-primary-node` was retired in favour of -5xso."""
+        offenders = []
+        pattern = __import__("re").compile(r"supremeai-primary-node\.onrender\.com")
+        for path in sorted((REPO_ROOT / "scripts").rglob("*")):
+            if path.suffix not in {".py", ".sh"} or not path.is_file():
+                continue
+            for num, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+                if pattern.search(line) and not line.lstrip().startswith("#"):
+                    offenders.append(f"{path.relative_to(REPO_ROOT)}:{num}")
+        assert not offenders, f"retired host still referenced: {offenders}"

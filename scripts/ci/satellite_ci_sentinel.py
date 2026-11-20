@@ -39,6 +39,10 @@ lineage this sentinel deliberately does NOT duplicate).
 """
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+
+
 import argparse
 import json
 import sys
@@ -46,7 +50,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-TOWER_URL = "https://supremeai-mcp-tower-live.onrender.com/mcp"
+TOWER_URL = _svc("mcp", "/mcp")
 ORG = "Supremeai-bd"
 # The 6 satellite mains from #2111's sweep table. supremeai itself is
 # EXCLUDED on purpose: the open repo's CI plane is already covered by the

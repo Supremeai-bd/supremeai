@@ -55,6 +55,10 @@ Zero credentials, read-only GET/HEAD/OPTIONS, no browser, no production mutation
 
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+
+
 import argparse
 import json
 import sys
@@ -65,7 +69,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_BASE_URL = "https://supremeai-api-ulw0.onrender.com"  # README SSOT line ~136
+DEFAULT_BASE_URL = _svc("api")  # from config/service_registry.yaml
 ALLOWLISTED_ORIGIN = "https://supremeai-studio.pages.dev"  # gateway/service/app.py _default_cors
 FOREIGN_ORIGIN = "https://recon.example.invalid"
 

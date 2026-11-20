@@ -7,6 +7,8 @@ Outputs structured JSON and human-readable latency summary with p95 metrics.
 """
 from __future__ import annotations
 
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; direct run puts scripts/ci on sys.path)
+
 import argparse
 import json
 import statistics
@@ -65,9 +67,9 @@ def main() -> int:
     args = ap.parse_args()
 
     target_urls = args.url or [
-        "primary=https://supremeai-primary-node.onrender.com/health",
-        "worker=https://supremeai-worker-node.onrender.com/health",
-        "tower=https://supremeai-mcp-tower-live.onrender.com/",
+        "primary=" + _svc("core", "/health"),
+        "worker=" + _svc("worker", "/health"),
+        "tower=" + _svc("mcp") + "/",
     ]
 
     results = []

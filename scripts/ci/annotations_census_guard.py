@@ -40,6 +40,10 @@ Exit codes: 0 = close justified; 1 = usage/infra error; 2 = fail-closed
 
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+
+
 import argparse
 import json
 import re
@@ -269,7 +273,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--self-test", action="store_true", help="offline verdict-core self-test (no network)")
     parser.add_argument("--check", action="store_true", help="live census verdict against the tower")
-    parser.add_argument("--tower-url", default="https://supremeai-mcp-tower-live.onrender.com")
+    parser.add_argument("--tower-url", default=_svc("mcp"))
     parser.add_argument("--baseline", type=int, default=DEFAULT_BASELINE, help="filing-time annotated census")
     parser.add_argument("--census-json", type=Path, default=None, help="pre-fetched tools/list receipt (offline check)")
     args = parser.parse_args()

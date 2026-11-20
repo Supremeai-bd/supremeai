@@ -16,13 +16,17 @@ Stdlib-only so it can run in any CI lane.
 """
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+
+
 import argparse
 import json
 import sys
 import urllib.error
 import urllib.request
 
-DEFAULT_URL = "https://supremeai-mcp-tower-live.onrender.com/mcp"
+DEFAULT_URL = _svc("mcp", "/mcp")
 # Streamable floor — one constant per site, mirrors PROTOCOL_VERSION_STREAMABLE in
 # scripts/agents/mcp_tower_client.py (landed via #2533, radar R68).
 PROTOCOL_VERSION = "2025-11-25"

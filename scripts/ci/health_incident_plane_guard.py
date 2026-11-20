@@ -51,13 +51,17 @@ Usage:
 
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+
+
 import argparse
 import json
 import sys
 import urllib.request
 from datetime import datetime, timezone
 
-TOWER_URL_DEFAULT = "https://supremeai-mcp-tower-live.onrender.com/mcp"
+TOWER_URL_DEFAULT = _svc("mcp", "/mcp")
 
 GUARD = "health_incident_plane_guard"
 LINEAGE = ("#3111 sentry family: 8 consecutive passes of incidents=[] while "

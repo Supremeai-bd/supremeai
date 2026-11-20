@@ -67,6 +67,10 @@ Zero credentials, read-only (Tower queries only). No mutation. Stdlib only.
 
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+
+
 import argparse
 import json
 import sys
@@ -79,7 +83,7 @@ try:
 except ImportError:  # pragma: no cover — package-style load (tests, CI runner)
     from scripts.ci.tower_name_tolerance import tolerant_tool_call
 
-DEFAULT_TOWER_URL = "https://supremeai-mcp-tower-live.onrender.com/mcp"
+DEFAULT_TOWER_URL = _svc("mcp", "/mcp")
 # #2925 scope note: গেট কেবল platform-audit পরিবারের সাবজেক্টে ফায়ার করে
 # (#2225/#2557-এর লেবেল-প্লেন পর্যবেক্ষণ থেকে গ্রাউন্ডেড)। --labels দিয়ে
 # ওভাররাইডযোগ্য।

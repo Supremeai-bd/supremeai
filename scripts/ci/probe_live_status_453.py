@@ -30,6 +30,10 @@ Issue #453 (r1) · base 8e5ed59 · pure-new file, no existing-path hunks.
 """
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+
+
 import argparse
 import json
 import re
@@ -40,7 +44,7 @@ import urllib.request
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
-DEFAULT_GATEWAY_URL = "https://supremeai-api-ulw0.onrender.com"
+DEFAULT_GATEWAY_URL = _svc("api")
 PROBE_PATHS = ("/health", "/healthz")
 USER_AGENT = "supremeai-probe-453/1.0 (autonomous contributor)"
 TIMEOUT_S = 20

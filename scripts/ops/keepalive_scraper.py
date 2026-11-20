@@ -15,8 +15,8 @@ import urllib.request
 
 def main() -> None:
     try:
-        from repo_paths import service_endpoint as _service_endpoint
-        _default = _service_endpoint("scraper") or ""
+        from repo_paths import svc as _svc
+        _default = _svc("scraper") or ""
     except Exception:  # pragma: no cover
         _default = ""
     url = os.getenv("SCRAPER_HEALTH_URL", _default)

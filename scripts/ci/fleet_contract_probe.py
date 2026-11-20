@@ -56,6 +56,10 @@ Zero credentials, read-only GET, stdlib-only, no production mutation.
 
 from __future__ import annotations
 
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; direct run puts scripts/ci on sys.path)
+
 import argparse
 import json
 import os
@@ -74,7 +78,7 @@ FLEET: list[dict] = [
     {
         "id": "api",
         "name": "API Gateway (Gateway Shield)",
-        "url": os.getenv("RENDER_API_URL", "https://supremeai-api-ulw0.onrender.com/healthz"),
+        "url": os.getenv("RENDER_API_URL") or _svc("api", "/healthz"),
         "expect_status": "healthy",
         "required": ["status", "service_name", "version", "chat_ready", "timestamp"],
         # This repo's redaction class (#1902/#1908): operator posture fields and
@@ -84,7 +88,7 @@ FLEET: list[dict] = [
     {
         "id": "scraper",
         "name": "Scraper Relay (Browser/Cookie)",
-        "url": os.getenv("RENDER_SCRAPER_URL", "https://supremeai-scraper-node.onrender.com/health"),
+        "url": os.getenv("RENDER_SCRAPER_URL") or _svc("scraper", "/health"),
         "expect_status": "healthy",
         "required": ["status", "service", "timestamp"],
         "forbidden": [],
@@ -92,7 +96,7 @@ FLEET: list[dict] = [
     {
         "id": "tower",
         "name": "MCP Control Tower",
-        "url": os.getenv("RENDER_MCP_URL", "https://supremeai-mcp-tower-live.onrender.com/health"),
+        "url": os.getenv("RENDER_MCP_URL") or _svc("mcp", "/health"),
         # Tower serves body status "degraded" + HTTP 200 when downstream nodes
         # degrade (aggregation contract) — shape-only pin, body-status surfaced.
         "expect_status": None,
@@ -103,7 +107,7 @@ FLEET: list[dict] = [
     {
         "id": "primary",
         "name": "Primary Core Node",
-        "url": os.getenv("RENDER_PRIMARY_URL", "https://supremeai-primary-node-5xso.onrender.com/health"),
+        "url": os.getenv("RENDER_PRIMARY_URL") or _svc("core", "/health"),
         "expect_status": "healthy",
         "required": ["status", "service", "role", "version", "uptime_seconds", "timestamp", "checks"],
         "forbidden": [],
@@ -114,7 +118,7 @@ FLEET: list[dict] = [
         # pinning one global status word here would false-positive a healthy node.
         "id_note": "status vocabulary pinned per node (#1874 wolf-proof lesson)",
         "name": "Worker Node (Async Tasks)",
-        "url": os.getenv("RENDER_WORKER_URL", "https://supremeai-worker-node.onrender.com/health"),
+        "url": os.getenv("RENDER_WORKER_URL") or _svc("worker", "/health"),
         "expect_status": "ok",
         "required": ["status", "service", "role", "version", "runner_version", "timestamp"],
         "forbidden": [],

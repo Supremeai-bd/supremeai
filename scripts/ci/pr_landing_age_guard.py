@@ -35,16 +35,17 @@ Exit codes: 0 report-only pass · 1 --strict findings · 2 honest-skip
 
 from __future__ import annotations
 
+# Host resolved from config/service_registry.yaml (env wins) — never a literal.
+from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+
+
 import argparse
 import json
 import re
 import sys
-import time
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 
-TOWER = "https://supremeai-mcp-tower-live.onrender.com/mcp"
+TOWER = _svc("mcp", "/mcp")
 OPEN_REPO = "Supremeai-bd/supremeai"
 
 # Strand SLA: an open non-draft PR older than this with no landing is a
@@ -59,44 +60,17 @@ TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 _id = [100]
 
 
+
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from tower_rpc_client import rpc as _shared_rpc  # noqa: E402
+
+
 def _rpc(method, params=None, session_id=None, notify=False, attempts=3):
-    """Minimal zero-credential MCP client (same protocol as the watchdog fleet)."""
-    payload = {"jsonrpc": "2.0", "method": method}
-    if params is not None:
-        payload["params"] = params
-    if not notify:
-        _id[0] += 1
-        payload["id"] = _id[0]
-    headers = {"Content-Type": "application/json",
-               "Accept": "application/json, text/event-stream",
-               "MCP-Protocol-Version": "2025-11-25"}
-    if session_id:
-        headers["Mcp-Session-Id"] = session_id
-    last = None
-    for attempt in range(attempts):
-        req = urllib.request.Request(TOWER, data=json.dumps(payload).encode(),
-                                     headers=headers, method="POST")
-        try:
-            with urllib.request.urlopen(req, timeout=45) as resp:  # nosec B310 — pinned https tower constant
-                sid = resp.headers.get("Mcp-Session-Id")
-                body = resp.read().decode("utf-8", errors="replace")
-                ctype = resp.headers.get("Content-Type") or ""
-                break
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as e:
-            last = e
-            time.sleep(5 * (attempt + 1))
-    else:
-        raise last
-    if "text/event-stream" in ctype:
-        for line in body.splitlines():
-            if line.startswith("data:"):
-                try:
-                    return json.loads(line[5:].strip()), sid
-                except Exception:
-                    continue
-    if not body.strip():
-        return {"accepted": True}, sid
-    return json.loads(body), sid
+    """Thin alias for tower_rpc_client.rpc (one implementation, not four)."""
+    return _shared_rpc(method, params, session_id=session_id,
+                       notify=notify, attempts=attempts)
 
 
 def _text_of(res) -> str:
