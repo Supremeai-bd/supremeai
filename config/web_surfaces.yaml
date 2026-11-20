@@ -1,0 +1,33 @@
+# Single Source of Truth (SSOT) for SupremeAI Web Surfaces (H1)
+#
+# Every web-engine surface (relay internal id, published id, gateway provider,
+# default model, concurrency limit, and baseline latency) is declared here.
+# Both `browser/server.py` and `gateway/service/providers/web_engines.py`
+# must stay in parity with this file (enforced by tests/test_web_surfaces_ssot.py).
+
+version: 1
+
+surfaces:
+  duck:
+    published_id: duck
+    providers:
+      - claude_web
+      - chatgpt_web
+      - web_session
+    default_models:
+      claude_web: duck-claude
+      chatgpt_web: duck-gpt
+    max_concurrency: 4
+    baseline_latency_ms: 500.0
+    fallback_only: true
+
+  gemini:
+    published_id: gemini-web
+    providers:
+      - gemini_v0_web
+      - ghost_gemini
+    default_models:
+      gemini_v0_web: gemini-web
+    max_concurrency: 2
+    baseline_latency_ms: 1500.0
+    fallback_only: true

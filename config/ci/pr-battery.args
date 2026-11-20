@@ -28,6 +28,7 @@ browser/tests/test_relay_session_state.py
 browser/tests/test_relay_streaming.py
 browser/tests/test_relay_kill_switch.py
 gateway/tests/test_injury_hysteresis.py
+tests/test_web_surfaces_controls.py
 gateway/tests/test_web_engine_stream.py
 tests/test_web_engine_health.py
 tests/test_web_engine_providers.py
