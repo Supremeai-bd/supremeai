@@ -43,7 +43,17 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-CLASSIFICATION = ROOT / "backend" / "core" / "config_classification.py"
+
+# Shared locator — do NOT hardcode the path again. Before the monorepo
+# flattening the SSOT lived at ``backend/core/config_classification.py``; this
+# script kept that literal and died with FileNotFoundError on every run, so the
+# .env.example contract silently rotted (700 vars read in code but undocumented).
+# validate_config_registry.py / check_config_contract.py already share this
+# locator; this call site was the last copy of the stale literal.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from config_classification_locator import config_spec_path  # noqa: E402
+
+CLASSIFICATION = config_spec_path()
 ENV_EXAMPLE = ROOT / ".env.example"
 
 # Primary-scope category order for the canonical sections.
