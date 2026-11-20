@@ -214,9 +214,14 @@ class TestScriptIndexFreshness(unittest.TestCase):
             # lib.auto_discovery and SCAN_ROOT resolve inside the clone, so the
             # regen basis stays the clone's own tree.
             shutil.copy2(GENERATOR, gen_in_clone)
+            # `lib` is scripts/lib, and the generator anchors on scripts/ (its
+            # parent) for exactly that reason — it documents why it does NOT
+            # depend on a scripts/ops/lib duplicate. This copy step still assumed
+            # the deleted scripts/ops/lib tree, so the test raised
+            # FileNotFoundError instead of testing anything.
             shutil.copy2(
-                GENERATOR.parent / "lib" / "auto_discovery.py",
-                Path(clone) / "scripts" / "ops" / "lib" / "auto_discovery.py",
+                GENERATOR.parent.parent / "lib" / "auto_discovery.py",
+                Path(clone) / "scripts" / "lib" / "auto_discovery.py",
             )
             fresh = subprocess.run(
                 [sys.executable, str(gen_in_clone), "--check-committed"],

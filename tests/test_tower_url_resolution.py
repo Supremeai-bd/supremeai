@@ -19,7 +19,10 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "agents"))
-sys.path.insert(0, str(REPO_ROOT / "scripts" / "ops" / "operations"))
+# tower_db_bridge lives in scripts/operations (it was under scripts/ops/
+# before that tree was flattened); pointing at the old path left the import
+# below failing regardless of what the test was asserting.
+sys.path.insert(0, str(REPO_ROOT / "scripts" / "operations"))
 
 import mcp_tower_client
 
