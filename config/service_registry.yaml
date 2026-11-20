@@ -288,7 +288,13 @@ services:
     entrypoint: "studio/package.json"
     local_port: 5173
     preview_port: 3000
-    production_url: "https://studio.supremeai.lat"
+    # The live surface is the Cloudflare Pages deployment. The previous value,
+    # https://studio.supremeai.lat, no longer resolves (DNS: getaddrinfo failed,
+    # 2026-11-20) — and `repo_paths.service_endpoint("frontend")` is what the
+    # CORS floor and the edge proxy read, so a dead host here made the
+    # self-declared "canonical" origin the one origin that could not answer.
+    # Declare the origin that actually serves the SPA.
+    production_url: "https://supremeai-studio.pages.dev"
     watch_paths:
       - "studio/**"
       - "frontend/**"

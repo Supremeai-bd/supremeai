@@ -87,6 +87,34 @@ def _service_endpoint(service_id: str) -> tuple[str, str] | None:
     label = str(spec.get("role") or spec.get("render_name") or service_id)
     return (label, url.rstrip("/") + path)
 
+
+def _edge_domains() -> list[str]:
+    """Customer-facing DNS names to resolve, derived from the registry.
+
+    This list used to be two literals — ``supremeai.live`` and
+    ``studio.supremeai.lat``. On 2026-11-20 BOTH failed to resolve, and neither
+    was the surface actually serving the Studio: the probe reported two dead
+    domains and never looked at the live one
+    (``supremeai-studio.pages.dev``). A hardcoded probe list can only ever test
+    yesterday's deployment, so derive it from the registry those deployments are
+    declared in.
+
+    Render services are skipped: the HTTP sweep already covers them, and this
+    probe exists for the customer/edge domains in front of them.
+    """
+    from urllib.parse import urlsplit  # noqa: PLC0415
+
+    domains: list[str] = []
+    for spec in _registry_services().values():
+        if not isinstance(spec, dict):
+            continue
+        if str(spec.get("platform") or "").lower() == "render":
+            continue
+        host = urlsplit(str(spec.get("production_url") or "")).hostname
+        if host and host not in domains:
+            domains.append(host)
+    return domains
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
@@ -814,7 +842,14 @@ def deep_dependency_probe(timeout: float = 8.0) -> list[ServiceHealthResult]:
     # ── Customer domains (DNS) ───────────────────────────────────────────
     import socket  # noqa: PLC0415
 
-    for domain in ("supremeai.live", "studio.supremeai.lat"):
+    edge_domains = _edge_domains()
+    if not edge_domains:
+        results.append(ServiceHealthResult(
+            service_id="domain-none", name="Customer domains",
+            category="edge_domain", status="skipped", latency_ms=0,
+            error="no edge domain declared in config/service_registry.yaml",
+        ))
+    for domain in edge_domains:
         t0 = time.time()
         try:
             infos = socket.getaddrinfo(domain, 443, proto=socket.IPPROTO_TCP)

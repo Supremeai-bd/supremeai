@@ -571,9 +571,11 @@ def _registry_origin(service_id: str) -> str:
 # the one origin missing from the allowlist, while retired ones were allowed.
 # `_registry_url` is defined directly above for exactly this purpose.
 _default_cors = [
+    # The live Studio origin (Cloudflare Pages) arrives from the registry above;
+    # it is deliberately NOT repeated here. The Vercel entries are the archived
+    # build and stay only until the edge proxy is confirmed on Pages end-to-end.
     *filter(None, [_registry_origin("frontend")]),
     "https://supremeai-studio.vercel.app",
-    "https://supremeai-studio.pages.dev",
     "https://supremeai-studio.paykaribazaronline.workers.dev",
     "http://localhost:3000",
     "http://localhost:5173",
@@ -791,7 +793,11 @@ def _client_referer(request: Request) -> str:
 def _studio_hosts() -> list[str]:
     """Known Studio front-end hosts (for cost-guard classification only)."""
     hosts = [
-        "https://supremeai-studio.pages.dev",
+        # Live Studio origin, from the registry (never a literal — a host
+        # migration must not need a second edit here).
+        *filter(None, [_registry_origin("frontend")]),
+        # Archived Vercel build: recognised for cost classification until the
+        # edge proxy is confirmed on Pages end-to-end.
         "https://supremeai-studio.vercel.app",
     ]
     preview = os.getenv("STUDIO_FRONTEND_URL", "").lower().strip()
