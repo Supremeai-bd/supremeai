@@ -59,6 +59,9 @@ GUARDS: list[list[str]] = [
     ["python", "scripts/ci/mcp_registry_catalog.py", "--self-test"],
     ["python", "scripts/ci/docs_link_integrity_guard.py", "--self-test"],
     ["python", "scripts/ci/docs_link_integrity_guard.py"],
+    # Architecture reachability from live entrypoints (import-graph, not a list).
+    ["python", "scripts/ci/architecture_gap_guardian.py", "--self-test"],
+    ["python", "scripts/ci/architecture_gap_guardian.py", "--check"],
     ["python", "scripts/ci/radar_index_freshness_guard.py", "--check"],
     ["python", "scripts/ci/verdict_plane_age_guard.py", "--self-test"],
     ["python", "scripts/agents/check_loop_contract_parity.py"],
