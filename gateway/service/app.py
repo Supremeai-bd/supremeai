@@ -259,6 +259,12 @@ CHAT_ROUTE_DEADLINE_S = float(os.getenv("CHAT_ROUTE_DEADLINE_S", "15"))
 # upstream and try the next healthy candidate before forwarding anything downstream.
 CHAT_CONNECT_TIMEOUT_S = float(os.getenv("CHAT_CONNECT_TIMEOUT_S", "8"))
 CHAT_FIRST_TOKEN_TIMEOUT_S = float(os.getenv("CHAT_FIRST_TOKEN_TIMEOUT_S", "8"))
+# How long SSE keep-alives may hold a stream open past the first-token window.
+# A relay that buffers a slow engine answers in 10-25s; the engine's own request
+# timeout (25s) is the real bound, this is the last line of defence.
+CHAT_STREAM_HEARTBEAT_CEILING_S = float(
+    os.getenv("CHAT_STREAM_HEARTBEAT_CEILING_S", "45")
+)
 
 
 async def _aiter_stream_first_token(
@@ -267,6 +273,7 @@ async def _aiter_stream_first_token(
     connect_timeout_s: float,
     first_token_timeout_s: float,
     route_deadline: float | None = None,
+    heartbeat_ceiling_s: float | None = None,
 ):
     """Yield ``(kind, data)`` from ``stream_iter``, enforcing time-to-first-token.
 
@@ -277,7 +284,22 @@ async def _aiter_stream_first_token(
     * Raise ``asyncio.TimeoutError`` if the first token does not arrive in time, so
       the caller can fail over to the next candidate before forwarding anything
       downstream (headers alone are not treated as success).
+
+    ``("heartbeat")`` items are SSE keep-alives. They *extend* the first-token
+    window by one more ``first_token_timeout_s``, up to ``heartbeat_ceiling_s``
+    measured from entry. The timeout exists to detect an upstream that has gone
+    quiet; an upstream that keeps proving it is alive is not that, and killing it
+    at 8s was the reason a buffered web engine (which takes 10-25s to answer and
+    then sends everything at once) could never serve a streamed request. The
+    ceiling keeps a chatty-but-stuck upstream from holding the slot forever, and
+    ``route_deadline`` still caps the whole route.
     """
+    entered = time.monotonic()
+    ceiling = (
+        entered + heartbeat_ceiling_s
+        if heartbeat_ceiling_s is not None
+        else float("inf")
+    )
     deadline = time.monotonic() + connect_timeout_s
     committed = False
     while True:
@@ -293,6 +315,12 @@ async def _aiter_stream_first_token(
         except StopAsyncIteration:
             return
         kind, data = item
+        if kind == "heartbeat":
+            if not committed and ceiling > entered:
+                deadline = min(
+                    max(deadline, time.monotonic()) + first_token_timeout_s, ceiling
+                )
+            continue
         if kind == "status":
             deadline = time.monotonic() + first_token_timeout_s
         elif kind == "event" and not committed:
@@ -2175,6 +2203,7 @@ async def _execute_chat_completion(
                             connect_timeout_s=CHAT_CONNECT_TIMEOUT_S,
                             first_token_timeout_s=CHAT_FIRST_TOKEN_TIMEOUT_S,
                             route_deadline=route_deadline,
+                            heartbeat_ceiling_s=CHAT_STREAM_HEARTBEAT_CEILING_S,
                         ):
                             if kind == "status":
                                 header_at = time.monotonic()
