@@ -96,6 +96,10 @@ def main() -> int:
             return _unavailable(f"Cannot resolve release target for {svc_id} with its assigned Render credential.")
         _write_output(release_url=f"{origin}/release", health_url=f"{origin}{health_path}")
 
+    #: Why the last attempt failed. Without this the loop's terminal message was
+    #: "Render did not return a deploy" for every cause alike — the job failed
+    #: with a bare exit code and nothing to act on (brain, 2026-11-20 19:20).
+    last_reason = ""
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
             body = client.trigger_deploy(svc_id, commit_id=commit_id)
@@ -119,11 +123,16 @@ def main() -> int:
             # No credential discovery or retries on permanent client errors.
             if exc.status not in (0, 408, 429) and exc.status < 500:
                 return _unavailable(f"Render rejected the deploy for {svc_id} (HTTP {exc.status}).")
+            last_reason = f"HTTP {exc.status}: {(exc.body or str(exc))[:200]}"
             print(f"Render trigger attempt {attempt}/{MAX_ATTEMPTS} failed (status {exc.status}).")
         except (OSError, ValueError) as exc:
+            last_reason = f"{type(exc).__name__}: {exc}"[:200]
             print(f"Render trigger attempt {attempt}/{MAX_ATTEMPTS} did not return a valid response: {exc}")
         if attempt == MAX_ATTEMPTS:
-            return _unavailable(f"Render did not return a deploy for {svc_id}.")
+            return _unavailable(
+                f"Render did not return a deploy for {svc_id} after {MAX_ATTEMPTS} attempts"
+                + (f" — last error: {last_reason}" if last_reason else "")
+            )
         time.sleep(RETRY_DELAY_SECONDS)
     else:
         return 1
