@@ -581,6 +581,9 @@ app.add_middleware(
         "X-Pagination-Total",
         "X-Request-ID",
         "X-Correlation-ID",
+        # Without this the browser hides Server-Timing from JS (DevTools still
+        # shows it), so a dashboard could not render latency without this line.
+        "Server-Timing",
     ],
 )
 
@@ -591,6 +594,41 @@ app.add_middleware(
 from gateway.middleware.security_headers import SecurityHeadersMiddleware
 
 app.add_middleware(SecurityHeadersMiddleware)
+
+# Server-Timing on EVERY response, failure paths included. The chat handler
+# attaches a detailed stage trace (auth/persist/context/route/upstream) on its
+# ~4 success exits, but the ~12 `raise HTTPException` exits (400/401/502/503)
+# carried no timing at all — so the requests you most need to attribute were the
+# only ones that were invisible. This middleware fills the gap and preserves the
+# route-level trace verbatim when one already exists. Added AFTER security
+# headers so it mounts outermost: nothing may short-circuit ahead of it.
+from gateway.middleware.server_timing import ServerTimingMiddleware, timing_header_for_scope
+
+app.add_middleware(ServerTimingMiddleware)
+
+
+@app.exception_handler(Exception)
+async def _unhandled_exception_with_timing(request: Request, exc: Exception) -> JSONResponse:
+    """Turn an unhandled crash into an attributable 500.
+
+    Starlette answers an unhandled exception with ``ServerErrorMiddleware``,
+    which is mounted OUTSIDE every user middleware — measured stack order:
+    ``ServerErrorMiddleware > SecurityHeaders > ServerTiming > ExceptionMiddleware``.
+    So no middleware can stamp that response, and a crash used to be the one
+    case with no ``Server-Timing`` at all.
+
+    Registering a global ``Exception`` handler moves the response *inside* the
+    stack (a handler route inside ``ExceptionMiddleware``), where the clock this
+    middleware stashed on the scope is still readable. The body and status stay
+    byte-identical to what Starlette sent before — this adds a header, nothing
+    else — and re-raises nothing, so error semantics are unchanged.
+    """
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error"},
+        headers=timing_header_for_scope(request.scope),
+    )
+
 
 # Telegram Inbound Webhook Listener
 app.include_router(telegram_router)
