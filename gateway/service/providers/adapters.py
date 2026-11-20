@@ -23,6 +23,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from ..free_route_policy import CATALOG_REQUIRED, approved_route
+from .web_engines import provider_configs as _web_provider_configs
 
 logger = logging.getLogger("supremeai.adapters")
 
@@ -116,15 +117,15 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "base_url": os.getenv("LLM7_BASE_URL", "https://api.llm7.io/v1"),
         "default_model": os.getenv("LLM7_FREE_MODEL", "glm-5.3-flash"),
     },
-    "ghost_gemini": {
-        "base_url": os.getenv("GHOST_TOWER_URL", "http://127.0.0.1:8788"),
-        "default_model": "gemini-web",
-    },
-    "web_session": {
-        "base_url": os.getenv("WEB_SESSION_URL", "http://127.0.0.1:8788"),
-        "default_model": "web-session-auto",
-    },
 }
+
+# Web engines (cookie/webhook relay) live in web_engines.py, and are merged here
+# rather than copied: the pool declares their provider names while the relay
+# serves them, and a second copy of the mapping is exactly how those two halves
+# drifted apart — `forward_chat_completion` answered `400 Unknown provider` for
+# every web slot the pool declared. Adding a provider is now one edit, in one
+# file, and tests/test_web_engine_providers.py fails if the halves split again.
+PROVIDER_CONFIGS.update(_web_provider_configs())
 
 # Global "paid avoid": any (provider, model) that returns HTTP 402 (payment required) is
 # added here at runtime and filtered out of that provider's candidate cascade, so a paid

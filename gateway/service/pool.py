@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from .adaptive_routing import RouteSnapshot, is_valid_secret, route_score
+from .providers.web_engines import WEB_ENGINES
 from .free_route_policy import RouteIdentity
 
 logger = logging.getLogger("supremeai.pool")
@@ -44,6 +45,13 @@ PROVIDER_BASELINE_LATENCY_MS: dict[str, float] = {
     "unorouter": 700.0,
     "cohere": 600.0,
     "llm7": 600.0,
+    # Web engines: the relay hop plus a site round trip. Slower by construction,
+    # which is why they are ranked after the keyed providers.
+    "claude_web": 1400.0,
+    "chatgpt_web": 1200.0,
+    "gemini_v0_web": 2500.0,
+    "ghost_gemini": 2500.0,
+    "web_session": 2000.0,
 }
 
 
@@ -231,6 +239,9 @@ class FederationSquad:
     DEFAULT_PROVIDER_ORDER = [
         "groq", "gemini", "openrouter", "kilo", "sambanova", "mistral", "perplexity", "openai",
         "huggingface", "routesme", "bynara", "bai", "unorouter", "cohere", "llm7",
+        # Fallback lane only: the relay hop plus a session that can expire makes
+        # a web engine slower and less predictable than any keyed provider.
+        *(engine.provider for engine in WEB_ENGINES),
     ]
 
     PREFIX_MAP: Dict[str, List[str]] = {
@@ -251,6 +262,11 @@ class FederationSquad:
         "unorouter": ["UNOROUTER_API_KEY"],
         "cohere": ["COHERE_API_KEY"],
         "llm7": ["LLM7_API_KEY"],
+        # Web engines (cookie/webhook slots). Their provider names and credential
+        # env names come from providers/web_engines.py — the same mapping the
+        # adapter resolves, so a slot cannot be routable in one half and unknown
+        # in the other.
+        **{engine.provider: list(engine.credential_envs) for engine in WEB_ENGINES},
     }
 
     def __init__(self):
