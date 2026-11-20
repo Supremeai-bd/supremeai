@@ -416,12 +416,23 @@ def derive_entrypoints(
     try:
         import yaml  # local import: keeps the tool importable without PyYAML
     except ImportError:
-        return [], []
+        # FAIL LOUD. Measured: without PyYAML this returned ([], []) -> the graph
+        # fell back to built-in entrypoints and reachability collapsed from 38.1%
+        # to 2.5% while still reporting "success". A silent partial answer is
+        # worse than an error, because nobody re-checks a number that "passed".
+        raise RuntimeError(
+            "PyYAML is required to derive entrypoints from config/service_registry.yaml. "
+            "Install it (pip install pyyaml) — refusing to emit a graph from a "
+            "partial entrypoint set."
+        ) from None
 
     try:
         doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    except Exception:  # noqa: BLE001 - malformed YAML must not crash the guard
-        return [], []
+    except Exception as exc:  # noqa: BLE001 - malformed YAML must not be silent
+        raise RuntimeError(
+            f"config/service_registry.yaml could not be parsed ({exc}); refusing to "
+            "fall back to built-in entrypoints, which misreports reachability."
+        ) from exc
 
     found: List[str] = []
     unresolved: List[str] = []
@@ -623,13 +634,75 @@ def compute_declared_deps(root: Path) -> Set[str]:
                 continue
             for line in text.splitlines():
                 line = line.strip()
-                if not line or line.startswith(("#", "-", "git+", "http")):
+                # NOTE: filter on "://", not on "http" — the latter also skipped
+                # the very common package ``httpx`` (measured: httpx was declared
+                # in 8 requirements files and still reported as unknown).
+                if not line or line.startswith(("#", "-", "git+")) or "://" in line:
                     continue
                 # ``package==1.2`` / ``package[extra]>=1`` / ``package ; marker``
                 name = re.split(r"[=<>!~\[\];\s]", line, maxsplit=1)[0].strip()
                 if name:
                     names.add(name.lower())
-    return names
+    return _add_import_aliases(names)
+
+
+#: Distribution name -> import name, for the cases PyPI does not encode in the
+#: package metadata. Only entries whose import differs from the distribution.
+_DIST_IMPORT_ALIASES = {
+    "pyyaml": "yaml",
+    "beautifulsoup4": "bs4",
+    "pillow": "pil",
+    "python-dotenv": "dotenv",
+    "python-dateutil": "dateutil",
+    "python-jose": "jose",
+    "python-multipart": "multipart",
+    "protobuf": "google",
+    "psycopg2-binary": "psycopg2",
+    "msgpack-python": "msgpack",
+    "attrdict": "attr",
+    "opencv-python": "cv2",
+    "opencv-python-headless": "cv2",
+    "scikit-learn": "sklearn",
+    "sentence-transformers": "sentence_transformers",
+    "python-telegram-bot": "telegram",
+    "restrictedpython": "restrictedpython",
+    "duckduckgo-search": "duckduckgo_search",
+    "ddgs": "ddgs",
+    "pymupdf": "fitz",
+    "edge-tts": "edge_tts",
+    "google-cloud-storage": "google",
+    "google-cloud-firestore": "google",
+    "google-cloud-pubsub": "google",
+    "google-api-core": "google",
+    "google-auth": "google",
+    "supabase-auth": "supabase_auth",
+}
+
+
+def _add_import_aliases(dist_names: Set[str]) -> Set[str]:
+    """Add the *import* name for every declared distribution.
+
+    A requirements file lists DISTRIBUTION names; code imports MODULE names, and
+    the two differ often enough to matter (measured on this repo: ``pyyaml``,
+    ``beautifulsoup4``, ``python-dotenv``, ``python-dateutil`` were all declared
+    while their import names were treated as unknown). Without this, a declared
+    dependency is reported as UNVERIFIED, which is noise on every run.
+    """
+    out = set(dist_names)
+    # PyPI metadata is authoritative when available; the static map covers the
+    # common cases without requiring the package to be installed.
+    try:
+        from importlib.metadata import packages_distributions
+
+        for import_name, dists in packages_distributions().items():
+            if any(d.lower() in dist_names for d in dists):
+                out.add(import_name.lower())
+    except Exception:  # noqa: BLE001 - metadata is an optimisation, never fatal
+        pass
+    for dist, import_name in _DIST_IMPORT_ALIASES.items():
+        if dist in dist_names:
+            out.add(import_name.lower())
+    return out
 
 
 def compute_stdlib_heads() -> Set[str]:
@@ -650,7 +723,14 @@ def compute_stdlib_heads() -> Set[str]:
 
 
 def compute_third_party_heads(root: Optional[Path] = None) -> Set[str]:
-    """Derive installed top-level package names from the interpreter.
+    """Derive external top-level package names from requirements + interpreter.
+
+    REPRODUCIBILITY: the interpreter is only a fallback. If externality were read
+    from ``sys.modules``/``pkgutil`` alone, the verdict would depend on whichever
+    packages happen to be installed on the analysing machine — measured: a venv
+    without ``httpx`` moved 30+ references from "external" into "unverified" and
+    changed the committed ``docs/generated/architecture_gap_map.json``. A tool
+    whose output depends on the local venv cannot be a CI gate.
 
     Import shadowing is why this matters: ``core/github/`` exists, so the name
     ``github`` is ambiguous. ``from github import Github`` is PyGithub (external),
@@ -660,6 +740,8 @@ def compute_third_party_heads(root: Optional[Path] = None) -> Set[str]:
     simply not installed in the analysis environment.
     """
     names: Set[str] = set()
+    # Requirements first: this is the same on every machine and on CI.
+    names |= set(_DECLARED_DEPS)
     for mod in sorted(sys.modules):
         names.add(mod.split(".")[0])
     try:
@@ -980,10 +1062,13 @@ def build_graph(root: Path) -> Report:
     global _MODULE_ALIASES
     _MODULE_ALIASES = discover_module_aliases(modules)
     _FIRST_PARTY_HEADS = compute_first_party_heads(modules)
-    _THIRD_PARTY_HEADS = compute_third_party_heads()
+    # ORDER MATTERS: declared requirements feed the external set, and the external
+    # set decides whether a reference is checkable. Computing them after
+    # ``_THIRD_PARTY_HEADS`` silently made every requirement "unknown".
     global _STDLIB_HEADS, _DECLARED_DEPS
     _STDLIB_HEADS = compute_stdlib_heads()
     _DECLARED_DEPS = compute_declared_deps(root)
+    _THIRD_PARTY_HEADS = compute_third_party_heads(root)
 
     skipped: List[str] = []
     entrypoints, unresolved = derive_entrypoints(root, modules, skipped)
