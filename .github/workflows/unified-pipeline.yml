@@ -833,13 +833,29 @@ jobs:
   deploy-cloudflare:
     name: "Deploy Cloudflare Edge Mesh (path-filtered)"
     needs: deploy-and-verify
+    # "path-filtered" was only true on workflow_dispatch: `inputs.target_service`
+    # is ALWAYS EMPTY on a push, so every `contains(inputs...)` was false and
+    # this job could never run from main. The edge proxy — the thing serving the
+    # Studio — therefore only ever changed when a human dispatched it, while the
+    # RETIRED Vercel job below did deploy automatically. That inversion is why
+    # the proxy kept pointing at the archived Vercel build long after the origin
+    # was changed in the repository.
     if: |
       always() && github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true)) &&
       (
-        contains(inputs.target_service, 'all') ||
-        contains(inputs.target_service, 'cloudflare') ||
-        contains(inputs.target_service, 'studio')
+        (github.event_name == 'push' && (
+          contains(join(github.event.commits.*.modified, ' '), 'infrastructure/cloudflare-studio-proxy/') ||
+          contains(join(github.event.commits.*.added, ' '), 'infrastructure/cloudflare-studio-proxy/') ||
+          contains(join(github.event.commits.*.removed, ' '), 'infrastructure/cloudflare-studio-proxy/') ||
+          contains(join(github.event.commits.*.modified, ' '), 'infrastructure/cloudflare-render-keepwarm/') ||
+          contains(join(github.event.commits.*.added, ' '), 'infrastructure/cloudflare-render-keepwarm/') ||
+          contains(join(github.event.commits.*.modified, ' '), 'wrangler')
+        )) ||
+        (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true && (
+          contains(inputs.target_service, 'all') ||
+          contains(inputs.target_service, 'cloudflare') ||
+          contains(inputs.target_service, 'studio')
+        ))
       )
     runs-on: ubuntu-24.04
     # Kept on `production` for its environment-scoped Cloudflare credentials.
@@ -950,23 +966,19 @@ jobs:
   deploy-vercel:
     name: "Deploy Vercel Frontend Hook"
     needs: deploy-and-verify
+    # Vercel hosting is RETIRED: the Studio is served by the Cloudflare Pages
+    # deployment through the edge proxy. This job used to fire automatically on
+    # any `studio/`, `frontend/` or `vercel` change — i.e. the retired platform
+    # was the one being redeployed, while deploy-cloudflare (the live one) could
+    # not run on push at all. Auto-deploy is removed so a retired surface cannot
+    # be resurrected by a stray path match; the job stays for an explicit,
+    # human-initiated dispatch.
     if: |
       always() && github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true)) &&
+      github.event_name == 'workflow_dispatch' && inputs.force_deploy == true &&
       (
-        (github.event_name == 'push' && (
-          contains(join(github.event.commits.*.modified, ' '), 'studio/') ||
-          contains(join(github.event.commits.*.added, ' '), 'studio/') ||
-          contains(join(github.event.commits.*.removed, ' '), 'frontend/') ||
-          contains(join(github.event.commits.*.modified, ' '), 'frontend/') ||
-          contains(join(github.event.commits.*.added, ' '), 'frontend/') ||
-          contains(join(github.event.commits.*.modified, ' '), 'vercel') ||
-          contains(join(github.event.commits.*.added, ' '), 'vercel')
-        )) ||
-        (github.event_name == 'workflow_dispatch' && (
-          contains(inputs.target_service, 'all') ||
-          contains(inputs.target_service, 'vercel')
-        ))
+        contains(inputs.target_service, 'all') ||
+        contains(inputs.target_service, 'vercel')
       )
     runs-on: ubuntu-24.04
     # Kept on `production` for its environment-scoped Vercel credentials.
