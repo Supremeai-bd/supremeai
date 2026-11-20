@@ -139,6 +139,29 @@ async def fetch_engine_latency(
 # is deliberately absent: "we could not tell" must never cool a healthy engine.
 SESSION_INJURY_STATUS: dict[str, int] = {"EXPIRED": 403, "CHALLENGED": 429}
 
+# The operator's switch, as published by the relay. It is not an injury — no
+# request failed — so it gets its own mechanism: park the slots for one refresh
+# interval without touching `total_errors` or `consecutive_failures`, because a
+# deliberate decision must not look like a broken credential in the stats.
+DISABLED_STATE = "DISABLED"
+DISABLED_PARK_S = ENGINE_REFRESH_S
+
+# (provider, slot name) → (cooldown before parking, cooldown we set). Only slots
+# *we* parked are ever released, and only while our value is still the one in
+# place: an auth cooldown that arrived while the engine was off must survive
+# re-enabling, which is why the previous value is restored conditionally.
+_DISABLED_PARKS: dict[tuple[str, str], tuple[float, float]] = {}
+
+
+def reset_disabled_parks() -> None:
+    """Forget which slots are parked (tests, and a full squad rebuild)."""
+    _DISABLED_PARKS.clear()
+
+
+def parked_slots() -> tuple[tuple[str, str], ...]:
+    """Which slots are parked by the switch right now (operator view, tests)."""
+    return tuple(sorted(_DISABLED_PARKS))
+
 
 def parse_session_states(document: Any) -> dict[str, str]:
     """Extract `{engine: state}` from the relay's `/health` payload."""
@@ -150,6 +173,11 @@ def parse_session_states(document: Any) -> dict[str, str]:
     states: dict[str, str] = {}
     for engine, entry in sessions.items():
         if not isinstance(engine, str) or not isinstance(entry, dict):
+            continue
+        if entry.get("disabled") is True:
+            # The switch wins over the last request outcome: an engine the
+            # operator turned off is off, whatever it managed before that.
+            states[engine] = DISABLED_STATE
             continue
         state = entry.get("state")
         if isinstance(state, str) and state in {*SESSION_INJURY_STATUS, "OK", "UNKNOWN"}:
@@ -178,16 +206,49 @@ async def fetch_session_states(base_url: str, *, client: Any = None, timeout: fl
 
 
 def apply_session_states(squad: Any, states: Mapping[str, str], *, now: float | None = None) -> int:
-    """Cool the slots behind a dead engine; return how many were cooled.
+    """Park slots behind a switched-off engine, cool slots behind a dead one.
 
-    A slot already in cooldown is skipped: re-injuring it every pass would keep
-    resetting the clock and record a failure that did not happen.
+    Returns how many slots were cooled for injury. Parking is reported through
+    the log and `parked_slots()` rather than the return value, because an
+    operator decision is not a request outcome.
+
+    A slot already in cooldown is skipped for injury: re-injuring it every pass
+    would keep resetting the clock and record a failure that did not happen.
     """
     if squad is None or not states:
         return 0
     clock = time.time() if now is None else now
+    disabled = {engine for engine, state in states.items() if state == DISABLED_STATE}
+
+    parked = 0
+    released = 0
+    for engine, providers in engine_providers().items():
+        for provider in providers:
+            pool = getattr(squad, "pools", {}).get(provider)
+            for slot in getattr(pool, "slots", ()) or ():
+                key = (provider, getattr(slot, "name", ""))
+                if engine in disabled:
+                    if key in _DISABLED_PARKS:
+                        continue
+                    before = getattr(slot, "cooldown_until", 0.0)
+                    park_until = max(before, clock + DISABLED_PARK_S)
+                    _DISABLED_PARKS[key] = (before, park_until)
+                    slot.cooldown_until = park_until
+                    parked += 1
+                elif key in _DISABLED_PARKS:
+                    before, park_until = _DISABLED_PARKS.pop(key)
+                    if getattr(slot, "cooldown_until", 0.0) == park_until:
+                        slot.cooldown_until = before
+                        released += 1
+    if parked:
+        logger.warning("Operator disabled %s; parked %s slot(s)", sorted(disabled), parked)
+    if released:
+        logger.info("Operator re-enabled %s; released %s parked slot(s)", sorted(disabled), released)
+
     cooled = 0
     for engine, state in states.items():
+        if engine in disabled:
+            continue
         status = SESSION_INJURY_STATUS.get(state)
         if status is None:
             continue

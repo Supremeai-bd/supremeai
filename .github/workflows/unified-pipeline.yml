@@ -146,7 +146,7 @@ jobs:
 
       - name: Critical Security & Architecture Guards Suite
         run: |
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py tests/ci/test_deploy_environment_split.py tests/test_web_engine_providers.py tests/test_web_engine_health.py tests/test_free_route_policy_tool.py browser/tests/test_relay_session_state.py browser/tests/test_relay_streaming.py gateway/tests/test_web_engine_stream.py core/tests/agents/test_agents_unified.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py tests/ci/test_deploy_environment_split.py tests/test_web_engine_providers.py tests/test_web_engine_health.py tests/test_free_route_policy_tool.py browser/tests/test_relay_session_state.py browser/tests/test_relay_streaming.py browser/tests/test_relay_kill_switch.py gateway/tests/test_web_engine_stream.py core/tests/agents/test_agents_unified.py
           python scripts/ops/wiring_atlas.py --check
 
       # Core and Gateway changes can break satellite contracts without touching
@@ -265,7 +265,7 @@ jobs:
       - name: Tier 1 — Critical Security & Architecture Guards Suite
         shell: powershell
         run: |
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py tests/ci/test_deploy_environment_split.py tests/test_web_engine_providers.py tests/test_web_engine_health.py tests/test_free_route_policy_tool.py browser/tests/test_relay_session_state.py browser/tests/test_relay_streaming.py gateway/tests/test_web_engine_stream.py core/tests/agents/test_agents_unified.py
+          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py tests/ci/test_deploy_environment_split.py tests/test_web_engine_providers.py tests/test_web_engine_health.py tests/test_free_route_policy_tool.py browser/tests/test_relay_session_state.py browser/tests/test_relay_streaming.py browser/tests/test_relay_kill_switch.py gateway/tests/test_web_engine_stream.py core/tests/agents/test_agents_unified.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/ops/wiring_atlas.py --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

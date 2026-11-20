@@ -281,3 +281,108 @@ async def test_loop_refreshes_latency_and_sessions_each_pass(monkeypatch):
     with pytest.raises(asyncio.CancelledError):
         await health.web_engine_health_loop(_squad())
     assert calls == ["latency", "sessions"]
+
+
+# --- S3: the operator's switch ---------------------------------------------
+# A kill switch that cannot be un-thrown is not a switch, and one that fakes a
+# credential failure is a lie in the stats. These pin both halves: parking is
+# separate from injury (no error counters), and release restores exactly what
+# was there before — or leaves a newer injury alone.
+
+
+import time  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _clean_parks():
+    health.reset_disabled_parks()
+    yield
+    health.reset_disabled_parks()
+
+
+def test_a_disabled_engine_wins_over_its_last_outcome():
+    states = health.parse_session_states(
+        {"sessions": {"duck": {"state": "OK", "disabled": True}}}
+    )
+    assert states == {"duck": health.DISABLED_STATE}
+
+
+def test_an_enabled_engine_keeps_its_outcome():
+    states = health.parse_session_states(
+        {"sessions": {"duck": {"state": "OK", "disabled": False}}}
+    )
+    assert states == {"duck": "OK"}
+
+
+def _squad_with_slots(**slots):
+    squad = SimpleNamespace(pools={})
+    for provider, names in slots.items():
+        pool = SimpleNamespace(slots=[])
+        for name in names:
+            slot = SimpleNamespace(name=name, cooldown_until=0.0, total_errors=0, consecutive_failures=0)
+            pool.slots.append(slot)
+            pool.report_injury = lambda _slot, _status, _pool=pool: None
+        squad.pools[provider] = pool
+    return squad
+
+
+def test_disabling_parks_the_slots_without_recording_a_failure():
+    squad = _squad_with_slots(claude_web=["relay-a"], chatgpt_web=["relay-b"])
+    health.apply_session_states(squad, {"duck": health.DISABLED_STATE})
+
+    for provider in ("claude_web", "chatgpt_web"):
+        slot = squad.pools[provider].slots[0]
+        assert slot.cooldown_until > time.time(), "a switched-off engine must not be routed to"
+        assert slot.total_errors == 0, "an operator decision is not a failed request"
+        assert slot.consecutive_failures == 0
+
+    assert health.parked_slots() == (("chatgpt_web", "relay-b"), ("claude_web", "relay-a"))
+
+
+def test_parking_twice_does_not_extend_the_window():
+    squad = _squad_with_slots(claude_web=["relay-a"])
+    health.apply_session_states(squad, {"duck": health.DISABLED_STATE})
+    parked_until = squad.pools["claude_web"].slots[0].cooldown_until
+
+    health.apply_session_states(squad, {"duck": health.DISABLED_STATE})
+    assert squad.pools["claude_web"].slots[0].cooldown_until == parked_until
+
+
+def test_re_enabling_releases_exactly_what_was_parked():
+    squad = _squad_with_slots(claude_web=["relay-a"])
+    slot = squad.pools["claude_web"].slots[0]
+    slot.cooldown_until = 123.0
+
+    health.apply_session_states(squad, {"duck": health.DISABLED_STATE})
+    assert slot.cooldown_until > 123.0
+
+    health.apply_session_states(squad, {"duck": "OK"})
+    assert slot.cooldown_until == 123.0, "release must restore the previous cooldown, not zero it"
+    assert health.parked_slots() == ()
+
+
+def test_a_real_injury_while_parked_survives_re_enabling():
+    """The switch must not launder an auth cooldown that arrived in the meantime."""
+    squad = _squad_with_slots(gemini_v0_web=["relay-g"])
+    slot = squad.pools["gemini_v0_web"].slots[0]
+
+    health.apply_session_states(squad, {"gemini-web": health.DISABLED_STATE})
+    injury = time.time() + 900
+    slot.cooldown_until = injury
+
+    health.apply_session_states(squad, {"gemini-web": "OK"})
+    assert slot.cooldown_until == injury
+
+
+def test_a_disabled_engine_is_never_also_injured():
+    squad = _squad_with_slots(claude_web=["relay-a"])
+    cooled = health.apply_session_states(
+        squad, {"duck": health.DISABLED_STATE}
+    )
+    assert cooled == 0
+
+
+def test_fetch_session_states_reads_the_switch():
+    assert health.parse_session_states(
+        {"sessions": {"gemini-web": {"state": "UNKNOWN", "disabled": True}, "duck": {"state": "OK"}}}
+    ) == {"gemini-web": health.DISABLED_STATE, "duck": "OK"}
