@@ -282,7 +282,7 @@ def pipeline_snapshot(timeout: float, *, quick: bool = False) -> dict:
 
     def check(item):
         key, spec = item
-        preferred = "liveness_path" if quick else "readiness_path"
+        preferred = "quick_check_path" if quick else "readiness_path"
         path = spec.get(preferred) or spec.get("health_path")
         base = spec.get("production_url")
         row = {"service": key, "path": None, "http": None, "ms": None}
