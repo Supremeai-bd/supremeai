@@ -15,7 +15,7 @@ from typing import Any
 # SIL-0d: discover instead of hardcode — the approval-requests file may live in
 # several historical locations; find it instead of pointing at a stale one.
 try:
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # -> scripts/
     from lib.auto_discovery import existing_paths
 except ImportError:  # standalone use (e.g. vendored copy) — fall back to a local filter
     existing_paths = None

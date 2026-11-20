@@ -57,7 +57,11 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(SCRIPTS_DIR))  # so `lib.auto_discovery` resolves from any cwd
+# Anchor on scripts/ (parent), not scripts/ops/ (own dir): `lib` is the
+# canonical scripts/lib. Anchoring on scripts/ops made this file depend on a
+# duplicate scripts/ops/lib tree, which is exactly the mirror class the
+# mirror-drift guard exists to delete.
+sys.path.insert(0, str(SCRIPTS_DIR.parent))  # so `lib.auto_discovery` resolves from any cwd
 
 # #1812 ROOT CAUSE: discovery used to pass base=SCRIPTS_DIR (= scripts/ops, the
 # generator's own directory) so "every script under scripts/" was a false claim

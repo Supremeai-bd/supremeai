@@ -70,7 +70,7 @@ from pathlib import Path
 from typing import Callable
 
 # SCRIPT-INTELLIGENCE v9: shared discovery lib (stdlib only, first-party).
-sys.path.insert(0, str(Path(__file__).resolve().parent))  # -> scripts/
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # -> scripts/
 from ci.merge_policy import classify_result, load_policy, record_decision  # noqa: E402
 
 from lib.auto_discovery import (  # noqa: E402
