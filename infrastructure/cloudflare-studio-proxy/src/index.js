@@ -1,6 +1,6 @@
 /**
  * SupremeAI Studio — Ultra-Low Latency Edge Proxy
- * Routes traffic to https://supremeai-studio.vercel.app with:
+ * Routes traffic to the Studio origin named by `ORIGIN_HOST` (wrangler [vars]) with:
  * 1. Cloudflare BDIX / DAC Edge caching for static chunks (/assets/*) and HTML
  * 2. caches.default RAM caching (sub-20ms TTFB in Dhaka)
  * 3. Proper CORS, Host, and Security header rewriting
@@ -8,8 +8,30 @@
  * 5. In-flight URL rewriting so guest chat calls the edge proxy seamlessly
  */
 
-const ORIGIN = "https://supremeai-studio.vercel.app";
+// Origin of the Studio build this edge serves. `ORIGIN_HOST` is the control
+// point; the constant is only the fallback for a deploy that omits the var.
+//
+// It used to be the other way round: this literal was the real value and the
+// `ORIGIN_HOST` in wrangler.toml was NEVER READ — so changing the var in the
+// dashboard or in the toml looked like a migration and did nothing. The old
+// literal (`supremeai-studio.vercel.app`) is an archived build; the live SPA is
+// the Cloudflare Pages deployment, which is also what
+// config/service_registry.yaml declares as `frontend.production_url`.
+const DEFAULT_ORIGIN = "https://supremeai-studio.pages.dev";
+let ORIGIN = DEFAULT_ORIGIN;
+
 const API_ORIGIN = "https://supremeai-api-ulw0.onrender.com";
+
+/** Point this invocation at the configured Studio origin. Returns it. */
+function resolveOrigin(env) {
+  // Trim trailing slashes with a loop, not a regex: CodeQL flags /\/+$/ on a
+  // config-supplied string as polynomial (each start position rescans the run
+  // of slashes). This is linear and equally simple.
+  let host = String(env?.ORIGIN_HOST || "").trim();
+  while (host.endsWith("/")) host = host.slice(0, -1);
+  if (!host) return (ORIGIN = DEFAULT_ORIGIN);
+  return (ORIGIN = host.startsWith("http://") || host.startsWith("https://") ? host : `https://${host}`);
+}
 
 // 6 Render nodes kept warm to eliminate 30-50s cold-start on free tiers
 const RENDER_SERVICES = [
@@ -102,6 +124,7 @@ async function triggerHourlyLearningSync() {
 
 export default {
   async fetch(request, env, ctx) {
+    resolveOrigin(env);
     const url = new URL(request.url);
 
     // 1. Health check endpoint
@@ -352,6 +375,10 @@ export default {
 
   // Cloudflare Cron Trigger (fires per [triggers] in wrangler.toml)
   async scheduled(event, env, ctx) {
+    // A cron invocation has its own env; without this the warm-up and the
+    // learning sync would target the module default instead of the configured
+    // origin.
+    resolveOrigin(env);
     // 1. Hourly Empirical Learning Sync (24x daily cadence)
     // Note: Render keep-warm is dedicated to cloudflare-render-keepwarm/worker.js on a 5-min cron SSOT.
     // Runs at the top of each hour (minute 0-9)

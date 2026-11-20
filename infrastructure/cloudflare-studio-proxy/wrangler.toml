@@ -4,7 +4,11 @@ compatibility_date = "2026-07-01"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-ORIGIN_HOST = "supremeai-studio.vercel.app"
+# Studio origin this edge serves. Read by src/index.js `resolveOrigin(env)`.
+# supremeai-studio.vercel.app was an archived build; the live SPA is the
+# Cloudflare Pages deployment declared as `frontend.production_url` in
+# config/service_registry.yaml.
+ORIGIN_HOST = "supremeai-studio.pages.dev"
 
 [triggers]
 crons = ["*/10 * * * *", "0 * * * *"]
