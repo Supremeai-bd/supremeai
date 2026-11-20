@@ -161,3 +161,123 @@ async def test_loop_sleeps_between_passes(monkeypatch):
 
 def test_refresh_interval_is_thirty_minutes():
     assert health.ENGINE_REFRESH_S == 1800.0
+
+
+# ── session evidence ────────────────────────────────────────────────────────
+# An expired cookie is the failure this repo keeps paying for. The gateway must
+# cool the slots behind a dead engine, and must never cool one on a guess.
+
+
+def _slots_squad(*, cooldown_until: float = 0.0):
+    """Squad with one slot per web provider; records every injury the pool reports."""
+    reported: list[tuple[str, int]] = []
+
+    class _Pool:
+        def __init__(self, provider):
+            self.provider = provider
+            self.slots = [SimpleNamespace(cooldown_until=cooldown_until, ewma_latency_ms=0.0)]
+
+        def report_injury(self, slot, status_code, latency_ms=0.0):
+            reported.append((self.provider, status_code))
+            slot.cooldown_until = 10_000.0
+
+    pools = {
+        provider: _Pool(provider)
+        for providers in health.engine_providers().values()
+        for provider in providers
+    }
+    return SimpleNamespace(pools=pools), reported
+
+
+def test_parse_session_states_keeps_only_known_states():
+    document = {
+        "sessions": {
+            "duck": {"state": "CHALLENGED"},
+            "gemini": {"state": "EXPIRED"},
+            "other": {"state": "OK"},
+            "weird": {"state": "SOMETHING"},
+            "broken": "not-a-dict",
+        }
+    }
+    assert health.parse_session_states(document) == {
+        "duck": "CHALLENGED",
+        "gemini": "EXPIRED",
+        "other": "OK",
+    }
+
+
+@pytest.mark.parametrize("payload", [None, {}, {"sessions": []}, {"sessions": "x"}])
+def test_parse_session_states_tolerates_malformed_payloads(payload):
+    assert health.parse_session_states(payload) == {}
+
+
+def test_expired_session_cools_every_provider_behind_the_engine():
+    squad, reported = _slots_squad()
+    cooled = health.apply_session_states(squad, {"gemini-web": "EXPIRED"})
+    assert cooled == 3, "gemini-web backs gemini_v0_web, ghost_gemini and web_session"
+    assert all(status == 403 for _provider, status in reported)
+
+
+def test_challenged_session_uses_the_rate_limit_cooldown():
+    squad, reported = _slots_squad()
+    health.apply_session_states(squad, {"duck": "CHALLENGED"})
+    assert reported == [("claude_web", 429), ("chatgpt_web", 429)]
+
+
+@pytest.mark.parametrize("state", ["OK", "UNKNOWN"])
+def test_a_healthy_or_unknown_session_never_cools_anything(state):
+    """'We could not tell' must not take a working surface out of rotation."""
+    squad, reported = _slots_squad()
+    assert health.apply_session_states(squad, {"gemini-web": state}) == 0
+    assert reported == []
+
+
+def test_an_already_cooled_slot_is_not_re_injured():
+    squad, reported = _slots_squad(cooldown_until=9_999.0)
+    assert health.apply_session_states(squad, {"gemini-web": "EXPIRED"}, now=1_000.0) == 0
+    assert reported == [], "re-injuring every pass would keep resetting the cooldown clock"
+
+
+async def test_fetch_session_states_reads_health():
+    client = _Client(_Response({"sessions": {"gemini-web": {"state": "EXPIRED"}}}))
+    states = await health.fetch_session_states("https://relay.example.com/", client=client)
+    assert states == {"gemini-web": "EXPIRED"}
+    assert client.calls == ["https://relay.example.com/health"]
+
+
+async def test_fetch_session_states_keeps_state_on_error(caplog):
+    client = _Client(_Response({}, status_code=502))
+    assert await health.fetch_session_states("https://relay.example.com", client=client) == {}
+    assert "502" in caplog.text
+
+
+async def test_session_refresh_applies_what_it_reads():
+    squad, reported = _slots_squad()
+    client = _Client(_Response({"sessions": {"duck": {"state": "EXPIRED"}}}))
+    states = await health.run_session_refresh(
+        squad, client=client, base_url="https://relay.example.com"
+    )
+    assert states == {"duck": "EXPIRED"}
+    assert reported == [("claude_web", 403), ("chatgpt_web", 403)]
+
+
+async def test_loop_refreshes_latency_and_sessions_each_pass(monkeypatch):
+    calls: list[str] = []
+
+    async def fake_latency(*_args, **_kwargs):
+        calls.append("latency")
+        return {}
+
+    async def fake_sessions(*_args, **_kwargs):
+        calls.append("sessions")
+        return {}
+
+    async def fake_sleep(_seconds):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(health, "run_refresh", fake_latency)
+    monkeypatch.setattr(health, "run_session_refresh", fake_sessions)
+    monkeypatch.setattr(health.asyncio, "sleep", fake_sleep)
+    with pytest.raises(asyncio.CancelledError):
+        await health.web_engine_health_loop(_squad())
+    assert calls == ["latency", "sessions"]

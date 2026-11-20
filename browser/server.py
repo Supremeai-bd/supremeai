@@ -480,6 +480,91 @@ class GeminiCookieEngine:
 relay_engine = GeminiCookieEngine()
 _engine_latency: dict[str, float] = {"duck": 500.0, "gemini": 1500.0}
 
+# ── Session evidence ────────────────────────────────────────────────────────
+# Whether a stored cookie still works can only be learned by using it, so this
+# records the outcome of real requests instead of inventing a probe that burns
+# quota. `/health` publishes the snapshot and the gateway turns EXPIRED /
+# CHALLENGED into a cooldown, so a dead session stops taking traffic instead of
+# failing one user at a time. Values never leave this process — only the state,
+# a short reason, and an age.
+SESSION_STATES = frozenset({"OK", "UNKNOWN", "EXPIRED", "CHALLENGED"})
+_session_state: dict[str, dict] = {}
+
+
+def note_session(engine: str, state: str, detail: str = "") -> None:
+    """Record the outcome of one engine attempt (never raises, never logs secrets)."""
+    if state not in SESSION_STATES:
+        state = "UNKNOWN"
+    entry = _session_state.setdefault(engine, {"consecutive_failures": 0})
+    if state == "OK":
+        entry["consecutive_failures"] = 0
+    else:
+        entry["consecutive_failures"] = int(entry.get("consecutive_failures", 0)) + 1
+    entry.update(state=state, detail=(detail or "")[:200], updated_at=time.time())
+
+
+def classify_failure(exc: BaseException) -> tuple[str, str]:
+    """Map an engine failure onto a session state an operator can act on.
+
+    Conservative by construction: only an explicit auth status (401/403) claims
+    EXPIRED, and only an explicit challenge/429 claims CHALLENGED. Everything
+    else is UNKNOWN, which the gateway does not act on — a guess must not cool a
+    healthy surface.
+    """
+    detail = str(getattr(exc, "detail", exc) or "")
+    lowered = detail.lower()
+    if "challenge" in lowered:
+        return "CHALLENGED", detail
+    for marker, state in (("HTTP 429", "CHALLENGED"), ("HTTP 401", "EXPIRED"), ("HTTP 403", "EXPIRED")):
+        if marker in detail:
+            return state, detail
+    return "UNKNOWN", detail
+
+
+# Internal engine name → the id `/models` already publishes. The gateway joins
+# latency and session evidence on the same key, so publishing `gemini` here and
+# `gemini-web` there would silently match nothing.
+PUBLISHED_ENGINE_IDS: dict[str, str] = {"duck": "duck", "gemini": "gemini-web"}
+
+
+def loaded_cookies() -> Dict[str, str]:
+    """Cookies already in memory — attribute reads only, never the vault.
+
+    `/health` is polled continuously by the platform, so it must not block on
+    Infisical or the on-disk vault. A health endpoint reports what is loaded, not
+    what could be loaded; `get_cookies()` performs I/O and belongs on the request
+    path, not here.
+    """
+    return (
+        getattr(relay_engine, "_infisical_cookies", None)
+        or getattr(relay_engine, "_cookies", None)
+        or {}
+    )
+
+
+def session_snapshot() -> dict[str, dict]:
+    """Per-engine session state for `/health` (attribute reads only — no vault I/O)."""
+    now = time.time()
+    snapshot: dict[str, dict] = {}
+    for engine in ("duck", "gemini"):
+        entry = dict(
+            _session_state.get(engine)
+            or {
+                "state": "UNKNOWN",
+                "detail": "no request yet",
+                "updated_at": 0.0,
+                "consecutive_failures": 0,
+            }
+        )
+        updated = float(entry.get("updated_at") or 0.0)
+        entry["age_s"] = round(now - updated, 1) if updated else None
+        if engine == "gemini":
+            cookies = loaded_cookies()
+            entry["cookie_present"] = bool(cookies)
+            entry["cookie_count"] = len(cookies)
+        snapshot[PUBLISHED_ENGINE_IDS[engine]] = entry
+    return snapshot
+
 
 class DuckAiEngine:
     """Lightweight Pure-HTTP $0 Web AI Relay (Duck.ai + Zero-Auth Pollinations OpenAI fallback).
@@ -678,7 +763,7 @@ async def on_startup():
 
 @app.get("/health")
 async def health() -> Dict[str, Any]:
-    cookies = relay_engine._infisical_cookies or relay_engine.get_cookies()
+    cookies = loaded_cookies()  # attribute reads only: /health must not hit the vault
     service_name = os.getenv("SERVICE_NAME", "supremeai-scraper")
     max_concurrency = int(os.getenv("SCRAPER_MAX_CONCURRENCY", "3"))
     return {
@@ -692,6 +777,10 @@ async def health() -> Dict[str, Any]:
         "cookies_loaded": bool(cookies),
         "total_cookies": len(cookies),
         "infisical_configured": bool(os.getenv("INFISICAL_CLIENT_ID") and os.getenv("INFISICAL_CLIENT_SECRET")),
+        # Additive: per-engine session evidence. A cookie that is present is not
+        # a session that works, so `cookie_present` and `state` are separate
+        # fields and neither is upgraded from the other.
+        "sessions": session_snapshot(),
         "timestamp": time.time(),
     }
 
@@ -857,11 +946,14 @@ async def chat_completions(req: ChatRequest, request: Request) -> JSONResponse:
                 engine_label = "SupremeAI w.ge Turbo"
             latency = (time.time() - start) * 1000.0
             _engine_latency[engine_name] = (_engine_latency.get(engine_name, latency) * 0.7) + (latency * 0.3)
+            note_session(engine_name, "OK")
             last_exc = None
             break
         except Exception as exc:
             last_exc = exc
-            logger.warning(f"{engine_name} relay failed ({exc}); trying next engine...")
+            state, detail = classify_failure(exc)
+            note_session(engine_name, state, detail)
+            logger.warning(f"{engine_name} relay failed ({state}: {exc}); trying next engine...")
             continue
     if last_exc is not None:
         raise HTTPException(status_code=502, detail=f"Stealth relay fallback failed: {last_exc}")
