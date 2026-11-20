@@ -32,3 +32,6 @@ gateway/tests/test_web_engine_stream.py
 tests/test_web_engine_health.py
 tests/test_web_engine_providers.py
 tests/test_zero_cost_capacity_probe.py
+tests/test_architecture_gap_guardian.py
+tests/ci/test_run_all_guards_roster.py
+tests/test_guard_inventory.py

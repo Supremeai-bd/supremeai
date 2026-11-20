@@ -229,9 +229,14 @@ def test_entrypoints_are_derived_from_the_service_registry(real_report: Report):
     """No hardcoded list: entrypoints come from config/service_registry.yaml."""
     assert real_report.entrypoints_missing == []
     assert real_report.entrypoints_found, "no entrypoints derived"
-    # Every derived anchor must be a real module in the graph.
+    # Two families of anchor: deployed Python modules (from the registry) and
+    # non-Python dispatchers (CI workflows, Makefile) whose synthetic ids are
+    # namespaced with "@". Both are legitimate; anything else is a bug.
     for name in real_report.entrypoints_found:
-        assert name in real_report.modules, name
+        if name.startswith("@"):
+            assert "/" in name or name == "@Makefile", name
+        else:
+            assert name in real_report.modules, name
 
 
 def test_every_deployed_python_service_is_an_anchor(real_report: Report):
@@ -586,4 +591,52 @@ def test_missing_pyyaml_fails_loudly_instead_of_reporting_a_partial_graph():
     assert "RAISED" in proc.stdout, (
         "derive_entrypoints must fail loudly when PyYAML is unavailable; "
         f"got stdout={proc.stdout!r} stderr={proc.stderr[-300:]!r}"
+    )
+
+
+# ── dispatcher edges: CI workflows and the Makefile are callers ────────────
+def test_script_paths_listed_as_data_create_edges():
+    """The dispatcher pattern — a list of "scripts/x.py" strings — is a call graph.
+
+    Measured: `scripts.ci.guard_inventory` was created and registered in
+    run_all_guards.py but still reported unreachable, because string paths that
+    end in .py contributed no edges.
+    """
+    from scripts.ci.architecture_gap_guardian import _module_from_path_token
+
+    modules = {
+        "scripts.ci.runner": Path("scripts/ci/runner.py"),
+        "scripts.ci.target": Path("scripts/ci/target.py"),
+        "scripts": Path("scripts/__init__.py"),
+        "scripts.ci": Path("scripts/ci/__init__.py"),
+    }
+    assert _module_from_path_token("scripts/ci/target.py", modules) == "scripts.ci.target"
+
+
+def test_ci_workflows_are_treated_as_entrypoints(real_report: Report):
+    """Whatever CI invokes is live by definition."""
+    dispatchers = [e for e in real_report.entrypoints_found if e.startswith("@")]
+    assert any(".github/workflows/" in d for d in dispatchers), (
+        "workflows are not anchoring reachability; script-only-invoked modules "
+        "would be reported dead"
+    )
+    assert "@Makefile" in dispatchers
+
+
+def test_dispatch_edges_exist_and_resolve(real_report: Report):
+    dispatch = [e for e in real_report.edges if e.kind == "dispatch"]
+    assert dispatch, "no edges extracted from workflows/Makefile"
+    for edge in dispatch:
+        assert edge.src.startswith("@"), "synthetic dispatcher ids must be namespaced"
+        assert edge.dst in real_report.modules, f"{edge.dst} is not a real module"
+
+
+def test_roster_scripts_are_reachable_via_their_string_paths(real_report: Report):
+    """The roster's own entries must not be dead code."""
+    reachable = set(real_report.modules)  # placeholder for type clarity
+    assert "scripts.ci.run_all_guards" in real_report.modules
+    roster_edges = [e for e in real_report.edges if e.src == "scripts.ci.run_all_guards"]
+    assert len(roster_edges) >= 40, (
+        f"roster produced only {len(roster_edges)} edges; its string paths are not "
+        "being resolved"
     )

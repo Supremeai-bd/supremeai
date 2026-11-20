@@ -91,12 +91,97 @@ GUARDS: list[list[str]] = [
     # step is main-only, so PRs stay green) — it did, twice, on 2026-11-19.
     ["python", "scripts/ci/sarif_permission_guard.py", "--self-test"],
     ["python", "scripts/ci/sarif_permission_guard.py", "--check"],
+    # ── Adopted 2026-11-20: written, working, and never executed ─────────────
+    # These four were already correct and already passing; they simply had no
+    # caller, so every rule they encode was unenforced. Adopted only after
+    # running each one — a guard that fails on the current tree would make the
+    # roster permanently red, which is how rosters get deleted.
+    #   actions_pinning  — every actions/* must be SHA-pinned (supply chain)
+    #   migration_safety — alembic revisions must keep upgrade+downgrade
+    #   truthy_env_var   — "false"/"0" must not be read as truthy
+    #   singleton_inits  — no duplicate module-scope client init
+    ["python", "scripts/ci/check_actions_pinning.py", "--check"],
+    ["python", "scripts/ci/check_migration_safety.py", "--check"],
+    ["python", "scripts/ci/check_truthy_env_var.py", "--check"],
+    ["python", "scripts/ci/check_singleton_inits.py", "--check"],
+    # Inventory itself: every guard must have a caller (see the tool's docstring).
+    ["python", "scripts/ci/guard_inventory.py", "--check"],
+    # ── Adopted 2026-11-20 (batch 2): proven green on the current tree ───────
+    # Each was executed before adoption; all exit 0 on main today, so adding
+    # them cannot make the roster red. They were written, merged and never
+    # called — the exact pattern `guard_inventory.py` now prevents.
+    ["python", "scripts/ci/check_critical_invariants.py", "--check"],
+    ["python", "scripts/ci/check_frontend_secrets.py", "--check"],
+    ["python", "scripts/ci/check_gateway_bypass.py", "--check"],
+    ["python", "scripts/ci/check_import_budget.py", "--check"],
+    ["python", "scripts/ci/check_react_cleanup.py", "--check"],
+    ["python", "scripts/ci/check_self_heal_token_usage.py", "--check"],
+    ["python", "scripts/ci/check_single_frontend.py", "--check"],
+    ["python", "scripts/ci/contract_parity_guard.py", "--check"],
+    ["python", "scripts/ci/core_gateway_parity_guard.py", "--check"],
+    ["python", "scripts/ci/env_mode_guard.py", "--check"],
+    ["python", "scripts/ci/satellite_trigger_integrity_guard.py", "--check"],
+    ["python", "scripts/ci/secondary_service_probes.py", "--check"],
+    ["python", "scripts/ci/skill_plane_parity_guard.py", "--check"],
 ]
 
 
-def main() -> int:
+#: Guards that are cheap (sub-second, stdlib + PyYAML only) and catch the classes
+#: of breakage a PR actually introduces: wiring, config plane, architecture
+#: reachability, docs/index freshness. Everything else is a repo-wide audit whose
+#: findings change on merge to main, not on a feature branch — those belong to the
+#: nightly lane (``--full``), not to every PR.
+#:
+#: Measured: the whole roster is ~31 s, so this split exists to keep a PR's
+#: feedback loop honest (a 5-minute Tier 1 that always times out gets skipped by
+#: humans), not because the full set is expensive.
+FAST_SUFFIXES = (
+    "--self-test",
+    "--check",
+    "--check-required-names",
+    "--step1-syntax",
+    "--from-strict",
+    "--verify-client-contracts",
+)
+
+
+def is_fast(cmd: list[str]) -> bool:
+    """A roster entry is fast when it only runs a self-test or a read-only check.
+
+    Entries with no flag at all are live generators (``generate_env_example.py``
+    with no ``--check`` writes files); they stay in the full lane so a PR cannot
+    be blocked by a step whose job is to *produce* output.
+    """
+    return any(arg in FAST_SUFFIXES for arg in cmd[1:])
+
+
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--fast",
+        action="store_true",
+        help="self-tests and read-only checks only (PR lane)",
+    )
+    parser.add_argument(
+        "--full", action="store_true", help="every guard (nightly / main lane)"
+    )
+    parser.add_argument("--list", action="store_true", help="print the selected commands")
+    args = parser.parse_args(argv)
+
+    selected = [c for c in GUARDS if is_fast(c)] if args.fast else GUARDS
+    if args.list:
+        for cmd in selected:
+            print(" ".join(cmd))
+        return 0
+
+    label = "fast lane" if args.fast else "full roster"
+    print(f"=== {label}: {len(selected)}/{len(GUARDS)} guards ===")
+
     failed = 0
-    for cmd in GUARDS:
+    failures: list[str] = []
+    for cmd in selected:
         # Run every guard with the interpreter that is executing THIS script:
         # a bare `python` can resolve to a different install (and then a guard
         # that needs PyYAML fails for reasons the operator cannot see).
@@ -105,10 +190,18 @@ def main() -> int:
         r = subprocess.run(cmd, cwd=REPO_ROOT, check=False)
         if r.returncode != 0:
             failed += 1
+            failures.append(" ".join(cmd[1:]))
             print(f"FAIL (exit {r.returncode})")
         else:
             print("OK")
-    print(f"\n{len(GUARDS) - failed}/{len(GUARDS)} guards passed")
+    print(f"\n{len(selected) - failed}/{len(selected)} guards passed ({label})")
+    if failures:
+        # Named, not just counted: a CI log that says "1 failed" makes the reader
+        # grep 3 000 lines. The whole point of wiring the roster in is that the
+        # failure is actionable.
+        print("\nFAILED:")
+        for name in failures:
+            print(f"  - {name}")
     return 1 if failed else 0
 
 

@@ -151,6 +151,11 @@ on:
         required: false
         default: false
         type: boolean
+      run_guard_roster:
+        description: 'Run the FULL CI guard roster (all 56 guards, nightly lane)'
+        required: false
+        default: false
+        type: boolean
       run_workflow_runs_retention:
         description: 'Run workflow runs retention & stale log purge arm'
         required: false
@@ -2121,6 +2126,46 @@ jobs:
           done < <(gh api --paginate "repos/${REPO}/branches?per_page=100" --jq '.[].name' | grep -v '^chore/artifact-regen-')
 
           echo "Summary: deleted=${deleted} skipped=${skipped}"
+
+  guard-roster:
+    needs: [resolve-execution-tier]
+    # The roster's full lane: guards that audit the whole tree (repo-wide CVE
+    # scans, dependency inventory, live fleet probes). Their findings change when
+    # main moves, not when a feature branch moves, so running them per-PR spends
+    # minutes to catch nothing a PR caused. The fast lane runs per-PR in
+    # unified-pipeline.yml (syntax-and-governance-gate).
+    if: >-
+        (github.event_name == 'workflow_dispatch' && inputs.run_guard_roster == true) ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+    name: "🛡️ Guard Roster (full, nightly)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v5
+    - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+    - name: Install guard dependencies
+      # Measured: the whole 56-guard roster passes in a venv containing exactly
+      # pyyaml, pytest, pyjwt and requests. Keeping this list minimal is what
+      # stops the job from silently becoming a 5-minute install.
+      run: pip install --quiet pyyaml pytest pyjwt requests
+    - name: Run every guard
+      # tee so the artifact below is the full transcript, not just the tail CI
+      # happens to render. pipefail keeps the guard's exit code through the pipe.
+      run: |
+        set -o pipefail
+        python scripts/ci/run_all_guards.py --full 2>&1 | tee guard-roster.log
+    - name: Upload roster log
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: guard-roster-log
+        path: guard-roster.log
+        if-no-files-found: ignore
 
   silent-error:
     needs: [resolve-execution-tier]

@@ -562,6 +562,15 @@ def _is_dynamic_module_string(value: str) -> bool:
     )
 
 
+#: Files outside Python that also dispatch Python modules: CI workflows and the
+#: Makefile. They are real callers — a script invoked only from
+#: `.github/workflows/*.yml` is live, and ignoring them was measured to make every
+#: roster-driven guard look unreachable (the roster is invoked from YAML only).
+_NON_PYTHON_DISPATCHERS = (
+    ".github/workflows/*.yml",
+    "Makefile",
+)
+
 #: Top-level names that belong to this repo, derived from the module map and the
 #: derived sys.path roots. Populated by :func:`compute_first_party_heads`.
 _FIRST_PARTY_HEADS: Set[str] = set()
@@ -1025,6 +1034,17 @@ def extract_edges(
                     opaque.append(module)
 
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            # SCRIPT PATHS stored as data. The dispatcher pattern — a list of
+            # ``"scripts/ci/<name>.py"`` strings that a runner iterates — used to
+            # contribute NO edges, so every module invoked that way was reported
+            # unreachable. Measured: `scripts.ci.guard_inventory` was newly
+            # created, correctly registered in run_all_guards.py, and still
+            # reported as dead code by --check.
+            if node.value.endswith(".py") and "/" in node.value:
+                via_path = _module_from_path_token(node.value, modules)
+                if via_path:
+                    add(via_path, "string")
+                    continue
             # Module paths stored as data (the router mount table, plugin lists).
             if _is_dynamic_module_string(node.value):
                 dst = resolve_module(node.value, modules, strict=True)
@@ -1040,6 +1060,35 @@ def extract_edges(
 
     # Deduplicate identical (src, dst, kind) triples.
     return list({(e.src, e.dst, e.kind): e for e in edges}.values()), 0
+
+
+def extract_dispatcher_edges(root: Path, modules: Dict[str, Path]) -> List[Edge]:
+    """Edges from non-Python dispatchers (workflows, Makefile) into modules.
+
+    A shell/YAML file cannot be parsed as Python, but it names the scripts it
+    runs, and that *is* the call graph. Without this, the only caller of
+    `run_all_guards.py` (and therefore of 60+ guards) is invisible, so the
+    guardian reports its own roster as dead code.
+
+    The synthetic source id is the file path with slashes replaced; it is
+    prefixed so it can never collide with a real module name.
+    """
+    edges: List[Edge] = []
+    for pattern in _NON_PYTHON_DISPATCHERS:
+        for path in sorted(root.glob(pattern)):
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            src = "@" + path.relative_to(root).as_posix()
+            for match in re.finditer(
+                r"[\w./-]*(?:scripts|core|gateway|browser|skills|tests)/[\w./-]+\.py", text
+            ):
+                token = match.group(0).lstrip("./")
+                dst = _module_from_path_token(token, modules)
+                if dst:
+                    edges.append(Edge(src=src, dst=dst, kind="dispatch"))
+    return edges
 
 
 def build_graph(root: Path) -> Report:
@@ -1107,6 +1156,17 @@ def build_graph(root: Path) -> Report:
         for edge in sorted(edges, key=lambda e: (e.dst, e.kind)):
             report.edges.append(edge)
             kind_counts[edge.kind] += 1
+
+    # Non-Python dispatchers (CI workflows, Makefile) are callers too.
+    for edge in extract_dispatcher_edges(root, modules):
+        report.edges.append(edge)
+        kind_counts[edge.kind] += 1
+    report.entrypoints_found = sorted(set(report.entrypoints_found)) + [
+        "@" + p.relative_to(root).as_posix()
+        for pattern in _NON_PYTHON_DISPATCHERS
+        for p in sorted(root.glob(pattern))
+        if "@" + p.relative_to(root).as_posix() not in report.entrypoints_found
+    ]
 
     report.edges.sort(key=lambda e: (e.src, e.dst, e.kind))
     report.edge_kind_counts = dict(sorted(kind_counts.items()))
@@ -1250,6 +1310,10 @@ def update_readme(report: Report) -> bool:
         return False
 
     total = len(report.modules)
+    # Service anchors and non-Python dispatchers are listed separately: nineteen
+    # "@.github/workflows/..." ids in one line made the README table unreadable.
+    dispatch_anchors = [e for e in report.entrypoints_found if e.startswith("@")]
+    svc_anchors = [e for e in report.entrypoints_found if not e.startswith("@")]
     edge_summary = ", ".join(f"{k}: {v}" for k, v in sorted(report.edge_kind_counts.items()))
     live = len(report.reachable)
     pct = (100.0 * live / total) if total else 0.0
@@ -1259,7 +1323,8 @@ def update_readme(report: Report) -> bool:
 ### 🗺️ Architecture Reality & Gap Map (generated from the import graph)
 
 > **Modules:** `{total}` | **Reachable from live entrypoints:** `{live}` ({pct:.1f}%) | **Unreachable:** `{dead}`  
-> **Entrypoints:** `{', '.join(report.entrypoints_found) or 'none found'}` | **Edges:** `{len(report.edges)}` ({edge_summary})  
+> **Service entrypoints:** `{', '.join(svc_anchors) or 'none found'}` | **Dispatcher entrypoints:** `{len(dispatch_anchors)}` (CI workflows + Makefile)  
+> **Edges:** `{len(report.edges)}` ({edge_summary})  
 > _Generated by `scripts/ci/architecture_gap_guardian.py`. Recounted from every `import`, router-mount string and `importlib` call — no hand-maintained module list. Full data: `docs/generated/architecture_gap_map.json`._
 
 ```mermaid
