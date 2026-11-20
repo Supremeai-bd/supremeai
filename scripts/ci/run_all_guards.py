@@ -75,6 +75,11 @@ GUARDS: list[list[str]] = [
     ["python", "scripts/ci/generate_agents_md.py", "--check"],
     ["python", "scripts/ci/validate_config_registry.py"],
     ["python", "scripts/ci/check_config_contract.py"],
+    # env SSOT contract: .env.example must equal CONFIG_SPECS-derived output.
+    # This was the missing third sibling — the generator kept the pre-flatten
+    # `backend/core/...` literal, crashed with FileNotFoundError on every run,
+    # and .env.example drifted 57 vars behind the registry unnoticed.
+    ["python", "scripts/ci/generate_env_example.py", "--check"],
     ["python", "scripts/ci/service_entrypoint_census.py", "--self-test"],
     ["python", "scripts/ci/service_entrypoint_census.py", "--check"],
     # satellite_residue_guard: #1676 satellite nested-anchor residue detection
