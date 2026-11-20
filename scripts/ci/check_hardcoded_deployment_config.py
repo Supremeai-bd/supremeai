@@ -192,15 +192,22 @@ EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
     # render.yaml service names -> https://<name>.onrender.com: a template,
     # not a host. `supremeai-primary-node` is escaped in a regex, not pinned.
     ("scripts/ops/pre_merge_guard.py", r"<name>\.onrender\.com|primary-node\.onrender", None),
-    (".github/scripts/ci_summary_v2.py", r"\.onrender\.com", None),
+    # PROJECT-DERIVED Firebase host: f"https://{FIREBASE_PROJECT_ID}.web.app".
+    # NOTE the path correction: this exemption named
+    # `.github/scripts/ci_summary_v2.py`, but the file lives in
+    # `core/github/scripts/`. The exemption therefore applied to NOTHING and
+    # the violation it was written for was reported unexempted. Stale
+    # exception paths are silent — the guard now warns when a target is
+    # missing rather than skipping quietly.
+    ("core/github/scripts/ci_summary_v2.py", r"\.web\.app", None),
     # Zero-hardcode ALLOWED_HOSTS derivation (#298): the ONLY sanctioned
     # .onrender.com usage — building the REAL per-service hostname
     # "{RENDER_SERVICE_NAME}.onrender.com". The bare-apex fallback this policy
     # exists to prevent was deliberately REMOVED there (fail-closed instead);
     # the f-string suffix plus its explanatory comment are the intended design.
-    ("backend/core/config_validation.py", r"\.onrender\.com", None),
+    ("core/config_validation.py", r"\.onrender\.com", None),
     # Pydantic Field() docstring examples — illustrative only, not a runtime default.
-    ("backend/core/config_validator.py", r"examples=", None),
+    ("core/config_validator.py", r"examples=", None),
     # 2026-09-18 লাইভ ইনসিডেন্ট গার্ড: generate_firebase_config.py এখন BACKEND_URL-কে
     # Hosting ডোমেন (*.web.app / *.firebaseapp.com) হিসেবে fail-closed রিজেক্ট করে —
     # নিষিদ্ধ ডোমেন ক্লাসের নাম না লিখলে সেটি ডিটেক্টই করতে পারে না। এটি deployment
@@ -212,7 +219,6 @@ EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
     # Its allow-list uses wildcard host patterns (e.g. https://*.web.app),
     # not specific deployment hostnames — the same sanctioned exception the
     # inline meta CSP previously held, now pointed at the header blocks.
-    ("vercel.json", r"Content-Security-Policy", None),
     # Value-line anchor (FB-02 precedent): if vercel.json is ever pretty-
     # printed, the CSP "value" lands on its own line WITHOUT the
     # "Content-Security-Policy" key text, so the key-line anchor above cannot
@@ -220,15 +226,14 @@ EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
     # #1121 reformatted the headers array and split key/value across lines).
     # Mirrors the firebase.template.json entry below: the payload line itself
     # is the anchor. Wildcard host patterns only — same sanctioned class.
-    ("vercel.json", r"default-src 'self'", None),
-    ("frontend/nginx.conf", r"Content-Security-Policy", None),
     # FB-02 (Issue #583, PR #607): the Firebase Hosting CSP response header lives
     # in firebase.template.json (pretty-printed: the "value" sits on its own line,
     # so the anchor matches the CSP payload, not the key). Wildcard host patterns
     # only — same sanctioned class as the two header CSPs above.
-    ("firebase.template.json", r"default-src 'self'", None),
     # issue #1325: update_cors_hosts.py documents the Firebase Hosting UI origin contract
-    ("scripts/update_cors_hosts.py", r"FIREBASE_PROJECT_ID", None),
+    # NOTE the path correction: this file moved to scripts/ops/, so the
+    # exemption above it (scripts/update_cors_hosts.py) had stopped applying.
+    ("scripts/ops/update_cors_hosts.py", r"FIREBASE_PROJECT_ID", None),
     # Issues #1483/#1484/#1455 (PR #1499): production CORS origins as code-level
     # FAILSAFE DEFAULTS — env vars always win when present; the defaults only
     # fire when CORS env sync to the host fails (live incident guard). This is
@@ -246,11 +251,8 @@ EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
         r"supremeai-a\.web\.app|supremeai-lac\.vercel\.app|supremeai-studio\.vercel\.app",
         None,
     ),
-    (
-        "gateway/middleware/cors_policy.py",
-        r"supremeai-a\.web\.app|supremeai-lac\.vercel\.app|supremeai-studio\.vercel\.app",
-        None,
-    ),
+    # (The gateway/middleware/ duplicate is gone — the module now lives only in
+    # core/middleware/, and the stale path meant this rule applied to nothing.)
     (
         "core/config_fields.py",
         r"supremeai-a\.web\.app|supremeai-lac\.vercel\.app|supremeai-studio\.vercel\.app",

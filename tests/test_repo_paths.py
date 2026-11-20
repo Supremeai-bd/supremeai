@@ -307,3 +307,38 @@ class TestGuardDoesNotExemptItself:
                 if pattern.search(line) and not line.lstrip().startswith("#"):
                     offenders.append(f"{path.relative_to(REPO_ROOT)}:{num}")
         assert not offenders, f"retired host still referenced: {offenders}"
+
+    def test_every_exemption_path_exists(self):
+        """A stale exception path is a rule that silently stopped applying.
+
+        Five of them had accumulated: `vercel.json`, `frontend/nginx.conf` and
+        `firebase.template.json` no longer exist at all, while
+        `scripts/update_cors_hosts.py` and `gateway/middleware/cors_policy.py`
+        moved to scripts/ops/ and core/middleware/. Each entry was written to
+        stop a false positive; once the target moved, the false positive came
+        back and nothing said so.
+
+        `ci_summary_v2.py` was the expensive one: its exemption pointed at
+        `.github/scripts/` while the file lives in `core/github/scripts/`, so the
+        violation it existed for was reported as a new finding for months.
+        """
+        guard = self._guard()
+        missing = [
+            path
+            for path, _pattern, _lines in guard.EXCEPTION_SPECS
+            if not (REPO_ROOT / path).exists()
+        ]
+        assert not missing, (
+            "EXCEPTION_SPECS entries point at paths that do not exist, so they "
+            f"exempt nothing: {missing}"
+        )
+
+    def test_exemption_paths_are_repo_relative(self):
+        """Guards match on repo-relative paths; absolute or ./ paths never match."""
+        guard = self._guard()
+        bad = [
+            path
+            for path, _pattern, _lines in guard.EXCEPTION_SPECS
+            if path.startswith(("/", "./")) or "\\" in path
+        ]
+        assert not bad, f"exemption paths are not repo-relative POSIX: {bad}"

@@ -42,7 +42,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "agents"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from mcp_tower_client import McpTowerClient
+from mcp_tower_client import McpTowerClient, strip_endpoint_suffixes
 from operational_truth_db import (
     connect,
     ensure_schema,
@@ -86,7 +86,12 @@ def _resolve_tower_url() -> str:
             "Tower URL পাওয়া যায়নি — MCP_TOWER_URL env var সেট করুন "
             "(fail-closed, scripts/agents/mcp_tower_client.py চুক্তি)"
         )
-    return url.rstrip("/").removesuffix("/sse")
+    # Share the helper rather than re-deriving the rule: the private copy here
+    # only stripped /sse, so an MCP_TOWER_URL ending in /mcp (the documented
+    # repo-root mcp.json form) produced base=https://.../mcp and the client
+    # then joined /sse onto it -> GET /mcp/sse, a live 404. The shared helper
+    # strips /mcp, /sse, /mcp/sse and handles bare forms (issue #2317).
+    return strip_endpoint_suffixes(url)
 
 
 def _tool_text(result: Any) -> str:
