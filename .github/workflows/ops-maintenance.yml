@@ -151,11 +151,6 @@ on:
         required: false
         default: false
         type: boolean
-      run_guard_roster:
-        description: 'Run the FULL CI guard roster (all 56 guards, nightly lane)'
-        required: false
-        default: false
-        type: boolean
       run_workflow_runs_retention:
         description: 'Run workflow runs retention & stale log purge arm'
         required: false
@@ -2134,9 +2129,12 @@ jobs:
     # main moves, not when a feature branch moves, so running them per-PR spends
     # minutes to catch nothing a PR caused. The fast lane runs per-PR in
     # unified-pipeline.yml (syntax-and-governance-gate).
-    if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_guard_roster == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+    # Gated on the daily cron ONLY. This workflow already defines the maximum 25
+    # `workflow_dispatch` inputs GitHub permits; adding a 26th to trigger this lane
+    # made GitHub reject the ENTIRE file ("you may only define up to 25 inputs"),
+    # which surfaced as a run with ZERO jobs on both push and schedule. Keep this
+    # job reachable without an input so the count can never be exceeded again.
+    if: github.event_name == 'schedule' && github.event.schedule == '0 3 * * *'
     name: "🛡️ Guard Roster (full, nightly)"
     runs-on: ubuntu-24.04
     timeout-minutes: 20
