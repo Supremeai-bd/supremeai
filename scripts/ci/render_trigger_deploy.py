@@ -100,6 +100,16 @@ def main() -> int:
         try:
             body = client.trigger_deploy(svc_id, commit_id=commit_id)
             break
+        except TypeError:
+            # A TypeError here is a CODE defect (e.g. trigger_deploy losing its
+            # `commit_id` parameter in commit e24921b92d36), not a transient API
+            # error. Retrying it 5x turned a one-line signature break into a
+            # 10-second failed deploy job per service, reported only as
+            # "Process completed with exit code 1". Fail immediately and say why.
+            raise SystemExit(
+                "::error::render_trigger_deploy/client signature mismatch — "
+                "RenderClient.trigger_deploy must accept commit_id"
+            )
         except RenderApiError as exc:
             err_body = (exc.body or "").lower()
             if exc.status == 400 and "cannot deploy suspended service" in err_body:
@@ -110,8 +120,8 @@ def main() -> int:
             if exc.status not in (0, 408, 429) and exc.status < 500:
                 return _unavailable(f"Render rejected the deploy for {svc_id} (HTTP {exc.status}).")
             print(f"Render trigger attempt {attempt}/{MAX_ATTEMPTS} failed (status {exc.status}).")
-        except (OSError, ValueError):
-            print(f"Render trigger attempt {attempt}/{MAX_ATTEMPTS} did not return a valid response.")
+        except (OSError, ValueError) as exc:
+            print(f"Render trigger attempt {attempt}/{MAX_ATTEMPTS} did not return a valid response: {exc}")
         if attempt == MAX_ATTEMPTS:
             return _unavailable(f"Render did not return a deploy for {svc_id}.")
         time.sleep(RETRY_DELAY_SECONDS)

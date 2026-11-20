@@ -90,7 +90,11 @@ class RenderClient:
             data=json.dumps(body).encode() if body is not None else None,
         )
         try:
-            with urllib.request.urlopen(req) as response:
+            # A timeout is not optional here: without one, a hung Render API
+            # stalls the deploy job until the workflow-level timeout with no
+            # indication of which request stalled. Dropped in e24921b92d36
+            # alongside the typing rewrite; restored.
+            with urllib.request.urlopen(req, timeout=20) as response:
                 payload = response.read().decode()
             return json.loads(payload) if payload else None
         except urllib.error.HTTPError as exc:  # non-2xx
@@ -169,11 +173,33 @@ class RenderClient:
         self,
         service_id: Optional[str] = None,
         clear_cache: str = "do_not_clear",
+        commit_id: Optional[str] = None,
     ) -> Dict[str, Any]:
+        """Trigger a deploy, optionally pinned to one exact commit.
+
+        `commit_id` is NOT optional for CI correctness. render_trigger_deploy.py
+        runs with REQUIRE_EXPECTED_SHA=1 and calls
+        `trigger_deploy(svc_id, commit_id=commit_id)`; the attest step afterwards
+        asserts the live deploy's commit equals the run's SHA. Dropping the
+        parameter silently broke every deploy:
+
+          commit e24921b92d36 (2026-11-20 12:43) removed it while refactoring
+          typing here. The caller then raised TypeError, which the caller's
+          `except (OSError, ValueError)` did not catch, so the loop retried 5x
+          and returned 1. Every Render deploy job from 12:43 onward failed in
+          ~10s with "Process completed with exit code 1" — 12 of 12, on main,
+          across five services. It read as flaky infrastructure.
+
+        Rendering the body explicitly keeps the "no pinned commit means deploy
+        branch HEAD" behaviour that the old code got from omitting the key.
+        """
+        body: Dict[str, Any] = {"clearCache": clear_cache}
+        if commit_id:
+            body["commitId"] = commit_id
         return self._request(
             "POST",
             f"/services/{service_id or self.default_service_id}/deploys",
-            body={"clearCache": clear_cache},
+            body=body,
         )
 
     # ── Phase 2-C3 operations (remaining scripts migrate onto these) ──
