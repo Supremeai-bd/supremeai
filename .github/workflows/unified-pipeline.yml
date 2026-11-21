@@ -781,7 +781,7 @@ jobs:
     # for one approval per service leg. Cutting that needs a single-job loop
     # (tracked as a follow-up) or removing the required reviewers.
     environment: production
-    timeout-minutes: 25
+    timeout-minutes: 18
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.deploy-and-verify.outputs.matrix) }}
@@ -803,7 +803,7 @@ jobs:
           RENDER_API_KEY: ${{ secrets[matrix.api_key_env] || secrets[matrix.api_key_alias_env] }}
           RENDER_SERVICE_ID: ${{ matrix.service_id }}
           RENDER_HEALTH_PATH: ${{ matrix.health_path }}
-          RENDER_WAIT_TIMEOUT_SECONDS: "1200"
+          RENDER_WAIT_TIMEOUT_SECONDS: "600"
         run: python scripts/ci/render_trigger_deploy.py
 
       - name: Attest the triggered deploy ID and runtime SHA
