@@ -369,6 +369,40 @@ def check_runtime_memory_guard() -> bool:
     else:
         print("  ✅ OK — UVICORN_WORKERS is not set above 1")
 
+    # ── 4. Check Dockerfiles for heavy browser/Chromium on 512MB free tier ─────
+    print("\n🐳 Checking Dockerfiles for heavy browser binaries on 512MB free tier...")
+    dockerfiles = list(ROOT.glob("**/Dockerfile*"))
+    dockerfiles = [d for d in dockerfiles if ".git" not in str(d) and "node_modules" not in str(d)]
+
+    docker_browser_violations: list[str] = []
+    for df in dockerfiles:
+        try:
+            content = df.read_text(encoding="utf-8", errors="replace")
+            for lineno, line in enumerate(content.splitlines(), 1):
+                stripped = line.strip()
+                if "playwright install" in stripped and "chromium" in stripped and "chromium-headless-shell" not in stripped:
+                    docker_browser_violations.append(
+                        f"  {df.relative_to(ROOT)}:{lineno} → {stripped}"
+                    )
+                elif "apt-get install" in stripped and ("chromium-browser" in stripped or "google-chrome" in stripped):
+                    docker_browser_violations.append(
+                        f"  {df.relative_to(ROOT)}:{lineno} → {stripped}"
+                    )
+        except Exception as e:
+            print(f"  ⚠️ Warning: Could not read {df}: {e}")
+
+    if docker_browser_violations:
+        print("  🔴 BLOCKED: Full heavy browser binary installation detected in Dockerfile!")
+        print("  Full Chromium installs ~1GB binaries & uses >400MB RAM, causing instant OOM on Render 512MB.")
+        print("  Use lightweight headless shell or delegate scraping to remote API (e.g. Browserbase/Firecrawl):")
+        for v in docker_browser_violations:
+            print(v)
+        print("  💡 Fix: Replace 'playwright install --with-deps chromium' with 'playwright install --with-deps chromium-headless-shell'")
+        print("          or use an external lightweight relay (like browser/Dockerfile).")
+        any_block = True
+    else:
+        print("  ✅ OK — no unoptimized heavy browser installations in Dockerfiles")
+
     print("\n" + "=" * 60)
     if any_block:
         print("🚫 RUNTIME MEMORY GUARD: One or more checks FAILED.")
