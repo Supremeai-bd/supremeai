@@ -94,7 +94,7 @@ Quota অজানা হলে runner probe বা build নয়। Suspended
 #### অগ্রাধিকার ৩ — সক্রিয় GitHub-hosted fallback
 PR (same-repository সহ) ব্যক্তিগত `local-pc`-তে চলে না; cloud fallback ব্যবহার করে।
 Priority 1 শুধু বিশ্বস্ত `main`-এর scheduled/verification dispatch-এ প্রযোজ্য।
-Unified-এর focused suite মার্জ যাচাই করে; আলাদা [Full Test Battery](../.github/workflows/full-test-suite.yml)
+Unified-এর focused suite মার্জ যাচাই করে; আলাদা [Full Test Battery](../.github/workflows/full-test-suite.yml) (absent — removed by #731)
 প্রতিদিন এবং test workflow/runtime lock বদলালে `main`-এ স্বয়ংক্রিয়ভাবে Core, Gateway,
 repo suite, Windows path contracts ও Tower যাচাই করে। ফল আলাদাভাবে প্রকাশিত হয়।
 
