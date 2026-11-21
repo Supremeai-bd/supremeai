@@ -652,6 +652,7 @@ jobs:
       !cancelled() && needs.ai-evaluate-and-approve.result == 'success' &&
       needs.ai-evaluate-and-approve.outputs.decision == 'OWNER_REVIEW'
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     needs: [ai-evaluate-and-approve]
     environment: production-approval
     permissions: {}
@@ -780,7 +781,7 @@ jobs:
     # for one approval per service leg. Cutting that needs a single-job loop
     # (tracked as a follow-up) or removing the required reviewers.
     environment: production
-    timeout-minutes: 18
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.deploy-and-verify.outputs.matrix) }}
@@ -802,7 +803,7 @@ jobs:
           RENDER_API_KEY: ${{ secrets[matrix.api_key_env] || secrets[matrix.api_key_alias_env] }}
           RENDER_SERVICE_ID: ${{ matrix.service_id }}
           RENDER_HEALTH_PATH: ${{ matrix.health_path }}
-          RENDER_WAIT_TIMEOUT_SECONDS: "600"
+          RENDER_WAIT_TIMEOUT_SECONDS: "180"
         run: python scripts/ci/render_trigger_deploy.py
 
       - name: Attest the triggered deploy ID and runtime SHA
@@ -1202,6 +1203,7 @@ jobs:
   golden-eval-harness:
     name: "G-GoldenEval harness — scorer self-test + fixture mechanics (#1362)"
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -1214,6 +1216,7 @@ jobs:
   golden-eval-gate:
     name: "G-GoldenEval — 90% quality regression gate (#1362)"
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     needs: [golden-eval-harness]
     steps:
       # Candidate fixture mechanics run in the separate unprivileged job.
