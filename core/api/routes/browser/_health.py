@@ -34,7 +34,7 @@ async def check_llm_gateway() -> bool:
     """Check if LLM gateway is available"""
     try:
         # FIX (import): canonical module path (was 'backend.core.*').
-        from core.llm.llm_gateway import llm_gateway
+        from core.llm.llm_gateway import llm_gateway  # noqa: F401
 
         # Simple health check - can we reach the gateway?
         return True
@@ -47,8 +47,8 @@ async def check_security_modules() -> bool:
     try:
         # FIX (import + api-drift): 'OriginValidator' never existed — the real
         # validator is TrustedOriginMiddleware in core.security.origin_validator.
-        from core.security.origin_validator import TrustedOriginMiddleware
-        from core.security.protection.ssrf_protection import SSRFProtection
+        from core.security.origin_validator import TrustedOriginMiddleware  # noqa: F401
+        from core.security.protection.ssrf_protection import SSRFProtection  # noqa: F401
 
         return True
     except ImportError:
@@ -59,7 +59,7 @@ async def check_playwright() -> bool:
     """Check if Playwright is available"""
     try:
         # FIX (import): real API is get_global_browser (was PlaywrightManager).
-        from core.playwright_manager import get_global_browser
+        from core.playwright_manager import get_global_browser  # noqa: F401
 
         return True
     except ImportError:
@@ -70,7 +70,7 @@ async def check_unified_memory() -> bool:
     """Check if unified memory is available"""
     try:
         # FIX (import): canonical facade is UnifiedMemoryInterface (was UnifiedMemory).
-        from core.unified_memory import UnifiedMemoryInterface
+        from core.unified_memory import UnifiedMemoryInterface  # noqa: F401
 
         return True
     except ImportError:

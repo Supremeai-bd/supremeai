@@ -15,15 +15,15 @@ from dataclasses import dataclass, field
 from typing import Any
 
 try:
-    from core.adapters.business_adapter import BusinessAdapter
+    from adapters.business_adapter import BusinessAdapter
 except Exception:
     BusinessAdapter = None
 try:
-    from core.adapters.dev_adapter import DevAdapter
+    from adapters.dev_adapter import DevAdapter
 except Exception:
     DevAdapter = None
 try:
-    from core.adapters.ux_adapter import UXAdapter
+    from adapters.ux_adapter import UXAdapter
 except Exception:
     UXAdapter = None
 from core.advanced_reasoning import AdvancedReasoningEngine
