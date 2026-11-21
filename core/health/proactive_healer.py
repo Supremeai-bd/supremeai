@@ -145,7 +145,7 @@ class ProactiveHealer:
             return HealingOutcome.PARTIAL
 
         try:
-            from agents.infrastructure.auto_scaling_agent import auto_scaling_agent
+            from core.agents.infrastructure.auto_scaling_agent import auto_scaling_agent
 
             # real metrics সংগ্রহ + scaling recommendation তৈরি
             metrics = await auto_scaling_agent.collect_current_metrics()

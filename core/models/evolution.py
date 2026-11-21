@@ -8,7 +8,7 @@ from sqlalchemy import JSON, Boolean, DateTime, Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from models.base import Base
+from core.models.base import Base
 
 
 class SkillFitness(Base):

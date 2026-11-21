@@ -60,12 +60,7 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
     # বাংলা মন্তব্ব্য: লেজি ইম্পোর্ট — মিডলওয়্যার ক্লাস শুধু create_app() কল করলেই লোড হবে
     from fastapi.middleware.cors import CORSMiddleware
 
-    from api.middleware import (
-        RequestIdMiddleware,
-        ResponseStandardizationMiddleware,
-        SupremeContextMiddleware,
-        TenantExtractionMiddleware,
-    )
+    from core.api.middleware import RequestIdMiddleware, ResponseStandardizationMiddleware, SupremeContextMiddleware, TenantExtractionMiddleware
     from core.lifespan import app_lifespan
 
     # P0 (production docs exposure policy): gates /docs, /redoc and openapi.json.
@@ -75,10 +70,7 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
     # "orphan"; per the repo doctrine (wire-next before archive) it is now restored
     # and wired — slow-request logging + rolling percentile history for /metrics.
     from core.middleware.query_timing import QueryTimingMiddleware
-    from core.middleware.security import (
-        RequestValidationMiddleware,
-        SecurityHeadersMiddleware,
-    )
+    from core.middleware.security import RequestValidationMiddleware, SecurityHeadersMiddleware
     from core.observability.observability_middleware import ObservabilityMiddleware
     from core.rate_limit import RateLimitMiddleware
     from core.request_context import RequestContextMiddleware
@@ -87,8 +79,8 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
     from core.security.autonoguard_middleware import AutonoGuardMiddleware
     from core.security.origin_validator import TrustedOriginMiddleware
     from core.security.protection.honeypot import HoneypotMiddleware
-    from middleware.chaos_injector import ChaosInjectorMiddleware
-    from middleware.idempotency_middleware import IdempotencyMiddleware
+    from core.middleware.chaos_injector import ChaosInjectorMiddleware
+    from core.middleware.idempotency_middleware import IdempotencyMiddleware
 
     @asynccontextmanager
     async def _lifespan(app: FastAPI):
@@ -98,7 +90,7 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
         from core.browser_session_manager import shutdown_browser_sessions
         from core.config_validator import print_config_summary, validate_config
         from core.health_routes import register_check, set_liveness
-        from utils.platform_detect import DETECTED_PLATFORM, auto_set_platform_env
+        from core.utils.platform_detect import DETECTED_PLATFORM, auto_set_platform_env
 
         if os.getenv("OPENAPI_GENERATION", "false").lower() == "true":
             logger.info("🛠️ OPENAPI_GENERATION mode active. Bypassing lifespan checks.")
@@ -216,7 +208,7 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
         healer = None
         if settings.AUTO_HEALING_ENABLED:
             try:
-                from services.auto_healer import get_healer
+                from core.services.auto_healer import get_healer
 
                 healer = get_healer()
                 monitoring_task = asyncio.create_task(healer.start_monitoring())
@@ -463,7 +455,7 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
     # বাংলা মন্তব্ব্য: canonical browser session/action routes
     # Keep browser routes mounted explicitly so route discovery cannot depend on
     # the optional safe-import registry in api.routes.__init__.
-    from api import register_router
+    from core.api import register_router
 
     register_router(app, "api.routes.browser", optional=False)
 
@@ -472,7 +464,7 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
     # 60s-TTL ticket issued via POST /api/browser/render-ticket (header-authed,
     # on `browser_router` itself). This dependency-free router only serves
     # GET /render with a valid consumed ticket; SSRF hardening unchanged.
-    from api.routes.browser._render_proxy import render_public_router
+    from core.api.routes.browser._render_proxy import render_public_router
 
     app.include_router(render_public_router)
 
@@ -482,7 +474,7 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
     # package (#2258: ported there when the legacy double-mounted
     # api/routes/browser_routes.py module was retired) — mounted here
     # explicitly because the package's main router is user-token gated.
-    from api.routes.browser import public_router as browser_public_router
+    from core.api.routes.browser import public_router as browser_public_router
 
     app.include_router(browser_public_router)
 
@@ -558,11 +550,7 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
         """Handle unhandled exceptions with proper response and circuit breaker awareness."""
 
         from core.request_context import get_correlation_id
-        from core.resilience.circuit_breaker import (
-            CIRCUITS,
-            CircuitBreakerState,
-            normalize_circuit_state,
-        )
+        from core.resilience.circuit_breaker import CIRCUITS, CircuitBreakerState, normalize_circuit_state
 
         status_code = getattr(exc, "status_code", 500)
 

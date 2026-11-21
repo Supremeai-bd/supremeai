@@ -11,8 +11,8 @@ from typing import Any, Literal
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from api.deps import get_current_user_token
-from api.routes.browser import router
+from core.api.deps import get_current_user_token
+from core.api.routes.browser import router
 from core.browser_session_catalog import SavedBrowserSession, browser_session_catalog
 from core.browser_session_manager import session_manager
 

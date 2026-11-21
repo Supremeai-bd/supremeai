@@ -23,11 +23,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from core.monitoring.logging_config import logger
-from core.security.codegen_gate import (
-    denied_reason,
-    inprocess_codegen_enabled,
-    warn_inprocess_codegen_boot,
-)
+from core.security.codegen_gate import denied_reason, inprocess_codegen_enabled, warn_inprocess_codegen_boot
 from core.security.scanning.ast_scanner import ASTSandboxScanner
 
 # Issue #704: loud one-time boot warning when the in-process exec escape hatch

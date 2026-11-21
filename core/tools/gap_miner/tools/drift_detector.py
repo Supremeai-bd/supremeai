@@ -7,7 +7,7 @@ import json
 import os
 from pathlib import Path
 
-EXCLUDED={'.git','node_modules','.venv','venv','dist','build','.next','.turbo','__pycache__'}
+EXCLUDED={'.git','node_modules','.venv','.venv_check','venv','dist','build','.next','.turbo','__pycache__','.pytest_cache','.arena'}
 TOKENS=['supabase','redis','postgres','sqlite','firebase','render','vercel','cloudflare','gemini','groq','deepseek','huggingface','moonshot','ollama','docker','terraform','playwright','vitest','pytest','turbo','pnpm']
 def scan(root):
  blobs=[]

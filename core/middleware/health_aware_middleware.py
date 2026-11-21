@@ -11,7 +11,7 @@ from core.monitoring.logging_config import logger
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from services.config_service import ConfigService
+from core.services.config_service import ConfigService
 
 GLOBAL_HEALTH_CONFIG = {"health_threshold": 0.8}
 
@@ -189,7 +189,7 @@ class HealthAwareMiddleware(BaseHTTPMiddleware):
             # (৩) .acquire() একটি plain coroutine রিটার্ন করে, async context manager নয় —
             # তাই `async with db_pool.acquire()` AttributeError দিত। ফলে এই DB
             # connectivity check সবসময় ব্যর্থ হয়ে health score কমিয়ে দিত।
-            from database.pgbouncer_pool import get_db_pool
+            from core.database.pgbouncer_pool import get_db_pool
 
             db_pool = await get_db_pool()
             if db_pool:

@@ -20,13 +20,11 @@ import re
 from typing import Any
 
 from core.monitoring.logging_config import logger
-from memory.sliding_window import SlidingWindowMemory
+from core.memory.sliding_window import SlidingWindowMemory
 
 # Import the underlying services
-from services.memory_service import memory_service as global_memory_service
-from tools.checkpoint_manager import (
-    checkpoint_manager as global_checkpoint_manager,
-)
+from core.services.memory_service import memory_service as global_memory_service
+from core.tools.checkpoint_manager import checkpoint_manager as global_checkpoint_manager
 
 # PLAN-004 runtime kill-switch: SUPREMEAI_MEMORY_DISTILL=false forces the
 # distilled variant to delegate straight to legacy truncation. Read at call
@@ -75,7 +73,7 @@ async def distill_content(content: str) -> tuple[str, dict[str, Any] | None]:
     নামবে; এখান থেকে কখনো exception বের হয় না।
     """
     try:
-        from core.llm.llm_gateway import llm_gateway  # established lazy singleton pattern
+        from core.llm.llm_gateway import llm_gateway
 
         result = await llm_gateway.acompletion(
             prompt=[

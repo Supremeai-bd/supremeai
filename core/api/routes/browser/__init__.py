@@ -49,8 +49,8 @@ import httpx  # noqa: F401  (module-attr parity with pre-split module)
 from fastapi import APIRouter, Depends, HTTPException, Response  # noqa: F401  (module-attr parity)
 from pydantic import BaseModel, Field  # noqa: F401  (module-attr parity)
 
-from api.deps import get_current_tenant, get_current_user_token  # noqa: F401  (module-attr parity)
-from api.routes.admin_dashboard import require_admin_token  # noqa: F401  (module-attr parity)
+from core.api.deps import get_current_tenant, get_current_user_token  # noqa: F401  (module-attr parity)
+from core.api.routes.admin_dashboard import require_admin_token  # noqa: F401  (module-attr parity)
 from core.browser_compat_store import browser_compat_store  # noqa: F401  (module-attr parity)
 from core.browser_session_catalog import (  # noqa: F401  (module-attr parity)
     SavedBrowserSession,
@@ -85,7 +85,7 @@ from core.security.secure_credential_store import (  # noqa: F401  (module-attr 
     SecureCredentialStore,
 )
 from core.task_policy import evaluate_goal  # noqa: F401  (module-attr parity)
-from tools.ai_agents.browser_agent import BrowseRequest  # noqa: F401  (module-attr parity)
+from core.tools.ai_agents.browser_agent import BrowseRequest  # noqa: F401  (module-attr parity)
 
 router = APIRouter(
     prefix="/api/browser", tags=["browser"], dependencies=[Depends(get_current_user_token)]

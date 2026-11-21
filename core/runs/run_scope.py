@@ -69,7 +69,7 @@ async def run_scope(
         yield None
         return
 
-    from runs.state_machine import PLANNED, POLICY_CHECKED, RUNNING
+    from core.runs.state_machine import PLANNED, POLICY_CHECKED, RUNNING
 
     run = None
     try:
@@ -103,7 +103,7 @@ async def run_scope(
         yield None
         return
 
-    from runs.state_machine import CANCELLED, FAILED, SUCCEEDED
+    from core.runs.state_machine import CANCELLED, FAILED, SUCCEEDED
 
     try:
         yield ctx
@@ -168,8 +168,8 @@ async def observe_run(
 
     session_cm: Any = None
     try:
-        from database.session import get_db_session_context
-        from runs.service import RunService
+        from core.database.session import get_db_session_context
+        from core.runs.service import RunService
 
         session_cm = get_db_session_context()
         session = await session_cm.__aenter__()

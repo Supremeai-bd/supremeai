@@ -25,7 +25,7 @@ apps/, packages/, shared/, or backend/tests (rg scan evidence on issue #1240).
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-from api.routes.browser import router
+from core.api.routes.browser import router
 
 _REAL_AUTOMATION = (
     "Legacy surf endpoints are retired (issue #1240): they reported fabricated "

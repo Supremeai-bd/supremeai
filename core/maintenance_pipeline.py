@@ -133,7 +133,7 @@ class MaintenancePipeline:
         """
         logger.info("🛡️ Immune System: Running performance regression detection...")
         try:
-            from api.routes.metrics import metrics_engine
+            from core.api.routes.metrics import metrics_engine
 
             history = metrics_engine.latency_history
             if not history:
@@ -284,9 +284,7 @@ class MaintenancePipeline:
                 try:
                     import asyncio as _asyncio
 
-                    from core.self_evolution.self_evolution_agent import (
-                        SelfEvolutionAgent,
-                    )
+                    from core.self_evolution.self_evolution_agent import SelfEvolutionAgent
                 except ImportError as e:
                     logger.error(f"Cannot import SelfEvolutionAgent: {e}")
                     return
@@ -315,7 +313,7 @@ class MaintenancePipeline:
                     # SELF-EVOLVE FIX (real): pass shared FitnessEngine singleton so
                     # the emergency tick() reads the SAME metrics as the regular loop.
                     try:
-                        from api.deps import get_fitness_engine
+                        from core.api.deps import get_fitness_engine
 
                         _evo = SelfEvolutionAgent(
                             fitness_engine=get_fitness_engine(),

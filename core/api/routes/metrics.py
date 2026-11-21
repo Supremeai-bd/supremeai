@@ -1,6 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
 
-from api.dependencies import get_current_admin
+from core.api.dependencies import get_current_admin
 from core.config import settings
 from core.monitoring.logging_config import logger
 
@@ -12,17 +12,8 @@ from core.monitoring.logging_config import logger
 # `from api.routes.metrics import metrics_engine` in
 # core/maintenance_pipeline.py, patch("api.routes.metrics.metrics_engine") in
 # tests — keep resolving to the same singletons.
-from core.observability.metrics_registry import (
-    _PROMETHEUS_AVAILABLE,
-    SupremeMetricsEngine,
-    metrics_engine,
-    normalize_route_path,
-    record_error,
-    record_model_call,
-    record_request,
-    record_request_duration,
-)
-from workers.chaos_worker import NightlyChaosAuditor
+from core.observability.metrics_registry import _PROMETHEUS_AVAILABLE, SupremeMetricsEngine, metrics_engine, normalize_route_path, record_error, record_model_call, record_request, record_request_duration
+from core.workers.chaos_worker import NightlyChaosAuditor
 
 __all__ = [
     "_PROMETHEUS_AVAILABLE",

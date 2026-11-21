@@ -84,7 +84,7 @@ def create_memory_mcp_asgi_app() -> Starlette:
     if not _SDK_AVAILABLE:  # pragma: no cover
         raise RuntimeError("mcp SDK unavailable — memory MCP HTTP surface disabled")
 
-    from memory.mcp_server import build_server
+    from core.memory.mcp_server import build_server
 
     server = build_server()
     sse_transport = SseServerTransport(MCP_SESSIONS_PATH)

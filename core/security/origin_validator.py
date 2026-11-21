@@ -10,12 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from core.config import settings
 from core.config_parsers import parse_origin_list
 from core.monitoring.logging_config import logger
-from middleware.cors_policy import (
-    ADMIN_ORIGIN_DENYLIST,
-    USER_ORIGIN_DENYLIST,
-    resolve_admin_cors_origins,
-    resolve_user_cors_origins,
-)
+from core.middleware.cors_policy import ADMIN_ORIGIN_DENYLIST, USER_ORIGIN_DENYLIST, resolve_admin_cors_origins, resolve_user_cors_origins
 
 
 def _load_origins(env_var: str, default: frozenset[str]) -> frozenset[str]:

@@ -22,14 +22,14 @@ from core.advanced_reasoning import AdvancedReasoningEngine, ReasoningChain
 from core.engine.self_reflection import SelfReflectionLoop
 from core.evolution_module import EvolutionModule, EvolutionResult
 from core.monitoring.logging_config import logger
-from evolution.auto_evolution_controller import AutoEvolutionController
-from learning.pattern_recognizer import PatternMatch, PatternRecognizer
-from services.dynamic_planner import DynamicPlanningEngine, TaskDAG, TaskNode
-from services.intent_deciphering import IntentAnalysis, IntentDecipheringService
-from services.memory_service import CascadeMemoryService
-from services.memory_service import memory_service as global_memory_service
-from services.self_correction import SelfCorrectionService
-from services.tool_forge import ToolForgeService, ToolSpec
+from core.evolution.auto_evolution_controller import AutoEvolutionController
+from core.learning.pattern_recognizer import PatternMatch, PatternRecognizer
+from core.services.dynamic_planner import DynamicPlanningEngine, TaskDAG, TaskNode
+from core.services.intent_deciphering import IntentAnalysis, IntentDecipheringService
+from core.services.memory_service import CascadeMemoryService
+from core.services.memory_service import memory_service as global_memory_service
+from core.services.self_correction import SelfCorrectionService
+from core.services.tool_forge import ToolForgeService, ToolSpec
 
 
 @dataclass

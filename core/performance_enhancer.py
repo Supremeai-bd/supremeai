@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
-from brain.model_registry import ModelRegistry
+from core.brain.model_registry import ModelRegistry
 from core.config import settings
 from core.health.self_healer import RemediationPipeline, SelfHealerService
 from core.monitoring.logging_config import logger
@@ -74,7 +74,7 @@ class PerformanceOptimizer:
 
         # Initialize self-healing components
         try:
-            from utils.firestore_helpers import get_firestore_db
+            from core.utils.firestore_helpers import get_firestore_db
 
             db = get_firestore_db()
             if db:

@@ -14,7 +14,7 @@ from typing import Any
 from core.monitoring.logging_config import logger
 from core.task_contract import TaskContract, VerificationPolicy
 
-from runtime.task_result import CriterionResult, VerificationSummary
+from core.runtime.task_result import CriterionResult, VerificationSummary
 
 
 class VerifierEngine:

@@ -22,10 +22,10 @@ from core.errors.error_bus import with_error_bus
 from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus
 from core.monitoring.logging_config import logger
 from core.self_evolution.fitness_engine import FitnessEngine
-from database.tenant_db import TenantAwareFirestore
+from core.database.tenant_db import TenantAwareFirestore
 
 # শেয়ার্ড ইউটিলিটি — টেস্ট এনভায়রনমেন্ট চেক কেন্দ্রীভূত
-from utils.environment import is_test_environment
+from core.utils.environment import is_test_environment
 
 security = HTTPBearer()
 

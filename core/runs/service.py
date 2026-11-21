@@ -31,19 +31,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.monitoring.logging_config import logger
-from runs.budgets import BudgetSnapshot, check_budgets
-from runs.models import Run, RunEvent, RunType
-from runs.retry import RetryClass
-from runs.state_machine import (
-    CANCELLED,
-    FAILED,
-    FINALIZED,
-    RETRYING,
-    RUNNING,
-    TERMINAL_STATES,
-    WAITING_APPROVAL,
-    assert_transition,
-)
+from core.runs.budgets import BudgetSnapshot, check_budgets
+from core.runs.models import Run, RunEvent, RunType
+from core.runs.retry import RetryClass
+from core.runs.state_machine import CANCELLED, FAILED, FINALIZED, RETRYING, RUNNING, TERMINAL_STATES, WAITING_APPROVAL, assert_transition
 
 #: States from which cancellation is legal (pre-execution + running cluster).
 CANCELLABLE_STATES = (
@@ -494,7 +485,7 @@ class RunService:
         the external decision lands, callers resolve via ``transition``
         (-> RUNNING approved / -> FAILED rejected) — see ``resolve_approval``.
         """
-        from runs.hitl import make_approval_detail
+        from core.runs.hitl import make_approval_detail
 
         run = await self.get_run(session, run_id)
         assert_transition(run.status, WAITING_APPROVAL)

@@ -83,7 +83,7 @@ def _effective_env() -> str:
     """
     env = ""
     try:
-        from core.config import settings  # imported lazily to avoid import cycles
+        from core.config import settings
 
         env = (getattr(settings, "env", "") or "").lower()
     except Exception:  # pragma: no cover - defensive: config unavailable

@@ -16,9 +16,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from core.monitoring.logging_config import logger
-from services.dynamic_planner import TaskDAG, TaskNode
-from services.memory_service import CascadeMemoryService
-from services.memory_service import memory_service as global_memory_service
+from core.services.dynamic_planner import TaskDAG, TaskNode
+from core.services.memory_service import CascadeMemoryService
+from core.services.memory_service import memory_service as global_memory_service
 
 
 @dataclass

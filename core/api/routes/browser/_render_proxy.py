@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Response
 
-from api.routes.browser import router
+from core.api.routes.browser import router
 from core.config_parsers import parse_origin_list
 from core.monitoring.logging_config import logger
 

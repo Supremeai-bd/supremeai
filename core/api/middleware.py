@@ -264,7 +264,7 @@ class GlobalRateLimiterMiddleware(BaseHTTPMiddleware):
 
         client_ip = request.client.host if request.client else "unknown"
 
-        from middleware.rate_limiter import AsyncRateLimiter
+        from core.middleware.rate_limiter import AsyncRateLimiter
 
         limiter = AsyncRateLimiter()
         is_allowed = await limiter.acquire(
@@ -319,12 +319,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         # সম্পূর্ণ idempotency middleware silent no-op হয়ে যেত। Security middleware
         # silent skip করবে না — import error হলে fail-loud log + explicit metric
         # (non-blocking raise নয় কারণ এটি request-path মিডলওয়্যার)।
-        from core.cache.redis_manager import (
-            acquire_idempotency_lock,
-            cache_response_and_release_lock,
-            redis_manager,
-            release_idempotency_lock,
-        )
+        from core.cache.redis_manager import acquire_idempotency_lock, cache_response_and_release_lock, redis_manager, release_idempotency_lock
 
         # FIX (P1, review 2026-09-12): compute the scoped key before any Redis
         # usage so the lock path below is user-scoped too.

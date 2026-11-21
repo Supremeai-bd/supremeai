@@ -60,7 +60,7 @@ def safe_execute(code: str) -> dict[str, Any]:
     """
     try:
         # ``run_restricted`` returns the locals dictionary after sandboxed exec.
-        from tools.code.safe_executor import run_restricted
+        from core.tools.code.safe_executor import run_restricted
 
         local_vars = run_restricted(code)
         if "result" in local_vars:

@@ -17,10 +17,10 @@ from core.config import settings
 from core.monitoring.logging_config import logger
 from core.resilience.circuit_breaker import CircuitBreaker
 from core.security import API_KEY_PREFIX, hash_api_key, mask_api_key
-from database.pgbouncer_pool import get_db_pool
-from middleware.rate_limiter import AsyncRateLimiter
-from models.api_key import record_api_key_usage
-from utils.environment import is_test_environment
+from core.database.pgbouncer_pool import get_db_pool
+from core.middleware.rate_limiter import AsyncRateLimiter
+from core.models.api_key import record_api_key_usage
+from core.utils.environment import is_test_environment
 
 
 def _extract_client_ip(request: Request) -> str:

@@ -58,7 +58,7 @@ class GCPFirestoreVerificationQueue:
         self.mode = "local_sqlite"
         self.db_path = db_path or os.getenv("GCP_FIRESTORE_SQLITE_PATH")
 
-        from utils.environment import is_test_environment
+        from core.utils.environment import is_test_environment
 
         is_test = is_test_environment()
         if FIRESTORE_AVAILABLE and self.project_id and not is_test:
@@ -422,6 +422,6 @@ def get_firestore_client(project_id: str | None = None):
     নতুন কোডের জন্য utils.firestore_helpers.get_firestore_db() ব্যবহার করুন।
     """
     # রিফ্যাক্টর: শেয়ার্ড ইউটিলিটিতে ডেলিগেট করা হচ্ছে
-    from utils.firestore_helpers import get_firestore_db as _get_db
+    from core.utils.firestore_helpers import get_firestore_db as _get_db
 
     return _get_db(project_id)

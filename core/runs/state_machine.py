@@ -32,7 +32,7 @@ Guards (enforced by :func:`assert_transition`):
 
 from __future__ import annotations
 
-from runs.retry import is_retryable as _is_retryable_class
+from core.runs.retry import is_retryable as _is_retryable_class
 
 # ---------------------------------------------------------------------------
 # States (stored as lowercase strings in runs.status)

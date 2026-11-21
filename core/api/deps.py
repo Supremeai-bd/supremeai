@@ -16,7 +16,7 @@ ErrorEvents (see verify_autonomous_agent_token).
 
 from __future__ import annotations
 
-from api.dependencies import (  # noqa: F401 — canonical re-export module (__all__ below)
+from core.api.dependencies import (  # noqa: F401 — canonical re-export module (__all__ below)
     get_ai_integrator,  # noqa: F401
     get_current_admin,  # noqa: F401
     get_current_tenant,  # noqa: F401

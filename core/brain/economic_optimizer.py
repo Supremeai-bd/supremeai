@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from services.config_service import ConfigService
+from core.services.config_service import ConfigService
 
 logger = logging.getLogger(__name__)
 

@@ -209,7 +209,7 @@ class ControlTowerClient:
         connection-অনুপস্থিতির RuntimeError আগের মতোই ছড়ায় — রান সেটাকেই
         FAILED-হিসেবে রেকর্ড করে (সত্য প্রতিফলন)।
         """
-        from runs.run_scope import observe_run
+        from core.runs.run_scope import observe_run
 
         async with observe_run(
             run_type="mcp",

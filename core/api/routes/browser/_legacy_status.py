@@ -5,9 +5,9 @@ Split out of the former single-module api/routes/browser.py verbatim.
 
 from fastapi import Depends, HTTPException
 
-from api.deps import get_current_user_token
-from api.routes.browser import router
-from api.routes.browser._state import BROWSER_STATUS, RECENT_ACTIVITIES
+from core.api.deps import get_current_user_token
+from core.api.routes.browser import router
+from core.api.routes.browser._state import BROWSER_STATUS, RECENT_ACTIVITIES
 
 
 @router.get("/surf/status")

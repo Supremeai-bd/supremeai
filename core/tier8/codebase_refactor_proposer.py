@@ -25,7 +25,7 @@ from core.errors.error_pattern_db import ErrorPatternDB
 from core.feedback_loop import FeedbackLoop
 from core.llm.llm_gateway import LLMGateway, get_llm_gateway
 from core.observability.telemetry import get_tracer, trace_span
-from services.config_service import ConfigService
+from core.services.config_service import ConfigService
 
 
 @dataclass(frozen=True, slots=True)

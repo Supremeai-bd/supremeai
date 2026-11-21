@@ -119,9 +119,7 @@ class ExperienceDatabase:
             # when it is unavailable too do we stay a true pass-through.
             if os.getenv("USE_SUPABASE_VECTOR", "true").lower() == "true":
                 try:
-                    from adaptive_engine.supabase_vector_backend import (
-                        SupabaseVectorBackend,
-                    )
+                    from core.adaptive_engine.supabase_vector_backend import SupabaseVectorBackend
 
                     backend = SupabaseVectorBackend()
                     if backend.is_available:
@@ -173,7 +171,7 @@ class ExperienceDatabase:
         use_supabase = os.getenv("USE_SUPABASE_VECTOR", "true").lower() == "true"
         if use_supabase:
             try:
-                from adaptive_engine.supabase_vector_backend import SupabaseVectorBackend
+                from core.adaptive_engine.supabase_vector_backend import SupabaseVectorBackend
 
                 self.supabase_backend = SupabaseVectorBackend()
                 if self.supabase_backend.is_available:
@@ -402,7 +400,7 @@ class ExperienceDatabase:
             try:
                 import asyncio
 
-                from adaptive_engine.learning_loop import get_learning_loop
+                from core.adaptive_engine.learning_loop import get_learning_loop
 
                 loop_instance = get_learning_loop()
 

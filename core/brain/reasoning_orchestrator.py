@@ -6,9 +6,9 @@ from typing import Any
 
 from core.monitoring.logging_config import logger
 
-from memory.episodic_memory import EpisodicMemory
-from memory.long_term_memory import LongTermMemory
-from tools.code.cot_reasoner import ChainOfThoughtReasoner
+from core.memory.episodic_memory import EpisodicMemory
+from core.memory.long_term_memory import LongTermMemory
+from core.tools.code.cot_reasoner import ChainOfThoughtReasoner
 
 
 class ReasoningOrchestrator:
@@ -28,7 +28,7 @@ class ReasoningOrchestrator:
     def model_router(self) -> Any:
         if self._model_router is None:
             try:
-                from brain.model_router import ModelRouter
+                from core.brain.model_router import ModelRouter
 
                 self._model_router = ModelRouter()
             except Exception as exc:
@@ -151,7 +151,7 @@ class ReasoningOrchestrator:
                 available_tools[t] = f"Tool identifier: {t}"
         else:
             try:
-                from tools.agent_tools import SUPREME_TOOLS
+                from core.tools.agent_tools import SUPREME_TOOLS
 
                 for fn in SUPREME_TOOLS:
                     doc = (fn.__doc__ or "").strip().split("\n")[0]
@@ -296,7 +296,7 @@ class ReasoningOrchestrator:
 
     async def execute_decomposed_tasks(self, task_graph: dict[str, Any]) -> dict[str, Any]:
         """Execute a DAG of decomposed tasks sequentially based on dependencies."""
-        from brain.task_execution_engine import TaskExecutionEngine
+        from core.brain.task_execution_engine import TaskExecutionEngine
 
         engine = TaskExecutionEngine()
         return await engine.execute_decomposed_tasks(task_graph)

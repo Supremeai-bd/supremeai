@@ -15,17 +15,11 @@ from typing import Any
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from api.deps import get_current_tenant, get_current_user_token
-from api.routes.browser import router
-from core.neon_repository import (
-    create_task as create_neon_task,
-)
-from core.neon_repository import (
-    delete_task as delete_neon_task,
-)
-from core.neon_repository import (
-    update_task_status as update_neon_task_status,
-)
+from core.api.deps import get_current_tenant, get_current_user_token
+from core.api.routes.browser import router
+from core.neon_repository import create_task as create_neon_task
+from core.neon_repository import delete_task as delete_neon_task
+from core.neon_repository import update_task_status as update_neon_task_status
 from core.task_policy import evaluate_goal
 
 FINDINGS: list[dict[str, Any]] = []

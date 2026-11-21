@@ -19,7 +19,7 @@ from fastapi.security import HTTPBearer
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from core.monitoring.logging_config import logger
-from services.config_service import ConfigService
+from core.services.config_service import ConfigService
 
 # Configure logging
 
@@ -297,7 +297,7 @@ class RateLimiter:
                 return f"user:{uid}"
 
         # Fall back to IP address (R2-08: proxy-aware, spoof-resistant)
-        from utils.client_ip import get_client_ip
+        from core.utils.client_ip import get_client_ip
 
         client_ip = get_client_ip(request)
         if not client_ip or client_ip == "unknown":

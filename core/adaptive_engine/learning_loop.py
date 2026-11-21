@@ -23,7 +23,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from adaptive_engine._store import get_conn, jdump, jload
+from core.adaptive_engine._store import get_conn, jdump, jload
 
 
 class LearningStage(enum.StrEnum):

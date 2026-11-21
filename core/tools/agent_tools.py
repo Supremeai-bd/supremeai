@@ -175,7 +175,7 @@ def execute_python_code(code: str) -> str:
     logger.info(f"⚙️ [TOOL] Executing Python code in sandbox (length={len(code)} chars)")
 
     try:
-        from tools.devops.docker_sandbox import DockerSandbox
+        from core.tools.devops.docker_sandbox import DockerSandbox
 
         sandbox = DockerSandbox(image="python:3.11-slim")
 
@@ -223,7 +223,7 @@ def cot_verify_math(expression: str, claimed_result: str) -> str:
     বাংলা: LLM-এর দাবি-করা গাণিতিক ফল sympy দিয়ে সত্য-যাচাই —
     hallucinated arithmetic ধরার governed প্রথম-ফ্লিট টুল।
     """
-    from tools.code.cot_reasoner import verify_symbolic_math
+    from core.tools.code.cot_reasoner import verify_symbolic_math
 
     result = verify_symbolic_math(str(expression), str(claimed_result))
     verdict = "VERIFIED" if result.get("is_verified") else "REFUTED"

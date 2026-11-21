@@ -10,8 +10,8 @@ except ImportError:
     select = AsyncSession = Session = None  # type: ignore
 
 from core.monitoring.logging_config import logger
-from models.system_config import SystemConfig
-from services.config_registry import get_definition, validate_value
+from core.models.system_config import SystemConfig
+from core.services.config_registry import get_definition, validate_value
 
 
 class ConfigService:

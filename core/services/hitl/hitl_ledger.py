@@ -6,7 +6,7 @@ from typing import Any
 from core.monitoring.logging_config import logger
 from core.security.cryptographic_ledger import CryptographicLedger
 
-from database.tenant_db import TenantAwareFirestore
+from core.database.tenant_db import TenantAwareFirestore
 
 
 class HITLAuditLedger(CryptographicLedger):
@@ -29,7 +29,7 @@ class HITLAuditLedger(CryptographicLedger):
         """
         # 1. Supabase Postgres check
         try:
-            from database.supabase_client import db
+            from core.database.supabase_client import db
 
             client = getattr(db, "service_client", None) or getattr(db, "client", None)
             if client:
@@ -89,7 +89,7 @@ class HITLAuditLedger(CryptographicLedger):
 
         # 1. Save to Supabase append-only table
         try:
-            from database.supabase_client import db
+            from core.database.supabase_client import db
 
             client = getattr(db, "service_client", None) or getattr(db, "client", None)
             if client:

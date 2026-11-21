@@ -10,8 +10,8 @@ import asyncio
 
 from pydantic import BaseModel
 
-from api.routes.browser import router
-from api.routes.browser._tasks import GoalRequest
+from core.api.routes.browser import router
+from core.api.routes.browser._tasks import GoalRequest
 
 
 class SemanticClickRequest(BaseModel):

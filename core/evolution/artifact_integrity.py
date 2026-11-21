@@ -8,11 +8,7 @@ import json
 from typing import Any
 
 from core.monitoring.logging_config import logger
-from evolution.change_proposal import (
-    ChangeProposalManager,
-    ProposalState,
-    get_change_manager,
-)
+from core.evolution.change_proposal import ChangeProposalManager, ProposalState, get_change_manager
 
 
 def canonical_artifact_hash(code: str, schema: dict[str, Any] | None = None) -> str:

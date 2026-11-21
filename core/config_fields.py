@@ -11,14 +11,12 @@ from pydantic_settings import NoDecode
 # historical `from core.config_fields import parse_origin_list` path keeps
 # working. Middleware (cors_policy) imports the leaf directly — it must stay
 # pydantic-free, and this module deliberately pulls in pydantic.
-from core.config_parsers import parse_origin_list  # re-export (do not remove)
+from core.config_parsers import parse_origin_list
 
 #: The user-origin floor, owned by cors_policy.py. Imported lazily-safe: that
 #: module is dependency-free by design, so this import cannot create a cycle or
 #: pull in FastAPI at settings-import time.
-from core.middleware.cors_policy import (
-    DEFAULT_USER_ALLOWED_ORIGINS as _DEFAULT_USER_CORS_FLOOR,
-)
+from core.middleware.cors_policy import DEFAULT_USER_ALLOWED_ORIGINS as _DEFAULT_USER_CORS_FLOOR
 
 __all__ = ["SettingsFieldsMixin", "parse_origin_list"]
 

@@ -20,8 +20,8 @@ from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from api.deps import get_current_user_token
-from api.middleware import CSRFMiddleware, GlobalRateLimiterMiddleware
+from core.api.deps import get_current_user_token
+from core.api.middleware import CSRFMiddleware, GlobalRateLimiterMiddleware
 from core.factory import SupremeAIFactory, get_factory
 from core.integration_layer import SupremeAIIntegrator
 from core.monitoring.logging_config import logger
@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
     if factory:
         await factory.graceful_shutdown()
     try:
-        from database.session import dispose_engine
+        from core.database.session import dispose_engine
 
         await dispose_engine()
     except Exception as e:
@@ -86,12 +86,8 @@ app = FastAPI(
 import os as _os
 
 from core.config_parsers import parse_origin_list
-from middleware.cors_policy import (
-    resolve_admin_cors_origins as _resolve_admin_cors_origins,
-)
-from middleware.cors_policy import (
-    resolve_user_cors_origins as _resolve_user_cors_origins,
-)
+from core.middleware.cors_policy import resolve_admin_cors_origins as _resolve_admin_cors_origins
+from core.middleware.cors_policy import resolve_user_cors_origins as _resolve_user_cors_origins
 
 _dev_origins = [
     "http://localhost:3000",  # is_local()

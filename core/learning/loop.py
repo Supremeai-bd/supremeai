@@ -364,7 +364,7 @@ class LearningLoopAgent:
     @staticmethod
     def _get_db() -> Any | None:
         try:
-            from database.supabase_client import db as supabase_db
+            from core.database.supabase_client import db as supabase_db
 
             return supabase_db
         except Exception as exc:  # pragma: no cover

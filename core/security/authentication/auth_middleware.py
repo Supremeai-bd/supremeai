@@ -17,7 +17,7 @@ from core.security import JWT_AUDIENCE, JWT_ISSUER
 from jwt import ExpiredSignatureError
 from jwt import PyJWTError as JWTError
 
-from utils.environment import is_test_environment
+from core.utils.environment import is_test_environment
 
 ASGIScope = dict[str, Any]
 ASGISend = Callable[[dict[str, Any]], Awaitable[None]]

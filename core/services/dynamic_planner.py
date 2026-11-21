@@ -17,7 +17,7 @@ from typing import Any
 
 from core.llm.advanced_model_router import ExpertType
 from core.monitoring.logging_config import logger
-from services.intent_deciphering import IntentAnalysis
+from core.services.intent_deciphering import IntentAnalysis
 
 
 @dataclass

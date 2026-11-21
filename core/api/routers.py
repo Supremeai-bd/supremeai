@@ -6,8 +6,8 @@ import json
 
 from fastapi import Depends, FastAPI
 
-from api import register_router
-from api.deps import get_current_user_token
+from core.api import register_router
+from core.api.deps import get_current_user_token
 from core.config import settings
 from core.monitoring.logging_config import logger
 
@@ -48,6 +48,8 @@ ALL_ROUTERS = [
     {"path": "api.routes.deep_research", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.prompt_templates", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.reasoning", "prefix": "", "is_admin": False, "is_critical": False},
+    # Core API → Cognitive dispatcher: authenticated pipeline entry point.
+    {"path": "api.routes.cognitive_pipeline", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.scheduled_tasks", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.share", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.slash_commands", "prefix": "", "is_admin": False, "is_critical": False},
@@ -537,7 +539,7 @@ def register_all_routers(app: FastAPI) -> None:
 
     registered = 0
     mounted = 0
-    from api import _registration_report
+    from core.api import _registration_report
 
     report_start = len(_registration_report)
     skipped = 0
@@ -617,7 +619,7 @@ def register_all_routers(app: FastAPI) -> None:
         logger.info(f"Memory MCP HTTP mount skipped for SERVICE_ROLE={current_role}")
     else:
         try:
-            from api.routes.memory_mcp_http import create_memory_mcp_asgi_app
+            from core.api.routes.memory_mcp_http import create_memory_mcp_asgi_app
 
             app.mount("/mcp", create_memory_mcp_asgi_app())
         except Exception as exc:

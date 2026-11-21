@@ -10,14 +10,17 @@ import re
 from collections import Counter
 from pathlib import Path
 
-EXCLUDED={'.git','node_modules','.venv','venv','dist','build','coverage','.next','.turbo','target','__pycache__','.pytest_cache'}
+EXCLUDED={'.git','node_modules','.venv','.venv_check','venv','dist','build','coverage','.next','.turbo','target','__pycache__','.pytest_cache','.mypy_cache','.ruff_cache','.arena'}
 EXTS={'.py','.ts','.tsx','.js','.jsx','.mjs','.cjs','.go','.rs','.java','.kt','.dart','.php','.rb','.json','.yaml','.yml','.toml','.ini','.md','.sql','.sh','.ps1'}
 IMPORT_RE=re.compile(r'^\s*(?:from\s+([\w.]+)|import\s+([\w.]+))',re.MULTILINE)
 
 
-def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('root',nargs='?',default='.'); ap.add_argument('--out',default='reports/project-fingerprint.json'); args=ap.parse_args()
-    root=Path(args.root).resolve(); files=[]; ext=Counter(); dirs=Counter(); sizes=[]; imports=Counter(); symbols=Counter()
+def scan(root):
+    """Return a deterministic architecture fingerprint payload for ``root``.
+
+    Pure function (no argparse, no file writes) — safe to import and call.
+    """
+    root=Path(root).resolve(); files=[]; ext=Counter(); dirs=Counter(); sizes=[]; imports=Counter(); symbols=Counter()
     for base, ds, ns in os.walk(root):
         ds[:]=[d for d in ds if d not in EXCLUDED]
         for n in ns:
@@ -40,5 +43,13 @@ def main():
         r=str(p.relative_to(root)).replace('\\','/').lower()
         if any(x in r for x in ['api/','routes/','controllers/','services/','workers/','functions/','handlers/']): likely_services.append(r)
     payload={'project':root.name,'root':str(root),'fingerprint':hashlib.sha256('\n'.join(sorted(str(p.relative_to(root)) for p in files)).encode()).hexdigest()[:16], 'files':len(files),'extensions':ext.most_common(20),'top_level_dirs':dirs.most_common(20),'manifests':manifest,'largest_files':[{'path':str(p.relative_to(root)).replace('\\','/'),'bytes':s} for s,p in sorted(sizes,reverse=True)[:25]],'import_hubs':imports.most_common(25),'symbol_counts':dict(symbols),'service_like_files':likely_services[:100]}
+    return payload
+
+
+def main():
+    ap=argparse.ArgumentParser(); ap.add_argument('root',nargs='?',default='.'); ap.add_argument('--out',default='reports/project-fingerprint.json'); args=ap.parse_args()
+    root=Path(args.root).resolve()
+    payload=scan(root)
     out=Path(args.out); out.parent.mkdir(parents=True,exist_ok=True); out.write_text(json.dumps(payload,indent=2,ensure_ascii=False),encoding='utf-8'); print(json.dumps(payload,indent=2,ensure_ascii=False))
+
 if __name__=='__main__': main()

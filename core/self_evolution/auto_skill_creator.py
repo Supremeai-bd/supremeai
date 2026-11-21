@@ -23,7 +23,7 @@ if repo_root not in sys.path:
 
 from core.monitoring.logging_config import logger
 from core.self_evolution.fitness_engine import FitnessEngine
-from database.tenant_db import TenantAwareFirestore
+from core.database.tenant_db import TenantAwareFirestore
 
 try:
     try:
@@ -48,7 +48,7 @@ if backend_dir not in sys.path:
 # The scanner is now a hard dependency: if it cannot be imported, skill creation
 # must be unusable (never silently unsecured).
 try:
-    from tools.code.fuzz_sandbox import SecurityError, run_sandbox_ast_check
+    from core.tools.code.fuzz_sandbox import SecurityError, run_sandbox_ast_check
 except Exception as _scanner_import_error:  # pragma: no cover - fail-closed path
     logger.critical(
         "P0: security scanner unavailable — skill creation FAILS CLOSED "
@@ -110,7 +110,7 @@ def _resolve_firestore_client():
     strategy (``monkeypatch.setattr(auto_skill_creator, "_resolve_firestore_client", ...)``).
     """
     try:
-        from services.storage.gcp_firestore import get_firestore_client
+        from core.services.storage.gcp_firestore import get_firestore_client
 
         return get_firestore_client()
     except Exception as e:
@@ -407,7 +407,7 @@ class AutoSkillCreator:
             # Load module from quarantine and execute validation tests inside the restricted Docker Sandbox
             # বাংলা মন্তব্য: এআই জেনারেটেড কোডটি সরাসরি লোকাল ইন্টারপ্রেটারে রান না করিয়ে
             # Dockerized Cloud Sandbox এর সাহায্যে সিকিউর এনভায়রনমেন্টে রান করানো হচ্ছে।
-            from tools.code.local_code_executor import LocalCodeExecutor
+            from core.tools.code.local_code_executor import LocalCodeExecutor
 
             sandbox = LocalCodeExecutor()
 
@@ -476,10 +476,10 @@ asyncio.run(_supreme_test_run())
             )
 
             # 1. Multi-factor Evidence-Backed Fitness Evaluation
-            from evolution.artifact_integrity import ArtifactIntegrityGate, canonical_artifact_hash
-            from evolution.benchmark_runner import get_benchmark_runner
-            from evolution.change_proposal import ChangeType, ProposalState, get_change_manager
-            from evolution.fitness_evaluator import get_fitness_evaluator
+            from core.evolution.artifact_integrity import ArtifactIntegrityGate, canonical_artifact_hash
+            from core.evolution.benchmark_runner import get_benchmark_runner
+            from core.evolution.change_proposal import ChangeType, ProposalState, get_change_manager
+            from core.evolution.fitness_evaluator import get_fitness_evaluator
 
             elapsed_ms = (time.time() - start_time) * 1000.0
             fitness_eval = get_fitness_evaluator().evaluate_skill_execution(
@@ -551,7 +551,7 @@ asyncio.run(_supreme_test_run())
             )
 
             # 4. Suspend for Human-in-the-Loop (HITL) Approval
-            from services.hitl.engine import HITLEngine
+            from core.services.hitl.engine import HITLEngine
 
             payload = {
                 "skill_name": skill_name,
@@ -579,7 +579,7 @@ asyncio.run(_supreme_test_run())
 
             # Record successful experience for future pattern matching
             try:
-                from adaptive_engine.experience_db import Experience, ExperienceDatabase
+                from core.adaptive_engine.experience_db import Experience, ExperienceDatabase
 
                 exp_db = ExperienceDatabase()
                 exp_db.record_experience(

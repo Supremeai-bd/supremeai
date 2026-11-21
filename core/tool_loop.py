@@ -51,7 +51,7 @@ def tool_registry() -> dict[str, Callable[..., Any]]:
     বাংলা (M09 P-G): ``governed_tools()`` flag-off-এ SUPREME_TOOLS-এর
     প্রতিলিপি (আজকের আচরণ), flag-on-এ প্রথম-ফ্লিট টুল যুক্ত হয়।
     """
-    from tools.agent_tools import governed_tools
+    from core.tools.agent_tools import governed_tools
 
     return {fn.__name__: fn for fn in governed_tools()}
 
@@ -82,7 +82,7 @@ async def execute_tool_decision(decision: dict[str, Any]) -> dict[str, Any]:
     ``run_type="tool"`` রান হিসেবেও পর্যবেক্ষিত (flag-gated, best-effort —
     রান-ফ্যাব্রিক ব্যর্থতা টুল-নির্বাহ কখনো ব্লক করে না)।
     """
-    from runs.run_scope import observe_run
+    from core.runs.run_scope import observe_run
 
     tool_name = str((decision or {}).get("tool", "done"))
     async with observe_run(

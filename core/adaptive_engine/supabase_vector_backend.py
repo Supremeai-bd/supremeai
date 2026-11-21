@@ -45,7 +45,7 @@ class SupabaseVectorBackend:
 
     def __init__(self) -> None:
         # Lazy import to avoid circular deps
-        from database.supabase_client import db as supabase_db
+        from core.database.supabase_client import db as supabase_db
 
         self.supabase_db = supabase_db
         self._available: bool | None = None  # cached availability check

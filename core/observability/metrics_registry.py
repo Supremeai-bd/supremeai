@@ -59,7 +59,7 @@ def normalize_route_path(path: str) -> str:
     return clean_path
 
 # শেয়ার্ড ইউটিলিটি — Firestore ইনিশিয়ালাইজেশন কেন্দ্রীভূত
-from utils.firestore_helpers import get_firestore_db
+from core.utils.firestore_helpers import get_firestore_db
 
 
 class SupremeMetricsEngine:

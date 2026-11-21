@@ -32,19 +32,19 @@ from core.monitoring.logging_config import logger
 from core.resilience.safety_rollback_manager import SafetyRollbackManager
 
 try:
-    from evolution.auto_evolution_controller import AutoEvolutionController
+    from core.evolution.auto_evolution_controller import AutoEvolutionController
 except Exception:
     AutoEvolutionController = None
 try:
-    from learning.pattern_recognizer import PatternRecognizer
+    from core.learning.pattern_recognizer import PatternRecognizer
 except Exception:
     PatternRecognizer = None
 try:
-    from scaling.distributed_manager import DistributedScalingManager
+    from core.scaling.distributed_manager import DistributedScalingManager
 except Exception:
     DistributedScalingManager = None
 try:
-    from services.living_engine import LivingEngineOrchestrator, SolutionResult
+    from core.services.living_engine import LivingEngineOrchestrator, SolutionResult
 except Exception:
     LivingEngineOrchestrator = None
     SolutionResult = None

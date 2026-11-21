@@ -14,8 +14,8 @@ from typing import Any
 from fastapi import Depends
 from pydantic import BaseModel, ConfigDict, StrictBool
 
-from api.routes.admin_dashboard import require_admin_token
-from api.routes.browser import router
+from core.api.routes.admin_dashboard import require_admin_token
+from core.api.routes.browser import router
 
 SYSTEM_LEARNING: dict[str, Any] = {"enabled": True}
 

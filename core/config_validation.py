@@ -768,7 +768,7 @@ def build_config_validation_report(env: str | None = None) -> ConfigValidationRe
 
     # CORS unification check (specs/001): wildcard must never survive.
     try:
-        from middleware.cors_policy import resolve_admin_cors_origins, resolve_user_cors_origins
+        from core.middleware.cors_policy import resolve_admin_cors_origins, resolve_user_cors_origins
 
         raw_user = parse_origin_list(os.getenv("ALLOWED_ORIGINS", ""))  # roadmap 1.4 (#1173)
         if not raw_user:
