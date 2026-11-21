@@ -33,6 +33,16 @@ function err(e: unknown) {
   return { isError: true, content: [{ type: "text" as const, text: `Error: ${(e as Error).message}` }] };
 }
 
+function infisicalCtx(environment?: string, secretPath?: string) {
+  const token = process.env.INFISICAL_TOKEN;
+  const projectId = process.env.INFISICAL_PROJECT_ID;
+  if (!token || !projectId) throw new Error("INFISICAL_TOKEN or INFISICAL_PROJECT_ID not configured");
+  const env = environment || process.env.INFISICAL_ENV || "prod";
+  const path = secretPath || "/";
+  const qs = new URLSearchParams({ workspaceId: projectId, environment: env, secretPath: path });
+  return { token, projectId, env, path, qs };
+}
+
 export async function registerIntegrationTools(server: McpServer): Promise<void> {
   // ── GitHub: Push File & Merge PR ──
   server.tool(
@@ -181,11 +191,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
     async ({ secretName, secretValue, environment, secretPath }) => {
       try {
         requireAgentOrAbove();
-        const token = process.env.INFISICAL_TOKEN;
-        const projectId = process.env.INFISICAL_PROJECT_ID;
-        if (!token || !projectId) throw new Error("INFISICAL_TOKEN or INFISICAL_PROJECT_ID not configured");
-        const env = environment || process.env.INFISICAL_ENV || "prod";
-        const path = secretPath || "/";
+        const { token, projectId, env, path } = infisicalCtx(environment, secretPath);
         const data = await httpJson(`https://app.infisical.com/api/v3/secrets/raw/${encodeURIComponent(secretName)}`, {
           method: "POST",
           headers: {
@@ -217,12 +223,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
     async ({ environment, secretPath }) => {
       try {
         requireAgentOrAbove();
-        const token = process.env.INFISICAL_TOKEN;
-        const projectId = process.env.INFISICAL_PROJECT_ID;
-        if (!token || !projectId) throw new Error("INFISICAL_TOKEN or INFISICAL_PROJECT_ID not configured");
-        const env = environment || process.env.INFISICAL_ENV || "prod";
-        const path = secretPath || "/";
-        const qs = new URLSearchParams({ workspaceId: projectId, environment: env, secretPath: path });
+        const { token, env, path, qs } = infisicalCtx(environment, secretPath);
         const data = (await httpJson(`https://app.infisical.com/api/v3/secrets/raw?${qs}`, {
           headers: { Authorization: `Bearer ${token}` },
         })) as { secrets?: Array<{ secretKey?: string }> };
