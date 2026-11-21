@@ -313,8 +313,6 @@ async def probe_service(service: ServiceConfig) -> ServiceHealthResult:
         )
 
 
-async def probe_all_services() -> list[ServiceHealthResult]:
-    """Probe all services concurrently."""
 _cf_worker_url_st = os.environ.get("CLOUDFLARE_WORKER_URL", "").strip()
 if _cf_worker_url_st:
     COMPLETE_SERVICE_REGISTRY.append(
@@ -329,6 +327,8 @@ if _cf_worker_url_st:
         )
     )
 
+async def probe_all_services() -> list[ServiceHealthResult]:
+    """Probe all services concurrently."""
     tasks = [probe_service(svc) for svc in COMPLETE_SERVICE_REGISTRY]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
