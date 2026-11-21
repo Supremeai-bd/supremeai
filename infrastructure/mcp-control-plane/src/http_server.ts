@@ -442,7 +442,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         // a boot state is not an outage). Empty-array vacuous truth is the trap:
         // unhealthy === 0 is vacuously true over services = [].
         const status: string = services.length === 0 ? "starting" : unhealthy === 0 ? "ok" : unhealthy < services.length ? "degraded" : "outage";
-        const httpStatus = status === "outage" ? 503 : 200;
+        // বাংলা মন্তব্য: ডাউনস্ট্রিম সার্ভিস outage হলেও MCP Tower নিজে সচল আছে, তাই HTTP 200 রিটার্ন করা হচ্ছে (বডিতে status অপরিবর্তিত)।
+        const httpStatus = 200;
         // #2710 watchdog increment: additive staleness telemetry so consumers
         // can distinguish "all-clear" from "no data / data too old" (the #2665
         // anti-false-clear requirement). Additive keys only — existing

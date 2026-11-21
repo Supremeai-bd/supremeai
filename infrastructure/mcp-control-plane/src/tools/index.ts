@@ -45,6 +45,7 @@ import { registerRemediationTools } from "./remediation.tools.js";
 import { registerPlanningTools } from "./planning.tools.js";
 import { registerTinyBrainTools } from "./tiny_brain.tools.js";
 import { registerMasterDiagnoseTools } from "./master_diagnose.tools.js";
+import { registerIntegrationTools } from "./integrations.tools.js";
 
 /**
  * Registers all MCP tools with the server.
@@ -149,4 +150,7 @@ export async function registerAllTools(
 
   // ── Hugging Face Tiny Brain + Top AI Detector
   registerTinyBrainTools(server);
+
+  // ── Additional 3rd-Party Integrations & Core Actions
+  await registerIntegrationTools(server);
 }

@@ -247,6 +247,20 @@ export function buildAccountRegistry(): ProviderAccount[] {
       available: hasAnyGithubToken,
     },
 
+    // ── GitHub — SupremeAI Public (Supremeai-bd/supremeai-public) ──
+    {
+      id: "github-supremeai-public",
+      provider: "github",
+      displayName: `GitHub Repo (${GITHUB_ORGANIZATION}/supremeai-public)`,
+      role: "source-control",
+      environment: "production",
+      capabilities: ["health", "logs", "metrics"],
+      apiKeyRef: "GITHUB_TOKEN",
+      apiKeyRefs: ["GH_TOKEN", "GITHUB_PAT", "GITHUB_PAT_PAYKARIBAZARONLINE", "OPEN_SYNC_PAT", "SYNC_PAT"],
+      url: `https://api.github.com/repos/${GITHUB_ORGANIZATION}/supremeai-public`,
+      available: hasAnyGithubToken,
+    },
+
     // ── GitHub — Supremeai-bd Organization Level Monitor ──
     {
       id: "github-org-supremeai-bd",
