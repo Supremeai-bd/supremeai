@@ -122,15 +122,6 @@ COMPLETE_SERVICE_REGISTRY: list[ServiceConfig] = [
     ),
     # ─── EDGE & CDN ───────────────────────────────────────────────────────
     ServiceConfig(
-        name="cloudflare_worker",
-        display_name="Cloudflare Edge Worker",
-        category="edge",
-        url="https://supremeai-edge.your-subdomain.workers.dev",
-        health_endpoint="/health",
-        critical=True,
-        timeout=5.0,
-    ),
-    ServiceConfig(
         name="cloudflare_dns",
         display_name="Cloudflare DNS",
         category="edge",
@@ -321,6 +312,20 @@ async def probe_service(service: ServiceConfig) -> ServiceHealthResult:
             critical=service.critical,
         )
 
+
+_cf_worker_url_st = os.environ.get("CLOUDFLARE_WORKER_URL", "").strip()
+if _cf_worker_url_st:
+    COMPLETE_SERVICE_REGISTRY.append(
+        ServiceConfig(
+            name="cloudflare_worker",
+            display_name="Cloudflare Edge Worker",
+            category="edge",
+            url=_cf_worker_url_st.rstrip("/"),
+            health_endpoint="/health",
+            critical=True,
+            timeout=5.0,
+        )
+    )
 
 async def probe_all_services() -> list[ServiceHealthResult]:
     """Probe all services concurrently."""

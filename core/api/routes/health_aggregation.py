@@ -274,14 +274,21 @@ SERVICE_REGISTRY = [
         "critical": False,
         "timeout": 8.0,
     },
-    {
-        "name": "cloudflare_worker",
-        "display_name": "Edge Worker",
-        "url": "https://supremeai-edge.your-subdomain.workers.dev/health",
-        "critical": True,
-        "timeout": 5.0,
-    },
 ]
+
+# Cloudflare Edge Worker is only registered when its URL is configured via env
+# (no hardcoded deployment hostname -- see deployment_fallback_defaults doctrine).
+_cf_worker_url = os.environ.get("CLOUDFLARE_WORKER_URL", "").strip()
+if _cf_worker_url:
+    SERVICE_REGISTRY.append(
+        {
+            "name": "cloudflare_worker",
+            "display_name": "Edge Worker",
+            "url": _cf_worker_url.rstrip("/") + "/health",
+            "critical": True,
+            "timeout": 5.0,
+        }
+    )
 
 LLM_PROVIDERS = {
     "openrouter": {"url": "https://openrouter.ai/api/v1/models", "critical": False},
