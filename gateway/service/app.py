@@ -2804,7 +2804,7 @@ async def generate_ui_component(
 
     prompt = body.get("prompt") or (body.get("messages", [{}])[-1].get("content", "") if body.get("messages") else "")
     ui_payload = {
-        "model": "v0-web",
+        "model": os.getenv("V0_MODEL", "v0-1.0-md"),
         "messages": [
             {
                 "role": "system",
