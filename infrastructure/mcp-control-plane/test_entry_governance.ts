@@ -10,8 +10,9 @@
  * ছাড়াই রেজিস্টার হত — যা লাইভে anonymous execution হিসেবে প্রমাণিত (#1843,
  * #2391 V-1 matrix)। এই গার্ড তিনটি স্তরে সেই শ্রেণিকে যান্ত্রিকভাবে আটকে রাখে:
  *
- *   1. ENTRY PARITY: src/index.ts ও src/index.fixed.ts বাইট-সমান হতে বাধ্য —
- *      ভবিষ্যতে কেউ এক ফাইলে fix করে অন্যটি ভুলে গেলে CI লাল হবে।
+ *   1. SINGLE ENTRY (canonical, #2391 collapse): src/index.ts হলো একমাত্র
+ *      entry — কোনো byte-identical sibling থাকতে পারে না (index.fixed.ts
+ *      deletion, 2026-11-21)। ভবিষ্যতে কেউ দুইটা entry তৈরি করলে CI লাল হবে।
  *   2. GOVERNANCE PRESENCE: এন্ট্রিতে দুই রেজিস্ট্রেশন সারফেসই (server.tool
  *      override + registerTool override) governedHandler/toolAccessErrorAsync
  *      দিয়ে মোড়া থাকতে হবে — "one choke point, no competing wrappers"।
@@ -23,30 +24,28 @@
  * Import নিরাপত্তা: src/index.ts module-load-এই main() বুট করে, তাই এই টেস্ট
  * এন্ট্রিকে import করে না — static source assertions + pure policy imports।
  * (একই কারণে test_bridge_onboarding / test_c29_dual_emission শিম-শেপ mirror
- * করে; parity assertion নিশ্চিত করে mirror সবসময় সত্য থাকবে।)
+ * করে; duplicate-free entry assertion নিশ্চিত করে mirror সবসময় সত্য থাকবে।)
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { canAccessCapability, classifyToolCapability } from "./src/policy/mcp-access.js";
 
 const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 const ENTRY = readFileSync(path.join(PKG_ROOT, "src", "index.ts"), "utf8");
-const SIBLING = readFileSync(path.join(PKG_ROOT, "src", "index.fixed.ts"), "utf8");
 const PKG_JSON = JSON.parse(readFileSync(path.join(PKG_ROOT, "package.json"), "utf8")) as {
   main?: string;
   scripts?: Record<string, string>;
 };
 
-// ── 1) ENTRY PARITY — the #1452/#2454 "fix the sibling, forget the entry" pin ──
-assert.equal(
-  ENTRY,
-  SIBLING,
-  "entry drift detected: src/index.ts and src/index.fixed.ts diverged — landed fixes must " +
-    "be applied to BOTH entries (or the pair collapsed into one). This exact divergence is " +
-    "the #2391/#1843 root cause: the deployed build compiled from src/index.ts while every " +
-    "production fix landed only in index.fixed.ts.",
+// ── 1) SINGLE ENTRY — the #1452/#2454 "fix the sibling, forget the entry" pin ──
+assert.ok(
+  !existsSync(path.join(PKG_ROOT, "src", "index.fixed.ts")),
+  "entry sibling src/index.fixed.ts must not exist — landed fixes must be applied to the " +
+    "single canonical src/index.ts (the pair was collapsed #2391/#1843 root-cause fix). " +
+    "This exact divergence is the #2391/#1843 root cause: the deployed build compiled from " +
+    "src/index.ts while every production fix landed only in index.fixed.ts.",
 );
 
 // ── 2) GOVERNANCE PRESENCE — both registration surfaces wrapped ──
@@ -141,4 +140,4 @@ for (const tool of MUST_ALLOW) {
   );
 }
 
-console.log("entry governance tests passed (parity + dual-surface choke point + #2391 deny matrix)");
+console.log("entry governance tests passed (single-entry + dual-surface choke point + #2391 deny matrix)");

@@ -548,14 +548,8 @@
       "severity": "high"
     },
     {
-      "file": "infrastructure/mcp-control-plane/src/index.fixed.ts",
-      "line": 427,
-      "type": "empty-catch",
-      "severity": "high"
-    },
-    {
       "file": "infrastructure/mcp-control-plane/src/index.ts",
-      "line": 429,
+      "line": 443,
       "type": "empty-catch",
       "severity": "high"
     },
@@ -3884,14 +3878,8 @@
       "severity": "medium"
     },
     {
-      "file": "infrastructure/mcp-control-plane/src/index.fixed.ts",
-      "line": 440,
-      "type": "promise-catch-silent",
-      "severity": "medium"
-    },
-    {
       "file": "infrastructure/mcp-control-plane/src/index.ts",
-      "line": 442,
+      "line": 456,
       "type": "promise-catch-silent",
       "severity": "medium"
     },
