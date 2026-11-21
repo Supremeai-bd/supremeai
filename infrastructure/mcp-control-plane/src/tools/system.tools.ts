@@ -482,8 +482,9 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
           type: "text",
           text: JSON.stringify(
             {
-              summary: `${available}/${total} services available`,
+              summary: `${available}/${total} services available (config registry only — call system.health for live status)`,
               timestamp: new Date().toISOString(),
+              liveProbeRecommended: true,
               byProvider,
             },
             null,
