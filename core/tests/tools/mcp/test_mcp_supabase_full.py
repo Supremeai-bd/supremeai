@@ -171,6 +171,7 @@ class TestExecuteSql:
         assert out == {"error": "Failed to connect to database"}
 
     async def test_select_markdown_with_rows(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         conn = FakeConn(
             script={
@@ -185,6 +186,7 @@ class TestExecuteSql:
         assert hasattr(conn.cursor(), "close")
 
     async def test_select_markdown_empty(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         conn = FakeConn(script={"rows": [], "description": [("id",)]})
         _connect(monkeypatch, conn)
@@ -192,6 +194,7 @@ class TestExecuteSql:
         assert out == "# Query Results\n\nNo rows returned."
 
     async def test_select_markdown_pagination_over_100(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         rows = [(i, f"v{i}") for i in range(130)]
         conn = FakeConn(script={"rows": rows, "description": [("id",), ("v",)]})
@@ -200,6 +203,7 @@ class TestExecuteSql:
         assert "Showing 100 of 130 rows" in out
 
     async def test_select_json_format(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         conn = FakeConn(script={"rows": [(1, 2)], "description": [("a",), ("b",)]})
         _connect(monkeypatch, conn)
@@ -213,6 +217,7 @@ class TestExecuteSql:
         assert out == {"columns": ["a", "b"], "rows": [[1, 2]], "row_count": 1}
 
     async def test_select_json_no_description(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         conn = FakeConn(script={"rows": [(1,)]})
         _connect(monkeypatch, conn)
@@ -225,6 +230,7 @@ class TestExecuteSql:
         assert out["rows"] == [[1]]
 
     async def test_non_select_success(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         conn = FakeConn(script={"rowcount": 3})
         _connect(monkeypatch, conn)
@@ -236,6 +242,7 @@ class TestExecuteSql:
         assert conn.committed is True
 
     async def test_execute_exception_maps_error(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         conn = FakeConn(script={"raise": RuntimeError("syntax error near FROM")})
         _connect(monkeypatch, conn)
@@ -243,6 +250,7 @@ class TestExecuteSql:
         assert "SQL syntax error" in out
 
     async def test_close_failure_is_swallowed(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         conn = FakeConn(script={"rowcount": 1}, close_raises=True)
         _connect(monkeypatch, conn)
@@ -271,6 +279,7 @@ class TestCreateTable:
         assert out == {"error": "SUPABASE_DATABASE_URL not configured"}
 
     async def test_success_with_and_without_if_not_exists(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         conn = FakeConn()
         _connect(monkeypatch, conn)
@@ -298,6 +307,7 @@ class TestCreateTable:
         assert out == {"error": "Failed to connect to database"}
 
     async def test_db_error(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         conn = FakeConn(script={"raise": RuntimeError("permission denied for schema public")})
         _connect(monkeypatch, conn)
@@ -329,6 +339,7 @@ class TestRunMigration:
         assert out == {"error": "SUPABASE_DATABASE_URL not configured"}
 
     async def test_already_applied(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         conn = FakeConn(script={"rows": [(1,)]})
         _connect(monkeypatch, conn)
@@ -337,6 +348,7 @@ class TestRunMigration:
         assert conn.closed is True
 
     async def test_success(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         conn = FakeConn()
         _connect(monkeypatch, conn)
@@ -353,6 +365,7 @@ class TestRunMigration:
         assert out == {"error": "Failed to connect to database"}
 
     async def test_error_mapped(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         conn = FakeConn(script={"raise": RuntimeError("connection lost mid-flight")})
         _connect(monkeypatch, conn)
@@ -372,6 +385,7 @@ class TestListTables:
         assert out == {"error": "SUPABASE_DATABASE_URL not configured"}
 
     async def test_success(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         conn = FakeConn(script={"rows": [("alpha", "BASE TABLE"), ("beta", "VIEW")]})
         _connect(monkeypatch, conn)
@@ -380,6 +394,7 @@ class TestListTables:
         assert out["tables"][0] == {"name": "alpha", "type": "BASE TABLE"}
 
     async def test_no_connection_and_error(self, monkeypatch):
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         _authorized(monkeypatch)
         _connect(monkeypatch, None)
         out = _jq(await ms.supabase_list_tables())
@@ -402,6 +417,8 @@ class TestExplainQuery:
         assert out == {"error": "Failed to connect to database"}
 
     async def test_plan_without_analyze(self, monkeypatch):
+        _authorized(monkeypatch)
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         conn = FakeConn(script={"rows": ([{"Plan": {"Node": "Seq Scan"}}],)})
         _connect(monkeypatch, conn)
         out = _jq(
@@ -414,6 +431,8 @@ class TestExplainQuery:
         assert executed.startswith("EXPLAIN (FORMAT JSON)")
 
     async def test_plan_with_analyze(self, monkeypatch):
+        _authorized(monkeypatch)
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         conn = FakeConn(script={"rows": ([{"Plan": "X"}],)})
         _connect(monkeypatch, conn)
         out = _jq(
@@ -425,12 +444,16 @@ class TestExplainQuery:
         assert conn.executed[0][0].startswith("EXPLAIN (ANALYZE, FORMAT JSON)")
 
     async def test_no_plan_returned(self, monkeypatch):
+        _authorized(monkeypatch)
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         conn = FakeConn(script={"rows": []})
         _connect(monkeypatch, conn)
         out = _jq(await ms.supabase_explain_query(ms.ExplainQueryInput(query="SELECT * FROM t")))
         assert out == {"error": "No execution plan returned."}
 
     async def test_error_mapped(self, monkeypatch):
+        _authorized(monkeypatch)
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         conn = FakeConn(script={"raise": RuntimeError("connection down")})
         _connect(monkeypatch, conn)
         out = await ms.supabase_explain_query(ms.ExplainQueryInput(query="SELECT * FROM t"))
@@ -468,12 +491,16 @@ class TestDescribeTable:
         assert out == {"error": "Failed to connect to database"}
 
     async def test_not_found(self, monkeypatch):
+        _authorized(monkeypatch)
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         conn = self._conn(columns=[])
         _connect(monkeypatch, conn)
         out = _jq(await ms.supabase_describe_table(ms.DescribeTableInput(table_name="ghost")))
         assert out == {"error": "Table 'ghost' not found"}
 
     async def test_found_with_indexes(self, monkeypatch):
+        _authorized(monkeypatch)
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         conn = self._conn(
             columns=[("id", "integer", "NO", None), ("name", "text", "YES", "'x'")],
             indexes=[("t_pkey", "CREATE INDEX ...")],
@@ -486,6 +513,8 @@ class TestDescribeTable:
         assert out["indexes"][0]["name"] == "t_pkey"
 
     async def test_error_mapped(self, monkeypatch):
+        _authorized(monkeypatch)
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         conn = FakeConn(script={"raise": RuntimeError("permission denied")})
         _connect(monkeypatch, conn)
         out = await ms.supabase_describe_table(ms.DescribeTableInput(table_name="t"))
@@ -531,6 +560,8 @@ class TestLoguruFallbackBlocks:
     """
 
     async def test_execute_sql_close_error(self, monkeypatch):
+        _authorized(monkeypatch)
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         import sys
 
         monkeypatch.setitem(sys.modules, "loguru", None)
@@ -540,6 +571,8 @@ class TestLoguruFallbackBlocks:
         assert out["success"] is True
 
     async def test_create_table_close_error(self, monkeypatch):
+        _authorized(monkeypatch)
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         import sys
 
         monkeypatch.setitem(sys.modules, "loguru", None)
@@ -551,6 +584,8 @@ class TestLoguruFallbackBlocks:
         assert out["success"] is True
 
     async def test_run_migration_close_error(self, monkeypatch):
+        _authorized(monkeypatch)
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         import sys
 
         monkeypatch.setitem(sys.modules, "loguru", None)
@@ -565,6 +600,8 @@ class TestLoguruFallbackBlocks:
         assert out["success"] is True
 
     async def test_list_tables_close_error(self, monkeypatch):
+        _authorized(monkeypatch)
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         import sys
 
         monkeypatch.setitem(sys.modules, "loguru", None)
@@ -574,6 +611,8 @@ class TestLoguruFallbackBlocks:
         assert out["count"] == 1
 
     async def test_explain_close_error(self, monkeypatch):
+        _authorized(monkeypatch)
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         import sys
 
         monkeypatch.setitem(sys.modules, "loguru", None)
@@ -583,6 +622,8 @@ class TestLoguruFallbackBlocks:
         assert out["plan"] == {"plan": 1}
 
     async def test_describe_close_error(self, monkeypatch):
+        _authorized(monkeypatch)
+        _db_url(monkeypatch, "postgresql://u:p@db.example/testdb")
         import sys
 
         monkeypatch.setitem(sys.modules, "loguru", None)

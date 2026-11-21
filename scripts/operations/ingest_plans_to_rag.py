@@ -36,7 +36,6 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-BACKEND_DIR = REPO_ROOT / "backend"
 MANIFEST_PATH = REPO_ROOT / "data" / "rag_ingest_manifest.json"
 
 CATEGORY_DIRS: dict[str, Path] = {
@@ -106,10 +105,10 @@ def build_rag_pipeline(collection: str):
     ChromaDBStore-এর silent TF-IDF fallback ধরা পড়লে fail-closed —
     persistent vector index ছাড়া "ingested" দাবি করা মিথ্যা সত্য হবে।
     """
-    if str(BACKEND_DIR) not in sys.path:
-        sys.path.insert(0, str(BACKEND_DIR))
-    from memory.chromadb_store import ChromaDBStore
-    from memory.rag_pipeline import RAGPipeline
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from core.memory.chromadb_store import ChromaDBStore
+    from core.memory.rag_pipeline import RAGPipeline
 
     store = ChromaDBStore(collection_name=collection)
     if getattr(store, "_collection", None) is None:

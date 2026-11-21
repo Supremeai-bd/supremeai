@@ -86,25 +86,35 @@ class SupremeAIIntegrator:
 
         # Core Engines
         self.reasoning_engine = AdvancedReasoningEngine(self.config.get("reasoning", {}))
-        self.pattern_recognizer = PatternRecognizer(self.config.get("patterns", {}))
+        self.pattern_recognizer = (
+            PatternRecognizer(self.config.get("patterns", {})) if PatternRecognizer else None
+        )
         self.evolution_module = EvolutionModule(self.config.get("evolution", {}))
-        self.living_engine = LivingEngineOrchestrator(
-            reasoning_engine=self.reasoning_engine,
-            pattern_recognizer=self.pattern_recognizer,
-            evolution_module=self.evolution_module,
+        # Optional (dependency-absent) components degrade to None instead of
+        # crashing the whole integrator at __init__ time.
+        self.living_engine = (
+            LivingEngineOrchestrator(
+                reasoning_engine=self.reasoning_engine,
+                pattern_recognizer=self.pattern_recognizer,
+                evolution_module=self.evolution_module,
+            )
+            if LivingEngineOrchestrator else None
         )
 
-        # Domain Adapters
-        self.dev_adapter = DevAdapter(self.config.get("dev", {}))
-        self.business_adapter = BusinessAdapter(self.config.get("business", {}))
-        self.ux_adapter = UXAdapter(self.config.get("ux", {}))
+        # Domain Adapters (optional integrations)
+        self.dev_adapter = DevAdapter(self.config.get("dev", {})) if DevAdapter else None
+        self.business_adapter = BusinessAdapter(self.config.get("business", {})) if BusinessAdapter else None
+        self.ux_adapter = UXAdapter(self.config.get("ux", {})) if UXAdapter else None
 
         # Phase 3 Self-Evolution & Production Resilience
-        self.auto_evolution = AutoEvolutionController(self.config.get("auto_evolution", {}))
-        self.performance_monitor = self.auto_evolution.performance_monitor
-        self.memory_consolidator = self.auto_evolution.memory_consolidator
+        self.auto_evolution = (
+            AutoEvolutionController(self.config.get("auto_evolution", {}))
+            if AutoEvolutionController else None
+        )
+        self.performance_monitor = self.auto_evolution.performance_monitor if self.auto_evolution else None
+        self.memory_consolidator = self.auto_evolution.memory_consolidator if self.auto_evolution else None
         self.safety_rollback = SafetyRollbackManager(self.config.get("safety", {}))
-        self.scaling_manager = DistributedScalingManager(self.config.get("scaling", {}))
+        self.scaling_manager = DistributedScalingManager(self.config.get("scaling", {})) if DistributedScalingManager else None
 
         # State & Telemetry
         self.initialized = False
@@ -126,7 +136,8 @@ class SupremeAIIntegrator:
             return True
 
         logger.info("Initializing SupremeAI Unified Master Integration Layer...")
-        await self.auto_evolution.check_system_health()
+        if self.auto_evolution is not None:
+            await self.auto_evolution.check_system_health()
         self.initialized = True
         logger.info("SupremeAI Unified Integration Layer successfully initialized!")
         return True
@@ -145,6 +156,8 @@ class SupremeAIIntegrator:
 
         try:
             # 1. Execute full reasoning, dynamic HTN DAG, and domain adaptation
+            if self.living_engine is None:
+                raise RuntimeError("living_engine unavailable (optional module not installed)")
             solution: SolutionResult = await self.living_engine.solve_unpredictable_demand(
                 prompt=user_input,
                 context=ctx,
@@ -152,13 +165,14 @@ class SupremeAIIntegrator:
 
             # 2. Record performance metric
             duration_ms = (time.perf_counter() - start_time) * 1000.0
-            self.performance_monitor.record_metric(
-                self.performance_monitor.generate_report(1).detailed_metrics.get(
-                    "system.cpu.usage_percent", []
-                )[-1]
-                if self.performance_monitor.metrics.get("system.cpu.usage_percent")
-                else None  # type: ignore[arg-type]
-            ) if self.performance_monitor.metrics.get("system.cpu.usage_percent") else None
+            if self.performance_monitor is not None and self.performance_monitor.metrics.get(
+                "system.cpu.usage_percent"
+            ):
+                self.performance_monitor.record_metric(
+                    self.performance_monitor.generate_report(1).detailed_metrics.get(
+                        "system.cpu.usage_percent", []
+                    )[-1]
+                )
 
             if solution.domain == "development":
                 components_used.append("dev_adapter")
@@ -236,8 +250,10 @@ class SupremeAIIntegrator:
                 except Exception as e:
                     logger.warning(f"Background consolidation tick: {e}")
 
-        self._background_tasks.append(asyncio.create_task(_evolution_loop()))
-        self._background_tasks.append(asyncio.create_task(_consolidation_loop()))
+        if self.auto_evolution is not None:
+            self._background_tasks.append(asyncio.create_task(_evolution_loop()))
+        if self.memory_consolidator is not None:
+            self._background_tasks.append(asyncio.create_task(_consolidation_loop()))
 
     async def shutdown(self) -> None:
         """Gracefully shuts down all background processes and creates a safety checkpoint."""
@@ -256,9 +272,9 @@ class SupremeAIIntegrator:
             "initialized": self.initialized,
             "background_running": self._background_running,
             "session_stats": self.session_stats,
-            "auto_evolution": self.auto_evolution.get_statistics(),
-            "performance_metrics": self.performance_monitor.get_current_metrics(),
-            "cluster_status": self.scaling_manager.get_cluster_status(),
+            "auto_evolution": self.auto_evolution.get_statistics() if self.auto_evolution else None,
+            "performance_metrics": self.performance_monitor.get_current_metrics() if self.performance_monitor else None,
+            "cluster_status": self.scaling_manager.get_cluster_status() if self.scaling_manager else None,
         }
 
 
