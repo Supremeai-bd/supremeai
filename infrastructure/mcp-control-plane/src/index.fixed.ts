@@ -174,7 +174,13 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
       }
 
       // 5) Output truncation (#686 item 2).
-      return truncateToolResult(sanitizedName, result);
+      const truncated = truncateToolResult(sanitizedName, result) as Record<string, unknown>;
+      // Action-safe gate: a tool result is "action_safe" only when it did not
+      // error AND (if it carries an isError flag) isError is false. Read-only
+      // tools that succeed are safe to act on; errored/partial results are not.
+      const isError = truncated?.isError === true;
+      truncated.metadata = { ...(truncated.metadata as Record<string, unknown> || {}), action_safe: !isError };
+      return truncated as any;
     };
   };
   (server as any).tool = (name: string, ...args: any[]) => {
