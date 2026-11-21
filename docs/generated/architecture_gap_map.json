@@ -412,24 +412,19 @@
     ]
   },
   "graph": {
-    "modules": 2187,
-    "edges": 4637,
+    "modules": 2188,
+    "edges": 4645,
     "edge_kinds": {
-      "dispatch": 179,
+      "dispatch": 185,
       "dynamic": 4,
-      "import": 3773,
+      "import": 3775,
       "string": 681
     }
   },
   "entrypoints": {
     "found": [
       "@.github/workflows/codeql.yml",
-      "@.github/workflows/container-security.yml",
-      "@.github/workflows/deploy-kaggle-shadow.yml",
       "@.github/workflows/deploy-rollback.yml",
-      "@.github/workflows/full-test-suite.yml",
-      "@.github/workflows/gateway-image.yml",
-      "@.github/workflows/keepwarm.yml",
       "@.github/workflows/ops-maintenance.yml",
       "@.github/workflows/unified-pipeline.yml",
       "@Makefile",
@@ -443,9 +438,9 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1658,
-    "unreachable": 539,
-    "reachable_pct": 75.8
+    "reachable": 1657,
+    "unreachable": 536,
+    "reachable_pct": 75.7
   },
   "gaps": {
     "dangling_references": [
@@ -1256,7 +1251,6 @@
     "scripts.ci.detect_changed_tests",
     "scripts.ci.detect_deploy_targets",
     "scripts.ci.enforce_circle_boundaries",
-    "scripts.ci.federation_anchors",
     "scripts.ci.federation_ci_watchdog",
     "scripts.ci.federation_dispatch",
     "scripts.ci.federation_satellite_sync",
@@ -1283,7 +1277,6 @@
     "scripts.ci.ledger_check",
     "scripts.ci.live_pr_auditor",
     "scripts.ci.mark_branch_state",
-    "scripts.ci.master_secret_shield",
     "scripts.ci.mcp_conformance_selftest",
     "scripts.ci.mcp_registry_publisher",
     "scripts.ci.merge_policy",
@@ -1475,7 +1468,6 @@
     "scripts.ops.ingest_project_docs",
     "scripts.ops.inspect_rename_candidates",
     "scripts.ops.keepalive_scraper",
-    "scripts.ops.master_health_check",
     "scripts.ops.mcp_platform_watcher",
     "scripts.ops.merge_and_consolidate_docs",
     "scripts.ops.migrate_docs_to_archive",

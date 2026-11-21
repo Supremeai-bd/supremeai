@@ -1234,3 +1234,31 @@ jobs:
             exit 0
           fi
           python evals/golden/run_eval.py --provider http --min-accuracy 0.90
+
+  regenerate-architecture-gap-baseline:
+    name: Regenerate architecture gap baseline (auto-commit)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Regenerate gap baseline
+        run: |
+          python scripts/ci/architecture_gap_guardian.py
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- docs/generated/architecture_gap_map.json docs/generated/architecture_gap_map.mmd README.md; then
+            echo "No changes to baseline."
+            exit 0
+          fi
+          git add docs/generated/architecture_gap_map.json docs/generated/architecture_gap_map.mmd README.md
+          git commit -m "chore(ci): auto-regenerate architecture gap baseline [skip ci]"
+          git push

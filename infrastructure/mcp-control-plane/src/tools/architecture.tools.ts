@@ -8,10 +8,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../../..");
 
 const CANDIDATE_GAP_PATHS = [
+  path.join(REPO_ROOT, "docs", "generated", "architecture_gap_map.json"),
+  path.join(process.cwd(), "docs", "generated", "architecture_gap_map.json"),
+  path.join(__dirname, "../../../../docs/generated", "architecture_gap_map.json"),
+  "/app/docs/generated/architecture_gap_map.json",
+  // Fallback: frozen baseline (manually curated)
   path.join(REPO_ROOT, "scripts", "ops", "architecture_gap_baseline.json"),
   path.join(process.cwd(), "scripts", "ops", "architecture_gap_baseline.json"),
-  path.join(__dirname, "../../../../scripts/ops", "architecture_gap_baseline.json"),
-  "/app/scripts/ops/architecture_gap_baseline.json",
 ];
 
 function findGapBaselinePath(): string | null {
