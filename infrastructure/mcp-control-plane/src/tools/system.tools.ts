@@ -369,6 +369,9 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
     monthlyBuildMinutes: renderMonthlyBuildMinutes,
     freeLimitRemainingMinutes: renderFreeLimitRemaining,
     freeLimitExhausted: renderFreeLimitExhausted,
+    ...(renderDeployStatus === "update_failed" || (renderFreeLimitRemaining !== undefined && renderFreeLimitRemaining < 30)
+      ? { freeTierWarning: "Build timeout/OOM risk on free tier or <30m remaining" }
+      : {}),
   };
 
   // ── HTTP services (render et al.): explicit path → /health → /api/v1/health ──

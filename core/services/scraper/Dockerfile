@@ -40,7 +40,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 # Install Chromium + OS-level browser deps. MUST run AFTER the playwright
 # package is copied above — otherwise the `playwright` CLI does not exist
 # yet and the image build fails.
-RUN playwright install --with-deps chromium
+RUN playwright install --with-deps chromium-headless-shell
 
 # Copy application code
 COPY . .
