@@ -105,6 +105,18 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
   // across the registerTool migration: RBAC, rate limiting, payload
   // validation, execution timeout and output truncation apply identically to
   // every handler regardless of which registration API declared it.
+  // #735 Action-safe gate: every governed result carries metadata.action_safe —
+  // true only when the result did not error AND (if it carries an isError flag)
+  // isError is false. Read-only tools that succeed are safe to act on; errored,
+  // denied, rate-limited, timed-out or partial results are not.
+  const actionSafeGate = <T>(value: T): T => {
+    if (value === null || typeof value !== "object") return value;
+    const rec = value as Record<string, unknown>;
+    const isError = rec.isError === true;
+    rec.metadata = { ...(rec.metadata as Record<string, unknown> || {}), action_safe: !isError };
+    return rec as T;
+  };
+
   const governedHandler = (
     sanitizedName: string,
     originalHandler: (toolArgs: unknown, extra: unknown) => unknown,
@@ -116,26 +128,26 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
       // and store outages all fail CLOSED on the immediate-next check.
       const denial = await toolAccessErrorAsync(sanitizedName);
       if (denial) {
-        return { isError: true, content: [{ type: "text", text: denial }] };
+        return actionSafeGate({ isError: true, content: [{ type: "text", text: denial }] });
       }
 
       // 2) Per-(identity, tool) rate limit (#686 item 4).
       const toolRate = consumeToolRateLimit(sanitizedName);
       if (!toolRate.allowed) {
-        return {
+        return actionSafeGate({
           isError: true,
           content: [{
             type: "text",
             text: `Rate limit exceeded for tool '${sanitizedName}' (max ${env.runtime.toolRateLimitMax} per ${env.runtime.toolRateLimitWindowMs}ms per identity). Retry in ~${Math.ceil(toolRate.retryAfterMs / 1000)}s.`,
           }],
           metadata: { rateLimited: true, tool: sanitizedName, retryAfterMs: toolRate.retryAfterMs },
-        };
+        });
       }
 
       // 3) Input payload validation + strict size cap (#686 item 1).
       const payloadError = toolPayloadError(sanitizedName, toolArgs);
       if (payloadError) {
-        return { isError: true, content: [{ type: "text", text: payloadError }] };
+        return actionSafeGate({ isError: true, content: [{ type: "text", text: payloadError }] });
       }
 
       // 4) Hard execution timeout (#686 item 3). The handler promise cannot
@@ -159,14 +171,14 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
         ]);
       } catch (error) {
         if (error instanceof ToolExecutionTimeoutError) {
-          return {
+          return actionSafeGate({
             isError: true,
             content: [{
               type: "text",
               text: `${error.message} (MCP_TOOL_TIMEOUT_MS). The call was aborted at the governance layer.`,
             }],
             metadata: { timedOut: true, tool: sanitizedName, timeoutMs: timeoutBudgetMs },
-          };
+          });
         }
         throw error; // non-timeout failures keep the SDK's normal error path
       } finally {
@@ -174,7 +186,7 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
       }
 
       // 5) Output truncation (#686 item 2).
-      return truncateToolResult(sanitizedName, result);
+      return actionSafeGate(truncateToolResult(sanitizedName, result));
     };
   };
   (server as any).tool = (name: string, ...args: any[]) => {

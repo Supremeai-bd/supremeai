@@ -112,7 +112,7 @@ Record the SHA at the top of your report. **Never audit a moving branch.** All c
 
 | # | Check Item | How to verify | Status | Note |
 |---|---|---|---|---|
-| 6.1 | OpenAPI schema generates without errors | `python -c "from gateway.main import app; app.openapi()"` | `[ ]` | |
+| 6.1 | OpenAPI schema generates without errors | `python -c "from gateway.serve import app; app.openapi()"` | `[ ]` | |
 | 6.2 | Every route has a response model (no bare `dict`) | `grep -rn "response_model=None\|-> dict"` | `[ ]` | |
 | 6.3 | Consistent versioning (`/v1/...`) | `grep -r "APIRouter(" gateway/routes/` | `[ ]` | |
 | 6.4 | Consistent error envelope `{code, message, detail?}` | Read exception handlers | `[ ]` | |

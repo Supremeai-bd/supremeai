@@ -17,7 +17,15 @@ import yaml
 REGISTRY = Path(__file__).resolve().parents[2] / "config" / "service_registry.yaml"
 # Blueprint changes warrant checking all registered targets. CI logic and
 # registry metadata alone are not runtime source changes.
-TOPOLOGY_FILES = {"render.yaml", "core/config/service_topology.yaml"}
+# Topology SSOT files: any of these widens verification to all registered
+# targets (system wiring atlas §5: render.yaml, config/service_registry.yaml,
+# scripts/ci/plan_render_deploys.py, core/config/service_topology.yaml).
+TOPOLOGY_FILES = {
+    "render.yaml",
+    "config/service_registry.yaml",
+    "core/config/service_topology.yaml",
+    "scripts/ci/plan_render_deploys.py",
+}
 
 
 def render_services() -> dict:
