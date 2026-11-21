@@ -20,7 +20,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from core.monitoring.logging_config import logger  # loguru logger (monitoring.logging_config shim)
+from core.monitoring.logging_config import logger
 
 
 def _finite_non_negative(value: Any) -> float | None:
@@ -48,7 +48,7 @@ def resolve_metered_spend(
     prompt_tokens = _finite_non_negative((usage or {}).get("prompt_tokens"))
     completion_tokens = _finite_non_negative((usage or {}).get("completion_tokens"))
     if prompt_tokens is not None and completion_tokens is not None:
-        from core.config import settings  # lazy — re-import-proof (token_deductor pattern)
+        from core.config import settings
 
         rate = _finite_non_negative(getattr(settings, "llm_cost_per_token", None)) or 0.0
         tokens = prompt_tokens + completion_tokens

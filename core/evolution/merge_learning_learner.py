@@ -52,7 +52,7 @@ async def learn_from_merge_reports(
     """
     # Lazy import to avoid module-load cycle (settings → evolution → settings)
     from core.config import settings
-    from models.merge_learning_report import list_merge_learning
+    from core.models.merge_learning_report import list_merge_learning
 
     if lookback_days is None:
         lookback_days = getattr(settings, "merge_learning_lookback_days", 7)

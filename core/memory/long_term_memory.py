@@ -6,8 +6,8 @@ from typing import Any
 from core.monitoring.logging_config import logger
 
 try:
-    from brain.model_router import ModelRouter  # kept for other potential usages
-    from database.supabase_client import db
+    from core.brain.model_router import ModelRouter
+    from core.database.supabase_client import db
 
     _DEPENDENCIES_AVAILABLE = True
 except ImportError:

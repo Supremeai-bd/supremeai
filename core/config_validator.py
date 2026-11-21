@@ -36,11 +36,7 @@ from typing import Any
 # Issue #1260 (Wave 3.4): CONFIG_SCHEMA derives from the canonical CONFIG_SPECS.
 from core.config_classification import get_config_spec
 from core.monitoring.logging_config import logger
-from core.secret_policy import (
-    JWT_SECRET_ENV,
-    JWT_SECRET_MIN_LENGTH,
-    resolve_jwt_secret_env,
-)
+from core.secret_policy import JWT_SECRET_ENV, JWT_SECRET_MIN_LENGTH, resolve_jwt_secret_env
 
 
 class VarType(StrEnum):

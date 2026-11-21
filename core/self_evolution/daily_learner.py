@@ -21,11 +21,11 @@ from enum import StrEnum
 from typing import Any
 from urllib.parse import quote_plus
 
-from brain.model_router import ModelRouter
+from core.brain.model_router import ModelRouter
 from core.cache import get_cache
 from core.monitoring.logging_config import logger
 from core.self_evolution.evolution_engine import EvolutionEngine
-from services.config_service import ConfigService
+from core.services.config_service import ConfigService
 
 # ── Constants ────────────────────────────────────────────────────────────────
 LEARNER_CACHE_TTL = 1800  # 30 minutes
@@ -424,7 +424,7 @@ class DailyLearner:
         # Private EvolutionEngine() here had its own private FitnessEngine (or None)
         # → metrics from daily learning didn't reach the shared singleton that
         # SelfEvolutionAgent._tick() reads.
-        from api.deps import get_fitness_engine
+        from core.api.deps import get_fitness_engine
 
         self.engine = EvolutionEngine(fitness_engine=get_fitness_engine())
         self.active_goals: dict[str, list[SubGoal]] = {}

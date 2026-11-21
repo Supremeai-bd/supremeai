@@ -146,10 +146,10 @@ async def _start_run_observation(
     'run তৈরি হয়েছে' দাবি নেই।
     """
     try:
-        from database.session import get_db_session_context
-        from runs.api import run_service as fabric_service
-        from runs.bridges import observe_task_run
-        from runs.state_machine import PLANNED, POLICY_CHECKED, RUNNING
+        from core.database.session import get_db_session_context
+        from core.runs.api import run_service as fabric_service
+        from core.runs.bridges import observe_task_run
+        from core.runs.state_machine import PLANNED, POLICY_CHECKED, RUNNING
 
         async with get_db_session_context() as session:
             run = await observe_task_run(
@@ -178,8 +178,8 @@ async def _finish_run_observation(
 ) -> None:
     """রানকে terminal-অবস্থায় সীল করা — ব্যর্থতাও লাউড-লগ, কখনো নীরব নয়।"""
     try:
-        from database.session import get_db_session_context
-        from runs.api import run_service as fabric_service
+        from core.database.session import get_db_session_context
+        from core.runs.api import run_service as fabric_service
 
         async with get_db_session_context() as session:
             await fabric_service.transition(
@@ -222,12 +222,8 @@ async def sweep_due_tasks_once(now: datetime | None = None) -> dict[str, Any]:
     }
 
     # বাংলা: লেজি ইমপোর্ট — এই মডিউল core-এ, রুট-স্তরের সাথে সার্কুলার ইমপোর্ট এড়াতে।
-    from api.routes.scheduled_tasks import (
-        _ensure_schema,
-        _row_to_task,
-        execute_task_and_record,
-    )
-    from database.supabase_client import db as supabase_db
+    from core.api.routes.scheduled_tasks import _ensure_schema, _row_to_task, execute_task_and_record
+    from core.database.supabase_client import db as supabase_db
 
     client = supabase_db.client
     if not client:

@@ -15,7 +15,7 @@ import time
 from typing import Any
 
 from core.monitoring.logging_config import logger
-from memory.chromadb_store import ChromaDBStore
+from core.memory.chromadb_store import ChromaDBStore
 
 
 class EpisodicMemory:
@@ -171,6 +171,10 @@ class EpisodicMemory:
                 }
             )
         return out
+
+    def count(self) -> int:
+        """Return the number of episodes stored in this session (honest in-memory count)."""
+        return len(self._episodes)
 
     def recall_episodes(
         self,

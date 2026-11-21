@@ -280,7 +280,7 @@ class FreeTierTracker:
 
         def _fetch():
             try:
-                from database.supabase_client import db
+                from core.database.supabase_client import db
 
                 if db.client:
                     db_configs = db.get_db_provider_configs()

@@ -341,7 +341,7 @@ class ChangeProposalManager:
     def _audit_run(self, proposal: ChangeProposal, *, run_type: str, result: str) -> None:
         """Best-effort durable audit row (improvement_runs) for a transition."""
         try:
-            from database.supabase_client import db as supabase_db
+            from core.database.supabase_client import db as supabase_db
 
             supabase_db.insert_improvement_run(
                 {

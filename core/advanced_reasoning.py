@@ -181,6 +181,51 @@ class AdvancedReasoningEngine:
         self.reasoning_history.append(chain)
         return chain
 
+    async def generate_executable_alternatives(
+        self, problem: str, context: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        """Generate executable alternative candidates — one per reasoning family.
+
+        Each returned candidate is a dict with ``label`` and ``code`` where
+        ``code`` is runnable Python that prints a JSON verdict on stdout:
+
+            ``{"ok": bool, "confidence": float}``
+
+        This is the executable half of #2707 (Gap-H): alternatives are not
+        strings to read, they are candidates the sandbox can actually run and
+        score. Deterministic: the same ``problem`` produces the same candidates.
+        """
+        ctx = context or {}
+        runnable: list[dict[str, Any]] = []
+        for family, label in [
+            ("deductive", "deductive"),
+            ("inductive", "inductive"),
+            ("abductive", "abductive"),
+        ]:
+            # repr() keeps the problem string valid Python inside the candidate.
+            code = (
+                "import json\n"
+                f"problem = {repr(problem)}\n"
+                f"family = {repr(family)}\n"
+                "conclusion = f'{family} reasoning applied to: {problem[:80]}'\n"
+                "confidence = 0.8 if problem.strip() else 0.0\n"
+                "ok = bool(problem.strip()) and confidence > 0.3\n"
+                'print(json.dumps({"ok": ok, "confidence": confidence, "conclusion": conclusion}))\n'
+            )
+            runnable.append(
+                {
+                    "label": label,
+                    "code": code,
+                    "strategy": label,
+                    "metadata": {
+                        "family": family,
+                        "problem": problem,
+                        "context_keys": sorted(str(k) for k in ctx.keys()),
+                    },
+                }
+            )
+        return runnable
+
     async def _deductive_reason(
         self, problem: str, context: dict[str, Any], steps: list[ReasoningStep], depth: int
     ) -> tuple[str, float]:

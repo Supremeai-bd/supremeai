@@ -42,8 +42,8 @@ from core.monitoring.logging_config import logger
 from core.orchestration.periodic_task_scheduler import Orchestrator
 from core.reliability_controller import ReliabilityController
 from core.startup_validator import StartupValidator
-from monitoring.metrics_collector import metrics_collector
-from utils.http_client import set_shared_client
+from core.monitoring.metrics_collector import metrics_collector
+from core.utils.http_client import set_shared_client
 
 
 @asynccontextmanager
@@ -77,7 +77,7 @@ async def app_lifespan(app):
         except Exception as sg_err:
             logger.warning("social_growth hydrate skipped: %s", sg_err)
         try:
-            from tools.learning.style_learner import _learner as style_learner_singleton
+            from core.tools.learning.style_learner import _learner as style_learner_singleton
 
             style_learner_singleton.hydrate()
         except Exception as sl_err:
@@ -213,7 +213,7 @@ async def app_lifespan(app):
 
     timeout_val = float(os.getenv("DB_BOOTSTRAP_TIMEOUT", "30.0"))
     try:
-        from database import db as supabase_db
+        from core.database import db as supabase_db
 
         if settings.supabase_database_url:
             await asyncio.wait_for(

@@ -5,12 +5,7 @@ import time
 import uuid
 
 from core.monitoring.logging_config import logger
-from core.observability.metrics_registry import (
-    normalize_route_path,
-    record_error,
-    record_request,
-    record_request_duration,
-)
+from core.observability.metrics_registry import normalize_route_path, record_error, record_request, record_request_duration
 from core.observability.telemetry import trace_span
 
 
@@ -195,7 +190,7 @@ class ObservabilityMiddleware:
             # --- END REDIS TRAFFIC MONITORING ---
 
             try:
-                from database.supabase_client import db
+                from core.database.supabase_client import db
 
                 if db.client:
                     db.append_evolution_log(
@@ -217,7 +212,7 @@ class ObservabilityMiddleware:
                 logger.debug(f"Evolution log persistence failed in observability middleware: {exc}")
 
             # --- START SENTINEL AGENT EVENT TRIGGER ---
-            from utils.environment import is_test_environment
+            from core.utils.environment import is_test_environment
 
             if not is_test_environment() and (status_code >= 500 or duration > 3.0):
                 try:

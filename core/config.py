@@ -68,7 +68,7 @@ from .config_fields import SettingsFieldsMixin
 from .config_validation import SettingsValidationMixin
 
 try:
-    from utils.platform_detect import DETECTED_PLATFORM, auto_set_platform_env
+    from core.utils.platform_detect import DETECTED_PLATFORM, auto_set_platform_env
 
     _PLATFORM = auto_set_platform_env()
 except ImportError:
@@ -150,7 +150,7 @@ class Settings(BaseSettings, SettingsFieldsMixin, SettingsValidationMixin):
     def auto_backend_url(self) -> str:
         """Generate backend URL from platform detection."""
         try:
-            from utils.platform_detect import DETECTED_PLATFORM
+            from core.utils.platform_detect import DETECTED_PLATFORM
 
             if DETECTED_PLATFORM.has_external_url and DETECTED_PLATFORM.external_url:
                 return DETECTED_PLATFORM.external_url

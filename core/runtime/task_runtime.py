@@ -15,11 +15,11 @@ from typing import TYPE_CHECKING, Any
 from core.integration_layer import SupremeAIIntegrator
 from core.monitoring.logging_config import logger
 from core.task_contract import TaskContract, TaskStatus, VerificationPolicy
-from runtime.budget_guard import BudgetExceededError, BudgetGuard
-from runtime.planner import CanonicalPlanner, Plan, get_planner
-from runtime.task_context import TaskContext
-from runtime.task_executor import TaskExecutor
-from runtime.task_result import TaskResult, VerificationSummary
+from core.runtime.budget_guard import BudgetExceededError, BudgetGuard
+from core.runtime.planner import CanonicalPlanner, Plan, get_planner
+from core.runtime.task_context import TaskContext
+from core.runtime.task_executor import TaskExecutor
+from core.runtime.task_result import TaskResult, VerificationSummary
 
 if TYPE_CHECKING:
     # M0-C (AUDIT F5): verification/verifier.py imports runtime.task_result at
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     # `import verification` fail with a partially-initialized circular import
     # (order-dependent). Keep the type for static checks only and resolve the
     # engine lazily at construction time.
-    from verification.verifier import VerifierEngine
+    from core.verification.verifier import VerifierEngine
 
 
 class TaskRuntime:
@@ -45,7 +45,7 @@ class TaskRuntime:
         else:
             # M0-C (AUDIT F5): function-scope import breaks the
             # verification <-> runtime import cycle at runtime.
-            from verification.verifier import get_verifier
+            from core.verification.verifier import get_verifier
 
             self.verifier = get_verifier()
         self.planner = planner or get_planner()

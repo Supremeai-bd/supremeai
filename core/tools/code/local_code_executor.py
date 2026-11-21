@@ -2,9 +2,7 @@ import asyncio
 
 from core.config import settings
 from core.monitoring.logging_config import logger
-from tools.devops.docker_sandbox import (
-    DockerSandbox,  # আমাদের এক্সিস্টিং সুনির্দিষ্ট টুল
-)
+from core.tools.devops.docker_sandbox import DockerSandbox
 
 
 class LocalCodeExecutor:
@@ -21,7 +19,7 @@ class LocalCodeExecutor:
         ``run_type="code"`` রান হিসেবেও পর্যবেক্ষিত (flag-gated, best-effort);
         production security-refusal সহ ``success=False``-ই রান-ব্যর্থতার সত্য।
         """
-        from runs.run_scope import observe_run
+        from core.runs.run_scope import observe_run
 
         async with observe_run(
             run_type="code",
@@ -68,7 +66,7 @@ class LocalCodeExecutor:
     async def _run_host_subprocess(self, code: str, timeout: int) -> dict:
         logger.warning("⚠️ CRITICAL SECURITY NOTE: Running code directly on Host Subprocess!")
         try:
-            from tools.code.fuzz_sandbox import run_sandbox_ast_check
+            from core.tools.code.fuzz_sandbox import run_sandbox_ast_check
 
             if not run_sandbox_ast_check(code):
                 return {

@@ -112,7 +112,7 @@ def get_admin_god():
     Construction opens Firestore + SQLite + bootstraps the rules table —
     previously happened at import time, adding ~25 MB to boot RSS.
     """
-    from admin.god import AdminGodLayer
+    from core.admin.god import AdminGodLayer
 
     return AdminGodLayer()
 
@@ -125,7 +125,7 @@ def get_model_router():
     RemediationPipeline + ModelRegistry — previously happened at import
     time, adding ~40 MB to boot RSS.
     """
-    from brain.model_router import ModelRouter
+    from core.brain.model_router import ModelRouter
 
     return ModelRouter()
 
@@ -136,7 +136,7 @@ def get_parallel_router():
 
     Construction spins up another UpstashRedisQueue with its own httpx pool.
     """
-    from brain.parallel_cloud_router import ParallelCloudRouter
+    from core.brain.parallel_cloud_router import ParallelCloudRouter
 
     return ParallelCloudRouter()
 
@@ -155,7 +155,7 @@ def get_intent_parser():
 
     Depends on `model_router` (also lazy now) — resolves it on first use.
     """
-    from adaptive_engine.intent_parser import IntentParser
+    from core.adaptive_engine.intent_parser import IntentParser
 
     return IntentParser(model_router=get_model_router())
 
@@ -163,7 +163,7 @@ def get_intent_parser():
 @functools.lru_cache(maxsize=1)
 def get_experience_db():
     """Lazy factory for the ExperienceDatabase singleton (LOW_MEMORY_MODE-aware)."""
-    from adaptive_engine.experience_db import ExperienceDatabase
+    from core.adaptive_engine.experience_db import ExperienceDatabase
 
     return ExperienceDatabase()
 
@@ -178,7 +178,7 @@ def get_experience_db():
 @functools.lru_cache(maxsize=1)
 def get_gcp_router():
     """Lazy factory for the GCP Cloud Run router singleton."""
-    from brain.gcp_router import GCPCloudRunRouter
+    from core.brain.gcp_router import GCPCloudRunRouter
 
     return GCPCloudRunRouter()
 
@@ -186,7 +186,7 @@ def get_gcp_router():
 @functools.lru_cache(maxsize=1)
 def get_verification_queue():
     """Lazy factory for the GCP Firestore verification queue singleton."""
-    from services.storage.gcp_firestore import GCPFirestoreVerificationQueue
+    from core.services.storage.gcp_firestore import GCPFirestoreVerificationQueue
 
     return GCPFirestoreVerificationQueue()
 
@@ -202,7 +202,7 @@ def get_gcp_pubsub_queue():
 @functools.lru_cache(maxsize=1)
 def get_cloud_function_client():
     """Lazy factory for the GCP Cloud Functions client singleton."""
-    from tools.devops.gcp_cloud_functions import GCPCloudFunctionClient
+    from core.tools.devops.gcp_cloud_functions import GCPCloudFunctionClient
 
     return GCPCloudFunctionClient()
 

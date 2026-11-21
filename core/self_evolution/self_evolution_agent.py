@@ -35,7 +35,7 @@ except ImportError:
     FitnessEngine = None  # type: ignore[misc,assignment]
 
 from core.immune_system import ImmuneSystemScanner
-from models.evolution import CodeProposal
+from core.models.evolution import CodeProposal
 
 
 class SelfEvolutionAgent:
@@ -448,7 +448,7 @@ class SelfEvolutionAgent:
         """
         logger.info(f"Triggering Sandbox/CI dry run for {proposal_id} ({skill_name})...")
         try:
-            from tools.code.local_code_executor import LocalCodeExecutor
+            from core.tools.code.local_code_executor import LocalCodeExecutor
 
             sandbox = LocalCodeExecutor()
             test_harness = (

@@ -33,7 +33,7 @@ import httpx
 from core.errors.error_bus import with_error_bus
 from core.llm.telemetry import track_llm_call
 from core.monitoring.logging_config import logger
-from utils.firestore_helpers import get_firestore_db
+from core.utils.firestore_helpers import get_firestore_db
 
 from ...config import settings  # Fixed import path - using relative import
 from ...cost_guard import CostGuard  # Fixed import path - using relative import

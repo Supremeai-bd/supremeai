@@ -30,8 +30,8 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from runs.models import Run
-from runs.service import RunService
+from core.runs.models import Run
+from core.runs.service import RunService
 
 #: Evidence source_type values used by the M1 bridges.
 SOURCE_MISSION = "mission"

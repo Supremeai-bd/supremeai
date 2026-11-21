@@ -3,7 +3,7 @@ import time
 from typing import Any
 
 from core.monitoring.logging_config import logger
-from services.config_service import ConfigService
+from core.services.config_service import ConfigService
 
 try:
     from prometheus_client import Gauge, Histogram, start_http_server

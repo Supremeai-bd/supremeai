@@ -222,7 +222,7 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
 
     def _get_client_ip(self, request: Request) -> str:
         # R2-08: proxy-aware, spoof-resistant extraction (shared helper)
-        from utils.client_ip import get_client_ip
+        from core.utils.client_ip import get_client_ip
 
         return get_client_ip(request)
 

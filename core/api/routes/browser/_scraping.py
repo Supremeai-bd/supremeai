@@ -14,12 +14,12 @@ import httpx
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 
-from api.routes.admin_dashboard import require_admin_token
-from api.routes.browser import router
+from core.api.routes.admin_dashboard import require_admin_token
+from core.api.routes.browser import router
 from core.cache.redis_manager import MultiLevelCache
 from core.config import settings
 from core.monitoring.logging_config import logger
-from tools.ai_agents.browser_agent import BrowseRequest
+from core.tools.ai_agents.browser_agent import BrowseRequest
 
 
 class ScrapeRequest(BaseModel):
@@ -48,7 +48,7 @@ async def _proxy_to_scraper(endpoint: str, payload: dict) -> dict:
     """Forward browser/scrape requests to the standalone scraper microservice."""
     if not _SCRAPER_URL:
         # Fallback: use local BrowserAgent (for local dev / when scraper service is not deployed)
-        from tools.ai_agents.browser_agent import BrowserAgent
+        from core.tools.ai_agents.browser_agent import BrowserAgent
 
         agent = BrowserAgent()
         return await agent.navigate_and_interact(**payload)
@@ -126,7 +126,7 @@ async def extract(url: str, extraction_prompt: str):
             detail="URL is not allowed: restricted by SSRF protection policy",
         )
 
-    from tools.browser.ai_web_extractor import AIWebExtractor
+    from core.tools.browser.ai_web_extractor import AIWebExtractor
 
     extractor = AIWebExtractor()
     return await extractor.extract_data(url, extraction_prompt)

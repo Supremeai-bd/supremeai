@@ -195,11 +195,7 @@ class CompletionMixin:
         # never reordered; flag-gated; snapshot is refreshed by the
         # LearningLoopAgent (no network here). Bounded + reversible.
         try:
-            from core.learning.provider_scorer import (
-                exploration_candidate,
-                get_adaptive_routing_enabled,
-                score_snapshot,
-            )
+            from core.learning.provider_scorer import exploration_candidate, get_adaptive_routing_enabled, score_snapshot
 
             if get_adaptive_routing_enabled() and score_snapshot:
                 _explorer = exploration_candidate(score_snapshot)
@@ -228,7 +224,7 @@ class CompletionMixin:
         # ──────────────────────────────────────────────────────────────────
         if settings.token_juice_enabled:
             try:
-                from engine.compression.token_juice import TokenJuice
+                from core.engine.compression.token_juice import TokenJuice
 
                 _juicer = TokenJuice()
                 _TOKEN_JUICE_MIN_CHARS = 800  # skip small payloads (overhead > savings)
@@ -388,7 +384,7 @@ class CompletionMixin:
                     # the SHARED FitnessEngine metrics store so SelfEvolutionAgent._tick()
                     # sees real traffic even when ENABLE_EVOLUTION_LEARNING is off.
                     try:
-                        from api.deps import get_fitness_engine
+                        from core.api.deps import get_fitness_engine
 
                         get_fitness_engine().track_execution(
                             skill_name=task_type,

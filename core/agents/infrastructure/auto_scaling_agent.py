@@ -16,7 +16,7 @@ from core.errors.error_bus import with_error_bus
 from core.llm.token_deductor import TokenDeductor
 from core.monitoring.logging_config import logger
 from core.utils.background_tasks import track_task
-from monitoring.metrics_collector import MetricsCollector
+from core.monitoring.metrics_collector import MetricsCollector
 
 
 @dataclass

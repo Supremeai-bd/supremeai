@@ -91,9 +91,7 @@ class LLMGateway(
     def performance_optimizer(self):
         """Circular import guard: performance_enhancer → llm_gateway চক্র ভাঙতে lazy-load।"""
         if self._performance_optimizer is None:
-            from core.performance_enhancer import (
-                get_performance_optimizer,
-            )
+            from core.performance_enhancer import get_performance_optimizer
 
             self._performance_optimizer = get_performance_optimizer()
         return self._performance_optimizer

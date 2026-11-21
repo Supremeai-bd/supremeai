@@ -1248,6 +1248,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      # Idempotent PyYAML install — the guardian fails loud (RuntimeError) without
+      # it (by design: it refuses to emit a partial graph). Pattern matches the
+      # other yaml-dependent lanes in this workflow.
+      - name: Install PyYAML
+        run: python3 -c 'import yaml' || python3 -m pip install 'PyYAML==6.0.3'
       - name: Regenerate gap baseline
         run: |
           python scripts/ci/architecture_gap_guardian.py

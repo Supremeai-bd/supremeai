@@ -14,13 +14,8 @@ from typing import Any
 
 from core.llm.advanced_model_router import DomainExpertAnalyzer, TaskComplexityAnalyzer
 from core.monitoring.logging_config import logger
-from services.memory_service import (
-    CascadeMemoryService,
-    hash_vectorize,
-)
-from services.memory_service import (
-    memory_service as global_memory_service,
-)
+from core.services.memory_service import CascadeMemoryService, hash_vectorize
+from core.services.memory_service import memory_service as global_memory_service
 
 
 @dataclass

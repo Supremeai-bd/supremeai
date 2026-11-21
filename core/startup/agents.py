@@ -173,7 +173,7 @@ async def start_background_services(app):
         import os
 
         if os.getenv("ENABLE_BUG_PROPHET", "false").lower() == "true":
-            from scripts.devops.bug_prophet import run_anomaly_detector_loop
+            from core.scripts.devops.bug_prophet import run_anomaly_detector_loop
 
             await agent_supervisor.start_agent(
                 "bug-prophet-anomaly-detector",
@@ -198,10 +198,7 @@ async def start_background_services(app):
         import os
 
         if os.getenv("ENABLE_AGENT_HEARTBEAT", "true").lower() == "true":
-            from core.agent_heartbeat import (
-                redis_configured_for_heartbeat,
-                run_agent_heartbeat_loop,
-            )
+            from core.agent_heartbeat import redis_configured_for_heartbeat, run_agent_heartbeat_loop
 
             if redis_configured_for_heartbeat():
                 await agent_supervisor.start_agent(
@@ -246,7 +243,7 @@ async def start_background_services(app):
             # no fitness_engine arg → it created its OWN private FitnessEngine()
             # with empty metrics → _tick() never triggered refactors.
             # Now both use the same instance from api.deps.get_fitness_engine().
-            from api.deps import get_fitness_engine
+            from core.api.deps import get_fitness_engine
             from core.self_evolution.self_evolution_agent import SelfEvolutionAgent
 
             _evo_agent = SelfEvolutionAgent(
@@ -456,7 +453,7 @@ async def start_background_services(app):
             # FIX: original import was 'from core.errors.auto_healer import auto_healer_service'
             # but core/errors/auto_healer.py does NOT exist. The real module is
             # services/auto_healer.py and exports get_healer() returning AutoHealer.
-            from services.auto_healer import get_healer
+            from core.services.auto_healer import get_healer
 
             auto_healer_service = get_healer()
             # BUG FIX #1 (CRITICAL): start_monitoring() is 'while True: await asyncio.sleep(30)'
@@ -494,7 +491,7 @@ async def start_background_services(app):
     # Agent: AutoScalingAgent — autonomous resource scaling (CPU/mem/response-time thresholds)
     try:
         if os.getenv("ENABLE_AUTOSCALING_AGENT", "false").lower() == "true":
-            from agents.infrastructure.auto_scaling_agent import auto_scaling_agent
+            from core.agents.infrastructure.auto_scaling_agent import auto_scaling_agent
 
             async def _autoscaling_loop() -> None:
                 await auto_scaling_agent.initialize_policies()
@@ -524,7 +521,7 @@ async def start_background_services(app):
     # Agent: PerformanceTuningAgent — continuous optimization with auto-apply
     try:
         if os.getenv("ENABLE_PERFORMANCE_TUNING_AGENT", "false").lower() == "true":
-            from agents.infrastructure.performance_tuning_agent import performance_tuning_agent
+            from core.agents.infrastructure.performance_tuning_agent import performance_tuning_agent
 
             await agent_supervisor.start_agent(
                 "performance-tuning",
@@ -544,7 +541,7 @@ async def start_background_services(app):
     # Agent: CostOptimizationAgent — strategic cost tracking + opportunity identification
     try:
         if os.getenv("ENABLE_COST_OPTIMIZATION_AGENT", "false").lower() == "true":
-            from agents.infrastructure.cost_optimization_agent import cost_optimization_agent
+            from core.agents.infrastructure.cost_optimization_agent import cost_optimization_agent
 
             async def _cost_opt_loop() -> None:
                 await cost_optimization_agent.initialize_budget_config()
@@ -574,7 +571,7 @@ async def start_background_services(app):
     # Agent: DisasterRecoveryAgent — periodic incremental backups + integrity verification
     try:
         if os.getenv("ENABLE_DISASTER_RECOVERY_AGENT", "false").lower() == "true":
-            from agents.infrastructure.disaster_recovery_agent import disaster_recovery_agent
+            from core.agents.infrastructure.disaster_recovery_agent import disaster_recovery_agent
 
             async def _disaster_recovery_loop() -> None:
                 await disaster_recovery_agent.initialize_recovery_plans()
@@ -612,7 +609,7 @@ async def start_background_services(app):
                 interval = int(os.getenv("AI_MEMORY_RETENTION_INTERVAL_SECONDS", "86400"))
                 while True:
                     try:
-                        from services.memory_service import _get_supabase
+                        from core.services.memory_service import _get_supabase
 
                         client = _get_supabase()
 
@@ -669,7 +666,7 @@ async def start_background_services(app):
     # fn_ai_memory_retention_cleanup, এটি Python-পার্শ্ব সৎ-কাউন্ট dream চক্র।
     try:
         if os.getenv("ENABLE_SYNAPTIC_DREAM", "true").lower() == "true":
-            from workers.synaptic_dream import run_synaptic_dream_loop
+            from core.workers.synaptic_dream import run_synaptic_dream_loop
 
             await agent_supervisor.start_agent(
                 "synaptic-dream",

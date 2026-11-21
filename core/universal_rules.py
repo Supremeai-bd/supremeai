@@ -130,7 +130,7 @@ class UniversalRulesEngine:
         db_rules: dict[str, Any] = {}
         conn = None
         try:
-            from tools.mcp.mcp_supabase import _get_connection
+            from core.tools.mcp.mcp_supabase import _get_connection
 
             conn = _get_connection()
             if conn:

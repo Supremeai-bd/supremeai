@@ -8,19 +8,13 @@ from typing import Any
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from api.deps import get_current_tenant, get_current_user_token
-from api.routes.admin_dashboard import require_admin_token
-from api.routes.browser import router
+from core.api.deps import get_current_tenant, get_current_user_token
+from core.api.routes.admin_dashboard import require_admin_token
+from core.api.routes.browser import router
 from core.effective_policy import get_effective_policy, policy_store
-from core.neon_repository import (
-    list_tasks as list_neon_tasks,
-)
-from core.neon_repository import (
-    load_policy as load_neon_policy,
-)
-from core.neon_repository import (
-    save_policy as save_neon_policy,
-)
+from core.neon_repository import list_tasks as list_neon_tasks
+from core.neon_repository import load_policy as load_neon_policy
+from core.neon_repository import save_policy as save_neon_policy
 
 
 @router.get("/tasks")

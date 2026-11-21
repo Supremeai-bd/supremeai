@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-from services.config_service import ConfigService
+from core.services.config_service import ConfigService
 
 logger = logging.getLogger(__name__)
 

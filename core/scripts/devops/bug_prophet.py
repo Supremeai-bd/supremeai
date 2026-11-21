@@ -732,11 +732,7 @@ import math
 # দেখা যাচ্ছিল)। উপরের config import-এর মতোই একই try/except fallback প্যাটার্ন এখানে
 # প্রয়োগ করা হলো।
 try:
-    from core.messaging.event_bus import (
-        ErrorContext,
-        ErrorEvent,
-        error_event_bus,
-    )
+    from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus
 except ImportError:
     from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus
 

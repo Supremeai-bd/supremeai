@@ -25,7 +25,7 @@ import httpx
 from fastapi import HTTPException, Response
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from api.routes.browser import router
+from core.api.routes.browser import router
 
 # Page-context limits: keep prompts bounded (no unbounded context bloat).
 _MAX_CONTEXT_CHARS = 6000
@@ -213,7 +213,7 @@ def browse_session(body: BrowseSessionRequest):
     (same store backing GET/PUT/DELETE /sessions), so the returned id is
     actually resolvable.
     """
-    from api.routes.browser._session_store import SESSIONS
+    from core.api.routes.browser._session_store import SESSIONS
 
     session_id = f"sess_{uuid.uuid4().hex[:16]}"
     now = datetime.now(UTC).isoformat()
@@ -289,7 +289,7 @@ def ai_action(body: AIActionRequest):
         raise HTTPException(status_code=422, detail=f"Unsupported AI action: {action!r}")
 
     try:
-        from brain.model_router import ModelRouter
+        from core.brain.model_router import ModelRouter
 
         result = ModelRouter().route_and_generate(prompt, task_type="browser_ai_action")
     except Exception as exc:  # noqa: BLE001 — honest error propagation

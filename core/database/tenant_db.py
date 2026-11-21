@@ -42,7 +42,7 @@ class TenantAwareFirestore:
         # Workspace is an additional cache partition, never the storage owner.
         self.workspace_id = workspace_id
         # Use existing configured firestore client if available, fallback to default
-        from utils.environment import is_test_environment
+        from core.utils.environment import is_test_environment
 
         if is_test_environment():
             self._db = self._create_mock_db()
@@ -114,7 +114,7 @@ class TenantAwareFirestore:
     def _resolve_db_client(self):
         """Try to resolve a Firestore client — handling the case where google.cloud isn't installed."""
         try:
-            from services.storage.gcp_firestore import get_firestore_client
+            from core.services.storage.gcp_firestore import get_firestore_client
 
             client = get_firestore_client()
             if client is not None:

@@ -25,10 +25,10 @@ from core.monitoring.logging_config import logger
 from core.provider_rate_limiter import IntelligentRateLimiter, get_provider_rate_limiter
 from core.self_benchmark import SelfBenchmarkEngine
 from core.task_contract import RiskLevel, TaskBudget, TaskContract, VerificationPolicy
-from evolution.performance_monitor import PerformanceMonitor
-from runtime.task_context import TaskContext
-from runtime.task_runtime import TaskRuntime, get_task_runtime
-from verification.verifier import VerifierEngine, get_verifier
+from core.evolution.performance_monitor import PerformanceMonitor
+from core.runtime.task_context import TaskContext
+from core.runtime.task_runtime import TaskRuntime, get_task_runtime
+from core.verification.verifier import VerifierEngine, get_verifier
 
 
 class SupremeAIFactory:

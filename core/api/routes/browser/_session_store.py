@@ -15,7 +15,7 @@ from typing import Any
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-from api.routes.browser import router
+from core.api.routes.browser import router
 from core.state_store import durable_state
 
 # ──────────────────────────────────────────────

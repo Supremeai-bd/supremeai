@@ -106,9 +106,9 @@ async def run_aggregation_cycle(
     """One aggregation pass → upsert via the existing db helper. Never raises."""
     try:
         if collector is None:
-            from monitoring.metrics_collector import metrics_collector as collector
+            from core.monitoring.metrics_collector import metrics_collector as collector
         if store is None:
-            from database.supabase_client import db as store
+            from core.database.supabase_client import db as store
         if redis is None:
             try:
                 from core.cache.redis_manager import redis_manager as redis

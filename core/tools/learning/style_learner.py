@@ -30,7 +30,7 @@ class StyleLearner:
     def _get_indexer(self):
         if self.indexer is None:
             try:
-                from tools.knowledge.repo_deep_indexer import RepoDeepIndexer
+                from core.tools.knowledge.repo_deep_indexer import RepoDeepIndexer
 
                 self.indexer = RepoDeepIndexer()
             except ImportError:
@@ -175,7 +175,7 @@ class StyleLearner:
 
         if code_samples:
             try:
-                from brain.model_router import ModelRouter
+                from core.brain.model_router import ModelRouter
 
                 router_llm = ModelRouter()
                 combined = "\n\n---FILE---\n\n".join(code_samples[:5])
@@ -218,7 +218,7 @@ class StyleLearner:
         """ব্যবহারকারীর শেখা স্টাইল ইনজেক্ট করে কোড জেনারেট করে।"""
         style_prompt = self.generate_style_prompt(user_id, "python")
         try:
-            from brain.model_router import ModelRouter
+            from core.brain.model_router import ModelRouter
 
             router_llm = ModelRouter()
             full_prompt = f"{style_prompt}\n\nTask: {prompt}\nReturn only the code."
@@ -254,7 +254,7 @@ class StyleLearner:
         except Exception as mirror_err:
             logger.debug(f"[StyleLearner] state-store mirror failed: {mirror_err}")
         try:
-            from database.supabase_client import db
+            from core.database.supabase_client import db
 
             if db.client:
                 await (

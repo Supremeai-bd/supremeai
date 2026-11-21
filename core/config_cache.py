@@ -85,8 +85,8 @@ class ConfigCache:
         try:
             from sqlalchemy import select
 
-            from database.session import AsyncSessionLocal
-            from models.system_config import SystemConfig
+            from core.database.session import AsyncSessionLocal
+            from core.models.system_config import SystemConfig
 
             async with AsyncSessionLocal() as session:
                 stmt = select(SystemConfig).where(SystemConfig.is_active)
@@ -180,8 +180,8 @@ class ConfigCache:
         """
         from sqlalchemy import select
 
-        from database.session import AsyncSessionLocal
-        from models.system_config import SystemConfig
+        from core.database.session import AsyncSessionLocal
+        from core.models.system_config import SystemConfig
 
         try:
             async with AsyncSessionLocal() as session:

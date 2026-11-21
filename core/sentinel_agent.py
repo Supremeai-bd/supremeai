@@ -27,8 +27,8 @@ import httpx
 from sqlalchemy import select
 
 from core.monitoring.logging_config import logger
-from database.session import AsyncSessionLocal
-from models.sentinel import ApiEndpoint, SystemDependency, SystemIncident
+from core.database.session import AsyncSessionLocal
+from core.models.sentinel import ApiEndpoint, SystemDependency, SystemIncident
 
 
 class SentinelAgent:

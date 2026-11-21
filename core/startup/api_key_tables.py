@@ -5,8 +5,8 @@ from __future__ import annotations
 import time
 
 from core.monitoring.logging_config import logger
-from database.pgbouncer_pool import get_db_pool
-from monitoring.metrics_collector import record_db_operation
+from core.database.pgbouncer_pool import get_db_pool
+from core.monitoring.metrics_collector import record_db_operation
 
 
 async def ensure_api_key_tables() -> None:

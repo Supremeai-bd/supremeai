@@ -26,11 +26,7 @@ import threading
 from typing import Any
 
 from core.monitoring.logging_config import logger
-from core.security.codegen_gate import (
-    denied_reason,
-    inprocess_codegen_enabled,
-    warn_inprocess_codegen_boot,
-)
+from core.security.codegen_gate import denied_reason, inprocess_codegen_enabled, warn_inprocess_codegen_boot
 
 
 def _get_llm_gateway():
@@ -47,7 +43,7 @@ def _get_llm_gateway():
 
 from core.mcp_client import MCPRegistryClient
 from core.skills.base import BaseSkill
-from tools.code.fuzz_sandbox import SecurityError, run_sandbox_ast_check
+from core.tools.code.fuzz_sandbox import SecurityError, run_sandbox_ast_check
 
 # Issue #682: loud one-time boot warning when the in-process exec escape hatch
 # is explicitly enabled (local development only).
@@ -87,11 +83,7 @@ class SkillManager:
             return self._skills[skill_name]
 
         logger.info(f"Skill '{skill_name}' not in local registry. Querying Database...")
-        from tools.mcp.mcp_supabase import (
-            ExecuteQueryInput,
-            ResponseFormat,
-            supabase_execute_sql,
-        )
+        from core.tools.mcp.mcp_supabase import ExecuteQueryInput, ResponseFormat, supabase_execute_sql
 
         try:
             query = "SELECT code FROM skills WHERE skill_name = %s AND status = 'active'"

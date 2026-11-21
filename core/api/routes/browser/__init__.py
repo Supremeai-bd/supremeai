@@ -49,43 +49,26 @@ import httpx  # noqa: F401  (module-attr parity with pre-split module)
 from fastapi import APIRouter, Depends, HTTPException, Response  # noqa: F401  (module-attr parity)
 from pydantic import BaseModel, Field  # noqa: F401  (module-attr parity)
 
-from api.deps import get_current_tenant, get_current_user_token  # noqa: F401  (module-attr parity)
-from api.routes.admin_dashboard import require_admin_token  # noqa: F401  (module-attr parity)
-from core.browser_compat_store import browser_compat_store  # noqa: F401  (module-attr parity)
-from core.browser_session_catalog import (  # noqa: F401  (module-attr parity)
-    SavedBrowserSession,
-    browser_session_catalog,
-)
-from core.browser_session_manager import session_manager  # noqa: F401  (module-attr parity)
-from core.cache.redis_manager import MultiLevelCache  # noqa: F401  (module-attr parity)
-from core.config import settings  # noqa: F401  (module-attr parity with pre-split module)
-from core.effective_policy import get_effective_policy, policy_store  # noqa: F401  (parity)
-from core.errors.error_bus import with_error_bus  # noqa: F401  (module-attr parity)
-from core.kernel.audit_logger import AuditLogger  # noqa: F401  (module-attr parity)
-from core.monitoring.logging_config import logger  # noqa: F401  (module-attr parity)
-from core.neon_repository import (  # noqa: F401  (module-attr parity)
-    create_task as create_neon_task,
-)
-from core.neon_repository import (  # noqa: F401  (module-attr parity)
-    delete_task as delete_neon_task,
-)
-from core.neon_repository import (  # noqa: F401  (module-attr parity)
-    list_tasks as list_neon_tasks,
-)
-from core.neon_repository import (  # noqa: F401  (module-attr parity)
-    load_policy as load_neon_policy,
-)
-from core.neon_repository import (  # noqa: F401  (module-attr parity)
-    save_policy as save_neon_policy,
-)
-from core.neon_repository import (  # noqa: F401  (module-attr parity)
-    update_task_status as update_neon_task_status,
-)
-from core.security.secure_credential_store import (  # noqa: F401  (module-attr parity)
-    SecureCredentialStore,
-)
-from core.task_policy import evaluate_goal  # noqa: F401  (module-attr parity)
-from tools.ai_agents.browser_agent import BrowseRequest  # noqa: F401  (module-attr parity)
+from core.api.deps import get_current_tenant, get_current_user_token
+from core.api.routes.admin_dashboard import require_admin_token
+from core.browser_compat_store import browser_compat_store
+from core.browser_session_catalog import SavedBrowserSession, browser_session_catalog
+from core.browser_session_manager import session_manager
+from core.cache.redis_manager import MultiLevelCache
+from core.config import settings
+from core.effective_policy import get_effective_policy, policy_store
+from core.errors.error_bus import with_error_bus
+from core.kernel.audit_logger import AuditLogger
+from core.monitoring.logging_config import logger
+from core.neon_repository import create_task as create_neon_task
+from core.neon_repository import delete_task as delete_neon_task
+from core.neon_repository import list_tasks as list_neon_tasks
+from core.neon_repository import load_policy as load_neon_policy
+from core.neon_repository import save_policy as save_neon_policy
+from core.neon_repository import update_task_status as update_neon_task_status
+from core.security.secure_credential_store import SecureCredentialStore
+from core.task_policy import evaluate_goal
+from core.tools.ai_agents.browser_agent import BrowseRequest
 
 router = APIRouter(
     prefix="/api/browser", tags=["browser"], dependencies=[Depends(get_current_user_token)]

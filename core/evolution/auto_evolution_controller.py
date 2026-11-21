@@ -18,11 +18,11 @@ from datetime import datetime
 from enum import Enum, StrEnum
 from typing import Any
 
-from evolution.advanced_evolution_engine import AdvancedEvolutionEngine
-from evolution.auto_tuner import AutoTuner
-from evolution.memory_consolidator import MemoryConsolidator
-from evolution.performance_monitor import PerformanceMonitor
-from evolution.strategy_optimizer import StrategyOptimizer
+from core.evolution.advanced_evolution_engine import AdvancedEvolutionEngine
+from core.evolution.auto_tuner import AutoTuner
+from core.evolution.memory_consolidator import MemoryConsolidator
+from core.evolution.performance_monitor import PerformanceMonitor
+from core.evolution.strategy_optimizer import StrategyOptimizer
 
 
 class EvolutionState(StrEnum):

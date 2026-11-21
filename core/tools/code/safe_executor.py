@@ -32,11 +32,7 @@ except ImportError:
     default_globals = {}
 
 from core.monitoring.logging_config import logger
-from core.security.codegen_gate import (
-    denied_reason,
-    inprocess_codegen_enabled,
-    warn_inprocess_codegen_boot,
-)
+from core.security.codegen_gate import denied_reason, inprocess_codegen_enabled, warn_inprocess_codegen_boot
 
 # Issue #682: loud one-time boot warning when the in-process exec escape hatch
 # is explicitly enabled (local development only).

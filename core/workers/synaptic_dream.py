@@ -61,7 +61,7 @@ class SynapticDreamWorker:
             # 1. REAL prune: delete low-importance ai_memory rows past the
             #    retention horizon via the Supabase service client.
             try:
-                from database.supabase_client import db
+                from core.database.supabase_client import db
 
                 result = (
                     db.client.table("ai_memory")

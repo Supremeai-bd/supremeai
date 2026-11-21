@@ -16,7 +16,7 @@ import threading
 from datetime import UTC, datetime
 from typing import Any
 
-from brain.model_router import ModelRouter
+from core.brain.model_router import ModelRouter
 from core.monitoring.logging_config import logger
 
 try:
@@ -148,7 +148,7 @@ class EvolutionEngine:
         created_at = datetime.now(UTC).isoformat()
         supabase_success = False
         try:
-            from database.supabase_client import db
+            from core.database.supabase_client import db
 
             if db.client:
                 db.insert_task_history(task, approach, result, True, created_at)
@@ -207,7 +207,7 @@ class EvolutionEngine:
         supabase_success = False
         db = None
         try:
-            from database.supabase_client import db
+            from core.database.supabase_client import db
 
             if db.client:
                 db.insert_task_history(task, approach, result, False, created_at)
@@ -267,7 +267,7 @@ class EvolutionEngine:
 
     def detect_repeated_failures(self, min_occurrences: int = 3) -> list[dict[str, Any]]:
         try:
-            from database.supabase_client import db
+            from core.database.supabase_client import db
 
             if db.client:
                 failures = db.get_repeated_failures(min_occurrences=min_occurrences)
@@ -340,6 +340,15 @@ class EvolutionEngine:
     ) -> dict[str, Any]:
         task_hash = hashlib.sha256(original_prompt.encode()).hexdigest()
 
+        # আসল RAG-স্মৃতি থেকে প্রাসঙ্গিক অতীত প্রমাণ সংগ্রহ (best-effort)।
+        related_knowledge: str | None = None
+        try:
+            from core.memory.rag_pipeline import RAGPipeline
+
+            related_knowledge = RAGPipeline().retrieve_context(original_prompt, limit=2) or None
+        except Exception as exc:
+            logger.debug(f"RAG recall skipped during prompt optimization: {exc}")
+
         # বাংলা মন্তব্য: LLM ব্যবহার করে উন্নত প্রম্পট তৈরির জন্য একটি প্রম্পট তৈরি করা হচ্ছে।
         optimization_prompt = f"""
 System: You are a Prompt Optimization specialist. Your task is to rewrite a failing prompt to improve its success rate.
@@ -363,7 +372,7 @@ Based on the prompt, rewrite it to be more precise, clear, and effective. Provid
             optimized_prompt = response.get("text", "").strip()
 
             if not optimized_prompt or optimized_prompt == original_prompt:
-                return {"status": "no_change_generated"}
+                return {"status": "no_change_generated", "related_knowledge": related_knowledge}
 
         except Exception as e:
             return {"status": "error", "error": str(e)}
@@ -384,6 +393,7 @@ Based on the prompt, rewrite it to be more precise, clear, and effective. Provid
                 "original_prompt": original_prompt,
                 "optimized_prompt": optimized_prompt,
                 "status": "proposed",
+                "related_knowledge": related_knowledge,
             }
         finally:
             self._release_connection(conn)
@@ -418,7 +428,7 @@ Based on the prompt, rewrite it to be more precise, clear, and effective. Provid
         error_note = result.get("error", "")
 
         try:
-            from database.supabase_client import db
+            from core.database.supabase_client import db
 
             if db.client:
                 db.insert_skill_proposal(skill_name, pattern, generated_code, status, created_at)
@@ -450,7 +460,7 @@ Based on the prompt, rewrite it to be more precise, clear, and effective. Provid
     ) -> dict[str, Any]:
         created_at = datetime.now(UTC).isoformat()
         try:
-            from database.supabase_client import db
+            from core.database.supabase_client import db
 
             if db.client:
                 db.insert_feedback(
@@ -511,7 +521,7 @@ Based on the prompt, rewrite it to be more precise, clear, and effective. Provid
             "optimizations": optimizations,
         }
         try:
-            from database.supabase_client import db
+            from core.database.supabase_client import db
 
             if db.client:
                 db.append_evolution_log(report)

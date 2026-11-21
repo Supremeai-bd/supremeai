@@ -3,7 +3,7 @@ from typing import Any
 
 from core.monitoring.logging_config import logger
 
-from database.tenant_db import TenantAwareFirestore
+from core.database.tenant_db import TenantAwareFirestore
 
 from .dispatch import ApprovalDispatchError, execute_approved, resolve_executor
 from .hitl_ledger import HITLAuditLedger
@@ -468,7 +468,7 @@ class HITLEngine:
     def _mirror_to_canonical_create(self, record_id: str, payload: dict[str, Any]) -> None:
         key = f"{_CANONICAL_KEY_PREFIX}{record_id}"
         try:
-            from models.pending_tasks import TaskType, create_pending_task, get_task_by_idempotency
+            from core.models.pending_tasks import TaskType, create_pending_task, get_task_by_idempotency
 
             existing = get_task_by_idempotency(key)
             if existing is not None:
@@ -498,7 +498,7 @@ class HITLEngine:
     ) -> None:
         key = f"{_CANONICAL_KEY_PREFIX}{record_id}"
         try:
-            from models.pending_tasks import TaskStatus, get_task_by_idempotency, update_task_status
+            from core.models.pending_tasks import TaskStatus, get_task_by_idempotency, update_task_status
 
             task = get_task_by_idempotency(key)
             if task is None:

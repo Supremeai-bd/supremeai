@@ -675,7 +675,7 @@ async def sync_from_db(db: Any) -> None:
     # Lazy import: keeps the resilience package import-graph free of the
     # services layer at module load (behavior identical to the legacy
     # module-level import — sync_from_db() is the only consumer).
-    from services.config_service import ConfigService
+    from core.services.config_service import ConfigService
 
     try:
         # We serialize the default dict to a dict of config kwargs for fallback

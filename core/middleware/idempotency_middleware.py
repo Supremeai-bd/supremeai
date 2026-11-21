@@ -14,7 +14,7 @@ except ImportError:
     aioredis = None
 
 # শেয়ার্ড ইউটিলিটি — টেস্ট এনভায়রনমেন্ট চেক কেন্দ্রীভূত
-from utils.environment import is_test_environment
+from core.utils.environment import is_test_environment
 
 
 class IdempotencyMiddleware:

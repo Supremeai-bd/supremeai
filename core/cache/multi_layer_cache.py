@@ -14,7 +14,7 @@ import time
 from typing import Any
 
 from cachetools import TTLCache
-from monitoring.metrics_collector import metrics_collector, record_cache_access
+from core.monitoring.metrics_collector import metrics_collector, record_cache_access
 
 from core.llm.token_budget import estimate_tokens
 from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus

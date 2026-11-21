@@ -8,7 +8,7 @@ from core.resilience.chaos_engine import chaos_engine
 
 # Note: Using a safe fallback if supabase_client is not directly importable or missing ping
 try:
-    from database.supabase_client import db
+    from core.database.supabase_client import db
 except ImportError:
     db = None
 

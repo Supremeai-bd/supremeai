@@ -37,7 +37,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 try:  # house logger; fall back to stdlib so this module has zero heavy deps
-    from core.monitoring.logging_config import logger  # type: ignore[attr-defined]
+    from core.monitoring.logging_config import logger
 except Exception:  # pragma: no cover - only when logging_config is broken
     logger = logging.getLogger("core.learning.store")
 
@@ -279,7 +279,7 @@ def _get_db() -> Any | None:
     are cached-free (retried on the next flush).
     """
     try:
-        from database.supabase_client import db as supabase_db
+        from core.database.supabase_client import db as supabase_db
 
         return supabase_db
     except Exception as exc:  # pragma: no cover - import failure path

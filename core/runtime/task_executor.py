@@ -10,7 +10,7 @@ from core.integration_layer import SupremeAIIntegrator
 from core.monitoring.logging_config import logger
 from core.provider_rate_limiter import IntelligentRateLimiter, get_provider_rate_limiter
 from core.task_contract import TaskContract
-from runtime.task_context import TaskContext
+from core.runtime.task_context import TaskContext
 
 
 class TaskExecutor:

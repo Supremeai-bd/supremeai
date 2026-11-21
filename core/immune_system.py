@@ -3,12 +3,7 @@
 Canonical domain module: core.ast_security_scanner
 """
 
-from core.ast_security_scanner import (
-    ASTSecurityScanner,
-    ASTSecurityScannerEngine,
-    ImmuneSystemScanner,
-    SecuritySandboxError,
-)
+from core.ast_security_scanner import ASTSecurityScanner, ASTSecurityScannerEngine, ImmuneSystemScanner, SecuritySandboxError
 
 __all__ = [
     "SecuritySandboxError",
