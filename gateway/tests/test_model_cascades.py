@@ -53,6 +53,34 @@ async def test_model_exhaustion_does_not_reset_unsupported_set(monkeypatch):
     transport.assert_not_called()
 
 
+@pytest.mark.asyncio
+async def test_cascade_deadline_stops_before_next_model(monkeypatch):
+    """Direct adapter callers share a bounded budget, not N×per-model timeout."""
+    posted = Mock()
+
+    @asynccontextmanager
+    async def client(_timeout):
+        async with httpx.AsyncClient(transport=httpx.MockTransport(posted)) as client:
+            yield client
+
+    monkeypatch.setattr(adapters, "_pooled_http_client", client)
+    status_code, body = await adapters.forward_chat_completion(
+        provider="groq",
+        api_key="fixture-key",
+        payload={"model": "not-approved", "messages": [{"role": "user", "content": "hi"}]},
+        deadline_s=1e-12,
+    )
+    assert status_code == 504
+    assert "deadline exceeded" in body["error"]
+    posted.assert_not_called()
+
+
+def test_cascade_deadline_defaults_to_five_second_budget(monkeypatch):
+    monkeypatch.setenv("CHAT_CASCADE_DEADLINE_S", "5.5")
+    assert adapters._cascade_deadline_s(None) == 5.5
+    assert adapters._cascade_deadline_s(2.0) == 2.0
+
+
 def test_jules_key_discovery_does_not_confer_approval(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "fixture-gemini-a")
     monkeypatch.setenv("JULES_API_KEY", "fixture-gemini-b")

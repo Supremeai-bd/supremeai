@@ -175,13 +175,15 @@ export const CANONICAL_TOPOLOGY_DEFAULTS: Record<string, AuthoritativeServiceTar
     platform: "cloudflare",
     renderAccountId: "none",
     renderServiceId: "",
-    runtimeUrl: "https://studio.supremeai.lat",
+    // Verified 2026-11-21: the live SPA is served by Cloudflare Pages.
+    // The audit's frontend repository is the public client repo, not backend.
+    runtimeUrl: "https://supremeai-studio.pages.dev",
     healthPath: "/release",
     readinessPath: "/release",
     releasePath: "/release",
-    repo: "Supremeai-bd/supremeai",
+    repo: "Supremeai-bd/supremeai-public",
     branch: "main",
-    watchPaths: ["studio/**", "src/**"],
+    watchPaths: ["src/**", "server.ts", "package.json", "version.json"],
     source: "default",
   },
   cloudflare: {
@@ -190,9 +192,12 @@ export const CANONICAL_TOPOLOGY_DEFAULTS: Record<string, AuthoritativeServiceTar
     platform: "cloudflare",
     renderAccountId: "none",
     renderServiceId: "",
-    runtimeUrl: "https://studio.supremeai.lat",
-    healthPath: "/health",
-    readinessPath: "/health",
+    // Worker code and route are defined by
+    // infrastructure/cloudflare-studio-proxy/src/index.js and
+    // config/service_registry.yaml (production_url + /cf-health).
+    runtimeUrl: "https://supremeai.live",
+    healthPath: "/cf-health",
+    readinessPath: "/cf-health",
     releasePath: "/release",
     repo: "Supremeai-bd/supremeai",
     branch: "main",
