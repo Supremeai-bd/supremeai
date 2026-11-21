@@ -35,6 +35,10 @@ interface HealthProbe {
   freeLimitRemainingMinutes?: number;
   freeLimitExhausted?: boolean;
   error?: string;
+  // Real-data evidence fields (never trust bare "healthy" label)
+  confidence?: "verified" | "partial" | "unverified";
+  lastCheckedAt?: string;
+  actionSafe?: boolean;
 }
 
 function bearerFor(apiKeyRef: string): string | undefined {
@@ -478,8 +482,9 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
           type: "text",
           text: JSON.stringify(
             {
-              summary: `${available}/${total} services available`,
+              summary: `${available}/${total} services available (config registry only — call system.health for live status)`,
               timestamp: new Date().toISOString(),
+              liveProbeRecommended: true,
               byProvider,
             },
             null,
@@ -531,7 +536,19 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
       }
     }
 
-    const health = results.map((r) => (r.status === "fulfilled" ? r.value : r.reason));
+    const nowIso = new Date().toISOString();
+    const health = results.map((r) => {
+      const v = (r.status === "fulfilled" ? r.value : r.reason) as Record<string, unknown>;
+      const st = String(v.status ?? "unreachable");
+      const hasEvidence = v.httpStatus !== null && v.httpStatus !== undefined;
+      const deployOk = !v.deployStatus || v.deployStatus === "live" || v.deployStatus === "success";
+      const confidence: "verified" | "partial" | "unverified" =
+        st === "unconfigured" ? "unverified" :
+        hasEvidence && deployOk ? "verified" :
+        hasEvidence ? "partial" : "unverified";
+      const actionSafe = st === "healthy" && confidence === "verified" && (v.latencyMs !== null);
+      return { ...v, confidence, lastCheckedAt: nowIso, actionSafe };
+    });
     const count = (s: string) => health.filter((h: Record<string, unknown>) => h.status === s).length;
     const healthy = count("healthy");
     const degraded = count("degraded");
@@ -556,6 +573,9 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
           text: JSON.stringify(
             {
               summary: `${healthy} healthy · ${degraded} degraded · ${unreachable} unreachable · ${unconfigured} unconfigured (of ${health.length})`,
+              actionSafeCount: health.filter((h: Record<string, unknown>) => h.actionSafe === true).length,
+              verifiedCount: health.filter((h: Record<string, unknown>) => h.confidence === "verified").length,
+              partialCount: health.filter((h: Record<string, unknown>) => h.confidence === "partial").length,
               timestamp: new Date().toISOString(),
               services,
             },

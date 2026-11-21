@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { registerSystemTools } from "./system.tools.js";
 import { registerSystemSummaryTools } from "./system.summary.tools.js";
+import { registerArchitectureGapTools } from "./architecture.tools.js";
 import { registerRenderTools } from "./render.tools.js";
 import { registerGitHubTools } from "./github.tools.js";
 import { registerSupabaseTools } from "./supabase.tools.js";
@@ -76,6 +77,7 @@ export async function registerAllTools(
   // ── System Tools
   await registerSystemTools(server);
   await registerSystemSummaryTools(server);
+  await registerArchitectureGapTools(server);
   await registerPolicyTools(server);
   await registerActionTools(server);
   await registerAutonomyTools(server);
