@@ -57,6 +57,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       branch: z.string().optional(),
       sha: z.string().optional().describe("Required when updating an existing file"),
     },
+    { readOnlyHint: false, destructiveHint: false },
     async ({ owner, repo, path, message, content, branch, sha }) => {
       try {
         requireAgentOrAbove();
@@ -94,6 +95,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       merge_method: z.enum(["merge", "squash", "rebase"]).optional(),
       commit_title: z.string().optional(),
     },
+    { readOnlyHint: false, destructiveHint: false },
     async ({ owner, repo, pull_number, merge_method, commit_title }) => {
       try {
         requireAgentOrAbove();
@@ -126,6 +128,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       table: z.string(),
       filter: z.string().describe("PostgREST filter, e.g. 'id=eq.123'"),
     },
+    { readOnlyHint: false, destructiveHint: true },
     async ({ table, filter }) => {
       try {
         requireAgentOrAbove();
@@ -156,6 +159,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       environment: z.string().optional(),
       secretPath: z.string().optional(),
     },
+    { readOnlyHint: true, idempotentHint: true },
     async ({ secretName, environment, secretPath }) => {
       try {
         // বাংলা মন্তব্য: শুধুমাত্র admin এবং supremeadmin রোল infisical.get_secret ব্যবহার করতে পারবে।
@@ -188,6 +192,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       environment: z.string().optional(),
       secretPath: z.string().optional(),
     },
+    { readOnlyHint: false, destructiveHint: false },
     async ({ secretName, secretValue, environment, secretPath }) => {
       try {
         requireAgentOrAbove();
@@ -220,6 +225,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       environment: z.string().optional(),
       secretPath: z.string().optional(),
     },
+    { readOnlyHint: true, idempotentHint: true },
     async ({ environment, secretPath }) => {
       try {
         requireAgentOrAbove();
@@ -241,6 +247,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
     "neon.list_projects",
     "List Neon Postgres projects.",
     {},
+    { readOnlyHint: true, idempotentHint: true },
     async () => {
       try {
         requireAgentOrAbove();
@@ -266,6 +273,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       html: z.string(),
       from: z.string().optional(),
     },
+    { readOnlyHint: false, destructiveHint: false },
     async ({ to, subject, html, from }) => {
       try {
         requireAgentOrAbove();
@@ -296,6 +304,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       username: z.string().optional(),
       webhookUrl: z.string().optional(),
     },
+    { readOnlyHint: false, destructiveHint: false },
     async ({ content, username, webhookUrl }) => {
       try {
         requireAgentOrAbove();
@@ -321,6 +330,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       organizationSlug: z.string(),
       projectSlug: z.string(),
     },
+    { readOnlyHint: true, idempotentHint: true },
     async ({ organizationSlug, projectSlug }) => {
       try {
         requireAgentOrAbove();
@@ -342,6 +352,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
     "uptimerobot.get_monitors",
     "Fetch UptimeRobot monitors and their status.",
     {},
+    { readOnlyHint: true, idempotentHint: true },
     async () => {
       try {
         requireAgentOrAbove();
@@ -367,6 +378,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       templateID: z.string().optional(),
       timeout: z.number().optional(),
     },
+    { readOnlyHint: false, destructiveHint: false },
     async ({ templateID, timeout }) => {
       try {
         requireAgentOrAbove();
@@ -395,6 +407,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
     "cookies.check_pool",
     "Check whether configured cookie pool env vars are present and non-empty without exposing values.",
     {},
+    { readOnlyHint: true, idempotentHint: true },
     async () => {
       try {
         requireAgentOrAbove();
@@ -434,6 +447,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       code: z.string(),
       language: z.enum(["python", "javascript", "bash"]).optional(),
     },
+    { readOnlyHint: false, destructiveHint: false },
     async ({ sandboxId, code, language }) => {
       try {
         requireAgentOrAbove();
@@ -459,6 +473,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       projectId: z.string().optional(),
       name: z.string().optional(),
     },
+    { readOnlyHint: false, destructiveHint: false },
     async ({ projectId, name }) => {
       try {
         requireAgentOrAbove();
@@ -484,6 +499,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       projectId: z.string().optional(),
       branchId: z.string(),
     },
+    { readOnlyHint: false, destructiveHint: true },
     async ({ projectId, branchId }) => {
       try {
         requireAgentOrAbove();
@@ -510,6 +526,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       value: z.string(),
       exSeconds: z.number().optional(),
     },
+    { readOnlyHint: false, destructiveHint: false },
     async ({ key, value, exSeconds }) => {
       try {
         requireAgentOrAbove();
@@ -533,6 +550,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
     "redis.delete_key",
     "Delete a key from Upstash Redis via REST API.",
     { key: z.string() },
+    { readOnlyHint: false, destructiveHint: true },
     async ({ key }) => {
       try {
         requireAgentOrAbove();
@@ -556,6 +574,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
     "launchdarkly.get_flags",
     "List LaunchDarkly feature flags for a project.",
     { projectKey: z.string().optional() },
+    { readOnlyHint: true, idempotentHint: true },
     async ({ projectKey }) => {
       try {
         requireAgentOrAbove();
@@ -580,6 +599,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       environmentKey: z.string(),
       enabled: z.boolean(),
     },
+    { readOnlyHint: false, destructiveHint: false },
     async ({ projectKey, flagKey, environmentKey, enabled }) => {
       try {
         requireAgentOrAbove();
@@ -610,6 +630,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       taskIdentifier: z.string(),
       payload: z.record(z.string(), z.unknown()).optional(),
     },
+    { readOnlyHint: false, destructiveHint: false },
     async ({ taskIdentifier, payload }) => {
       try {
         requireAgentOrAbove();
@@ -635,6 +656,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       bucket: z.string(),
       prefix: z.string().optional(),
     },
+    { readOnlyHint: true, idempotentHint: true },
     async ({ bucket, prefix }) => {
       try {
         requireAgentOrAbove();
