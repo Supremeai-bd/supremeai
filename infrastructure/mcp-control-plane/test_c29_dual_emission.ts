@@ -17,7 +17,7 @@ import { registerBridgeTools } from "./src/tools/bridge.tools.js";
 import { RequestContextStore } from "./src/policy/auth.context.js";
 
 const server = new McpServer({ name: "c29-rehearsal", version: "0.0.1" });
-// Mirror the production index.fixed.ts registerTool shim (name sanitization
+// Mirror the production index.ts registerTool shim (name sanitization
 // only — this rehearsal has no RBAC/rate-limit stores wired, which are
 // covered by the onboarding + rate-limit test batteries).
 const originalRegisterTool = (server as unknown as { registerTool: (n: string, c: unknown, cb: unknown) => unknown }).registerTool.bind(server);

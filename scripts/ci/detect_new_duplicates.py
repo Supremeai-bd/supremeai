@@ -67,8 +67,6 @@ DEFAULT_IGNORES = (
     # scripts/ci/mirror_drift_guard.py). Mirror similarity is expected, not a
     # defect, so it is excluded here; drift itself is covered by that guard.
     "scripts/ops/**,"
-    # index.fixed.ts is intentional entry parity anchor (#2391, test_entry_governance.ts)
-    "infrastructure/mcp-control-plane/src/index.fixed.ts,"
     "docs/**,"
     ".agents/**,"
     "**/*.md,"
