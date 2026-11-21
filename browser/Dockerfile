@@ -9,7 +9,7 @@ RUN addgroup --system supremeai && adduser --system supremeai --ingroup supremea
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY --chown=supremeai:supremeai server.py main.py ./
+COPY --chown=supremeai:supremeai *.py ./
 
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
