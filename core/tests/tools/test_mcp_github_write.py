@@ -1316,6 +1316,17 @@ class TestRateLimit:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
+def _read_hint(annotations):
+    """Read destructiveHint across the MCP SDK's ToolAnnotations dataclass (snake_case)
+    and plain-dict annotations (camelCase)."""
+    if isinstance(annotations, dict):
+        return annotations.get("destructive_hint", annotations.get("destructiveHint"))
+    value = getattr(annotations, "destructive_hint", None)
+    if value is None:
+        value = getattr(annotations, "destructiveHint", None)
+    return value
+
+
 class TestToolRegistration:
     """FastMCP tool registry-তে নতুন ৪টি tool registered আছে কিনা যাচাই।"""
 
@@ -1359,12 +1370,9 @@ class TestToolRegistration:
         if isinstance(tools, dict) and "github_commit_files" in tools:
             tool = tools["github_commit_files"]
             annotations = getattr(tool, "annotations", None) or {}
-            # annotations might be a ToolAnnotations dataclass — check both dict & attrs
-            destructive = (
-                annotations.get("destructiveHint")
-                if isinstance(annotations, dict)
-                else getattr(annotations, "destructiveHint", None)
-            )
+            # annotations might be a ToolAnnotations dataclass (snake_case fields)
+            # or a plain dict (camelCase keys) — check both.
+            destructive = _read_hint(annotations)
             assert destructive is False
 
     def test_merge_pr_destructive_hint_true(self):
@@ -1374,9 +1382,5 @@ class TestToolRegistration:
         if isinstance(tools, dict) and "github_merge_pull_request" in tools:
             tool = tools["github_merge_pull_request"]
             annotations = getattr(tool, "annotations", None) or {}
-            destructive = (
-                annotations.get("destructiveHint")
-                if isinstance(annotations, dict)
-                else getattr(annotations, "destructiveHint", None)
-            )
+            destructive = _read_hint(annotations)
             assert destructive is True

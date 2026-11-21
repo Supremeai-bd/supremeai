@@ -1,7 +1,7 @@
 """Memory Circle Center — retrieval, storage.
 
 Owns (per FCC plan): retrieval, storage, promotion, forgetting.
-Domain adapter: ``memory.rag_pipeline.RAGPipeline`` (lazy import; runs in a
+Domain adapter: ``core.memory.rag_pipeline.RAGPipeline`` (lazy import; runs in a
 worker thread because the ChromaDB store is blocking).
 """
 
@@ -54,7 +54,7 @@ class MemoryCenter(CircleCenter):
         return None
 
     def resolve_adapter(self, envelope: ExecutionEnvelope):  # noqa: ANN201
-        from memory.rag_pipeline import RAGPipeline  # local adapter selection
+        from core.memory.rag_pipeline import RAGPipeline  # local adapter selection
 
         return RAGPipeline()
 

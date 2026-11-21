@@ -185,6 +185,8 @@ class TestNeonExecuteSql:
     async def test_no_url(self, monkeypatch):
         _admin(monkeypatch)
         monkeypatch.delenv("NEON_DATABASE_URL", raising=False)
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.delenv("SUPABASE_DATABASE_URL", raising=False)
         out = _jq(await mn.neon_execute_sql(mn.ExecuteQueryInput(query="SELECT 1")))
         assert out == {"error": "NEON_DATABASE_URL not configured"}
 
