@@ -42,7 +42,7 @@ export class DependencyGraph {
 export const globalDependencyGraph = new DependencyGraph({
   dependencies: {
     "mcp-control-plane": ["render", "github", "supabase", "redis", "cloudflare", "infisical", "ai-providers", "notify"],
-    "frontend": ["supabase-auth", "supabase-db", "vercel"],
+    "frontend": ["supabase-auth", "supabase-db", "cloudflare"],
     "backend": ["supabase-db", "redis", "render"],
     "ping-worker": ["cloudflare"]
   }
