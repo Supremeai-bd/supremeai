@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "version": "1.0.0",
   "generated_by": "scripts/ci/sync_deployment_config.py",
+  "ssot_public_gateway": "https://supremeai-studio.pages.dev/api",
   "endpoints": {
     "api_gateway": {
       "direct_render_origin": "https://supremeai-api-ulw0.onrender.com",
@@ -14,8 +15,7 @@
     },
     "mcp_tower": {
       "direct_render_origin": "https://supremeai-mcp-tower-live.onrender.com",
-      "service_id": "srv-dabm7inqj5pc738jkrt0",
-      "public_proxy_url": "https://supremeai-studio.paykaribazaronline.workers.dev/mcp"
+      "service_id": "srv-dabm7inqj5pc738jkrt0"
     },
     "core": {
       "direct_render_origin": "https://supremeai-primary-node-5xso.onrender.com",

@@ -85,7 +85,7 @@ def sync_models_json(public_dir: Path, manifest: dict, apply: bool = False) -> b
         return False
 
     content = target.read_text(encoding="utf-8")
-    api_proxy = manifest.get("endpoints", {}).get("api_gateway", {}).get("public_proxy_url", "https://supremeai-studio.pages.dev/api")
+    api_proxy = manifest.get("ssot_public_gateway") or manifest.get("endpoints", {}).get("api_gateway", {}).get("public_proxy_url", "https://supremeai-studio.pages.dev/api")
 
     new_content = re.sub(
         r'"gatewayBaseUrl":\s*"[^"]+"',
