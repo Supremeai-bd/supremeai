@@ -9,6 +9,9 @@ compatibility_flags = ["nodejs_compat"]
 # Cloudflare Pages deployment declared as `frontend.production_url` in
 # config/service_registry.yaml.
 ORIGIN_HOST = "supremeai-studio.pages.dev"
+API_ORIGIN_HOST = "supremeai-api-ulw0.onrender.com"
+MCP_ORIGIN_HOST = "supremeai-mcp-tower-live.onrender.com"
+ALLOWED_ORIGINS = "https://supremeai-studio.pages.dev,https://supremeai.live"
 
 [triggers]
 crons = ["*/10 * * * *", "0 * * * *"]
