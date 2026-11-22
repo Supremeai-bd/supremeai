@@ -79,6 +79,8 @@ def service_url(svc, env):
     env_key = svc.get('canonical_url_env')
     if env_key and env.get(env_key):
         url = env[env_key]
+    if not url and svc.get('platform') == 'render' and svc.get('render_name'):
+        url = f"https://{svc['render_name']}.onrender.com"
     return url
 
 def service_id(svc, env):
