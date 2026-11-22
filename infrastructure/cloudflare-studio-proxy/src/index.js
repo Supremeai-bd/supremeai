@@ -63,6 +63,22 @@ function buildCorsHeaders(request, env) {
   };
 }
 
+function buildProxyResponse(upstreamResp, corsHeaders) {
+  const respHeaders = new Headers(upstreamResp.headers);
+  for (const [k, v] of Object.entries(corsHeaders)) {
+    respHeaders.set(k, v);
+  }
+  if ((respHeaders.get("content-type") || "").includes("text/event-stream")) {
+    respHeaders.set("Cache-Control", "no-cache");
+    respHeaders.set("X-Accel-Buffering", "no");
+  }
+  return new Response(upstreamResp.body, {
+    status: upstreamResp.status,
+    statusText: upstreamResp.statusText,
+    headers: respHeaders,
+  });
+}
+
 // 6 Render nodes kept warm to eliminate 30-50s cold-start on free tiers
 const RENDER_SERVICES = [
   { name: "api", url: "https://supremeai-api-ulw0.onrender.com/health" },
@@ -237,19 +253,7 @@ export default {
           redirect: "follow",
           signal: request.signal,
         });
-        const respHeaders = new Headers(mcpResp.headers);
-        for (const [k, v] of Object.entries(corsHeaders)) {
-          respHeaders.set(k, v);
-        }
-        if ((respHeaders.get("content-type") || "").includes("text/event-stream")) {
-          respHeaders.set("Cache-Control", "no-cache");
-          respHeaders.set("X-Accel-Buffering", "no");
-        }
-        return new Response(mcpResp.body, {
-          status: mcpResp.status,
-          statusText: mcpResp.statusText,
-          headers: respHeaders,
-        });
+        return buildProxyResponse(mcpResp, corsHeaders);
       } catch (err) {
         return new Response(JSON.stringify({ error: err.message, status: "mcp_gateway_proxy_error" }), {
           status: 502,
@@ -303,20 +307,7 @@ export default {
         });
         if (apiTimeout) clearTimeout(apiTimeout);
 
-        const respHeaders = new Headers(apiResp.headers);
-        for (const [k, v] of Object.entries(corsHeaders)) {
-          respHeaders.set(k, v);
-        }
-        if ((respHeaders.get("content-type") || "").includes("text/event-stream")) {
-          respHeaders.set("Cache-Control", "no-cache");
-          respHeaders.set("X-Accel-Buffering", "no");
-        }
-
-        return new Response(apiResp.body, {
-          status: apiResp.status,
-          statusText: apiResp.statusText,
-          headers: respHeaders,
-        });
+        return buildProxyResponse(apiResp, corsHeaders);
       } catch (err) {
         return new Response(JSON.stringify({ error: err.message, status: "gateway_proxy_error" }), {
           status: 502,
