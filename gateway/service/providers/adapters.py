@@ -329,6 +329,38 @@ async def _pooled_http_client(timeout: float = 28.0):
     """Yield the shared pooled httpx client (connection reuse)."""
     yield _get_stealth_client()
 
+def _remaining_cascade_budget(deadline: float, provider: str, lane: str) -> float:
+    """Return the remaining per-provider cascade budget, warning on exhaustion."""
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        logger.warning(
+            "[%s] %s cascade deadline exceeded; stopping failover.",
+            provider,
+            lane,
+        )
+    return remaining
+
+
+def _cascade_candidate_attempts(
+    candidate_models: list[str],
+    provider: str,
+    api_key: str,
+    slot: Any,
+    vision: bool,
+    deadline: float,
+    lane: str,
+):
+    """Yield only approved candidates with remaining time; None marks expiry."""
+    for model_name in candidate_models:
+        if model_name not in eligible_chat_models(provider, api_key, slot, vision=vision):
+            continue
+        remaining = _remaining_cascade_budget(deadline, provider, lane)
+        if remaining <= 0:
+            yield None, 0.0
+            return
+        yield model_name, remaining
+
+
 def _cascade_deadline_s(deadline_s: float | None) -> float:
     """End-to-end budget for one in-flight model cascade (#630 remainder).
 
@@ -396,18 +428,11 @@ async def forward_chat_completion(
     cascade_deadline = time.monotonic() + _cascade_deadline_s(deadline_s)
 
     async with _pooled_http_client(timeout) as client:
-        for model_name in candidate_models:
-            # Another request may have withdrawn the model or approval may
-            # have expired while earlier candidates were being attempted.
-            if model_name not in eligible_chat_models(provider, api_key, slot, vision=vision):
-                continue
-            remaining = cascade_deadline - time.monotonic()
-            if remaining <= 0:
-                logger.warning(
-                    "[%s] Cascade deadline exceeded; stopping failover after %s.",
-                    provider,
-                    model_name,
-                )
+        attempts = _cascade_candidate_attempts(
+            candidate_models, provider, api_key, slot, vision, cascade_deadline, "non-stream"
+        )
+        for model_name, remaining in attempts:
+            if model_name is None:
                 last_status = 504
                 last_data = {"error": f"Provider {provider} cascade deadline exceeded"}
                 break
@@ -607,17 +632,11 @@ async def stream_chat_completion_events(
 
     cascade_deadline = time.monotonic() + _cascade_deadline_s(deadline_s)
     async with _pooled_http_client(timeout) as client:
-        for model_name in candidate_models:
-            # Another request may have withdrawn the model or approval may
-            # have expired while earlier candidates were being attempted.
-            if model_name not in eligible_chat_models(provider, api_key, slot, vision=vision):
-                continue
-            remaining = cascade_deadline - time.monotonic()
-            if remaining <= 0:
-                logger.warning(
-                    "[%s] Stream cascade deadline exceeded; stopping failover.",
-                    provider,
-                )
+        attempts = _cascade_candidate_attempts(
+            candidate_models, provider, api_key, slot, vision, cascade_deadline, "stream"
+        )
+        for model_name, remaining in attempts:
+            if model_name is None:
                 yield ("error", {"error": f"Provider {provider} cascade deadline exceeded"})
                 return
             body["model"] = model_name

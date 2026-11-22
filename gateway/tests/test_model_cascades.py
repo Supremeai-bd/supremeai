@@ -19,6 +19,15 @@ def _approval(monkeypatch):
     monkeypatch.setattr(adapters, "_PAID_MODELS", set())
 
 
+def _mock_http_client(posted):
+    @asynccontextmanager
+    async def client(_timeout):
+        async with httpx.AsyncClient(transport=httpx.MockTransport(posted)) as client:
+            yield client
+
+    return client
+
+
 @pytest.mark.parametrize("status", [400, 402, 404, 429, 503])
 @pytest.mark.asyncio
 async def test_cascade_only_to_approved_alternate(monkeypatch, status):
@@ -26,12 +35,7 @@ async def test_cascade_only_to_approved_alternate(monkeypatch, status):
         httpx.Response(status),
         httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]}),
     ])
-    @asynccontextmanager
-    async def client(_timeout):
-        async with httpx.AsyncClient(transport=httpx.MockTransport(posted)) as client:
-            yield client
-
-    monkeypatch.setattr(adapters, "_pooled_http_client", client)
+    monkeypatch.setattr(adapters, "_pooled_http_client", _mock_http_client(posted))
     status_code, body = await adapters.forward_chat_completion(
         provider="groq", api_key="fixture-key",
         payload={"model": "not-approved", "messages": [{"role": "user", "content": "hi"}]},
@@ -57,13 +61,7 @@ async def test_model_exhaustion_does_not_reset_unsupported_set(monkeypatch):
 async def test_cascade_deadline_stops_before_next_model(monkeypatch):
     """Direct adapter callers share a bounded budget, not N×per-model timeout."""
     posted = Mock()
-
-    @asynccontextmanager
-    async def client(_timeout):
-        async with httpx.AsyncClient(transport=httpx.MockTransport(posted)) as client:
-            yield client
-
-    monkeypatch.setattr(adapters, "_pooled_http_client", client)
+    monkeypatch.setattr(adapters, "_pooled_http_client", _mock_http_client(posted))
     status_code, body = await adapters.forward_chat_completion(
         provider="groq",
         api_key="fixture-key",
