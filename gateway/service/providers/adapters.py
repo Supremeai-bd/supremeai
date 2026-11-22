@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import os
 import time
 from contextlib import asynccontextmanager
@@ -328,17 +329,77 @@ async def _pooled_http_client(timeout: float = 28.0):
     """Yield the shared pooled httpx client (connection reuse)."""
     yield _get_stealth_client()
 
+def _remaining_cascade_budget(deadline: float, provider: str, lane: str) -> float:
+    """Return the remaining per-provider cascade budget, warning on exhaustion."""
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        logger.warning(
+            "[%s] %s cascade deadline exceeded; stopping failover.",
+            provider,
+            lane,
+        )
+    return remaining
+
+
+def _cascade_candidate_attempts(
+    candidate_models: list[str],
+    provider: str,
+    api_key: str,
+    slot: Any,
+    vision: bool,
+    deadline: float,
+    lane: str,
+):
+    """Yield only approved candidates with remaining time; None marks expiry."""
+    for model_name in candidate_models:
+        if model_name not in eligible_chat_models(provider, api_key, slot, vision=vision):
+            continue
+        remaining = _remaining_cascade_budget(deadline, provider, lane)
+        if remaining <= 0:
+            yield None, 0.0
+            return
+        yield model_name, remaining
+
+
+def _cascade_deadline_s(deadline_s: float | None) -> float:
+    """End-to-end budget for one in-flight model cascade (#630 remainder).
+
+    Callers that already enforce a route deadline (gateway/service/app.py)
+    pass ``deadline_s`` explicitly. Direct callers (telegram_webhook,
+    /v1/ui/generate) previously had no bound at all: with a 6s per-model
+    timeout and several candidates, one call could stack past 25s. Standalone
+    calls default to the 5s CHAT_CASCADE_DEADLINE_S budget; route callers can
+    pass their narrower per-model remaining budget.
+    """
+    if deadline_s is not None:
+        try:
+            explicit = float(deadline_s)
+            if math.isfinite(explicit) and explicit > 0:
+                return explicit
+        except (TypeError, ValueError):
+            pass
+    try:
+        configured = float(os.getenv("CHAT_CASCADE_DEADLINE_S", "5") or 5)
+        return configured if math.isfinite(configured) and configured > 0 else 5.0
+    except (TypeError, ValueError):
+        return 5.0
+
+
 async def forward_chat_completion(
     provider: str,
     api_key: str,
     payload: Dict[str, Any],
     slot: Any = None,
-    timeout: float = 6.0
+    timeout: float = 6.0,
+    deadline_s: float | None = None,
 ) -> Tuple[int, Dict[str, Any] | str]:
     """
     Forwards an OpenAI-format chat completion request to the chosen provider.
     Executes an in-flight model cascade: if the top model returns 429/404/400/503,
     it automatically attempts the remaining prioritized models before reporting error.
+    The whole cascade is bounded by ``deadline_s`` (default
+    CHAT_CASCADE_DEADLINE_S, 5s): once the budget is spent, no further
+    candidate is attempted.
     Returns (status_code, parsed_json_or_text).
     """
     config = PROVIDER_CONFIGS.get(provider)
@@ -364,16 +425,22 @@ async def forward_chat_completion(
 
     last_status = 503
     last_data: Any = {"error": "No approved free model available"}
+    cascade_deadline = time.monotonic() + _cascade_deadline_s(deadline_s)
 
     async with _pooled_http_client(timeout) as client:
-        for model_name in candidate_models:
-            # Another request may have withdrawn the model or approval may
-            # have expired while earlier candidates were being attempted.
-            if model_name not in eligible_chat_models(provider, api_key, slot, vision=vision):
-                continue
+        attempts = _cascade_candidate_attempts(
+            candidate_models, provider, api_key, slot, vision, cascade_deadline, "non-stream"
+        )
+        for model_name, remaining in attempts:
+            if model_name is None:
+                last_status = 504
+                last_data = {"error": f"Provider {provider} cascade deadline exceeded"}
+                break
             body["model"] = model_name
             try:
-                response = await client.post(url, json=body, headers=headers, timeout=timeout)
+                response = await client.post(
+                    url, json=body, headers=headers, timeout=min(timeout, remaining)
+                )
                 status_code = response.status_code
                 try:
                     data = response.json()
@@ -527,6 +594,7 @@ async def stream_chat_completion_events(
     payload: Dict[str, Any],
     slot: Any = None,
     timeout: float = 6.0,
+    deadline_s: float | None = None,
 ) -> AsyncIterator[Tuple[str, Any]]:
     """True upstream SSE streaming with in-flight model cascade (audit P0-5 fix).
 
@@ -562,16 +630,19 @@ async def stream_chat_completion_events(
         yield ("error", {"error": "No approved free model available", "status": 503})
         return
 
+    cascade_deadline = time.monotonic() + _cascade_deadline_s(deadline_s)
     async with _pooled_http_client(timeout) as client:
-        for model_name in candidate_models:
-            # Another request may have withdrawn the model or approval may
-            # have expired while earlier candidates were being attempted.
-            if model_name not in eligible_chat_models(provider, api_key, slot, vision=vision):
-                continue
+        attempts = _cascade_candidate_attempts(
+            candidate_models, provider, api_key, slot, vision, cascade_deadline, "stream"
+        )
+        for model_name, remaining in attempts:
+            if model_name is None:
+                yield ("error", {"error": f"Provider {provider} cascade deadline exceeded"})
+                return
             body["model"] = model_name
             committed = False
             try:
-                stream_timeout = httpx.Timeout(timeout, connect=4.0)
+                stream_timeout = httpx.Timeout(min(timeout, remaining), connect=4.0)
                 async with client.stream("POST", url, json=body, headers=headers, timeout=stream_timeout) as response:
                     status_code = response.status_code
                     if status_code in (400, 402, 404, 429, 503):

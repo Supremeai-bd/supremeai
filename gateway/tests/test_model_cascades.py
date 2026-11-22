@@ -19,6 +19,15 @@ def _approval(monkeypatch):
     monkeypatch.setattr(adapters, "_PAID_MODELS", set())
 
 
+def _mock_http_client(posted):
+    @asynccontextmanager
+    async def client(_timeout):
+        async with httpx.AsyncClient(transport=httpx.MockTransport(posted)) as client:
+            yield client
+
+    return client
+
+
 @pytest.mark.parametrize("status", [400, 402, 404, 429, 503])
 @pytest.mark.asyncio
 async def test_cascade_only_to_approved_alternate(monkeypatch, status):
@@ -26,12 +35,7 @@ async def test_cascade_only_to_approved_alternate(monkeypatch, status):
         httpx.Response(status),
         httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]}),
     ])
-    @asynccontextmanager
-    async def client(_timeout):
-        async with httpx.AsyncClient(transport=httpx.MockTransport(posted)) as client:
-            yield client
-
-    monkeypatch.setattr(adapters, "_pooled_http_client", client)
+    monkeypatch.setattr(adapters, "_pooled_http_client", _mock_http_client(posted))
     status_code, body = await adapters.forward_chat_completion(
         provider="groq", api_key="fixture-key",
         payload={"model": "not-approved", "messages": [{"role": "user", "content": "hi"}]},
@@ -51,6 +55,28 @@ async def test_model_exhaustion_does_not_reset_unsupported_set(monkeypatch):
     assert status == 503 and events[0][0] == "error" and events[0][1]["status"] == 503
     assert slot.unsupported_models == {"first-approved", "second-approved"}
     transport.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_cascade_deadline_stops_before_next_model(monkeypatch):
+    """Direct adapter callers share a bounded budget, not N×per-model timeout."""
+    posted = Mock()
+    monkeypatch.setattr(adapters, "_pooled_http_client", _mock_http_client(posted))
+    status_code, body = await adapters.forward_chat_completion(
+        provider="groq",
+        api_key="fixture-key",
+        payload={"model": "not-approved", "messages": [{"role": "user", "content": "hi"}]},
+        deadline_s=1e-12,
+    )
+    assert status_code == 504
+    assert "deadline exceeded" in body["error"]
+    posted.assert_not_called()
+
+
+def test_cascade_deadline_defaults_to_five_second_budget(monkeypatch):
+    monkeypatch.setenv("CHAT_CASCADE_DEADLINE_S", "5.5")
+    assert adapters._cascade_deadline_s(None) == 5.5
+    assert adapters._cascade_deadline_s(2.0) == 2.0
 
 
 def test_jules_key_discovery_does_not_confer_approval(monkeypatch):

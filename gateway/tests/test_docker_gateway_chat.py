@@ -202,6 +202,42 @@ def test_webhook_only_alias_never_crosses_into_api_pool(gateway, monkeypatch, mo
     upstream.assert_not_called()
 
 
+def test_relay_only_api_fallback_is_opt_in(gateway, monkeypatch):
+    client, upstream = gateway
+    monkeypatch.setenv("ENABLE_API_FALLBACK", "true")
+    relay = AsyncMock(return_value=(503, {"error": "fixture relay outage"}))
+    monkeypatch.setattr(edge, "STEALTH_WEBHOOK_URL", "https://relay.example.invalid")
+    monkeypatch.setattr(edge, "forward_stealth_webhook", relay)
+    upstream.return_value = httpx.Response(200, json={"choices": [{"message": {"content": "API fallback"}}]})
+
+    response = client.post(
+        "/v1/chat/completions",
+        json={**_CHAT, "model": "supremeai-web"},
+        headers=_HEADERS,
+    )
+    assert response.status_code == 200
+    assert response.json()["choices"][0]["message"]["content"] == "API fallback"
+    relay.assert_awaited_once()
+    upstream.assert_called_once()
+
+
+def test_relay_only_fallback_disabled_stays_fail_closed(gateway, monkeypatch):
+    client, upstream = gateway
+    monkeypatch.setenv("ENABLE_API_FALLBACK", "false")
+    relay = AsyncMock(return_value=(503, {"error": "fixture relay outage"}))
+    monkeypatch.setattr(edge, "STEALTH_WEBHOOK_URL", "https://relay.example.invalid")
+    monkeypatch.setattr(edge, "forward_stealth_webhook", relay)
+
+    response = client.post(
+        "/v1/chat/completions",
+        json={**_CHAT, "model": "supremeai-web"},
+        headers=_HEADERS,
+    )
+    assert response.status_code == 502
+    relay.assert_awaited_once()
+    upstream.assert_not_called()
+
+
 @pytest.mark.parametrize("stream", [False, True])
 def test_missing_approval_does_not_use_configured_keys_or_relay_for_api_alias(gateway, monkeypatch, stream):
     client, upstream = gateway

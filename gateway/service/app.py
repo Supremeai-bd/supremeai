@@ -270,6 +270,25 @@ CHAT_ROUTE_DEADLINE_S = float(os.getenv("CHAT_ROUTE_DEADLINE_S", "15"))
 CHAT_CONNECT_TIMEOUT_S = float(os.getenv("CHAT_CONNECT_TIMEOUT_S", "8"))
 CHAT_FIRST_TOKEN_TIMEOUT_S = float(os.getenv("CHAT_FIRST_TOKEN_TIMEOUT_S", "8"))
 
+
+def _api_fallback_enabled() -> bool:
+    """Admin-gated API fallback for relay-only models.
+
+    gateway/SYSTEM_CHAT_AND_DEPLOYMENT_ARCHITECTURE.md documents an
+    ``ENABLE_API_FALLBACK=false`` lock, but no code ever read the variable —
+    the lock was documentation only, and a relay outage hard-failed every
+    ``supremeai-web`` request with 502. Reading the env here makes the
+    documented contract real: default ``false`` preserves the current
+    relay-only policy exactly; an admin sets ``ENABLE_API_FALLBACK=true``
+    (Infisical) to let a failed relay fall through to the sovereign API pool.
+    """
+    return os.getenv("ENABLE_API_FALLBACK", "false").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
 # ── Per-model latency budget: rank → deadline ────────────────────────────────
 # route_arbiter.MODEL_LATENCY_THRESHOLDS_MS declares per-model budgets and says
 # so in prose ("supreme-spark: Ultra-low latency (<1.5s)"), but every read of
@@ -2077,7 +2096,7 @@ async def _execute_chat_completion(
     requested_model = requested_model.strip() or "supreme-spark"
     model_alias = requested_model.lower()
     relay_only = model_alias in RELAY_ONLY_MODELS
-    if relay_only and not STEALTH_WEBHOOK_URL:
+    if relay_only and not STEALTH_WEBHOOK_URL and not _api_fallback_enabled():
         raise HTTPException(status_code=503, detail="Stealth Webhook relay is currently unconfigured")
     preferred_provider = None
 
@@ -2403,7 +2422,19 @@ async def _execute_chat_completion(
         )
         logger.warning("Stealth Webhook relay failed or returned no chat reply (status=%s)", w_status)
         if relay_only:
-            raise HTTPException(status_code=502, detail="Stealth Webhook relay is unavailable")
+            if _api_fallback_enabled() and squad:
+                # Admin-enabled fallback: serve from the sovereign API pool
+                # instead of hard-failing. Default (false) preserves the
+                # documented relay-only lock.
+                logger.warning(
+                    "ENABLE_API_FALLBACK=true: relay unavailable for %s; "
+                    "falling through to API pool.",
+                    requested_model,
+                )
+                candidates = squad.get_candidate_slots("auto", vision=has_image)
+                use_priority_1 = False
+            else:
+                raise HTTPException(status_code=502, detail="Stealth Webhook relay is unavailable")
 
     last_error = None
     if squad and candidates:
@@ -2446,7 +2477,13 @@ async def _execute_chat_completion(
                     last_brand = stream_brand
 
                     header_at: float | None = None
-                    stream_iter = stream_chat_completion_events(provider, slot.key, body, slot=slot).__aiter__()
+                    stream_iter = stream_chat_completion_events(
+                        provider,
+                        slot.key,
+                        body,
+                        slot=slot,
+                        deadline_s=max(0.001, route_deadline - time.monotonic()),
+                    ).__aiter__()
                     try:
                         async for kind, data in _aiter_stream_first_token(
                             stream_iter,
@@ -2607,7 +2644,14 @@ async def _execute_chat_completion(
 
             try:
                 status, response_data = await asyncio.wait_for(
-                    forward_chat_completion(provider, slot.key, body, slot=slot), timeout=remaining,
+                    forward_chat_completion(
+                        provider,
+                        slot.key,
+                        body,
+                        slot=slot,
+                        deadline_s=remaining,
+                    ),
+                    timeout=remaining,
                 )
             except asyncio.TimeoutError:
                 status, response_data = 504, {"error": "API route deadline exceeded"}
