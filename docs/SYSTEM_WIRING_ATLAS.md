@@ -19,9 +19,9 @@
 ```text
 User / Client
     │
-    ├── supremeai.live / Cloudflare Edge (0 MB RAM)
+    ├── supremeai-studio.pages.dev / Cloudflare Pages Edge (0 MB RAM)
     │       └── infrastructure/cloudflare-studio-proxy/src/index.js
-    │             ├── Static / UI  ────────► Vercel Studio (https://supremeai-studio.vercel.app)
+    │             ├── Static / UI  ────────► Cloudflare Pages (https://supremeai-studio.pages.dev)
     │             ├── /v1/* Proxy  ────────► Render API Gateway (https://supremeai-api-ulw0.onrender.com)
     │             └── 10m Cron     ────────► /cf-keepwarm (pings all Render /health endpoints)
     │
@@ -119,7 +119,7 @@ Separate Governed Control Plane:
 
 | Caller | Receiver | Endpoint | Required Auth / Header | CORS Policy | Failure Contract |
 |---|---|---|---|---|---|
-| **Studio UI / Edge** | **API Gateway** | `POST /v1/chat/completions` | `X-SupremeAI-Key` (`guest` or signed key) / `Authorization: Bearer` | Exact production origins (`supremeai.live`, `app.supremeai.live`, `supremeai-studio.vercel.app`) | `401/403` on bad key; `502/503` if relay offline |
+| **Studio UI / Edge** | **API Gateway** | `POST /v1/chat/completions` | `X-SupremeAI-Key` (`guest` or signed key) / `Authorization: Bearer` | Exact production origins (`supremeai-studio.pages.dev`) | `401/403` on bad key; `502/503` if relay offline |
 | **API Gateway** | **Stealth Webhook Relay** (`browser/server.py`) | `POST /v1/chat/completions`<br>`POST /api/chat` | `X-Stealth-Secret: <STEALTH_WEBHOOK_SECRET>` or `Authorization: Bearer` | Server-to-server + explicit `_ALLOWED_BROWSER_ORIGINS` (no `*`) | `401` on invalid secret; cascades Gemini Cookie ➔ Duck.ai ➔ Zero-Auth HTTP |
 | **Telegram Servers** | **API Gateway / Core** | `POST /webhook/telegram` | `X-Telegram-Bot-Api-Secret-Token: <TELEGRAM_WEBHOOK_SECRET>` | Server-to-server | `401/403` fail-closed |
 | **GitHub Webhooks** | **Core / MCP Tower** | `POST /api/v1/webhooks/github` | `X-Hub-Signature-256` (`GITHUB_WEBHOOK_SECRET`) | Server-to-server | HMAC SHA-256 fail-closed |

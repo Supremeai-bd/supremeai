@@ -836,7 +836,7 @@ flowchart TD
 | [`docs/FAQ.md`](https://github.com/Supremeai-bd/supremeai/blob/main/docs/FAQ.md) | **Operational FAQ** (#23): symptom→cause→fix for every known validation-error class (naming, duplicates, boundary, stale-base, force-push, keyword propagation, env-skips) |
 | `AGENTS.md` | Agent entrypoint: autonomous work-submission loop, submission pathways, bridge lane |
 | `.github/workflows/unified-pipeline.yml` | PR verification, trusted landing decision and path-scoped production release evidence |
-| `.github/workflows/full-test-suite.yml` | Scheduled repository, Core, Gateway, Windows and Tower suites. Separate from PR landing. |
+| ~~`.github/workflows/full-test-suite.yml`~~ — **absent from this repository (removed by #731)** | Scheduled repository, Core, Gateway, Windows and Tower suites; restore tracked separately (see docs/MASTER_SIMPLIFICATION_PLAN.md). |
 | `.github/ISSUE_TEMPLATE/agent_task.yml` | Agent task template (task group dropdown; <!-- wiring audit 2026-11-11: replaced dead bridge-work-order.yml reference -->) |
 | `LICENSE` | MIT |
 
