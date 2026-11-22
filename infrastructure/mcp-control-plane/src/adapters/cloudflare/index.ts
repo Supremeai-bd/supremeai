@@ -8,9 +8,10 @@ export async function getWorkerStatus(): Promise<unknown> {
   }
   
   const start = Date.now();
-  // Call the ping worker directly
+  const healthUrl = `${env.cloudflare.workerUrl.replace(/\/+$/, "")}/health`;
+  // Call the worker /health endpoint directly
   try {
-    const res = await httpRequest(env.cloudflare.workerUrl, {
+    const res = await httpRequest(healthUrl, {
       method: "GET",
       headers: { "User-Agent": "SupremeAI-Control-Tower/1.0" },
     });
