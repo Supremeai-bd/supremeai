@@ -1,5 +1,8 @@
 # SupremeAI — Single Door Monorepo SSOT
 
+> **Our Motto:** *"We don't want to create a textbook-perfect model — we want to build a textbook example of how intelligently any problem can be solved."*  
+> **আমাদের মূলমন্ত্র:** *"আমরা শুধু বইয়ের পাতার নিখুঁত কোনো মডেল বানাতে চাই না — আমরা এমন কিছু তৈরি করতে চাই, যা হবে যেকোনো সমস্যা কতটা বুদ্ধিমত্তার সাথে সমাধান করা সম্ভব তার একটি পাঠ্যবইয়ের মতো উদাহরণ।"*
+
 > **The Single Door Monorepo SSOT for the SupremeAI Federation.**  
 > <!-- Fix (wiring audit 2026-11-11): docs/README.bn.md does not exist — dead link removed. -->
 
