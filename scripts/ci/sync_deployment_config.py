@@ -150,16 +150,39 @@ def main():
     }
     out_path = os.path.join(ROOT, "api-schemas", "generated", "public_endpoints.json")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    if args.dry_run:
-        print("\n[dry-run] would write manifest to", out_path)
-    else:
+    if args.write:
         with open(out_path, 'w', encoding='utf-8') as f:
             json.dump(manifest, f, indent=2)
         print(f"\nManifest written: {out_path}")
+    elif args.dry_run:
+        print("\n[dry-run] would write manifest to", out_path)
+    else:
+        print(f"\n[check] Manifest validated against SSOT ({out_path})")
 
-    if args.write or args.dry_run:
-        print("\nNote: full auto-rewrite of derived TS/JS files is not yet implemented;")
-        print("      use --check in CI to catch drift. Auto-write coming next.")
+    if args.write:
+        keepwarm = os.path.join(ROOT, "infrastructure", "cloudflare-render-keepwarm", "worker.js")
+        if os.path.exists(keepwarm):
+            text = open(keepwarm, encoding='utf-8').read()
+            replacements = {
+                "https://supremeai-mcp-tower-live.onrender.com": expected_urls.get('mcp'),
+                "https://supremeai-primary-node-5xso.onrender.com": expected_urls.get('core'),
+                "https://supremeai-scraper-node.onrender.com": expected_urls.get('scraper'),
+                "https://supremeai-worker-node.onrender.com": expected_urls.get('worker'),
+                "https://supremeai-api-ulw0.onrender.com": expected_urls.get('api'),
+                "https://supremeai-tiny-brain.onrender.com": expected_urls.get('brain'),
+            }
+            changed = False
+            for old_url, new_url in replacements.items():
+                if new_url and old_url in text and old_url != new_url:
+                    text = text.replace(old_url, new_url)
+                    changed = True
+            if changed:
+                open(keepwarm, 'w', encoding='utf-8').write(text)
+                print(f"Updated: {keepwarm}")
+            else:
+                print(f"No changes: {keepwarm}")
+    if args.dry_run:
+        print("\n[dry-run] --write would update keepwarm worker.js URLs from SSOT.")
 
 if __name__ == "__main__":
     main()
