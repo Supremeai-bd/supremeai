@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "generated_by": "scripts/ci/sync_deployment_config.py",
+  "endpoints": {
+    "api_gateway": {
+      "direct_render_origin": "https://supremeai-api-ulw0.onrender.com",
+      "service_id": "srv-dbappass728c7396p580",
+      "custom_domain": "https://api.supremeai.live"
+    },
+    "scraper": {
+      "direct_render_origin": "https://supremeai-scraper-node.onrender.com",
+      "service_id": "srv-dabm7gfqj5pc738jkicg"
+    },
+    "mcp_tower": {
+      "direct_render_origin": "https://supremeai-mcp-tower-live.onrender.com",
+      "service_id": "srv-dabm7inqj5pc738jkrt0",
+      "custom_domain": "https://mcp.supremeai.live"
+    },
+    "core": {
+      "direct_render_origin": "https://supremeai-primary-node-5xso.onrender.com",
+      "service_id": "srv-dau7c9ek1f9s73almn0g"
+    },
+    "worker": {
+      "direct_render_origin": "https://supremeai-worker-node.onrender.com",
+      "service_id": "srv-dabm7evqj5pc738jkf30"
+    },
+    "tiny_brain": {
+      "direct_render_origin": "https://supremeai-tiny-brain.onrender.com",
+      "service_id": "srv-dbirv58ae00c73chgsb0"
+    },
+    "ci-runner": {
+      "direct_render_origin": "https://supremeai-ci-runner.onrender.com",
+      "service_id": "srv-dbl8tbmtlv9c73bbkvqg"
+    },
+    "cloudflare": {
+      "direct_render_origin": "https://supremeai-worker.paykaribazaronline.workers.dev"
+    },
+    "web_studio": {
+      "primary_url": "https://supremeai-studio.pages.dev"
+    },
+    "firebase": {}
+  },
+  "canonical_env_keys": {
+    "api_service_id": "RENDER_API_SERVICE_ID",
+    "mcp_service_id": "RENDER_MCP_SERVICE_ID",
+    "scraper_service_id": "RENDER_SCRAPER_SERVICE_ID",
+    "worker_service_id": "RENDER_WORKER_SERVICE_ID",
+    "brain_service_id": "RENDER_BRAIN_SERVICE_ID"
+  }
+}
