@@ -779,7 +779,11 @@ async def forward_stealth_webhook(
             try:
                 data = response.json()
             except Exception:  # noqa: BLE001
-                data = response.text
+                try:
+                    from gateway.stealth_webhook import assemble_sse_completion
+                except ImportError:
+                    from ...stealth_webhook import assemble_sse_completion
+                data = assemble_sse_completion(response.text) or response.text
 
             if isinstance(data, dict) and "reply" in data and "choices" not in data:
                 data = {
