@@ -145,7 +145,7 @@ export const CANONICAL_TOPOLOGY_DEFAULTS: Record<string, AuthoritativeServiceTar
     platform: "render",
     renderAccountId: "render-brain",
     renderServiceId: env.render.brain.serviceId || "srv-dbirv58ae00c73chgsb0",
-    runtimeUrl: env.render.brain.url || "https://supremeai-brain.onrender.com",
+    runtimeUrl: env.render.brain.url || "https://supremeai-tiny-brain.onrender.com",
     healthPath: "/health",
     readinessPath: "/health",
     releasePath: "/release",

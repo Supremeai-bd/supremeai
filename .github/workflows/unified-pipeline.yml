@@ -1235,6 +1235,35 @@ jobs:
           fi
           python evals/golden/run_eval.py --provider http --min-accuracy 0.90
 
+  sync-deployment-config-check:
+    name: Sync deployment config check (SSOT drift)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check sync_deployment_config drift
+        run: python scripts/ci/sync_deployment_config.py --check
+
+  sync-public-endpoints:
+    name: Sync public endpoints to supremeai-public (Auto-PR)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [sync-deployment-config-check]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Sync canonical endpoints to supremeai-public
+        if: env.GH_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.ORGANIZATION_SYNC_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/Supremeai-bd/supremeai-public.git" ../supremeai-public
+          python scripts/ci/sync_to_public_repo.py --target-dir ../supremeai-public --apply --create-pr
+
   regenerate-architecture-gap-baseline:
     name: Regenerate architecture gap baseline (auto-commit)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
