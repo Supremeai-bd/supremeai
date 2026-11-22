@@ -66,6 +66,8 @@ MODEL_SPECS_CATALOG: dict[str, ModelSpec] = {
         strengths=("math", "reasoning", "code synthesis"),
     ),
     # Workhorse & Free-Tier Models (Tier 2 & 3)
+    # Retired at the provider; retained as historical catalog records only.
+    # Runtime route selection must use current provider IDs, not these entries.
     "gemini-2.0-flash": ModelSpec(
         model_id="gemini-2.0-flash",
         provider="gemini",
@@ -73,8 +75,8 @@ MODEL_SPECS_CATALOG: dict[str, ModelSpec] = {
         context_length=1000000,
         cost_input_per_million=0.10,
         cost_output_per_million=0.40,
-        openrouter_id="google/gemini-2.0-flash-exp:free",
         strengths=("speed", "cost efficiency", "tool calling"),
+        is_retired=True,
         is_free_tier=True,
     ),
     "llama-3.3-70b-versatile": ModelSpec(
@@ -85,6 +87,7 @@ MODEL_SPECS_CATALOG: dict[str, ModelSpec] = {
         cost_input_per_million=0.59,
         cost_output_per_million=0.79,
         strengths=("ultra fast inference", "general reasoning"),
+        is_retired=True,
         is_free_tier=True,
     ),
     "deepseek-chat": ModelSpec(
@@ -105,7 +108,9 @@ RETIRED_MODELS_SET: set[str] = {
 }
 
 FREE_TIER_MODELS_SET: set[str] = {
-    model_id for model_id, spec in MODEL_SPECS_CATALOG.items() if spec.is_free_tier
+    model_id
+    for model_id, spec in MODEL_SPECS_CATALOG.items()
+    if spec.is_free_tier and not spec.is_retired
 }
 
 

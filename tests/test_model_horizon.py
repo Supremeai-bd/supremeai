@@ -21,14 +21,21 @@ def test_retired_model_flagged():
 
 def test_active_model_ok():
     reg = reset_registry()
-    ev = reg.intercept("groq/llama-3.3-70b-versatile", as_of=date(2024, 11, 10))
+    ev = reg.intercept("gemini/gemini-2.5-pro", as_of=date(2024, 11, 10))
     assert ev.kind in ("ok", "freeze_drift")
 
 
 def test_cutoff_stale():
     reg = reset_registry()
-    ev = reg.intercept("groq/llama-3.3-70b-versatile", as_of=date(2025, 6, 1))
+    ev = reg.intercept("gemini/gemini-2.5-pro", as_of=date(2025, 6, 1))
     assert ev.kind == "cutoff_stale"
+
+
+def test_retired_groq_model_is_not_reported_active():
+    reg = reset_registry()
+    ev = reg.intercept("groq/llama-3.3-70b-versatile", as_of=date(2026, 11, 21))
+    assert ev.kind == "retired"
+    assert ev.successor == "groq/openai/gpt-oss-20b"
 
 
 def test_unknown_model():
