@@ -32,6 +32,7 @@ def test_status_is_not_proof_of_webhook_delivery(client):
     resp = client[0].get(HOOK + "/status")
     assert resp.status_code == 200
     assert resp.json()["status"] == "active"
+    assert resp.json()["default_model"] == telegram_webhook.PROVIDER_CONFIGS["gemini"]["default_model"]
     assert "/spark" in resp.json()["triggers"]
     assert "fixture-bot-token" not in resp.text
 

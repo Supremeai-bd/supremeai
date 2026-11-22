@@ -86,6 +86,23 @@ async def test_default_attempt_uses_fallback_base_without_doubling_v1(monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_web_relay_alias_uses_current_gemini_default(monkeypatch):
+    monkeypatch.delenv("GEMINI_MODEL", raising=False)
+    monkeypatch.setenv("SUPREMEAI_WEB_RELAY_URL", "https://relay.example")
+    fake = _FakeClient()
+    monkeypatch.setattr("gateway.provider_chain._http_client", lambda: fake)
+
+    await _default_attempt(
+        Endpoint(provider="web", model="gemini"),
+        json.dumps({"messages": [{"role": "user", "content": "hi"}]}).encode(),
+    )
+
+    url, body = fake.calls[0]
+    assert url == "https://relay.example/v1/chat/completions"
+    assert body["model"] == "gemini-flash-lite-latest"
+
+
+@pytest.mark.asyncio
 async def test_default_attempt_forwards_sampling_and_tools(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-unit-test-key-1234567890")
     monkeypatch.delenv("SUPREMEAI_PROVIDER_BASE_OPENAI", raising=False)

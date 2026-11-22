@@ -164,7 +164,9 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
         started = time.monotonic()
         req_model = endpoint.model
         if req_model in ("gemini", "gemini-web"):
-            req_model = "gemini-2.5-flash"
+            # Match the provider-verified default used by the main Gateway
+            # adapter; Gemini 2.5 Flash is quota-exhausted for this deployment.
+            req_model = os.environ.get("GEMINI_MODEL", "gemini-flash-lite-latest")
         body = {
             "model": req_model,
             "messages": json.loads(payload).get("messages", []),
