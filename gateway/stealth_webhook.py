@@ -111,7 +111,47 @@ async def forward_stealth_webhook(
             try:
                 parsed = json.loads(resp_body)
             except (json.JSONDecodeError, UnicodeDecodeError):
-                parsed = None
+                # Assemble SSE stream (data: {...}) into a standard chat.completion dict
+                try:
+                    text = resp_body.decode("utf-8", errors="replace")
+                    if "data:" in text:
+                        chunks: list[str] = []
+                        meta: dict[str, Any] = {}
+                        for raw_line in text.splitlines():
+                            line_s = raw_line.strip()
+                            if not line_s.startswith("data:"):
+                                continue
+                            payload_s = line_s[5:].strip()
+                            if not payload_s or payload_s == "[DONE]":
+                                continue
+                            try:
+                                chunk = json.loads(payload_s)
+                            except json.JSONDecodeError:
+                                continue
+                            if not meta:
+                                meta = chunk
+                            for ch in chunk.get("choices") or []:
+                                delta = ch.get("delta") or ch.get("message") or {}
+                                if isinstance(delta, dict) and delta.get("content"):
+                                    chunks.append(str(delta["content"]))
+                        if chunks:
+                            parsed = {
+                                "id": meta.get("id", "chatcmpl-stealth-relay"),
+                                "object": "chat.completion",
+                                "created": meta.get("created", 0),
+                                "model": meta.get("model", "supremeai-fast"),
+                                "choices": [
+                                    {
+                                        "index": 0,
+                                        "message": {"role": "assistant", "content": "".join(chunks)},
+                                        "finish_reason": "stop",
+                                    }
+                                ],
+                            }
+                            if "supremeai" in meta:
+                                parsed["supremeai"] = meta["supremeai"]
+                except Exception:
+                    parsed = None
         return status, parsed, int((time.monotonic() - started) * 1000)
     except (OSError, asyncio.TimeoutError, ssl.SSLError, ValueError):
         return 0, None, int((time.monotonic() - started) * 1000)
