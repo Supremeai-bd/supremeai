@@ -16,14 +16,49 @@ Derived targets:
     - infrastructure/cloudflare-render-keepwarm/worker.js
     - supremeai-public/src/config/platformEndpoints.ts (if present)
 """
-import os, re, sys, argparse, yaml, json
+import os, re, sys, argparse, json
+
+try:
+    import yaml  # type: ignore
+except ImportError:
+    yaml = None
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REGISTRY = os.path.join(ROOT, "config", "service_registry.yaml")
 
+def _parse_registry_stdlib(text):
+    """Lightweight stdlib fallback parser for config/service_registry.yaml services block."""
+    services = {}
+    in_services = False
+    current_svc = None
+    for raw in text.splitlines():
+        if not raw.strip() or raw.lstrip().startswith('#'):
+            continue
+        if re.match(r'^services:\s*$', raw):
+            in_services = True
+            continue
+        if in_services and re.match(r'^[a-zA-Z0-9_-]+:', raw):
+            break
+        if not in_services:
+            continue
+        m_svc = re.match(r'^  ([a-zA-Z0-9_-]+):\s*$', raw)
+        if m_svc:
+            current_svc = m_svc.group(1)
+            services[current_svc] = {}
+            continue
+        if current_svc:
+            m_kv = re.match(r'^    ([a-zA-Z0-9_]+):\s*(.+?)\s*$', raw)
+            if m_kv:
+                k, v = m_kv.group(1), m_kv.group(2).split('#')[0].strip().strip('"').strip("'")
+                services[current_svc][k] = v
+    return {'services': services}
+
 def load_registry():
     with open(REGISTRY, encoding='utf-8') as f:
-        return yaml.safe_load(f)
+        text = f.read()
+    if yaml is not None:
+        return yaml.safe_load(text)
+    return _parse_registry_stdlib(text)
 
 def load_env():
     env = {}
