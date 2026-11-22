@@ -164,6 +164,7 @@ def main():
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "version": "1.0.0",
         "generated_by": "scripts/ci/sync_deployment_config.py",
+        "ssot_public_gateway": "https://supremeai-studio.pages.dev/api",
         "endpoints": {},
         "canonical_env_keys": {},
     }
@@ -174,9 +175,7 @@ def main():
         if info['url']: entry["direct_render_origin" if sname != 'frontend' else "primary_url"] = info['url']
         if info['id']: entry["service_id"] = info['id']
         if sname == 'api':
-            entry["custom_domain"] = "https://api.supremeai.live"
-        if sname == 'mcp':
-            entry["custom_domain"] = "https://mcp.supremeai.live"
+            entry["public_proxy_url"] = "https://supremeai-studio.pages.dev/api"
         manifest["endpoints"][key] = entry
     manifest["canonical_env_keys"] = {
         "api_service_id": "RENDER_API_SERVICE_ID",

@@ -39,25 +39,23 @@ def sync_platform_endpoints_ts(public_dir: Path, manifest: dict, apply: bool = F
         return False
 
     endpoints = manifest.get("endpoints", {})
-    api_custom = endpoints.get("api_gateway", {}).get("custom_domain", "https://api.supremeai.live")
-    api_render = endpoints.get("api_gateway", {}).get("direct_render_origin", "")
+    api_render = endpoints.get("api_gateway", {}).get("direct_render_origin", "https://supremeai-api-ulw0.onrender.com")
     api_sid = endpoints.get("api_gateway", {}).get("service_id", "")
-    mcp_custom = endpoints.get("mcp_tower", {}).get("custom_domain", "https://mcp.supremeai.live")
-    mcp_render = endpoints.get("mcp_tower", {}).get("direct_render_origin", "")
+    mcp_render = endpoints.get("mcp_tower", {}).get("direct_render_origin", "https://supremeai-mcp-tower-live.onrender.com")
 
     content = target.read_text(encoding="utf-8")
     original = content
 
-    # Replace DEFAULT_MCP_TOWER_ORIGIN
+    # Replace DEFAULT_MCP_TOWER_ORIGIN with canonical live Render origin
     content = re.sub(
         r"export const DEFAULT_MCP_TOWER_ORIGIN\s*=\s*'[^']+';",
-        f"export const DEFAULT_MCP_TOWER_ORIGIN = '{mcp_custom}';",
+        f"export const DEFAULT_MCP_TOWER_ORIGIN = '{mcp_render}';",
         content,
     )
-    # Replace DEFAULT_BACKEND_ORIGIN
+    # Replace DEFAULT_BACKEND_ORIGIN with canonical live Render origin
     content = re.sub(
         r"export const DEFAULT_BACKEND_ORIGIN\s*=\s*'[^']+';",
-        f"export const DEFAULT_BACKEND_ORIGIN = '{api_custom}';",
+        f"export const DEFAULT_BACKEND_ORIGIN = '{api_render}';",
         content,
     )
     # Update KNOWN_RENDER_SERVICE_IDS if service ID present
@@ -87,11 +85,11 @@ def sync_models_json(public_dir: Path, manifest: dict, apply: bool = False) -> b
         return False
 
     content = target.read_text(encoding="utf-8")
-    api_custom = manifest.get("endpoints", {}).get("api_gateway", {}).get("custom_domain", "https://api.supremeai.live")
+    api_proxy = manifest.get("ssot_public_gateway") or manifest.get("endpoints", {}).get("api_gateway", {}).get("public_proxy_url", "https://supremeai-studio.pages.dev/api")
 
     new_content = re.sub(
         r'"gatewayBaseUrl":\s*"[^"]+"',
-        f'"gatewayBaseUrl": "{api_custom}"',
+        f'"gatewayBaseUrl": "{api_proxy}"',
         content,
     )
 
@@ -101,9 +99,9 @@ def sync_models_json(public_dir: Path, manifest: dict, apply: bool = False) -> b
 
     if apply:
         target.write_text(new_content, encoding="utf-8")
-        print(f"  [updated] Updated models.json gatewayBaseUrl -> {api_custom}")
+        print(f"  [updated] Updated models.json gatewayBaseUrl -> {api_proxy}")
     else:
-        print(f"  [dry-run] Would update models.json gatewayBaseUrl -> {api_custom}")
+        print(f"  [dry-run] Would update models.json gatewayBaseUrl -> {api_proxy}")
     return True
 
 
