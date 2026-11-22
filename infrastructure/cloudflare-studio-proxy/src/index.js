@@ -20,17 +20,47 @@
 const DEFAULT_ORIGIN = "https://supremeai-studio.pages.dev";
 let ORIGIN = DEFAULT_ORIGIN;
 
-const API_ORIGIN = "https://supremeai-api-ulw0.onrender.com";
+const DEFAULT_API_ORIGIN = "https://supremeai-api-ulw0.onrender.com";
+const DEFAULT_MCP_ORIGIN = "https://supremeai-mcp-tower-live.onrender.com";
+let API_ORIGIN = DEFAULT_API_ORIGIN;
+let MCP_ORIGIN = DEFAULT_MCP_ORIGIN;
+
+function normalizeHttpsOrigin(raw, fallback) {
+  let host = String(raw || "").trim();
+  while (host.endsWith("/")) host = host.slice(0, -1);
+  if (!host) return fallback;
+  return host.startsWith("http://") || host.startsWith("https://") ? host : `https://${host}`;
+}
 
 /** Point this invocation at the configured Studio origin. Returns it. */
 function resolveOrigin(env) {
-  // Trim trailing slashes with a loop, not a regex: CodeQL flags /\/+$/ on a
-  // config-supplied string as polynomial (each start position rescans the run
-  // of slashes). This is linear and equally simple.
-  let host = String(env?.ORIGIN_HOST || "").trim();
-  while (host.endsWith("/")) host = host.slice(0, -1);
-  if (!host) return (ORIGIN = DEFAULT_ORIGIN);
-  return (ORIGIN = host.startsWith("http://") || host.startsWith("https://") ? host : `https://${host}`);
+  return (ORIGIN = normalizeHttpsOrigin(env?.ORIGIN_HOST, DEFAULT_ORIGIN));
+}
+
+function resolveApiOrigin(env) {
+  return (API_ORIGIN = normalizeHttpsOrigin(env?.API_ORIGIN_HOST || env?.UPSTREAM_API_URL, DEFAULT_API_ORIGIN));
+}
+
+function resolveMcpOrigin(env) {
+  return (MCP_ORIGIN = normalizeHttpsOrigin(env?.MCP_ORIGIN_HOST || env?.UPSTREAM_MCP_URL, DEFAULT_MCP_ORIGIN));
+}
+
+function buildCorsHeaders(request, env) {
+  const reqOrigin = (request?.headers?.get("Origin") || "").trim();
+  const rawAllowed = String(env?.ALLOWED_ORIGINS || "https://supremeai-studio.pages.dev,https://supremeai.live");
+  const allowed = rawAllowed.split(",").map((s) => s.trim()).filter(Boolean);
+  const isLocalDev = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(reqOrigin);
+  const allowOrigin = reqOrigin && (allowed.includes(reqOrigin) || isLocalDev) ? reqOrigin : ORIGIN;
+
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, Origin, X-SupremeAI-Key, x-supremeai-key, X-Requested-With, X-Request-ID, Mcp-Session-Id",
+    "Access-Control-Expose-Headers": "Mcp-Session-Id, X-Request-ID",
+    "Access-Control-Max-Age": "86400",
+    "Vary": "Origin",
+  };
 }
 
 // 6 Render nodes kept warm to eliminate 30-50s cold-start on free tiers
@@ -125,7 +155,11 @@ async function triggerHourlyLearningSync() {
 export default {
   async fetch(request, env, ctx) {
     resolveOrigin(env);
+    resolveApiOrigin(env);
+    resolveMcpOrigin(env);
+    const corsHeaders = buildCorsHeaders(request, env);
     const url = new URL(request.url);
+    const hostname = url.hostname.toLowerCase();
 
     // 1. Health check endpoint
     if (url.pathname === "/cf-health") {
@@ -134,6 +168,7 @@ export default {
         edge: "cloudflare-dac-edge",
         origin: ORIGIN,
         api: API_ORIGIN,
+        mcp: MCP_ORIGIN,
         commit: env?.CF_COMMIT_SHA || env?.GITHUB_SHA || "unknown",
         version: env?.APP_VERSION || "1.0.0",
         keepwarm: {
@@ -142,7 +177,7 @@ export default {
         },
         timestamp: new Date().toISOString()
       }), {
-        headers: { "Content-Type": "application/json", ...CORS_HEADERS }
+        headers: { "Content-Type": "application/json", ...corsHeaders }
       });
     }
 
@@ -154,7 +189,7 @@ export default {
         version: env?.APP_VERSION || "1.0.0",
         timestamp: new Date().toISOString(),
       }), {
-        headers: { "Content-Type": "application/json", ...CORS_HEADERS }
+        headers: { "Content-Type": "application/json", ...corsHeaders }
       });
     }
 
@@ -166,7 +201,7 @@ export default {
         timestamp: new Date().toISOString(),
         services: results,
       }, null, 2), {
-        headers: { "Content-Type": "application/json", ...CORS_HEADERS }
+        headers: { "Content-Type": "application/json", ...corsHeaders }
       });
     }
 
@@ -178,54 +213,103 @@ export default {
         timestamp: new Date().toISOString(),
         result,
       }, null, 2), {
-        headers: { "Content-Type": "application/json", ...CORS_HEADERS }
+        headers: { "Content-Type": "application/json", ...corsHeaders }
       });
     }
 
-    // 2. Handle /v1/* API calls: proxy directly to supremeai-api on Render
-    if (url.pathname.startsWith("/v1/")) {
+    // 2a. Dedicated MCP Tower Hostname Routing (mcp.supremeai.live) & /mcp, /sse paths
+    const isMcpHost = hostname === "mcp.supremeai.live" || url.pathname === "/mcp" || url.pathname.startsWith("/mcp/") || url.pathname === "/sse" || url.pathname.startsWith("/agents/");
+    if (isMcpHost) {
       if (request.method === "OPTIONS") {
-        return new Response(null, { status: 204, headers: CORS_HEADERS });
+        return new Response(null, { status: 204, headers: corsHeaders });
+      }
+      const mcpTargetUrl = new URL(url.pathname + url.search, MCP_ORIGIN);
+      const forwardHeaders = new Headers(request.headers);
+      forwardHeaders.set("Host", new URL(MCP_ORIGIN).host);
+      forwardHeaders.set("X-Forwarded-Host", url.host);
+
+      try {
+        // Unbuffered streaming pass-through; propagate client signal for cancellation.
+        const mcpResp = await fetch(mcpTargetUrl.toString(), {
+          method: request.method,
+          headers: forwardHeaders,
+          body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
+          redirect: "follow",
+          signal: request.signal,
+        });
+        const respHeaders = new Headers(mcpResp.headers);
+        for (const [k, v] of Object.entries(corsHeaders)) {
+          respHeaders.set(k, v);
+        }
+        if ((respHeaders.get("content-type") || "").includes("text/event-stream")) {
+          respHeaders.set("Cache-Control", "no-cache");
+          respHeaders.set("X-Accel-Buffering", "no");
+        }
+        return new Response(mcpResp.body, {
+          status: mcpResp.status,
+          statusText: mcpResp.statusText,
+          headers: respHeaders,
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message, status: "mcp_gateway_proxy_error" }), {
+          status: 502,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
+      }
+    }
+
+    // 2b. Dedicated API Gateway Hostname Routing (api.supremeai.live) & /v1/* paths
+    const isApiHost = hostname === "api.supremeai.live" || url.pathname.startsWith("/v1/");
+    if (isApiHost) {
+      if (request.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers: corsHeaders });
       }
 
       const apiUrl = new URL(url.pathname + url.search, API_ORIGIN);
       const forwardHeaders = new Headers(request.headers);
-      forwardHeaders.set("Host", "supremeai-api-ulw0.onrender.com");
+      forwardHeaders.set("Host", new URL(API_ORIGIN).host);
+      forwardHeaders.set("X-Forwarded-Host", url.host);
       // Use whitelisted Pages origin so Render's CORS never blocks it
       forwardHeaders.set("Origin", ORIGIN);
       if (!forwardHeaders.get("X-SupremeAI-Key")) {
         forwardHeaders.set("X-SupremeAI-Key", "guest");
       }
 
-       try {
-         let reqBody = undefined;
-         if (request.method !== "GET" && request.method !== "HEAD") {
-           let text = await request.text();
-           // If model requested is hardcoded groq/reasoning, map to auto for Webhook -> API -> Fallback
-           try {
-             const parsed = JSON.parse(text);
-             if (parsed.model === "supremeai/groq" || parsed.model === "supremeai/openrouter") {
-               parsed.model = "auto";
-               text = JSON.stringify(parsed);
-             }
-           } catch (_) {}
-           reqBody = text;
-         }
+      const wantsStream = (request.headers.get("Accept") || "").includes("text/event-stream") || url.pathname.includes("stream");
 
-         const apiController = new AbortController();
-         const apiTimeout = setTimeout(() => apiController.abort(), 30000);
-         const apiResp = await fetch(apiUrl.toString(), {
-           method: request.method,
-           headers: forwardHeaders,
-           body: reqBody,
-           redirect: "follow",
-           signal: apiController.signal,
-         });
-         clearTimeout(apiTimeout);
+      try {
+        let reqBody = undefined;
+        if (request.method !== "GET" && request.method !== "HEAD") {
+          let text = await request.text();
+          // If model requested is hardcoded groq/reasoning, map to auto for Webhook -> API -> Fallback
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed.model === "supremeai/groq" || parsed.model === "supremeai/openrouter") {
+              parsed.model = "auto";
+              text = JSON.stringify(parsed);
+            }
+          } catch (_) {}
+          reqBody = text;
+        }
+
+        const apiController = new AbortController();
+        const apiTimeout = wantsStream ? null : setTimeout(() => apiController.abort(), 30000);
+        const apiResp = await fetch(apiUrl.toString(), {
+          method: request.method,
+          headers: forwardHeaders,
+          body: reqBody,
+          redirect: "follow",
+          signal: wantsStream ? request.signal : apiController.signal,
+        });
+        if (apiTimeout) clearTimeout(apiTimeout);
 
         const respHeaders = new Headers(apiResp.headers);
-        for (const [k, v] of Object.entries(CORS_HEADERS)) {
+        for (const [k, v] of Object.entries(corsHeaders)) {
           respHeaders.set(k, v);
+        }
+        if ((respHeaders.get("content-type") || "").includes("text/event-stream")) {
+          respHeaders.set("Cache-Control", "no-cache");
+          respHeaders.set("X-Accel-Buffering", "no");
         }
 
         return new Response(apiResp.body, {
@@ -236,7 +320,7 @@ export default {
       } catch (err) {
         return new Response(JSON.stringify({ error: err.message, status: "gateway_proxy_error" }), {
           status: 502,
-          headers: { "Content-Type": "application/json", ...CORS_HEADERS }
+          headers: { "Content-Type": "application/json", ...corsHeaders }
         });
       }
     }
