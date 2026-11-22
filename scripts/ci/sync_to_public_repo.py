@@ -132,20 +132,30 @@ def main() -> int:
         status = subprocess.check_output(["git", "status", "--porcelain"], cwd=public_dir, text=True)
         if status.strip():
             branch_name = f"bot/sync-monorepo-endpoints"
+            subprocess.run(["git", "config", "user.name", "github-actions[bot]"], cwd=public_dir, check=True)
+            subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"], cwd=public_dir, check=True)
             subprocess.run(["git", "checkout", "-B", branch_name], cwd=public_dir, check=True)
             subprocess.run(["git", "add", "src/config/platformEndpoints.ts", "packages/contracts/models.json"], cwd=public_dir, check=True)
             subprocess.run(["git", "commit", "-m", "chore(sync): synchronize canonical gateway and mcp endpoints from monorepo"], cwd=public_dir, check=True)
             subprocess.run(["git", "push", "-u", "origin", branch_name, "--force"], cwd=public_dir, check=True)
-            pr_cmd = [
-                "gh", "pr", "create",
-                "--repo", "Supremeai-bd/supremeai-public",
-                "--title", "chore(sync): synchronize canonical endpoints from monorepo",
-                "--body", "Automated synchronization of `platformEndpoints.ts` and `models.json` from `Supremeai-bd/supremeai`.\n\n- Custom Domain API: `https://api.supremeai.live`\n- Custom Domain MCP: `https://mcp.supremeai.live`\n\nVerified by CI.",
-                "--head", branch_name,
-                "--base", "main"
-            ]
-            subprocess.run(pr_cmd, cwd=public_dir, check=True)
-            print("Successfully created PR in Supremeai-bd/supremeai-public!")
+            existing_pr = subprocess.check_output(
+                ["gh", "pr", "list", "--repo", "Supremeai-bd/supremeai-public", "--head", branch_name, "--state", "open", "--json", "number", "--jq", ".[0].number"],
+                cwd=public_dir,
+                text=True,
+            ).strip()
+            if existing_pr:
+                print(f"Open PR #{existing_pr} already exists for {branch_name}; force-push updated it.")
+            else:
+                pr_cmd = [
+                    "gh", "pr", "create",
+                    "--repo", "Supremeai-bd/supremeai-public",
+                    "--title", "chore(sync): synchronize canonical endpoints from monorepo",
+                    "--body", "Automated synchronization of `platformEndpoints.ts` and `models.json` from `Supremeai-bd/supremeai`.\n\n- Custom Domain API: `https://api.supremeai.live`\n- Custom Domain MCP: `https://mcp.supremeai.live`\n\nVerified by CI.",
+                    "--head", branch_name,
+                    "--base", "main"
+                ]
+                subprocess.run(pr_cmd, cwd=public_dir, check=True)
+                print("Successfully created PR in Supremeai-bd/supremeai-public!")
         else:
             print("No diff detected in public repo; skipping PR creation.")
 
