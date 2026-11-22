@@ -17,13 +17,13 @@ import httpx
 from fastapi import APIRouter, BackgroundTasks, Request, Response, status
 
 from .pool import squad
-from .providers.adapters import forward_chat_completion, forward_stealth_webhook
+from .providers.adapters import PROVIDER_CONFIGS, forward_chat_completion, forward_stealth_webhook
 
 logger = logging.getLogger("supremeai.telegram_webhook")
 
 telegram_router = APIRouter(tags=["telegram"])
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", PROVIDER_CONFIGS["gemini"]["default_model"])
 
 TRIGGER_TAGS = ["#gemini", "!gemini", "/spark", "/idea"]
 

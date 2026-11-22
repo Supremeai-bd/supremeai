@@ -7,7 +7,9 @@
       "provider": "groq",
       "official_cutoff": "2024-12-01",
       "training_freeze": "2024-11-15",
-      "status": "active"
+      "status": "retired",
+      "successor": "groq/openai/gpt-oss-20b",
+      "retired_on": "2026-11-17"
     },
     {
       "id": "gemini/gemini-2.5-pro",

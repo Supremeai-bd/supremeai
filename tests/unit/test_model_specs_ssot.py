@@ -22,7 +22,8 @@ def test_get_model_spec():
     gemini_spec = get_model_spec("gemini-2.0-flash")
     assert gemini_spec is not None
     assert gemini_spec.provider == "gemini"
-    assert gemini_spec.is_free_tier is True
+    assert gemini_spec.is_free_tier is True  # historical tier metadata
+    assert gemini_spec.is_retired is True
     assert "speed" in gemini_spec.strengths
 
     unknown_spec = get_model_spec("non-existent-model-xyz")
@@ -30,5 +31,7 @@ def test_get_model_spec():
 
 
 def test_retired_and_free_tier_sets():
-    assert "gemini-2.0-flash" in FREE_TIER_MODELS_SET
-    assert is_model_retired("gemini-2.0-flash") is False
+    assert "gemini-2.0-flash" not in FREE_TIER_MODELS_SET
+    assert "llama-3.3-70b-versatile" not in FREE_TIER_MODELS_SET
+    assert is_model_retired("gemini-2.0-flash") is True
+    assert is_model_retired("llama-3.3-70b-versatile") is True
