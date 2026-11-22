@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { upstashRestUrl, mapConcurrentSettled } from "./src/tools/system.tools.js";
+import { getAccountsForRole, getHealthCheckAccountsForRole } from "./src/registry/account.registry.js";
 
 // ── 1. upstashRestUrl password token extraction test ──
 const tcpUrlWithPassword = "rediss://default:superSecretToken99@us1-test-redis.upstash.io:6379";
@@ -15,7 +16,14 @@ assert.ok(parsedRest, "parsedRest must not be null");
 assert.equal(parsedRest.url, "https://us1-test-redis.upstash.io/ping");
 assert.equal(parsedRest.token, undefined, "REST URL has no embedded token — caller falls back to apiKeyRef");
 
-// ── 3. mapConcurrentSettled concurrency bound test ──
+// ── 3. Suspended Render CI Runner is excluded from health output only ──
+const operationalAccounts = getAccountsForRole("admin");
+const healthAccounts = getHealthCheckAccountsForRole("admin");
+assert.ok(operationalAccounts.some((account) => account.id === "render-ci-runner"), "keep CI runner available to operational tools");
+assert.ok(!healthAccounts.some((account) => account.id === "render-ci-runner"), "exclude suspended runner from system.health");
+assert.equal(healthAccounts.length, operationalAccounts.length - 1);
+
+// ── 4. mapConcurrentSettled concurrency bound test ──
 let activeConcurrent = 0;
 let peakConcurrent = 0;
 const totalTasks = 20;

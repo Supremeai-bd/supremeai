@@ -25,6 +25,8 @@ export interface ProviderAccount {
   healthPath?: string;
   /** Is this account available? (key present in env) */
   available: boolean;
+  /** Exclude suspended/ephemeral accounts from routine system.health probes. */
+  healthCheck?: boolean;
 }
 
 function isAvailable(envRef: string): boolean {
@@ -230,6 +232,10 @@ export function buildAccountRegistry(): ProviderAccount[] {
       url: env.render.ciRunner.url,
       serviceId: env.render.ciRunner.serviceId,
       healthPath: "/health",
+      // The Paykari Render CI Runner is suspended. Keep its record for CI
+      // account/operational tooling, but do not count it as a live production
+      // service in system.health until the runner is restored.
+      healthCheck: false,
       available: isAvailable("RENDER_API_KEY_7") || hasAnyRenderKey || Boolean(env.render.ciRunner.url),
     },
 
@@ -434,4 +440,9 @@ export function getAccountsForRole(role?: UserRole): ProviderAccount[] {
 
     return true;
   });
+}
+
+/** Accounts that should appear in routine system.health output. */
+export function getHealthCheckAccountsForRole(role?: UserRole): ProviderAccount[] {
+  return getAccountsForRole(role).filter((account) => account.healthCheck !== false);
 }

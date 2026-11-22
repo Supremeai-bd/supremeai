@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { buildAccountRegistry, getAccountsForRole, ProviderAccount } from "../registry/account.registry.js";
+import { buildAccountRegistry, getHealthCheckAccountsForRole, ProviderAccount } from "../registry/account.registry.js";
 import { listResources, getResourceStatus } from "../registry/resource.registry.js";
 import { httpRequest } from "../lib/http.js";
 import { env } from "../lib/env.js";
@@ -456,7 +456,7 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
 export async function registerSystemTools(server: McpServer): Promise<void> {
   const getSystemSummary = async () => {
     const store = RequestContextStore.get();
-    const registry = getAccountsForRole(store?.role);
+    const registry = getHealthCheckAccountsForRole(store?.role);
     const byProvider = registry.reduce(
       (acc, r) => {
         const key = r.provider;
@@ -497,7 +497,7 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
 
   const getSystemHealth = async () => {
     const store = RequestContextStore.get();
-    const registry = getAccountsForRole(store?.role);
+    const registry = getHealthCheckAccountsForRole(store?.role);
 
     const results = await mapConcurrentSettled(
       registry,
@@ -632,7 +632,7 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
     { readOnlyHint: true, idempotentHint: true },
     async () => {
       const store = RequestContextStore.get();
-      const registry = getAccountsForRole(store?.role);
+      const registry = getHealthCheckAccountsForRole(store?.role);
       const byProvider = registry.reduce(
         (acc, r) => {
           const key = r.provider;
@@ -679,10 +679,10 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
     { readOnlyHint: true, idempotentHint: true },
     async () => {
       const store = RequestContextStore.get();
-      const registry = getAccountsForRole(store?.role);
+      const registry = getHealthCheckAccountsForRole(store?.role);
 
-      // Probe every registry row with bounded concurrency (8 workers) to avoid
-      // saturating container socket pools and inflating probe latencies.
+      // Probe every health-eligible account with bounded concurrency (8 workers)
+      // to avoid saturating container sockets and inflating probe latencies.
       const results = await mapConcurrentSettled(
         registry,
         8,
