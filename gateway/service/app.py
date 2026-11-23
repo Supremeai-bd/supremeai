@@ -770,19 +770,27 @@ if epistemic_router is not None:
 # stealth relay is the single paid reply path. Unbounded guest traffic can
 # drain relay quota and mask real outages (silent 502 storms). Sliding-window
 # per client IP, in-memory (single-process asyncio — no new deps).
-GUEST_RATE_LIMIT_PER_MIN = max(0, int(os.getenv("GUEST_RATE_LIMIT_PER_MIN", "10")))
+# বাংলা মন্তব্য: গেস্ট ক্লায়েন্টদের জন্য ডিফল্ট রেট লিমিট ১০ থেকে বাড়িয়ে ৬০ করা হলো যাতে লাইভ ফ্যাব্রিক সিঙ্ক ও স্বাভাবিক চ্যাট থ্রটলিং এড়ানো যায়।
+GUEST_RATE_LIMIT_PER_MIN = max(0, int(os.getenv("GUEST_RATE_LIMIT_PER_MIN", "60")))
 _GUEST_WINDOW_SECONDS = 60.0
 _GUEST_BUCKET_CAP = 10000  # bounded memory: never track more IPs than this
 _guest_hits: dict = {}
 
 
 def _client_ip(request: Request) -> str:
-    """Trusted-proxy-aware client IP. Render appends the real client IP as the
-    LAST X-Forwarded-For hop; client-supplied leftmost values are spoofable and
-    must not be trusted for bucketing."""
+    """Trusted-proxy-aware client IP.
+    বাংলা মন্তব্য: Cloudflare Pages বা Edge প্রক্সি থেকে আসলে 'cf-connecting-ip' হেডারে মূল ক্লায়েন্ট
+    আইপি থাকে। যদি না থাকে, X-Forwarded-For এর প্রথম ক্লায়েন্ট হপ নেওয়া হয় যাতে Cloudflare এর egress IP
+    দিয়ে সমস্ত ভিজিটরকে একটি একক বাকেটে ফেলে মিথ্যা 429 তৈরি না হয়।
+    """
+    cf_ip = request.headers.get("cf-connecting-ip")
+    if cf_ip and cf_ip.strip():
+        return cf_ip.strip()
     xff = request.headers.get("x-forwarded-for", "")
     if xff:
-        return xff.split(",")[-1].strip() or "unknown"
+        parts = [p.strip() for p in xff.split(",") if p.strip()]
+        if parts:
+            return parts[0]
     return request.client.host if request.client else "unknown"
 
 
@@ -1655,6 +1663,55 @@ async def studio_auth_login(request: Request):
                     "role": user.get("role", "user"),
                 },
             }
+
+    # বাংলা মন্তব্য: Supabase Auth federated verification fallback — যদি কোনো ইউজার Supabase-এ রেজিস্টার্ড থাকে
+    # (যেমন প্রজেক্ট অ্যাডমিন বা পাবলিক ইউজার), তবে Supabase GoTrue যাচাই করে সঠিক টোকেন দেওয়া হবে।
+    try:
+        from core.database.supabase_client import db as _supa_db
+    except ImportError:
+        try:
+            from database.supabase_client import db as _supa_db
+        except ImportError:
+            _supa_db = None
+
+    if _supa_db and _supa_db.client:
+        try:
+            res = await asyncio.to_thread(
+                _supa_db.client.auth.sign_in_with_password,
+                {"email": email, "password": password},
+            )
+            if res and res.user:
+                supa_uid = str(res.user.id)
+                user_meta_role = (
+                    res.user.app_metadata.get("role")
+                    if hasattr(res.user, "app_metadata") and isinstance(res.user.app_metadata, dict)
+                    else None
+                )
+                is_admin = (email == admin_email) or (user_meta_role == "admin")
+                role = "admin" if is_admin else (user_meta_role or "user")
+                perms = ["admin", "read", "write", "execute", "vault", "planner"] if is_admin else ["read", "write"]
+                name = (
+                    (res.user.user_metadata.get("full_name") or res.user.user_metadata.get("name"))
+                    if hasattr(res.user, "user_metadata") and isinstance(res.user.user_metadata, dict)
+                    else None
+                ) or (email.split("@")[0].capitalize() if "@" in email else "User")
+                token = _issue_signed_token(client_name=f"usr-{supa_uid}", quota="unlimited" if is_admin else "standard")
+                return {
+                    "token": token,
+                    "access_token": token,
+                    "token_type": "bearer",
+                    "user_id": supa_uid,
+                    "role": role,
+                    "permissions": perms,
+                    "user": {
+                        "id": supa_uid,
+                        "email": email,
+                        "name": name,
+                        "role": role,
+                    },
+                }
+        except Exception as supa_err:
+            logger.warning(f"Supabase login fallback check for {email}: {supa_err}")
 
     raise HTTPException(status_code=401, detail="Invalid email or password")
 
