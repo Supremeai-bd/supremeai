@@ -43,7 +43,7 @@ async def _ping(provider: str, api_key: str) -> bool:
         "sambanova": "https://api.sambanova.ai/v1/models",
         "mistral": "https://api.mistral.ai/v1/models",
         "cohere": "https://api.cohere.com/v1/models",
-        "github": "https://models.inference.ai.azure.com/catalog/models",
+        "github": "https://models.github.ai/catalog/models",
     }
     headers = {"Authorization": f"Bearer {api_key}"}
     if p == "gemini":

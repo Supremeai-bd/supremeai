@@ -205,7 +205,7 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
         "cerebras": ("https://api.cerebras.ai/v1", ["CEREBRAS_API_KEY"]),
         "sambanova": ("https://api.sambanova.ai/v1", ["SAMBANOVA_API_KEY"]),
         "kilo": ("https://ai-gateway.kilo.ai/api/v1", ["KILO_API_KEY", "KILO_API_KEYS"]),
-        "cohere": ("https://api.cohere.ai/compatibility/v1", ["COHERE_API_KEY"]),
+        "cohere": ("https://api.cohere.ai/compatibility/v1", ["COHERE_API_KEY", "COHERE_API_KEY_2", "COHERE_API_KEY_3", "COHERE_API_KEYS"]),
     }
     if (not api_base or not api_key) and provider in _FALLBACKS:
         fb_base, fb_keys = _FALLBACKS[provider]
@@ -231,7 +231,7 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
         "cerebras": ["CEREBRAS_API_KEY"],
         "sambanova": ["SAMBANOVA_API_KEY"],
         "kilo": ["KILO_API_KEY", "KILO_API_KEYS"],
-        "cohere": ["COHERE_API_KEY"],
+        "cohere": ["COHERE_API_KEY", "COHERE_API_KEY_2", "COHERE_API_KEY_3", "COHERE_API_KEYS"],
     }
     keys: list[str] = []
     if api_key and is_valid_secret(api_key):
