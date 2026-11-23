@@ -143,6 +143,22 @@ def create_sync_pr(
         f"> 🛡️ **Loop Guard Active:** Tagged with `auto-sync` label to prevent circular triggers.\n"
     )
 
+    # বাংলা মন্তব্য: রিমোট টার্গেট রিপোতে auto-sync লেবেল নিশ্চিত করা
+    try:
+        subprocess.run(
+            [
+                "gh", "label", "create", "auto-sync",
+                "--description", "Automated cross-repo patch synchronization",
+                "--color", "0e8a16",
+                "--force",
+                "--repo", target_repo,
+            ],
+            cwd=target_dir,
+            capture_output=True,
+        )
+    except Exception:
+        pass
+
     pr_cmd = [
         "gh", "pr", "create",
         "--repo", target_repo,
@@ -150,11 +166,19 @@ def create_sync_pr(
         "--body", pr_body,
         "--head", branch_name,
         "--base", "main",
-        "--label", "auto-sync",
     ]
     try:
         subprocess.run(pr_cmd, cwd=target_dir, check=True)
         print(f"  [success] Successfully created PR in {target_repo}!")
+        # Add auto-sync label defensively
+        try:
+            subprocess.run(
+                ["gh", "pr", "edit", branch_name, "--repo", target_repo, "--add-label", "auto-sync"],
+                cwd=target_dir,
+                capture_output=True,
+            )
+        except Exception:
+            pass
         return True
     except subprocess.CalledProcessError as exc:
         print(f"  [error] Failed to create PR in {target_repo}: {exc}")
