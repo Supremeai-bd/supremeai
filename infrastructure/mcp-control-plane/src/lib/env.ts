@@ -144,8 +144,8 @@ export const env = {
     },
     controlTower: {
       get apiKey(): string { return optional("RENDER_API_PAYKARI") || optional("RENDER_API_KEY_PAYKARI"); },
-      get serviceId(): string { return optional("RENDER_MCP_SERVICE_ID", optional("RENDER_MCP_SVC_ID", optional("RENDER_SERVICE_ID"))); },
-      get url(): string { return (optional("RENDER_MCP_URL", optional("RENDER_EXTERNAL_URL", "https://supremeai-mcp-tower-live.onrender.com"))).replace(/\/+$/, ""); },
+      get serviceId(): string { return optional("RENDER_MCP_SERVICE_ID"); },
+      get url(): string { return (optional("RENDER_MCP_URL") || optional("RENDER_EXTERNAL_URL")).replace(/\/+$/, ""); },
     },
     api: {
       get apiKey(): string { return optional("RENDER_API_KEY_5", optional("RENDER_API_KEY_API", optional("RENDER_API_KEY"))); },

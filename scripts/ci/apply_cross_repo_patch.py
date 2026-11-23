@@ -51,9 +51,17 @@ def validate_patch(patch_path: Path) -> tuple[bool, str]:
     """বাংলা মন্তব্য: প্যাচ ফাইলের সাইজ ও প্রাথমিক ফরম্যাট যাচাই করা।"""
     if not patch_path.exists():
         return False, f"Patch file not found: {patch_path}"
-    content = patch_path.read_text(encoding="utf-8", errors="replace").strip()
-    if not content:
+    raw = patch_path.read_bytes()
+    if not raw.strip():
         return False, f"Patch file is empty: {patch_path.name}"
+    content = ""
+    for enc in ("utf-8-sig", "utf-16", "utf-8", "latin-1"):
+        try:
+            content = raw.decode(enc)
+            break
+        except UnicodeDecodeError:
+            continue
+    content = content.strip()
     # Standard diff/patch headers check
     valid_markers = ("diff --git", "--- ", "+++ ", "Index:", "PATCH")
     if not any(marker in content for marker in valid_markers):

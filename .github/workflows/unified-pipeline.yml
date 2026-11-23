@@ -1321,10 +1321,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/generated/architecture_gap_map.json docs/generated/architecture_gap_map.mmd README.md graph.json
+          git add docs/generated/architecture_gap_map.json docs/generated/architecture_gap_map.mmd README.md
           if git diff --cached --quiet; then
             echo "No changes to baseline."
             exit 0
           fi
-          git commit -m "chore(ci): auto-regenerate architecture gap baseline and AST graph [skip ci]"
+          git commit -m "chore(ci): auto-regenerate architecture gap baseline [skip ci]"
           git push
