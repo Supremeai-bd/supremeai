@@ -59,14 +59,11 @@ PROVIDER_BASELINE_LATENCY_MS: dict[str, float] = {
     "huggingface": 900.0,
     "kilo": 200.0,
     "manus": 500.0,
-    "routesme": 700.0,
-    "bynara": 700.0,
-    "bai": 700.0,
-    "unorouter": 700.0,
     "cohere": 600.0,
-    "llm7": 600.0,
-    # Web engines: the relay hop plus a site round trip. Slower by construction,
-    # which is why they are ranked after the keyed providers.
+    "cerebras": 80.0,
+    # বাংলা মন্তব্য: Web engine baseline — আবার ফেরত আনা হলো কারণ PREFIX_MAP/
+    # WEB_ENGINES এগুলোকে discovered হিসেবে সার্ভ করে, latency বেসলাইন ছাড়া
+    # 500ms ডিফল্ট ফলব্যাক করে (test_web_engine_providers.py এটা ব্লক করে)।
     "claude_web": 1400.0,
     "chatgpt_web": 1200.0,
     "gemini_v0_web": 2500.0,
@@ -290,7 +287,7 @@ class FederationSquad:
     # Discovery set only; serving requires separate account/model approval.
     DEFAULT_PROVIDER_ORDER = [
         "groq", "gemini", "openrouter", "kilo", "sambanova", "mistral", "perplexity", "openai",
-        "huggingface", "routesme", "bynara", "bai", "unorouter", "cohere", "llm7",
+        "huggingface", "cohere", "cerebras",
         # Fallback lane only: the relay hop plus a session that can expire makes
         # a web engine slower and less predictable than any keyed provider.
         *(engine.provider for engine in WEB_ENGINES),
@@ -308,12 +305,8 @@ class FederationSquad:
         "manus": ["MANUS_API_KEY", "MANUS_API_KEYS"],
         "v0": ["V0_API_KEY"],
         "huggingface": ["HF_API_KEY", "HUGGINGFACE_API_KEY"],
-        "routesme": ["ROUTEME_API_KEY"],
-        "bynara": ["BYNARA_API_KEY"],
-        "bai": ["BAI_API_KEY"],
-        "unorouter": ["UNOROUTER_API_KEY"],
         "cohere": ["COHERE_API_KEY"],
-        "llm7": ["LLM7_API_KEY"],
+        "cerebras": ["CEREBRAS_API_KEY"],
         # Web engines (cookie/webhook slots). Their provider names and credential
         # env names come from providers/web_engines.py — the same mapping the
         # adapter resolves, so a slot cannot be routable in one half and unknown

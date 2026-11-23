@@ -150,67 +150,6 @@ class ProviderRegistry:
                 "priority": 20,
             },
             {
-                "provider_id": "bynara",
-                "display_name": "Bynara Router (Free Tier)",
-                "api_key_env_var": "BYNARA_API_KEY",
-                "base_url": "https://router.bynara.id/v1",
-                "models": [
-                    {
-                        "id": "agnes-2.5-flash",
-                        "name": "Agnes 2.5 Flash",
-                        "tier": "economy",
-                        "specialty": "coding",
-                    },
-                    {
-                        "id": "laguna-s-2.1",
-                        "name": "Laguna S 2.1",
-                        "tier": "standard",
-                        "specialty": "reasoning",
-                    },
-                    {
-                        "id": "stepfun-3.7-flash",
-                        "name": "StepFun 3.7 Flash",
-                        "tier": "economy",
-                        "specialty": "general",
-                    },
-                    {
-                        "id": "nemotron-3.5-lightning-free",
-                        "name": "Nemotron 3.5 Free",
-                        "tier": "economy",
-                        "specialty": "quick",
-                    },
-                ],
-                "rpm_limit": 60,
-                "rpd_limit": 10000,
-                "is_free_tier": True,
-                "priority": 12,
-            },
-            {
-                "provider_id": "bai",
-                "display_name": "b.ai Router",
-                "api_key_env_var": "BAI_API_KEY",
-                "base_url": "https://api.b.ai/v1",
-                "models": [
-                    {
-                        "id": "qwen3.8-flash",
-                        "name": "Qwen 3.8 Flash",
-                        "tier": "economy",
-                        "specialty": "coding",
-                    },
-                    {
-                        "id": "mimo-v2.5",
-                        "name": "MiMo v2.5",
-                        "tier": "economy",
-                        "specialty": "general",
-                    },
-                    {"id": "hy3", "name": "HY3 Backup", "tier": "economy", "specialty": "backup"},
-                ],
-                "rpm_limit": 60,
-                "rpd_limit": 10000,
-                "is_free_tier": True,
-                "priority": 15,
-            },
-            {
                 "provider_id": "huggingface",
                 "display_name": "HuggingFace Serverless",
                 "api_key_env_var": "HF_API_KEY",
@@ -382,21 +321,6 @@ class ProviderRegistry:
                 "rpm_limit": 60,
                 "is_free_tier": True,  # shared-inference free tier
                 "priority": 31,  # after existing free lanes; no inflation above primaries
-            },
-            {
-                "provider_id": "routesme",
-                "display_name": "RoutesMe (Free Tier)",
-                "api_key_env_var": "ROUTEME_API_KEY",
-                "base_url": "https://routesme.online/v1",
-                "models": [
-                    {"id": "GLM-5.3-Flash", "name": "GLM 5.3 Flash", "tier": "economy", "specialty": "general"},
-                    {"id": "Step-5-preview", "name": "Step 5 Preview", "tier": "economy", "specialty": "general"},
-                    {"id": "Deepseek-v4.1-flash", "name": "DeepSeek V4.1 Flash", "tier": "economy", "specialty": "reasoning"},
-                ],
-                "rpm_limit": 60,
-                "rpd_limit": 10000,
-                "is_free_tier": True,
-                "priority": 32,
             },
             {
                 "provider_id": "zai",

@@ -133,6 +133,10 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "base_url": os.getenv("PERPLEXITY_BASE_URL", "https://api.perplexity.ai"),
         "default_model": os.getenv("PERPLEXITY_MODEL", "sonar"),
     },
+    "cerebras": {
+        "base_url": os.getenv("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1"),
+        "default_model": os.getenv("CEREBRAS_MODEL", "llama3.1-70b"),
+    },
     "sambanova": {
         "base_url": os.getenv("SAMBANOVA_BASE_URL", "https://api.sambanova.ai/v1"),
         "default_model": os.getenv("SAMBANOVA_MODEL", "Meta-Llama-3.3-70B-Instruct"),
@@ -141,29 +145,9 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "base_url": os.getenv("KILO_BASE_URL", "https://api.kilo.ai/api/gateway"),
         "default_model": os.getenv("KILO_MODEL", "nvidia/nemotron-3.5-lightning:free"),
     },
-    "routesme": {
-        "base_url": os.getenv("ROUTEME_BASE_URL", "https://routesme.online/v1"),
-        "default_model": os.getenv("ROUTEME_FREE_MODEL", os.getenv("ROUTEME_MODEL", "GLM-5.3-Flash")),
-    },
-    "bynara": {
-        "base_url": os.getenv("BYNARA_BASE_URL", "https://router.bynara.id/v1"),
-        "default_model": os.getenv("BYNARA_FREE_MODEL", "agnes-2.5-flash"),
-    },
-    "bai": {
-        "base_url": os.getenv("BAI_BASE_URL", "https://api.b.ai/v1"),
-        "default_model": os.getenv("BAI_FREE_MODEL", "qwen3.8-flash"),
-    },
-    "unorouter": {
-        "base_url": os.getenv("UNOROUTER_BASE_URL", "https://api.unorouter.com/v1"),
-        "default_model": os.getenv("UNOROUTER_FREE_MODEL", "gemini-3.1-flash-lite:free"),
-    },
     "cohere": {
         "base_url": os.getenv("COHERE_BASE_URL", "https://api.cohere.ai/compatibility/v1"),
         "default_model": os.getenv("COHERE_FREE_MODEL", "command-r-08-2024"),
-    },
-    "llm7": {
-        "base_url": os.getenv("LLM7_BASE_URL", "https://api.llm7.io/v1"),
-        "default_model": os.getenv("LLM7_FREE_MODEL", "glm-5.3-flash"),
     },
 }
 

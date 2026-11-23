@@ -31,11 +31,8 @@ _MODEL_KEY_MAP: dict[str, str] = {
     # BYNARA_API_KEY / BAI_API_KEY were configured in the deployment env but
     # never consumed by any code path — the keys were orphaned while the
     # routing chain wasted 40-60s per call on dead providers.
-    "bynara": "bynara_api_key",
-    "bai": "bai_api_key",
     "v0": "v0_api_key",
     "mistral": "mistral_api_key",
-    "routesme": "routeme_api_key",
     "kilo": "kilo_api_key",
 }
 
@@ -43,10 +40,7 @@ _MODEL_KEY_MAP: dict[str, str] = {
 # the gateway routes it through litellm's `openai/<model>` adapter using the
 # provider key (per-call) instead of a provider-native SDK.
 _PROVIDER_API_BASES: dict[str, str] = {
-    "bynara": "https://router.bynara.id/v1",
-    "bai": "https://api.b.ai/v1",
     "v0": "https://api.v0.dev/v1",
-    "routesme": "https://routesme.online/v1",
     "kilo": "https://ai-gateway.kilo.ai/api/v1",
 }
 

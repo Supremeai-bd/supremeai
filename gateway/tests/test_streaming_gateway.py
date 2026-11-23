@@ -727,6 +727,10 @@ def test_config_provider_enum_matches_task_router_ssot():
             "openrouter",
             "mistral",
             "deepseek",
+            "cerebras",
+            "sambanova",
+            "kilo",
+            "cohere",
             "web",
         }
     )

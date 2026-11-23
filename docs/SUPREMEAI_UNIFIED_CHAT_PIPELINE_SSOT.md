@@ -19,6 +19,9 @@ To all clients, IDEs, developers, and users, **SupremeAI is the sole AI entity**
    - `SupremeAI w.ge Deep-Research` (Verified Session Relay)
    - `SupremeAI api.sq Enterprise` (Multi-Key Dynamic Squad)
 
+### 1.1.A (Fleet Node Authentication Exemption)
+External provider identities and logos are permitted strictly within the authentication dialog of the Fleet Connect dashboard for OAuth linking and key ingestion purposes. All model outputs, public `/v1/models`, and telemetry streams remain 100% sovereign-branded.
+
 ---
 
 ## 2. Standardized Public Model Registry

@@ -60,6 +60,10 @@ class TestGatewayConfig(unittest.TestCase):
             "openrouter",
             "mistral",
             "deepseek",
+            "cerebras",
+            "sambanova",
+            "kilo",
+            "cohere",
             "web",
         }
         self.assertEqual(ALLOWED_PROVIDERS, frozenset(expected))
