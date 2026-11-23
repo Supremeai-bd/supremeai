@@ -410,7 +410,7 @@
     ]
   },
   "graph": {
-    "modules": 2186,
+    "modules": 2187,
     "edges": 4985,
     "edge_kinds": {
       "dispatch": 189,
@@ -437,8 +437,8 @@
   },
   "reachability": {
     "reachable": 1665,
-    "unreachable": 526,
-    "reachable_pct": 76.2
+    "unreachable": 527,
+    "reachable_pct": 76.1
   },
   "gaps": {
     "dangling_references": [
@@ -1257,6 +1257,7 @@
     "scripts.ci.controller_evidence_verify",
     "scripts.ci.coverage_cache_keys",
     "scripts.ci.coverage_quality_gate",
+    "scripts.ci.create_cross_repo_patch",
     "scripts.ci.create_group_issue",
     "scripts.ci.detect_changed_tests",
     "scripts.ci.detect_deploy_targets",
