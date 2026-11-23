@@ -1194,6 +1194,9 @@ jobs:
           npm run test:access
           npm run test:entry-governance
           npm run test:render-logs
+          # বাংলা মন্তব্য: repo allowlist + branch guard + HITL গেট ভাঙলে এখানেই ধরা পড়বে।
+          # আগে এই টেস্ট ফাইল ছিল কিন্তু CI-তে কখনো চলত না — তাই গার্ড ভাঙলেও সবুজ দেখাত।
+          npm run test:github-guards
 
   # =========================================================================
   # Golden-Eval Regression Gate (archive workorder bridge-20261028-golden-eval-gate,

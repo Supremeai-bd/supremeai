@@ -1,11 +1,66 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { RequestContextStore, roleRank } from "../policy/auth.context.js";
+import { globalApprovalManager, type ApprovalRequest } from "../policy/approvals/lifecycle.js";
+import { globalHITLManager } from "../policy/approvals/hitl.js";
+import { globalRiskEngine } from "../policy/risk.engine.js";
 
 // বাংলা মন্তব্য: agent, admin ও supremeadmin রোলের জন্য অনুমতি যাচাই।
 function requireAgentOrAbove(): void {
   if (roleRank(RequestContextStore.getRole()) < 1) {
     throw new Error("Forbidden: agent, admin, or supremeadmin role required");
+  }
+}
+
+// বাংলা মন্তব্য: #757-এর ফাঁক বন্ধ — রেপো allowlist ও ব্রাঞ্চ গার্ড থাকলেও মানব-অনুমোদন
+// ছিল না। রোল-ভিত্তিক গার্ড (requireAgentOrAbove) "কে" ঠিক করে, কিন্তু "মানুষ সম্মত কি না"
+// ঠিক করে না। তাই admin-এর নিচের প্রতিটি রোলকে HITL অনুমোদনের মধ্য দিয়ে যেতে হবে —
+// ঠিক guardian.tools.ts-এর merge_pr প্যাটার্ন অনুসরণ করে।
+const HITL_EXEMPT_RANK = 2; // admin (2) ও supremeadmin (3) নিজেরাই অনুমোদনকারী
+
+export interface HitlDecision {
+  request: ApprovalRequest;
+  riskLevel: ReturnType<typeof globalRiskEngine.evaluate>;
+}
+
+/**
+ * বাংলা মন্তব্য: admin-এর নিচের রোলে একটি approval request তৈরি করে HITL-এ পাঠায়।
+ * রিটার্ন করা request-টি APPROVED হলে তবেই কলার আসল কাজটি করতে পারবে।
+ * admin+ হলে null ফেরত দেয় (তারা নিজেরাই অনুমোদনকারী, তাই দ্বিগুণ বাধা নয়)।
+ */
+export async function requestWriteApproval(
+  action: "push_file" | "merge_pr",
+  metadata: Record<string, unknown>,
+): Promise<HitlDecision | null> {
+  if (roleRank(RequestContextStore.getRole()) >= HITL_EXEMPT_RANK) return null;
+
+  const request = globalApprovalManager.createRequest({ provider: "github", action }, metadata);
+  const riskLevel = globalRiskEngine.evaluate({ provider: "github", action });
+  await globalHITLManager.requestApproval(request, riskLevel);
+  return { request, riskLevel };
+}
+
+/**
+ * বাংলা মন্তব্য: কলার ইতিমধ্যে একটি অনুমোদিত request উপস্থাপন করেছে কি না যাচাই।
+ * fail-closed — requestId না থাকলে বা APPROVED না হলে ব্যর্থ।
+ */
+export function assertApproved(requestId: string | undefined, action: string): void {
+  if (!requestId) {
+    throw new Error(
+      `Forbidden: '${action}' requires human approval (HITL). ` +
+        `Call once without approvalRequestId to receive a request ID, approve it via 'policy.approve' (admin role), ` +
+        `then retry with approvalRequestId set.`,
+    );
+  }
+  const resolved = globalApprovalManager.getRequest(requestId);
+  if (!resolved) {
+    throw new Error(`Forbidden: approval request '${requestId}' not found or expired.`);
+  }
+  if (resolved.state !== "APPROVED") {
+    throw new Error(
+      `Forbidden: approval request '${requestId}' is ${resolved.state}, not APPROVED. ` +
+        `An admin must approve it via 'policy.approve' first.`,
+    );
   }
 }
 
@@ -92,14 +147,36 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       content: z.string().describe("UTF-8 file content"),
       branch: z.string().optional(),
       sha: z.string().optional().describe("Required when updating an existing file"),
+      approvalRequestId: z
+        .string()
+        .optional()
+        .describe("HITL request ID from a prior call, already APPROVED by an admin"),
     },
     { readOnlyHint: false, destructiveHint: true },
-    async ({ owner, repo, path, message, content, branch, sha }) => {
+    async ({ owner, repo, path, message, content, branch, sha, approvalRequestId }) => {
       try {
         requireAgentOrAbove();
         assertAuthorizedRepo(owner, repo, "github.push_file");
         assertSafeBranch(branch, "github.push_file");
         assertSafeFilePath(path, "github.push_file");
+
+        // বাংলা মন্তব্য: admin-এর নিচের রোলকে মানব-অনুমোদন লাগবে (fail-closed)
+        const pending = await requestWriteApproval("push_file", {
+          owner, repo, path, branch: branch ?? null, requestedBy: RequestContextStore.getRole(),
+        });
+        if (pending) {
+          assertApproved(approvalRequestId, "github.push_file");
+          return ok({
+            action: "HITL_APPROVAL_REQUIRED",
+            requestId: pending.request.id,
+            approvalRisk: pending.riskLevel,
+            expiresInMs: pending.request.expiresAtMs - Date.now(),
+            owner, repo, path, branch: branch ?? null,
+            instruction:
+              "An admin must approve this request via 'policy.approve'. " +
+              "Then retry this exact call with approvalRequestId set. No file was written.",
+          });
+        }
 
         const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
         if (!token) throw new Error("GITHUB_TOKEN / GH_TOKEN not configured");
@@ -134,12 +211,35 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       pull_number: z.number(),
       merge_method: z.enum(["merge", "squash", "rebase"]).optional(),
       commit_title: z.string().optional(),
+      approvalRequestId: z
+        .string()
+        .optional()
+        .describe("HITL request ID from a prior call, already APPROVED by an admin"),
     },
     { readOnlyHint: false, destructiveHint: true },
-    async ({ owner, repo, pull_number, merge_method, commit_title }) => {
+    async ({ owner, repo, pull_number, merge_method, commit_title, approvalRequestId }) => {
       try {
         requireAgentOrAbove();
         assertAuthorizedRepo(owner, repo, "github.merge_pr");
+
+        // বাংলা মন্তব্য: PR merge সবচেয়ে বিপজ্জনক লেখা — admin-এর নিচে সবসময় HITL
+        const pending = await requestWriteApproval("merge_pr", {
+          owner, repo, pullNumber: pull_number, mergeMethod: merge_method ?? "squash",
+          requestedBy: RequestContextStore.getRole(),
+        });
+        if (pending) {
+          assertApproved(approvalRequestId, "github.merge_pr");
+          return ok({
+            action: "HITL_APPROVAL_REQUIRED",
+            requestId: pending.request.id,
+            approvalRisk: pending.riskLevel,
+            expiresInMs: pending.request.expiresAtMs - Date.now(),
+            owner, repo, pullNumber: pull_number,
+            instruction:
+              "An admin must approve this request via 'policy.approve'. " +
+              "Then retry this exact call with approvalRequestId set. No PR was merged.",
+          });
+        }
 
         const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
         if (!token) throw new Error("GITHUB_TOKEN / GH_TOKEN not configured");
