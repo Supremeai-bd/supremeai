@@ -257,6 +257,7 @@
     "scripts.ci.controller_evidence_verify",
     "scripts.ci.coverage_cache_keys",
     "scripts.ci.coverage_quality_gate",
+    "scripts.ci.create_cross_repo_patch",
     "scripts.ci.create_group_issue",
     "scripts.ci.dependency_parasite_guard",
     "scripts.ci.detect_changed_tests",
