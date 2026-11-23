@@ -106,6 +106,18 @@ def create_sync_pr(
         print("  [skip] No file diff in target repo after applying patches.")
         return False
 
+    # বাংলা মন্তব্য: স্কোপড অ্যাড — শুধুমাত্র প্যাচ দ্বারা পরিবর্তিত ও নতুন ফাইল স্টেজ করা (Scoped Git Add)
+    status_output = subprocess.check_output(["git", "status", "--porcelain"], cwd=target_dir, text=True)
+    files_to_stage = []
+    for line in status_output.splitlines():
+        if line.strip():
+            filepath = line[3:].strip().strip('"')
+            files_to_stage.append(filepath)
+
+    if not files_to_stage:
+        print("  [skip] No file diff in target repo after applying patches.")
+        return False
+
     slug = "-".join([p.replace(".patch", "").replace(".diff", "") for p in applied_patches[:3]])
     branch_name = f"sync/patch-{slug[:30]}"
 
@@ -113,7 +125,9 @@ def create_sync_pr(
     subprocess.run(["git", "config", "user.name", "github-actions[bot]"], cwd=target_dir, check=True)
     subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"], cwd=target_dir, check=True)
     subprocess.run(["git", "checkout", "-B", branch_name], cwd=target_dir, check=True)
-    subprocess.run(["git", "add", "."], cwd=target_dir, check=True)
+
+    print(f"  [git] Staging {len(files_to_stage)} modified file(s)...")
+    subprocess.run(["git", "add", "--"] + files_to_stage, cwd=target_dir, check=True)
 
     commit_msg = f"chore(sync): cross-repo patch sync from {source_repo}\n\nApplied patches:\n" + "\n".join(f"- {p}" for p in applied_patches)
     subprocess.run(["git", "commit", "-m", commit_msg], cwd=target_dir, check=True)
