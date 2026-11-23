@@ -412,9 +412,9 @@
   },
   "graph": {
     "modules": 2189,
-    "edges": 4993,
+    "edges": 4994,
     "edge_kinds": {
-      "dispatch": 190,
+      "dispatch": 191,
       "dynamic": 4,
       "import": 4117,
       "string": 682
@@ -438,8 +438,8 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1668,
-    "unreachable": 527,
+    "reachable": 1669,
+    "unreachable": 526,
     "reachable_pct": 76.2
   },
   "gaps": {
@@ -1326,7 +1326,6 @@
     "scripts.ci.smart_priority_merger",
     "scripts.ci.staggered_rolling_train",
     "scripts.ci.stale_claim_releaser",
-    "scripts.ci.sync_graph_to_memory",
     "scripts.ci.task_dashboard",
     "scripts.ci.tenant_negative_battery",
     "scripts.ci.transit_prune",
