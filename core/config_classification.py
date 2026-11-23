@@ -1469,6 +1469,13 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         description="Auto-classified by CI drift remediation (P5) — heuristic default, needs manual review.",
     ),
     ConfigSpec(
+        "CEREBRAS_API_KEY",
+        frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
+        frozenset({ConfigSource.VAULT, ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description="API key for Cerebras provider key pool and fallback execution.",
+    ),
+    ConfigSpec(
         "GEMINI_API_KEY",
         frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
         frozenset({ConfigSource.VAULT, ConfigSource.ENV}),
@@ -1551,6 +1558,13 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         frozenset({ConfigSource.VAULT, ConfigSource.ENV}),
         frozenset({"backend"}),
         description="Auto-classified by CI drift remediation (P5) — heuristic default, needs manual review.",
+    ),
+    ConfigSpec(
+        "KILO_API_KEY",
+        frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
+        frozenset({ConfigSource.VAULT, ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description="API key for Kilo AI Gateway provider key pool.",
     ),
     ConfigSpec(
         "KMS_KEY_NAME",
@@ -1894,6 +1908,13 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         frozenset({ConfigSource.VAULT, ConfigSource.ENV}),
         frozenset({"backend"}),
         description="Auto-classified by CI drift remediation (P5) — heuristic default, needs manual review.",
+    ),
+    ConfigSpec(
+        "SAMBANOVA_API_KEY",
+        frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
+        frozenset({ConfigSource.VAULT, ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description="API key for SambaNova Cloud provider key pool.",
     ),
     ConfigSpec(
         "SENTRY_AUTH_TOKEN",
