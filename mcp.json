@@ -22,11 +22,11 @@
     "supremeai-mcp-tower": {
       "command": "node",
       "args": [
-        "F:/supremeai/infrastructure/mcp-control-plane/dist/index.js"
+        "${SUPREMEAI_ROOT}/infrastructure/mcp-control-plane/dist/index.js"
       ],
       "env": {
         "MCP_MODE": "stdio",
-        "TINY_BRAIN_URL": "https://njelitltd-tiny-brain.hf.space"
+        "TINY_BRAIN_URL": "${TINY_BRAIN_URL:-https://njelitltd-tiny-brain.hf.space}"
       }
     }
   }

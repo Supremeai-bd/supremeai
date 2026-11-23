@@ -129,11 +129,14 @@ def main(argv: list[str] | None = None) -> int:
         print("graphify is not installed; graph remains unavailable", file=sys.stderr)
         return 2
     extract = subprocess.run(
-        [graphify, "extract", ".", "--output", str(OUT)],
+        [graphify, "extract", ".", "--code-only", "--output", str(ROOT)],
         cwd=ROOT,
         text=True,
         timeout=300,
     )
+    generated = ROOT / "graphify-out" / "graph.json"
+    if extract.returncode == 0 and generated.exists() and not OUT.exists():
+        shutil.copyfile(generated, OUT)
     if extract.returncode != 0 or not OUT.exists():
         print("graphify extraction failed; no placeholder graph was created", file=sys.stderr)
         return extract.returncode or 3

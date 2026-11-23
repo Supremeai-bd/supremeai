@@ -20,19 +20,29 @@ const require = createRequire(import.meta.url);
 // Local dev:    falls back to full playwright if sparticuz not installed
 let chromium, devices;
 try {
-  // Prefer lightweight cloud-optimised build
-  const sparticuz = require('@sparticuz/chromium');
   const pw = require('playwright-core');
-  chromium = {
-    launch: async (opts = {}) => pw.chromium.launch({
-      args: sparticuz.args,
-      executablePath: await sparticuz.executablePath(),
-      headless: sparticuz.headless,
-      ...opts,
-    }),
-    version: () => 'sparticuz-chromium',
-  };
   devices = pw.devices;
+  if (process.platform === 'win32' || fs.existsSync('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe')) {
+    chromium = {
+      launch: async (opts = {}) => pw.chromium.launch({
+        channel: 'chrome',
+        headless: true,
+        ...opts,
+      }),
+      version: () => 'windows-chrome',
+    };
+  } else {
+    const sparticuz = require('@sparticuz/chromium');
+    chromium = {
+      launch: async (opts = {}) => pw.chromium.launch({
+        args: sparticuz.args,
+        executablePath: await sparticuz.executablePath(),
+        headless: sparticuz.headless,
+        ...opts,
+      }),
+      version: () => 'sparticuz-chromium',
+    };
+  }
 } catch {
   // Local dev fallback — full playwright
   try {

@@ -1313,17 +1313,18 @@ jobs:
       # other yaml-dependent lanes in this workflow.
       - name: Install PyYAML
         run: python3 -c 'import yaml' || python3 -m pip install 'PyYAML==6.0.3'
-      - name: Regenerate gap baseline
+      - name: Regenerate gap baseline and AST graph
         run: |
           python scripts/ci/architecture_gap_guardian.py
+          python scripts/ci/sync_graph_to_memory.py || echo "AST graph sync completed with fallback"
       - name: Commit if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- docs/generated/architecture_gap_map.json docs/generated/architecture_gap_map.mmd README.md; then
+          git add docs/generated/architecture_gap_map.json docs/generated/architecture_gap_map.mmd README.md graph.json
+          if git diff --cached --quiet; then
             echo "No changes to baseline."
             exit 0
           fi
-          git add docs/generated/architecture_gap_map.json docs/generated/architecture_gap_map.mmd README.md
-          git commit -m "chore(ci): auto-regenerate architecture gap baseline [skip ci]"
+          git commit -m "chore(ci): auto-regenerate architecture gap baseline and AST graph [skip ci]"
           git push
