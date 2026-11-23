@@ -9,6 +9,7 @@ from scripts.ci.apply_cross_repo_patch import (
     validate_patch,
     verify_patch_apply,
     apply_patch,
+    get_patch_targets,
 )
 
 
@@ -106,3 +107,7 @@ def test_patch_apply_with_git_repo(tmp_path: Path):
     # পুনরায় একই প্যাচ দিলে কনফ্লিক্ট ধরা পড়বে
     can_apply_again, conflict_msg = verify_patch_apply(target_repo, patch_file)
     assert can_apply_again is False
+
+    # বাংলা মন্তব্য: numstat থেকে টার্গেট ফাইলের নাম নিখুঁতভাবে পাওয়া
+    targets = get_patch_targets(patch_file)
+    assert targets == ["greeting.txt"]

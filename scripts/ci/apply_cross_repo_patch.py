@@ -93,11 +93,30 @@ def apply_patch(target_dir: Path, patch_path: Path) -> tuple[bool, str]:
         return False, str(exc)
 
 
+def get_patch_targets(patch_path: Path) -> list[str]:
+    """বাংলা মন্তব্য: git apply --numstat চালিয়ে প্যাচে অন্তর্ভুক্ত ফাইলগুলোর সুনির্দিষ্ট তালিকা বের করা।"""
+    try:
+        proc = subprocess.run(
+            ["git", "apply", "--numstat", str(patch_path.resolve())],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        files = []
+        for line in proc.stdout.splitlines():
+            parts = line.split("\t")
+            if len(parts) >= 3:
+                files.append(parts[2].strip().strip('"'))
+        return files
+    except Exception:
+        return []
+
+
 def create_sync_pr(
     target_dir: Path,
     target_repo: str,
     source_repo: str,
-    applied_patches: list[str],
+    applied_patches: list[Path],
     source_ref: str = "main",
 ) -> bool:
     """বাংলা মন্তব্য: টার্গেট রিপোজিটরিতে নতুন ব্রাঞ্চ তৈরি, পুশ এবং auto-sync লেবেলসহ PR খোলা।"""
@@ -106,19 +125,23 @@ def create_sync_pr(
         print("  [skip] No file diff in target repo after applying patches.")
         return False
 
-    # বাংলা মন্তব্য: স্কোপড অ্যাড — শুধুমাত্র প্যাচ দ্বারা পরিবর্তিত ও নতুন ফাইল স্টেজ করা (Scoped Git Add)
-    status_output = subprocess.check_output(["git", "status", "--porcelain"], cwd=target_dir, text=True)
-    files_to_stage = []
-    for line in status_output.splitlines():
-        if line.strip():
-            filepath = line[3:].strip().strip('"')
-            files_to_stage.append(filepath)
+    # বাংলা মন্তব্য: git apply --numstat থেকে নিখুঁতভাবে শুধুমাত্র প্যাচের টার্গেট ফাইলগুলো স্টেজ করা
+    files_to_stage = set()
+    for p in applied_patches:
+        files_to_stage.update(get_patch_targets(p))
+
+    # Fallback to status if numstat is empty
+    if not files_to_stage:
+        for line in status.splitlines():
+            if line.strip():
+                files_to_stage.add(line[3:].strip().strip('"'))
 
     if not files_to_stage:
         print("  [skip] No file diff in target repo after applying patches.")
         return False
 
-    slug = "-".join([p.replace(".patch", "").replace(".diff", "") for p in applied_patches[:3]])
+    patch_names = [p.name for p in applied_patches]
+    slug = "-".join([p.stem for p in applied_patches[:3]])
     branch_name = f"sync/patch-{slug[:30]}"
 
     print(f"  [git] Configuring bot identity and checkout branch '{branch_name}'...")
@@ -126,10 +149,10 @@ def create_sync_pr(
     subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"], cwd=target_dir, check=True)
     subprocess.run(["git", "checkout", "-B", branch_name], cwd=target_dir, check=True)
 
-    print(f"  [git] Staging {len(files_to_stage)} modified file(s)...")
-    subprocess.run(["git", "add", "--"] + files_to_stage, cwd=target_dir, check=True)
+    print(f"  [git] Staging {len(files_to_stage)} targeted file(s) strictly from patches...")
+    subprocess.run(["git", "add", "--"] + sorted(files_to_stage), cwd=target_dir, check=True)
 
-    commit_msg = f"chore(sync): cross-repo patch sync from {source_repo}\n\nApplied patches:\n" + "\n".join(f"- {p}" for p in applied_patches)
+    commit_msg = f"chore(sync): cross-repo patch sync from {source_repo}\n\nApplied patches:\n" + "\n".join(f"- {p}" for p in patch_names)
     subprocess.run(["git", "commit", "-m", commit_msg], cwd=target_dir, check=True)
     subprocess.run(["git", "push", "-u", "origin", branch_name, "--force"], cwd=target_dir, check=True)
 
@@ -250,7 +273,7 @@ def main() -> int:
         print("[dry-run] Dry run completed successfully. All patches apply cleanly.")
         return 0
 
-    applied: list[str] = []
+    applied: list[Path] = []
     if args.apply or args.create_pr:
         for p in patches:
             success, apply_msg = apply_patch(target_dir, p)
@@ -258,7 +281,7 @@ def main() -> int:
                 print(f"Failed to apply {p.name}: {apply_msg}")
                 return 1
             print(f"  [applied] {p.name}")
-            applied.append(p.name)
+            applied.append(p)
 
     if args.create_pr and applied:
         pr_ok = create_sync_pr(
