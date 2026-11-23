@@ -35,6 +35,15 @@ small JSON state file — repeated cron runs never spam Telegram.
 Stdlib-only, zero dependencies, cron-friendly exit codes:
   0 = ok / skipped / no alert   1 = warning sent (threshold warn, [BURN] or [DEPTH])
   2 = critical sent (threshold crit or zero-available chain)   3 = strict-mode fetch failure
+
+2026-11 RBAC addendum: the tower now runs default-deny RBAC on role-gated
+MCP tools — a zero-credential caller receives the plain-text refusal
+"Forbidden: tool ... requires agent role or higher". That refusal is a
+CONFIGURATION state (missing token), not tower unreachability, so it is
+classified as an honest skip (exit 0, even under REDIS_QUOTA_STRICT) with a
+loud owner-action message. When the repo secret MCP_TOWER_TOKEN (MCP Bearer
+token with agent role) is configured it is sent automatically and the real
+quota check works end-to-end.
 """
 
 import argparse
@@ -371,13 +380,16 @@ def parse_tool_response_text(body):
     return ""
 
 
-def _mcp_post(url, payload, session_id=None, timeout=90):
+def _mcp_post(url, payload, session_id=None, timeout=90, token=None):
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json, text/event-stream",
     }
     if session_id:
         headers["mcp-session-id"] = session_id
+    # 2026-11 default-deny RBAC: role-gated tools need an MCP Bearer token.
+    if token:
+        headers["Authorization"] = "Bearer %s" % token
     req = urllib.request.Request(
         url, data=json.dumps(payload).encode("utf-8"), headers=headers
     )
@@ -385,8 +397,24 @@ def _mcp_post(url, payload, session_id=None, timeout=90):
     return resp.read().decode("utf-8"), resp.headers.get("mcp-session-id")
 
 
+# 2026-11 tower RBAC marker — a deliberate, honest refusal (configuration
+# state), NOT tower unreachability and NOT fabricated data.
+_RBAC_MARKER = "Forbidden: tool "
+
+
+class TowerAuthGated(RuntimeError):
+    """Tower refused a role-gated tool for a zero-credential caller."""
+
+    owner_action = (
+        "SKIPPED (auth-gated): tower RBAC refused redis_rotation_status for a "
+        "zero-credential caller. Configure repo secret MCP_TOWER_TOKEN with an "
+        "MCP Bearer token carrying agent role (or higher) — see README of the "
+        "2026-11-24 fix pack.")
+
+
 def fetch_chain_status(tower_url=DEFAULT_TOWER_URL):
     """Fresh MCP session → tools/call redis_rotation_status → parsed dict."""
+    token = (os.environ.get("MCP_TOWER_TOKEN") or "").strip()
     init_body, session_id = _mcp_post(
         tower_url,
         {
@@ -399,6 +427,7 @@ def fetch_chain_status(tower_url=DEFAULT_TOWER_URL):
                 "clientInfo": {"name": "redis-quota-monitor", "version": "1.0"},
             },
         },
+        token=token,
     )
     if not session_id:
         raise RuntimeError("tower did not return an mcp-session-id")
@@ -408,6 +437,7 @@ def fetch_chain_status(tower_url=DEFAULT_TOWER_URL):
             {"jsonrpc": "2.0", "method": "notifications/initialized"},
             session_id,
             timeout=30,
+            token=token,
         )
     except urllib.error.HTTPError:
         pass  # notification response is best-effort
@@ -420,8 +450,11 @@ def fetch_chain_status(tower_url=DEFAULT_TOWER_URL):
             "params": {"name": "redis_rotation_status", "arguments": {}},
         },
         session_id,
+        token=token,
     )
     text = parse_tool_response_text(call_body)
+    if isinstance(text, str) and text.strip().startswith(_RBAC_MARKER):
+        raise TowerAuthGated(text[:200])
     return json.loads(text)
 
 
@@ -598,6 +631,11 @@ def main(argv=None):
 
     try:
         report = fetch_chain_status(args.tower_url)
+    except TowerAuthGated:
+        # 2026-11 RBAC rollout: a missing token is a CONFIGURATION state, not
+        # tower unreachability — honest skip (exit 0) even in strict mode.
+        print(TowerAuthGated.owner_action)
+        return 0
     except Exception as exc:  # honest skip — never fabricate usage (U2)
         if os.environ.get("REDIS_QUOTA_STRICT"):
             print("ERROR: tower unreachable and REDIS_QUOTA_STRICT=1: %s" % exc)

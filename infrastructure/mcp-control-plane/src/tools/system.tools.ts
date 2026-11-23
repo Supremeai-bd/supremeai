@@ -127,6 +127,62 @@ export async function mapConcurrentSettled<T, R>(
 async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
   const base: Pick<HealthProbe, "id" | "displayName"> = { id: svc.id, displayName: svc.displayName };
 
+  // ── 2026-11-24 fix: the tower probing ITSELF must NOT mirror the aggregate.
+  // The old path fed the tower's own aggregate /health body (which counts every
+  // downstream provider) back into the tower's own snapshot: one degraded or
+  // unknown downstream row ⇒ tower snapshot "degraded" ⇒ aggregate stays
+  // "degraded" forever, even after the downstream row recovers — a self-
+  // sustaining loop (observed live 2026-11-22→24: render-mcp stuck degraded
+  // with latency 0 / "Nonems" while every real service answered healthy).
+  // Honest semantics: this snapshot means TOWER PROCESS LIVENESS. Downstream
+  // health is already reported per-provider in the same payload.
+  // render-mcp account (registry): id "render-mcp", provider "render" —
+  // the account pointing at the tower's own public URL.
+  if (svc.id === "render-mcp") {
+    const selfUrl = `${svc.url!.replace(/\/+$/, "")}/health`;
+    const start = Date.now();
+    try {
+      const res = await httpRequest(selfUrl, {
+        timeoutMs: 8000,
+        retries: 0,
+        headers: { "User-Agent": "SupremeAI-Control-Tower/self-check" },
+      });
+      const latencyMs = res.latencyMs ?? (Date.now() - start);
+      let body: Record<string, unknown> = {};
+      try {
+        body = (typeof res.data === "string" ? JSON.parse(res.data) : res.data || {}) as Record<string, unknown>;
+      } catch {
+        body = {}; // unparseable body handled below via boot/degraded rules
+      }
+      const stale = body.stale === true;
+      const booting = body.status === "starting";
+      if (res.ok && !stale && !booting) {
+        return {
+          ...base,
+          url: selfUrl,
+          status: "healthy",
+          httpStatus: res.status,
+          latencyMs,
+          confidence: "verified",
+        };
+      }
+      return {
+        ...base,
+        url: selfUrl,
+        status: "degraded",
+        httpStatus: res.status ?? null,
+        latencyMs,
+        error: stale
+          ? "self-check: health sweep stale (watchdog telemetry reports no recent sweep)"
+          : booting
+            ? "self-check: tower in boot state (starting — no sweep completed yet)"
+            : `self-check: /health responded ${res.status}`,
+      };
+    } catch (err) {
+      return { ...base, url: selfUrl, status: "unreachable", httpStatus: null, latencyMs: Date.now() - start, error: `self-check failed: ${(err as Error).message}` };
+    }
+  }
+
   // ── GitHub: repo API with auth IS the health check ──
   if (svc.provider === "github") {
     const token = bearerFor(svc.apiKeyRef);
@@ -347,7 +403,15 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
     const token = env.notify.telegramBotToken;
     if (!token) return { ...base, url: maskedUrl, status: "unconfigured", httpStatus: null, latencyMs: null, error: "TELEGRAM_BOT_TOKEN missing in tower env" };
     try {
-      const res = await httpRequest<{ ok?: boolean }>(`https://api.telegram.org/bot${token}/getMe`, { timeoutMs: 6000, retries: 0 });
+      // 2026-11-24 fix-pack: api.telegram.org shows INTERMITTENT egress flapping from
+      // Render (observed live: unreachable → healthy → unreachable within hours, every
+      // blip a connection-level failure while the bot itself stayed up). Every other
+      // tower probe keeps single-shot retries: 0 on purpose (fast, honest sweeps) —
+      // Telegram is the ONE endpoint where a single-shot probe lies about reality, so
+      // it alone gets one honest retry. A real outage still fails both attempts and
+      // reports unreachable; a transient egress blip self-heals inside the same sweep
+      // instead of poisoning the health feed and paging nobody for nothing.
+      const res = await httpRequest<{ ok?: boolean }>(`https://api.telegram.org/bot${token}/getMe`, { timeoutMs: 6000, retries: 1 });
       const ok = Boolean(res.data?.ok);
       return { ...base, url: maskedUrl, status: ok ? "healthy" : "degraded", httpStatus: res.status, latencyMs: res.latencyMs, ...(ok ? {} : { error: "getMe rejected the bot token" }) };
     } catch (err) {

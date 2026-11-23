@@ -40,14 +40,20 @@ Env inputs (as passed by the workflows):
     EXPLICIT_URL / PRODUCTION_URL   API owner override (PRODUCTION_URL preferred)
     FRONTEND_EXPLICIT_URL           UI owner override (FRONTEND_PRODUCTION_URL)
     FIREBASE_PROJECT                Firebase project id
-    RENDER_CORE                     Infisical RENDER_CORE_URL
+    RENDER_CORE                     Infisical RENDER_CORE_URL — may hold a
+                                    comma-separated candidate list; the first
+                                    candidate whose /api/v1/health/live returns
+                                    200+status JSON wins (live-verified)
+    RESOLVER_SKIP_VERIFY            set to 1 to skip network verification
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
+import urllib.request
 
 HOSTING_DOMAIN_SUFFIXES = (".web.app", ".firebaseapp.com")
 
@@ -61,9 +67,52 @@ ENV_KEYS = (
     "QA_BASE_URL",
 )
 
+# Live-verification probe contract (2026-11-24 fix-pack addendum).
+# RENDER_CORE_URL (and PRODUCTION_URL overrides via comma-list) may hold a
+# comma-separated CANDIDATE list. The resolver probes each candidate's
+# /api/v1/health/live and picks the FIRST candidate that honestly answers
+# 200 + JSON with a "status" key. Rationale (2026-11-23 nightly incident):
+# Infisical RENDER_CORE_URL pointed at the retired gateway (supremeai-api-ulw0)
+# which answers 404 for /api/v1/health/* — live-smoke (fail-closed) burned red
+# for days while the real core (supremeai-primary-node-5xso) was healthy.
+# A candidate list lets the owner fix config in one edit WITHOUT losing the
+# zero-hardcode doctrine: candidates come only from owner-owned config, and
+# provenance always reports what was probed and what won.
+HEALTH_PROBE_PATH = "/api/v1/health/live"
+HEALTH_PROBE_TIMEOUT_S = 8
+RESOLVER_VERIFY_ENV = "RESOLVER_SKIP_VERIFY"  # set to 1/true to probe offline
+
 
 def _clean(value: str | None) -> str:
     return (value or "").strip().rstrip("/")
+
+
+def _verify_api_candidate(url: str) -> tuple[bool, str]:
+    """Stdlib live probe of {url}/api/v1/health/live → (verified, detail).
+
+    Verified = HTTP 200 + parseable JSON containing a "status" key (the same
+    contract live-smoke's Layer B asserts). Network errors/404/5xx ⇒ False.
+    Never raises — verification is advisory, fail-closed enforcement stays
+    with the calling workflow."""
+    try:
+        req = urllib.request.Request(
+            url.rstrip("/") + HEALTH_PROBE_PATH,
+            headers={"User-Agent": "supremeai-target-resolver"},
+        )
+        with urllib.request.urlopen(req, timeout=HEALTH_PROBE_TIMEOUT_S) as resp:
+            body = resp.read()
+            code = resp.status
+        if code != 200:
+            return False, f"HTTP {code}"
+        try:
+            data = json.loads(body.decode("utf-8", errors="replace"))
+        except Exception:  # noqa: BLE001 — non-JSON = contract broken
+            return False, "HTTP 200 but non-JSON body"
+        if not isinstance(data, dict) or "status" not in data:
+            return False, "HTTP 200 JSON without 'status' key"
+        return True, "HTTP 200 JSON status ✓"
+    except Exception as exc:  # noqa: BLE001 — any network failure is a verdict
+        return False, f"{type(exc).__name__}: {exc}"
 
 
 def resolve_targets(
@@ -117,8 +166,61 @@ def resolve_targets(
                 "will be UNVERIFIED."
             )
     elif render_core:
-        api_origin = render_core
-        api_src = "RENDER_CORE_URL (Infisical prod)"
+        # 2026-11-24 addendum: comma-separated candidates are live-verified and
+        # the first honest /api/v1/health/live winner becomes the API origin.
+        candidates = [c.strip().rstrip("/") for c in render_core.split(",") if c.strip()]
+        if len(candidates) > 1:
+            skip_verify = os.environ.get(RESOLVER_VERIFY_ENV, "").strip().lower() in ("1", "true", "yes")
+            if skip_verify:
+                api_origin = candidates[0]
+                api_src = ("RENDER_CORE_URL (Infisical prod) — candidate[0] "
+                           f"of {len(candidates)} (verification skipped)")
+                notes.append(
+                    f"RENDER_CORE_URL held {len(candidates)} candidates; "
+                    f"RESOLVER_SKIP_VERIFY=1 → picked candidate[0] without probing."
+                )
+            else:
+                probed: list[str] = []
+                chosen: str | None = None
+                for cand in candidates:
+                    ok, detail = _verify_api_candidate(cand)
+                    probed.append(f"{cand} → {detail}")
+                    if ok and chosen is None:
+                        chosen = cand
+                if chosen:
+                    api_origin = chosen
+                    api_src = ("RENDER_CORE_URL (Infisical prod) — live-verified "
+                               f"winner of {len(candidates)} candidates via "
+                               f"{HEALTH_PROBE_PATH}")
+                else:
+                    # Honest fallback: keep candidate[0] so fail-closed callers
+                    # still probe SOMETHING, but flag loudly that nothing won.
+                    api_origin = candidates[0]
+                    api_src = "RENDER_CORE_URL (Infisical prod) — candidate[0] fallback (NONE verified)"
+                    notes.append(
+                        "MISCONFIGURATION WARNING: no RENDER_CORE_URL candidate "
+                        f"answered {HEALTH_PROBE_PATH} with 200+status JSON — "
+                        "API rows will probe candidate[0] and likely FAIL; fix "
+                        "Infisical RENDER_CORE_URL (2026-11 migration: new core "
+                        "= supremeai-primary-node-5xso.onrender.com)."
+                    )
+                notes.append("Candidate probe ledger: " + " | ".join(probed))
+        else:
+            api_origin = render_core
+            api_src = "RENDER_CORE_URL (Infisical prod)"
+            # Single-candidate honesty probe (2026-11-23 incident: retired
+            # gateway 404s /api/v1/health/* while the nightly burns red).
+            if os.environ.get(RESOLVER_VERIFY_ENV, "").strip().lower() not in ("1", "true", "yes"):
+                ok, detail = _verify_api_candidate(api_origin)
+                if not ok:
+                    notes.append(
+                        f"RENDER_CORE_URL candidate did NOT verify on "
+                        f"{HEALTH_PROBE_PATH} ({detail}) — if this is the retired "
+                        "gateway (supremeai-api-ulw0), the 2026-11 core migration "
+                        "moved the API to supremeai-primary-node-5xso.onrender.com; "
+                        "update Infisical RENDER_CORE_URL (or set a comma-separated "
+                        "candidate list; the resolver picks the live winner)."
+                    )
     elif ui_origin:
         api_origin = ui_origin
         api_src = "same-origin fallback (UI origin; rewrite chain is the API path)"

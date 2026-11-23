@@ -2154,6 +2154,11 @@ jobs:
     - name: Run every guard
       # tee so the artifact below is the full transcript, not just the tail CI
       # happens to render. pipefail keeps the guard's exit code through the pipe.
+      # 2026-11 RBAC: the tower default-denies role-gated MCP tools — pass the
+      # agent-role Bearer token so hollow_read_guard reads real data planes
+      # (without it the guard now reports honest AUTH_GATED + warning, not red).
+      env:
+        MCP_TOWER_TOKEN: ${{ secrets.MCP_TOWER_TOKEN }}
       run: |
         set -o pipefail
         python scripts/ci/run_all_guards.py --full 2>&1 | tee guard-roster.log
@@ -2353,7 +2358,12 @@ jobs:
   watchdog:
     needs: [resolve-execution-tier]
     name: "⏰ Schedule Watchdog (cron self-heal)"
-    if: github.event_name == 'workflow_dispatch'
+    # 2026-11-24 fix: the watchdog existed only behind workflow_dispatch, so
+    # dead/dropped crons were never re-armed automatically (GitHub drops and
+    # delays scheduled events under load — observed: the 03:00 UTC bundle ran
+    # 9h late and the 30-min redis cron went silent for 12+ hours). The
+    # watchdog now rides the daily bundle and self-heals the schedule.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -2374,6 +2384,35 @@ jobs:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: python scripts/ci/schedule_watchdog.py
+
+  # ---------------------------------------------------------------------------
+  # Pipeline Failure Register (revived 2026-11-24)
+  # ---------------------------------------------------------------------------
+  # The register runner workflow was deleted during the workflow consolidation
+  # (issue-ops.yml → ops-maintenance.yml), orphaning scripts/ci/
+  # pipeline_failure_register.py — issue #9 (PIPELINE-FAILURE-REGISTER) has been
+  # frozen since 2026-10-09 while nightly failures went untracked. This arm
+  # revives it: a cheap API-only scan on every schedule window.
+  failure-register:
+    needs: [resolve-execution-tier]
+    name: "📋 Pipeline Failure Register (auto-maintained ledger)"
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      issues: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Scan failures and maintain the register ledger (issue #9)
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: python scripts/ci/pipeline_failure_register.py --scan
 
   # ---------------------------------------------------------------------------
   # Issue Template Conformance & Ops (from issue-ops.yml)
@@ -2688,6 +2727,10 @@ jobs:
         env:
           RENDER_MCP_URL: ${{ vars.RENDER_MCP_URL || secrets.RENDER_MCP_URL }}
           REDIS_QUOTA_STRICT: "1"
+          # 2026-11 RBAC: redis_rotation_status is role-gated — send the
+          # agent-role Bearer token when configured (otherwise the monitor
+          # skips honestly with exit 0 + owner-action message).
+          MCP_TOWER_TOKEN: ${{ secrets.MCP_TOWER_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |

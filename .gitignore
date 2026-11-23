@@ -259,6 +259,8 @@ desktop.ini
 *.backup
 *.diff
 *.patch
+!/.patches/**/*.patch
+!/.patches/**/*.diff
 *.rej
 archive/
 _archive/
@@ -306,6 +308,7 @@ firebase.json
 !/LICENSE
 !/Makefile
 !/README.md
+!/SECURITY.md
 !/mcp.json
 !/render.yaml
 !/requirements*.txt
@@ -321,6 +324,7 @@ firebase.json
 !/.agents/
 !/.githooks/
 !/.github/
+!/.patches/
 !/.kilo/
 /.kilo/*
 !/.kilo/kilo.jsonc

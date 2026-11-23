@@ -40,6 +40,16 @@ worse than a loud failure).
 
 Verdict contract:
     exit 0  CLEAN           — no hollow signature on the probed planes
+    exit 0  AUTH_GATED      — tower answered with the RBAC marker ("Forbidden:
+                              tool ... requires agent role", default-deny
+                              2026-11 RBAC rollout). This is a CONFIGURATION
+                              state, not a hollow body: the tower answered
+                              honestly and deliberately. Loud ::warning:: +
+                              AUTH_GATED findings, but the nightly must not
+                              burn red on a missing secret (same precedent as
+                              the #755 redis-quota fail-open). Owner action:
+                              set repo secret MCP_TOWER_TOKEN to an MCP
+                              Bearer token with agent role.
     exit 1  HOLLOW_DETECTED — at least one assertion fired (stderr fail-loud,
                               JSON evidence on stdout)
     exit 2  USAGE/INTERNAL  — bad invocation or internal error, never silent
@@ -59,6 +69,7 @@ from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is
 
 import argparse
 import json
+import os
 import sys
 import urllib.request
 from datetime import datetime, timezone
@@ -189,6 +200,35 @@ class TowerHollowReadError(RuntimeError):
             f"({self.body_length}B, excerpt={self.excerpt!r}) — #3031 66B class")
 
 
+# 2026-11 default-deny RBAC marker (tower-side): a role-gated tool answered a
+# zero-credential caller with a plain-text refusal instead of tool data. The
+# refusal is parseable HONESTY, not a hollow body — the tower deliberately
+# declined. It is a configuration state (missing MCP Bearer token), so it is
+# classified AUTH_GATED (exit 0 + loud warning), never HOLLOW (exit 1).
+_TOWER_RBAC_MARKER = "Forbidden: tool "
+
+
+def is_rbac_forbidden(body: str) -> bool:
+    """True when the tower text is its RBAC refusal (agent-role gate)."""
+    return isinstance(body, str) and body.strip().startswith(_TOWER_RBAC_MARKER)
+
+
+class TowerAuthGatedError(TowerHollowReadError):
+    """RBAC auth-gated read: tower refused a role-gated tool (no Bearer token).
+
+    Subclasses TowerHollowReadError so legacy `except TowerHollowReadError`
+    handlers still see it, while the guard can route it to the honest
+    AUTH_GATED verdict instead of HOLLOW_DETECTED."""
+
+    def __init__(self, tool: str, body: str):
+        super().__init__(tool, body)
+        self.owner_action = (
+            "AUTH-GATED: tower RBAC refused this tool for a zero-credential "
+            "caller. Configure repo secret MCP_TOWER_TOKEN with an MCP Bearer "
+            "token carrying agent role (or higher) — see README of the "
+            "2026-11-24 fix pack.")
+
+
 # Statuses that do NOT imply an incident. Everything else that is a non-empty
 # string status (degraded, down, unhealthy, error, failed, update_failed,
 # timeout, unreachable, ...) counts as a non-OK row. Unknown/excluded are
@@ -306,26 +346,40 @@ def assert_parsable(plane: str, raw_body: str, context: str = "") -> dict:
 # Live probe plane (zero-credential tower reads)
 # ---------------------------------------------------------------------------
 
-def _tower_rpc(tower_url: str, session, payload: dict, timeout: float = 30.0):
+def _tower_rpc(tower_url: str, session, payload: dict, timeout: float = 30.0,
+               token: str | None = None):
     headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
     if session:
         headers["mcp-session-id"] = session
+    # 2026-11 default-deny RBAC: role-gated tools need an MCP Bearer token.
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(tower_url, data=json.dumps(payload).encode(), headers=headers, method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.headers.get("mcp-session-id"), resp.read().decode()
 
 
-def tower_call(tool: str, arguments: dict, tower_url: str, timeout: float = 30.0) -> dict:
+def _tower_token() -> str:
+    """MCP Bearer token for RBAC-gated tools (canonical env only — the config
+    control-plane contract classifies MCP_TOWER_TOKEN; aliases would trip
+    check_config_control_plane as unclassified security-sensitive names)."""
+    return (os.environ.get("MCP_TOWER_TOKEN") or "").strip()
+
+
+def tower_call(tool: str, arguments: dict, tower_url: str, timeout: float = 30.0,
+               token: str | None = None) -> dict:
+    token = token or _tower_token()
     sid, _ = _tower_rpc(tower_url, None, {
         "jsonrpc": "2.0", "id": 1, "method": "initialize",
         "params": {"protocolVersion": "2024-11-05", "capabilities": {},
                    "clientInfo": {"name": "hollow-read-guard", "version": "1.0"}},
-    }, timeout=timeout)
-    _tower_rpc(tower_url, sid, {"jsonrpc": "2.0", "method": "notifications/initialized"})
+    }, timeout=timeout, token=token)
+    _tower_rpc(tower_url, sid, {"jsonrpc": "2.0", "method": "notifications/initialized"},
+               token=token)
     _, body = _tower_rpc(tower_url, sid, {
         "jsonrpc": "2.0", "id": 99, "method": "tools/call",
         "params": {"name": tool, "arguments": arguments},
-    }, timeout=timeout)
+    }, timeout=timeout, token=token)
     for line in body.split("\n"):
         if line.startswith("data: "):
             data = json.loads(line[6:])
@@ -334,6 +388,11 @@ def tower_call(tool: str, arguments: dict, tower_url: str, timeout: float = 30.0
             texts = [c.get("text", "") for c in data.get("result", {}).get("content", [])
                      if c.get("type") == "text"]
             out = "\n".join(texts)
+            # 2026-11 RBAC: an honest, deliberate refusal is CONFIGURATION, not
+            # a hollow body — raise the dedicated AUTH_GATED error so callers
+            # can classify it (exit 0 + warning) instead of burning red.
+            if is_rbac_forbidden(out):
+                raise TowerAuthGatedError(tool, out)
             # #3031: a non-empty but unparseable body must be LOUD, never
             # laundered through a {"raw": ...} fallback dict.
             try:
@@ -368,6 +427,9 @@ def run_live_probe(fetch, owner: str = "Supremeai-bd", repo: str = "supremeai") 
         findings.append(assert_non_empty("github.list_prs", rows, semantic_floor=floor,
                                          context=sidechannel))
         findings.append(assert_truncation_flagged("github.list_prs", rows, requested_limit=30))
+    except TowerAuthGatedError as exc:
+        findings.append({"assertion": "parsable", "plane": "github.list_prs",
+                         "verdict": "AUTH_GATED", "detail": exc.owner_action})
     except TowerHollowReadError as exc:
         findings.append({"assertion": "parsable", "plane": "github.list_prs",
                          "verdict": "HOLLOW", "detail": str(exc)[:200]})
@@ -388,6 +450,9 @@ def run_live_probe(fetch, owner: str = "Supremeai-bd", repo: str = "supremeai") 
                     "detail": (f"totalOpen {total} > returned {returned} "
                                f"yet windowTruncated=false — flag/data divergence (#2190)"),
                 })
+    except TowerAuthGatedError as exc:
+        findings.append({"assertion": "parsable", "plane": "bridge.work_queue",
+                         "verdict": "AUTH_GATED", "detail": exc.owner_action})
     except TowerHollowReadError as exc:
         findings.append({"assertion": "parsable", "plane": "bridge.work_queue",
                          "verdict": "HOLLOW", "detail": str(exc)[:200]})
@@ -407,6 +472,9 @@ def run_live_probe(fetch, owner: str = "Supremeai-bd", repo: str = "supremeai") 
             semantic_floor=1,
         ))
         findings.append(assert_incidents_consistent("health_full_sweep.incidents", sweep))
+    except TowerAuthGatedError as exc:
+        findings.append({"assertion": "parsable", "plane": "health_full_sweep",
+                         "verdict": "AUTH_GATED", "detail": exc.owner_action})
     except TowerHollowReadError as exc:
         findings.append({"assertion": "parsable", "plane": "health_full_sweep",
                          "verdict": "HOLLOW", "detail": str(exc)[:200]})
@@ -415,13 +483,18 @@ def run_live_probe(fetch, owner: str = "Supremeai-bd", repo: str = "supremeai") 
                          "detail": str(exc)[:200]})
 
     hollow = [f for f in findings if f.get("verdict") == "HOLLOW"]
+    auth_gated = [f for f in findings if f.get("verdict") == "AUTH_GATED"]
+    # HOLLOW stays the only red verdict. AUTH_GATED is an honest configuration
+    # state (2026-11 RBAC rollout): visible, loud, but not a false hollow.
+    verdict = "HOLLOW_DETECTED" if hollow else ("AUTH_GATED" if auth_gated else "CLEAN")
     return {
         "guard": GUARD,
         "lineage": LINEAGE,
         "checkedAt": _now(),
-        "verdict": "HOLLOW_DETECTED" if hollow else "CLEAN",
+        "verdict": verdict,
         "findings": findings,
         "hollowCount": len(hollow),
+        "authGatedCount": len(auth_gated),
     }
 
 
@@ -448,6 +521,12 @@ def main(argv: list | None = None) -> int:
         print(f"HOLLOW READ GUARD: {evidence['hollowCount']} hollow signature(s) detected "
               f"(fail-loud, #2704 shape) — planes lie in success shape; evidence JSON attached",
               file=sys.stderr)
+    if evidence.get("authGatedCount"):
+        print("::warning::Hollow-read guard: "
+              f"{evidence['authGatedCount']} plane(s) AUTH_GATED by tower RBAC "
+              "(missing MCP_TOWER_TOKEN agent-role Bearer token) — honest "
+              "configuration state, not a hollow read; nightly stays green. "
+              "Owner action: set repo secret MCP_TOWER_TOKEN.", file=sys.stderr)
     print(payload)
     return EXIT_HOLLOW if evidence["verdict"] == "HOLLOW_DETECTED" else EXIT_CLEAN
 

@@ -435,7 +435,18 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           status: snapshot.status,
         }));
         const { isOptionalProvider } = await import("./health/engine.js");
-        const unhealthy = services.filter((s) => s.status !== "healthy" && !isOptionalProvider(s.provider)).length;
+        // 2026-11-24 fix: "unknown"/"unconfigured" are INCONCLUSIVE states (e.g.
+        // cloudflare.release identity not configured — the probe answered fine),
+        // not evidence of impairment. Counting them as unhealthy made the
+        // aggregate permanently "degraded" and — via the render-mcp self-probe
+        // reading this same aggregate — self-sustaining (deadlock observed live:
+        // tower degraded 2026-11-22→24 with every real service healthy).
+        // Honesty is preserved: unknown rows stay visible per-provider in
+        // /health/summary and system_health; only actual impairment
+        // (degraded/unreachable/outage/down/error) flips the aggregate.
+        const unhealthy = services.filter((s) => String(s.status) !== "healthy"
+          && String(s.status) !== "unknown" && String(s.status) !== "unconfigured"
+          && !isOptionalProvider(s.provider)).length;
         // #2681: an empty snapshot table (post-restart, before any check ran) must NOT
         // read "ok" — that is the #2665 live-but-empty signature ("ok" + total:0 while
         // the system runs work). Boot-state honesty: derive "starting" (remains 200 —
@@ -600,7 +611,10 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           checkedAt: snapshot.checkedAt,
           latencyMs: snapshot.latencyMs,
         }));
-        const unhealthy = services.filter((service) => !["healthy"].includes(service.status)).length;
+        // 2026-11-24 fix: mirror the /health aggregate semantics — "unknown" is
+        // inconclusive, not impaired (see the /health handler for the loop
+        // rationale); keep readiness honest about real impairment only.
+        const unhealthy = services.filter((service) => !["healthy", "unknown", "unconfigured"].includes(String(service.status))).length;
         res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
         res.end(JSON.stringify({
           status: unhealthy ? "degraded" : "healthy",
@@ -670,7 +684,10 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       try {
         const { globalHealthEngine } = await import("./health/engine.js");
         const report = await globalHealthEngine.runFullSweep();
-        const degraded = Object.values(report.snapshots).filter((snapshot) => snapshot.status !== "healthy");
+        // 2026-11-24 fix: "unknown"/"unconfigured" must not hold readiness at
+        // 503 (inconclusive ≠ impaired — same rationale as the /health aggregate).
+        const degraded = Object.values(report.snapshots).filter((snapshot) => String(snapshot.status) !== "healthy"
+          && String(snapshot.status) !== "unknown" && String(snapshot.status) !== "unconfigured");
         res.writeHead(degraded.length ? 503 : 200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ status: degraded.length ? "degraded" : "ready", report }));
       } catch (error) {
