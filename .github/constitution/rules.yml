@@ -197,7 +197,7 @@ customer_ux:
 
 constitution:
   name: "SupremeAI — AGENTS.md (Universal Operating Constitution & Agent Bootstrap — Unified v3.1)"
-  rules_version: "3.2"
+  rules_version: "3.3"
   model: "kite-and-spool"
   philosophy_quote: "যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।"
   philosophy_line: "Agent-কে ঘুড়ির মতো স্বাধীনভাবে উড়তে দাও; কিন্তু নাটাই সবসময় SupremeAI Admin / Control Plane-এর হাতে থাকবে।"
@@ -244,6 +244,9 @@ living_protocols:
   strict_sequential_priority:
     title: "9. Strict Sequential Priority Resolution (অগ্রাধিকার অনুযায়ী একক-PR ফিক্স ও মার্জ নীতি — সম্পূর্ণ বাস্তবভিত্তিক)"
     rule: "গ্রুপ বা স্বাধীন যেকোনো কাজের ক্ষেত্রে সমান্তরাল একাধিক PR নিয়ে টানাটানি এবং মাঝপথে `queue:hold`-এ PR জমিয়ে রাখা সম্পূর্ণ নিষিদ্ধ। একই গ্রুপের সব ইস্যু persistent issue branch-এ ক্রমানুসারে একের পর এক এজেন্ট সম্পন্ন করবে; PR তৈরি হবে কেবল READY ট্রানজিশনে (integration boundary — Persistent Branch Lifecycle দ্রষ্টব্য)। আর কিউতে থাকা সমস্ত ওপেন PR সর্বদা সর্বোচ্চ প্রায়োরিটি (Rank 1 / P0) অনুযায়ী এক-একটি করে মূল্যায়ন করা হবে: লোকাল ও CI টেস্ট ১০০% গ্রিন নিশ্চিত করে সরাসরি `main`-এ মার্জ সম্পন্ন করতে হবে এবং তারপরই কেবল পরবর্তী অধস্তন PR-এ হাত দেওয়া যাবে (Strict Sequential Priority Resolution)। এটি সিআই জ্যাম, ব্রাঞ্চ ড্রিফট, ডেডলক ও ক্রস-PR কনফ্লিক্ট চিরতরে নির্মূল করে সর্বোচ্চ গতি ও কার্যকারিতা নিশ্চিত করে।"
+  cross_repo_patch_protocol:
+    title: "10. Bi-Directional Cross-Repo Patch Protocol (উভয় রিপোতে স্বয়ংক্রিয় প্যাচ ও পিআর নীতি)"
+    rule: "যদি কোনো এজেন্ট একটি রিপোতে (যেমন supremeai বা supremeai-public) কাজ করার সময় লক্ষ্য করে যে অপর রিপোতেও সঙ্গতিপূর্ণ পরিবর্তন প্রয়োজন, তবে জটিল কোনো ম্যানুয়াল ধাপ ছাড়াই সরাসরি অপর রিপোর জন্য স্ট্যান্ডার্ড git diff/patch তৈরি করে `.patches/<target>/<slug>.patch` (supremeai থেকে `.patches/public/*.patch`, supremeai-public থেকে `.patches/private/*.patch`) ফাইলে সংরক্ষণ করবে এবং ক্লেইমে 'Touching files:' হিসেবে ঘোষণা করবে। সোর্স রিপোর PR মার্জ হওয়া মাত্রই অটোমেটেড সিআই স্ক্রিপ্ট (`apply_cross_repo_patch.py`) টার্গেট রিপোতে স্বয়ংক্রিয়ভাবে নতুন ব্রাঞ্চ তৈরি করে প্যাচ অ্যাপ্লাই করবে এবং 'auto-sync' লেবেলযুক্ত PR ওপেন করবে। সার্কুলার লুপ প্রতিরোধে বটের তৈরি PR-এ এই অটোমেশন নিষ্ক্রিয় থাকবে।"
 
 bootstrap:
   - step: "git fetch origin --prune && cat AGENTS.md"
