@@ -267,11 +267,23 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
       // Also verify the configured worker route if present so a worker 404/500 is never reported as top-level healthy
       if (svc.url && svc.url.startsWith("http") && !svc.url.includes("api.cloudflare.com")) {
         try {
-          const workerRes = await httpRequest(svc.url, {
+          let workerRes = await httpRequest(svc.url, {
             timeoutMs: 5000,
             retries: 0,
             headers: { "User-Agent": "SupremeAI-Control-Tower/1.0" },
           });
+          // বাংলা মন্তব্য: Worker-এর রুট / 404 হলেও /health এন্ডপয়েন্ট 200 হতে পারে (যেমন supremeai-scraper)
+          if (workerRes.status === 404 && !svc.url.endsWith("/health")) {
+            const healthUrl = `${svc.url.replace(/\/+$/, "")}/health`;
+            const healthRes = await httpRequest(healthUrl, {
+              timeoutMs: 5000,
+              retries: 0,
+              headers: { "User-Agent": "SupremeAI-Control-Tower/1.0" },
+            });
+            if (healthRes.ok) {
+              workerRes = healthRes;
+            }
+          }
           if (!workerRes.ok) {
             return {
               ...base,
