@@ -83,6 +83,9 @@ ALLOWLIST: dict[str, str] = {
     "scripts/ci/validate_ci_runner_sha.py": "needs PR_HEAD_SHA plus live Render deploys; exercised by the CI-runner lane",
     "scripts/ci/vault_push_missing.py": "shells out to the Infisical CLI with real credentials; admin-only, never in CI",
     "scripts/ci/verify_ci_attestation.py": "reads a live attestation from MCP Tower; exercised by the landing gate",
+    "scripts/ci/resolve_execution_tier.py": "evaluates runner tier (SSOT per docs/PR_TO_PRODUCTION_LIFECYCLE.md); exercised by unified-pipeline.yml",
+    "scripts/ci/sync_deployment_config.py": "syncs deployment config from config/service_registry.yaml; exercised with --check",
+    "scripts/ci/sync_to_public_repo.py": "inter-repo sync to supremeai-public; requires external git repo path",
 }
 
 

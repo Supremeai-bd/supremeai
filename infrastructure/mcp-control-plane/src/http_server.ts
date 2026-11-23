@@ -420,7 +420,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       return;
     }
 
-    if (url === "/health" || url === "/") {
+    if (pathname === "/health" || pathname === "/" || url === "/health" || url === "/") {
       // ROOT-CAUSE FIX (#2724): /health was hardcoded `status: "ok"` regardless
       // of actual service health. This violated AGENTS.md Rule #3 (Graceful
       // Degradation: "Honesty over polish"). Now: /health queries the same
