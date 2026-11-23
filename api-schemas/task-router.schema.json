@@ -170,7 +170,7 @@
       "required": ["provider", "model"],
       "properties": {
         "provider": {
-          "enum": ["openai", "anthropic", "gemini", "groq", "openrouter", "mistral", "deepseek"],
+          "enum": ["openai", "anthropic", "gemini", "groq", "openrouter", "mistral", "deepseek", "cerebras", "sambanova", "kilo", "cohere"],
           "description": "Provider id — enum pinned to the currently registered provider ids in provider-registry.schema.json (pattern SSOT: ^[a-z][a-z0-9-]*$). Keep in sync when the registry grows; the router's unknown_provider=reject default gives this enum load-time teeth."
         },
         "model": {

@@ -63,6 +63,10 @@ ALLOWED_PROVIDERS: frozenset[str] = frozenset(
         "openrouter",
         "mistral",
         "deepseek",
+        "cerebras",
+        "sambanova",
+        "kilo",
+        "cohere",
         "web",
     }
 )

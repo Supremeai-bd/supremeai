@@ -149,7 +149,7 @@ async def get_multi_account_health(
 
     # 4. LLM Provider Key Pools & Cooling
     llm_pools: dict[str, Any] = {}
-    providers = ["gemini", "openai", "groq", "mistral", "deepseek", "bynara", "bai", "v0"]
+    providers = ["gemini", "openai", "groq", "mistral", "deepseek", "cerebras", "sambanova", "kilo", "cohere", "v0"]
     now = time.monotonic()
     for prov in providers:
         raw_key = (

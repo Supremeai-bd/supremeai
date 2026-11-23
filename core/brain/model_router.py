@@ -246,13 +246,9 @@ class ModelRouter:
             "cohere": bool(
                 getattr(settings, "cohere_api_key", None) or os.getenv("COHERE_API_KEY")
             ),
-            "bynara": bool(
-                getattr(settings, "bynara_api_key", None) or os.getenv("BYNARA_API_KEY")
-            ),
-            "bai": bool(getattr(settings, "bai_api_key", None) or os.getenv("BAI_API_KEY")),
-            "routesme": bool(
-                getattr(settings, "routeme_api_key", None) or os.getenv("ROUTEME_API_KEY")
-            ),
+            "cerebras": bool(os.getenv("CEREBRAS_API_KEY")),
+            "sambanova": bool(os.getenv("SAMBANOVA_API_KEY")),
+            "kilo": bool(os.getenv("KILO_API_KEY")),
             "v0": bool(getattr(settings, "v0_api_key", None) or os.getenv("V0_API_KEY")),
             "together": bool(
                 getattr(settings, "together_api_key", None) or os.getenv("TOGETHER_API_KEY")

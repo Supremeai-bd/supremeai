@@ -1,0 +1,22 @@
+name: Daily Key Health Sweep
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  daily-key-health-sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run daily key verifier
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPREMEAI_CREDENTIAL_ENC_KEY: ${{ secrets.SUPREMEAI_CREDENTIAL_ENC_KEY }}
+        run: python scripts/ops/daily_key_verifier.py

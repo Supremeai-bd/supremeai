@@ -324,7 +324,7 @@ class SettingsFieldsMixin:
     model_coding: str = Field(
         default="gemini/gemini-flash-lite-latest", validation_alias="MODEL_CODING"
     )
-    model_reasoning: str = Field(default="bynara/laguna-s-2.1", validation_alias="MODEL_REASONING")
+    model_reasoning: str = Field(default="gemini/gemini-flash-lite-latest", validation_alias="MODEL_REASONING")
     model_vision: str = Field(
         default="gemini/gemini-flash-lite-latest", validation_alias="MODEL_VISION"
     )
@@ -342,15 +342,15 @@ class SettingsFieldsMixin:
         validation_alias="MODEL_MULTILINGUAL",
     )
     route_ladder_simple: str | list[str] = Field(
-        default="gemini/gemini-flash-lite-latest,bynara/agnes-2.5-flash,bai/qwen3.8-flash",
+        default="gemini/gemini-flash-lite-latest,kilo/nvidia/nemotron-3.5-lightning:free,openrouter/nvidia/nemotron-3.5-lightning:free",
         validation_alias="ROUTE_LADDER_SIMPLE",
     )
     route_ladder_medium: str | list[str] = Field(
-        default="gemini/gemini-flash-lite-latest,bynara/laguna-s-2.1,bai/mimo-v2.5",
+        default="gemini/gemini-flash-lite-latest,kilo/nvidia/nemotron-3.5-lightning:free,openrouter/nvidia/nemotron-3.5-lightning:free",
         validation_alias="ROUTE_LADDER_MEDIUM",
     )
     route_ladder_complex: str | list[str] = Field(
-        default="gemini/gemini-flash-lite-latest,bynara/laguna-s-2.1,bai/mimo-v2.5",
+        default="gemini/gemini-flash-lite-latest,kilo/nvidia/nemotron-3.5-lightning:free,openrouter/nvidia/nemotron-3.5-lightning:free",
         validation_alias="ROUTE_LADDER_COMPLEX",
     )
 

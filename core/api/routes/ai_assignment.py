@@ -90,22 +90,6 @@ PROVIDERS = [
         "cost": "free",
     },
     {
-        "id": "byna",
-        "name": "Bynara",
-        "env_key": "BYNARA_API_KEY",
-        "tier": 2,
-        "speed": "medium",
-        "cost": "free",
-    },
-    {
-        "id": "bai",
-        "name": "BAI",
-        "env_key": "BAI_API_KEY",
-        "tier": 2,
-        "speed": "medium",
-        "cost": "free",
-    },
-    {
         "id": "openai",
         "name": "OpenAI",
         "env_key": "OPENAI_API_KEY",
@@ -259,8 +243,6 @@ async def test_provider(
         "openrouter": "https://openrouter.ai/api/v1/models",
         "deepseek": "https://api.deepseek.com/v1/models",
         "cerebras": "https://api.cerebras.ai/v1/models",
-        "byna": "https://router.bynara.id/v1/models",
-        "bai": "https://api.b.ai/v1/models",
     }
 
     url = test_urls.get(provider_id)

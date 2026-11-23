@@ -202,6 +202,10 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
         "mistral": ("https://api.mistral.ai/v1", ["MISTRAL_API_KEY"]),
         "anthropic": ("https://api.anthropic.com/v1", ["ANTHROPIC_API_KEY"]),
         "deepseek": ("https://api.deepseek.com/v1", ["DEEPSEEK_API_KEY"]),
+        "cerebras": ("https://api.cerebras.ai/v1", ["CEREBRAS_API_KEY"]),
+        "sambanova": ("https://api.sambanova.ai/v1", ["SAMBANOVA_API_KEY"]),
+        "kilo": ("https://ai-gateway.kilo.ai/api/v1", ["KILO_API_KEY", "KILO_API_KEYS"]),
+        "cohere": ("https://api.cohere.ai/compatibility/v1", ["COHERE_API_KEY"]),
     }
     if (not api_base or not api_key) and provider in _FALLBACKS:
         fb_base, fb_keys = _FALLBACKS[provider]
@@ -224,6 +228,10 @@ async def _default_attempt(endpoint: Endpoint, payload: bytes) -> AttemptResult:
         "mistral": ["MISTRAL_API_KEY"],
         "anthropic": ["ANTHROPIC_API_KEY"],
         "deepseek": ["DEEPSEEK_API_KEY"],
+        "cerebras": ["CEREBRAS_API_KEY"],
+        "sambanova": ["SAMBANOVA_API_KEY"],
+        "kilo": ["KILO_API_KEY", "KILO_API_KEYS"],
+        "cohere": ["COHERE_API_KEY"],
     }
     keys: list[str] = []
     if api_key and is_valid_secret(api_key):

@@ -19,6 +19,7 @@ from api.routes.chat_upload import router as chat_upload_router
 from api.routes.deep_research import router as deep_research_router
 from api.routes.global_memory import router as global_memory_router
 from api.routes.keys import router as user_keys_router
+from api.routes.pool import router as pool_router
 from api.routes.prompt_templates import router as prompt_templates_router
 from api.routes.reasoning import router as reasoning_router
 from api.routes.scheduled_tasks import router as scheduled_tasks_router
@@ -47,6 +48,7 @@ TIER_S_ROUTERS: list[tuple[APIRouter, str, list[str]]] = [
     (scheduled_tasks_router, "", ["scheduled-tasks"]),
     (deep_research_router, "", ["deep-research"]),
     (user_keys_router, "", ["user-keys"]),
+    (pool_router, "", ["pool"]),
 ]
 
 # Convenience flat list of just the router objects.
@@ -220,6 +222,31 @@ CREATE TABLE IF NOT EXISTS user_keys (
 );
 CREATE INDEX IF NOT EXISTS ix_user_keys_user_id ON user_keys (user_id);
 CREATE INDEX IF NOT EXISTS ix_user_keys_status ON user_keys (status);
+
+-- 11. user_contributed_api_keys (distributed pool donations)
+CREATE TABLE IF NOT EXISTS user_contributed_api_keys (
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         TEXT        NOT NULL,
+    provider        TEXT        NOT NULL,
+    encrypted_key   TEXT        NOT NULL,
+    key_fingerprint TEXT        NOT NULL UNIQUE,
+    status          TEXT        NOT NULL DEFAULT 'pending',
+    bonus_weight    INTEGER     NOT NULL DEFAULT 100000,
+    last_verified_at TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_user_contributed_api_keys_user_id ON user_contributed_api_keys (user_id);
+CREATE INDEX IF NOT EXISTS ix_user_contributed_api_keys_status ON user_contributed_api_keys (status);
+CREATE INDEX IF NOT EXISTS ix_user_contributed_api_keys_provider ON user_contributed_api_keys (provider);
+
+-- 12. user_bonus_quotas (roll-up cache, O(1) read)
+CREATE TABLE IF NOT EXISTS user_bonus_quotas (
+    user_id            TEXT        PRIMARY KEY,
+    valid_keys_count   INTEGER     NOT NULL DEFAULT 0,
+    daily_bonus_tokens INTEGER     NOT NULL DEFAULT 0,
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 """
 
 __all__ = [

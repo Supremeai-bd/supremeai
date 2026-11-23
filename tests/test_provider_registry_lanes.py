@@ -112,8 +112,8 @@ def test_existing_providers_untouched():
     for existing in (
         "gemini",
         "groq",
-        "bynara",
-        "bai",
+        "cerebras",
+        "mistral",
         "huggingface",
         "openai",
         "deepseek",
