@@ -411,9 +411,9 @@
   },
   "graph": {
     "modules": 2186,
-    "edges": 4984,
+    "edges": 4985,
     "edge_kinds": {
-      "dispatch": 188,
+      "dispatch": 189,
       "dynamic": 4,
       "import": 4110,
       "string": 682
@@ -436,9 +436,9 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1664,
-    "unreachable": 527,
-    "reachable_pct": 76.1
+    "reachable": 1665,
+    "unreachable": 526,
+    "reachable_pct": 76.2
   },
   "gaps": {
     "dangling_references": [
@@ -1297,7 +1297,6 @@
     "scripts.ci.mirror_issue_to_open",
     "scripts.ci.mirror_parent_linker",
     "scripts.ci.mutation_lease",
-    "scripts.ci.pipeline_failure_register",
     "scripts.ci.plan_duplicate_refactors",
     "scripts.ci.pr_archive_indexer",
     "scripts.ci.pr_conflict_check",
