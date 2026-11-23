@@ -43,11 +43,47 @@ function infisicalCtx(environment?: string, secretPath?: string) {
   return { token, projectId, env, path, qs };
 }
 
+// বাংলা মন্তব্য: সুপ্রিম এআই অনুমোদিত রিপোজিটরি তালিকা (Allowlist - Default-Deny)
+export const ALLOWED_ORGS = new Set(["supremeai-bd"]);
+export const ALLOWED_REPOS = new Set(["supremeai", "supremeai-public"]);
+
+export function assertAuthorizedRepo(owner: string, repo: string, tool: string): void {
+  if (!ALLOWED_ORGS.has(owner.trim().toLowerCase()) || !ALLOWED_REPOS.has(repo.trim().toLowerCase())) {
+    throw new Error(`Forbidden: Tool '${tool}' is restricted to Supremeai-bd organization repositories only (${owner}/${repo} is not permitted).`);
+  }
+}
+
+// বাংলা মন্তব্য: সুরক্ষিত প্রোডাকশন ব্রাঞ্চে সরাসরি পুশ প্রতিরোধ (No direct push to main/master)
+export function assertSafeBranch(branch: string | undefined, tool: string): void {
+  const b = (branch || "main").trim().toLowerCase();
+  if (b === "main" || b === "master" || b.startsWith("refs/heads/main") || b.startsWith("refs/heads/master")) {
+    throw new Error(`Forbidden: Direct push to protected branch '${branch || "main"}' is prohibited by SupremeAI Constitution. Agents must push to a dedicated 'agent/*' or 'feature/*' branch and open a PR.`);
+  }
+}
+
+// বাংলা মন্তব্য: সংবেদনশীল ফাইল সুরক্ষা (.env*, credentials, keys, pem সম্পূর্ণ ব্লক)
+export const SENSITIVE_PATH_PATTERNS = [
+  /(?:^|\/)\.env(?:\.|$)/i,
+  /(?:^|\/)\.git\//i,
+  /credential/i,
+  /id_rsa/i,
+  /\.(?:pem|key|p12|pfx)$/i,
+  /token_vault/i,
+  /secrets?\./i,
+];
+
+export function assertSafeFilePath(path: string, tool: string): void {
+  const normalized = path.replace(/\\/g, "/");
+  if (SENSITIVE_PATH_PATTERNS.some((p) => p.test(normalized))) {
+    throw new Error(`Forbidden: Direct write to sensitive path '${path}' is blocked by '${tool}' security policy.`);
+  }
+}
+
 export async function registerIntegrationTools(server: McpServer): Promise<void> {
   // ── GitHub: Push File & Merge PR ──
   server.tool(
     "github.push_file",
-    "Create or update a file in a GitHub repository via Contents API.",
+    "Create or update a file in an authorized GitHub repository via Contents API (main branch direct-push blocked).",
     {
       owner: z.string(),
       repo: z.string(),
@@ -57,10 +93,14 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       branch: z.string().optional(),
       sha: z.string().optional().describe("Required when updating an existing file"),
     },
-    { readOnlyHint: false, destructiveHint: false },
+    { readOnlyHint: false, destructiveHint: true },
     async ({ owner, repo, path, message, content, branch, sha }) => {
       try {
         requireAgentOrAbove();
+        assertAuthorizedRepo(owner, repo, "github.push_file");
+        assertSafeBranch(branch, "github.push_file");
+        assertSafeFilePath(path, "github.push_file");
+
         const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
         if (!token) throw new Error("GITHUB_TOKEN / GH_TOKEN not configured");
         const body: Record<string, unknown> = {
@@ -87,7 +127,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
 
   server.tool(
     "github.merge_pr",
-    "Merge an open GitHub pull request.",
+    "Merge an open pull request in an authorized GitHub repository.",
     {
       owner: z.string(),
       repo: z.string(),
@@ -95,10 +135,12 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       merge_method: z.enum(["merge", "squash", "rebase"]).optional(),
       commit_title: z.string().optional(),
     },
-    { readOnlyHint: false, destructiveHint: false },
+    { readOnlyHint: false, destructiveHint: true },
     async ({ owner, repo, pull_number, merge_method, commit_title }) => {
       try {
         requireAgentOrAbove();
+        assertAuthorizedRepo(owner, repo, "github.merge_pr");
+
         const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
         if (!token) throw new Error("GITHUB_TOKEN / GH_TOKEN not configured");
         const data = await httpJson(`https://api.github.com/repos/${owner}/${repo}/pulls/${pull_number}/merge`, {
