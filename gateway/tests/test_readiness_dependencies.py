@@ -20,8 +20,9 @@ _REDIS_TOKEN = "fixture-redis-token"
 
 @pytest.fixture(autouse=True)
 def _reset_readiness_state(monkeypatch):
-    monkeypatch.delenv("UPSTASH_REDIS_REST_URL", raising=False)
-    monkeypatch.delenv("UPSTASH_REDIS_REST_TOKEN", raising=False)
+    for prefix in ("", "SECONDARY_", "TERTIARY_", "QUATERNARY_", "QUINARY_"):
+        monkeypatch.delenv(f"UPSTASH_REDIS_{prefix}REST_URL", raising=False)
+        monkeypatch.delenv(f"UPSTASH_REDIS_{prefix}REST_TOKEN", raising=False)
     edge._upstash_readiness_state.update(ok=None, checked_at=0.0)
     yield
     edge._upstash_readiness_state.update(ok=None, checked_at=0.0)
@@ -101,3 +102,21 @@ def test_readyz_caches_the_dependency_verdict(monkeypatch):
     assert _get_readyz()[0] == 200
 
     probe.assert_awaited_once()
+
+
+def test_readyz_succeeds_when_primary_exhausted_but_secondary_answers(monkeypatch):
+    # বাংলা মন্তব্য: প্রাইমারি Redis ক্লাস্টারের কোটা শেষ হলেও সেকেন্ডারি ক্লাস্টার সচল থাকলে /readyz 200 দেবে
+    _configure_upstash(monkeypatch)
+    monkeypatch.setenv("UPSTASH_REDIS_SECONDARY_REST_URL", "https://secondary-redis.upstash.io")
+    monkeypatch.setenv("UPSTASH_REDIS_SECONDARY_REST_TOKEN", "secondary-redis-token")
+    _make_chat_capable(monkeypatch)
+    probe = AsyncMock(side_effect=[False, True])
+    monkeypatch.setattr(edge, "_probe_upstash_redis", probe)
+
+    status, body = _get_readyz()
+
+    assert status == 200
+    assert body["status"] == "ready"
+    assert body["chat_ready"] is True
+    assert probe.await_count == 2
+

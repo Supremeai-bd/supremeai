@@ -1170,10 +1170,19 @@ async def _probe_upstash_redis(url: str, token: str) -> bool:
 
 
 async def _upstash_readiness_snapshot() -> bool | None:
-    """TTL-cached L2 cache verdict; None means no Upstash tier is configured."""
-    url = os.getenv("UPSTASH_REDIS_REST_URL", "").strip().rstrip("/")
-    token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "").strip()
-    if not url or len(token) < 8:
+    """TTL-cached L2 cache verdict; None means no Upstash tier is configured.
+
+    # বাংলা মন্তব্য: একক প্রাইমারি ক্লাস্টারের বদলে কনফিগার করা সবগুলো Upstash টিয়ারের মধ্যে অন্তত ১টি সুস্থ থাকলে কিংবা L1 ইন-মেমরি ক্যাশ সচল থাকলে /readyz কখনোই 503 দেবে না (যাতে একটি Redis ক্লাস্টারের কোটা শেষ হলে Render পুরো গেটওয়ে বন্ধ না করে দেয়)।
+    """
+    from gateway.service.cache import _UPSTASH_TIERS
+
+    configured_tiers: list[tuple[str, str]] = []
+    for url_env, tok_env in _UPSTASH_TIERS:
+        u = os.getenv(url_env, "").strip().rstrip("/")
+        t = os.getenv(tok_env, "").strip()
+        if u and len(t) >= 8:
+            configured_tiers.append((u, t))
+    if not configured_tiers:
         return None
     now = time.time()
     if (
@@ -1181,10 +1190,14 @@ async def _upstash_readiness_snapshot() -> bool | None:
         and (now - _upstash_readiness_state["checked_at"]) < _READINESS_DEPENDENCY_TTL_SECONDS
     ):
         return _upstash_readiness_state["ok"]
-    try:
-        ok = await _probe_upstash_redis(url, token)
-    except Exception:  # noqa: BLE001 - readiness probes never raise
-        ok = False
+    ok = False
+    for u, t in configured_tiers:
+        try:
+            if await _probe_upstash_redis(u, t):
+                ok = True
+                break
+        except Exception:  # noqa: BLE001 - readiness probes never raise
+            continue
     _upstash_readiness_state.update(ok=ok, checked_at=now)
     return ok
 
