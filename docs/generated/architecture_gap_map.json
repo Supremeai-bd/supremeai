@@ -411,11 +411,11 @@
   },
   "graph": {
     "modules": 2185,
-    "edges": 4980,
+    "edges": 4981,
     "edge_kinds": {
       "dispatch": 187,
       "dynamic": 4,
-      "import": 4107,
+      "import": 4108,
       "string": 682
     }
   },
@@ -436,8 +436,8 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1662,
-    "unreachable": 528,
+    "reachable": 1663,
+    "unreachable": 527,
     "reachable_pct": 76.1
   },
   "gaps": {
@@ -1116,7 +1116,6 @@
     "gateway.routes.commandcenter",
     "gateway.run_local_gateway",
     "gateway.serve",
-    "gateway.service.cache",
     "gateway.service.redis_rate_limit",
     "gateway.service.router",
     "gateway.service.version",
