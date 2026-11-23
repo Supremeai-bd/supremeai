@@ -679,6 +679,8 @@ async def submit_task(request: TaskContract) -> JSONResponse:
 
 @app.get("/tasks/{task_id}", dependencies=[Depends(_verify_worker_auth)])
 async def task_status(task_id: str) -> JSONResponse:
+    # বাংলা: কিউ-আউটেজকে 404-এ গুলিয়ে ফেলা বন্ধ — অজানা টাস্ক মানে 404,
+    # বাকি সব ব্যর্থতা (রেডিস ডাউন ইত্যাদি) 503 degraded রেসপন্স।
     try:
         from core.task_queue.task_queue_enhanced import get_task_queue
 
@@ -686,8 +688,12 @@ async def task_status(task_id: str) -> JSONResponse:
         if status == "unknown":
             raise HTTPException(status_code=404, detail="Task not found")
         return JSONResponse({"task_id": task_id, "status": status})
+    except HTTPException:
+        raise
     except Exception as exc:
-        raise HTTPException(status_code=404, detail="Task not found") from exc
+        _state.update(degraded=True, detail=f"task status failed: {type(exc).__name__}")
+        logger.warning("[worker] task status failed: %s", exc)
+        return _degraded_response(None, "Task status is temporarily unavailable")
 
 
 @app.post("/tasks/{task_id}/cancel", dependencies=[Depends(_verify_worker_auth)])
