@@ -88,6 +88,10 @@ class ChatStreamRequest(BaseModel):
     session_id: str | None = None
     messages: list[dict] | None = None
     context: dict | None = None
+    task_type: str | None = None
+    taskType: str | None = None
+    max_cost: float | None = None
+    maxCost: float | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -101,6 +105,14 @@ class ChatStreamRequest(BaseModel):
                 data["sessionId"] = data["session_id"]
             elif not data.get("session_id") and data.get("sessionId"):
                 data["session_id"] = data["sessionId"]
+            if not data.get("task_type") and data.get("taskType"):
+                data["task_type"] = data["taskType"]
+            elif not data.get("taskType") and data.get("task_type"):
+                data["taskType"] = data["task_type"]
+            if data.get("max_cost") is None and data.get("maxCost") is not None:
+                data["max_cost"] = data["maxCost"]
+            elif data.get("maxCost") is None and data.get("max_cost") is not None:
+                data["maxCost"] = data["max_cost"]
             if not data.get("message"):
                 raise ValueError("Either 'message' or 'prompt' must be provided.")
         return data
@@ -164,11 +176,41 @@ async def stream_chat(req: ChatStreamRequest):
     model_router = app_mod.model_router
     prompt = _build_chat_prompt(req)
 
+    # বাংলা মন্তব্য: ক্লায়েন্টের পাঠানো task_type থাকলে সেটা সরাসরি ব্যবহার হবে;
+    # অন্যথায় intent_router_v2 এবং intent_clf দিয়ে প্রম্পট থেকে ডায়নামিকালি task_type নির্ণয় করা হবে।
+    task_type = req.task_type or "general"
+    if not req.task_type:
+        text_content = req.message or req.prompt or ""
+        try:
+            from core.intent_router_v2 import intent_router_v2
+
+            prompt_action = await intent_router_v2.route(text_content)
+            if prompt_action and getattr(prompt_action, "action_type", None):
+                action = str(prompt_action.action_type).lower()
+                target_mod = str(getattr(prompt_action, "target_module", "") or "").lower()
+                if "code" in action or target_mod == "ide":
+                    task_type = "code"
+                elif "image" in action or "video" in action or target_mod in {"image", "video_editor"}:
+                    task_type = "image"
+                elif "research" in action:
+                    task_type = "analysis"
+
+            # fallback/refine with intent_clf if general
+            if task_type == "general" and hasattr(app_mod, "intent_clf") and app_mod.intent_clf:
+                intent = await anyio.to_thread.run_sync(app_mod.intent_clf.classify, text_content)
+                if getattr(intent, "task_type", None) and str(intent.task_type).lower() != "general":
+                    val = intent.task_type.value if hasattr(intent.task_type, "value") else str(intent.task_type)
+                    task_type = val.lower()
+        except Exception as exc:
+            logger.warning(f"[stream_chat] Dynamic intent routing fallback: {exc}")
+
+    max_cost = req.max_cost if req.max_cost is not None else 0.01
+
     async def event_generator():
         async for chunk in model_router.async_route_and_stream(
             prompt=prompt,
-            task_type="general",
-            max_cost=0.01,
+            task_type=task_type,
+            max_cost=max_cost,
         ):
             token = chunk.decode("utf-8") if isinstance(chunk, bytes) else str(chunk)
             yield f"data: {json.dumps({'token': token, 'delta': token})}\n\n"
