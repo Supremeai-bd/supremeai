@@ -202,6 +202,16 @@ def evaluate(
         reason = ci_block_reason(needs, merge_sha)
         if reason:
             raise BlockLanding(reason)
+
+        # বাংলা: CI সফল হওয়ার পর যদি দেখা যায় PR ইতিমধ্যে মার্জ হয়ে গেছে (বা বন্ধ হয়ে মার্জড),
+        # তবে fail-closed এরর দেওয়ার পরিবর্তে ALREADY_MERGED সংকেত দাও।
+        try:
+            pr_check = api(f"repos/{repo}/pulls/{pr_number}")
+            if pr_check.get("merged") is True or pr_check.get("merged_at"):
+                return {"decision": "ALREADY_MERGED", "reason": "pr_already_merged"}
+        except Exception:
+            pass
+
         pr = _current_pr(pr_number, **candidate)
         merge = api(f"repos/{repo}/git/commits/{merge_sha}")
         if merge["sha"] != merge_sha or [p["sha"] for p in merge["parents"]] != [base_sha, head_sha]:
@@ -240,6 +250,9 @@ def main(argv: list[str] | None = None) -> int:
     if not args.recheck_candidate and (output := os.getenv("GITHUB_OUTPUT")):
         with Path(output).open("a", encoding="utf-8") as stream:
             stream.write(f"decision={result['decision']}\nreason={result['reason']}\n")
+    if result.get("decision") == "ALREADY_MERGED":
+        print(f"::notice::PR already merged ({result.get('reason')}); landing decision skipped")
+        return 0
     if result.get("decision") == BLOCKED:
         print(f"::error::PR landing blocked: {result['reason']}")
         return 1

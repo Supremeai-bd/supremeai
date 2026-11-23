@@ -173,6 +173,13 @@ def test_candidate_changes_block_both_decision_and_post_approval_merge(snapshot,
         assert decide(snapshot, [{"filename": PROTECTED}], recheck=recheck)["decision"] == "BLOCKED"
 
 
+def test_already_merged_pr_returns_already_merged(snapshot):
+    snapshot["merged"] = True
+    snapshot["state"] = "closed"
+    result = decide(snapshot, [{"filename": PROTECTED}])
+    assert result == {"decision": "ALREADY_MERGED", "reason": "pr_already_merged"}
+
+
 def test_checks_on_stale_base_or_wrong_merge_parents_do_not_count(snapshot):
     files = [{"filename": PROTECTED}]
     assert decide(snapshot, files, merge_parents=(OTHER, HEAD))["reason"] == "tested_merge_parents_mismatch"
