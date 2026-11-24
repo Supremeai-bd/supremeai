@@ -48,3 +48,4 @@ gateway/tests/test_workspace_capability_honesty.py
 tests/test_agent_tool_surface.py
 gateway/tests/routes/test_agent_tools_proxy.py
 tests/test_agent_chat_loop.py
+tests/test_memory_graph.py

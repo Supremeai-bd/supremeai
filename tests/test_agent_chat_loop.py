@@ -32,6 +32,18 @@ from httpx import ASGITransport, AsyncClient
 STUB = {"sub": "loop-test-user", "tenant_id": "tenant-a", "role": "user"}
 
 
+@pytest.fixture(autouse=True)
+def _hermetic_memory_store(tmp_path, monkeypatch):
+    """Keep the passive UserMemoryGraph absorb (M10) out of the repo tree.
+
+    The loop now absorbs chat text best-effort into the per-tenant memory
+    graph; pointing the store dir at tmp_path keeps every test here hermetic
+    without touching the feature's default-on production behaviour.
+    """
+    monkeypatch.setenv("SUPREMEAI_MEMORY_GRAPH_DIR", str(tmp_path / "memory_graph"))
+    yield
+
+
 class FakeDecider:
     """Scripted stand-in for ``ReasoningOrchestrator.decide``."""
 
