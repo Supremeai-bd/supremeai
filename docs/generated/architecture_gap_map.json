@@ -372,6 +372,7 @@
       "gateway.tests._ROOT.",
       "gateway.tests._ROOT_TESTS.",
       "gateway.tests.p.",
+      "gateway.tests.routes.SAT.",
       "scripts.advanced_analysis._ig_dir.",
       "scripts.agents._HERE.",
       "scripts.ci._AGENTS_DIR.",
@@ -409,13 +410,13 @@
     ]
   },
   "graph": {
-    "modules": 2185,
-    "edges": 4986,
+    "modules": 2188,
+    "edges": 4996,
     "edge_kinds": {
       "dispatch": 191,
       "dynamic": 4,
-      "import": 4109,
-      "string": 682
+      "import": 4118,
+      "string": 683
     }
   },
   "entrypoints": {
@@ -436,7 +437,7 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1669,
+    "reachable": 1672,
     "unreachable": 522,
     "reachable_pct": 76.4
   },
