@@ -187,9 +187,9 @@ def _issue_signed_token(client_name: str, quota: str) -> str:
     try:
         return generate_key(client_name=client_name, quota=quota)
     except Exception as exc:  # keygen failure is surfaced as 503, never swallowed
+        # বাংলা মন্তব্য: CodeQL py/clear-text-logging-sensitive-data কমপ্লায়েন্স — লগ ফাইলে সংবেদনশীল ডেটা না রেখে শুধু এক্সসেপশন টাইপ লগ করা হচ্ছে
         logger.error(
-            "[auth] token issuance failed for client=%s: %s",
-            client_name,
+            "[auth] token issuance failed: %s",
             type(exc).__name__,
         )
         raise HTTPException(
@@ -211,9 +211,9 @@ def _issue_signed_token_with_ttl(client_name: str, quota: str, ttl_seconds: int)
     try:
         return generate_key(client_name=client_name, quota=quota, ttl_seconds=ttl_seconds)
     except Exception as exc:  # keygen failure is surfaced as 503, never swallowed
+        # বাংলা মন্তব্য: CodeQL py/clear-text-logging-sensitive-data কমপ্লায়েন্স — লগ ফাইলে সংবেদনশীল ডেটা না রেখে শুধু এক্সসেপশন টাইপ লগ করা হচ্ছে
         logger.error(
-            "[auth] token issuance failed for client=%s: %s",
-            client_name,
+            "[auth] token issuance failed: %s",
             type(exc).__name__,
         )
         raise HTTPException(

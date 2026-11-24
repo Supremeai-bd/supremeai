@@ -29,6 +29,15 @@ except ImportError:
 
 from starlette.testclient import TestClient
 
+# বাংলা মন্তব্য: DRY নীতি — jscpd ডুপ্লিকেট প্রতিরোধে কমন মক ফ্লিট এনভায়রনমেন্ট কনস্ট্যান্ট
+_MOCK_FLEET_URLS = {
+    "RENDER_API_URL": "https://api.test",
+    "RENDER_SCRAPER_URL": "https://scraper.test",
+    "RENDER_MCP_URL": "https://mcp.test",
+    "RENDER_PRIMARY_URL": "https://core.test",
+    "RENDER_WORKER_URL": "https://worker.test",
+}
+
 
 class TestStorageAndEndpoints(unittest.TestCase):
     @classmethod
@@ -242,25 +251,13 @@ class TestStorageAndEndpoints(unittest.TestCase):
         # (or the registry YAML), and the implementation keys checks by node id
         # (api/scraper/mcp/core/worker — the old tower/primary keys predate the
         # registry and were stale). Hermetic env: no registry dependency.
-        env = {
-            "RENDER_API_URL": "https://api.test",
-            "RENDER_SCRAPER_URL": "https://scraper.test",
-            "RENDER_MCP_URL": "https://mcp.test",
-            "RENDER_PRIMARY_URL": "https://core.test",
-            "RENDER_WORKER_URL": "https://worker.test",
-        }
-        with patch.dict(os.environ, env, clear=False):
-            r = self.client.get("/api/health-aggregation")
-        self.assertEqual(r.status_code, 200)
-        data = r.json()
-        self.assertIn("checks", data)
+        with patch.dict(os.environ, _MOCK_FLEET_URLS, clear=False):
+            res = self.client.get("/api/health-aggregation")
+        self.assertEqual(res.status_code, 200)
+        checks_map = res.json().get("checks", {})
+        self.assertEqual(len(checks_map), 5)
         for key in ("api", "scraper", "mcp", "core", "worker"):
-            self.assertIn(key, data["checks"])
-        self.assertEqual(data["checks"]["api"]["status"], "healthy")
-        self.assertEqual(data["checks"]["scraper"]["status"], "healthy")
-        self.assertEqual(data["checks"]["mcp"]["status"], "healthy")
-        self.assertEqual(data["checks"]["core"]["status"], "healthy")
-        self.assertEqual(data["checks"]["worker"]["status"], "healthy")
+            self.assertEqual(checks_map[key]["status"], "healthy")
 
     @patch("httpx.AsyncClient.get", new_callable=AsyncMock, side_effect=ConnectionError("mock fleet down"))
     def test_07b_health_aggregation_honest_degradation(self, _mock_get):
@@ -268,22 +265,10 @@ class TestStorageAndEndpoints(unittest.TestCase):
         # "degraded" — কখনো ভুয়া সবুজ নয়; configure না-থাকা node সৎভাবে
         # "unknown"। live network ছাড়াই 2026-10-24 honesty fix-এর চুক্তি
         # এখন deterministicভাবে পিন করা।
-        env = {
-            "RENDER_API_URL": "https://api.test",
-            "RENDER_SCRAPER_URL": "https://scraper.test",
-            "RENDER_MCP_URL": "https://mcp.test",
-            "RENDER_PRIMARY_URL": "https://core.test",
-            "RENDER_WORKER_URL": "https://worker.test",
-        }
-        with patch.dict(os.environ, env, clear=False):
-            r = self.client.get("/api/health-aggregation")
-        self.assertEqual(r.status_code, 200)
-        data = r.json()
-        self.assertEqual(data["checks"]["api"]["status"], "degraded")
-        self.assertEqual(data["checks"]["scraper"]["status"], "degraded")
-        self.assertEqual(data["checks"]["mcp"]["status"], "degraded")
-        self.assertEqual(data["checks"]["core"]["status"], "degraded")
-        self.assertEqual(data["checks"]["worker"]["status"], "degraded")
+        with patch.dict(os.environ, _MOCK_FLEET_URLS, clear=False):
+            data = self.client.get("/api/health-aggregation").json()
+        for node in ("api", "scraper", "mcp", "core", "worker"):
+            self.assertEqual(data["checks"][node]["status"], "degraded")
 
     @patch.dict(os.environ, {
         "SUPREMEAI_ADMIN_PASSWORD": "password123",
