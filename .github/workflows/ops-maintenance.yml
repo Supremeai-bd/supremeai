@@ -2151,9 +2151,37 @@ jobs:
       # pyyaml, pytest, pyjwt and requests. Keeping this list minimal is what
       # stops the job from silently becoming a 5-minute install.
       run: pip install --quiet pyyaml pytest pyjwt requests
+    - name: Record guard environment (failure triage)
+      # বাংলা: nightly রোস্টার ২০+ বার পরপর লাল হয়েছে, অথচ লোকালে (একই ৪টি ডিপ,
+      # এমনকি shallow clone-এ) ১০৮/১০৮ পাস করে। কারণ নির্ণয়ের জন্য দরকার
+      # ইন্টারপ্রেটার + gh auth + ডিপ সংস্করণ — যা আগে লগে ছিল না।
+      # নীতি: এই স্টেপ কখনো job ব্যর্থ করবে না (|| true), শুধু প্রমাণ যোগাবে।
+      run: |
+        {
+          echo "guard_env python: $(python -V 2>&1)"
+          echo "guard_env interpreter: $(python -c 'import sys;print(sys.executable)')"
+          echo "guard_env gh: $(gh --version 2>/dev/null | head -1 || echo 'gh missing')"
+          echo "guard_env gh_auth: $(gh auth status 2>&1 | head -2 | tr '\n' ' ' || echo unknown)"
+          echo "guard_env GH_TOKEN set: ${{ github.token != '' }}"
+          echo "guard_env deps: $(python -c 'import yaml,pytest,jwt,requests;print("yaml",yaml.__version__,"pytest",pytest.__version__,"requests",requests.__version__)' 2>&1)"
+          echo "guard_env shallow: $(git rev-parse --is-shallow-repository 2>/dev/null || echo unknown)"
+          echo "guard_env network: $(python - <<'PY'
+        import urllib.request
+        try:
+            with urllib.request.urlopen("https://api.github.com/rate_limit", timeout=10) as r:
+                print("api.github.com reachable", r.status)
+        except Exception as exc:
+            print("api.github.com UNREACHABLE", type(exc).__name__, str(exc)[:120])
+        PY
+        )"
+        } | tee guard-env.txt || true
+        { echo "### 🛡️ Guard roster environment"; echo '```'; cat guard-env.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY" || true
     - name: Run every guard
       # tee so the artifact below is the full transcript, not just the tail CI
       # happens to render. pipefail keeps the guard's exit code through the pipe.
+      # `|| true` keeps the job alive so the failure list reaches the step summary:
+      # a red job whose only reason lives in an artifact nobody can open is the
+      # exact "silent failure" this roster exists to prevent.
       # 2026-11 RBAC: the tower default-denies role-gated MCP tools — pass the
       # agent-role Bearer token so hollow_read_guard reads real data planes
       # (without it the guard now reports honest AUTH_GATED + warning, not red).
@@ -2161,13 +2189,37 @@ jobs:
         MCP_TOWER_TOKEN: ${{ secrets.MCP_TOWER_TOKEN }}
       run: |
         set -o pipefail
-        python scripts/ci/run_all_guards.py --full 2>&1 | tee guard-roster.log
+        python scripts/ci/run_all_guards.py --full 2>&1 | tee guard-roster.log || true
+        status=$(grep -oE '[0-9]+/[0-9]+ guards passed' guard-roster.log | tail -1)
+        {
+          echo "### 🛡️ Guard Roster (full, nightly)"
+          echo ""
+          echo "**${status:-roster produced no verdict — the run died before reporting}**"
+          echo ""
+          if grep -q '^FAILED:' guard-roster.log; then
+            echo "**Failed guards** (each is a fixable, named line — not a mystery red job):"
+            echo ""
+            echo '```'
+            sed -n '/^FAILED:/,$p' guard-roster.log
+            echo '```'
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"
+        if ! grep -qE '([0-9]+)/\1 guards passed' guard-roster.log; then
+          echo "::error::guard roster did not report a full pass/summary line — treating as failure (never green on a dark surface)"
+          exit 1
+        fi
+        if grep -q '^FAILED:' guard-roster.log; then
+          echo "::error::guard roster reported failures — see the step summary"
+          exit 1
+        fi
     - name: Upload roster log
       if: always()
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
       with:
         name: guard-roster-log
-        path: guard-roster.log
+        path: |
+          guard-roster.log
+          guard-env.txt
         if-no-files-found: ignore
 
   silent-error:
