@@ -1,7 +1,10 @@
 """
 Minimal SSRF protection for the standalone scraper service.
-Self-contained — does NOT import from backend/core/security to avoid
-pulling in DB/Redis/asyncpg dependencies.
+
+Self-contained — this module never imports ``core.security`` (that package's
+``__init__`` pulls DB/Redis/asyncpg). It *does* use ``core.url_policy``, the
+stdlib-only policy module that holds the blocklists for the whole platform
+(2026-11-24 audit, item ⑮: four diverging copies collapsed into one policy).
 
 Two layers (issue #511, BE-05 — SSRF via HTTP redirects + DNS rebinding):
 
@@ -22,79 +25,34 @@ transport layer (custom httpcore backend) — intentionally out of scope here;
 per-hop re-validation shrinks the window to a single connect.
 """
 
-from ipaddress import IPv6Address, ip_address, ip_network
 from socket import gaierror, getaddrinfo
-from urllib.parse import urlparse
 
-_BLOCKED_SCHEMES = {"file", "ftp", "gopher", "dict", "ldap", "javascript", "data"}
-_BLOCKED_HOSTS = {
-    "localhost",
-    "127.0.0.1",
-    "0.0.0.0",
-    "::1",
-    "metadata",  # GCP metadata (resolvable via /etc/hosts on GCP)
-    "metadata.google.internal",  # GCP metadata endpoint
-}  # is_local()
-_PRIVATE_PREFIXES = ("10.", "172.16.", "192.168.", "169.254.", "100.64.", "fc", "fe80:")
-
-# Issue #511: networks that must never be dialed, matched against *resolved*
-# IPs (not just URL literals). Superset of the legacy _PRIVATE_PREFIXES list —
-# adds CGNAT 100.64/10 (which also covers Alibaba metadata 100.100.100.200),
-# multicast, benchmarking and documentation/reserved ranges.
-_BLOCKED_V4_NETWORKS = tuple(
-    ip_network(n)
-    for n in (
-        "0.0.0.0/8",  # unspecified / "this host"
-        "10.0.0.0/8",  # private (RFC1918)
-        "100.64.0.0/10",  # CGNAT / carrier NAT
-        "127.0.0.0/8",  # loopback
-        "169.254.0.0/16",  # link-local (AWS/GCP/Azure metadata lives here)
-        "172.16.0.0/12",  # private (RFC1918)
-        "192.0.0.0/24",  # IETF protocol assignments
-        "192.0.2.0/24",  # TEST-NET-1 (documentation)
-        "192.168.0.0/16",  # private (RFC1918)
-        "198.18.0.0/15",  # benchmarking
-        "198.51.100.0/24",  # TEST-NET-2 (documentation)
-        "203.0.113.0/24",  # TEST-NET-3 (documentation)
-        "224.0.0.0/4",  # multicast
-        "240.0.0.0/4",  # reserved (incl. 255.255.255.255)
+try:  # embedded in the monorepo / installed as a package
+    from core.url_policy import (
+        host_literal_is_blocked,
+        ip_is_blocked,
+        parse_url,
     )
-)
-_BLOCKED_V6_NETWORKS = tuple(
-    ip_network(n)
-    for n in (
-        "::/128",  # unspecified
-        "::1/128",  # loopback
-        "100::/64",  # discard-only
-        "2001:db8::/32",  # documentation
-        "fc00::/7",  # unique-local (private)
-        "fe80::/10",  # link-local
-        "ff00::/8",  # multicast
+except ImportError:  # flat standalone layout: url_policy.py sits next to this file
+    from url_policy import (  # type: ignore[no-redef]
+        host_literal_is_blocked,
+        ip_is_blocked,
+        parse_url,
     )
-)
 
 
 def _is_private_ip(hostname: str) -> bool:
     """Parse-time literal-IP check (kept for backward compatibility)."""
-    try:
-        ip = ip_address(hostname)
-        return ip.is_private or ip.is_loopback or ip.is_link_local
-    except ValueError:
-        return False
+    return host_literal_is_blocked(hostname)
 
 
 def _is_blocked_ip(ip: str) -> bool:
-    """True if ``ip`` may never be dialed. Fails closed on malformed input."""
-    try:
-        addr = ip_address(ip)
-    except ValueError:
-        return True
-    if isinstance(addr, IPv6Address) and addr.ipv4_mapped is not None:
-        # Screen the embedded IPv4 address of an IPv4-mapped IPv6 literal
-        # (::ffff:10.0.0.1 is just 10.0.0.1 in disguise).
-        addr = addr.ipv4_mapped
-    networks = _BLOCKED_V4_NETWORKS if addr.version == 4 else _BLOCKED_V6_NETWORKS
-    return any(addr in net for net in networks)
+    """True if ``ip`` may never be dialed. Fails closed on malformed input.
+
+    Thin alias over :func:`core.url_policy.ip_is_blocked` (which unwraps
+    IPv4-mapped IPv6 literals such as ``::ffff:10.0.0.1``).
+    """
+    return ip_is_blocked(ip)
 
 
 def resolve_hostname(hostname: str) -> list[str]:
@@ -126,26 +84,17 @@ def is_safe_url(url: str) -> bool:
     (issue #511).
     """
     try:
-        parsed = urlparse(url)
-        scheme = parsed.scheme.lower()
-        if scheme not in {"http", "https"} or scheme in _BLOCKED_SCHEMES:
+        # Shared parse: rejects non-http(s) schemes, missing hosts and
+        # credentials in the URL (`http://user:pass@host` — a parser-confusion
+        # vector the browser surface already refused). 2026-11-24.
+        parsed = parse_url(url)
+        if parsed is None:
             return False
+        _scheme, hostname, _port = parsed
 
-        hostname = parsed.hostname or ""
-        if not hostname:
-            return False
-
-        if hostname.lower() in _BLOCKED_HOSTS:
-            return False
-
-        if _is_private_ip(hostname):
-            return False
-
-        for prefix in _PRIVATE_PREFIXES:
-            if hostname.lower().startswith(prefix):
-                return False
-
-        return True
+        # One policy call covers: literal blocklist, internal TLD suffixes,
+        # private prefixes and IP literals (see core/url_policy.py).
+        return not host_literal_is_blocked(hostname)
     except Exception:  # noqa: BLE001
         return False
 
@@ -159,12 +108,10 @@ def is_safe_url_resolved(url: str) -> bool:
     """
     if not is_safe_url(url):
         return False
-    try:
-        hostname = urlparse(url).hostname or ""
-    except Exception:  # noqa: BLE001
+    parsed = parse_url(url)
+    if parsed is None:
         return False
-    if not hostname:
-        return False
+    hostname = parsed[1]
     resolved = resolve_hostname(hostname)
     if not resolved:
         return False  # DNS failure — fail closed (issue #511)

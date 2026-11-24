@@ -18,7 +18,6 @@ credential পাঠানো হয় না।
 
 from __future__ import annotations
 
-import ipaddress
 import re
 import socket
 from typing import Any
@@ -27,21 +26,11 @@ from urllib.parse import urlparse
 import httpx
 
 from core.monitoring.logging_config import logger
+from core.url_policy import ip_is_blocked
 
-# বাংলা: SSRF প্রোটেকশন — এই রেঞ্জগুলোতে কখনোই আউটবাউন্ড রিকোয়েস্ট যেতে দেওয়া
-# যাবে না (loopback, RFC1918 প্রাইভেট রেঞ্জ, link-local, এবং ক্লাউড মেটাডেটা
-# এন্ডপয়েন্ট 169.254.169.254 বিশেষভাবে link-local-এর অন্তর্ভুক্ত)।
-_BLOCKED_NETWORKS: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = [
-    ipaddress.ip_network("127.0.0.0/8"),
-    ipaddress.ip_network("10.0.0.0/8"),
-    ipaddress.ip_network("172.16.0.0/12"),
-    ipaddress.ip_network("192.168.0.0/16"),
-    ipaddress.ip_network("169.254.0.0/16"),  # includes 169.254.169.254 (cloud metadata)
-    ipaddress.ip_network("::1/128"),
-    ipaddress.ip_network("fc00::/7"),
-    ipaddress.ip_network("fe80::/10"),
-    ipaddress.ip_network("0.0.0.0/8"),
-]
+# বাংলা: SSRF প্রোটেকশন — 2026-11-24 (audit item ⑮): এই ফাইলটি পঞ্চম আলাদা
+# ব্লকলিস্ট রাখত (CGNAT/documentation রেঞ্জ ছাড়া)। এখন প্ল্যাটফর্মের একক
+# policy `core.url_policy` থেকে চেক হয় — নতুন রেঞ্জ тамেই যোগ হবে।
 
 
 class SSRFBlockedError(ValueError):
@@ -49,13 +38,8 @@ class SSRFBlockedError(ValueError):
 
 
 def _is_blocked_ip(ip_str: str) -> bool:
-    try:
-        ip = ipaddress.ip_address(ip_str)
-    except ValueError:
-        return True  # পার্স করতে না পারলে fail-closed
-    if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
-        return True
-    return any(ip in net for net in _BLOCKED_NETWORKS)
+    """Shared policy চেক — malformed input-এ fail-closed (core/url_policy.py)।"""
+    return ip_is_blocked(ip_str)
 
 
 def _assert_public_host(url: str) -> None:
@@ -64,9 +48,14 @@ def _assert_public_host(url: str) -> None:
     DNS rebinding ঠেকাতে resolve-করা প্রতিটি IP (A ও AAAA সব রেকর্ড) চেক করা হয়,
     শুধু প্রথমটি নয়।
     """
-    host = urlparse(url).hostname
+    parsed_url = urlparse(url)
+    host = parsed_url.hostname
     if not host:
         raise SSRFBlockedError("URL-এ কোনো হোস্টনেম পাওয়া যায়নি")
+    # 2026-11-24: `http://user:pass@host` is refused everywhere else (browser +
+    # scraper surfaces) and would leak the secret into discovery logs.
+    if parsed_url.username or parsed_url.password:
+        raise SSRFBlockedError("URL-এ credentials (user:pass@) থাকা যাবে না")
     try:
         addr_infos = socket.getaddrinfo(host, None)
     except socket.gaierror as exc:

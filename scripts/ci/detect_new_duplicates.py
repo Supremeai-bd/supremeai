@@ -40,6 +40,14 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
+# browser/url_policy.py is an INTENTIONAL, byte-identical mirror of
+# core/url_policy.py (SSRF policy). It exists only because `render.yaml` builds
+# the scraper service with `dockerContext: browser` and `browser/Dockerfile`
+# does `COPY *.py ./`, so that image cannot import `core` at all. Byte identity
+# is enforced by tests/test_url_policy_single_source.py — a strictly stronger
+# check than jscpd's 90%-similarity pass, and that guard also fails if the
+# mirror stops being necessary (dockerContext changes) so the exemption cannot
+# outlive its reason.
 DEFAULT_IGNORES = (
     "**/archive/**,"
     "**/node_modules/**,"
@@ -59,6 +67,7 @@ DEFAULT_IGNORES = (
     "**/*lock.yaml,"
     "**/*.lock,"
     "**/_verifier-base/**,"
+    "browser/url_policy.py,"  # intentional SSRF mirror — see note below
     # studio/** is third-party Open WebUI foundation (#557); vendored clones are excluded
     "studio/**,"
     # core/github/** is governance mirror (#549, plan_duplicate_refactors.py)

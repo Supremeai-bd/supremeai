@@ -41,7 +41,7 @@ Upgrade `backend/scout/` from a minimal 14-line stub and single-page fetcher int
 | **III — Graceful Degradation** | ✅ PASS | Individual page/domain failures do not crash research tasks; timeout/bot-blocking yields partial results + error events. |
 | **IV — Dynamic Config** | ✅ PASS | Policies and per-domain limits are managed dynamically via DB/API without code redeploy. |
 | **V — User-Local AI Optional** | ✅ PASS | No dependency on Ollama or local LLM execution. |
-| **VI — Existing Architecture First** | ✅ PASS | Reuses `backend/middleware/rate_limiter.py`, `backend/database/`, and `backend/services/browser/main.py`. |
+| **VI — Existing Architecture First** | ✅ PASS | Reuses `core/middleware/rate_limiter.py`, `core/database/`, and delegates render/JS fetches to the `browser/` service (`browser/main.py`), not a `core/services/browser/` copy. |
 | **VII — Multi-Tenant Safety** | ✅ PASS | All policies and history tables are strictly scoped with `tenant_id`. |
 | **VIII — Verification First** | ✅ PASS | Unit tests for dedup, extractor, and crawler policies defined in `quickstart.md`. |
 | **IX — Vendor Exit Path** | ✅ PASS | Pure-Python standard library algorithms for dedup and summarization. |

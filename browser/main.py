@@ -48,13 +48,23 @@ _scraper_unavailable_reason: str | None = None
 
 try:
     try:
-        from browser_agent import BrowserAgent, BrowseRequest
-        from security import is_safe_url
-        from web_scraper import WebScraper
+        # Monorepo layout first: these are the real modules (and the imports the
+        # architecture graph can see, so browser.security / browser.url_policy
+        # stay attributable). 2026-11-24.
+        from browser.browser_agent import BrowserAgent, BrowseRequest
+        from browser.security import is_safe_url
+        from browser.web_scraper import WebScraper
     except ImportError:
-        from services.scraper.browser_agent import BrowserAgent, BrowseRequest
-        from services.scraper.security import is_safe_url
-        from services.scraper.web_scraper import WebScraper
+        try:
+            # Deployed image layout: browser/Dockerfile does `COPY *.py ./`, so
+            # the modules are flat and there is no `browser` package.
+            from browser_agent import BrowserAgent, BrowseRequest
+            from security import is_safe_url
+            from web_scraper import WebScraper
+        except ImportError:
+            from services.scraper.browser_agent import BrowserAgent, BrowseRequest
+            from services.scraper.security import is_safe_url
+            from services.scraper.web_scraper import WebScraper
 
     _scraper = WebScraper()
     _agent = BrowserAgent(headless=True)

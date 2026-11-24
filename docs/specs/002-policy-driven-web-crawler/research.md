@@ -72,7 +72,7 @@ Directly integrate with:
 ### Decision
 Tiered fetching pipeline in `backend/scout/crawler.py`:
 - **Tier 1 (Fast Path)**: `httpx.AsyncClient` with custom user agent, redirect limits (max 5), stream size cap (max 5MB), and connection timeouts. Handles 90%+ of standard web documents.
-- **Tier 2 (Render Path)**: Delegates to `backend/services/browser/main.py` (Playwright service) only if the domain policy specifies `render_js: true` or if static HTML is empty/SPA placeholder.
+- **Tier 2 (Render Path)**: Delegates to the standalone `browser/` service (`browser/main.py`, deployed as `supremeai-browser`) only if the domain policy specifies `render_js: true` or if static HTML is empty/SPA placeholder. *(2026-11-24: the `core/services/browser/main.py` copy quoted here never existed as a live dependency — 0 importers; the directory was deleted.)*
 
 ### Rationale
 - **Principle X (Resource Awareness)**: Headless Chromium instances consume ~150MB+ RAM per tab. Restricting browser rendering to policy-explicit targets keeps memory consumption well within Render/Supabase free-tier bounds.

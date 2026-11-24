@@ -37,40 +37,19 @@ from urllib.parse import urlparse
 
 from core.monitoring.logging_config import logger
 
-# ── Constants ──────────────────────────────────────────────────────────────────
-# Cloud metadata IPs that should never be accessible
-BLOCKED_METADATA_IPS: frozenset[str] = frozenset(
-    {
-        "169.254.169.254",  # AWS/GCP/Azure metadata
-        "169.254.170.2",  # AWS ECS metadata
-        "100.100.100.200",  # Alibaba Cloud metadata
-    }
+# ── Policy ────────────────────────────────────────────────────────────────────
+# 2026-11-24 (audit item ⑮): these tables used to be a fourth, quietly weaker
+# copy — it had no CGNAT (100.64/10), no documentation/benchmarking ranges and
+# no IPv4-mapped unwrapping. They now live in `core.url_policy`, the platform's
+# single policy source; the names below stay importable from this module for
+# backward compatibility.
+from core.url_policy import (  # noqa: E402  (kept after the imports above)
+    BLOCKED_HOSTS as DEFAULT_BLOCKLIST_HOSTNAMES,
 )
-
-# Blocked hostname suffixes (internal TLDs)
-BLOCKED_HOSTNAME_SUFFIXES: tuple[str, ...] = (
-    ".local",
-    ".localhost",
-    ".internal",
-    ".intranet",
-    ".lan",
-    ".corp",
-    ".home",
-    ".internal.cloudapp.net",
-    ".internal-dns",
-)
-
-# Default blocklist — common dangerous hostnames
-DEFAULT_BLOCKLIST_HOSTNAMES: frozenset[str] = frozenset(
-    {
-        "localhost",
-        "127.0.0.1",  # is_local()
-        "0.0.0.0",
-        "::1",
-        "[::1]",
-        "metadata.google.internal",
-        "metadata",
-    }
+from core.url_policy import (  # noqa: E402
+    BLOCKED_HOSTNAME_SUFFIXES,
+    BLOCKED_METADATA_IPS,
+    ip_is_blocked,
 )
 
 # DNS cache TTL (seconds)
@@ -390,6 +369,16 @@ class SSRFProtection:
                 result.reason = f"Blocked reserved IP: {ip} for hostname '{hostname}'"
                 logger.warning(f"[SSRF] Blocked reserved IP access: {hostname} -> {ip}")
                 return result
+
+        # Shared policy gate — deliberately AFTER the specific is_* checks so
+        # those keep their precise reason strings; this catches what they miss:
+        # CGNAT 100.64/10, documentation/benchmarking ranges and IPv4-mapped
+        # IPv6 literals (::ffff:10.0.0.1). 2026-11-24, audit item ⑮.
+        if ip_is_blocked(ip):
+            result.is_safe = False
+            result.reason = f"Blocked non-public IP: {ip} for hostname '{hostname}'"
+            logger.warning(f"[SSRF] Blocked non-public IP access: {hostname} -> {ip}")
+            return result
 
         result.is_safe = True
         result.resolved_ip = ip

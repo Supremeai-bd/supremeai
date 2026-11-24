@@ -10,10 +10,28 @@ Guarantees:
 from __future__ import annotations
 
 import asyncio
-import ipaddress
 import os
 import socket
 from urllib.parse import urlparse
+
+# 2026-11-24 (audit item ⑮): the blocklists used to live here as a third copy.
+# The standalone image cannot import ``core`` (dockerContext: browser), so this
+# module reads ``url_policy`` — a byte-identical mirror of
+# ``core/url_policy.py`` enforced by tests/test_url_policy_single_source.py.
+try:  # monorepo layout
+    from browser.url_policy import (
+        host_literal_is_blocked,
+        ip_is_blocked,
+        normalize_host,
+        scheme_is_allowed,
+    )
+except ImportError:  # flat standalone layout (COPY *.py into /app)
+    from url_policy import (  # type: ignore[no-redef]
+        host_literal_is_blocked,
+        ip_is_blocked,
+        normalize_host,
+        scheme_is_allowed,
+    )
 
 _ALLOWED_HOSTS = {
     host.strip().lower()
@@ -23,31 +41,17 @@ _ALLOWED_HOSTS = {
 
 
 def is_safe_public_ip(ip_str: str) -> bool:
-    """Validate that the given IP address is a safe, routable public address."""
-    try:
-        addr = ipaddress.ip_address(ip_str)
-        return (
-            addr.is_global
-            and not addr.is_multicast
-            and not addr.is_reserved
-            and not addr.is_loopback
-            and not addr.is_link_local
-            and not addr.is_unspecified
-        )
-    except ValueError:
-        return False
+    """Validate that the given IP address is a safe, routable public address.
+
+    Now delegated to the shared policy table (which also blocks CGNAT,
+    documentation and benchmarking ranges that ``addr.is_global`` allowed).
+    """
+    return not ip_is_blocked(ip_str)
 
 
 def is_private_or_restricted_host(host: str) -> bool:
     """Check if the given host string is a private or restricted IP literal or localhost."""
-    host_lower = host.lower().strip()
-    if host_lower in {"localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"}:
-        return True
-    try:
-        ipaddress.ip_address(host_lower)
-        return not is_safe_public_ip(host_lower)
-    except ValueError:
-        return False
+    return host_literal_is_blocked(host)
 
 
 def is_safe_url_resolved(raw_url: str) -> bool:
@@ -65,9 +69,9 @@ def is_safe_url_resolved(raw_url: str) -> bool:
     """
     try:
         parsed = urlparse(raw_url)
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+        if not scheme_is_allowed(parsed.scheme) or not parsed.hostname or parsed.username or parsed.password:
             return False
-        host = parsed.hostname.lower().rstrip(".")
+        host = normalize_host(parsed.hostname)
         if _ALLOWED_HOSTS and host not in _ALLOWED_HOSTS:
             return False
         if is_private_or_restricted_host(host):
@@ -89,9 +93,9 @@ is_safe_url = is_safe_url_resolved
 async def safe_url(raw_url: str) -> str:
     """Asynchronous URL validator returning normalized URL if safe, or raising ValueError."""
     parsed = urlparse(raw_url)
-    if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+    if not scheme_is_allowed(parsed.scheme) or not parsed.hostname or parsed.username or parsed.password:
         raise ValueError("Only public http(s) URLs are allowed")
-    host = parsed.hostname.lower().rstrip(".")
+    host = normalize_host(parsed.hostname)
     if _ALLOWED_HOSTS and host not in _ALLOWED_HOSTS:
         raise ValueError(f"Destination host '{host}' is not allowlisted")
     if is_private_or_restricted_host(host):
