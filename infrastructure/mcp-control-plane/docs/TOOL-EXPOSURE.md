@@ -176,3 +176,64 @@ normalization + anonymous e2e (`bridge.guide` executes with no context token).
 - `test_bridge_onboarding.ts` — bridge surface contract tests
 - `../../scripts/bridge/README.md` — bridge operator contract (public→private lane)
 - `../../docs/architecture/AGENT_PORTAL_AND_FEDERATION_BRIDGE.md` — architecture spec
+
+---
+
+## 9. Progressive disclosure: `tower_catalog` / `tower_describe` / `tower_invoke`
+
+§8 rejected a **single mega-tool** (`supremeai(operation, …)`) because merging
+schemas collapses per-tool zod validation and blurs the
+tool→provider→action→R-level policy SSoT. That reasoning still holds, and this
+section does not overturn it. It solves the *actual* underlying problem —
+**~178 descriptors in every `tools/list` response** — without merging anything.
+
+### What was added
+
+| Tool | Purpose |
+|---|---|
+| `tower_catalog` | Paginated, RBAC-filtered search over the **entire** registry (including tools hidden from `tools/list`). Returns name, domain, risk, one-line summary. |
+| `tower_describe` | The **authoritative** contract of one tool — parameters, types, required flags, risk, annotations — reflected from the live registration, so it cannot drift from the call path. |
+| `tower_invoke` | Dispatches to the target tool's **own** handler. The target's zod shape is parsed first, then the target's governed wrapper runs (RBAC, per-(identity,tool) rate limit, payload cap, timeout, truncation). |
+
+### Why this satisfies both constraints
+
+1. **No schema merging.** Each tool keeps its own zod schema. `tower_invoke`
+   parses the caller's `arguments` against that exact shape before dispatch, so
+   validation is *not* bypassed — it is applied one layer earlier as well.
+2. **No second metadata source.** The catalog is populated from the same
+   `server.tool` / `server.registerTool` interception point in `src/index.ts`
+   that already installs the governance wrapper. Descriptors and enforcement
+   come from one registration event; there is nothing to drift (#2429).
+3. **No loss of authorization.** `tower_catalog`/`tower_describe` filter through
+   `toolListAccessError` (the same `list ⊆ call` composition the discovery
+   filter uses), and `tower_invoke` re-checks `toolAccessError` plus runs the
+   governed handler — defence in depth, RBAC stays the enforcement layer.
+4. **Anti-hallucination by construction.** The master layer never synthesizes a
+   payload: it returns the target's response verbatim, or `isError` with the
+   target's own error. Invalid arguments produce a field-level error naming the
+   offending path, so a model self-corrects instead of reporting success.
+   Unknown names return the closest real names — never an invented tool.
+5. **Destructive actions stay guarded.** `tower_invoke` refuses a destructive
+   target unless `confirm: true` is passed, *in addition to* whatever guard the
+   target tool already implements.
+
+### Rollout
+
+- `src/policy/tool-visibility.ts`: the three masters are appended to
+  `STANDARD_CURATED_TOOLS`, and a new `catalog` profile exposes masters + eight
+  ambient read tools (11 descriptors instead of ~180) for clients that want the
+  smallest possible surface.
+- `tower_invoke` is listed in `MUTATING_TOOLS`, so the `readonly` profile never
+  gains a write path through the router.
+- Rollback is unchanged: `MCP_DISCOVERY_FILTER=off` restores the unfiltered SDK
+  surface; the masters are additive and can be dropped from the profile lists
+  without touching any concrete tool.
+
+### Evidence
+
+`test_tower_catalog.ts` (wired into `test:unit` and `test:tower-ci`) covers six
+groups: pagination/filtering, schema reflection, validation-first invoke (the
+handler must **not** run on invalid arguments), destructive `confirm` gating,
+meta-tool recursion refusal, and an end-to-end run over the real MCP SDK
+(`InMemoryTransport`) asserting `tools/list` = the three masters and that a
+`tower_invoke` round-trip returns the target's real payload.
