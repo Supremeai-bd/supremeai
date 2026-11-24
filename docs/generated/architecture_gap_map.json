@@ -385,6 +385,7 @@
       "scripts.security.backend_dir.",
       "tests.",
       "tests._CORE.",
+      "tests.core_str.",
       "tests.p."
     ],
     "opaque_importers": [
@@ -410,13 +411,13 @@
     ]
   },
   "graph": {
-    "modules": 2189,
-    "edges": 5003,
+    "modules": 2191,
+    "edges": 5009,
     "edge_kinds": {
       "dispatch": 191,
       "dynamic": 4,
-      "import": 4125,
-      "string": 683
+      "import": 4130,
+      "string": 684
     }
   },
   "entrypoints": {
@@ -437,7 +438,7 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1673,
+    "reachable": 1675,
     "unreachable": 522,
     "reachable_pct": 76.4
   },
