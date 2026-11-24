@@ -50,8 +50,11 @@ class MultiAICodeGenerator:
         }
 
 
-# বাংলা মন্তব্য: ডিফল্ট কনস্টিটিউশনাল রুলস ফাইলের স্ট্যান্ডার্ড অবস্থান (backend/config/constitutional_rules.json)
-DEFAULT_RULES_PATH = Path(__file__).resolve().parent.parent / "config" / "constitutional_rules.json"
+# বাংলা মন্তব্য: ডিফল্ট কনস্টিটিউশনাল রুলস ফাইলের স্ট্যান্ডার্ড অবস্থান
+# (core/config/constitutional_rules.json) — মডিউলের প্যাকেজ-ডিরেক্টরির ভেতরের
+# config/। পুরনো parent.parent গণিতে ফাইলটা খুঁজে পেত না (শূন্য রুলসেট), ফলে
+# hallucinated repo path ধরা পড়ত না — output-validator টেস্ট লাল ছিল।
+DEFAULT_RULES_PATH = Path(__file__).resolve().parent / "config" / "constitutional_rules.json"
 
 
 class EnhancedConfidenceScorer:
@@ -142,7 +145,9 @@ class OutputValidator:
     def __init__(self):
         # আর্কিটেকচারাল ফিক্স: হার্ডকোডেড রুলস ডাইনামিক লোডার দিয়ে প্রতিস্থাপন
         # ভবিষ্যতে Firestore বা অন্য DB থেকে লোড করার জন্য পাথ প্যারামিটার ব্যবহার করা যাবে
-        rules_path = Path(__file__).parent.parent / "config" / "constitutional_rules.json"
+        # বাংলা মন্তব্য: DEFAULT_RULES_PATH-এর সাথে SSOT — পুরনো আলাদা পাথ-গণিত
+        # (parent.parent) ফাইল পেত না, ফলে শূন্য রুলসেটে সব hallucination পাস করত।
+        rules_path = DEFAULT_RULES_PATH
         self.enhanced_scorer = EnhancedConfidenceScorer(rules_path=rules_path)
 
         self.consensus_threshold = self.enhanced_scorer.rules.get("consensus_threshold", 0.7)

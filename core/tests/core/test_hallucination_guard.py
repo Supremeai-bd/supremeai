@@ -20,9 +20,17 @@ def test_input_sanitizer():
     assert res["is_valid"] is False
     assert "lottery" in res["reason"]
 
-    res2 = sanitizer.sanitize("Write something interesting")
+    res2 = sanitizer.sanitize("something interesting please")
+    # বাংলা মন্তব্য: vague ইনপুটে ambiguous হওয়া বাধ্যত। আগের fixture
+    # ("Write something interesting")-এ "Write" action-verb ছিল — নতুন
+    # echo-loop-প্রতিরোধ নীতিতে action-signal থাকলে ambiguous ঘোষণা নিষিদ্ধ।
     assert res2["is_valid"] is True
     assert res2["is_ambiguous"] is True
+
+    # বাংলা মন্তব্য: action-signal থাকলে একই vague শব্দ থাকলেও ambiguous নয়।
+    res_action = sanitizer.sanitize("Write something interesting")
+    assert res_action["is_valid"] is True
+    assert res_action["is_ambiguous"] is False
 
     # Test PII Stripping
     cleaned = sanitizer.strip_pii(

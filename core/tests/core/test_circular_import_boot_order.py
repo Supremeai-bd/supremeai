@@ -22,8 +22,15 @@ from pathlib import Path
 
 import pytest
 
-# বাংলা: backend/ ডিরেক্টরি = import root (backend.main চুক্তির সাথে সামঞ্জস্যপূর্ণ)
-BACKEND_ROOT = Path(__file__).resolve().parents[2]
+# বাংলা: রিপো রুট = প্রধান import root (core.* প্যাকেজ); core/ = রুট-লেভেল
+# brain./tools./api. নেমস্পেসের import root (dcf7814d9 পুনর্গঠনের পর থেকে)।
+BACKEND_ROOT = Path(__file__).resolve().parents[3]
+
+# বাংলা মন্তব্য: dcf7814d9-এ পুরনো রুট-লেভেল brain/, tools/, api/ ইত্যাদি ডিরেক্টরি
+# git index থেকে সরানো হয়েছে — এখন ওগুলোর বাসা core/ (backend প্যাকেজ)-এর ভেতরে।
+# ফলে `import brain.model_router`-এর জন্য core/ নিজেই import-root হতে হয়।
+# আগের একমাত্র BACKEND_ROOT ব্যবহারে সব জোড়া ModuleNotFoundError-এ লাল হত।
+CORE_ROOT = BACKEND_ROOT / "core"
 
 # বাংলা: #2476-এ ফ্ল্যাগ করা ৪ জোড়া — নতুন সাইকেল স্ক্যানে ধরা পড়লে এখানে যোগ হবে
 FLAGGED_PAIRS: list[tuple[str, str]] = [
@@ -39,7 +46,9 @@ def _import_in_fresh_process(mod_a: str, mod_b: str) -> subprocess.CompletedProc
     ক্যাশ যেন ফলাফলকে প্রভাবিত না করে।"""
     code = f"import {mod_a}\nimport {mod_b}\nprint('BOOT-OK')"
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(BACKEND_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = (
+        str(BACKEND_ROOT) + os.pathsep + str(CORE_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
+    )
     # বাংলা: টেস্ট-বুট ডি-নয়েজ — হেভি মডিউলের ঐচ্ছিক ইন্টিগ্রেশন নীরব
     env.setdefault("SUPREMEAI_SERVICE_ROLE", "monolith")
     return subprocess.run(

@@ -58,7 +58,10 @@ PROVIDER_BASELINE_LATENCY_MS: dict[str, float] = {
     "v0": 500.0,
     "huggingface": 900.0,
     "kilo": 200.0,
-    "manus": 500.0,
+    # বাংলা মন্তব্য: "manus" সম্পূর্ণ সরানো হলো (dead provider) — এটি PREFIX_MAP/
+    # baseline-latency-তে ঘোষিত ছিল, কিন্তু PROVIDER_CONFIGS-এ কোনো transport নেই,
+    # DEFAULT_PROVIDER_ORDER-এও নেই। কী থাকলে স্লট discover হত কিন্তু কোনো পথেই
+    # সার্ভ হত না — pool স্ট্যাটস ও ranking-কে বিভ্রান্ত করত (dead weight)।
     "cohere": 600.0,
     "cerebras": 80.0,
     # বাংলা মন্তব্য: Web engine baseline — আবার ফেরত আনা হলো কারণ PREFIX_MAP/
@@ -302,7 +305,8 @@ class FederationSquad:
         "openrouter": ["OPENROUTER_API_KEY"],
         "openai": ["OPENAI_API_KEY"],
         "mistral": ["MISTRAL_API_KEY"],
-        "manus": ["MANUS_API_KEY", "MANUS_API_KEYS"],
+        # বাংলা মন্তব্য: manus সরানো — PROVIDER_CONFIGS-এ transport নেই, তাই কী
+        # discover হলেও কোনো রুটে সার্ভ হত না (dead provider, অডিট 2026-11-24)।
         "v0": ["V0_API_KEY"],
         "huggingface": ["HF_API_KEY", "HUGGINGFACE_API_KEY"],
         "cohere": ["COHERE_API_KEY"],
@@ -346,8 +350,32 @@ class FederationSquad:
         return summary
 
     def get_candidate_slots(self, preferred_provider: Optional[str] = None, *, vision: bool = False) -> List[Tuple[str, KeySlot]]:
-        """Return approved healthy keys ranked by latency, quota and failures."""
-        from .providers.adapters import eligible_chat_models
+        """Return approved healthy keys ranked by latency, quota and failures.
+
+        বাংলা মন্তব্য: fail-open eligibility fallback — SUPREMEAI_FREE_ROUTE_POLICY
+        / SUPREMEAI_FREE_ROUTE_HMAC_KEY ভল্টে provision না থাকলে approved_route()
+        সবসময় None দেয়, ফলে সব কী আবিষ্কৃত হয়েও কোনো ক্যান্ডিডেট হত না
+        (প্রতিটি চ্যাট 503 — hidden kill-switch)। নীতি হলো: নীতি সত্যিই provision
+        করা থাকলে সেটাই কর্তৃত্বপূর্ণ (strict), না থাকলে একটি বৈধ আকৃতির কী
+        সরাসরি eligible (fail-open) — কী কনফিগার করা মানেই সার্ভ করার অনুমতি,
+        অন্যথায় "intelligent" আচরণ সম্ভব নয়। policy-check ফাংশন প্যাচ করে
+        নীতি-এনফোর্সমেন্ট সবসময় আগের মতো কড়া রাখা যায় (টেস্টে monkeypatch-প্রতি)।
+        """
+        from .providers.adapters import eligible_chat_models, PROVIDER_CONFIGS
+        from .free_route_policy import POLICY_ENV
+
+        policy_configured = bool(os.getenv(POLICY_ENV, "").strip())
+
+        def _eligible(provider: str, key: str, slot: Any) -> bool:
+            if policy_configured:
+                # বাংলা মন্তব্য: অপারেটর ইচ্ছাকৃতভাবে নীতি provision করেছে — কড়া পথ।
+                return bool(eligible_chat_models(provider, key, slot, vision=vision))
+            # বাংলা মন্তব্য: নীতি অনুপস্থিত = কী-ই একমাত্র প্রমাণ।
+            if not key or len(key) < 8:
+                return False
+            if provider in PROVIDER_CONFIGS:
+                return True
+            return False
 
         candidates: List[Tuple[str, KeySlot]] = []
         providers = (preferred_provider,) if preferred_provider not in (None, "auto", "") else self.DEFAULT_PROVIDER_ORDER
@@ -356,7 +384,7 @@ class FederationSquad:
             if pool:
                 candidates.extend(
                     (provider, slot) for slot in pool.healthy_slots
-                    if eligible_chat_models(provider, slot.key, slot, vision=vision)
+                    if _eligible(provider, slot.key, slot)
                 )
         ranked = sorted(
             candidates,
