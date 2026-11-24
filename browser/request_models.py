@@ -1,4 +1,9 @@
-"""Request schemas for the standalone scraper/browser service (``browser/main.py``).
+"""Request models for the standalone scraper/browser service (``browser/main.py``).
+
+Deliberately *not* called ``schemas``: ``browser/`` is prepended to ``sys.path``
+by ``browser/main.py`` and ``browser/tests/conftest.py``, so a module named
+``schemas`` here silently shadows the top-level ``schemas`` package
+(``core/schemas``) for the whole process.
 
 Audit item ③ / ⑳ fix (2026-11-24): ``RecipeRequest.steps`` used to be
 ``list = []`` — an untyped, mutable-default field. Two concrete failures

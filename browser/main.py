@@ -69,13 +69,16 @@ except Exception as _scraper_err:  # noqa: BLE001 — optional engine, must not 
 if _scraper is not None and _agent is not None:
     from fastapi import HTTPException, Request
 
-    # Audit item ③: request schemas live in the dependency-free leaf module
-    # ``browser/schemas.py`` so they are importable/testable without booting the
-    # relay app. ``BrowseRequest`` still comes from the engine when present.
+    # Audit item ③: request models live in the dependency-free leaf module
+    # ``browser/request_models.py`` so they are importable/testable without
+    # booting the relay app. NOTE the name: a module called ``schemas`` here would
+    # shadow the top-level ``schemas`` package (``core/schemas``) for every
+    # importer once this directory is on ``sys.path`` — that collision broke
+    # ``core/agents/skill_gc.py`` in CI.
     try:
-        from schemas import RecipeRequest, ScrapeRequest
+        from request_models import RecipeRequest, ScrapeRequest
     except ImportError:
-        from browser.schemas import RecipeRequest, ScrapeRequest
+        from browser.request_models import RecipeRequest, ScrapeRequest
 
     def _verify_scraper_secret(request: Request) -> None:
         """Audit P1-13 fix: scraper routes are unauthenticated by design today.

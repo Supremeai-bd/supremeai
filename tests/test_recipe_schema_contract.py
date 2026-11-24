@@ -8,7 +8,7 @@
   no attribute 'get'`` **after** Playwright had already been launched;
 * no bound, so a caller could queue an arbitrarily long browser session.
 
-The schema now lives in ``browser/schemas.py`` (a dependency-free leaf module) so
+The schema now lives in ``browser/request_models.py`` (a dependency-free leaf module) so
 it can be tested without booting the relay app, which constructs the scraper
 engine at import time.
 """
@@ -18,7 +18,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from browser.schemas import (
+from browser.request_models import (
     MAX_RECIPE_STEPS,
     RECIPE_ACTIONS,
     RecipeRequest,
