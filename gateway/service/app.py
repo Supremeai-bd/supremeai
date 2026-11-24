@@ -29,6 +29,7 @@ from typing import Any, AsyncIterator, Optional
 from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel
 
 from .pool import squad
 from .providers.web_engines import RELAY_BASE_URL_ENVS, transport_report
@@ -745,6 +746,272 @@ except ImportError:
 
 if epistemic_router is not None:
     app.include_router(epistemic_router)
+
+
+# ── Zero-Bundle Dynamic JIT Translation Bridge (Master Blueprint §3) ──
+# বাংলা মন্তব্য: মেমোরি ও রেডিস ক্যাশযুক্ত গতিশীল অনুবাদ ব্রিজ — একবার অনুবাদ হলে সারাজীবন ফ্রি,
+# তবে অনুবাদ ব্যর্থ হলে কখনোই ইংরেজি ফলব্যাক ক্যাশে দূষিত (poison) করা হয় না।
+import re as _re
+from collections import OrderedDict as _OrderedDict
+
+_MAX_LOCAL_TRANSLATION_ENTRIES = 4096
+_LANG_CODE_RE = _re.compile(r"^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$")
+_LOCAL_TRANSLATION_CACHE: _OrderedDict[tuple[str, str], str] = _OrderedDict(
+    [
+        (("bn", "chat"), "চ্যাট"),
+        (("bn", "settings"), "সেটিংস"),
+        (("bn", "projects"), "প্রজেক্টস"),
+        (("bn", "plugins"), "প্লাগইন"),
+        (("bn", "send"), "পাঠান"),
+        (("bn", "cancel"), "বাতিল"),
+        (("bn", "save"), "সংরক্ষণ"),
+        (("bn", "edit"), "সম্পাদনা"),
+        (("bn", "delete"), "মুছুন"),
+        (("bn", "new_session"), "নতুন চ্যাট"),
+    ]
+)
+
+
+def _put_local_translation(cache_tuple: tuple[str, str], value: str) -> None:
+    _LOCAL_TRANSLATION_CACHE[cache_tuple] = value
+    _LOCAL_TRANSLATION_CACHE.move_to_end(cache_tuple)
+    while len(_LOCAL_TRANSLATION_CACHE) > _MAX_LOCAL_TRANSLATION_ENTRIES:
+        _LOCAL_TRANSLATION_CACHE.popitem(last=False)
+
+
+class TranslationRequest(BaseModel):
+    key: str
+    target_lang: str
+    source_lang: str = "en"
+    context: str = "ui"
+
+
+@app.post("/api/v1/localization/ai-translate")
+async def dynamic_ai_translate(req: TranslationRequest) -> dict[str, Any]:
+    """Zero-Bundle Dynamic JIT Translation endpoint with bounded LRU & Redis cache."""
+    clean_key = (req.key or "").strip()
+    target = (req.target_lang or "en").strip().lower()
+    if not clean_key or target == "en":
+        return {"translation": clean_key, "cached": True, "target_lang": target}
+
+    # বাংলা মন্তব্য: ব্যক্তিগত চ্যাট মেসেজ বা বড় পেলোড যাতে গ্লোবাল UI ক্যাশে না ঢোকে তার কঠোর সীমা
+    if len(clean_key) > 240 or "\n" in clean_key or "\r" in clean_key:
+        raise HTTPException(
+            status_code=400,
+            detail="Translation key must be a single-line UI phrase of at most 240 characters",
+        )
+    if not _LANG_CODE_RE.match(target):
+        raise HTTPException(status_code=400, detail="Invalid target_lang format")
+
+    cache_tuple = (target, clean_key)
+    if cache_tuple in _LOCAL_TRANSLATION_CACHE:
+        _LOCAL_TRANSLATION_CACHE.move_to_end(cache_tuple)
+        return {
+            "translation": _LOCAL_TRANSLATION_CACHE[cache_tuple],
+            "cached": True,
+            "target_lang": target,
+            "source": "memory",
+        }
+
+    redis_url = os.getenv("REDIS_URL", "")
+    if redis_url:
+        try:
+            import redis.asyncio as aioredis
+
+            r = aioredis.from_url(redis_url, decode_responses=True)
+            try:
+                cached_val = await r.get(f"jit_trans:{target}:{clean_key}")
+            finally:
+                await r.aclose()
+            if cached_val:
+                _put_local_translation(cache_tuple, cached_val)
+                return {
+                    "translation": cached_val,
+                    "cached": True,
+                    "target_lang": target,
+                    "source": "redis",
+                }
+        except Exception as exc:
+            logger.debug(f"[translation_bridge] redis read skipped: {exc}")
+
+    translated: Optional[str] = None
+    try:
+        candidates = squad.get_candidate_slots()
+        prompt = (
+            f"Translate this short software UI phrase from English to '{target}'. "
+            f"Return ONLY the direct translation, no quotes or commentary:\n{clean_key}"
+        )
+        for provider, slot in candidates[:3]:
+            cfg = PROVIDER_CONFIGS.get(provider) or {}
+            default_model = str(cfg.get("default_model") or "")
+            if not default_model:
+                continue
+            try:
+                status_code, resp_json, latency_ms = await forward_chat_completion(
+                    provider,
+                    slot.api_key,
+                    default_model,
+                    {
+                        "model": default_model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": 80,
+                        "temperature": 0.1,
+                    },
+                )
+                if status_code == 200 and isinstance(resp_json, dict):
+                    squad.report_success(provider, slot, latency_ms)
+                    choices = resp_json.get("choices") or []
+                    raw_text = (
+                        ((choices[0].get("message") or {}).get("content") if choices else "") or ""
+                    ).strip().strip("\"'")
+                    if raw_text and "\n" not in raw_text and raw_text.lower() != clean_key.lower():
+                        translated = raw_text
+                        break
+            except Exception as inner_exc:
+                logger.debug(f"[translation_bridge] candidate {provider} failed: {inner_exc}")
+    except Exception as exc:
+        logger.debug(f"[translation_bridge] provider pool unavailable: {exc}")
+
+    if not translated:
+        # বাংলা মন্তব্য: অনুবাদ না পেলে কখনোই ভুল ইংরেজি স্ট্রিং ক্যাশে জমা করা হবে না (সৎ ফলব্যাক)
+        return {
+            "translation": clean_key,
+            "cached": False,
+            "fallback": True,
+            "target_lang": target,
+            "key": clean_key,
+        }
+
+    _put_local_translation(cache_tuple, translated)
+
+    if redis_url:
+        try:
+            import redis.asyncio as aioredis
+
+            r = aioredis.from_url(redis_url, decode_responses=True)
+            try:
+                await r.setex(f"jit_trans:{target}:{clean_key}", 604800, translated)
+            finally:
+                await r.aclose()
+        except Exception as exc:
+            logger.debug(f"[translation_bridge] redis write skipped: {exc}")
+
+    return {
+        "translation": translated,
+        "cached": False,
+        "fallback": False,
+        "target_lang": target,
+        "key": clean_key,
+    }
+
+
+# ── L1-L4 Dynamic Configuration Control Plane (Wave 6 §6.1) ──
+# বাংলা মন্তব্য: অপারেটর-অথেনটিকেটেড ও এলাওলিস্ট-সুরক্ষিত L1-L4 ডাইনামিক কনফিগারেশন স্ট্যাক
+_L3_DYNAMIC_OVERRIDES: dict[str, Any] = {}
+ALLOWED_DYNAMIC_CONFIG_KEYS: frozenset[str] = frozenset(
+    {
+        "max_context_tokens",
+        "request_timeout_seconds",
+        "default_model",
+        "rate_limit_per_minute",
+        "SUPREMEAI_AGENT_TOOLS",
+        "SUPREMEAI_TOOL_FLEET",
+        "SUPREMEAI_MEMORY_GRAPH",
+    }
+)
+
+
+class LayerOverrideRequest(BaseModel):
+    key: str
+    value: Any
+
+
+def _assert_config_layer_operator(request: Request, x_admin_key: Optional[str]) -> None:
+    import hmac
+
+    token = _extract_token(request, x_admin_key)
+    if token:
+        if SUPERADMIN_KEY and hmac.compare_digest(token, SUPERADMIN_KEY):
+            return
+        if any(hmac.compare_digest(token, k) for k in (OPERATOR_KEYS or ()) if k):
+            return
+    if _require_operator_key(request, x_admin_key) or _is_admin_principal(request, x_admin_key):
+        return
+    raise HTTPException(
+        status_code=403, detail="Operator or superadmin authorization required"
+    )
+
+
+@app.get("/api/v1/config/layers")
+async def get_config_layers(
+    request: Request,
+    x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key"),
+) -> dict[str, Any]:
+    """Retrieve the 4-layer dynamic configuration stack (Operator-only)."""
+    _assert_config_layer_operator(request, x_admin_key)
+    l1_defaults: dict[str, Any] = {
+        "max_context_tokens": 16384,
+        "request_timeout_seconds": 60,
+        "default_model": "deepseek-r1",
+        "rate_limit_per_minute": 120,
+    }
+    l2_env: dict[str, Any] = {
+        "SUPREMEAI_AGENT_TOOLS": os.getenv("SUPREMEAI_AGENT_TOOLS", "false"),
+        "SUPREMEAI_TOOL_FLEET": os.getenv("SUPREMEAI_TOOL_FLEET", "false"),
+        "SUPREMEAI_MEMORY_GRAPH": os.getenv("SUPREMEAI_MEMORY_GRAPH", "true"),
+        "ENVIRONMENT": os.getenv("ENV", "production"),
+    }
+    l3_overrides = dict(_L3_DYNAMIC_OVERRIDES)
+    l4_effective = {**l1_defaults, **l2_env, **l3_overrides}
+
+    return {
+        "status": "ok",
+        "allowed_keys": sorted(ALLOWED_DYNAMIC_CONFIG_KEYS),
+        "layers": {
+            "L1_defaults": l1_defaults,
+            "L2_environment": l2_env,
+            "L3_dynamic_overrides": l3_overrides,
+            "L4_effective": l4_effective,
+        },
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.post("/api/v1/config/layers")
+async def update_config_layer(
+    req: LayerOverrideRequest,
+    request: Request,
+    x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key"),
+) -> dict[str, Any]:
+    """Apply an L3 dynamic configuration override in-flight (Operator-only, allowlisted)."""
+    _assert_config_layer_operator(request, x_admin_key)
+    clean_key = (req.key or "").strip()
+    if not clean_key:
+        raise HTTPException(status_code=400, detail="Configuration key is required")
+    if clean_key not in ALLOWED_DYNAMIC_CONFIG_KEYS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Key '{clean_key}' is not in ALLOWED_DYNAMIC_CONFIG_KEYS",
+        )
+    if not isinstance(req.value, (str, int, float, bool)):
+        raise HTTPException(status_code=400, detail="Override value must be a scalar primitive")
+    _L3_DYNAMIC_OVERRIDES[clean_key] = req.value
+    logger.info(f"[config_layers] operator L3 override set: {clean_key}")
+    return {"status": "ok", "key": clean_key, "value": req.value}
+
+
+@app.delete("/api/v1/config/layers/{key}")
+async def rollback_config_layer(
+    key: str,
+    request: Request,
+    x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key"),
+) -> dict[str, Any]:
+    """1-click rollback of an L3 dynamic override back to L2/L1 defaults (Operator-only)."""
+    _assert_config_layer_operator(request, x_admin_key)
+    removed = key in _L3_DYNAMIC_OVERRIDES
+    _L3_DYNAMIC_OVERRIDES.pop(key, None)
+    logger.info(f"[config_layers] operator L3 override rolled back: {key} (existed={removed})")
+    return {"status": "ok", "key": key, "rolled_back": removed}
 
 
 
@@ -2855,6 +3122,85 @@ async def get_agent_tools(
     if not _verify_client_auth(request, x_supremeai_key):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return await _forward_agent_request("GET", "/api/agent/tools", request)
+
+
+# ── UserMemoryGraph & Morning Briefing Gateway Proxy (Wave 3 §3.1) ──────────
+# বাংলা মন্তব্য: কোর প্রাইভেট মডিউল সরাসরি ইমপোর্ট না করে HTTP প্রক্সির মাধ্যমে ইউজার মেমরি ও মর্নিং ব্রিফিং রিলে
+@app.get("/api/memory/briefing")
+@app.get("/v1/memory/briefing")
+@app.get("/api/v1/memory/briefing")
+async def proxy_memory_briefing(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Proxy proactive morning briefing for the authenticated user."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return await _forward_agent_request("GET", "/api/memory/briefing", request)
+
+
+@app.get("/api/memory/graph")
+@app.get("/v1/memory/graph")
+@app.get("/api/v1/memory/graph")
+async def proxy_get_memory_graph(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Proxy caller's personal memory graph transparency view."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return await _forward_agent_request("GET", "/api/memory/graph", request)
+
+
+@app.delete("/api/memory/graph")
+@app.delete("/v1/memory/graph")
+@app.delete("/api/v1/memory/graph")
+async def proxy_wipe_memory_graph(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Proxy right-to-be-forgotten full memory wipe."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return await _forward_agent_request("DELETE", "/api/memory/graph", request)
+
+
+@app.post("/api/memory/graph/forget")
+@app.post("/v1/memory/graph/forget")
+@app.post("/api/v1/memory/graph/forget")
+async def proxy_forget_memory_fact(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Proxy selective single-fact removal from caller's memory graph."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="request body must be valid JSON")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="request body must be a JSON object")
+    return await _forward_agent_request("POST", "/api/memory/graph/forget", request, body)
+
+
+@app.post("/api/memory/graph/absorb")
+@app.post("/v1/memory/graph/absorb")
+@app.post("/api/v1/memory/graph/absorb")
+async def proxy_absorb_memory_passage(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Proxy explicit memory absorption for the authenticated user."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="request body must be valid JSON")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="request body must be a JSON object")
+    return await _forward_agent_request("POST", "/api/memory/graph/absorb", request, body)
 
 
 @app.post("/api/v1/agent/tool-calls")

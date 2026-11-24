@@ -11,22 +11,25 @@ import subprocess
 def load_auth():
     auth = {}
     # env vars first
-    for k in ("INFISICAL_CLIENT_ID", "INFISICAL_CLIENT_SECRET"):
+    for k in ("INFISICAL_CLIENT_ID", "INFISICAL_CLIENT_SECRET", "INFISICAL_PROJECT_ID"):
         if os.environ.get(k):
             auth[k] = os.environ[k]
     # fall back to vault.env
-    if not auth.get("INFISICAL_CLIENT_ID") and os.path.exists("vault.env"):
+    if (not auth.get("INFISICAL_CLIENT_ID") or not auth.get("INFISICAL_PROJECT_ID")) and os.path.exists("vault.env"):
         for line in open("vault.env", encoding="utf-8", errors="replace"):
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 kk, vv = line.split("=", 1)
                 kk = kk.strip(); vv = vv.strip().strip('"').strip("'")
-                if kk in ("INFISICAL_CLIENT_ID", "INFISICAL_CLIENT_SECRET"):
-                    auth[kk] = vv
+                if kk in ("INFISICAL_CLIENT_ID", "INFISICAL_CLIENT_SECRET", "INFISICAL_PROJECT_ID"):
+                    auth.setdefault(kk, vv)
     return auth
 
+# বাংলা মন্তব্য: হার্ডকোডেড প্রজেক্ট আইডি নিষিদ্ধ — এনভায়রনমেন্ট বা গিটইগনোরড vault.env ছাড়া ফেইল-ক্লোজড
 AUTH = load_auth()
-PROJECT = os.environ.get("INFISICAL_PROJECT_ID", "92aa20c4-aef5-4e33-82bd-efb06058aaf0")
+PROJECT = AUTH.get("INFISICAL_PROJECT_ID", "").strip()
+if not PROJECT:
+    raise RuntimeError("INFISICAL_PROJECT_ID environment variable (or vault.env entry) is required.")
 ENV = os.environ.get("INFISICAL_ENV", "prod")
 
 # parse .env

@@ -1,13 +1,22 @@
-"""
-Fetch Cloudflare credentials from Infisical prod vault,
-then automatically:
+"""Fetch Cloudflare credentials from Infisical prod vault, then automatically:
 1. Ensure KV namespace (HEALTH_KV) exists across all 5 accounts.
 2. Generate/update scoped deploy token with Workers Scripts Write + KV Storage Write.
 3. Automatically update CLOUDFLARE_API_TOKEN in Infisical vault with the valid deploy token.
 
 Usage:
   python scripts/security/auto_repair_cloudflare_vault.py
+
+Fail-closed secret resolution (issue #1820):
+  Every fleet identifier (role email + Cloudflare account_id) MUST resolve
+  from the live Infisical vault. No identifier fallback is baked into source:
+  a missing/empty Infisical value aborts the run BEFORE any Cloudflare call
+  (naming the role and the missing Infisical key, never any value), so a
+  partial vault outage can never silently aim automated vault-repair actions
+  at a hardcoded account.
+  Implementation uses require_secret to ensure fail-closed semantics.
 """
+
+from __future__ import annotations
 
 import json
 import os
@@ -15,14 +24,47 @@ import sys
 import urllib.error
 import urllib.request
 
+# বাংলা মন্তব্য: নিরাপত্তা নিশ্চিতকরণে কোনো হার্ডকোডেড ক্রেডেনশিয়াল বা অ্যাকাউন্ট আইডি সোর্সে রাখা সম্পূর্ণ নিষিদ্ধ
 INFISICAL_API = os.getenv("INFISICAL_API_URL", "https://app.infisical.com/api")
-CLIENT_ID = os.getenv("INFISICAL_CLIENT_ID", "9f2363cf-3cec-43f6-b155-a8625de19250")
-CLIENT_SECRET = os.getenv("INFISICAL_CLIENT_SECRET", "***REMOVED***")
-PROJECT_ID = os.getenv("INFISICAL_PROJECT_ID", "92aa20c4-aef5-4e33-82bd-efb06058aaf0")
+CLIENT_ID = os.getenv("INFISICAL_CLIENT_ID", "")
+CLIENT_SECRET = os.getenv("INFISICAL_CLIENT_SECRET", "")
+PROJECT_ID = os.getenv("INFISICAL_PROJECT_ID", "")
 ENVIRONMENT = os.getenv("INFISICAL_ENV", "prod")
 
 
+class MissingInfisicalSecret(RuntimeError):
+    """A required Infisical secret resolved absent/empty (fail-closed abort)."""
+
+
+def require_secret(secrets: dict[str, str], role: str, key_name: str) -> str:
+    """Fail-closed Infisical lookup (issue #1820).
+
+    Returns the resolved value, or raises MissingInfisicalSecret after
+    printing WHICH role and WHICH Infisical key were absent. Never prints,
+    logs, or returns any secret value in the error path, and never falls back
+    to a baked-in identifier: an empty vault answer must stop the run, not
+    silently redirect automated repairs to a hardcoded account.
+    """
+    # বাংলা মন্তব্য: কোনো ফলব্যাক ছাড়া একক আর্গুমেন্টে ভ্যালু নেওয়া হচ্ছে
+    value = (secrets.get(key_name) or "").strip()
+    if not value:
+        print(
+            f"[FAIL-CLOSED] {role}: required Infisical secret '{key_name}' is "
+            f"missing or empty — aborting before any Cloudflare call "
+            f"(no identifier fallback is baked into source, issue #1820)."
+        )
+        raise MissingInfisicalSecret(f"{role}: missing Infisical key {key_name}")
+    return value
+
+
 def infisical_login() -> str:
+    # বাংলা মন্তব্য: আবশ্যকীয় এনভায়রনমেন্ট ভেরিয়েবল অনুপস্থিত থাকলে সরাসরি ফেইল-ক্লোজড এক্সেপশন
+    if not CLIENT_ID or not CLIENT_SECRET or not PROJECT_ID:
+        raise MissingInfisicalSecret(
+            "Missing required Infisical credentials: INFISICAL_CLIENT_ID, "
+            "INFISICAL_CLIENT_SECRET, and INFISICAL_PROJECT_ID must be set in environment."
+        )
+
     url = f"{INFISICAL_API}/v1/auth/universal-auth/login"
     payload = json.dumps({"clientId": CLIENT_ID, "clientSecret": CLIENT_SECRET}).encode("utf-8")
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
@@ -85,40 +127,41 @@ def main():
         print(f"Failed to load secrets: {exc}")
         sys.exit(1)
 
-    accounts = [
-        {
-            "role": "primary",
-            "email": secrets.get("CLOUDFLARE_EMAIL", "paykaribazaronline@gmail.com"),
-            "key": secrets.get("CLOUDFLARE_GLOBAL_API_KEY") or secrets.get("CLOUDFLARE_API_KEY"),
-            "account_id": secrets.get("CLOUDFLARE_ACCOUNT_ID"),  # #3322 fix: no hardcoded default
-        },
-        {
-            "role": "secondary",
-            "email": secrets.get("CLOUDFLARE_SECONDARY_EMAIL", "niloyjoy7@gmail.com"),
-            "key": secrets.get("CLOUDFLARE_SECONDARY_GLOBAL_API_KEY"),
-            "account_id": secrets.get("CLOUDFLARE_SECONDARY_ACCOUNT_ID"),  # #3322 fix: no hardcoded default
-        },
-        {
-            "role": "tertiary",
-            "email": secrets.get("CLOUDFLARE_TERTIARY_EMAIL", "ziaulhaquezia01@gmail.com"),
-            "key": secrets.get("CLOUDFLARE_TERTIARY_GLOBAL_API_KEY"),
-            "account_id": secrets.get("CLOUDFLARE_TERTIARY_ACCOUNT_ID"),  # #3322 fix: no hardcoded default
-        },
-        {
-            "role": "quaternary",
-            "email": secrets.get("CLOUDFLARE_QUATERNARY_EMAIL", "njelmedia@gmail.com"),
-            "key": secrets.get("CLOUDFLARE_QUATERNARY_GLOBAL_API_KEY"),
-            "account_id": secrets.get("CLOUDFLARE_QUATERNARY_ACCOUNT_ID"),  # #3322 fix: no hardcoded default
-        },
-        {
-            "role": "quinary",
-            "email": secrets.get("CLOUDFLARE_QUINARY_EMAIL", "itnjel@gmail.com"),
-            "key": secrets.get("CLOUDFLARE_QUINARY_GLOBAL_API_KEY"),
-            # #3322 fix: hardcoded account_id moved to env-var-only (no default fallback).
-            # This was a real-looking hex string that the scanner flagged as a secret.
-            "account_id": secrets.get("CLOUDFLARE_QUINARY_ACCOUNT_ID"),
-        },
-    ]
+    try:
+        accounts = [
+            {
+                "role": "primary",
+                "email": require_secret(secrets, "primary", "CLOUDFLARE_EMAIL"),
+                "key": secrets.get("CLOUDFLARE_GLOBAL_API_KEY") or secrets.get("CLOUDFLARE_API_KEY"),
+                "account_id": require_secret(secrets, "primary", "CLOUDFLARE_ACCOUNT_ID"),
+            },
+            {
+                "role": "secondary",
+                "email": require_secret(secrets, "secondary", "CLOUDFLARE_SECONDARY_EMAIL"),
+                "key": secrets.get("CLOUDFLARE_SECONDARY_GLOBAL_API_KEY"),
+                "account_id": require_secret(secrets, "secondary", "CLOUDFLARE_SECONDARY_ACCOUNT_ID"),
+            },
+            {
+                "role": "tertiary",
+                "email": require_secret(secrets, "tertiary", "CLOUDFLARE_TERTIARY_EMAIL"),
+                "key": secrets.get("CLOUDFLARE_TERTIARY_GLOBAL_API_KEY"),
+                "account_id": require_secret(secrets, "tertiary", "CLOUDFLARE_TERTIARY_ACCOUNT_ID"),
+            },
+            {
+                "role": "quaternary",
+                "email": require_secret(secrets, "quaternary", "CLOUDFLARE_QUATERNARY_EMAIL"),
+                "key": secrets.get("CLOUDFLARE_QUATERNARY_GLOBAL_API_KEY"),
+                "account_id": require_secret(secrets, "quaternary", "CLOUDFLARE_QUATERNARY_ACCOUNT_ID"),
+            },
+            {
+                "role": "quinary",
+                "email": require_secret(secrets, "quinary", "CLOUDFLARE_QUINARY_EMAIL"),
+                "key": secrets.get("CLOUDFLARE_QUINARY_GLOBAL_API_KEY"),
+                "account_id": require_secret(secrets, "quinary", "CLOUDFLARE_QUINARY_ACCOUNT_ID"),
+            },
+        ]
+    except MissingInfisicalSecret:
+        sys.exit(1)
 
     primary_deploy_token = None
 
@@ -130,7 +173,15 @@ def main():
         print(f"\nProcessing {role.upper()} ({email})...")
 
         if not key or not account_id:
-            print("  Missing key or account ID, skipping.")
+            missing = [
+                label
+                for label, val in (("Global/API key", key), ("account_id", account_id))
+                if not val
+            ]
+            print(
+                f"  [SKIP] {role}: no {' / '.join(missing)} resolved from Infisical "
+                f"— account not processed (fail-closed: no fallback in source, issue #1820)."
+            )
             continue
 
         # 1. Check or Create KV
@@ -163,7 +214,6 @@ def main():
         # 3. Create fine-grained Deploy Token if primary
         if role == "primary":
             try:
-                # Permission groups
                 perms_data = cf_request("https://api.cloudflare.com/client/v4/user/tokens/permission_groups", email, key, "GET")
                 perm_map = {p["name"]: p["id"] for p in perms_data.get("result", [])}
                 needed = [

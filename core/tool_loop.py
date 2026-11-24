@@ -31,12 +31,18 @@ from core.monitoring.logging_config import logger
 _PRIMARY_ARG: dict[str, str] = {
     "search_database": "query",
     "execute_python_code": "code",
+    "browser_open": "url",
+    "browser_inspect": "selector",
+    "browser_screenshot": "full_page",
+    "browser_verify_result": "expected_selector_or_url",
+    "browser_click": "selector",
 }
 
 #: বাংলা (M09 P-G): বহু-প্যারামিটার টুল — নাম-মিল কেবল জানা কীগুলোর,
 #: অতিরিক্ত কী পাস হয় না (গভর্নড পৃষ্ঠ)।
 _MULTI_ARG: dict[str, tuple[str, ...]] = {
     "cot_verify_math": ("expression", "claimed_result"),
+    "browser_fill": ("selector", "value"),
 }
 
 
@@ -58,6 +64,11 @@ def tool_registry() -> dict[str, Callable[..., Any]]:
 
 def _resolve_call_args(tool: str, args: dict[str, Any]) -> dict[str, Any]:
     """LLM/fallback-args-কে টুল-সিগনেচারে নিরাপদে ম্যাপ করা।"""
+    if tool == "browser_screenshot":
+        raw_fp = (args or {}).get("full_page", False)
+        if isinstance(raw_fp, str):
+            return {"full_page": raw_fp.strip().lower() in ("true", "1", "yes")}
+        return {"full_page": bool(raw_fp)}
     multi = _MULTI_ARG.get(tool)
     if multi is not None:
         return {k: str(args[k]) for k in multi if k in (args or {})}
@@ -143,6 +154,12 @@ async def _execute_tool_decision_gated(decision: dict[str, Any]) -> dict[str, An
 
     fn = registry[tool]
     call_args = _resolve_call_args(tool, decision.get("args") or {})
+    from core.tools.agent_tools import CURRENT_TOOL_OWNER
+
+    owner_ctx = str(
+        (decision or {}).get("tenant_id") or (decision or {}).get("owner_id") or ""
+    ).strip()
+    owner_token = CURRENT_TOOL_OWNER.set(owner_ctx)
     try:
         if asyncio.iscoroutinefunction(fn):
             observation = await fn(**call_args)
@@ -158,6 +175,8 @@ async def _execute_tool_decision_gated(decision: dict[str, Any]) -> dict[str, An
             "risk": risk,
             "error": f"{type(exc).__name__}: {exc}",
         }
+    finally:
+        CURRENT_TOOL_OWNER.reset(owner_token)
 
     logger.info(
         f"[tool_loop] {tool} executed (risk={risk}) — observation len={len(str(observation))}"

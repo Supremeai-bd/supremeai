@@ -230,7 +230,186 @@ def cot_verify_math(expression: str, claimed_result: str) -> str:
     return f"[{verdict}] {result}"
 
 
-FLEET_TOOLS = [cot_verify_math]
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ৪. Browser Automation Tools (Personal Executive — Owner-Scoped)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+import contextvars
+
+# বাংলা মন্তব্য: প্রতিটি টেন্যান্ট/ইউজারের ব্রাউজার সেশন কঠোরভাবে আইসোলেটেড থাকবে;
+# গ্লোবাল শেয়ার্ড সেশন সম্পূর্ণ নিষিদ্ধ (ক্রস-টেন্যান্ট কুকি লিক প্রতিরোধ)।
+CURRENT_TOOL_OWNER: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "CURRENT_TOOL_OWNER", default=""
+)
+
+
+def _require_browser_owner() -> str:
+    """Resolve the caller's isolated browser owner_id, failing closed if absent."""
+    owner = (CURRENT_TOOL_OWNER.get() or "").strip()
+    if not owner or owner == "*":
+        raise PermissionError(
+            "Authenticated tenant/owner context is required for browser session isolation"
+        )
+    return f"agent_exec:{owner}"
+
+
+async def _get_or_create_browser_session():
+    """Retrieve the caller's isolated browser session or create one scoped to their tenant."""
+    from core.browser_session_manager import session_manager
+
+    owner_id = _require_browser_owner()
+    snapshot = session_manager.snapshot()
+    for s in snapshot:
+        if s.get("owner_id") == owner_id:
+            try:
+                return await session_manager.get(s["id"], owner_id)
+            except Exception as exc:
+                logger.debug(f"[agent_tools] stale browser session {s.get('id')} skipped: {exc}")
+    return await session_manager.create(owner_id, label="Autonomous Executive Browser")
+
+
+async def browser_open(url: str) -> str:
+    """Open a web page in the caller's isolated browser session (R0 safe read)."""
+    # বাংলা মন্তব্য: ওনার-স্কোপড স্বয়ংক্রিয় ব্রাউজার সেশনে নিরাপদ URL পরিদর্শন (SSRF গার্ডসহ)
+    from core.security import is_safe_url
+
+    url_clean = (url or "").strip()
+    if not url_clean:
+        return "Error: URL is required"
+    if not is_safe_url(url_clean):
+        return f"Error: URL '{url_clean}' is blocked by security policy (SSRF/private IP protection)"
+    try:
+        session = await _get_or_create_browser_session()
+        page = session.page
+        resp = await page.goto(url_clean, timeout=20_000, wait_until="domcontentloaded")
+        status = resp.status if resp else "unknown"
+        title = await page.title()
+        return f"Opened {url_clean} (HTTP {status}). Page title: {title!r}"
+    except PermissionError as exc:
+        return f"Browser session denied: {exc}"
+    except Exception as exc:
+        logger.warning(f"[agent_tools] browser_open failed: {exc}")
+        return f"Browser open failed: {exc}"
+
+
+async def browser_inspect(selector: str = "") -> str:
+    """Inspect page text content or a specific element matching a CSS selector (R0 safe read)."""
+    # বাংলা মন্তব্য: ব্রাউজারের বর্তমান পৃষ্ঠার কন্টেন্ট বা নির্দিষ্ট এলিমেন্ট পরিদর্শন এবং ক্যাপচা/ওটিপি শনাক্তকরণ
+    try:
+        session = await _get_or_create_browser_session()
+        page = session.page
+        sel = (selector or "").strip()
+        if sel:
+            locator = page.locator(sel)
+            count = await locator.count()
+            if count == 0:
+                return f"No element matching selector '{sel}' found on current page ({page.url})."
+            text = await locator.first.inner_text(timeout=5_000)
+            return f"Element '{sel}' text (first of {count}):\n{text[:2000]}"
+        content = await page.inner_text("body", timeout=5_000)
+        title = await page.title()
+        lowered = f"{title}\n{content[:1500]}".lower()
+        if any(gate in lowered for gate in ("captcha", "recaptcha", "hcaptcha", "turnstile", "verify you are human", "enter otp", "verification code")):
+            return (
+                f"[USER_HANDOFF_REQUIRED: captcha_or_otp] Page '{title}' ({page.url}) "
+                "requires human OTP/CAPTCHA verification. Automated bypass is prohibited."
+            )
+        return f"Page '{title}' ({page.url}) content preview:\n{content[:2000]}"
+    except PermissionError as exc:
+        return f"Browser session denied: {exc}"
+    except Exception as exc:
+        logger.warning(f"[agent_tools] browser_inspect failed: {exc}")
+        return f"Browser inspect failed: {exc}"
+
+
+async def browser_screenshot(full_page: bool = False) -> str:
+    """Capture a screenshot of the current browser page (R0 safe read)."""
+    # বাংলা মন্তব্য: ব্রাউজার পৃষ্ঠার পোস্ট-কন্ডিশন স্ক্রিনশট প্রমাণ ধারণ
+    try:
+        session = await _get_or_create_browser_session()
+        page = session.page
+        b64 = await page.screenshot(full_page=bool(full_page))
+        return f"Screenshot captured successfully ({len(b64)} bytes) for {page.url}"
+    except PermissionError as exc:
+        return f"Browser session denied: {exc}"
+    except Exception as exc:
+        logger.warning(f"[agent_tools] browser_screenshot failed: {exc}")
+        return f"Browser screenshot failed: {exc}"
+
+
+async def browser_verify_result(expected_selector_or_url: str) -> str:
+    """Verify post-condition proof (URL substring or visible DOM selector) before claiming completion."""
+    # বাংলা মন্তব্য: কোনো ব্রাউজার টাস্ক সম্পন্ন দাবি করার আগে বাস্তব DOM/URL প্রমাণ যাচাই
+    target = (expected_selector_or_url or "").strip()
+    if not target:
+        return "Error: expected_selector_or_url is required"
+    try:
+        session = await _get_or_create_browser_session()
+        page = session.page
+        current_url = str(page.url or "")
+        if target in current_url:
+            return f"[VERIFIED] Current URL '{current_url}' matches expected '{target}'."
+        locator = page.locator(target)
+        count = await locator.count()
+        if count > 0 and await locator.first.is_visible():
+            snippet = (await locator.first.inner_text(timeout=3_000)).strip()[:240]
+            return f"[VERIFIED] Selector '{target}' is visible on '{current_url}': {snippet!r}"
+        return f"[UNVERIFIED] Neither URL '{current_url}' nor visible DOM matched '{target}'."
+    except PermissionError as exc:
+        return f"Browser session denied: {exc}"
+    except Exception as exc:
+        logger.warning(f"[agent_tools] browser_verify_result failed: {exc}")
+        return f"[UNVERIFIED] Verification failed: {exc}"
+
+
+async def browser_click(selector: str) -> str:
+    """Click an element on the current page (R2 write — requires HITL approval)."""
+    # বাংলা মন্তব্য: ব্রাউজারে বাটন বা লিংক ক্লিক — স্টেট পরিবর্তনকারী অপারেশন
+    sel = (selector or "").strip()
+    if not sel:
+        return "Error: selector is required to click an element"
+    try:
+        session = await _get_or_create_browser_session()
+        page = session.page
+        locator = page.locator(sel).first
+        await locator.wait_for(state="visible", timeout=10_000)
+        await locator.click(timeout=10_000)
+        return f"Clicked element '{sel}' on {page.url}"
+    except PermissionError as exc:
+        return f"Browser session denied: {exc}"
+    except Exception as exc:
+        logger.warning(f"[agent_tools] browser_click failed: {exc}")
+        return f"Browser click failed on '{sel}': {exc}"
+
+
+async def browser_fill(selector: str, value: str) -> str:
+    """Fill an input field on the current page (R2 write — requires HITL approval)."""
+    # বাংলা মন্তব্য: ফর্ম ইনপুট ফিলাপ — স্টেট পরিবর্তনকারী অপারেশন
+    sel = (selector or "").strip()
+    if not sel:
+        return "Error: selector is required"
+    try:
+        session = await _get_or_create_browser_session()
+        page = session.page
+        locator = page.locator(sel).first
+        await locator.wait_for(state="visible", timeout=10_000)
+        await locator.fill(str(value), timeout=10_000)
+        return f"Filled element '{sel}' with value on {page.url}"
+    except PermissionError as exc:
+        return f"Browser session denied: {exc}"
+    except Exception as exc:
+        logger.warning(f"[agent_tools] browser_fill failed: {exc}")
+        return f"Browser fill failed on '{sel}': {exc}"
+
+
+FLEET_TOOLS = [
+    cot_verify_math,
+    browser_open,
+    browser_inspect,
+    browser_screenshot,
+    browser_verify_result,
+    browser_click,
+    browser_fill,
+]
 
 
 def fleet_enabled() -> bool:

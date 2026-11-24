@@ -10,9 +10,9 @@
 ``tests/test_agent_tool_surface.py`` রেজিস্ট্রির সাথে হুবহু মিলিয়ে দেখে
 (নতুন গভর্নড টুল যোগ হলে spec ছাড়া CI ফেল করবে)।
 
-গুরুত্বপূর্ণ সীমা: এই টুলগুলো DB/হেলথ/সিম্বলিক-গণনা — ব্রাউজার নয়।
-ব্রাউজার-অটোমেশন এখনো চ্যাট-থেকে-চালানো যায় না
-(``docs/CAPABILITY_REALITY_MATRIX.md`` দেখুন)।
+গুরুত্বপূর্ণ সীমা: ব্রাউজার-অটোমেশনের রিড টুলগুলো (open, inspect, screenshot) R0 হিসেবে
+সরাসরি অনুমোদিত, তবে স্টেট-পরিবর্তনকারী টুলগুলো (click, fill) R2 হিসেবে মানব-অনুমোদন
+(HITL TaskApprovalCard) সাপেক্ষ।
 """
 
 from __future__ import annotations
@@ -91,6 +91,111 @@ TOOL_SPECS: tuple[dict[str, Any], ...] = (
                 }
             },
             "required": ["code"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "browser_open",
+        "description": "Open a web page in the autonomous executive browser session. Read-only (R0).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "The URL to open in the browser.",
+                    "minLength": 1,
+                    "maxLength": 2048,
+                }
+            },
+            "required": ["url"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "browser_inspect",
+        "description": "Inspect text content or specific element on the current browser page. Read-only (R0).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "selector": {
+                    "type": "string",
+                    "description": "Optional CSS selector to inspect specific element text.",
+                    "maxLength": 500,
+                }
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "browser_screenshot",
+        "description": "Capture a screenshot of the current browser page. Read-only (R0).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "full_page": {
+                    "type": "boolean",
+                    "description": "Whether to capture the entire scrollable page height.",
+                }
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "browser_verify_result",
+        "description": (
+            "Verify post-condition proof (URL substring or visible CSS selector) "
+            "on the active browser page before claiming task completion. Read-only (R0)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "expected_selector_or_url": {
+                    "type": "string",
+                    "description": "Expected URL substring or CSS selector that proves the step succeeded.",
+                    "minLength": 1,
+                    "maxLength": 500,
+                }
+            },
+            "required": ["expected_selector_or_url"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "browser_click",
+        "description": "Click an element matching CSS selector on the current page. State-changing (R2) — requires human approval.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "selector": {
+                    "type": "string",
+                    "description": "CSS selector of the button/link/element to click.",
+                    "minLength": 1,
+                    "maxLength": 500,
+                }
+            },
+            "required": ["selector"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "browser_fill",
+        "description": "Fill a form input field matching CSS selector on the current page. State-changing (R2) — requires human approval.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "selector": {
+                    "type": "string",
+                    "description": "CSS selector of the input field to fill.",
+                    "minLength": 1,
+                    "maxLength": 500,
+                },
+                "value": {
+                    "type": "string",
+                    "description": "Text value to enter into the field.",
+                    "maxLength": 10000,
+                },
+            },
+            "required": ["selector", "value"],
             "additionalProperties": False,
         },
     },
