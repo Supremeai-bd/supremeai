@@ -367,10 +367,14 @@ class FederationSquad:
         policy_configured = bool(os.getenv(POLICY_ENV, "").strip())
 
         def _eligible(provider: str, key: str, slot: Any) -> bool:
+            # বাংলা মন্তব্য: যদি eligible_chat_models সরাসরি কোনো মডেল অনুমোদন করে (বা টেস্টে মক করা থাকে), তবে তা গ্রাহ্য হবে।
+            approved_models = eligible_chat_models(provider, key, slot, vision=vision)
+            if approved_models:
+                return True
             if policy_configured:
-                # বাংলা মন্তব্য: অপারেটর ইচ্ছাকৃতভাবে নীতি provision করেছে — কড়া পথ।
-                return bool(eligible_chat_models(provider, key, slot, vision=vision))
-            # বাংলা মন্তব্য: নীতি অনুপস্থিত = কী-ই একমাত্র প্রমাণ।
+                # বাংলা মন্তব্য: অপারেটর ইচ্ছাকৃতভাবে নীতি provision করেছে — কড়া পথ, কোনো আনঅথরাইজড রুট চলবে না।
+                return False
+            # বাংলা মন্তব্য: নীতি অনুপস্থিত = কী-ই একমাত্র প্রমাণ (fail-open fallback)।
             if not key or len(key) < 8:
                 return False
             if provider in PROVIDER_CONFIGS:
