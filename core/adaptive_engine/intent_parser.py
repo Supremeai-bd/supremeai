@@ -1,10 +1,59 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from core.monitoring.logging_config import logger
+
+# বাংলা মন্তব্য: action-signal — ইংরেজি, বাংলা ও রোমানাইজড বাংলা (বাংলিশ) তিনটিতেই
+# কর্ম-ইচ্ছা বহনকারী শব্দ/মূল। এগুলো থাকলে ইনপুট ambiguous ঘোষণা করা যাবে না,
+# নইলে সিস্টেম পরপর একই clarify-প্রশ্নে echo-loop-এ বন্দি হয় (root-cause fix)।
+_ACTION_SIGNAL_TOKENS = frozenset({
+    # ইংরেজি
+    "fix", "build", "create", "make", "write", "add", "update", "improve",
+    "analyze", "analyse", "find", "check", "deploy", "refactor", "optimize",
+    "debug", "implement", "explain", "show", "how", "why", "what", "do",
+    "solve", "help", "run", "test", "plan", "design", "remove", "delete",
+    # বাংলা
+    "করো", "করুন", "কর", "বানাও", "বানান", "লিখো", "লিখুন", "ঠিক", "ফিক্স",
+    "যোগ", "বদল", "খুঁজে", "বের", "বিশ্লেষণ", "উন্নত", "সমাধান", "দেখাও", "বলো",
+    "কিভাবে", "কেন", "কী", "কি", "সাহায্য", "চাই",
+})
+
+# বাংলিশ মূল-fold — উচ্চারণ ভ্যারিয়েন্ট মিলবানো (kivobe/kivabe/kibhabe → kivab-মূল)।
+_ACTION_PREFIXES = (
+    "kivab", "kibhab", "kivob", "kiভা", "kore", "korbe", "korun", "koro",
+    "somos", "সমস", "problem", "issue", "error", "bug", "fix", "improv",
+    "analy", "optimi", "refactor", "deploy", "build", "creat", "make",
+)
+
+
+def _has_action_signal(task: str) -> bool:
+    """বাংলা মন্তব্য: ইনপুটে কর্ম-ইচ্ছা আছে কি না — বাংলা/বাংলিশ/ইংরেজি তিন লিপিতেই।"""
+    if not task:
+        return False
+    low = task.lower()
+    toks = set(re.findall(r"[\w\u0980-\u09FF]+", low))
+    if toks & _ACTION_SIGNAL_TOKENS:
+        return True
+    return any(p in low for p in _ACTION_PREFIXES)
+
+
+# বাংলা মন্তব্য: সিস্টেমের নিজের clarify-প্রশ্নের মার্কার — আগের টার্নের
+# assistant মেসেজে এদের কোনোটা থাকলে ধরা হয় একবার clarify হয়ে গেছে।
+_CLARIFY_MARKERS = (
+    "could you provide more context",
+    "could you specify",
+    "নির্দিষ্ট করে বলুন",
+    "সম্পূর্ণ বিবরণ দিন",
+    "আরও তথ্য",
+    "clarify",
+    "more context",
+    "more detail",
+)
+
 
 if TYPE_CHECKING:
     # ModelRouter is only a type annotation here (the constructor accepts any
@@ -46,11 +95,25 @@ class AppSpecification:
 class IntentParser:
     def __init__(self, model_router: ModelRouter):
         self.model_router = model_router
+        # বাংলা মন্তব্য: এক-টার্ন clarify মেমরি — একই কনভার্সেশনে একবার
+        # clarification জিজ্ঞাসা করা হলে পরের টার্নে আর clarify নয়, সেরা-অনুমান
+        # উত্তর দিতেই হবে। এটাই echo-loop (clarify→clarify→clarify) চিরতরে বন্ধ করে।
+        self._clarified_conversations: set[str] = set()
 
     def parse_meta_cognition(
         self, task: str, history: list[dict[str, str]] | None = None
     ) -> MetaCognitiveAssessment:
         task_lower = (task or "").lower().strip()
+        # বাংলা মন্তব্য: history-তে আগের টার্নে এই সিস্টেম নিজেই clarify-প্রশ্ন
+        # করেছে কি না — থাকলে এবার বাধ্যত সেরা-অনুমান উত্তর (ambiguous=False)।
+        already_clarified = False
+        if history:
+            for msg in history:
+                if isinstance(msg, dict) and msg.get("role") == "assistant":
+                    content = str(msg.get("content", ""))
+                    if _CLARIFY_MARKERS and any(m in content for m in _CLARIFY_MARKERS):
+                        already_clarified = True
+                        break
         if any(w in task_lower for w in ("drop database", "delete production", "purge all secrets", "rm -rf /", "bypass auth", "disable security")):
             return MetaCognitiveAssessment(
                 core_intent="destructive_or_security_operation",
@@ -105,8 +168,23 @@ class IntentParser:
         return MetaCognitiveAssessment(
             core_intent="direct_local_task",
             underlying_goal=task,
-            is_ambiguous=len(task.strip()) < 10,
-            clarification_question="Could you provide more context on the expected outcome?" if len(task.strip()) < 10 else None,
+            # বাংলা মন্তব্য: echo-loop রুট-কজ ফিক্স — "ambiguity" কেবল সত্যিই
+            # ফাঁকা/এক-শব্দ ইনপুটে সত্য হতে পারে, এবং আগের টার্নে একবার clarify
+            # করা হলে আর নয় (one-shot clarify memory)। রোমানাইজড বাংলা ইনপুটে
+            # একই ক্যানড প্রশ্ন পরপর রিটার্ন হত (ব্যবহারকারীর কথা না শুনে)।
+            is_ambiguous=(
+                len(task.strip()) < 10
+                and not _has_action_signal(task)
+                and not already_clarified
+            ),
+            clarification_question=(
+                "Could you provide more context on the expected outcome?"
+                if (
+                    len(task.strip()) < 10
+                    and not _has_action_signal(task)
+                    and not already_clarified
+                ) else None
+            ),
             can_solve_locally=True,
             delegation_target="self",
             why_delegated="Standard local coding task within agent contract",

@@ -12,6 +12,22 @@ import re
 class InputSanitizer:
     def __init__(self):
         self.vague_patterns = [r"\bsomething\b", r"\banything\b", r"\betc\b"]
+        # বাংলা মন্তব্য: বাংলা/বাংলিশ vague প্যাটার্ন — পুরনো regex শুধু ইংরেজি
+        # something/anything/etc চিনত; রোমানাইজড বাংলায় সম্পূর্ণ অন্ধ ছিল।
+        # এখন তিন লিপিতেই অস্পষ্টতা ধরা হয় (আর action-signal থাকলে ambiguous
+        # হিসেবে মিথ্যা চিহ্নিত হয় না — echo-loop-প্রতিরোধ)।
+        self.vague_patterns.extend([
+            r"\bkeajabe\b", r"\bkivabe\b", r"\bkibhabe\b", r"\bkichu\b",
+            r"\bkisu\b", r"\bkono\b", r"\bje\b kono",
+            r"কিছু", r"কোনো", r"যেকোনো",
+        ])
+        # বাংলা মন্তব্য: action-signal — এগুলো থাকলে ইনপুটে কর্ম-ইচ্ছা আছে,
+        # vague শব্দ থাকলেও ambiguous ঘোষণা নিষিদ্ধ (echo-loop প্রতিরোধ)।
+        self.action_signal_patterns = [
+            r"\b(fix|build|create|make|write|add|update|improve|analyze|analyse|find|check|deploy|refactor|optimize|debug|implement|explain|show|solve|help|run|test|plan|design|remove|delete)\b",
+            r"\b(koro|korun|kore|korbe|kivabe|kibhabe|kivobe|somos|somossha|problem|improve)\b",
+            r"(করো|করুন|বানাও|লিখো|ঠিক কর|ফিক্স|যোগ কর|খুঁজে|বিশ্লেষণ|উন্নত|সমাধান|বলো|দেখাও)",
+        ]
         self.forbidden_patterns = [
             r"predict lottery",
             r"hack into",
@@ -38,7 +54,10 @@ class InputSanitizer:
 
     def detect_ambiguity(self, prompt: str) -> dict:
         vague_matches = [p for p in self.vague_patterns if re.search(p, prompt, re.I)]
-        is_ambiguous = len(vague_matches) > 0
+        # বাংলা মন্তব্য: action-signal থাকলে vague শব্দ থাকলেও ambiguous নয় —
+        # ব্যবহারকারী স্পষ্ট কাজ চেয়েছে (echo-loop-এর root-cause প্রতিরোধ)।
+        has_action = any(re.search(p, prompt, re.I) for p in self.action_signal_patterns)
+        is_ambiguous = (len(vague_matches) > 0) and not has_action
         clarifying_questions = []
         if is_ambiguous:
             clarifying_questions.append(

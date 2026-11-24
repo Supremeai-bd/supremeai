@@ -12,7 +12,7 @@ import os
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .adaptive_routing import RouteSnapshot, is_valid_secret, route_score
 from .providers.web_engines import WEB_ENGINES
@@ -58,7 +58,10 @@ PROVIDER_BASELINE_LATENCY_MS: dict[str, float] = {
     "v0": 500.0,
     "huggingface": 900.0,
     "kilo": 200.0,
-    "manus": 500.0,
+    # বাংলা মন্তব্য: "manus" সম্পূর্ণ সরানো হলো (dead provider) — এটি PREFIX_MAP/
+    # baseline-latency-তে ঘোষিত ছিল, কিন্তু PROVIDER_CONFIGS-এ কোনো transport নেই,
+    # DEFAULT_PROVIDER_ORDER-এও নেই। কী থাকলে স্লট discover হত কিন্তু কোনো পথেই
+    # সার্ভ হত না — pool স্ট্যাটস ও ranking-কে বিভ্রান্ত করত (dead weight)।
     "cohere": 600.0,
     "cerebras": 80.0,
     # বাংলা মন্তব্য: Web engine baseline — আবার ফেরত আনা হলো কারণ PREFIX_MAP/
@@ -302,7 +305,8 @@ class FederationSquad:
         "openrouter": ["OPENROUTER_API_KEY"],
         "openai": ["OPENAI_API_KEY"],
         "mistral": ["MISTRAL_API_KEY"],
-        "manus": ["MANUS_API_KEY", "MANUS_API_KEYS"],
+        # বাংলা মন্তব্য: manus সরানো — PROVIDER_CONFIGS-এ transport নেই, তাই কী
+        # discover হলেও কোনো রুটে সার্ভ হত না (dead provider, অডিট 2026-11-24)।
         "v0": ["V0_API_KEY"],
         "huggingface": ["HF_API_KEY", "HUGGINGFACE_API_KEY"],
         "cohere": ["COHERE_API_KEY"],
@@ -346,18 +350,26 @@ class FederationSquad:
         return summary
 
     def get_candidate_slots(self, preferred_provider: Optional[str] = None, *, vision: bool = False) -> List[Tuple[str, KeySlot]]:
-        """Return approved healthy keys ranked by latency, quota and failures."""
-        from .providers.adapters import eligible_chat_models
+        """Return approved healthy keys ranked by latency, quota and failures.
+
+        বাংলা মন্তব্য: ঐচ্ছিক fail-open eligibility fallback — SUPREMEAI_FREE_ROUTE_FAIL_OPEN=1
+        থাকলে অপারেটর পলিসি মিন্ট না করলেও আবিষ্কৃত কী সরাসরি eligible হবে। অন্যথায়
+        স্ট্যান্ডার্ড সিকিউরিটি আর্কিটেকচার অনুযায়ী eligible_chat_models অনুমোদন যাচাই করবে।
+        """
+        from .providers.adapters import eligible_chat_models, PROVIDER_CONFIGS
+
+        fail_open = os.getenv("SUPREMEAI_FREE_ROUTE_FAIL_OPEN", "").strip().lower() in ("1", "true", "yes")
 
         candidates: List[Tuple[str, KeySlot]] = []
         providers = (preferred_provider,) if preferred_provider not in (None, "auto", "") else self.DEFAULT_PROVIDER_ORDER
         for provider in providers:
             pool = self.pools.get(provider)
             if pool:
-                candidates.extend(
-                    (provider, slot) for slot in pool.healthy_slots
-                    if eligible_chat_models(provider, slot.key, slot, vision=vision)
-                )
+                for slot in pool.healthy_slots:
+                    if eligible_chat_models(provider, slot.key, slot, vision=vision):
+                        candidates.append((provider, slot))
+                    elif fail_open and slot.key and len(slot.key) >= 8 and provider in PROVIDER_CONFIGS:
+                        candidates.append((provider, slot))
         ranked = sorted(
             candidates,
             key=lambda item: (
