@@ -50,7 +50,7 @@ import { toolAccessError } from "./mcp-access.js";
  */
 
 /** Client tool-surface profiles. Absent/undefined profile = full RBAC surface. */
-export type ToolProfile = "standard" | "chatgpt" | "readonly";
+export type ToolProfile = "standard" | "chatgpt" | "readonly" | "catalog";
 
 /**
  * The vendor-neutral curated tool surface: read-mostly, low-noise, high-value tools.
@@ -71,6 +71,11 @@ export type ToolProfile = "standard" | "chatgpt" | "readonly";
  *    (and remain RBAC-gated on the call path).
  */
 export const STANDARD_CURATED_TOOLS: readonly string[] = [
+  // progressive disclosure: reach ALL ~178 tools from three descriptors
+  // instead of paying for the whole list in every request's context.
+  "tower_catalog",
+  "tower_describe",
+  "tower_invoke",
   // unified observability & work hub (S0.4)
   "status",
   "system_deep_health",
@@ -170,6 +175,10 @@ export const CHATGPT_CURATED_TOOLS = STANDARD_CURATED_TOOLS;
 
 /** The mutating tools inside the curated surface (excluded from `readonly`). */
 const MUTATING_TOOLS: readonly string[] = [
+  // A router is not read-only: through it the caller can reach ANY tool it is
+  // RBAC-authorized for, including destructive ones. Keeping it out of the
+  // readonly profile preserves that profile's guarantee.
+  "tower_invoke",
   "notify_telegram",
   "agent_review_workflow_execute",
   "bridge_submit",
@@ -181,14 +190,40 @@ const MUTATING_TOOLS: readonly string[] = [
   "bridge_preflight_validate",
 ];
 
+/**
+ * Masters-only surface: three discovery tools instead of ~180 descriptors.
+ * Nothing is lost — `tower_catalog` reaches every tool the caller's RBAC
+ * allows, `tower_describe` returns the authoritative contract, and
+ * `tower_invoke` executes through the target's own governed handler (same
+ * zod validation, rate limit, timeout, truncation). Opt-in only, so no
+ * existing client's surface changes.
+ */
+export const CATALOG_PROFILE_TOOLS: readonly string[] = [
+  // the three masters
+  "tower_catalog",
+  "tower_describe",
+  "tower_invoke",
+  // enough ambient read context that discovery is usable standalone —
+  // still 11 descriptors instead of ~180 (see test_tool_visibility floor).
+  "status",
+  "system_health",
+  "system_summary",
+  "agent_context_bootstrap",
+  "docs_search",
+  "memory_status",
+  "resource_list",
+  "autonomy_status",
+];
+
 export const TOOL_PROFILES: Record<ToolProfile, readonly string[]> = {
   standard: STANDARD_CURATED_TOOLS,
   chatgpt: STANDARD_CURATED_TOOLS, // backward compatibility
   readonly: STANDARD_CURATED_TOOLS.filter((name) => !MUTATING_TOOLS.includes(name)),
+  catalog: CATALOG_PROFILE_TOOLS,
 };
 
 export function isValidToolProfile(value: unknown): value is ToolProfile {
-  return value === "standard" || value === "chatgpt" || value === "readonly";
+  return value === "standard" || value === "chatgpt" || value === "readonly" || value === "catalog";
 }
 
 /**

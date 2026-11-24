@@ -27,6 +27,7 @@ import {
   truncateToolResult,
 } from "./lib/mcp_rate_limit.js";
 import { registerAllTools } from "./tools/index.js";
+import { registerTowerCatalogTools, towerToolCatalog } from "./tools/tower.catalog.js";
 import { RequestContextStore, type UserRole } from "./policy/auth.context.js";
 import { getServiceDescriptors } from "./service-circles.js";
 import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.js";
@@ -197,10 +198,39 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
     }
     if (handlerIndex >= 0) {
       const wrappedArgs = args.slice();
-      wrappedArgs[handlerIndex] = governedHandler(
+      const governed = governedHandler(
         sanitizedName,
         args[handlerIndex] as (toolArgs: unknown, extra: unknown) => unknown,
       );
+      wrappedArgs[handlerIndex] = governed;
+
+      // Progressive disclosure (tower.catalog/describe/invoke): record the
+      // descriptor and the GOVERNED handler from this exact interception
+      // point, so the catalog can never describe a contract the call path
+      // does not enforce. See src/tools/tower.catalog.ts.
+      const schemaArgs = args
+        .slice(0, handlerIndex)
+        .filter((value: unknown) => value && typeof value === "object");
+      const annotationKeys = ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"];
+      let shape: unknown;
+      let annotations: Record<string, unknown> | undefined;
+      for (const candidate of schemaArgs as Array<Record<string, unknown>>) {
+        if (annotationKeys.some((key) => key in candidate)) {
+          annotations = candidate;
+        } else if (shape === undefined) {
+          shape = candidate;
+        }
+      }
+      towerToolCatalog.record(
+        {
+          name: sanitizedName,
+          description: typeof args[0] === "string" ? args[0] : "",
+          ...(shape !== undefined ? { shape } : {}),
+          ...(annotations !== undefined ? { annotations } : {}),
+        },
+        governed as (toolArgs: unknown, extra: unknown) => unknown,
+      );
+
       args = wrappedArgs;
     }
     return (originalTool as any)(sanitizedName, ...args);
@@ -215,10 +245,27 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
     const governed = typeof cb === "function"
       ? governedHandler(sanitizedName, cb as (toolArgs: unknown, extra: unknown) => unknown)
       : cb;
+    if (typeof cb === "function") {
+      towerToolCatalog.record(
+        {
+          name: sanitizedName,
+          description: typeof config?.description === "string" ? config.description : "",
+          ...(config?.inputSchema !== undefined ? { shape: config.inputSchema } : {}),
+          ...(config?.annotations !== undefined ? { annotations: config.annotations } : {}),
+        },
+        governed as (toolArgs: unknown, extra: unknown) => unknown,
+      );
+    }
     return originalRegisterTool(sanitizedName, config, governed);
   };
 
   await registerAllTools(server, memoryAdapter);
+
+  // Master tools: registered last so they can see the complete registry, and
+  // before attachDiscoveryFilter() so tools/list gates them like any other
+  // tool. They advertise discovery over the ~178 concrete tools without
+  // merging any schema (per-tool zod validation stays authoritative).
+  registerTowerCatalogTools(server, towerToolCatalog);
 
   // Tool Exposure Policy: one discovery choke point for ALL pillars. Wraps
   // the SDK's tools/list handler so every caller sees only the tools their
