@@ -463,30 +463,37 @@ def build_provisioning_uri(email: str, secret: str) -> str:
     return f"otpauth://totp/SupremeAI:{email}?secret={secret}&issuer=SupremeAI&digits=6&period=30"
 
 
-def check_totp(user_otp: str, base32_secret: str) -> bool:
-    """Check a 6-digit TOTP code with clock-drift window (-1, 0, +1)."""
-    if not user_otp or not base32_secret:
-        return False
-    try:
-        clean_secret = base32_secret.strip().upper()
-        missing_padding = len(clean_secret) % 8
-        if missing_padding:
-            clean_secret += "=" * (8 - missing_padding)
-        key = base64.b32decode(clean_secret)
-        current_time = int(time.time() // 30)
-
-        for drift in (-1, 0, 1):
-            msg = struct.pack(">Q", current_time + drift)
-            h = hmac.new(key, msg, hashlib.sha1).digest()
-            offset = h[19] & 15
-            code_num = struct.unpack(">I", h[offset : offset + 4])[0] & 0x7FFFFFFF
-            expected_code = f"{code_num % 1000000:06d}"
-            if hmac.compare_digest(expected_code, user_otp.strip()):
-                return True
-        return False
-    except (ValueError, TypeError, struct.error, binascii.Error) as exc:
-        logger.debug("TOTP check failed: %s", exc)
-        return False
+# বাংলা মন্তব্য: RFC 6238 TOTP ভেরিফিকেশনের SSOT এখন core.security.authentication.rbac-এ;
+# gateway -> core বৈধ দিকের ইমপোর্ট এবং স্বতন্ত্র কনটেইনারের জন্য নিরাপদ ফলব্যাক রাখা হয়েছে।
+try:
+    from core.security.authentication.rbac import check_totp
+except ImportError:  # pragma: no cover - standalone gateway container without core package
+    def check_totp(user_otp: str, base32_secret: str) -> bool:
+        """Check a 6-digit TOTP code with clock-drift window (-1, 0, +1)."""
+        if not user_otp or not base32_secret:
+            return False
+        otp_clean = user_otp.strip()
+        if len(otp_clean) != 6 or not otp_clean.isdigit():
+            return False
+        try:
+            clean_secret = base32_secret.strip().upper()
+            missing_padding = len(clean_secret) % 8
+            if missing_padding:
+                clean_secret += "=" * (8 - missing_padding)
+            key = base64.b32decode(clean_secret)
+            current_time = int(time.time() // 30)
+            for drift in (-1, 0, 1):
+                msg = struct.pack(">Q", current_time + drift)
+                h = hmac.new(key, msg, hashlib.sha1).digest()
+                offset = h[19] & 15
+                code_num = struct.unpack(">I", h[offset : offset + 4])[0] & 0x7FFFFFFF
+                expected_code = f"{code_num % 1000000:06d}"
+                if hmac.compare_digest(expected_code, otp_clean):
+                    return True
+            return False
+        except (ValueError, TypeError, struct.error, binascii.Error) as exc:
+            logger.debug("TOTP check failed: %s", exc)
+            return False
 
 
 # --- Admin Credential Checks ---

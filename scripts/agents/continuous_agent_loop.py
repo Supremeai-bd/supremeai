@@ -3947,9 +3947,11 @@ def build_autonomy_brain_plan(
             },
         ]
         scoped_added = False
+        clean_touching: list[str] = []
         for fpath in (touching_files or [])[:10]:
-            clean_path = str(fpath).strip().lstrip("/")
+            clean_path = str(fpath).strip().replace("\\", "/").lstrip("/")
             if clean_path and ".." not in clean_path.split("/"):
+                clean_touching.append(clean_path)
                 items.append(
                     {
                         "kind": "file-scope",
@@ -3960,6 +3962,7 @@ def build_autonomy_brain_plan(
                 )
                 scoped_added = True
         if not scoped_added:
+            clean_touching = ["scripts/agents/continuous_agent_loop.py"]
             items.append(
                 {
                     "kind": "file-scope",
@@ -3968,6 +3971,40 @@ def build_autonomy_brain_plan(
                     "ref": {"path": "scripts/agents/continuous_agent_loop.py"},
                 }
             )
+
+        # বাংলা মন্তব্য: Graphify AST নলেজ গ্রাফ থেকে স্পর্শকৃত ফাইলের ব্লাস্ট-রেডিয়াস,
+        # 1-hop প্রতিবেশী ফাইল এবং আবশ্যকীয় impacted pytest ফাইলগুলো স্বয়ংক্রিয়ভাবে Layer-3 কনটেক্সটে যুক্ত করা হচ্ছে।
+        blast_summary: dict[str, Any] = {}
+        try:
+            from scripts.ci.sync_graph_to_memory import analyze_blast_radius, load_or_build_graph
+
+            ast_graph = load_or_build_graph()
+            blast_summary = analyze_blast_radius(ast_graph, clean_touching)
+            seen_scope = set(clean_touching)
+            for dep_path in (blast_summary.get("direct_dependents") or [])[:4]:
+                if dep_path not in seen_scope and ".." not in dep_path.split("/") and not dep_path.startswith("/"):
+                    seen_scope.add(dep_path)
+                    items.append(
+                        {
+                            "kind": "file-scope",
+                            "label": f"dependent:{dep_path}",
+                            "tokens": 200,
+                            "ref": {"path": dep_path},
+                        }
+                    )
+            for test_path in (blast_summary.get("impacted_tests") or [])[:5]:
+                if test_path not in seen_scope and ".." not in test_path.split("/") and not test_path.startswith("/"):
+                    seen_scope.add(test_path)
+                    items.append(
+                        {
+                            "kind": "adjacent-test",
+                            "label": f"impacted-test:{test_path}",
+                            "tokens": 220,
+                            "ref": {"path": test_path},
+                        }
+                    )
+        except Exception:
+            blast_summary = {}
         items.extend(
             [
                 {
@@ -4033,6 +4070,7 @@ def build_autonomy_brain_plan(
                 "budget_clipped": assembly["budget_clipped"],
                 "included_count": included_count,
             },
+            "blast_radius": blast_summary,
             "route_plan": route_plan,
             "persistence_contract": {
                 "router_contract": ap.ROUTER_CONTRACT,

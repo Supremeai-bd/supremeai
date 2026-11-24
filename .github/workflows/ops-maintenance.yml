@@ -112,6 +112,10 @@ on:
         required: false
         default: false
         type: boolean
+      # NOTE (2026-11-24): graph-health-sweep has NO dispatch toggle — this file is
+      # already at the GitHub 25-input hard cap (test_workflow_validity_guard).
+      # Manual trigger: run the whole nightly bundle via workflow_dispatch, or run
+      # locally: python scripts/ci/sync_graph_to_memory.py --audit
       run_docs_garbage_sweep:
         description: 'Run docs garbage tree-sweep arm (#4176 — main-tree Zero-Garbage monitoring)'
         required: false
@@ -920,6 +924,98 @@ jobs:
         with:
           name: platform-deep-audit-${{ github.run_id }}
           path: ci-reports/platform_deep_audit.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # -------------------------------------------------------------------------
+  # Graph Health / Dead-Code Sweep (Graphify AST Intelligence — audit 2026-11-24)
+  # -------------------------------------------------------------------------
+  # বাংলা মন্তব্য: sync_graph_to_memory.py-এর audit_graph_health() ইঞ্জিনটি
+  # অনেকদিন ছিল কিন্তু কোনো scheduled কাজ এটিকে চালাত না — zero-importer
+  # dead-code প্রার্থী, circular import cycle ও God nodes নীরবে জমত। এই job
+  # প্রতি সপ্তাহে গ্রাফ অডিট চালিয়ে ফলাফল issue হিসেবে ফাইল করে (dedup-
+  # fingerprint সহ, প্রতি রানে ডুপ্লিকেট issue নয়)। ইস্যু-তৈরির জন্য
+  # existing platform agent চ্যানেল ব্যবহার করা হয় — নতুন অটোমেশন লেন নয়।
+  graph-health-sweep:
+    needs: [resolve-execution-tier]
+    name: 🕸️ Graph Health & Dead-Code Sweep (weekly)
+    # No dispatch toggle — see the 25-input hard-cap note near run_docs_garbage_sweep.
+    if: >-
+        github.ref == 'refs/heads/main' &&
+        github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1'
+    concurrency:
+      group: graph-health-sweep
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      issues: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Run graph health audit
+        run: |
+          mkdir -p ci-reports
+          # graphify CLI GitHub runner-এ নেই — stdlib AST fallback CI-safe।
+          python scripts/ci/sync_graph_to_memory.py --refresh --audit > ci-reports/graph_health.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          h = json.loads(Path('ci-reports/graph_health.json').read_text(encoding='utf-8'))
+          lines = [
+              '## 🕸️ Graph Health Report (Graphify AST audit)',
+              '',
+              f"- Files: **{h['total_files']}** | Nodes: **{h['total_nodes']}** | Links: **{h['total_links']}**",
+              f"- Circular import cycles: **{h['import_cycle_count']}**",
+              f"- Layer violations (core → gateway/studio): **{h['layer_violation_count']}**",
+              f"- Zero-importer dead-code candidates: **{h['zero_importer_count']}**",
+              '',
+              '### Cycles',
+              *['- ' + ' ↔ '.join(c) for c in h['import_cycles'][:10]],
+              '',
+              '### Dead-code candidates (first 30)',
+              *['- `' + f + '`' for f in h['zero_importer_sample']],
+              '',
+              '### Top hotspots (first 10)',
+              *[f"- `{x['file']}` — {x['dependents']} dependents" for x in h['top_hotspots'][:10]],
+          ]
+          Path('ci-reports/graph_health.md').write_text('\n'.join(lines), encoding='utf-8')
+          print(f"cycles={h['import_cycle_count']} dead={h['zero_importer_count']} violations={h['layer_violation_count']}")
+          PY
+
+      - name: File findings as issue (deduped, fail-soft)
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # বাংলা: শুধু বাস্তব সমস্যা থাকলেই issue ফাইল হয় (cycles > 0 বা
+          # layer violations > 0); dead-code candidates রিপোর্টে থাকে কিন্তু
+          # একা দিয়ে issue খোলে না — সেগুলো হাতে যাচাই করে মুছতে হয়।
+          CYCLES=$(python -c "import json;print(json.load(open('ci-reports/graph_health.json'))['import_cycle_count'])")
+          VIOLATIONS=$(python -c "import json;print(json.load(open('ci-reports/graph_health.json'))['layer_violation_count'])")
+          DEAD=$(python -c "import json;print(json.load(open('ci-reports/graph_health.json'))['zero_importer_count'])")
+          TITLE="[Graph Audit] ${CYCLES} import cycles, ${VIOLATIONS} layer violations, ${DEAD} dead-code candidates"
+          EXISTING=$(gh issue list --state open --search "[Graph Audit] in:title" --json number --limit 5 | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")
+          if [ "$EXISTING" -eq 0 ]; then
+            gh issue create --title "$TITLE" --body-file ci-reports/graph_health.md --label 'status:unclaimed' || \
+              echo "issue create failed (non-fatal — report is in the artifact)"
+          else
+            echo "Open [Graph Audit] issue exists — skipping duplicate"
+          fi
+
+      - name: Upload graph health report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: graph-health-${{ github.run_id }}
+          path: ci-reports/graph_health.*
           if-no-files-found: ignore
           retention-days: 14
 

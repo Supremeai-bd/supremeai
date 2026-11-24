@@ -82,7 +82,10 @@ function hashEvidence(payload: unknown): string {
 }
 
 function findGraphJsonPath(): string | null {
+  // 2026-11-24 fix: repo-root ``graph.json`` — sync_graph_to_memory.py-এর
+  // canonical OUT; CI-sync চললেও আগে এই পাথ ছিল না (dead end)।
   const candidates = [
+    path.join(REPO_ROOT, "graph.json"),
     path.join(REPO_ROOT, ".cache", "graphify-full", "graphify-out", "graph.json"),
     path.join(REPO_ROOT, ".cache", "graphify", "studio", "graphify-out", "graph.json"),
     path.join(REPO_ROOT, "graphify-out", "graph.json"),

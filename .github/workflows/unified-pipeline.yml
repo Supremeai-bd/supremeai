@@ -325,6 +325,36 @@ jobs:
           python scripts/ci/detect_new_duplicates.py --base-ref "origin/${{ github.base_ref || 'main' }}" --max-new 0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      # বাংলা মন্তব্য (2026-11-24): Graphify AST blast-radius + circular-import guard।
+      # sync_graph_to_memory.py-এর analyze_blast_radius() ইঞ্জিন অনেকদিন ছিল,
+      # কিন্তু PR gate-এ কোনো workflow এটিকে চালাত না। এখন প্রতি PR-এ:
+      #   1) touched files-এর 1-hop dependents + impacted pytest রিপোর্ট হয়,
+      #   2) নতুন circular import ধরা পড়লে gate fail করে।
+      # stdlib AST fallback ব্যবহার হয় (runner-এ graphify CLI নেই) — CI-safe।
+      - name: Tier 1 — Graphify Blast-Radius & Circular-Import Guard
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        run: |
+          git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }} --depth=50
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $changed = git diff --name-only "origin/$($env:BASE_REF)"...HEAD | Where-Object { $_ -match '\.(py|ts|tsx)$' } | Select-Object -First 20
+          $env:BASE_REF = "${{ github.base_ref }}"
+          if (-not $changed) { Write-Host 'No code files changed — graph guard skipped'; exit 0 }
+          $files = $changed -join ' '
+          Write-Host "Touched files: $files"
+          python scripts/ci/sync_graph_to_memory.py --blast-radius @($changed) | Tee-Object -Variable blast
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $json = $blast -join "`n" | ConvertFrom-Json
+          if ($json.import_cycles.Count -gt 0) {
+            Write-Host "::error::PR touches files inside circular import cycles: $($json.import_cycles | ConvertTo-Json -Compress)"
+            exit 1
+          }
+          if ($json.layer_violations.Count -gt 0) {
+            Write-Host "::error::Layer violations (core → gateway/studio/scripts): $($json.layer_violations -join ', ')"
+            exit 1
+          }
+          Write-Host "::notice::Blast radius: $($json.risk_level) ($($json.direct_dependent_count) dependents, $($json.impacted_tests.Count) impacted tests)"
+
       - name: Tier 2 — Heavy Test Battery & Compile Integrity
         shell: powershell
         run: |

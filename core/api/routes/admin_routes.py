@@ -47,11 +47,9 @@ Dependencies:
 
 import base64
 import hashlib
-import hmac
 import json
 import os
 import secrets
-import struct
 import time
 import uuid
 
@@ -839,30 +837,11 @@ def get_skills(_admin: dict = Depends(get_current_admin)):
     }
 
 
+# বাংলা মন্তব্য: core.security.authentication.rbac হলো check_totp-এর একক SSOT (কোনো gateway import নয়)।
 try:
-    from service.admin_auth import check_totp
+    from core.security.authentication.rbac import check_totp
 except ImportError:
-    try:
-        from gateway.service.admin_auth import check_totp
-    except ImportError:
-        def check_totp(user_otp: str, base32_secret: str) -> bool:
-            try:
-                missing_padding = len(base32_secret) % 8
-                if missing_padding:
-                    base32_secret += "=" * (8 - missing_padding)
-                key = base64.b32decode(base32_secret.upper())
-                current_time = int(time.time() // 30)
-                for drift in [-1, 0, 1]:
-                    msg = struct.pack(">Q", current_time + drift)
-                    h = hmac.new(key, msg, hashlib.sha1).digest()
-                    o = h[19] & 15
-                    h_num = struct.unpack(">I", h[o : o + 4])[0] & 0x7FFFFFFF
-                    code = f"{h_num % 1000000:06d}"
-                    if hmac.compare_digest(code, user_otp):
-                        return True
-                return False
-            except Exception:
-                return False
+    from security.authentication.rbac import check_totp
 
 # Backward-compatible alias for check_totp
 verify_totp_code = check_totp

@@ -9,12 +9,10 @@ Provides:
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import hmac
 import os
 import re
-import struct
 import time
 from typing import Any
 
@@ -36,31 +34,15 @@ def check_totp_code(user_otp: str, base32_secret: str | None = None) -> bool:
     if not secret:
         logger.error("TOTP validation unavailable: SUPREMEAI_ADMIN_TOTP_SECRET is not configured")
         return False
+    # বাংলা মন্তব্য: core.security.authentication.rbac-এর একক SSOT ব্যবহার করা হচ্ছে (কোনো gateway import বা ডুপ্লিকেট ক্রিপ্টো নেই)।
     try:
         try:
-            from gateway.service.admin_auth import check_totp
-            return check_totp(user_otp, secret)
+            from core.security.authentication.rbac import check_totp
         except ImportError:
-            try:
-                from service.admin_auth import check_totp
-                return check_totp(user_otp, secret)
-            except ImportError:
-                missing_padding = len(secret) % 8
-                if missing_padding:
-                    secret += "=" * (8 - missing_padding)
-                key = base64.b32decode(secret)
-                current_time = int(time.time() // 30)
-                for drift in [-1, 0, 1]:
-                    msg = struct.pack(">Q", current_time + drift)
-                    h = hmac.new(key, msg, hashlib.sha1).digest()
-                    o = h[19] & 15
-                    h_num = struct.unpack(">I", h[o : o + 4])[0] & 0x7FFFFFFF
-                    code = f"{h_num % 1000000:06d}"
-                    if hmac.compare_digest(code, user_otp.strip()):
-                        return True
-                return False
+            from security.authentication.rbac import check_totp
+        return check_totp(user_otp, secret)
     except Exception as exc:
-        logger.error(f"TOTP validation exception: {exc}")
+        logger.error("TOTP verification failed with unexpected error: %s", exc)
         return False
 
 

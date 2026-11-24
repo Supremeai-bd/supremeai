@@ -84,3 +84,16 @@ source_modules =
 forbidden_modules =
     core._monitoring_legacy
 allow_indirect_imports = true
+
+# --- Contract 3: core must NEVER import outer gateway domain ----------------
+# Discovered via Graphify AST Knowledge Graph audit: 4 core modules previously
+# reached outward into gateway.* (correlation_bridge, admin_routes, admin_routing,
+# telegram_security). Remediated to inward SSOT + DI hooks; pinned fail-closed here.
+[importlinter:contract:core-never-imports-gateway]
+name = core domain must never import outer gateway transport layer
+type = forbidden
+source_modules =
+    core
+forbidden_modules =
+    gateway
+allow_indirect_imports = false

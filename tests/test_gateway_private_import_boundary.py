@@ -138,17 +138,78 @@ def test_core_monitoring_facade_reexports_collector():
     )
 
 
+def _find_core_to_gateway_imports(path: Path) -> list[str]:
+    """বাংলা মন্তব্য: Graphify অডিটে ধরা পড়া core -> gateway উল্টো-লেয়ার ইমপোর্ট রোধ করে।"""
+    violations: list[str] = []
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"), filename=str(path))
+    except SyntaxError as exc:
+        return [f"{path}: SyntaxError ({exc}) — cannot verify core->gateway boundary"]
+
+    for node in ast.walk(tree):
+        # বাংলা মন্তব্য: relative import (যেমন `from .gateway import X`) package-internal — বাদ।
+        if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            if node.module == "gateway" or node.module.startswith("gateway."):
+                violations.append(f"{path}:{node.lineno} from {node.module} import ...")
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == "gateway" or alias.name.startswith("gateway."):
+                    violations.append(f"{path}:{node.lineno} import {alias.name}")
+        elif isinstance(node, ast.Call):
+            func = node.func
+            is_import_module = (
+                (isinstance(func, ast.Attribute) and func.attr == "import_module")
+                or (isinstance(func, ast.Name) and func.id == "import_module")
+            )
+            if is_import_module and node.args:
+                arg = node.args[0]
+                if (
+                    isinstance(arg, ast.Constant)
+                    and isinstance(arg.value, str)
+                    and (arg.value == "gateway" or arg.value.startswith("gateway."))
+                ):
+                    violations.append(
+                        f"{path}:{node.lineno} import_module({arg.value!r}) (dynamic)"
+                    )
+    return violations
+
+
+def test_core_never_imports_gateway_domain():
+    """Ensure inner production `core/` modules never import outer `gateway/` transport layer."""
+    core_dir = REPO_ROOT / "core"
+    assert core_dir.exists(), "core/ tree missing from worktree"
+    out = subprocess.run(
+        ["git", "ls-files", "--", "core/*.py", "core/**/*.py"],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=60, check=True,
+    )
+    files = [
+        REPO_ROOT / f
+        for f in out.stdout.splitlines()
+        if f.strip() and not f.startswith("core/tests/") and "/tests/" not in f
+    ]
+    assert len(files) >= 50, f"expected real core tree (>=50 py files), got {len(files)}"
+    violations: list[str] = []
+    for f in files:
+        if f.exists():
+            violations.extend(_find_core_to_gateway_imports(f))
+    assert violations == [], (
+        "core→gateway layer boundary violated (inner core domain must never import outer gateway):\n"
+        + "\n".join(sorted(violations))
+    )
+
+
 def main() -> int:  # plain stdlib runner (dual mode)
     try:
         test_gateway_never_imports_core_private_modules()
         test_core_monitoring_facade_reexports_collector()
+        test_core_never_imports_gateway_domain()
     except _Skip as exc:
         print(f"SKIP: {exc}")
         return 0
     except AssertionError as exc:
         print(f"FAIL: {exc}")
         return 1
-    print("PASS: gateway→core private-import boundary clean; facade re-export intact")
+    print("PASS: gateway↔core import boundaries clean; facade re-export intact")
     return 0
 
 

@@ -9,9 +9,23 @@ so `opentelemetry` imports here are guaranteed safe at runtime.
 
 from __future__ import annotations
 
+import contextvars
+import uuid
 from typing import Any
 
-from gateway.middleware.correlation_id import current_correlation_id
+# বাংলা মন্তব্য: _correlation_id contextvar-এর একক SSOT এখন core লেয়ারে রাখা হয়েছে,
+# যেন core কখনো বাইরের gateway লেয়ারকে import না করে (Graphify layer-violation fix)।
+_correlation_id: contextvars.ContextVar[str] = contextvars.ContextVar("correlation_id", default="")
+
+
+def current_correlation_id() -> str:
+    """Return the correlation id bound to the current async context ('' outside requests)."""
+    return _correlation_id.get()
+
+
+def mint_correlation_id() -> str:
+    """Mint a fresh UUID4 hex correlation identifier."""
+    return uuid.uuid4().hex
 
 
 class CorrelationBridge:
