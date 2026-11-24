@@ -75,7 +75,7 @@ class BrowserChannel:
 
         factory = agent_factory or AutonomousBrowserAgent
         session_id = session_id or f"browser-channel-{provider}-{task.task_id}"
-        session = self.session_manager.acquire(
+        session = await self.session_manager.acquire(
             provider=f"browser-channel-{provider}", session_id=session_id
         )
         session.metadata.update(

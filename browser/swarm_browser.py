@@ -65,7 +65,7 @@ class SwarmBrowser:
             # ISSUE-1571: real stateful session per sub-goal — parallel tabs with
             # a shared synthesis; stable session_ids keep cookies/state per tab.
             session_id = f"swarm-{site[:24]}-{i}"
-            session = self.session_manager.acquire(provider="swarm-tab", session_id=session_id)
+            session = await self.session_manager.acquire(provider="swarm-tab", session_id=session_id)
             session.metadata["swarm_site"] = site
             session.metadata["swarm_goal"] = goal
             sessions.append(session)

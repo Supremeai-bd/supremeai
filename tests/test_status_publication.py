@@ -4,9 +4,10 @@
 Two layers:
   1. Pure-function contract tests on service/status_publication.py (importable
      without fastapi).
-  2. AST-level regression pins on gateway/service/app.py: the public root
-     handler must not reference operator-only fields; the operator surface must
-     exist behind the strict gate. Pins survive without importing the app.
+  2. AST-level regression pins on gateway/service/app.py and
+     gateway/service/auth_verification.py (the auth-verification cluster was
+     extracted there on 2026-11-24; handlers merge across both files).
+     Pins survive without importing the app.
 
 Run:  python -m unittest tests.test_status_publication -v
 (or: python tests/test_status_publication.py)
@@ -25,6 +26,25 @@ sys.path.insert(0, str(REPO_ROOT / "gateway" / "service"))
 import status_publication as sp
 
 APP_PATH = REPO_ROOT / "gateway" / "service" / "app.py"
+# Auth-verification cluster was extracted to .auth_verification (2026-11-24);
+# the AST pins deliberately follow the gate wherever it lives.
+AUTH_PATH = REPO_ROOT / "gateway" / "service" / "auth_verification.py"
+
+
+class _SourceBundle:
+    """Parse both gateway source files and expose a merged handler map."""
+
+    @classmethod
+    def handlers(cls):
+        merged = {}
+        for path in (APP_PATH, AUTH_PATH):
+            if not path.exists():
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    merged.setdefault(node.name, node)
+        return merged
 
 
 class PayloadContract(unittest.TestCase):
@@ -98,12 +118,7 @@ class AppRegressionPins(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        src = APP_PATH.read_text(encoding="utf-8")
-        cls.tree = ast.parse(src)
-        cls.handlers = {}
-        for node in ast.walk(cls.tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                cls.handlers.setdefault(node.name, node)
+        cls.handlers = _SourceBundle.handlers()
 
     def _route_decorators(self, fn):
         routes = []

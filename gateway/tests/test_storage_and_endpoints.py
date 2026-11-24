@@ -189,8 +189,12 @@ class TestStorageAndEndpoints(unittest.TestCase):
         self.assertEqual(r_guest.status_code, 403)
 
         # 2. Authorized admin receives 200 via admin-scoped token or superadmin key
+        # NOTE(2026-11-24): the auth-verification cluster was extracted to
+        # service.auth_verification; the gate reads SUPERADMIN_KEY there now.
+        import service.auth_verification as _avm
+
         admin_key = "adm_test_secret_for_livelogs_verification_123"
-        with patch.object(app_module, "SUPERADMIN_KEY", admin_key):
+        with patch.object(_avm, "SUPERADMIN_KEY", admin_key):
             headers_admin = {"X-Superadmin-Key": admin_key}
             r_admin = self.client.get("/admin-api/logs?limit=10", headers=headers_admin)
             self.assertEqual(r_admin.status_code, 200)
@@ -234,16 +238,29 @@ class TestStorageAndEndpoints(unittest.TestCase):
         # gateway/tests/test_model_cascades.py-এর class-level httpx patch।
         # TestClient নিজে sync httpx.Client ব্যবহার করে, তাই AsyncClient.get
         # patch শুধু অ্যাপের outbound probe-এ হিট করে — request path অক্ষত।
-        r = self.client.get("/api/health-aggregation")
+        # 2026-11-24 honesty pass: the fleet is configured via RENDER_*_URL
+        # (or the registry YAML), and the implementation keys checks by node id
+        # (api/scraper/mcp/core/worker — the old tower/primary keys predate the
+        # registry and were stale). Hermetic env: no registry dependency.
+        env = {
+            "RENDER_API_URL": "https://api.test",
+            "RENDER_SCRAPER_URL": "https://scraper.test",
+            "RENDER_MCP_URL": "https://mcp.test",
+            "RENDER_PRIMARY_URL": "https://core.test",
+            "RENDER_WORKER_URL": "https://worker.test",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            r = self.client.get("/api/health-aggregation")
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertIn("checks", data)
-        self.assertIn("api", data["checks"])
+        for key in ("api", "scraper", "mcp", "core", "worker"):
+            self.assertIn(key, data["checks"])
         self.assertEqual(data["checks"]["api"]["status"], "healthy")
-        self.assertIn("scraper", data["checks"])
-        self.assertIn("tower", data["checks"])
-        self.assertIn("primary", data["checks"])
-        self.assertIn("worker", data["checks"])
+        self.assertEqual(data["checks"]["scraper"]["status"], "healthy")
+        self.assertEqual(data["checks"]["mcp"]["status"], "healthy")
+        self.assertEqual(data["checks"]["core"]["status"], "healthy")
+        self.assertEqual(data["checks"]["worker"]["status"], "healthy")
 
     @patch("httpx.AsyncClient.get", new_callable=AsyncMock, side_effect=ConnectionError("mock fleet down"))
     def test_07b_health_aggregation_honest_degradation(self, _mock_get):
@@ -251,17 +268,27 @@ class TestStorageAndEndpoints(unittest.TestCase):
         # "degraded" — কখনো ভুয়া সবুজ নয়; configure না-থাকা node সৎভাবে
         # "unknown"। live network ছাড়াই 2026-10-24 honesty fix-এর চুক্তি
         # এখন deterministicভাবে পিন করা।
-        r = self.client.get("/api/health-aggregation")
+        env = {
+            "RENDER_API_URL": "https://api.test",
+            "RENDER_SCRAPER_URL": "https://scraper.test",
+            "RENDER_MCP_URL": "https://mcp.test",
+            "RENDER_PRIMARY_URL": "https://core.test",
+            "RENDER_WORKER_URL": "https://worker.test",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            r = self.client.get("/api/health-aggregation")
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertEqual(data["checks"]["api"]["status"], "degraded")
-        self.assertEqual(data["checks"]["tower"]["status"], "degraded")
-        self.assertEqual(data["checks"]["scraper"]["status"], "unknown")
-        self.assertEqual(data["checks"]["primary"]["status"], "unknown")
-        self.assertEqual(data["checks"]["worker"]["status"], "unknown")
+        self.assertEqual(data["checks"]["scraper"]["status"], "degraded")
+        self.assertEqual(data["checks"]["mcp"]["status"], "degraded")
+        self.assertEqual(data["checks"]["core"]["status"], "degraded")
+        self.assertEqual(data["checks"]["worker"]["status"], "degraded")
 
     @patch.dict(os.environ, {
         "SUPREMEAI_ADMIN_PASSWORD": "password123",
+        # 2026-11-24: no default admin email in source anymore — tests must opt in.
+        "SUPREMEAI_ADMIN_LOGIN_EMAIL": "niloyjoy7@gmail.com",
         "SUPREMEAI_MASTER_KEY": "test-master-key-32-bytes-supersecret-token",
     })
     def test_08_auth_login_and_register(self):
@@ -329,7 +356,11 @@ class TestStorageAndEndpoints(unittest.TestCase):
         cap_data = r_cap.json()
         self.assertEqual(cap_data["status"], "completed")
         self.assertEqual(cap_data["capability"], "conversation.orchestrate")
-        self.assertTrue(cap_data["verification"]["verified"])
+        # HONESTY FIX (2026-11-24): the alias relays a chat completion and
+        # executes no tool/capability — the gateway now reports
+        # verification.verified=False (mode=chat_passthrough). This test used
+        # to pin the previous always-True contract; it now pins the honest one.
+        self.assertFalse(cap_data["verification"]["verified"])
         self.assertIn("execution_id", cap_data)
 
         # 2. Stream chat alias (replaces 404 for chatService.sendMessageStream)
