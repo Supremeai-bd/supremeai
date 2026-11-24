@@ -46,6 +46,30 @@ CALL_SITES = (
 _NETWORK_LITERAL = re.compile(r"ip_network\(\s*[\"'][0-9a-fA-F:.]+/\d+[\"']")
 
 
+def test_mirror_is_still_required_by_the_build_layout():
+    """The mirror must not outlive its reason.
+
+    If the scraper image stops being built with ``dockerContext: browser``, the
+    mirror is obsolete: delete ``browser/url_policy.py``, import core directly,
+    and remove the jscpd exemption.
+    """
+    render = (REPO_ROOT / "render.yaml").read_text(encoding="utf-8")
+    browser_block = render.split("name: supremeai-browser", 1)
+    assert len(browser_block) == 2, "supremeai-browser service disappeared from render.yaml"
+    service_yaml = browser_block[1].split("- type:", 1)[0]
+    assert "dockerContext: browser" in service_yaml, (
+        "supremeai-browser no longer builds with dockerContext: browser — the "
+        "vendored mirror browser/url_policy.py is now unnecessary. Delete it, "
+        "import core.url_policy from browser/security.py, and drop the "
+        "browser/url_policy.py entry in scripts/ci/detect_new_duplicates.py."
+    )
+    dockerfile = (REPO_ROOT / "browser" / "Dockerfile").read_text(encoding="utf-8")
+    assert "COPY --chown=supremeai:supremeai *.py ./" in dockerfile, (
+        "browser/Dockerfile no longer copies a flat *.py tree — re-check whether "
+        "the mirror is still needed."
+    )
+
+
 def test_mirror_is_byte_identical():
     assert CANONICAL.is_file(), "core/url_policy.py is the single policy source"
     assert MIRROR.is_file(), (
