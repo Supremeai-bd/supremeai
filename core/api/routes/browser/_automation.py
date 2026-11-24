@@ -94,36 +94,72 @@ async def revoke_saved_session(saved_session_id: str, user: dict = Depends(get_c
     return {"success": True}
 
 
+def _owner_id(user: dict) -> str:
+    """Canonical owner key for a browser session (audit item ⑥/AUTOMATION-OWNER).
+
+    ``get_current_user_token`` returns a **dict** (``{"sub", "tenant_id", ...}``),
+    but the automation session routes used to receive it in a parameter typed
+    ``user_token: str`` and hand the whole dict to the session pool as
+    ``owner_id``. Three real consequences, all fixed here by deriving the owner
+    exactly like every other browser route does:
+
+    1. ``pause_owner(...)`` stored the dict in a ``set`` → ``TypeError:
+       unhashable type: 'dict'`` the moment an operator paused automation.
+    2. ``/automation/pause`` keyed on ``user["sub"]`` while sessions were keyed
+       on the dict object, so "pause" never gated an automation session — a
+       paused owner could keep clicking.
+    3. Session records (and the metrics snapshot) carried token payloads instead
+       of an owner id.
+
+    Fail closed: no subject claim → 401, never an anonymous shared pool.
+    """
+    owner_id = str(user.get("sub") or "").strip()
+    if not owner_id:
+        raise HTTPException(status_code=401, detail="Authenticated owner required")
+    return owner_id
+
+
 @router.post("/automation/sessions", response_model=BrowserSessionResponse)
 async def create_automation_session(
     req: AutomationSessionRequest,
-    user_token: str = Depends(get_current_user_token),
+    user: dict = Depends(get_current_user_token),
 ):
     from core.security import is_safe_url
 
+    owner_id = _owner_id(user)
     if req.saved_url and not is_safe_url(req.saved_url):
         raise HTTPException(status_code=400, detail="Unsafe or invalid saved URL")
-    session = await session_manager.create(user_token, label=req.label, saved_url=req.saved_url)
+    try:
+        session = await session_manager.create(
+            owner_id, label=req.label, saved_url=req.saved_url
+        )
+    except PermissionError as exc:  # owner paused automation
+        raise HTTPException(status_code=423, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 — no browser → honest 503, not a fake 200
+        raise HTTPException(
+            status_code=503, detail=f"Browser session could not be started: {exc}"
+        ) from exc
     return BrowserSessionResponse(session_id=session.id, status="ready", url=session.page.url)
 
 
 @router.get("/automation/sessions")
-async def list_automation_sessions(user_token: str = Depends(get_current_user_token)):
-    return {"sessions": [s for s in session_manager.snapshot() if s["owner_id"] == user_token]}
+async def list_automation_sessions(user: dict = Depends(get_current_user_token)):
+    owner_id = _owner_id(user)
+    return {"sessions": [s for s in session_manager.snapshot() if s["owner_id"] == owner_id]}
 
 
 @router.delete("/automation/sessions/{session_id}")
 async def close_automation_session(
-    session_id: str, user_token: str = Depends(get_current_user_token)
+    session_id: str, user: dict = Depends(get_current_user_token)
 ):
-    if not await session_manager.close(session_id, user_token):
+    if not await session_manager.close(session_id, _owner_id(user)):
         raise HTTPException(status_code=404, detail="Browser session not found")
     return {"success": True}
 
 
 @router.post("/automation/actions")
 async def execute_automation_action(
-    req: BrowserActionRequest, user_token: str = Depends(get_current_user_token)
+    req: BrowserActionRequest, user: dict = Depends(get_current_user_token)
 ):
     from core.security import is_safe_url
 
@@ -142,10 +178,14 @@ async def execute_automation_action(
                 detail=f"Element {req.selector!r} not actionable for {action!r} within 15s: {exc}",
             ) from exc
 
+    owner_id = _owner_id(user)
     try:
-        session = await session_manager.get(req.session_id, user_token)
-    except PermissionError as exc:
+        session = await session_manager.get(req.session_id, owner_id)
+    except PermissionError as exc:  # owner paused automation
         raise HTTPException(status_code=423, detail=str(exc)) from exc
+    except KeyError as exc:
+        # Unknown / expired / someone-else's session id is a 404, not a 500.
+        raise HTTPException(status_code=404, detail=str(exc).strip("'\"")) from exc
     page = session.page
     action = req.action.lower()
 

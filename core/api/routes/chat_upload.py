@@ -119,8 +119,17 @@ def _validate_image_header(content: bytes, mime_type: str) -> bool:
     # TIFF: little-endian "II*\x00" or big-endian "MM\x00*".
     if mime_type == "image/tiff":
         return header[:4] in (b"II*\x00", b"MM\x00*")
-    # If unrecognized header, still allow (some formats vary)
-    return True
+    # Fail closed (audit item ⑭ residual, 2026-11-24): an unknown/unhandled MIME
+    # type used to fall through to ``return True`` ("some formats vary"), which
+    # made every type outside the branches above a free pass — the exact class of
+    # bug the header checks exist to stop. A type that reaches this line is
+    # either newly added to ALLOWED_MIME_TYPES without a signature check or is
+    # simply unsupported; both must be rejected until a check is written.
+    logger.warning(
+        "Rejecting chat upload: no header validation implemented for MIME type %r",
+        mime_type,
+    )
+    return False
 
 
 # ---------- Routes ----------

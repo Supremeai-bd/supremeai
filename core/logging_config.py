@@ -1,4 +1,5 @@
-# DEPRECATED: backend.core.logging_config -> backend.monitoring.logging_config
+# DEPRECATED: core.logging_config -> core.monitoring.logging_config
+# (audit item ②₂: the old header named a ``backend/`` tree that does not exist)
 # নোট: backend architecture refactor plan অনুযায়ী সরানো হয়েছে।
 # ভবিষ্যতে সব importer নতুন path-এ সরিয়ে এই shim মুছে ফেলতে হবে।
 import importlib
@@ -19,7 +20,7 @@ def __getattr__(name):
     global _warned
     if not _warned:
         warnings.warn(
-            "backend.core.logging_config is deprecated; import from monitoring.logging_config",
+            "core.logging_config is deprecated; import from core.monitoring.logging_config",
             DeprecationWarning,
             stacklevel=2,
         )

@@ -3,8 +3,13 @@ import pytest
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 
-from api.dependencies import get_current_user_token
-from api.routes.browser import router
+# FIX (2026-11-24): these were imported as ``api.*`` (core/ is on pytest's
+# pythonpath). That imports the package a second time under a different module
+# name, so routes register on ``core.api.routes.browser.router`` while the test
+# mounted the ``api.routes.browser`` copy — every request 404'd. Import the
+# canonical name.
+from core.api.deps import get_current_user_token
+from core.api.routes.browser import router
 
 
 @pytest.fixture()

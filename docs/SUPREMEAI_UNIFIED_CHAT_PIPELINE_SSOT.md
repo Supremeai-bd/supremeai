@@ -4,6 +4,16 @@
 > **Topology:** Monorepo SSOT (`Supremeai-bd/supremeai`)  
 > **Status:** Active Standard (Production Architecture)
 
+> [!IMPORTANT]
+> **Scope correction (2026-11-24).** This document describes the **chat transport**
+> pipeline: authentication, normalization, tier routing, relay and branding. It does
+> **not** describe an agent. The chat path has **no tool-calling loop**, so a chat
+> turn cannot drive a browser, a scraper, deep research or any third-party action;
+> the tier router below chooses a *text* lane only. Reading "agentic reasoning" in
+> §1 as "the model can act on your behalf" would be wrong — see
+> [`CAPABILITY_REALITY_MATRIX.md`](CAPABILITY_REALITY_MATRIX.md) for what is wired
+> today, and the guard tests that keep the distinction honest.
+
 ---
 
 ## 1. Executive Summary & The Sole Identity Doctrine

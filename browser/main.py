@@ -68,7 +68,14 @@ except Exception as _scraper_err:  # noqa: BLE001 — optional engine, must not 
 
 if _scraper is not None and _agent is not None:
     from fastapi import HTTPException, Request
-    from pydantic import BaseModel
+
+    # Audit item ③: request schemas live in the dependency-free leaf module
+    # ``browser/schemas.py`` so they are importable/testable without booting the
+    # relay app. ``BrowseRequest`` still comes from the engine when present.
+    try:
+        from schemas import RecipeRequest, ScrapeRequest
+    except ImportError:
+        from browser.schemas import RecipeRequest, ScrapeRequest
 
     def _verify_scraper_secret(request: Request) -> None:
         """Audit P1-13 fix: scraper routes are unauthenticated by design today.
@@ -110,14 +117,6 @@ if _scraper is not None and _agent is not None:
     MAX_CONCURRENCY = int(os.getenv("SCRAPER_MAX_CONCURRENCY", "3"))
     TIMEOUT_SECONDS = int(os.getenv("SCRAPER_TIMEOUT_SECONDS", "45"))
 
-    class ScrapeRequest(BaseModel):
-        url: str
-        extraction_prompt: str | None = None
-
-    class RecipeRequest(BaseModel):
-        steps: list = []
-        initial_url: str | None = None
-
     @app.post("/scrape", tags=["scraper"])
     async def scrape(request: ScrapeRequest, raw_request: Request):
         _verify_scraper_secret(raw_request)
@@ -154,7 +153,10 @@ if _scraper is not None and _agent is not None:
             raise HTTPException(
                 status_code=400, detail="SSRF check failed: Unauthorized internal access"
             )
-        return await _agent.execute_recipe(steps=request.steps, initial_url=request.initial_url)
+        # Typed RecipeStep → plain dicts: the interpreter reads ``step.get(...)``
+        # and would otherwise receive pydantic models.
+        steps = [step.model_dump(exclude_none=True) for step in request.steps]
+        return await _agent.execute_recipe(steps=steps, initial_url=request.initial_url)
 
     logger.info("Scraper browser routes registered successfully")
 
