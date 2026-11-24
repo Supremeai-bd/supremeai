@@ -1,3 +1,11 @@
+"""Voice WebSocket channel (``/ws/voice``).
+
+Real STT (Groq Whisper → OpenAI → Gemini → HuggingFace cascade via
+``core.services.voice_service``) in front of a **simulated** intent step: the
+transcript is echoed back, no task is executed. See ``HANDLE_INTENT_SIMULATED``
+below and the honesty note on ``handle_intent``.
+"""
+
 import asyncio
 import json
 import os
@@ -79,18 +87,48 @@ async def process_audio_dynamically(audio_bytes: bytes) -> str:
 process_audio_with_groq = process_audio_dynamically
 
 
+# Honesty contract (audit item ⑤ / ⑱, 2026-11-24):
+#
+# ``handle_intent`` performs NO task execution. It is a deterministic echo used
+# by the voice demo loop: no LLM intent router, no tool-calling, no shell, no
+# browser. The previous canned strings ("Executing system command: … /
+# Authorization confirmed.") asserted that work had been authorized and was
+# running, which was false in every environment. Every frame this handler emits
+# now carries ``simulated: True`` so a client can never render the reply as a
+# completed action, and the text says plainly that nothing ran.
+#
+# Flip this flag (and replace the two canned branches with a real
+# allowlisted intent router) only when the execution path actually exists —
+# ``tests/test_voice_intent_honesty.py`` fails if the flag flips while the
+# canned branches are still present.
+HANDLE_INTENT_SIMULATED = True
+
+
 async def handle_intent(transcript: str, websocket: WebSocket, start_time: float, user_id: str):
-    # Intent Router
+    """Echo the transcript back as a *simulated* voice reply (see module note).
+
+    Never executes the transcript, never shells out, and marks every outbound
+    frame with ``simulated: True`` plus a machine-readable ``surface`` so the
+    UI can distinguish "Aethel repeated your words" from "Aethel did the task".
+    """
+    # Intent Router (simulated only — see HANDLE_INTENT_SIMULATED)
     transcript_clean = transcript.strip()
 
-    # Check if it's a command
     if transcript_clean.startswith("/"):
+        # A "/" prefix is a command *request*, not an executed command.
         supremeai_response = (
-            f"Executing system command: {transcript_clean}... Authorization confirmed."
+            f"Command '{transcript_clean}' received, but no command executor is "
+            "wired to the voice channel yet — nothing was executed."
         )
+        intent = "command_unavailable"
     else:
-        # Natural Language Processing (Simulating conversational Groq/LLM)
-        supremeai_response = f"Hello! You said: '{transcript_clean}'. I am Aethel, your SupremeAI orchestrator. How can I assist you with the cluster today?"
+        # No conversational model is attached to this socket.
+        supremeai_response = (
+            f"Hello! You said: '{transcript_clean}'. I am Aethel, your SupremeAI "
+            "orchestrator. Voice replies are simulated today — ask me in chat for "
+            "a real answer."
+        )
+        intent = "chat_unavailable"
 
     # Log to database
     if db.client:
@@ -110,13 +148,30 @@ async def handle_intent(transcript: str, websocket: WebSocket, start_time: float
         except Exception as db_err:
             logger.info(f"⚠️ [DB Logging Error]: {db_err}")
 
-    # Stream text response back for Web Speech API TTS
+    # Stream text response back for Web Speech API TTS.
+    # Every frame is flagged simulated=True so the UI cannot claim execution.
     words = supremeai_response.split(" ")
     for word in words:
-        await websocket.send_json({"type": "response_chunk", "text": word + " "})
+        await websocket.send_json(
+            {
+                "type": "response_chunk",
+                "text": word + " ",
+                "simulated": True,
+                "intent": intent,
+                "surface": "voice_echo",
+            }
+        )
         await asyncio.sleep(0.05)
 
-    await websocket.send_json({"type": "response_complete"})
+    await websocket.send_json(
+        {
+            "type": "response_complete",
+            "simulated": True,
+            "intent": intent,
+            "executed": False,
+            "surface": "voice_echo",
+        }
+    )
 
 
 @router.websocket("/voice")

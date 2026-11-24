@@ -30,6 +30,7 @@ The active documents in this repository govern live production operations, archi
 | [`docs/AUTONOMY_LOOP_CONTRACT.md`](AUTONOMY_LOOP_CONTRACT.md) | Autonomy invariants and permission rules |
 | [`docs/LOOP_ALIGNMENT.md`](LOOP_ALIGNMENT.md) | Agent loop alignment and task claiming SSOT |
 | [`docs/ECOSYSTEM_MAP.md`](../ECOSYSTEM_MAP.md) | Complete capability and architectural ecosystem map |
+| [`docs/CAPABILITY_REALITY_MATRIX.md`](CAPABILITY_REALITY_MATRIX.md) | What a user can actually ask for today vs. what is only advertised — chat, voice, browser automation, scraping |
 | [`docs/specs/`](specs/) | Active feature specifications (Spec-Driven Development) |
 | [`.agents/`](../.agents/) | Executable agent skills, workflows, and prompts |
 

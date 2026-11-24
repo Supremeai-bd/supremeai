@@ -2892,38 +2892,67 @@ async def append_conversation_message(
 @app.get("/api/v1/connections/my-workspace")
 @app.get("/api/connections/my-workspace")
 async def get_my_workspace(request: Request):
-    """Authoritative scoped workspace state and capabilities contract for User Dashboard."""
+    """Authoritative scoped workspace state and capabilities contract for User Dashboard.
+
+    Honesty contract (audit items ⑥ / ⑳ / ②₄, 2026-11-24): this payload is what
+    a dashboard renders as "what can SupremeAI do for me", so it must not imply
+    that the chat model can call these capabilities. It cannot: the gateway chat
+    path has no tool-calling loop, and every capability below is driven either
+    from the browser UI or from an admin/tenant API — never from a chat turn.
+
+    Each capability therefore carries ``invocableFromChat: false`` plus the real
+    ``invocationSurface``. Flip a flag only when that capability is actually
+    wired to a tool-calling loop, and keep the ``purpose`` text describing what
+    the *route* does rather than what an agent might one day do.
+    """
+    browser_automation_note = (
+        "Manual, owner-scoped sessions (navigate/click/fill/screenshot) via "
+        "/api/browser/automation/* — the user drives it; chat cannot."
+    )
     return {
         "userId": _extract_user_id(request),
         "authorizedContexts": [{"id": "ctx-default", "label": "Default Workspace", "active": True}],
         "executionMode": "autonomous",
+        "chatToolCalling": False,
         "capabilities": [
             {
                 "capabilityId": "cap-research",
                 "name": "Web Research & Intelligence",
-                "purpose": "Autonomous web search, scraping, and real-time facts gathering",
+                "purpose": (
+                    "Scrape/extract through the stealth scraper service (tenant CrawlPolicy + "
+                    "scout key required). Available as an API route, not as a chat tool."
+                ),
                 "status": "ready",
                 "category": "tool",
                 "unavailableReason": None,
                 "requiredPermission": None,
+                "invocableFromChat": False,
+                "invocationSurface": "api",
             },
             {
                 "capabilityId": "cap-code",
                 "name": "Code Assistant & Sandbox",
-                "purpose": "Execute python code, run tests, and inspect outputs in isolated sandbox",
+                "purpose": (
+                    "Answer coding questions in chat (text only). No sandbox execution is "
+                    "wired to a chat turn."
+                ),
                 "status": "ready",
                 "category": "tool",
-                "unavailableReason": None,
+                "unavailableReason": "No sandbox execution is wired to chat",
                 "requiredPermission": None,
+                "invocableFromChat": False,
+                "invocationSurface": "chat_text_only",
             },
             {
                 "capabilityId": "cap-browser",
                 "name": "Browser Automation",
-                "purpose": "Interact with live web pages, capture cookies, and bypass bot protections",
+                "purpose": browser_automation_note,
                 "status": "ready",
                 "category": "agent",
-                "unavailableReason": None,
+                "unavailableReason": "Not wired to chat; use the browser UI/API",
                 "requiredPermission": None,
+                "invocableFromChat": False,
+                "invocationSurface": "browser_ui",
             },
         ],
         "connections": [

@@ -38,3 +38,10 @@ tests/ci/test_run_all_guards_roster.py
 tests/test_guard_inventory.py
 tests/test_router_mount_idempotency.py
 core/tests/tools/test_web_scraper_ssrf.py
+tests/test_no_core_browser_duplicate.py
+tests/test_voice_intent_honesty.py
+tests/test_recipe_schema_contract.py
+core/tests/routes/test_browser_vault_sync.py
+core/tests/routes/test_browser_automation_contract.py
+core/tests/api/test_chat_upload_header_validation.py
+gateway/tests/test_workspace_capability_honesty.py

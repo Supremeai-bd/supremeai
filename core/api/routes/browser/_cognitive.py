@@ -78,7 +78,7 @@ async def smart_click(req: SemanticClickRequest):
 
 
 @router.post("/autonomous/run")
-async def run_autonomous_goal(req: GoalRequest, user_token: str = Depends(get_current_user_token)):
+async def run_autonomous_goal(req: GoalRequest, user: dict = Depends(get_current_user_token)):
     """L5: Execute natural language browsing goal with reasoning, replanning, and memory.
 
     Honest execution contract: this endpoint binds a REAL, bounded ephemeral
@@ -90,8 +90,14 @@ async def run_autonomous_goal(req: GoalRequest, user_token: str = Depends(get_cu
     from browser.autonomous_browser import AutonomousBrowserAgent
     from core.browser_session_manager import session_manager
 
+    # Owner identity: ``get_current_user_token`` returns a dict — use its ``sub``
+    # claim (same convention as /automation/*), never the payload object.
+    owner_id = str(user.get("sub") or "").strip()
+    if not owner_id:
+        raise HTTPException(status_code=401, detail="Authenticated owner required")
+
     try:
-        session = await session_manager.create(user_token, label="autonomous-goal")
+        session = await session_manager.create(owner_id, label="autonomous-goal")
     except Exception as exc:  # noqa: BLE001 — browser launch failures must surface, not fake success
         raise HTTPException(
             status_code=503,
@@ -104,7 +110,7 @@ async def run_autonomous_goal(req: GoalRequest, user_token: str = Depends(get_cu
         return result
     finally:
         try:
-            await session_manager.close(session.id, user_token)
+            await session_manager.close(session.id, owner_id)
         except Exception:  # noqa: BLE001 — release is best-effort; idle sweeper reclaims stragglers
             import logging
 
