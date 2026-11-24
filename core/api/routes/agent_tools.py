@@ -6,7 +6,9 @@
 
 * ``GET  /api/agent/tools``       — OpenAI ``tools`` আকারে ম্যানিফেস্ট
   (flag বন্ধ থাকলে ``enabled: false``, ৪০৩ নয় — ক্লায়েন্ট সৎভাবে দেখাতে পারে);
-* ``POST /api/agent/tool-calls``  — এক কল নির্বাহ, OpenAI ``tool`` মেসেজ আকারে ফলাফল।
+* ``POST /api/agent/tool-calls``  — এক কল নির্বাহ, OpenAI ``tool`` মেসেজ আকারে ফলাফল;
+* ``POST /api/agent/chat``        — সম্পূর্ণ ReAct টার্ন (``core.agent_chat_loop``), JSON ফল;
+* ``POST /api/agent/stream``      — একই টার্নের SSE ইভেন্ট-স্ট্রিম (``data: {json}`` … ``[DONE]``)।
 
 গেটওয়ে (``gateway/service/app.py``) কিছুই ইমপোর্ট করে না — কেবল HTTP-তে
 বহন করে (``gateway-no-core-private`` চুক্তি অটুট)। ডিফল্ট OFF।
@@ -14,12 +16,16 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+import json
+from collections.abc import AsyncIterator
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from api.deps import get_current_user_token
+from core.agent_chat_loop import DEFAULT_MAX_STEPS, HARD_MAX_STEPS, AgentChatLoop
 from core.agent_tool_policy import tenant_tool_view
 from core.agent_tool_specs import SPECS_BY_NAME
 from core.monitoring.logging_config import logger
@@ -44,6 +50,11 @@ class ToolCallPayload(BaseModel):
 
 def _tenant_of(token: dict) -> str:
     return str(token.get("tenant_id") or token.get("sub") or "").strip()
+
+
+def _new_agent_chat_loop() -> AgentChatLoop:
+    """Factory seam — tests stub the loop without touching heavy collaborators."""
+    return AgentChatLoop()
 
 
 def _missing_required(tool: str, arguments: dict[str, Any]) -> list[str]:
@@ -140,3 +151,87 @@ async def call_agent_tool(payload: ToolCallPayload, token: UserToken) -> dict[st
     if result.get("error"):
         response["error"] = result["error"]
     return response
+
+
+# ── Autonomous ReAct chat turn (M09 P-C) ─────────────────────────────────────
+#
+# বাংলা: লুপ ``core.agent_chat_loop.AgentChatLoop``-এ; রাউটার কেবল চুক্তি-
+# যাচাই, টেন্যান্ট-অ্যাট্রিবিউশন ও পরিবহন করে। flag-off মানে সাদামাটা চ্যাট
+# মোড — সৎ মেটা ইভেন্ট সহ 200 (টুল-সারফেসের ``enabled: false`` চুক্তির মতোই),
+# 403 নয়: চ্যাট টুল ছাড়াও সত্যিই উত্তর দিতে পারে।
+
+
+class AgentChatMessage(BaseModel):
+    """One OpenAI-shaped conversation message."""
+
+    role: Literal["system", "user", "assistant"]
+    content: str = Field(min_length=1, max_length=20_000)
+
+
+class AgentChatPayload(BaseModel):
+    """A bounded ReAct chat turn request."""
+
+    messages: list[AgentChatMessage] = Field(min_length=1, max_length=64)
+    model: str = Field(default="auto", max_length=64)
+    max_steps: int = Field(default=DEFAULT_MAX_STEPS, ge=1, le=HARD_MAX_STEPS)
+
+
+@router.post("/chat")
+async def agent_chat(payload: AgentChatPayload, token: UserToken) -> dict[str, Any]:
+    """Run one full autonomous ReAct turn and return the collected result.
+
+    The loop lives in core (``core.agent_chat_loop``): tenant-scoped tool
+    filtering, governed execution via ``core.tool_loop`` and a streamed final
+    synthesis. ``errors`` carries honest failure notes instead of fabricated
+    answers.
+    """
+    loop = _new_agent_chat_loop()
+    result = await loop.run(
+        messages=[m.model_dump() for m in payload.messages],
+        tenant_id=_tenant_of(token),
+        model=payload.model,
+        max_steps=payload.max_steps,
+    )
+    logger.info(
+        f"[agent_chat] tenant={_tenant_of(token) or '<unknown>'} "
+        f"steps={result.get('stepsUsed')} errors={len(result.get('errors') or [])}"
+    )
+    return result
+
+
+@router.post("/stream")
+async def agent_chat_stream(payload: AgentChatPayload, token: UserToken) -> StreamingResponse:
+    """Stream one autonomous ReAct turn as SSE events.
+
+    Frames: ``data: {json event}\\n\\n`` for each loop event (meta / thought /
+    tool_call / tool_result / content_delta / error / final), then a terminal
+    ``data: [DONE]\\n\\n`` — the same framing the client already knows from
+    ``/api/chat/stream_chat``.
+    """
+
+    async def event_stream() -> AsyncIterator[str]:
+        loop = _new_agent_chat_loop()
+        try:
+            async for event in loop.run_stream(
+                messages=[m.model_dump() for m in payload.messages],
+                tenant_id=_tenant_of(token),
+                model=payload.model,
+                max_steps=payload.max_steps,
+            ):
+                yield f"data: {json.dumps(event, ensure_ascii=False, default=str)}\n\n"
+        except Exception as exc:
+            logger.error(f"[agent_stream] broken: {type(exc).__name__}: {exc}")
+            yield "data: {\"type\": \"error\", \"message\": \"agent stream failed internally\"}\n\n"
+        yield "data: [DONE]\n\n"
+
+    # বাংলা: SSE হেডার — proxy/CDN বাফারিং রোধে ক্রিটিক্যাল (chat.py-র সাথে একই)।
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Content-Encoding": "identity",
+        },
+    )

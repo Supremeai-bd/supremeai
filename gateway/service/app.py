@@ -24,7 +24,7 @@ from collections import deque
 from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, AsyncIterator, Optional
 
 from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -2798,6 +2798,7 @@ async def _forward_agent_request(
     path: str,
     request: Request,
     body: Optional[dict] = None,
+    timeout: float = 30.0,
 ) -> dict:
     """Forward one agent-tool request to core; never invent a result."""
     base = _core_api_base()
@@ -2817,7 +2818,7 @@ async def _forward_agent_request(
         headers["X-SupremeAI-Key"] = core_key
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.request(method, f"{base}{path}", headers=headers, json=body)
     except httpx.HTTPError as exc:
         logger.error(f"agent tool proxy: core unreachable at {base}{path}: {type(exc).__name__}")
@@ -2872,6 +2873,119 @@ async def post_agent_tool_call(
     if not isinstance(body, dict):
         raise HTTPException(status_code=400, detail="request body must be a JSON object")
     return await _forward_agent_request("POST", "/api/agent/tool-calls", request, body)
+
+
+async def _forward_agent_stream(
+    method: str,
+    path: str,
+    request: Request,
+    body: Optional[dict] = None,
+) -> StreamingResponse:
+    """SSE passthrough to core — byte-relay, never buffered, never invented.
+
+    The ReAct loop runs in core (``core.agent_chat_loop``); the gateway only
+    relays the ``data: {json}`` frames (and the terminal ``[DONE]``) verbatim.
+    Read timeout is generous because a full agent turn may take minutes.
+    """
+    base = _core_api_base()
+    if base is None:
+        raise HTTPException(
+            status_code=503,
+            detail="agent stream unavailable: CORE_API_URL is not configured",
+        )
+    import httpx
+
+    headers = {"Accept": "text/event-stream"}
+    bearer = request.headers.get("authorization")
+    if bearer:
+        headers["Authorization"] = bearer
+    core_key = request.headers.get("x-supremeai-key")
+    if core_key:
+        headers["X-SupremeAI-Key"] = core_key
+
+    client = httpx.AsyncClient(
+        timeout=httpx.Timeout(connect=10.0, read=300.0, write=30.0, pool=10.0)
+    )
+    try:
+        req = client.build_request(method, f"{base}{path}", headers=headers, json=body)
+        resp = await client.send(req, stream=True)
+    except httpx.HTTPError as exc:
+        await client.aclose()
+        logger.error(f"agent stream proxy: core unreachable at {base}{path}: {type(exc).__name__}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"core API unreachable for agent stream ({type(exc).__name__})",
+        )
+
+    if resp.status_code >= 400:
+        try:
+            payload = json.loads(resp.content or b"{}")
+        except ValueError:
+            payload = None
+        detail = payload.get("detail") if isinstance(payload, dict) else payload
+        status = resp.status_code
+        await resp.aclose()
+        await client.aclose()
+        if status >= 500:
+            raise HTTPException(status_code=502, detail="core API failed while streaming the agent turn")
+        raise HTTPException(status_code=status, detail=detail)
+
+    async def relay() -> AsyncIterator[bytes]:
+        try:
+            async for chunk in resp.aiter_bytes():
+                if chunk:
+                    yield chunk
+        finally:
+            await resp.aclose()
+            await client.aclose()
+
+    return StreamingResponse(
+        relay(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post("/api/v1/agent/chat")
+@app.post("/v1/agent/chat")
+async def post_agent_chat(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Proxy one full autonomous agent chat turn to core (loop lives there)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="request body must be valid JSON")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="request body must be a JSON object")
+    # বাংলা: একটি ReAct টার্নে একাধিক টুল-নির্বাহ ও সংশ্লেষণ হতে পারে — ৩০সে নয়।
+    return await _forward_agent_request(
+        "POST", "/api/agent/chat", request, body, timeout=180.0
+    )
+
+
+@app.post("/api/v1/agent/stream")
+@app.post("/v1/agent/stream")
+async def post_agent_stream(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """SSE passthrough for the core agent stream (transport-only, no buffering)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="request body must be valid JSON")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="request body must be a JSON object")
+    return await _forward_agent_stream("POST", "/api/agent/stream", request, body)
 
 
 # ── Conversation Carry-over & Chat History Endpoints ─────────────────────────
