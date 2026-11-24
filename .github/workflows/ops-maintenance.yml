@@ -2189,7 +2189,10 @@ jobs:
         MCP_TOWER_TOKEN: ${{ secrets.MCP_TOWER_TOKEN }}
       run: |
         set -o pipefail
-        python scripts/ci/run_all_guards.py --full 2>&1 | tee guard-roster.log || true
+        set +e
+        python scripts/ci/run_all_guards.py --full 2>&1 | tee guard-roster.log
+        roster_rc=$?
+        set -e
         status=$(grep -oE '[0-9]+/[0-9]+ guards passed' guard-roster.log | tail -1)
         {
           echo "### 🛡️ Guard Roster (full, nightly)"

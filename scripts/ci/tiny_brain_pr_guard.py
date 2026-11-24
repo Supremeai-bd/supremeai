@@ -184,9 +184,36 @@ def _changed_paths(endpoint: str, count: int, api: Api) -> set[str]:
     return filenames | previous
 
 
+# বাংলা মন্তব্য: ৩-স্তরের ব্লাস্ট-রেডিয়াস (Red, Yellow, Green) ক্লাসিফিকেশন
+# Red: কড়া অ্যাডমিন রিভিউ (OWNER_REVIEW) — সরাসরি প্রোডাকশন ব্লাস্ট রেডিয়াস
+# Yellow: সার্ভিস বা এপিআই — টেস্ট সবুজ হলে AUTO_MERGE, কিন্তু ক্যানারি ট্র্যাকিং আবশ্যক
+# Green: রুটিন কোড (টেস্ট, ডকস, আই১৮এন, টাইপো) — সরাসরি ইনস্ট্যান্ট AUTO_MERGE
+YELLOW_PREFIXES = (
+    "core/api/",
+    "core/cache/",
+    "gateway/service/",
+    "functions/api/",
+    "core/workers/",
+)
+
+
 def is_protected_path(path: str) -> bool:
     path = path.lower()
     return path.startswith(PROTECTED_PREFIXES) or path in PROTECTED_PATHS or path.rsplit("/", 1)[-1].startswith(".env")
+
+
+def classify_tier(paths: set[str]) -> tuple[str, list[str]]:
+    """বাংলা মন্তব্য: পাথের ভিত্তিতে রেড/ইয়েলো/গ্রিন টিয়ার নির্ধারণ করে।"""
+    red = sorted(p for p in paths if is_protected_path(p))
+    if red:
+        return "red", red
+    yellow = sorted(
+        p for p in paths
+        if any(p.lower().startswith(yp) for yp in YELLOW_PREFIXES)
+    )
+    if yellow:
+        return "yellow", yellow
+    return "green", []
 
 
 def evaluate(
@@ -219,9 +246,9 @@ def evaluate(
         paths = _changed_paths(f"repos/{repo}/pulls/{pr_number}", pr["changed_files"], api)
         # PR files are mutable API data. Re-read the PR after pagination.
         _current_pr(pr_number, **candidate)
-        protected = sorted(p for p in paths if is_protected_path(p))
-        if protected:
-            return {"decision": OWNER_REVIEW, "reason": "protected_paths_changed", "paths": protected}
+        tier, tier_paths = classify_tier(paths)
+        if tier == "red":
+            return {"decision": OWNER_REVIEW, "reason": "protected_paths_changed", "paths": tier_paths}
         return {"decision": AUTO_MERGE, "reason": "required_ci_passed_routine_scope"}
     except BlockLanding as exc:
         return {"decision": BLOCKED, "reason": str(exc)}
@@ -250,6 +277,8 @@ def main(argv: list[str] | None = None) -> int:
     if not args.recheck_candidate and (output := os.getenv("GITHUB_OUTPUT")):
         with Path(output).open("a", encoding="utf-8") as stream:
             stream.write(f"decision={result['decision']}\nreason={result['reason']}\n")
+            if "tier" in result:
+                stream.write(f"tier={result['tier']}\n")
     if result.get("decision") == "ALREADY_MERGED":
         print(f"::notice::PR already merged ({result.get('reason')}); landing decision skipped")
         return 0

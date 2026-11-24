@@ -59,3 +59,21 @@ def test_ordinary_paths_are_not_protected():
 
 def test_match_is_case_insensitive():
     assert guard.is_protected_path(".GITHUB/WORKFLOWS/x.yml")
+
+
+def test_classify_tier_red_yellow_green():
+    # Red tier: protected paths require owner review
+    tier, paths = guard.classify_tier({".github/workflows/unified-pipeline.yml", "docs/README.md"})
+    assert tier == "red"
+    assert ".github/workflows/unified-pipeline.yml" in paths
+
+    # Yellow tier: service or core api paths (safe to merge with canary soak)
+    tier, paths = guard.classify_tier({"core/api/routes/items.py", "gateway/service/custom_helper.py"})
+    assert tier == "yellow"
+    assert "core/api/routes/items.py" in paths
+
+    # Green tier: routine docs, tests, and non-security CI scripts (instant merge)
+    tier, paths = guard.classify_tier({"docs/README.md", "tests/unit/test_app.py", "scripts/ci/sarif_permission_guard.py"})
+    assert tier == "green"
+    assert paths == []
+

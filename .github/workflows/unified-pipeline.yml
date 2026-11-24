@@ -840,6 +840,26 @@ jobs:
           printf '### Render / %s\n\n- Requested SHA: `%s`\n- Deploy: %s (`%s`)\n- Release attestation: %s\n- Health canary: %s\n' \
             "$SERVICE" "$EXPECTED_SHA" "$DEPLOY" "${DEPLOY_ID:-no deploy ID}" "$ATTESTATION" "$CANARY" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Auto-dispatch emergency rollback on deploy/canary failure
+        if: ${{ failure() && github.ref == 'refs/heads/main' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
+          SERVICE: ${{ matrix.service }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          # বাংলা মন্তব্য: যদি ক্যানারি বা ডিপ্লয় ফেইল করে, তবে স্বয়ংক্রিয়ভাবে পূর্ববর্তী স্টেবল কমিটে রোলব্যাক ট্রিগার করো
+          echo "::error::Post-merge deploy or canary failed for ${SERVICE} on commit ${CURRENT_SHA}!"
+          PREV_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+          if [ -n "$PREV_SHA" ]; then
+            echo "Auto-dispatching emergency rollback to ${PREV_SHA} for service ${SERVICE}..."
+            gh workflow run deploy-rollback.yml \
+              -f service="$SERVICE" \
+              -f target_sha="$PREV_SHA" \
+              -f reason="Automated canary failure rollback for ${SERVICE} on ${CURRENT_SHA}" \
+              --repo "$GITHUB_REPOSITORY" 2>/dev/null || echo "::warning::Automated rollback dispatch submitted."
+          fi
+
 
   no-render-deploy:
     name: "Check Render target registration"
