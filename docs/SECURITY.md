@@ -16,6 +16,24 @@
 - Run `infisical_bootstrap.py <command>` with injected env vars; **fail closed** if any required env var is absent.
 - Every workflow reference must point to secrets, not literal values (see `unified-pipeline.yml`, `ops-maintenance.yml`).
 
+## 3.1 SSRF Screening (one policy, mirrored only where packaging forces it)
+
+Every outbound URL — scraper fetches, browser automation navigation, recipe
+steps, integration discovery — is screened by **one** policy module:
+
+- `core/url_policy.py` — the policy: schemes, blocked hostnames/suffixes,
+  metadata IPs, blocked IPv4/IPv6 networks (incl. CGNAT 100.64/10 and the
+  documentation/benchmarking ranges), IPv4-mapped unwrapping. Stdlib only.
+- `browser/url_policy.py` — a **byte-identical mirror**. It exists only because
+  the standalone scraper image is built with `dockerContext: browser` and cannot
+  import `core`. `tests/test_url_policy_single_source.py` fails if the two files
+  differ by a single byte, and also fails if any call site re-grows a private
+  blocklist.
+
+Parse-time vs. request-time: `is_safe_url()` only screens literals; the fetch
+path must call `is_safe_url_resolved()` immediately before **every** request,
+including each redirect hop (issue #511 — redirect and DNS-rebinding bypasses).
+
 ## 4. Dependency & Supply-Chain Process
 - Pin third-party GitHub Actions to full commit SHAs (e.g., `uses: actions/checkout@<full-sha>`).
 - Commit a lockfile per package manager: `npm ci` (npm), `pnpm install --frozen-lockfile` (pnpm).

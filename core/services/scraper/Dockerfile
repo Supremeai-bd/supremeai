@@ -59,3 +59,10 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 
 # Start command
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+
+# NOTE (2026-11-24, audit item ⑮): this service is not built by any workflow
+# today. If you build it with a flat context (the `from security import ...`
+# path in main.py), you MUST also ship `url_policy.py` next to it — the SSRF
+# blocklist now comes from that single policy module instead of a private copy
+# here. The repo-root `core/url_policy.py` is the source of truth; keep the copy
+# byte-identical (`tests/test_url_policy_single_source.py`).

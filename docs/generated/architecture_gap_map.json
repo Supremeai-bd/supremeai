@@ -146,7 +146,6 @@
       "core.services.",
       "core.services.billing.",
       "core.services.brain.",
-      "core.services.browser.",
       "core.services.dynamic_ai.",
       "core.services.email.",
       "core.services.hitl.",
@@ -410,12 +409,12 @@
     ]
   },
   "graph": {
-    "modules": 2184,
-    "edges": 4979,
+    "modules": 2185,
+    "edges": 4986,
     "edge_kinds": {
       "dispatch": 191,
       "dynamic": 4,
-      "import": 4102,
+      "import": 4109,
       "string": 682
     }
   },
@@ -437,9 +436,9 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1664,
-    "unreachable": 526,
-    "reachable_pct": 76.2
+    "reachable": 1669,
+    "unreachable": 522,
+    "reachable_pct": 76.4
   },
   "gaps": {
     "dangling_references": [
@@ -878,7 +877,6 @@
     "core.self_evolution.red_team_gate",
     "core.self_evolution.self_updater",
     "core.selfcheck",
-    "core.services.browser.main",
     "core.services.customer_service",
     "core.services.diagram_parser_service",
     "core.services.escrow_service",
@@ -996,7 +994,6 @@
     "core.zero_cost_architecture"
   ],
   "unreachable_modules": [
-    "browser.browser_agent",
     "browser.browser_session_manager",
     "browser.gateway",
     "browser.gateway.prompt_injection",
@@ -1031,7 +1028,6 @@
     "browser.runtime",
     "browser.runtime.config",
     "browser.runtime.content_pruner",
-    "browser.runtime.content_screen",
     "browser.runtime.cookie_bridge",
     "browser.runtime.infinite_scanner",
     "browser.runtime.injection_canaries",
@@ -1039,14 +1035,12 @@
     "browser.runtime.session_manager",
     "browser.runtime.stealth_profile",
     "browser.scripts.webbotauth.probe",
-    "browser.security",
     "browser.tools",
     "browser.tools.browser_stealth",
     "browser.tools.playwright_browser_agent",
     "browser.tools.stealth_http_client",
     "browser.tools.web_fallback_agent",
     "browser.version",
-    "browser.web_scraper",
     "gateway.agents",
     "gateway.agents.external_agents",
     "gateway.agents.external_agents.channels",

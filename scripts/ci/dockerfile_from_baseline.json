@@ -10,9 +10,6 @@
     "core/Dockerfile.ci": [
       "python:3.12-slim"
     ],
-    "core/services/browser/Dockerfile": [
-      "python:3.12-slim"
-    ],
     "core/services/scraper/Dockerfile": [
       "python:3.12-slim"
     ],

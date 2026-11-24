@@ -125,8 +125,15 @@ class FitnessEngine:
         db: Any | None = None,
     ):
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        # FIX (2026-11-24): the default pointed at ``<repo>/backend/data/...`` — a
+        # directory that has never existed in this repo (``backend/`` is a dead
+        # path; see scripts/ci/repo_paths.py). Instantiating the engine therefore
+        # *created* a phantom ``backend/`` tree on first save, which then made
+        # tests/test_repo_paths.py fail ("backend/ was recreated") and wrote
+        # evolution metrics outside the intended ``data/`` home. Keep the same
+        # storage name, under the real ``data/`` directory (gitignored).
         self.metrics_path = metrics_path or os.path.join(
-            base_dir, "backend", "data", "skills_fitness_metrics.json"
+            base_dir, "data", "skills_fitness_metrics.json"
         )
         self.skills_dir = skills_dir or os.path.join(base_dir, "skills", "dynamic")
         self.deprecated_dir = deprecated_dir or os.path.join(base_dir, "skills", "deprecated")
