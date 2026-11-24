@@ -22,7 +22,9 @@ client/
 
 # 2. Infrastructure, Deployment & DevOps Configs
 infrastructure/
+!infrastructure/mcp-control-plane/src/**
 **/infrastructure/**
+!**/infrastructure/mcp-control-plane/src/**
 infra/
 **/infra/**
 docker/
