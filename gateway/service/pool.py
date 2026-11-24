@@ -12,7 +12,7 @@ import os
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .adaptive_routing import RouteSnapshot, is_valid_secret, route_score
 from .providers.web_engines import WEB_ENGINES
