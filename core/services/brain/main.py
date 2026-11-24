@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from contextlib import asynccontextmanager
 from typing import Any
@@ -209,26 +210,72 @@ def route_task(req: RouteRequest, authorized: bool = Depends(verify_brain_token)
     return decision
 
 
+def _norm_tokens(text: str) -> set[str]:
+    """বাংলা মন্তব্য: token-এর বর্ণমালা-নিরপেক্ষ normalisation — বাংলা লিপি, বাংলিশ
+    (রোমানাইজড) ও ইংরেজি তিনটাই first-class। রোমানাইজড বাংলার অস্পষ্ট উচ্চারণ
+    ভ্যারিয়েন্ট (aa/a, oo/u, ee/i, sh/s, kh/k ইত্যাদি) ক্যানোনিকাল ফরমে ফোল্ড হয়,
+    তাই 'somossha' ও 'সমস্যা'-র মিল আর রেজেক্স-অন্ধত্বে হারায় না।"""
+    import unicodedata
+
+    lowered = unicodedata.normalize("NFC", (text or "").lower())
+    raw = re.findall(r"[\w\u0980-\u09FF]+", lowered)
+    # রোমানাইজড বাংলা উচ্চারণ-ভ্যারিয়েন্ট fold — deterministic, stdlib-only।
+    _fold = str.maketrans({
+        "a": "a", "à": "a", "á": "a", "â": "a", "ã": "a",
+        "e": "e", "é": "e", "è": "e",
+        "i": "i", "í": "i", "î": "i",
+        "o": "o", "ó": "o", "ô": "o",
+        "u": "u", "ú": "u", "û": "u",
+        "c": "k", "ç": "s", "x": "ks", "q": "k", "z": "j", "v": "b", "w": "v",
+    })
+    # দ্বি-অক্ষর সমীকরণ: sh→s, ch→s, th→t, dh→d, kh→k, gh→g, bh→b, ph→f ইত্যাদি।
+    folded = []
+    for tok in raw:
+        t = tok.translate(_fold)
+        for big, small in (("sh", "s"), ("ch", "s"), ("th", "t"), ("dh", "d"),
+                           ("kh", "k"), ("gh", "g"), ("bh", "b"), ("ph", "f"),
+                           ("zh", "j")):
+            t = t.replace(big, small)
+        folded.append(t)
+    return set(folded)
+
+
+# বাংলা মন্তব্য: stopword — এদের overlap-এ গোনা মানে noise-কে confidence বানানো।
+_EVAL_STOPWORDS = frozenset({
+    "the", "a", "an", "is", "are", "to", "of", "in", "on", "and", "or", "for",
+    "it", "this", "that", "do", "does", "did", "be", "was", "were", "with",
+    "o", "e", "na", "ke", "ki", "ar", "she", "ta", "ti", "er", "er",
+})
+
+
+def _heuristic_confidence(req: CognitiveEvalRequest, best_opt: str, best_score: float) -> float:
+    """বাংলা মন্তব্য: confidence ফর্মুলার একমাত্র SSOT। overlap 0 হলে 0.5-এর
+    নিচে নামানো নিষিদ্ধ — echo-loop (clarify → clarify → clarify) ঠেকাতে।"""
+    return min(round(0.5 + (best_score * 0.5), 2), 0.99)
+
+
 @app.post("/v1/brain/evaluate", response_model=CognitiveEvalResponse)
 def evaluate_options(req: CognitiveEvalRequest, authorized: bool = Depends(verify_brain_token)):
     """Fast heuristics-based decision arbitrator without full LLM roundtrip overhead."""
     if not req.options:
         raise HTTPException(status_code=400, detail="Options list cannot be empty")
 
-    # Lightweight heuristics scoring
+    # Lightweight heuristics scoring — Bengali/Banglish-robust (root-cause fix for
+    # the clarify-echo-loop: romanized input used to score ~0 everywhere).
+    prompt_tokens = {t for t in _norm_tokens(req.prompt) if t not in _EVAL_STOPWORDS}
     best_opt = req.options[0]
     best_score = 0.0
-
-    prompt_tokens = set(req.prompt.lower().split())
     for opt in req.options:
-        opt_tokens = set(opt.lower().split())
+        opt_tokens = {t for t in _norm_tokens(opt) if t not in _EVAL_STOPWORDS}
+        if not opt_tokens:
+            continue
         overlap = len(prompt_tokens.intersection(opt_tokens))
         score = overlap / max(len(opt_tokens), 1)
         if score > best_score:
             best_score = score
             best_opt = opt
 
-    confidence = min(round(0.5 + (best_score * 0.5), 2), 0.99)
+    confidence = _heuristic_confidence(req, best_opt, best_score)
     return {
         "selected_option": best_opt,
         "confidence": confidence,

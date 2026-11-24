@@ -92,6 +92,13 @@ class _ProviderKeyPool:
         if provider:
             prefixes = [f"{provider.upper()}_API_KEY", f"{provider.upper()}_KEY", provider.upper()]
             for pfx in prefixes:
+                # বাংলা মন্তব্য: base var-ও পড়ো (GEMINI_API_KEY, GROQ_API_KEY...) —
+                # আগে শুধু _1.._14 নাম্বারড ভ্যারিয়েন্ট খোঁজা হত, ফলে Infisical-এর
+                # base key থাকলেও (settings-attr বাদ পড়লে) core pool অন্ধ ছিল।
+                # gateway/service/pool.py-র নিজস্ব pool ঠিক একই নীতি মানে — ড্রিফট বন্ধ।
+                base = os.getenv(pfx)
+                if base and base.strip() and base.strip() not in keys:
+                    keys.append(base.strip())
                 for idx in range(1, 15):
                     val = os.getenv(f"{pfx}_{idx}")
                     if val and val.strip() and val.strip() not in keys:
