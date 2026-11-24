@@ -8,8 +8,10 @@ exactly as before.
 
 import asyncio
 
+from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 
+from core.api.deps import get_current_user_token
 from core.api.routes.browser import router
 from core.api.routes.browser._tasks import GoalRequest
 
@@ -76,13 +78,39 @@ async def smart_click(req: SemanticClickRequest):
 
 
 @router.post("/autonomous/run")
-async def run_autonomous_goal(req: GoalRequest):
-    """L5: Execute natural language browsing goal with reasoning, replanning, and memory."""
-    from browser.autonomous_browser import AutonomousBrowserAgent
+async def run_autonomous_goal(req: GoalRequest, user_token: str = Depends(get_current_user_token)):
+    """L5: Execute natural language browsing goal with reasoning, replanning, and memory.
 
-    agent = AutonomousBrowserAgent(session=None)
-    result = await agent.achieve(req.goal)
-    return result
+    Honest execution contract: this endpoint binds a REAL, bounded ephemeral
+    browser session (shared ``core.browser_session_manager`` pool — same
+    concurrency/idle limits as ``/automation/sessions``), runs the autonomous
+    agent against that page, and releases the session when done. If a browser
+    cannot be launched it answers 503 instead of pretending to work.
+    """
+    from browser.autonomous_browser import AutonomousBrowserAgent
+    from core.browser_session_manager import session_manager
+
+    try:
+        session = await session_manager.create(user_token, label="autonomous-goal")
+    except Exception as exc:  # noqa: BLE001 — browser launch failures must surface, not fake success
+        raise HTTPException(
+            status_code=503,
+            detail=f"No browser session could be started: {exc}",
+        ) from exc
+
+    try:
+        agent = AutonomousBrowserAgent(session=session)
+        result = await agent.achieve(req.goal)
+        return result
+    finally:
+        try:
+            await session_manager.close(session.id, user_token)
+        except Exception:  # noqa: BLE001 — release is best-effort; idle sweeper reclaims stragglers
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Failed to release autonomous session %s", session.id
+            )
 
 
 @router.post("/swarm/explore")

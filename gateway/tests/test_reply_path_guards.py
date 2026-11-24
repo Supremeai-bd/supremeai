@@ -121,8 +121,16 @@ def reload_app(**env):
     set after reload — _verify_client_auth re-reads SUPREMEAI_API_KEY per request,
     so restoring immediately would break keyed-auth cases. The autouse
     _restore_app_env fixture restores it at each pytest test boundary (main()
-    cleans up in plain-script mode)."""
+    cleans up in plain-script mode).
+
+    2026-11-24: the credential/guest cluster now lives in service.auth_verification.
+    Module-level env-read constants (GUEST_RATE_LIMIT_PER_MIN etc.) must be
+    re-read too, so reload the auth-verification modules BEFORE app.py."""
     os.environ.update(env)
+    for _mod_name in ("service.auth_verification", "gateway.service.auth_verification"):
+        _mod = sys.modules.get(_mod_name)
+        if _mod is not None:
+            importlib.reload(_mod)
     importlib.reload(app_module)
     if env.get("STEALTH_WEBHOOK_URL") == "http://127.0.0.1:9/unreachable":
         from unittest.mock import AsyncMock

@@ -90,29 +90,35 @@ def _validate_image_header(content: bytes, mime_type: str) -> bool:
         return True
     if mime_type == "image/svg+xml":
         try:
-            try:
-                import defusedxml.ElementTree as ET
-            except ImportError:
-                import xml.etree.ElementTree as ET
+            import defusedxml.ElementTree as ET
+        except ImportError:
+            # Fail closed: never validate SVG with a billion-laughs-capable
+            # parser. If defusedxml is missing, SVG uploads are rejected.
+            return False
 
+        try:
             tree = ET.fromstring(content)
-            for elem in list(tree.iter()):
-                tag_name = elem.tag.split("}")[-1].lower() if "}" in elem.tag else elem.tag.lower()
-                if tag_name in ("script", "foreignobject"):
-                    return False
-                for attr in list(elem.attrib.keys()):
-                    attr_name = attr.split("}")[-1].lower() if "}" in attr else attr.lower()
-                    if attr_name.startswith("on"):
-                        return False
-            return True
         except Exception:
             return False
+        for elem in list(tree.iter()):
+            tag_name = elem.tag.split("}")[-1].lower() if "}" in elem.tag else elem.tag.lower()
+            if tag_name in ("script", "foreignobject"):
+                return False
+            for attr in list(elem.attrib.keys()):
+                attr_name = attr.split("}")[-1].lower() if "}" in attr else attr.lower()
+                if attr_name.startswith("on"):
+                    return False
+        return True
     # BMP starts with "BM"
     if mime_type == "image/bmp" and header[:2] == b"BM":
         return True
-    # For AVIF and TIFF we skip deep validation and trust the MIME
-    if mime_type in ("image/avif", "image/tiff"):
-        return True
+    # AVIF is ISO-BMFF: a 4-byte box size, then the 'ftyp' box type, then the major brand.
+    if mime_type == "image/avif" and len(content) >= 12 and content[4:8] == b"ftyp":
+        brand = content[8:12]
+        return brand in (b"avif", b"avis", b"mif1")
+    # TIFF: little-endian "II*\x00" or big-endian "MM\x00*".
+    if mime_type == "image/tiff":
+        return header[:4] in (b"II*\x00", b"MM\x00*")
     # If unrecognized header, still allow (some formats vary)
     return True
 
@@ -378,13 +384,20 @@ async def serve_upload(
     mime_type = metadata.get("mime_type", "application/octet-stream")
     file_name = metadata.get("file_name", "download")
 
+    headers = {
+        "Cache-Control": "private, max-age=86400",
+        # Stored-upload defense-in-depth: never let the browser sniff a
+        # mis-typed upload into an active content type.
+        "X-Content-Type-Options": "nosniff",
+    }
+    if mime_type == "image/svg+xml":
+        # SVG can carry active content; served inline it must not execute.
+        headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'"
     return FileResponse(
         path=file_path,
         media_type=mime_type,
         filename=file_name,
-        headers={
-            "Cache-Control": "private, max-age=86400",
-        },
+        headers=headers,
     )
 
 

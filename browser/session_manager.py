@@ -17,6 +17,7 @@ ISSUE-1571 (Part 2): Stateful ``BrowserSessionManager``.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import os
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -46,8 +47,14 @@ AUTOMATION_BIND_ADDRESS = "127.0.0.1"
 
 
 def automation_profile_dir() -> str:
-    """ISSUE-1571: the dedicated automation profile (never the user's own)."""
-    return os.getenv("BROWSER_AUTOMATION_PROFILE_DIR", "C:" + "/" + "SupremeAI_Automation_Profile")
+    """ISSUE-1571: the dedicated automation profile (never the user's own).
+
+    Default is platform-appropriate (~/.supremeai/automation-profile) instead of
+    a hardcoded Windows path — the previous default could never work inside the
+    Linux containers this service actually runs in.
+    """
+    default = os.path.join(os.path.expanduser("~"), ".supremeai", "automation-profile")
+    return os.getenv("BROWSER_AUTOMATION_PROFILE_DIR", default)
 
 
 def chrome_launch_args(profile_dir: str | None = None) -> list[str]:
@@ -61,27 +68,33 @@ def chrome_launch_args(profile_dir: str | None = None) -> list[str]:
     ]
 
 
-def _default_session_factory(provider: str, session_id: str) -> dict[str, Any]:
+async def _default_session_factory(provider: str, session_id: str) -> dict[str, Any]:
     """Production factory: Playwright persistent context on the dedicated profile.
 
     Kept lazy — heavy imports only happen when a REAL session is requested
-    (unit tests inject their own factory/doubles).
+    (unit tests inject their own factory/doubles). Uses the async Playwright
+    API on purpose: the callers (swarm explore, browser channel) are async
+    code paths, and a synchronous browser launch inside them would block the
+    whole event loop.
     """
-    from playwright.sync_api import sync_playwright
+    from playwright.async_api import async_playwright
 
-    runtime = sync_playwright().start()
+    profile = automation_profile_dir()
+    os.makedirs(profile, exist_ok=True)
+
+    runtime = await async_playwright().start()
     try:
-        context = runtime.chromium.launch_persistent_context(
-            user_data_dir=automation_profile_dir(),
-            args=chrome_launch_args(),
+        context = await runtime.chromium.launch_persistent_context(
+            user_data_dir=profile,
+            args=chrome_launch_args(profile),
             headless=True,
         )
-        page = context.new_page()
+        page = await context.new_page()
     except Exception:
         with_suppress = getattr(runtime, "stop", None)
         if callable(with_suppress):
             try:
-                with_suppress()
+                await with_suppress()
             except Exception:  # pragma: no cover - best effort cleanup
                 pass
         raise
@@ -105,19 +118,23 @@ def register_action(name: str) -> Callable[[Callable[..., Any]], Callable[..., A
 
 
 @register_action("navigate")
-def _action_navigate(page: Any, url: str = "", **_: Any) -> dict[str, Any]:
+async def _action_navigate(page: Any, url: str = "", **_: Any) -> dict[str, Any]:
     if not url:
         return {"action": "navigate", "status": "error", "error": "navigate requires a url"}
-    page.goto(url)
+    result = page.goto(url)
+    if inspect.isawaitable(result):
+        await result
     return {"action": "navigate", "status": "success", "url": url}
 
 
 @register_action("type")
-def _action_type(page: Any, selector: str = "", text: str = "", **_: Any) -> dict[str, Any]:
+async def _action_type(page: Any, selector: str = "", text: str = "", **_: Any) -> dict[str, Any]:
     if not selector:
         return {"action": "type", "status": "error", "error": "type requires a selector"}
     for char in text or "":
-        page.type(selector, char)
+        outcome = page.type(selector, char)
+        if inspect.isawaitable(outcome):
+            await outcome
     return {
         "action": "type",
         "status": "success",
@@ -141,10 +158,14 @@ async def _action_wait(page: Any, ms: int = 1000, **_: Any) -> dict[str, Any]:
 
 
 @register_action("extract")
-def _action_extract(page: Any, selector: str = "", **_: Any) -> dict[str, Any]:
+async def _action_extract(page: Any, selector: str = "", **_: Any) -> dict[str, Any]:
     if not selector:
         return {"action": "extract", "status": "error", "error": "extract requires a selector"}
-    text = page.text_content(selector) if hasattr(page, "text_content") else None
+    if not hasattr(page, "text_content"):
+        return {"action": "extract", "status": "success", "selector": selector, "text": ""}
+    text = page.text_content(selector)
+    if inspect.isawaitable(text):
+        text = await text
     return {"action": "extract", "status": "success", "selector": selector, "text": text or ""}
 
 
@@ -187,7 +208,7 @@ class BrowserSessionManager:
 
     def __init__(
         self,
-        session_factory: Callable[[str, str], dict[str, Any]] | None = None,
+        session_factory: Callable[[str, str], Any] | None = None,
         ttl_seconds: float = SESSION_TTL_SECONDS,
         idle_seconds: float = IDLE_TIMEOUT_SECONDS,
         sweep_interval: float = 30.0,
@@ -204,7 +225,7 @@ class BrowserSessionManager:
     # ------------------------------------------------------------------
     # Pool operations
     # ------------------------------------------------------------------
-    def create_session(
+    async def create_session(
         self, provider: str = "chrome-dedicated", session_id: str | None = None
     ) -> BrowserSession:
         session_id = session_id or f"bs-{provider}-{len(self._sessions) + 1:06d}"
@@ -214,6 +235,8 @@ class BrowserSessionManager:
         ):
             return self._sessions[session_id]
         surfaces = self._session_factory(provider, session_id)
+        if inspect.isawaitable(surfaces):
+            surfaces = await surfaces
         session = BrowserSession(
             session_id=session_id,
             provider=provider,
@@ -235,7 +258,7 @@ class BrowserSessionManager:
             session.touch(self.now_fn())
         return session
 
-    def acquire(
+    async def acquire(
         self, provider: str = "chrome-dedicated", session_id: str | None = None
     ) -> BrowserSession:
         """Stateful acquire: same id → same live session; else a new one."""
@@ -243,7 +266,7 @@ class BrowserSessionManager:
             existing = self.get_session(session_id)
             if existing is not None:
                 return existing
-        return self.create_session(provider=provider, session_id=session_id)
+        return await self.create_session(provider=provider, session_id=session_id)
 
     async def release(self, session_id: str) -> bool:
         """Close and forget a session — no orphaned browser processes left."""

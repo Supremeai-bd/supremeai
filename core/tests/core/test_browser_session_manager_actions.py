@@ -35,11 +35,13 @@ class TestAllowedActions:
         )
         assert "type" in session.allowed_actions
 
-    def test_total_action_count_is_seven(self):
+    def test_total_action_count_is_ten(self):
+        # 2026-10-25: back/forward/reload were added to the allowlist (#2252
+        # comment trail) — this pin was stale at 7.
         session = BrowserSession(
             id="s1", owner_id="u1", context=None, page=None, created_at=0.0, last_used_at=0.0
         )
-        assert len(session.allowed_actions) == 7
+        assert len(session.allowed_actions) == 10
 
     @pytest.mark.parametrize(
         "action", ["navigate", "screenshot", "content", "extract", "click", "fill", "type"]

@@ -1,11 +1,13 @@
-import service.app as app_module
+import service.auth_verification as _auth_verification
 from fastapi.testclient import TestClient
 from service.app import app
 from service.keygen import generate_key, verify_key
 
 
 def test_generic_signed_client_key_cannot_access_operator_status(monkeypatch):
-    monkeypatch.setattr(app_module, "OPERATOR_KEYS", {"operator-rotation-secret"})
+    # The operator gate reads OPERATOR_KEYS from service.auth_verification
+    # (cluster extracted from service.app on 2026-11-24).
+    monkeypatch.setattr(_auth_verification, "OPERATOR_KEYS", {"operator-rotation-secret"})
     monkeypatch.setenv("SUPREMEAI_MASTER_KEY", "audit-test-master-key")
     client_key = generate_key(client_name="ordinary-client", quota="standard")
     client = TestClient(app)
