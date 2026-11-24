@@ -52,25 +52,25 @@ FACT_KINDS = ("language", "preference", "site", "person", "habit", "task")
 _BENGALI_RE = re.compile(r"[\u0980-\u09FF]")
 _URL_RE = re.compile(r"https?://[^\s)\]>'\"।]+|(?<![\w/])www\.[^\s)\]>'\"।]+", re.IGNORECASE)
 _PREFERENCE_RE = re.compile(
-    r"(?:i (?:prefer|like|love|hate|always|never)\s+(?:to\s+)?|"
-    r"আমি\s+(?:পছন্দ\s+করি|ভালোবাসি|অপছন্দ\s+করি|সবসময়|কখনো)\s*)"
-    r"([^\n।.!?]{2,120})",
+    r"(?:i[ \t]+(?:prefer|like|love|hate|always|never)(?:[ \t]+to)?[ \t]+|"
+    r"আমি[ \t]+(?:পছন্দ[ \t]+করি|ভালোবাসি|অপছন্দ[ \t]+করি|সবসময়|কখনো)[ \t]*)"
+    r"([^\r\n।.!?]{2,120})",
     re.IGNORECASE,
 )
 _PERSON_RE = re.compile(
-    r"(?:call|email|contact|message|text|remind)\s+([A-Z][\w'-]{1,30})|"
-    r"(?:কে|কাছে)\s+(?:কল|মেইল|ইমেইল|মেসেজ|জানাও|বলো)\s*(?:করো|করুন|দাও)?\s*([\u0980-\u09FF\w'-]{2,30})",
+    r"(?:call|email|contact|message|text|remind)[ \t]+([A-Za-z][\w'-]{1,30})|"
+    r"([\u0980-\u09FF\w'-]{2,30})(?:কে|র[ \t]+কাছে)[ \t]+(?:কল|মেইল|ইমেইল|মেসেজ|জানাও|বলো)",
     re.IGNORECASE,
 )
 _HABIT_RE = re.compile(
-    r"(?:every\s+(?:day|morning|evening|night|week)|daily|"
-    r"at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)|"
-    r"প্রতিদিন|প্রতি\s*(?:সকাল|সন্ধ্যা|রাত|সপ্তাহ)|রাত\s*\d{1,2}ট(?:া|য়)|সকাল\s*\d{1,2}ট(?:া|য়))",
+    r"(?:every[ \t]+(?:day|morning|evening|night|week)|daily|"
+    r"at[ \t]+\d{1,2}(?::\d{2})?[ \t]*(?:am|pm)|"
+    r"প্রতিদিন|প্রতি[ \t]*(?:সকাল|সন্ধ্যা|রাত|সপ্তাহ)|রাত[ \t]*\d{1,2}ট(?:া|য়)|সকাল[ \t]*\d{1,2}ট(?:া|য়))",
     re.IGNORECASE,
 )
 _TASK_RE = re.compile(
-    r"(?:^|\n)\s*(?:todo|task|remind me to|need to|কাজ|মনে\s+করিয়ে\s+দিও|মনে\s+রাখো)[:\s-]+([^\n]{3,160})",
-    re.IGNORECASE,
+    r"^[ \t]*(?:todo|task|remind me to|need to|কাজ|মনে[ \t]+করিয়ে[ \t]+দিও|মনে[ \t]+রাখো)[: \t-]+([^\r\n]{3,160})",
+    re.IGNORECASE | re.MULTILINE,
 )
 
 
@@ -96,15 +96,12 @@ def store_dir() -> Path:
 
 
 def _tenant_slug(tenant_id: str) -> str:
-    """ফাইল-নিরাপদ টেন্যান্ট নাম — অচেনা অক্ষর থাকলে ডাইজেস্ট-নাম (পাথ-ট্রাভার্সাল নিষিদ্ধ)।"""
-    tenant = (tenant_id or "").strip() or "anonymous"
-    slug = re.sub(r"[^A-Za-z0-9_-]", "", tenant)[:64]
-    if not slug or slug != tenant:
-        import hashlib
+    """ফাইল-নিরাপদ টেন্যান্ট নাম — deterministic ক্রিপ্টোগ্রাফিক ডাইজেস্ট (পাথ-ট্রাভার্সাল গাণিতিকভাবে অসম্ভব)।"""
+    import hashlib
 
-        digest = hashlib.sha256(tenant.encode("utf-8")).hexdigest()[:12]
-        slug = f"t-{digest}"
-    return slug
+    tenant = (tenant_id or "").strip() or "anonymous"
+    digest = hashlib.sha256(tenant.encode("utf-8")).hexdigest()[:16]
+    return f"t-{digest}"
 
 
 def _now() -> str:
@@ -121,7 +118,12 @@ def _empty_graph(tenant_id: str) -> dict[str, Any]:
 
 
 def _graph_path(tenant_id: str) -> Path:
-    return store_dir() / f"{_tenant_slug(tenant_id)}.json"
+    base = store_dir().resolve()
+    slug = _tenant_slug(tenant_id)
+    target = (base / f"{slug}.json").resolve()
+    if base not in target.parents:
+        raise ValueError("Invalid tenant path")
+    return target
 
 
 def _load_graph(tenant_id: str) -> dict[str, Any]:
