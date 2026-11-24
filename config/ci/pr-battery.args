@@ -45,3 +45,5 @@ core/tests/routes/test_browser_vault_sync.py
 core/tests/routes/test_browser_automation_contract.py
 core/tests/api/test_chat_upload_header_validation.py
 gateway/tests/test_workspace_capability_honesty.py
+tests/test_agent_tool_surface.py
+gateway/tests/routes/test_agent_tools_proxy.py

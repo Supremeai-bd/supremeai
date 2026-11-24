@@ -2753,6 +2753,127 @@ async def admin_squad_reload(
     return {"status": "reloaded", "stats": squad.stats() if squad else {}}
 
 
+# ── Agent Tool Surface Proxy (audit item ⑯, 2026-11-24) ─────────────────────
+# Chat tool-calling lives in CORE, not here: the governed registry, the MCP
+# policy gate and the per-tenant allowlist are all core concerns, and this image
+# must not import them (`.importlinter` contract `gateway-no-core-private`; the
+# gateway image ships no `core/` tree at all — see PR #772's sibling audit note).
+# The gateway therefore only *transports*: it forwards the manifest request and
+# single tool calls to CORE_API_URL, and fails closed when that is unset. The
+# loop itself never runs here, so nothing about tool governance is duplicated.
+
+def _core_api_base() -> Optional[str]:
+    """Core API base URL. Fail-closed: unset ⇒ None in production (no fake success)."""
+    raw = os.getenv("CORE_API_URL", "").strip().rstrip("/")
+    if raw:
+        return raw
+    env = os.getenv("ENVIRONMENT", os.getenv("ENV", "")).strip().lower()
+    if env in ("production", "prod"):
+        logger.error(
+            "CORE_API_URL is not configured — the agent tool surface cannot reach "
+            "core in production."
+        )
+        return None
+    # Local development only (same policy as core/services/worker/main.py).
+    return "http://localhost:8000"
+
+
+def _agent_tools_flag() -> bool:
+    """Gateway-side view of the core flag — used for honest capability reporting."""
+    return os.getenv("SUPREMEAI_AGENT_TOOLS", "").strip().lower() == "true"
+
+
+def _agent_tools_enabled_for_chat() -> bool:
+    """True only when chat tool-calling is genuinely reachable from this deployment.
+
+    Both halves matter: the loop lives in core, so the flag alone is not enough
+    (unset ``CORE_API_URL`` means the proxy 503s) and reachability alone is not
+    enough (core would refuse with 403 when the flag is off).
+    """
+    return _agent_tools_flag() and bool(os.getenv("CORE_API_URL", "").strip())
+
+
+async def _forward_agent_request(
+    method: str,
+    path: str,
+    request: Request,
+    body: Optional[dict] = None,
+) -> dict:
+    """Forward one agent-tool request to core; never invent a result."""
+    base = _core_api_base()
+    if base is None:
+        raise HTTPException(
+            status_code=503,
+            detail="agent tool surface unavailable: CORE_API_URL is not configured",
+        )
+    import httpx
+
+    headers = {"Accept": "application/json"}
+    bearer = request.headers.get("authorization")
+    if bearer:
+        headers["Authorization"] = bearer
+    core_key = request.headers.get("x-supremeai-key")
+    if core_key:
+        headers["X-SupremeAI-Key"] = core_key
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.request(method, f"{base}{path}", headers=headers, json=body)
+    except httpx.HTTPError as exc:
+        logger.error(f"agent tool proxy: core unreachable at {base}{path}: {type(exc).__name__}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"core API unreachable for agent tools ({type(exc).__name__})",
+        )
+
+    try:
+        payload = resp.json()
+    except ValueError:
+        raise HTTPException(status_code=502, detail="core API returned a non-JSON agent response")
+
+    if resp.status_code >= 500:
+        raise HTTPException(
+            status_code=502,
+            detail="core API failed while handling the agent tool request",
+        )
+    if resp.status_code >= 400:
+        detail = payload.get("detail") if isinstance(payload, dict) else payload
+        raise HTTPException(status_code=resp.status_code, detail=detail)
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=502, detail="core API returned an unexpected agent payload")
+    return payload
+
+
+@app.get("/api/v1/agent/tools")
+@app.get("/v1/agent/tools")
+async def get_agent_tools(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Proxy the governed tool manifest from core (``enabled: false`` when off)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return await _forward_agent_request("GET", "/api/agent/tools", request)
+
+
+@app.post("/api/v1/agent/tool-calls")
+@app.post("/v1/agent/tool-calls")
+async def post_agent_tool_call(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Proxy one governed tool invocation to core (MCP-gated there)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="request body must be valid JSON")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="request body must be a JSON object")
+    return await _forward_agent_request("POST", "/api/agent/tool-calls", request, body)
+
+
 # ── Conversation Carry-over & Chat History Endpoints ─────────────────────────
 
 @app.get("/api/v1/chat/conversations")
@@ -2913,7 +3034,19 @@ async def get_my_workspace(request: Request):
         "userId": _extract_user_id(request),
         "authorizedContexts": [{"id": "ctx-default", "label": "Default Workspace", "active": True}],
         "executionMode": "autonomous",
-        "chatToolCalling": False,
+        # Audit item ⑯ (2026-11-24): a governed tool loop now exists, but it runs
+        # in CORE (core.tool_loop + /api/agent/tool-calls) and the gateway only
+        # proxies to it. Report it as available only when the loop is genuinely
+        # reachable from this deployment: the flag is ON *and* CORE_API_URL is
+        # set. Default remains false, so nothing over-claims.
+        "chatToolCalling": _agent_tools_enabled_for_chat(),
+        "chatToolCallingDetail": {
+            "transport": "core-http-proxy",
+            "requiresFlag": "SUPREMEAI_AGENT_TOOLS=true",
+            "coreApiConfigured": bool(os.getenv("CORE_API_URL", "").strip()),
+            "scope": "governed SUPREME_TOOLS registry only (policy-gated; no browser automation)",
+            "manifest": "/v1/agent/tools",
+        },
         "capabilities": [
             {
                 "capabilityId": "cap-research",

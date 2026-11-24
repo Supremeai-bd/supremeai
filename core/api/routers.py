@@ -403,6 +403,9 @@ ALL_ROUTERS = [
     # মাউন্ট-নোট: এই মডিউলগুলোর প্রতিটির নিজস্ব APIRouter prefix আছে, তাই
     # রেজিস্ট্রি prefix অবশ্যই "" (নইলে URL দ্বিগুণ হয়ে যায়)।
     {"path": "api.routes.chat", "prefix": "", "is_admin": False, "is_critical": False},
+    # Audit item ⑯: governed tool surface for chat (flag-gated, default OFF;
+    # the loop itself stays in core.tool_loop). Own /api/agent prefix ⇒ "".
+    {"path": "api.routes.agent_tools", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.advanced_router", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.agent_tasks", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.async_task_router", "prefix": "", "is_admin": False, "is_critical": False},
