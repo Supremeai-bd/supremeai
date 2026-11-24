@@ -112,9 +112,7 @@ def test_absorb_respects_the_kill_switch(monkeypatch):
 
 
 def test_corrupt_store_degrades_loudly_to_empty_graph():
-    from core.services.memory_graph import store_dir
-
-    path = store_dir() / "tenant-m.json"
+    path = _graph()._graph_path("tenant-m")
     path.write_text("{ this is not json", encoding="utf-8")
 
     graph = _graph().get_graph("tenant-m")
