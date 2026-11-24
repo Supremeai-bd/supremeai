@@ -406,6 +406,9 @@ ALL_ROUTERS = [
     # Audit item ⑯: governed tool surface for chat (flag-gated, default OFF;
     # the loop itself stays in core.tool_loop). Own /api/agent prefix ⇒ "".
     {"path": "api.routes.agent_tools", "prefix": "", "is_admin": False, "is_critical": False},
+    # Blueprint pillar 1 (personal executive): UserMemoryGraph + morning
+    # briefing. Own /api/memory prefix ⇒ "" (same mount rule as agent_tools).
+    {"path": "api.routes.memory_graph", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.advanced_router", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.agent_tasks", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.async_task_router", "prefix": "", "is_admin": False, "is_critical": False},

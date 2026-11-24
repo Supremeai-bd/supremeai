@@ -1,9 +1,24 @@
 """Voice WebSocket channel (``/ws/voice``).
 
 Real STT (Groq Whisper → OpenAI → Gemini → HuggingFace cascade via
-``core.services.voice_service``) in front of a **simulated** intent step: the
-transcript is echoed back, no task is executed. See ``HANDLE_INTENT_SIMULATED``
-below and the honesty note on ``handle_intent``.
+``core.services.voice_service``) in front of a **real** intent step: the
+transcript is routed through the autonomous governed ReAct loop
+(``core.agent_chat_loop.AgentChatLoop``) — the same loop that powers
+``POST /api/agent/chat``. Tool calls stay inside the three governance gates
+(flag → registry → MCP policy); the voice surface adds none of its own.
+
+Honesty contract (audit items ⑤ / ⑱ — real-router revision, 2026-11-25):
+
+* ``HANDLE_INTENT_SIMULATED`` is ``False``: every spoken turn goes through
+  the same governed loop as chat. Nothing is echoed, nothing is canned.
+* Every outbound frame still carries a literal ``simulated`` flag (now
+  ``False``) plus ``surface="voice_agent"`` so the UI can audit the answer
+  path frame-by-frame.
+* The terminal ``response_complete`` frame reports ``executed`` truthfully —
+  ``True`` only when the loop actually streamed a grounded reply — together
+  with ``stepsUsed``, ``toolCalls`` and ``boundedStop``. A failed synthesis
+  produces an honest error sentence, never a fabricated result.
+``tests/test_voice_intent_honesty.py`` pins all of this.
 """
 
 import asyncio
@@ -87,56 +102,163 @@ async def process_audio_dynamically(audio_bytes: bytes) -> str:
 process_audio_with_groq = process_audio_dynamically
 
 
-# Honesty contract (audit item ⑤ / ⑱, 2026-11-24):
+# Honesty contract (real-router revision, 2026-11-25):
 #
-# ``handle_intent`` performs NO task execution. It is a deterministic echo used
-# by the voice demo loop: no LLM intent router, no tool-calling, no shell, no
-# browser. The previous canned strings ("Executing system command: … /
-# Authorization confirmed.") asserted that work had been authorized and was
-# running, which was false in every environment. Every frame this handler emits
-# now carries ``simulated: True`` so a client can never render the reply as a
-# completed action, and the text says plainly that nothing ran.
-#
-# Flip this flag (and replace the two canned branches with a real
-# allowlisted intent router) only when the execution path actually exists —
-# ``tests/test_voice_intent_honesty.py`` fails if the flag flips while the
-# canned branches are still present.
-HANDLE_INTENT_SIMULATED = True
+# The voice intent step no longer echoes. ``handle_intent`` routes every
+# transcript through ``core.agent_chat_loop.AgentChatLoop`` — governed tool
+# execution (three gates), grounded synthesis, honest failures. The flag stays
+# as a *capability marker* for clients and is now ``False``; if the loop can
+# not be built at all (import failure), the handler degrades to an honest
+# "voice agent unavailable" sentence — it never falls back to a canned claim
+# of work.
+HANDLE_INTENT_SIMULATED = False
+
+#: System note prepended to every voice turn — spoken style + language
+#: mirroring, matching the blueprint's Adaptive Tone & Brevity pillar.
+_VOICE_SYSTEM_NOTE = (
+    "You are SupremeAI's voice interface (Aethel) — the user's personal "
+    "executive. The user is SPEAKING, not typing: reply in short, spoken-style "
+    "sentences unless they explicitly ask for detail. Mirror the user's "
+    "language (বাংলা প্রশ্ন → খাঁটি বাংলা; English → professional English). "
+    "Ground every claim in real tool observations; if a tool was blocked or "
+    "failed, say so plainly."
+)
+
+
+def _voice_agent_loop():
+    """Factory seam — tests inject a fake loop without touching core internals.
+
+    Kept deliberately lazy: importing ``core.agent_chat_loop`` pulls the
+    reasoning orchestrator and LLM gateway; a broken voice deployment must
+    still answer honestly instead of dying at import time.
+    """
+    from core.agent_chat_loop import AgentChatLoop
+
+    return AgentChatLoop()
+
+
+async def _send_frame(websocket: WebSocket, payload: dict) -> None:
+    """Send one auditable frame — every frame carries the honesty flags."""
+    await websocket.send_json(
+        {
+            "simulated": False,
+            "surface": "voice_agent",
+            **payload,
+        }
+    )
 
 
 async def handle_intent(transcript: str, websocket: WebSocket, start_time: float, user_id: str):
-    """Echo the transcript back as a *simulated* voice reply (see module note).
+    """Route the transcript through the governed ReAct loop and stream the truth.
 
-    Never executes the transcript, never shells out, and marks every outbound
-    frame with ``simulated: True`` plus a machine-readable ``surface`` so the
-    UI can distinguish "Aethel repeated your words" from "Aethel did the task".
+    Every frame carries ``simulated: False`` + ``surface: "voice_agent"``:
+
+    * ``agent_event``   — loop progress (thought / tool_call / tool_result);
+    * ``response_chunk`` — streamed answer deltas for Web Speech API TTS;
+    * ``response_complete`` — terminal honesty: ``executed`` is ``True`` only
+      when a grounded reply really streamed, plus ``stepsUsed``,
+      ``toolCalls`` and ``boundedStop``.
+
+    No execution primitive lives here — the loop's gates (flag → registry →
+    MCP policy) are the only path to real work.
     """
-    # Intent Router (simulated only — see HANDLE_INTENT_SIMULATED)
-    transcript_clean = transcript.strip()
+    transcript_clean = (transcript or "").strip()
+    intent = "agent"
+    answer_parts: list[str] = []
+    tool_calls: list[dict] = []
+    bounded_stop = False
+    failure: str | None = None
 
-    if transcript_clean.startswith("/"):
-        # A "/" prefix is a command *request*, not an executed command.
-        supremeai_response = (
-            f"Command '{transcript_clean}' received, but no command executor is "
-            "wired to the voice channel yet — nothing was executed."
+    if not transcript_clean:
+        intent = "empty_audio"
+        answer_parts = [
+            "I couldn't hear anything in that recording — please try speaking again."
+        ]
+        for word in answer_parts[0].split(" "):
+            await _send_frame(
+                websocket,
+                {"type": "response_chunk", "text": word + " ", "intent": intent},
+            )
+            await asyncio.sleep(0.03)
+        await _send_frame(
+            websocket,
+            {
+                "type": "response_complete",
+                "intent": intent,
+                "executed": False,
+                "stepsUsed": 0,
+                "toolCalls": [],
+                "boundedStop": False,
+                "error": "empty transcript",
+            },
         )
-        intent = "command_unavailable"
-    else:
-        # No conversational model is attached to this socket.
-        supremeai_response = (
-            f"Hello! You said: '{transcript_clean}'. I am Aethel, your SupremeAI "
-            "orchestrator. Voice replies are simulated today — ask me in chat for "
-            "a real answer."
-        )
-        intent = "chat_unavailable"
+        return
 
-    # Log to database
+    try:
+        loop = _voice_agent_loop()
+        messages = [
+            {"role": "system", "content": _VOICE_SYSTEM_NOTE},
+            {"role": "user", "content": transcript_clean},
+        ]
+        async for event in loop.run_stream(messages=messages, tenant_id=user_id, model="auto"):
+            etype = str(event.get("type") or "")
+            if etype == "content_delta":
+                delta = str(event.get("delta") or "")
+                if not delta:
+                    continue
+                answer_parts.append(delta)
+                await _send_frame(
+                    websocket,
+                    {"type": "response_chunk", "text": delta, "intent": intent},
+                )
+            elif etype in ("thought", "tool_call", "tool_result"):
+                if etype == "tool_call":
+                    tool_calls.append(
+                        {"step": event.get("step"), "tool": event.get("tool")}
+                    )
+                # বাংলা: লুপ-অগ্রগতি সততার সাথে UI-তে — ভয়েস উত্তরের আগেই
+                # "টুল চলছে" বোঝা যায়, ভান নয়।
+                await _send_frame(websocket, {"type": "agent_event", "event": event})
+            elif etype == "error":
+                failure = str(event.get("message") or "agent error")
+            elif etype == "final":
+                if not answer_parts and event.get("answer"):
+                    final_text = str(event.get("answer"))
+                    answer_parts.append(final_text)
+                    await _send_frame(
+                        websocket,
+                        {"type": "response_chunk", "text": final_text, "intent": intent},
+                    )
+                bounded_stop = bool(event.get("boundedStop"))
+    except Exception as exc:
+        failure = f"voice agent failed ({type(exc).__name__})"
+        logger.error(f"❌ [WS Voice Agent] {type(exc).__name__}: {exc}")
+
+    answer = "".join(answer_parts).strip()
+    executed = bool(answer) and failure is None
+
+    if not executed:
+        # সততা: ব্যর্থতা বা শূন্য উত্তর — ভান নয়, স্পষ্ট ব্যর্থতার বাক্য।
+        fallback = (
+            "Voice agent could not complete this request"
+            + (f" — {failure}." if failure else ".")
+            + " Please try again, or ask in chat for a detailed answer."
+        )
+        answer = fallback
+        for word in fallback.split(" "):
+            await _send_frame(
+                websocket,
+                {"type": "response_chunk", "text": word + " ", "intent": intent},
+            )
+            await asyncio.sleep(0.03)
+
+    # Log to database (best-effort — never blocks the voice path)
     if db.client:
         latency_ms = int((time.time() - start_time) * 1000)
         log_entry = VoiceInteractionLog(
             user_id=user_id,
             transcript=transcript_clean,
-            supremeai_response=supremeai_response,
+            supremeai_response=answer[:2000],
             latency_ms=latency_ms,
         )
         try:
@@ -148,29 +270,17 @@ async def handle_intent(transcript: str, websocket: WebSocket, start_time: float
         except Exception as db_err:
             logger.info(f"⚠️ [DB Logging Error]: {db_err}")
 
-    # Stream text response back for Web Speech API TTS.
-    # Every frame is flagged simulated=True so the UI cannot claim execution.
-    words = supremeai_response.split(" ")
-    for word in words:
-        await websocket.send_json(
-            {
-                "type": "response_chunk",
-                "text": word + " ",
-                "simulated": True,
-                "intent": intent,
-                "surface": "voice_echo",
-            }
-        )
-        await asyncio.sleep(0.05)
-
-    await websocket.send_json(
+    await _send_frame(
+        websocket,
         {
             "type": "response_complete",
-            "simulated": True,
             "intent": intent,
-            "executed": False,
-            "surface": "voice_echo",
-        }
+            "executed": executed,
+            "stepsUsed": len(tool_calls),
+            "toolCalls": tool_calls,
+            "boundedStop": bounded_stop,
+            **({"error": failure} if failure else {}),
+        },
     )
 
 

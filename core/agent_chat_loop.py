@@ -114,6 +114,25 @@ class AgentChatLoop:
             self._llm = get_llm_gateway()
         return self._llm
 
+    @staticmethod
+    def _absorb_memory_best_effort(tenant: str, task: str) -> None:
+        """Passive UserMemoryGraph absorb (blueprint pillar 1) — কখনো লুপ ব্লক করে না।
+
+        বাংলা: ইউজারের কথা থেকে নীরব, deterministic ফ্যাক্ট-নিষ্কাশন। কিল-সুইচ
+        (``SUPREMEAI_MEMORY_GRAPH=false``) ও টেস্ট-স্টাব দুটোই সম্মানিত; ব্যর্থ
+        হলে কেবল debug লগ — চ্যাট-ফল কখনো মেমরির জন্য বদলায় না।
+        """
+        if not tenant or tenant == "*" or not (task or "").strip():
+            return
+        try:
+            from core.services.memory_graph import absorb_text, memory_enabled
+
+            if not memory_enabled():
+                return
+            absorb_text(tenant, task, source="chat")
+        except Exception as exc:  # noqa: BLE001 — প্যাসিভ হুক: ব্যর্থতা চ্যাটে ছড়াবে না
+            logger.debug(f"[agent_chat_loop] memory absorb skipped: {type(exc).__name__}: {exc}")
+
     async def _execute(self, tool: str, args: dict[str, Any]) -> dict[str, Any]:
         """গভর্নড নির্বাহ — গেটগুলো core.tool_loop-এ, এখানে শুধু আহ্বান।"""
         from core.tool_loop import execute_tool_decision
@@ -148,6 +167,7 @@ class AgentChatLoop:
             (m["content"] for m in reversed(convo) if m["role"] == "user"),
             convo[-1]["content"],
         )
+        self._absorb_memory_best_effort(tenant, task)
 
         view = tenant_tool_view(tenant)
         available = view.available_names() if view.enabled else []
