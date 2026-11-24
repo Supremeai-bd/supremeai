@@ -352,44 +352,24 @@ class FederationSquad:
     def get_candidate_slots(self, preferred_provider: Optional[str] = None, *, vision: bool = False) -> List[Tuple[str, KeySlot]]:
         """Return approved healthy keys ranked by latency, quota and failures.
 
-        বাংলা মন্তব্য: fail-open eligibility fallback — SUPREMEAI_FREE_ROUTE_POLICY
-        / SUPREMEAI_FREE_ROUTE_HMAC_KEY ভল্টে provision না থাকলে approved_route()
-        সবসময় None দেয়, ফলে সব কী আবিষ্কৃত হয়েও কোনো ক্যান্ডিডেট হত না
-        (প্রতিটি চ্যাট 503 — hidden kill-switch)। নীতি হলো: নীতি সত্যিই provision
-        করা থাকলে সেটাই কর্তৃত্বপূর্ণ (strict), না থাকলে একটি বৈধ আকৃতির কী
-        সরাসরি eligible (fail-open) — কী কনফিগার করা মানেই সার্ভ করার অনুমতি,
-        অন্যথায় "intelligent" আচরণ সম্ভব নয়। policy-check ফাংশন প্যাচ করে
-        নীতি-এনফোর্সমেন্ট সবসময় আগের মতো কড়া রাখা যায় (টেস্টে monkeypatch-প্রতি)।
+        বাংলা মন্তব্য: ঐচ্ছিক fail-open eligibility fallback — SUPREMEAI_FREE_ROUTE_FAIL_OPEN=1
+        থাকলে অপারেটর পলিসি মিন্ট না করলেও আবিষ্কৃত কী সরাসরি eligible হবে। অন্যথায়
+        স্ট্যান্ডার্ড সিকিউরিটি আর্কিটেকচার অনুযায়ী eligible_chat_models অনুমোদন যাচাই করবে।
         """
         from .providers.adapters import eligible_chat_models, PROVIDER_CONFIGS
-        from .free_route_policy import POLICY_ENV
 
-        policy_configured = bool(os.getenv(POLICY_ENV, "").strip())
-
-        def _eligible(provider: str, key: str, slot: Any) -> bool:
-            # বাংলা মন্তব্য: যদি eligible_chat_models সরাসরি কোনো মডেল অনুমোদন করে (বা টেস্টে মক করা থাকে), তবে তা গ্রাহ্য হবে।
-            approved_models = eligible_chat_models(provider, key, slot, vision=vision)
-            if approved_models:
-                return True
-            if policy_configured:
-                # বাংলা মন্তব্য: অপারেটর ইচ্ছাকৃতভাবে নীতি provision করেছে — কড়া পথ, কোনো আনঅথরাইজড রুট চলবে না।
-                return False
-            # বাংলা মন্তব্য: নীতি অনুপস্থিত = কী-ই একমাত্র প্রমাণ (fail-open fallback)।
-            if not key or len(key) < 8:
-                return False
-            if provider in PROVIDER_CONFIGS:
-                return True
-            return False
+        fail_open = os.getenv("SUPREMEAI_FREE_ROUTE_FAIL_OPEN", "").strip().lower() in ("1", "true", "yes")
 
         candidates: List[Tuple[str, KeySlot]] = []
         providers = (preferred_provider,) if preferred_provider not in (None, "auto", "") else self.DEFAULT_PROVIDER_ORDER
         for provider in providers:
             pool = self.pools.get(provider)
             if pool:
-                candidates.extend(
-                    (provider, slot) for slot in pool.healthy_slots
-                    if _eligible(provider, slot.key, slot)
-                )
+                for slot in pool.healthy_slots:
+                    if eligible_chat_models(provider, slot.key, slot, vision=vision):
+                        candidates.append((provider, slot))
+                    elif fail_open and slot.key and len(slot.key) >= 8 and provider in PROVIDER_CONFIGS:
+                        candidates.append((provider, slot))
         ranked = sorted(
             candidates,
             key=lambda item: (
