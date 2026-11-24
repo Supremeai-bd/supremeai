@@ -9,10 +9,16 @@ name: CodeQL
 # PR status check, so it cannot block the existing landing gate.
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - 'version.json'
+      - '*.txt'
   schedule:
     # Weekly re-scan catches newly-published queries (Mondays 06:00 UTC).
     - cron: '0 6 * * 1'
