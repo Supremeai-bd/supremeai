@@ -117,3 +117,37 @@ def test_main_blocking_on_drift(monkeypatch, capsys):
                             monkeypatch.setenv("MESH_PARITY_FAIL_OPEN", "1")
                             code_fail_open = render_mesh_parity.main()
                             assert code_fail_open == 0
+
+
+def test_main_ci_runner_auxiliary_skipped(monkeypatch, capsys):
+    # বাংলা মন্তব্য: ci-runner সার্ভিস সাসপেন্ডেড হওয়ায় অটো-ডেপ্লয় থেকে বাদ থাকে (plan_render_deploys.py:69)
+    # তাই প্যারিটি গেটে এটি ড্রিফ্ট তৈরি না করে সরাসরি skipped হিসেবে গণ্য হবে
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+    monkeypatch.delenv("MESH_PARITY_FAIL_OPEN", raising=False)
+    monkeypatch.setenv("RENDER_CI_RUNNER_SERVICE_ID", "srv-ci-runner-123")
+    monkeypatch.setenv("RENDER_API_KEY_PAYKARI", "rnd_test_key")
+
+    with patch("scripts.ci.render_mesh_parity.load_render_services") as mock_services:
+        mock_services.return_value = [{
+            "name": "ci-runner",
+            "canonical_service_id_env": "RENDER_CI_RUNNER_SERVICE_ID",
+            "canonical_api_key_env": "RENDER_API_KEY_PAYKARI",
+            "watch_paths": ["scripts/ci/**"],
+            "exclude_paths": [],
+        }]
+
+        with patch("scripts.ci.render_mesh_parity.path_expected_commit", return_value="a" * 40):
+            with patch("scripts.ci.render_mesh_parity.subprocess.run") as mock_run:
+                mock_proc = Mock()
+                mock_proc.stdout = "c" * 40 + "\n"
+                mock_proc.returncode = 0
+                mock_run.return_value = mock_proc
+
+                code = render_mesh_parity.main()
+                assert code == 0
+
+    out = capsys.readouterr().out
+    data = json.loads(out)
+    assert data["blocking"] == 0
+    assert data["rows"][0]["status"] == "skipped"
+    assert "suspended by owner" in data["rows"][0]["detail"]

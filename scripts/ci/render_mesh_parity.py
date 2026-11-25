@@ -145,6 +145,12 @@ def main() -> int:
             row["detail"] = "service ID env not configured (UNREGISTERED)"
             rows.append(row)
             continue
+        # বাংলা মন্তব্য: suspended CI runner কোনো প্রোডাকশন রানটাইম নয় এবং main পুশে
+        # এটি কখনই অটো-ডেপ্লয় হয় না (দেখুন plan_render_deploys.py:69-72)। তাই প্যারিটি গেটে skipped।
+        if name == "ci-runner":
+            row["detail"] = "auxiliary runner suspended by owner (matches plan_render_deploys.py)"
+            rows.append(row)
+            continue
         if not api_key:
             row["status"] = "no_credential"
             row["detail"] = f"no Render API key in env ({spec['canonical_api_key_env']})"
