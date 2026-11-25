@@ -12,6 +12,7 @@ ORIGIN_HOST = "supremeai-studio.pages.dev"
 API_ORIGIN_HOST = "supremeai-api-ulw0.onrender.com"
 MCP_ORIGIN_HOST = "supremeai-mcp-tower-live.onrender.com"
 ALLOWED_ORIGINS = "https://supremeai-studio.pages.dev,https://supremeai.live"
+UMAMI_WEBSITE_ID = "cb9c9e7e-00c6-4b64-ba5d-4c75bccb9fca"
 
 [triggers]
 crons = ["*/10 * * * *", "0 * * * *"]
