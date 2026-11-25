@@ -6,20 +6,24 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts" / "agents"))
+_TARGET_MODULE = Path(__file__).resolve().parents[3] / "scripts" / "agents" / "acquire_role_slot.py"
+# বাংলা মন্তব্য: ফাইল সরে গেলে opaque ImportError-এর বদলে স্পষ্ট assertion বার্তা পাওয়া যাবে।
+assert _TARGET_MODULE.is_file(), f"Expected acquire_role_slot.py not found: {_TARGET_MODULE}"
+sys.path.insert(0, str(_TARGET_MODULE.parent))
 
 import acquire_role_slot as ars  # noqa: E402  # type: ignore[import-not-found]
 
 
-def make_result(stdout_json: str, returncode: int = 0):
+class _FakeRunResult:
     # বাংলা মন্তব্য: subprocess.run-এর ফেক রেজাল্ট স্টাব — আগে তিনটি টেস্টে একই ক্লাস ডুপ্লিকেট ছিল।
-    class Res:
-        pass
+    def __init__(self, stdout_json: str | None, returncode: int = 0, stderr: str = ""):
+        self.stdout = stdout_json
+        self.returncode = returncode
+        self.stderr = stderr
 
-    Res.returncode = returncode
-    Res.stdout = stdout_json
-    Res.stderr = ""
-    return Res()
+
+def make_result(stdout_json: str | None, returncode: int = 0):
+    return _FakeRunResult(stdout_json, returncode)
 
 
 class TestFindNextUnclaimedIssue:
@@ -133,11 +137,7 @@ class TestCreateBranch:
 
         def fake_run(cmd, **kw):
             calls.append(cmd)
-
-            class R:
-                returncode = 0
-
-            return R()
+            return make_result(None)
 
         monkeypatch.setattr(ars.subprocess, "run", fake_run)
         assert ars.checkout_slot_branch("coder-1-100-fix") is True
@@ -147,9 +147,7 @@ class TestCreateBranch:
         def fake_run(cmd, **kw):
             # বাংলা মন্তব্য: substring নয় — স্পষ্ট কমান্ড নাম দিয়ে fetch শনাক্ত করা হচ্ছে।
             if len(cmd) > 1 and cmd[1] == "fetch":
-                class F:
-                    returncode = 0
-                return F()
+                return make_result(None)
             raise ars.subprocess.SubprocessError("checkout failed")
 
         monkeypatch.setattr(ars.subprocess, "run", fake_run)
