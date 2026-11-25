@@ -44,6 +44,10 @@ interface HealthProbe {
 function bearerFor(apiKeyRef: string): string | undefined {
   const primary = process.env[apiKeyRef];
   if (primary && primary.length > 0) return primary;
+  // Fallbacks are limited to GitHub-scope tokens: this bearer is sent as
+  // Authorization to EXTERNAL provider endpoints (api.github.com etc.). Falling
+  // back to Supabase service-role / storage keys would leak database credentials
+  // cross-provider, so those env vars are intentionally excluded below.
   for (const fallback of [
     "GITHUB_PAT_PAYKARIBAZARONLINE",
     "GITHUB_TOKEN",
@@ -52,9 +56,6 @@ function bearerFor(apiKeyRef: string): string | undefined {
     "OPEN_SYNC_PAT",
     "SYNC_PAT",
     "SELF_HEAL_PAT",
-    "SUPABASE_SERVICE_ROLE_KEY",
-    "SUPABASE_KEY",
-    "SUPABASE_ANON_KEY",
   ]) {
     const val = process.env[fallback];
     if (val && val.length > 0) return val;
