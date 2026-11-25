@@ -162,5 +162,17 @@ def test_localhost_origins_are_still_allowed():
         assert dev in app_src, f"dev origin {dev} vanished from the CORS defaults"
 
 
+def test_production_disables_default_localhost_origin_regex():
+    """SA-17: gateway/core must not enable localhost origin regex by default in production."""
+    gw_src = (REPO_ROOT / "gateway" / "service" / "app.py").read_text(encoding="utf-8")
+    srv_src = (REPO_ROOT / "core" / "api" / "server.py").read_text(encoding="utf-8")
+    assert "_cors_runtime_env" in gw_src and "local" in gw_src
+    assert "_server_env" in srv_src and "local" in srv_src
+
+    sec_md = (REPO_ROOT / "SECURITY.md").read_text(encoding="utf-8")
+    assert "2.5.x" in sec_md
+    assert "niloyjoy7@gmail.com" not in sec_md
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
