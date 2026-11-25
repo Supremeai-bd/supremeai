@@ -8,7 +8,18 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts" / "agents"))
 
-import acquire_role_slot as ars  # noqa: E402
+import acquire_role_slot as ars  # noqa: E402  # type: ignore[import-not-found]
+
+
+def make_result(stdout_json: str, returncode: int = 0):
+    # বাংলা মন্তব্য: subprocess.run-এর ফেক রেজাল্ট স্টাব — আগে তিনটি টেস্টে একই ক্লাস ডুপ্লিকেট ছিল।
+    class Res:
+        pass
+
+    Res.returncode = returncode
+    Res.stdout = stdout_json
+    Res.stderr = ""
+    return Res()
 
 
 class TestFindNextUnclaimedIssue:
@@ -22,13 +33,7 @@ class TestFindNextUnclaimedIssue:
             {"number": 5, "title": "has pr", "body": "", "labels": [{"name": "has-pr"}], "createdAt": "2026-01-05"},
         ]
 
-        class Res:
-            returncode = 0
-            stdout = json.dumps(issues)
-            stderr = ""
-
-        def fake_run(*a, **kw):
-            return Res()
+        fake_run = lambda *a, **kw: make_result(json.dumps(issues))  # noqa: E731
 
         monkeypatch.setattr(ars.subprocess, "run", fake_run)
         result = ars.find_next_unclaimed_issue()
@@ -38,12 +43,7 @@ class TestFindNextUnclaimedIssue:
     def test_all_filtered_returns_none(self, monkeypatch):
         issues = [{"number": 9, "title": "x", "body": "", "labels": [{"name": "status:in-progress"}], "createdAt": ""}]
 
-        class Res:
-            returncode = 0
-            stdout = json.dumps(issues)
-            stderr = ""
-
-        monkeypatch.setattr(ars.subprocess, "run", lambda *a, **kw: Res())
+        monkeypatch.setattr(ars.subprocess, "run", lambda *a, **kw: make_result(json.dumps(issues)))
         assert ars.find_next_unclaimed_issue() is None
 
     def test_gh_failure_returns_none(self, monkeypatch):
@@ -59,15 +59,22 @@ class TestFindNextUnclaimedIssue:
             {"number": 11, "title": "for planner", "body": "", "labels": [{"name": "handoff:planner"}], "createdAt": ""},
         ]
 
-        class Res:
-            returncode = 0
-            stdout = json.dumps(issues)
-            stderr = ""
-
-        monkeypatch.setattr(ars.subprocess, "run", lambda *a, **kw: Res())
+        monkeypatch.setattr(ars.subprocess, "run", lambda *a, **kw: make_result(json.dumps(issues)))
         result = ars.find_next_unclaimed_issue(role="planner")
         assert result is not None
         assert result["number"] == 11
+
+    def test_same_priority_tie_breaks_on_older_created_at(self, monkeypatch):
+        # বাংলা মন্তব্য: একই প্রায়োরিটির দুটি P0 ইস্যু — পুরোনো createdAt-টি আগে আসবে।
+        issues = [
+            {"number": 20, "title": "newer", "body": "", "labels": [{"name": "P0-critical"}], "createdAt": "2026-02-01"},
+            {"number": 21, "title": "older", "body": "", "labels": [{"name": "P0-critical"}], "createdAt": "2026-01-15"},
+        ]
+
+        monkeypatch.setattr(ars.subprocess, "run", lambda *a, **kw: make_result(json.dumps(issues)))
+        result = ars.find_next_unclaimed_issue()
+        assert result is not None
+        assert result["number"] == 21
 
 
 class TestLeaseSlot:
@@ -110,6 +117,14 @@ class TestLeaseSlot:
         assert slot.branch_name.startswith("coder-1-2275-")
         assert "login-crash" in slot.branch_name
 
+    def test_occupied_via_active_heartbeat(self, monkeypatch):
+        # বাংলা মন্তব্য: heartbeat-ভিত্তিক occupancy পথ — অন্য উৎস খালি থাকলেও ব্যস্ত ধরা হবে।
+        status = ars.evaluate_slot_occupancy(
+            role="coder", index=3,
+            open_pr_branches=set(), busy_issue_slots={}, active_heartbeats={"coder-3"},
+        )
+        assert status.is_occupied
+
 
 class TestCreateBranch:
     # বাংলা মন্তব্য: branch-creation ফাংশনের success/failure পথ যাচাই।
@@ -130,7 +145,8 @@ class TestCreateBranch:
 
     def test_checkout_failure_returns_false(self, monkeypatch):
         def fake_run(cmd, **kw):
-            if "fetch" in cmd:
+            # বাংলা মন্তব্য: substring নয় — স্পষ্ট কমান্ড নাম দিয়ে fetch শনাক্ত করা হচ্ছে।
+            if len(cmd) > 1 and cmd[1] == "fetch":
                 class F:
                     returncode = 0
                 return F()
