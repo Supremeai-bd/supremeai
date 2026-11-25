@@ -412,12 +412,12 @@
   },
   "graph": {
     "modules": 2191,
-    "edges": 5010,
+    "edges": 5023,
     "edge_kinds": {
-      "dispatch": 191,
+      "dispatch": 194,
       "dynamic": 4,
-      "import": 4131,
-      "string": 684
+      "import": 4137,
+      "string": 688
     }
   },
   "entrypoints": {
@@ -438,9 +438,9 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1675,
-    "unreachable": 522,
-    "reachable_pct": 76.4
+    "reachable": 1676,
+    "unreachable": 521,
+    "reachable_pct": 76.5
   },
   "gaps": {
     "dangling_references": [
@@ -1099,7 +1099,6 @@
     "gateway.dynamic_llm_router",
     "gateway.gateway_shield_reference",
     "gateway.model_churn_gate",
-    "gateway.routes",
     "gateway.routes.admin_dashboard",
     "gateway.routes.browser",
     "gateway.routes.commandcenter",
