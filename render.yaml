@@ -72,7 +72,23 @@ services:
     autoDeploy: false
     rootDir: infrastructure/mcp-control-plane
     healthCheckPath: /health
-    buildCommand: npm ci && npm run build
+    # Fix (audit F5, 2026-11-25): devtools_* tools spawned `chrome` (default of
+    # DEVTOOLS_CHROME_PATH) and failed with `spawn chrome ENOENT` — the node
+    # runtime image ships no browser, leaving render-mcp permanently degraded
+    # and devtools_audit stuck on its HTTP fallback verdict. Install the
+    # pinned chrome-headless-shell build into a fixed path, symlink it as
+    # `chrome` on PATH, and point DEVTOOLS_CHROME_PATH at the symlink.
+    # The explicit shared-lib set covers chrome-headless-shell on Ubuntu
+    # (libasound2 on 22.04, libasound2t64 fallback on 24.04); chrome-headless-shell
+    # needs no GUI/X libs. @puppeteer/browsers is version-pinned (#2525 policy).
+    buildCommand: >
+      npm ci && npm run build &&
+      apt-get update -y &&
+      (apt-get install -y --no-install-recommends libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 fonts-liberation ca-certificates ||
+       apt-get install -y --no-install-recommends libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2t64 fonts-liberation ca-certificates) &&
+      npx -y @puppeteer/browsers@3.3.0 install chrome-headless-shell@stable --path /opt/devtools-browser &&
+      ln -sf "$(find /opt/devtools-browser -type f -name chrome-headless-shell | head -1)" /usr/local/bin/chrome &&
+      chmod 0755 /usr/local/bin/chrome
     # Fix (audit 2026-11-11): the bootstrap lives at repo root, NOT under this
     # rootDir — the previous relative path crashed start on fresh deploys with
     # "can't open file". Fall back to plain start only if python3 is absent.
@@ -85,6 +101,11 @@ services:
         value: production
       - key: MCP_API_KEY
         generateValue: true
+      # Fix (audit F5, 2026-11-25): explicit browser binary for the devtools
+      # adapter (src/lib/env.ts -> devtools.chromePath). The buildCommand above
+      # symlinks the pinned chrome-headless-shell build here.
+      - key: DEVTOOLS_CHROME_PATH
+        value: /usr/local/bin/chrome
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
