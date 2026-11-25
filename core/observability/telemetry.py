@@ -7,6 +7,7 @@ and GenAI semantic conventions (tokens/cost) without vendor lock-in.
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
 from typing import Any
 
@@ -19,8 +20,37 @@ try:
 except ImportError:
     OTEL_AVAILABLE = False
 
+_logger = logging.getLogger(__name__)
 
 _tracer: Any | None = None
+
+
+def resolve_otlp_traces_endpoint(
+    endpoint: str | None, traces_endpoint: str | None = None
+) -> str | None:
+    """Resolve the exact OTLP/HTTP traces endpoint from the standard env vars.
+
+    Per the OpenTelemetry spec, ``OTEL_EXPORTER_OTLP_ENDPOINT`` is a BASE
+    endpoint — the SDK appends the signal path (``/v1/traces``). But
+    ``OTLPSpanExporter(endpoint=...)`` uses its value VERBATIM, so passing the
+    base URL through unchanged makes every span POST hit the wrong path
+    (Grafana Cloud's OTLP gateway answers 404/405 and BatchSpanProcessor then
+    silently drops the batch). ``OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`` is the
+    signal-specific variable and is always used verbatim.
+
+    Mirrors gateway/metrics_exporter.py, which already appends ``/v1/metrics``
+    to the same base variable (pinned by tests/test_gateway_metrics_otlp.py).
+    """
+    if traces_endpoint and traces_endpoint.strip():
+        return traces_endpoint.strip()
+    if not endpoint or not endpoint.strip():
+        return None
+    base = endpoint.strip().rstrip("/")
+    if not base:
+        return None
+    if base.endswith("/v1/traces"):
+        return base
+    return f"{base}/v1/traces"
 
 
 def init_telemetry(service_name: str = "supremeai-agent-engine"):
@@ -39,15 +69,21 @@ def init_telemetry(service_name: str = "supremeai-agent-engine"):
     })
     provider = TracerProvider(resource=resource)
 
-    # Use OTLP exporter if endpoint is configured, else fallback to null / console
-    otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+    # Use OTLP exporter if an endpoint is configured, else fallback to null / console
+    otlp_endpoint = resolve_otlp_traces_endpoint(
+        os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+        os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"),
+    )
     if otlp_endpoint:
         try:
             from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
             exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
             provider.add_span_processor(BatchSpanProcessor(exporter))
-        except Exception:
-            pass
+        except Exception as exc:
+            # A silently-dead exporter makes every trace vanish downstream while
+            # the service looks healthy; keep the app alive but say why.
+            # (Previously a bare `except Exception: pass` swallowed this.)
+            _logger.warning("OTLP trace exporter init failed for %s: %s", otlp_endpoint, exc)
 
     trace.set_tracer_provider(provider)
     _tracer = trace.get_tracer(service_name)
