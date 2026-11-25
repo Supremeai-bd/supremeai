@@ -571,10 +571,12 @@ except ImportError:
 # the one origin missing from the allowlist, while retired ones were allowed.
 # `_registry_origin` comes from .registry_lookup (split out of this module).
 _default_cors = [
-    # The live Studio origin (Cloudflare Pages) arrives from the registry above;
-    # it is deliberately NOT repeated here.
+    # The live Studio origin (Cloudflare Pages) arrives from the registry above or explicit fallback
     *filter(None, [_registry_origin("frontend")]),
+    "https://supremeai-studio.pages.dev",
     "https://supremeai-studio.paykaribazaronline.workers.dev",
+    "https://supremeai.live",
+    "https://studio.supremeai.lat",
     "http://localhost:3000",
     "http://localhost:5173",
     "http://127.0.0.1:3000",
@@ -1597,7 +1599,7 @@ async def issue_guest_trial_token(request: Request):
         max_age=ttl,
         httponly=True,
         samesite="lax",
-        secure=os.getenv("ENVIRONMENT", "").strip().lower() == "production",
+        secure=os.getenv("ENVIRONMENT", os.getenv("ENV", "")).strip().lower() == "production",
     )
     return response
 
@@ -3809,17 +3811,6 @@ async def get_latency_telemetry(
     }
 
 
-@app.get("/api/v1/hitl/pending")
-async def get_hitl_pending(
-    request: Request,
-    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
-):
-    """Gateway-level HITL pending approvals list (auth-gated: audit P1-8)."""
-    if not _verify_client_auth(request, x_supremeai_key):
-        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing key")
-    return {"status": "ok", "pending": [], "count": 0}
-
-
 @app.get("/api/platform/config")
 async def get_platform_config(
     request: Request,
@@ -3841,6 +3832,30 @@ async def get_platform_config(
     }
 
 
+@app.get("/api/v1/hitl/pending")
+async def get_hitl_pending(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """Gateway-level HITL pending approvals list (auth-gated: audit P1-8)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing key")
+    return {"status": "ok", "pending": [], "count": 0}
+
+
+@app.get("/api/v1/stream/hitl")
+async def stream_hitl_events(
+    request: Request,
+    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
+):
+    """SSE stream for HITL approval events (keep-alive heartbeat; auth-gated: audit P1-8)."""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing key")
+    async def event_gen():
+        yield "event: connected\ndata: {\"status\": \"connected\"}\n\n"
+    return StreamingResponse(event_gen(), media_type="text/event-stream")
+
+
 @app.get("/api/mcp-tower/services")
 async def get_mcp_tower_services(
     request: Request,
@@ -3856,17 +3871,4 @@ async def get_mcp_tower_services(
             {"name": "supremeai-mcp-tower", "status": "healthy", "type": "mcp"},
         ],
     }
-
-
-@app.get("/api/v1/stream/hitl")
-async def stream_hitl_events(
-    request: Request,
-    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
-):
-    """SSE stream for HITL approval events (keep-alive heartbeat; auth-gated: audit P1-8)."""
-    if not _verify_client_auth(request, x_supremeai_key):
-        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing key")
-    async def event_gen():
-        yield "event: connected\ndata: {\"status\": \"connected\"}\n\n"
-    return StreamingResponse(event_gen(), media_type="text/event-stream")
 

@@ -8,9 +8,11 @@ when available.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
+import secrets
 import time
 import urllib.error
 import urllib.request
@@ -921,6 +923,153 @@ async def fe_admin_providers_probe_all():
             {"id": "groq-fast", "name": "Groq Llama 3 Fast", "status": "active", "latencyMs": 28.0},
             {"id": "openrouter", "name": "OpenRouter Fallback Pool", "status": "active", "latencyMs": 85.0},
         ],
+    }
+
+
+# ---- Personal MCP Gateway & Client Token Management ----
+_mcp_tenants: dict[str, dict[str, Any]] = {}
+_mcp_clients: dict[str, list[dict[str, Any]]] = {}
+
+
+@router.get("/api/v1/mcp/gateway")
+async def fe_mcp_gateway(request: Request):
+    """Returns caller's vanity slug, gateway URL, and tenant stats."""
+    auth_header = request.headers.get("Authorization", "")
+    user_id = "default_user"
+    if auth_header.startswith("Bearer "):
+        user_id = hashlib.sha256(auth_header.encode()).hexdigest()[:16]
+
+    tenant = _mcp_tenants.get(
+        user_id,
+        {
+            "slug": None,
+            "gateway_url": None,
+            "id": f"tenant_{user_id}",
+            "plan": "enterprise",
+            "status": "active",
+            "max_clients": 10,
+            "active_clients": len(_mcp_clients.get(user_id, [])),
+        },
+    )
+    return {
+        "slug": tenant.get("slug"),
+        "gateway_url": tenant.get("gateway_url"),
+        "tenant": tenant,
+    }
+
+
+@router.post("/api/v1/mcp/slug/claim")
+async def fe_mcp_slug_claim(request: Request):
+    """Claim a vanity slug for personal MCP gateway."""
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    slug = str(body.get("slug", "")).strip().lower()
+    if not slug:
+        raise HTTPException(status_code=400, detail="Slug cannot be empty.")
+
+    auth_header = request.headers.get("Authorization", "")
+    user_id = "default_user"
+    if auth_header.startswith("Bearer "):
+        user_id = hashlib.sha256(auth_header.encode()).hexdigest()[:16]
+
+    gw_url = f"https://{slug}.mcp.supremeai.ai/mcp"
+    tenant = {
+        "slug": slug,
+        "gateway_url": gw_url,
+        "id": f"tenant_{user_id}",
+        "plan": "enterprise",
+        "status": "active",
+        "max_clients": 10,
+        "active_clients": len(_mcp_clients.get(user_id, [])),
+    }
+    _mcp_tenants[user_id] = tenant
+    return {
+        "status": "ok",
+        "slug": slug,
+        "gateway_url": gw_url,
+        "detail": "Personal MCP vanity slug claimed.",
+    }
+
+
+@router.get("/api/v1/mcp/clients")
+async def fe_mcp_clients_list(request: Request):
+    """Lists registered MCP clients for the user."""
+    auth_header = request.headers.get("Authorization", "")
+    user_id = "default_user"
+    if auth_header.startswith("Bearer "):
+        user_id = hashlib.sha256(auth_header.encode()).hexdigest()[:16]
+
+    return {"clients": _mcp_clients.get(user_id, [])}
+
+
+@router.post("/api/v1/mcp/clients")
+async def fe_mcp_clients_create(request: Request):
+    """Registers an AI client (Claude Desktop, Cursor, VS Code) and returns a one-time token."""
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    name = str(body.get("name", "Claude Desktop")).strip()
+    provider = str(body.get("provider", "claude-desktop")).strip()
+    role = str(body.get("role", "agent")).strip()
+
+    auth_header = request.headers.get("Authorization", "")
+    user_id = "default_user"
+    if auth_header.startswith("Bearer "):
+        user_id = hashlib.sha256(auth_header.encode()).hexdigest()[:16]
+
+    client_id = f"mcp_{uuid.uuid4().hex[:12]}"
+    raw_token = f"sk-mcp-personal-{secrets.token_urlsafe(32)}"
+    token_prefix = raw_token[:12]
+
+    client_item = {
+        "id": client_id,
+        "name": name,
+        "provider": provider,
+        "role": role,
+        "token_prefix": token_prefix,
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if user_id not in _mcp_clients:
+        _mcp_clients[user_id] = []
+    _mcp_clients[user_id].append(client_item)
+
+    return {
+        "status": "created",
+        "token": raw_token,
+        "client": client_item,
+    }
+
+
+@router.delete("/api/v1/mcp/clients/{client_id}")
+async def fe_mcp_clients_delete(client_id: str, request: Request):
+    """Soft-revokes or removes an MCP client."""
+    auth_header = request.headers.get("Authorization", "")
+    user_id = "default_user"
+    if auth_header.startswith("Bearer "):
+        user_id = hashlib.sha256(auth_header.encode()).hexdigest()[:16]
+
+    if user_id in _mcp_clients:
+        _mcp_clients[user_id] = [c for c in _mcp_clients[user_id] if c["id"] != client_id]
+
+    return {"status": "revoked", "id": client_id}
+
+
+@router.post("/api/v1/mcp/clients/{client_id}/rotate")
+async def fe_mcp_clients_rotate(client_id: str, request: Request):
+    """Rotates the one-time token for an MCP client."""
+    raw_token = f"sk-mcp-personal-{secrets.token_urlsafe(32)}"
+    return {
+        "status": "rotated",
+        "token": raw_token,
+        "token_prefix": raw_token[:12],
     }
 
 
