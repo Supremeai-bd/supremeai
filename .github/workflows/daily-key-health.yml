@@ -9,12 +9,14 @@ jobs:
   daily-key-health-sweep:
     name: Daily Key Health Sweep
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install httpx supabase cryptography
       - name: Run daily key verifier
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

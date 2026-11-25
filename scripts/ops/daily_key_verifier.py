@@ -14,16 +14,26 @@ import random
 import sys
 from datetime import datetime, timezone
 
-import httpx
+try:
+    import httpx
+except ImportError:
+    httpx = None
+
+import urllib.error
+import urllib.request
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
+# বাংলা মন্তব্য: ক্যানোনিকাল core.database.supabase_client থেকে get_db ইমপোর্ট — ফেইল-সেফ ফলব্যাকসহ
 try:
-    from database.supabase_client import get_db
+    from core.database.supabase_client import get_db
 except Exception:  # pragma: no cover - allow running without full app
-    get_db = None
+    try:
+        from database.supabase_client import get_db
+    except Exception:
+        get_db = None
 
 BONUS_WEIGHTS = {
     "kilo": 150000,
@@ -53,9 +63,22 @@ async def _ping(provider: str, api_key: str) -> bool:
     if not url:
         return True
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            resp = await client.get(url, headers=headers)
-            return resp.status_code == 200
+        if httpx is not None:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                resp = await client.get(url, headers=headers)
+                return resp.status_code == 200
+        # বাংলা মন্তব্য: httpx ইনস্টল না থাকলে স্ট্যান্ডার্ড লাইব্রেরি urllib দিয়ে কলব্যাক
+        def _urllib_ping() -> bool:
+            req = urllib.request.Request(url, headers=headers)
+            try:
+                with urllib.request.urlopen(req, timeout=8.0) as resp:
+                    return getattr(resp, "status", None) == 200 or getattr(resp, "code", None) == 200
+            except urllib.error.HTTPError as he:
+                return he.code == 200
+            except Exception:
+                return False
+
+        return await asyncio.to_thread(_urllib_ping)
     except Exception as exc:
         print(f"probe warning for {p}: {exc}")
         return False
