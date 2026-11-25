@@ -22,19 +22,24 @@ SKIP = {".git", "node_modules", ".venv", "venv", "__pycache__", "dist", "build",
 EXTS = {".py", ".ts", ".tsx", ".js", ".jsx", ".yml", ".yaml"}
 
 
+# বাংলা মন্তব্য: Windows ও লিনাক্সে ডিরেক্টরি প্রুনিং সহ দ্রুত ফাইল ট্রাভার্সাল (os.walk)
 def scan() -> set[str]:
+    import os
     found: set[str] = set()
-    for p in ROOT.rglob("*"):
-        if not p.is_file() or p.suffix.lower() not in EXTS or any(x in SKIP for x in p.parts):
-            continue
-        if p.name in {".env", ".env.example", "secrets_registry.yaml"}:
-            continue
-        try:
-            text = p.read_text(encoding="utf-8", errors="ignore")
-        except OSError:
-            continue
-        for pattern in PATTERNS:
-            found.update(pattern.findall(text))
+    for root, dirs, files in os.walk(ROOT):
+        dirs[:] = [d for d in dirs if d not in SKIP and not d.startswith(".")]
+        for f in files:
+            if f in {".env", ".env.example", "secrets_registry.yaml"}:
+                continue
+            p = Path(root) / f
+            if p.suffix.lower() not in EXTS:
+                continue
+            try:
+                text = p.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            for pattern in PATTERNS:
+                found.update(pattern.findall(text))
     return found
 
 

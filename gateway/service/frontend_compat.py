@@ -20,7 +20,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -54,6 +54,7 @@ _projects: dict[str, dict[str, Any]] = {}
 # ---- HITL and GitHub orchestration stores ----
 _pending_hitl: dict[str, dict[str, Any]] = {}
 _hitl_subscribers: set[asyncio.Queue] = set()
+_hitl_sse_tickets: dict[str, float] = {}
 
 _GH_TOKEN = (
     os.getenv("GITHUB_TOKEN")
@@ -302,8 +303,29 @@ async def fe_hitl_reject(rid: str, request: Request = None):
     }
 
 
-@router.get("/api/v1/stream/hitl", dependencies=[Depends(require_github_admin)])
-async def fe_stream_hitl():
+@router.post("/api/v1/hitl/sse-ticket", dependencies=[Depends(require_github_admin)])
+async def fe_hitl_sse_ticket():
+    """Issue a short-lived, one-time ticket for the HITL SSE stream.
+
+    EventSource cannot send custom headers, so the admin proves identity on
+    this normal (header-authenticated) request and receives a ticket that is
+    then passed as a query parameter to ``/api/v1/stream/hitl``.
+    """
+    now = time.time()
+    # Prune expired tickets.
+    for t in [k for k, v in _hitl_sse_tickets.items() if v < now]:
+        _hitl_sse_tickets.pop(t, None)
+    ticket = secrets.token_urlsafe(32)
+    _hitl_sse_tickets[ticket] = now + 60.0
+    return {"ticket": ticket}
+
+
+@router.get("/api/v1/stream/hitl")
+async def fe_stream_hitl(ticket: Optional[str] = Query(None)):
+    now = time.time()
+    expiry = _hitl_sse_tickets.pop(ticket or "", 0.0)
+    if not expiry or expiry < now:
+        raise HTTPException(status_code=403, detail="Invalid or expired SSE ticket")
     async def gen():
         q: asyncio.Queue = asyncio.Queue()
         _hitl_subscribers.add(q)

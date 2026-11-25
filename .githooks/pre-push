@@ -55,7 +55,14 @@ else
 fi
 
 echo "== Sections 1-12: guard roster (scripts/ci/run_all_guards.py — SSOT) =="
-"$PY" scripts/ci/run_all_guards.py
+# বাংলা মন্তব্য: স্থানীয় প্রি-পুশের জন্য ফাস্ট-লেন এমার্জেন্সি গেট এবং ৮-থ্রেড প্যারালাল এক্সিকিউশন
+ROSTER_FLAGS="--emergency -j 8"
+if [ "${FULL_PUSH:-0}" = "1" ]; then
+    ROSTER_FLAGS="--full"
+elif [ "${FAST_PUSH:-1}" = "0" ]; then
+    ROSTER_FLAGS="--fast -j 8"
+fi
+"$PY" scripts/ci/run_all_guards.py $ROSTER_FLAGS
 
 echo "== 13. JS-DEP CVE GUARD =="
 if printf '%s\n' "$CHANGED" | grep -Eq '(^|/)package\.json$|(^|/)package-lock\.json$'; then
