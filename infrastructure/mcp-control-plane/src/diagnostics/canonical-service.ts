@@ -39,7 +39,7 @@ export function resolveCanonicalService(name: string): CanonicalServiceTarget | 
       provider: "render",
       accountId: "render-mcp",
       serviceId: env.render.controlTower.serviceId,
-      runtimeUrl: env.render.controlTower.url,
+      runtimeUrl: env.render.controlTower.url || "https://supremeai-mcp-tower-live.onrender.com",
       repository: env.github.repo,
       branch: "main",
     },

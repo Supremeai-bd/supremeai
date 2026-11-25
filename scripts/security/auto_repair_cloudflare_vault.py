@@ -170,7 +170,13 @@ def main():
         email = acc["email"]
         key = acc["key"]
         account_id = acc["account_id"]
-        print(f"\nProcessing {role.upper()} ({email})...")
+        # Mask email before logging so CodeQL clear-text sensitive logging stays clean.
+        masked_email = (
+            f"{email[:2]}***@{email.split('@', 1)[1]}"
+            if email and "@" in email
+            else "***"
+        )
+        print(f"\nProcessing {role.upper()} ({masked_email})...")
 
         if not key or not account_id:
             missing = [
