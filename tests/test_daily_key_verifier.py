@@ -11,33 +11,18 @@ from scripts.ops import daily_key_verifier
 
 
 @pytest.mark.asyncio
-async def test_ping_httpx_success():
-    # বাংলা মন্তব্য: httpx সহ ভ্যালিড রেসপন্স (200 OK) যাচাই
-    mock_resp = Mock(status_code=200)
+@pytest.mark.parametrize("status_code,expected", [(200, True), (401, False)])
+async def test_ping_httpx_responses(status_code, expected):
+    # বাংলা মন্তব্য: httpx রেসপন্স স্ট্যাটাস কোড (200 বনাম 401) প্যারামিটারাইজড যাচাই
     mock_client = AsyncMock()
-    mock_client.get.return_value = mock_resp
+    mock_client.get.return_value = Mock(status_code=status_code)
     mock_client.__aenter__.return_value = mock_client
     mock_client.__aexit__.return_value = None
 
     with patch.object(daily_key_verifier, "httpx") as mock_httpx:
         mock_httpx.AsyncClient.return_value = mock_client
-        res = await daily_key_verifier._ping("groq", "gsk_test123")
-        assert res is True
-
-
-@pytest.mark.asyncio
-async def test_ping_httpx_failure():
-    # বাংলা মন্তব্য: ইনভ্যালিড রেসপন্স (401 Unauthorized) যাচাই
-    mock_resp = Mock(status_code=401)
-    mock_client = AsyncMock()
-    mock_client.get.return_value = mock_resp
-    mock_client.__aenter__.return_value = mock_client
-    mock_client.__aexit__.return_value = None
-
-    with patch.object(daily_key_verifier, "httpx") as mock_httpx:
-        mock_httpx.AsyncClient.return_value = mock_client
-        res = await daily_key_verifier._ping("groq", "gsk_invalid")
-        assert res is False
+        res = await daily_key_verifier._ping("groq", "gsk_test")
+        assert res is expected
 
 
 @pytest.mark.asyncio
