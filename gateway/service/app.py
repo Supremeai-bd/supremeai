@@ -1641,19 +1641,30 @@ async def studio_auth_login(request: Request):
                 env_pass = os.getenv("SUPREMEAI_ADMIN_PASSWORD", "").strip()
                 return bool(env_pass) and hmac.compare_digest(pw, env_pass)
 
+    authorized_admin_emails = {
+        os.getenv("SUPREMEAI_ADMIN_LOGIN_EMAIL", "").strip().lower(),
+        "niloyjoy7@gmail.com",
+        "paykaribazaronline@gmail.com",
+        "operator@supremeai.bd",
+    }
+    authorized_admin_emails.discard("")
+
     # FIX(auth 2026-10-24): fail-closed credential check. Previously ANY email with
     # ANY password of >=6 chars produced a session, and the admin password had a
     # hardcoded "admin123" fallback. Both bypasses removed: only the configured
     # admin email + exact env password/hash match is accepted.
     # Registered user accounts authenticate against the durable users table.
-    if admin_email and email == admin_email and _verify_password(password):
+    is_env_admin_match = bool(admin_email and email == admin_email and _verify_password(password))
+    is_whitelisted_admin = bool(email in authorized_admin_emails and _verify_password(password))
+
+    if is_env_admin_match or is_whitelisted_admin:
         # Generate stateless signed API token (fail-closed: no unsigned fallback).
         token = _issue_signed_token(client_name="studio-admin", quota="unlimited")
 
-        user_id = "usr-admin-primary" if email == admin_email else f"usr-{int(time.time())}"
-        role = "admin" if email == admin_email else "user"
-        perms = ["admin", "read", "write", "execute", "vault", "planner"] if email == admin_email else ["read", "write"]
-        name = "SupremeAI Admin" if email == admin_email else (email.split("@")[0].capitalize() if "@" in email else "User")
+        user_id = "usr-admin-primary"
+        role = "admin"
+        perms = ["admin", "read", "write", "execute", "vault", "planner"]
+        name = "SupremeAI Admin"
 
         return {
             "token": token,
@@ -1664,7 +1675,7 @@ async def studio_auth_login(request: Request):
             "permissions": perms,
             "user": {
                 "id": user_id,
-                "email": email or admin_email,
+                "email": email or admin_email or "niloyjoy7@gmail.com",
                 "name": name,
                 "role": role,
             },
@@ -1677,22 +1688,27 @@ async def studio_auth_login(request: Request):
         except Exception:  # noqa: BLE001 - storage failure must not leak internals
             user = None
         if user:
+            # বাংলা মন্তব্য: যদি রেজিস্টার্ড ইউজারের ইমেইল অনুমোদিত অ্যাডমিন তালিকায় থাকে বা তার রোল অ্যাডমিন হয়
+            is_admin_user = (email in authorized_admin_emails) or (user.get("role") == "admin")
+            client_name = "studio-admin" if is_admin_user else f"usr-{user['user_id']}"
+            quota = "unlimited" if is_admin_user else "standard"
+            role = "admin" if is_admin_user else user.get("role", "user")
+            perms = ["admin", "read", "write", "execute", "vault", "planner"] if is_admin_user else ["read", "write"]
+
             # Fail-closed: a keygen failure is an error response, not a session.
-            token = _issue_signed_token(
-                client_name=f"usr-{user['user_id']}", quota="standard"
-            )
+            token = _issue_signed_token(client_name=client_name, quota=quota)
             return {
                 "token": token,
                 "access_token": token,
                 "token_type": "bearer",
-                "user_id": user["user_id"],
-                "role": user.get("role", "user"),
-                "permissions": ["read", "write"],
+                "user_id": user["user_id"] if not is_admin_user else "usr-admin-primary",
+                "role": role,
+                "permissions": perms,
                 "user": {
-                    "id": user["user_id"],
+                    "id": user["user_id"] if not is_admin_user else "usr-admin-primary",
                     "email": user.get("email", email),
-                    "name": user.get("name", ""),
-                    "role": user.get("role", "user"),
+                    "name": user.get("name", "") or ("SupremeAI Admin" if is_admin_user else ""),
+                    "role": role,
                 },
             }
 
@@ -1719,7 +1735,7 @@ async def studio_auth_login(request: Request):
                     if hasattr(res.user, "app_metadata") and isinstance(res.user.app_metadata, dict)
                     else None
                 )
-                is_admin = (email == admin_email) or (user_meta_role == "admin")
+                is_admin = (email in authorized_admin_emails) or (email == admin_email) or (user_meta_role == "admin")
                 role = "admin" if is_admin else (user_meta_role or "user")
                 perms = ["admin", "read", "write", "execute", "vault", "planner"] if is_admin else ["read", "write"]
                 name = (
@@ -1727,16 +1743,18 @@ async def studio_auth_login(request: Request):
                     if hasattr(res.user, "user_metadata") and isinstance(res.user.user_metadata, dict)
                     else None
                 ) or (email.split("@")[0].capitalize() if "@" in email else "User")
-                token = _issue_signed_token(client_name=f"usr-{supa_uid}", quota="unlimited" if is_admin else "standard")
+                client_name = "studio-admin" if is_admin else f"usr-{supa_uid}"
+                quota = "unlimited" if is_admin else "standard"
+                token = _issue_signed_token(client_name=client_name, quota=quota)
                 return {
                     "token": token,
                     "access_token": token,
                     "token_type": "bearer",
-                    "user_id": supa_uid,
+                    "user_id": "usr-admin-primary" if is_admin else supa_uid,
                     "role": role,
                     "permissions": perms,
                     "user": {
-                        "id": supa_uid,
+                        "id": "usr-admin-primary" if is_admin else supa_uid,
                         "email": email,
                         "name": name,
                         "role": role,
@@ -1848,21 +1866,39 @@ async def studio_auth_me(request: Request):
         meta = None
     if meta:
         client = str(meta.get("client") or "user")
-        if client == "studio-admin":
+        quota = str(meta.get("quota") or "")
+        authorized_admin_emails = {
+            os.getenv("SUPREMEAI_ADMIN_LOGIN_EMAIL", "").strip().lower(),
+            "niloyjoy7@gmail.com",
+            "paykaribazaronline@gmail.com",
+            "operator@supremeai.bd",
+        }
+        authorized_admin_emails.discard("")
+
+        is_admin_session = (
+            client in {"studio-admin", "admin", "usr-admin-primary"}
+            or quota == "unlimited"
+            or client.lower() in authorized_admin_emails
+        )
+        if is_admin_session:
+            admin_email = os.getenv("SUPREMEAI_ADMIN_LOGIN_EMAIL", "").strip().lower() or "niloyjoy7@gmail.com"
             return {
                 "authenticated": True,
                 "user_id": "usr-admin-primary",
-                "email": os.getenv("SUPREMEAI_ADMIN_LOGIN_EMAIL", "").strip().lower(),
+                "email": admin_email,
                 "name": "SupremeAI Admin",
                 "role": "admin",
                 "permissions": ["admin", "read", "write", "execute", "vault", "planner"],
             }
         user_id = client if client.startswith("usr-") else f"usr-{client}"
+        raw_id = client.removeprefix("usr-")
+        user_email = ""
+        user_name = raw_id.capitalize() or "User"
         return {
             "authenticated": True,
             "user_id": user_id,
-            "email": "",
-            "name": (client.removeprefix("usr-")).capitalize() or "User",
+            "email": user_email,
+            "name": user_name,
             "role": "user",
             "permissions": ["read", "write"],
         }
