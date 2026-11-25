@@ -21,8 +21,23 @@
 # silent pass — that is the entire point of a fail-closed gate.
 set -euo pipefail
 
+# --- 0. Cross-Repo Push Isolation Guard -------------------------------------
+# বাংলা মন্তব্য: supremeai রিপো থেকে কোনো এজেন্ট যেন ভুলে বা ইচ্ছাকৃতভাবে
+# supremeai-public রিমোটে সরাসরি git push করতে না পারে (fail-closed)।
+REMOTE_NAME="${1:-}"
+REMOTE_URL="${2:-}"
+if printf '%s %s' "$REMOTE_NAME" "$REMOTE_URL" | grep -qi 'supremeai-public'; then
+    echo "BLOCKED: Direct push from 'supremeai' to 'supremeai-public' is forbidden." >&2
+    echo "Use: python scripts/ci/create_cross_repo_patch.py --target public --slug <slug>" >&2
+    exit 1
+fi
+
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-if command -v python3 >/dev/null 2>&1; then
+if [ -x "$REPO_ROOT/.venv/Scripts/python.exe" ]; then
+    PY="$REPO_ROOT/.venv/Scripts/python.exe"
+elif [ -x "$REPO_ROOT/.venv/bin/python" ]; then
+    PY="$REPO_ROOT/.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1 && python3 --version >/dev/null 2>&1; then
     PY=python3
 else
     PY=python
