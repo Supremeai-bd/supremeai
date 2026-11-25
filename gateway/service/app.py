@@ -663,6 +663,39 @@ from gateway.middleware.server_timing import ServerTimingMiddleware, timing_head
 
 app.add_middleware(ServerTimingMiddleware)
 
+# বাংলা মন্তব্য: গেটওয়ে মেট্রিক্স ও Grafana Cloud OTLP পুশ সংযুক্ত করা হলো
+from gateway.metrics_exporter import (
+    record_request as _record_gateway_metric,
+    render_metrics as _render_gateway_metrics,
+    start_otlp_metrics_background_pusher as _start_otlp_pusher,
+)
+
+
+@app.middleware("http")
+async def _gateway_metrics_middleware(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    try:
+        _record_gateway_metric(request.method, request.url.path, response.status_code, time.time() - start)
+    except Exception:
+        pass
+    return response
+
+
+@app.get("/metrics")
+async def _prometheus_metrics(request: Request):
+    """Expose Prometheus metrics for scraping (optional METRICS_SCRAPE_TOKEN guard)."""
+    expected = (os.getenv("METRICS_SCRAPE_TOKEN") or "").strip()
+    if expected:
+        supplied = (request.headers.get("x-metrics-token") or request.query_params.get("token") or "").strip()
+        if supplied != expected:
+            return Response(status_code=403, content="forbidden")
+    body, ctype = _render_gateway_metrics()
+    return Response(content=body, media_type=ctype)
+
+
+_start_otlp_pusher()
+
 
 @app.exception_handler(Exception)
 async def _unhandled_exception_with_timing(request: Request, exc: Exception) -> JSONResponse:

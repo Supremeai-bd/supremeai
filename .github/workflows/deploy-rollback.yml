@@ -26,7 +26,7 @@ on:
           - mcp-tower
           - all
       target_sha:
-        description: "Known-good commit SHA to deploy (full 40-char SHA on main)"
+        description: "Known-good commit SHA or ref to deploy (full 40-char SHA, HEAD~N, or short SHA; resolved against main)"
         required: true
         type: string
       reason:
@@ -62,11 +62,11 @@ jobs:
             echo "::error::Dispatch rollbacks from main only."
             exit 1
           fi
-          if ! printf '%s' "$TARGET_SHA" | grep -Eq '^[0-9a-fA-F]{40}$'; then
-            echo "::error::target_sha must be a full 40-character commit SHA (got '${TARGET_SHA}')."
+          if [ -z "$TARGET_SHA" ]; then
+            echo "::error::target_sha must not be empty."
             exit 1
           fi
-          echo "Target SHA accepted: $TARGET_SHA"
+          echo "Target ref accepted for resolution: $TARGET_SHA"
 
       - name: Record previous SHA (main HEAD at dispatch)
         id: previous
@@ -80,7 +80,22 @@ jobs:
       - name: Checkout canonical registry from dispatch main
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Resolve target ref to full commit SHA
+        id: resolve-sha
+        env:
+          TARGET_SHA: ${{ inputs.target_sha }}
+        run: |
+          set -euo pipefail
+          RESOLVED=$(git rev-parse "$TARGET_SHA^{commit}" 2>/dev/null || git rev-parse "$TARGET_SHA" 2>/dev/null || true)
+          if [ -z "$RESOLVED" ] || ! printf '%s' "$RESOLVED" | grep -Eq '^[0-9a-fA-F]{40}$'; then
+            echo "::error::target_sha could not be resolved to a full 40-char commit SHA (got '${TARGET_SHA}')."
+            exit 1
+          fi
+          echo "resolved=$RESOLVED" >> "$GITHUB_OUTPUT"
+          echo "Resolved target SHA: $RESOLVED"
 
       - name: Install service registry parser
         run: python -m pip install pyyaml
@@ -129,7 +144,7 @@ jobs:
 
       - name: Validate that the target SHA is an ancestor of dispatch main
         env:
-          TARGET_SHA: ${{ inputs.target_sha }}
+          TARGET_SHA: ${{ steps.resolve-sha.outputs.resolved }}
         run: |
           set -euo pipefail
           if ! git merge-base --is-ancestor "$TARGET_SHA" HEAD; then
@@ -143,7 +158,7 @@ jobs:
         env:
           RENDER_SERVICE_ID: ${{ matrix.service_id }}
           RENDER_HEALTH_PATH: ${{ matrix.health_path }}
-          EXPECTED_SHA: ${{ inputs.target_sha }}
+          EXPECTED_SHA: ${{ steps.resolve-sha.outputs.resolved }}
           REQUIRE_EXPECTED_SHA: "1"
           RENDER_WAIT_TIMEOUT_SECONDS: "600"
           RENDER_API_KEY: ${{ secrets[matrix.api_key_env] || secrets[matrix.api_key_alias_env] }}
@@ -154,7 +169,7 @@ jobs:
         env:
           RENDER_DEPLOY_ID: ${{ steps.deploy.outputs.deploy_id }}
           RENDER_SERVICE_ID: ${{ matrix.service_id }}
-          EXPECTED_SHA: ${{ inputs.target_sha }}
+          EXPECTED_SHA: ${{ steps.resolve-sha.outputs.resolved }}
           RELEASE_URL: ${{ steps.deploy.outputs.release_url }}
           RENDER_API_KEY: ${{ secrets[matrix.api_key_env] || secrets[matrix.api_key_alias_env] }}
         run: python scripts/ci/render_deploy_attestation.py
@@ -172,7 +187,7 @@ jobs:
         env:
           SERVICE: ${{ matrix.service }}
           PREVIOUS_SHA: ${{ needs.resolve-targets.outputs.previous_sha }}
-          TARGET_SHA: ${{ inputs.target_sha }}
+          TARGET_SHA: ${{ steps.resolve-sha.outputs.resolved }}
           REASON: ${{ inputs.reason }}
           OPERATOR: ${{ github.actor }}
           OUTCOME: ${{ job.status }}
