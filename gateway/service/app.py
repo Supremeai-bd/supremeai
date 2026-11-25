@@ -3832,28 +3832,6 @@ async def get_platform_config(
     }
 
 
-@app.get("/api/v1/hitl/pending")
-async def get_hitl_pending(
-    request: Request,
-    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
-):
-    """Gateway-level HITL pending approvals list (auth-gated: audit P1-8)."""
-    if not _verify_client_auth(request, x_supremeai_key):
-        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing key")
-    return {"status": "ok", "pending": [], "count": 0}
-
-
-@app.get("/api/v1/stream/hitl")
-async def stream_hitl_events(
-    request: Request,
-    x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key"),
-):
-    """SSE stream for HITL approval events (keep-alive heartbeat; auth-gated: audit P1-8)."""
-    if not _verify_client_auth(request, x_supremeai_key):
-        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing key")
-    async def event_gen():
-        yield "event: connected\ndata: {\"status\": \"connected\"}\n\n"
-    return StreamingResponse(event_gen(), media_type="text/event-stream")
 
 
 @app.get("/api/mcp-tower/services")

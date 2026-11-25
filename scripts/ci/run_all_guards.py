@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import concurrent.futures
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -217,6 +219,29 @@ def is_fast(cmd: list[str]) -> bool:
     return any(arg in FAST_SUFFIXES for arg in cmd[1:])
 
 
+# বাংলা মন্তব্য: ভারী হোল-ট্রি অডিট ও বাহ্যিক নেটওয়ার্ক গেটগুলো সিআই/নাইটলির জন্য বরাদ্দ, লোকাল প্রি-পুশে নয়
+HEAVY_OR_NETWORK = {
+    "architecture_gap_guardian.py",
+    "deploy_preflight_guard.py",
+    "py_dep_cve_guard.py",
+    "npm_dep_cve_guard.py",
+}
+
+
+def is_emergency(cmd: list[str]) -> bool:
+    """Emergency checks for local pre-push: real integrity & security checks only.
+
+    Excludes self-test test fixtures of the guard scripts themselves and heavy whole-tree sweeps.
+    """
+    if not is_fast(cmd):
+        return False
+    if any(arg == "--self-test" for arg in cmd[1:]):
+        return False
+    if any(h in cmd[1] for h in HEAVY_OR_NETWORK):
+        return False
+    return True
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
 
@@ -229,38 +254,84 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--full", action="store_true", help="every guard (nightly / main lane)"
     )
+    parser.add_argument(
+        "--emergency",
+        "--pre-push",
+        action="store_true",
+        help="critical integrity & security checks for fast local pre-push (<15s)",
+    )
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=1,
+        help="number of parallel processes to run guards (default 1 for sequential)",
+    )
     parser.add_argument("--list", action="store_true", help="print the selected commands")
     args = parser.parse_args(argv)
 
-    selected = [c for c in GUARDS if is_fast(c)] if args.fast else GUARDS
+    if args.emergency:
+        selected = [c for c in GUARDS if is_emergency(c)]
+        label = "emergency pre-push lane"
+    elif args.fast:
+        selected = [c for c in GUARDS if is_fast(c)]
+        label = "fast lane"
+    else:
+        selected = GUARDS
+        label = "full roster"
+
     if args.list:
         for cmd in selected:
             print(" ".join(cmd))
         return 0
 
-    label = "fast lane" if args.fast else "full roster"
     print(f"=== {label}: {len(selected)}/{len(GUARDS)} guards ===")
 
     failed = 0
     failures: list[str] = []
-    for cmd in selected:
-        # Run every guard with the interpreter that is executing THIS script:
-        # a bare `python` can resolve to a different install (and then a guard
-        # that needs PyYAML fails for reasons the operator cannot see).
-        cmd = [sys.executable, *cmd[1:]] if cmd[0] == "python" else cmd
-        print(f"=== {' '.join(cmd)} ===")
-        r = subprocess.run(cmd, cwd=REPO_ROOT, check=False)
-        if r.returncode != 0:
-            failed += 1
-            failures.append(" ".join(cmd[1:]))
-            print(f"FAIL (exit {r.returncode})")
-        else:
-            print("OK")
+
+    if args.jobs > 1 and len(selected) > 1:
+        # বাংলা মন্তব্য: থ্রেডপুল এক্সেকিউটর দিয়ে ইন্ডিপেনডেন্ট গার্ডগুলোকে সমান্তরালে দ্রুত চালানো
+        def _exec_cmd(cmd_item: list[str]) -> tuple[list[str], int, str]:
+            c = [sys.executable, *cmd_item[1:]] if cmd_item[0] == "python" else cmd_item
+            r = subprocess.run(
+                c,
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            out = (r.stdout or "") + (r.stderr or "")
+            return cmd_item, r.returncode, out
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
+            futures = [pool.submit(_exec_cmd, c) for c in selected]
+            for fut in concurrent.futures.as_completed(futures):
+                c_item, ret, output = fut.result()
+                name = " ".join(c_item[1:])
+                if ret != 0:
+                    failed += 1
+                    failures.append(name)
+                    print(f"FAIL (exit {ret}): {name}")
+                    if output.strip():
+                        for line in output.strip().splitlines()[:10]:
+                            print(f"    {line}")
+                else:
+                    print(f"OK: {name}")
+    else:
+        for cmd in selected:
+            cmd = [sys.executable, *cmd[1:]] if cmd[0] == "python" else cmd
+            print(f"=== {' '.join(cmd)} ===")
+            r = subprocess.run(cmd, cwd=REPO_ROOT, check=False)
+            if r.returncode != 0:
+                failed += 1
+                failures.append(" ".join(cmd[1:]))
+                print(f"FAIL (exit {r.returncode})")
+            else:
+                print("OK")
+
     print(f"\n{len(selected) - failed}/{len(selected)} guards passed ({label})")
     if failures:
-        # Named, not just counted: a CI log that says "1 failed" makes the reader
-        # grep 3 000 lines. The whole point of wiring the roster in is that the
-        # failure is actionable.
         print("\nFAILED:")
         for name in failures:
             print(f"  - {name}")

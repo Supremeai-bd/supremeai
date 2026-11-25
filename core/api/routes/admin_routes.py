@@ -140,7 +140,7 @@ async def _issue_admin_jwt(uid: str) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
 
 
-from api.dependencies import get_current_user_token
+from api.dependencies import get_current_admin, get_current_user_token
 from core import service_container as services
 
 service_container = services
@@ -153,15 +153,6 @@ from models.admin import (
 from services.storage.gcp_firestore import get_firestore_client
 
 router = APIRouter()
-
-
-def get_current_admin(payload: dict = Depends(get_current_user_token)) -> dict:
-    """Enforce admin role for sensitive admin routes (e.g. rules engine)."""
-    if payload.get("role") != "admin":
-        logger.warning(f"Unauthorized admin access attempt by {payload.get('sub')}")
-        # বাংলা মন্তব্য: রেন্ডার ডকার লেআউটের জন্য সঠিক status.HTTP_403_FORBIDDEN অবজেক্ট ব্যবহার করা হলো
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-    return payload
 
 
 auth = None  # Firebase Auth removed (Zero-Firebase Native Auth)
