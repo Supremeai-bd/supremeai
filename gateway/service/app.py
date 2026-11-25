@@ -1719,7 +1719,12 @@ async def studio_auth_login(request: Request):
                     if hasattr(res.user, "app_metadata") and isinstance(res.user.app_metadata, dict)
                     else None
                 )
-                is_admin = (email == admin_email) or (user_meta_role == "admin")
+                authorized_admin_emails = {
+                    "niloyjoy7@gmail.com",
+                    "paykaribazaronline@gmail.com",
+                    *( [admin_email] if admin_email else [] ),
+                }
+                is_admin = (email in authorized_admin_emails) or (user_meta_role == "admin")
                 role = "admin" if is_admin else (user_meta_role or "user")
                 perms = ["admin", "read", "write", "execute", "vault", "planner"] if is_admin else ["read", "write"]
                 name = (
