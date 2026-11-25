@@ -48,7 +48,12 @@ interface GraphData {
 }
 
 function findGraphJson(): string | null {
+  // 2026-11-24 fix: repo-root ``graph.json`` added — এটাই
+  // scripts/ci/sync_graph_to_memory.py-এর canonical OUT (CI/nightly sync
+  // এখানেই লেখে)। আগে এই ক্যান্ডিডেট ছিল না, তাই CI-sync চললেও Tower-এর
+  // codebase_graph_query প্রতিবার "graph not found" দিত (dead end)।
   const candidatePaths = [
+    path.join(REPO_ROOT, "graph.json"),
     path.join(REPO_ROOT, ".cache", "graphify-full", "graphify-out", "graph.json"),
     path.join(REPO_ROOT, ".cache", "graphify", "studio", "graphify-out", "graph.json"),
     path.join(REPO_ROOT, "graphify-out", "graph.json"),

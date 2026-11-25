@@ -390,5 +390,37 @@ echo "   This MUST happen before any other agent's next_claimable.sh run."
 echo "🔄 Auto-syncing workspace with latest origin/main..."
 python3 scripts/git/auto_sync_main.py 2>/dev/null || python scripts/git/auto_sync_main.py 2>/dev/null || true
 
+# ─── STEP 6: GRAPHIFY BLAST-RADIUS & IMPACTED PYTEST PREFLIGHT ───────────
+# বাংলা মন্তব্য: ইস্যুর বডি থেকে ঘোষিত Touching files বের করে Graphify AST গ্রাফের মাধ্যমে
+# ব্লাস্ট রেডিয়াস এবং আবশ্যকীয় pytest কমান্ড এজেন্টকে কোড লেখার আগেই দেখানো হচ্ছে।
+TOUCHED_FILES_RAW=$(gh issue view "$ISSUE_NUMBER" --json body -q '.body' 2>/dev/null | python3 -c "
+import re, sys
+body = sys.stdin.read()
+m = re.search(r'Touching files:\s*([^\n\r]+)', body, re.I)
+if m:
+    files = [f.strip().strip('\`\"\'') for f in re.split(r'[,;]+', m.group(1)) if f.strip()]
+    print(' '.join(f for f in files if '/' in f or f.endswith('.py') or f.endswith('.ts')))
+" 2>/dev/null || echo "")
+
+if [ -n "$TOUCHED_FILES_RAW" ]; then
+  echo "🧭 Graphify Blast-Radius Preflight for declared Touching files ($TOUCHED_FILES_RAW):"
+  # shellcheck disable=SC2086
+  python3 scripts/ci/sync_graph_to_memory.py --blast-radius $TOUCHED_FILES_RAW 2>/dev/null || \
+  python scripts/ci/sync_graph_to_memory.py --blast-radius $TOUCHED_FILES_RAW 2>/dev/null || true
+
+  # ─── STEP 6.5: WIRING ATLAS SECRET/INFRA IMPACT PREFLIGHT (2026-11-24) ──
+  # বাংলা: স্পর্শকৃত ফাইলগুলো যদি secret/infra ওয়্যারিং ফাইল হয় (vault/render/
+  # secret/credential), তাহলে wiring_atlas --impact দিয়ে জানা যায় কোন সার্ভিস
+  # ভাঙবে। এটি audit finding — টুলটি ছিল কিন্তু claim-lane একে কল করত না।
+  if echo "$TOUCHED_FILES_RAW" | grep -qiE 'vault|secret|credential|render|infisical'; then
+    echo "🔐 Secret/infra wiring preflight (wiring_atlas --impact):"
+    for SVC in $(echo "$TOUCHED_FILES_RAW" | tr ' ' '\n' | grep -oE '(STEALTH_WEBHOOK|SUPREMEAI_[A-Z_]+|CORE_API_URL|SCRAPER)[A-Z_]*' | sort -u | head -5); do
+      python3 scripts/ops/wiring_atlas.py --impact "$SVC" 2>/dev/null || \
+      python scripts/ops/wiring_atlas.py --impact "$SVC" 2>/dev/null || true
+    done
+    echo "   (impact রিপোর্টে প্রভাবিত সার্ভিসগুলোর টেস্ট চালানো বাধ্যতামূলক — docs/SYSTEM_WIRING_ATLAS.md)"
+  fi
+fi
+
 echo "✅ Atomic claim successful — issue #$ISSUE_NUMBER owned by $AGENT_NAME"
 exit 0

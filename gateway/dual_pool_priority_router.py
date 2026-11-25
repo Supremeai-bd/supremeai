@@ -346,3 +346,13 @@ def get_dual_pool_router() -> DualPoolPriorityRouter:
     if _ROUTER_SINGLETON is None:
         _ROUTER_SINGLETON = DualPoolPriorityRouter()
     return _ROUTER_SINGLETON
+
+
+# বাংলা মন্তব্য: gateway -> core বৈধ দিকে টেলিমেট্রি প্রোভাইডার ইনজেক্ট করা হচ্ছে,
+# যাতে core/api/routes/admin_routing.py কখনো gateway import না করে।
+try:
+    from core.api.routes.admin_routing import register_dual_pool_telemetry_provider
+
+    register_dual_pool_telemetry_provider(lambda: get_dual_pool_router().get_live_telemetry())
+except ImportError:
+    pass

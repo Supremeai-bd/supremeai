@@ -129,7 +129,12 @@ async def call_agent_tool(payload: ToolCallPayload, token: UserToken) -> dict[st
         f"args={sorted(payload.arguments)}"
     )
     result = await execute_tool_decision(
-        {"tool": payload.tool, "args": payload.arguments, "source": "http"}
+        {
+            "tool": payload.tool,
+            "args": payload.arguments,
+            "source": "http",
+            "tenant_id": view.tenant_id,
+        }
     )
 
     content = (

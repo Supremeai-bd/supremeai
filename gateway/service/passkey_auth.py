@@ -185,18 +185,37 @@ async def get_register_options(req: RegisterOptionsRequest, request: Request):
     """Generates WebAuthn registration options for user or admin."""
     _clean_expired_challenges()
 
-    # Security hardening (audit 2026-11-11): this endpoint is unauthenticated, so
-    # the request body must NEVER decide identity or privilege. Honoring
-    # req.user_id allowed passkey squatting on existing accounts (takeover via
-    # /login/verify), and honoring req.role minted anonymous admin credentials
-    # (login issues a 24h JWT carrying the stored role). Identity binding to a
-    # real session must be wired server-side before any user_id is accepted.
+    # Security hardening (audit 2026-11-11): client-supplied user_id and role are
+    # NEVER trusted (prevents passkey squatting on existing accounts and privilege
+    # escalation). Identity is bound ONLY from a verified Bearer JWT when present,
+    # otherwise a fresh isolated user_id is generated server-side.
     if getattr(req, "user_id", None):
         logger.warning("Ignoring client-supplied user_id in passkey registration (untrusted)")
-    if getattr(req, "role", None):
+    if getattr(req, "role", None) and req.role != "user":
         logger.warning("Ignoring client-supplied role in passkey registration (untrusted)")
-    user_id = "usr-" + secrets.token_hex(6)
-    email = f"{user_id}@supremeai.local"
+
+    verified_user_id: Optional[str] = None
+    verified_email: Optional[str] = None
+    auth_header = request.headers.get("authorization") or ""
+    if auth_header.lower().startswith("bearer "):
+        raw_jwt = auth_header.split(" ", 1)[1].strip()
+        if raw_jwt:
+            try:
+                import jwt
+
+                decoded = jwt.decode(raw_jwt, settings.jwt_secret, algorithms=["HS256"])
+                sub = str(decoded.get("sub") or "").strip()
+                if sub and sub != "guest":
+                    verified_user_id = sub
+                    verified_email = str(decoded.get("email") or "").strip() or None
+            except Exception:
+                verified_user_id = None
+
+    user_id = verified_user_id or ("usr-" + secrets.token_hex(6))
+    clean_display_email = (req.email or "").strip()
+    email = verified_email or (
+        clean_display_email if "@" in clean_display_email and len(clean_display_email) <= 160 else f"{user_id}@supremeai.local"
+    )
     role = "user"
 
     challenge_bytes = secrets.token_bytes(32)

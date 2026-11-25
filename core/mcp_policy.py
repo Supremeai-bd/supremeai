@@ -114,6 +114,14 @@ class RiskEngine:
                 return "R1"
             return "R0"
 
+        if provider == "browser":
+            # বাংলা মন্তব্য: ব্রাউজার রিড/স্ক্রিনশট R0 (নিরাপদ), কিন্তু ক্লিক বা ফর্ম ফিল R2 (মানবিক অনুমোদন আবশ্যক)
+            if action in ("open", "read", "screenshot", "inspect", "extract"):
+                return "R0"
+            if action in ("click", "fill", "type", "submit"):
+                return "R2"
+            return "R3"
+
         # Default fallback for unknown writes
         return "R3"
 
@@ -149,6 +157,13 @@ TOOL_PROVIDER_ACTION: dict[str, tuple[str, str]] = {
     "execute_python_code": ("agent_tools", "execute"),
     # M09 P-G first-fleet: deterministic symbolic-math verification — R0।
     "cot_verify_math": ("agent_tools", "verify"),
+    # ── Autonomous Executive Browser Tools ──
+    "browser_open": ("browser", "open"),
+    "browser_inspect": ("browser", "inspect"),
+    "browser_screenshot": ("browser", "screenshot"),
+    "browser_verify_result": ("browser", "inspect"),
+    "browser_click": ("browser", "click"),
+    "browser_fill": ("browser", "fill"),
     # Memory MCP — Knowledge Graph
     "create_entities": ("memory", "create"),
     "create_relations": ("memory", "create"),

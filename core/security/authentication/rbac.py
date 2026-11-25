@@ -328,3 +328,41 @@ def get_current_admin(request: Any = None) -> dict[str, Any]:
 
         raise HTTPException(status_code=403, detail="Admin privileges required")
     return user
+
+
+# বাংলা মন্তব্য: RFC 6238 TOTP ভেরিফিকেশনের একক SSOT (DRY + Graphify layer-boundary fix)।
+# আগে admin_auth.py, admin_routes.py এবং telegram_security.py — ৩ জায়গায় একই কোড কপি করা ছিল
+# এবং core ফাইলগুলো বাইরের gateway লেয়ারকে import করছিল।
+def check_totp(user_otp: str, base32_secret: str) -> bool:
+    """Verify a 6-digit RFC 6238 TOTP code with clock-drift window (-1, 0, +1)."""
+    import base64
+    import binascii
+    import hashlib
+    import hmac
+    import struct
+    import time
+
+    if not user_otp or not base32_secret:
+        return False
+    otp_clean = user_otp.strip()
+    if len(otp_clean) != 6 or not otp_clean.isdigit():
+        return False
+    try:
+        clean_secret = base32_secret.strip().upper()
+        missing_padding = len(clean_secret) % 8
+        if missing_padding:
+            clean_secret += "=" * (8 - missing_padding)
+        key = base64.b32decode(clean_secret)
+        current_time = int(time.time() // 30)
+        for drift in (-1, 0, 1):
+            msg = struct.pack(">Q", current_time + drift)
+            digest = hmac.new(key, msg, hashlib.sha1).digest()
+            offset = digest[19] & 15
+            code_num = struct.unpack(">I", digest[offset : offset + 4])[0] & 0x7FFFFFFF
+            expected_code = f"{code_num % 1000000:06d}"
+            if hmac.compare_digest(expected_code, otp_clean):
+                return True
+        return False
+    except (ValueError, TypeError, struct.error, binascii.Error) as exc:
+        logger.debug("TOTP check failed: %s", exc)
+        return False

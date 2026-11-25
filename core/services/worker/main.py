@@ -73,15 +73,26 @@ async def poll_and_execute() -> None:
 
 
 async def _execute(task: dict, redis) -> None:
-    await asyncio.sleep(1)
-    result = {
-        "task_id": task.get("task_id"),
-        "status": "completed",
-        "result": {"message": f"processed by {WORKER_ID}"},
-        "completed_at": time.time(),
-    }
+    # বাংলা মন্তব্য: কোনো সমর্থিত এক্সিকিউটর ছাড়া সরাসরি ভুয়া 'completed' রিটার্ন না করে সততার সাথে হ্যান্ডলারের অনুপস্থিতি বা অপ্রাপ্যতার স্ট্যাটাস জানানো হচ্ছে
+    task_id = task.get("task_id")
+    action = task.get("action") or task.get("type") or "generic"
+    if action in ("ping", "health"):
+        result = {
+            "task_id": task_id,
+            "status": "completed",
+            "result": {"message": f"pong from {WORKER_ID}", "action": action},
+            "completed_at": time.time(),
+        }
+    else:
+        # F2 P0: Real executor is unavailable for generic unmapped tasks
+        result = {
+            "task_id": task_id,
+            "status": "unavailable",
+            "error": f"Task action '{action}' executor is unavailable on worker {WORKER_ID}.",
+            "completed_at": time.time(),
+        }
     await redis.lpush("ecosystem:results", json.dumps(result))
-    logger.info(f">>> task {task.get('task_id')} done")
+    logger.info(f">>> task {task_id} result: {result['status']}")
 
 
 async def heartbeat() -> None:

@@ -1,15 +1,18 @@
 # ========================================================
-# SupremeAI Graphify Ignore — Free Tier Safe Master
-# Target: strictly under 8,000 nodes, focused on core intelligence
+# SupremeAI Graphify Ignore — Coverage Master (2026-11-24)
+# বাংলা মন্তব্য: পুরনো "8,000-node cap" browser/ ও studio/-এর Python সোর্সকে
+# ব্লাস্ট-রেডিয়াস বিশ্লেষণ থেকে অন্ধ করে রাখত (MAINTAINABILITY_AUDIT 1.5)।
+# এখন শুধু বিশৃঙ্খল UI bundle (*.tsx/jsx/vue/css), editor tooling ও build আউটপুট বাদ —
+# browser/ ও studio/-এর Python/TS সোর্স গ্রাফে আসে।
 # ========================================================
 
-# 1. Satellites, Editor Tooling & UI Bundles (Over 33,000 files / massive noise)
+# 1. Editor Tooling & UI Bundles (massive noise, no AST value)
 vscode/
 **/vscode/**
-browser/
-**/browser/**
+# browser/ বাদ নয় — স্ক্র্যাপার/অটোমেশন সারফেসের ব্লাস্ট-রেডিয়াস প্রিফ্লাইট বাধ্যতামূলক
 studio/
-**/studio/**
+**/studio/node_modules/**
+**/studio/dist/**
 frontend/
 **/frontend/**
 apps/

@@ -133,12 +133,19 @@ class AgentChatLoop:
         except Exception as exc:  # noqa: BLE001 — প্যাসিভ হুক: ব্যর্থতা চ্যাটে ছড়াবে না
             logger.debug(f"[agent_chat_loop] memory absorb skipped: {type(exc).__name__}: {exc}")
 
-    async def _execute(self, tool: str, args: dict[str, Any]) -> dict[str, Any]:
-        """গভর্নড নির্বাহ — গেটগুলো core.tool_loop-এ, এখানে শুধু আহ্বান।"""
+    async def _execute(
+        self, tool: str, args: dict[str, Any], tenant_id: str = "*"
+    ) -> dict[str, Any]:
+        """গভর্নড নির্বাহ — গেটগুলো core.tool_loop-এ, এখানে শুধু আহ্বান (টেন্যান্ট আইসোলেশনসহ)।"""
         from core.tool_loop import execute_tool_decision
 
         return await execute_tool_decision(
-            {"tool": tool, "args": args or {}, "source": "agent_chat_loop"}
+            {
+                "tool": tool,
+                "args": args or {},
+                "source": "agent_chat_loop",
+                "tenant_id": tenant_id,
+            }
         )
 
     # ── main entry ───────────────────────────────────────────────────────────
@@ -230,6 +237,18 @@ class AgentChatLoop:
                         f"(allowlist source={view.allowlist_source}) — choose another tool or 'done'"
                     )
                 logger.warning(f"[agent_chat_loop] {status} tool={chosen} tenant={tenant}")
+                if status == "policy_blocked":
+                    import uuid as _uuid
+
+                    yield {
+                        "type": "approval_required",
+                        "step": step,
+                        "approvalId": f"hitl_{_uuid.uuid4().hex[:12]}",
+                        "tool": chosen,
+                        "args": args,
+                        "risk": risk,
+                        "reason": reason,
+                    }
                 yield {
                     "type": "tool_result",
                     "step": step,
@@ -244,11 +263,19 @@ class AgentChatLoop:
                 continue
 
             yield {"type": "tool_call", "step": step, "tool": chosen, "args": args}
-            result = await self._execute(chosen, args)
+            result = await self._execute(chosen, args, tenant_id=tenant)
             executed = bool(result.get("executed"))
             observation = str(result.get("observation")) if executed else str(
                 result.get("reason") or result.get("error") or "tool did not execute"
             )
+            if executed and observation.startswith("[USER_HANDOFF_REQUIRED:"):
+                yield {
+                    "type": "user_handoff_required",
+                    "step": step,
+                    "tool": chosen,
+                    "reason": "captcha_or_otp",
+                    "message": observation,
+                }
             event: dict[str, Any] = {
                 "type": "tool_result",
                 "step": step,

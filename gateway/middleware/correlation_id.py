@@ -23,28 +23,31 @@ Local test:
 
 from __future__ import annotations
 
-import contextvars
 import re
-import uuid
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
+# বাংলা মন্তব্য: core.observability.correlation_bridge হলো correlation contextvar-এর একক SSOT;
+# gateway -> core বৈধ দিকের ডিপেন্ডেন্সি বজায় রেখে এখান থেকে re-export করা হচ্ছে।
+from core.observability.correlation_bridge import (
+    _correlation_id,
+    current_correlation_id,
+    mint_correlation_id,
+)
+
 CORRELATION_HEADER = "X-Correlation-ID"
 _REQUEST_ID_HEADERS = ("X-Correlation-ID", "X-Request-ID")
 _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_\-.:]{8,128}$")
 
-_correlation_id: contextvars.ContextVar[str] = contextvars.ContextVar("correlation_id", default="")
-
-
-def current_correlation_id() -> str:
-    """The correlation id bound to the current async context ('' outside requests)."""
-    return _correlation_id.get()
-
-
-def mint_correlation_id() -> str:
-    return uuid.uuid4().hex
+__all__ = [
+    "CORRELATION_HEADER",
+    "CorrelationIdMiddleware",
+    "_correlation_id",
+    "current_correlation_id",
+    "mint_correlation_id",
+]
 
 
 class CorrelationIdMiddleware(BaseHTTPMiddleware):

@@ -63,6 +63,7 @@ import {
   updateTenant,
   verifyTenantAdminToken,
 } from "./tenancy/tenant.registry.js";
+import { verifyVanitySubdomainAccess } from "./tenancy/slug.resolver.js";
 // #2596: সেন্ট্রাল টাস্ক কিউ — GitHub rate-limit ও ghost-state নির্মূলের লিজ-স্টেট মেশিন।
 import {
   claimTask,
@@ -319,11 +320,31 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
     let pathname = requestPath(req);
     const caller = resolveCaller(req);
     const role = caller.role;
-    const client = caller.client;
-    const tenantId = caller.tenantId;
+    let client = caller.client;
+    let tenantId = caller.tenantId;
     const isGlobalAdmin = caller.isGlobalAdmin;
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "no-referrer");
+
+    // Wave 5.3 Phase B: Personal MCP Gateway `<slug>.mcp.supremeai.ai` cross-verification gate
+    const effectiveHost = String(req.headers["x-forwarded-host"] ?? req.headers.host ?? "");
+    const hasExplicitAuth = Boolean(
+      (req.headers.authorization ?? "").trim() ||
+        (req.headers["x-tenant-admin-token"] ?? "").toString().trim(),
+    );
+    const slugCheck = verifyVanitySubdomainAccess({
+      hostHeader: effectiveHost,
+      callerTenantId: tenantId,
+      isGlobalAdmin,
+      hasExplicitAuth,
+    });
+    if (!slugCheck.allowed) {
+      writeJson(res, slugCheck.statusCode ?? 403, { error: slugCheck.error });
+      return;
+    }
+    if (slugCheck.isVanitySubdomain && slugCheck.resolvedTenantId && !isGlobalAdmin) {
+      tenantId = slugCheck.resolvedTenantId;
+    }
 
     // F-06: CORS allowlist for studio + MCP Apps origins
     const ALLOWED_ORIGINS = new Set([

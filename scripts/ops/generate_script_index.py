@@ -477,7 +477,7 @@ def main(argv: Optional[List[str]] = None) -> int:
               f"Run: python3 scripts/ops/generate_script_index.py && git add scripts/ops/_INDEX.md")
         return 1
 
-    target.write_text(content, encoding="utf-8")
+    target.write_text(content, encoding="utf-8", newline="\n")
     groups = len({group_of(rel) for _, rel in entries})
     print(f"Wrote {target} — {len(entries)} scripts across {groups} groups, "
           f"{skipped_empty} empty skipped, {len(hand_blocks)} hand section(s) preserved.")

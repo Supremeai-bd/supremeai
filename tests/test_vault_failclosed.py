@@ -40,7 +40,7 @@ import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-TARGET = REPO_ROOT / "scripts" / "ops" / "security" / "auto_repair_cloudflare_vault.py"
+TARGET = REPO_ROOT / "scripts" / "security" / "auto_repair_cloudflare_vault.py"
 
 
 def _load_module():

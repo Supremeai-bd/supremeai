@@ -143,14 +143,30 @@ async def classify_action_endpoint(
     }
 
 
+# বাংলা মন্তব্য: core লেয়ার কখনো সরাসরি gateway import করবে না (Dependency Inversion)।
+# gateway বুটের সময় নিজের dual-pool টেলিমেট্রি প্রোভাইডার রেজিস্টার করে।
+_dual_pool_telemetry_provider: Any = None
+
+
+def register_dual_pool_telemetry_provider(provider_fn: Any) -> None:
+    """Register an external live telemetry provider (called by outer gateway layer)."""
+    global _dual_pool_telemetry_provider
+    _dual_pool_telemetry_provider = provider_fn
+
+
 @router.get("/live-state")
 async def get_dual_pool_live_state(
     _admin: Any = Depends(get_current_admin),
 ) -> dict[str, Any]:
     """Return live 6-model Dual-Pool priority ranking, key-pool health, and switch events."""
-    from gateway.dual_pool_priority_router import get_dual_pool_router
-
-    return get_dual_pool_router().get_live_telemetry()
+    if callable(_dual_pool_telemetry_provider):
+        return _dual_pool_telemetry_provider()
+    return {
+        "priority_list": [],
+        "key_pool_health": {},
+        "recent_events": [],
+        "status": "standalone_core",
+    }
 
 
 @router.post("/recheck")

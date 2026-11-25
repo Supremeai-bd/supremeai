@@ -525,6 +525,12 @@ ALL_ROUTERS = [
     {"path": "api.routes.live_broadcaster", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "api.routes.admin_swarm_queue", "prefix": "", "is_admin": False, "is_critical": False},
     {"path": "orchestration.periodic_task_scheduler", "prefix": "", "is_admin": True, "is_critical": False},
+    # Audit fix (2026-11-24): user-contributed API key pool (pool.py) had a real,
+    # fully-guarded router (strict provider key validation + Fernet encryption +
+    # 5/day cap) but no registry entry — every /pool endpoint 404'd in production.
+    # Own prefix /pool ⇒ registry prefix "". JWT user dependency is enforced
+    # route-level (verify_token_dependency), so is_admin=False per sibling pattern.
+    {"path": "api.routes.pool", "prefix": "", "is_admin": False, "is_critical": False},
 ]
 
 
