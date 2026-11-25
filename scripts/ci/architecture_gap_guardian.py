@@ -1274,9 +1274,12 @@ def compute_reachability(report: Report) -> Report:
         for nxt in sorted(outgoing.get(current, ())):
             if nxt not in seen:
                 queue.append(nxt)
-    report.reachable = seen
-
     non_test = set(report.modules)
+
+    # বাংলা মন্তব্য: seen সেটে entrypoints/dangling নোড থাকতে পারে যা report.modules-এর
+    # বাইরে — তাই reachable + unreachable == total_modules ইনভ্যারিয়েন্ট বজায় রাখতে
+    # reachable-কে non_test-এর সাথে intersect করা হলো।
+    report.reachable = seen & non_test
 
     # Sort for determinism: the old version emitted a different order each run.
     report.unreachable = sorted(non_test - seen)

@@ -601,10 +601,15 @@ app.add_middleware(CorrelationIdMiddleware)
 # i.e. any branch preview deployment could make credentialed cross-origin
 # requests. Preview origins that legitimately need this must now be opted in
 # explicitly via CORS_ORIGIN_REGEX (plus their exact Origin in CORS_ORIGINS).
-_cors_origin_regex = os.getenv(
-    "CORS_ORIGIN_REGEX",
-    r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$",
-).strip()
+# বাংলা মন্তব্য: production/staging-এ ডিফল্টভাবে localhost regex বন্ধ রাখা হচ্ছে (SA-17);
+# শুধু local/dev/test এনভায়রনমেন্টে বা explicitly CORS_ORIGIN_REGEX দিলে চালু হবে।
+_cors_runtime_env = os.getenv("ENVIRONMENT", os.getenv("ENV", "production")).strip().lower()
+_default_cors_regex = (
+    r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$"
+    if _cors_runtime_env in {"local", "development", "dev", "test", "testing"}
+    else ""
+)
+_cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX", _default_cors_regex).strip()
 
 app.add_middleware(
     CORSMiddleware,

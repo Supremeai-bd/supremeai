@@ -113,10 +113,22 @@ _allowed_origins = sorted(
     | set(_resolve_admin_cors_origins(_admin_raw))
 )
 
+# বাংলা মন্তব্য: production-এ যেকোনো localhost পোর্টে credentialed CORS আটকাতে
+# allow_origin_regex কেবল local/dev/test এনভায়রনমেন্টে সীমাবদ্ধ করা হলো (SA-17)।
+_server_env = _os.getenv("ENVIRONMENT", _os.getenv("ENV", "local")).strip().lower()
+_server_origin_regex = (
+    _os.getenv("CORS_ORIGIN_REGEX", "").strip()
+    or (
+        r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$"  # is_local()
+        if _server_env in {"local", "development", "dev", "test", "testing"}
+        else None
+    )
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$",  # is_local()
+    allow_origin_regex=_server_origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=[
