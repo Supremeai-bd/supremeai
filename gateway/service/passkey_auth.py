@@ -21,14 +21,38 @@ from typing import Any, Dict, Optional, Tuple
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
-from core.config import settings
-from gateway.service.storage import (
-    get_user_passkey,
-    list_user_passkeys,
-    revoke_user_passkey,
-    save_user_passkey,
-    update_passkey_usage,
-)
+def _get_jwt_secret() -> str:
+    secret = (
+        os.getenv("SUPREMEAI_JWT_SECRET")
+        or os.getenv("JWT_SECRET")
+        or os.getenv("SUPREMEAI_MASTER_KEY")
+        or os.getenv("API_KEY_SIGNING_SECRET")
+    )
+    if secret:
+        return secret
+    try:
+        from core.config import settings
+        return getattr(settings, "jwt_secret", "supremeai-local-passkey-jwt-secret-32b")
+    except Exception:
+        return "supremeai-local-passkey-jwt-secret-32b"
+
+
+try:
+    from gateway.service.storage import (
+        get_user_passkey,
+        list_user_passkeys,
+        revoke_user_passkey,
+        save_user_passkey,
+        update_passkey_usage,
+    )
+except ImportError:
+    from service.storage import (  # type: ignore[no-redef]
+        get_user_passkey,
+        list_user_passkeys,
+        revoke_user_passkey,
+        save_user_passkey,
+        update_passkey_usage,
+    )
 
 logger = logging.getLogger("supremeai.passkey_auth")
 
@@ -203,7 +227,7 @@ async def get_register_options(req: RegisterOptionsRequest, request: Request):
             try:
                 import jwt
 
-                decoded = jwt.decode(raw_jwt, settings.jwt_secret, algorithms=["HS256"])
+                decoded = jwt.decode(raw_jwt, _get_jwt_secret(), algorithms=["HS256"])
                 sub = str(decoded.get("sub") or "").strip()
                 if sub and sub != "guest":
                     verified_user_id = sub
@@ -223,7 +247,12 @@ async def get_register_options(req: RegisterOptionsRequest, request: Request):
 
     _challenges[challenge_b64] = (user_id, time.time() + CHALLENGE_TTL_SECONDS, role, "register")
 
-    rp_id = request.headers.get("host", "localhost").split(":")[0]
+    origin = request.headers.get("origin", "")
+    if origin:
+        from urllib.parse import urlparse
+        rp_id = urlparse(origin).hostname or "localhost"
+    else:
+        rp_id = request.headers.get("host", "localhost").split(":")[0]
 
     options = {
         "challenge": challenge_b64,
@@ -310,7 +339,12 @@ async def get_login_options(req: LoginOptionsRequest, request: Request):
     target_role = req.role or "user"
     _challenges[challenge_b64] = ("", time.time() + CHALLENGE_TTL_SECONDS, target_role, "login")
 
-    rp_id = request.headers.get("host", "localhost").split(":")[0]
+    origin = request.headers.get("origin", "")
+    if origin:
+        from urllib.parse import urlparse
+        rp_id = urlparse(origin).hostname or "localhost"
+    else:
+        rp_id = request.headers.get("host", "localhost").split(":")[0]
 
     return {
         "challenge": challenge_b64,
@@ -368,7 +402,7 @@ async def verify_login(req: LoginVerifyRequest, request: Request, response: Resp
     role = passkey["role"]
 
     import jwt
-    jwt_secret = settings.jwt_secret
+    jwt_secret = _get_jwt_secret()
     exp = int(time.time()) + (3600 * 24 if role == "admin" else 3600 * 12)
     token_payload = {
         "sub": user_id,
