@@ -890,6 +890,52 @@ jobs:
               --repo "$GITHUB_REPOSITORY" 2>/dev/null || echo "::warning::Automated rollback dispatch submitted."
           fi
 
+  render-mesh-parity:
+    name: "Mesh parity gate — every Render service vs its path-expected SHA"
+    needs: [deploy-and-verify, deploy-render-services]
+    # Audit F3 (2026-11-25): the deploy matrix above is path-scoped — a commit
+    # that changes only one service leaves every sibling on an older release
+    # SHA (observed live: api at 98d8cd88 while core/worker/scraper/brain ran
+    # 918fee5e; each leg individually "verified", so nothing caught it). This
+    # gate runs on EVERY main push and fails closed until all Render services
+    # are at the release commit their watch_paths last expected. Set the repo
+    # variable MESH_PARITY_FAIL_OPEN=1 during the one-time re-sync to downgrade
+    # entries to warnings.
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install service registry parser
+        run: python -m pip install pyyaml
+
+      - name: Verify mesh-wide release parity
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          MESH_PARITY_FAIL_OPEN: ${{ vars.MESH_PARITY_FAIL_OPEN || '' }}
+          RENDER_API_SERVICE_ID: ${{ vars.RENDER_API_SERVICE_ID }}
+          RENDER_SCRAPER_SERVICE_ID: ${{ vars.RENDER_SCRAPER_SERVICE_ID || vars.RENDER_BROWSER_SERVICE_ID }}
+          RENDER_MCP_SERVICE_ID: ${{ vars.RENDER_MCP_SERVICE_ID }}
+          RENDER_CORE_SERVICE_ID: ${{ vars.RENDER_CORE_SERVICE_ID }}
+          RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
+          RENDER_BRAIN_SERVICE_ID: ${{ vars.RENDER_BRAIN_SERVICE_ID }}
+          RENDER_CI_RUNNER_SERVICE_ID: ${{ vars.RENDER_CI_RUNNER_SERVICE_ID }}
+          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY_1 }}
+          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
+          RENDER_API_KEY_5: ${{ secrets.RENDER_API_KEY_5 }}
+          RENDER_API_KEY_6: ${{ secrets.RENDER_API_KEY_6 }}
+          RENDER_API_KEY_7: ${{ secrets.RENDER_API_KEY_7 }}
+          RENDER_API_PAYKARI: ${{ secrets.RENDER_API_PAYKARI }}
+          RENDER_API_KEY_PAYKARI: ${{ secrets.RENDER_API_KEY_PAYKARI }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_API: ${{ secrets.RENDER_API_KEY_API }}
+        run: python scripts/ci/render_mesh_parity.py
 
   no-render-deploy:
     name: "Check Render target registration"
