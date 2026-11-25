@@ -23,19 +23,35 @@ Local test:
 
 from __future__ import annotations
 
+import contextvars
 import re
+import uuid
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 # বাংলা মন্তব্য: core.observability.correlation_bridge হলো correlation contextvar-এর একক SSOT;
-# gateway -> core বৈধ দিকের ডিপেন্ডেন্সি বজায় রেখে এখান থেকে re-export করা হচ্ছে।
-from core.observability.correlation_bridge import (
-    _correlation_id,
-    current_correlation_id,
-    mint_correlation_id,
-)
+# তবে gateway/Dockerfile শুধু gateway/ কপি করে (core/ নেই) — তাই standalone gateway
+# কনটেইনারে ImportError এড়াতে স্থানীয় ContextVar ফলব্যাক রাখা বাধ্যতামূলক।
+try:
+    from core.observability.correlation_bridge import (
+        _correlation_id,
+        current_correlation_id,
+        mint_correlation_id,
+    )
+except ImportError:  # pragma: no cover - standalone gateway container without core package
+    _correlation_id: contextvars.ContextVar[str] = contextvars.ContextVar(
+        "correlation_id", default=""
+    )
+
+    def current_correlation_id() -> str:
+        """The correlation id bound to the current async context ('' outside requests)."""
+        return _correlation_id.get()
+
+    def mint_correlation_id() -> str:
+        """Mint a fresh UUID4 hex correlation identifier."""
+        return uuid.uuid4().hex
 
 CORRELATION_HEADER = "X-Correlation-ID"
 _REQUEST_ID_HEADERS = ("X-Correlation-ID", "X-Request-ID")
