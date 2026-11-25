@@ -80,6 +80,7 @@ ALLOWLIST: dict[str, str] = {
     "scripts/ci/pr_conflict_check.py": "requires --pr and hits the GitHub API; exercised by the landing gate",
     "scripts/ci/publish_ci_attestation.py": "posts to the live MCP Tower with MCP_TOWER_AUTH_TOKEN; exercised by unified-pipeline.yml",
     "scripts/ci/render_deploy_attestation.py": "queries the live Render API; exercised by the deploy job",
+    "scripts/ci/render_mesh_parity.py": "queries the live Render API across all mesh services; exercised by unified-pipeline.yml",
     "scripts/ci/validate_ci_runner_sha.py": "needs PR_HEAD_SHA plus live Render deploys; exercised by the CI-runner lane",
     "scripts/ci/vault_push_missing.py": "shells out to the Infisical CLI with real credentials; admin-only, never in CI",
     "scripts/ci/verify_ci_attestation.py": "reads a live attestation from MCP Tower; exercised by the landing gate",
