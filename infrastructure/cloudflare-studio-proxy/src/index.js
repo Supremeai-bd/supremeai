@@ -22,6 +22,7 @@ let ORIGIN = DEFAULT_ORIGIN;
 
 const DEFAULT_API_ORIGIN = "https://supremeai-api-ulw0.onrender.com";
 const DEFAULT_MCP_ORIGIN = "https://supremeai-mcp-tower-live.onrender.com";
+const DEFAULT_UMAMI_WEBSITE_ID = "cb9c9e7e-00c6-4b64-ba5d-4c75bccb9fca";
 let API_ORIGIN = DEFAULT_API_ORIGIN;
 let MCP_ORIGIN = DEFAULT_MCP_ORIGIN;
 
@@ -399,11 +400,13 @@ export default {
       });
     }
 
-    // Inject a fetch override into HTML so even cached JS routes API calls through this worker
+    // Inject a fetch override & Umami analytics into HTML so client routes API calls and tracks telemetry
     if (!isAsset && request.method === "GET" && response.headers.get("content-type")?.includes("text/html")) {
       let html = await response.text();
+      const umamiId = env?.UMAMI_WEBSITE_ID || DEFAULT_UMAMI_WEBSITE_ID;
+      const umamiTag = umamiId ? `<script defer src="https://cloud.umami.is/script.js" data-website-id="${umamiId}"></script>` : "";
       const script = `<script>(function(){var o=window.fetch;window.fetch=function(u,init){try{if(typeof u==="string"&&u.indexOf("supremeai-api-ulw0.onrender.com")!==-1){u=u.replace("https://supremeai-api-ulw0.onrender.com",window.location.origin);}else if(u instanceof Request&&u.url.indexOf("supremeai-api-ulw0.onrender.com")!==-1){u=new Request(u.url.replace("https://supremeai-api-ulw0.onrender.com",window.location.origin),u);} }catch(e){}return o(u,init);};})();</script>`;
-      html = html.replace("</head>", script + "</head>");
+      html = html.replace("</head>", `${umamiTag}${script}</head>`);
       const headers = new Headers(response.headers);
       headers.set("Content-Length", String(new TextEncoder().encode(html).length));
       response = new Response(html, { status: response.status, statusText: response.statusText, headers });

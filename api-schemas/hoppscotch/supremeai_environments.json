@@ -1,0 +1,56 @@
+[
+  {
+    "v": 1,
+    "id": "env-prod",
+    "name": "SupremeAI Production (Cloud)",
+    "variables": [
+      {
+        "key": "baseUrl",
+        "value": "https://supremeai-api-ulw0.onrender.com"
+      },
+      {
+        "key": "cfEdgeUrl",
+        "value": "https://supremeai-studio.paykaribazaronline.workers.dev"
+      },
+      {
+        "key": "mcpUrl",
+        "value": "https://supremeai-mcp-tower-live.onrender.com"
+      },
+      {
+        "key": "guestToken",
+        "value": ""
+      },
+      {
+        "key": "adminApiKey",
+        "value": ""
+      }
+    ]
+  },
+  {
+    "v": 1,
+    "id": "env-local",
+    "name": "SupremeAI Local Development",
+    "variables": [
+      {
+        "key": "baseUrl",
+        "value": "http://127.0.0.1:8000"
+      },
+      {
+        "key": "cfEdgeUrl",
+        "value": "http://127.0.0.1:8787"
+      },
+      {
+        "key": "mcpUrl",
+        "value": "http://127.0.0.1:8080"
+      },
+      {
+        "key": "guestToken",
+        "value": ""
+      },
+      {
+        "key": "adminApiKey",
+        "value": ""
+      }
+    ]
+  }
+]

@@ -1,0 +1,282 @@
+{
+  "v": 1,
+  "name": "SupremeAI Gateway & Edge API",
+  "folders": [
+    {
+      "v": 1,
+      "name": "1. Authentication & Guest Session",
+      "folders": [],
+      "requests": [
+        {
+          "v": "1",
+          "name": "Get Guest Trial Token (Auto-Chained)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/api/v1/guest/token",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "const res = typeof pw.response.body === 'string' ? JSON.parse(pw.response.body) : pw.response.body;\nconst token = res.access_token || res.token;\nif (token) {\n  pw.env.set('guestToken', token);\n  console.log('Guest token updated successfully:', token);\n}",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Verify Guest Auth",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/api/v1/auth/guest",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-Guest-Mode",
+              "value": "true",
+              "active": true
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": ""
+          }
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "name": "2. Chat & AI Completions (OpenAI Compatible)",
+      "folders": [],
+      "requests": [
+        {
+          "v": "1",
+          "name": "Chat Completions - Guest Mode",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/v1/chat/completions",
+          "params": [],
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer <<guestToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"model\": \"supremeai-turbo\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": \"কেমন আছো SupremeAI?\"}\n  ],\n  \"stream\": false\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Chat Completions - Streaming SSE",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/v1/chat/completions",
+          "params": [],
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer <<guestToken>>",
+              "active": true
+            },
+            {
+              "key": "Accept",
+              "value": "text/event-stream",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"model\": \"supremeai-turbo\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": \"আমাকে একটি ছোট অনুপ্রেরণামূলক বাংলা বার্তা দাও।\"}\n  ],\n  \"stream\": true\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Chat Completions - Keyed Admin Scope",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/v1/chat/completions",
+          "params": [],
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer <<adminApiKey>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"model\": \"supremeai-turbo\",\n  \"messages\": [\n    {\"role\": \"system\", \"content\": \"You are SupremeAI Core.\"},\n    {\"role\": \"user\", \"content\": \"Check system integrity.\"}\n  ],\n  \"stream\": false\n}"
+          }
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "name": "3. Health, Diagnostics & Edge",
+      "folders": [],
+      "requests": [
+        {
+          "v": "1",
+          "name": "Gateway Health Check",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/health",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": ""
+          }
+        },
+        {
+          "v": "1",
+          "name": "Cloudflare Edge Proxy Health",
+          "method": "GET",
+          "endpoint": "<<cfEdgeUrl>>/cf-health",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": ""
+          }
+        },
+        {
+          "v": "1",
+          "name": "Trigger Render Keep-Warm Ping",
+          "method": "GET",
+          "endpoint": "<<cfEdgeUrl>>/cf-keepwarm",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": ""
+          }
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "name": "4. MCP Tower & Agent Mesh",
+      "folders": [],
+      "requests": [
+        {
+          "v": "1",
+          "name": "MCP Server Status",
+          "method": "GET",
+          "endpoint": "<<mcpUrl>>/status",
+          "params": [],
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer <<adminApiKey>>",
+              "active": true
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": ""
+          }
+        },
+        {
+          "v": "1",
+          "name": "MCP Server Realtime SSE",
+          "method": "GET",
+          "endpoint": "<<mcpUrl>>/sse",
+          "params": [],
+          "headers": [
+            {
+              "key": "Authorization",
+              "value": "Bearer <<adminApiKey>>",
+              "active": true
+            },
+            {
+              "key": "Accept",
+              "value": "text/event-stream",
+              "active": true
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": ""
+          }
+        }
+      ]
+    }
+  ],
+  "requests": []
+}
