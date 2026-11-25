@@ -468,6 +468,7 @@ def build_provisioning_uri(email: str, secret: str) -> str:
 try:
     from core.security.authentication.rbac import check_totp
 except ImportError:  # pragma: no cover - standalone gateway container without core package
+    # jscpd:ignore-start
     def check_totp(user_otp: str, base32_secret: str) -> bool:
         """Check a 6-digit TOTP code with clock-drift window (-1, 0, +1)."""
         if not user_otp or not base32_secret:
@@ -496,6 +497,9 @@ except ImportError:  # pragma: no cover - standalone gateway container without c
             return False
 
 
+
+
+# jscpd:ignore-end
 # --- Admin Credential Checks ---
 
 def _get_admin_emails() -> set[str]:

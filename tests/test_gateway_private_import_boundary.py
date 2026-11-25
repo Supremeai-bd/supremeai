@@ -63,16 +63,33 @@ def _tracked_gateway_py_files() -> list[Path]:
     return files
 
 
-def _find_private_core_imports(path: Path) -> list[str]:
-    """Return human-readable violations for private core imports in one file.
+def _dynamic_import_module_violation(node, path, is_target):
+    """Return a violation string if node is an import_module(...) call targeting a module, else None."""
+    func = node.func
+    is_import_module = (
+        (isinstance(func, ast.Attribute) and func.attr == "import_module")
+        or (isinstance(func, ast.Name) and func.id == "import_module")
+    )
+    if not (is_import_module and node.args):
+        return None
+    arg = node.args[0]
+    if (
+        isinstance(arg, ast.Constant)
+        and isinstance(arg.value, str)
+        and is_target(arg.value)
+    ):
+        return f"{path}:{node.lineno} import_module({arg.value!r}) (dynamic)"
+    return None
 
-    Catches three shapes:
-      A) ``from core._mod import x``        -> ast.ImportFrom with private module
-      B) ``from core import _mod``          -> ast.ImportFrom(core) with private alias
-      C) ``import core._mod``               -> ast.Import with private name
-      D) ``importlib.import_module("core._mod")`` / ``import_module("core._mod")``
-                                            -> dynamic constant-string import call
-    """
+
+def _scan_forbidden_imports(
+    path: Path,
+    *,
+    is_forbidden: object,
+    check_core_private_attr: bool = False,
+    ignore_relative: bool = False,
+) -> list[str]:
+    """Shared AST import scanner for both gateway→core-private and core→gateway boundaries."""
     violations: list[str] = []
     try:
         tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"), filename=str(path))
@@ -81,33 +98,32 @@ def _find_private_core_imports(path: Path) -> list[str]:
 
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module:
-            if node.module.startswith(PRIVATE_PREFIX):
+            if ignore_relative and node.level != 0:
+                continue
+            if is_forbidden(node.module):  # type: ignore[operator]
                 violations.append(f"{path}:{node.lineno} from {node.module} import ...")
-            elif node.module == "core":
+            elif check_core_private_attr and node.module == "core":
                 for alias in node.names:
                     if alias.name.startswith("_"):
                         violations.append(f"{path}:{node.lineno} from core import {alias.name}")
         elif isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name.startswith(PRIVATE_PREFIX):
+                if is_forbidden(alias.name):  # type: ignore[operator]
                     violations.append(f"{path}:{node.lineno} import {alias.name}")
         elif isinstance(node, ast.Call):
-            func = node.func
-            is_import_module = (
-                (isinstance(func, ast.Attribute) and func.attr == "import_module")
-                or (isinstance(func, ast.Name) and func.id == "import_module")
-            )
-            if is_import_module and node.args:
-                arg = node.args[0]
-                if (
-                    isinstance(arg, ast.Constant)
-                    and isinstance(arg.value, str)
-                    and arg.value.startswith(PRIVATE_PREFIX)
-                ):
-                    violations.append(
-                        f"{path}:{node.lineno} import_module({arg.value!r}) (dynamic)"
-                    )
+            v = _dynamic_import_module_violation(node, path, is_forbidden)
+            if v:
+                violations.append(v)
     return violations
+
+
+def _find_private_core_imports(path: Path) -> list[str]:
+    """Return human-readable violations for private core imports in one file."""
+    return _scan_forbidden_imports(
+        path,
+        is_forbidden=lambda m: m.startswith(PRIVATE_PREFIX),
+        check_core_private_attr=True,
+    )
 
 
 def test_gateway_never_imports_core_private_modules():
@@ -140,38 +156,11 @@ def test_core_monitoring_facade_reexports_collector():
 
 def _find_core_to_gateway_imports(path: Path) -> list[str]:
     """বাংলা মন্তব্য: Graphify অডিটে ধরা পড়া core -> gateway উল্টো-লেয়ার ইমপোর্ট রোধ করে।"""
-    violations: list[str] = []
-    try:
-        tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"), filename=str(path))
-    except SyntaxError as exc:
-        return [f"{path}: SyntaxError ({exc}) — cannot verify core->gateway boundary"]
-
-    for node in ast.walk(tree):
-        # বাংলা মন্তব্য: relative import (যেমন `from .gateway import X`) package-internal — বাদ।
-        if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-            if node.module == "gateway" or node.module.startswith("gateway."):
-                violations.append(f"{path}:{node.lineno} from {node.module} import ...")
-        elif isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.name == "gateway" or alias.name.startswith("gateway."):
-                    violations.append(f"{path}:{node.lineno} import {alias.name}")
-        elif isinstance(node, ast.Call):
-            func = node.func
-            is_import_module = (
-                (isinstance(func, ast.Attribute) and func.attr == "import_module")
-                or (isinstance(func, ast.Name) and func.id == "import_module")
-            )
-            if is_import_module and node.args:
-                arg = node.args[0]
-                if (
-                    isinstance(arg, ast.Constant)
-                    and isinstance(arg.value, str)
-                    and (arg.value == "gateway" or arg.value.startswith("gateway."))
-                ):
-                    violations.append(
-                        f"{path}:{node.lineno} import_module({arg.value!r}) (dynamic)"
-                    )
-    return violations
+    return _scan_forbidden_imports(
+        path,
+        is_forbidden=lambda m: m == "gateway" or m.startswith("gateway."),
+        ignore_relative=True,
+    )
 
 
 def test_core_never_imports_gateway_domain():
