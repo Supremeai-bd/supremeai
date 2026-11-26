@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """SupremeAI Memory Sidecar MCP Server (STDIO).
 
-Standard Model Context Protocol (MCP) server providing 20 memory tools
+Standard Model Context Protocol (MCP) server providing 22 memory tools (incl. Phase-1 memories SSOT save_memory/recall_memories)
 for Knowledge Graph, Vector Store, Episodic Memory, and Long-Term Facts.
 
 Stdlib-only (Python 3.10+), zero external pip requirements.
@@ -149,6 +149,45 @@ def _supabase_request(table: str, method: str = "GET", data: Any | None = None, 
     except Exception as err:
         sys.stderr.write(f"[MemorySidecar] Supabase error ({table}): {err}\n")
         return None
+
+
+def _supabase_rpc(function: str, payload: dict[str, Any]) -> Any | None:
+    """POST /rest/v1/rpc/<function> with service-role key (Phase-1 SSOT recall)."""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None
+    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/rpc/{function}"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+    }
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            raw = resp.read().decode("utf-8")
+            return json.loads(raw) if raw else None
+    except Exception as err:
+        sys.stderr.write(f"[MemorySidecar] Supabase RPC error ({function}): {err}\n")
+        return None
+
+
+_PII_EMAIL = _re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+_PII_PHONE = _re.compile(r"(?<!\d)(?:\+?\d[\d\s().-]{7,}\d)(?!\d)")
+_PII_CARD = _re.compile(r"(?<!\d)(?:\d[ -]?){13,16}(?!\d)")
+
+
+def _strip_pii(text: str) -> str:
+    """Best-effort PII redaction before SSOT insert (training/PII policy)."""
+    out = _PII_EMAIL.sub("[EMAIL]", text)
+    out = _PII_PHONE.sub("[PHONE]", out)
+    out = _PII_CARD.sub("[CARD]", out)
+    return out
+
+
+def _tenant_owner_id(tenant_id: str) -> str:
+    """Deterministic per-tenant owner UUID (workspace isolation without auth.uid)."""
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"supremeai.memory.owner:{tenant_id}"))
 
 
 def _qdrant_request(endpoint: str, method: str = "GET", data: Any | None = None) -> Any | None:
@@ -450,6 +489,38 @@ TOOLS_SCHEMA = [
             },
         },
     },
+    {
+        "name": "save_memory",
+        "description": "Phase-1 SSOT write: insert one row into public.memories (status=candidate, HITL confirm later). PII is stripped before insert; training never auto-confirms. owner_id derived from tenant_id when omitted (workspace isolation).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "content": {"type": "string", "description": "Memory text content (required)."},
+                "kind": {"type": "string", "enum": ["fact", "decision", "task", "preference", "contact", "doc_chunk"], "description": "Memory kind (default: fact)."},
+                "workspace_id": {"type": "string", "description": "Optional workspace UUID for team-shared memories."},
+                "source_ref": {"type": "string", "description": "Optional source message/thread id."},
+                "source_quote": {"type": "string", "description": "Optional verbatim quote for citation."},
+                "confidence": {"type": "number", "description": "Optional confidence 0..1."},
+                "owner_id": {"type": "string", "description": "Optional auth.users UUID; defaults to deterministic tenant-derived owner."},
+                "tenant_id": {"type": "string", "description": "Injected by control tower (never trust client)."},
+            },
+            "required": ["content"],
+        },
+    },
+    {
+        "name": "recall_memories",
+        "description": "Phase-1 SSOT read: hybrid recall over public.memories via RPC match_memories (vector + FTS + recency). Works with query_text only (embedding optional).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Text query for FTS/hybrid recall (required)."},
+                "limit": {"type": "integer", "description": "Max rows (default 5, cap 50)."},
+                "min_score": {"type": "number", "description": "Optional score floor 0..1."},
+                "tenant_id": {"type": "string", "description": "Injected by control tower (never trust client)."},
+            },
+            "required": ["query"],
+        },
+    },
 ]
 
 
@@ -724,6 +795,135 @@ def handle_tool(name: str, args: dict[str, Any]) -> Any:
         # 2. In-memory fallback
         matches = [f for f in _LEARNED_FACTS if q in f.get("fact", "").lower()][:limit]
         return {"facts": matches, "source": "memory"}
+
+    # --- Phase 1: memories SSOT (Phase 0 tables) ---
+    elif name == "save_memory":
+        content_raw = str(args.get("content", "")).strip()
+        if not content_raw:
+            return {"error": "content is required"}
+        kind = str(args.get("kind") or "fact")
+        if kind not in ("fact", "decision", "task", "preference", "contact", "doc_chunk"):
+            return {"error": f"invalid kind: {kind}"}
+        tenant = str(args.get("tenant_id") or "tenant_default").strip() or "tenant_default"
+        owner_id = str(args.get("owner_id") or "").strip() or _tenant_owner_id(tenant)
+        # validate uuid shape (fail closed before REST)
+        try:
+            uuid.UUID(owner_id)
+        except Exception:
+            return {"error": "owner_id must be a UUID"}
+        workspace_id = str(args.get("workspace_id") or "").strip() or None
+        if workspace_id:
+            try:
+                uuid.UUID(workspace_id)
+            except Exception:
+                return {"error": "workspace_id must be a UUID"}
+        content = _strip_pii(content_raw)
+        confidence = args.get("confidence")
+        if confidence is not None:
+            try:
+                confidence = float(confidence)
+                if not (0.0 <= confidence <= 1.0):
+                    return {"error": "confidence must be in [0,1]"}
+            except Exception:
+                return {"error": "confidence must be a number"}
+        row = {
+            "owner_id": owner_id,
+            "workspace_id": workspace_id,
+            "kind": kind,
+            "content": content,
+            "source_type": str(args.get("source_type") or "mcp"),
+            "source_ref": args.get("source_ref"),
+            "source_quote": args.get("source_quote"),
+            "created_by": f"agent:{tenant}",
+            "status": "candidate",  # HITL confirm later; never auto-confirm for training
+            "confidence": confidence,
+        }
+        if not SUPABASE_URL or not SUPABASE_KEY:
+            # offline fallback — not durable, clearly marked
+            fid = str(uuid.uuid4())
+            _LEARNED_FACTS.append({
+                "id": fid,
+                "fact": content,
+                "category": kind,
+                "confidence": confidence if confidence is not None else 1.0,
+                "created_at": now,
+                "lane": "memories_ssot_offline",
+            })
+            return {
+                "id": fid,
+                "status": "candidate",
+                "source": "offline_fallback",
+                "warning": "Supabase not configured; row not in memories SSOT",
+                "owner_id": owner_id,
+                "kind": kind,
+                "content": content,
+            }
+        inserted = _supabase_request("memories", method="POST", data=row)
+        if inserted is None:
+            return {"error": "supabase insert failed", "status": "candidate_not_saved"}
+        if isinstance(inserted, list) and inserted:
+            saved = inserted[0]
+        elif isinstance(inserted, dict):
+            saved = inserted
+        else:
+            saved = {"status": "candidate"}
+        return {
+            "id": saved.get("id"),
+            "status": saved.get("status", "candidate"),
+            "source": "supabase",
+            "owner_id": owner_id,
+            "kind": kind,
+            "content": content,
+            "pii_stripped": content != content_raw,
+        }
+
+    elif name == "recall_memories":
+        query = str(args.get("query") or "").strip()
+        if not query:
+            return {"error": "query is required"}
+        try:
+            limit = int(args.get("limit", 5))
+        except Exception:
+            return {"error": "limit must be an integer"}
+        limit = max(1, min(limit, 50))
+        tenant = str(args.get("tenant_id") or "tenant_default").strip() or "tenant_default"
+        owner_id = _tenant_owner_id(tenant)
+        min_score = args.get("min_score")
+        payload: dict[str, Any] = {
+            "query_embedding": None,
+            "query_text": query,
+            "match_threshold": float(min_score) if min_score is not None else 0.0,
+            "match_count": limit,
+            "owner": owner_id,
+        }
+        if not SUPABASE_URL or not SUPABASE_KEY:
+            return {"error": "Supabase not configured", "memories": [], "source": "none"}
+        rows = _supabase_rpc("match_memories", payload)
+        if rows is None:
+            # Fallback: direct REST filter (FTS-ish ilike) if RPC unavailable
+            fallback = _supabase_request(
+                "memories",
+                method="GET",
+                params={
+                    "owner_id": f"eq.{owner_id}",
+                    "or": f"(content.ilike.*{query}*,content.ilike.*{query.replace(' ', '%')}*)",
+                    "status": "in.(candidate,confirmed)",
+                    "order": "created_at.desc",
+                    "limit": str(limit),
+                    "select": "id,kind,content,source_type,source_ref,source_quote,status,confidence,created_at",
+                },
+            )
+            if isinstance(fallback, list):
+                return {"memories": fallback, "source": "rest_fallback", "owner_id": owner_id}
+            return {"error": "recall failed", "memories": [], "source": "none"}
+        # attach owner for transparency
+        out = []
+        for r in rows if isinstance(rows, list) else []:
+            if isinstance(r, dict):
+                r = dict(r)
+                r.setdefault("owner_id", owner_id)
+                out.append(r)
+        return {"memories": out, "count": len(out), "source": "rpc:match_memories", "owner_id": owner_id}
 
     return {"error": f"Unknown tool: {name}"}
 
