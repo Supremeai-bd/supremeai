@@ -17,7 +17,11 @@ from sqlalchemy import text
 
 from api.dependencies import get_current_admin
 from brain.model_registry import ModelRegistry
-from core.deployment_fallback_defaults import ADMIN_URL_DEFAULT, SCRAPER_URL_DEFAULT
+from core.deployment_fallback_defaults import (
+    ADMIN_URL_DEFAULT,
+    BACKEND_URL_DEFAULT,
+    SCRAPER_URL_DEFAULT,
+)
 from core.health.uptime_tracker import (
     get_history,
     get_uptime_summary,
@@ -45,7 +49,7 @@ class SchemaDriftStatus(BaseModel):
 class ServiceHealth(BaseModel):
     name: str
     display_name: str
-    status: str  # healthy, degraded, unhealthy, unknown
+    status: str  # healthy, degraded, unhealthy, unknown, not_configured
     response_time_ms: float | None = None
     status_code: int | None = None
     error: str | None = None
@@ -247,30 +251,55 @@ class DependencyHealth(BaseModel):
 # SERVICE REGISTRY
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _service_base(env_names: tuple[str, ...], default: str) -> str:
+    """Registry-driven base URL: live env first, then the shared default.
+
+    No hardcoded hostnames (deployment_fallback_defaults doctrine). Empty
+    string means "not configured" — callers must render not_configured,
+    never probe localhost as a silent fallback.
+    """
+    for name in env_names:
+        val = (os.environ.get(name) or "").strip()
+        if val:
+            return val.rstrip("/")
+    return (default or "").strip().rstrip("/")
+
+
+def _health_url(base: str, suffix: str) -> str:
+    return f"{base}{suffix}" if base else ""
+
+
 SERVICE_REGISTRY = [
     {
         "name": "main_backend",
         "display_name": "Main Backend",
-        "url": (
-            os.environ.get("BACKEND_URL")
-            or os.environ.get("SUPREMEAI_BACKEND_URL")
-            or "http://localhost:8080"  # is_local()
-        )
-        + "/api/v1/health",
+        "url": _health_url(
+            _service_base(
+                ("BACKEND_URL", "SUPREMEAI_BACKEND_URL"),
+                BACKEND_URL_DEFAULT,
+            ),
+            "/api/v1/health",
+        ),
         "critical": True,
         "timeout": 5.0,
     },
     {
         "name": "admin_backend",
         "display_name": "Admin Backend",
-        "url": os.environ.get("ADMIN_URL", ADMIN_URL_DEFAULT) + "/api/v1/health",
+        "url": _health_url(
+            _service_base(("ADMIN_URL",), ADMIN_URL_DEFAULT),
+            "/api/v1/health",
+        ),
         "critical": True,
         "timeout": 8.0,
     },
     {
         "name": "scraper_service",
         "display_name": "Scraper Microservice",
-        "url": os.environ.get("SCRAPER_URL", SCRAPER_URL_DEFAULT) + "/health",
+        "url": _health_url(
+            _service_base(("SCRAPER_URL",), SCRAPER_URL_DEFAULT),
+            "/health",
+        ),
         "critical": False,
         "timeout": 8.0,
     },
@@ -304,6 +333,20 @@ LLM_PROVIDERS = {
 async def check_single_service(config: dict) -> ServiceHealth:
     """Perform async health check on a single service."""
     start_time = datetime.now()
+
+    # T007: unconfigured optional/critical services are honest not_configured,
+    # not a localhost probe and not an invented unhealthy.
+    if not (config.get("url") or "").strip():
+        return ServiceHealth(
+            name=config["name"],
+            display_name=config["display_name"],
+            status="not_configured",
+            response_time_ms=0.0,
+            error="service URL not configured",
+            last_check=datetime.utcnow(),
+            url="",
+            critical=config.get("critical", False),
+        )
 
     try:
         async with httpx.AsyncClient(timeout=config["timeout"]) as client:
@@ -401,19 +444,30 @@ async def check_all_services() -> list[ServiceHealth]:
 
 def calculate_overall_status(services: list[ServiceHealth]) -> tuple:
     """Calculate overall system status."""
-    counts = {"healthy": 0, "degraded": 0, "unhealthy": 0, "unknown": 0}
+    counts = {
+        "healthy": 0,
+        "degraded": 0,
+        "unhealthy": 0,
+        "unknown": 0,
+        "not_configured": 0,
+    }
 
     for svc in services:
         counts[svc.status] = counts.get(svc.status, 0) + 1
 
-    # Critical services down = overall unhealthy
+    # Critical services down = overall unhealthy.
+    # Critical-but-unconfigured is a config gap → degraded (honest), not a
+    # fake outage; optional unconfigured services never flip overall health.
     critical_unhealthy = any(
         svc.critical and svc.status in ("unhealthy", "unknown") for svc in services
+    )
+    critical_not_configured = any(
+        svc.critical and svc.status == "not_configured" for svc in services
     )
 
     if critical_unhealthy or counts["unhealthy"] > 0:
         overall = "unhealthy"
-    elif counts["degraded"] > 0:
+    elif counts["degraded"] > 0 or critical_not_configured:
         overall = "degraded"
     else:
         overall = "healthy"
