@@ -411,10 +411,10 @@
     ]
   },
   "graph": {
-    "modules": 2192,
-    "edges": 5030,
+    "modules": 2193,
+    "edges": 5032,
     "edge_kinds": {
-      "dispatch": 197,
+      "dispatch": 199,
       "dynamic": 4,
       "import": 4141,
       "string": 688
@@ -438,9 +438,9 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1671,
-    "unreachable": 521,
-    "reachable_pct": 76.2
+    "reachable": 1673,
+    "unreachable": 520,
+    "reachable_pct": 76.3
   },
   "gaps": {
     "dangling_references": [
@@ -1438,7 +1438,6 @@
     "scripts.ops.audit_observability",
     "scripts.ops.audit_underutilized_capabilities",
     "scripts.ops.audit_useless_tests",
-    "scripts.ops.auto_doctor",
     "scripts.ops.auto_marketing_skill_forge",
     "scripts.ops.bots.auto_daily_standup_bot",
     "scripts.ops.build_pr_diff_index",
