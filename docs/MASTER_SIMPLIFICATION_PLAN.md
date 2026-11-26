@@ -1,3 +1,5 @@
+﻿> ARCHIVED — superseded by docs/INDEX.md #Living Backlog (audit B6, 2026-11-26). এই ফাইল আর 'current' নয় — সিদ্ধান্ত-ইতিহাস হিসেবে রাখা হয়েছে; লাইভ স্টেটাস INDEX-এর backlog টেবিলে।
+
 # SupremeAI Master Simplification & Quality Plan
 
 **Status:** Final implementation roadmap from the two simplification plans. It sets scope and order, not approval to deploy, remove a supported surface, or change production data.

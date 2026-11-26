@@ -3,6 +3,11 @@ import os
 import re
 import sys
 
+if hasattr(sys.stdout, "reconfigure"):
+    # বাংলা মন্তব্য: Windows cp1252-এ ✅/❌ emoji encode ব্যর্থ হয়ে প্রি-পুশ হুক fail করত —
+    # utf-8 + replace নিশ্চিত করা (2026-11-26 audit সেশনে লাইভ ধরা পড়েছে)।
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 
 def check_migration_safety():
     """

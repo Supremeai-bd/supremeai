@@ -1,3 +1,5 @@
+﻿> ARCHIVED — superseded by docs/INDEX.md #Living Backlog (audit B6, 2026-11-26). এই ফাইল আর 'current' নয় — সিদ্ধান্ত-ইতিহাস হিসেবে রাখা হয়েছে; লাইভ স্টেটাস INDEX-এর backlog টেবিলে।
+
 # SupremeAI — Static Codebase Checking Checklist
 
 > **Purpose:** Everything an auditor can verify by **reading code, diffs, configs, and CI logs** — no live services required. Complements the runtime checklist in `prompt2.md`. Each item includes **how to verify** so results are reproducible.

@@ -1,5 +1,18 @@
 # SupremeAI Documentation Index & Archive SSOT
 
+## 🧭 Living Backlog (SSOT — 2026-11-26)
+
+> বাংলা মন্তব্য: এই টেবিলই একমাত্র "current" ব্যাকলগ — নিচের পুরনো plan/audit ডকগুলো ARCHIVED
+> হিসেবে চিহ্নিত (audit B6)। স্টেটাস এখানে আপডেট হবে; পুরনো ফাইলের কনটেন্ট ইতিহাস হিসেবে রাখা।
+
+| Item | বিবরণ | স্টেটাস | SSOT ref |
+|------|--------|---------|----------|
+| M01–M07 | MASTER_SIMPLIFICATION_PLAN আইটেম (rate-limit census, memory SSOT, guard registry…) | **tracked** | `docs/MASTER_SIMPLIFICATION_PLAN.md` (ARCHIVED banner দেখো) |
+| B1–B8 | 2026-11-26 ডিপ অডিট — de-over-engineering (guard registry, workflow split, health canonical…) | **tracked** | GitHub issue (audit backlog) |
+| A1–A7 | Smart automation (session_boot, auto_doctor wire, tracker freshness) | **partial live** | `scripts/agents/session_boot.sh`, `.github/workflows/unified-pipeline.yml`, `scripts/ci/tracker_freshness.py` |
+
+---
+
 This repository (`Supremeai-bd/supremeai`) maintains an ultra-light, active documentation footprint. Historical planning documents, legacy audits, satellite mirrors, and ephemeral agent run receipts are archived in the dedicated cold-storage archive repository.
 
 ---

@@ -1,3 +1,5 @@
+﻿> ARCHIVED — superseded by docs/INDEX.md #Living Backlog (audit B6, 2026-11-26). এই ফাইল আর 'current' নয় — সিদ্ধান্ত-ইতিহাস হিসেবে রাখা হয়েছে; লাইভ স্টেটাস INDEX-এর backlog টেবিলে।
+
 # SupremeAI — সরলীকরণের মাস্টার প্ল্যান
 
 **অডিট snapshot:** `aa11e0b` · ১৮ নভেম্বর ২০২৬ · **অবস্থা:** অডিট ও প্রাথমিক পরিকল্পনার রেফারেন্স; বর্তমান production spec নয়।

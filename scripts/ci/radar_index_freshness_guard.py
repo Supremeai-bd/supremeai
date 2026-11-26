@@ -354,6 +354,10 @@ def invariant_d(root: Path, bases: set[int]) -> tuple[list[dict], bool]:
         proc = subprocess.run(
             ["git", "log", f"-n{SUBJECT_WINDOW}", "--format=%s"],
             cwd=str(root), capture_output=True, text=True, timeout=10,
+            # বাংলা মন্তব্য: Windows-এ cp1252 default-এ বাংলা কমিট-মেসেজ ডিকোডে UnicodeDecodeError
+            # দেয় (2026-11-26 audit) — utf-8 + errors='replace' না দিলে stdout None হয়ে honest-skip
+            # ভুলভাবে fail-closed-এর মতো দেখাত।
+            encoding="utf-8", errors="replace",
         )
     except (OSError, subprocess.SubprocessError):
         _evidence("SKIP invariant D: git unavailable (hermetic offline) — honest-skip, no fabricated PASS")

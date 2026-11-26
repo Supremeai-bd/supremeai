@@ -712,6 +712,21 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           path: _verifier-base
           persist-credentials: false
+      - name: Auto-doctor prescription on failure
+        # বাংলা মন্তব্য: landing fail হলে auto_doctor.py লগ শ্রেণীবিন্যাস করে summary-তে prescription দেয়।
+        # এটি শুধু prescriber — কখনো gate/decision বদলায় না (audit A3, fail-open by design)।
+        # বাংলা মন্তব্য: recheck step-এর stdout রানটাইমে ধরার কোনো native উপায় নেই,
+        # তাই আমরা recheck-কে tee দিয়ে log ফাইলে লিখি — doctor সেটাই classify করে।
+        if: failure()
+        shell: bash
+        working-directory: _verifier-base
+        run: |
+          if [ -f "${{ runner.temp }}/recheck-output.log" ]; then
+            python3 scripts/ops/auto_doctor.py --log-file "${{ runner.temp }}/recheck-output.log" >> "$GITHUB_STEP_SUMMARY" || true
+          else
+            echo "🩺 Auto-doctor: no recheck log captured for this run — nothing to prescribe." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Recheck the candidate and squash merge
         shell: bash
         working-directory: _verifier-base
@@ -727,9 +742,13 @@ jobs:
             echo "PR #$PR_NUMBER already merged; skipping."
             exit 0
           fi
-          python3 scripts/ci/tiny_brain_pr_guard.py --recheck-candidate --pr "$PR_NUMBER" \
-            --head-sha "$EXPECTED_HEAD_SHA" --base-sha "$EXPECTED_BASE_SHA" --merge-sha "$TESTED_MERGE_SHA"
-          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --delete-branch --match-head-commit "$EXPECTED_HEAD_SHA"
+          set -o pipefail
+          # বাংলা মন্তব্য: recheck+merge দুটোই log ফাইলে tee করা হয় যাতে failure()-এ doctor পড়তে পারে।
+          {
+            python3 scripts/ci/tiny_brain_pr_guard.py --recheck-candidate --pr "$PR_NUMBER" \
+              --head-sha "$EXPECTED_HEAD_SHA" --base-sha "$EXPECTED_BASE_SHA" --merge-sha "$TESTED_MERGE_SHA"
+          } 2>&1 | tee "${{ runner.temp }}/recheck-output.log"
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --delete-branch --match-head-commit "$EXPECTED_HEAD_SHA" 2>&1 | tee -a "${{ runner.temp }}/recheck-output.log"
 
   # =========================================================================
   # STAGE 3: POST-MERGE PRODUCTION DEPLOY & CANARY (Push to Main or Manual Dispatch)
