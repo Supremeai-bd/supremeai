@@ -1315,13 +1315,21 @@ def cleanup_stale_holds(apply: bool = False) -> list[int]:
             continue
         pr_num = int(m.group(1))
         try:
-            pr = _github_json(f"repos/{REPO}/pulls/{pr_num}")
-        except Exception:
+            pr = _fetch_label_rows  # unused; check via gh
+            out = subprocess.run(
+                ["gh", "pr", "view", str(pr_num), "--repo", "Supremeai-bd/supremeai", "--json", "state,mergedAt"],
+                capture_output=True, text=True, check=False, timeout=30,
+            )
+            pr_data = json.loads(out.stdout) if out.returncode == 0 and out.stdout.strip() else {}
+        except Exception as exc:
+            print(f"[A7] skip PR #{pr_num}: {exc}")
             continue
-        if pr.get("state") == "closed" or pr.get("merged_at"):
+        if pr_data.get("state") == "CLOSED" or pr_data.get("mergedAt"):
             num = iss.get("number")
-            if apply and num and _close_issue(num, f"Auto-closing stale hold: PR #{pr_num} is already {pr.get('state', 'closed')}."):
-                closed.append(num)
+            if apply and num:
+                res = _gh_close(num, f"Auto-closing stale hold: PR #{pr_num} is already {pr_data.get('state', 'closed')}.")
+                if res.returncode == 0:
+                    closed.append(num)
     return closed
 
 
