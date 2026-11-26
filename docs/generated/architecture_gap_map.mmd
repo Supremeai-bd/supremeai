@@ -278,6 +278,7 @@ flowchart TD
         gateway__circuit_breaker["gateway.circuit_breaker · 1 modules"]
         gateway__config["gateway.config · 1 modules"]
         gateway__dual_pool_priority_router["gateway.dual_pool_priority_router · 1 modules"]
+        gateway__dynamic_llm_router["gateway.dynamic_llm_router · 1 modules"]
         gateway__frontend_compat["gateway.frontend_compat · 1 modules"]
         gateway__main["gateway.main · 1 modules"]
         gateway__memory["gateway.memory · 1 modules"]
@@ -290,7 +291,7 @@ flowchart TD
         gateway__rate_limit["gateway.rate_limit · 1 modules"]
         gateway__routes["gateway.routes · 1 modules"]
         gateway__sanitization["gateway.sanitization · 1 modules"]
-        gateway__service["gateway.service · 31 modules"]
+        gateway__service["gateway.service · 32 modules"]
         gateway__stealth_webhook["gateway.stealth_webhook · 1 modules"]
         gateway__tool_pruner["gateway.tool_pruner · 1 modules"]
         scripts__advanced_analysis["scripts.advanced_analysis · 8 modules"]
@@ -370,7 +371,7 @@ flowchart TD
         browser__runtime__semantic_extractor["browser.runtime.semantic_extractor"]
         browser__runtime__session_manager["browser.runtime.session_manager"]
         browser__runtime__stealth_profile["browser.runtime.stealth_profile"]
-        _more["… 480 more (see JSON)"]
+        _more["… 478 more (see JSON)"]
     end
 
     class @__github/workflows/codeql__yml live;
@@ -641,6 +642,7 @@ flowchart TD
     class gateway__circuit_breaker live;
     class gateway__config live;
     class gateway__dual_pool_priority_router live;
+    class gateway__dynamic_llm_router live;
     class gateway__frontend_compat live;
     class gateway__main live;
     class gateway__memory live;
