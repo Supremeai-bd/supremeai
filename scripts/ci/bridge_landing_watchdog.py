@@ -1301,6 +1301,38 @@ def self_test() -> list[tuple[str, bool, str]]:
     return cases
 
 
+def cleanup_stale_holds(apply: bool = False) -> list[int]:
+    """A7: Close `hold:` / `ci-failure` issues whose linked PR is already merged or closed."""
+    closed: list[int] = []
+    try:
+        issues = _fetch_label_rows("ci-failure", max_pages=1)
+    except Exception:
+        return closed
+    for iss in issues:
+        title = iss.get("title", "")
+        m = re.search(r"\[hold:(\d+)\]", title)
+        if not m:
+            continue
+        pr_num = int(m.group(1))
+        try:
+            pr = _fetch_label_rows  # unused; check via gh
+            out = subprocess.run(
+                ["gh", "pr", "view", str(pr_num), "--repo", "Supremeai-bd/supremeai", "--json", "state,mergedAt"],
+                capture_output=True, text=True, check=False, timeout=30,
+            )
+            pr_data = json.loads(out.stdout) if out.returncode == 0 and out.stdout.strip() else {}
+        except Exception as exc:
+            print(f"[A7] skip PR #{pr_num}: {exc}")
+            continue
+        if pr_data.get("state") == "CLOSED" or pr_data.get("mergedAt"):
+            num = iss.get("number")
+            if apply and num:
+                res = _gh_close(num, f"Auto-closing stale hold: PR #{pr_num} is already {pr_data.get('state', 'closed')}.")
+                if res.returncode == 0:
+                    closed.append(num)
+    return closed
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Bridge WO landing watchdog (#1964 gap)")
     p.add_argument("--self-test", action="store_true",
