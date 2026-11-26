@@ -80,43 +80,87 @@ def test_main_skipped_when_no_service_ids(monkeypatch, capsys):
     assert all(r["status"] == "skipped" for r in data["rows"])
 
 
-def test_main_blocking_on_drift(monkeypatch, capsys):
-    # বাংলা মন্তব্য: সার্ভিস আইডি থাকলে এবং লাইভ কমিট ও এক্সপেক্টেড কমিট অসঙ্গতিপূর্ণ হলে গেট ব্লক হবে
+def _drift_setup(monkeypatch, trigger_side_effect=None, fail_open=False):
+    """Shared drift scenario: live != path-expected. Returns (code, expected, drift, mocks)."""
     monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
     monkeypatch.delenv("MESH_PARITY_FAIL_OPEN", raising=False)
+    if fail_open:
+        monkeypatch.setenv("MESH_PARITY_FAIL_OPEN", "1")
     monkeypatch.setenv("RENDER_API_SERVICE_ID", "srv-12345")
     monkeypatch.setenv("RENDER_API_KEY", "rnd_test_key")
 
     sha_expected = "a" * 40
     sha_drift = "b" * 40
 
-    with patch("scripts.ci.render_mesh_parity.load_render_services") as mock_services:
-        mock_services.return_value = [{
+    services_patch = patch("scripts.ci.render_mesh_parity.load_render_services")
+    expected_patch = patch("scripts.ci.render_mesh_parity.path_expected_commit", return_value=sha_expected)
+    client_cls_patch = patch("scripts.ci.render_mesh_parity.RenderClient")
+    live_patch = patch(
+        "scripts.ci.render_mesh_parity.latest_live",
+        return_value=({"status": "live", "commit": {"id": sha_drift}}, ""),
+    )
+    ancestor_patch = patch("scripts.ci.render_mesh_parity.is_ancestor", return_value=False)
+    subprocess_patch = patch("scripts.ci.render_mesh_parity.subprocess.run")
+
+    mocks = {}
+    with services_patch as ms, expected_patch, client_cls_patch as mc, live_patch, ancestor_patch, subprocess_patch as mr:
+        ms.return_value = [{
             "name": "api",
             "canonical_service_id_env": "RENDER_API_SERVICE_ID",
             "canonical_api_key_env": "RENDER_API_KEY",
             "watch_paths": ["gateway/*"],
             "exclude_paths": [],
         }]
+        mock_proc = Mock()
+        mock_proc.stdout = "c" * 40 + "\n"
+        mock_proc.returncode = 0
+        mr.return_value = mock_proc
 
-        with patch("scripts.ci.render_mesh_parity.path_expected_commit", return_value=sha_expected):
-            with patch("scripts.ci.render_mesh_parity.RenderClient"):
-                with patch("scripts.ci.render_mesh_parity.latest_live", return_value=({"status": "live", "commit": {"id": sha_drift}}, "")):
-                    with patch("scripts.ci.render_mesh_parity.is_ancestor", return_value=False):
-                        with patch("scripts.ci.render_mesh_parity.subprocess.run") as mock_run:
-                            mock_proc = Mock()
-                            mock_proc.stdout = "c" * 40 + "\n"
-                            mock_proc.returncode = 0
-                            mock_run.return_value = mock_proc
+        client_instance = Mock()
+        if trigger_side_effect is not None:
+            client_instance.trigger_deploy.side_effect = trigger_side_effect
+        else:
+            client_instance.trigger_deploy.return_value = {"id": "dep-ok"}
+        mc.return_value = client_instance
+        mocks["client"] = client_instance
 
-                            # Without fail-open: should return 1
-                            code = render_mesh_parity.main()
-                            assert code == 1
+        code = render_mesh_parity.main()
+    return code, sha_expected, sha_drift, mocks
 
-                            # With fail-open: should return 0 with warning
-                            monkeypatch.setenv("MESH_PARITY_FAIL_OPEN", "1")
-                            code_fail_open = render_mesh_parity.main()
-                            assert code_fail_open == 0
+
+def test_main_redeploy_triggered_not_blocking(monkeypatch, capsys):
+    # বাংলা মন্তব্য: drift হলে auto-redeploy ট্রিগার হয় (commit_id পিন) — সফল হলে
+    # gate fail করে না (mismatch → redeploy contract), status=redeploy_triggered।
+    code, sha_expected, sha_drift, mocks = _drift_setup(monkeypatch)
+    assert code == 0
+    mocks["client"].trigger_deploy.assert_called_once_with(commit_id=sha_expected)
+
+    out = capsys.readouterr().out
+    data = json.loads(out)
+    assert data["blocking"] == 0
+    assert data["redeploy_triggered"] == 1
+    assert data["rows"][0]["status"] == "redeploy_triggered"
+    assert "auto-redeploy" in data["rows"][0]["detail"]
+
+
+def test_main_blocking_when_redeploy_trigger_fails(monkeypatch, capsys):
+    # বাংলা মন্তব্য: auto-redeploy ট্রিগার ব্যর্থ হলে সৎ drift → blocking (fail-closed)।
+    code, sha_expected, sha_drift, mocks = _drift_setup(
+        monkeypatch, trigger_side_effect=RuntimeError("render api down")
+    )
+    assert code == 1
+
+    out = capsys.readouterr().out
+    data = json.loads(out)
+    assert data["blocking"] == 1
+    assert data["rows"][0]["status"] == "drift"
+    assert "auto-redeploy failed" in data["rows"][0]["detail"]
+
+    # fail-open থাকলে trigger-fail-ও reporting-only
+    code_fail_open, *_ = _drift_setup(
+        monkeypatch, trigger_side_effect=RuntimeError("render api down"), fail_open=True
+    )
+    assert code_fail_open == 0
 
 
 def test_main_ci_runner_auxiliary_skipped(monkeypatch, capsys):
