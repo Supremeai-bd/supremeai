@@ -1,0 +1,219 @@
+# G10 handoff (reaudit) — REPAIRED composite action (valid action.yml).
+# APPLY MANUALLY — .github/ is bridge-protected. Review before committing.
+# Place at: .github/actions/deep-audit/action.yml
+#
+# Job envelope stays in ops-maintenance.yml (NOT valid inside composite runs:):
+#   needs:
+#   - resolve-execution-tier
+#   if: "needs.resolve-execution-tier.outputs.is_local_online != 'true' && ((github.event_name == 'workflow_dispatch' && inputs.run_deep_audit == true) ||\n (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1'))"
+#   concurrency:
+#     group: nightly-ops-deep-audit
+#     cancel-in-progress: false
+#   name: 🔍 Deep Audit (cloud fallback)
+#   runs-on: ubuntu-24.04
+#   timeout-minutes: 45
+#   permissions:
+#     contents: read
+#     issues: write
+#
+# secrets.* replaced with inputs.* (no secrets context inside composite).
+#
+name: Deep Audit
+description: Deep audit steps extracted from ops-maintenance deep-audit job (G10)
+inputs:
+  tier:
+    description: Execution tier (informational; job-level if/needs stay in workflow)
+    required: false
+    default: ''
+  supremeai_base_url:
+    description: SUPREMEAI_BASE_URL secret — pass from workflow
+    required: false
+    default: ''
+  dispatch_token:
+    description: OPEN_SYNC_PAT || MERGE_PAT || GITHUB_TOKEN — pass from workflow
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+  - name: Checkout repository
+    uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+    with:
+      fetch-depth: 0
+  - name: Setup Python
+    uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+    with:
+      python-version: ${{ env.PYTHON_VERSION }}
+      cache: pip
+      cache-dependency-path: 'backend/poetry.lock
+
+        requirements*.txt
+
+        '
+  - name: Install base dependencies
+    run: 'python -m pip install --upgrade pip
+
+      pip install astroid loguru requests httpx pyyaml
+
+      '
+  - name: Duplicate Logic Detector
+    id: duplicate_detector
+    run: python scripts/advanced_analysis/duplicate_detector.py --fail-on-critical --max-findings 50 --engine file_level import
+  - name: Feature Parity Sentinel (backend ⇄ frontend drift)
+    id: parity_sentinel
+    run: "python scripts/ops/feature_parity_sentinel.py \\\n  --baseline scripts/ops/feature_parity_baseline.json \\\n  --json ci-reports/feature-parity-report.json \\\n  --markdown ci-reports/feature-parity-report.md\n"
+  - name: Install Vulnerability Scanner Deps
+    id: scanner_setup
+    if: ${{ !cancelled() }}
+    run: pip install pip-audit "bandit[sarif]" httpx loguru pydantic
+  - name: Auto Vulnerability Scanner (deps + code + SBOM)
+    id: vuln_scanner
+    if: ${{ !cancelled() && steps.scanner_setup.outcome == 'success' }}
+    run: python scripts/ops/security/auto_vulnerability_scanner.py --scan-deps --scan-code --generate-sbom
+  - name: Upload vulnerability scan evidence
+    if: ${{ !cancelled() && steps.vuln_scanner.outcome != 'skipped' }}
+    uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+    with:
+      name: security-scan-hosted-${{ github.sha }}
+      path: reports/security/vuln-scan-*.json
+      if-no-files-found: warn
+      retention-days: 7
+  - name: Mutation Testing
+    id: mutation_testing
+    continue-on-error: true
+    run: python scripts/testing/mutation_testing.py --target core/health_check.py --threshold 0
+  - name: Performance Benchmark
+    id: perf_benchmark
+    continue-on-error: true
+    run: python scripts/testing/performance_benchmark.py --target api
+  - name: Performance Benchmark → Step Summary
+    if: always() && steps.perf_benchmark.outcome != 'skipped'
+    run: 'echo "### ⚡ Nightly Performance Benchmark (advisory)" >> "$GITHUB_STEP_SUMMARY"
+
+      echo "" >> "$GITHUB_STEP_SUMMARY"
+
+      echo "- Outcome: \`${{ steps.perf_benchmark.outcome }}\` (continue-on-error — advisory until baseline ratchet lands)" >> "$GITHUB_STEP_SUMMARY"
+
+      echo "- SLO ladder (docs/operations/SLO_AND_ALERTS.md): target p95 < 1500 ms / p99 < 2000 ms, 5xx < 0.1% steady-state" >> "$GITHUB_STEP_SUMMARY"
+
+      echo "- Gate plan: collect ≥ 14 nights of baselines → ratchet thresholds → remove continue-on-error" >> "$GITHUB_STEP_SUMMARY"
+
+      '
+  - name: Blocking security detectors (P0/P1)
+    id: blocking_security_detectors
+    run: 'set -euo pipefail
+
+      # These detectors are release gates. A finding must fail the job;
+
+      # warning-only fallbacks previously made the nightly audit falsely green.
+
+      python scripts/advanced_analysis/blocking_call_detector.py
+
+      python scripts/advanced_analysis/bola_idor_detector.py
+
+      python scripts/ci/webhook_signature_checker.py
+
+      python scripts/ci/rate_limit_endpoint_checker.py
+
+      python scripts/ci/rls_rbac_auditor.py
+
+      '
+  - name: Backend dead-code scan (vulture)
+    continue-on-error: true
+    run: 'pip install vulture
+
+      python scripts/security/find_dead_code.py || echo "[WARN] Dead code detected"
+
+      '
+  - name: Setup PNPM (SSOT from package.json)
+    uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+  - name: Setup Node
+    uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+    with:
+      node-version: ${{ env.NODE_VERSION }}
+      cache: pnpm
+      cache-dependency-path: pnpm-lock.yaml
+  - name: Install Audit Prerequisites
+    run: 'sudo apt-get update
+
+      sudo apt-get install -y yamllint curl
+
+      python -m pip install ''poetry==2.4.1''
+
+      corepack enable
+
+      # #3265: explicit pnpm@pin সরানো — bare `corepack prepare --activate`
+
+      # root package.json-এর `packageManager` (SSOT) থেকে সংস্করণ নেয়।
+
+      corepack prepare --activate
+
+      # বাংলা মন্তব্য (#2524): mutable main-branch curl|bash → pinned release + sha256 যাচাই।
+
+      curl -fsSL --retry 3 -o /tmp/actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+
+      echo "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  /tmp/actionlint.tar.gz" | sha256sum -c -
+
+      tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
+
+      sudo install -m 0755 /tmp/actionlint /usr/local/bin/actionlint
+
+      actionlint --version
+
+      wget https://github.com/trufflesecurity/trufflehog/releases/download/v3.97.1/trufflehog_3.97.1_linux_amd64.tar.gz
+
+      tar -xzf trufflehog_3.97.1_linux_amd64.tar.gz
+
+      sudo mv trufflehog /usr/local/bin/
+
+      rm -f trufflehog_3.97.1_linux_amd64.tar.gz
+
+      wget https://github.com/gitleaks/gitleaks/releases/download/v8.18.2/gitleaks_8.18.2_linux_x64.tar.gz
+
+      tar -xzf gitleaks_8.18.2_linux_x64.tar.gz
+
+      sudo mv gitleaks /usr/local/bin/
+
+      rm -f gitleaks_8.18.2_linux_x64.tar.gz
+
+      '
+  - name: Run SupremeAI full CI audit
+    id: full_audit
+    shell: bash
+    env:
+      SUPREMEAI_JWT_SECRET: dummy-secret-32-chars-long-123456
+      SUPABASE_DATABASE_URL_WRITER: postgresql://dummy:pass@localhost:5432/db
+      SUPABASE_URL: https://dummy.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: example-service-role-key
+      REDIS_URL: redis://localhost:6379/0
+      SUPREMEAI_BASE_URL: ${{ inputs.supremeai_base_url }}
+    run: 'chmod +x scripts/ops/ci-full-audit.sh
+
+      ./scripts/ops/ci-full-audit.sh
+
+      '
+  - name: Upload CI audit reports
+    if: always()
+    uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+    with:
+      name: supremeai-ci-audit-reports
+      path: ci-reports/
+      if-no-files-found: ignore
+  - name: Generate Smart Audit Summary
+    if: always()
+    run: python scripts/ci/generate_audit_summary.py
+  - name: Trigger Federation CI Watchdog on Failure
+    if: failure()
+    env:
+      DISPATCH_TOKEN: ${{ inputs.dispatch_token }}
+    run: "curl -s -X POST \\\n  -H \"Accept: application/vnd.github+json\" \\\n  -H \"Authorization: Bearer ${DISPATCH_TOKEN}\" \\\n  https://api.github.com/repos/Supremeai-bd/supremeai/dispatches \\\n  -d \"{\\\"event_type\\\": \\\"federation_ci_failed\\\", \\\"client_payload\\\": {\\\"repo\\\": \\\"${{ github.repository }}\\\", \\\"workflow_name\\\": \\\"${{ github.workflow }}\\\", \\\"run_id\\\": \\\"${{ github.run_id }}\\\", \\\"html_url\\\": \\\"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\\\", \\\"branch\\\": \\\"${{ github.ref_name }}\\\", \\\"commit_sha\\\": \\\"${{ github.sha }}\\\"}}\" || true\n"
+  - name: Open/update maintenance issue on failure
+    if: ${{ !cancelled() && (steps.duplicate_detector.outcome == 'failure' || steps.vuln_scanner.outcome == 'failure' || steps.mutation_testing.outcome == 'failure' || steps.perf_benchmark.outcome == 'failure' || steps.full_audit.outcome == 'failure' || steps.parity_sentinel.outcome == 'failure') }}
+    uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+    with:
+      script: "const title = \"\U0001F527 Scheduled Deep Audit found issues\";\nconst failing = [];\nif (\"${{ steps.duplicate_detector.outcome }}\" === \"failure\") failing.push(\"Duplicate Logic Detector\");\nif (\"${{ steps.vuln_scanner.outcome }}\" === \"failure\") failing.push(\"Auto Vulnerability Scanner\");\nif (\"${{ steps.mutation_testing.outcome }}\" === \"failure\") failing.push(\"Mutation Testing\");\nif (\"${{ steps.perf_benchmark.outcome }}\" === \"failure\") failing.push(\"Performance Benchmark\");\nif (\"${{ steps.full_audit.outcome }}\" === \"failure\") failing.push(\"SupremeAI full CI audit\");\nif (\"${{ steps.parity_sentinel.outcome }}\" === \"failure\") failing.push(\"Feature Parity Sentinel (new backend ⇄ frontend drift — see ci-reports/feature-parity-report.md)\");\nconst runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;\nconst body = [\n  `স্বয়ংক্রিয়ভাবে তৈরি — Scheduled Deep Audit workflow-এর নিচের ধাপগুলো fail করেছে:`,\n  ...failing.map(f => `- ${f}`),\n  ``,\n  `রিপোর্ট ও লগ: ${runUrl}`,\n  ``,\n  `এই ইস্যুটা merge ব্লক করে না — পরবর্তী রানে সব পাস করলে এটা auto-close হবে।`,\n].join(\"\\n\");\n\nconst existing = await github.rest.issues.listForRepo({\n  owner: context.repo.owner,\n  repo: context.repo.repo,\n  state: \"open\",\n  labels: \"scheduled-audit\",\n});\nconst match = existing.data.find(i => i.title === title);\nif (match) {\n  await github.rest.issues.update({\n    owner: context.repo.owner,\n    repo: context.repo.repo,\n    issue_number: match.number,\n    body,\n  });\n} else {\n  await github.rest.issues.create({\n    owner: context.repo.owner,\n    repo: context.repo.repo,\n    title,\n    body,\n    labels: [\"scheduled-audit\", \"maintenance\"],\n  });\n}\n"
+  - name: Auto-close maintenance issue if everything passed
+    if: ${{ success() && steps.duplicate_detector.outcome == 'success' && steps.vuln_scanner.outcome == 'success' && steps.mutation_testing.outcome == 'success' && steps.perf_benchmark.outcome == 'success' && steps.full_audit.outcome == 'success' && steps.parity_sentinel.outcome == 'success' }}
+    uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+    with:
+      script: "const title = \"\U0001F527 Scheduled Deep Audit found issues\";\nconst existing = await github.rest.issues.listForRepo({\n  owner: context.repo.owner,\n  repo: context.repo.repo,\n  state: \"open\",\n  labels: \"scheduled-audit\",\n});\nconst match = existing.data.find(i => i.title === title);\nif (match) {\n  await github.rest.issues.createComment({\n    owner: context.repo.owner,\n    repo: context.repo.repo,\n    issue_number: match.number,\n    body: \"✅ সর্বশেষ scheduled run-এ সব heavy check পাস করেছে — ইস্যু বন্ধ করা হচ্ছে।\",\n  });\n  await github.rest.issues.update({\n    owner: context.repo.owner,\n    repo: context.repo.repo,\n    issue_number: match.number,\n    state: \"closed\",\n  });\n}\n"
