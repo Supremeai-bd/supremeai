@@ -48,10 +48,13 @@ ENV RENDER_GIT_COMMIT=${RENDER_GIT_COMMIT} GIT_COMMIT=${RENDER_GIT_COMMIT}
 # ── Python 3 + uv (needed for memory sidecar: backend/memory/mcp_server.py) ──
 # python3, pip3, and curl for uv installer. Keep the layer small with --no-cache.
 # #2525: pin uv version (was unpinned 'install.sh | sh' — supply-chain risk).
-RUN apk add --no-cache python3 py3-pip curl \
+# বাংলা মন্তব্য: devtools_* টুলসের জন্য Chromium যোগ করা হলো (Alpine-এ /usr/bin/chromium-browser)
+RUN apk add --no-cache python3 py3-pip curl chromium \
     && curl -LsSf https://astral.sh/uv/install.sh | env UV_VERSION=0.8.15 sh \
     && ln -sf /root/.local/bin/uv /usr/local/bin/uv \
     && ln -sf /root/.local/bin/uvx /usr/local/bin/uvx
+
+ENV DEVTOOLS_CHROME_PATH=/usr/bin/chromium-browser
 
 # Verify Python + uv are accessible
 RUN python3 --version && uv --version
