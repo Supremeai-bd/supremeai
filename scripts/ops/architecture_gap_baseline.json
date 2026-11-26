@@ -596,15 +596,8 @@
     "skills.examples.echo-greeter.scripts.greet",
     "skills.sandbox"
   ],
-  "_dangling_at_freeze": 6,
-  "known_dangling": [
-    "core.agents.governance.bias_detection_agent -> core.llm.language_model",
-    "core.agents.governance.explainability_agent -> core.llm.language_model",
-    "core.api.routes.pr_review_api -> tools.pr_reviewer",
-    "scripts.ops.audit_underutilized_capabilities -> scripts.audit_isolated_components",
-    "scripts.ops.supreme_ops -> tools.tool_knowledge_injector",
-    "scripts.ops.verify_capabilities -> core.evolution.self_evolution_agent"
-  ],
+  "_dangling_at_freeze": 0,
+  "known_dangling": [],
   "_known_dangling_note": "Real defects: modules imported by live code that do not exist. Visible on every run; a NEW one fails the guard.",
   "_count_note": "Fell from 1349 to 565 on 2026-11-20 because the graph previously ignored two real caller classes: script paths listed as data (the run_all_guards roster, 64 edges) and non-Python dispatchers (.github/workflows/*.yml + Makefile, 179 edges). Those modules were always live; the graph could not see them."
 }

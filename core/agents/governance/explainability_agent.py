@@ -127,10 +127,11 @@ class ExplainabilityAgent:
         # This would typically call the LLM through the token deducer
         # For now, we'll simulate the call
         try:
-            from core.llm.language_model import LanguageModel
+            # বাংলা মন্তব্য: ডিলিট হওয়া core.llm.language_model-এর বদলে ক্যানোনিকাল LLM গেটওয়ে ব্যবহার
+            from core.llm.llm_gateway import get_llm_gateway
 
-            lm = LanguageModel()
-            result = await lm.generate(
+            gateway = get_llm_gateway()
+            result = await gateway.async_generate(
                 prompt,
                 max_tokens=config_cache.get("explainability_agent_max_tokens", 500),
                 temperature=config_cache.get("explainability_agent_temperature", 0.3),

@@ -436,17 +436,12 @@ def test_dangling_references_fail_the_check(real_report: Report):
         assert check_dangling(real_report) == real_report.missing_refs
 
 
-# ── the 13 real defects the dynamic graph found (regression pins) ──────────
+# ── the real defects the dynamic graph found (all 6 now resolved) ──────────
 #: Verified absent modules imported WITHOUT an ImportError guard. Each is a
 #: latent ModuleNotFoundError. Deliberate ``try/except ImportError`` chains are
 #: excluded automatically, so this list is defects only.
-REAL_DANGLING = {
-    "core.llm.language_model",
-    "tools.pr_reviewer",
-    "scripts.audit_isolated_components",
-    "tools.tool_knowledge_injector",
-    "core.evolution.self_evolution_agent",
-}
+# বাংলা মন্তব্য: পূর্বের ৬টি dangling import ফিক্স করা হয়েছে, তাই REAL_DANGLING এখন খালি সেট।
+REAL_DANGLING: set[str] = set()
 
 
 def test_known_absent_modules_are_reported(real_report: Report):
