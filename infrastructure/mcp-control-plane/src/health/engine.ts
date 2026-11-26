@@ -69,7 +69,14 @@ export class HealthEngine {
         ? (String((data as any).status) as HealthSnapshot["status"]) : "healthy";
       return {
         provider, status, lastCheckMs: Date.now(), checkedAt: new Date().toISOString(),
-        latencyMs: Date.now() - started, consecutiveFailures: status === "healthy" ? 0 : (oldSnap?.consecutiveFailures || 0) + 1,
+        latencyMs: Date.now() - started,
+        // "unknown" is an indeterminate probe result (e.g. auxiliary identity fields
+        // missing from the provider response), NOT an observed failure: it must
+        // neither clear nor grow the failure streak. Counting unknowns as failures
+        // kept healthy providers (HTTP 200) inside a growing false-failure streak
+        // that eventually trips circuit logic (cloudflare reached 33 consecutive
+        // "failures" while serving 200 {"status":"healthy"}).
+        consecutiveFailures: status === "healthy" ? 0 : status === "unknown" ? (oldSnap?.consecutiveFailures || 0) : (oldSnap?.consecutiveFailures || 0) + 1,
         evidence: { kind: "provider_response", summary: `Provider check returned ${status}` },
         impactedServices: globalDependencyGraph.getImpactedServices(provider), data,
       };

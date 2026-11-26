@@ -43,11 +43,18 @@ export function evaluateCloudflareProbe(result: CloudflareProbeResult): {
     checks.push(evidence("cloudflare.release", "unknown", undefined, "Cloudflare deployment identity is not configured"));
   }
 
-  const status = checks.some((check) => check.status === "fail")
+  // Verdict is computed from the REACHABILITY checks only (provider + worker_route).
+  // The release-identity check is auxiliary release-tracking evidence: when the
+  // worker does not report deployment identity it stays visible below as `unknown`
+  // evidence, but it must not gate the provider verdict - otherwise a healthy
+  // worker serving HTTP 200 is labelled "unknown" forever and the health engine
+  // grows a false failure streak out of indeterminate results.
+  const reachability = checks.filter((check) => check.source !== "cloudflare.release");
+  const status = reachability.some((check) => check.status === "fail")
     ? "critical"
-    : checks.some((check) => check.status === "error")
+    : reachability.some((check) => check.status === "error")
       ? "degraded"
-      : checks.some((check) => check.status === "unknown")
+      : reachability.some((check) => check.status === "unknown")
         ? "unknown"
         : "healthy";
   return { status, checks };
