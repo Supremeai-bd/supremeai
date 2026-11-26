@@ -405,18 +405,17 @@
       "core.utils.lazy_loader",
       "scripts.ci.validate_router_imports",
       "scripts.db.verify_pgvector",
-      "scripts.health.superai_health_check",
       "scripts.ops.generate_types",
       "scripts.resource_collection.run_all"
     ]
   },
   "graph": {
     "modules": 2195,
-    "edges": 5036,
+    "edges": 5035,
     "edge_kinds": {
       "dispatch": 202,
       "dynamic": 4,
-      "import": 4142,
+      "import": 4141,
       "string": 688
     }
   },
