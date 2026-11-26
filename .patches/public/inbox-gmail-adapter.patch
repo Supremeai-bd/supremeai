@@ -1,0 +1,392 @@
+diff --git a/src/adapters/inbox/gmailAdapter.test.ts b/src/adapters/inbox/gmailAdapter.test.ts
+new file mode 100644
+index 0000000..a68a40c
+--- /dev/null
++++ b/src/adapters/inbox/gmailAdapter.test.ts
+@@ -0,0 +1,135 @@
++import { describe, expect, it, vi } from 'vitest';
++import {
++  GmailAdapter,
++  mapGmailDetailToInboxItemDetail,
++  mapGmailSummaryToInboxItem,
++} from './gmailAdapter';
++import { getInboxAdapter, listRegisteredChannels, setInboxAdapter } from './registry';
++
++const summary = {
++  id: 'm1',
++  threadId: 't1',
++  subject: 'Hello',
++  from: 'Ada <ada@example.com>',
++  date: 'Mon, 01 Jan 2026 00:00:00 +0000',
++  snippet: 'Hi there',
++  isUnread: true,
++};
++
++describe('Gmail mapping (contract parity)', () => {
++  it('maps summary → InboxItem with channel gmail', () => {
++    const item = mapGmailSummaryToInboxItem(summary);
++    expect(item).toEqual({
++      id: 'm1',
++      channel: 'gmail',
++      sender: 'Ada <ada@example.com>',
++      subject: 'Hello',
++      snippet: 'Hi there',
++      timestamp: 'Mon, 01 Jan 2026 00:00:00 +0000',
++      unread: true,
++    });
++  });
++
++  it('maps detail → InboxItemDetail with body + replyRef', () => {
++    const detail = mapGmailDetailToInboxItemDetail({
++      ...summary,
++      to: 'me@example.com',
++      htmlBody: '<p>Hi</p>',
++      textBody: 'Hi',
++    });
++    expect(detail.body).toBe('Hi');
++    expect(detail.replyRef).toBe('t1');
++    expect(detail.channel).toBe('gmail');
++  });
++
++  it('defaults missing fields honestly', () => {
++    const item = mapGmailSummaryToInboxItem({
++      id: 'x',
++      threadId: 't',
++      subject: '',
++      from: '',
++      date: '',
++      snippet: '',
++      isUnread: false,
++    });
++    expect(item.sender).toBe('Unknown Sender');
++    expect(item.subject).toBe('(No subject)');
++    expect(item.unread).toBe(false);
++  });
++});
++
++describe('GmailAdapter', () => {
++  it('isAvailable false without token', async () => {
++    const a = new GmailAdapter({ getToken: () => null });
++    const av = await a.isAvailable();
++    expect(av.ok).toBe(false);
++    expect(av.reason).toBeTruthy();
++  });
++
++  it('isAvailable true with token', async () => {
++    const a = new GmailAdapter({ getToken: () => 'tok' });
++    expect((await a.isAvailable()).ok).toBe(true);
++  });
++
++  it('list returns [] without token (no throw)', async () => {
++    const a = new GmailAdapter({ getToken: () => null });
++    expect(await a.list()).toEqual([]);
++  });
++
++  it('list maps fetchInbox results', async () => {
++    const fetchInbox = vi.fn().mockResolvedValue([summary]);
++    const a = new GmailAdapter({ getToken: () => 'tok', fetchInbox: fetchInbox as never });
++    const items = await a.list({ limit: 5, query: 'hi' });
++    expect(fetchInbox).toHaveBeenCalledWith('tok', { maxResults: 5, query: 'hi' });
++    expect(items).toHaveLength(1);
++    expect(items[0].channel).toBe('gmail');
++  });
++
++  it('list clears expired session on expiry error', async () => {
++    const clearExpired = vi.fn().mockResolvedValue(undefined);
++    const fetchInbox = vi.fn().mockRejectedValue(new Error('Gmail session expired. Please sign in again.'));
++    const a = new GmailAdapter({
++      getToken: () => 'tok',
++      fetchInbox: fetchInbox as never,
++      clearExpired: clearExpired as never,
++    });
++    await expect(a.list()).rejects.toThrow(/expired/i);
++    expect(clearExpired).toHaveBeenCalled();
++  });
++
++  it('detail throws without token', async () => {
++    const a = new GmailAdapter({ getToken: () => null });
++    await expect(a.detail('m1')).rejects.toThrow(/not connected/i);
++  });
++
++  it('detail maps fetchDetail result', async () => {
++    const fetchDetail = vi.fn().mockResolvedValue({
++      ...summary,
++      textBody: 'body text',
++      htmlBody: '',
++    });
++    const a = new GmailAdapter({ getToken: () => 'tok', fetchDetail: fetchDetail as never });
++    const d = await a.detail('m1');
++    expect(fetchDetail).toHaveBeenCalledWith('tok', 'm1');
++    expect(d.body).toBe('body text');
++    expect(d.id).toBe('m1');
++  });
++});
++
++describe('registry', () => {
++  it('registers gmail by default', () => {
++    expect(listRegisteredChannels()).toContain('gmail');
++    expect(getInboxAdapter('gmail')).toBeDefined();
++    expect(getInboxAdapter('telegram')).toBeUndefined();
++  });
++
++  it('setInboxAdapter can override and clear', () => {
++    const fake = new GmailAdapter({ getToken: () => null });
++    setInboxAdapter('gmail', fake);
++    expect(getInboxAdapter('gmail')).toBe(fake);
++    setInboxAdapter('gmail', undefined);
++    expect(getInboxAdapter('gmail')).toBeUndefined();
++    // restore real adapter for other tests
++    setInboxAdapter('gmail', new GmailAdapter());
++  });
++});
+diff --git a/src/adapters/inbox/gmailAdapter.ts b/src/adapters/inbox/gmailAdapter.ts
+new file mode 100644
+index 0000000..88061f3
+--- /dev/null
++++ b/src/adapters/inbox/gmailAdapter.ts
+@@ -0,0 +1,108 @@
++/**
++ * GmailAdapter — UniversalInboxPanel থেকে extract করা Gmail channel logic।
++ * বাংলা মন্তব্য: UI আগের মতোই একই কল করবে; adapter শুধু contract
++ * (`packages/contracts/inbox-adapter.ts`) মেনে list/detail/availability দেয়।
++ * OAuth session (connect/disconnect/token cache) gmailOAuthService-এ থাকে —
++ * adapter কখনো token নিজে রাখে না।
++ */
++
++import type {
++  InboxAdapter,
++  InboxAvailability,
++  InboxItem,
++  InboxItemDetail,
++  InboxListOptions,
++} from '../../../packages/contracts/inbox-adapter';
++import {
++  clearExpiredGmailSession,
++  fetchGmailInbox,
++  fetchGmailMessageDetail,
++  getGmailCachedToken,
++  type GmailMessageDetail,
++  type GmailMessageSummary,
++} from '../../services/gmailOAuthService';
++
++/** Map Gmail API summary → contract InboxItem (UI-identical fields). */
++export function mapGmailSummaryToInboxItem(m: GmailMessageSummary): InboxItem {
++  return {
++    id: m.id,
++    channel: 'gmail',
++    sender: m.from || 'Unknown Sender',
++    subject: m.subject || '(No subject)',
++    snippet: m.snippet || '',
++    timestamp: m.date || '',
++    unread: Boolean(m.isUnread),
++  };
++}
++
++export function mapGmailDetailToInboxItemDetail(d: GmailMessageDetail): InboxItemDetail {
++  return {
++    ...mapGmailSummaryToInboxItem(d),
++    body: d.textBody || d.htmlBody || d.snippet || '',
++    replyRef: d.threadId,
++  };
++}
++
++export interface GmailAdapterDeps {
++  /** Injectable for tests; defaults to live gmailOAuthService. */
++  getToken?: () => string | null;
++  fetchInbox?: typeof fetchGmailInbox;
++  fetchDetail?: typeof fetchGmailMessageDetail;
++  clearExpired?: typeof clearExpiredGmailSession;
++}
++
++/**
++ * Cloud-OAuth Gmail channel. Token is resolved per call via getToken()
++ * (default: getGmailCachedToken) so auth state stays in gmailOAuthService.
++ */
++export class GmailAdapter implements InboxAdapter {
++  readonly channel = 'gmail' as const;
++  readonly mode = 'cloud-oauth' as const;
++
++  private readonly getToken: () => string | null;
++  private readonly fetchInbox: typeof fetchGmailInbox;
++  private readonly fetchDetail: typeof fetchGmailMessageDetail;
++  private readonly clearExpired: typeof clearExpiredGmailSession;
++
++  constructor(deps: GmailAdapterDeps = {}) {
++    this.getToken = deps.getToken ?? getGmailCachedToken;
++    this.fetchInbox = deps.fetchInbox ?? fetchGmailInbox;
++    this.fetchDetail = deps.fetchDetail ?? fetchGmailMessageDetail;
++    this.clearExpired = deps.clearExpired ?? clearExpiredGmailSession;
++  }
++
++  async isAvailable(): Promise<InboxAvailability> {
++    if (this.getToken()) return { ok: true };
++    return { ok: false, reason: 'Gmail not connected — use official Google OAuth first.' };
++  }
++
++  async list(opts?: InboxListOptions): Promise<InboxItem[]> {
++    const token = this.getToken();
++    if (!token) return [];
++    try {
++      const list = await this.fetchInbox(token, {
++        maxResults: opts?.limit ?? 20,
++        query: opts?.query ?? '',
++      });
++      return list.map(mapGmailSummaryToInboxItem);
++    } catch (err: unknown) {
++      const msg = err instanceof Error ? err.message : 'Failed to load Gmail inbox.';
++      if (msg.toLowerCase().includes('expired')) {
++        await this.clearExpired();
++      }
++      throw new Error(msg);
++    }
++  }
++
++  async detail(id: string): Promise<InboxItemDetail> {
++    const token = this.getToken();
++    if (!token) {
++      throw new Error('Gmail not connected.');
++    }
++    const d = await this.fetchDetail(token, id);
++    return mapGmailDetailToInboxItemDetail(d);
++  }
++}
++
++/** Singleton used by UniversalInboxPanel (swap in tests via constructor). */
++export const gmailAdapter = new GmailAdapter();
+diff --git a/src/adapters/inbox/registry.ts b/src/adapters/inbox/registry.ts
+new file mode 100644
+index 0000000..690eb60
+--- /dev/null
++++ b/src/adapters/inbox/registry.ts
+@@ -0,0 +1,32 @@
++/**
++ * InboxAdapterRegistry — channel → adapter map (contract-backed).
++ * নতুন channel = একটি adapter class + এখানে এক লাইন। UI কখনো
++ * channel-specific fetch জানবে না।
++ */
++
++import type { ChannelType, InboxAdapter, InboxAdapterRegistry } from '../../../packages/contracts/inbox-adapter';
++import { GmailAdapter, gmailAdapter } from './gmailAdapter';
++
++const registry: Partial<Record<ChannelType, InboxAdapter>> = {
++  gmail: gmailAdapter,
++};
++
++export function getInboxAdapter(channel: ChannelType): InboxAdapter | undefined {
++  return registry[channel];
++}
++
++/** Test/DI hook: override or clear a channel adapter. */
++export function setInboxAdapter(channel: ChannelType, adapter: InboxAdapter | undefined): void {
++  if (adapter) {
++    registry[channel] = adapter;
++  } else {
++    delete registry[channel];
++  }
++}
++
++export function listRegisteredChannels(): ChannelType[] {
++  return Object.keys(registry) as ChannelType[];
++}
++
++/** Re-export for panel convenience. */
++export { GmailAdapter, gmailAdapter };
+diff --git a/src/components/inbox/UniversalInboxPanel.tsx b/src/components/inbox/UniversalInboxPanel.tsx
+index 888f871..0d94e15 100644
+--- a/src/components/inbox/UniversalInboxPanel.tsx
++++ b/src/components/inbox/UniversalInboxPanel.tsx
+@@ -27,26 +27,18 @@ import {
+   clearExpiredGmailSession,
+   connectGmailWithGooglePopup,
+   disconnectGmailAccount,
+-  fetchGmailInbox,
+-  fetchGmailMessageDetail,
+   getGmailCachedEmail,
+   getGmailCachedToken,
+   subscribeGmailAuthState,
+   type GmailMessageDetail,
+-  type GmailMessageSummary,
+ } from '../../services/gmailOAuthService';
++import { getInboxAdapter } from '../../adapters/inbox/registry';
++import type { InboxItem } from '../../../packages/contracts/inbox-adapter';
+ 
+ export type ChannelType = 'gmail' | 'telegram' | 'whatsapp' | 'messenger' | 'instagram';
+ 
+-export interface UnifiedInboxItem {
+-  id: string;
+-  channel: ChannelType;
+-  sender: string;
+-  subject: string;
+-  snippet: string;
+-  timestamp: string;
+-  unread: boolean;
+-}
++/** Contract-backed item shape (packages/contracts/inbox-adapter.ts). */
++export type UnifiedInboxItem = InboxItem;
+ 
+ const CHANNEL_META: Record<
+   ChannelType,
+@@ -108,23 +100,15 @@ export const UniversalInboxPanel: React.FC = () => {
+   const [isDraftingAi, setIsDraftingAi] = useState(false);
+   const [copiedReply, setCopiedReply] = useState(false);
+ 
+-  const loadGmailMessages = useCallback(async (token: string, query = '') => {
++  const loadGmailMessages = useCallback(async (_token: string, query = '') => {
+     setIsLoading(true);
+     setErrorMsg(null);
+     try {
+-      const list: GmailMessageSummary[] = await fetchGmailInbox(token, {
+-        maxResults: 20,
+-        query,
+-      });
+-      const mapped: UnifiedInboxItem[] = list.map((m) => ({
+-        id: m.id,
+-        channel: 'gmail',
+-        sender: m.from || 'Unknown Sender',
+-        subject: m.subject || '(No subject)',
+-        snippet: m.snippet || '',
+-        timestamp: m.date || '',
+-        unread: Boolean(m.isUnread),
+-      }));
++      const adapter = getInboxAdapter('gmail');
++      if (!adapter) {
++        throw new Error('Gmail adapter not registered.');
++      }
++      const mapped: UnifiedInboxItem[] = await adapter.list({ limit: 20, query });
+       setItems(mapped);
+       if (mapped.length > 0) {
+         setSelectedId((prev) => prev || mapped[0].id);
+@@ -176,9 +160,30 @@ export const UniversalInboxPanel: React.FC = () => {
+     }
+     let cancelled = false;
+     setLoadingDetail(true);
+-    fetchGmailMessageDetail(gmailToken, item.id)
+-      .then((detail) => {
+-        if (!cancelled) setSelectedGmailDetail(detail);
++    const adapter = getInboxAdapter('gmail');
++    if (!adapter) {
++      setSelectedGmailDetail(null);
++      setLoadingDetail(false);
++      return;
++    }
++    adapter
++      .detail(item.id)
++      .then((d) => {
++        if (!cancelled) {
++          // Keep prior Gmail detail type for AI draft body fields.
++          setSelectedGmailDetail({
++            id: d.id,
++            threadId: d.replyRef || d.id,
++            subject: d.subject,
++            from: d.sender,
++            to: '',
++            date: d.timestamp,
++            snippet: d.snippet,
++            isUnread: d.unread,
++            htmlBody: '',
++            textBody: d.body || d.snippet,
++          } satisfies GmailMessageDetail);
++        }
+       })
+       .catch(() => {
+         if (!cancelled) setSelectedGmailDetail(null);
