@@ -1,0 +1,14 @@
+name: "SupremeAI Python Setup (B1)"
+description: "Reusable composite action for checkout + Python 3.11 setup in ops-maintenance.yml"
+inputs:
+  python-version:
+    description: "Python version"
+    required: false
+    default: "3.11"
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
