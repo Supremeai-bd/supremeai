@@ -411,12 +411,12 @@
     ]
   },
   "graph": {
-    "modules": 2192,
-    "edges": 5030,
+    "modules": 2193,
+    "edges": 5032,
     "edge_kinds": {
-      "dispatch": 197,
+      "dispatch": 198,
       "dynamic": 4,
-      "import": 4141,
+      "import": 4142,
       "string": 688
     }
   },
@@ -425,6 +425,7 @@
       "@.github/workflows/codeql.yml",
       "@.github/workflows/daily-key-health.yml",
       "@.github/workflows/deploy-rollback.yml",
+      "@.github/workflows/learning-pool-audit.yml",
       "@.github/workflows/ops-maintenance.yml",
       "@.github/workflows/unified-pipeline.yml",
       "@Makefile",
@@ -438,9 +439,9 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1671,
-    "unreachable": 521,
-    "reachable_pct": 76.2
+    "reachable": 1673,
+    "unreachable": 520,
+    "reachable_pct": 76.3
   },
   "gaps": {
     "dangling_references": [
@@ -1485,7 +1486,6 @@
     "scripts.ops.tower_discovery_probe",
     "scripts.ops.update_cors_hosts",
     "scripts.ops.verify_capabilities",
-    "scripts.ops.zero_cost_capacity_probe",
     "scripts.orchestrator",
     "scripts.patches",
     "scripts.pre_push_hook",
