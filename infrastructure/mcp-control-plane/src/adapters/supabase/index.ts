@@ -34,10 +34,23 @@ export async function getHealth(accountId: string): Promise<unknown> {
   const res = await httpRequest(`${url}/rest/v1/`, {
     headers: supabaseHeaders(apiKey),
   });
+  // বাংলা মন্তব্য: db_health_diagnostics RPC থাকলে ডায়াগনস্টিকস (largest tables, bloat, RLS, cache hit) যুক্ত করা
+  let diagnostics: unknown = undefined;
+  try {
+    const rpcRes = await httpRequest(`${url}/rest/v1/rpc/db_health_diagnostics`, {
+      method: "POST",
+      headers: supabaseHeaders(apiKey),
+      body: "{}",
+    });
+    if (rpcRes.ok) diagnostics = rpcRes.data;
+  } catch {
+    // RPC এখনো ডেপ্লয় না হলে মূল হেলথ চেক চালু থাকবে
+  }
   return {
     status: res.ok ? "healthy" : "degraded",
     latencyMs: res.latencyMs,
     version: (res.data as any).version || "unknown",
+    ...(diagnostics !== undefined ? { diagnostics } : {}),
   };
 }
 
