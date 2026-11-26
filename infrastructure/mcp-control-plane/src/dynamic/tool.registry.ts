@@ -97,17 +97,15 @@ async function fetchDynamicTools(): Promise<ToolDefinition[]> {
     const supabase = createClient(supabaseUrl, supabaseKey) as unknown as {
       from: (table: string) => {
         select: (columns: string) => {
-          eq: (column: string, value: unknown) => {
-            order: (column: string) => Promise<{ data: ToolDefinition[] | null; error: { message: string } | null }>;
-          };
+          order: (column: string) => Promise<{ data: (ToolDefinition & { enabled?: boolean; status?: string })[] | null; error: { message: string } | null }>;
         };
       };
     };
 
+    // বাংলা মন্তব্য: tools_registry টেবিলে enabled কলাম না থাকায় * সিলেক্ট করে ইন-মেমোরি ফিল্টার করা হচ্ছে
     const { data, error } = await supabase
       .from("tools_registry")
       .select("*")
-      .eq("enabled", true)
       .order("name");
 
     if (error) {
@@ -115,7 +113,7 @@ async function fetchDynamicTools(): Promise<ToolDefinition[]> {
       return [];
     }
 
-    dynamicToolsCache = data || [];
+    dynamicToolsCache = (data || []).filter((t) => t.enabled !== false && t.status !== "disabled");
     lastCacheTime = now;
     return dynamicToolsCache;
   } catch (err) {
