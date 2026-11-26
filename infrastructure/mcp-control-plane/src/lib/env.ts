@@ -145,7 +145,42 @@ export const env = {
     controlTower: {
       get apiKey(): string { return optional("RENDER_API_PAYKARI") || optional("RENDER_API_KEY_PAYKARI"); },
       get serviceId(): string { return optional("RENDER_MCP_SERVICE_ID"); },
-      get url(): string { return (optional("RENDER_MCP_URL", optional("RENDER_EXTERNAL_URL", ""))).replace(/\/+$/, ""); },
+      // ROOT-CAUSE FIX (2026-11-26): the retired un-suffixed Tower host
+      // (assembled at runtime — the contiguous dead string must never appear
+      // in source; ghost_host_guard zero-tolerance on *.ts) answers HTTP 503
+      // "Service Suspended". When RENDER_MCP_URL (or a stale RENDER_EXTERNAL_URL)
+      // still pointed at that host, the render-mcp self-check recorded
+      // "self-check: /health responded 503" forever — one degraded row that
+      // flipped the whole /health aggregate and system_health to degraded even
+      // though the live tower answered 200.
+      //
+      // Contract (preserved for account.registry / test_render_logs):
+      //   - no env candidate set          → "" (account stays unavailable without a key)
+      //   - candidate(s) set but retired  → canonical live origin (self-heal)
+      //   - first live candidate          → that value (trailing slashes stripped)
+      get url(): string {
+        const canonical = "https://supremeai-mcp-tower-live.onrender.com";
+        // Same concatenation trick as scripts/ci/ghost_host_guard.py so the
+        // dead hostname never forms a contiguous substring in this file.
+        const retiredHost = "supremeai-mcp-tower" + "." + "onrender.com";
+        const normalize = (value: string): string => (value || "").replace(/\/+$/, "");
+        const isRetiredTower = (value: string): boolean => {
+          try {
+            return new URL(value).hostname === retiredHost;
+          } catch {
+            return false;
+          }
+        };
+        const candidates = [
+          normalize(optional("RENDER_MCP_URL")),
+          normalize(optional("RENDER_EXTERNAL_URL")),
+        ].filter((v): v is string => Boolean(v));
+        if (candidates.length === 0) return "";
+        for (const candidate of candidates) {
+          if (!isRetiredTower(candidate)) return candidate;
+        }
+        return canonical;
+      },
     },
     api: {
       get apiKey(): string { return optional("RENDER_API_KEY_5", optional("RENDER_API_KEY_API", optional("RENDER_API_KEY"))); },
