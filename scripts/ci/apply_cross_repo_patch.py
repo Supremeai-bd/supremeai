@@ -17,6 +17,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -26,11 +28,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def is_loop_prevented(actor: str | None = None) -> bool:
-    """বাংলা মন্তব্য: বটের তৈরি PR বা অ্যাকশন থেকে সার্কুলার লুপ প্রতিরোধে গার্ড ফাংশন।"""
+    """বাংলা মন্তব্য: dependency-bot নীতি অপরিবর্তিত; canonical sync bot-কে আটকাব না।"""
     current_actor = actor or os.getenv("GITHUB_ACTOR", "")
     blocked_actors = {
-        "github-actions[bot]",
-        "app/github-actions",
         "dependabot[bot]",
         "renovate[bot]",
     }
@@ -139,8 +139,8 @@ def create_source_cleanup_pr(
     applied_patches: list[Path],
     source_dir: Path | None = None,
 ) -> bool:
-    """Rule #10 loop-stop: after target auto-sync PR opens, open a source-repo PR
-    that deletes the consumed .patches/ inputs so later pushes do not re-sync.
+    """বাংলা মন্তব্য: clean target main-এ reverse-check সফল হওয়ার পরেই source cleanup PR।
+    শুধু target PR খোলা input মুছে ফেলার প্রমাণ নয়।
 
     Requires GH_TOKEN (CI). source_dir defaults to cwd (pipeline source root).
     Missing files → no-op success (already consumed).
@@ -165,8 +165,11 @@ def create_source_cleanup_pr(
         print("  [cleanup] patch file(s) already removed from source; nothing to do.")
         return True
 
-    slug = "-".join(Path(r).stem for r in existing[:3])[:30]
+    slug = sync_branch_name([src / r for r in existing]).removeprefix("sync/patch-")
     branch_name = f"sync/consume-{slug}"
+    state = sync_pr_state(src, source_repo, branch_name, legacy_branch=f"sync/consume-{'-'.join(Path(r).stem for r in existing[:3])[:30]}")
+    if state != "new":
+        return state == "open"
 
     print(f"  [cleanup] Opening source PR to consume patches on {source_repo} ({branch_name})...")
     try:
@@ -180,7 +183,7 @@ def create_source_cleanup_pr(
 
     commit_msg = (
         "chore(sync): consume cross-repo patches (Rule #10 loop-stop)\n\n"
-        "Auto-removed after target auto-sync PR opened:\n"
+        "Target main-এ content যাচাইয়ের পরে অপসারণ:\n"
         + "\n".join(f"- {r}" for r in existing)
     )
     try:
@@ -190,26 +193,14 @@ def create_source_cleanup_pr(
         print(f"  [cleanup-error] git commit/push failed: {exc}")
         return False
 
-    try:
-        existing_pr = subprocess.check_output(
-            ["gh", "pr", "list", "--repo", source_repo, "--head", branch_name, "--state", "open", "--json", "number", "--jq", ".[0].number"],
-            cwd=src,
-            text=True,
-        ).strip()
-    except Exception:
-        existing_pr = ""
-    if existing_pr and existing_pr != "null":
-        print(f"  [cleanup-ok] Source cleanup PR #{existing_pr} already open for {branch_name}.")
-        return True
-
     pr_body = (
         "## Rule #10 loop-stop — consume cross-repo patch inputs\n\n"
-        "Target auto-sync PR has been opened (or content already landed). "
+        "Target main-এ patch-এর content reverse-check দিয়ে যাচাই হয়েছে। "
         "This PR deletes the input patch file(s) from `.patches/` so future pushes "
-        "do not re-sync (force-push same branch).\n\n"
+        "পুনরায় sync না হয়।\n\n"
         "### Removed\n"
         + "\n".join(f"- `{r}`" for r in existing)
-        + "\n\n> Loop-guard: merge only after the corresponding target PR is healthy (open or merged)."
+        + "\n\n> Loop-guard: target main-এ content থাকা যাচাই ছাড়া source input মুছবেন না।"
     )
     try:
         subprocess.run(
@@ -231,6 +222,43 @@ def create_source_cleanup_pr(
         return False
 
 
+def sync_branch_name(patches: list[Path]) -> str:
+    """বাংলা মন্তব্য: ফাইলের নাম ও bytes দিয়ে branch; truncated slug collision নয়।"""
+    digest = hashlib.sha256()
+    for patch in sorted(patches, key=lambda p: p.name):
+        for part in (patch.name.encode("utf-8"), patch.read_bytes()):
+            digest.update(len(part).to_bytes(8, "big"))
+            digest.update(part)
+    return f"sync/patch-{digest.hexdigest()[:24]}"
+
+
+def sync_pr_state(work_dir: Path, repo: str, branch_name: str, *, legacy_branch: str | None = None, query_state: str = "all") -> str:
+    """বাংলা মন্তব্য: target ও cleanup উভয়ের এক lookup; ব্যর্থতায় কোনো git write নয়।"""
+    try:
+        prs = json.loads(subprocess.check_output(
+            ["gh", "pr", "list", "--repo", repo, "--head", branch_name,
+             "--state", query_state, "--json", "number,state"],
+            cwd=work_dir, text=True,
+        ))
+        if not isinstance(prs, list):
+            raise ValueError("PR lookup did not return a list")
+        if prs:
+            if len(prs) == 1 and prs[0].get("state") == "OPEN":
+                print(f"  [reuse] PR #{prs[0]['number']} already open; no push needed.")
+                return "open"
+            print("  [blocked] Prior PR is not uniquely open; review before reapplying this patch.")
+            return "blocked"
+    except (subprocess.CalledProcessError, OSError, ValueError, TypeError, AttributeError, KeyError) as exc:
+        print(f"  [error] PR lookup failed; refusing duplicate submission: {exc}")
+        return "blocked"
+
+    # বাংলা মন্তব্য: পুরনো slug-branch-এর PR খোলা থাকলে দ্বিতীয় hash-branch খুলব না।
+    if legacy_branch and sync_pr_state(work_dir, repo, legacy_branch, query_state="open") != "new":
+        print("  [blocked] Legacy branch has an open/unknown PR; resolve it before changing branch format.")
+        return "blocked"
+    return "new"
+
+
 def create_sync_pr(
     target_dir: Path,
     target_repo: str,
@@ -243,6 +271,13 @@ def create_sync_pr(
     if not status.strip():
         print("  [skip] No file diff in target repo after applying patches.")
         return False
+
+    # বাংলা মন্তব্য: একই content-এর open PR থাকলে কোনো branch/commit/push নয়।
+    # lookup ব্যর্থ বা পুরনো PR বন্ধ/merged অথচ content অনুপস্থিত হলে মানুষের যাচাই লাগবে।
+    branch_name = sync_branch_name(applied_patches)
+    state = sync_pr_state(target_dir, target_repo, branch_name, legacy_branch=f"sync/patch-{'-'.join(p.stem for p in applied_patches[:3])[:30]}")
+    if state != "new":
+        return state == "open"
 
     # বাংলা মন্তব্য: git apply --numstat থেকে নিখুঁতভাবে শুধুমাত্র প্যাচের টার্গেট ফাইলগুলো স্টেজ করা
     files_to_stage = set()
@@ -260,8 +295,6 @@ def create_sync_pr(
         return False
 
     patch_names = [p.name for p in applied_patches]
-    slug = "-".join([p.stem for p in applied_patches[:3]])
-    branch_name = f"sync/patch-{slug[:30]}"
 
     print(f"  [git] Configuring bot identity and checkout branch '{branch_name}'...")
     subprocess.run(["git", "config", "user.name", "github-actions[bot]"], cwd=target_dir, check=True)
@@ -273,30 +306,16 @@ def create_sync_pr(
 
     commit_msg = f"chore(sync): cross-repo patch sync from {source_repo}\n\nApplied patches:\n" + "\n".join(f"- {p}" for p in patch_names)
     subprocess.run(["git", "commit", "-m", commit_msg], cwd=target_dir, check=True)
-    subprocess.run(["git", "push", "-u", "origin", branch_name, "--force"], cwd=target_dir, check=True)
-
-    # Check if PR already exists
-    try:
-        existing_pr = subprocess.check_output(
-            ["gh", "pr", "list", "--repo", target_repo, "--head", branch_name, "--state", "open", "--json", "number", "--jq", ".[0].number"],
-            cwd=target_dir,
-            text=True,
-        ).strip()
-    except Exception:
-        existing_pr = ""
-
-    if existing_pr and existing_pr != "null":
-        print(f"  [ok] Open PR #{existing_pr} already exists for {branch_name}; updated via push.")
-        return True
+    subprocess.run(["git", "push", "-u", "origin", branch_name], cwd=target_dir, check=True)
 
     pr_body = (
         f"## Automated Cross-Repo Patch Synchronization\n\n"
         f"- **Source Repo:** `{source_repo}` (`{source_ref}`)\n"
         f"- **Applied Patches:**\n"
-        + "\n".join(f"  - `{p}`" for p in applied_patches)
+        + "\n".join(f"  - `{p}`" for p in patch_names)
         + "\n\n### বাংলা বিবরণ\n"
         f"সোর্স রিপোজিটরি `{source_repo}`-এর পরিবর্তনের পরিপ্রেক্ষিতে এই প্যাচটি স্বয়ংক্রিয়ভাবে প্রয়োগ করে PR তৈরি করা হয়েছে।\n\n"
-        f"> 🛡️ **Loop Guard Active:** Tagged with `auto-sync` label to prevent circular triggers.\n"
+        f"> 🛡️ একই content-এর PR reuse হয়; source cleanup শুধু target main-এ reverse-check-এর পরে।\n"
     )
 
     # বাংলা মন্তব্য: রিমোট টার্গেট রিপোতে auto-sync লেবেল নিশ্চিত করা
@@ -353,31 +372,32 @@ def main() -> int:
     parser.add_argument("--create-pr", action="store_true", help="Commit applied changes and create GitHub PR")
     args = parser.parse_args()
 
-    # 1. Loop Guard
     if is_loop_prevented():
-        print("[apply_cross_repo_patch] Loop guard active (bot actor detected). Skipping to prevent circular ping-pong.")
+        print("[apply_cross_repo_patch] Dependency-bot actor skipped by policy.")
         return 0
 
     patch_dir = Path(args.patch_dir).resolve()
     target_dir = Path(args.target_dir).resolve()
-
     if not target_dir.exists():
         print(f"Error: Target directory does not exist: {target_dir}")
         return 1
-
     patches = find_patches(patch_dir)
     if not patches:
-        print(f"[apply_cross_repo_patch] No patch files found in {patch_dir}. Nothing to apply.")
+        print(f"[apply_cross_repo_patch] No patch files found in {patch_dir}.")
         return 0
 
-    print(f"=== SupremeAI Cross-Repo Patch Applicator ===")
-    print(f"Found {len(patches)} patch file(s) in {patch_dir.name}:")
-    for p in patches:
-        print(f"  - {p.name}")
+    # বাংলা মন্তব্য: local dirty work merge-এর প্রমাণ নয়, অন্যের ফাইল sync-এ যাবে না।
+    # target clone অবশ্যই main-এ থাকবে; apply হওয়ার আগেই এই check করতে হবে।
+    try:
+        dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=target_dir, text=True)
+        branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=target_dir, text=True).strip()
+        if dirty.strip() or branch != "main":
+            print("[blocked] Target must be a clean main checkout before patch processing.")
+            return 1
+    except (subprocess.CalledProcessError, OSError) as exc:
+        print(f"[error] Target checkout verification failed: {exc}")
+        return 1
 
-    # Validate all patches first. Already-landed content (reverse-check) is
-    # NOT a conflict — it means the target auto-sync PR already merged; we
-    # only need Rule #10 loop-stop cleanup on the source side.
     pending: list[Path] = []
     already: list[Path] = []
     for p in patches:
@@ -389,71 +409,38 @@ def main() -> int:
         if can_apply:
             pending.append(p)
         elif is_already_applied(target_dir, p):
-            print(f"  [already-landed] {p.name} — reverse-check OK; source cleanup only.")
+            print(f"  [already-landed] {p.name}: reverse-check OK on clean main.")
             already.append(p)
         else:
-            print(f"Conflict error for {p.name} on {target_dir.name}:\n{check_msg}")
+            print(f"Conflict error for {p.name}: {check_msg}")
             return 1
 
-    if pending:
-        print(f"All pending patches validated cleanly ({len(pending)} to apply).")
-
-    if args.dry_run:
-        if already and not pending:
-            print("[dry-run] All patches already landed on target; source cleanup would run on --create-pr.")
-        else:
-            print("[dry-run] Dry run completed successfully. All pending patches apply cleanly.")
+    if args.dry_run or not (args.apply or args.create_pr):
+        print("[read-only] Validation completed; no files/PRs changed.")
         return 0
 
-    if already and not pending:
-        # Target content already merged (auto-sync PR landed) — Rule #10 loop-stop:
-        # consume the input patch files on the source side only.
-        # Cleanup is BEST-EFFORT: a push/PR failure here must not fail the sync job
-        # (the target side is already consistent).
-        print("All patches already landed on target — running source cleanup only.")
-        try:
-            cleaned = create_source_cleanup_pr(args.source_repo, already, source_dir=ROOT)
-            if not cleaned:
-                print("  [cleanup-warn] source cleanup did not complete; open a delete PR for the patch file(s) manually.")
-        except Exception as exc:
-            print(f"  [cleanup-warn] source cleanup raised: {exc}")
-        print("\n[apply_cross_repo_patch] Execution completed successfully.")
-        return 0
-
-    applied: list[Path] = []
-    if args.apply or args.create_pr:
-        for p in pending:
-            success, apply_msg = apply_patch(target_dir, p)
-            if not success:
-                print(f"Failed to apply {p.name}: {apply_msg}")
-                return 1
-            print(f"  [applied] {p.name}")
-            applied.append(p)
-
-    if args.create_pr and applied:
-        pr_ok = create_sync_pr(
-            target_dir=target_dir,
-            target_repo=args.target_repo,
-            source_repo=args.source_repo,
-            applied_patches=applied,
-            source_ref=args.source_ref,
-        )
-        if not pr_ok:
+    for p in pending:
+        success, msg = apply_patch(target_dir, p)
+        if not success:
+            print(f"Failed to apply {p.name}: {msg}")
             return 1
-        # Rule #10 loop-stop: target auto-sync PR is open → consume source inputs
-        # (include any already-landed siblings from a mixed batch). Best-effort:
-        # target PR is already open — cleanup failure must not fail this job.
-        try:
-            create_source_cleanup_pr(args.source_repo, applied + already, source_dir=ROOT)
-        except Exception as exc:
-            print(f"  [cleanup-warn] source cleanup raised: {exc}")
-    elif already:
-        try:
-            create_source_cleanup_pr(args.source_repo, already, source_dir=ROOT)
-        except Exception as exc:
-            print(f"  [cleanup-warn] source cleanup raised: {exc}")
 
-    print("\n[apply_cross_repo_patch] Execution completed successfully.")
+    if args.create_pr and pending:
+        if not create_sync_pr(
+            target_dir=target_dir, target_repo=args.target_repo,
+            source_repo=args.source_repo, applied_patches=pending, source_ref=args.source_ref,
+        ):
+            return 1
+
+    # বাংলা মন্তব্য: এই run-এ নতুন apply করা patch এখনো merged নয়; শুধু পূর্বপ্রমাণিত
+    # already তালিকাই consume হবে। --apply/validation কখনো GitHub-এ mutation করবে না।
+    if args.create_pr and already:
+        try:
+            if not create_source_cleanup_pr(args.source_repo, already, source_dir=ROOT):
+                print("[cleanup-warn] Source cleanup incomplete; inputs retained for retry.")
+        except Exception as exc:
+            print(f"[cleanup-warn] Source cleanup failed: {exc}")
+    print("[apply_cross_repo_patch] Execution completed successfully.")
     return 0
 
 
