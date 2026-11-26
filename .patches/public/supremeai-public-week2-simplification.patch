@@ -1,0 +1,2447 @@
+From 06a2e71ff06a10b273c9b6ad42a7749a4de279b1 Mon Sep 17 00:00:00 2001
+From: SupremeAI Agent <agent@supremeai.local>
+Date: Thu, 26 Nov 2026 15:19:05 +0000
+Subject: [PATCH] =?UTF-8?q?chore:=20=E0=A6=B8=E0=A6=AA=E0=A7=8D=E0=A6=A4?=
+ =?UTF-8?q?=E0=A6=BE=E0=A6=B9-=E0=A7=A8=20=E0=A6=B8=E0=A6=B0=E0=A6=B2?=
+ =?UTF-8?q?=E0=A7=80=E0=A6=95=E0=A6=B0=E0=A6=A3=20=E2=80=94=20admin/=20?=
+ =?UTF-8?q?=E0=A6=AE=E0=A7=81=E0=A6=9B=E0=A7=87=20redirect,=20=E0=A6=8F?=
+ =?UTF-8?q?=E0=A6=95=20=E0=A6=87=E0=A6=A8=E0=A6=AC=E0=A6=95=E0=A7=8D?=
+ =?UTF-8?q?=E0=A6=B8,=20week-1=20=E0=A6=AC=E0=A6=BE=E0=A6=95=E0=A6=BF=20?=
+ =?UTF-8?q?=E0=A6=95=E0=A6=BE=E0=A6=9C?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- admin/ (আলাদা Next.js অ্যাপ) মুছে ফেলা হলো; deploy-admin জব বদলে
+  deploy-admin-redirect — supremeai-admin.pages.dev এখন স্টুডিওর
+  ?tab=admin-overview-এ 301 redirect করে (deploy/admin-redirect/)
+- dependabot, apply-dependabot-update, eslint, smart-pr-guard থেকে admin রেফারেন্স সরানো
+- GmailInboxPanel মুছে WorkspaceBrowserTab-এ UniversalInboxPanel (InboxAdapter-ভিত্তিক);
+  supremeai-gmail-refresh ইভেন্ট ও wsGmail* বাংলা/ইংরেজি স্ট্রিং Universal Inbox-এ আনা হলো,
+  অব্যবহৃত ৪টা locale key মুছে ফেলা
+- অনাথ ফাইল মুছে ফেলা: useFederationSync, mockDataManager, dataTransformer
+- @types/* devDependencies-এ, remark-gfm সরানো, lockfile সিঙ্ক, .nvmrc = 24, README ঠিক করা
+
+যাচাই: tsc (app + edge) ✅, eslint 0 error ✅, check-server-budget ✅,
+npm test 7/7 + 404/404 ✅, vite build ✅, smart-pr-guard ✅
+---
+ .github/dependabot.yml                        |   40 +-
+ .github/workflows/apply-dependabot-update.yml |    7 +-
+ .github/workflows/unified-pipeline.yml        |   45 +-
+ .nvmrc                                        |    1 +
+ README.md                                     |    2 +-
+ TASK_LIST_SUPREMEAI_PUBLIC.md                 |   14 +-
+ admin/.gitignore                              |  Bin 36 -> 0 bytes
+ admin/api-backup/admin/actions/route.ts       |  Bin 4353 -> 0 bytes
+ admin/api-backup/admin/audit/route.ts         |  Bin 3174 -> 0 bytes
+ admin/api-backup/admin/overview/route.ts      |  Bin 16162 -> 0 bytes
+ admin/api-backup/admin/session/route.ts       |  Bin 2071 -> 0 bytes
+ admin/api-backup/health/route.ts              |  Bin 295 -> 0 bytes
+ admin/drizzle.config.json                     |  Bin 156 -> 0 bytes
+ admin/eslint.config.mjs                       |  Bin 365 -> 0 bytes
+ admin/next-env.d.ts                           |  Bin 288 -> 0 bytes
+ admin/next.config.ts                          |  Bin 194 -> 0 bytes
+ admin/package.json                            |  Bin 742 -> 0 bytes
+ admin/postcss.config.mjs                      |  Bin 108 -> 0 bytes
+ admin/src/app/globals.css                     |  Bin 68323 -> 0 bytes
+ admin/src/app/layout.tsx                      |  Bin 1049 -> 0 bytes
+ admin/src/app/page.tsx                        |  Bin 132 -> 0 bytes
+ admin/src/components/admin-dashboard.tsx      |  Bin 86483 -> 0 bytes
+ admin/src/db/index.ts                         |  Bin 618 -> 0 bytes
+ admin/src/db/schema.ts                        |  Bin 441 -> 0 bytes
+ admin/src/lib/admin-security.ts               |  Bin 3375 -> 0 bytes
+ admin/src/lib/mcp-client.ts                   |  Bin 5811 -> 0 bytes
+ admin/tsconfig.json                           |  Bin 723 -> 0 bytes
+ deploy/admin-redirect/_redirects              |    3 +
+ deploy/admin-redirect/index.html              |   14 +
+ eslint.config.js                              |    1 -
+ package-lock.json                             | 1161 +----------------
+ package.json                                  |   11 +-
+ scripts/smart-pr-guard.mjs                    |    1 -
+ src/components/inbox/UniversalInboxPanel.tsx  |   35 +-
+ src/components/workspace/GmailInboxPanel.tsx  |  Bin 15858 -> 0 bytes
+ .../workspace/WorkspaceBrowserTab.tsx         |    5 +-
+ src/hooks/useFederationSync.ts                |  Bin 2211 -> 0 bytes
+ src/locales/bn.ts                             |    5 -
+ src/locales/en.ts                             |    5 -
+ src/stores/useWorkspaceStore.ts               |    2 +-
+ src/utils/dataTransformer.ts                  |  Bin 3494 -> 0 bytes
+ src/utils/mockDataManager.ts                  |  Bin 2587 -> 0 bytes
+ 42 files changed, 150 insertions(+), 1202 deletions(-)
+ create mode 100644 .nvmrc
+ delete mode 100644 admin/.gitignore
+ delete mode 100644 admin/api-backup/admin/actions/route.ts
+ delete mode 100644 admin/api-backup/admin/audit/route.ts
+ delete mode 100644 admin/api-backup/admin/overview/route.ts
+ delete mode 100644 admin/api-backup/admin/session/route.ts
+ delete mode 100644 admin/api-backup/health/route.ts
+ delete mode 100644 admin/drizzle.config.json
+ delete mode 100644 admin/eslint.config.mjs
+ delete mode 100644 admin/next-env.d.ts
+ delete mode 100644 admin/next.config.ts
+ delete mode 100644 admin/package.json
+ delete mode 100644 admin/postcss.config.mjs
+ delete mode 100644 admin/src/app/globals.css
+ delete mode 100644 admin/src/app/layout.tsx
+ delete mode 100644 admin/src/app/page.tsx
+ delete mode 100644 admin/src/components/admin-dashboard.tsx
+ delete mode 100644 admin/src/db/index.ts
+ delete mode 100644 admin/src/db/schema.ts
+ delete mode 100644 admin/src/lib/admin-security.ts
+ delete mode 100644 admin/src/lib/mcp-client.ts
+ delete mode 100644 admin/tsconfig.json
+ create mode 100644 deploy/admin-redirect/_redirects
+ create mode 100644 deploy/admin-redirect/index.html
+ delete mode 100644 src/components/workspace/GmailInboxPanel.tsx
+ delete mode 100644 src/hooks/useFederationSync.ts
+ delete mode 100644 src/utils/dataTransformer.ts
+ delete mode 100644 src/utils/mockDataManager.ts
+
+diff --git a/.github/dependabot.yml b/.github/dependabot.yml
+index 174ca6dd3f19dab5801320e4f5150cb64fbbd6fb..c8d77c4f52a386afda7b561bd694d7c777103219 100644
+--- a/.github/dependabot.yml
++++ b/.github/dependabot.yml
+@@ -108,41 +108,7 @@ updates:
+         update-types: ['patch']
+ 
+   # ---------------------------------------------------------------------------
+-  # 3. Admin dashboard (নিজের lockfile)
+-  # ---------------------------------------------------------------------------
+-  - package-ecosystem: 'npm'
+-    directory: '/admin'
+-    schedule:
+-      interval: 'weekly'
+-      day: 'monday'
+-      time: '04:30'
+-      timezone: 'Asia/Dhaka'
+-    open-pull-requests-limit: 4
+-    labels:
+-      - 'dependencies'
+-      - 'admin'
+-    cooldown:
+-      semver-major-days: 30
+-      semver-minor-days: 14
+-      semver-patch-days: 7
+-    groups:
+-      admin-react:
+-        patterns:
+-          - 'react'
+-          - 'react-dom'
+-          - '@types/react*'
+-        update-types: ['minor', 'patch']
+-      # বাংলা: next একটি minor-এই breaking হতে পারে ("next" ecosystem-এ 15→16
+-      # landing-এ বড় পরিবর্তন ছিল) — তাই отдельно, minor-এও গেটেড।
+-      admin-next:
+-        patterns: ['next', 'eslint-config-next']
+-        update-types: ['minor', 'patch']
+-      admin-safe-patch:
+-        patterns: ['*']
+-        update-types: ['patch']
+-
+-  # ---------------------------------------------------------------------------
+-  # 4. Shared contracts
++  # 3. Shared contracts
+   # ---------------------------------------------------------------------------
+   - package-ecosystem: 'npm'
+     directory: '/packages/contracts'
+@@ -161,7 +127,7 @@ updates:
+       semver-patch-days: 7
+ 
+   # ---------------------------------------------------------------------------
+-  # 5. Rust / Tauri
++  # 4. Rust / Tauri
+   # ---------------------------------------------------------------------------
+   - package-ecosystem: 'cargo'
+     directory: '/src-tauri'
+@@ -191,7 +157,7 @@ updates:
+         update-types: ['patch']
+ 
+   # ---------------------------------------------------------------------------
+-  # 6. GitHub Actions — বাংলা: এখানে major bump প্রায়শই নিরাপদ ও কাম্য
++  # 5. GitHub Actions — বাংলা: এখানে major bump প্রায়শই নিরাপদ ও কাম্য
+   #    (Node 20 deprecation-এর মতো জিনিস এভাবেই ঠিক হয়), তাই দ্রুত।
+   # ---------------------------------------------------------------------------
+   - package-ecosystem: 'github-actions'
+diff --git a/.github/workflows/apply-dependabot-update.yml b/.github/workflows/apply-dependabot-update.yml
+index ca96accaddc4a3e795a19e504806725dc0e36d5a..d896502bdfa9d3ba0e2699560f481bf5fe6630e3 100644
+--- a/.github/workflows/apply-dependabot-update.yml
++++ b/.github/workflows/apply-dependabot-update.yml
+@@ -15,7 +15,7 @@ name: 'Dependabot — Intelligent Apply Gate'
+ #   ১. required checks (unified-pipeline + CodeQL)
+ #   ২. lockfile consistency (npm ci --dry-run)
+ #   ৩. Node-runtime ↔ @types/node parity  ← #14-এর মতো skew ঠেকায়
+-#   ৪. cross-tree version consistency (root/admin/ext)
++#   ৪. cross-tree version consistency (root/ext)
+ #   ৫. canonical publish-age = soak (version কত দিন পুরোনো)
+ # =============================================================================
+ 
+@@ -78,7 +78,7 @@ jobs:
+           runtime=$(node -p "process.versions.node.split('.')[0]")
+           echo "runtime_node_major=$runtime"
+           bad=0
+-          for manifest in package.json admin/package.json packages/vscode-extension/package.json packages/contracts/package.json; do
++          for manifest in package.json packages/vscode-extension/package.json packages/contracts/package.json; do
+             [ -f "$manifest" ] || continue
+             range=$(node -e "
+               const j=require('./$manifest');
+@@ -117,7 +117,6 @@ jobs:
+           const fs = require('fs');
+           const trees = {
+             root: './package.json',
+-            admin: './admin/package.json',
+             'vscode-ext': './packages/vscode-extension/package.json',
+           };
+           const majors = {};
+@@ -373,7 +372,7 @@ jobs:
+ 
+           #### review করার সময় যা দেখুন
+           1. এই প্যাকেজের major/minor bump-এ **migration guide** আছে কি?
+-          2. অ্যাফেক্টেড প্যাকেজ ট্রি (\`root\` / \`admin\` / \`vscode-ext\`) — সব একসাথে বদলাচ্ছে কি?
++          2. অ্যাফেক্টেড প্যাকেজ ট্রি (\`root\` / \`vscode-ext\`) — সব একসাথে বদলাচ্ছে কি?
+           3. \`@types/node\` বদলালে runtime node (\`24\`) এর সাথে মিলছে কি?
+           4. lockfile-এ transitive major bump লুকিয়ে আছে কি?
+ 
+diff --git a/.github/workflows/unified-pipeline.yml b/.github/workflows/unified-pipeline.yml
+index 3820eb8997ce3bd3590b6e573fa58e49ed028692..663b45574e2b5a512079672edf565c57a747e69d 100644
+--- a/.github/workflows/unified-pipeline.yml
++++ b/.github/workflows/unified-pipeline.yml
+@@ -1,4 +1,4 @@
+-name: 'SupremeAI Unified CI & Release Pipeline (Web + Desktop + Android + VSIX + Admin)'
++name: 'SupremeAI Unified CI & Release Pipeline (Web + Desktop + Android + VSIX)'
+ 
+ on:
+   pull_request:
+@@ -21,6 +21,7 @@ on:
+       - 'package.json'
+       - 'package-lock.json'
+       - 'version.json'
++      - 'deploy/admin-redirect/**'
+     tags:
+       - 'v*'
+   workflow_dispatch:
+@@ -447,42 +448,40 @@ jobs:
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ 
+-  deploy-admin:
+-    name: "Build & Deploy Admin Dashboard"
++  deploy-admin-redirect:
++    # বাংলা মন্তব্য: আলাদা Next.js অ্যাডমিন অ্যাপ (admin/) মুছে ফেলা হয়েছে — এর API রুট আগেই
++    # সরানো ছিল, তাই লাইভ supremeai-admin.pages.dev-এর সব /api/admin/* কল 404 দিত।
++    # এখন supremeai-admin প্রজেক্টে শুধু ২টা স্ট্যাটিক ফাইল (_redirects + index.html) ডিপ্লয় হয়,
++    # যা মূল স্টুডিওর অ্যাডমিন প্যানেলে (?tab=admin-overview) 301 redirect করে।
++    # শুধু redirect ফোল্ডার বদলালে অথবা হাতে workflow_dispatch চালালে চলে।
++    name: "Deploy Admin Redirect (supremeai-admin → studio)"
+     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+     runs-on: ubuntu-latest
+-    timeout-minutes: 15
++    timeout-minutes: 5
+     env:
+       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+     steps:
+       - name: Checkout Repository
+         uses: actions/checkout@v4
+-
+-      - name: Setup Node.js 22
+-        uses: actions/setup-node@v4
+         with:
+-          node-version: "22"
+-          cache: "npm"
+-          cache-dependency-path: admin/package.json
+-
+-      - name: Install Dependencies
+-        shell: bash
+-        working-directory: admin
+-        run: npm install --no-audit --no-fund
++          fetch-depth: 2
+ 
+-      - name: Build Next.js Static Export
++      - name: Detect redirect changes
++        id: changed
+         shell: bash
+-        working-directory: admin
+         run: |
+-          export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres"
+-          npx next build
++          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || \
++             git diff --name-only HEAD~1 HEAD -- deploy/admin-redirect | grep -q .; then
++            echo "deploy=true" >> "$GITHUB_OUTPUT"
++          else
++            echo "deploy=false" >> "$GITHUB_OUTPUT"
++          fi
+ 
+-      - name: Deploy to Cloudflare Pages (supremeai-admin)
+-        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
++      - name: Deploy redirect to Cloudflare Pages (supremeai-admin)
++        if: steps.changed.outputs.deploy == 'true' && env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+         shell: bash
+-        working-directory: admin
+-        run: npx wrangler pages deploy dist --project-name=supremeai-admin --branch=main --commit-dirty=true
++        run: npx --yes wrangler@4 pages deploy deploy/admin-redirect --project-name=supremeai-admin --branch=main --commit-dirty=true
+ 
+   pr-landing-decision:
+     name: 'PR Landing Decision (Auto-Merge vs HITL)'
+diff --git a/.nvmrc b/.nvmrc
+new file mode 100644
+index 0000000000000000000000000000000000000000..a45fd52cc5891570d6299fab38643103c3955474
+--- /dev/null
++++ b/.nvmrc
+@@ -0,0 +1 @@
++24
+diff --git a/README.md b/README.md
+index 15b4119672803a43a15588ecac282565b54cb353..a7b0e1e2e24fe0c8883af8c2d5aab5db01e00ba1 100644
+--- a/README.md
++++ b/README.md
+@@ -157,7 +157,7 @@ classDef isolated fill:#7f4f24,stroke:#a68a64,stroke-width:2px,color:#ede0d4;
+ | **Core Shell & IPC**      | Tauri v2 (Rust)                                                                                            |
+ | **Frontend UI**           | React 19, TypeScript, Vite                                                                                 |
+ | **3D Rendering**          | Three.js                                                                                                   |
+-| **Markdown & Formatting** | ReactMarkdown, remark-gfm                                                                                  |
++| **Markdown & Formatting** | marked                                                                                                     |
+ | **Installer Formats**     | Windows NSIS (`.exe`), WiX (`.msi`), macOS (`.dmg`) and Linux (`.AppImage`) when built for those platforms |
+ 
+ ---
+diff --git a/TASK_LIST_SUPREMEAI_PUBLIC.md b/TASK_LIST_SUPREMEAI_PUBLIC.md
+index 062342276ad3d1993bf761919d5359a96f04710a..c3fe25eda085c074cc624bd859306e444124f8cd 100644
+--- a/TASK_LIST_SUPREMEAI_PUBLIC.md
++++ b/TASK_LIST_SUPREMEAI_PUBLIC.md
+@@ -60,16 +60,12 @@
+ 
+ ## 🟡 P1 — দ্রুত
+ 
+-### 4. দুই Admin এক করা (P1)
++### 4. দুই Admin এক করা (P1) — ✅ সম্পন্ন (২০২৬-১১-২৬)
+ 
+-**সমস্যা:** `src/components/admin/` (৩৬ ভিউ) বনাম `admin/` (আলাদা Next.js অ্যাপ)।
+-**অ্যাকশন:**
+-
+-- `admin/` অ্যাপটি `src/components/admin/`-এর সাথে ম تاج (বা বিপরীত) করা।
+-- `admin/src/lib/mcp-client.ts` (১৮৯ লাইন) → `src/server/mcpRouter.ts` বা `src/shared/`-এ ম تاج।
+-- `admin/src/lib/admin-security.ts` (৫৮ লাইন) → `src/shared/serverSecurity.ts`-এর সাথে ম تاج।
+-- `admin/src/app/page.tsx` → `src/components/admin/AdminOverviewView.tsx`-এর সাথে ম تاج।
+-- `admin/` ফোল্ডারের অলিগলি বা ডুপ্লিকেট কোড ডিলিট করে `src/components/admin/`-কে ক্যানোনিকাল ঘোষণা করা।
++`admin/` (আলাদা Next.js অ্যাপ) মুছে ফেলা হয়েছে; `src/components/admin/` এখন একমাত্র (ক্যানোনিকাল) অ্যাডমিন।
++লাইভ `supremeai-admin.pages.dev`-এর `/api/admin/*` কল আগেই 404 দিচ্ছিল (API রুট `api-backup/`-এ সরানো ছিল),
++তাই কোনো কার্যকর ফিচার হারায়নি। ওই ডোমেইন এখন `deploy/admin-redirect/` দিয়ে মূল স্টুডিওর
++`?tab=admin-overview`-এ 301 redirect করে। সেশন সাইনিং `src/shared/serverSecurity.ts`-এ আগে থেকেই আছে।
+ 
+ ### 5. টেস্ট ক ነገ (P1)
+ 
+diff --git a/admin/.gitignore b/admin/.gitignore
+deleted file mode 100644
+index 3f2f6673a7f80e29fab7fc3de428620c8b7d9238..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/api-backup/admin/actions/route.ts b/admin/api-backup/admin/actions/route.ts
+deleted file mode 100644
+index ec02e03525cca4847d236b802610bae605b49476..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/api-backup/admin/audit/route.ts b/admin/api-backup/admin/audit/route.ts
+deleted file mode 100644
+index 871759697e23498a86dbd860abb83048ceadd4a5..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/api-backup/admin/overview/route.ts b/admin/api-backup/admin/overview/route.ts
+deleted file mode 100644
+index 8c43e8a1402638bba273376eed4d69407cac74b0..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/api-backup/admin/session/route.ts b/admin/api-backup/admin/session/route.ts
+deleted file mode 100644
+index ede109d59d2134cde31b747723610c4392b5df52..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/api-backup/health/route.ts b/admin/api-backup/health/route.ts
+deleted file mode 100644
+index dce49f08441f8d86f7424b3f58843ddfd63f3836..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/drizzle.config.json b/admin/drizzle.config.json
+deleted file mode 100644
+index cb7e71ed22d4b76c9053fd5ee17130ab5e534cbe..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/eslint.config.mjs b/admin/eslint.config.mjs
+deleted file mode 100644
+index 74262a0e39ae3b3eeb7b42ae77a6e9c52536e635..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/next-env.d.ts b/admin/next-env.d.ts
+deleted file mode 100644
+index ce4e94a6b10f160ee021fe18939af160d2927dcf..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/next.config.ts b/admin/next.config.ts
+deleted file mode 100644
+index 088634db6132ba780451226d7a7e4c0a2d2b213a..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/package.json b/admin/package.json
+deleted file mode 100644
+index 6e7c53fa53e035b3b40da0f36be48efdb793a109..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/postcss.config.mjs b/admin/postcss.config.mjs
+deleted file mode 100644
+index 999cd7b9d2cd26ba7b02c69c272868b39bea0674..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/src/app/globals.css b/admin/src/app/globals.css
+deleted file mode 100644
+index 37a260fea57aff18aa26b1453a670646aae0ae4c..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/src/app/layout.tsx b/admin/src/app/layout.tsx
+deleted file mode 100644
+index 46c1a53456f320b02917c2aa02181ee900360f2f..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/src/app/page.tsx b/admin/src/app/page.tsx
+deleted file mode 100644
+index aa1ccbe839fd7e4918d137010da22e9e03597e8b..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/src/components/admin-dashboard.tsx b/admin/src/components/admin-dashboard.tsx
+deleted file mode 100644
+index 6b5059ed32b4dbf97f5545c10d9c589a91ee2ca2..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/src/db/index.ts b/admin/src/db/index.ts
+deleted file mode 100644
+index 367e43248c326bb01b05d6ece6bc997643cc802e..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/src/db/schema.ts b/admin/src/db/schema.ts
+deleted file mode 100644
+index 478168e495785186c5c3d07a653ea375e842c562..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/src/lib/admin-security.ts b/admin/src/lib/admin-security.ts
+deleted file mode 100644
+index 656f27123f13064a1aafe77392f6eff1e77e8e91..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/src/lib/mcp-client.ts b/admin/src/lib/mcp-client.ts
+deleted file mode 100644
+index 8a554257e3d4bc2d8992630002d39fb296843e55..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/admin/tsconfig.json b/admin/tsconfig.json
+deleted file mode 100644
+index 51b2236817d4f86d64198a483b0207941862d212..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/deploy/admin-redirect/_redirects b/deploy/admin-redirect/_redirects
+new file mode 100644
+index 0000000000000000000000000000000000000000..9d362b79135f012555600b18441b36d2864e4855
+--- /dev/null
++++ b/deploy/admin-redirect/_redirects
+@@ -0,0 +1,3 @@
++# বাংলা মন্তব্য: পুরনো আলাদা Next.js অ্যাডমিন অ্যাপ (admin/) মুছে ফেলা হয়েছে।
++# supremeai-admin.pages.dev-এর সব পাথ মূল স্টুডিওর অ্যাডমিন প্যানেলে স্থায়ীভাবে পাঠানো হয়।
++/* https://supremeai-studio.pages.dev/?tab=admin-overview 301
+diff --git a/deploy/admin-redirect/index.html b/deploy/admin-redirect/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..4ad403694fc13537752f01bcca7e4436dfd818b8
+--- /dev/null
++++ b/deploy/admin-redirect/index.html
+@@ -0,0 +1,14 @@
++<!doctype html>
++<!-- বাংলা মন্তব্য: _redirects কাজ না করলে fallback — মূল স্টুডিওর অ্যাডমিন প্যানেলে পাঠায়। -->
++<html lang="bn">
++  <head>
++    <meta charset="utf-8" />
++    <meta name="robots" content="noindex" />
++    <meta http-equiv="refresh" content="0; url=https://supremeai-studio.pages.dev/?tab=admin-overview" />
++    <link rel="canonical" href="https://supremeai-studio.pages.dev/?tab=admin-overview" />
++    <title>SupremeAI Admin</title>
++  </head>
++  <body>
++    <p>অ্যাডমিন প্যানেল এখন মূল স্টুডিওতে: <a href="https://supremeai-studio.pages.dev/?tab=admin-overview">supremeai-studio.pages.dev</a></p>
++  </body>
++</html>
+diff --git a/eslint.config.js b/eslint.config.js
+index fb96bd8d938aa396d0d78dd3ee36371683019ef0..3c0c9d49634f70249a7a5c0d73759bfb0af5dcb4 100644
+--- a/eslint.config.js
++++ b/eslint.config.js
+@@ -14,7 +14,6 @@ import tseslint from 'typescript-eslint';
+ export default tseslint.config(
+   {
+     ignores: [
+-      'admin/**',
+       'dev-dist/**',
+       'dist/**',
+       'node_modules/**',
+diff --git a/package-lock.json b/package-lock.json
+index 1608c2f956d617ada6725eef7c9c5da17481aa53..da44a54ac916e9ee6c5e8d7d4b77ec31102a0d18 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -20,11 +20,6 @@
+         "@tensorflow/tfjs-backend-webgl": "^4.22.0",
+         "@tensorflow/tfjs-converter": "^4.22.0",
+         "@tensorflow/tfjs-core": "^4.22.0",
+-        "@types/d3": "^7.4.3",
+-        "@types/express": "4.17.21",
+-        "@types/qrcode": "^1.5.6",
+-        "@types/three": "^0.187.0",
+-        "@types/ws": "^8.18.2",
+         "@xterm/addon-fit": "^0.11.0",
+         "@xterm/xterm": "^6.0.0",
+         "d3": "^7.9.2",
+@@ -40,7 +35,6 @@
+         "react-dom": "^19.3.1",
+         "react-is": "^19.3.1",
+         "recharts": "^3.11.0",
+-        "remark-gfm": "^4.0.1",
+         "tailwindcss": "^4.3.5",
+         "tesseract.js": "^7.0.0",
+         "three": "^0.187.0",
+@@ -55,9 +49,14 @@
+         "@testing-library/dom": "^10.4.2",
+         "@testing-library/jest-dom": "^8.0.0",
+         "@testing-library/react": "^16.3.3",
++        "@types/d3": "^7.4.3",
++        "@types/express": "4.17.21",
+         "@types/node": "^20.11.0",
++        "@types/qrcode": "^1.5.6",
+         "@types/react": "^19.3.0",
+         "@types/react-dom": "^19.3.0",
++        "@types/three": "^0.187.0",
++        "@types/ws": "^8.18.2",
+         "@vitejs/plugin-react": "^4.0.0",
+         "@vitest/coverage-v8": "^4.1.12",
+         "eslint": "^10.15.0",
+@@ -1848,6 +1847,7 @@
+       "version": "0.12.0",
+       "resolved": "https://registry.npmjs.org/@dimforge/rapier3d-compat/-/rapier3d-compat-0.12.0.tgz",
+       "integrity": "sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow==",
++      "dev": true,
+       "license": "Apache-2.0"
+     },
+     "node_modules/@emnapi/core": {
+@@ -4822,6 +4822,7 @@
+       "version": "1.11.3",
+       "inBundle": true,
+       "license": "MIT",
++      "optional": true,
+       "dependencies": {
+         "@emnapi/wasi-threads": "1.2.3",
+         "tslib": "^2.4.0"
+@@ -4831,6 +4832,7 @@
+       "version": "1.11.3",
+       "inBundle": true,
+       "license": "MIT",
++      "optional": true,
+       "dependencies": {
+         "tslib": "^2.4.0"
+       }
+@@ -4839,6 +4841,7 @@
+       "version": "1.2.3",
+       "inBundle": true,
+       "license": "MIT",
++      "optional": true,
+       "dependencies": {
+         "tslib": "^2.4.0"
+       }
+@@ -4847,6 +4850,7 @@
+       "version": "1.2.2",
+       "inBundle": true,
+       "license": "MIT",
++      "optional": true,
+       "dependencies": {
+         "@tybys/wasm-util": "^0.10.3"
+       },
+@@ -4866,6 +4870,7 @@
+       "version": "0.10.3",
+       "inBundle": true,
+       "license": "MIT",
++      "optional": true,
+       "dependencies": {
+         "tslib": "^2.4.0"
+       }
+@@ -4873,7 +4878,8 @@
+     "node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/tslib": {
+       "version": "2.8.1",
+       "inBundle": true,
+-      "license": "0BSD"
++      "license": "0BSD",
++      "optional": true
+     },
+     "node_modules/@tailwindcss/oxide-win32-arm64-msvc": {
+       "version": "4.3.5",
+@@ -5361,6 +5367,7 @@
+       "version": "23.1.3",
+       "resolved": "https://registry.npmjs.org/@tweenjs/tween.js/-/tween.js-23.1.3.tgz",
+       "integrity": "sha512-vJmvvwFxYuGnF2axRtPYocag6Clbb5YS7kLL+SO/TeVFzHqDIWrNKYtcsPMibjDx9O+bu+psAy9NKfWklassUA==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@tybys/wasm-util": {
+@@ -5430,6 +5437,7 @@
+       "version": "1.19.6",
+       "resolved": "https://registry.npmjs.org/@types/body-parser/-/body-parser-1.19.6.tgz",
+       "integrity": "sha512-HLFeCYgz89uk22N5Qg3dvGvsv46B8GLvKKo1zKG4NybA8U2DiEO3w9lqGg29t/tfLRJpJ6iQxnVw4OnB7MoM9g==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/connect": "*",
+@@ -5451,6 +5459,7 @@
+       "version": "3.4.38",
+       "resolved": "https://registry.npmjs.org/@types/connect/-/connect-3.4.38.tgz",
+       "integrity": "sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/node": "*"
+@@ -5460,6 +5469,7 @@
+       "version": "7.4.3",
+       "resolved": "https://registry.npmjs.org/@types/d3/-/d3-7.4.3.tgz",
+       "integrity": "sha512-lZXZ9ckh5R8uiFVt8ogUNf+pIrK4EsWrx2Np75WvF/eTpJ0FMHNhjXk8CKEx/+gpHbNQyJWehbFaTvqmHWB3ww==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/d3-array": "*",
+@@ -5504,6 +5514,7 @@
+       "version": "3.0.6",
+       "resolved": "https://registry.npmjs.org/@types/d3-axis/-/d3-axis-3.0.6.tgz",
+       "integrity": "sha512-pYeijfZuBd87T0hGn0FO1vQ/cgLk6E1ALJjfkC0oJ8cbwkZl3TpgS8bVBLZN+2jjGgg38epgxb2zmoGtSfvgMw==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/d3-selection": "*"
+@@ -5513,6 +5524,7 @@
+       "version": "3.0.6",
+       "resolved": "https://registry.npmjs.org/@types/d3-brush/-/d3-brush-3.0.6.tgz",
+       "integrity": "sha512-nH60IZNNxEcrh6L1ZSMNA28rj27ut/2ZmI3r96Zd+1jrZD++zD3LsMIjWlvg4AYrHn/Pqz4CF3veCxGjtbqt7A==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/d3-selection": "*"
+@@ -5522,6 +5534,7 @@
+       "version": "3.0.6",
+       "resolved": "https://registry.npmjs.org/@types/d3-chord/-/d3-chord-3.0.6.tgz",
+       "integrity": "sha512-LFYWWd8nwfwEmTZG9PfQxd17HbNPksHBiJHaKuY1XeqscXacsS2tyoo6OdRsjf+NQYeB6XrNL3a25E3gH69lcg==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/d3-color": {
+@@ -5534,6 +5547,7 @@
+       "version": "3.0.6",
+       "resolved": "https://registry.npmjs.org/@types/d3-contour/-/d3-contour-3.0.6.tgz",
+       "integrity": "sha512-BjzLgXGnCWjUSYGfH1cpdo41/hgdWETu4YxpezoztawmqsvCeep+8QGfiY6YbDvfgHz/DkjeIkkZVJavB4a3rg==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/d3-array": "*",
+@@ -5544,18 +5558,21 @@
+       "version": "6.0.4",
+       "resolved": "https://registry.npmjs.org/@types/d3-delaunay/-/d3-delaunay-6.0.4.tgz",
+       "integrity": "sha512-ZMaSKu4THYCU6sV64Lhg6qjf1orxBthaC161plr5KuPHo3CNm8DTHiLw/5Eq2b6TsNP0W0iJrUOFscY6Q450Hw==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/d3-dispatch": {
+       "version": "3.0.7",
+       "resolved": "https://registry.npmjs.org/@types/d3-dispatch/-/d3-dispatch-3.0.7.tgz",
+       "integrity": "sha512-5o9OIAdKkhN1QItV2oqaE5KMIiXAvDWBDPrD85e58Qlz1c1kI/J0NcqbEG88CoTwJrYe7ntUCVfeUl2UJKbWgA==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/d3-drag": {
+       "version": "3.0.7",
+       "resolved": "https://registry.npmjs.org/@types/d3-drag/-/d3-drag-3.0.7.tgz",
+       "integrity": "sha512-HE3jVKlzU9AaMazNufooRJ5ZpWmLIoc90A37WU2JMmeq28w1FQqCZswHZ3xR+SuxYftzHq6WU6KJHvqxKzTxxQ==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/d3-selection": "*"
+@@ -5565,6 +5582,7 @@
+       "version": "3.0.7",
+       "resolved": "https://registry.npmjs.org/@types/d3-dsv/-/d3-dsv-3.0.7.tgz",
+       "integrity": "sha512-n6QBF9/+XASqcKK6waudgL0pf/S5XHPPI8APyMLLUHd8NqouBGLsU8MgtO7NINGtPBtk9Kko/W4ea0oAspwh9g==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/d3-ease": {
+@@ -5577,6 +5595,7 @@
+       "version": "3.0.7",
+       "resolved": "https://registry.npmjs.org/@types/d3-fetch/-/d3-fetch-3.0.7.tgz",
+       "integrity": "sha512-fTAfNmxSb9SOWNB9IoG5c8Hg6R+AzUHDRlsXsDZsNp6sxAEOP0tkP3gKkNSO/qmHPoBFTxNrjDprVHDQDvo5aA==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/d3-dsv": "*"
+@@ -5586,18 +5605,21 @@
+       "version": "3.0.10",
+       "resolved": "https://registry.npmjs.org/@types/d3-force/-/d3-force-3.0.10.tgz",
+       "integrity": "sha512-ZYeSaCF3p73RdOKcjj+swRlZfnYpK1EbaDiYICEEp5Q6sUiqFaFQ9qgoshp5CzIyyb/yD09kD9o2zEltCexlgw==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/d3-format": {
+       "version": "3.0.4",
+       "resolved": "https://registry.npmjs.org/@types/d3-format/-/d3-format-3.0.4.tgz",
+       "integrity": "sha512-fALi2aI6shfg7vM5KiR1wNJnZ7r6UuggVqtDA+xiEdPZQwy/trcQaHnwShLuLdta2rTymCNpxYTiMZX/e09F4g==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/d3-geo": {
+       "version": "3.1.1",
+       "resolved": "https://registry.npmjs.org/@types/d3-geo/-/d3-geo-3.1.1.tgz",
+       "integrity": "sha512-65Emv9fQiQQqphLlRkuQ5ypPsOmWPhtBGCMv61JDPEPMvsx+gzhGf74yw1a78xFKPj6zw4AgQICJoQv0vK9M2w==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/geojson": "*"
+@@ -5607,6 +5629,7 @@
+       "version": "3.1.7",
+       "resolved": "https://registry.npmjs.org/@types/d3-hierarchy/-/d3-hierarchy-3.1.7.tgz",
+       "integrity": "sha512-tJFtNoYBtRtkNysX1Xq4sxtjK8YgoWUNpIiUee0/jHGRwqvzYxkq0hGVbbOGSz+JgFxxRu4K8nb3YpG3CMARtg==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/d3-interpolate": {
+@@ -5628,18 +5651,21 @@
+       "version": "3.0.2",
+       "resolved": "https://registry.npmjs.org/@types/d3-polygon/-/d3-polygon-3.0.2.tgz",
+       "integrity": "sha512-ZuWOtMaHCkN9xoeEMr1ubW2nGWsp4nIql+OPQRstu4ypeZ+zk3YKqQT0CXVe/PYqrKpZAi+J9mTs05TKwjXSRA==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/d3-quadtree": {
+       "version": "3.0.6",
+       "resolved": "https://registry.npmjs.org/@types/d3-quadtree/-/d3-quadtree-3.0.6.tgz",
+       "integrity": "sha512-oUzyO1/Zm6rsxKRHA1vH0NEDG58HrT5icx/azi9MF1TWdtttWl0UIUsjEQBBh+SIkrpd21ZjEv7ptxWys1ncsg==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/d3-random": {
+       "version": "3.0.4",
+       "resolved": "https://registry.npmjs.org/@types/d3-random/-/d3-random-3.0.4.tgz",
+       "integrity": "sha512-UHYId5WTCx4L4YNel7NU00XUXXgvgpgZOvp10PuvsQENjMDXhh2RyFc0KBjO7B45ne4Ha1yVH7ii0vnzKkuzWA==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/d3-scale": {
+@@ -5655,12 +5681,14 @@
+       "version": "3.1.0",
+       "resolved": "https://registry.npmjs.org/@types/d3-scale-chromatic/-/d3-scale-chromatic-3.1.0.tgz",
+       "integrity": "sha512-iWMJgwkK7yTRmWqRB5plb1kadXyQ5Sj8V/zYlFGMUBbIPKQScw+Dku9cAAMgJG+z5GYDoMjWGLVOvjghDEFnKQ==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/d3-selection": {
+       "version": "3.0.12",
+       "resolved": "https://registry.npmjs.org/@types/d3-selection/-/d3-selection-3.0.12.tgz",
+       "integrity": "sha512-Qe/KWYhEiIIxGs7HrAAjMfShxKldx19SJtr5zu53f3afPsdZNz7HHtdTLXo/kqeiWNXVycI24kSnfzBYkTzpgw==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/d3-shape": {
+@@ -5682,6 +5710,7 @@
+       "version": "4.0.3",
+       "resolved": "https://registry.npmjs.org/@types/d3-time-format/-/d3-time-format-4.0.3.tgz",
+       "integrity": "sha512-5xg9rC+wWL8kdDj153qZcsJ0FWiFt0J5RB6LYUNZjwSnesfblqrI/bJ1wBdJ8OQfncgbJG5+2F+qfqnqyzYxyg==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/d3-timer": {
+@@ -5694,6 +5723,7 @@
+       "version": "3.0.9",
+       "resolved": "https://registry.npmjs.org/@types/d3-transition/-/d3-transition-3.0.9.tgz",
+       "integrity": "sha512-uZS5shfxzO3rGlu0cC3bjmMFKsXv+SmZZcgp0KD22ts4uGXp5EVYGzu/0YdwZeKmddhcAccYtREJKkPfXkZuCg==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/d3-selection": "*"
+@@ -5703,21 +5733,13 @@
+       "version": "3.0.9",
+       "resolved": "https://registry.npmjs.org/@types/d3-zoom/-/d3-zoom-3.0.9.tgz",
+       "integrity": "sha512-0sE1406XBYJGiqD3AusTl9ZqC//2mIXix51tbom25gDCA8ri4xnSZg28CaSE8Srl6FClqABUKfsn0qghgdepMA==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/d3-interpolate": "*",
+         "@types/d3-selection": "*"
+       }
+     },
+-    "node_modules/@types/debug": {
+-      "version": "4.1.13",
+-      "resolved": "https://registry.npmjs.org/@types/debug/-/debug-4.1.13.tgz",
+-      "integrity": "sha512-KSVgmQmzMwPlmtljOomayoR89W4FynCAi3E8PPs7vmDVPe84hT+vGPKkJfThkmXs0x0jAaa9U8uW8bbfyS2fWw==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/ms": "*"
+-      }
+-    },
+     "node_modules/@types/deep-eql": {
+       "version": "4.0.2",
+       "resolved": "https://registry.npmjs.org/@types/deep-eql/-/deep-eql-4.0.2.tgz",
+@@ -5743,6 +5765,7 @@
+       "version": "4.17.21",
+       "resolved": "https://registry.npmjs.org/@types/express/-/express-4.17.21.tgz",
+       "integrity": "sha512-ejlPM315qwLpaQlQDTjPdsUFSc6ZsP4AN6AlWnogPjQ7CVi7PYF3YVz+CY3jE2pwYf7E/7HlDAN0rV2GxTG0HQ==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/body-parser": "*",
+@@ -5755,6 +5778,7 @@
+       "version": "4.19.9",
+       "resolved": "https://registry.npmjs.org/@types/express-serve-static-core/-/express-serve-static-core-4.19.9.tgz",
+       "integrity": "sha512-QP2ESEe/ImWY0HDwNAnK9PvEffUyhLTnWkk7KXzHfyeWAnlrDe1fN77bXl6ia8KT3wPlmA7t9/VPRpnf4Ex9sg==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/node": "*",
+@@ -5767,12 +5791,14 @@
+       "version": "7946.0.16",
+       "resolved": "https://registry.npmjs.org/@types/geojson/-/geojson-7946.0.16.tgz",
+       "integrity": "sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/http-errors": {
+       "version": "2.0.5",
+       "resolved": "https://registry.npmjs.org/@types/http-errors/-/http-errors-2.0.5.tgz",
+       "integrity": "sha512-r8Tayk8HJnX0FztbZN7oVqGccWgw98T/0neJphO91KkmOzug1KkofZURD4UaD5uH8AqcFLfdPErnBod0u71/qg==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/json-schema": {
+@@ -5788,21 +5814,6 @@
+       "integrity": "sha512-MqTGEo5bj5t157U6fA/BiDynNkn0YknVdh48CMPkTSpFTVmvao5UQmm7uEF6xBEo7qIMAlY/JSleYaE6VOdpaA==",
+       "license": "MIT"
+     },
+-    "node_modules/@types/mdast": {
+-      "version": "4.0.4",
+-      "resolved": "https://registry.npmjs.org/@types/mdast/-/mdast-4.0.4.tgz",
+-      "integrity": "sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/unist": "*"
+-      }
+-    },
+-    "node_modules/@types/ms": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/@types/ms/-/ms-2.1.0.tgz",
+-      "integrity": "sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==",
+-      "license": "MIT"
+-    },
+     "node_modules/@types/node": {
+       "version": "20.19.43",
+       "resolved": "https://registry.npmjs.org/@types/node/-/node-20.19.43.tgz",
+@@ -5822,6 +5833,7 @@
+       "version": "1.5.6",
+       "resolved": "https://registry.npmjs.org/@types/qrcode/-/qrcode-1.5.6.tgz",
+       "integrity": "sha512-te7NQcV2BOvdj2b1hCAHzAoMNuj65kNBMz0KBaxM6c3VGBOhU0dURQKOtH8CFNI/dsKkwlv32p26qYQTWoB5bw==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/node": "*"
+@@ -5831,12 +5843,14 @@
+       "version": "6.15.1",
+       "resolved": "https://registry.npmjs.org/@types/qs/-/qs-6.15.1.tgz",
+       "integrity": "sha512-GZHUBZR9hckSUhrxmp1nG6NwdpM9fCunJwyThLW1X3AyHgd9IlHb6VANpQQqDr2o/qQp6McZ3y/IA2rVzKzSbw==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/range-parser": {
+       "version": "1.2.7",
+       "resolved": "https://registry.npmjs.org/@types/range-parser/-/range-parser-1.2.7.tgz",
+       "integrity": "sha512-hKormJbkJqzQGhziax5PItDUTMAM9uE2XXQmM37dyd4hVM+5aVl7oVxMVUiVQn2oCQFN/LKCZdvSM0pFRqbSmQ==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/react": {
+@@ -5882,6 +5896,7 @@
+       "version": "1.2.1",
+       "resolved": "https://registry.npmjs.org/@types/send/-/send-1.2.1.tgz",
+       "integrity": "sha512-arsCikDvlU99zl1g69TcAB3mzZPpxgw0UQnaHeC1Nwb015xp8bknZv5rIfri9xTOcMuaVgvabfIRA7PSZVuZIQ==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/node": "*"
+@@ -5891,6 +5906,7 @@
+       "version": "2.2.0",
+       "resolved": "https://registry.npmjs.org/@types/serve-static/-/serve-static-2.2.0.tgz",
+       "integrity": "sha512-8mam4H1NHLtu7nmtalF7eyBH14QyOASmcxHhSfEoRyr0nP/YdoesEtU+uSRvMe96TW/HPTtkoKqQLl53N7UXMQ==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/http-errors": "*",
+@@ -5901,12 +5917,14 @@
+       "version": "0.17.4",
+       "resolved": "https://registry.npmjs.org/@types/stats.js/-/stats.js-0.17.4.tgz",
+       "integrity": "sha512-jIBvWWShCvlBqBNIZt0KAshWpvSjhkwkEu4ZUcASoAvhmrgAUI2t1dXrjSL4xXVLB4FznPrIsX3nKXFl/Dt4vA==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/three": {
+       "version": "0.187.0",
+       "resolved": "https://registry.npmjs.org/@types/three/-/three-0.187.0.tgz",
+       "integrity": "sha512-v+vKNarUtk4n2QRZ4+CN5ygMM0ARUjXjIQl0R/unMUfmStFeVqGbgqarbrpoGTXRZoulSH16ePrVJVxPJEbMUA==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@dimforge/rapier3d-compat": "~0.12.0",
+@@ -5924,12 +5942,6 @@
+       "devOptional": true,
+       "license": "MIT"
+     },
+-    "node_modules/@types/unist": {
+-      "version": "3.0.3",
+-      "resolved": "https://registry.npmjs.org/@types/unist/-/unist-3.0.3.tgz",
+-      "integrity": "sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==",
+-      "license": "MIT"
+-    },
+     "node_modules/@types/use-sync-external-store": {
+       "version": "0.0.6",
+       "resolved": "https://registry.npmjs.org/@types/use-sync-external-store/-/use-sync-external-store-0.0.6.tgz",
+@@ -5940,12 +5952,14 @@
+       "version": "0.5.24",
+       "resolved": "https://registry.npmjs.org/@types/webxr/-/webxr-0.5.24.tgz",
+       "integrity": "sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/@types/ws": {
+       "version": "8.18.2",
+       "resolved": "https://registry.npmjs.org/@types/ws/-/ws-8.18.2.tgz",
+       "integrity": "sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/node": "*"
+@@ -6695,16 +6709,6 @@
+         "@babel/core": "^7.4.0 || ^8.0.0-0 <8.0.0"
+       }
+     },
+-    "node_modules/bail": {
+-      "version": "2.0.2",
+-      "resolved": "https://registry.npmjs.org/bail/-/bail-2.0.2.tgz",
+-      "integrity": "sha512-0xO6mYd7JB2YesxDKplafRpsiOzPt9V02ddPCLbY1xYGPOX24NTyN50qnUxgCPcSoYMhKpAuBTjQoRZCAkUDRw==",
+-      "license": "MIT",
+-      "funding": {
+-        "type": "github",
+-        "url": "https://github.com/sponsors/wooorm"
+-      }
+-    },
+     "node_modules/balanced-match": {
+       "version": "1.0.2",
+       "resolved": "https://registry.npmjs.org/balanced-match/-/balanced-match-1.0.2.tgz",
+@@ -6941,16 +6945,6 @@
+       ],
+       "license": "CC-BY-4.0"
+     },
+-    "node_modules/ccount": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/ccount/-/ccount-2.0.1.tgz",
+-      "integrity": "sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==",
+-      "license": "MIT",
+-      "funding": {
+-        "type": "github",
+-        "url": "https://github.com/sponsors/wooorm"
+-      }
+-    },
+     "node_modules/chai": {
+       "version": "6.3.0",
+       "resolved": "https://registry.npmjs.org/chai/-/chai-6.3.0.tgz",
+@@ -6961,16 +6955,6 @@
+         "node": ">=18"
+       }
+     },
+-    "node_modules/character-entities": {
+-      "version": "2.0.2",
+-      "resolved": "https://registry.npmjs.org/character-entities/-/character-entities-2.0.2.tgz",
+-      "integrity": "sha512-shx7oQ0Awen/BRIdkjkvz54PnEEI/EjwXDSIZp86/KKdbafHh1Df/RYGBhn4hbe2+uKC9FnT5UCEdyPz3ai9hQ==",
+-      "license": "MIT",
+-      "funding": {
+-        "type": "github",
+-        "url": "https://github.com/sponsors/wooorm"
+-      }
+-    },
+     "node_modules/cjs-module-lexer": {
+       "version": "2.3.0",
+       "resolved": "https://registry.npmjs.org/cjs-module-lexer/-/cjs-module-lexer-2.3.0.tgz",
+@@ -7731,19 +7715,6 @@
+       "integrity": "sha512-qIMFpTMZmny+MMIitAB6D7iVPEorVw6YQRWkvarTkT4tBeSLLiHzcwj6q0MmYSFCiVpiqPJTJEYIrpcPzVEIvg==",
+       "license": "MIT"
+     },
+-    "node_modules/decode-named-character-reference": {
+-      "version": "1.3.0",
+-      "resolved": "https://registry.npmjs.org/decode-named-character-reference/-/decode-named-character-reference-1.3.0.tgz",
+-      "integrity": "sha512-GtpQYB283KrPp6nRw50q3U9/VfOutZOe103qlN7BPP6Ad27xYnOIWv4lPzo8HCAL+mMZofJ9KEy30fq6MfaK6Q==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "character-entities": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "github",
+-        "url": "https://github.com/sponsors/wooorm"
+-      }
+-    },
+     "node_modules/deep-is": {
+       "version": "0.1.4",
+       "resolved": "https://registry.npmjs.org/deep-is/-/deep-is-0.1.4.tgz",
+@@ -7819,6 +7790,7 @@
+       "version": "2.0.3",
+       "resolved": "https://registry.npmjs.org/dequal/-/dequal-2.0.3.tgz",
+       "integrity": "sha512-0je+qPKHEMohvfRTCEo3CrPG6cAzAYgmzKyxRiYSSDkS6eGJdyVJm7WaYA5ECaAD9wLB2T4EEeymA5aFVcYXCA==",
++      "dev": true,
+       "license": "MIT",
+       "engines": {
+         "node": ">=6"
+@@ -7833,19 +7805,6 @@
+         "node": ">=8"
+       }
+     },
+-    "node_modules/devlop": {
+-      "version": "1.1.0",
+-      "resolved": "https://registry.npmjs.org/devlop/-/devlop-1.1.0.tgz",
+-      "integrity": "sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "dequal": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "github",
+-        "url": "https://github.com/sponsors/wooorm"
+-      }
+-    },
+     "node_modules/dijkstrajs": {
+       "version": "1.0.3",
+       "resolved": "https://registry.npmjs.org/dijkstrajs/-/dijkstrajs-1.0.3.tgz",
+@@ -8209,18 +8168,6 @@
+       "integrity": "sha512-NiSupZ4OeuGwr68lGIeym/ksIZMJodUGOSCZ/FSnTxcrekbvqrgdUxlJOMpijaKZVjAJrWrGs/6Jy8OMuyj9ow==",
+       "license": "MIT"
+     },
+-    "node_modules/escape-string-regexp": {
+-      "version": "5.0.0",
+-      "resolved": "https://registry.npmjs.org/escape-string-regexp/-/escape-string-regexp-5.0.0.tgz",
+-      "integrity": "sha512-/veY75JbMK4j1yjvuUxuVsiS/hr/4iHs9FTT6cgTexxdE0Ly/glccBAkloH/DofkjRbZU3bnoj38mOmhkZ0lHw==",
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">=12"
+-      },
+-      "funding": {
+-        "url": "https://github.com/sponsors/sindresorhus"
+-      }
+-    },
+     "node_modules/eslint": {
+       "version": "10.15.0",
+       "resolved": "https://registry.npmjs.org/eslint/-/eslint-10.15.0.tgz",
+@@ -8706,6 +8653,7 @@
+       "version": "0.8.3",
+       "resolved": "https://registry.npmjs.org/fflate/-/fflate-0.8.3.tgz",
+       "integrity": "sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==",
++      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/file-entry-cache": {
+@@ -9868,18 +9816,6 @@
+         "node": ">=0.10.0"
+       }
+     },
+-    "node_modules/is-plain-obj": {
+-      "version": "4.1.0",
+-      "resolved": "https://registry.npmjs.org/is-plain-obj/-/is-plain-obj-4.1.0.tgz",
+-      "integrity": "sha512-+Pgi+vMuUNkJyExiMBt5IlFoMyKnr5zhJ4Uspz58WOhBF5QoIZkFyNHIbBAtHwzVAgk5RtndVNsDRN61/mmDqg==",
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">=12"
+-      },
+-      "funding": {
+-        "url": "https://github.com/sponsors/sindresorhus"
+-      }
+-    },
+     "node_modules/is-potential-custom-element-name": {
+       "version": "1.0.1",
+       "resolved": "https://registry.npmjs.org/is-potential-custom-element-name/-/is-potential-custom-element-name-1.0.1.tgz",
+@@ -10654,16 +10590,6 @@
+       "integrity": "sha512-XsP+KhQif4bjX1kbuSiySJFNAehNxgLb6hPRGJ9QsUr8ajHkuXGdrHmFUTUUXhDwVX2R5bY4JNZEwbUiMhV+MA==",
+       "license": "Apache-2.0"
+     },
+-    "node_modules/longest-streak": {
+-      "version": "3.1.0",
+-      "resolved": "https://registry.npmjs.org/longest-streak/-/longest-streak-3.1.0.tgz",
+-      "integrity": "sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==",
+-      "license": "MIT",
+-      "funding": {
+-        "type": "github",
+-        "url": "https://github.com/sponsors/wooorm"
+-      }
+-    },
+     "node_modules/lru-cache": {
+       "version": "5.1.1",
+       "resolved": "https://registry.npmjs.org/lru-cache/-/lru-cache-5.1.1.tgz",
+@@ -10749,16 +10675,6 @@
+         "node": ">=10"
+       }
+     },
+-    "node_modules/markdown-table": {
+-      "version": "3.1.0",
+-      "resolved": "https://registry.npmjs.org/markdown-table/-/markdown-table-3.1.0.tgz",
+-      "integrity": "sha512-xpeSCdM+B+6P3ncfgaB7FoDbtJ30xAe6Z18TGT7AgXJsHqCElCICZovQqdRMm7kHgpTyYv36EupqewoFFSB8vw==",
+-      "license": "MIT",
+-      "funding": {
+-        "type": "github",
+-        "url": "https://github.com/sponsors/wooorm"
+-      }
+-    },
+     "node_modules/marked": {
+       "version": "18.2.1",
+       "resolved": "https://registry.npmjs.org/marked/-/marked-18.2.1.tgz",
+@@ -10780,199 +10696,6 @@
+         "node": ">= 0.4"
+       }
+     },
+-    "node_modules/mdast-util-find-and-replace": {
+-      "version": "3.0.4",
+-      "resolved": "https://registry.npmjs.org/mdast-util-find-and-replace/-/mdast-util-find-and-replace-3.0.4.tgz",
+-      "integrity": "sha512-z4B5c6jrnJ1ltOQemhWYPBSAo6y42Z8Gt2yEgfgNTMcLSU59B8bfj8Z8AnAlJrBGLnqkdAUZ7jdDEqQw3KuipQ==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/mdast": "^4.0.0",
+-        "escape-string-regexp": "^5.0.0",
+-        "unist-util-is": "^6.0.0",
+-        "unist-util-visit-parents": "^6.1.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/mdast-util-from-markdown": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/mdast-util-from-markdown/-/mdast-util-from-markdown-2.1.0.tgz",
+-      "integrity": "sha512-KRLgmPaP2H1ul2bpoJkOS+9pAcDAAj9Nu1mqLnh8NLeJG5tlvj42TH80PIGBpROWlRXLk0lDrWNuZCFy/tsB4A==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/mdast": "^4.0.0",
+-        "@types/unist": "^3.0.0",
+-        "decode-named-character-reference": "^1.0.0",
+-        "devlop": "^1.0.0",
+-        "mdast-util-to-string": "^4.0.0",
+-        "micromark": "^4.0.0",
+-        "micromark-util-decode-numeric-character-reference": "^2.0.0",
+-        "micromark-util-decode-string": "^2.0.0",
+-        "micromark-util-normalize-identifier": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.0",
+-        "unist-util-stringify-position": "^4.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/mdast-util-gfm": {
+-      "version": "3.1.0",
+-      "resolved": "https://registry.npmjs.org/mdast-util-gfm/-/mdast-util-gfm-3.1.0.tgz",
+-      "integrity": "sha512-0ulfdQOM3ysHhCJ1p06l0b0VKlhU0wuQs3thxZQagjcjPrlFRqY215uZGHHJan9GEAXd9MbfPjFJz+qMkVR6zQ==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "mdast-util-from-markdown": "^2.0.0",
+-        "mdast-util-gfm-autolink-literal": "^2.0.0",
+-        "mdast-util-gfm-footnote": "^2.0.0",
+-        "mdast-util-gfm-strikethrough": "^2.0.0",
+-        "mdast-util-gfm-table": "^2.0.0",
+-        "mdast-util-gfm-task-list-item": "^2.0.0",
+-        "mdast-util-to-markdown": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/mdast-util-gfm-autolink-literal": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/mdast-util-gfm-autolink-literal/-/mdast-util-gfm-autolink-literal-2.1.0.tgz",
+-      "integrity": "sha512-Jx6QSK8wDo558Bcf7q+1pe0v81g2PVs09Hlvu9xJHmCFRF3sAPW7vXFVIAwBncs3sde92WbsVqNxwdqViA2XnQ==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/mdast": "^4.0.0",
+-        "ccount": "^2.0.0",
+-        "devlop": "^1.0.0",
+-        "mdast-util-find-and-replace": "^3.0.0",
+-        "micromark-util-character": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/mdast-util-gfm-footnote": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/mdast-util-gfm-footnote/-/mdast-util-gfm-footnote-2.1.0.tgz",
+-      "integrity": "sha512-sqpDWlsHn7Ac9GNZQMeUzPQSMzR6Wv0WKRNvQRg0KqHh02fpTz69Qc1QSseNX29bhz1ROIyNyxExfawVKTm1GQ==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/mdast": "^4.0.0",
+-        "devlop": "^1.1.0",
+-        "mdast-util-from-markdown": "^2.0.0",
+-        "mdast-util-to-markdown": "^2.0.0",
+-        "micromark-util-normalize-identifier": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/mdast-util-gfm-strikethrough": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/mdast-util-gfm-strikethrough/-/mdast-util-gfm-strikethrough-2.0.1.tgz",
+-      "integrity": "sha512-OuJHqvr455pwu2OaOrir7dbzqs4jlWKOtlu9L6GjcIjjQwNyw02VntQsr/Ek6/A13vgnXfUhBekWRUP1OkNivw==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/mdast": "^4.0.0",
+-        "mdast-util-from-markdown": "^2.0.0",
+-        "mdast-util-to-markdown": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/mdast-util-gfm-table": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/mdast-util-gfm-table/-/mdast-util-gfm-table-2.0.1.tgz",
+-      "integrity": "sha512-fiIjPrAy4kz68/eFbPHhsiWDGHhqUSVoU1XsfLM5DsEPXw7MxgiVVyulUggFRckVWeT1KXQXkg5vm3kv4oMSOA==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/mdast": "^4.0.0",
+-        "devlop": "^1.0.0",
+-        "markdown-table": "^3.0.0",
+-        "mdast-util-from-markdown": "^2.0.0",
+-        "mdast-util-to-markdown": "^2.0.0",
+-        "mdast-util-to-string": "^4.0.0",
+-        "unist-util-visit": "^5.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/mdast-util-gfm-task-list-item": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/mdast-util-gfm-task-list-item/-/mdast-util-gfm-task-list-item-2.0.1.tgz",
+-      "integrity": "sha512-jXVO1hvB2hs82g1esi7I9nIJDqiijbQLIyH2jDUb5s7jIAZMr/79h0VHSq7XHKTqpLARRm+DDNjduB7S9+6XZA==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/mdast": "^4.0.0",
+-        "devlop": "^1.0.0",
+-        "mdast-util-from-markdown": "^2.0.0",
+-        "mdast-util-to-markdown": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/mdast-util-phrasing": {
+-      "version": "4.1.0",
+-      "resolved": "https://registry.npmjs.org/mdast-util-phrasing/-/mdast-util-phrasing-4.1.0.tgz",
+-      "integrity": "sha512-TqICwyvJJpBwvGAMZjj4J2n0X8QWp21b9l0o7eXyVJ25YNWYbJDVIyD1bZXE6WtV6RmKJVYmQAKWa0zWOABz2w==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/mdast": "^4.0.0",
+-        "unist-util-is": "^6.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/mdast-util-to-markdown": {
+-      "version": "2.2.3",
+-      "resolved": "https://registry.npmjs.org/mdast-util-to-markdown/-/mdast-util-to-markdown-2.2.3.tgz",
+-      "integrity": "sha512-dImdB6VZRMRac1SwAW6o1c0ESk/7pFFAMCMuKM+9v7LpTSthMM5nzXpqKw4Mjo66aXVKhNkyrP4bMB9MurPyWg==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/mdast": "^4.0.0",
+-        "@types/unist": "^3.0.0",
+-        "longest-streak": "^3.0.0",
+-        "mdast-util-phrasing": "^4.0.0",
+-        "mdast-util-to-string": "^4.0.0",
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-classify-character": "^2.0.0",
+-        "micromark-util-decode-string": "^2.0.0",
+-        "micromark-util-html-tag-name": "^2.0.0",
+-        "unist-util-visit": "^5.0.0",
+-        "zwitch": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/mdast-util-to-string": {
+-      "version": "4.0.0",
+-      "resolved": "https://registry.npmjs.org/mdast-util-to-string/-/mdast-util-to-string-4.0.0.tgz",
+-      "integrity": "sha512-0H44vDimn51F0YwvxSJSm0eCDOJTRlmN0R1yBh4HLj9wiV1Dn0QoXGbvFAWj2hSItVTlCmBF1hqKlIyUBVFLPg==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/mdast": "^4.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+     "node_modules/media-typer": {
+       "version": "1.1.1",
+       "resolved": "https://registry.npmjs.org/media-typer/-/media-typer-1.1.1.tgz",
+@@ -11002,608 +10725,25 @@
+       "version": "1.1.1",
+       "resolved": "https://registry.npmjs.org/meshoptimizer/-/meshoptimizer-1.1.1.tgz",
+       "integrity": "sha512-oRFNWJRDA/WTrVj7NWvqa5HqE1t9MYDj2VaWirQCzCCrAd2GHrqR/sQezCxiWATPNlKTcRaPRHPJwIRoPBAp5g==",
++      "dev": true,
+       "license": "MIT"
+     },
+-    "node_modules/micromark": {
+-      "version": "4.0.3",
+-      "resolved": "https://registry.npmjs.org/micromark/-/micromark-4.0.3.tgz",
+-      "integrity": "sha512-oGYfQzHSG5dOMovQcJ3fyTmZlWAWpi0XA0sJwJs+i6OT88o1+Jtw/8z0CmdowSLxGhhFK89rQ/oXph/wN02PNw==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/debug": "^4.0.0",
+-        "debug": "^4.0.0",
+-        "decode-named-character-reference": "^1.0.0",
+-        "devlop": "^1.0.0",
+-        "micromark-core-commonmark": "^2.0.0",
+-        "micromark-factory-space": "^2.0.0",
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-chunked": "^2.0.0",
+-        "micromark-util-combine-extensions": "^2.0.0",
+-        "micromark-util-decode-numeric-character-reference": "^2.0.0",
+-        "micromark-util-edit-map": "^1.0.0",
+-        "micromark-util-encode": "^2.0.0",
+-        "micromark-util-normalize-identifier": "^2.0.0",
+-        "micromark-util-resolve-all": "^2.0.0",
+-        "micromark-util-sanitize-uri": "^2.0.0",
+-        "micromark-util-subtokenize": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-core-commonmark": {
+-      "version": "2.0.4",
+-      "resolved": "https://registry.npmjs.org/micromark-core-commonmark/-/micromark-core-commonmark-2.0.4.tgz",
+-      "integrity": "sha512-wxEeE8v8XVvOrxn1TZj74qYhAtTQsSqufHVS3uNVyT1MupXxhyaHk8/9xDNPh9BmL77QNDgWTkZ3RsYHB2ry7w==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
++    "node_modules/mime-db": {
++      "version": "1.54.0",
++      "resolved": "https://registry.npmjs.org/mime-db/-/mime-db-1.54.0.tgz",
++      "integrity": "sha512-aU5EJuIN2WDemCcAp2vFBfp/m4EAhWJnUNSSw0ixs7/kXbd6Pg64EmwJkNdFhB8aWt1sH2CTXrLxo/iAGV3oPQ==",
+       "license": "MIT",
+-      "dependencies": {
+-        "decode-named-character-reference": "^1.0.0",
+-        "devlop": "^1.0.0",
+-        "micromark-factory-destination": "^2.0.0",
+-        "micromark-factory-label": "^2.0.0",
+-        "micromark-factory-space": "^2.1.0",
+-        "micromark-factory-title": "^2.0.0",
+-        "micromark-factory-whitespace": "^2.0.0",
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-chunked": "^2.0.0",
+-        "micromark-util-classify-character": "^2.0.0",
+-        "micromark-util-edit-map": "^1.0.0",
+-        "micromark-util-html-tag-name": "^2.0.0",
+-        "micromark-util-normalize-identifier": "^2.0.0",
+-        "micromark-util-resolve-all": "^2.0.0",
+-        "micromark-util-subtokenize": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.3"
++      "engines": {
++        "node": ">= 0.6"
+       }
+     },
+-    "node_modules/micromark-extension-gfm": {
+-      "version": "3.0.0",
+-      "resolved": "https://registry.npmjs.org/micromark-extension-gfm/-/micromark-extension-gfm-3.0.0.tgz",
+-      "integrity": "sha512-vsKArQsicm7t0z2GugkCKtZehqUm31oeGBV/KVSorWSy8ZlNAv7ytjFhvaryUiCUJYqs+NoE6AFhpQvBTM6Q4w==",
++    "node_modules/mime-types": {
++      "version": "3.0.2",
++      "resolved": "https://registry.npmjs.org/mime-types/-/mime-types-3.0.2.tgz",
++      "integrity": "sha512-Lbgzdk0h4juoQ9fCKXW4by0UJqj+nOOrI9MJ1sSj4nI8aI2eo1qmvQEie4VD1glsS250n15LsWsYtCugiStS5A==",
+       "license": "MIT",
+       "dependencies": {
+-        "micromark-extension-gfm-autolink-literal": "^2.0.0",
+-        "micromark-extension-gfm-footnote": "^2.0.0",
+-        "micromark-extension-gfm-strikethrough": "^2.0.0",
+-        "micromark-extension-gfm-table": "^2.0.0",
+-        "micromark-extension-gfm-tagfilter": "^2.0.0",
+-        "micromark-extension-gfm-task-list-item": "^2.0.0",
+-        "micromark-util-combine-extensions": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/micromark-extension-gfm-autolink-literal": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/micromark-extension-gfm-autolink-literal/-/micromark-extension-gfm-autolink-literal-2.1.0.tgz",
+-      "integrity": "sha512-oOg7knzhicgQ3t4QCjCWgTmfNhvQbDDnJeVu9v81r7NltNCVmhPy1fJRX27pISafdjL+SVc4d3l48Gb6pbRypw==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-sanitize-uri": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/micromark-extension-gfm-footnote": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/micromark-extension-gfm-footnote/-/micromark-extension-gfm-footnote-2.1.0.tgz",
+-      "integrity": "sha512-/yPhxI1ntnDNsiHtzLKYnE3vf9JZ6cAisqVDauhp4CEHxlb4uoOTxOCJ+9s51bIB8U1N1FJ1RXOKTIlD5B/gqw==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "devlop": "^1.0.0",
+-        "micromark-core-commonmark": "^2.0.0",
+-        "micromark-factory-space": "^2.0.0",
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-normalize-identifier": "^2.0.0",
+-        "micromark-util-sanitize-uri": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/micromark-extension-gfm-strikethrough": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/micromark-extension-gfm-strikethrough/-/micromark-extension-gfm-strikethrough-2.1.0.tgz",
+-      "integrity": "sha512-ADVjpOOkjz1hhkZLlBiYA9cR2Anf8F4HqZUO6e5eDcPQd0Txw5fxLzzxnEkSkfnD0wziSGiv7sYhk/ktvbf1uw==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "devlop": "^1.0.0",
+-        "micromark-util-chunked": "^2.0.0",
+-        "micromark-util-classify-character": "^2.0.0",
+-        "micromark-util-resolve-all": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/micromark-extension-gfm-table": {
+-      "version": "2.1.2",
+-      "resolved": "https://registry.npmjs.org/micromark-extension-gfm-table/-/micromark-extension-gfm-table-2.1.2.tgz",
+-      "integrity": "sha512-pRzm4kDTu0MjlmBkxmS9yYhw60nncfcEwu9NNdPFSQEFXS95ZKyIIyTSHu/o3ReBUrLKYEq+7YaXCRn/bPB4MA==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "devlop": "^1.0.0",
+-        "micromark-factory-space": "^2.0.0",
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/micromark-extension-gfm-tagfilter": {
+-      "version": "2.0.0",
+-      "resolved": "https://registry.npmjs.org/micromark-extension-gfm-tagfilter/-/micromark-extension-gfm-tagfilter-2.0.0.tgz",
+-      "integrity": "sha512-xHlTOmuCSotIA8TW1mDIM6X2O1SiX5P9IuDtqGonFhEK0qgRI4yeC6vMxEV2dgyr2TiD+2PQ10o+cOhdVAcwfg==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-util-types": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/micromark-extension-gfm-task-list-item": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/micromark-extension-gfm-task-list-item/-/micromark-extension-gfm-task-list-item-2.1.0.tgz",
+-      "integrity": "sha512-qIBZhqxqI6fjLDYFTBIa4eivDMnP+OZqsNwmQ3xNLE4Cxwc+zfQEfbs6tzAo2Hjq+bh6q5F+Z8/cksrLFYWQQw==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "devlop": "^1.0.0",
+-        "micromark-factory-space": "^2.0.0",
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/micromark-factory-destination": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/micromark-factory-destination/-/micromark-factory-destination-2.0.1.tgz",
+-      "integrity": "sha512-Xe6rDdJlkmbFRExpTOmRj9N3MaWmbAgdpSrBQvCFqhezUn4AHqJHbaEnfbVYYiexVSs//tqOdY/DxhjdCiJnIA==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-factory-label": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/micromark-factory-label/-/micromark-factory-label-2.0.1.tgz",
+-      "integrity": "sha512-VFMekyQExqIW7xIChcXn4ok29YE3rnuyveW3wZQWWqF4Nv9Wk5rgJ99KzPvHjkmPXF93FXIbBp6YdW3t71/7Vg==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "devlop": "^1.0.0",
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-factory-space": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/micromark-factory-space/-/micromark-factory-space-2.1.0.tgz",
+-      "integrity": "sha512-fS8hnLIjnjvdQIj39Geug8wWsR0HrYZ43KShKxNfwT7t2LOHo/LbWZEzEaSOjwtjdCsjoE6syHhonEzW0zv0+Q==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-factory-title": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/micromark-factory-title/-/micromark-factory-title-2.0.1.tgz",
+-      "integrity": "sha512-5bZ+3CjhAd9eChYTHsjy6TGxpOFSKgKKJPJxr293jTbfry2KDoWkhBb6TcPVB4NmzaPhMs1Frm9AZH7OD4Cjzw==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-factory-space": "^2.0.0",
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-factory-whitespace": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/micromark-factory-whitespace/-/micromark-factory-whitespace-2.0.1.tgz",
+-      "integrity": "sha512-Ob0nuZ3PKt/n0hORHyvoD9uZhr+Za8sFoP+OnMcnWK5lngSzALgQYKMr9RJVOWLqQYuyn6ulqGWSXdwf6F80lQ==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-factory-space": "^2.0.0",
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-util-character": {
+-      "version": "2.1.1",
+-      "resolved": "https://registry.npmjs.org/micromark-util-character/-/micromark-util-character-2.1.1.tgz",
+-      "integrity": "sha512-wv8tdUTJ3thSFFFJKtpYKOYiGP2+v96Hvk4Tu8KpCAsTMs6yi+nVmGh1syvSCsaxz45J6Jbw+9DD6g97+NV67Q==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-util-chunked": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/micromark-util-chunked/-/micromark-util-chunked-2.0.1.tgz",
+-      "integrity": "sha512-QUNFEOPELfmvv+4xiNg2sRYeS/P84pTW0TCgP5zc9FpXetHY0ab7SxKyAQCNCc1eK0459uoLI1y5oO5Vc1dbhA==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-util-symbol": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-util-classify-character": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/micromark-util-classify-character/-/micromark-util-classify-character-2.0.1.tgz",
+-      "integrity": "sha512-K0kHzM6afW/MbeWYWLjoHQv1sgg2Q9EccHEDzSkxiP/EaagNzCm7T/WMKZ3rjMbvIpvBiZgwR3dKMygtA4mG1Q==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-util-combine-extensions": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/micromark-util-combine-extensions/-/micromark-util-combine-extensions-2.0.1.tgz",
+-      "integrity": "sha512-OnAnH8Ujmy59JcyZw8JSbK9cGpdVY44NKgSM7E9Eh7DiLS2E9RNQf0dONaGDzEG9yjEl5hcqeIsj4hfRkLH/Bg==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-util-chunked": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-util-decode-numeric-character-reference": {
+-      "version": "2.0.2",
+-      "resolved": "https://registry.npmjs.org/micromark-util-decode-numeric-character-reference/-/micromark-util-decode-numeric-character-reference-2.0.2.tgz",
+-      "integrity": "sha512-ccUbYk6CwVdkmCQMyr64dXz42EfHGkPQlBj5p7YVGzq8I7CtjXZJrubAYezf7Rp+bjPseiROqe7G6foFd+lEuw==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-util-symbol": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-util-decode-string": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/micromark-util-decode-string/-/micromark-util-decode-string-2.0.1.tgz",
+-      "integrity": "sha512-nDV/77Fj6eH1ynwscYTOsbK7rR//Uj0bZXBwJZRfaLEJ1iGBR6kIfNmlNqaqJf649EP0F3NWNdeJi03elllNUQ==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "decode-named-character-reference": "^1.0.0",
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-decode-numeric-character-reference": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-util-edit-map": {
+-      "version": "1.0.0",
+-      "resolved": "https://registry.npmjs.org/micromark-util-edit-map/-/micromark-util-edit-map-1.0.0.tgz",
+-      "integrity": "sha512-Pa2ljlsEL6sVwFaYeyrOLSYbQt73JvGbPOYFq+9AElXiSnfI5Q4465RRZ1sHv7lDjDOnGRDDaqPXqClqWK/q1Q==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-util-types": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-util-encode": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/micromark-util-encode/-/micromark-util-encode-2.0.1.tgz",
+-      "integrity": "sha512-c3cVx2y4KqUnwopcO9b/SCdo2O67LwJJ/UyqGfbigahfegL9myoEFoDYZgkT7f36T0bLrM9hZTAaAyH+PCAXjw==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT"
+-    },
+-    "node_modules/micromark-util-html-tag-name": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/micromark-util-html-tag-name/-/micromark-util-html-tag-name-2.0.1.tgz",
+-      "integrity": "sha512-2cNEiYDhCWKI+Gs9T0Tiysk136SnR13hhO8yW6BGNyhOC4qYFnwF1nKfD3HFAIXA5c45RrIG1ub11GiXeYd1xA==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT"
+-    },
+-    "node_modules/micromark-util-normalize-identifier": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/micromark-util-normalize-identifier/-/micromark-util-normalize-identifier-2.0.1.tgz",
+-      "integrity": "sha512-sxPqmo70LyARJs0w2UclACPUUEqltCkJ6PhKdMIDuJ3gSf/Q+/GIe3WKl0Ijb/GyH9lOpUkRAO2wp0GVkLvS9Q==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-util-symbol": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-util-resolve-all": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/micromark-util-resolve-all/-/micromark-util-resolve-all-2.0.1.tgz",
+-      "integrity": "sha512-VdQyxFWFT2/FGJgwQnJYbe1jjQoNTS4RjglmSjTUlpUMa95Htx9NHeYW4rGDJzbjvCsl9eLjMQwGeElsqmzcHg==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-util-types": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-util-sanitize-uri": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/micromark-util-sanitize-uri/-/micromark-util-sanitize-uri-2.0.1.tgz",
+-      "integrity": "sha512-9N9IomZ/YuGGZZmQec1MbgxtlgougxTodVwDzzEouPKo3qFWvymFHWcnDi2vzV1ff6kas9ucW+o3yzJK9YB1AQ==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "micromark-util-character": "^2.0.0",
+-        "micromark-util-encode": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-util-subtokenize": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/micromark-util-subtokenize/-/micromark-util-subtokenize-2.1.0.tgz",
+-      "integrity": "sha512-XQLu552iSctvnEcgXw6+Sx75GflAPNED1qx7eBJ+wydBb2KCbRZe+NwvIEEMM83uml1+2WSXpBAcp9IUCgCYWA==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT",
+-      "dependencies": {
+-        "devlop": "^1.0.0",
+-        "micromark-util-chunked": "^2.0.0",
+-        "micromark-util-symbol": "^2.0.0",
+-        "micromark-util-types": "^2.0.0"
+-      }
+-    },
+-    "node_modules/micromark-util-symbol": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/micromark-util-symbol/-/micromark-util-symbol-2.0.1.tgz",
+-      "integrity": "sha512-vs5t8Apaud9N28kgCrRUdEed4UJ+wWNvicHLPxCa9ENlYuAY31M0ETy5y1vA33YoNPDFTghEbnh6efaE8h4x0Q==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT"
+-    },
+-    "node_modules/micromark-util-types": {
+-      "version": "2.0.3",
+-      "resolved": "https://registry.npmjs.org/micromark-util-types/-/micromark-util-types-2.0.3.tgz",
+-      "integrity": "sha512-oxB2Ik03hI0gv+VNn9tnh1t1YEe9MDPptViAEgfdf3YQHsn0pzGTgCdlSCJXcwhqm8phaEuM7zeEu3QQzVBrPg==",
+-      "funding": [
+-        {
+-          "type": "GitHub Sponsors",
+-          "url": "https://github.com/sponsors/unifiedjs"
+-        },
+-        {
+-          "type": "OpenCollective",
+-          "url": "https://opencollective.com/unified"
+-        }
+-      ],
+-      "license": "MIT"
+-    },
+-    "node_modules/mime-db": {
+-      "version": "1.54.0",
+-      "resolved": "https://registry.npmjs.org/mime-db/-/mime-db-1.54.0.tgz",
+-      "integrity": "sha512-aU5EJuIN2WDemCcAp2vFBfp/m4EAhWJnUNSSw0ixs7/kXbd6Pg64EmwJkNdFhB8aWt1sH2CTXrLxo/iAGV3oPQ==",
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">= 0.6"
+-      }
+-    },
+-    "node_modules/mime-types": {
+-      "version": "3.0.2",
+-      "resolved": "https://registry.npmjs.org/mime-types/-/mime-types-3.0.2.tgz",
+-      "integrity": "sha512-Lbgzdk0h4juoQ9fCKXW4by0UJqj+nOOrI9MJ1sSj4nI8aI2eo1qmvQEie4VD1glsS250n15LsWsYtCugiStS5A==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "mime-db": "^1.54.0"
++        "mime-db": "^1.54.0"
+       },
+       "engines": {
+         "node": ">=18"
+@@ -12669,55 +11809,6 @@
+         "regjsparser": "bin/parser"
+       }
+     },
+-    "node_modules/remark-gfm": {
+-      "version": "4.0.1",
+-      "resolved": "https://registry.npmjs.org/remark-gfm/-/remark-gfm-4.0.1.tgz",
+-      "integrity": "sha512-1quofZ2RQ9EWdeN34S79+KExV1764+wCUGop5CPL1WGdD0ocPpu91lzPGbwWMECpEpd42kJGQwzRfyov9j4yNg==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/mdast": "^4.0.0",
+-        "mdast-util-gfm": "^3.0.0",
+-        "micromark-extension-gfm": "^3.0.0",
+-        "remark-parse": "^11.0.0",
+-        "remark-stringify": "^11.0.0",
+-        "unified": "^11.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/remark-parse": {
+-      "version": "11.0.0",
+-      "resolved": "https://registry.npmjs.org/remark-parse/-/remark-parse-11.0.0.tgz",
+-      "integrity": "sha512-FCxlKLNGknS5ba/1lmpYijMUzX2esxW5xQqjWxw2eHFfS2MSdaHVINFmhjo+qN1WhZhNimq0dZATN9pH0IDrpA==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/mdast": "^4.0.0",
+-        "mdast-util-from-markdown": "^2.0.0",
+-        "micromark-util-types": "^2.0.0",
+-        "unified": "^11.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/remark-stringify": {
+-      "version": "11.0.0",
+-      "resolved": "https://registry.npmjs.org/remark-stringify/-/remark-stringify-11.0.0.tgz",
+-      "integrity": "sha512-1OSmLd3awB/t8qdoEOMazZkNsfVTeY4fTsgzcQFdXNq8ToTN4ZGwrMnlda4K6smTFKD+GRV6O48i6Z4iKgPPpw==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/mdast": "^4.0.0",
+-        "mdast-util-to-markdown": "^2.0.0",
+-        "unified": "^11.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+     "node_modules/require-directory": {
+       "version": "2.1.1",
+       "resolved": "https://registry.npmjs.org/require-directory/-/require-directory-2.1.1.tgz",
+@@ -13757,16 +12848,6 @@
+       "integrity": "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==",
+       "license": "MIT"
+     },
+-    "node_modules/trough": {
+-      "version": "2.2.0",
+-      "resolved": "https://registry.npmjs.org/trough/-/trough-2.2.0.tgz",
+-      "integrity": "sha512-tmMpK00BjZiUyVyvrBK7knerNgmgvcV/KLVyuma/SC+TQN167GrMRciANTz09+k3zW8L8t60jWO1GpfkZdjTaw==",
+-      "license": "MIT",
+-      "funding": {
+-        "type": "github",
+-        "url": "https://github.com/sponsors/wooorm"
+-      }
+-    },
+     "node_modules/ts-api-utils": {
+       "version": "2.5.0",
+       "resolved": "https://registry.npmjs.org/ts-api-utils/-/ts-api-utils-2.5.0.tgz",
+@@ -14032,25 +13113,6 @@
+         "node": ">=4"
+       }
+     },
+-    "node_modules/unified": {
+-      "version": "11.0.5",
+-      "resolved": "https://registry.npmjs.org/unified/-/unified-11.0.5.tgz",
+-      "integrity": "sha512-xKvGhPWw3k84Qjh8bI3ZeJjqnyadK+GEFtazSfZv/rKeTkTjOJho6mFqh2SM96iIcZokxiOpg78GazTSg8+KHA==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/unist": "^3.0.0",
+-        "bail": "^2.0.0",
+-        "devlop": "^1.0.0",
+-        "extend": "^3.0.0",
+-        "is-plain-obj": "^4.0.0",
+-        "trough": "^2.0.0",
+-        "vfile": "^6.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+     "node_modules/unique-string": {
+       "version": "2.0.0",
+       "resolved": "https://registry.npmjs.org/unique-string/-/unique-string-2.0.0.tgz",
+@@ -14064,61 +13126,6 @@
+         "node": ">=8"
+       }
+     },
+-    "node_modules/unist-util-is": {
+-      "version": "6.0.1",
+-      "resolved": "https://registry.npmjs.org/unist-util-is/-/unist-util-is-6.0.1.tgz",
+-      "integrity": "sha512-LsiILbtBETkDz8I9p1dQ0uyRUWuaQzd/cuEeS1hoRSyW5E5XGmTzlwY1OrNzzakGowI9Dr/I8HVaw4hTtnxy8g==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/unist": "^3.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/unist-util-stringify-position": {
+-      "version": "4.0.0",
+-      "resolved": "https://registry.npmjs.org/unist-util-stringify-position/-/unist-util-stringify-position-4.0.0.tgz",
+-      "integrity": "sha512-0ASV06AAoKCDkS2+xw5RXJywruurpbC4JZSm7nr7MOt1ojAzvyyaO+UxZf18j8FCF6kmzCZKcAgN/yu2gm2XgQ==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/unist": "^3.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/unist-util-visit": {
+-      "version": "5.2.0",
+-      "resolved": "https://registry.npmjs.org/unist-util-visit/-/unist-util-visit-5.2.0.tgz",
+-      "integrity": "sha512-fpsYs/VVoZxfGY9/j3FQpZmN8wdLJaV1Pt38AaJNZu9uKIHcFU3halCdBveEq1HGKO1OEfJY65w1zvoFV1b3qQ==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/unist": "^3.0.0",
+-        "unist-util-is": "^6.0.0",
+-        "unist-util-visit-parents": "^6.1.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/unist-util-visit-parents": {
+-      "version": "6.1.0",
+-      "resolved": "https://registry.npmjs.org/unist-util-visit-parents/-/unist-util-visit-parents-6.1.0.tgz",
+-      "integrity": "sha512-vKXxz6O38sKDj1mtx/k2cWvkkFBuYGx6uGrlzBkVeWCRF/F8sdI0j3Wbkz/5rVNRRuVc8UrgRdbCxNhmYXgP3w==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/unist": "^3.0.0",
+-        "unist-util-is": "^6.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+     "node_modules/universalify": {
+       "version": "2.0.1",
+       "resolved": "https://registry.npmjs.org/universalify/-/universalify-2.0.1.tgz",
+@@ -14208,34 +13215,6 @@
+         "node": ">= 0.8"
+       }
+     },
+-    "node_modules/vfile": {
+-      "version": "6.0.3",
+-      "resolved": "https://registry.npmjs.org/vfile/-/vfile-6.0.3.tgz",
+-      "integrity": "sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/unist": "^3.0.0",
+-        "vfile-message": "^4.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+-    "node_modules/vfile-message": {
+-      "version": "4.0.4",
+-      "resolved": "https://registry.npmjs.org/vfile-message/-/vfile-message-4.0.4.tgz",
+-      "integrity": "sha512-66ycRswIkNmHH9PHku7ADtv5RVwgIrOcuv3J8Svz6h4qgGRrKVa+9/neuKyJZUXyOpYwLTvS+whZ4R2urHHgQg==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "@types/unist": "^3.0.0",
+-        "unist-util-stringify-position": "^4.0.0"
+-      },
+-      "funding": {
+-        "type": "opencollective",
+-        "url": "https://opencollective.com/unified"
+-      }
+-    },
+     "node_modules/victory-vendor": {
+       "version": "37.4.1",
+       "resolved": "https://registry.npmjs.org/victory-vendor/-/victory-vendor-37.4.1.tgz",
+@@ -15696,16 +14675,6 @@
+           "optional": true
+         }
+       }
+-    },
+-    "node_modules/zwitch": {
+-      "version": "2.0.4",
+-      "resolved": "https://registry.npmjs.org/zwitch/-/zwitch-2.0.4.tgz",
+-      "integrity": "sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==",
+-      "license": "MIT",
+-      "funding": {
+-        "type": "github",
+-        "url": "https://github.com/sponsors/wooorm"
+-      }
+     }
+   }
+ }
+diff --git a/package.json b/package.json
+index 81fc710592f4fa1830f997085055611dabf5fa34..a71a10434b00a18c8f208cf900b07e8624ec3d68 100644
+--- a/package.json
++++ b/package.json
+@@ -42,11 +42,6 @@
+     "@tensorflow/tfjs-backend-webgl": "^4.22.0",
+     "@tensorflow/tfjs-converter": "^4.22.0",
+     "@tensorflow/tfjs-core": "^4.22.0",
+-    "@types/d3": "^7.4.3",
+-    "@types/express": "4.17.21",
+-    "@types/qrcode": "^1.5.6",
+-    "@types/three": "^0.187.0",
+-    "@types/ws": "^8.18.2",
+     "@xterm/addon-fit": "^0.11.0",
+     "@xterm/xterm": "^6.0.0",
+     "d3": "^7.9.2",
+@@ -62,7 +57,6 @@
+     "react-dom": "^19.3.1",
+     "react-is": "^19.3.1",
+     "recharts": "^3.11.0",
+-    "remark-gfm": "^4.0.1",
+     "tailwindcss": "^4.3.5",
+     "tesseract.js": "^7.0.0",
+     "three": "^0.187.0",
+@@ -77,9 +71,14 @@
+     "@testing-library/dom": "^10.4.2",
+     "@testing-library/jest-dom": "^8.0.0",
+     "@testing-library/react": "^16.3.3",
++    "@types/d3": "^7.4.3",
++    "@types/express": "4.17.21",
+     "@types/node": "^20.11.0",
++    "@types/qrcode": "^1.5.6",
+     "@types/react": "^19.3.0",
+     "@types/react-dom": "^19.3.0",
++    "@types/three": "^0.187.0",
++    "@types/ws": "^8.18.2",
+     "@vitejs/plugin-react": "^4.0.0",
+     "@vitest/coverage-v8": "^4.1.12",
+     "eslint": "^10.15.0",
+diff --git a/scripts/smart-pr-guard.mjs b/scripts/smart-pr-guard.mjs
+index 2f4119b63126f78a5d69125bb065403b4fef14ba..0c4957f138d2fbf44b2d455b73a41bf92cd16f4b 100644
+--- a/scripts/smart-pr-guard.mjs
++++ b/scripts/smart-pr-guard.mjs
+@@ -80,7 +80,6 @@ function checkRuntimeParity(repoRoot) {
+   const pkgPaths = [
+     join(repoRoot, 'package.json'),
+     join(repoRoot, 'packages/vscode-extension/package.json'),
+-    join(repoRoot, 'admin/package.json'),
+   ];
+ 
+   for (const p of pkgPaths) {
+diff --git a/src/components/inbox/UniversalInboxPanel.tsx b/src/components/inbox/UniversalInboxPanel.tsx
+index 0d94e15bc18ac620daf451ffb9bfbc18e13e12d8..edb49eb28320a80b7e7db1f7d42e7a2ab7a0e50b 100644
+--- a/src/components/inbox/UniversalInboxPanel.tsx
++++ b/src/components/inbox/UniversalInboxPanel.tsx
+@@ -33,6 +33,7 @@ import {
+   type GmailMessageDetail,
+ } from '../../services/gmailOAuthService';
+ import { getInboxAdapter } from '../../adapters/inbox/registry';
++import { useI18n } from '../../utils/i18n';
+ import type { InboxItem } from '../../../packages/contracts/inbox-adapter';
+ 
+ export type ChannelType = 'gmail' | 'telegram' | 'whatsapp' | 'messenger' | 'instagram';
+@@ -81,6 +82,8 @@ function getGatewayBase(): string {
+ }
+ 
+ export const UniversalInboxPanel: React.FC = () => {
++  // বাংলা মন্তব্য: পুরনো GmailInboxPanel-এর বাংলা/ইংরেজি স্ট্রিং (wsGmail*) এখানে পুনর্ব্যবহার।
++  const { t } = useI18n();
+   const desktopMode = isDesktopTauri();
+   const [gmailToken, setGmailToken] = useState<string | null>(() => getGmailCachedToken());
+   const [gmailEmail, setGmailEmail] = useState<string | null>(() => getGmailCachedEmail());
+@@ -148,6 +151,16 @@ export const UniversalInboxPanel: React.FC = () => {
+     }
+   }, [gmailToken, loadGmailMessages]);
+ 
++  // বাংলা মন্তব্য: Browser ট্যাবে Gmail URL-এ রিফ্রেশ চাপলে workspace store
++  // `supremeai-gmail-refresh` ইভেন্ট পাঠায় (আগে পুরনো GmailInboxPanel শুনত)।
++  useEffect(() => {
++    const handleBrowserRefresh = () => {
++      if (gmailToken) void loadGmailMessages(gmailToken, searchQuery);
++    };
++    window.addEventListener('supremeai-gmail-refresh', handleBrowserRefresh);
++    return () => window.removeEventListener('supremeai-gmail-refresh', handleBrowserRefresh);
++  }, [gmailToken, searchQuery, loadGmailMessages]);
++
+   useEffect(() => {
+     if (!selectedId || !gmailToken) {
+       setSelectedGmailDetail(null);
+@@ -336,7 +349,10 @@ export const UniversalInboxPanel: React.FC = () => {
+         <div className="flex items-center gap-2">
+           {gmailToken ? (
+             <>
+-              <span className="text-xs text-slate-600 dark:text-slate-300 hidden sm:inline">
++              <span
++                className="text-xs text-slate-600 dark:text-slate-300 hidden sm:inline"
++                title={`${t.wsGmailConnectedAs} ${gmailEmail ?? ''}`}
++              >
+                 {gmailEmail}
+               </span>
+               <button
+@@ -346,13 +362,13 @@ export const UniversalInboxPanel: React.FC = () => {
+                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer"
+               >
+                 <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+-                <span>Sync</span>
++                <span>{t.wsGmailRefreshBtn}</span>
+               </button>
+               <button
+                 type="button"
+                 onClick={() => void handleDisconnectGmail()}
+                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs text-slate-500 hover:text-rose-500 cursor-pointer"
+-                title="Disconnect Gmail"
++                title={t.wsGmailDisconnectBtn}
+               >
+                 <LogOut className="w-3.5 h-3.5" />
+               </button>
+@@ -365,7 +381,7 @@ export const UniversalInboxPanel: React.FC = () => {
+               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl theme-btn-primary text-xs font-semibold cursor-pointer disabled:opacity-50"
+             >
+               <Mail className="w-3.5 h-3.5" />
+-              <span>{isConnectingGmail ? 'Connecting…' : 'Connect Gmail (OAuth)'}</span>
++              <span>{isConnectingGmail ? t.wsGmailSigningIn : t.wsGmailSignInBtn}</span>
+             </button>
+           )}
+         </div>
+@@ -400,7 +416,7 @@ export const UniversalInboxPanel: React.FC = () => {
+               <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+               <input
+                 type="text"
+-                placeholder="Search connected inbox..."
++                placeholder={t.wsGmailSearchPlaceholder}
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+                 className="w-full pl-8 pr-3 py-1.5 text-xs bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100"
+@@ -442,10 +458,7 @@ export const UniversalInboxPanel: React.FC = () => {
+               </div>
+             ) : !gmailToken && filteredItems.length === 0 ? (
+               <div className="p-6 text-center space-y-3">
+-                <p className="text-xs text-slate-500 dark:text-slate-400">
+-                  No accounts connected yet. Connect Gmail with official read-only OAuth to view real
+-                  messages and draft AI replies.
+-                </p>
++                <p className="text-xs text-slate-500 dark:text-slate-400">{t.wsGmailConnectTitle}</p>
+                 <button
+                   type="button"
+                   onClick={() => void handleConnectGmail()}
+@@ -453,12 +466,12 @@ export const UniversalInboxPanel: React.FC = () => {
+                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl theme-btn-primary text-xs font-semibold cursor-pointer"
+                 >
+                   <Mail className="w-3.5 h-3.5" />
+-                  <span>Connect Gmail</span>
++                  <span>{t.wsGmailSignInBtn}</span>
+                 </button>
+               </div>
+             ) : filteredItems.length === 0 ? (
+               <div className="p-6 text-center text-xs text-slate-400">
+-                {isLoading ? 'Loading real inbox messages…' : 'No messages matched.'}
++                {isLoading ? t.wsGmailLoadingInbox : t.wsGmailEmptyInbox}
+               </div>
+             ) : (
+               filteredItems.map((msg) => {
+diff --git a/src/components/workspace/GmailInboxPanel.tsx b/src/components/workspace/GmailInboxPanel.tsx
+deleted file mode 100644
+index 7f59c44fa9be90bcb74a73530540a64860b9ab2e..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/src/components/workspace/WorkspaceBrowserTab.tsx b/src/components/workspace/WorkspaceBrowserTab.tsx
+index e1216bd5916911d6127006dfa0eaac018c405798..f46c378825a27cfd48d9781f48763a9c030dab1b 100644
+--- a/src/components/workspace/WorkspaceBrowserTab.tsx
++++ b/src/components/workspace/WorkspaceBrowserTab.tsx
+@@ -41,7 +41,7 @@ import {
+   shouldPromptSaveSubmittedPassword,
+ } from '../../services/browserVaultService';
+ import { isGoogleStrictAuthUrl, setDomainLiveCookies } from '../../services/browserSessionJar';
+-import { GmailInboxPanel } from './GmailInboxPanel';
++import { UniversalInboxPanel } from '../inbox/UniversalInboxPanel';
+ import { MobileDeviceFrame } from './MobileDeviceFrame';
+ import { useI18n } from '../../utils/i18n';
+ 
+@@ -1247,7 +1247,8 @@ export const WorkspaceBrowserTab: React.FC = () => {
+         )}
+ 
+         {isGoogleStrictAuth ? (
+-          <GmailInboxPanel />
++          // বাংলা মন্তব্য: একটাই ইনবক্স — Gmail URL খুললে Universal Inbox (InboxAdapter-ভিত্তিক) দেখায়।
++          <UniversalInboxPanel />
+         ) : browserStatus === 'error' ? (
+           <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-3">
+             <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400">
+diff --git a/src/hooks/useFederationSync.ts b/src/hooks/useFederationSync.ts
+deleted file mode 100644
+index fecd1e45b5296114e9718beadb1777ffb3427cc1..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/src/locales/bn.ts b/src/locales/bn.ts
+index df40774040a391f44137c58bea054a852b6b4767..3407b3da97a70e77c0aa8e2c32034446c5f3dd9a 100644
+--- a/src/locales/bn.ts
++++ b/src/locales/bn.ts
+@@ -837,19 +837,14 @@ export const BN_DICT: Record<TranslationKeys, string> = {
+   wsBrowserStatusBlockedHint:
+     'লগইন বা অ্যান্টি-বট সুরক্ষায় প্রক্সি প্রিভিউ সীমিত হতে পারে; সম্পূর্ণ সাইটের জন্য বাহ্যিক ট্যাবে খুলুন।',
+   wsGmailConnectTitle: 'Gmail ব্যবহার করতে Google দিয়ে সাইন ইন করুন',
+-  wsGmailConnectSubtitle:
+-    'অ্যাকাউন্টের নিরাপত্তার জন্য Google ব্রাউজার ফ্রেমের ভেতর পাসওয়ার্ড লগইন ব্লক করে। সরাসরি এখানেই ইনবক্স দেখতে নিচের বাটনে ১-ক্লিক সাইন ইন করুন।',
+   wsGmailSignInBtn: 'Google দিয়ে সাইন ইন করুন',
+   wsGmailSigningIn: 'সাইন ইন হচ্ছে...',
+   wsGmailConnectedAs: 'সংযুক্ত অ্যাকাউন্ট',
+   wsGmailDisconnectBtn: 'সাইন আউট',
+   wsGmailRefreshBtn: 'রিফ্রেশ',
+   wsGmailSearchPlaceholder: 'Gmail খুঁজুন (যেমন from:github বা invoice)...',
+-  wsGmailSearchBtn: 'খুঁজুন',
+   wsGmailEmptyInbox: 'ইনবক্সে কোনো ইমেইল পাওয়া যায়নি।',
+-  wsGmailBackToInbox: 'ইনবক্সে ফিরুন',
+   wsGmailLoadingInbox: 'Gmail লোড হচ্ছে...',
+-  wsGmailReadOnlyBadge: 'অফিশিয়াল Gmail অ্যাক্সেস · Read-only',
+   wsProjectCardReady: 'প্রোডাকশন প্রজেক্ট প্রস্তুত',
+   wsDownloadProjectZip: '.zip ডাউনলোড',
+   wsOpenPreviewBtn: 'লাইভ প্রিভিউ',
+diff --git a/src/locales/en.ts b/src/locales/en.ts
+index 93fd2b94292015d7f09aeaa9fb82687ad2a8649b..c4d1dd9b4ca6d1cac2358c71900f7f15d8954ff4 100644
+--- a/src/locales/en.ts
++++ b/src/locales/en.ts
+@@ -853,19 +853,14 @@ export const EN_DICT = {
+   wsBrowserStatusBlockedHint:
+     'Preview limited by login or anti-bot wall; open externally for your full session.',
+   wsGmailConnectTitle: 'Sign in with Google to access Gmail',
+-  wsGmailConnectSubtitle:
+-    'Google blocks embedded password pages inside virtual frames for account security. Sign in once below to read your Gmail inbox directly here.',
+   wsGmailSignInBtn: 'Sign in with Google',
+   wsGmailSigningIn: 'Signing in...',
+   wsGmailConnectedAs: 'Connected as',
+   wsGmailDisconnectBtn: 'Sign out',
+   wsGmailRefreshBtn: 'Refresh',
+   wsGmailSearchPlaceholder: 'Search Gmail (e.g. from:github or invoice)...',
+-  wsGmailSearchBtn: 'Search',
+   wsGmailEmptyInbox: 'No messages matched your inbox query.',
+-  wsGmailBackToInbox: 'Back to Inbox',
+   wsGmailLoadingInbox: 'Loading Gmail messages...',
+-  wsGmailReadOnlyBadge: 'Official Gmail Access · Read-only',
+   wsProjectCardReady: 'Production Project Ready',
+   wsDownloadProjectZip: 'Download .zip',
+   wsOpenPreviewBtn: 'Live Preview',
+diff --git a/src/stores/useWorkspaceStore.ts b/src/stores/useWorkspaceStore.ts
+index fcf353fafc5b906e91988d138642d832fea8ab01..76883c33c8440fd0423175d406920fe8c60fe635 100644
+--- a/src/stores/useWorkspaceStore.ts
++++ b/src/stores/useWorkspaceStore.ts
+@@ -947,7 +947,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
+ 
+     const targetTabId = get().activeBrowserTabId;
+ 
+-    // Google/Gmail strict-auth URLs are served by our native OAuth bridge (<GmailInboxPanel />)
++    // Google/Gmail strict-auth URLs are served by our native OAuth bridge (<UniversalInboxPanel />)
+     // rather than scraping accounts.google.com through the HTML proxy.
+     if (isGoogleStrictAuthUrl(formattedUrl)) {
+       const isAccountUrl = /accounts\.google\.com/i.test(formattedUrl);
+diff --git a/src/utils/dataTransformer.ts b/src/utils/dataTransformer.ts
+deleted file mode 100644
+index 60af6d302e99f33fffab015e60b9900dd6361c4f..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+diff --git a/src/utils/mockDataManager.ts b/src/utils/mockDataManager.ts
+deleted file mode 100644
+index df8043fc0c9f17cbf262aa16e27d39c2b75cff7d..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+-- 
+2.47.3
