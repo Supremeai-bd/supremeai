@@ -2941,3 +2941,14 @@ jobs:
           python-version: '3.11'
       - name: Run tracker freshness check
         run: python3 scripts/ci/tracker_freshness.py || true
+  run-guards-registry-check:
+    name: Run Guards Registry Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify run_guards.py registry
+        run: python3 scripts/ci/run_guards.py --help
