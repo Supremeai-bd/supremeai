@@ -79,6 +79,10 @@ PROTECTED_PATHS = {
     "gateway/service/keygen.py",
     "gateway/service/passkey_auth.py",
     "infrastructure/mcp-control-plane/src/guardian/policy.ts",
+    # বাংলা মন্তব্য: Tower-এর session authentication সিদ্ধান্ত — fail-open হলে
+    # anonymous caller admin পায়, তাই মানুষের রিভিউ বাধ্যতামূলক।
+    "infrastructure/mcp-control-plane/src/http_server.ts",
+    "infrastructure/mcp-control-plane/src/lib/session_principal.ts",
     "render.yaml",
     "scripts/ci/ai_auto_approver.py",
     "scripts/ci/ai_pr_evaluator.py",
@@ -197,6 +201,27 @@ YELLOW_PREFIXES = (
 )
 
 
+# বাংলা মন্তব্য: Tower bridge থেকে আসা PR (`bridge/<task-id>` ব্রাঞ্চ) কোনো
+# anonymous caller-ও জমা দিতে পারে। Tower শুধুমাত্র ক্রেডেনশিয়াল-যাচাইকৃত
+# (slot/Bearer) submitter-এর PR-এ এই লেবেল লাগায়; লেবেল না থাকলে fail-closed
+# OWNER_REVIEW — অজ্ঞাত কোড মানুষের অনুমোদন ছাড়া main/প্রোডাকশনে যাবে না।
+BRIDGE_BRANCH_PREFIX = "bridge/"
+BRIDGE_VERIFIED_LABEL = "bridge:verified-submitter"
+
+
+def is_unverified_bridge_pr(pr: dict) -> bool:
+    """বাংলা মন্তব্য: bridge ব্রাঞ্চ কিন্তু verified-submitter লেবেল নেই → True।"""
+    head_ref = str((pr.get("head") or {}).get("ref") or "")
+    if not head_ref.startswith(BRIDGE_BRANCH_PREFIX):
+        return False
+    labels = pr.get("labels")
+    names = {
+        str(label.get("name", "")).lower()
+        for label in labels if isinstance(label, dict)
+    } if isinstance(labels, list) else set()
+    return BRIDGE_VERIFIED_LABEL not in names
+
+
 def is_protected_path(path: str) -> bool:
     path = path.lower()
     return path.startswith(PROTECTED_PREFIXES) or path in PROTECTED_PATHS or path.rsplit("/", 1)[-1].startswith(".env")
@@ -249,6 +274,8 @@ def evaluate(
         tier, tier_paths = classify_tier(paths)
         if tier == "red":
             return {"decision": OWNER_REVIEW, "reason": "protected_paths_changed", "paths": tier_paths}
+        if is_unverified_bridge_pr(pr):
+            return {"decision": OWNER_REVIEW, "reason": "bridge_submitter_unverified"}
         return {"decision": AUTO_MERGE, "reason": "required_ci_passed_routine_scope"}
     except BlockLanding as exc:
         return {"decision": BLOCKED, "reason": str(exc)}

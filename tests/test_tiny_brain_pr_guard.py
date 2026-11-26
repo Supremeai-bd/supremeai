@@ -77,3 +77,11 @@ def test_classify_tier_red_yellow_green():
     assert tier == "green"
     assert paths == []
 
+
+def test_tower_session_auth_is_protected():
+    """বাংলা মন্তব্য: Tower-এর session auth fail-open হলে anonymous admin পায় — মানুষ লাগবে।"""
+    for path in (
+        "infrastructure/mcp-control-plane/src/http_server.ts",
+        "infrastructure/mcp-control-plane/src/lib/session_principal.ts",
+    ):
+        assert guard.is_protected_path(path), f"{path} must need review"
