@@ -145,7 +145,34 @@ export const env = {
     controlTower: {
       get apiKey(): string { return optional("RENDER_API_PAYKARI") || optional("RENDER_API_KEY_PAYKARI"); },
       get serviceId(): string { return optional("RENDER_MCP_SERVICE_ID"); },
-      get url(): string { return (optional("RENDER_MCP_URL", optional("RENDER_EXTERNAL_URL", ""))).replace(/\/+$/, ""); },
+      // ROOT-CAUSE FIX (2026-11-26): the retired host
+      // `supremeai-mcp-tower.onrender.com` answers HTTP 503 "Service Suspended".
+      // When RENDER_MCP_URL (or a stale RENDER_EXTERNAL_URL) still pointed at
+      // that host, the render-mcp self-check recorded
+      // "self-check: /health responded 503" forever — one degraded row that
+      // flipped the whole /health aggregate and system_health to degraded even
+      // though the live tower answered 200. Reject the retired host, then fall
+      // back through env candidates to the registry canonical origin so a stale
+      // env var can never pin the control plane to a suspended host again.
+      get url(): string {
+        const canonical = "https://supremeai-mcp-tower-live.onrender.com";
+        const normalize = (value: string): string => (value || "").replace(/\/+$/, "");
+        const isRetiredTower = (value: string): boolean => {
+          try {
+            return new URL(value).hostname === "supremeai-mcp-tower.onrender.com";
+          } catch {
+            return false;
+          }
+        };
+        for (const candidate of [
+          normalize(optional("RENDER_MCP_URL")),
+          normalize(optional("RENDER_EXTERNAL_URL")),
+          canonical,
+        ]) {
+          if (candidate && !isRetiredTower(candidate)) return candidate;
+        }
+        return canonical;
+      },
     },
     api: {
       get apiKey(): string { return optional("RENDER_API_KEY_5", optional("RENDER_API_KEY_API", optional("RENDER_API_KEY"))); },
