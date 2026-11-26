@@ -267,6 +267,17 @@ export function bridgeOpenRepo(): string {
 
 /** The queue label upstream work orders carry in the open repo. */
 export const BRIDGE_QUEUE_LABEL = "bridge:queued";
+/**
+ * বাংলা মন্তব্য: শুধুমাত্র ক্রেডেনশিয়াল-যাচাইকৃত (slot/Bearer) submitter-এর PR-এ এই
+ * লেবেল লাগে। scripts/ci/tiny_brain_pr_guard.py লেবেলহীন `bridge/*` PR-কে
+ * OWNER_REVIEW-এ পাঠায় — anonymous কোড মানুষের অনুমোদন ছাড়া auto-merge হয় না।
+ */
+export const BRIDGE_VERIFIED_SUBMITTER_LABEL = "bridge:verified-submitter";
+
+/** বাংলা মন্তব্য: বর্তমান রিকোয়েস্ট কি আসল ক্রেডেনশিয়ালে authenticated? (fail-closed) */
+export function isVerifiedBridgeSubmitter(): boolean {
+  return RequestContextStore.get()?.authenticated === true;
+}
 /** Queue label for report-only / audit receipts (#3516 / zero-admin queue hygiene) */
 export const BRIDGE_RECEIPT_LABEL = "bridge:receipt";
 /**
@@ -1601,6 +1612,18 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
           if (prRes.ok && prRes.data) {
             prNumber = prRes.data.number;
             prUrl = prRes.data.html_url;
+            // বাংলা মন্তব্য: verified submitter হলে লেবেল — ব্যর্থ হলেও ক্ষতি নেই,
+            // কারণ লেবেল না থাকা মানে শুধু মানুষের রিভিউ (fail-closed দিক)।
+            if (prNumber && isVerifiedBridgeSubmitter()) {
+              try {
+                await httpRequest(
+                  `https://api.github.com/repos/${repo}/issues/${prNumber}/labels`,
+                  { method: "POST", headers, body: { labels: [BRIDGE_VERIFIED_SUBMITTER_LABEL] }, timeoutMs: 10_000 }
+                );
+              } catch {
+                // best-effort: missing label degrades to OWNER_REVIEW, never to auto-merge
+              }
+            }
           } else if (!prRes.ok) {
             prError = prFailureFromHttp(prRes.status, prRes.data);
           }

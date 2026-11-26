@@ -45,6 +45,7 @@ import {
 } from "./policy/slot-verification.js";
 import { attachDiscoveryFilter, isValidToolProfile } from "./policy/tool-visibility.js";
 import { pickPressureEvictionSessionId } from "./lib/session_admission.js";
+import { resolveSessionPrincipal, SESSION_FALLBACK_ROLE } from "./lib/session_principal.js";
 import { verifyApprovalLink } from "./policy/approvals/signing.js";
 import { hasWebhookSignature } from "./lib/webhook_signature.js";
 import { registerBridgeIntake } from "./events/bridge_intake.js";
@@ -1110,7 +1111,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       res.once("close", dropSession);
       sseTransport.onclose = dropSession;
       try {
-        const effectiveGlobalAdmin = isGlobalAdmin || activeRole === "admin";
+        const effectiveGlobalAdmin = isGlobalAdmin || (authenticated && activeRole === "admin");
         await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(effectiveClient?.id), clientId: effectiveClient?.id, scopes, toolProfile: effectiveClient?.toolProfile, isGlobalAdmin: effectiveGlobalAdmin, tenantId: effectiveGlobalAdmin ? "*" : tenantId, slotId: session.slotId, slotVerified: session.slotVerified, credentialId: session.credentialId }, async () => {
           await sseServer.connect(sseTransport);
         });
@@ -1162,12 +1163,13 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       // Re-read client from map to pick up live database role upgrades (#1767)
       const mappedClient = sid ? sseClientMap.get(sid) : undefined;
       const refreshedClient = mappedClient?.id ? (getClient(mappedClient.id) ?? mappedClient) : client;
-      // TEMPORARY (PRE-PRODUCTION): প্রোডাকশনের জন্য সম্পূর্ণ প্রস্তুত হওয়ার পূর্ব পর্যন্ত URL ক্লায়েন্ট admin role পাবে
-      const activeRole = slotRole ?? refreshedClient?.role ?? role ?? "admin";
-      const authenticated = Boolean(slotBinding || refreshedClient || role !== null);
+      // বাংলা মন্তব্য: fail-closed — guest রেকর্ড authentication নয়, শেষ fallback viewer (কখনো admin নয়)।
+      const principal = resolveSessionPrincipal({ slotRole, slotVerified: Boolean(slotBinding), clientRole: refreshedClient?.role, bearerRole: role, isEnvGlobalAdmin: isGlobalAdmin });
+      const activeRole = principal.role;
+      const authenticated = principal.authenticated;
       const accessMode = accessModeFor(activeRole, authenticated);
       const scopes = slotScopes ?? refreshedClient?.scopes ?? defaultClientScopes(activeRole);
-      const effectiveGlobalAdmin = isGlobalAdmin || activeRole === "admin";
+      const effectiveGlobalAdmin = principal.isGlobalAdmin;
       await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(refreshedClient?.id || slotBinding), clientId: refreshedClient?.id ?? slotBinding?.slotId, scopes, toolProfile: refreshedClient?.toolProfile, isGlobalAdmin: effectiveGlobalAdmin, tenantId: effectiveGlobalAdmin ? "*" : tenantId, slotId: slotBinding?.slotId, slotVerified: Boolean(slotBinding), credentialId: slotBinding?.credentialId }, async () => {
         await sseTransport.handlePostMessage(req, res);
       });
@@ -1195,8 +1197,9 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         writeJson(res, 413, { error: "MCP request exceeds the maximum size" });
         return;
       }
-      const activeRole = role ?? "admin";
-      const authenticated = Boolean(role !== null || client);
+      // বাংলা মন্তব্য: ক্রেডেনশিয়াল ছাড়া caller কখনো admin নয় — fail-closed viewer।
+      const activeRole = role ?? SESSION_FALLBACK_ROLE;
+      const authenticated = role !== null;
       const accessMode = accessModeFor(activeRole, authenticated);
       const scopes = client?.scopes ?? defaultClientScopes(activeRole);
       const requiredRole = accessMode === "admin" ? "admin" : accessMode === "agent" ? "agent" : "viewer";
@@ -1293,12 +1296,13 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
             protocol: "streamable-http",
             tenantId,
           }).catch(() => undefined);
-          // TEMPORARY (PRE-PRODUCTION): প্রোডাকশনের জন্য সম্পূর্ণ প্রস্তুত হওয়ার পূর্ব পর্যন্ত URL ক্লায়েন্ট admin role পাবে
-          const sessionRole = slotRole ?? refreshedClient?.role ?? role ?? "admin";
-          const sessionAuthenticated = Boolean(entry.slot || refreshedClient || role !== null);
+          // বাংলা মন্তব্য: initialize-এর মতোই follow-up-এও guest রেকর্ড authentication নয়।
+          const principal = resolveSessionPrincipal({ slotRole, slotVerified: Boolean(entry.slot), clientRole: refreshedClient?.role, bearerRole: role, isEnvGlobalAdmin: isGlobalAdmin });
+          const sessionRole = principal.role;
+          const sessionAuthenticated = principal.authenticated;
           const sessionAccessMode = accessModeFor(sessionRole, sessionAuthenticated);
           const sessionScopes = slotScopes ?? refreshedClient?.scopes ?? defaultClientScopes(sessionRole);
-          const effectiveGlobalAdmin = isGlobalAdmin || sessionRole === "admin";
+          const effectiveGlobalAdmin = principal.isGlobalAdmin;
           await RequestContextStore.run({ role: sessionRole, accessMode: sessionAccessMode, authenticated: sessionAuthenticated, tenantBound: Boolean(refreshedClient?.id || entry.slot), clientId: refreshedClient?.id ?? entry.slot?.slotId, scopes: sessionScopes, toolProfile: refreshedClient?.toolProfile, isGlobalAdmin: effectiveGlobalAdmin, tenantId: effectiveGlobalAdmin ? "*" : tenantId, slotId: entry.slot?.slotId, slotVerified: Boolean(entry.slot), credentialId: entry.slot?.credentialId }, async () => {
             await entry.transport.handleRequest(req, res, parsedBody);
           });
@@ -1405,7 +1409,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           try { writeJson(res, 503, { jsonrpc: "2.0", error: { code: -32000, message: "MCP session could not be established" }, id: null }); } catch {}
           return;
         }
-        const effectiveGlobalAdmin = isGlobalAdmin || initRole === "admin";
+        const effectiveGlobalAdmin = isGlobalAdmin || (initAuthenticated && initRole === "admin");
         await RequestContextStore.run({ role: initRole, accessMode: initAccessMode, authenticated: initAuthenticated, tenantBound: Boolean(effectiveClient?.id), clientId: effectiveClient?.id, scopes: initScopes, toolProfile: effectiveClient?.toolProfile, isGlobalAdmin: effectiveGlobalAdmin, tenantId: effectiveGlobalAdmin ? "*" : tenantId, slotId: session.slotId, slotVerified: session.slotVerified, credentialId: session.credentialId }, async () => {
           await httpTransport.handleRequest(req, res, parsedBody);
         });
@@ -1448,7 +1452,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       const geminiAuthenticated = geminiSession.authenticated;
       const geminiAccessMode = accessModeFor(geminiRole, geminiAuthenticated);
       const geminiScopes = geminiSession.scopes.length > 0 ? geminiSession.scopes : defaultClientScopes(geminiRole);
-      const geminiEffectiveGlobalAdmin = isGlobalAdmin || geminiRole === "admin";
+      const geminiEffectiveGlobalAdmin = isGlobalAdmin || (geminiAuthenticated && geminiRole === "admin");
       const geminiRequestContext = { role: geminiRole, accessMode: geminiAccessMode, authenticated: geminiAuthenticated, tenantBound: Boolean(geminiClient?.id), clientId: geminiClient?.id, scopes: geminiScopes, toolProfile: geminiClient?.toolProfile, isGlobalAdmin: geminiEffectiveGlobalAdmin, tenantId: geminiEffectiveGlobalAdmin ? "*" : tenantId, slotId: geminiSession.slotId, slotVerified: geminiSession.slotVerified, credentialId: geminiSession.credentialId };
       const geminiAdapterContext = { serverName: SERVER_NAME, serverVersion: SERVER_VERSION, serverFactory };
 
