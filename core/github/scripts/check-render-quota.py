@@ -163,7 +163,7 @@ def main():
 
     api_key_primary = os.environ.get("RENDER_API_KEY", "")
     api_key_backup  = os.environ.get("RENDER_API_KEY_BACKUP", "")
-    primary_svc_id  = os.environ.get("PRIMARY_SVC_ID", "srv-d9d3n58js32c738n79k0")
+    primary_svc_id  = os.environ.get("PRIMARY_SVC_ID", "srv-dau7c9ek1f9s73almn0g")
     backup_svc_id   = os.environ.get("BACKUP_SVC_ID", "srv-da35gg2bkg8c73fp1mu0")
 
     current_time = now_utc().strftime("%Y-%m-%d %H:%M UTC")
