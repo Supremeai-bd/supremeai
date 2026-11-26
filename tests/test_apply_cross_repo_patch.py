@@ -2,6 +2,7 @@
 # বাংলা মন্তব্য: apply_cross_repo_patch.py-এর ক্রস-রেপো প্যাচ ভ্যালিডেশন ও অ্যাপ্লিকেশন লজিকের পূর্ণ ইউনিট টেস্ট
 
 import subprocess
+from scripts.ci.test_apply_cross_repo_patch import TestSyncLifecycle
 from pathlib import Path
 from scripts.ci.apply_cross_repo_patch import (
     is_loop_prevented,
@@ -16,8 +17,9 @@ from scripts.ci.apply_cross_repo_patch import (
 
 
 def test_is_loop_prevented():
-    # বাংলা মন্তব্য: বট অ্যাক্টরে লুপ গার্ড ট্রু দেবে
-    assert is_loop_prevented("github-actions[bot]") is True
+    # বাংলা মন্তব্য: canonical sync bot চলবে; dependency-bot নীতি আগের মতোই বন্ধ।
+    assert is_loop_prevented("github-actions[bot]") is False
+    assert is_loop_prevented("app/github-actions") is False
     assert is_loop_prevented("dependabot[bot]") is True
     assert is_loop_prevented("renovate[bot]") is True
     # সাধারণ এজেন্ট বা হিউম্যানে ফলস দেবে

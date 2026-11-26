@@ -81,21 +81,21 @@ def main() -> int:
         if not diff_path.exists():
             print(f"Error: Specified diff file does not exist: {diff_path}")
             return 1
-        diff_content = diff_path.read_text(encoding="utf-8")
+        diff_content = diff_path.read_bytes().decode("utf-8")
     elif args.from_staged:
-        diff_content = subprocess.check_output(["git", "diff", "--cached"], cwd=ROOT, text=True)
+        diff_content = subprocess.check_output(["git", "diff", "--cached"], cwd=ROOT).decode("utf-8")
     elif args.from_head:
-        diff_content = subprocess.check_output(["git", "diff", "HEAD~1", "HEAD"], cwd=ROOT, text=True)
+        diff_content = subprocess.check_output(["git", "diff", "HEAD~1", "HEAD"], cwd=ROOT).decode("utf-8")
     elif not sys.stdin.isatty():
-        diff_content = sys.stdin.read()
+        diff_content = sys.stdin.buffer.read().decode("utf-8")
     else:
         # Default: try uncommitted changes first, then HEAD
-        diff_content = subprocess.check_output(["git", "diff"], cwd=ROOT, text=True)
+        diff_content = subprocess.check_output(["git", "diff"], cwd=ROOT).decode("utf-8")
         if not diff_content.strip():
-            diff_content = subprocess.check_output(["git", "diff", "--cached"], cwd=ROOT, text=True)
+            diff_content = subprocess.check_output(["git", "diff", "--cached"], cwd=ROOT).decode("utf-8")
 
-    diff_content = diff_content.strip()
-    if not diff_content:
+    # বাংলা মন্তব্য: strip/newline normalization করলে CRLF ও শেষ context নষ্ট হয়।
+    if not diff_content.strip():
         print("Error: No diff content found. Provide via stdin, --diff-file, --from-staged, or make local changes.")
         return 1
 
@@ -103,7 +103,7 @@ def main() -> int:
     if not any(marker in diff_content for marker in ("diff --git", "--- ", "+++ ", "PATCH")):
         print("Warning: Input does not appear to be a standard unified git diff.")
 
-    out_path.write_text(diff_content + "\n", encoding="utf-8")
+    out_path.write_bytes((diff_content if diff_content.endswith("\n") else diff_content + "\n").encode("utf-8"))
     print(f"✅ Cross-repo patch created successfully:")
     print(f"   Path: {out_path.relative_to(ROOT)}")
     print(f"   Size: {len(diff_content)} bytes")
