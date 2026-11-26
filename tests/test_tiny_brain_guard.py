@@ -145,6 +145,36 @@ def test_verified_protected_changes_need_owner_review(snapshot, path):
     assert result == {"decision": "OWNER_REVIEW", "reason": "protected_paths_changed", "paths": [path]}
 
 
+# বাংলা মন্তব্য: bridge PR — anonymous submitter-এর কোড মানুষের অনুমোদন ছাড়া land করবে না।
+@pytest.mark.parametrize("labels", [None, [], [{"name": "bridge:queued"}], "bridge:verified-submitter"])
+def test_unverified_bridge_pr_needs_owner_review(snapshot, labels):
+    snapshot["head"]["ref"] = "bridge/bridge-20261126-example"
+    if labels is not None:
+        snapshot["labels"] = labels
+    result = decide(snapshot, [{"filename": "core/services/example.py"}])
+    assert result == {"decision": "OWNER_REVIEW", "reason": "bridge_submitter_unverified"}
+
+
+def test_verified_bridge_pr_keeps_routine_auto_merge(snapshot):
+    snapshot["head"]["ref"] = "bridge/bridge-20261126-example"
+    snapshot["labels"] = [{"name": "bridge:queued"}, {"name": "Bridge:Verified-Submitter"}]
+    result = decide(snapshot, [{"filename": "core/services/example.py"}])
+    assert result["decision"] == "AUTO_MERGE"
+
+
+def test_verified_bridge_pr_still_needs_owner_for_protected_paths(snapshot):
+    snapshot["head"]["ref"] = "bridge/bridge-20261126-example"
+    snapshot["labels"] = [{"name": "bridge:verified-submitter"}]
+    result = decide(snapshot, [{"filename": PROTECTED}])
+    assert result["reason"] == "protected_paths_changed"
+
+
+def test_non_bridge_branch_ignores_bridge_label_rule(snapshot):
+    snapshot["head"]["ref"] = "feature/regular-change"
+    result = decide(snapshot, [{"filename": "core/services/example.py"}])
+    assert result["decision"] == "AUTO_MERGE"
+
+
 def test_protected_rename_on_second_page_is_not_missed(snapshot):
     files = [{"filename": f"docs/example_{i}.md"} for i in range(100)]
     files.append({"filename": "docs/old-policy.yml", "status": "renamed", "previous_filename": PROTECTED})
