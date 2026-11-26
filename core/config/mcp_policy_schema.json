@@ -79,7 +79,9 @@
       "record": "R1",
       "remember": "R1",
       "ingest": "R1",
-      "_default": "R0"
+      "_default": "R0",
+      "confirm": "R1",
+      "reject": "R1"
     },
     "mcp_tools": {
       "refresh": "R2",
@@ -126,6 +128,9 @@
     "search_learned_facts": ["memory", "search"],
     "save_memory": ["memory", "save"],
     "recall_memories": ["memory", "search"],
+    "list_candidates": ["memory", "search"],
+    "confirm_memory": ["memory", "confirm"],
+    "reject_memory": ["memory", "reject"],
     "get_skill_dependencies": ["mcp_tools", "read"],
     "find_optimal_learning_path": ["mcp_tools", "read"],
     "get_render_deploy_preflight": ["mcp_tools", "read"],
