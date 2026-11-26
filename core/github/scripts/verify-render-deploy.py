@@ -49,9 +49,9 @@ def _registry_url(service_id: str) -> str:
 # empty means "not configured", which the callers surface rather than probing a
 # meaningless localhost or a retired host.
 SERVICES = {
-    "srv-da07ogmgekts739amqa0": {
+    "srv-dau7c9ek1f9s73almn0g": {
         "name": "Backend",
-        "service_id": "srv-da07ogmgekts739amqa0",
+        "service_id": "srv-dau7c9ek1f9s73almn0g",
         "url": _registry_url("core"),
     }
 }
