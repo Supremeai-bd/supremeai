@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """SupremeAI Memory Sidecar MCP Server (STDIO).
 
-Standard Model Context Protocol (MCP) server providing 22 memory tools (incl. Phase-1 memories SSOT save_memory/recall_memories)
+Standard Model Context Protocol (MCP) server providing 26 memory tools (Phase-1 SSOT save/recall + Phase-2 HITL list/confirm/reject)
 for Knowledge Graph, Vector Store, Episodic Memory, and Long-Term Facts.
 
 Stdlib-only (Python 3.10+), zero external pip requirements.
@@ -515,10 +515,49 @@ TOOLS_SCHEMA = [
             "properties": {
                 "query": {"type": "string", "description": "Text query for FTS/hybrid recall (required)."},
                 "limit": {"type": "integer", "description": "Max rows (default 5, cap 50)."},
-                "min_score": {"type": "number", "description": "Optional score floor 0..1."},
+                "min_score": {"type": "number", "description": "Optional score floor 0..1 (applied client-side after RPC)."},
                 "tenant_id": {"type": "string", "description": "Injected by control tower (never trust client)."},
             },
             "required": ["query"],
+        },
+    },
+    {
+        "name": "list_candidates",
+        "description": "Phase-2 HITL queue: list memories by status (default candidate) for confirm/reject review. Read-only.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string", "enum": ["candidate", "confirmed", "rejected", "superseded"], "description": "Default: candidate."},
+                "limit": {"type": "integer", "description": "Max rows (default 20, cap 100)."},
+                "tenant_id": {"type": "string", "description": "Injected by control tower (never trust client)."},
+            },
+        },
+    },
+    {
+        "name": "confirm_memory",
+        "description": "Phase-2 HITL: set status=confirmed and write memory_events.confirmed. training_opt_in stays false unless explicitly true (default-off training gate).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "Memory UUID (required)."},
+                "training_opt_in": {"type": "boolean", "description": "Explicit user opt-in for training use (default false)."},
+                "note": {"type": "string", "description": "Optional review note stored in event context."},
+                "tenant_id": {"type": "string", "description": "Injected by control tower (never trust client)."},
+            },
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "reject_memory",
+        "description": "Phase-2 HITL: set status=rejected and write memory_events.rejected (with optional reason).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "Memory UUID (required)."},
+                "reason": {"type": "string", "description": "Optional rejection reason (event context)."},
+                "tenant_id": {"type": "string", "description": "Injected by control tower (never trust client)."},
+            },
+            "required": ["id"],
         },
     },
 ]
@@ -889,11 +928,12 @@ def handle_tool(name: str, args: dict[str, Any]) -> Any:
         tenant = str(args.get("tenant_id") or "tenant_default").strip() or "tenant_default"
         owner_id = _tenant_owner_id(tenant)
         min_score = args.get("min_score")
+        # Phase-0 RPC signature: match_memories(query_embedding, query_text, k, owner)
+        # (Phase-1 wrongly sent match_threshold/match_count — PostgREST rejected them.)
         payload: dict[str, Any] = {
             "query_embedding": None,
             "query_text": query,
-            "match_threshold": float(min_score) if min_score is not None else 0.0,
-            "match_count": limit,
+            "k": limit,
             "owner": owner_id,
         }
         if not SUPABASE_URL or not SUPABASE_KEY:
@@ -916,14 +956,129 @@ def handle_tool(name: str, args: dict[str, Any]) -> Any:
             if isinstance(fallback, list):
                 return {"memories": fallback, "source": "rest_fallback", "owner_id": owner_id}
             return {"error": "recall failed", "memories": [], "source": "none"}
-        # attach owner for transparency
+        # attach owner for transparency + optional client-side score floor
         out = []
+        floor = None
+        if min_score is not None:
+            try:
+                floor = float(min_score)
+            except Exception:
+                floor = None
         for r in rows if isinstance(rows, list) else []:
             if isinstance(r, dict):
                 r = dict(r)
                 r.setdefault("owner_id", owner_id)
+                if floor is not None and r.get("score") is not None:
+                    try:
+                        if float(r["score"]) < floor:
+                            continue
+                    except Exception:
+                        pass
                 out.append(r)
         return {"memories": out, "count": len(out), "source": "rpc:match_memories", "owner_id": owner_id}
+
+    # --- Phase 2: HITL confirm/reject + candidate queue ---
+    elif name == "list_candidates":
+        status = str(args.get("status") or "candidate")
+        if status not in ("candidate", "confirmed", "rejected", "superseded"):
+            return {"error": f"invalid status: {status}"}
+        try:
+            limit = int(args.get("limit", 20))
+        except Exception:
+            return {"error": "limit must be an integer"}
+        limit = max(1, min(limit, 100))
+        tenant = str(args.get("tenant_id") or "tenant_default").strip() or "tenant_default"
+        owner_id = _tenant_owner_id(tenant)
+        if not SUPABASE_URL or not SUPABASE_KEY:
+            return {"error": "Supabase not configured", "memories": [], "source": "none"}
+        rows = _supabase_request(
+            "memories",
+            method="GET",
+            params={
+                "owner_id": f"eq.{owner_id}",
+                "status": f"eq.{status}",
+                "order": "created_at.desc",
+                "limit": str(limit),
+                "select": "id,kind,content,source_type,source_ref,source_quote,status,confidence,training_opt_in,created_at",
+            },
+        )
+        if rows is None:
+            return {"error": "list failed", "memories": [], "source": "none"}
+        if not isinstance(rows, list):
+            rows = []
+        return {"memories": rows, "count": len(rows), "status": status, "owner_id": owner_id, "source": "supabase"}
+
+    elif name == "confirm_memory" or name == "reject_memory":
+        mid = str(args.get("id") or "").strip()
+        try:
+            uuid.UUID(mid)
+        except Exception:
+            return {"error": "id must be a UUID"}
+        tenant = str(args.get("tenant_id") or "tenant_default").strip() or "tenant_default"
+        owner_id = _tenant_owner_id(tenant)
+        if not SUPABASE_URL or not SUPABASE_KEY:
+            return {"error": "Supabase not configured"}
+        is_confirm = name == "confirm_memory"
+        new_status = "confirmed" if is_confirm else "rejected"
+        event_name = "confirmed" if is_confirm else "rejected"
+
+        # Load current row (service role; scope by owner for isolation)
+        current = _supabase_request(
+            "memories",
+            method="GET",
+            params={"id": f"eq.{mid}", "owner_id": f"eq.{owner_id}", "select": "id,status,training_opt_in,content"},
+        )
+        if not isinstance(current, list) or not current:
+            return {"error": "memory not found or owner mismatch", "id": mid}
+        row0 = current[0]
+        before_status = str(row0.get("status") or "")
+
+        update: dict[str, Any] = {"status": new_status}
+        context: dict[str, Any] = {"tenant": tenant, "actor": f"agent:{tenant}"}
+        if is_confirm:
+            # training opt-in: default false; only explicit true flips the gate
+            opt_in = bool(args.get("training_opt_in", False))
+            update["training_opt_in"] = opt_in
+            context["training_opt_in"] = opt_in
+            note = str(args.get("note") or "").strip()
+            if note:
+                context["note"] = note[:500]
+        else:
+            reason = str(args.get("reason") or "").strip()
+            if reason:
+                context["reason"] = reason[:500]
+
+        patched = _supabase_request("memories", method="PATCH", data=update, params={"id": f"eq.{mid}", "owner_id": f"eq.{owner_id}"})
+        if patched is None:
+            return {"error": "status update failed", "id": mid}
+
+        # Audit event (memory_events) — fail-soft: status change already done
+        event_ok = False
+        ev = _supabase_request(
+            "memory_events",
+            method="POST",
+            data={
+                "memory_id": mid,
+                "actor": f"agent:{tenant}",
+                "event": event_name,
+                "before": before_status,
+                "after": new_status,
+                "context": context,
+            },
+        )
+        event_ok = ev is not None
+
+        result = {
+            "id": mid,
+            "status": new_status,
+            "event": event_name,
+            "event_recorded": event_ok,
+            "owner_id": owner_id,
+            "source": "supabase",
+        }
+        if is_confirm:
+            result["training_opt_in"] = bool(update.get("training_opt_in", False))
+        return result
 
     return {"error": f"Unknown tool: {name}"}
 
