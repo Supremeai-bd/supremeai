@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase-1 memories SSOT tools (save_memory / recall_memories) — unit tests.
+"""Phase-1+2 memories SSOT tools (save/recall + HITL list/confirm/reject) — unit tests.
 
 Stdlib-only; no network. Offline paths exercise validation + PII strip;
 Supabase paths are stubbed via monkeypatch on module globals.
@@ -17,10 +17,40 @@ import mcp_server as m  # noqa: E402
 
 
 class TestSaveMemory(unittest.TestCase):
-    def test_schema_has_both_tools(self):
+    def test_schema_has_phase1_and_phase2_tools(self):
         names = {t["name"] for t in m.TOOLS_SCHEMA}
         self.assertIn("save_memory", names)
         self.assertIn("recall_memories", names)
+        # Phase-2 HITL
+        self.assertIn("list_candidates", names)
+        self.assertIn("confirm_memory", names)
+        self.assertIn("reject_memory", names)
+
+    def test_recall_payload_uses_k_not_match_count(self):
+        """Phase-0 RPC signature is (query_embedding, query_text, k, owner)."""
+        import inspect
+        src = inspect.getsource(m.handle_tool)
+        self.assertIn('"k": limit', src)
+        self.assertNotIn('"match_count"', src)
+        self.assertNotIn('"match_threshold"', src)
+
+    def test_confirm_requires_uuid(self):
+        r = m.handle_tool("confirm_memory", {"id": "not-a-uuid"})
+        self.assertIn("UUID", r["error"])
+
+    def test_reject_requires_uuid(self):
+        r = m.handle_tool("reject_memory", {"id": "nope"})
+        self.assertIn("UUID", r["error"])
+
+    def test_confirm_defaults_training_opt_in_false(self):
+        """training_opt_in must default false (default-off gate)."""
+        import inspect
+        src = inspect.getsource(m.handle_tool)
+        self.assertIn('bool(args.get("training_opt_in", False))', src)
+
+    def test_list_candidates_invalid_status(self):
+        r = m.handle_tool("list_candidates", {"status": "bogus"})
+        self.assertIn("invalid status", r["error"])
 
     def test_empty_content_rejected(self):
         self.assertEqual(m.handle_tool("save_memory", {"content": ""})["error"], "content is required")
@@ -97,7 +127,8 @@ class TestRecallMemories(unittest.TestCase):
             m.SUPABASE_URL, m.SUPABASE_KEY = orig_url, orig_key
             m._supabase_rpc = orig_rpc
         self.assertEqual(captured["fn"], "match_memories")
-        self.assertEqual(captured["payload"]["match_count"], 50)
+        self.assertEqual(captured["payload"]["k"], 50)
+        self.assertNotIn("match_count", captured["payload"])
         self.assertEqual(captured["payload"]["query_text"], "hi")
         self.assertIsNone(captured["payload"]["query_embedding"])
         self.assertEqual(r["source"], "rpc:match_memories")

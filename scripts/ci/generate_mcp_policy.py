@@ -2,10 +2,10 @@
 """MCP Policy SSoT Generator (#2429) — schema → TS + Python embedded snapshots.
 
 বাংলা মন্তব্য:
-এই script-টি `config/mcp_policy_schema.json` (একমাত্র canonical উৎস) থেকে
+এই script-টি `core/config/mcp_policy_schema.json` (একমাত্র canonical উৎস) থেকে
 দুটি embedded snapshot তৈরি করে:
   ১. infrastructure/mcp-control-plane/src/policy/policy.schema.generated.ts
-  ২. backend/core/mcp_policy_schema_generated.py
+  ২. core/mcp_policy_schema_generated.py
 
 ফলে TypeScript টাওয়ার ও Python ব্যাকএন্ডের পলিসি ইঞ্জিনের মধ্যে drift
 অসম্ভব হয়ে যায় — দুই দিকই একই schema থেকে generated, হাতে লেখা ডুপ্লিকেট
@@ -30,9 +30,15 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-SCHEMA_PATH = REPO_ROOT / "config" / "mcp_policy_schema.json"
+# Root-fix: canonical schema lives at core/config/ (config/ has no schema file).
+_SCHEMA_CANDIDATES = (
+    REPO_ROOT / "core" / "config" / "mcp_policy_schema.json",
+    REPO_ROOT / "config" / "mcp_policy_schema.json",
+)
+SCHEMA_PATH = next((p for p in _SCHEMA_CANDIDATES if p.exists()), _SCHEMA_CANDIDATES[0])
 TS_OUT = REPO_ROOT / "infrastructure" / "mcp-control-plane" / "src" / "policy" / "policy.schema.generated.ts"
-PY_OUT = REPO_ROOT / "backend" / "core" / "mcp_policy_schema_generated.py"
+# Root-fix: parity gate imports core.mcp_policy_schema_generated (not backend/core).
+PY_OUT = REPO_ROOT / "core" / "mcp_policy_schema_generated.py"
 
 
 def _schema_hash(schema: dict) -> str:

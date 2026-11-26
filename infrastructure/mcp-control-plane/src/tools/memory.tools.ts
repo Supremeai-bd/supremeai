@@ -38,6 +38,9 @@ const FALLBACK_TOOLS: Array<{ name: string; description: string; inputSchema: Re
   // Phase 1 SSOT (memories table) — write + hybrid recall; name avoids memory.recall collision
   { name: "save_memory", description: "Phase-1 SSOT write: insert one row into public.memories (status=candidate). PII stripped; training never auto-confirms.", inputSchema: { type: "object", properties: { content: { type: "string" }, kind: { type: "string" }, tenant_id: { type: "string" } }, required: ["content"] } },
   { name: "recall_memories", description: "Phase-1 SSOT read: hybrid recall over public.memories via RPC match_memories (vector+FTS+recency).", inputSchema: { type: "object", properties: { query: { type: "string" }, limit: { type: "integer" }, tenant_id: { type: "string" } }, required: ["query"] } },
+  { name: "list_candidates", description: "Phase-2 HITL queue: list memories by status (default candidate) for review. Read-only.", inputSchema: { type: "object", properties: { status: { type: "string" }, limit: { type: "integer" }, tenant_id: { type: "string" } } } },
+  { name: "confirm_memory", description: "Phase-2 HITL: set status=confirmed + memory_events.confirmed. training_opt_in default false.", inputSchema: { type: "object", properties: { id: { type: "string" }, training_opt_in: { type: "boolean" }, note: { type: "string" }, tenant_id: { type: "string" } }, required: ["id"] } },
+  { name: "reject_memory", description: "Phase-2 HITL: set status=rejected + memory_events.rejected (reason optional).", inputSchema: { type: "object", properties: { id: { type: "string" }, reason: { type: "string" }, tenant_id: { type: "string" } }, required: ["id"] } },
 ];
 
 // R72 revival (#2618): truthful per-tool annotation hints. The memory family
@@ -57,6 +60,9 @@ const MEMORY_HINTS: Record<string, Record<string, boolean>> = {
   "memory.remember_fact": { readOnlyHint: false },
   "memory.save_memory": { readOnlyHint: false },
   "memory.recall_memories": { readOnlyHint: true, idempotentHint: true },
+  "memory.list_candidates": { readOnlyHint: true, idempotentHint: true },
+  "memory.confirm_memory": { readOnlyHint: false, idempotentHint: true },
+  "memory.reject_memory": { readOnlyHint: false, idempotentHint: true },
   "memory.clear_session": { readOnlyHint: false, destructiveHint: true },
   "memory.wipe_memory": { readOnlyHint: false, destructiveHint: true },
   "memory.read_graph": { readOnlyHint: true, idempotentHint: true },
