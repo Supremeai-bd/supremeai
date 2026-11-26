@@ -592,12 +592,16 @@ def _is_dynamic_module_string(value: str) -> bool:
     )
 
 
-#: Files outside Python that also dispatch Python modules: CI workflows and the
-#: Makefile. They are real callers — a script invoked only from
-#: `.github/workflows/*.yml` is live, and ignoring them was measured to make every
-#: roster-driven guard look unreachable (the roster is invoked from YAML only).
+#: Files outside Python that also dispatch Python modules: CI workflows,
+#: composite actions (G10), and the Makefile. They are real callers — a script
+#: invoked only from `.github/workflows/*.yml` or `.github/actions/**/action.yml`
+#: is live, and ignoring them was measured to make every roster-driven guard
+#: look unreachable (the roster is invoked from YAML only). G10 (2026-11-26)
+#: moved deep-audit/live-smoke steps into composites; without the actions glob
+#: `scripts.ci.resolve_production_targets` became falsely unreachable.
 _NON_PYTHON_DISPATCHERS = (
     ".github/workflows/*.yml",
+    ".github/actions/**/action.yml",
     "Makefile",
 )
 
