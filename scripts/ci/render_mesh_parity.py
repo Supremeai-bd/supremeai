@@ -18,6 +18,11 @@ no live deploy, missing commit evidence, API failure — is a blocking entry.
 Fail-closed by default. Set MESH_PARITY_FAIL_OPEN=1 (repo variable) to downgrade
 every entry to a warning during the one-time re-sync transition.
 
+Auto-redeploy contract (2026-11-26): on `drift` the gate first triggers a Render
+deploy pinned to the path-expected SHA. If the trigger succeeds the row becomes
+`redeploy_triggered` and does NOT block (mismatch → redeploy, not fail). Only a
+failed trigger (or api_error / no_credential / …) keeps the gate red.
+
 # বাংলা মন্তব্য (IMPORTANT — DO NOT CHANGE WITHOUT READING):
 # প্রতিটি Render সার্ভিসের live_commit অবশ্যই তার নিজস্ব `watch_paths`-এ সর্বশেষ
 # পরিবর্তিত কমিটের SHA (path-expected SHA)-এর সাথে মিলতে হবে — পুরো রিপোর
@@ -187,18 +192,28 @@ def main() -> int:
             row["status"] = "verified"
             row["detail"] = "live release is the expected commit or a descendant"
         else:
+            # বাংলা মন্তব্য: drift পেলে শুধু fail না করে path-expected commit-এ
+            # অটো-রিডিপ্লয় ট্রিগার করা (mismatch → redeploy, gate fail নয়)।
+            # সফল হলে status=redeploy_triggered (blocking-এর বাইরে); ব্যর্থ হলেই
+            # সৎ drift → blocking (fail-closed)। commit_id দেওয়া যেন branch-HEAD
+            # নয়, ঠিক path-expected SHA ডিপ্লয় হয়।
             row["status"] = "drift"
             row["detail"] = f"live {live_commit[:8]} != path-expected {expected[:8]}"
-            # বাংলা মন্তব্য: শুধু ব্লক না করে, পিছিয়ে থাকা সার্ভিসটির জন্য অটো-রিডিপ্লয় ট্রিগার করা।
             try:
-                triggered = client.trigger_deploy()
+                triggered = client.trigger_deploy(commit_id=expected)
                 deploy_id = triggered.get("id") or triggered.get("deploy", {}).get("id") or "triggered"
-                row["detail"] += f" (auto-redeploy: {deploy_id})"
+                row["status"] = "redeploy_triggered"
+                row["detail"] += f" (auto-redeploy pinned to {expected[:8]}: {deploy_id})"
             except Exception as trig_exc:
                 row["detail"] += f" (auto-redeploy failed: {trig_exc})"
         rows.append(row)
 
-    blocking = [r for r in rows if r["status"] not in ("verified", "skipped")]
+    # redeploy_triggered = drift ছিল কিন্তু auto-redeploy সফলভাবে ট্রিগার হয়েছে —
+    # সেটা blocking নয় (mismatch → redeploy, gate fail নয়)। বাকি সব অ-verified
+    # অবস্থা (drift-যার retrigger ব্যর্থ, api_error, no_credential, …) blocking।
+    non_blocking = ("verified", "skipped", "redeploy_triggered")
+    blocking = [r for r in rows if r["status"] not in non_blocking]
+    redeployed = [r for r in rows if r["status"] == "redeploy_triggered"]
     summary_lines = [
         "### Render mesh parity gate",
         "",
@@ -217,6 +232,12 @@ def main() -> int:
         )
     summary_lines.append("")
     summary_lines.append(f"- HEAD evaluated: `{head}`")
+    if redeployed:
+        summary_lines.append(
+            f"- **AUTO-REDEPLOY**: {len(redeployed)} service(s) were behind their "
+            "path-expected commit; a deploy was triggered (pinned to the expected "
+            "SHA). Re-run this gate after they go live to confirm parity."
+        )
     if blocking:
         summary_lines.append(
             "- **BLOCKED**: redeploy the drifted services to the path-expected commit "
@@ -227,11 +248,21 @@ def main() -> int:
     if summary_path:
         Path(summary_path).open("a", encoding="utf-8").write("\n".join(summary_lines) + "\n")
 
-    print(json.dumps({"head": head, "rows": rows, "blocking": len(blocking)}, indent=2))
+    print(json.dumps({"head": head, "rows": rows, "blocking": len(blocking),
+                      "redeploy_triggered": len(redeployed)}, indent=2))
     for r in blocking:
         print(f"::error::Mesh parity {r['status']} — {r['service']} ({r['detail']})", file=sys.stderr)
+    for r in redeployed:
+        print(f"::notice::Mesh parity auto-redeploy — {r['service']} ({r['detail']})", file=sys.stderr)
     if not blocking:
-        print("✅ Mesh parity verified: every Render service is at its path-expected release.", file=sys.stderr)
+        if redeployed:
+            print(
+                f"✅ Mesh parity: {len(redeployed)} service(s) behind — auto-redeploy "
+                "triggered (not blocking); remaining services verified.",
+                file=sys.stderr,
+            )
+        else:
+            print("✅ Mesh parity verified: every Render service is at its path-expected release.", file=sys.stderr)
         return 0
     if fail_open():
         print("::warning::MESH_PARITY_FAIL_OPEN=1 — reporting only, not blocking.", file=sys.stderr)
