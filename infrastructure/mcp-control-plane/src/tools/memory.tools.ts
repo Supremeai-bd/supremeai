@@ -35,6 +35,8 @@ const FALLBACK_TOOLS: Array<{ name: string; description: string; inputSchema: Re
   { name: "clear_session", description: "Clear sliding window memory for a session.", inputSchema: { type: "object", properties: {} } },
   { name: "remember_fact", description: "Save a long-term fact (Supabase/SQLite).", inputSchema: { type: "object", properties: {} } },
   { name: "search_learned_facts", description: "Search stored long-term facts.", inputSchema: { type: "object", properties: {} } },
+  { name: "export_memory", description: "Export all stored memory (graph + episodes + documents + learned facts) as JSON — GDPR data-portability (AIQ-062/098).", inputSchema: { type: "object", properties: {} } },
+  { name: "wipe_memory", description: "GDPR hard wipe: graph entities+relations; scope=all also clears episodes, documents, learned facts (AIQ-098).", inputSchema: { type: "object", properties: { scope: { type: "string", enum: ["all", "graph"] } } } },
   // Phase 1 SSOT (memories table) — write + hybrid recall; name avoids memory.recall collision
   { name: "save_memory", description: "Phase-1 SSOT write: insert one row into public.memories (status=candidate). PII stripped; training never auto-confirms.", inputSchema: { type: "object", properties: { content: { type: "string" }, kind: { type: "string" }, tenant_id: { type: "string" } }, required: ["content"] } },
   { name: "recall_memories", description: "Phase-1 SSOT read: hybrid recall over public.memories via RPC match_memories (vector+FTS+recency).", inputSchema: { type: "object", properties: { query: { type: "string" }, limit: { type: "integer" }, tenant_id: { type: "string" } }, required: ["query"] } },
