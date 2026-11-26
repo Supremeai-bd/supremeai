@@ -737,6 +737,11 @@ jobs:
           EXPECTED_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           TESTED_MERGE_SHA: ${{ github.sha }}
         run: |
+          PR_STATE=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json state --jq .state || true)
+          if [ "$PR_STATE" = "MERGED" ]; then
+            echo "PR #$PR_NUMBER already merged; skipping."
+            exit 0
+          fi
           set -o pipefail
           # বাংলা মন্তব্য: recheck+merge দুটোই log ফাইলে tee করা হয় যাতে failure()-এ doctor পড়তে পারে।
           {
