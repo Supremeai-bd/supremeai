@@ -282,30 +282,32 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
     def _ensure_list(v):
         return [v] if isinstance(v, str) else list(v)
 
-    origins = list(
-        set(
-            _ensure_list(getattr(settings, "cors_origins", []))
-            + _ensure_list(settings.user_cors_origins)
-            + _ensure_list(settings.admin_cors_origins)
-        )
+    # T009 (specs/001 reaudit): resolve origins exclusively via
+    # middleware/cors_policy.py resolvers — same SSOT as api/server.py.
+    # Resolvers drop wildcard '*', enforce admin/user isolation, and keep the
+    # production floor (#1518) so a stale env cannot evict portal origins.
+    from core.middleware.cors_policy import (
+        resolve_admin_cors_origins,
+        resolve_user_cors_origins,
     )
 
-    # C-03 Fix: If origin is wildcard, credentials must not be allowed
-    # RUNTIME-001 FIX: Previously fell back to ["*"] (wildcard CORS) when no
-    # origins configured — allows any website to make authenticated requests.
-    # Now: fail-closed — use localhost-only origins for dev, reject in production.
+    _user_configured = (
+        _ensure_list(getattr(settings, "cors_origins", []))
+        + _ensure_list(settings.user_cors_origins)
+    )
+    _admin_configured = _ensure_list(settings.admin_cors_origins)
+    origins = sorted(
+        set(resolve_user_cors_origins(_user_configured))
+        | set(resolve_admin_cors_origins(_admin_configured))
+    )
+
+    # C-03 Fix: wildcard is already stripped by the resolvers, so credentialed
+    # CORS is safe. RUNTIME-001: resolvers never return an empty list (safe
+    # floors), so the old empty→localhost/allowed_hosts fallback is gone —
+    # no silent production open-up and no boot-time empty allow-list.
     cors_allow_credentials = True
-    if not origins or origins == [""]:
+    if not origins:  # pragma: no cover — defensive; resolvers have floors
         env = str(getattr(settings, "env", "local")).lower()
-        # ROOT-CAUSE FIX (regression_scanner: unguarded-localhost, HIGH):
-        # আগে production/staging-এ শুধু error log করা হতো কিন্তু তারপরও
-        # নিচের local-host fallback unconditionally প্রয়োগ হতো —
-        # production-এ কোনো origin কনফিগার না থাকলে CORS silently
-        # dev host-এ খুলে যেত। এখন repo-র established idiom অনুসরণ করে
-        # explicit `env == "local"` guard দিয়ে fallback করা হচ্ছে; অন্য
-        # যেকোনো env-এ (production/staging সহ) fail-closed — origins খালি
-        # থাকবে, কোনো cross-origin request allow হবে না যতক্ষণ না ঠিকভাবে
-        # কনফিগার করা হয়।
         if env == "local":
             origins = [
                 "http://localhost:3000",  # is_local()
@@ -315,8 +317,7 @@ def create_app(title: str = settings.PROJECT_NAME) -> FastAPI:
             ]
         else:
             logger.warning(
-                "⚠️ CORS: no origins configured in production! "
-                "Falling back to derived allowed_hosts. "
+                "⚠️ CORS: resolver returned no origins (unexpected) — fail-closed. "
                 "Set USER_CORS_ORIGINS and/or ADMIN_CORS_ORIGINS env vars for strict security."
             )
             origins = [f"https://{h}" for h in settings.allowed_hosts if h != "testserver"]

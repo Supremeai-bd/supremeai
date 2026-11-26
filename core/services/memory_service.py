@@ -945,6 +945,24 @@ async def save_memory(
             "created_at": now,
         }
 
+        # G5.2b: primary write first (ai_memory / cascade), then best-effort
+        # dual-write into public.memories SSOT (status=candidate, HITL later).
+        # The SSOT adapter is fail-open — it never changes the return shape.
+        async def _ssot_dual_write() -> None:
+            try:
+                from core.memory.ssot_adapter import dual_write_route_memory
+
+                await asyncio.to_thread(
+                    dual_write_route_memory,
+                    summary=summary,
+                    task_type=task_type,
+                    user_id=user_id,
+                    session_id=session_id,
+                    embedding=embedding if isinstance(embedding, list) else None,
+                )
+            except Exception as ssot_exc:  # noqa: BLE001 — dual-write is best-effort
+                logger.warning(f"SSOT dual-write skipped: {ssot_exc}")
+
         if supabase:
             try:
                 # FIX (P0, review 2026-09-12): supabase-py is a SYNC client —
@@ -960,6 +978,7 @@ async def save_memory(
                     logger.info(
                         f"Memory saved (Supabase) | id={mem_id} | task={task_type} | session={session_id}"
                     )
+                    await _ssot_dual_write()
                     return {"success": True, "id": mem_id}
             except Exception as sb_err:
                 logger.warning(
@@ -979,6 +998,7 @@ async def save_memory(
             metadata=metadata or {},
             user_id=user_id,
         )
+        await _ssot_dual_write()
         return {"success": True, "id": str(session_id), "backend": "cascade"}
     except Exception as exc:
         logger.error(f"Memory save exception: {exc}")
