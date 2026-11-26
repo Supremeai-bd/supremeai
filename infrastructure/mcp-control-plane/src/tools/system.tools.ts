@@ -140,48 +140,73 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
   // render-mcp account (registry): id "render-mcp", provider "render" —
   // the account pointing at the tower's own public URL.
   if (svc.id === "render-mcp") {
-    const selfUrl = `${svc.url!.replace(/\/+$/, "")}/health`;
+    // Defense-in-depth (2026-11-26): if the registry URL still resolves to the
+    // retired suspended host (HTTP 503 "Service Suspended"), retry once against
+    // the canonical live origin before declaring degraded — one bad env var must
+    // never stick the tower in a permanent self-degraded loop.
+    const canonicalSelfBase = "https://supremeai-mcp-tower-live.onrender.com".replace(/\/+$/, "");
+    const primaryBase = (svc.url || "").replace(/\/+$/, "");
+    const candidates = primaryBase && primaryBase !== canonicalSelfBase
+      ? [`${primaryBase}/health`, `${canonicalSelfBase}/health`]
+      : [`${primaryBase || canonicalSelfBase}/health`];
     const start = Date.now();
-    try {
-      const res = await httpRequest(selfUrl, {
-        timeoutMs: 8000,
-        retries: 0,
-        headers: { "User-Agent": "SupremeAI-Control-Tower/self-check" },
-      });
-      const latencyMs = res.latencyMs ?? (Date.now() - start);
-      let body: Record<string, unknown> = {};
+    let last: { url: string; res: Awaited<ReturnType<typeof httpRequest>> } | null = null;
+    let lastErr: unknown = null;
+    for (const selfUrl of candidates) {
       try {
-        body = (typeof res.data === "string" ? JSON.parse(res.data) : res.data || {}) as Record<string, unknown>;
-      } catch {
-        body = {}; // unparseable body handled below via boot/degraded rules
+        const res = await httpRequest(selfUrl, {
+          timeoutMs: 8000,
+          retries: 0,
+          headers: { "User-Agent": "SupremeAI-Control-Tower/self-check" },
+        });
+        last = { url: selfUrl, res };
+        // Suspended/retired host (503 HTML) — try the next candidate.
+        if (!res.ok && candidates.length > 1 && selfUrl !== candidates[candidates.length - 1]) {
+          continue;
+        }
+        break;
+      } catch (err) {
+        lastErr = err;
+        if (selfUrl === candidates[candidates.length - 1]) {
+          return { ...base, url: selfUrl, status: "unreachable", httpStatus: null, latencyMs: Date.now() - start, error: `self-check failed: ${(err as Error).message}` };
+        }
       }
-      const stale = body.stale === true;
-      const booting = body.status === "starting";
-      if (res.ok && !stale && !booting) {
-        return {
-          ...base,
-          url: selfUrl,
-          status: "healthy",
-          httpStatus: res.status,
-          latencyMs,
-          confidence: "verified",
-        };
-      }
+    }
+    if (!last) {
+      return { ...base, url: candidates[0]!, status: "unreachable", httpStatus: null, latencyMs: Date.now() - start, error: `self-check failed: ${(lastErr as Error)?.message || "no candidate answered"}` };
+    }
+    const { url: selfUrl, res } = last;
+    const latencyMs = res.latencyMs ?? (Date.now() - start);
+    let body: Record<string, unknown> = {};
+    try {
+      body = (typeof res.data === "string" ? JSON.parse(res.data) : res.data || {}) as Record<string, unknown>;
+    } catch {
+      body = {}; // unparseable body handled below via boot/degraded rules
+    }
+    const stale = body.stale === true;
+    const booting = body.status === "starting";
+    if (res.ok && !stale && !booting) {
       return {
         ...base,
         url: selfUrl,
-        status: "degraded",
-        httpStatus: res.status ?? null,
+        status: "healthy",
+        httpStatus: res.status,
         latencyMs,
-        error: stale
-          ? "self-check: health sweep stale (watchdog telemetry reports no recent sweep)"
-          : booting
-            ? "self-check: tower in boot state (starting — no sweep completed yet)"
-            : `self-check: /health responded ${res.status}`,
+        confidence: "verified",
       };
-    } catch (err) {
-      return { ...base, url: selfUrl, status: "unreachable", httpStatus: null, latencyMs: Date.now() - start, error: `self-check failed: ${(err as Error).message}` };
     }
+    return {
+      ...base,
+      url: selfUrl,
+      status: "degraded",
+      httpStatus: res.status ?? null,
+      latencyMs,
+      error: stale
+        ? "self-check: health sweep stale (watchdog telemetry reports no recent sweep)"
+        : booting
+          ? "self-check: tower in boot state (starting — no sweep completed yet)"
+          : `self-check: /health responded ${res.status}`,
+    };
   }
 
   // ── GitHub: repo API with auth IS the health check ──
