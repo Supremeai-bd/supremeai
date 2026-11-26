@@ -1110,6 +1110,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
     reflectionWhy,
     alternativesRejected,
     closesOriginalIssue,
+    repo: targetRepoParam,
   }: {
     taskId: string;
     summary: string;
@@ -1122,6 +1123,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
     reflectionWhy?: string;
     alternativesRejected?: string;
     closesOriginalIssue?: boolean;
+    repo?: "supremeai" | "supremeai-public";
   }) => {
     // If not explicitly passed, detect original issue reference from summary -
     // verb-intent only ("fixes #1519"); a bare "#NNN" mention references, it
@@ -1211,7 +1213,8 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
         };
       }
 
-      const repo = bridgeOpenRepo();
+      // বাংলা মন্তব্য: repo='supremeai-public' দিলে পাবলিক রিপোতে, নাহলে ডিফল্ট bridgeOpenRepo()-তে ল্যান্ড করবে
+      const repo = targetRepoParam === "supremeai-public" ? "Supremeai-bd/supremeai-public" : bridgeOpenRepo();
       // #621 Phase 1.3 — dynamic target repo resolution from file anchors.
       const targetRepoResolution = resolveTargetRepo(scopePaths);
       const headers: Record<string, string> = {
@@ -1690,6 +1693,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
     reflectionWhy: z.string().optional().describe("Rationale explaining why this change was made (Reflection Evidence)"),
     alternativesRejected: z.string().optional().describe("Alternatives considered and rejected with reasons"),
     closesOriginalIssue: z.boolean().optional().describe("#2485: opt-in for receipt-closure submissions. Docs-only (spec-only) payloads normally emit Refs #N so the work order stays open until code lands - but when this docs-only patch IS the resolution (e.g. a CI-failure closure receipt whose root cause is already remediated on main), set true to emit Closes #N on merge. Absent/false preserves the spec-only keep-open contract. Evidence: #2405 stayed open after #2427 landed; #2368 after #2466."),
+    repo: z.enum(["supremeai", "supremeai-public"]).optional().describe("Target repository: 'supremeai' (default) or 'supremeai-public'."),
   };
 
   server.tool(
@@ -1964,7 +1968,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
     { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     async ({ action, issueNumber, agentId }: { action: string; issueNumber: number; agentId?: string }) => {
       if (action === "feedback") {
-        const repo = bridgeOpenRepo();
+      const repo = bridgeOpenRepo();
         try {
           let res = await httpRequest<RawIssue>(
             `https://api.github.com/repos/${repo}/issues/${issueNumber}`,
