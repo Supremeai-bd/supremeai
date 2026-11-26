@@ -33,9 +33,9 @@ from typing import Any, Dict, Iterator, List, Optional
 
 RENDER_API_BASE = "https://api.render.com/v1"
 
-# ঐতিহাসিক primary service — ৯টি পুরনো script-এ hardcoded ছিল; এখন এক জায়গায়।
+# ঐতিহাসিক primary service — সব script এখন এই SSOT ব্যবহার করে (#632)।
 # Override: RENDER_SERVICE_ID env var।
-DEFAULT_PRIMARY_SERVICE_ID = "srv-da666f8u01pc739bm3t0"
+DEFAULT_PRIMARY_SERVICE_ID = "srv-dau7c9ek1f9s73almn0g"  # #632: canonical primary (public_endpoints.json / primary-node-5xso)
 
 
 class RenderApiError(RuntimeError):
