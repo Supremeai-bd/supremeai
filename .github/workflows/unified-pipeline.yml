@@ -722,6 +722,11 @@ jobs:
           EXPECTED_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           TESTED_MERGE_SHA: ${{ github.sha }}
         run: |
+          PR_STATE=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json state --jq .state || true)
+          if [ "$PR_STATE" = "MERGED" ]; then
+            echo "PR #$PR_NUMBER already merged; skipping."
+            exit 0
+          fi
           python3 scripts/ci/tiny_brain_pr_guard.py --recheck-candidate --pr "$PR_NUMBER" \
             --head-sha "$EXPECTED_HEAD_SHA" --base-sha "$EXPECTED_BASE_SHA" --merge-sha "$TESTED_MERGE_SHA"
           gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --delete-branch --match-head-commit "$EXPECTED_HEAD_SHA"
