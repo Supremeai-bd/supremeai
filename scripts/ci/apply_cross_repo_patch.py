@@ -120,6 +120,109 @@ def get_patch_targets(patch_path: Path) -> list[str]:
         return []
 
 
+def is_already_applied(target_dir: Path, patch_path: Path) -> bool:
+    """Reverse-check: patch already landed on target (git apply --reverse --check)."""
+    try:
+        proc = subprocess.run(
+            ["git", "apply", "--reverse", "--check", str(patch_path.resolve())],
+            cwd=target_dir,
+            capture_output=True,
+            text=True,
+        )
+        return proc.returncode == 0
+    except Exception:
+        return False
+
+
+def create_source_cleanup_pr(
+    source_repo: str,
+    applied_patches: list[Path],
+    source_dir: Path | None = None,
+) -> bool:
+    """Rule #10 loop-stop: after target auto-sync PR opens, open a source-repo PR
+    that deletes the consumed .patches/ inputs so later pushes do not re-sync.
+
+    Requires GH_TOKEN (CI). source_dir defaults to cwd (pipeline source root).
+    Missing files → no-op success (already consumed).
+    """
+    src = (source_dir or Path.cwd()).resolve()
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
+    if not token:
+        print("  [cleanup-skip] GH_TOKEN/GITHUB_TOKEN not set; open source cleanup PR manually.")
+        return False
+
+    rels: list[str] = []
+    for p in applied_patches:
+        try:
+            rels.append(str(p.resolve().relative_to(src)))
+        except ValueError:
+            rels.append(str(p))
+    if not rels:
+        return False
+
+    existing = [r for r in rels if (src / r).exists()]
+    if not existing:
+        print("  [cleanup] patch file(s) already removed from source; nothing to do.")
+        return True
+
+    slug = "-".join(Path(r).stem for r in existing[:3])[:30]
+    branch_name = f"sync/consume-{slug}"
+
+    print(f"  [cleanup] Opening source PR to consume patches on {source_repo} ({branch_name})...")
+    subprocess.run(["git", "config", "user.name", "github-actions[bot]"], cwd=src, check=True)
+    subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"], cwd=src, check=True)
+    subprocess.run(["git", "checkout", "-B", branch_name], cwd=src, check=True)
+    subprocess.run(["git", "rm", "--"] + existing, cwd=src, check=True)
+
+    commit_msg = (
+        "chore(sync): consume cross-repo patches (Rule #10 loop-stop)\n\n"
+        "Auto-removed after target auto-sync PR opened:\n"
+        + "\n".join(f"- {r}" for r in existing)
+    )
+    subprocess.run(["git", "commit", "-m", commit_msg], cwd=src, check=True)
+    subprocess.run(["git", "push", "-u", "origin", branch_name], cwd=src, check=True)
+
+    try:
+        existing_pr = subprocess.check_output(
+            ["gh", "pr", "list", "--repo", source_repo, "--head", branch_name, "--state", "open", "--json", "number", "--jq", ".[0].number"],
+            cwd=src,
+            text=True,
+        ).strip()
+    except Exception:
+        existing_pr = ""
+    if existing_pr and existing_pr != "null":
+        print(f"  [cleanup-ok] Source cleanup PR #{existing_pr} already open for {branch_name}.")
+        return True
+
+    pr_body = (
+        "## Rule #10 loop-stop — consume cross-repo patch inputs\n\n"
+        "Target auto-sync PR has been opened (or content already landed). "
+        "This PR deletes the input patch file(s) from `.patches/` so future pushes "
+        "do not re-sync (force-push same branch).\n\n"
+        "### Removed\n"
+        + "\n".join(f"- `{r}`" for r in existing)
+        + "\n\n> Loop-guard: merge only after the corresponding target PR is healthy (open or merged)."
+    )
+    try:
+        subprocess.run(
+            [
+                "gh", "pr", "create",
+                "--repo", source_repo,
+                "--title", f"chore(sync): consume cross-repo patches ({slug})",
+                "--body", pr_body,
+                "--head", branch_name,
+                "--base", "main",
+            ],
+            cwd=src,
+            check=True,
+        )
+        print(f"  [cleanup-success] Source cleanup PR opened on {source_repo}.")
+        return True
+    except subprocess.CalledProcessError as exc:
+        print(f"  [cleanup-error] Failed to open source cleanup PR: {exc}")
+        return False
+
+
 def create_sync_pr(
     target_dir: Path,
     target_repo: str,
@@ -264,26 +367,47 @@ def main() -> int:
     for p in patches:
         print(f"  - {p.name}")
 
-    # Validate all patches first
+    # Validate all patches first. Already-landed content (reverse-check) is
+    # NOT a conflict — it means the target auto-sync PR already merged; we
+    # only need Rule #10 loop-stop cleanup on the source side.
+    pending: list[Path] = []
+    already: list[Path] = []
     for p in patches:
         valid, msg = validate_patch(p)
         if not valid:
             print(f"Error validating {p.name}: {msg}")
             return 1
         can_apply, check_msg = verify_patch_apply(target_dir, p)
-        if not can_apply:
+        if can_apply:
+            pending.append(p)
+        elif is_already_applied(target_dir, p):
+            print(f"  [already-landed] {p.name} — reverse-check OK; source cleanup only.")
+            already.append(p)
+        else:
             print(f"Conflict error for {p.name} on {target_dir.name}:\n{check_msg}")
             return 1
 
-    print("All patches validated cleanly against target repo.")
+    if pending:
+        print(f"All pending patches validated cleanly ({len(pending)} to apply).")
 
     if args.dry_run:
-        print("[dry-run] Dry run completed successfully. All patches apply cleanly.")
+        if already and not pending:
+            print("[dry-run] All patches already landed on target; source cleanup would run on --create-pr.")
+        else:
+            print("[dry-run] Dry run completed successfully. All pending patches apply cleanly.")
+        return 0
+
+    if already and not pending:
+        # Target content already merged (auto-sync PR landed) — Rule #10 loop-stop:
+        # consume the input patch files on the source side only.
+        print("All patches already landed on target — running source cleanup only.")
+        create_source_cleanup_pr(args.source_repo, already, source_dir=ROOT)
+        print("\n[apply_cross_repo_patch] Execution completed successfully.")
         return 0
 
     applied: list[Path] = []
     if args.apply or args.create_pr:
-        for p in patches:
+        for p in pending:
             success, apply_msg = apply_patch(target_dir, p)
             if not success:
                 print(f"Failed to apply {p.name}: {apply_msg}")
@@ -301,6 +425,12 @@ def main() -> int:
         )
         if not pr_ok:
             return 1
+        # Rule #10 loop-stop: target auto-sync PR is open → consume source inputs
+        # (include any already-landed siblings from a mixed batch)
+        create_source_cleanup_pr(args.source_repo, applied + already, source_dir=ROOT)
+    elif already:
+        # No new PR this run (nothing pending) — still cleanup landed ones
+        create_source_cleanup_pr(args.source_repo, already, source_dir=ROOT)
 
     print("\n[apply_cross_repo_patch] Execution completed successfully.")
     return 0

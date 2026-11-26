@@ -10,6 +10,8 @@ from scripts.ci.apply_cross_repo_patch import (
     verify_patch_apply,
     apply_patch,
     get_patch_targets,
+    is_already_applied,
+    create_source_cleanup_pr,
 )
 
 
@@ -111,3 +113,41 @@ def test_patch_apply_with_git_repo(tmp_path: Path):
     # বাংলা মন্তব্য: numstat থেকে টার্গেট ফাইলের নাম নিখুঁতভাবে পাওয়া
     targets = get_patch_targets(patch_file)
     assert targets == ["greeting.txt"]
+
+
+def test_is_already_applied(tmp_path: Path):
+    """বাংলা মন্তব্য: প্যাচ আগে থেকেই apply করা থাকলে reverse-check True দেবে।"""
+    import subprocess
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "T"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True)
+    f = repo / "a.txt"
+    f.write_text("one\n", encoding="utf-8")
+    subprocess.run(["git", "add", "a.txt"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "i"], cwd=repo, check=True, capture_output=True)
+
+    patch = tmp_path / "p.patch"
+    patch.write_text(
+        "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-one\n+two\n",
+        encoding="utf-8",
+    )
+
+    # not applied yet → False
+    assert is_already_applied(repo, patch) is False
+    # apply → True
+    subprocess.run(["git", "apply", str(patch)], cwd=repo, check=True, capture_output=True)
+    assert is_already_applied(repo, patch) is True
+
+
+def test_create_source_cleanup_pr_no_token(tmp_path: Path, monkeypatch):
+    """GH_TOKEN না থাকলে cleanup False ফেরত দেবে (fail-visible, silent skip নয়)।"""
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    ok = create_source_cleanup_pr(
+        "Supremeai-bd/supremeai",
+        [tmp_path / "missing.patch"],
+        source_dir=tmp_path,
+    )
+    assert ok is False
