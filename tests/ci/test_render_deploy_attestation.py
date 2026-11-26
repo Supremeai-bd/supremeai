@@ -118,8 +118,10 @@ def test_ci_runner_without_release_url_is_metadata_only(evidence, capsys, monkey
 
 def test_release_workflows_pin_the_deploy_id_and_keep_rollback_verifier_current():
     workflows = Path(__file__).resolve().parents[2] / ".github" / "workflows"
-    unified = yaml.safe_load((workflows / "unified-pipeline.yml").read_text())
-    rollback = yaml.safe_load((workflows / "deploy-rollback.yml").read_text())
+    # বাংলা মন্তব্য: encoding="utf-8" বাধ্যতামূলক — workflow ফাইলে বাংলা মন্তব্য আছে,
+    # Windows-এ cp1252 default encoding UnicodeDecodeError দেয় (2026-11-26 audit A3-পরবর্তী)।
+    unified = yaml.safe_load((workflows / "unified-pipeline.yml").read_text(encoding="utf-8"))
+    rollback = yaml.safe_load((workflows / "deploy-rollback.yml").read_text(encoding="utf-8"))
     for job in (unified["jobs"]["deploy-render-services"], rollback["jobs"]["rollback"]):
         steps = {step["id"]: step for step in job["steps"] if "id" in step}
         assert job["strategy"]["fail-fast"] is False

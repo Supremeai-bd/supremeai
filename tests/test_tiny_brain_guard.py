@@ -290,7 +290,11 @@ def test_required_ci_and_candidate_bindings_are_from_this_run(jobs):
     assert set(decision["needs"]) == set(job_results()) | {"verify-pr"}
     assert "needs.verify-pr.result == 'success'" in decision["if"]
     for job in (decision, jobs["merge-verified-pr"]):
-        checkout, run = job["steps"]
+        # বাংলা মন্তব্য: merge-verified-pr job-এর প্রথম দুটো step checkout+run —
+        # auto-doctor (audit A3) step অন্য জায়গায়, তাই checkout/run কে নামে খুঁজি (পজিশন-ভঙ্গুরতা এড়াতে)।
+        steps = job["steps"]
+        checkout = next(s for s in steps if "uses" in s and "checkout" in s["uses"])
+        run = next(s for s in steps if "run" in s and "EXPECTED_HEAD_SHA" in s.get("env", {}))
         assert checkout["with"]["ref"] == "${{ github.event.pull_request.base.sha }}"
         assert checkout["with"]["persist-credentials"] is False
         assert run["env"]["EXPECTED_HEAD_SHA"] == "${{ github.event.pull_request.head.sha }}"

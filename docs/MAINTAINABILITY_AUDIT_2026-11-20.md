@@ -1,3 +1,5 @@
+﻿> ARCHIVED — superseded by docs/INDEX.md #Living Backlog (audit B6, 2026-11-26). এই ফাইল আর 'current' নয় — সিদ্ধান্ত-ইতিহাস হিসেবে রাখা হয়েছে; লাইভ স্টেটাস INDEX-এর backlog টেবিলে।
+
 # Maintainability Audit & Token-Efficiency Plan
 
 **Date:** 2026-11-20 · **Branches:** `arena/974d6600-supremeai` (`decb51c`) + `arena/2b11b165-supremeai` (`17441cf`)

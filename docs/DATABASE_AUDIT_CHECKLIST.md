@@ -1,3 +1,5 @@
+﻿> ARCHIVED — superseded by docs/INDEX.md #Living Backlog (audit B6, 2026-11-26). এই ফাইল আর 'current' নয় — সিদ্ধান্ত-ইতিহাস হিসেবে রাখা হয়েছে; লাইভ স্টেটাস INDEX-এর backlog টেবিলে।
+
 # SupremeAI — Database Audit Checklist
 
 > **Scope:** Schema integrity, migrations, RLS, indexes, performance, backups, security, and data lifecycle. Each item includes a **verification method** so results are reproducible.
