@@ -486,10 +486,14 @@ class SupabaseDB:
             "CREATE INDEX IF NOT EXISTS idx_skill_fitness_score ON skill_fitness (fitness_score DESC);",
             # বাংলা মন্তব্য: pgvector এক্সটেনশন সক্রিয় করা এবং learned_facts টেবিলে ভেক্টর এমবেডিং ও RPC ফাংশন যুক্ত করা।
             "CREATE EXTENSION IF NOT EXISTS vector;",
-            "ALTER TABLE learned_facts ADD COLUMN IF NOT EXISTS embedding vector(1536);",
+            # G5.2 reaudit 2026-11-26: dims aligned to 384 (core/embeddings.py _PG_DIM,
+            # issue #442). Old 1536 DDL contradicted runtime writes/queries. Existing
+            # prod columns still vector(1536) need a one-time operator migration —
+            # NOT auto-run here (blind cast would reject non-384 rows).
+            "ALTER TABLE learned_facts ADD COLUMN IF NOT EXISTS embedding vector(384);",
             """
             CREATE OR REPLACE FUNCTION match_learned_facts (
-                query_embedding vector(1536),
+                query_embedding vector(384),
                 match_threshold float,
                 match_count int
             )
@@ -523,13 +527,13 @@ class SupabaseDB:
             "namespace VARCHAR(255) NOT NULL,"
             "content TEXT NOT NULL,"
             "source VARCHAR(500) NOT NULL,"
-            "embedding vector(1536),"
+            "embedding vector(384),"
             "created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()"
             ");",
             "CREATE INDEX IF NOT EXISTS idx_knowledge_base_namespace ON knowledge_base (namespace);",
             """
             CREATE OR REPLACE FUNCTION match_knowledge_base (
-                query_embedding vector(1536),
+                query_embedding vector(384),
                 match_namespace text,
                 match_threshold float,
                 match_count int
