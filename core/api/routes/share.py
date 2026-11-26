@@ -9,10 +9,11 @@ from __future__ import annotations
 import asyncio
 import secrets
 import time
+from collections import OrderedDict
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from api.deps import get_current_user_token
@@ -22,7 +23,8 @@ from database.supabase_client import get_db
 router = APIRouter(prefix="/api/share", tags=["Sharing"])
 
 # In-memory cache with 30-minute TTL for public share lookups
-_share_cache: dict[str, dict[str, Any]] = {}
+_share_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
+_SHARE_CACHE_MAX_SIZE = 500
 _CACHE_TTL_SECONDS = 30 * 60  # 30 minutes
 
 
@@ -31,16 +33,20 @@ def _cache_get(share_id: str) -> dict[str, Any] | None:
     entry = _share_cache.get(share_id)
     if entry is None:
         return None
-    if time.monotonic() - entry["_cached_at"] > _CACHE_TTL_SECONDS:
+    if time.monotonic() - entry["_cached_at"] >= _CACHE_TTL_SECONDS:
         del _share_cache[share_id]
         return None
+    _share_cache.move_to_end(share_id)
     return entry
 
 
 def _cache_set(share_id: str, data: dict[str, Any]) -> None:
     """Store a share entry in the in-memory cache."""
-    data["_cached_at"] = time.monotonic()
-    _share_cache[share_id] = data
+    # বাংলা মন্তব্য: caller-এর data mutate নয়; free-tier RAM-এ সর্বোচ্চ ৫০০ entry।
+    _share_cache[share_id] = {**data, "_cached_at": time.monotonic()}
+    _share_cache.move_to_end(share_id)
+    while len(_share_cache) > _SHARE_CACHE_MAX_SIZE:
+        _share_cache.popitem(last=False)
 
 
 def _generate_share_id(length: int = 12) -> str:
@@ -187,48 +193,11 @@ async def generate_share_link(
 
 
 @router.get("/{share_id}", response_model=PublicShareDetailResponse)
-async def get_shared_conversation(share_id: str):
-    """Public endpoint to retrieve a shared conversation without authentication.
-
-    Returns the conversation title, all messages, and metadata.
-    Results are cached in-memory for 30 minutes.
-    """
-    # Check cache first
-    cached = _cache_get(share_id)
-    if cached is not None:
-        # Increment view count asynchronously (best-effort)
-        try:
-            db = get_db()
-            current_count = cached.get("view_count", 0)
-            await asyncio.to_thread(
-                lambda: (
-                    db.client.table("shared_conversations")
-                    .update({"view_count": current_count + 1})
-                    .eq("share_id", share_id)
-                    .execute()
-                )
-            )
-            cached["view_count"] = current_count + 1
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            import logging
-
-            logging.getLogger(__name__).exception(f"Silenced error: {e}")
-
-        return PublicShareDetailResponse(
-            conversation_id=cached["conversation_id"],
-            title=cached.get("title"),
-            messages=cached["messages"],
-            shared_at=cached["created_at"],
-            expires_at=cached["expires_at"],
-            view_count=cached["view_count"],
-        )
-
-    db = get_db()
-
+async def get_shared_conversation(share_id: str, response: Response):
+    """বাংলা মন্তব্য: message cache access-authority নয়; প্রতি read-এ live share যাচাই।"""
+    response.headers["Cache-Control"] = "no-store"
     try:
-        # Fetch the share record
+        db = get_db()
         share_response = await asyncio.to_thread(
             lambda: (
                 db.client.table("shared_conversations")
@@ -238,62 +207,69 @@ async def get_shared_conversation(share_id: str):
                 .execute()
             )
         )
-
         if not share_response.data:
-            raise HTTPException(status_code=404, detail="Share link not found")
+            _share_cache.pop(share_id, None)
+            raise HTTPException(
+                status_code=404,
+                detail="Share link not found",
+                headers={"Cache-Control": "no-store"},
+            )
 
         share = share_response.data[0]
-
-        # Check expiration
         expires_at = share["expires_at"]
         if datetime.now(UTC) >= datetime.fromisoformat(expires_at.replace("Z", "+00:00")):
-            raise HTTPException(status_code=410, detail="This share link has expired")
+            _share_cache.pop(share_id, None)
+            raise HTTPException(
+                status_code=410,
+                detail="This share link has expired",
+                headers={"Cache-Control": "no-store"},
+            )
 
         conversation_id = share["conversation_id"]
+        cached = _cache_get(share_id)
+        # বাংলা মন্তব্য: অন্য worker-এ revoke/private/expiry বদলালেও উপরকার live check বাধ্যতামূলক।
+        if cached is not None and cached.get("conversation_id") == conversation_id:
+            title, messages = cached.get("title"), cached["messages"]
+        else:
+            conv_response = await asyncio.to_thread(
+                lambda: (
+                    db.client.table("conversations")
+                    .select("id, title")
+                    .eq("id", conversation_id)
+                    .execute()
+                )
+            )
+            if not conv_response.data:
+                _share_cache.pop(share_id, None)
+                raise HTTPException(
+                    status_code=404,
+                    detail="Conversation not found",
+                    headers={"Cache-Control": "no-store"},
+                )
+            title = conv_response.data[0].get("title")
+            messages_response = await asyncio.to_thread(
+                lambda: (
+                    db.client.table("messages")
+                    .select("id, role, content, created_at")
+                    .eq("conversation_id", conversation_id)
+                    .order("created_at", desc=False)
+                    .execute()
+                )
+            )
+            messages = [SharedMessageResponse(**msg) for msg in messages_response.data]
+            _cache_set(
+                share_id, {"conversation_id": conversation_id, "title": title, "messages": messages}
+            )
 
-        # Fetch conversation
-        conv_response = await asyncio.to_thread(
+        new_view_count = share.get("view_count", 0) + 1
+        await asyncio.to_thread(
             lambda: (
-                db.client.table("conversations")
-                .select("id, title")
-                .eq("id", conversation_id)
+                db.client.table("shared_conversations")
+                .update({"view_count": new_view_count})
+                .eq("share_id", share_id)
                 .execute()
             )
         )
-
-        if not conv_response.data:
-            raise HTTPException(status_code=404, detail="Conversation not found")
-
-        title = conv_response.data[0].get("title")
-
-        # Fetch messages ordered by created_at
-        messages_response = (
-            db.client.table("messages")
-            .select("id, role, content, created_at")
-            .eq("conversation_id", conversation_id)
-            .order("created_at", desc=False)
-            .execute()
-        )
-
-        messages = [SharedMessageResponse(**msg) for msg in messages_response.data]
-
-        # Increment view count
-        new_view_count = share.get("view_count", 0) + 1
-        db.client.table("shared_conversations").update({"view_count": new_view_count}).eq(
-            "share_id", share_id
-        ).execute()
-
-        # Cache the result
-        cache_data = {
-            "conversation_id": conversation_id,
-            "title": title,
-            "messages": messages,
-            "created_at": share["created_at"],
-            "expires_at": expires_at,
-            "view_count": new_view_count,
-        }
-        _cache_set(share_id, cache_data)
-
         return PublicShareDetailResponse(
             conversation_id=conversation_id,
             title=title,
@@ -306,7 +282,11 @@ async def get_shared_conversation(share_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to retrieve shared conversation: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve shared conversation") from e
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve shared conversation",
+            headers={"Cache-Control": "no-store"},
+        ) from e
 
 
 @router.get("/list", response_model=list[SharedConversationResponse])
