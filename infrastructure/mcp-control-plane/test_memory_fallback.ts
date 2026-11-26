@@ -37,8 +37,8 @@ if (!("memory.recall_memories" in tools)) {
   console.error("FAIL: memory.recall_memories missing from fallback");
   process.exit(1);
 }
-// Phase-2 HITL tools must also be present in FALLBACK_TOOLS
-for (const name of ["memory.list_candidates", "memory.confirm_memory", "memory.reject_memory"]) {
+// Phase-2 HITL + GDPR export/wipe must be present in FALLBACK_TOOLS (cold-start parity with sidecar 27)
+for (const name of ["memory.list_candidates", "memory.confirm_memory", "memory.reject_memory", "memory.export_memory", "memory.wipe_memory"]) {
   if (!(name in tools)) {
     console.error(`FAIL: ${name} missing from fallback`);
     process.exit(1);
@@ -49,5 +49,7 @@ console.log("has memory.recall_memories =", "memory.recall_memories" in tools);
 console.log("has memory.list_candidates =", "memory.list_candidates" in tools);
 console.log("has memory.confirm_memory =", "memory.confirm_memory" in tools);
 console.log("has memory.reject_memory =", "memory.reject_memory" in tools);
+console.log("has memory.export_memory =", "memory.export_memory" in tools);
+console.log("has memory.wipe_memory =", "memory.wipe_memory" in tools);
 console.log("FALLBACK-TEST-PASS");
 process.exit(0);
