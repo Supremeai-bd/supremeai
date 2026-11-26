@@ -124,6 +124,8 @@
     "recall_facts": ["memory", "search"],
     "save_learned_fact": ["memory", "save"],
     "search_learned_facts": ["memory", "search"],
+    "save_memory": ["memory", "save"],
+    "recall_memories": ["memory", "search"],
     "get_skill_dependencies": ["mcp_tools", "read"],
     "find_optimal_learning_path": ["mcp_tools", "read"],
     "get_render_deploy_preflight": ["mcp_tools", "read"],

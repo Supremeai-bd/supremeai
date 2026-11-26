@@ -81,6 +81,7 @@ export function consumeToolRateLimit(toolName: string): { allowed: boolean; retr
 export const MUTATION_TOOLS: ReadonlySet<string> = new Set([
   "github_create_issue",
   "memory_remember_fact",
+  "memory_save_memory",
   "work_claim",
   "bridge_submit_patch",
 ]);
