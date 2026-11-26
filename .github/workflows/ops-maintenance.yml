@@ -2963,3 +2963,14 @@ jobs:
           python-version: '3.11'
       - name: Run rate limit inventory
         run: python3 scripts/ops/rate_limit_inventory.py > /dev/null || true
+  memory-backend-census:
+    name: Memory Backend Census (B5)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run memory backend census
+        run: python3 scripts/ops/memory_backend_census.py > /dev/null || true
