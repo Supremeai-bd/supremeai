@@ -42,19 +42,27 @@ def run_health_check():
 def run_knowledge_ops(inject: bool = False, verify: bool = True):
     """Run knowledge base verification and vector injection."""
     print("=== [SupremeOps] Knowledge Operations ===")
-    from tools.tool_knowledge_injector import (
-        KNOWLEDGE_CARDS,
-        inject_knowledge_cards,
-        query_similar_tools,
-    )
-    print(f"Total Knowledge Matrix Cards: {len(KNOWLEDGE_CARDS)}")
+    # বাংলা মন্তব্য: ডিলিট হওয়া tools.tool_knowledge_injector-এর বদলে ক্যানোনিকাল KnowledgeBaseIndexer ও TOOLS রেজিস্ট্রি ব্যবহার
+    from core.scripts.seed_tools_registry import TOOLS
+    from core.tools.knowledge.knowledge_base_indexer import KnowledgeBaseIndexer
+
+    indexer = KnowledgeBaseIndexer()
+    print(f"Total Knowledge Matrix Cards: {len(TOOLS)}")
     if inject:
-        print("Injecting cards into ai_memory (pgvector)...")
-        injected = inject_knowledge_cards(KNOWLEDGE_CARDS)
-        print(f"Successfully synced: {injected} cards.")
+        print("Injecting cards into vector knowledge base...")
+        cards = [
+            {
+                "id": f"tool::{tool_id}",
+                "text": f"{name} ({category}): {desc} [path: {file_path}]",
+                "metadata": {"tool_id": tool_id, "category": category, "path": file_path},
+            }
+            for tool_id, name, file_path, category, desc, *_ in TOOLS
+        ]
+        res = indexer.index_scraped_data(cards)
+        print(f"Successfully synced: {res.get('indexed', 0)} cards.")
     if verify:
         print("Verifying semantic recall query...")
-        sample_results = query_similar_tools("How to route models through free tier?", top_k=2)
+        sample_results = indexer.search_knowledge("How to route models through free tier?", n_results=2)
         print(f"Recall matches found: {len(sample_results)}")
 
 

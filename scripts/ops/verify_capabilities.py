@@ -61,7 +61,8 @@ def test_self_healing():
 
 def test_self_evolving():
     """SelfEvolutionAgent should instantiate + have _tick method."""
-    from core.evolution.self_evolution_agent import SelfEvolutionAgent
+    # বাংলা মন্তব্য: core.evolution-এর বদলে সঠিক core.self_evolution প্যাকেজ থেকে ইমপোর্ট
+    from core.self_evolution.self_evolution_agent import SelfEvolutionAgent
 
     agent = SelfEvolutionAgent(interval_seconds=300)
     assert hasattr(agent, "_tick"), "SelfEvolutionAgent missing _tick method"

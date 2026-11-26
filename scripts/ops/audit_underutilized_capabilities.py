@@ -113,7 +113,8 @@ def scan_underutilized_capabilities():
     # 2. Check Mounted Routes with Dormant Endpoints
     print("2. Scanning Mounted API Routes with Dormant/Unused Endpoints...")
     sys.path.insert(0, '.')
-    from scripts.audit_isolated_components import audit_routes
+    # বাংলা মন্তব্য: সঠিক পাথ scripts.ops.audit_isolated_components থেকে audit_routes ইমপোর্ট
+    from scripts.ops.audit_isolated_components import audit_routes
     routes_data = audit_routes()
 
     # For mounted routes, check if their endpoints are called by frontend

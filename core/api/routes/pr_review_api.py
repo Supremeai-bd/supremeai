@@ -100,7 +100,8 @@ async def github_webhook(request: Request):
     pr_number = pr.get("number")
 
     try:
-        from tools.pr_reviewer import PRReviewer
+        # বাংলা মন্তব্য: ভাঙা tools.pr_reviewer-এর বদলে ক্যানোনিকাল core.tools.code.pr_reviewer পাথ ব্যবহার
+        from core.tools.code.pr_reviewer import PRReviewer
 
         reviewer = PRReviewer()
         result = await reviewer.review_pr(repo_full_name, pr_number)
