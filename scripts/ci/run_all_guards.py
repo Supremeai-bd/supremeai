@@ -268,14 +268,42 @@ def main(argv: list[str] | None = None) -> int:
         help="number of parallel processes to run guards (default 1 for sequential)",
     )
     parser.add_argument("--list", action="store_true", help="print the selected commands")
+    parser.add_argument(
+        "--no-path-filter",
+        action="store_true",
+        help="disable changed-files path-filter on --fast (full fast lane)",
+    )
     args = parser.parse_args(argv)
 
     if args.emergency:
+        # Emergency lane stays UNFILTERED (fail-closed): critical integrity
+        # checks must all run on every pre-push regardless of changed paths.
         selected = [c for c in GUARDS if is_emergency(c)]
         label = "emergency pre-push lane"
     elif args.fast:
         selected = [c for c in GUARDS if is_fast(c)]
         label = "fast lane"
+        # G1 (reaudit 2026-11-26): path-filter the PR fast lane when we can
+        # derive changed files. Fail-OPEN to the full fast lane on any error
+        # so a git hiccup never weakens the gate. run_guards.py stays the
+        # filter SSOT (it imports GUARDS from this module — lazy import here
+        # avoids a circular import at module load).
+        if not args.no_path_filter:
+            try:
+                import run_guards as _rg
+
+                _changed = _rg.changed_from_git()
+                if _changed:
+                    selected, _total = _rg.select("fast", _changed)
+                    label = (
+                        f"fast lane (path-filtered {len(selected)}/{_total}, "
+                        f"changed={len(_changed)})"
+                    )
+            except Exception as _exc:  # fail-open by design
+                print(
+                    f"path-filter unavailable ({_exc}); running full fast lane",
+                    file=sys.stderr,
+                )
     else:
         selected = GUARDS
         label = "full roster"

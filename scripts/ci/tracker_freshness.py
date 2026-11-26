@@ -11,7 +11,7 @@ scripts/ci/tracker_freshness.py — Stale tracker/issue freshness bot (Audit A2)
   1) একটা markdown ট্র্যাকার ফাইলে "done-looking" হেডিং (✅/DONE/[x]/"completed")
      আর ফাইলের সাথে অসঙ্গত সংখ্যা-দাবি (যেমন "১১,৭২৫ lines") খোঁজে
   2) ওপেন ইস্যুর ভেতরের দাবি বনাম repo বাস্তবতা (ফাইল আছে কি না) ক্রস-চেক করে
-     `stale` লেবেল + প্রমাণসহ একটা কমেন্ট দেয়
+     `needs-verification` লেবেল + প্রমাণসহ একটা কমেন্ট দেয়
 
 Regression-safe: label/comment ONLY। কোনো close/merge/revert নয়।
 --dry-run দিলে কোনো write নেই — শুধু রিপোর্ট stdout-এ।
@@ -19,7 +19,7 @@ Regression-safe: label/comment ONLY। কোনো close/merge/revert নয়
 Usage:
   python scripts/ci/tracker_freshness.py --dry-run
   python scripts/ci/tracker_freshness.py --tracker supremeai-public/TASK_LIST_SUPREMEAI_PUBLIC.md
-  python scripts/ci/tracker_freshness.py --issues 9,655 --label stale
+  python scripts/ci/tracker_freshness.py --issues 9,655 --label needs-verification
 """
 
 from __future__ import annotations
@@ -138,7 +138,7 @@ def _gh(args: list[str]) -> str:
 def propose_issue_stale(
     issue: int, reason: str, label: str, dry_run: bool
 ) -> dict[str, object]:
-    """ইস্যুতে `stale` লেবেল + প্রমাণসহ কমেন্ট — close নয়।"""
+    """ইস্যুতে `needs-verification` লেবেল + প্রমাণসহ কমেন্ট — close নয়।"""
     actions: list[str] = []
     if dry_run:
         actions.append(f"[dry-run] label '{label}' + comment দেওয়া হবে issue #{issue}")
@@ -167,7 +167,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--issues", default="", help="কমা-separated ওপেন ইস্যু নম্বর, যেগুলোতে nudge দেওয়া হবে",
     )
-    parser.add_argument("--label", default="stale", help="যে লেবেল লাগানো হবে")
+    parser.add_argument("--label", default="needs-verification", help="যে লেবেল লাগানো হবে (repo-তে আগে থেকে আছে; `stale` নেই)")
     parser.add_argument("--dry-run", action="store_true", help="কোনো write নয় — শুধু রিপোর্ট")
     args = parser.parse_args(argv)
 
