@@ -94,6 +94,10 @@ def render(rules: dict) -> str:
         "এক কমান্ড বিকল্প: `./scripts/agents/session_boot.sh --lane <role> [--issue N]` "
         "— উপরের ১–৫ ধাপ একসাথে চালায় (গেট bypass নয়; dry-run: `--dry-run`)।"
     )
+    lines.append(
+        "PR-এর আগে Test Evidence: `scripts/ci/capture_test_evidence.sh` চালিয়ে "
+        "pytest/tsc/vitest output PR body-তে পেস্ট করো (manual copy নয়)।"
+    )
     lines.append("")
     lines.append("_কাজ শুরুর আগে সর্বদা `git fetch origin --prune && cat AGENTS.md` চালাও।_")
 

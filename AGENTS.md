@@ -66,6 +66,7 @@ MCP Tower-এ পূর্ণাঙ্গ GitHub Write/Push টুলস (`githu
 7. `gh pr create ... && gh issue edit <issue#> --add-label 'has-pr'` — স্বাধীন কাজের ক্ষেত্রে বা সম্পূর্ণ গ্রুপের কাজ শেষ হলে একক PR খোলো এবং অবিলম্বে has-pr লেবেল দাও
 
 এক কমান্ড বিকল্প: `./scripts/agents/session_boot.sh --lane <role> [--issue N]` — উপরের ১–৫ ধাপ একসাথে চালায় (গেট bypass নয়; dry-run: `--dry-run`)।
+PR-এর আগে Test Evidence: `scripts/ci/capture_test_evidence.sh` চালিয়ে pytest/tsc/vitest output PR body-তে পেস্ট করো (manual copy নয়)।
 
 _কাজ শুরুর আগে সর্বদা `git fetch origin --prune && cat AGENTS.md` চালাও।_
 
