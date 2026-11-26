@@ -9,6 +9,30 @@ from core.observability.metrics_registry import normalize_route_path, record_err
 from core.observability.telemetry import trace_span
 
 
+# বাংলা মন্তব্য: লাইভনেস/রেডিনেস প্রোব (Render health check, uptime monitor) প্রতি ~৪ সেকেন্ডে আসে।
+# এগুলো evolution_logs-এ লিখলে দিনে ~২০k অর্থহীন সারি জমে (২০২৬-১১-২৬ প্রোড ডেটা: ৪৭,১৬১ সারির
+# ৯৬.৭%-ই "GET /health/live - 200")। সফল (<400) প্রোব শুধু Prometheus মেট্রিকে থাকবে;
+# ব্যর্থ প্রোব (>=400) আগের মতোই অডিট লগ ও PostHog-এ যাবে — যাতে আউটেজ সিগন্যাল হারিয়ে না যায়।
+_PROBE_PATHS = frozenset(
+    {
+        "/health",
+        "/healthz",
+        "/health/live",
+        "/health/ready",
+        "/api/v1/health",
+        "/api/v1/health/live",
+        "/api/v1/health/ready",
+    }
+)
+
+
+def should_persist_request_log(path: str, status_code: int) -> bool:
+    """Return False for successful health-probe hits (metrics-only), True otherwise."""
+    # বাংলা মন্তব্য: query string ও শেষের '/' বাদ দিয়ে তুলনা, যাতে "/health/live/" বা "?x=1" ফসকে না যায়
+    clean = (path or "").split("?", 1)[0].rstrip("/") or "/"
+    return not (clean in _PROBE_PATHS and status_code < 400)
+
+
 class ObservabilityMiddleware:
     def __init__(self, app) -> None:
         self.app = app
@@ -118,21 +142,26 @@ class ObservabilityMiddleware:
             record_request(method, path, status_code)
             record_request_duration(method, path, duration)
 
-            try:
-                from core.observability.posthog_client import posthog_client
+            # বাংলা মন্তব্য: সফল হেলথ-প্রোব হলে PostHog ও evolution_logs দুটোই স্কিপ —
+            # Prometheus মেট্রিক (record_request/record_request_duration) উপরে আগেই রেকর্ড হয়েছে।
+            persist_request_log = should_persist_request_log(path, status_code)
 
-                posthog_client.capture(
-                    distinct_id=user_id,
-                    event="api_request",
-                    properties={
-                        "path": path,
-                        "method": method,
-                        "status_code": status_code,
-                        "duration": duration,
-                    },
-                )
-            except Exception as exc:
-                logger.debug(f"PostHog capture failed in observability middleware: {exc}")
+            if persist_request_log:
+                try:
+                    from core.observability.posthog_client import posthog_client
+
+                    posthog_client.capture(
+                        distinct_id=user_id,
+                        event="api_request",
+                        properties={
+                            "path": path,
+                            "method": method,
+                            "status_code": status_code,
+                            "duration": duration,
+                        },
+                    )
+                except Exception as exc:
+                    logger.debug(f"PostHog capture failed in observability middleware: {exc}")
 
             # --- START REDIS TRAFFIC MONITORING ---
             try:
@@ -192,7 +221,7 @@ class ObservabilityMiddleware:
             try:
                 from core.database.supabase_client import db
 
-                if db.client:
+                if persist_request_log and db.client:
                     db.append_evolution_log(
                         {
                             "event_type": "api_request",
