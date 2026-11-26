@@ -35,6 +35,9 @@ const FALLBACK_TOOLS: Array<{ name: string; description: string; inputSchema: Re
   { name: "clear_session", description: "Clear sliding window memory for a session.", inputSchema: { type: "object", properties: {} } },
   { name: "remember_fact", description: "Save a long-term fact (Supabase/SQLite).", inputSchema: { type: "object", properties: {} } },
   { name: "search_learned_facts", description: "Search stored long-term facts.", inputSchema: { type: "object", properties: {} } },
+  // Phase 1 SSOT (memories table) — write + hybrid recall; name avoids memory.recall collision
+  { name: "save_memory", description: "Phase-1 SSOT write: insert one row into public.memories (status=candidate). PII stripped; training never auto-confirms.", inputSchema: { type: "object", properties: { content: { type: "string" }, kind: { type: "string" }, tenant_id: { type: "string" } }, required: ["content"] } },
+  { name: "recall_memories", description: "Phase-1 SSOT read: hybrid recall over public.memories via RPC match_memories (vector+FTS+recency).", inputSchema: { type: "object", properties: { query: { type: "string" }, limit: { type: "integer" }, tenant_id: { type: "string" } }, required: ["query"] } },
 ];
 
 // R72 revival (#2618): truthful per-tool annotation hints. The memory family
@@ -52,6 +55,8 @@ const MEMORY_HINTS: Record<string, Record<string, boolean>> = {
   "memory.ingest_document_rag": { readOnlyHint: false },
   "memory.record_task": { readOnlyHint: false },
   "memory.remember_fact": { readOnlyHint: false },
+  "memory.save_memory": { readOnlyHint: false },
+  "memory.recall_memories": { readOnlyHint: true, idempotentHint: true },
   "memory.clear_session": { readOnlyHint: false, destructiveHint: true },
   "memory.wipe_memory": { readOnlyHint: false, destructiveHint: true },
   "memory.read_graph": { readOnlyHint: true, idempotentHint: true },
