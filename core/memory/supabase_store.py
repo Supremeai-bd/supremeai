@@ -309,6 +309,16 @@ class SupabaseStore(SQLiteMemoryStore):
                     data["embedding"] = embedding
 
                 client.table("learned_facts").upsert(data).execute()
+                # G5.2b: best-effort dual-write into public.memories SSOT
+                # (status=candidate). Fail-open — never fails the primary write.
+                try:
+                    from core.memory.ssot_adapter import dual_write_learned_fact
+
+                    dual_write_learned_fact(fact, content_text=content_text)
+                except Exception as ssot_exc:  # noqa: BLE001
+                    from core.monitoring.logging_config import logger as _lg
+
+                    _lg.warning(f"SSOT dual-write skipped for {fact_id}: {ssot_exc}")
             except Exception as e:
                 self._stats["pgvector_failure"] += 1
                 # CRITICAL FIX - fallback to SQLite on failure
