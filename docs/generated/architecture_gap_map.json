@@ -411,9 +411,9 @@
   },
   "graph": {
     "modules": 2197,
-    "edges": 5046,
+    "edges": 5049,
     "edge_kinds": {
-      "dispatch": 204,
+      "dispatch": 207,
       "dynamic": 4,
       "import": 4145,
       "string": 693
@@ -421,6 +421,16 @@
   },
   "entrypoints": {
     "found": [
+      "@.github/actions/build-sign-image/action.yml",
+      "@.github/actions/deep-audit/action.yml",
+      "@.github/actions/health-probe/action.yml",
+      "@.github/actions/live-smoke/action.yml",
+      "@.github/actions/python-setup/action.yml",
+      "@.github/actions/render-deploy-status/action.yml",
+      "@.github/actions/render-deploy/action.yml",
+      "@.github/actions/setup-backend/action.yml",
+      "@.github/actions/setup-frontend/action.yml",
+      "@.github/actions/setup-playwright/action.yml",
       "@.github/workflows/codeql.yml",
       "@.github/workflows/daily-key-health.yml",
       "@.github/workflows/deploy-rollback.yml",
