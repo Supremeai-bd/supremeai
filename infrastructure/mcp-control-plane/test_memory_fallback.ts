@@ -28,5 +28,16 @@ console.log("registered tool count =", Object.keys(tools).length);
 console.log("has memory.search_nodes =", "memory.search_nodes" in tools);
 console.log("has memory.remember_fact =", "memory.remember_fact" in tools);
 console.log("has memory.status =", "memory.status" in tools);
+// Phase-1 SSOT tools must be advertised even when sidecar is cold
+if (!("memory.save_memory" in tools)) {
+  console.error("FAIL: memory.save_memory missing from fallback");
+  process.exit(1);
+}
+if (!("memory.recall_memories" in tools)) {
+  console.error("FAIL: memory.recall_memories missing from fallback");
+  process.exit(1);
+}
+console.log("has memory.save_memory =", "memory.save_memory" in tools);
+console.log("has memory.recall_memories =", "memory.recall_memories" in tools);
 console.log("FALLBACK-TEST-PASS");
 process.exit(0);
