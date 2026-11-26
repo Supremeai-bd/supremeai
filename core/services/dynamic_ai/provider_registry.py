@@ -141,7 +141,8 @@ class ProviderRegistry:
                 "api_key_env_var": "GROQ_API_KEY",
                 "base_url": "https://api.groq.com/openai/v1",
                 "models": [
-                    {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B", "tier": "standard"},
+                    # #650/#645: llama-3.3-70b-versatile 404s on Groq /models.
+                    {"id": "openai/gpt-oss-20b", "name": "GPT-OSS 20B", "tier": "standard"},
                     {"id": "mixtral-8x7b-32768", "name": "Mixtral 8x7B", "tier": "economy"},
                 ],
                 "rpm_limit": 30,
