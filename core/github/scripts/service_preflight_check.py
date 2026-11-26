@@ -291,7 +291,7 @@ def main() -> None:
     # ── Environment variables ─────────────────────────────────
     render_key_primary  = os.environ.get("RENDER_API_KEY", "")
     render_key_backup   = os.environ.get("RENDER_API_KEY_BACKUP", "") or render_key_primary
-    primary_svc_id      = os.environ.get("PRIMARY_SVC_ID", "srv-da07ogmgekts739amqa0")
+    primary_svc_id      = os.environ.get("PRIMARY_SVC_ID", "srv-dau7c9ek1f9s73almn0g")
     backup_svc_id       = os.environ.get("BACKUP_SVC_ID",  "srv-da35gg2bkg8c73fp1mu0")
     primary_svc_url     = os.environ.get("RENDER_PRIMARY_URL") or _registry_url("core")
     backup_svc_url      = os.environ.get("RENDER_BACKUP_URL", "")

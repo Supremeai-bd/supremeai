@@ -161,7 +161,7 @@ def main():
     primary_svc = (
         os.environ.get("RENDER_SVC_ID", "").strip()
         or os.environ.get("PRIMARY_SVC_ID", "").strip()
-        or "srv-da07ogmgekts739amqa0"
+        or "srv-dau7c9ek1f9s73almn0g"
     )
     deploy_hook = os.environ.get("RENDER_DEPLOY_HOOK_URL", "").strip()
     image_url = os.environ.get("IMAGE_URL", "").strip() or None

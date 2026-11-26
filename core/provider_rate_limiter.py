@@ -138,7 +138,9 @@ class IntelligentRateLimiter:
                 priority=2,
                 is_free=True,
                 timeout_seconds=20,
-                model="llama-3.3-70b-versatile",
+                # #650/#645: llama-3.3-70b-versatile 404s on Groq /models —
+                # same live id as advanced_model_router terminal fallback.
+                model="openai/gpt-oss-20b",
             ),
             "openrouter": ProviderConfig(
                 name="OpenRouter",
