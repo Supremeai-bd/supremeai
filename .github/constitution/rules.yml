@@ -250,6 +250,9 @@ living_protocols:
   mcp_tower_push_governance:
     title: "11. MCP Tower Push & Tooling Governance (টাওয়ার রাইট/পুশ ও টুলিং নীতি)"
     rule: "MCP Tower-এ পূর্ণাঙ্গ GitHub Write/Push টুলস (`github_push_file`, `bridge_submit_patch`, `github_merge_pr`, `guardian_act`) সক্রিয়। তবে `main`-এ অন্ধ পুশ সম্পূর্ণ নিষিদ্ধ (fail-closed: main branch direct-push blocked)। সমস্ত কোড পরিবর্তন শাখা ব্রাঞ্চ (`agent/<issue>-slug`) বা ব্রিজ ওয়ার্ক অর্ডারে পুশ হবে এবং ৩-স্তর ভেরিফিকেশন ও CI Gate পাস করে মার্জ হবে। Progressive Disclosure (`tool-visibility.ts`)-এর কারণে অনেক টুল `tools/list`-এ লুকানো থাকে—নাম জানতে `tower_catalog` / `tower_describe` ও কল করতে `tower_invoke` (বা সরাসরি `tools/call`) ব্যবহার করো। `bridge_submit_patch` শুধু `supremeai` টার্গেট করে; `supremeai-public`-এ পুশ করতে `github_push_file` + `github_merge_pr`-এ `repo: \"supremeai-public\"` দাও। এছাড়া এপিআই টেস্টিংয়ের জন্য Hoppscotch (`api-schemas/hoppscotch/`) এবং লাইভ ট্র্যাফিক মনিটরিংয়ে Umami Analytics ক্লাউড এজ-এ কনফিগার করা।"
+  no_compromise_hard_cut:
+    title: "12. No-Compromise Hard Cut (জিরো-ওয়েস্ট ও রুট-ক্লিনআপ নীতি)"
+    rule: "অপ্রয়োজনীয়, ডুপ্লিকেট, স্ট্যাটিক বা ডেড কোড/ট্যাব/ফ্ল্যাগ/অপশন 'পাছে কিছু ভেঙে যায়' ভেবে ডিফেন্সিভ কপি বা সাব-ট্যাব হিসেবে রেখে দেওয়া সম্পূর্ণ নিষিদ্ধ। একবারে সাহস করে রুট থেকে কেটে (Hard Cut) বাদ দিতে হবে এবং যে কয়টা ইম্পোর্ট বা টেস্ট ভাঙে, সেগুলো সাথে সাথে ফিক্স ও ভেরিফাই করতে হবে। শুধু তখনই কোড রাখা বা ওয়্যার করা যাবে, যখন তার ব্যাকএন্ড/স্টোর ক্যাপাবিলিটি সত্যিকারের ব্যবহৃত ও কার্যকর।"
 
 bootstrap:
   - step: "git fetch origin --prune && cat AGENTS.md"
