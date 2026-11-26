@@ -175,6 +175,15 @@ def main() -> int:
 
         client = RenderClient(api_key=api_key, service_id=svc_id)
         record, error = latest_live(client, svc_id)
+        # বাংলা মন্তব্য: ডিপ্লয় চলমান থাকলে (build/update_in_progress) সাথে সাথে fail না করে
+        # সর্বোচ্চ ১৮০ সেকেন্ড পোল করে live হওয়া পর্যন্ত অপেক্ষা করা
+        in_progress_states = {"build_in_progress", "update_in_progress", "pre_deploy_in_progress"}
+        if record is not None and record.get("status") in in_progress_states:
+            import time
+            deadline = time.monotonic() + 180
+            while time.monotonic() < deadline and record is not None and record.get("status") in in_progress_states:
+                time.sleep(15)
+                record, error = latest_live(client, svc_id)
         if record is None:
             row["status"] = "api_error"
             row["detail"] = error
