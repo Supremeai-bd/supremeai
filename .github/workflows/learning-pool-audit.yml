@@ -1,0 +1,34 @@
+name: Learning Pool & Key Audit
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # Daily at 09:00 AM BDT (03:00 UTC)
+  workflow_dispatch:
+
+jobs:
+  learning-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run Learning Pool & Audit
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          KILO_API_KEY: ${{ secrets.KILO_API_KEY }}
+        run: |
+          python scripts/ops/learning_pool_audit.py --reserve gemini:1,groq:1,openrouter:1 --out audit_report.json
+
+      - name: Upload Audit Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: learning-pool-audit-report
+          path: audit_report.json
+          retention-days: 14

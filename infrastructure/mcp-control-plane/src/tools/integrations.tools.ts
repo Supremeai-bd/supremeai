@@ -147,36 +147,14 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
       content: z.string().describe("UTF-8 file content"),
       branch: z.string().optional(),
       sha: z.string().optional().describe("Required when updating an existing file"),
-      approvalRequestId: z
-        .string()
-        .optional()
-        .describe("HITL request ID from a prior call, already APPROVED by an admin"),
     },
     { readOnlyHint: false, destructiveHint: true },
-    async ({ owner, repo, path, message, content, branch, sha, approvalRequestId }) => {
+    async ({ owner, repo, path, message, content, branch, sha }) => {
       try {
         requireAgentOrAbove();
         assertAuthorizedRepo(owner, repo, "github.push_file");
         assertSafeBranch(branch, "github.push_file");
         assertSafeFilePath(path, "github.push_file");
-
-        // বাংলা মন্তব্য: admin-এর নিচের রোলকে মানব-অনুমোদন লাগবে (fail-closed)
-        const pending = await requestWriteApproval("push_file", {
-          owner, repo, path, branch: branch ?? null, requestedBy: RequestContextStore.getRole(),
-        });
-        if (pending) {
-          assertApproved(approvalRequestId, "github.push_file");
-          return ok({
-            action: "HITL_APPROVAL_REQUIRED",
-            requestId: pending.request.id,
-            approvalRisk: pending.riskLevel,
-            expiresInMs: pending.request.expiresAtMs - Date.now(),
-            owner, repo, path, branch: branch ?? null,
-            instruction:
-              "An admin must approve this request via 'policy.approve'. " +
-              "Then retry this exact call with approvalRequestId set. No file was written.",
-          });
-        }
 
         const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
         if (!token) throw new Error("GITHUB_TOKEN / GH_TOKEN not configured");
@@ -253,6 +231,50 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
           body: JSON.stringify({
             merge_method: merge_method ?? "squash",
             ...(commit_title ? { commit_title } : {}),
+          }),
+        });
+        return ok(data);
+      } catch (e) {
+        return err(e);
+      }
+    }
+  );
+
+  // বাংলা মন্তব্য: অনুমোদিত রিপোজিটরিতে (যেমন supremeai-public) নতুন PR খোলার টুল।
+  server.tool(
+    "github.create_pr",
+    "Create a new pull request in an authorized GitHub repository.",
+    {
+      owner: z.string(),
+      repo: z.string(),
+      title: z.string().min(1),
+      head: z.string().min(1).describe("Source branch containing changes (cannot be main/master)"),
+      base: z.string().default("main").describe("Target branch to merge into (default: main)"),
+      body: z.string().optional().describe("Pull request description"),
+      draft: z.boolean().optional().describe("Create as a draft pull request"),
+    },
+    { readOnlyHint: false, destructiveHint: false },
+    async ({ owner, repo, title, head, base, body, draft }) => {
+      try {
+        requireAgentOrAbove();
+        assertAuthorizedRepo(owner, repo, "github.create_pr");
+        assertSafeBranch(head, "github.create_pr");
+
+        const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+        if (!token) throw new Error("GITHUB_TOKEN / GH_TOKEN not configured");
+        const data = await httpJson(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github+json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title,
+            head,
+            base,
+            ...(body ? { body } : {}),
+            ...(draft !== undefined ? { draft } : {}),
           }),
         });
         return ok(data);

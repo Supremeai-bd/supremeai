@@ -17,6 +17,12 @@ no live deploy, missing commit evidence, API failure — is a blocking entry.
 
 Fail-closed by default. Set MESH_PARITY_FAIL_OPEN=1 (repo variable) to downgrade
 every entry to a warning during the one-time re-sync transition.
+
+# বাংলা মন্তব্য (IMPORTANT — DO NOT CHANGE WITHOUT READING):
+# প্রতিটি Render সার্ভিসের live_commit অবশ্যই তার নিজস্ব `watch_paths`-এ সর্বশেষ
+# পরিবর্তিত কমিটের SHA (path-expected SHA)-এর সাথে মিলতে হবে — পুরো রিপোর
+# সর্বশেষ global `main` SHA-এর সাথে নয়। এতে শুধু একটি সার্ভিস (যেমন mcp) বদলালে
+# বাকি সার্ভিসগুলো অযথা ব্লক বা রি-ডিপ্লয় হয় না।
 """
 
 from __future__ import annotations
@@ -183,6 +189,13 @@ def main() -> int:
         else:
             row["status"] = "drift"
             row["detail"] = f"live {live_commit[:8]} != path-expected {expected[:8]}"
+            # বাংলা মন্তব্য: শুধু ব্লক না করে, পিছিয়ে থাকা সার্ভিসটির জন্য অটো-রিডিপ্লয় ট্রিগার করা।
+            try:
+                triggered = client.trigger_deploy()
+                deploy_id = triggered.get("id") or triggered.get("deploy", {}).get("id") or "triggered"
+                row["detail"] += f" (auto-redeploy: {deploy_id})"
+            except Exception as trig_exc:
+                row["detail"] += f" (auto-redeploy failed: {trig_exc})"
         rows.append(row)
 
     blocking = [r for r in rows if r["status"] not in ("verified", "skipped")]
