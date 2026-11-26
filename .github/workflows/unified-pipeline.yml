@@ -1451,3 +1451,19 @@ jobs:
           fi
           git commit -m "chore(ci): auto-regenerate architecture gap baseline [skip ci]"
           git push
+
+  auto-update-open-prs:
+    name: Auto-Update Open PRs on Main Push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Update open PR branches with latest main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for pr in $(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number --jq '.[].number'); do
+            gh pr update-branch "$pr" --repo "$GITHUB_REPOSITORY" || true
+          done
