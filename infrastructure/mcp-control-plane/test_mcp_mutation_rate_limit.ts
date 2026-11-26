@@ -52,12 +52,15 @@ function call(name: string): unknown {
 }
 
 // ─── 1. Mutation surface declaration ────────────────────────────────────────
-section("1. MUTATION_TOOLS = exactly the 4 anonymous-reachable mutators (#2363 F-1 table)");
+section("1. MUTATION_TOOLS = exactly the 7 anonymous-reachable mutators (#2363 F-1 + Phase-1 save + Phase-2 HITL)");
 check("github_create_issue declared (PROVEN side effect)", MUTATION_TOOLS.has("github_create_issue"));
 check("memory_remember_fact declared (PROVEN side effect)", MUTATION_TOOLS.has("memory_remember_fact"));
+check("memory_save_memory declared (Phase-1 SSOT write)", MUTATION_TOOLS.has("memory_save_memory"));
+check("memory_confirm_memory declared (Phase-2 HITL confirm)", MUTATION_TOOLS.has("memory_confirm_memory"));
+check("memory_reject_memory declared (Phase-2 HITL reject)", MUTATION_TOOLS.has("memory_reject_memory"));
 check("work_claim declared (would-be side effect)", MUTATION_TOOLS.has("work_claim"));
 check("bridge_submit_patch declared (would-be side effect)", MUTATION_TOOLS.has("bridge_submit_patch"));
-check("exactly 4 tools — no scope creep", MUTATION_TOOLS.size === 4, `size=${MUTATION_TOOLS.size}`);
+check("exactly 7 tools — no scope creep", MUTATION_TOOLS.size === 7, `size=${MUTATION_TOOLS.size}`);
 
 // ─── 2. Sliding window mechanics (injectable clock) ─────────────────────────
 section("2. consumeSlidingWindowAt mechanics");

@@ -337,7 +337,9 @@ async def readiness_probe(response: Response) -> dict[str, Any]:
     }
 
 
-@router.get("/live")
+# বাংলা মন্তব্য: আপটাইম মনিটর HEAD পাঠায়; আগে শুধু GET থাকায় "HEAD /health/live - 405" হতো
+# (প্রোডে ৩৪৯ বার) — ফলে মনিটর ভুল করে ডাউন দেখাত আর প্রতিটা 405 অডিট লগে জমত।
+@router.api_route("/live", methods=["GET", "HEAD"])
 async def liveness_probe(response: Response) -> dict[str, Any]:
     """Liveness probe — is the process alive? Kubernetes uses this for restarts."""
     response.status_code = 200 if _liveness_status else 503

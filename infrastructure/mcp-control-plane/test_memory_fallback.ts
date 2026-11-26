@@ -28,5 +28,28 @@ console.log("registered tool count =", Object.keys(tools).length);
 console.log("has memory.search_nodes =", "memory.search_nodes" in tools);
 console.log("has memory.remember_fact =", "memory.remember_fact" in tools);
 console.log("has memory.status =", "memory.status" in tools);
+// Phase-1 SSOT tools must be advertised even when sidecar is cold
+if (!("memory.save_memory" in tools)) {
+  console.error("FAIL: memory.save_memory missing from fallback");
+  process.exit(1);
+}
+if (!("memory.recall_memories" in tools)) {
+  console.error("FAIL: memory.recall_memories missing from fallback");
+  process.exit(1);
+}
+// Phase-2 HITL + GDPR export/wipe must be present in FALLBACK_TOOLS (cold-start parity with sidecar 27)
+for (const name of ["memory.list_candidates", "memory.confirm_memory", "memory.reject_memory", "memory.export_memory", "memory.wipe_memory"]) {
+  if (!(name in tools)) {
+    console.error(`FAIL: ${name} missing from fallback`);
+    process.exit(1);
+  }
+}
+console.log("has memory.save_memory =", "memory.save_memory" in tools);
+console.log("has memory.recall_memories =", "memory.recall_memories" in tools);
+console.log("has memory.list_candidates =", "memory.list_candidates" in tools);
+console.log("has memory.confirm_memory =", "memory.confirm_memory" in tools);
+console.log("has memory.reject_memory =", "memory.reject_memory" in tools);
+console.log("has memory.export_memory =", "memory.export_memory" in tools);
+console.log("has memory.wipe_memory =", "memory.wipe_memory" in tools);
 console.log("FALLBACK-TEST-PASS");
 process.exit(0);
