@@ -410,12 +410,12 @@
     ]
   },
   "graph": {
-    "modules": 2196,
-    "edges": 5041,
+    "modules": 2197,
+    "edges": 5046,
     "edge_kinds": {
       "dispatch": 204,
       "dynamic": 4,
-      "import": 4140,
+      "import": 4145,
       "string": 693
     }
   },
@@ -437,7 +437,7 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1678,
+    "reachable": 1679,
     "unreachable": 518,
     "reachable_pct": 76.4
   },
