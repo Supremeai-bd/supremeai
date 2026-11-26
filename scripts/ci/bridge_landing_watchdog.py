@@ -1301,6 +1301,30 @@ def self_test() -> list[tuple[str, bool, str]]:
     return cases
 
 
+def cleanup_stale_holds(apply: bool = False) -> list[int]:
+    """A7: Close `hold:` / `ci-failure` issues whose linked PR is already merged or closed."""
+    closed: list[int] = []
+    try:
+        issues = _fetch_label_rows("ci-failure", max_pages=1)
+    except Exception:
+        return closed
+    for iss in issues:
+        title = iss.get("title", "")
+        m = re.search(r"\[hold:(\d+)\]", title)
+        if not m:
+            continue
+        pr_num = int(m.group(1))
+        try:
+            pr = _github_json(f"repos/{REPO}/pulls/{pr_num}")
+        except Exception:
+            continue
+        if pr.get("state") == "closed" or pr.get("merged_at"):
+            num = iss.get("number")
+            if apply and num and _close_issue(num, f"Auto-closing stale hold: PR #{pr_num} is already {pr.get('state', 'closed')}."):
+                closed.append(num)
+    return closed
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Bridge WO landing watchdog (#1964 gap)")
     p.add_argument("--self-test", action="store_true",
