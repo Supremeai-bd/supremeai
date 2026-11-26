@@ -10,7 +10,6 @@ flowchart TD
         @__github/workflows/codeql__yml["@.github/workflows/codeql.yml"]
         @__github/workflows/daily-key-health__yml["@.github/workflows/daily-key-health.yml"]
         @__github/workflows/deploy-rollback__yml["@.github/workflows/deploy-rollback.yml"]
-        @__github/workflows/learning-pool-audit__yml["@.github/workflows/learning-pool-audit.yml"]
         @__github/workflows/ops-maintenance__yml["@.github/workflows/ops-maintenance.yml"]
         @__github/workflows/unified-pipeline__yml["@.github/workflows/unified-pipeline.yml"]
         @Makefile["@Makefile"]
@@ -301,7 +300,7 @@ flowchart TD
         scripts__devops["scripts.devops · 1 modules"]
         scripts__lib["scripts.lib · 2 modules"]
         scripts__maintenance["scripts.maintenance · 1 modules"]
-        scripts__ops["scripts.ops · 10 modules"]
+        scripts__ops["scripts.ops · 8 modules"]
         scripts__orchestrator["scripts.orchestrator · 1 modules"]
         scripts__quality["scripts.quality · 1 modules"]
         scripts__runtime["scripts.runtime · 1 modules"]
@@ -320,7 +319,6 @@ flowchart TD
     @__github/workflows/codeql__yml --> @__github/workflows/codeql
     @__github/workflows/daily-key-health__yml --> @__github/workflows/daily-key-health
     @__github/workflows/deploy-rollback__yml --> @__github/workflows/deploy-rollback
-    @__github/workflows/learning-pool-audit__yml --> @__github/workflows/learning-pool-audit
     @__github/workflows/ops-maintenance__yml --> @__github/workflows/ops-maintenance
     @__github/workflows/unified-pipeline__yml --> @__github/workflows/unified-pipeline
     @Makefile --> @Makefile
@@ -372,13 +370,12 @@ flowchart TD
         browser__runtime__semantic_extractor["browser.runtime.semantic_extractor"]
         browser__runtime__session_manager["browser.runtime.session_manager"]
         browser__runtime__stealth_profile["browser.runtime.stealth_profile"]
-        _more["… 480 more (see JSON)"]
+        _more["… 481 more (see JSON)"]
     end
 
     class @__github/workflows/codeql__yml live;
     class @__github/workflows/daily-key-health__yml live;
     class @__github/workflows/deploy-rollback__yml live;
-    class @__github/workflows/learning-pool-audit__yml live;
     class @__github/workflows/ops-maintenance__yml live;
     class @__github/workflows/unified-pipeline__yml live;
     class @Makefile live;
