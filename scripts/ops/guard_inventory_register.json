@@ -1,8 +1,9 @@
 {
   "_comment": "Guards with no caller, frozen with a reason. Every entry here is a rule nobody enforces. Removing an entry (after wiring the guard) is the desired direction.",
   "_note": "Each entry is a rule nobody enforces. Prefer wiring the guard into run_all_guards.py over adding it here.",
-  "_count": 38,
+  "_count": 39,
   "known_orphans": {
+    "run_guards.py": "audit B2 (2026-11-26) changed-files-aware guard dispatcher — a caller-fan-out runner (same class as run_all_guards.py, not a gate); wired into PR lane after PR review",
     "audit_broad_exceptions.py": "report-only audit; no-arg run writes a gitignored ci-reports/ artifact and no read-only mode exists",
     "audit_definition_shadowing.py": "report-only audit; no-arg run writes a gitignored ci-reports/ artifact and no read-only mode exists",
     "audit_resilience_boundaries.py": "report-only audit; no-arg run writes a gitignored ci-reports/ artifact and no read-only mode exists",

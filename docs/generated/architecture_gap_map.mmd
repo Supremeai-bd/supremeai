@@ -27,7 +27,6 @@ flowchart TD
         browser__browser_agent["browser.browser_agent · 1 modules"]
         browser__browser_session["browser.browser_session · 1 modules"]
         browser__browsing_memory["browser.browsing_memory · 1 modules"]
-        browser__ghost_tower["browser.ghost_tower · 1 modules"]
         browser__main["browser.main · 1 modules"]
         browser__request_models["browser.request_models · 1 modules"]
         browser__runtime["browser.runtime · 1 modules"]
@@ -171,7 +170,7 @@ flowchart TD
         core__maintenance_pipeline["core.maintenance_pipeline · 1 modules"]
         core__markdown_indexer["core.markdown_indexer · 1 modules"]
         core__marketplace_registry_sync["core.marketplace_registry_sync · 1 modules"]
-        core__mcp_adapters["core.mcp_adapters · 3 modules"]
+        core__mcp_adapters["core.mcp_adapters · 4 modules"]
         core__mcp_allowlist["core.mcp_allowlist · 1 modules"]
         core__mcp_audit["core.mcp_audit · 1 modules"]
         core__mcp_client["core.mcp_client · 1 modules"]
@@ -295,7 +294,7 @@ flowchart TD
         gateway__tool_pruner["gateway.tool_pruner · 1 modules"]
         scripts__advanced_analysis["scripts.advanced_analysis · 8 modules"]
         scripts__agents["scripts.agents · 13 modules"]
-        scripts__ci["scripts.ci · 149 modules"]
+        scripts__ci["scripts.ci · 147 modules"]
         scripts__db["scripts.db · 1 modules"]
         scripts__devops["scripts.devops · 1 modules"]
         scripts__lib["scripts.lib · 2 modules"]
@@ -339,6 +338,7 @@ flowchart TD
         browser__ghost_tower__check_cookies_status["browser.ghost_tower.check_cookies_status"]
         browser__ghost_tower__check_status["browser.ghost_tower.check_status"]
         browser__ghost_tower__cookie_sync_scheduler["browser.ghost_tower.cookie_sync_scheduler"]
+        browser__ghost_tower__credential_vault["browser.ghost_tower.credential_vault"]
         browser__ghost_tower__gemini_web_engine["browser.ghost_tower.gemini_web_engine"]
         browser__ghost_tower__ghost_bridge_server["browser.ghost_tower.ghost_bridge_server"]
         browser__ghost_tower__launch_manual_login["browser.ghost_tower.launch_manual_login"]
@@ -369,8 +369,7 @@ flowchart TD
         browser__runtime__injection_canaries["browser.runtime.injection_canaries"]
         browser__runtime__semantic_extractor["browser.runtime.semantic_extractor"]
         browser__runtime__session_manager["browser.runtime.session_manager"]
-        browser__runtime__stealth_profile["browser.runtime.stealth_profile"]
-        _more["… 480 more (see JSON)"]
+        _more["… 489 more (see JSON)"]
     end
 
     class @__github/workflows/codeql__yml live;
@@ -390,7 +389,6 @@ flowchart TD
     class browser__browser_agent live;
     class browser__browser_session live;
     class browser__browsing_memory live;
-    class browser__ghost_tower live;
     class browser__main live;
     class browser__request_models live;
     class browser__runtime live;
@@ -686,6 +684,7 @@ flowchart TD
     class browser__ghost_tower__check_cookies_status dead;
     class browser__ghost_tower__check_status dead;
     class browser__ghost_tower__cookie_sync_scheduler dead;
+    class browser__ghost_tower__credential_vault dead;
     class browser__ghost_tower__gemini_web_engine dead;
     class browser__ghost_tower__ghost_bridge_server dead;
     class browser__ghost_tower__launch_manual_login dead;
@@ -716,5 +715,4 @@ flowchart TD
     class browser__runtime__injection_canaries dead;
     class browser__runtime__semantic_extractor dead;
     class browser__runtime__session_manager dead;
-    class browser__runtime__stealth_profile dead;
     class _more dead;

@@ -1140,6 +1140,24 @@ def extract_dispatcher_edges(root: Path, modules: Dict[str, Path]) -> List[Edge]
                 dst = _module_from_path_token(token, modules)
                 if dst:
                     edges.append(Edge(src=src, dst=dst, kind="dispatch"))
+    # বাংলা মন্তব্য (audit B2, 2026-11-26): Python dispatcher-এর PYTHONPATH import-ও edge।
+    # run_guards.py মতো runner run_all_guards.py-কে import করে — এটা মানা না পেলে
+    # roster SSOT নিজেই 'unreachable' হয়ে যায় (লাইভ ইন্সট্যান্স)।
+    # resolve via direct-path module id (sys.path trick) — dotted fallback নয়।
+    for path in sorted((root / "scripts" / "ci").glob("run_*.py")):
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        src = "@" + path.relative_to(root).as_posix()
+        for m in re.finditer(
+            r"^\s*from\s+(run_all_guards|\w+)\s+import|^\s*import\s+(\w+)", text, re.M
+        ):
+            name = m.group(1) or m.group(2)
+            target = root / "scripts" / "ci" / f"{name}.py"
+            mod_id = f"scripts.ci.{name}"
+            if target.is_file() and mod_id in modules:
+                edges.append(Edge(src=src, dst=mod_id, kind="dispatch"))
     return edges
 
 
