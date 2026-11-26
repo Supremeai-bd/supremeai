@@ -562,7 +562,9 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           return;
         }
         let rawPayload = "";
-        req.on("data", (chunk: Buffer) => {
+        // বাংলা মন্তব্য: Buffer-chunk সরাসরি toString() করলে chunk-সীমায় ভাঙা বহু-বাইট UTF-8 অক্ষর (বাংলা) U+FFFD হয়ে যায় — setEncoding Node-এর StringDecoder দিয়ে অক্ষর জোড়া লাগায়
+        req.setEncoding("utf8");
+        req.on("data", (chunk: string) => {
           rawPayload += chunk.toString();
           if (rawPayload.length > MAX_REQUEST_BYTES) {
             req.destroy();
@@ -728,6 +730,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
 
     if (url === "/clients" && req.method === "POST") {
       let body = "";
+      // বাংলা মন্তব্য: Buffer-chunk সরাসরি toString() করলে chunk-সীমায় ভাঙা বহু-বাইট UTF-8 অক্ষর (বাংলা) U+FFFD হয়ে যায় — setEncoding Node-এর StringDecoder দিয়ে অক্ষর জোড়া লাগায়
+      req.setEncoding("utf8");
       req.on("data", (chunk) => { body += chunk.toString(); });
       req.on("end", () => {
         try {
@@ -762,6 +766,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       const id = url.slice("/clients/".length);
       const scope = isGlobalAdmin ? "*" : tenantId;
       let body = "";
+      // বাংলা মন্তব্য: Buffer-chunk সরাসরি toString() করলে chunk-সীমায় ভাঙা বহু-বাইট UTF-8 অক্ষর (বাংলা) U+FFFD হয়ে যায় — setEncoding Node-এর StringDecoder দিয়ে অক্ষর জোড়া লাগায়
+      req.setEncoding("utf8");
       req.on("data", (chunk) => { body += chunk.toString(); });
       req.on("end", () => {
         try {
@@ -818,6 +824,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
 
     if (url === "/tenants" && req.method === "POST") {
       let body = "";
+      // বাংলা মন্তব্য: Buffer-chunk সরাসরি toString() করলে chunk-সীমায় ভাঙা বহু-বাইট UTF-8 অক্ষর (বাংলা) U+FFFD হয়ে যায় — setEncoding Node-এর StringDecoder দিয়ে অক্ষর জোড়া লাগায়
+      req.setEncoding("utf8");
       req.on("data", (chunk) => { body += chunk.toString(); });
       req.on("end", () => {
         try {
@@ -847,6 +855,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
 
     if (url === "/tenants" && req.method === "PATCH") {
       let body = "";
+      // বাংলা মন্তব্য: Buffer-chunk সরাসরি toString() করলে chunk-সীমায় ভাঙা বহু-বাইট UTF-8 অক্ষর (বাংলা) U+FFFD হয়ে যায় — setEncoding Node-এর StringDecoder দিয়ে অক্ষর জোড়া লাগায়
+      req.setEncoding("utf8");
       req.on("data", (chunk) => { body += chunk.toString(); });
       req.on("end", () => {
         try {
@@ -936,7 +946,9 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         return;
       }
       let body = "";
-      req.on("data", (chunk: Buffer) => {
+      // বাংলা মন্তব্য: Buffer-chunk সরাসরি toString() করলে chunk-সীমায় ভাঙা বহু-বাইট UTF-8 অক্ষর (বাংলা) U+FFFD হয়ে যায় — setEncoding Node-এর StringDecoder দিয়ে অক্ষর জোড়া লাগায়
+      req.setEncoding("utf8");
+      req.on("data", (chunk: string) => {
         body += chunk.toString();
         if (body.length > MAX_REQUEST_BYTES) {
           req.destroy();
@@ -975,7 +987,9 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         return;
       }
       let body = "";
-      req.on("data", (chunk: Buffer) => {
+      // বাংলা মন্তব্য: Buffer-chunk সরাসরি toString() করলে chunk-সীমায় ভাঙা বহু-বাইট UTF-8 অক্ষর (বাংলা) U+FFFD হয়ে যায় — setEncoding Node-এর StringDecoder দিয়ে অক্ষর জোড়া লাগায়
+      req.setEncoding("utf8");
+      req.on("data", (chunk: string) => {
         body += chunk.toString();
         if (body.length > MAX_REQUEST_BYTES) {
           req.destroy();
@@ -1005,7 +1019,9 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         return;
       }
       let body = "";
-      req.on("data", (chunk: Buffer) => {
+      // বাংলা মন্তব্য: Buffer-chunk সরাসরি toString() করলে chunk-সীমায় ভাঙা বহু-বাইট UTF-8 অক্ষর (বাংলা) U+FFFD হয়ে যায় — setEncoding Node-এর StringDecoder দিয়ে অক্ষর জোড়া লাগায়
+      req.setEncoding("utf8");
+      req.on("data", (chunk: string) => {
         body += chunk.toString();
         if (body.length > MAX_REQUEST_BYTES) {
           req.destroy();
@@ -1223,6 +1239,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       // existing requests route by Mcp-Session-Id header; only a fresh
       // `initialize` (no header) mints a NEW per-session transport + server.
       let body = "";
+      // বাংলা মন্তব্য: Buffer-chunk সরাসরি toString() করলে chunk-সীমায় ভাঙা বহু-বাইট UTF-8 অক্ষর (বাংলা) U+FFFD হয়ে যায় — setEncoding Node-এর StringDecoder দিয়ে অক্ষর জোড়া লাগায়
+      req.setEncoding("utf8");
       req.on("data", (chunk) => { body += chunk.toString(); });
       req.on("end", async () => {
         let parsedBody: any;
@@ -1484,6 +1502,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           return;
         }
         let geminiBody = "";
+        // বাংলা মন্তব্য: Buffer-chunk সরাসরি toString() করলে chunk-সীমায় ভাঙা বহু-বাইট UTF-8 অক্ষর (বাংলা) U+FFFD হয়ে যায় — setEncoding Node-এর StringDecoder দিয়ে অক্ষর জোড়া লাগায়
+        req.setEncoding("utf8");
         req.on("data", (chunk) => { geminiBody += chunk.toString(); });
         req.on("end", async () => {
           let parsedGeminiBody: { name?: unknown; args?: unknown; arguments?: unknown };
@@ -1593,6 +1613,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
 
     if (url.startsWith("/webhooks/")) {
       let body = "";
+      // বাংলা মন্তব্য: Buffer-chunk সরাসরি toString() করলে chunk-সীমায় ভাঙা বহু-বাইট UTF-8 অক্ষর (বাংলা) U+FFFD হয়ে যায় — setEncoding Node-এর StringDecoder দিয়ে অক্ষর জোড়া লাগায়
+      req.setEncoding("utf8");
       req.on("data", chunk => body += chunk.toString());
       req.on("end", async () => {
         try {
