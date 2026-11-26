@@ -169,18 +169,26 @@ def create_source_cleanup_pr(
     branch_name = f"sync/consume-{slug}"
 
     print(f"  [cleanup] Opening source PR to consume patches on {source_repo} ({branch_name})...")
-    subprocess.run(["git", "config", "user.name", "github-actions[bot]"], cwd=src, check=True)
-    subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"], cwd=src, check=True)
-    subprocess.run(["git", "checkout", "-B", branch_name], cwd=src, check=True)
-    subprocess.run(["git", "rm", "--"] + existing, cwd=src, check=True)
+    try:
+        subprocess.run(["git", "config", "user.name", "github-actions[bot]"], cwd=src, check=True)
+        subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"], cwd=src, check=True)
+        subprocess.run(["git", "checkout", "-B", branch_name], cwd=src, check=True)
+        subprocess.run(["git", "rm", "--"] + existing, cwd=src, check=True)
+    except subprocess.CalledProcessError as exc:
+        print(f"  [cleanup-error] git prepare failed: {exc}")
+        return False
 
     commit_msg = (
         "chore(sync): consume cross-repo patches (Rule #10 loop-stop)\n\n"
         "Auto-removed after target auto-sync PR opened:\n"
         + "\n".join(f"- {r}" for r in existing)
     )
-    subprocess.run(["git", "commit", "-m", commit_msg], cwd=src, check=True)
-    subprocess.run(["git", "push", "-u", "origin", branch_name], cwd=src, check=True)
+    try:
+        subprocess.run(["git", "commit", "-m", commit_msg], cwd=src, check=True)
+        subprocess.run(["git", "push", "-u", "origin", branch_name], cwd=src, check=True)
+    except subprocess.CalledProcessError as exc:
+        print(f"  [cleanup-error] git commit/push failed: {exc}")
+        return False
 
     try:
         existing_pr = subprocess.check_output(
@@ -400,8 +408,15 @@ def main() -> int:
     if already and not pending:
         # Target content already merged (auto-sync PR landed) — Rule #10 loop-stop:
         # consume the input patch files on the source side only.
+        # Cleanup is BEST-EFFORT: a push/PR failure here must not fail the sync job
+        # (the target side is already consistent).
         print("All patches already landed on target — running source cleanup only.")
-        create_source_cleanup_pr(args.source_repo, already, source_dir=ROOT)
+        try:
+            cleaned = create_source_cleanup_pr(args.source_repo, already, source_dir=ROOT)
+            if not cleaned:
+                print("  [cleanup-warn] source cleanup did not complete; open a delete PR for the patch file(s) manually.")
+        except Exception as exc:
+            print(f"  [cleanup-warn] source cleanup raised: {exc}")
         print("\n[apply_cross_repo_patch] Execution completed successfully.")
         return 0
 
@@ -426,11 +441,17 @@ def main() -> int:
         if not pr_ok:
             return 1
         # Rule #10 loop-stop: target auto-sync PR is open → consume source inputs
-        # (include any already-landed siblings from a mixed batch)
-        create_source_cleanup_pr(args.source_repo, applied + already, source_dir=ROOT)
+        # (include any already-landed siblings from a mixed batch). Best-effort:
+        # target PR is already open — cleanup failure must not fail this job.
+        try:
+            create_source_cleanup_pr(args.source_repo, applied + already, source_dir=ROOT)
+        except Exception as exc:
+            print(f"  [cleanup-warn] source cleanup raised: {exc}")
     elif already:
-        # No new PR this run (nothing pending) — still cleanup landed ones
-        create_source_cleanup_pr(args.source_repo, already, source_dir=ROOT)
+        try:
+            create_source_cleanup_pr(args.source_repo, already, source_dir=ROOT)
+        except Exception as exc:
+            print(f"  [cleanup-warn] source cleanup raised: {exc}")
 
     print("\n[apply_cross_repo_patch] Execution completed successfully.")
     return 0
