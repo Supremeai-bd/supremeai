@@ -411,12 +411,12 @@
   },
   "graph": {
     "modules": 2196,
-    "edges": 5038,
+    "edges": 5041,
     "edge_kinds": {
       "dispatch": 204,
       "dynamic": 4,
-      "import": 4142,
-      "string": 688
+      "import": 4140,
+      "string": 693
     }
   },
   "entrypoints": {
@@ -437,9 +437,9 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1676,
-    "unreachable": 520,
-    "reachable_pct": 76.3
+    "reachable": 1678,
+    "unreachable": 518,
+    "reachable_pct": 76.4
   },
   "gaps": {
     "dangling_references": [
@@ -744,7 +744,6 @@
     "core.engine.embedding",
     "core.engine.forge_compiler",
     "core.engine.memory_middleware",
-    "core.engine.smart_router",
     "core.engine.tool_forge",
     "core.engine.worker_node",
     "core.engine.worker_registry",
@@ -862,7 +861,6 @@
     "core.providers.n8n",
     "core.pyerrorfix.__main__",
     "core.rag",
-    "core.rate_limit_quota",
     "core.resilience",
     "core.resilience.auto_remediation",
     "core.resilience.predictive_circuit_breaker",
@@ -968,7 +966,6 @@
     "core.tools.devops",
     "core.tools.discovery_fabric.supremeai_discovery.marketplace_scout",
     "core.tools.discovery_fabric.supremeai_discovery.solution_synthesizer",
-    "core.tools.ensemble_router",
     "core.tools.ephemeral_synthesizer",
     "core.tools.fix_gen_syntax",
     "core.tools.fix_json",
@@ -1095,7 +1092,6 @@
     "gateway.capability_router",
     "gateway.contracts",
     "gateway.contracts.provider_protocol",
-    "gateway.dynamic_llm_router",
     "gateway.gateway_shield_reference",
     "gateway.model_churn_gate",
     "gateway.routes.admin_dashboard",
@@ -1103,7 +1099,6 @@
     "gateway.routes.commandcenter",
     "gateway.run_local_gateway",
     "gateway.serve",
-    "gateway.service.redis_rate_limit",
     "gateway.service.router",
     "gateway.service.version",
     "gateway.services.rbac",
