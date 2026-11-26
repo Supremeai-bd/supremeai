@@ -90,6 +90,11 @@ def render(rules: dict) -> str:
             line += f" — {note}"
         lines.append(line)
     lines.append("")
+    lines.append(
+        "এক কমান্ড বিকল্প: `./scripts/agents/session_boot.sh --lane <role> [--issue N]` "
+        "— উপরের ১–৫ ধাপ একসাথে চালায় (গেট bypass নয়; dry-run: `--dry-run`)।"
+    )
+    lines.append("")
     lines.append("_কাজ শুরুর আগে সর্বদা `git fetch origin --prune && cat AGENTS.md` চালাও।_")
 
     lines.append("")
