@@ -1,0 +1,1685 @@
+From 28c07768ed4e6ab68026346214d2d29b5344e860 Mon Sep 17 00:00:00 2001
+From: SupremeAI Agent <agent@supremeai.local>
+Date: Thu, 26 Nov 2026 18:31:17 +0000
+Subject: [PATCH] =?UTF-8?q?feat(api):=20=E0=A6=8F=E0=A6=95=20=E0=A6=AC?=
+ =?UTF-8?q?=E0=A7=8D=E0=A6=AF=E0=A6=BE=E0=A6=95=E0=A6=8F=E0=A6=A8=E0=A7=8D?=
+ =?UTF-8?q?=E0=A6=A1=20=E2=80=94=20Hono=20=E0=A6=AD=E0=A6=BF=E0=A6=A4?=
+ =?UTF-8?q?=E0=A7=8D=E0=A6=A4=E0=A6=BF=20+=20=E0=A6=AA=E0=A7=8D=E0=A6=B0?=
+ =?UTF-8?q?=E0=A6=A5=E0=A6=AE=20=E0=A7=A8=E0=A6=9F=E0=A6=BE=20=E0=A6=B0?=
+ =?UTF-8?q?=E0=A7=81=E0=A6=9F=20(=E0=A6=85=E0=A6=A1=E0=A6=BF=E0=A6=9F=20?=
+ =?UTF-8?q?=E0=A7=A8.=E0=A7=A7,=20=E0=A6=B8=E0=A6=AA=E0=A7=8D=E0=A6=A4?=
+ =?UTF-8?q?=E0=A6=BE=E0=A6=B9=20=E0=A7=A9)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+একই API Express আর Cloudflare Pages Functions-এ আলাদা করে লেখা ছিল।
+এখন থেকে রুট হ্যান্ডলার একবার লেখা হবে Hono-তে (src/api/), দুই রানটাইম
+একই কোড চালাবে:
+  - Cloudflare: functions/_lib/honoAdapter.ts (CORS allowlist + preflight)
+  - Node/Express: src/api/node.ts — @hono/node-server দিয়ে mount, শুধু
+    Hono-তে থাকা পাথগুলোতে (listApiPaths), express.json()-এর আগে
+
+প্রথম ধাপে সরানো রুট:
+  - GET /api/releases/latest — দুই কপি প্রায় হুবহু ছিল; Express কপি
+    (src/server/routes/releases.ts) মুছে ফেলা, Edge ফাইল ২০৪ → ২ লাইন।
+    ৩ মিনিট মেমরি-ক্যাশ + Cache-Control এখন দুই জায়গাতেই।
+  - POST /api/telemetry/client-error — Edge-এর কড়া আচরণ রাখা হয়েছে
+    (৮ KB সীমা → 413, ভুল মেথড → 405); আগে Node-এ এগুলো ছিল না।
+
+docs/HONO_MIGRATION.md-এ পদ্ধতি আর বাকি রুট-গ্রুপের তালিকা।
+server.ts budget 2559 → 2527।
+
+যাচাই (Node 24): tsc app + edge ✅, eslint 0 error ✅, check-server-budget ✅,
+npm test 7/7 + 418/418 ✅ (নতুন ১৪টা টেস্ট), vite build ✅,
+wrangler pages functions build ✅, tsx server.ts + wrangler pages dev-এ
+curl smoke (200/204/413/405, CORS, legacy Express JSON body) ✅
+---
+ .gitignore                              |   3 +
+ TASK_LIST_SUPREMEAI_PUBLIC.md           |   6 +
+ docs/HONO_MIGRATION.md                  |  72 ++++++++
+ functions/_lib/honoAdapter.test.ts      |  73 ++++++++
+ functions/_lib/honoAdapter.ts           |  30 +++
+ functions/api/releases/latest.ts        | 206 +--------------------
+ functions/api/telemetry/client-error.ts |  75 +-------
+ package-lock.json                       |  23 +++
+ package.json                            |   2 +
+ scripts/check-server-budget.mjs         |   5 +-
+ server.ts                               |   8 +-
+ src/api/app.test.ts                     | 173 +++++++++++++++++
+ src/api/app.ts                          |  71 +++++++
+ src/api/node.test.ts                    |  78 ++++++++
+ src/api/node.ts                         |  36 ++++
+ src/api/routes/releases.ts              | 236 ++++++++++++++++++++++++
+ src/api/routes/telemetry.ts             |  70 +++++++
+ src/server/routes/releases.ts           | 200 --------------------
+ src/server/routes/telemetry.ts          |  30 +--
+ vitest.config.ts                        |   1 +
+ 20 files changed, 893 insertions(+), 505 deletions(-)
+ create mode 100644 docs/HONO_MIGRATION.md
+ create mode 100644 functions/_lib/honoAdapter.test.ts
+ create mode 100644 functions/_lib/honoAdapter.ts
+ create mode 100644 src/api/app.test.ts
+ create mode 100644 src/api/app.ts
+ create mode 100644 src/api/node.test.ts
+ create mode 100644 src/api/node.ts
+ create mode 100644 src/api/routes/releases.ts
+ create mode 100644 src/api/routes/telemetry.ts
+ delete mode 100644 src/server/routes/releases.ts
+
+diff --git a/.gitignore b/.gitignore
+index c4e58b8..8925e4a 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -52,3 +52,6 @@ coverage/
+ 
+ # Local Graphify AST cache
+ graphify-out/
++
++# বাংলা মন্তব্য: wrangler pages dev-এর লোকাল miniflare state
++.wrangler/
+diff --git a/TASK_LIST_SUPREMEAI_PUBLIC.md b/TASK_LIST_SUPREMEAI_PUBLIC.md
+index c3fe25e..0caf207 100644
+--- a/TASK_LIST_SUPREMEAI_PUBLIC.md
++++ b/TASK_LIST_SUPREMEAI_PUBLIC.md
+@@ -113,6 +113,12 @@
+ 
+ ### 8. Cloudflare Pages Functions ↔ Express `server.ts` ডুপ্লিকেট লজিক (P2)
+ 
++> 🚧 **চলছে (২০২৬-১১-২৬):** পদ্ধতি ঠিক হয়েছে — রুট হ্যান্ডলার একবার লেখা হবে
++> **Hono**-তে (`src/api/`), Cloudflare (`functions/_lib/honoAdapter.ts`) আর Express
++> (`src/api/node.ts`) দুই জায়গা থেকেই সেটা চলবে। প্রথম ধাপে `GET /api/releases/latest`
++> আর `POST /api/telemetry/client-error` সরানো হয়েছে। রুট-গ্রুপের তালিকা ও অবস্থা:
++> `docs/HONO_MIGRATION.md`।
++
+ **সমস্যা:** `functions/api/mcp-tower/[[path]].ts` (Cloudflare) এবং `server.ts` (Express) — দুইޫটে একই MCP Tower লজিক।
+ **অ্যাকশন:**
+ 
+diff --git a/docs/HONO_MIGRATION.md b/docs/HONO_MIGRATION.md
+new file mode 100644
+index 0000000..e9890db
+--- /dev/null
++++ b/docs/HONO_MIGRATION.md
+@@ -0,0 +1,72 @@
++# এক ব্যাকএন্ড — Hono মাইগ্রেশন (অডিট-প্ল্যান ২.১, সপ্তাহ ৩–৪)
++
++## সমস্যা
++
++একই API দুই জায়গায় আলাদা করে লেখা ছিল:
++
++| স্তর | কোথায় | আকার |
++|---|---|---|
++| Express (Node: লোকাল, ডেস্কটপ, Android WebView) | `server.ts` + `src/server/routes/**` | ~১৬k লাইন |
++| Cloudflare Pages Functions ("Edge API mirror") | `functions/api/**` | ~৮k লাইন |
++
++এক জায়গায় নিরাপত্তা ফিক্স হলে অন্যটায় থেকে যেত। PR #91-এ admin auth দুই জায়গায় আলাদা করে ঠিক করতে হয়েছিল। এটা Creed-এর "Single source of logic" নিয়ম ভাঙে।
++
++## সমাধান
++
++```
++src/api/app.ts            ← একমাত্র রুট রেজিস্ট্রি (Hono)
++src/api/routes/*.ts       ← রুট-গ্রুপ (Web-standard Request/Response)
++functions/_lib/honoAdapter.ts → Cloudflare: createApiApp().fetch(request, env) + CORS
++src/api/node.ts           → Node: Express-এ mount (@hono/node-server)
++```
++
++নিয়মগুলো:
++
++1. **হ্যান্ডলার রানটাইম-নিরপেক্ষ।** `process.env`, `express`, `fs` বা `node:*` চলবে না। env পড়তে হবে `readEnv(c, 'KEY')` দিয়ে, আর নেটওয়ার্কের জন্য `fetch` (টেস্টে `deps.fetch` দিয়ে বদলানো যায়)।
++2. **পাথ পূর্ণ লিখতে হবে** (`/api/...`)। Express adapter `listApiPaths()` দিয়ে ঠিক এই পাথগুলোই mount করে, তাই আলাদা কোনো তালিকা রাখতে হয় না।
++3. **রানটাইম-নির্দিষ্ট কাজ adapter-এ থাকে:**
++   - Edge-এর CORS থাকে `honoAdapter`-এ।
++   - Edge-এর security header থাকে `functions/_middleware.ts`-এ।
++   - Node-এর security header, metrics আর rate-limit `server.ts`-এর middleware-এ থাকে। Hono mount হয় এগুলোর পরে, `express.json()`-এর **আগে**।
++4. **দুই কপির আচরণ আলাদা হলে কড়াটা রাখতে হবে**, আর সেটা PR-এ লিখে দিতে হবে।
++
++## একটা রুট-গ্রুপ সরানোর ধাপ
++
++1. Express আর Edge দুই কপি পাশাপাশি পড়ো। আচরণের পার্থক্যগুলো লিখে রাখো।
++2. `src/api/routes/<group>.ts`-এ `create<Group>Routes(deps)` বানাও, আর `app.ts`-এ `app.route('/', …)` যোগ করো।
++3. `src/api/app.test.ts`-এ `app.request(...)` দিয়ে টেস্ট লেখো। নেটওয়ার্ক চলবে না, শুধু `deps.fetch` ব্যবহার করবে।
++4. Edge-এর পুরনো ফাইলের পুরো লেখা মুছে এক লাইন রাখো:
++   `export { onRequestViaHono as onRequest } from '../../_lib/honoAdapter';`
++5. Express-এর পুরনো হ্যান্ডলার মুছে দাও। `register…` কল থেকেও সরাও।
++6. যাচাই করো:
++   - `tsc` (`tsconfig.json` + `tsconfig.edge.json`)
++   - `npm test`
++   - `npx tsx server.ts` চালিয়ে curl
++   - `npx wrangler pages dev <dir>` চালিয়ে curl
++   - `node scripts/check-server-budget.mjs --lower`
++
++## অবস্থা
++
++| রুট | Edge ফাইল (লাইন) | Express কপি | অবস্থা |
++|---|---|---|---|
++| `GET /api/releases/latest` | ২০৪ → ২ | `routes/releases.ts` (২০০, মুছে ফেলা) | ✅ Hono |
++| `POST /api/telemetry/client-error` | ৭৩ → ২ | `routes/telemetry.ts`-এর অংশ | ✅ Hono (Edge-এর ৮ KB সীমা, 413 আর 405 এখন Node-এও আছে) |
++| `GET /api/health`, `GET /api/models` | ৩৫ + ২৩ | `routes/telemetry.ts` | ⏳ পরের ধাপ (gateway catalog cache দুই রানটাইমে আলাদা) |
++| `GET /api/platform/config` | ৪০ | `routes/admin/platform.ts` | ⏳ (Express-এ admin store থেকে পড়ে, Edge-এ static) |
++| `/api/llm-gateway/latency` | ১১০ | `routes/llmLatency.ts` | ⚠️ দুই কপির ডেটা আলাদা: Express-এ স্থির সংখ্যা, Edge-এ সত্যিকারের probe। আগে product সিদ্ধান্ত লাগবে |
++| `/api/share/*`, `/api/research/*` | ১২৭ + ২৫৪ | — (শুধু Edge-এ) | ⏳ সরাসরি Hono-তে নেওয়া যায় |
++| `/api/tts`, `/api/tts/edge` | ৪৫৮ | `routes/tts.ts` | ⏳ |
++| `/api/chat`, `/api/chat/title`, `/api/intent/analyze`, `/api/transcribe` | ৫৮৪ | `routes/media.ts`, `routes/stream.ts` | ⏳ (SSE: `streamSSE`) |
++| `/api/api-keys/*`, `/api/user/team/*` | ২৬৩ | `routes/apiKeys.ts`, `routes/team.ts` | ⏳ |
++| `/api/auth/totp/*`, `/api/auth/verify-2fa` | ৪৮৭ | `routes/authTotp.ts` | ⏳ নিরাপত্তা-সংবেদনশীল, আলাদা PR |
++| `/api/git/oauth/*` | ৩৪১ | `routes/gitOauth.ts` | ⏳ |
++| `/api/v1/sync/*` | ৩৬৪ | `routes/sync.ts` | ⏳ (SSE) |
++| `/api/workspace/*` (proxy, vault, schedules, gmail-session, terminal, project-run) | ১,৫৪৪ | `routes/workspace/**` | ⏳ নিরাপত্তা-সংবেদনশীল, আলাদা PR |
++| `/api/agent/execute` | ৫৬১ | `routes/agentExecute.ts` | ⏳ |
++| `/api/mcp-tower/*` | ১৮০ | `routes/mcpTowerRoutes.ts` | ⏳ |
++| `/api/admin/*`, `/api/admin/control-plane/*` | ১,১৬৭ | `routes/admin/**`, `controlPlaneRouter.ts` | ⏳ সবার শেষে (সবচেয়ে বড়) |
++| `/api/*` (catch-all) | ১৯৯ | — | থাকবে। যেসব রুট এখনো সরানো হয়নি, সেগুলো Render gateway-তে proxy করে |
++
++সব রুট সরানো শেষ হলে:
++- `functions/api/**`-এর এক লাইনের ফাইলগুলোর বদলে একটাই `functions/api/[[path]].ts` থাকবে, যেটা Hono-কে কল করবে। যে রুট Hono-তে মিলবে না, সেটা gateway-তে proxy হবে।
++- Node-এ Express বাদ দিয়ে `@hono/node-server`-এর `serve()` আর Vite middleware ব্যবহার করা হবে।
+diff --git a/functions/_lib/honoAdapter.test.ts b/functions/_lib/honoAdapter.test.ts
+new file mode 100644
+index 0000000..b4b7981
+--- /dev/null
++++ b/functions/_lib/honoAdapter.test.ts
+@@ -0,0 +1,73 @@
++// @vitest-environment node
++// বাংলা মন্তব্য: Cloudflare adapter — CORS preflight/allowlist আর Pages Function ফাইলগুলোর wiring
++import { afterEach, describe, expect, it, vi } from 'vitest';
++import { onRequestViaHono } from './honoAdapter';
++import { onRequest as releasesOnRequest } from '../api/releases/latest';
++import { onRequest as clientErrorOnRequest } from '../api/telemetry/client-error';
++
++const ORIGIN = 'https://supremeai-studio.pages.dev';
++
++afterEach(() => {
++  vi.unstubAllGlobals();
++  vi.restoreAllMocks();
++});
++
++describe('onRequestViaHono (Cloudflare Pages adapter)', () => {
++  it('answers CORS preflight without touching the handler', async () => {
++    const res = await onRequestViaHono({
++      request: new Request(`${ORIGIN}/api/telemetry/client-error`, {
++        method: 'OPTIONS',
++        headers: { Origin: 'http://localhost:5173' },
++      }),
++      env: {},
++    });
++    expect(res.status).toBe(204);
++    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:5173');
++    expect(res.headers.get('Access-Control-Max-Age')).toBe('86400');
++  });
++
++  it('adds allowlisted CORS headers and keeps handler headers', async () => {
++    vi.spyOn(console, 'warn').mockImplementation(() => {});
++    const res = await clientErrorOnRequest({
++      request: new Request(`${ORIGIN}/api/telemetry/client-error`, {
++        method: 'POST',
++        headers: { Origin: 'http://localhost:5173', 'Content-Type': 'application/json' },
++        body: JSON.stringify({ message: 'edge' }),
++      }),
++      env: {},
++    });
++    expect(res.status).toBe(204);
++    expect(res.headers.get('Cache-Control')).toBe('no-store');
++    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:5173');
++    expect(res.headers.get('Access-Control-Allow-Credentials')).toBe('true');
++  });
++
++  it('never reflects an origin that is not on the allowlist', async () => {
++    vi.spyOn(console, 'warn').mockImplementation(() => {});
++    const res = await clientErrorOnRequest({
++      request: new Request(`${ORIGIN}/api/telemetry/client-error`, {
++        method: 'POST',
++        headers: { Origin: 'https://evil.example', 'Content-Type': 'application/json' },
++        body: '{}',
++      }),
++      env: {},
++    });
++    expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
++  });
++
++  it('passes Pages env bindings through to handlers (GITHUB_READONLY_TOKEN)', async () => {
++    const fetchMock = vi.fn(async () => new Response('nope', { status: 404 }));
++    vi.stubGlobal('fetch', fetchMock);
++    const res = await releasesOnRequest({
++      request: new Request(`${ORIGIN}/api/releases/latest`),
++      env: { GITHUB_READONLY_TOKEN: 'edge-token' },
++    });
++    expect(res.status).toBe(200);
++    const restCall = (fetchMock.mock.calls as unknown as Array<[string, RequestInit?]>).find(
++      ([u]) => String(u).includes('api.github.com')
++    );
++    expect((restCall?.[1]?.headers as Record<string, string>).Authorization).toBe(
++      'Bearer edge-token'
++    );
++  });
++});
+diff --git a/functions/_lib/honoAdapter.ts b/functions/_lib/honoAdapter.ts
+new file mode 100644
+index 0000000..22ec326
+--- /dev/null
++++ b/functions/_lib/honoAdapter.ts
+@@ -0,0 +1,30 @@
++/**
++ * Cloudflare Pages adapter — unified Hono API (`src/api/app.ts`) চালানো।
++ *
++ * কোনো রুট Hono-তে সরানো হলে তার Pages Function ফাইলটা শুধু এক লাইনের হয়:
++ *   export { onRequestViaHono as onRequest } from '../../_lib/honoAdapter';
++ *
++ * রানটাইম-নির্দিষ্ট কাজ এখানে: CORS preflight আর allowlist-ভিত্তিক CORS
++ * হেডার (আগে প্রতিটা ফাইল `jsonEdgeResponse`/`handleCorsPreflight` দিয়ে
++ * আলাদা করে করত)। Security header `functions/_middleware.ts` দেয়।
++ */
++
++import { createApiApp } from '../../src/api/app';
++import { applyCorsHeaders, handleCorsPreflight, type PagesContext } from './edgeHelpers';
++
++// বাংলা মন্তব্য: isolate প্রতি একবার তৈরি — রুট-লেভেল ক্যাশ (যেমন releases) টিকে থাকে
++const api = createApiApp();
++
++export async function onRequestViaHono(context: PagesContext): Promise<Response> {
++  const { request, env = {} } = context;
++  if (request.method === 'OPTIONS') return handleCorsPreflight(request, env);
++
++  const response = await api.fetch(request, env);
++  const headers = new Headers(response.headers);
++  applyCorsHeaders(headers, request.headers.get('Origin'), new URL(request.url).origin, env);
++  return new Response(response.body, {
++    status: response.status,
++    statusText: response.statusText,
++    headers,
++  });
++}
+diff --git a/functions/api/releases/latest.ts b/functions/api/releases/latest.ts
+index b244189..b91a367 100644
+--- a/functions/api/releases/latest.ts
++++ b/functions/api/releases/latest.ts
+@@ -1,204 +1,2 @@
+-import {
+-  PagesContext,
+-  handleCorsPreflight,
+-  jsonEdgeResponse,
+-  fetchWithTimeout,
+-} from '../../_lib/edgeHelpers';
+-import {
+-  buildRollingAssetUrls,
+-  DEFAULT_RELEASE_MANIFEST,
+-  normalizeRemoteReleaseManifest,
+-  type ReleaseAssetEntry,
+-  type ReleaseManifest,
+-} from '../../../src/config/releaseDownloads';
+-import {
+-  DEFAULT_WEB_STUDIO_URL,
+-  GITHUB_MONOREPO_SLUG,
+-  GITHUB_PUBLIC_REPO_SLUG,
+-} from '../../../src/config/platformEndpoints';
+-
+-async function fetchDirectRollingManifest(repoSlug: string): Promise<ReleaseManifest | null> {
+-  const candidates = [
+-    `https://github.com/${repoSlug}/releases/download/latest/latest-release.json`,
+-    `https://github.com/${repoSlug}/releases/download/latest/latest-desktop.json`,
+-  ];
+-  for (const manifestUrl of candidates) {
+-    try {
+-      const res = await fetchWithTimeout(
+-        manifestUrl,
+-        {
+-          headers: { Accept: 'application/json', 'User-Agent': 'SupremeAI-Edge-Release-Resolver' },
+-        },
+-        4000
+-      );
+-      if (!res.ok) continue;
+-      const raw = await res.json().catch(() => null);
+-      const normalized = normalizeRemoteReleaseManifest(raw, repoSlug);
+-      if (normalized) return normalized;
+-    } catch {
+-      // Try next candidate
+-    }
+-  }
+-  return null;
+-}
+-
+-export async function onRequest(context: PagesContext): Promise<Response> {
+-  const { request, env } = context;
+-  if (request.method === 'OPTIONS') return handleCorsPreflight(request, env);
+-
+-  const reposToCheck = [GITHUB_PUBLIC_REPO_SLUG, GITHUB_MONOREPO_SLUG];
+-
+-  // 1. Direct rolling manifest fetch bypasses unauthenticated GitHub REST API rate limits
+-  for (const repoSlug of reposToCheck) {
+-    const direct = await fetchDirectRollingManifest(repoSlug);
+-    if (direct) {
+-      return jsonEdgeResponse(
+-        direct,
+-        200,
+-        request,
+-        { 'Cache-Control': 'public, max-age=180' },
+-        env
+-      );
+-    }
+-  }
+-
+-  // 2. Fallback to GitHub REST API (checking rolling 'tags/latest' BEFORE '/releases/latest')
+-  const headers: Record<string, string> = {
+-    Accept: 'application/vnd.github+json',
+-    'User-Agent': 'SupremeAI-Edge-Release-Resolver',
+-  };
+-  if (env?.GITHUB_READONLY_TOKEN?.trim()) {
+-    headers['Authorization'] = `Bearer ${env.GITHUB_READONLY_TOKEN.trim()}`;
+-  }
+-
+-  for (const repoSlug of reposToCheck) {
+-    const endpoints = [
+-      `https://api.github.com/repos/${repoSlug}/releases/tags/latest`,
+-      `https://api.github.com/repos/${repoSlug}/releases/latest`,
+-    ];
+-    for (const apiUrl of endpoints) {
+-      try {
+-        const ghRes = await fetchWithTimeout(apiUrl, { headers }, 4500);
+-        if (!ghRes.ok) continue;
+-
+-        const release = (await ghRes.json().catch(() => null)) as any;
+-        const assets: any[] = Array.isArray(release?.assets) ? release.assets : [];
+-
+-        const exeAsset = assets.find((a) => String(a?.name || '').endsWith('.exe'));
+-        const msiAsset = assets.find((a) => String(a?.name || '').endsWith('.msi'));
+-        const universalOrArm64Apk =
+-          assets.find(
+-            (a) =>
+-              String(a?.name || '').endsWith('.apk') &&
+-              /universal|arm64|aarch64/i.test(String(a?.name || ''))
+-          ) || assets.find((a) => String(a?.name || '').endsWith('.apk'));
+-        const armv7Apk = assets.find(
+-          (a) =>
+-            String(a?.name || '').endsWith('.apk') && /armv7|armeabi/i.test(String(a?.name || ''))
+-        );
+-        const vsixAsset = assets.find((a) => String(a?.name || '').endsWith('.vsix'));
+-
+-        const manifestAsset =
+-          assets.find((a) => a?.name === 'latest-release.json') ||
+-          assets.find((a) => a?.name === 'latest-desktop.json');
+-        if (manifestAsset?.browser_download_url) {
+-          const mfRes = await fetchWithTimeout(manifestAsset.browser_download_url, {}, 4000).catch(
+-            () => null
+-          );
+-          if (mfRes?.ok) {
+-            const mf = await mfRes.json().catch(() => null);
+-            const normalized = normalizeRemoteReleaseManifest(mf, repoSlug);
+-            if (normalized) {
+-              const merged: ReleaseManifest = {
+-                ...normalized,
+-                publishedAt: normalized.publishedAt || String(release.published_at || ''),
+-                windowsExeUrl: String(exeAsset?.browser_download_url || normalized.windowsExeUrl),
+-                windowsMsiUrl: String(msiAsset?.browser_download_url || normalized.windowsMsiUrl),
+-                androidApkUrl: String(
+-                  universalOrArm64Apk?.browser_download_url || normalized.androidApkUrl
+-                ),
+-                ...(armv7Apk?.browser_download_url
+-                  ? { androidArmv7ApkUrl: String(armv7Apk.browser_download_url) }
+-                  : normalized.androidArmv7ApkUrl
+-                    ? { androidArmv7ApkUrl: normalized.androidArmv7ApkUrl }
+-                    : {}),
+-                vscodeVsixUrl: String(vsixAsset?.browser_download_url || normalized.vscodeVsixUrl),
+-              };
+-              return jsonEdgeResponse(
+-                merged,
+-                200,
+-                request,
+-                { 'Cache-Control': 'public, max-age=180' },
+-                env
+-              );
+-            }
+-          }
+-        }
+-
+-        if (exeAsset || universalOrArm64Apk || vsixAsset) {
+-          const tag = String(release.tag_name || 'latest');
+-          const version =
+-            tag !== 'latest' ? tag.replace(/^v/i, '') : DEFAULT_RELEASE_MANIFEST.version;
+-          const rollingUrls = buildRollingAssetUrls(version, repoSlug, tag);
+-          const mappedAssets: ReleaseAssetEntry[] = assets
+-            .filter((a) => /\.(exe|msi|apk|vsix)$/i.test(String(a?.name || '')))
+-            .map((a) => {
+-              const name = String(a.name);
+-              const platform: ReleaseAssetEntry['platform'] = name.endsWith('.exe')
+-                ? 'windows-exe'
+-                : name.endsWith('.msi')
+-                  ? 'windows-msi'
+-                  : name.endsWith('.vsix')
+-                    ? 'vscode-vsix'
+-                    : /armv7|armeabi/i.test(name)
+-                      ? 'android-apk-armv7'
+-                      : 'android-apk-arm64';
+-              return {
+-                platform,
+-                label: name,
+-                fileName: name,
+-                url: String(a.browser_download_url),
+-                sizeBytes: typeof a.size === 'number' ? a.size : undefined,
+-              };
+-            });
+-
+-          return jsonEdgeResponse(
+-            {
+-              version,
+-              tag,
+-              repo: repoSlug,
+-              publishedAt: String(release.published_at || ''),
+-              releasePageUrl: String(release.html_url || rollingUrls.releasePageUrl),
+-              webUrl: DEFAULT_WEB_STUDIO_URL,
+-              windowsExeUrl: String(exeAsset?.browser_download_url || rollingUrls.windowsExeUrl),
+-              windowsMsiUrl: String(msiAsset?.browser_download_url || rollingUrls.windowsMsiUrl),
+-              androidApkUrl: String(
+-                universalOrArm64Apk?.browser_download_url || rollingUrls.androidApkUrl
+-              ),
+-              ...(armv7Apk?.browser_download_url
+-                ? { androidArmv7ApkUrl: String(armv7Apk.browser_download_url) }
+-                : {}),
+-              vscodeVsixUrl: String(vsixAsset?.browser_download_url || rollingUrls.vscodeVsixUrl),
+-              provenance: 'live-github',
+-              assets: mappedAssets,
+-            },
+-            200,
+-            request,
+-            { 'Cache-Control': 'public, max-age=180' },
+-            env
+-          );
+-        }
+-      } catch {
+-        // Try next endpoint / repo slug
+-      }
+-    }
+-  }
+-
+-  return jsonEdgeResponse(
+-    DEFAULT_RELEASE_MANIFEST,
+-    200,
+-    request,
+-    { 'Cache-Control': 'public, max-age=120' },
+-    env
+-  );
+-}
++// বাংলা মন্তব্য: হ্যান্ডলার এখন src/api/routes/releases.ts-এ (Hono) — Express ও Edge একই কোড চালায়।
++export { onRequestViaHono as onRequest } from '../../_lib/honoAdapter';
+diff --git a/functions/api/telemetry/client-error.ts b/functions/api/telemetry/client-error.ts
+index 9786717..cb97719 100644
+--- a/functions/api/telemetry/client-error.ts
++++ b/functions/api/telemetry/client-error.ts
+@@ -1,73 +1,2 @@
+-/**
+- * Client error sink.
+- *
+- * The browser reporter (`src/services/telemetry.ts`) posts here and never
+- * retries; this handler only needs to acknowledge. Reports are capped and
+- * scrubbed so a noisy client cannot flood the Pages logs or store PII: the
+- * body is truncated, only the documented fields survive, and the auth token
+- * is never part of the payload.
+- */
+-
+-import type { PagesContext } from '../../_lib/edgeHelpers';
+-
+-const MAX_BODY_BYTES = 8 * 1024;
+-
+-interface ClientErrorPayload {
+-  message?: string;
+-  stack?: string;
+-  source?: string;
+-  release?: string;
+-  url?: string;
+-  route?: string;
+-  at?: string;
+-  context?: Record<string, unknown>;
+-}
+-
+-export async function onRequest(context: PagesContext): Promise<Response> {
+-  const { request } = context;
+-
+-  if (request.method === 'OPTIONS') {
+-    return new Response(null, {
+-      status: 204,
+-      headers: {
+-        'Access-Control-Allow-Origin': '*',
+-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+-        'Access-Control-Allow-Headers': 'Content-Type',
+-        'Access-Control-Max-Age': '86400',
+-      },
+-    });
+-  }
+-
+-  if (request.method !== 'POST') {
+-    return new Response(null, { status: 405, headers: { Allow: 'POST' } });
+-  }
+-
+-  const raw = await request.text().catch(() => '');
+-  if (raw.length > MAX_BODY_BYTES) {
+-    return new Response(null, { status: 413 });
+-  }
+-
+-  let payload: ClientErrorPayload = {};
+-  try {
+-    payload = raw ? (JSON.parse(raw) as ClientErrorPayload) : {};
+-  } catch {
+-    // Malformed report: acknowledge anyway, the client must never retry.
+-    return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+-  }
+-
+-  const summary = {
+-    message: String(payload.message ?? 'unknown').slice(0, 300),
+-    source: String(payload.source ?? 'app').slice(0, 40),
+-    release: payload.release ? String(payload.release).slice(0, 40) : undefined,
+-    route: payload.route ? String(payload.route).slice(0, 120) : undefined,
+-    at: payload.at ? String(payload.at).slice(0, 40) : new Date().toISOString(),
+-    contextKeys:
+-      payload.context && typeof payload.context === 'object'
+-        ? Object.keys(payload.context).slice(0, 10)
+-        : [],
+-  };
+-
+-  console.warn('[client-error]', JSON.stringify(summary));
+-
+-  return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+-}
++// বাংলা মন্তব্য: হ্যান্ডলার এখন src/api/routes/telemetry.ts-এ (Hono) — Express ও Edge একই কোড চালায়।
++export { onRequestViaHono as onRequest } from '../../_lib/honoAdapter';
+diff --git a/package-lock.json b/package-lock.json
+index fbce265..0aab513 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -10,6 +10,7 @@
+       "license": "MIT",
+       "dependencies": {
+         "@google/genai": "^3.6.1",
++        "@hono/node-server": "^2.1.11",
+         "@mediapipe/face_detection": "^0.4.1646425229",
+         "@mediapipe/face_mesh": "^0.4.1633559619",
+         "@tailwindcss/vite": "^4.3.5",
+@@ -27,6 +28,7 @@
+         "dotenv": "^18.0.10",
+         "express": "^5.3.0",
+         "firebase": "^13.4.0",
++        "hono": "^4.13.22",
+         "lucide-react": "^1.75.0",
+         "marked": "^18.2.1",
+         "motion": "^14.14.0",
+@@ -3310,6 +3312,18 @@
+       "integrity": "sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==",
+       "license": "Apache-2.0"
+     },
++    "node_modules/@hono/node-server": {
++      "version": "2.1.11",
++      "resolved": "https://registry.npmjs.org/@hono/node-server/-/node-server-2.1.11.tgz",
++      "integrity": "sha512-KzKz9vl4vvr1vgLHamj+g5uonbrj5NwAdO3yzOS6cd2HjALVeOgTgeZOyAzNxejbkfOOPIcvuf/Tg8l1pEFLog==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=20"
++      },
++      "peerDependencies": {
++        "hono": "^4 || ^5.0.0-0"
++      }
++    },
+     "node_modules/@humanfs/core": {
+       "version": "0.19.2",
+       "resolved": "https://registry.npmjs.org/@humanfs/core/-/core-0.19.2.tgz",
+@@ -9424,6 +9438,15 @@
+         "hermes-estree": "0.25.1"
+       }
+     },
++    "node_modules/hono": {
++      "version": "4.13.22",
++      "resolved": "https://registry.npmjs.org/hono/-/hono-4.13.22.tgz",
++      "integrity": "sha512-wncKd5/40Pj8grx0RZ2fgNIicFEmVFwIHT5UFLTnphR8I6AQWFf9c2JoM6ZJ9g8y4pMzg3sNlCVNe0m2Yclg0Q==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=16.9.0"
++      }
++    },
+     "node_modules/hookified": {
+       "version": "1.15.1",
+       "resolved": "https://registry.npmjs.org/hookified/-/hookified-1.15.1.tgz",
+diff --git a/package.json b/package.json
+index ddb79d8..a8dcb93 100644
+--- a/package.json
++++ b/package.json
+@@ -32,6 +32,7 @@
+   },
+   "dependencies": {
+     "@google/genai": "^3.6.1",
++    "@hono/node-server": "^2.1.11",
+     "@mediapipe/face_detection": "^0.4.1646425229",
+     "@mediapipe/face_mesh": "^0.4.1633559619",
+     "@tailwindcss/vite": "^4.3.5",
+@@ -49,6 +50,7 @@
+     "dotenv": "^18.0.10",
+     "express": "^5.3.0",
+     "firebase": "^13.4.0",
++    "hono": "^4.13.22",
+     "lucide-react": "^1.75.0",
+     "marked": "^18.2.1",
+     "motion": "^14.14.0",
+diff --git a/scripts/check-server-budget.mjs b/scripts/check-server-budget.mjs
+index c9b7c2e..517023a 100644
+--- a/scripts/check-server-budget.mjs
++++ b/scripts/check-server-budget.mjs
+@@ -124,7 +124,10 @@ const TARGET = 'server.ts';
+ // 2797 → 2559 after extracting knowledge CRUD (4 routes), llm-gateway latency
+ //         (2 routes), and agent-swarm SSE stream into src/server/routes/{knowledge,llmLatency}.ts
+ //         and admin/swarmQueue.ts (−238 lines; zero inline feature routes left).
+-const BUDGET = 2559;
++// 2559 → 2527 after the week-2 cleanup and the first Hono step: GET /api/releases/latest
++//         and POST /api/telemetry/client-error now live in src/api/routes (shared with
++//         Cloudflare Pages), mounted via mountApiOnExpress (docs/HONO_MIGRATION.md).
++const BUDGET = 2527;
+ 
+ const file = path.join(ROOT, TARGET);
+ const text = fs.readFileSync(file, 'utf8');
+diff --git a/server.ts b/server.ts
+index f3f06e2..5f73962 100644
+--- a/server.ts
++++ b/server.ts
+@@ -34,7 +34,7 @@ import { registerGitOauthRoutes } from './src/server/routes/gitOauth';
+ import { registerMediaRoutes } from './src/server/routes/media';
+ import { registerAuthRoutes } from './src/server/routes/auth';
+ import { registerFeedbackRoutes } from './src/server/routes/feedback';
+-import { registerReleasesRoutes } from './src/server/routes/releases';
++import { mountApiOnExpress } from './src/api/node';
+ import { registerStreamRoutes } from './src/server/routes/stream';
+ import { registerTelemetryRoutes } from './src/server/routes/telemetry';
+ import { registerGraphRoutes } from './src/server/routes/graph';
+@@ -226,7 +226,6 @@ async function startServer() {
+   const app = express();
+   app.disable('x-powered-by');
+   app.set('trust proxy', 1);
+-  app.use(express.json({ limit: '15mb' }));
+ 
+   const isHttpsRequest = (req: Request): boolean => {
+     const protoHeader = String(req.header('x-forwarded-proto') || '').toLowerCase();
+@@ -317,6 +316,9 @@ async function startServer() {
+     });
+     next();
+   });
++  // বাংলা মন্তব্য: Unified Hono API (src/api, Edge-এর সাথে একই কোড) — express.json()-এর আগে, body অক্ষত রাখতে
++  mountApiOnExpress(app);
++  app.use(express.json({ limit: '15mb' }));
+ 
+   // Zero-dependency in-memory sliding-window rate limiter (per client IP).
+   const rateBuckets = new Map<string, number[]>();
+@@ -1787,8 +1789,6 @@ async function startServer() {
+     persistDevUsersDb: (u) => persistDevUsersDb(u),
+   });
+ 
+-  registerReleasesRoutes(app);
+-
+   registerFeedbackRoutes(app, {
+     verifyAdminAuthorization: (req) => verifyAdminAuthorization(req),
+     resolveAuthenticatedEmail: (req) => resolveAuthenticatedEmail(req),
+diff --git a/src/api/app.test.ts b/src/api/app.test.ts
+new file mode 100644
+index 0000000..a296877
+--- /dev/null
++++ b/src/api/app.test.ts
+@@ -0,0 +1,173 @@
++// @vitest-environment node
++// বাংলা মন্তব্য: unified Hono API — রানটাইম-নিরপেক্ষ হ্যান্ডলার টেস্ট (app.request দিয়ে, নেটওয়ার্ক ছাড়া)
++import { afterEach, describe, expect, it, vi } from 'vitest';
++import { createApiApp, listApiPaths } from './app';
++import { DEFAULT_RELEASE_MANIFEST } from '../config/releaseDownloads';
++import { CLIENT_ERROR_MAX_BODY_BYTES } from './routes/telemetry';
++
++type FetchArgs = [input: RequestInfo | URL, init?: RequestInit];
++
++function jsonResponse(body: unknown, status = 200): Response {
++  return new Response(JSON.stringify(body), {
++    status,
++    headers: { 'Content-Type': 'application/json' },
++  });
++}
++
++/** URL-substring → response ম্যাপ; মেলে না এমন সব URL-এ 404। */
++function routedFetch(routes: Record<string, unknown>) {
++  return vi.fn(async (...[input]: FetchArgs) => {
++    const url = String(input instanceof Request ? input.url : input);
++    for (const [needle, body] of Object.entries(routes)) {
++      if (url.includes(needle)) return jsonResponse(body);
++    }
++    return new Response('not found', { status: 404 });
++  });
++}
++
++afterEach(() => {
++  vi.restoreAllMocks();
++});
++
++describe('createApiApp — route registry', () => {
++  it('lists every concrete migrated path (used by the Express mount)', () => {
++    expect(listApiPaths(createApiApp())).toEqual([
++      '/api/releases/latest',
++      '/api/telemetry/client-error',
++    ]);
++  });
++
++  it('returns 404 for paths that are not migrated yet', async () => {
++    const res = await createApiApp().request('/api/health');
++    expect(res.status).toBe(404);
++  });
++});
++
++describe('GET /api/releases/latest', () => {
++  it('serves the direct rolling manifest and caches it for 3 minutes', async () => {
++    const fetchMock = routedFetch({
++      'releases/download/latest/latest-release.json': { version: '9.1.0', tag: 'v9.1.0' },
++    });
++    let clock = 1_000_000;
++    const app = createApiApp({ fetch: fetchMock as unknown as typeof fetch, now: () => clock });
++
++    const first = await app.request('/api/releases/latest');
++    expect(first.status).toBe(200);
++    expect(first.headers.get('Cache-Control')).toBe('public, max-age=180');
++    const body = (await first.json()) as { version: string };
++    expect(body.version).toBe('9.1.0');
++    const callsAfterFirst = fetchMock.mock.calls.length;
++
++    clock += 60_000;
++    await app.request('/api/releases/latest');
++    expect(fetchMock.mock.calls.length).toBe(callsAfterFirst);
++
++    clock += 3 * 60_000;
++    await app.request('/api/releases/latest');
++    expect(fetchMock.mock.calls.length).toBeGreaterThan(callsAfterFirst);
++  });
++
++  it('falls back to the GitHub REST release and maps platform assets', async () => {
++    const fetchMock = routedFetch({
++      'api.github.com/repos/': {
++        tag_name: 'v3.4.5',
++        published_at: '2026-11-20T00:00:00Z',
++        html_url: 'https://github.com/x/y/releases/tag/v3.4.5',
++        assets: [
++          {
++            name: 'SupremeAI_3.4.5_x64-setup.exe',
++            browser_download_url: 'https://dl/exe',
++            size: 10,
++          },
++          { name: 'SupremeAI-universal.apk', browser_download_url: 'https://dl/apk', size: 20 },
++          { name: 'SupremeAI-armv7.apk', browser_download_url: 'https://dl/armv7' },
++          { name: 'notes.txt', browser_download_url: 'https://dl/notes' },
++        ],
++      },
++    });
++    const app = createApiApp({ fetch: fetchMock as unknown as typeof fetch });
++
++    const res = await app.request('/api/releases/latest', {}, { GITHUB_READONLY_TOKEN: ' tok ' });
++    const body = (await res.json()) as {
++      version: string;
++      provenance: string;
++      windowsExeUrl: string;
++      androidApkUrl: string;
++      androidArmv7ApkUrl: string;
++      assets: Array<{ platform: string }>;
++    };
++    expect(body.version).toBe('3.4.5');
++    expect(body.provenance).toBe('live-github');
++    expect(body.windowsExeUrl).toBe('https://dl/exe');
++    expect(body.androidApkUrl).toBe('https://dl/apk');
++    expect(body.androidArmv7ApkUrl).toBe('https://dl/armv7');
++    expect(body.assets.map((a) => a.platform)).toEqual([
++      'windows-exe',
++      'android-apk-arm64',
++      'android-apk-armv7',
++    ]);
++
++    // বাংলা মন্তব্য: env-এর টোকেন (trim করা) শুধু GitHub REST কলে যায়
++    const restCall = fetchMock.mock.calls.find(([u]) => String(u).includes('api.github.com'));
++    const headers = (restCall?.[1]?.headers ?? {}) as Record<string, string>;
++    expect(headers.Authorization).toBe('Bearer tok');
++  });
++
++  it('serves the bundled manifest with a shorter cache when GitHub is unreachable', async () => {
++    const fetchMock = vi.fn(async () => {
++      throw new Error('offline');
++    });
++    const app = createApiApp({ fetch: fetchMock as unknown as typeof fetch });
++    const res = await app.request('/api/releases/latest');
++    expect(res.status).toBe(200);
++    expect(res.headers.get('Cache-Control')).toBe('public, max-age=120');
++    expect(await res.json()).toEqual(DEFAULT_RELEASE_MANIFEST);
++  });
++});
++
++describe('POST /api/telemetry/client-error', () => {
++  const post = (body: string) =>
++    createApiApp().request('/api/telemetry/client-error', {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      body,
++    });
++
++  it('acknowledges with 204 and logs only a scrubbed summary', async () => {
++    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
++    const res = await post(
++      JSON.stringify({
++        message: 'x'.repeat(500),
++        source: 'chat',
++        release: 'v2.5.0',
++        context: { a: 1, b: 2 },
++        token: 'secret-should-not-be-logged',
++      })
++    );
++    expect(res.status).toBe(204);
++    expect(res.headers.get('Cache-Control')).toBe('no-store');
++    const logged = JSON.parse(String(warn.mock.calls[0][1])) as Record<string, unknown>;
++    expect(String(logged.message)).toHaveLength(300);
++    expect(logged.release).toBe('v2.5.0');
++    expect(logged.contextKeys).toEqual(['a', 'b']);
++    expect(JSON.stringify(logged)).not.toContain('secret-should-not-be-logged');
++  });
++
++  it('rejects oversized reports with 413', async () => {
++    const res = await post(JSON.stringify({ message: 'x'.repeat(CLIENT_ERROR_MAX_BODY_BYTES) }));
++    expect(res.status).toBe(413);
++  });
++
++  it('still answers 204 for malformed JSON so the client never retries', async () => {
++    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
++    const res = await post('{not json');
++    expect(res.status).toBe(204);
++    expect(warn).not.toHaveBeenCalled();
++  });
++
++  it('answers other methods with 405 + Allow: POST', async () => {
++    const res = await createApiApp().request('/api/telemetry/client-error');
++    expect(res.status).toBe(405);
++    expect(res.headers.get('Allow')).toBe('POST');
++  });
++});
+diff --git a/src/api/app.ts b/src/api/app.ts
+new file mode 100644
+index 0000000..3ff3dce
+--- /dev/null
++++ b/src/api/app.ts
+@@ -0,0 +1,71 @@
++/**
++ * SupremeAI unified API — একমাত্র রুট-হ্যান্ডলার স্তর (Hono)।
++ *
++ * WHY THIS FILE EXISTS
++ *   একই API দুটো ব্যাকএন্ডে আলাদা করে লেখা ছিল — Express (`server.ts` +
++ *   `src/server/routes/`) আর Cloudflare Pages Functions (`functions/api/`)।
++ *   এক জায়গায় ফিক্স হলে অন্য জায়গায় থেকে যেত (যেমন PR #91-এ admin auth)।
++ *   Hono Web-standard `Request/Response` ব্যবহার করে, তাই এখানে একবার লেখা
++ *   হ্যান্ডলার দুই রানটাইমেই চলে:
++ *
++ *     Cloudflare : functions/_lib/honoAdapter.ts → createApiApp().fetch(request, env)
++ *     Node       : src/api/node.ts (mountApiOnExpress) → @hono/node-server
++ *
++ * CONTRACT
++ *   - রুট-গ্রুপ `src/api/routes/*.ts`-এ থাকে; প্রত্যেকটা একটা `Hono` sub-app
++ *     ফেরত দেয় যার পাথ পূর্ণ (`/api/...`) — যাতে Express-এ ঠিক ওই পাথগুলোই
++ *     mount করা যায় (`listApiPaths`)।
++ *   - হ্যান্ডলার কখনো `process.env` সরাসরি পড়বে না — শুধু `readEnv(c, KEY)`।
++ *     Cloudflare-এ env আসে `context.env` থেকে, Node-এ `process.env` থেকে।
++ *   - রানটাইম-নির্দিষ্ট কাজ (CORS, security header, rate-limit) adapter-এ
++ *     থাকে, এখানে না।
++ *   - মাইগ্রেশনের অবস্থা: docs/HONO_MIGRATION.md
++ */
++
++import { Hono, type Context } from 'hono';
++import { createReleasesRoutes } from './routes/releases';
++import { createTelemetryRoutes } from './routes/telemetry';
++
++/** দুই রানটাইমেই env হলো string ম্যাপ (Cloudflare `context.env` / Node `process.env`)। */
++export type ApiBindings = Record<string, string | undefined>;
++
++export interface ApiEnv {
++  Bindings: ApiBindings;
++}
++
++export type ApiContext = Context<ApiEnv>;
++
++/** টেস্টে বা রানটাইমে বাইরের নির্ভরতা বদলানোর জন্য (যেমন নেটওয়ার্ক fetch)। */
++export interface ApiDeps {
++  fetch?: typeof fetch;
++  now?: () => number;
++}
++
++/** বাংলা মন্তব্য: env থেকে নিরাপদে string মান পড়া — দুই রানটাইমেই একই আচরণ। */
++export function readEnv(c: ApiContext, key: string): string | undefined {
++  const env = c.env as Record<string, unknown> | undefined;
++  const value = env?.[key];
++  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
++}
++
++export function createApiApp(deps: ApiDeps = {}): Hono<ApiEnv> {
++  const app = new Hono<ApiEnv>();
++
++  app.route('/', createReleasesRoutes(deps));
++  app.route('/', createTelemetryRoutes());
++
++  return app;
++}
++
++/**
++ * বাংলা মন্তব্য: Hono অ্যাপে রেজিস্টার করা সব কংক্রিট পাথ (wildcard middleware বাদ)।
++ * Express adapter ঠিক এই পাথগুলোতেই Hono mount করে, তাই নতুন রুট যোগ করলে
++ * আলাদা তালিকা আপডেট করতে হয় না।
++ */
++export function listApiPaths(app: Hono<ApiEnv>): string[] {
++  const paths = new Set<string>();
++  for (const route of app.routes) {
++    if (!route.path.includes('*')) paths.add(route.path);
++  }
++  return [...paths].sort();
++}
+diff --git a/src/api/node.test.ts b/src/api/node.test.ts
+new file mode 100644
+index 0000000..9343d46
+--- /dev/null
++++ b/src/api/node.test.ts
+@@ -0,0 +1,78 @@
++// @vitest-environment node
++// বাংলা মন্তব্য: Express-এর ভেতরে Hono mount — পাথ রাউটিং, body অক্ষত থাকা, আর পুরনো Express রুট অক্ষত থাকা
++import express from 'express';
++import http from 'node:http';
++import type { AddressInfo } from 'node:net';
++import { afterEach, describe, expect, it, vi } from 'vitest';
++import { mountApiOnExpress } from './node';
++
++async function withServer(
++  setup: (app: express.Express) => void,
++  run: (baseUrl: string) => Promise<void>
++): Promise<void> {
++  const app = express();
++  setup(app);
++  const server = http.createServer(app);
++  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
++  const { port } = server.address() as AddressInfo;
++  try {
++    await run(`http://127.0.0.1:${port}`);
++  } finally {
++    await new Promise<void>((resolve) => server.close(() => resolve()));
++  }
++}
++
++afterEach(() => {
++  vi.restoreAllMocks();
++});
++
++describe('mountApiOnExpress', () => {
++  it('routes migrated paths to Hono and leaves everything else to Express', async () => {
++    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
++    let mounted: string[] = [];
++
++    await withServer(
++      (app) => {
++        // বাংলা মন্তব্য: server.ts-এর মতো — আগের middleware-এর হেডার Hono response-এ টিকে থাকবে
++        app.use((_req, res, next) => {
++          res.setHeader('X-Content-Type-Options', 'nosniff');
++          next();
++        });
++        mounted = mountApiOnExpress(app, { env: {} });
++        app.use(express.json());
++        app.post('/api/legacy/echo', (req, res) => {
++          res.json({ got: req.body });
++        });
++      },
++      async (baseUrl) => {
++        expect(mounted).toContain('/api/telemetry/client-error');
++
++        // Hono রুট: express.json()-এর আগে mount বলে body অক্ষত পৌঁছায়
++        const sink = await fetch(`${baseUrl}/api/telemetry/client-error`, {
++          method: 'POST',
++          headers: { 'Content-Type': 'application/json' },
++          body: JSON.stringify({ message: 'boom-from-node', source: 'test' }),
++        });
++        expect(sink.status).toBe(204);
++        expect(sink.headers.get('x-content-type-options')).toBe('nosniff');
++        expect(String(warn.mock.calls[0]?.[1])).toContain('boom-from-node');
++
++        const wrongMethod = await fetch(`${baseUrl}/api/telemetry/client-error`);
++        expect(wrongMethod.status).toBe(405);
++
++        // পুরনো Express রুট আগের মতোই JSON body পায়
++        const legacy = await fetch(`${baseUrl}/api/legacy/echo`, {
++          method: 'POST',
++          headers: { 'Content-Type': 'application/json' },
++          body: JSON.stringify({ ok: 1 }),
++        });
++        expect(await legacy.json()).toEqual({ got: { ok: 1 } });
++
++        // অজানা পাথ Hono ধরে না — Express-এর ডিফল্ট 404
++        const unknown = await fetch(`${baseUrl}/api/not-migrated`);
++        expect(unknown.status).toBe(404);
++        expect(await unknown.text()).toContain('Cannot GET');
++      }
++    );
++  });
++});
+diff --git a/src/api/node.ts b/src/api/node.ts
+new file mode 100644
+index 0000000..1d5453a
+--- /dev/null
++++ b/src/api/node.ts
+@@ -0,0 +1,36 @@
++/**
++ * Node adapter — Hono API-কে চলমান Express সার্ভারে mount করা।
++ *
++ * মাইগ্রেশন চলাকালীন Express-ই Node-এর হোস্ট থাকছে (Vite middleware, বাকি
++ * পুরনো রুট)। শুধু Hono-তে সরানো পাথগুলো (`listApiPaths`) এখানে mount হয়;
++ * বাকি সব আগের মতো Express-এ যায়। সব রুট সরানো শেষ হলে Express বাদ দিয়ে
++ * সরাসরি `@hono/node-server`-এর `serve()` ব্যবহার করা যাবে।
++ *
++ * ⚠️ ক্রম গুরুত্বপূর্ণ: এটা `express.json()`-এর **আগে** mount করতে হবে,
++ * নইলে body stream আগেই পড়া হয়ে যায় আর Hono খালি body পায়।
++ */
++
++import type { Express, Request, Response } from 'express';
++import { getRequestListener } from '@hono/node-server';
++import type { Hono } from 'hono';
++import { createApiApp, listApiPaths, type ApiBindings, type ApiEnv } from './app';
++
++export interface MountApiOptions {
++  api?: Hono<ApiEnv>;
++  /** ডিফল্ট `process.env` — হ্যান্ডলার `readEnv()` দিয়ে পড়ে। */
++  env?: ApiBindings;
++}
++
++export function mountApiOnExpress(app: Express, options: MountApiOptions = {}): string[] {
++  const api = options.api ?? createApiApp();
++  const env = options.env ?? (process.env as ApiBindings);
++  const paths = listApiPaths(api);
++  if (paths.length === 0) return paths;
++
++  const listener = getRequestListener((request) => api.fetch(request, env));
++  app.all(paths, (req: Request, res: Response) => {
++    // বাংলা মন্তব্য: listener নিজেই error ধরে 500 দেয়; promise ফেলে রাখা নিরাপদ
++    void listener(req, res);
++  });
++  return paths;
++}
+diff --git a/src/api/routes/releases.ts b/src/api/routes/releases.ts
+new file mode 100644
+index 0000000..74d654b
+--- /dev/null
++++ b/src/api/routes/releases.ts
+@@ -0,0 +1,236 @@
++/**
++ * Releases — `GET /api/releases/latest`
++ *
++ * আগে এই একই লজিক দুই জায়গায় প্রায় লাইন-বাই-লাইন কপি ছিল:
++ *   - src/server/routes/releases.ts (Express)
++ *   - functions/api/releases/latest.ts (Cloudflare)
++ * এখন একটাই কপি, দুই রানটাইম থেকে চলে।
++ *
++ * ক্রম: (১) GitHub-এর rolling manifest সরাসরি (REST rate-limit এড়ায়) →
++ *       (২) GitHub REST (`tags/latest` আগে, তারপর `/releases/latest`) →
++ *       (৩) bundled DEFAULT_RELEASE_MANIFEST।
++ * ফলাফল ৩ মিনিট মেমরিতে ক্যাশ হয় (isolate/process প্রতি) আর
++ * `Cache-Control` হেডার দিয়ে CDN/ব্রাউজারেও।
++ */
++
++import { Hono } from 'hono';
++import type { ApiDeps, ApiEnv } from '../app';
++import { readEnv } from '../app';
++import {
++  buildRollingAssetUrls,
++  DEFAULT_RELEASE_MANIFEST,
++  normalizeRemoteReleaseManifest,
++  type ReleaseAssetEntry,
++  type ReleaseManifest,
++} from '../../config/releaseDownloads';
++import {
++  DEFAULT_WEB_STUDIO_URL,
++  GITHUB_MONOREPO_SLUG,
++  GITHUB_PUBLIC_REPO_SLUG,
++} from '../../config/platformEndpoints';
++
++const CACHE_TTL_MS = 3 * 60_000;
++const USER_AGENT = 'SupremeAI-Release-Resolver';
++
++interface GitHubReleaseAsset {
++  name?: unknown;
++  browser_download_url?: unknown;
++  size?: unknown;
++}
++
++interface GitHubRelease {
++  tag_name?: unknown;
++  published_at?: unknown;
++  html_url?: unknown;
++  assets?: unknown;
++}
++
++type FetchFn = typeof fetch;
++
++function assetName(asset: GitHubReleaseAsset | undefined): string {
++  return String(asset?.name || '');
++}
++
++function assetUrl(asset: GitHubReleaseAsset | undefined): string | undefined {
++  const url = asset?.browser_download_url;
++  return url ? String(url) : undefined;
++}
++
++async function fetchJson(
++  fetchImpl: FetchFn,
++  url: string,
++  headers: Record<string, string>,
++  timeoutMs: number
++): Promise<unknown | null> {
++  try {
++    const res = await fetchImpl(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
++    if (!res.ok) return null;
++    return await res.json().catch(() => null);
++  } catch {
++    return null;
++  }
++}
++
++/** বাংলা মন্তব্য: ধাপ ১ — release asset হিসেবে প্রকাশিত rolling manifest সরাসরি পড়া। */
++async function fetchDirectRollingManifest(
++  fetchImpl: FetchFn,
++  repoSlug: string
++): Promise<ReleaseManifest | null> {
++  const candidates = [
++    `https://github.com/${repoSlug}/releases/download/latest/latest-release.json`,
++    `https://github.com/${repoSlug}/releases/download/latest/latest-desktop.json`,
++  ];
++  for (const manifestUrl of candidates) {
++    const raw = await fetchJson(
++      fetchImpl,
++      manifestUrl,
++      { Accept: 'application/json', 'User-Agent': USER_AGENT },
++      4000
++    );
++    const normalized = raw ? normalizeRemoteReleaseManifest(raw, repoSlug) : null;
++    if (normalized) return normalized;
++  }
++  return null;
++}
++
++/** বাংলা মন্তব্য: ধাপ ২ — GitHub REST release থেকে manifest বানানো। */
++async function resolveFromGitHubRelease(
++  fetchImpl: FetchFn,
++  repoSlug: string,
++  release: GitHubRelease
++): Promise<ReleaseManifest | null> {
++  const assets: GitHubReleaseAsset[] = Array.isArray(release.assets)
++    ? (release.assets as GitHubReleaseAsset[])
++    : [];
++
++  const exeAsset = assets.find((a) => assetName(a).endsWith('.exe'));
++  const msiAsset = assets.find((a) => assetName(a).endsWith('.msi'));
++  const universalOrArm64Apk =
++    assets.find(
++      (a) => assetName(a).endsWith('.apk') && /universal|arm64|aarch64/i.test(assetName(a))
++    ) || assets.find((a) => assetName(a).endsWith('.apk'));
++  const armv7Apk = assets.find(
++    (a) => assetName(a).endsWith('.apk') && /armv7|armeabi/i.test(assetName(a))
++  );
++  const vsixAsset = assets.find((a) => assetName(a).endsWith('.vsix'));
++
++  const manifestAsset =
++    assets.find((a) => a?.name === 'latest-release.json') ||
++    assets.find((a) => a?.name === 'latest-desktop.json');
++  const manifestAssetUrl = assetUrl(manifestAsset);
++  if (manifestAssetUrl) {
++    const mf = await fetchJson(fetchImpl, manifestAssetUrl, { 'User-Agent': USER_AGENT }, 4000);
++    const normalized = mf ? normalizeRemoteReleaseManifest(mf, repoSlug) : null;
++    if (normalized) {
++      const armv7Url = assetUrl(armv7Apk) || normalized.androidArmv7ApkUrl;
++      return {
++        ...normalized,
++        publishedAt: normalized.publishedAt || String(release.published_at || ''),
++        windowsExeUrl: assetUrl(exeAsset) || normalized.windowsExeUrl,
++        windowsMsiUrl: assetUrl(msiAsset) || normalized.windowsMsiUrl,
++        androidApkUrl: assetUrl(universalOrArm64Apk) || normalized.androidApkUrl,
++        ...(armv7Url ? { androidArmv7ApkUrl: armv7Url } : {}),
++        vscodeVsixUrl: assetUrl(vsixAsset) || normalized.vscodeVsixUrl,
++      };
++    }
++  }
++
++  if (!exeAsset && !universalOrArm64Apk && !vsixAsset) return null;
++
++  const tag = String(release.tag_name || 'latest');
++  const version = tag !== 'latest' ? tag.replace(/^v/i, '') : DEFAULT_RELEASE_MANIFEST.version;
++  const rollingUrls = buildRollingAssetUrls(version, repoSlug, tag);
++  const mappedAssets: ReleaseAssetEntry[] = assets
++    .filter((a) => /\.(exe|msi|apk|vsix)$/i.test(assetName(a)))
++    .map((a) => {
++      const name = assetName(a);
++      const platform: ReleaseAssetEntry['platform'] = name.endsWith('.exe')
++        ? 'windows-exe'
++        : name.endsWith('.msi')
++          ? 'windows-msi'
++          : name.endsWith('.vsix')
++            ? 'vscode-vsix'
++            : /armv7|armeabi/i.test(name)
++              ? 'android-apk-armv7'
++              : 'android-apk-arm64';
++      return {
++        platform,
++        label: name,
++        fileName: name,
++        url: String(a.browser_download_url),
++        sizeBytes: typeof a.size === 'number' ? a.size : undefined,
++      };
++    });
++
++  const armv7Url = assetUrl(armv7Apk);
++  return {
++    version,
++    tag,
++    repo: repoSlug,
++    publishedAt: String(release.published_at || ''),
++    releasePageUrl: String(release.html_url || rollingUrls.releasePageUrl),
++    webUrl: DEFAULT_WEB_STUDIO_URL,
++    windowsExeUrl: assetUrl(exeAsset) || rollingUrls.windowsExeUrl,
++    windowsMsiUrl: assetUrl(msiAsset) || rollingUrls.windowsMsiUrl,
++    androidApkUrl: assetUrl(universalOrArm64Apk) || rollingUrls.androidApkUrl,
++    ...(armv7Url ? { androidArmv7ApkUrl: armv7Url } : {}),
++    vscodeVsixUrl: assetUrl(vsixAsset) || rollingUrls.vscodeVsixUrl,
++    provenance: 'live-github',
++    assets: mappedAssets,
++  };
++}
++
++export async function resolveLatestRelease(
++  fetchImpl: FetchFn,
++  githubToken?: string
++): Promise<{ manifest: ReleaseManifest; live: boolean }> {
++  const reposToCheck = [GITHUB_PUBLIC_REPO_SLUG, GITHUB_MONOREPO_SLUG];
++
++  for (const repoSlug of reposToCheck) {
++    const direct = await fetchDirectRollingManifest(fetchImpl, repoSlug);
++    if (direct) return { manifest: direct, live: true };
++  }
++
++  const headers: Record<string, string> = {
++    Accept: 'application/vnd.github+json',
++    'User-Agent': USER_AGENT,
++  };
++  if (githubToken) headers.Authorization = `Bearer ${githubToken}`;
++
++  for (const repoSlug of reposToCheck) {
++    for (const apiUrl of [
++      `https://api.github.com/repos/${repoSlug}/releases/tags/latest`,
++      `https://api.github.com/repos/${repoSlug}/releases/latest`,
++    ]) {
++      const release = (await fetchJson(fetchImpl, apiUrl, headers, 4500)) as GitHubRelease | null;
++      if (!release || typeof release !== 'object') continue;
++      try {
++        const resolved = await resolveFromGitHubRelease(fetchImpl, repoSlug, release);
++        if (resolved) return { manifest: resolved, live: true };
++      } catch {
++        // বাংলা মন্তব্য: অপ্রত্যাশিত আকারের release — পরের endpoint/repo চেষ্টা
++      }
++    }
++  }
++
++  return { manifest: DEFAULT_RELEASE_MANIFEST, live: false };
++}
++
++export function createReleasesRoutes(deps: ApiDeps = {}): Hono<ApiEnv> {
++  const routes = new Hono<ApiEnv>();
++  const now = deps.now ?? (() => Date.now());
++  let cached: { manifest: ReleaseManifest; live: boolean; fetchedAt: number } | null = null;
++
++  routes.get('/api/releases/latest', async (c) => {
++    if (!cached || now() - cached.fetchedAt >= CACHE_TTL_MS) {
++      // বাংলা মন্তব্য: globalThis.fetch রিকোয়েস্টের সময় পড়া হয় (টেস্টে stub করা যায়)
++      const fetchImpl = deps.fetch ?? ((input, init) => fetch(input, init));
++      const result = await resolveLatestRelease(fetchImpl, readEnv(c, 'GITHUB_READONLY_TOKEN'));
++      cached = { ...result, fetchedAt: now() };
++    }
++    c.header('Cache-Control', `public, max-age=${cached.live ? 180 : 120}`);
++    return c.json(cached.manifest);
++  });
++
++  return routes;
++}
+diff --git a/src/api/routes/telemetry.ts b/src/api/routes/telemetry.ts
+new file mode 100644
+index 0000000..298ef49
+--- /dev/null
++++ b/src/api/routes/telemetry.ts
+@@ -0,0 +1,70 @@
++/**
++ * Client error sink — `POST /api/telemetry/client-error`
++ *
++ * ব্রাউজার রিপোর্টার (`src/services/telemetry.ts`) fire-and-forget পাঠায়,
++ * কখনো retry করে না — তাই হ্যান্ডলার শুধু acknowledge করে (204)।
++ * শব্দদূষণ/PII ঠেকাতে: বডি ৮ KB-তে সীমিত (বেশি হলে 413), শুধু নথিভুক্ত
++ * ফিল্ডগুলো ছোট করে লগে যায়, auth টোকেন কখনো পেলোডের অংশ না।
++ *
++ * আগে Express আর Cloudflare-এ দুটো আলাদা কপি ছিল; Express কপিতে ৮ KB
++ * সীমা আর 405 ছিল না। এখন একটাই কপি — Cloudflare-এর কড়া আচরণটা রাখা হয়েছে।
++ */
++
++import { Hono } from 'hono';
++import type { ApiEnv } from '../app';
++
++export const CLIENT_ERROR_MAX_BODY_BYTES = 8 * 1024;
++const CLIENT_ERROR_PATH = '/api/telemetry/client-error';
++
++interface ClientErrorPayload {
++  message?: unknown;
++  source?: unknown;
++  release?: unknown;
++  route?: unknown;
++  at?: unknown;
++  context?: unknown;
++}
++
++export function summarizeClientError(payload: ClientErrorPayload) {
++  return {
++    message: String(payload.message ?? 'unknown').slice(0, 300),
++    source: String(payload.source ?? 'app').slice(0, 40),
++    release: payload.release ? String(payload.release).slice(0, 40) : undefined,
++    route: payload.route ? String(payload.route).slice(0, 120) : undefined,
++    at: payload.at ? String(payload.at).slice(0, 40) : new Date().toISOString(),
++    contextKeys:
++      payload.context && typeof payload.context === 'object'
++        ? Object.keys(payload.context as Record<string, unknown>).slice(0, 10)
++        : [],
++  };
++}
++
++export function createTelemetryRoutes(): Hono<ApiEnv> {
++  const routes = new Hono<ApiEnv>();
++
++  routes.post(CLIENT_ERROR_PATH, async (c) => {
++    const noStore = { 'Cache-Control': 'no-store' };
++    const raw = await c.req.text().catch(() => '');
++    if (new TextEncoder().encode(raw).byteLength > CLIENT_ERROR_MAX_BODY_BYTES) {
++      return c.body(null, 413, noStore);
++    }
++
++    let parsed: unknown;
++    try {
++      parsed = raw ? JSON.parse(raw) : {};
++    } catch {
++      // বাংলা মন্তব্য: ভাঙা রিপোর্ট — তবু 204, ক্লায়েন্ট যেন কখনো retry না করে
++      return c.body(null, 204, noStore);
++    }
++    const payload: ClientErrorPayload =
++      parsed && typeof parsed === 'object' ? (parsed as ClientErrorPayload) : {};
++
++    console.warn('[client-error]', JSON.stringify(summarizeClientError(payload)));
++    return c.body(null, 204, noStore);
++  });
++
++  // বাংলা মন্তব্য: অন্য মেথডে 404 না দিয়ে স্পষ্ট 405 (OPTIONS adapter-এ আগেই ধরা হয়)
++  routes.all(CLIENT_ERROR_PATH, (c) => c.body(null, 405, { Allow: 'POST' }));
++
++  return routes;
++}
+diff --git a/src/server/routes/releases.ts b/src/server/routes/releases.ts
+deleted file mode 100644
+index 81917ca..0000000
+--- a/src/server/routes/releases.ts
++++ /dev/null
+@@ -1,200 +0,0 @@
+-import type { Express, Request, Response } from 'express';
+-import {
+-  DEFAULT_BACKEND_ORIGIN,
+-  DEFAULT_WEB_STUDIO_URL,
+-  GITHUB_MONOREPO_SLUG,
+-  GITHUB_PUBLIC_REPO_SLUG,
+-} from '../../config/platformEndpoints';
+-import {
+-  buildRollingAssetUrls,
+-  DEFAULT_RELEASE_MANIFEST,
+-  normalizeRemoteReleaseManifest,
+-  type ReleaseAssetEntry,
+-  type ReleaseManifest,
+-} from '../../config/releaseDownloads';
+-
+-/**
+- * Releases — `GET /api/releases/latest` (rolling manifest + GitHub REST fallback)
+- *
+- * WHY THIS FILE EXISTS
+- *   Release manifest resolution (cache + 2-stage fetch + asset mapping) lived
+- *   inline in `server.ts` (~200 lines). Cohesive (single cache, single
+- *   mapping helper, no other consumer) and has no other consumer. Moving it
+- *   keeps the monolith shrinking.
+- *
+- * CONTRACT WITH server.ts
+- *   - `cachedReleaseManifest` and handler are OWNED here (no other route reads
+- *     the cache).
+- *   - Platform endpoint constants imported directly (pure values).
+- */
+-
+-export function registerReleasesRoutes(app: Express): void {
+-  let cachedReleaseManifest: { data: ReleaseManifest; fetchedAt: number } | null = null;
+-
+-  app.get('/api/releases/latest', async (_req: Request, res: Response) => {
+-    if (cachedReleaseManifest && Date.now() - cachedReleaseManifest.fetchedAt < 3 * 60_000) {
+-      res.json(cachedReleaseManifest.data);
+-      return;
+-    }
+-
+-    const reposToCheck = [GITHUB_PUBLIC_REPO_SLUG, GITHUB_MONOREPO_SLUG];
+-
+-    // 1. Direct rolling manifest fetch bypasses GitHub API rate limits & prerelease skip
+-    for (const repoSlug of reposToCheck) {
+-      const manifestUrls = [
+-        `https://github.com/${repoSlug}/releases/download/latest/latest-release.json`,
+-        `https://github.com/${repoSlug}/releases/download/latest/latest-desktop.json`,
+-      ];
+-      for (const manifestUrl of manifestUrls) {
+-        try {
+-          const mfRes = await fetch(manifestUrl, {
+-            headers: { Accept: 'application/json', 'User-Agent': 'SupremeAI-Release-Resolver' },
+-            signal: AbortSignal.timeout(4000),
+-          });
+-          if (!mfRes.ok) continue;
+-          const mf = await mfRes.json().catch(() => null);
+-          const normalized = normalizeRemoteReleaseManifest(mf, repoSlug);
+-          if (normalized) {
+-            cachedReleaseManifest = { data: normalized, fetchedAt: Date.now() };
+-            res.json(normalized);
+-            return;
+-          }
+-        } catch {
+-          // Try next manifest candidate
+-        }
+-      }
+-    }
+-
+-    // 2. Fallback to GitHub REST API (checking rolling 'tags/latest' before '/releases/latest')
+-    const headers: Record<string, string> = {
+-      Accept: 'application/vnd.github+json',
+-      'User-Agent': 'SupremeAI-Release-Resolver',
+-    };
+-    if (process.env.GITHUB_READONLY_TOKEN?.trim()) {
+-      headers['Authorization'] = `Bearer ${process.env.GITHUB_READONLY_TOKEN.trim()}`;
+-    }
+-
+-    for (const repoSlug of reposToCheck) {
+-      const endpoints = [
+-        `https://api.github.com/repos/${repoSlug}/releases/tags/latest`,
+-        `https://api.github.com/repos/${repoSlug}/releases/latest`,
+-      ];
+-      for (const apiUrl of endpoints) {
+-        try {
+-          const ghRes = await fetch(apiUrl, {
+-            headers,
+-            signal: AbortSignal.timeout(4500),
+-          });
+-          if (!ghRes.ok) continue;
+-          const release = (await ghRes.json().catch(() => null)) as any;
+-          const assets: any[] = Array.isArray(release?.assets) ? release.assets : [];
+-
+-          const exeAsset = assets.find((a) => String(a?.name || '').endsWith('.exe'));
+-          const msiAsset = assets.find((a) => String(a?.name || '').endsWith('.msi'));
+-          const universalOrArm64Apk =
+-            assets.find(
+-              (a) =>
+-                String(a?.name || '').endsWith('.apk') &&
+-                /universal|arm64|aarch64/i.test(String(a?.name || ''))
+-            ) || assets.find((a) => String(a?.name || '').endsWith('.apk'));
+-          const armv7Apk = assets.find(
+-            (a) =>
+-              String(a?.name || '').endsWith('.apk') && /armv7|armeabi/i.test(String(a?.name || ''))
+-          );
+-          const vsixAsset = assets.find((a) => String(a?.name || '').endsWith('.vsix'));
+-
+-          const manifestAsset =
+-            assets.find((a) => a?.name === 'latest-release.json') ||
+-            assets.find((a) => a?.name === 'latest-desktop.json');
+-          if (manifestAsset?.browser_download_url) {
+-            const mfRes = await fetch(manifestAsset.browser_download_url, {
+-              signal: AbortSignal.timeout(4000),
+-            }).catch(() => null);
+-            if (mfRes?.ok) {
+-              const mf = await mfRes.json().catch(() => null);
+-              const normalized = normalizeRemoteReleaseManifest(mf, repoSlug);
+-              if (normalized) {
+-                const merged: ReleaseManifest = {
+-                  ...normalized,
+-                  publishedAt: normalized.publishedAt || String(release.published_at || ''),
+-                  windowsExeUrl: String(exeAsset?.browser_download_url || normalized.windowsExeUrl),
+-                  windowsMsiUrl: String(msiAsset?.browser_download_url || normalized.windowsMsiUrl),
+-                  androidApkUrl: String(
+-                    universalOrArm64Apk?.browser_download_url || normalized.androidApkUrl
+-                  ),
+-                  ...(armv7Apk?.browser_download_url
+-                    ? { androidArmv7ApkUrl: String(armv7Apk.browser_download_url) }
+-                    : normalized.androidArmv7ApkUrl
+-                      ? { androidArmv7ApkUrl: normalized.androidArmv7ApkUrl }
+-                      : {}),
+-                  vscodeVsixUrl: String(
+-                    vsixAsset?.browser_download_url || normalized.vscodeVsixUrl
+-                  ),
+-                };
+-                cachedReleaseManifest = { data: merged, fetchedAt: Date.now() };
+-                res.json(merged);
+-                return;
+-              }
+-            }
+-          }
+-
+-          if (exeAsset || universalOrArm64Apk || vsixAsset) {
+-            const tag = String(release.tag_name || 'latest');
+-            const version =
+-              tag !== 'latest' ? tag.replace(/^v/i, '') : DEFAULT_RELEASE_MANIFEST.version;
+-            const rollingUrls = buildRollingAssetUrls(version, repoSlug, tag);
+-            const mappedAssets: ReleaseAssetEntry[] = assets
+-              .filter((a) => /\.(exe|msi|apk|vsix)$/i.test(String(a?.name || '')))
+-              .map((a) => {
+-                const name = String(a.name);
+-                const platform: ReleaseAssetEntry['platform'] = name.endsWith('.exe')
+-                  ? 'windows-exe'
+-                  : name.endsWith('.msi')
+-                    ? 'windows-msi'
+-                    : name.endsWith('.vsix')
+-                      ? 'vscode-vsix'
+-                      : /armv7|armeabi/i.test(name)
+-                        ? 'android-apk-armv7'
+-                        : 'android-apk-arm64';
+-                return {
+-                  platform,
+-                  label: name,
+-                  fileName: name,
+-                  url: String(a.browser_download_url),
+-                  sizeBytes: typeof a.size === 'number' ? a.size : undefined,
+-                };
+-              });
+-
+-            const resolved: ReleaseManifest = {
+-              version,
+-              tag,
+-              repo: repoSlug,
+-              publishedAt: String(release.published_at || ''),
+-              releasePageUrl: String(release.html_url || rollingUrls.releasePageUrl),
+-              webUrl: DEFAULT_WEB_STUDIO_URL,
+-              windowsExeUrl: String(exeAsset?.browser_download_url || rollingUrls.windowsExeUrl),
+-              windowsMsiUrl: String(msiAsset?.browser_download_url || rollingUrls.windowsMsiUrl),
+-              androidApkUrl: String(
+-                universalOrArm64Apk?.browser_download_url || rollingUrls.androidApkUrl
+-              ),
+-              ...(armv7Apk?.browser_download_url
+-                ? { androidArmv7ApkUrl: String(armv7Apk.browser_download_url) }
+-                : {}),
+-              vscodeVsixUrl: String(vsixAsset?.browser_download_url || rollingUrls.vscodeVsixUrl),
+-              provenance: 'live-github',
+-              assets: mappedAssets,
+-            };
+-            cachedReleaseManifest = { data: resolved, fetchedAt: Date.now() };
+-            res.json(resolved);
+-            return;
+-          }
+-        } catch {
+-          // Try next endpoint / repo slug
+-        }
+-      }
+-    }
+-
+-    cachedReleaseManifest = { data: DEFAULT_RELEASE_MANIFEST, fetchedAt: Date.now() };
+-    res.json(DEFAULT_RELEASE_MANIFEST);
+-  });
+-}
+diff --git a/src/server/routes/telemetry.ts b/src/server/routes/telemetry.ts
+index b922a7c..de915f2 100644
+--- a/src/server/routes/telemetry.ts
++++ b/src/server/routes/telemetry.ts
+@@ -6,17 +6,20 @@ import { PLAN_CATALOG } from '../../config/plans';
+ import { CANONICAL_SERVER_MODELS, DEFAULT_MODEL_ID } from '../../shared/platformCatalog';
+ 
+ /**
+- * Telemetry + Health + Models — `POST /api/telemetry/client-error` + `GET /api/health` + `GET /api/models`
++ * Health + Models — `GET /api/health` + `GET /api/models`
++ *
++ * (`POST /api/telemetry/client-error` এখন src/api/routes/telemetry.ts-এ —
++ *  Hono, Express ও Edge দুই রানটাইমের জন্য একটাই কপি।)
+  *
+  * WHY THIS FILE EXISTS
+- *   Three platform-observability endpoints (health metadata, model catalog with
+- *   gateway proxy, fire-and-forget client-error sink) lived inline in
++ *   Platform-observability endpoints (health metadata, model catalog with
++ *   gateway proxy) lived inline in
+  *   `server.ts` (~60 lines). Cohesive (all are public, unauthenticated
+  *   telemetry/health probes) and have no other consumer. Moving them keeps the
+  *   monolith shrinking.
+  *
+  * CONTRACT WITH server.ts
+- *   - All 3 handlers OWNED here (no other route reads their state).
++ *   - Both handlers OWNED here (no other route reads their state).
+  *   - `fetchGatewayJson` injected via ctx (gateway cache helper).
+  *   - `SUPPORTED_MODELS` + `APP_VERSION` derived locally (read from fs/package
+  *     for version, const model map inlined to avoid cross-file mutation).
+@@ -75,23 +78,4 @@ export function registerTelemetryRoutes(app: Express, ctx: TelemetryContext): vo
+       source: hasRemoteMap ? 'gateway+canonical' : 'canonical',
+     });
+   });
+-
+-  // Client error sink (mirrors functions/api/telemetry/client-error.ts).
+-  // The browser reporter is fire-and-forget; never fail it noisily.
+-  app.post('/api/telemetry/client-error', (req: Request, res: Response) => {
+-    const body =
+-      req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {};
+-    const summary = {
+-      message: String(body.message ?? 'unknown').slice(0, 300),
+-      source: String(body.source ?? 'app').slice(0, 40),
+-      route: body.route ? String(body.route).slice(0, 120) : undefined,
+-      at: body.at ? String(body.at).slice(0, 40) : new Date().toISOString(),
+-      contextKeys:
+-        body.context && typeof body.context === 'object'
+-          ? Object.keys(body.context as Record<string, unknown>).slice(0, 10)
+-          : [],
+-    };
+-    console.warn('[client-error]', JSON.stringify(summary));
+-    res.status(204).end();
+-  });
+ }
+diff --git a/vitest.config.ts b/vitest.config.ts
+index 25ddf50..3d4a866 100644
+--- a/vitest.config.ts
++++ b/vitest.config.ts
+@@ -20,6 +20,7 @@ export default defineConfig({
+         'src/stores/**/*.{ts,tsx}',
+         'src/shared/**/*.{ts,tsx}',
+         'src/server/**/*.{ts,tsx}',
++        'src/api/**/*.{ts,tsx}',
+         'src/lib/**/*.{ts,tsx}',
+         'src/data/**/*.{ts,tsx}',
+         'functions/**/*.{ts,tsx}',
+-- 
+2.47.3
