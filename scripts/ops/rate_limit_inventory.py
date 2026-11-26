@@ -50,7 +50,21 @@ def main() -> int:
         {"file": k, "caller_count": len(v), "callers": sorted(v)[:10]}
         for k, v in sorted(callers.items())
     ]
-    print(json.dumps({"total_limiters": len(report), "limiters": report}, indent=2))
+    # G7 (reaudit 2026-11-26): modules with live impl but 0 non-test callers
+    # — retirement candidates pending tests (test_guard_gate forbids test delete).
+    RETIRE_CANDIDATES = [
+        "core/engine/smart_router.py",
+        "core/rate_limit_quota.py",
+        "gateway/service/redis_rate_limit.py",
+        "core/tools/ensemble_router.py",
+        "gateway/dynamic_llm_router.py",
+    ]
+    print(json.dumps({
+        "total_limiters": len(report),
+        "limiters": report,
+        "retire_candidates_0_non_test_callers": RETIRE_CANDIDATES,
+        "retire_note": "tests still import these; delete blocked by test_guard_gate until tests migrate",
+    }, indent=2))
     return 0
 
 
