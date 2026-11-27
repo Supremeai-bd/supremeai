@@ -91,7 +91,7 @@ export function upstashRestUrl(rawUrl: string): { url: string; token?: string } 
     const host = parsed.host.replace(/:(6379|6380)$/, "");
     return { url: `https://${host}/ping`, token: token || undefined };
   } catch (err) {
-    console.error(err instanceof Error ? err.name : "error");
+    console.error("System tool operation failed");
     return null;
   }
 }
@@ -466,7 +466,7 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
         renderFreeLimitRemaining = renderHealth.freeLimitRemaining;
         renderFreeLimitExhausted = renderHealth.freeLimitExhausted;
       }
-    } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
+    } catch (err) { console.error("System tool operation failed"); }
   }
 
   const renderQuotaProps = {

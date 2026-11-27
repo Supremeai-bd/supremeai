@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from scripts.ci.ai_semantic_pr_verifier import (
     classify_pr_risk,
@@ -74,11 +75,81 @@ class TestAiSemanticPrVerifier(unittest.TestCase):
     def test_run_semantic_verification_fallback(self) -> None:
         files = ["core/security/auth.py"]
         diff = "+# clean security patch\n+def verify_token(): pass"
-        verdict = run_semantic_verification(files, diff)
-        self.assertIn("approved", verdict)
-        self.assertTrue(verdict["approved"])
-        self.assertEqual(verdict["security_verdict"], "PASS")
+        with patch("scripts.ci.ai_semantic_pr_verifier._get_api_providers", return_value=[]):
+            verdict = run_semantic_verification(files, diff)
+        self.assertFalse(verdict["approved"])
+        self.assertEqual(verdict["security_verdict"], "UNKNOWN")
+
+    def test_missing_diff_never_approves(self) -> None:
+        verdict = run_semantic_verification(["core/security/auth.py"], "")
+        self.assertFalse(verdict["approved"])
+        self.assertEqual(verdict["confidence"], "unverified")
+
+    def test_inconsistent_llm_verdict_does_not_approve(self) -> None:
+        with patch.dict("os.environ", {"SEMANTIC_VERIFIER_ALLOW_EXTERNAL_DIFF": "true"}), \
+             patch("scripts.ci.ai_semantic_pr_verifier._get_api_providers", return_value=[{"name": "fixture", "model": "m"}]), \
+             patch("scripts.ci.ai_semantic_pr_verifier.call_llm_provider", return_value='{"approved": true, "security_verdict": "FAIL", "anti_bloat_verdict": "PASS"}'):
+            verdict = run_semantic_verification(["core/security/auth.py"], "+change")
+        self.assertFalse(verdict["approved"])
+
+    def test_invalid_boolean_does_not_approve(self) -> None:
+        with patch.dict("os.environ", {"SEMANTIC_VERIFIER_ALLOW_EXTERNAL_DIFF": "true"}), \
+             patch("scripts.ci.ai_semantic_pr_verifier._get_api_providers", return_value=[{"name": "fixture", "model": "m"}]), \
+             patch("scripts.ci.ai_semantic_pr_verifier.call_llm_provider", return_value='{"approved": "false", "security_verdict": "PASS", "anti_bloat_verdict": "PASS"}'):
+            verdict = run_semantic_verification(["core/security/auth.py"], "+change")
+        self.assertFalse(verdict["approved"])
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_oversized_diff_is_unverified():
+    from scripts.ci.ai_semantic_pr_verifier import DIFF_CHAR_LIMIT
+    verdict = run_semantic_verification(["core/security/auth.py"], "+x" * DIFF_CHAR_LIMIT)
+    assert verdict["approved"] is False and verdict["confidence"] == "unverified"
+
+
+def test_pr_diff_failure_never_uses_unrelated_local_diff():
+    from subprocess import CompletedProcess
+    from scripts.ci import ai_semantic_pr_verifier as verifier
+    with patch.object(verifier, "run_cmd", return_value=CompletedProcess([], 1, "", "unavailable")) as cmd:
+        assert verifier.get_diff_text(["core/security/auth.py"], pr_number="123") == ""
+    assert cmd.call_args.args[0] == ["gh", "pr", "diff", "123"]
+
+
+def test_failed_pr_file_lookup_does_not_fall_back_to_base_checkout(monkeypatch):
+    from subprocess import CompletedProcess
+    from scripts.ci import ai_semantic_pr_verifier as verifier
+    monkeypatch.setattr(verifier.shutil, "which", lambda _: "/bin/gh")
+    monkeypatch.setattr(verifier, "run_cmd", lambda _: CompletedProcess([], 1, "", "error"))
+    monkeypatch.setattr(verifier, "get_changed_files_from_git", lambda: ["README.md"])
+    monkeypatch.setattr("sys.argv", ["verifier", "--pr", "123"])
+    assert verifier.main() == 1
+
+
+def test_pr_file_count_and_renamed_sensitive_path(monkeypatch):
+    from subprocess import CompletedProcess
+    from scripts.ci import ai_semantic_pr_verifier as verifier
+    monkeypatch.setenv("GITHUB_REPOSITORY", "org/repo")
+    commands = iter([
+        CompletedProcess([], 0, "1\n", ""),
+        CompletedProcess([], 0, '{"filename":"docs/new.md","previous_filename":"core/security/auth.py"}\n', ""),
+    ])
+    monkeypatch.setattr(verifier, "run_cmd", lambda _: next(commands))
+    assert verifier.classify_pr_risk(verifier.get_pr_files("123"))[0] == "HIGH"
+    commands = iter([CompletedProcess([], 0, "2\n", ""), CompletedProcess([], 0, '{"filename":"docs/new.md"}\n', "")])
+    assert verifier.get_pr_files("123") == []
+
+
+def test_no_external_diff_or_paid_calls_by_default(monkeypatch):
+    monkeypatch.delenv("SEMANTIC_VERIFIER_ALLOW_EXTERNAL_DIFF", raising=False)
+    with patch("scripts.ci.ai_semantic_pr_verifier.call_llm_provider") as call:
+        verdict = run_semantic_verification(["core/security/auth.py"], "+safe change")
+    assert not verdict["approved"]
+    call.assert_not_called()
+
+
+def test_secret_pattern_does_not_echo_secret():
+    secret = "sk-" + "x" * 30
+    assert secret not in str(scan_regex_secrets('+token = "' + secret + '"'))

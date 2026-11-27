@@ -2951,7 +2951,7 @@ async def _execute_chat_completion(
                     try:
                         response_data = validate_and_sanitize(response_data)
                         if response_data.get("choices") and isinstance(response_data["choices"][0].get("message"), dict):
-                            chat_content = str(response_data["choices"][0]["message"].get("content", "")).strip()
+                            chat_content = str(response_data["choices"][0]["message"].get("content") or "").strip()
                     except Exception as exc:
                         logger.warning("Response sanitization failed (%s)", type(exc).__name__)
                         raise HTTPException(status_code=500, detail="Response sanitization failed")

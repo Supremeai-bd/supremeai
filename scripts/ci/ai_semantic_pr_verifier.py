@@ -110,8 +110,52 @@ def get_changed_files_from_git() -> list[str]:
     return []
 
 
+def get_pr_files(pr_number: str) -> list[str]:
+    """Fetch all PR files and previous rename paths, verifying against PR metadata."""
+    repo = os.getenv("GITHUB_REPOSITORY") or os.getenv("GH_REPO", "")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo) or not re.fullmatch(r"[1-9][0-9]*", pr_number):
+        return []
+    metadata = run_cmd(["gh", "pr", "view", pr_number, "--json", "changedFiles", "--jq", ".changedFiles"])
+    if metadata.returncode != 0 or not metadata.stdout.strip().isdigit():
+        return []
+    expected = int(metadata.stdout.strip())
+    # REST list-pull-files has a hard 3,000-file cap.
+    if expected <= 0 or expected > 3000:
+        return []
+    result = run_cmd(["gh", "api", f"repos/{repo}/pulls/{pr_number}/files?per_page=100",
+                      "--paginate", "--jq", ".[] | {filename,previous_filename}"])
+    if result.returncode != 0:
+        return []
+    try:
+        entries = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+        if len(entries) != expected:
+            return []
+        paths = []
+        for entry in entries:
+            if not isinstance(entry, dict) or not isinstance(entry.get("filename"), str) or not entry["filename"]:
+                return []
+            paths.append(entry["filename"])
+            previous = entry.get("previous_filename")
+            if previous is not None:
+                if not isinstance(previous, str) or not previous:
+                    return []
+                paths.append(previous)
+        return paths
+    except (ValueError, TypeError):
+        return []
+
+
 def get_diff_text(files: list[str], pr_number: str | None = None) -> str:
-    """Extract git diff text for specified files, truncated to limit."""
+    """Extract diff text; caller rejects oversized evidence rather than truncating."""
+    # With --pr, never substitute unrelated base-checkout diffs for PR evidence.
+    if pr_number:
+        try:
+            res = run_cmd(["gh", "pr", "diff", str(pr_number)])
+            if res.returncode == 0 and res.stdout.strip():
+                return res.stdout
+        except Exception as exc:
+            print(f"::warning::PR diff retrieval failed ({type(exc).__name__})", file=sys.stderr)
+        return ""
     diff_text = ""
     # 1. Prefer targeted git diff for the specific high-risk files from GITHUB_WORKSPACE or repo root
     search_dirs: list[str] = []
@@ -185,7 +229,7 @@ def get_diff_text(files: list[str], pr_number: str | None = None) -> str:
             except Exception as exc:
                 import logging
                 logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
-    return diff_text[:DIFF_CHAR_LIMIT]
+    return diff_text
 
 
 def scan_regex_secrets(diff: str) -> list[str]:
@@ -195,8 +239,8 @@ def scan_regex_secrets(diff: str) -> list[str]:
         if line.startswith("+") and not line.startswith("+++"):
             for pat, label in SECRET_PATTERNS:
                 if re.search(pat, line):
-                    # Mask value
-                    hits.append(f"{label} detected in: {line[:40]}...")
+                    # Do not copy any part of a potential credential into CI logs.
+                    hits.append(label)
     return hits
 
 
@@ -295,7 +339,7 @@ def call_llm_provider(provider: dict[str, str], prompt: str) -> str | None:
         # Per-key failures are expected on free-tier keys (429/403); emit at debug
         # level so the default log stays clean. A single summary is printed by the
         # caller only when every key across every provider is exhausted.
-        print(f"::debug::LLM provider {provider['name']} call failed: {exc}")
+        print(f"::debug::LLM provider {provider['name']} call failed ({type(exc).__name__})")
         return None
 
 
@@ -316,6 +360,15 @@ def parse_llm_verdict(raw: str | None) -> dict[str, Any] | None:
 
 def run_semantic_verification(files: list[str], diff: str, title: str = "") -> dict[str, Any]:
     """Execute semantic verification via LLM or deterministic fallback."""
+    # Missing evidence can never prove that a high-risk patch is safe.
+    if not diff.strip():
+        return {"approved": False, "security_verdict": "UNKNOWN", "anti_bloat_verdict": "UNKNOWN",
+                "reasons": ["High-risk diff unavailable; semantic verification not performed"],
+                "confidence": "unverified"}
+    if len(diff) > DIFF_CHAR_LIMIT:
+        return {"approved": False, "security_verdict": "UNKNOWN", "anti_bloat_verdict": "UNKNOWN",
+                "reasons": ["Diff exceeds semantic review limit; manual review required"],
+                "confidence": "unverified"}
     # 1. Deterministic Regex Pre-check
     secret_hits = scan_regex_secrets(diff)
     if secret_hits:
@@ -331,7 +384,11 @@ def run_semantic_verification(files: list[str], diff: str, title: str = "") -> d
     has_test = any(re.search(r"tests?|test_.*\.py$", f, re.IGNORECASE) for f in files)
 
     # 3. Attempt LLM Pool (only when non-empty diff text is available)
-    providers = _get_api_providers() if diff.strip() else []
+    # Never transmit code to an external provider by default or incur API costs.
+    # Enabling this requires an explicit repository policy for privacy and cost.
+    providers = (_get_api_providers()
+                 if os.getenv("SEMANTIC_VERIFIER_ALLOW_EXTERNAL_DIFF", "").lower() == "true"
+                 else [])
     prompt = (
         "You are SupremeAI's Senior Security & Architecture Gatekeeper.\n"
         "Analyze the following High-Risk PR diff against these 3 strict criteria:\n"
@@ -354,23 +411,25 @@ def run_semantic_verification(files: list[str], diff: str, title: str = "") -> d
     for prov in providers:
         raw_res = call_llm_provider(prov, prompt)
         parsed = parse_llm_verdict(raw_res)
-        if parsed and "approved" in parsed:
-            parsed["confidence"] = f"llm-verified ({prov['name']}:{prov['model']})"
+        if (isinstance(parsed, dict) and type(parsed.get("approved")) is bool
+                and parsed.get("security_verdict") in ("PASS", "FAIL")
+                and parsed.get("anti_bloat_verdict") in ("PASS", "FAIL")):
+            parsed["approved"] = (parsed["approved"] and parsed["security_verdict"] == "PASS"
+                                  and parsed["anti_bloat_verdict"] == "PASS")
+            # Model output may echo code, secrets, or workflow commands.
+            parsed.pop("summary", None)
+            parsed["reasons"] = ["External semantic verdict received; inspect review evidence separately"]
+            parsed["confidence"] = f"llm-verified ({prov['name']})"
             return parsed
 
-    # 4. Deterministic Fallback if LLM unavailable
-    print(
-        f"::warning::No LLM provider keys reachable ({len(providers)} key(s) tried across "
-        "gemini/groq/openai); using deterministic security validation."
-    )
-    verdict_approved = bool(not secret_hits)
+    # A clean secret regex is not a semantic security or anti-bloat review.
+    print(f"::warning::Semantic review unavailable ({len(providers)} provider key(s) tried); high-risk PR not verified.")
     return {
-        "approved": verdict_approved,
-        "security_verdict": "PASS" if verdict_approved else "FAIL",
-        "anti_bloat_verdict": "PASS",
-        "reasons": ["Deterministic boundary scan clean (no plaintext credentials found)"],
-        "summary": "Deterministic boundary scan clean; test coverage noted." if has_test else "Boundary scan passed (static fallback).",
-        "confidence": "deterministic-fallback",
+        "approved": False,
+        "security_verdict": "UNKNOWN",
+        "anti_bloat_verdict": "UNKNOWN",
+        "reasons": ["Semantic review unavailable; secret regex alone is insufficient"],
+        "confidence": "unverified",
     }
 
 
@@ -382,20 +441,22 @@ def main() -> int:
     args = parser.parse_args()
 
     files = args.files or []
-    if not files and args.pr and shutil.which("gh"):
+    if args.pr:
+        # Explicit caller files cannot override the real PR evidence.
         try:
-            cmd = ["gh", "pr", "view", str(args.pr), "--json", "files", "-q", ".files[].path"]
-            res = run_cmd(cmd)
-            if res.returncode == 0:
-                files = [f.strip() for f in res.stdout.splitlines() if f.strip()]
+            files = get_pr_files(args.pr) if shutil.which("gh") else []
         except Exception as exc:
-            print(f"::debug::Unable to query PR files via gh CLI: {exc}")
+            print(f"::warning::PR file evidence unavailable ({type(exc).__name__})", file=sys.stderr)
+            files = []
 
-    if not files:
+    if not files and not args.pr:
         files = get_changed_files_from_git()
 
     if not files:
-        print("✅ [AI-VERIFIER] No changed files detected. Gate PASSED.")
+        if args.pr:
+            print("::error::PR changed-file evidence unavailable; verification not performed.")
+            return 1
+        print("✅ [AI-VERIFIER] No local changed files detected. Gate PASSED.")
         return 0
 
     risk_level, risky_files = classify_pr_risk(files)
@@ -415,7 +476,7 @@ def main() -> int:
     # HIGH RISK ENFORCEMENT
     print(f"⚠️ [AI-VERIFIER] HIGH RISK FILES DETECTED ({len(risky_files)}):")
     for rf in risky_files[:10]:
-        print(f"   • {rf}")
+        print(f"   • {json.dumps(rf, ensure_ascii=True)}")
     if len(risky_files) > 10:
         print(f"   ... and {len(risky_files) - 10} more.")
 

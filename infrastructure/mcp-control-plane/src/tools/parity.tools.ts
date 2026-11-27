@@ -42,7 +42,7 @@ async function runParityAudit(): Promise<ParityAuditResult> {
         }
       );
       if (ghRes.ok && ghRes.data?.sha) intendedSha = ghRes.data.sha;
-    } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
+    } catch (err) { console.error("Parity tool operation failed"); }
   }
 
   const renderServicesToCheck = ["api", "core", "mcp", "worker", "scraper", "brain"];
@@ -70,7 +70,7 @@ async function runParityAudit(): Promise<ParityAuditResult> {
       try {
         const dep = await getLatestDeploy(target.renderAccountId, target.renderServiceId);
         if (dep.commitSha) deployedSha = dep.commitSha;
-      } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
+      } catch (err) { console.error("Parity tool operation failed"); }
     }
 
     // B. Check runtime /release endpoint if runtime URL exists
@@ -85,7 +85,7 @@ async function runParityAudit(): Promise<ParityAuditResult> {
           isLive = true;
           if (rtRes.data?.commit) runtimeSha = rtRes.data.commit;
         }
-      } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
+      } catch (err) { console.error("Parity tool operation failed"); }
     }
 
     const observedSha = deployedSha || runtimeSha;

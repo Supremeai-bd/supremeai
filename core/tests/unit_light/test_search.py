@@ -40,3 +40,21 @@ def test_web_search_normalizes_none_result():
     fake.text.return_value = None
     with patch("core.search._ddgs_client", return_value=fake), patch("core.search.time.sleep"):
         assert web_search("x") == []
+
+
+def test_empty_result_has_no_retries_or_delay():
+    fake = MagicMock()
+    fake.text.return_value = []
+    with patch("core.search._ddgs_client", return_value=fake), patch("core.search.time.sleep") as sleep:
+        assert web_search("no matches") == []
+    assert fake.text.call_count == 1
+    sleep.assert_not_called()
+
+
+def test_error_retries_sleep_only_between_attempts():
+    fake = MagicMock()
+    fake.text.side_effect = RuntimeError("failure")
+    with patch("core.search._ddgs_client", return_value=fake), patch("core.search.time.sleep") as sleep:
+        assert web_search("offline") == []
+    assert fake.text.call_count == 3
+    assert [c.args[0] for c in sleep.call_args_list] == [0.5, 1.0]

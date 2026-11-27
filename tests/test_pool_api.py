@@ -313,3 +313,21 @@ async def test_validation_network_failure_is_unavailable_and_does_not_log_key(mo
     assert exc.value.status_code == 503
     assert "private credential fixture" not in str(exc.value.detail)
     assert "private credential fixture" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_pool_warning_includes_provider_not_placeholder():
+    from fastapi import HTTPException
+    from io import StringIO
+    sink = StringIO()
+    # core.monitoring logger is Loguru when installed; use its real formatter.
+    if not hasattr(pool_mod.logger, "add"):
+        pytest.skip("Loguru unavailable")
+    handle = pool_mod.logger.add(sink, format="{message}", level="WARNING")
+    try:
+        with pytest.raises(HTTPException):
+            await pool_mod._validate("kilo", "private fixture")
+    finally:
+        pool_mod.logger.remove(handle)
+    assert "provider kilo" in sink.getvalue()
+    assert "private fixture" not in sink.getvalue()

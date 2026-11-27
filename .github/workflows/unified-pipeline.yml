@@ -179,7 +179,7 @@ jobs:
 
       - name: Critical Security & Architecture Guards Suite
         run: |
-          pytest -q tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py tests/ci/test_deploy_environment_split.py tests/test_web_engine_providers.py tests/test_web_engine_health.py tests/test_free_route_policy_tool.py browser/tests/test_relay_session_state.py browser/tests/test_relay_streaming.py browser/tests/test_relay_kill_switch.py gateway/tests/test_web_engine_stream.py gateway/tests/test_injury_hysteresis.py tests/test_web_surfaces_controls.py core/tests/agents/test_agents_unified.py tests/test_observability_telemetry_endpoint.py tests/test_apply_cross_repo_patch.py
+          pytest -q tests/test_ai_semantic_pr_verifier.py tests/ci/test_workflow_annotation_summary.py tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py tests/ci/test_deploy_environment_split.py tests/test_web_engine_providers.py tests/test_web_engine_health.py tests/test_free_route_policy_tool.py browser/tests/test_relay_session_state.py browser/tests/test_relay_streaming.py browser/tests/test_relay_kill_switch.py gateway/tests/test_web_engine_stream.py gateway/tests/test_injury_hysteresis.py tests/test_web_surfaces_controls.py core/tests/agents/test_agents_unified.py tests/test_observability_telemetry_endpoint.py tests/test_apply_cross_repo_patch.py
           python scripts/ops/wiring_atlas.py --check
 
       # Core and Gateway changes can break satellite contracts without touching
@@ -209,10 +209,10 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Repo-level secrets, not environment secrets: if these live only in
-          # the `production` environment they arrive empty here and the verifier
-          # degrades to its deterministic boundary scan (it prints a warning and
-          # still passes). Add them as repository secrets to keep the LLM verdict.
+          # External diff transfer is disabled by default for privacy/cost.
+          # High-risk PRs without an approved semantic review remain unverified;
+          # maintainers must review and resolve the required gate, not bypass it.
+          SEMANTIC_VERIFIER_ALLOW_EXTERNAL_DIFF: ${{ vars.SEMANTIC_VERIFIER_ALLOW_EXTERNAL_DIFF }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

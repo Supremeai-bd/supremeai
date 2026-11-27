@@ -12,20 +12,34 @@ interface StoreShape {
 
 function load(): StoreShape {
   try {
-    if (fs.existsSync(STORE_PATH)) {
-      const raw = fs.readFileSync(STORE_PATH, "utf-8");
-      const parsed = JSON.parse(raw) as StoreShape;
-      if (parsed && Array.isArray(parsed.plans)) return parsed;
-    }
-  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
-  return { plans: [] };
+    const raw = fs.readFileSync(STORE_PATH, "utf-8");
+    const parsed = JSON.parse(raw) as StoreShape;
+    if (!parsed || !Array.isArray(parsed.plans)) throw new Error("Invalid plan store");
+    return parsed;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return { plans: [] };
+    // Never silently replace an unreadable or corrupt store with an empty one.
+    throw new Error("Plan store unavailable or invalid");
+  }
 }
 
 function save(store: StoreShape): void {
+  // Atomic replacement avoids truncating the last good store on a failed write.
+  // This does not provide concurrency control across processes.
+  let temp: string | undefined;
   try {
     fs.mkdirSync(path.dirname(STORE_PATH), { recursive: true });
-    fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2), "utf-8");
-  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
+    temp = path.join(fs.mkdtempSync(path.join(path.dirname(STORE_PATH), ".plan-store-")), "store.json");
+    fs.writeFileSync(temp, JSON.stringify(store, null, 2), { encoding: "utf-8", mode: 0o600 });
+    fs.renameSync(temp, STORE_PATH);
+  } catch {
+    throw new Error("Plan store write failed");
+  } finally {
+    if (temp) {
+      try { fs.rmSync(path.dirname(temp), { recursive: true, force: true }); }
+      catch { console.error("Plan store temporary cleanup failed"); }
+    }
+  }
 }
 
 export function savePlan(plan: ExecutionPlan): ExecutionPlan {

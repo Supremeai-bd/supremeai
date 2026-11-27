@@ -101,25 +101,23 @@ def _ddgs_search(query: str, max_results: int) -> list[dict[str, Any]]:
     """ddgs-client search lane. Returns [] when the package is unavailable.
 
     বাংলা মন্তব্য: লাইভ টেস্টে দেখা গেছে DDG ব্যাকএন্ড মাঝেমধ্যে শুধু timeout/rate-limit-এ
-    একবার ব্যর্থ হয় — সাথে সাথেই retry করলে সফল হয়। তাই ছোট ব্যাকঅফ সহ ৩ চেষ্টা
-    চালাই; সব ব্যর্থ হলে তবেই খালি লিস্ট (fail-closed, সৎ warning সহ)।
+    একবার ব্যর্থ হয় — তাই exception-এ ছোট ব্যাকঅফ সহ সর্বোচ্চ ৩ চেষ্টা;
+    বৈধ খালি ফল আর অকারণে retry করা হয় না।
     """
     client = _ddgs_client()
     if client is None:
         return []
-    last_exc: Exception | None = None
     for attempt in range(3):
         try:
-            results = client.text(query, max_results=max_results) or []
-            if results:
-                return results
-            # খালি ফল হলে পরের attempt-এ আবার চেষ্টা (কিছু ব্যাকএন্ডে ক্ষণস্থায়ী খালি রেসপন্স)।
+            # An empty result is a valid answer, not a reason to multiply calls.
+            return client.text(query, max_results=max_results) or []
         except Exception as exc:
-            last_exc = exc
-        time.sleep(0.5 * (attempt + 1))
-    if last_exc is not None:
-        logger.warning(f"[search] DDGS search failed after retries: {last_exc}")
+            if attempt == 2:
+                logger.warning(f"[search] DDGS search failed after retries: {type(exc).__name__}")
+                return []
+            time.sleep(0.5 * (attempt + 1))
     return []
+
 
 
 def web_search(query: str, max_results: int = 5) -> list[dict[str, Any]]:
