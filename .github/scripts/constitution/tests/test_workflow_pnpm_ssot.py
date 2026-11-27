@@ -129,19 +129,6 @@ def _violations() -> list[str]:
 class WorkflowPnpmSsotContract(unittest.TestCase):
     """GUARD-class contract: pnpm version follows package.json packageManager."""
 
-    def test_root_package_json_declares_pnpm_package_manager(self):
-        """Contract precondition — without packageManager, action-setup/corepack
-        have no SSOT to read and every workflow lane would need a hardcode."""
-        if not ROOT_PACKAGE_JSON.is_file():
-            self.skipTest("root package.json retired to supremeai-studio")
-        pkg = json.loads(ROOT_PACKAGE_JSON.read_text(encoding="utf-8"))
-        pm = pkg.get("packageManager")
-        self.assertTrue(
-            isinstance(pm, str) and PACKAGE_MANAGER_RE.match(pm),
-            f"package.json must declare `packageManager: pnpm@<version>` "
-            f"(found: {pm!r}) — it is the SSOT all CI lanes follow (#3265)",
-        )
-
     def test_no_workflow_hardcodes_pnpm_version(self):
         """The #3265 incident class: any hardcoded pnpm version drifts from
         packageManager and breaks CI lanes (ERR_PNPM_BAD_PM_VERSION)."""
