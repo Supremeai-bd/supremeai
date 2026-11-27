@@ -409,10 +409,10 @@
     ]
   },
   "graph": {
-    "modules": 2187,
-    "edges": 5057,
+    "modules": 2188,
+    "edges": 5060,
     "edge_kinds": {
-      "dispatch": 212,
+      "dispatch": 215,
       "dynamic": 4,
       "import": 4148,
       "string": 693
@@ -431,6 +431,7 @@
       "@.github/actions/setup-frontend/action.yml",
       "@.github/actions/setup-playwright/action.yml",
       "@.github/workflows/codeql.yml",
+      "@.github/workflows/db-backup.yml",
       "@.github/workflows/deploy-rollback.yml",
       "@.github/workflows/ops-maintenance.yml",
       "@.github/workflows/unified-pipeline.yml",
@@ -445,7 +446,7 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1682,
+    "reachable": 1683,
     "unreachable": 505,
     "reachable_pct": 76.9
   },
