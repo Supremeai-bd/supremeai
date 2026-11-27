@@ -42,6 +42,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 
+from core.finops import guard as finops_guard
 from core.llm.llm_gateway import llm_gateway
 from core.llm.llm_gateway.context import InferenceContext
 from core.memory.auto_rag_injector import auto_rag_injector
@@ -438,6 +439,50 @@ class SafeSSEGenerator:
             )
 
 
+def _delta_text(event: str) -> str:
+    """বাংলা মন্তব্য: একটা SSE "token" ইভেন্ট থেকে শুধু ইউজার-দৃশ্যমান টেক্সট (FinOps গণনার জন্য)।"""
+    if not event.startswith("event: token"):
+        return ""
+    for line in event.split("\n"):
+        if line.startswith("data: "):
+            try:
+                data = json.loads(line[6:])
+            except ValueError:
+                return ""
+            return str(data.get("delta") or data.get("token") or "")
+    return ""
+
+
+async def _metered(events: AsyncIterator[str], user_id: str, prompt: str) -> AsyncIterator[str]:
+    """স্ট্রিম পাস-থ্রু; শেষে (বা ক্লায়েন্ট কেটে দিলেও) আনুমানিক টোকেন FinOps-এ লেখা হয়।"""
+    from core.llm.token_budget import estimate_tokens
+
+    out_chars: list[str] = []
+    try:
+        async for event in events:
+            text = _delta_text(event)
+            if text:
+                out_chars.append(text)
+            yield event
+    finally:
+        tokens = estimate_tokens(prompt) + estimate_tokens("".join(out_chars))
+        await finops_guard.record(user_id, tokens)
+
+
+async def _enforce_finops(user_id: str, payload: dict) -> None:
+    decision = await finops_guard.check(user_id, payload)
+    if not decision.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": finops_guard.limit_message(decision),
+                "reason": decision.reason,
+                "limit": decision.limit,
+            },
+            headers={"Retry-After": str(decision.retry_after)},
+        )
+
+
 async def _event_stream(
     prompt: str,
     user_id: str,
@@ -520,14 +565,19 @@ async def stream_chat_post(
     if not user_id or (not tenant_id and payload.get("role") != "admin"):
         raise HTTPException(status_code=403, detail="Tenant context required")
 
+    await _enforce_finops(user_id, payload)
     effective_prompt = body.prompt or body.message or ""
     return StreamingResponse(
-        _event_stream(
-            effective_prompt,
+        _metered(
+            _event_stream(
+                effective_prompt,
+                user_id,
+                body.task_type,
+                session_id=getattr(body, "session_id", None),
+                tenant_id=tenant_id,
+            ),
             user_id,
-            body.task_type,
-            session_id=getattr(body, "session_id", None),
-            tenant_id=tenant_id,
+            effective_prompt,
         ),
         media_type="text/event-stream",
         headers={
@@ -553,8 +603,9 @@ async def stream_chat_sse(
     if not user_id or (not tenant_id and payload.get("role") != "admin"):
         raise HTTPException(status_code=403, detail="Tenant context required")
 
+    await _enforce_finops(user_id, payload)
     return StreamingResponse(
-        _event_stream(prompt, user_id, task_type, tenant_id=tenant_id),
+        _metered(_event_stream(prompt, user_id, task_type, tenant_id=tenant_id), user_id, prompt),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache, no-transform",
