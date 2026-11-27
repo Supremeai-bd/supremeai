@@ -79,8 +79,9 @@ def record_request(method: str, path: str, status: int, duration_s: float) -> No
             _FALLBACK_COUNTS[(method, norm_path, str(status))] += 1
             _FALLBACK_LATENCY_SUM[(method, norm_path)] += duration_s
             _FALLBACK_LATENCY_COUNT[(method, norm_path)] += 1
-    except Exception:  # pragma: no cover - never break request path
-        pass
+    except Exception as exc:  # pragma: no cover - never break request path
+        import logging
+        logging.getLogger(__name__).debug("Prometheus record_request failed (%s)", type(exc).__name__)
 
 
 def render_metrics() -> tuple[str, str]:
@@ -88,8 +89,9 @@ def render_metrics() -> tuple[str, str]:
     if _PROM_AVAILABLE:
         try:
             return generate_latest().decode("utf-8", "replace"), CONTENT_TYPE_LATEST
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Prometheus render_metrics failed (%s)", type(exc).__name__)
     # Minimal text exposition fallback
     lines: list[str] = []
     lines.append("# HELP gateway_http_requests_total Total HTTP requests")
@@ -156,8 +158,9 @@ def _snapshot_counts_and_latency() -> tuple[list[tuple[str, str, str, int]], lis
             for key, s_val in sums.items():
                 latencies.append((key[0], key[1], s_val, cnts.get(key, 0)))
             return counts, latencies
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Prometheus render_metrics failed (%s)", type(exc).__name__)
     for (method, path, status), cnt in list(_FALLBACK_COUNTS.items()):
         counts.append((method, path, status, int(cnt)))
     for (method, path), s_val in list(_FALLBACK_LATENCY_SUM.items()):

@@ -70,14 +70,14 @@ def get_db():
     except Exception:
         try:
             conn.rollback()
-        except Exception:
-            pass
+        except Exception as rb_exc:
+            logger.debug("SQLite rollback failed (%s)", type(rb_exc).__name__)
         raise
     finally:
         try:
             conn.close()
-        except Exception:
-            pass
+        except Exception as cl_exc:
+            logger.debug("SQLite close failed (%s)", type(cl_exc).__name__)
 
 
 def init_db() -> None:
@@ -651,8 +651,8 @@ def get_user_preferences(user_id: str = "usr-admin-primary") -> Dict[str, Any]:
                         "preferences": merged,
                         "updated_at": row["updated_at"],
                     }
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("Corrupt preferences JSON for %s (%s)", user_id, type(exc).__name__)
         else:
             if user_id in _MEM_FALLBACK["preferences"]:
                 return {
@@ -1023,8 +1023,8 @@ def list_user_store(table_name: str, user_id: str) -> List[Dict[str, Any]]:
             for row in cursor.fetchall():
                 try:
                     records.append(json.loads(row["data_json"]))
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("Corrupt preferences JSON for %s (%s)", user_id, type(exc).__name__)
             return records
     except Exception as exc:
         logger.warning(f"Error listing {table_name} for {user_id}: {exc}")
