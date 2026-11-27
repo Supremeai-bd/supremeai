@@ -436,8 +436,9 @@ def _estimate_confidence(
         )
         if abs(orig_imports - fix_imports) <= 2:
             confidence += 0.1
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Import-count confidence heuristic skipped (%s)", type(exc).__name__)
     # First non-empty line preserved (docstring/module header) → behavioral similarity
     orig_first = next((ln for ln in original_code.splitlines() if ln.strip()), "")
     fix_first = next((ln for ln in fixed_code.splitlines() if ln.strip()), "")

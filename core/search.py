@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import time
 from typing import Any
 
 from core.monitoring.logging_config import logger
@@ -97,15 +98,28 @@ _KEYED_PROVIDERS: tuple[tuple[str, Any], ...] = (
 
 
 def _ddgs_search(query: str, max_results: int) -> list[dict[str, Any]]:
-    """ddgs-client search lane. Returns [] when the package is unavailable."""
+    """ddgs-client search lane. Returns [] when the package is unavailable.
+
+    বাংলা মন্তব্য: লাইভ টেস্টে দেখা গেছে DDG ব্যাকএন্ড মাঝেমধ্যে শুধু timeout/rate-limit-এ
+    একবার ব্যর্থ হয় — সাথে সাথেই retry করলে সফল হয়। তাই ছোট ব্যাকঅফ সহ ৩ চেষ্টা
+    চালাই; সব ব্যর্থ হলে তবেই খালি লিস্ট (fail-closed, সৎ warning সহ)।
+    """
     client = _ddgs_client()
     if client is None:
         return []
-    try:
-        return client.text(query, max_results=max_results) or []
-    except Exception as exc:
-        logger.warning(f"[search] DDGS search failed: {exc}")
-        return []
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        try:
+            results = client.text(query, max_results=max_results) or []
+            if results:
+                return results
+            # খালি ফল হলে পরের attempt-এ আবার চেষ্টা (কিছু ব্যাকএন্ডে ক্ষণস্থায়ী খালি রেসপন্স)।
+        except Exception as exc:
+            last_exc = exc
+        time.sleep(0.5 * (attempt + 1))
+    if last_exc is not None:
+        logger.warning(f"[search] DDGS search failed after retries: {last_exc}")
+    return []
 
 
 def web_search(query: str, max_results: int = 5) -> list[dict[str, Any]]:
