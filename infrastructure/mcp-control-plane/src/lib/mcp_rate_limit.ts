@@ -249,7 +249,7 @@ function collectLeaves(node: unknown, depth: number, leaves: EditableString[], r
             }
           }
         } catch (err) {
-          console.debug(err);
+          console.error(err instanceof Error ? err.name : "error");
           /* not nested JSON — treat as an ordinary string leaf */
         }
       }

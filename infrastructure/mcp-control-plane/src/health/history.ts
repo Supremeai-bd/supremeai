@@ -47,7 +47,7 @@ export class HealthHistoryStore {
     const dir = path.dirname(this.filePath);
     try {
       await fs.mkdir(dir, { recursive: true });
-    } catch (err) { console.debug(err); }
+    } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
     try {
       const raw = await fs.readFile(this.filePath, "utf8");
       const lines = raw.split(/\r?\n/).filter((l) => l.trim().length > 0);
@@ -56,12 +56,12 @@ export class HealthHistoryStore {
           const entry = JSON.parse(line) as HealthHistoryEntry;
           this.entries.push(entry);
           this.seq = Math.max(this.seq, entry.seq ?? 0);
-        } catch (err) { console.debug(err); }
+        } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
       }
       console.log(
         `[HealthHistory] loaded ${this.entries.length} entries from ${this.filePath}`
       );
-    } catch (err) { console.debug(err); }
+    } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
   }
 
   /** Appends a history entry durably (best-effort) and keeps a bounded ring. */

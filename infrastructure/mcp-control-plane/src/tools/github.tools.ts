@@ -119,7 +119,7 @@ export function repoUrlFor(accountId?: string, repo?: string): string {
       (a) => (a.id === id || a.displayName.includes(`/${id})`)) && a.provider === "github"
     );
     if (account?.url) return account.url;
-  } catch (err) { console.debug(err); }
+  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
   const clean = id.replace(/^github-pay-/, "").replace(/^Supremeai-bd\//i, "");
   return `https://api.github.com/repos/Supremeai-bd/${clean}`;
 }
@@ -528,7 +528,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
             }
           }
         }
-      } catch (err) { console.debug(err); }
+      } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
 
       // 2. Secondary / Universal Fallback: Direct GitHub API with application/vnd.github.v3.diff
       try {

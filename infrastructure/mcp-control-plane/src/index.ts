@@ -487,7 +487,7 @@ async function main(): Promise<void> {
   try {
     const ioredisModule = await import("ioredis");
     registerIoredis(ioredisModule.default as unknown as new (url: string, opts: object) => unknown);
-  } catch (err) { console.debug(err); }
+  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
 
   // Unified Gateway: internal Python memory sidecar (stdio bridge).
   // Non-blocking start — tools degrade gracefully while it spawns.

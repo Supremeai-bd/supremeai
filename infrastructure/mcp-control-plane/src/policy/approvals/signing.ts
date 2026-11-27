@@ -62,7 +62,7 @@ export function verifyApprovalLink(
     const b = Buffer.from(expected);
     return a.length === b.length && timingSafeEqual(a, b);
   } catch (err) {
-    console.debug(err);
+    console.error(err instanceof Error ? err.name : "error");
     return false;
   }
 }

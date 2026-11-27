@@ -17,7 +17,7 @@ function load(): StoreShape {
       const parsed = JSON.parse(raw) as StoreShape;
       if (parsed && Array.isArray(parsed.plans)) return parsed;
     }
-  } catch (err) { console.debug(err); }
+  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
   return { plans: [] };
 }
 
@@ -25,7 +25,7 @@ function save(store: StoreShape): void {
   try {
     fs.mkdirSync(path.dirname(STORE_PATH), { recursive: true });
     fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2), "utf-8");
-  } catch (err) { console.debug(err); }
+  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
 }
 
 export function savePlan(plan: ExecutionPlan): ExecutionPlan {

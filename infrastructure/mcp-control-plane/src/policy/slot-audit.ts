@@ -64,7 +64,7 @@ export function recordSlotAudit(event: Omit<SlotAuditEvent, "ts"> & { ts?: strin
   try {
     mkdirSync(dirname(file), { recursive: true });
     appendFileSync(file, `${JSON.stringify(entry)}\n`, { mode: 0o600 });
-  } catch (err) { console.debug(err); }
+  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
 }
 
 /** Read recent audit events (newest last), optionally filtered by slot. */

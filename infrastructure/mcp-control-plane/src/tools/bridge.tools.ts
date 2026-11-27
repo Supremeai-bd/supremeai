@@ -1563,7 +1563,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
                 }
               );
             }
-          } catch (err) { console.debug(err); }
+          } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
         }
         }
 
@@ -1621,7 +1621,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
                   `https://api.github.com/repos/${repo}/issues/${prNumber}/labels`,
                   { method: "POST", headers, body: { labels: [BRIDGE_VERIFIED_SUBMITTER_LABEL] }, timeoutMs: 10_000 }
                 );
-              } catch (err) { console.debug(err); }
+              } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
             }
           } else if (!prRes.ok) {
             prError = prFailureFromHttp(prRes.status, prRes.data);

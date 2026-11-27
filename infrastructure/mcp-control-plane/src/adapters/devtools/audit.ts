@@ -232,7 +232,7 @@ export async function collectPerformanceTrace(
                   po.observe({ type: 'largest-contentful-paint', buffered: true });
                   setTimeout(resolve, 100);
                 });
-              } catch (err) { console.debug(err); }
+              } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
               const paints = performance.getEntriesByType('paint');
               return JSON.stringify({
                 fcp: paints.find((e) => e.name === 'first-contentful-paint')?.startTime ?? null,
@@ -258,7 +258,7 @@ export async function collectPerformanceTrace(
             };
           }
         }
-      } catch (err) { console.debug(err); }
+      } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
       const snap: PerfSnapshot = mapPerformanceSnapshot(metrics ?? [], navEntry, paintEntry);
       return snap;
     });
