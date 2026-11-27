@@ -55,8 +55,8 @@ on:
     # Weekly LLM Red-Team Garak sweep (Mon 03:00 UTC)
   workflow_dispatch:
     inputs:
-      run_redis_quota_monitor:
-        description: 'Run Redis quota & burn-rate monitor arm'
+      run_all:
+        description: "Run ALL jobs at once (manual full sweep)"
         required: false
         default: false
         type: boolean
@@ -236,8 +236,8 @@ jobs:
     # Local-first (Zero Cloud Waste): run weekly deep-audit on self-hosted PC when online.
     if: >-
         needs.resolve-execution-tier.outputs.is_local_online == 'true' &&
-        ((github.event_name == 'workflow_dispatch' && inputs.run_deep_audit == true) ||
-         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *'))
+        ((github.event_name == 'workflow_dispatch' && (inputs.run_deep_audit == true || inputs.run_all == true)) ||
+         ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true)))
     concurrency:
       group: nightly-ops-deep-audit
       cancel-in-progress: false
@@ -353,8 +353,8 @@ jobs:
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         needs.resolve-execution-tier.outputs.is_local_online != 'true' &&
-        ((github.event_name == 'workflow_dispatch' && inputs.run_deep_audit == true) ||
-         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *'))
+        ((github.event_name == 'workflow_dispatch' && (inputs.run_deep_audit == true || inputs.run_all == true)) ||
+         ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true)))
     concurrency:
       group: nightly-ops-deep-audit
       cancel-in-progress: false
@@ -373,7 +373,7 @@ jobs:
   ai-safety:
     needs: [resolve-execution-tier]
     # #67 Tier 3: dispatch-only (AI safety evaluations on demand)
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_ai_safety == true)
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.run_ai_safety == true || inputs.run_all == true))
     concurrency:
       group: nightly-ops-ai-safety
       cancel-in-progress: false
@@ -418,7 +418,7 @@ jobs:
   mission-passk:
     needs: [resolve-execution-tier]
     # #67 Tier 3: dispatch-only (PassK benchmarks on demand)
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_passk == true)
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.run_passk == true || inputs.run_all == true))
     concurrency:
       group: nightly-ops-mission-passk
       cancel-in-progress: false
@@ -560,7 +560,7 @@ jobs:
     needs: [resolve-execution-tier]
     name: 🧹 Platform Sweep (nightly, dispatch-only)
     # #67 Tier 3: dispatch-only (deep platform sweeps on demand)
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_platform_sweep == true)
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.run_platform_sweep == true || inputs.run_all == true))
     concurrency:
       group: platform-agent-sweep
       cancel-in-progress: false
@@ -640,8 +640,8 @@ jobs:
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         github.ref == 'refs/heads/main' &&
-        ((github.event_name == 'workflow_dispatch' && inputs.run_platform_deep_audit == true) ||
-         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *'))
+        ((github.event_name == 'workflow_dispatch' && (inputs.run_platform_deep_audit == true || inputs.run_all == true)) ||
+         ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true)))
     concurrency:
       group: platform-deep-audit
       cancel-in-progress: false
@@ -698,7 +698,7 @@ jobs:
     # No dispatch toggle — see the 25-input hard-cap note near run_docs_garbage_sweep.
     if: >-
         github.ref == 'refs/heads/main' &&
-        github.event_name == 'schedule' && github.event.schedule == '0 3 * * *'
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true)
     concurrency:
       group: graph-health-sweep
       cancel-in-progress: false
@@ -779,7 +779,7 @@ jobs:
     needs: [resolve-execution-tier]
     name: 📊 Rate Limit Trend Snapshot (daily)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_rate_limit_trend == true) ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_rate_limit_trend == true || inputs.run_all == true)) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     concurrency:
       group: rate-limit-monitor
@@ -922,8 +922,8 @@ jobs:
     name: 🧹 Docs Garbage Tree Sweep (daily, #4176)
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_docs_garbage_sweep == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_docs_garbage_sweep == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     concurrency:
       group: docs-garbage-sweep
       cancel-in-progress: false
@@ -966,7 +966,7 @@ jobs:
   stale-mutex:
     needs: [resolve-execution-tier]
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_stale_mutex == true) ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_stale_mutex == true || inputs.run_all == true)) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     concurrency:
       group: stale-mutex-cleanup
@@ -1109,7 +1109,7 @@ jobs:
   live-smoke:
     needs: [resolve-execution-tier]
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_live_smoke == true) ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_live_smoke == true || inputs.run_all == true)) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     concurrency:
       group: qa-live-smoke
@@ -1131,7 +1131,7 @@ jobs:
     needs: [resolve-execution-tier]
     name: 🗑️ DB Retention Prune (logs + learning store)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_db_retention == true) ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_db_retention == true || inputs.run_all == true)) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     concurrency:
       group: db-retention
@@ -1230,7 +1230,7 @@ jobs:
 
   e2e-customer:
     needs: [resolve-execution-tier]
-    if: github.event_name == 'schedule' && github.event.schedule == '0 3 * * *' # #67 Tier 2: weekly Sun off-peak (was daily)
+    if: (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true) # #67 Tier 2: weekly Sun off-peak (was daily)
     concurrency:
       group: nightly-ops-e2e-customer
       cancel-in-progress: true
@@ -1326,8 +1326,8 @@ jobs:
     needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_load_locust == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_load_locust == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     concurrency:
       group: nightly-ops-load-locust
       cancel-in-progress: false
@@ -1438,8 +1438,8 @@ jobs:
     needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_chaos_suite == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_chaos_suite == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     concurrency:
       group: nightly-ops-chaos-suite
       cancel-in-progress: false
@@ -1476,8 +1476,8 @@ jobs:
     needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_browser_e2e == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_browser_e2e == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     concurrency:
       group: nightly-ops-browser-e2e
       cancel-in-progress: false
@@ -1518,7 +1518,7 @@ jobs:
   db-pool-health:
     needs: [resolve-execution-tier]
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_db_pool_health == true) ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_db_pool_health == true || inputs.run_all == true)) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     concurrency:
       group: nightly-ops-db-pool-health
@@ -1607,7 +1607,7 @@ jobs:
     name: 🌿 Branch Retention Cleanup
     # #67 Tier 1: daily storage tidy (was Mon weekly)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_branch_retention == true) ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_branch_retention == true || inputs.run_all == true)) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     concurrency:
       group: branch-retention-cleanup
@@ -1682,7 +1682,7 @@ jobs:
     # made GitHub reject the ENTIRE file ("you may only define up to 25 inputs"),
     # which surfaced as a run with ZERO jobs on both push and schedule. Keep this
     # job reachable without an input so the count can never be exceeded again.
-    if: github.event_name == 'schedule' && github.event.schedule == '0 3 * * *'
+    if: (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true)
     name: "🛡️ Guard Roster (full, nightly)"
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -1777,8 +1777,8 @@ jobs:
     needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_silent_error == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_silent_error == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     name: 🤫 Silent Error Scan
     runs-on: ubuntu-24.04
     steps:
@@ -1807,8 +1807,8 @@ jobs:
     needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_dast == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_dast == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     concurrency:
       group: dast-zap-${{ github.ref }}
       cancel-in-progress: true
@@ -1866,8 +1866,8 @@ jobs:
     needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_constitution == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_constitution == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     concurrency:
       group: nightly-ops-constitution
       cancel-in-progress: true
@@ -1896,8 +1896,8 @@ jobs:
   self-audit:
     needs: [resolve-execution-tier]
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_self_audit == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_self_audit == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     name: 🔍 Weekly Self-Audit Scan
     runs-on: ubuntu-24.04
     steps:
@@ -1913,7 +1913,7 @@ jobs:
   workflow-runs-retention:
     needs: [resolve-execution-tier]
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_workflow_runs_retention == true) ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_workflow_runs_retention == true || inputs.run_all == true)) ||
         (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     name: 🧹 Workflow Runs Retention & Purge
     concurrency:
@@ -1966,7 +1966,7 @@ jobs:
     # delays scheduled events under load — observed: the 03:00 UTC bundle ran
     # 9h late and the 30-min redis cron went silent for 12+ hours). The
     # watchdog now rides the daily bundle and self-heals the schedule.
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+    if: github.event_name == 'workflow_dispatch' || ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -2165,8 +2165,8 @@ jobs:
     # Read-only: no privileged runner probe is needed for candidate rehearsals.
     name: "🩺 Full fleet health & release gate report"
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.run_daily_health_report == true) ||
-      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+      (github.event_name == 'workflow_dispatch' && (inputs.run_daily_health_report == true || inputs.run_all == true)) ||
+      ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -2220,7 +2220,7 @@ jobs:
     needs: [resolve-execution-tier]
     name: "Verify Local Self-Hosted Runner on Windows PC"
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.run_test_local_runner == true) &&
+      (github.event_name == 'workflow_dispatch' && (inputs.run_test_local_runner == true || inputs.run_all == true)) &&
       needs.resolve-execution-tier.outputs.is_local_online == 'true'
     runs-on: [self-hosted, local-pc]
     timeout-minutes: 5
@@ -2250,7 +2250,7 @@ jobs:
     needs: [resolve-execution-tier]
     name: "Evaluate 24h+ Opportunistic Audit Window"
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.run_opportunistic_audit == true)
+      (github.event_name == 'workflow_dispatch' && (inputs.run_opportunistic_audit == true || inputs.run_all == true))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -2309,7 +2309,7 @@ jobs:
   redis-quota-monitor:
     name: "Redis Quota & Burn-Rate Monitor"
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.run_redis_quota_monitor == true) ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_all == true) ||
       (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -2361,7 +2361,7 @@ jobs:
     name: "Weekly LLM red-team lane (garak toolchain + probe inventory)"
     # hierarchy-exception: weekly garak red-team schedule lane (isolated toolchain validation)
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.run_garak_redteam == true) ||
+      (github.event_name == 'workflow_dispatch' && (inputs.run_garak_redteam == true || inputs.run_all == true)) ||
       (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     runs-on: ubuntu-24.04
     timeout-minutes: 20
