@@ -95,25 +95,26 @@ async def revoke_api_key(key_id: int) -> dict[str, Any] | None:
         key_id,
     )
     if row and row.get("key_hash"):
-        try:
-            from core.cache.redis_manager import redis_manager
-
-            await redis_manager.delete(f"apikey:{row['key_hash']}")
-        except Exception:
-            pass
+        await _invalidate_api_key_cache(row["key_hash"])
     return dict(row) if row else None
+
+
+async def _invalidate_api_key_cache(key_hash: str) -> None:
+    """Best-effort Redis cache invalidation after API key revocation/deletion/rotation."""
+    try:
+        from core.cache.redis_manager import redis_manager
+
+        await redis_manager.delete(f"apikey:{key_hash}")
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("API key cache invalidation failed (%s)", type(exc).__name__)
 
 
 async def delete_api_key(key_id: int) -> bool:
     pool = await get_db_pool()
     row = await pool.fetchrow("DELETE FROM api_keys WHERE id = $1 RETURNING key_hash", key_id)
     if row and row.get("key_hash"):
-        try:
-            from core.cache.redis_manager import redis_manager
-
-            await redis_manager.delete(f"apikey:{row['key_hash']}")
-        except Exception:
-            pass
+        await _invalidate_api_key_cache(row["key_hash"])
     return row is not None
 
 
@@ -138,12 +139,7 @@ async def rotate_api_key(
         key_id,
     )
     if old_row and old_row.get("key_hash"):
-        try:
-            from core.cache.redis_manager import redis_manager
-
-            await redis_manager.delete(f"apikey:{old_row['key_hash']}")
-        except Exception:
-            pass
+        await _invalidate_api_key_cache(old_row["key_hash"])
     return dict(row) if row else None
 
 

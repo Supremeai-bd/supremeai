@@ -15,9 +15,9 @@ import pytest
 from pathlib import Path
 import importlib.util
 
-# Import by file path: the short name ``tools`` is ambiguous in this repo
-# (both ``core/tools`` and ``browser/tools`` exist), and ``browser/tools``
-# shadows it whenever browser/tests lands on sys.path first.
+# Import by file path so the test always exercises the canonical
+# ``core/tools/browser/web_scraper.py`` regardless of sys.path order (the old
+# ``browser/tools`` shadow copy that once made ``tools`` ambiguous is removed).
 _MODULE_PATH = Path(__file__).resolve().parents[3] / "core" / "tools" / "browser" / "web_scraper.py"
 _spec = importlib.util.spec_from_file_location("supremeai_core_tools_browser_web_scraper", _MODULE_PATH)
 ws = importlib.util.module_from_spec(_spec)

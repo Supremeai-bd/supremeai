@@ -248,7 +248,7 @@ class RingBufferLogHandler(logging.Handler):
                     try:
                         q.put_nowait(entry)
                     except Exception:
-                        pass
+                        self.subscribers.discard(q)
         except Exception:
             self.handleError(record)
 
@@ -695,8 +695,8 @@ async def _gateway_metrics_middleware(request: Request, call_next):
     response = await call_next(request)
     try:
         _record_gateway_metric(request.method, request.url.path, response.status_code, time.time() - start)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Gateway metric recording failed (%s)", type(exc).__name__)
     return response
 
 
@@ -2847,8 +2847,8 @@ async def _execute_chat_completion(
                     finally:
                         try:
                             await stream_iter.aclose()
-                        except Exception:  # noqa: BLE001
-                            pass
+                        except Exception as exc:  # noqa: BLE001
+                            logger.debug("Stream iterator close failed (%s)", type(exc).__name__)
 
                     if started:
                         break  # Never replay text or tool deltas from another slot.
@@ -2872,8 +2872,8 @@ async def _execute_chat_completion(
                             model=stream_served_model,
                             metadata={"supremeai": last_brand, "stream": True},
                         )
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.warning("Failed to persist streamed assistant message (%s)", type(exc).__name__)
                 final_chunk = _format_sse_chunk(stream_chunk_id, stream_served_model, "", True, last_brand)
                 if saw_tool_calls:
                     final_chunk["choices"][0]["finish_reason"] = "tool_calls"
@@ -2947,8 +2947,9 @@ async def _execute_chat_completion(
                         response_data = validate_and_sanitize(response_data)
                         if response_data.get("choices") and isinstance(response_data["choices"][0].get("message"), dict):
                             chat_content = str(response_data["choices"][0]["message"].get("content", "")).strip()
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.warning("Response sanitization failed (%s)", type(exc).__name__)
+                        raise HTTPException(status_code=500, detail="Response sanitization failed")
 
                 headers = {
                     "X-SupremeAI-Provider": "supremeai-dynamic-squad",
@@ -2969,8 +2970,8 @@ async def _execute_chat_completion(
                                 model=served_model,
                                 metadata={"supremeai": response_data.get("supremeai")},
                             )
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logger.warning("Failed to persist assistant message (%s)", type(exc).__name__)
 
                 # Streaming chunk generator for Kilo Code / IDEs
                 # (Audit P0-5: removed the fake word-by-word re-simulation —
