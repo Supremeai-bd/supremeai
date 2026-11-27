@@ -113,3 +113,15 @@ async def test_open_database_circuit_stays_fail_closed(environment):
     assert pool.fetchrow.await_count == 3  # fourth request is rejected by the breaker
     handler.assert_not_awaited()
     get_cache.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("delete_result,warning", [(True, False), (False, True)])
+async def test_cache_invalidation_reports_false_without_leaking_hash(monkeypatch, caplog, delete_result, warning):
+    from core.models import api_key
+    delete = AsyncMock(return_value=delete_result)
+    monkeypatch.setattr(redis_manager, "delete", delete)
+    await api_key._invalidate_api_key_cache("sensitive-fixture-hash")
+    delete.assert_awaited_once_with("apikey:sensitive-fixture-hash")
+    assert ("API key cache invalidation failed" in caplog.text) is warning
+    assert "sensitive-fixture-hash" not in caplog.text

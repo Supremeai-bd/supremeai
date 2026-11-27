@@ -203,3 +203,109 @@ async def test_contribute_daily_cap(pool_env):
         res_blocked = await client.post("/pool/contribute", json={"provider": "gemini", "api_key": k_extra})
         assert res_blocked.status_code == 429
         assert "Daily key submission limit reached" in res_blocked.json()["detail"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fail_select", [1, 2])
+async def test_failed_preinsert_checks_do_not_insert(pool_env, monkeypatch, fail_select):
+    app, store = pool_env
+    original = FakeTable.execute
+    calls = 0
+
+    def faulty(self):
+        nonlocal calls
+        if self.name == "user_contributed_api_keys":
+            calls += 1
+            if calls == fail_select:
+                raise RuntimeError("private backend detail")
+        return original(self)
+
+    monkeypatch.setattr(FakeTable, "execute", faulty)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/pool/contribute", json={"provider": "gemini", "api_key": "AIzaSy" + "Z" * 33})
+    assert response.status_code == 503
+    assert "private backend detail" not in response.text
+    assert not store["user_contributed_api_keys"]
+
+
+@pytest.mark.asyncio
+async def test_failed_quota_update_reports_partial_commit(pool_env, monkeypatch):
+    app, store = pool_env
+    original = FakeTable.execute
+
+    def faulty(self):
+        if self.name == "user_bonus_quotas":
+            raise RuntimeError("private backend detail")
+        return original(self)
+
+    monkeypatch.setattr(FakeTable, "execute", faulty)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/pool/contribute", json={"provider": "gemini", "api_key": "AIzaSy" + "Z" * 33})
+    assert response.status_code == 503
+    assert "stored" in response.text and "reconcile" in response.text
+    assert "private backend detail" not in response.text
+    assert len(store["user_contributed_api_keys"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_quota_lookup_outage_is_not_zero(pool_env, monkeypatch):
+    app, _ = pool_env
+    monkeypatch.setattr(FakeTable, "execute", lambda self: (_ for _ in ()).throw(RuntimeError("private detail")))
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/pool/quota")
+    assert response.status_code == 503
+    assert "private detail" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_unverified_provider_key_cannot_be_marked_valid(monkeypatch):
+    # Do not use pool_env: it deliberately stubs out actual validation.
+    from fastapi import HTTPException
+    for provider in ("kilo", "unknown"):
+        with pytest.raises(HTTPException) as exc:
+            await pool_mod._validate(provider, "fixture")
+        assert exc.value.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_missing_quota_response_data_is_not_treated_as_zero(pool_env, monkeypatch):
+    app, _ = pool_env
+    monkeypatch.setattr(FakeTable, "execute", lambda self: FakeResult(None))
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        assert (await client.get("/pool/quota")).status_code == 503
+        response = await client.post("/pool/contribute", json={"provider": "gemini", "api_key": "AIzaSy" + "Z" * 33})
+        assert response.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_pool_database_initialization_failure_is_503(pool_env, monkeypatch):
+    app, store = pool_env
+    monkeypatch.setattr(pool_mod, "get_db", lambda: (_ for _ in ()).throw(RuntimeError("private db")))
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        quota = await client.get("/pool/quota")
+        contribute = await client.post("/pool/contribute", json={"provider": "gemini", "api_key": "AIzaSy" + "Z" * 33})
+    assert quota.status_code == contribute.status_code == 503
+    assert "private db" not in quota.text + contribute.text
+    assert not store["user_contributed_api_keys"]
+
+
+@pytest.mark.asyncio
+async def test_validation_network_failure_is_unavailable_and_does_not_log_key(monkeypatch, caplog):
+    from fastapi import HTTPException
+
+    class Unavailable:
+        def __init__(self, **kwargs):
+            pass
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *args):
+            return False
+        async def get(self, *args, **kwargs):
+            raise RuntimeError("private credential fixture")
+
+    monkeypatch.setattr(pool_mod.httpx, "AsyncClient", Unavailable)
+    with pytest.raises(HTTPException) as exc:
+        await pool_mod._validate("gemini", "private credential fixture")
+    assert exc.value.status_code == 503
+    assert "private credential fixture" not in str(exc.value.detail)
+    assert "private credential fixture" not in caplog.text

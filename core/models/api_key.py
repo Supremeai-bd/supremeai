@@ -104,7 +104,9 @@ async def _invalidate_api_key_cache(key_hash: str) -> None:
     try:
         from core.cache.redis_manager import redis_manager
 
-        await redis_manager.delete(f"apikey:{key_hash}")
+        if not await redis_manager.delete(f"apikey:{key_hash}"):
+            import logging
+            logging.getLogger(__name__).warning("API key cache invalidation failed (Redis delete returned false)")
     except Exception as exc:
         import logging
         logging.getLogger(__name__).warning("API key cache invalidation failed (%s)", type(exc).__name__)

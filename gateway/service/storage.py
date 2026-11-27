@@ -1,5 +1,7 @@
 """
-service/storage.py — Resilient SQLite/In-Memory Persistence for SupremeAI Gateway.
+service/storage.py — SQLite persistence for SupremeAI Gateway.
+
+Legacy stores may use an in-memory fallback; private user-store CRUD requires SQLite.
 
 Provides persistent storage for:
 1. Conversation-ID & Session carry-over with message history persistence.
@@ -60,7 +62,12 @@ def get_db():
         conn.execute("PRAGMA journal_mode = WAL;")
         conn.execute("PRAGMA synchronous = NORMAL;")
     except Exception as exc:
-        logger.warning(f"SQLite connection error ({exc}), falling back to in-memory store.")
+        logger.warning("SQLite connection unavailable (%s); fallback depends on caller", type(exc).__name__)
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception as close_exc:
+                logger.debug("SQLite close failed (%s)", type(close_exc).__name__)
         yield None
         return
 
@@ -1004,84 +1011,75 @@ ALLOWED_USER_STORES = frozenset({
 })
 
 
-def list_user_store(table_name: str, user_id: str) -> List[Dict[str, Any]]:
-    if table_name not in ALLOWED_USER_STORES:
-        raise ValueError(f"Invalid store table: {table_name}")
-    if _USE_MEM_FALLBACK:
-        user_bucket = _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})
-        return list(user_bucket.values())
+class UserStoreUnavailable(RuntimeError):
+    """The private user store could not provide a complete, durable result."""
+
+
+@contextmanager
+def _user_store_db():
     try:
         with get_db() as conn:
             if conn is None:
-                user_bucket = _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})
-                return list(user_bucket.values())
-            cursor = conn.execute(
-                f"SELECT data_json FROM {table_name} WHERE user_id = ? ORDER BY created_at DESC",
-                (user_id,),
-            )
-            records = []
-            for row in cursor.fetchall():
-                try:
-                    records.append(json.loads(row["data_json"]))
-                except Exception as exc:
-                    logger.warning("Corrupt preferences JSON for %s (%s)", user_id, type(exc).__name__)
-            return records
+                raise UserStoreUnavailable("User store unavailable")
+            yield conn
+    except (UserStoreUnavailable, PermissionError):
+        raise
     except Exception as exc:
-        logger.warning(f"Error listing {table_name} for {user_id}: {exc}")
-        user_bucket = _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})
-        return list(user_bucket.values())
+        logger.error("User store database operation failed (%s)", type(exc).__name__)
+        raise UserStoreUnavailable("User store unavailable") from exc
+
+
+def _decode_user_store_record(value: str) -> Dict[str, Any]:
+    try:
+        record = json.loads(value)
+        if not isinstance(record, dict):
+            raise ValueError("User store record must be an object")
+        return record
+    except (ValueError, TypeError) as exc:
+        # Never return an incomplete list or a fake missing record.
+        logger.error("User store contains an invalid record (%s)", type(exc).__name__)
+        raise UserStoreUnavailable("User store data unavailable") from exc
+
+
+def _check_user_store_table(table_name: str) -> None:
+    if table_name not in ALLOWED_USER_STORES:
+        raise ValueError(f"Invalid store table: {table_name}")
+
+
+def list_user_store(table_name: str, user_id: str) -> List[Dict[str, Any]]:
+    _check_user_store_table(table_name)
+    with _user_store_db() as conn:
+        cursor = conn.execute(
+            f"SELECT data_json FROM {table_name} WHERE user_id = ? ORDER BY created_at DESC",
+            (user_id,),
+        )
+        return [_decode_user_store_record(row["data_json"]) for row in cursor.fetchall()]
 
 
 def get_user_store_record(table_name: str, user_id: str, record_id: str) -> Optional[Dict[str, Any]]:
-    if table_name not in ALLOWED_USER_STORES:
-        raise ValueError(f"Invalid store table: {table_name}")
-    if _USE_MEM_FALLBACK:
-        return _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {}).get(record_id)
-    try:
-        with get_db() as conn:
-            if conn is None:
-                return _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {}).get(record_id)
+    _check_user_store_table(table_name)
+    with _user_store_db() as conn:
+        row = conn.execute(
+            f"SELECT data_json FROM {table_name} WHERE user_id = ? AND id = ?",
+            (user_id, record_id),
+        ).fetchone()
+        return _decode_user_store_record(row["data_json"]) if row else None
+
+
+def save_user_store_records(
+    table_name: str, user_id: str, records: List[tuple[str, Dict[str, Any]]]
+) -> List[Dict[str, Any]]:
+    """Commit a batch atomically, including owner-collision checks."""
+    _check_user_store_table(table_name)
+    payloads = []
+    with _user_store_db() as conn:
+        for record_id, data in records:
+            now = time.time()
+            payload = dict(data)
+            payload["id"] = record_id
+            payload.setdefault("created_at", now)
+            payload["updated_at"] = now
             cursor = conn.execute(
-                f"SELECT data_json FROM {table_name} WHERE user_id = ? AND id = ?",
-                (user_id, record_id),
-            )
-            row = cursor.fetchone()
-            if row:
-                try:
-                    return json.loads(row["data_json"])
-                except Exception:
-                    return None
-            return None
-    except Exception as exc:
-        logger.warning(f"Error fetching {table_name} record {record_id} for {user_id}: {exc}")
-        return _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {}).get(record_id)
-
-
-def save_user_store_record(
-    table_name: str,
-    user_id: str,
-    record_id: str,
-    data: Dict[str, Any],
-) -> Dict[str, Any]:
-    if table_name not in ALLOWED_USER_STORES:
-        raise ValueError(f"Invalid store table: {table_name}")
-    now = time.time()
-    payload = dict(data)
-    payload["id"] = record_id
-    payload.setdefault("created_at", now)
-    payload["updated_at"] = now
-    data_json = json.dumps(payload)
-
-    if _USE_MEM_FALLBACK:
-        _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})[record_id] = payload
-        return payload
-
-    try:
-        with get_db() as conn:
-            if conn is None:
-                _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})[record_id] = payload
-                return payload
-            conn.execute(
                 f"""
                 INSERT INTO {table_name} (id, user_id, data_json, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?)
@@ -1090,36 +1088,28 @@ def save_user_store_record(
                     updated_at = excluded.updated_at
                 WHERE user_id = excluded.user_id
                 """,
-                (record_id, user_id, data_json, now, now),
+                (record_id, user_id, json.dumps(payload), now, now),
             )
-            return payload
-    except Exception as exc:
-        logger.warning(f"Error saving {table_name} record {record_id} for {user_id}: {exc}")
-        _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})[record_id] = payload
-        return payload
+            if cursor.rowcount != 1:
+                raise PermissionError("User store record unavailable")
+            payloads.append(payload)
+    return payloads
+
+
+def save_user_store_record(
+    table_name: str, user_id: str, record_id: str, data: Dict[str, Any]
+) -> Dict[str, Any]:
+    return save_user_store_records(table_name, user_id, [(record_id, data)])[0]
 
 
 def delete_user_store_record(table_name: str, user_id: str, record_id: str) -> bool:
-    if table_name not in ALLOWED_USER_STORES:
-        raise ValueError(f"Invalid store table: {table_name}")
-    if _USE_MEM_FALLBACK:
-        bucket = _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})
-        return bucket.pop(record_id, None) is not None
-
-    try:
-        with get_db() as conn:
-            if conn is None:
-                bucket = _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})
-                return bucket.pop(record_id, None) is not None
-            cursor = conn.execute(
-                f"DELETE FROM {table_name} WHERE user_id = ? AND id = ?",
-                (user_id, record_id),
-            )
-            return cursor.rowcount > 0
-    except Exception as exc:
-        logger.warning(f"Error deleting {table_name} record {record_id} for {user_id}: {exc}")
-        bucket = _MEM_FALLBACK.setdefault(table_name, {}).setdefault(user_id, {})
-        return bucket.pop(record_id, None) is not None
+    _check_user_store_table(table_name)
+    with _user_store_db() as conn:
+        cursor = conn.execute(
+            f"DELETE FROM {table_name} WHERE user_id = ? AND id = ?",
+            (user_id, record_id),
+        )
+        return cursor.rowcount > 0
 
 
 # ── Global App Settings (control-plane key/value) ─────────────────────────

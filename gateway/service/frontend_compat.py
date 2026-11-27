@@ -44,6 +44,16 @@ except ImportError:
     except ImportError:
         from service.auth_identity import resolve_user_id  # type: ignore[no-redef]
 
+
+def _user_store_call(operation, *args):
+    """Translate durable-store failures without leaking database details."""
+    try:
+        return operation(*args)
+    except storage.UserStoreUnavailable as exc:
+        raise HTTPException(status_code=503, detail="User store unavailable") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=409, detail="User store record unavailable") from exc
+
 # ---- in-memory stores (legacy fallback references) ----
 _customers: dict[str, dict[str, Any]] = {}
 _knowledge: dict[str, dict[str, Any]] = {}
@@ -618,7 +628,7 @@ def _require_uid(request: Request) -> str:
 @router.get("/api/user/knowledge")
 async def fe_knowledge_list(request: Request):
     uid = _require_uid(request)
-    return {"documents": storage.list_user_store("user_knowledge", uid)}
+    return {"documents": _user_store_call(storage.list_user_store, "user_knowledge", uid)}
 
 
 @router.post("/api/user/knowledge")
@@ -626,15 +636,15 @@ async def fe_knowledge_add(request: Request):
     uid = _require_uid(request)
     body = await request.json()
     did = f"d_{uuid.uuid4().hex[:8]}"
-    rec = {"id": did, "created": _now(), **body}
-    storage.save_user_store_record("user_knowledge", uid, did, rec)
+    rec = {**body, "id": did, "created": _now()}
+    _user_store_call(storage.save_user_store_record, "user_knowledge", uid, did, rec)
     return {"document": rec}
 
 
 @router.delete("/api/user/knowledge/{did}")
 async def fe_knowledge_delete(did: str, request: Request):
     uid = _require_uid(request)
-    storage.delete_user_store_record("user_knowledge", uid, did)
+    _user_store_call(storage.delete_user_store_record, "user_knowledge", uid, did)
     return {"status": "ok"}
 
 
@@ -643,10 +653,15 @@ async def fe_knowledge_seed(request: Request):
     uid = _require_uid(request)
     body = await request.json()
     items = body if isinstance(body, list) else [body]
+    records = []
     for it in items:
+        if not isinstance(it, dict):
+            raise HTTPException(status_code=422, detail="Invalid knowledge record")
         did = it.get("id") or f"d_{uuid.uuid4().hex[:8]}"
-        rec = {"id": did, "created": _now(), **it}
-        storage.save_user_store_record("user_knowledge", uid, did, rec)
+        if not isinstance(did, str):
+            raise HTTPException(status_code=422, detail="Invalid knowledge record id")
+        records.append((did, {**it, "id": did, "created": _now()}))
+    _user_store_call(storage.save_user_store_records, "user_knowledge", uid, records)
     return {"status": "ok", "count": len(items)}
 
 
@@ -670,7 +685,7 @@ async def fe_graph_path(start_skill: str = "", end_skill: str = ""):
 @router.get("/api/user/webhooks")
 async def fe_webhooks_list(request: Request):
     uid = _require_uid(request)
-    return {"webhooks": storage.list_user_store("user_webhooks", uid)}
+    return {"webhooks": _user_store_call(storage.list_user_store, "user_webhooks", uid)}
 
 
 @router.post("/api/user/webhooks")
@@ -678,15 +693,15 @@ async def fe_webhook_create(request: Request):
     uid = _require_uid(request)
     body = await request.json()
     wid = f"w_{uuid.uuid4().hex[:8]}"
-    rec = {"id": wid, "created": _now(), **body}
-    storage.save_user_store_record("user_webhooks", uid, wid, rec)
+    rec = {**body, "id": wid, "created": _now()}
+    _user_store_call(storage.save_user_store_record, "user_webhooks", uid, wid, rec)
     return {"webhook": rec}
 
 
 @router.delete("/api/user/webhooks/{wid}")
 async def fe_webhook_delete(wid: str, request: Request):
     uid = _require_uid(request)
-    storage.delete_user_store_record("user_webhooks", uid, wid)
+    _user_store_call(storage.delete_user_store_record, "user_webhooks", uid, wid)
     return {"status": "ok"}
 
 
@@ -700,7 +715,7 @@ async def fe_webhook_test(wid: str, request: Request):
 @router.get("/api/api-keys")
 async def fe_apikeys_list(request: Request):
     uid = _require_uid(request)
-    return {"keys": storage.list_user_store("user_api_keys", uid)}
+    return {"keys": _user_store_call(storage.list_user_store, "user_api_keys", uid)}
 
 
 @router.post("/api/api-keys/create")
@@ -708,8 +723,8 @@ async def fe_apikey_create(request: Request):
     uid = _require_uid(request)
     body = await request.json()
     kid = f"k_{uuid.uuid4().hex[:8]}"
-    rec = {"id": kid, "key": f"sk-{uuid.uuid4().hex}", "created": _now(), **body}
-    storage.save_user_store_record("user_api_keys", uid, kid, rec)
+    rec = {**body, "id": kid, "key": f"sk-{uuid.uuid4().hex}", "created": _now()}
+    _user_store_call(storage.save_user_store_record, "user_api_keys", uid, kid, rec)
     return {"key": rec}
 
 
@@ -1958,7 +1973,7 @@ _projects_store = {}
 @router.get("/api/v1/projects")
 async def fe_projects_list(request: Request):
     uid = _require_uid(request)
-    return {"projects": storage.list_user_store("user_projects", uid)}
+    return {"projects": _user_store_call(storage.list_user_store, "user_projects", uid)}
 
 
 @router.post("/api/v1/projects")
@@ -1966,15 +1981,15 @@ async def fe_projects_create(request: Request):
     uid = _require_uid(request)
     body = await request.json()
     pid = f"p_{uuid.uuid4().hex[:8]}"
-    rec = {"id": pid, "created": _now(), **body}
-    storage.save_user_store_record("user_projects", uid, pid, rec)
+    rec = {**body, "id": pid, "created": _now()}
+    _user_store_call(storage.save_user_store_record, "user_projects", uid, pid, rec)
     return {"project": rec}
 
 
 @router.delete("/api/v1/projects/{pid}")
 async def fe_projects_delete(pid: str, request: Request):
     uid = _require_uid(request)
-    storage.delete_user_store_record("user_projects", uid, pid)
+    _user_store_call(storage.delete_user_store_record, "user_projects", uid, pid)
     return {"status": "ok"}
 
 

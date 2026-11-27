@@ -2476,7 +2476,6 @@ async def _execute_chat_completion(
     # through the legacy prompt-only cache namespace.
     trace.mark("context")
 
-    relay_detail = None
     route_arbiter.squad = squad
     decision = route_arbiter.choose_best_route(
         requested_model=requested_model,
@@ -2578,7 +2577,9 @@ async def _execute_chat_completion(
         )
 
         # 3. Post-Generation Response Guard (Phase 2): Identity Bleed Scrubbing & Stub/Markdown Sanitization
-        if validate_and_sanitize and is_valid_chat:
+        if is_valid_chat and validate_and_sanitize is None:
+            raise HTTPException(status_code=503, detail="Response sanitization unavailable")
+        if is_valid_chat:
             try:
                 w_response = validate_and_sanitize(w_response)
                 if (
@@ -2642,7 +2643,10 @@ async def _execute_chat_completion(
                                 metadata={"supremeai": w_response.get("supremeai")},
                             )
                         except Exception as exc:
-                            logger.warning(f"Canonical memory store error (assistant msg): {exc}")
+                            logger.warning("Canonical memory store error (assistant msg): %s", type(exc).__name__)
+                            raise HTTPException(status_code=503, detail="Conversation storage unavailable") from exc
+                    else:
+                        raise HTTPException(status_code=503, detail="Conversation storage unavailable")
                     if add_message:
                         try:
                             await asyncio.to_thread(
@@ -2654,7 +2658,8 @@ async def _execute_chat_completion(
                                 user_id=user_id,
                             )
                         except Exception as exc:
-                            logger.warning(f"Legacy storage error (assistant msg): {exc}")
+                            logger.warning("Legacy storage error (assistant msg): %s", type(exc).__name__)
+                            raise HTTPException(status_code=503, detail="Conversation storage unavailable") from exc
 
             if body.get("stream"):
                 async def stream_generator():
@@ -2681,11 +2686,6 @@ async def _execute_chat_completion(
             headers["Server-Timing"] = trace.server_timing()
             return JSONResponse(status_code=w_status, content=w_response, headers=headers)
 
-        relay_detail = None
-        if isinstance(w_response, dict):
-            relay_detail = w_response.get("error") or w_response.get("detail") or w_response.get("message")
-        if not relay_detail and w_response is not None:
-            relay_detail = str(w_response)[:500]
         _adaptive_routes["stealth-webhook"].record(
             (time.time() - start_time) * 1000,
             success=False,
@@ -2706,7 +2706,6 @@ async def _execute_chat_completion(
             else:
                 raise HTTPException(status_code=502, detail="Stealth Webhook relay is unavailable")
 
-    last_error = None
     if squad and candidates:
         # Audit P0-5 fix: TRUE streaming. When the client asks for SSE, live-
         # proxy upstream chunks via stream_chat_completion_events (internal
@@ -2815,7 +2814,6 @@ async def _execute_chat_completion(
                                 if started:
                                     logger.warning("[stream] Provider %s failed mid-stream.", provider)
                                     break
-                                last_stream_err = data.get("error", "Upstream stream failed")
                                 call_latency = (time.monotonic() - call_start) * 1000
                                 pool = squad.pools.get(provider) if squad else None
                                 if pool:
@@ -2860,8 +2858,10 @@ async def _execute_chat_completion(
                     return
 
                 full_text = "".join(acc)
-                if conv_id and full_text and append_canonical_message:
+                if conv_id and full_text:
                     try:
+                        if not append_canonical_message:
+                            raise RuntimeError("Conversation storage unavailable")
                         await asyncio.to_thread(
                             append_canonical_message,
                             conv_id,
@@ -2874,6 +2874,9 @@ async def _execute_chat_completion(
                         )
                     except Exception as exc:
                         logger.warning("Failed to persist streamed assistant message (%s)", type(exc).__name__)
+                        yield f"data: {json.dumps({'error': 'Conversation storage unavailable', 'supremeai': last_brand})}\n\n"
+                        yield "data: [DONE]\n\n"
+                        return
                 final_chunk = _format_sse_chunk(stream_chunk_id, stream_served_model, "", True, last_brand)
                 if saw_tool_calls:
                     final_chunk["choices"][0]["finish_reason"] = "tool_calls"
@@ -2942,6 +2945,8 @@ async def _execute_chat_completion(
                 if choices and isinstance(choices[0], dict) and isinstance(choices[0].get("message"), dict):
                     chat_content = str(choices[0]["message"].get("content") or "").strip()
 
+                if validate_and_sanitize is None:
+                    raise HTTPException(status_code=503, detail="Response sanitization unavailable")
                 if validate_and_sanitize:
                     try:
                         response_data = validate_and_sanitize(response_data)
@@ -2972,6 +2977,9 @@ async def _execute_chat_completion(
                             )
                         except Exception as exc:
                             logger.warning("Failed to persist assistant message (%s)", type(exc).__name__)
+                            raise HTTPException(status_code=503, detail="Conversation storage unavailable") from exc
+                    else:
+                        raise HTTPException(status_code=503, detail="Conversation storage unavailable")
 
                 # Streaming chunk generator for Kilo Code / IDEs
                 # (Audit P0-5: removed the fake word-by-word re-simulation —
@@ -2988,12 +2996,11 @@ async def _execute_chat_completion(
                 pool.report_injury(slot, status, call_latency)
             _adaptive_routes["api-pool"].record(call_latency, success=False)
 
-            last_error = {"provider": provider, "slot": slot.name, "status": status, "error": response_data}
             logger.warning(f"Squad slot {slot.name} failed ({status}), failing over to next squad player...")
 
     raise HTTPException(
         status_code=502,
-        detail=f"All sovereign AI providers and stealth relays are currently cooling down. Last error: {relay_detail or last_error}"
+        detail="All sovereign AI providers and stealth relays are currently unavailable"
     )
 
 
