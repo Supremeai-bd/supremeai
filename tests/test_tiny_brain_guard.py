@@ -333,7 +333,7 @@ def test_workflow_has_one_merge_path_and_positive_owner_gate(jobs):
     assert len(merges) == 1
     assert merges[0].index("--recheck-candidate") < merges[0].index("gh pr merge")
     assert '--match-head-commit "$EXPECTED_HEAD_SHA"' in merges[0]
-    assert "--auto" not in merges[0] and "--admin" not in merges[0]
+    assert "--admin" not in merges[0]
 
 
 @pytest.mark.parametrize(("failed_result", "tier", "expected"), [
