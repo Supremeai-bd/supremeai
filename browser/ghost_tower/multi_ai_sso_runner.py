@@ -72,8 +72,7 @@ async def click_google_sso_button(
         try:
             await popup.wait_for_event("close", timeout=10000)
         except Exception as exc:
-            import logging
-            logging.getLogger(__name__).debug("Suppressed in multi_ai_sso_runner.py (%s)", type(exc).__name__)
+            logger.debug("Grok sign-in button skipped (%s)", type(exc).__name__)
         return success
     except Exception:
         # Redirect happened in the same window
@@ -120,8 +119,7 @@ async def login_chatgpt(context: BrowserContext, email: str, password: str) -> b
                 await login_btn.click()
                 await asyncio.sleep(3)
         except Exception as exc:
-            import logging
-            logging.getLogger(__name__).debug("Suppressed in multi_ai_sso_runner.py (%s)", type(exc).__name__)
+            logger.debug("Grok sign-in button skipped (%s)", type(exc).__name__)
 
         # Click Continue with Google
         await click_google_sso_button(page, email, password)
@@ -187,8 +185,7 @@ async def login_grok(context: BrowserContext, email: str, password: str) -> bool
                 await signin_btn.click()
                 await asyncio.sleep(2)
         except Exception as exc:
-            import logging
-            logging.getLogger(__name__).debug("Suppressed in multi_ai_sso_runner.py (%s)", type(exc).__name__)
+            logger.debug("Grok sign-in button skipped (%s)", type(exc).__name__)
 
         await click_google_sso_button(page, email, password)
         await asyncio.sleep(8)
@@ -289,8 +286,7 @@ async def login_perplexity(context: BrowserContext, email: str, password: str) -
                 await signin_btn.click()
                 await asyncio.sleep(2)
         except Exception as exc:
-            import logging
-            logging.getLogger(__name__).debug("Suppressed in multi_ai_sso_runner.py (%s)", type(exc).__name__)
+            logger.debug("Grok sign-in button skipped (%s)", type(exc).__name__)
 
         await click_google_sso_button(page, email, password)
         await asyncio.sleep(8)
