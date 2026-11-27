@@ -4,15 +4,16 @@ Exposes RESTful endpoints for customer management matching both:
 - /api/customers (Standard Customer API)
 - /api/admin/customers (Admin Dashboard Customer Sync)
 
-Supports database-backed persistence with automatic fallback to canonical
-seed customer data so the frontend admin dashboard works out of the box in
-both mock and live modes.
+Supports database-backed persistence and in-memory helpers for explicit mock
+use. HTTP routes fail when the database dependency or an operation is
+unavailable instead of returning misleading in-memory success.
 """
 
 from __future__ import annotations
 
 import asyncio
 import copy
+import logging
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -38,6 +39,8 @@ except ImportError:
         from core.database.session import get_db_session
     except ImportError:
         get_db_session = None
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Customers"])
 
@@ -254,14 +257,42 @@ def _find_memory_customer(customer_id: str) -> dict[str, Any] | None:
 
 async def _db_session_or_none():
     if get_db_session is None:
-        yield None
-        return
+        logger.error("Customer database session dependency is unavailable")
+        raise HTTPException(status_code=503, detail="Customer database unavailable")
+    yielded = False
     try:
         async for s in get_db_session():
+            yielded = True
             yield s
             return
-    except Exception:
-        yield None
+    except Exception as exc:
+        # বাংলা: route-এর নিজস্ব ব্যতিক্রমকে session setup failure ভেবে আবার yield করো না।
+        if yielded:
+            raise
+        logger.error("Customer database session unavailable (%s)", type(exc).__name__)
+        if isinstance(exc, HTTPException):
+            raise
+        raise HTTPException(status_code=503, detail="Customer database unavailable") from exc
+
+
+def _schedule_customer_broadcast(event: str, payload: dict[str, Any]) -> None:
+    if broadcaster is None:
+        return
+
+    async def send() -> None:
+        try:
+            if event == "updated":
+                await broadcaster.broadcast_customer_updated(payload)
+            else:
+                await broadcaster.broadcast("customer_deleted", payload)
+        except Exception as exc:
+            # বাংলা: payload বা exception message-এ গ্রাহকের ব্যক্তিগত তথ্য থাকতে পারে।
+            logger.warning("Customer broadcast %s failed (%s)", event, type(exc).__name__)
+
+    try:
+        asyncio.get_running_loop().create_task(send())
+    except RuntimeError as exc:
+        logger.warning("Customer broadcast %s not scheduled (%s)", event, type(exc).__name__)
 
 
 # --- Shared Handler Logic ---
@@ -272,10 +303,11 @@ async def _list_customers_impl(session: AsyncSession | None = None) -> list[dict
         try:
             result = await session.execute(select(Customer))
             rows = result.scalars().all()
-            if rows:
-                return [r.to_dict() for r in rows]
-        except Exception:
-            pass
+            return [r.to_dict() for r in rows]
+        except Exception as exc:
+            # বাংলা: DB ব্যর্থ হলে সফল in-memory পরিবর্তনের ভুয়া দাবি নয়।
+            logger.error("Customer database operation failed (%s)", type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Customer database unavailable") from exc
     return list(_MEMORY_CUSTOMERS)
 
 
@@ -286,8 +318,11 @@ async def _get_customer_impl(customer_id: str, session: AsyncSession | None = No
             cust = result.scalar_one_or_none()
             if cust:
                 return cust.to_dict()
-        except Exception:
-            pass
+        except Exception as exc:
+            # বাংলা: DB ব্যর্থ হলে সফল in-memory পরিবর্তনের ভুয়া দাবি নয়।
+            logger.error("Customer database operation failed (%s)", type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Customer database unavailable") from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Customer with ID '{customer_id}' not found")
     c = _find_memory_customer(customer_id)
     if not c:
         raise HTTPException(
@@ -324,16 +359,14 @@ async def _create_customer_impl(payload: CustomerCreate, session: AsyncSession |
             await session.refresh(new_cust)
             record = new_cust.to_dict()
             _MEMORY_CUSTOMERS.insert(0, record)
-            if broadcaster is not None:
-                try:
-                    asyncio.create_task(broadcaster.broadcast_customer_updated(record))
-                except Exception:
-                    pass
+            _schedule_customer_broadcast("updated", record)
             return record
         except HTTPException:
             raise
-        except Exception:
-            pass
+        except Exception as exc:
+            # বাংলা: DB ব্যর্থ হলে সফল in-memory পরিবর্তনের ভুয়া দাবি নয়।
+            logger.error("Customer database operation failed (%s)", type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Customer database unavailable") from exc
 
     # Check duplicate email
     for existing in _MEMORY_CUSTOMERS:
@@ -361,11 +394,7 @@ async def _create_customer_impl(payload: CustomerCreate, session: AsyncSession |
         "isDeveloperEligible": payload.is_developer_eligible,
     }
     _MEMORY_CUSTOMERS.insert(0, record)
-    if broadcaster is not None:
-        try:
-            asyncio.create_task(broadcaster.broadcast_customer_updated(record))
-        except Exception:
-            pass
+    _schedule_customer_broadcast("updated", record)
     return record
 
 
@@ -388,14 +417,13 @@ async def _update_customer_impl(
                 mem = _find_memory_customer(customer_id)
                 if mem:
                     mem.update(rec)
-                if broadcaster is not None:
-                    try:
-                        asyncio.create_task(broadcaster.broadcast_customer_updated(rec))
-                    except Exception:
-                        pass
+                _schedule_customer_broadcast("updated", rec)
                 return rec
-        except Exception:
-            pass
+        except Exception as exc:
+            # বাংলা: DB ব্যর্থ হলে সফল in-memory পরিবর্তনের ভুয়া দাবি নয়।
+            logger.error("Customer database operation failed (%s)", type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Customer database unavailable") from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Customer with ID '{customer_id}' not found")
 
     record = _find_memory_customer(customer_id)
     if not record:
@@ -409,11 +437,7 @@ async def _update_customer_impl(
         if v is not None:
             record[k] = v
     record["lastActive"] = "Just now"
-    if broadcaster is not None:
-        try:
-            asyncio.create_task(broadcaster.broadcast_customer_updated(record))
-        except Exception:
-            pass
+    _schedule_customer_broadcast("updated", record)
     return record
 
 
@@ -427,8 +451,12 @@ async def _delete_customer_impl(customer_id: str, session: AsyncSession | None =
                 await session.delete(cust)
                 await session.commit()
                 deleted_db = True
-        except Exception:
-            pass
+        except Exception as exc:
+            # বাংলা: DB ব্যর্থ হলে সফল in-memory পরিবর্তনের ভুয়া দাবি নয়।
+            logger.error("Customer database operation failed (%s)", type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Customer database unavailable") from exc
+        if not deleted_db:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Customer with ID '{customer_id}' not found")
 
     global _MEMORY_CUSTOMERS
     initial_len = len(_MEMORY_CUSTOMERS)
@@ -438,11 +466,7 @@ async def _delete_customer_impl(customer_id: str, session: AsyncSession | None =
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Customer with ID '{customer_id}' not found",
         )
-    if broadcaster is not None:
-        try:
-            asyncio.create_task(broadcaster.broadcast("customer_deleted", {"id": customer_id}))
-        except Exception:
-            pass
+    _schedule_customer_broadcast("deleted", {"id": customer_id})
     return True
 
 

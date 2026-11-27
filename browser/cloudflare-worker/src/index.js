@@ -76,8 +76,14 @@ export default {
         content: text
       });
     } catch (err) {
+      // বাংলা: URL বা error message লগে না রেখে failure দৃশ্যমান রাখি।
+      console.error("Browser operation failed");
       if (browser) {
-        try { await browser.close(); } catch (_) {}
+        try {
+          await browser.close();
+        } catch (_) {
+          console.error("Browser cleanup failed");
+        }
       }
       return Response.json({
         success: false,

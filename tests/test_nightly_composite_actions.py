@@ -77,3 +77,12 @@ def test_roster_preserves_process_exit_and_surfaces_failures():
     run = next(s['run'] for s in steps if s.get('name') == 'Run every guard')
     assert 'roster_rc=$?' in run and '[ "$roster_rc" -ne 0 ]' in run
     assert 'named failures' in run
+
+
+def test_dependency_scan_uses_studio_package_manager_not_a_hardcoded_version():
+    workflow = yaml.safe_load((ROOT / '.github/workflows/ops-maintenance.yml').read_text())
+    steps = workflow['jobs']['dependency-scan']['steps']
+    setup = next(step for step in steps if step.get('uses', '').startswith('pnpm/action-setup@'))
+    assert setup['if'] == "steps.check_studio.outputs.present == 'true'"
+    assert setup['with']['package_json_file'] == 'studio/package.json'
+    assert 'version' not in setup['with']
