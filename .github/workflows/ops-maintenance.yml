@@ -1793,7 +1793,7 @@ jobs:
       # agent-role Bearer token so hollow_read_guard reads real data planes
       # (without it the guard now reports honest AUTH_GATED + warning, not red).
       env:
-        MCP_TOWER_TOKEN: ${{ secrets.MCP_TOWER_TOKEN }}
+        MCP_TOWER_TOKEN: ${{ secrets.MCP_TOWER_TOKEN || secrets.MCP_TOWER_AUTH_TOKEN }}
       run: |
         set -o pipefail
         set +e
@@ -2411,7 +2411,7 @@ jobs:
           # 2026-11 RBAC: redis_rotation_status is role-gated — send the
           # agent-role Bearer token when configured (otherwise the monitor
           # skips honestly with exit 0 + owner-action message).
-          MCP_TOWER_TOKEN: ${{ secrets.MCP_TOWER_TOKEN }}
+          MCP_TOWER_TOKEN: ${{ secrets.MCP_TOWER_TOKEN || secrets.MCP_TOWER_AUTH_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
