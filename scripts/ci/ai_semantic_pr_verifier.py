@@ -335,11 +335,11 @@ def call_llm_provider(provider: dict[str, str], prompt: str) -> str | None:
         if provider["name"] == "gemini":
             return data["candidates"][0]["content"]["parts"][0]["text"]
         return data["choices"][0]["message"]["content"]
+    except urllib.error.HTTPError as exc:
+        print(f"Warning: LLM provider {provider['name']} failed (HTTP {exc.code})")
+        return None
     except Exception as exc:
-        # Per-key failures are expected on free-tier keys (429/403); emit at debug
-        # level so the default log stays clean. A single summary is printed by the
-        # caller only when every key across every provider is exhausted.
-        print(f"::debug::LLM provider {provider['name']} call failed ({type(exc).__name__})")
+        print(f"Warning: LLM provider {provider['name']} failed ({type(exc).__name__})")
         return None
 
 
