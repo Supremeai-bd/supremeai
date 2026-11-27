@@ -61,14 +61,25 @@ def test_cloudflare_deploy_runs_on_push_when_the_proxy_changes():
     assert "github.event_name == 'push'" in condition, (
         "deploy-cloudflare cannot run on push — it will never deploy the proxy"
     )
-    # Every commit class, not just "the path appears somewhere": a weakened
-    # gate that keeps one branch and drops the others still mentions the path,
-    # so a substring check would pass while a normal edit stopped deploying.
-    for commit_class in ("modified", "added", "removed"):
-        assert (
-            f"contains(join(github.event.commits.*.{commit_class}, ' '), "
-            f"'infrastructure/cloudflare-studio-proxy/')" in condition
-        ), f"deploy-cloudflare ignores {commit_class} proxy files"
+    # 2026-11-27: `join(github.event.commits.*.modified, ' ')` is a list of
+    # LISTS — join() stringifies each inner list as "Array", so a contains()
+    # path check there is ALWAYS false and the job was skipped on every push
+    # (keep-warm worker + proxy never auto-deployed). The path filter must be a
+    # real `git diff` inside the job, never this expression.
+    assert "join(github.event.commits" not in condition, (
+        "deploy-cloudflare uses join(github.event.commits.*.X) — always false; filter with git diff in a step"
+    )
+    steps = {str(s.get("name")): s for s in job.get("steps", [])}
+    detect = str(steps["Detect Cloudflare-relevant changes"].get("run") or "")
+    assert 'git diff --name-only "$BASE" "$HEAD"' in detect
+    # Per-worker flags: each worker deploys when ITS directory changed
+    # (added/modified/removed all show up in git diff --name-only).
+    for flag, path in (("KEEPWARM", "infrastructure/cloudflare-render-keepwarm/"),
+                       ("PROXY", "infrastructure/cloudflare-studio-proxy/")):
+        assert f"grep -qE '^{path}'" in detect, f"detect step ignores {path}"
+        assert f'{flag}="true"' in detect
+    assert steps["Deploy Keep-Warm Worker"].get("if") == "steps.cf_changes.outputs.keepwarm == 'true'"
+    assert steps["Deploy Studio Edge Proxy"].get("if") == "steps.cf_changes.outputs.proxy == 'true'"
 
 
 def test_vercel_auto_deploy_is_retired():
