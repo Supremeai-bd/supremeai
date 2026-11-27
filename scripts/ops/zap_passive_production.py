@@ -77,24 +77,48 @@ def passive_wait() -> None:
     raise RuntimeError("ZAP passive scan did not complete")
 
 
-def request(origin: str, cors: bool) -> int:
+def request(origin: str, cors: bool) -> tuple[int, dict[str, str]]:
     cmd = ["curl", "--silent", "--show-error", "--insecure", "--noproxy", "",
            "--proxy", "http://127.0.0.1:8090", "--connect-timeout", "10", "--max-time", "30",
-           "--max-filesize", "5242880", "--output", os.devnull, "--write-out", "%{http_code}"]
+           "--max-filesize", "5242880", "--output", os.devnull, "--dump-header", "-",
+           "--write-out", "\nZAP_HTTP_STATUS:%{http_code}"]
     if cors:
         cmd += ["--header", "Origin: https://zap-test.invalid"]
     cmd += ["--", origin]
     # curl does not follow redirects without --location; no request body or credentials.
     result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=35)
-    if not re.fullmatch(r"[1-5][0-9][0-9]", result.stdout):
+    headers, sep, status = result.stdout.rpartition("\nZAP_HTTP_STATUS:")
+    if not sep or not re.fullmatch(r"[1-5][0-9][0-9]", status):
         raise RuntimeError("No HTTP response received")
-    return int(result.stdout)
+    # Ignore the proxy CONNECT response; use the last HTTP response header block.
+    blocks = re.split(r"\r?\n\r?\n", headers.strip())
+    selected: dict[str, str] = {}
+    allowed = {"cache-control", "access-control-allow-origin", "access-control-allow-credentials",
+               "content-security-policy", "x-frame-options", "x-content-type-options", "strict-transport-security"}
+    for line in blocks[-1].splitlines()[1:]:
+        key, delimiter, value = line.partition(":")
+        key = key.strip().lower()
+        if delimiter and key in allowed:
+            selected[key] = value.strip()
+    return int(status), selected
+
+
+def header_summary(headers: dict[str, str]) -> dict:
+    origin = headers.get("access-control-allow-origin", "")
+    cors = "wildcard" if origin == "*" else "reflects-test-origin" if origin == "https://zap-test.invalid" else "other" if origin else "absent"
+    directives = re.findall(r"(?<![a-z-])(no-store|no-cache|private|public|must-revalidate|s-maxage|max-age)(?:\s*=\s*([0-9]+))?", headers.get("cache-control", "").lower())
+    return {"cors_allow_origin": cors,
+            "cors_credentials": headers.get("access-control-allow-credentials", "").lower() == "true",
+            "cache_directives": [key + ("=" + val if val else "") for key, val in directives],
+            "security_headers_present": [key for key in ("content-security-policy", "x-frame-options", "x-content-type-options", "strict-transport-security") if key in headers]}
 
 
 def run() -> None:
     origin = validate_origin(os.environ.get("PRODUCTION_URL", ""))
     wait_ready()
-    statuses = [request(origin, False), request(origin, True)]
+    responses = [request(origin, False), request(origin, True)]
+    statuses = [status for status, _ in responses]
+    summaries = [header_summary(headers) for _, headers in responses]
     passive_wait()
     result = zap_json("/JSON/core/view/alerts/?start=0&count=500")
     alerts = result.get("alerts")
@@ -103,7 +127,7 @@ def run() -> None:
     if len(alerts) >= 500:
         raise RuntimeError("ZAP alert result truncated")
     report = {"coverage": "two unauthenticated GET requests to /, no spider or redirects",
-              "statuses": statuses, "alerts": alerts}
+              "statuses": statuses, "header_summaries": summaries, "alerts": alerts}
     Path("zap-passive-report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     # Annotations omit URLs, request data and evidence; the artifact is access-controlled.
     for alert in alerts:
@@ -113,6 +137,8 @@ def run() -> None:
         name = re.sub(r"[^a-zA-Z0-9 ._()/:-]", "", str(alert.get("alert", "Unknown")))[:160]
         print(f"::warning::ZAP passive ({risk}): {name}")
     print(f"::notice::ZAP passive completed; HTTP statuses {statuses}, {len(alerts)} alerts; root-only coverage")
+    print(f"::notice::Root cache and security header summary: {json.dumps(summaries[0])}")
+    print(f"::notice::Test-origin CORS summary: {json.dumps(summaries[1])}")
 
 
 if __name__ == "__main__":

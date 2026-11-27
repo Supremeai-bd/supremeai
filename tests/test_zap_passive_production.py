@@ -19,9 +19,12 @@ def test_https_origin_normalized():
 
 def test_only_proxy_get_without_redirects_or_credentials():
     class Result:
-        stdout = "200"
+        stdout = "HTTP/1.1 200 Connection established\r\n\r\nHTTP/2 200\r\nCache-Control: public, max-age=60\r\nAccess-Control-Allow-Origin: https://zap-test.invalid\r\n\r\n\nZAP_HTTP_STATUS:200"
     with patch.object(scan.subprocess, "run", return_value=Result()) as run:
-        assert scan.request("https://example.com/", True) == 200
+        status, headers = scan.request("https://example.com/", True)
+    assert status == 200
+    assert scan.header_summary(headers)["cors_allow_origin"] == "reflects-test-origin"
+    assert scan.header_summary(headers)["cache_directives"] == ["public", "max-age=60"]
     args = run.call_args.args[0]
     assert args[-1] == "https://example.com/"
     assert "--proxy" in args and "--noproxy" in args
@@ -39,3 +42,9 @@ def test_workflow_is_manual_passive_and_full_scan_staging_only():
     assert "github.event_name == 'workflow_dispatch'" in cond and 'inputs.run_dast == true' in cond
     assert "github.ref != 'refs/heads/main'" in cond and 'inputs.run_all != true' in cond
     assert all('zaproxy/action-full-scan' not in s.get('uses', '') and 'zaproxy/action-api-scan' not in s.get('uses', '') for s in job['steps'])
+
+
+def test_header_summary_reports_only_safe_coverage():
+    values = scan.header_summary({"access-control-allow-origin": "*", "access-control-allow-credentials": "true", "cache-control": "private, no-store", "content-security-policy": "default-src 'self'", "set-cookie": "secret"})
+    assert values == {"cors_allow_origin": "wildcard", "cors_credentials": True, "cache_directives": ["private", "no-store"], "security_headers_present": ["content-security-policy"]}
+    assert "secret" not in str(values)
