@@ -61,7 +61,7 @@ runs:
     shell: bash
     id: resolve
     env:
-      EXPLICIT_URL: ${{ vars.PRODUCTION_URL || inputs.production_url }}
+      EXPLICIT_URL: ${{ inputs.production_url }}
       FRONTEND_EXPLICIT_URL: ${{ inputs.frontend_production_url }}
       FIREBASE_PROJECT: ${{ inputs.firebase_project_id }}
       RENDER_CORE: ${{ env.RENDER_CORE_URL }}
