@@ -954,15 +954,15 @@ def close_healed_issue(api: Api, issue_number: int, row: dict, pol: dict) -> Non
 # ── পুনর্মিলন (#2935): সমান্তরাল-স্ক্যান race + orphan GC ────────────────────
 
 def _pr_still_open(api: Api, pr_number: int) -> bool:
-    """PR #N এখনো open কি না — pr:N-মার্কার ইস্যুর GC-রক্ষার শর্ত।"""
+    """বাংলা মন্তব্য: অজানা অবস্থা open ধরে রাখি; API ত্রুটিতে ইস্যু বন্ধ নয়।"""
     try:
         pr = api(f"repos/{REPO}/pulls/{pr_number}")
-        return bool(pr) and pr.get("state") == "open"
+        return not (isinstance(pr, dict) and pr.get("state") == "closed")
     except Exception:
-        return False
+        return True
 
 
-def _close_reconciled(api: Api, issue: dict, why: str, key: str) -> None:
+def _close_reconciled(api: Api, issue: dict, why: str, key: str) -> bool:
     body = (
         f"## 🧹 Reconciled (Pipeline Failure Register v2)\n\n"
         f"এই ইস্যুটি বন্ধ হচ্ছে — **{why}** (marker: `{key}`)।\n\n"
@@ -973,8 +973,10 @@ def _close_reconciled(api: Api, issue: dict, why: str, key: str) -> None:
         api(f"repos/{REPO}/issues/{issue['number']}/comments", method="POST", payload={"body": body})
         api(f"repos/{REPO}/issues/{issue['number']}", method="PATCH",
             payload={"state": "closed", "state_reason": "completed"})
-    except Exception:
-        pass
+        return True
+    except Exception as exc:
+        print(f"::warning::Could not reconcile issue #{issue.get('number')}: {exc}", file=sys.stderr)
+        return False
 
 
 def _claimed_recently(api: Api, issue: dict, pol: dict, now=None) -> bool:
@@ -1047,12 +1049,20 @@ def reconcile_fix_issues(api: Api, pol: dict, active: list[dict]) -> dict[str, l
         if len(group) > 1:
             group = sorted(group, key=lambda i: i.get("created_at") or "")
             for dup in group[1:]:
-                _close_reconciled(api, dup, "একই marker-এ প্রাচীনতম ইস্যু ক্যানোনিকাল — এটি নকল (সমান্তরাল-স্ক্যান race)", key)
-                closed_dupes.append(int(dup["number"]))
+                if _close_reconciled(api, dup, "একই marker-এ প্রাচীনতম ইস্যু ক্যানোনিকাল — এটি নকল (সমান্তরাল-স্ক্যান race)", key):
+                    closed_dupes.append(int(dup["number"]))
             group = [group[0]]
         # ২) orphan-GC — grace-উইন্ডো পার হয়েছে এমন অনাথ
         keep = group[0]
         num = int(keep["number"])
+        # বাংলা মন্তব্য: স্পষ্ট closed PR-এর hold, পুরনো active সারি থাকলেও
+        # অনাথ; তবে অজানা PR অবস্থা বা চলমান দাবির ক্ষেত্রে বন্ধ নয়।
+        pr_id = key.split(":", 1)[1] if key.startswith("pr:") else ""
+        if pr_id.isdigit() and not _pr_still_open(api, int(pr_id)):
+            if not _claimed_recently(api, keep, pol, now=now):
+                if _close_reconciled(api, keep, f"PR #{pr_id} বন্ধ বা মার্জ হয়েছে", key):
+                    closed_orphans.append(num)
+            continue
         if num in active_fix_nums:
             continue
         try:
@@ -1070,8 +1080,8 @@ def reconcile_fix_issues(api: Api, pol: dict, active: list[dict]) -> dict[str, l
         # তার work-branch-ই guard মুছে দেবে ("issue is closed") — GC নয়।
         if _claimed_recently(api, keep, pol, now=now):
             continue
-        _close_reconciled(api, keep, "কোনো সক্রিয় ব্যর্থতা-সারি আর এই ইস্যুকে রেফার করছে না (healed/excluded)", key)
-        closed_orphans.append(num)
+        if _close_reconciled(api, keep, "কোনো সক্রিয় ব্যর্থতা-সারি আর এই ইস্যুকে রেফার করছে না (healed/excluded)", key):
+            closed_orphans.append(num)
 
     return {"closed_dupes": closed_dupes, "closed_orphans": closed_orphans}
 
@@ -1166,7 +1176,8 @@ def scan(
         row["last"] = newest.get("createdAt", "")[:16]
         row["last_run_id"] = newest.get("databaseId")
         # আগের fix ধরে রাখো — ensure-ধাপে নতুন জন্ম এড়াতে (per-PR/per-branch শেয়ার্ড)
-        if not row.get("fix") and old.get("fix"):
+        # বাংলা মন্তব্য: পুরনো PR-hold অন্য রুটের branch-watch ইস্যু নয়।
+        if not row.get("fix") and old.get("fix") and old.get("route") == row.get("route"):
             row["fix"] = old["fix"]
         active.append(row)
 
@@ -1240,21 +1251,27 @@ def scan(
 
     # হীলিং: আগে ট্র্যাক করা, এখন উইন্ডো-বাইরে — সর্বশেষ রান সবুজ হলে resolved
     active_fps = {r["fp"] for r in active}
-    active_fix_nums = {r.get("fix") for r in active if r.get("fix")}
     # v2.1 (#2960): উইন্ডো-ভেতরে হীল-হওয়া fp এখানে আবার হীল হবে না (ডাবল-এন্ট্রি)
     healed_fps = {h["fp"] for h in healed}
     for fp, old in prev.items():
         if fp in active_fps or fp in healed_fps:
             continue
+        # বাংলা মন্তব্য: পুরনো PR বন্ধের নিশ্চিত প্রমাণ থাকলে stale hold সরাই;
+        # workflow সবুজ বলি না, এবং API ত্রুটিতে পূর্বের সারি অক্ষত রাখি।
+        pr_num = str(old.get("pr") or "")
+        if old.get("route") == "pr-rebuild" and pr_num.isdigit() and not _pr_still_open(api, int(pr_num)):
+            continue
         verdict = latest_conclusion(gh, old.get("workflow", ""), old.get("branch", ""))
         if verdict == "success":
             healed.append({**old, "fp": fp, "healed_at": now_utc()})
-        elif verdict == "failure":
-            # উইন্ডো-বাইরে কিন্তু এখনো লাল — সক্রিয় সারিই থাকবে
+        else:
+            # বাংলা মন্তব্য: লাল, চলমান বা অজানা রানে সফলতার প্রমাণ নেই;
+            # API ব্যর্থতা বা cancelled run দিয়ে পূর্বের সারি মুছে ফেলা যাবে না।
             active.append({**old, "fp": fp, "count": old.get("count", 1), "last": old.get("last", "")})
 
     order = {"merge-first": 0, "new-fix": 1, "already-tracked": 2, "pr-rebuild": 3, "watching": 4, "stale-tip": 5, "enforced": 6}
     active.sort(key=lambda r: order.get(r["route"], 9))
+    active_fix_nums = {r.get("fix") for r in active if r.get("fix")}
 
     reconciled: dict[str, list[int]] = {}
     if not dry_run:

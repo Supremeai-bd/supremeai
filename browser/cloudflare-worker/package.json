@@ -4,9 +4,6 @@
   "license": "LicenseRef-Proprietary",
   "type": "module",
   "dependencies": {
-    "@cloudflare/puppeteer": "^0.0.15"
-  },
-  "overrides": {
-    "basic-ftp": "^6.2.6"
+    "@cloudflare/puppeteer": "2.0.1"
   }
 }

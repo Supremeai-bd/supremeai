@@ -1254,6 +1254,9 @@ jobs:
               - '.github/workflows/unified-pipeline.yml'
             browser-lock:
               - 'browser/cloudflare-worker/package*.json'
+              - 'browser/cloudflare-worker/src/**'
+              - 'browser/cloudflare-worker/test/**'
+              - 'browser/cloudflare-worker/wrangler.toml'
               - '.github/workflows/unified-pipeline.yml'
 
       - name: Verify Python runtime lock coverage (without upgrades)
@@ -1311,7 +1314,9 @@ jobs:
       - name: Verify the Browser worker npm lock
         if: steps.runtime-locks.outputs.browser-lock == 'true'
         working-directory: browser/cloudflare-worker
-        run: npm ci --ignore-scripts --no-audit --no-fund
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          node --test test/worker.test.js
 
       - name: Build and verify Tower tool contracts (offline)
         if: steps.tower.outputs.contracts == 'true'
@@ -1508,7 +1513,7 @@ jobs:
           HEAD_SUBJECT=$(git log -1 --pretty=%s || true)
           PR_NUM=$(printf '%s' "$HEAD_SUBJECT" | sed -nE 's/.*\(#([0-9]+)\).*/\1/p' | head -n1)
           if [ -n "$PR_NUM" ]; then
-            python3 scripts/ci/ingest_pr_knowledge.py --pr-num "$PR_NUM" || true
+            python3 scripts/ci/ingest_pr_knowledge.py --pr-num "$PR_NUM"
           fi
           # বাংলা মন্তব্য: ২) অন্য কোনো AI এজেন্ট workflow_dispatch বা ইস্যু কমেন্টে নলেজ শেয়ার করলে তা ইনজেস্ট করা হয়।
           if [ -n "$DISPATCH_SHARE_JSON" ]; then
