@@ -1876,7 +1876,7 @@ jobs:
       # workflow invalid → সব nightly arm 0-jobs failure)। ZAP টার্গেট এখন সরাসরি
       # SSOT repo var STAGING_BASE_URL থেকে (আগেও default fallback এটাই ছিল;
       # custom override দরকার হলে vars.STAGING_BASE_URL এডিট করা হবে)।
-      ZAP_TARGET: ${{ vars.STAGING_BASE_URL }}
+      ZAP_TARGET: ${{ vars.STAGING_BASE_URL || vars.PRODUCTION_URL }}
     timeout-minutes: 45
     steps:
       - name: Require scan target
