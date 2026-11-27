@@ -82,6 +82,6 @@ async def get_fallback_chain(
 ):
     """Get the current fallback chain for a given task type."""
     gateway = get_llm_gateway()
-    call_chain = gateway._build_call_chain(model, provider, task_type)
+    call_chain = gateway._build_call_chain(model, provider, task_type, consume=False)
 
     return {"task_type": task_type, "fallback_chain": call_chain, "chain_length": len(call_chain)}
