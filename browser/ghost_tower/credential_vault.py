@@ -19,8 +19,9 @@ if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed in credential_vault.py (%s)", type(exc).__name__)
 
 VAULT_DIR = Path(os.path.expanduser(r"~\.supremeai_vault"))
 VAULT_FILE = VAULT_DIR / "credentials.enc.json"
@@ -43,8 +44,9 @@ def get_or_create_master_key() -> bytes:
     KEY_FILE.write_bytes(new_key)
     try:
         os.chmod(KEY_FILE, 0o600)
-    except OSError:
-        pass
+    except OSError as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed in credential_vault.py (%s)", type(exc).__name__)
     print("[OK] [VAULT] New Master Key generated and secured.")
     return new_key
 
@@ -167,8 +169,9 @@ class CredentialVault:
             json.dump(data, f, indent=2)
         try:
             os.chmod(VAULT_FILE, 0o600)
-        except OSError:
-            pass
+        except OSError as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed in credential_vault.py (%s)", type(exc).__name__)
 
 
 if __name__ == "__main__":

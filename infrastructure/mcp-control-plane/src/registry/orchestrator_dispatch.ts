@@ -87,7 +87,8 @@ export function loadRolePoolOverrides(): Record<string, string[]> | undefined {
   try {
     const parsed = JSON.parse(raw) as Record<string, string[]>;
     return typeof parsed === "object" && parsed !== null ? parsed : undefined;
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return undefined;
   }
 }
@@ -284,7 +285,8 @@ export async function readState(store: DispatchStore, issueRef: string): Promise
   if (!raw) return base;
   try {
     return { ...base, ...(JSON.parse(raw) as Partial<DispatchState>) };
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return base;
   }
 }

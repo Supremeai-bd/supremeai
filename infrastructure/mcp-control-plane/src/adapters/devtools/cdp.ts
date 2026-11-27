@@ -179,7 +179,8 @@ export class CdpSession {
       let msg: any;
       try {
         msg = JSON.parse(String(ev.data));
-      } catch {
+      } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return;
       }
       if (typeof msg.id === "number") {
@@ -205,7 +206,7 @@ export class CdpSession {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(url);
       const timer = setTimeout(() => {
-        try { ws.close(); } catch { /* already closed */ }
+        try { ws.close(); } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
         reject(new Error(`CDP WebSocket connect timed out after ${timeoutMs}ms`));
       }, timeoutMs);
       ws.addEventListener("open", () => {
@@ -242,7 +243,7 @@ export class CdpSession {
   }
 
   close(): void {
-    try { this.ws.close(); } catch { /* best effort */ }
+    try { this.ws.close(); } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
   }
 }
 
@@ -296,7 +297,7 @@ export async function launchChrome(timeoutMs: number, chromePath?: string): Prom
             wsUrl,
             userDataDir,
             kill: () => {
-              try { proc.kill("SIGKILL"); } catch { /* already gone */ }
+              try { proc.kill("SIGKILL"); } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
               rmSync(userDataDir, { recursive: true, force: true });
             },
           };
@@ -308,7 +309,7 @@ export async function launchChrome(timeoutMs: number, chromePath?: string): Prom
     }
     await new Promise((r) => setTimeout(r, 100));
   }
-  try { proc.kill("SIGKILL"); } catch { /* already gone */ }
+  try { proc.kill("SIGKILL"); } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
   rmSync(userDataDir, { recursive: true, force: true });
   throw new Error(`headless Chrome did not expose a DevTools endpoint within ${timeoutMs}ms${lastErr ? ` (last: ${lastErr.message})` : ""}`);
 }

@@ -164,9 +164,10 @@ class PrManager:
                         sm.resume_from_checkpoint(artifact.task_id)
                         sm.begin_verification(artifact.task_id)
                     sm.complete(artifact.task_id, result={"pr": pr})
-        except Exception:
+        except Exception as exc:
             # Lifecycle bookkeeping must never un-do a merged verification.
-            pass
+            import logging
+            logging.getLogger(__name__).warning("Lifecycle bookkeeping skipped (%s)", type(exc).__name__)
 
     # ------------------------------------------------------------------
     def finalize_task(

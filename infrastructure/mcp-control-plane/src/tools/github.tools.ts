@@ -146,7 +146,8 @@ export function repoDefaultNote(accountId = "github-primary"): string {
   try {
     const { targetRepo } = describeTarget(repoUrlFor(accountId, undefined));
     return ` When 'repo' is omitted the call silently targets the account default '${targetRepo}' (R66 drift class, #2452/#2469) — always pass repo explicitly and verify rows via the targetRepo/targetUrl echo.`;
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return " When 'repo' is omitted the call silently targets the account default repo (R66 drift class, #2452/#2469) — always pass repo explicitly and verify rows via the targetRepo/targetUrl echo.";
   }
 }
@@ -203,6 +204,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
         }
         return { isError: true, content: [{ type: "text", text: `Unknown action: ${action}` }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -234,6 +236,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
           structuredContent: describeTarget(targetUrl),
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -266,6 +269,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
           structuredContent: describeTarget(targetUrl),
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -297,6 +301,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
           structuredContent: describeTarget(targetUrl),
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -330,6 +335,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
           structuredContent: describeTarget(targetUrl),
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -375,6 +381,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
           structuredContent: describeTarget(targetUrl),
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -407,6 +414,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
         const results = await searchCode(query, repo, limit ?? 10);
         return { content: [{ type: "text", text: JSON.stringify(results, null, 2) }], structuredContent: echo };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -437,6 +445,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
         const results = await searchCode(query, repo, limit ?? 10);
         return { content: [{ type: "text", text: JSON.stringify(results, null, 2) }], structuredContent: echo };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -479,6 +488,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
           structuredContent: describeTarget(repoUrlFor(undefined, targetRepo)),
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -559,6 +569,7 @@ export async function registerGitHubTools(server: McpServer): Promise<void> {
           };
         }
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error fetching PR diff from GitHub: ${(err as Error).message}` }],

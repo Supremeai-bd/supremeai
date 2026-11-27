@@ -30,6 +30,7 @@ export async function registerKnowledgeTools(server: McpServer): Promise<void> {
         const result = await qdrantUpsert(collection, points);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -49,6 +50,7 @@ export async function registerKnowledgeTools(server: McpServer): Promise<void> {
         const result = await qdrantSearch(collection, vector, limit ?? 5);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -68,6 +70,7 @@ export async function registerKnowledgeTools(server: McpServer): Promise<void> {
         const result = await qdrantEnsureCollection(collection, vectorSize, distance ?? "Cosine");
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -83,6 +86,7 @@ export async function registerKnowledgeTools(server: McpServer): Promise<void> {
         const result = await qdrantListCollections();
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -102,6 +106,7 @@ export async function registerKnowledgeTools(server: McpServer): Promise<void> {
         const result = await insertRow(accountId, table, data);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -122,6 +127,7 @@ export async function registerKnowledgeTools(server: McpServer): Promise<void> {
         const result = await updateRows(accountId, table, data, filter);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }

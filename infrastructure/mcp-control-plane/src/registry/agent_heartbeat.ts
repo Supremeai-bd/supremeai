@@ -555,7 +555,8 @@ async function listHeartbeatsFresh(nowMs: number): Promise<{
         let record: HeartbeatRecord;
         try {
           record = JSON.parse(raw) as HeartbeatRecord;
-        } catch {
+        } catch (err) {
+          console.error(err instanceof Error ? err.name : "error");
           continue; // corrupt payload — skip rather than break listing
         }
         hasRecords = true;
@@ -575,7 +576,8 @@ async function listHeartbeatsFresh(nowMs: number): Promise<{
           let record: HeartbeatRecord;
           try {
             record = JSON.parse(raw) as HeartbeatRecord;
-          } catch {
+          } catch (err) {
+            console.error(err instanceof Error ? err.name : "error");
             continue; // corrupt payload — skip rather than break the listing
           }
           status.records += 1;

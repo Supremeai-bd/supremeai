@@ -105,6 +105,7 @@ export async function getFailedLogs(accountId: string, runId: string): Promise<u
         const snippet = logText.slice(-2000);
         return { jobName: job.name, logsSnippet: snippet };
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return { jobName: job.name, error: (e as Error).message };
       }
     })

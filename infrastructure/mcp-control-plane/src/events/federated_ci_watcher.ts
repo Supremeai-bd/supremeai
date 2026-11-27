@@ -529,7 +529,8 @@ export async function linkSubIssue(
       body: JSON.stringify({ sub_issue_id: childId }),
     });
     return linkRes.status === 201 || linkRes.status === 204;
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return false;
   }
 }
@@ -557,7 +558,8 @@ export const defaultFetchJobs: JobsFetchFn = async (repo, runId, token) => {
         url: j.html_url ? String(j.html_url) : undefined,
       }));
     return { ok: true, status: 200, failedJobs };
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return { ok: false, status: 0, failedJobs: [] };
   }
 };

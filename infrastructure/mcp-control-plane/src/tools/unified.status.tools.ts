@@ -96,6 +96,7 @@ export async function registerUnifiedStatusTool(server: McpServer): Promise<void
           ],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [

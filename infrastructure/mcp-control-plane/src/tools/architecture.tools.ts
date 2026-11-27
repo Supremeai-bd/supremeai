@@ -158,6 +158,7 @@ export function registerArchitectureGapTools(server: McpServer): void {
         const summary = normalizeArchitectureGapReport(data, p, limit ?? 20);
         return { content: [{ type: "text", text: JSON.stringify(summary, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: JSON.stringify({ available: false, reason: (err as Error).message }, null, 2) }],

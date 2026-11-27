@@ -32,8 +32,9 @@ if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stderr.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed in cli.py (%s)", type(exc).__name__)
 
 from pyerrorfix.core.catalog import CATALOG, catalog_summary
 from pyerrorfix.core.reporter import to_console, to_json, to_markdown, to_sarif
