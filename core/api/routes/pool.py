@@ -71,7 +71,7 @@ async def _validate(provider: str, api_key: str) -> bool:
     url = urls.get(p)
     if not url:
         # A recognized format is not proof that a credential is valid.
-        logger.warning("No credential validation probe configured for provider %s", p)
+        logger.warning(f"No credential validation probe configured for provider {p}")
         raise HTTPException(status_code=503, detail="Credential validation unavailable")
     headers = {"Authorization": f"Bearer {api_key}"}
     if p == "gemini":
@@ -82,7 +82,7 @@ async def _validate(provider: str, api_key: str) -> bool:
             # শুধু 200 OK স্ট্যাটাস কোডই বৈধ
             return resp.status_code == 200
     except Exception as exc:
-        logger.warning("Validation probe unavailable for %s (%s)", p, type(exc).__name__)
+        logger.warning(f"Validation probe unavailable for {p} ({type(exc).__name__})")
         raise HTTPException(status_code=503, detail="Credential validation unavailable") from exc
 
 
@@ -115,7 +115,7 @@ async def contribute(req: ContributeRequest, user: dict = Depends(verify_token_d
     try:
         db = get_db()
     except Exception as exc:
-        logger.warning("Key pool database unavailable (%s)", type(exc).__name__)
+        logger.warning(f"Key pool database unavailable ({type(exc).__name__})")
         raise HTTPException(status_code=503, detail="Key pool unavailable") from exc
     # dedup check
     try:
@@ -129,7 +129,7 @@ async def contribute(req: ContributeRequest, user: dict = Depends(verify_token_d
     except HTTPException:
         raise
     except Exception as exc:
-        logger.warning("dedup check failed (%s)", type(exc).__name__)
+        logger.warning(f"dedup check failed ({type(exc).__name__})")
         raise HTTPException(status_code=503, detail="Key pool checks unavailable") from exc
 
     # বাংলা মন্তব্য: দৈনিক সাবমিশন ক্যাপ কঠোরভাবে ৫টিতে সীমাবদ্ধ করা (Anti-Abuse Cap)
@@ -146,7 +146,7 @@ async def contribute(req: ContributeRequest, user: dict = Depends(verify_token_d
     except HTTPException:
         raise
     except Exception as exc:
-        logger.warning("daily submission cap check failed (%s)", type(exc).__name__)
+        logger.warning(f"daily submission cap check failed ({type(exc).__name__})")
         raise HTTPException(status_code=503, detail="Key pool checks unavailable") from exc
 
     encrypted = _encrypt(raw)
@@ -197,7 +197,7 @@ async def contribute(req: ContributeRequest, user: dict = Depends(verify_token_d
             }, on_conflict="user_id").execute()
         )
     except Exception as exc:
-        logger.warning("quota recompute failed after key insert (%s)", type(exc).__name__)
+        logger.warning(f"quota recompute failed after key insert ({type(exc).__name__})")
         raise HTTPException(
             status_code=503,
             detail="Key stored but quota update failed; reconcile before retrying",
@@ -221,6 +221,6 @@ async def get_quota(user: dict = Depends(verify_token_dependency)):
         if rows:
             return rows[0]
     except Exception as exc:
-        logger.warning("quota lookup failed (%s)", type(exc).__name__)
+        logger.warning(f"quota lookup failed ({type(exc).__name__})")
         raise HTTPException(status_code=503, detail="Quota unavailable") from exc
     return {"user_id": str(user_id), "valid_keys_count": 0, "daily_bonus_tokens": 0}

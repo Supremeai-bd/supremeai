@@ -563,3 +563,19 @@ def test_relay_legacy_assistant_storage_failure_is_reported(gateway, monkeypatch
     assert response.status_code == 503
     assert "private detail" not in response.text and "Fixture reply" not in response.text
     upstream.assert_not_called()
+
+
+def test_tool_only_nonstream_response_is_not_rejected_or_persisted_as_none(gateway):
+    client, upstream = gateway
+    upstream.return_value = httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": None, "tool_calls": [{"id": "call_1", "type": "function", "function": {"name": "lookup", "arguments": "{}"}}]}, "finish_reason": "tool_calls"}]})
+    response = client.post("/v1/chat/completions", json={**_CHAT, "session_id": "fixture"}, headers=_HEADERS)
+    assert response.status_code == 200
+    assert response.json()["choices"][0]["message"]["tool_calls"][0]["function"]["name"] == "lookup"
+    assert not any(call.args[1] == "assistant" for call in edge.append_canonical_message.call_args_list)
+
+
+@pytest.mark.parametrize("calls", [[], [{}], [{"id": "x", "type": "function", "function": {"name": "", "arguments": "{}"}}]])
+def test_malformed_nonstream_tool_calls_are_rejected(gateway, calls):
+    client, upstream = gateway
+    upstream.return_value = httpx.Response(200, json={"choices": [{"message": {"content": None, "tool_calls": calls}}]})
+    assert client.post("/v1/chat/completions", json=_CHAT, headers=_HEADERS).status_code == 500

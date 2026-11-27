@@ -368,7 +368,7 @@ async function listPresenceFresh(nowMs: number): Promise<PresenceListResult> {
           freshest.set(key, record);
         }
       }
-    } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
+    } catch (err) { console.error("MCP presence operation failed"); }
   }
   const clients: PresenceStatusEntry[] = [...freshest.entries()]
     .map(([key, record]) => ({

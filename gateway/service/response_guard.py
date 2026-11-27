@@ -92,6 +92,22 @@ def validate_and_sanitize(value: Any, *args, **kwargs) -> Any:
         if not content and "reply" in resp:
             content = resp.get("reply", "")
 
+        # OpenAI tool-only completions legitimately have null content. Do not
+        # mistake them for text stubs, but reject malformed tool call envelopes.
+        first = choices[0] if isinstance(choices, list) and choices else None
+        message = first.get("message") if isinstance(first, dict) else None
+        calls = message.get("tool_calls") if isinstance(message, dict) else None
+        if not content and calls is not None:
+            valid = (isinstance(calls, list) and bool(calls) and all(
+                isinstance(call, dict) and isinstance(call.get("id"), str) and bool(call["id"].strip())
+                and call.get("type") == "function" and isinstance(call.get("function"), dict)
+                and isinstance(call["function"].get("name"), str) and bool(call["function"]["name"].strip())
+                and isinstance(call["function"].get("arguments"), str)
+                for call in calls
+            ))
+            if not valid:
+                raise ValueError("invalid tool call response")
+            return resp
         if is_stub_content(content):
             raise ValueError("stub or broken content rejected")
         # Rewriting provider names or Markdown also changes legitimate comparisons,

@@ -248,9 +248,9 @@ function collectLeaves(node: unknown, depth: number, leaves: EditableString[], r
               continue; // inner granularity registered; outer string not editable directly
             }
           }
-        } catch (err) {
-          console.error(err instanceof Error ? err.name : "error");
-          /* not nested JSON — treat as an ordinary string leaf */
+        } catch {
+          // Do not log exception names or parsed content, which may contain secrets.
+          console.error("Nested tool-result text is not valid JSON");
         }
       }
       if (bytes > PRUNE_MIN_KEEP_BYTES) leaves.push({ parent: node, key, bytes });

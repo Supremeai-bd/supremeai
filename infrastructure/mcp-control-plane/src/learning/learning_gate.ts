@@ -26,20 +26,32 @@ interface StoreShape {
 
 function loadStore(): StoreShape {
   try {
-    if (fs.existsSync(STORE_PATH)) {
-      const raw = fs.readFileSync(STORE_PATH, "utf-8");
-      const parsed = JSON.parse(raw) as StoreShape;
-      if (parsed && Array.isArray(parsed.records)) return parsed;
-    }
-  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
-  return { records: [] };
+    const raw = fs.readFileSync(STORE_PATH, "utf-8");
+    const parsed = JSON.parse(raw) as StoreShape;
+    if (!parsed || !Array.isArray(parsed.records)) throw new Error("Invalid learning store");
+    return parsed;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return { records: [] };
+    // A corrupt or unavailable store cannot be treated as no contradictions.
+    throw new Error("Learning store unavailable or invalid");
+  }
 }
 
 function saveStore(store: StoreShape): void {
+  let temp: string | undefined;
   try {
     fs.mkdirSync(path.dirname(STORE_PATH), { recursive: true });
-    fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2), "utf-8");
-  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
+    temp = path.join(fs.mkdtempSync(path.join(path.dirname(STORE_PATH), ".learning-store-")), "store.json");
+    fs.writeFileSync(temp, JSON.stringify(store, null, 2), { encoding: "utf-8", mode: 0o600 });
+    fs.renameSync(temp, STORE_PATH);
+  } catch {
+    throw new Error("Learning store write failed");
+  } finally {
+    if (temp) {
+      try { fs.rmSync(path.dirname(temp), { recursive: true, force: true }); }
+      catch { console.error("Learning store temporary cleanup failed"); }
+    }
+  }
 }
 
 const NEGATION_TOKENS = new Set(["not", "never", "no", "avoid", "block", "don't", "dont", "without", "disable", "reject"]);
