@@ -24,7 +24,8 @@ class TestPasskeyAuth(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
 
-    def test_passkey_register_options(self):
+    def test_passkey_register_options_require_a_session(self):
+        # Anonymous registrations used to mint throwaway usr-<random> principals.
         resp = self.client.post(
             "/api/auth/passkey/register/options",
             json={
@@ -34,12 +35,22 @@ class TestPasskeyAuth(unittest.TestCase):
                 "display_name": "Test User",
             },
         )
+        self.assertEqual(resp.status_code, 401)
+
+    def test_passkey_register_options(self):
+        with patch.dict(os.environ, {"SUPREMEAI_MASTER_KEY": _TEST_MASTER_KEY}):
+            token = generate_key(client_name="usr-usr-" + uuid.uuid4().hex[:12], quota="standard")
+            resp = self.client.post(
+                "/api/auth/passkey/register/options",
+                json={"email": "test@supremeai.com", "display_name": "Test User"},
+                headers={"Authorization": f"Bearer {token}", "Origin": _ORIGIN},
+            )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertIn("challenge", data)
-        self.assertIn("rp", data)
-        self.assertIn("user", data)
+        self.assertEqual(data["rp"]["id"], _RP_ID)
         self.assertEqual(data["user"]["name"], "test@supremeai.com")
+        self.assertEqual(data["excludeCredentials"], [])
 
     def test_passkey_login_options(self):
         resp = self.client.post(
@@ -88,6 +99,8 @@ class TestPasskeyAuth(unittest.TestCase):
 
 
 _TEST_MASTER_KEY = "test-master-key-32-bytes-supersecret-token"
+_RP_ID = "studio.example"
+_ORIGIN = "https://studio.example"
 
 
 def _b64u(data: bytes) -> str:
@@ -95,7 +108,9 @@ def _b64u(data: bytes) -> str:
 
 
 def _fake_attestation(challenge_b64: str) -> tuple[dict, str]:
-    """Builds a minimal 'none' attestation the gateway parser accepts (P-256 COSE key)."""
+    """Builds a minimal 'none' attestation for rp 'studio.example' (P-256 COSE key, UP+UV+AT)."""
+    import hashlib
+
     from cryptography.hazmat.primitives.asymmetric import ec
 
     pub = ec.generate_private_key(ec.SECP256R1()).public_key().public_numbers()
@@ -106,7 +121,7 @@ def _fake_attestation(challenge_b64: str) -> tuple[dict, str]:
         + bytes([0x22, 0x58, 0x20]) + pub.y.to_bytes(32, "big")
     )
     auth_data = (
-        b"\x00" * 32 + bytes([0x45]) + b"\x00\x00\x00\x00" + b"\x00" * 16
+        hashlib.sha256(_RP_ID.encode()).digest() + bytes([0x45]) + b"\x00\x00\x00\x00" + b"\x00" * 16
         + len(cred_id).to_bytes(2, "big") + cred_id + cose
     )
     attestation = (
@@ -115,7 +130,7 @@ def _fake_attestation(challenge_b64: str) -> tuple[dict, str]:
         + bytes([0x68]) + b"authData" + bytes([0x59]) + len(auth_data).to_bytes(2, "big") + auth_data
     )
     client_data = json.dumps(
-        {"type": "webauthn.create", "challenge": challenge_b64, "origin": "https://studio.example"}
+        {"type": "webauthn.create", "challenge": challenge_b64, "origin": _ORIGIN}
     ).encode()
     payload = {
         "clientDataJSON": _b64u(client_data),
@@ -137,7 +152,7 @@ class TestPasskeyOwnerBinding(unittest.TestCase):
         self.token = generate_key(client_name=f"usr-{self.owner}", quota="standard")
 
     def _auth(self, token=None):
-        return {"Authorization": f"Bearer {token or self.token}"}
+        return {"Authorization": f"Bearer {token or self.token}", "Origin": _ORIGIN}
 
     def _register(self):
         opts = self.client.post(
