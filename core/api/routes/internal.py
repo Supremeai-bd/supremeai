@@ -1,7 +1,7 @@
 import secrets
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, SecretStr
 
 from core.config import settings
@@ -81,7 +81,9 @@ class SystemAlertPayload(BaseModel):
 
 
 @router.post("/api/v1/admin/alerts")
-async def report_system_alert(request: Request, payload: SystemAlertPayload):
+async def report_system_alert(
+    request: Request, payload: SystemAlertPayload, background_tasks: BackgroundTasks
+):
     """Canonical internal alert ingestion (issue #1497).
 
     Machine-to-machine alert reporting (API key or admin secret). The AI Log
@@ -110,6 +112,18 @@ async def report_system_alert(request: Request, payload: SystemAlertPayload):
                 env=settings.env,
             ),
         )
+    )
+
+    # বাংলা মন্তব্য: অ্যাডমিনের বেছে নেওয়া চ্যানেলে পাঠাতে Studio অ্যালার্ট হাবে ফরোয়ার্ড (best-effort).
+    from core.services.alert_forwarder import forward_alert, severity_for_level
+
+    background_tasks.add_task(
+        forward_alert,
+        severity_for_level(payload.level),
+        "core",
+        payload.message[:200],
+        None,
+        f"core:{payload.level}:{payload.message[:120]}",
     )
 
     return {"status": "received", "level": payload.level}

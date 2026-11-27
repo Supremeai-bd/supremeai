@@ -66,3 +66,16 @@ jobs:
           path: db-backup/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Alert admins on failure
+        if: failure()
+        env:
+          INFISICAL_HOST: https://app.infisical.com
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: >-
+          python scripts/runtime/infisical_bootstrap.py python scripts/ops/send_alert.py
+          --severity critical --source db-backup --title "Nightly DB backup failed"
+          --body "$RUN_URL" --dedupe db-backup-failed
