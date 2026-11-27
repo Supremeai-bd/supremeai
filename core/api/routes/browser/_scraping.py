@@ -18,6 +18,7 @@ from core.api.routes.admin_dashboard import require_admin_token
 from core.api.routes.browser import router
 from core.cache.redis_manager import MultiLevelCache
 from core.config import settings
+from core.http_client import get_shared_async_client
 from core.monitoring.logging_config import logger
 from core.tools.ai_agents.browser_agent import BrowseRequest
 
@@ -53,9 +54,9 @@ async def _proxy_to_scraper(endpoint: str, payload: dict) -> dict:
         agent = BrowserAgent()
         return await agent.navigate_and_interact(**payload)
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(f"{_SCRAPER_URL}/{endpoint}", json=payload)
-            return resp.json()
+        client = get_shared_async_client()
+        resp = await client.post(f"{_SCRAPER_URL}/{endpoint}", json=payload, timeout=60.0)
+        return resp.json()
     except (httpx.RequestError, httpx.HTTPStatusError) as e:
         logger.error(f"Scraper service proxy failed: {e}")
         return {"success": False, "error": str(e)}

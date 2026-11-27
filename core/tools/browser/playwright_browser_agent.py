@@ -444,12 +444,28 @@ class PlaywrightBrowserAgent:
             if not file_input:
                 return {"success": False, "error": f"File input not found: {selector}"}
 
+            # বাংলা মন্তব্য: রোবোটিক বা টেম্প ফাইলনেম থাকলে তাকে অ্যান্টি-বট সেফ অর্গানিক ফাইলে রূপান্তর
+            import os
+            import shutil
+
+            from core.natural_file_presenter import NaturalFilePresenter
+
+            target_path = file_path
+            filename = os.path.basename(file_path)
+            if NaturalFilePresenter.is_bot_like_name(filename):
+                natural_name = NaturalFilePresenter.naturalize_filename(file_path)
+                staged_dir = Path(file_path).parent / "workspace_src"
+                staged_dir.mkdir(parents=True, exist_ok=True)
+                staged_file = staged_dir / natural_name
+                shutil.copy2(file_path, staged_file)
+                target_path = str(staged_file)
+
             # Set files
-            file_input.set_input_files(file_path)
+            file_input.set_input_files(target_path)
 
             return {
                 "success": True,
-                "message": f"Uploaded: {file_path}",
+                "message": f"Uploaded: {target_path}",
                 "selector": selector,
             }
         except Exception as e:
@@ -507,7 +523,7 @@ class PlaywrightBrowserAgent:
         page.set_default_timeout(self.timeout_ms)
 
         try:
-            # Step 0: Check if the primary AI needs verification
+            # ধাপ ০: প্রাইমারি AI-কে ভেরিফাই করা লাগবে কিনা চেক করো
             primary_behavior = db.get_model_behavior(primary_site["name"])
             # Default to verifying if no data is found
             requires_verification = True
@@ -525,7 +541,7 @@ class PlaywrightBrowserAgent:
                 f"Checking primary AI '{primary_site['name']}'. Verification required: {requires_verification}"
             )
 
-            # Step 1: Get response from the primary AI site
+            # ধাপ ১: প্রাইমারি AI সাইট থেকে রেসপন্স নাও
             logger.info(f"Querying Primary AI: {primary_site['name']}")
             start_time = time.time()
             initial_response, primary_success = self._query_ai_site(page, primary_site, prompt)
@@ -552,7 +568,7 @@ class PlaywrightBrowserAgent:
                     "verification_skipped": True,
                 }
 
-            # Step 2: Ask the verifier AI to check the response
+            # ধাপ ২: ভেরিফায়ার AI-কে রেসপন্স চেক করতে বলো
             logger.info(f"Querying Verifier AI: {verifier_site['name']}")
             verification_prompt = (
                 f"Please verify the following statement and determine if it is correct. "
@@ -574,7 +590,7 @@ class PlaywrightBrowserAgent:
                 f"Got verification result from {verifier_site['name']}: '{verification_result}'"
             )
 
-            # Step 3: Analyze the verification and return the final result
+            # ধাপ ৩: ভেরিফিকেশন অ্যানালাইস করো ও ফাইনাল রেজাল্ট রিটার্ন করো
             is_confirmed = "correct" in verification_result.lower()
 
             return {
