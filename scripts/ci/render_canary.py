@@ -29,8 +29,9 @@ def parse_canary_targets(raw: str) -> list[dict[str, Any]]:
         parsed = json.loads(raw)
         if isinstance(parsed, list):
             return parsed
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     # Fallback: parse `{name:...,url:...}` items stripped of quotes by PowerShell/CLI
     targets: list[dict[str, Any]] = []
@@ -109,8 +110,9 @@ def check_targets(targets: list[dict[str, Any]], *, strict: bool = False) -> int
                 body = ""
                 try:
                     body = exc.read(512).decode("utf-8", errors="replace")
-                except Exception:
-                    pass
+                except Exception as exc:
+                    import logging
+                    logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
                 headers = getattr(exc, "headers", None)
                 routing = headers.get("x-render-routing", "") if headers else ""
                 if routing == "suspend-by-user" or "suspended by its owner" in body.lower():

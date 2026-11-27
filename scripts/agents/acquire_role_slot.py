@@ -40,8 +40,9 @@ from typing import Any, Dict, List, Optional, Set
 if sys.stdout.encoding != "utf-8":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
-    except (AttributeError, ValueError, OSError):
-        pass
+    except (AttributeError, ValueError, OSError) as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
@@ -297,8 +298,9 @@ def find_next_available_slot(
     # Synchronize remote branches
     try:
         subprocess.run(["git", "fetch", "origin", "--prune"], cwd=str(repo_dir), check=False, capture_output=True)
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     open_prs = fetch_open_prs_head_branches(repo_dir=repo_dir)
     busy_issues = fetch_in_progress_issues_by_slot(repo_dir=repo_dir)

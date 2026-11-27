@@ -40,8 +40,9 @@ from pathlib import Path
 if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 from queue import Empty, Queue
 from typing import Any
 
@@ -80,16 +81,18 @@ def resolve_mcp_server_url() -> str:
                 server_url = tower.get("url", "")
                 if server_url:
                     return strip_endpoint_suffixes(server_url)
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     # Derived from config/service_registry.yaml — see repo_paths.service_endpoint.
     try:
         from repo_paths import svc as _svc
         resolved = _svc("mcp")
         if resolved:
             return resolved
-    except Exception:  # pragma: no cover - partial checkout
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     raise RuntimeError(
         "no MCP Tower URL configured: set RENDER_MCP_URL or add `mcp` to "
         "config/service_registry.yaml"
@@ -383,8 +386,9 @@ class McpTowerClient:
         self._transport = None
         try:
             self._http.close()
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     def __enter__(self) -> Self:
         self.connect()
@@ -522,8 +526,9 @@ class McpTowerClient:
                 json=payload,
                 timeout=REQUEST_TIMEOUT,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────

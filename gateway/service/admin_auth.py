@@ -360,16 +360,18 @@ def is_admin_token(token: str | None, verify_key_fn: Any = None) -> bool:
                     or str(meta.get("quota", "")).lower() == "unlimited"
                 ):
                     return True
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     # 2. Admin JWT (defense in depth for password/2FA admin sessions).
     try:
         payload = verify_admin_jwt(clean)
         if str(payload.get("role", "")).lower() == "admin":
             return True
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     return False
 

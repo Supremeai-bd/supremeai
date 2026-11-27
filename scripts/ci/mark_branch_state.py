@@ -54,8 +54,9 @@ def get_gh_token() -> str:
                 ["gh", "auth", "token"], capture_output=True, text=True, timeout=10
             )
             token = result.stdout.strip() if result.returncode == 0 else ""
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     if not token:
         print("ERROR: GH_TOKEN not set and gh auth token unavailable", file=sys.stderr)
         sys.exit(1)
@@ -178,8 +179,9 @@ def discover_branch(issue_number: int, token: str | None = None) -> str | None:
                 # Format: "<sha>\trefs/heads/agent/<issue>-<slug>"
                 branch_ref = lines[0].split("\t")[1] if "\t" in lines[0] else ""
                 return branch_ref.replace("refs/heads/", "")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return None
 
 

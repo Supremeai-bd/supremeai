@@ -236,8 +236,9 @@ def search_database_memory(query: str) -> list[dict[str, Any]]:
                 "source": "EpisodicMemory (Database)",
                 "tier": "local-episodic",
             })
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     if len(hits) < _fallback_min_hits():
         # #1747: local recall thin -> tower semantic tier fallback.
         # Graceful degradation is the contract: tower unreachable or tool
@@ -371,8 +372,9 @@ def verify_mcp() -> bool:
             if "supremeai-control-tower" in servers:
                 print("âœ… Valid MCP Tower contract found in mcp.json.")
                 return True
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     # 2. Check environment variable contract
     mcp_env = os.environ.get("MCP_TOWER_URL", os.environ.get("MCP_SERVER_URL", ""))

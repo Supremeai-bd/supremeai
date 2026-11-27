@@ -57,8 +57,9 @@ try:
         if tgt not in ACTIVE_ANCHOR_HUBS:
             # Statically fallback, but enforce consistency
             pass
-except Exception:
-    pass
+except Exception as exc:
+    import logging
+    logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
 
 # Targets where automated CI/deployment workflows should run on sync push
@@ -149,8 +150,9 @@ def get_auth_token(token_arg: str | None = None) -> str:
         ).strip()
         if out:
             return out
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     raise RuntimeError(
         "No GitHub authentication token found (checked BRIDGE_PUSH_TOKEN, SAT_SYNC_PAT, GH_TOKEN)."
     )

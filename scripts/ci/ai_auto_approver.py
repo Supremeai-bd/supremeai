@@ -42,8 +42,9 @@ def real_api(endpoint: str, method: str = "GET", payload: dict | None = None) ->
     if _eval_real_api is not None and _eval_real_api is not real_api:
         try:
             return _eval_real_api(endpoint, method, payload)
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     token = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
     import urllib.request
     req = urllib.request.Request(
@@ -122,14 +123,16 @@ def _production_environment_id(api: Api = real_api) -> int | None:
         for env in envs or []:
             if isinstance(env, dict) and env.get("name") == "production":
                 return env.get("id")
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     try:
         data = api(f"repos/{REPO}/environments/production")
         if isinstance(data, dict):
             return data.get("id")
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return None
 
 

@@ -219,8 +219,9 @@ def fetch_required_checks(gw: Gateway) -> tuple[list[str], str]:
         contexts = (data.get("required_status_checks") or {}).get("contexts") or []
         if contexts:
             return [str(c) for c in contexts], "branch-protection"
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return list(DEFAULT_REQUIRED_CHECKS), "default-fallback"
 
 
@@ -295,8 +296,9 @@ def exempt_actors() -> set[str]:
         override = (data or {}).get("freshness_policy") or {}
         if override.get("exempt_actors"):
             return {str(a) for a in override["exempt_actors"]}
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return set(DEFAULT_EXEMPT_ACTORS)
 
 

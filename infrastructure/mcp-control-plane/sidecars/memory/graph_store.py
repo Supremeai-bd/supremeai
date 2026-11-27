@@ -276,7 +276,8 @@ class GraphStore:
         if self._conn is not None:
             try:
                 self._conn.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
             self._conn = None
             self.available = False

@@ -104,8 +104,9 @@ def get_changed_files_from_git() -> list[str]:
         res = run_cmd(["git", "diff", "--name-only", "HEAD"])
         if res.returncode == 0 and res.stdout.strip():
             return [f.strip() for f in res.stdout.splitlines() if f.strip()]
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return []
 
 
@@ -141,8 +142,9 @@ def get_diff_text(files: list[str], pr_number: str | None = None) -> str:
             res = run_cmd(["gh", "pr", "diff", str(pr_number)])
             if res.returncode == 0 and res.stdout.strip():
                 diff_text = res.stdout
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
         if not diff_text:
             try:
@@ -169,8 +171,9 @@ def get_diff_text(files: list[str], pr_number: str | None = None) -> str:
                                     patches.append(f"--- a/{fname}\n+++ b/{fname}\n{patch}")
                     if patches:
                         diff_text = "\n".join(patches)
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     if not diff_text:
         for work_dir in search_dirs:
@@ -179,8 +182,9 @@ def get_diff_text(files: list[str], pr_number: str | None = None) -> str:
                 if res.returncode == 0 and res.stdout.strip():
                     diff_text = res.stdout
                     break
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return diff_text[:DIFF_CHAR_LIMIT]
 
 
