@@ -19,10 +19,13 @@ PY ?= python3
 ARGS ?=
 
 .DEFAULT_GOAL := help
-.PHONY: help venv gates test test-all lint guards index doctor clean
+.PHONY: help venv gates test test-all lint guards index doctor clean decision-catalog
 
 help: ## Show the available targets
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+
+decision-catalog: ## Print the AI decision-record reasoning-pattern catalog
+	$(PY) scripts/ci/decision_records.py --catalog
 
 venv: ## Create .venv with the lock deps + dev tools (use: make gates PY=.venv/bin/python)
 	@$(PY) -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11, 5) else 1)' || { \

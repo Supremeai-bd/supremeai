@@ -80,6 +80,7 @@
       "core.external_agents.control.",
       "core.external_agents.providers.",
       "core.external_agents.verification.",
+      "core.finops.",
       "core.github.scripts.",
       "core.github.scripts.pr_helper.",
       "core.governance.",
@@ -409,12 +410,12 @@
     ]
   },
   "graph": {
-    "modules": 2187,
-    "edges": 5058,
+    "modules": 2193,
+    "edges": 5072,
     "edge_kinds": {
-      "dispatch": 212,
+      "dispatch": 219,
       "dynamic": 4,
-      "import": 4149,
+      "import": 4156,
       "string": 693
     }
   },
@@ -431,6 +432,7 @@
       "@.github/actions/setup-frontend/action.yml",
       "@.github/actions/setup-playwright/action.yml",
       "@.github/workflows/codeql.yml",
+      "@.github/workflows/db-backup.yml",
       "@.github/workflows/deploy-rollback.yml",
       "@.github/workflows/ops-maintenance.yml",
       "@.github/workflows/unified-pipeline.yml",
@@ -445,9 +447,9 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1682,
+    "reachable": 1688,
     "unreachable": 505,
-    "reachable_pct": 76.9
+    "reachable_pct": 77.0
   },
   "gaps": {
     "dangling_references": [],
@@ -766,6 +768,7 @@
     "core.execution_adapters",
     "core.external_agents.providers.zai",
     "core.factual_verifier",
+    "core.finops",
     "core.firebase_auth",
     "core.github.scripts.check-render-quota",
     "core.github.scripts.ci_error_report",

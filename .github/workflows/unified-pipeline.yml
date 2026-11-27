@@ -1003,17 +1003,17 @@ jobs:
     # RETIRED Vercel job below did deploy automatically. That inversion is why
     # the proxy kept pointing at the archived Vercel build long after the origin
     # was changed in the repository.
+    # 2026-11-27: every push now enters this job; the "Detect Cloudflare-relevant
+    # changes" step does the real `git diff BEFORE..SHA` path filter and skips
+    # all deploy steps when nothing under studio/ or infrastructure/cloudflare*
+    # changed. The old job-level filter used `join(github.event.commits.*.modified,
+    # ' ')` — a list of LISTS, so join() stringified each inner list as "Array"
+    # and contains() was ALWAYS false: the keep-warm worker and edge proxy never
+    # auto-deployed (every run 2026-11-21..27 shows this job "skipped").
     if: |
       always() && github.ref == 'refs/heads/main' &&
       (
-        (github.event_name == 'push' && (
-          contains(join(github.event.commits.*.modified, ' '), 'infrastructure/cloudflare-studio-proxy/') ||
-          contains(join(github.event.commits.*.added, ' '), 'infrastructure/cloudflare-studio-proxy/') ||
-          contains(join(github.event.commits.*.removed, ' '), 'infrastructure/cloudflare-studio-proxy/') ||
-          contains(join(github.event.commits.*.modified, ' '), 'infrastructure/cloudflare-render-keepwarm/') ||
-          contains(join(github.event.commits.*.added, ' '), 'infrastructure/cloudflare-render-keepwarm/') ||
-          contains(join(github.event.commits.*.modified, ' '), 'wrangler')
-        )) ||
+        github.event_name == 'push' ||
         (github.event_name == 'workflow_dispatch' && inputs.force_deploy == true && (
           contains(inputs.target_service, 'all') ||
           contains(inputs.target_service, 'cloudflare') ||
@@ -1041,9 +1041,13 @@ jobs:
         run: |
           set -euo pipefail
           SHOULD_DEPLOY="false"
+          KEEPWARM="false"
+          PROXY="false"
           # Manual force or explicit cloudflare target always deploys
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && { [ "$FORCE_DEPLOY" = "true" ] || printf '%s\n' "$DEPLOY_TARGETS" | grep -qiE '(^|,)(all|cloudflare|studio)(,|$)'; }; then
             SHOULD_DEPLOY="true"
+            KEEPWARM="true"
+            PROXY="true"
           elif [ "${{ github.event_name }}" = "push" ]; then
             BASE="${{ github.event.before }}"
             HEAD="${{ github.sha }}"
@@ -1056,8 +1060,19 @@ jobs:
             if echo "$CHANGED" | grep -qE '^(studio/|infrastructure/cloudflare)'; then
               SHOULD_DEPLOY="true"
             fi
+            # Per-worker flags: a keep-warm change must not redeploy the edge
+            # proxy (and vice versa) now that every push reaches this job.
+            if echo "$CHANGED" | grep -qE '^infrastructure/cloudflare-render-keepwarm/'; then
+              KEEPWARM="true"
+            fi
+            if echo "$CHANGED" | grep -qE '^infrastructure/cloudflare-studio-proxy/'; then
+              PROXY="true"
+            fi
           fi
           echo "should_deploy=$SHOULD_DEPLOY" >> "$GITHUB_OUTPUT"
+          echo "keepwarm=$KEEPWARM" >> "$GITHUB_OUTPUT"
+          echo "proxy=$PROXY" >> "$GITHUB_OUTPUT"
+          echo "Keep-warm worker deploy: $KEEPWARM · Studio proxy deploy: $PROXY"
           echo "Cloudflare deploy needed: $SHOULD_DEPLOY"
 
       - name: Setup Node.js
@@ -1067,16 +1082,22 @@ jobs:
           node-version: 22
 
       - name: Deploy Keep-Warm Worker
-        if: steps.cf_changes.outputs.should_deploy == 'true'
+        if: steps.cf_changes.outputs.keepwarm == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CF_COMMIT_SHA: ${{ github.sha }}
+          INFISICAL_HOST: https://app.infisical.com
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
         run: |
           if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
             if [ -d infrastructure/cloudflare-render-keepwarm ]; then
               cd infrastructure/cloudflare-render-keepwarm
               npx wrangler deploy --var CF_COMMIT_SHA:${{ github.sha }}
+              # Down-alerts: hand the worker the core service token (from Infisical) as a secret.
+              python3 ../../scripts/runtime/infisical_bootstrap.py sh -c 'if [ -n "${SUPREMEAI_API_TOKEN:-}" ]; then printf "%s" "$SUPREMEAI_API_TOKEN" | npx wrangler secret put ALERT_INGEST_TOKEN; else echo "SUPREMEAI_API_TOKEN not in Infisical; keep-warm alerts stay off"; fi' || echo "keep-warm alert token sync skipped"
             else
               echo "keepwarm dir not found; skipping"
             fi
@@ -1085,7 +1106,7 @@ jobs:
           fi
 
       - name: Deploy Studio Edge Proxy
-        if: steps.cf_changes.outputs.should_deploy == 'true'
+        if: steps.cf_changes.outputs.proxy == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
