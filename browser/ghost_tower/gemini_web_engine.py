@@ -19,8 +19,9 @@ if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed in gemini_web_engine.py (%s)", type(exc).__name__)
 
 logger = logging.getLogger("ghost_tower.gemini_web")
 USER_DATA_DIR = os.path.expanduser(r"~\.gemini_isolated_session")
@@ -93,8 +94,9 @@ class GeminiWebEngine:
                 if await btn.is_visible():
                     has_visible_signin = True
                     break
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed in gemini_web_engine.py (%s)", type(exc).__name__)
 
         has_chat_input = (
             await self.page.query_selector(

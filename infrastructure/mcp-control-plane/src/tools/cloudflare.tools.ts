@@ -33,6 +33,7 @@ export async function registerCloudflareTools(server: McpServer): Promise<void> 
           content: [{ type: "text", text: JSON.stringify(status, null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -53,6 +54,7 @@ export async function registerCloudflareTools(server: McpServer): Promise<void> 
           content: [{ type: "text", text: JSON.stringify(analytics, null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],

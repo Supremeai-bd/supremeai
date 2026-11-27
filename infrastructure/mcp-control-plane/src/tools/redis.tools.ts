@@ -41,6 +41,7 @@ export async function registerRedisTools(server: McpServer): Promise<void> {
         }
         return { isError: true, content: [{ type: "text", text: `Unknown action: ${action}` }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -59,6 +60,7 @@ export async function registerRedisTools(server: McpServer): Promise<void> {
           content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -79,6 +81,7 @@ export async function registerRedisTools(server: McpServer): Promise<void> {
           content: [{ type: "text", text: JSON.stringify(stats, null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -101,6 +104,7 @@ export async function registerRedisTools(server: McpServer): Promise<void> {
           content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -135,6 +139,7 @@ export async function registerRedisTools(server: McpServer): Promise<void> {
           ],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -225,6 +230,7 @@ export async function registerRedisTools(server: McpServer): Promise<void> {
           ],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -245,6 +251,7 @@ export async function registerRedisTools(server: McpServer): Promise<void> {
         const result = await cacheLookup(question);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -266,6 +273,7 @@ export async function registerRedisTools(server: McpServer): Promise<void> {
         const result = await cacheStore(question, answer);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -283,6 +291,7 @@ export async function registerRedisTools(server: McpServer): Promise<void> {
       try {
         return { content: [{ type: "text", text: JSON.stringify(cacheConfigStatus(), null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],

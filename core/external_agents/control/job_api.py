@@ -100,10 +100,12 @@ class ExternalAgentJobAPI:
             bg.cancel()
             try:
                 await bg
-            except asyncio.CancelledError:
-                pass
-            except Exception:
-                pass
+            except asyncio.CancelledError as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed in job_api.py (%s)", type(exc).__name__)
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed in job_api.py (%s)", type(exc).__name__)
         record = self.state_manager.get(job.task_id)
         if record is None:
             return False
@@ -142,8 +144,9 @@ class ExternalAgentJobAPI:
         except Exception as exc:
             try:
                 sm.fail(task.task_id, error=str(exc))
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed in job_api.py (%s)", type(exc).__name__)
         finally:
             self._tasks.pop(job.job_id, None)
 

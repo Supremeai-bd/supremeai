@@ -126,6 +126,7 @@ export async function collectConsoleErrors(
       data: payload,
     };
   } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return failureEnvelope(err, chromePath);
   }
 }
@@ -195,6 +196,7 @@ export async function collectNetworkFailures(
       data: payload,
     };
   } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return failureEnvelope(err, chromePath);
   }
 }
@@ -270,6 +272,7 @@ export async function collectPerformanceTrace(
       data: payload,
     };
   } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return failureEnvelope(err, chromePath);
   }
 }

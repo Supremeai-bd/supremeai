@@ -79,7 +79,8 @@ async function resolveInstallation(creds: { appId: string; pem: string; installa
     if (!installationId) return null;
     try {
       return await mintInstallationToken({ ...creds, installationId });
-    } catch {
+    } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
       return null;
     }
   };
@@ -140,7 +141,8 @@ export async function getGitHubAppInstallationToken(): Promise<string> {
       if (!resolved) return ""; // fail honest — caller keeps unauthenticated fallback
       resolvedInstallationId = resolved.installationId;
       return cached?.token ?? "";
-    } catch {
+    } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
       return ""; // fail honest — caller keeps unauthenticated fallback
     } finally {
       inFlight = null;

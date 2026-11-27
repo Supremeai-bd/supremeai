@@ -173,6 +173,7 @@ export async function registerGuardianTools(server: McpServer): Promise<void> {
           report: report.markdown,
         });
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return failure(`Error: ${(err as Error).message}`);
       }
     },
@@ -227,6 +228,7 @@ export async function registerGuardianTools(server: McpServer): Promise<void> {
           evaluatedAt: summary.evaluatedAt,
         });
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return failure(`Error: ${(err as Error).message}`);
       }
     },
@@ -390,6 +392,7 @@ export async function registerGuardianTools(server: McpServer): Promise<void> {
           note: "Post-merge canary telemetry should be watched for 5 minutes; revert with `git revert` if 5xx errors spike.",
         });
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return failure(`Error: ${(err as Error).message}`);
       }
     },

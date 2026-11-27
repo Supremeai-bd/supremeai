@@ -96,6 +96,7 @@ export async function registerPlanningTools(server: McpServer): Promise<void> {
 
         return { isError: true, content: [{ type: "text", text: `Unknown action: ${action}` }] };
       } catch (error) {
+  console.error(error instanceof Error ? error.name : "error");
         return { isError: true, content: [{ type: "text", text: JSON.stringify({ error: error instanceof Error ? error.message : String(error) }) }] };
       }
     },
@@ -135,6 +136,7 @@ export async function registerPlanningTools(server: McpServer): Promise<void> {
         }
         return { content: [{ type: "text", text: JSON.stringify(redactSensitiveData(report), null, 2) }] };
       } catch (error) {
+  console.error(error instanceof Error ? error.name : "error");
         return { isError: true, content: [{ type: "text", text: JSON.stringify({ error: error instanceof Error ? error.message : String(error) }) }] };
       }
     },

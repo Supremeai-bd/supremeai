@@ -86,6 +86,7 @@ export async function registerRenderTools(server: McpServer): Promise<void> {
         }
         return { isError: true, content: [{ type: "text", text: `Unknown action: ${action}` }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -107,6 +108,7 @@ export async function registerRenderTools(server: McpServer): Promise<void> {
           content: [{ type: "text", text: JSON.stringify(services, null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -132,6 +134,7 @@ export async function registerRenderTools(server: McpServer): Promise<void> {
           content: [{ type: "text", text: JSON.stringify(health, null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -159,6 +162,7 @@ export async function registerRenderTools(server: McpServer): Promise<void> {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -185,6 +189,7 @@ export async function registerRenderTools(server: McpServer): Promise<void> {
           content: [{ type: "text", text: JSON.stringify(envVars, null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -210,6 +215,7 @@ export async function registerRenderTools(server: McpServer): Promise<void> {
           content: [{ type: "text", text: JSON.stringify(keys, null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],

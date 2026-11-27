@@ -448,7 +448,8 @@ function inputSchemaFor(schema: unknown): Record<string, unknown> {
   try {
     const mirrored = z.toJSONSchema(schema as z.ZodType, { io: "input", target: "draft-7" });
     return typeof mirrored === "object" && mirrored !== null ? (mirrored as Record<string, unknown>) : { type: "object" };
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return { type: "object" };
   }
 }

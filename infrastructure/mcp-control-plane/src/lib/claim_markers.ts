@@ -127,9 +127,7 @@ export function parseClaimMarkers(
             },
           });
         }
-      } catch {
-        /* malformed legacy marker — ignore */
-      }
+      } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
     }
   }
 

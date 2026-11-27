@@ -70,7 +70,8 @@ async function probeHttp(url: string, headers: Record<string, string> = {}, time
     const res = await httpRequest(url, { timeoutMs, retries: 0, headers });
     if (res.ok) return { ok: true, status: res.status, latencyMs: res.latencyMs };
     return "degraded";
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return "unreachable";
   }
 }
@@ -237,6 +238,7 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
         ...(res.ok || isArchivedOrRetired ? {} : { error: res.status === 401 || res.status === 403 ? "GitHub auth rejected — token missing, invalid or expired" : `GitHub responded ${res.status}` }),
       };
     } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
       return { ...base, url: svc.url!, status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };
     }
   }
@@ -295,6 +297,7 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
       }
       return { ...base, url: rest?.url || svc.url!, status: "degraded", httpStatus: null, latencyMs: null, error: "PING did not return pong" };
     } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
       return { ...base, url: rest?.url || svc.url!, status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };
     }
   }
@@ -378,6 +381,7 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
             };
           }
         } catch (wErr) {
+  console.error(wErr instanceof Error ? wErr.name : "error");
           return {
             ...base,
             url: svc.url,
@@ -397,6 +401,7 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
         latencyMs: res.latencyMs,
       };
     } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
       return { ...base, url: "https://api.cloudflare.com/client/v4", status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };
     }
   }
@@ -442,6 +447,7 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
       const ok = Boolean(res.data?.ok);
       return { ...base, url: maskedUrl, status: ok ? "healthy" : "degraded", httpStatus: res.status, latencyMs: res.latencyMs, ...(ok ? {} : { error: "getMe rejected the bot token" }) };
     } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
       return { ...base, url: maskedUrl, status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };
     }
   }
@@ -720,6 +726,7 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
         }
         return { isError: true, content: [{ type: "text", text: `Unknown scope: ${scope}` }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }

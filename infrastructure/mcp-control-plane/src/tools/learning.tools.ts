@@ -30,6 +30,7 @@ export async function registerLearningTools(server: McpServer): Promise<void> {
         const record = recordLearning({ tier: tier as MemoryTier, fact, evidence: evidence ?? {}, verifiedBy: verifiedBy ?? null });
         return { content: [{ type: "text", text: JSON.stringify(redactSensitiveData(record), null, 2) }] };
       } catch (error) {
+  console.error(error instanceof Error ? error.name : "error");
         return { isError: true, content: [{ type: "text", text: JSON.stringify({ error: error instanceof Error ? error.message : String(error) }) }] };
       }
     },
@@ -54,6 +55,7 @@ export async function registerLearningTools(server: McpServer): Promise<void> {
         const records = recallLearnings({ query, tier: (tier as MemoryTier) ?? null, status: (status as MemoryStatus) ?? null, limit });
         return { content: [{ type: "text", text: JSON.stringify(redactSensitiveData({ count: records.length, records }), null, 2) }] };
       } catch (error) {
+  console.error(error instanceof Error ? error.name : "error");
         return { isError: true, content: [{ type: "text", text: JSON.stringify({ error: error instanceof Error ? error.message : String(error) }) }] };
       }
     },
@@ -72,6 +74,7 @@ export async function registerLearningTools(server: McpServer): Promise<void> {
       try {
         return { content: [{ type: "text", text: JSON.stringify(learningStats(), null, 2) }] };
       } catch (error) {
+  console.error(error instanceof Error ? error.name : "error");
         return { isError: true, content: [{ type: "text", text: JSON.stringify({ error: error instanceof Error ? error.message : String(error) }) }] };
       }
     },

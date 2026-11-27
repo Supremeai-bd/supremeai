@@ -108,7 +108,8 @@ export function decodeRedisPayload<T = unknown>(
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return {
       status: "quarantined",
       reason: "CORRUPT_JSON",

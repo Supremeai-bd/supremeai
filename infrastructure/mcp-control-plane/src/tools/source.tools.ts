@@ -30,6 +30,7 @@ export async function registerSourceTools(server: McpServer): Promise<void> {
         const result = await searchRepos(query, sort ?? "stars", limit ?? 10);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -46,6 +47,7 @@ export async function registerSourceTools(server: McpServer): Promise<void> {
         const info = await getRepoInfo(ref);
         return { content: [{ type: "text", text: JSON.stringify(info, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -65,6 +67,7 @@ export async function registerSourceTools(server: McpServer): Promise<void> {
         const tree = await getRepoTree(ref, maxFiles ?? 30);
         return { content: [{ type: "text", text: JSON.stringify(tree, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -84,6 +87,7 @@ export async function registerSourceTools(server: McpServer): Promise<void> {
         const file = await readExternalFile(ref, path);
         return { content: [{ type: "text", text: JSON.stringify(file, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -103,6 +107,7 @@ export async function registerSourceTools(server: McpServer): Promise<void> {
         const highlights = await collectRepoHighlights(ref, maxFiles ?? 10);
         return { content: [{ type: "text", text: JSON.stringify(highlights, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -125,6 +130,7 @@ export async function registerSourceTools(server: McpServer): Promise<void> {
         });
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }

@@ -308,6 +308,7 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
         }));
         return { contents: [{ uri: "control-tower://system/health", mimeType: "application/json", text: JSON.stringify({ status: services.some((s) => s.status !== "healthy") ? "degraded" : "healthy", services, timestamp: new Date().toISOString() }, null, 2) }] };
       } catch (error) {
+  console.error(error instanceof Error ? error.name : "error");
         return { contents: [{ uri: "control-tower://system/health", mimeType: "application/json", text: JSON.stringify({ status: "unknown", error: String(error) }) }] };
       }
     }
@@ -326,6 +327,7 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
         const { globalDependencyGraph } = await import("./health/dependency.js");
         return { contents: [{ uri: "control-tower://system/dependencies", mimeType: "application/json", text: JSON.stringify(globalDependencyGraph.getRawMap(), null, 2) }] };
       } catch (error) {
+  console.error(error instanceof Error ? error.name : "error");
         return { contents: [{ uri: "control-tower://system/dependencies", mimeType: "application/json", text: JSON.stringify({ error: String(error) }) }] };
       }
     }

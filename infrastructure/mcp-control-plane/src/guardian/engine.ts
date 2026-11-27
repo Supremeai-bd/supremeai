@@ -249,7 +249,8 @@ export class GuardianService {
     if (!ref) return [];
     try {
       return await this.client.getCheckRuns(ref);
-    } catch {
+    } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
       return [];
     }
   }

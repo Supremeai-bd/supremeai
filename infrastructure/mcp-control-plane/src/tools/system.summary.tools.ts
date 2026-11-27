@@ -17,6 +17,7 @@ export async function registerSystemSummaryTools(server: McpServer): Promise<voi
           content: [{ type: "text", text: JSON.stringify(report, null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -42,6 +43,7 @@ export async function registerSystemSummaryTools(server: McpServer): Promise<voi
           content: [{ type: "text", text: JSON.stringify(snapshots, null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -60,6 +62,7 @@ export async function registerSystemSummaryTools(server: McpServer): Promise<voi
         const resources = await listResources();
         return { content: [{ type: "text", text: JSON.stringify(resources, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
