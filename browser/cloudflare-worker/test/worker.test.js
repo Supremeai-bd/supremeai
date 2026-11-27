@@ -70,3 +70,24 @@ test("browser errors close the session without disclosing exception details", as
     puppeteer.launch = original;
   }
 });
+
+test("cleanup failure is reported without leaking browser exception data", async () => {
+  const originalLaunch = puppeteer.launch;
+  const originalError = console.error;
+  const messages = [];
+  console.error = (...args) => messages.push(args.join(" "));
+  puppeteer.launch = async () => ({
+    async newPage() { throw new Error("private operation detail"); },
+    async close() { throw new Error("private cleanup detail"); },
+  });
+  try {
+    const response = await worker.fetch(request("https://worker.test/?url=https://example.com"), env);
+    assert.equal(response.status, 500);
+    assert.equal((await response.json()).error, "browser operation failed");
+    assert.deepEqual(messages, ["Browser operation failed", "Browser cleanup failed"]);
+    assert.ok(!messages.join(" ").includes("private"));
+  } finally {
+    puppeteer.launch = originalLaunch;
+    console.error = originalError;
+  }
+});
