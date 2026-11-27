@@ -1,159 +1,38 @@
-name: 'Setup Backend'
-description: 'Setup Python, Poetry, and cached virtualenv for backend'
+name: 'Setup Core Test Environment'
+description: 'Install the current core runtime lock and test dependencies'
 inputs:
   python-version:
     description: 'Python version to setup'
     required: false
     default: '3.11'
-  working-directory:
-    description: 'Working directory for poetry'
-    required: false
-    default: 'backend'
-  poetry-version:
-    description: 'Poetry version'
-    required: false
-    # AUD-7.4: pin the toolchain (was 'latest' — floating)
-    default: '2.4.1'
-  install-media-deps:
-    description: 'Install ffmpeg for media processing'
   install-browser-deps:
-    description: 'Install Poetry browser group (Playwright/Chromium dependencies)'
+    description: 'Install the Python Playwright package'
     required: false
     default: 'false'
   mode:
-    description: 'Dependency mode: prepare installs; runtime uses cache; artifact restores an immutable prepared environment'
+    description: 'Only prepare mode is supported'
     required: false
     default: 'prepare'
-  dependency-artifact:
-    description: 'Artifact name containing the prepared backend virtualenv'
-    required: false
-    default: ''
 runs:
   using: 'composite'
   steps:
-    - name: Download immutable backend environment
-      if: inputs.mode == 'artifact'
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-      with:
-        name: ${{ inputs.dependency-artifact }}
-        path: ${{ inputs.working-directory }}/.venv
-
-    - name: 📦 Install System Dependencies
-      shell: bash
-      run: |
-        # PERF (#470 Layer-2, verified run 35409132406): apt-get update+install
-        # cost ~18-20s of the 36-43s setup on EVERY matrix job. ubuntu-latest
-        # already ships libpq5/build-essential in most images — probe with
-        # dpkg first and only pay apt when something is genuinely missing.
-        # --no-install-recommends keeps the install minimal.
-        if [ "${{ inputs.mode }}" != "prepare" ]; then
-          PACKAGES="libpq5"
-        else
-          PACKAGES="libpq-dev build-essential"
-        fi
-        MISSING=0
-        for pkg in $PACKAGES; do
-          dpkg -s "$pkg" >/dev/null 2>&1 || MISSING=1
-        done
-        if [ "$MISSING" = "1" ]; then
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends $PACKAGES
-        else
-          echo "✅ System dependencies already present — apt-get skipped."
-        fi
-        if [ "${{ inputs.install-media-deps }}" = "true" ]; then
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ffmpeg
-        fi
-
     - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: ${{ inputs.python-version }}
-
-    # AUD-7.4: SHA-pinned (was floating @v1 tag)
-    - uses: snok/install-poetry@972a0e78ffdebf9e98f6fe404b77831716cdd4aa # v1.4.0
-      with:
-        version: ${{ inputs.poetry-version }}
-        virtualenvs-create: true
-        virtualenvs-in-project: true
-        plugins: poetry-plugin-export
-
-    # Cache package-manager downloads, not the full virtualenv.
-    # Parallel backend test jobs therefore avoid restoring a ~1GB .venv each.
-    - name: 🗂️ Restore Poetry/Pip and virtualenv cache
-      id: deps-cache
-      if: inputs.mode != 'artifact'
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: |
-          ~/.cache/pypoetry
-          ~/.cache/pip
-          ${{ inputs.working-directory }}/.venv
-        key: poetry-venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles(format('{0}/poetry.lock', inputs.working-directory)) }}-${{ inputs.install-browser-deps }}
-
-    - name: ⚙️ Install Build Dependencies
-      # PERF (#470): on a prepare-mode venv cache hit the environment is
-      # already materialized — skip the pip/setuptools upgrade entirely
-      # (~4s) and let the validate step below prove the venv works.
-      if: inputs.mode != 'artifact' && steps.deps-cache.outputs.cache-hit != 'true'
+        cache: pip
+        cache-dependency-path: core/requirements.lock
+    - name: Install core and test dependencies
       shell: bash
-      working-directory: ${{ inputs.working-directory }}
+      env:
+        SETUP_MODE: ${{ inputs.mode }}
+        INSTALL_BROWSER: ${{ inputs.install-browser-deps }}
       run: |
-        poetry run pip install --upgrade pip "setuptools>=77.0.3" wheel
-
-    - name: 🔒 Validate & sync lock file
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: |
-        # Validate lock file matches pyproject.toml
-        poetry check --lock
-
-    - name: 📥 Poetry Install (backend deps)
-      # PERF (#470): prepare mode previously re-ran `poetry install` even when
-      # the lock-hash-keyed cache restored a complete .venv — measured ~40-55s
-      # of lock resolution for a no-op. On a cache hit the restored venv is
-      # validated below (pytest/fastapi import), so skipping is safe; a cache
-      # miss still installs exactly as before.
-      if: inputs.mode != 'artifact' && steps.deps-cache.outputs.cache-hit != 'true'
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: |
-        if [ "${{ inputs.install-browser-deps }}" = "true" ]; then
-          poetry install --no-root --with dev --with browser --with mcp-tools
-        else
-          poetry install --no-root --with dev --with mcp-tools
+        set -euo pipefail
+        if [ "$SETUP_MODE" != prepare ]; then
+          echo '::error::Only prepare mode is supported for the core test environment.'
+          exit 1
         fi
-
-    - name: ✅ Validate restored virtualenv
-      # PERF (#470): also validate a prepare-mode cache-hit venv (it skipped
-      # poetry install above, so this check is its correctness proof).
-      if: inputs.mode == 'artifact' || steps.deps-cache.outputs.cache-hit == 'true'
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: |
-        # Fix broken symlinks and permissions after artifact download
-        PYTHON_BIN=$(command -v python3 || command -v python)
-        if [ -n "$PYTHON_BIN" ] && [ ! -x .venv/bin/python ]; then
-          echo "Recreating broken .venv python symlink -> $PYTHON_BIN"
-          rm -f .venv/bin/python .venv/bin/python3
-          ln -s "$PYTHON_BIN" .venv/bin/python
-          ln -s "$PYTHON_BIN" .venv/bin/python3
-        fi
-        # Restore execute permissions on all bin scripts (artifact download may strip them)
-        if [ -d .venv/bin ]; then
-          chmod +x .venv/bin/* 2>/dev/null || true
-        fi
-        test -x .venv/bin/python
-        .venv/bin/python --version
-        poetry run python -c "import pytest; print('Restored backend environment is ready')"
-
-    - name: 📊 Dependency Cache Report
-      shell: bash
-      run: |
-        if [ "${{ inputs.mode }}" = "artifact" ]; then
-          echo "✅ Immutable backend dependency artifact restored." >> "$GITHUB_STEP_SUMMARY"
-        elif [ "${{ steps.deps-cache.outputs.cache-hit }}" == "true" ]; then
-          echo "✅ **Poetry/Pip cache HIT** — package downloads reused." >> "$GITHUB_STEP_SUMMARY"
-        else
-          echo "⚠️ **Poetry/Pip cache MISS** — dependencies will be cached after this successful run." >> "$GITHUB_STEP_SUMMARY"
+        python -m pip install --prefer-binary -r core/requirements.lock pytest pytest-asyncio pytest-cov pytest-timeout pytest-mock aiosqlite fakeredis 'mcp>=1.28.1,<2'
+        if [ "$INSTALL_BROWSER" = true ]; then
+          python -m pip install 'playwright>=1.62.0,<2'
         fi

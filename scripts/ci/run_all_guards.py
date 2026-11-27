@@ -345,7 +345,11 @@ def main(argv: list[str] | None = None) -> int:
                         for line in output.strip().splitlines()[:10]:
                             print(f"    {line}")
                 else:
-                    print(f"OK: {name}")
+                    print(f"EXIT 0: {name}")
+                    # বাংলা: সফল কমান্ডও তার কাজের অংশ স্কিপ করতে পারে।
+                    for line in output.splitlines():
+                        if any(marker in line.upper() for marker in ("SKIP", "AUTH_GATED")):
+                            print(f"    {line}")
     else:
         for cmd in selected:
             cmd = [sys.executable, *cmd[1:]] if cmd[0] == "python" else cmd
@@ -358,7 +362,7 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print("OK")
 
-    print(f"\n{len(selected) - failed}/{len(selected)} guards passed ({label})")
+    print(f"\n{len(selected) - failed}/{len(selected)} guards exited 0 ({label}; inspect output for skipped checks)")
     if failures:
         print("\nFAILED:")
         for name in failures:

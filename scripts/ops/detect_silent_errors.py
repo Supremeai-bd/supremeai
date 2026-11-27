@@ -57,6 +57,7 @@ import json
 import os
 import re
 import sys
+import tokenize
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -209,10 +210,11 @@ def scan_python_file(path: str, include_tests: bool) -> list[dict[str, Any]]:
         return findings
 
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        # বাংলা মন্তব্য: Python source encoding ও BOM মেনে parse করি।
+        with tokenize.open(path) as fh:
             src = fh.read()
         tree = ast.parse(src)
-    except SyntaxError as e:
+    except (SyntaxError, UnicodeError) as e:
         findings.append({
             "file": rel(path), "line": getattr(e, "lineno", 1), "type": "syntax-error",
             "severity": "high", "code": f"SyntaxError: {e}",

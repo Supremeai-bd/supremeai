@@ -20,7 +20,8 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-BACKEND_ROOT = REPO_ROOT / "backend"
+# বাংলা মন্তব্য: memory service বর্তমানে core/-এ থাকে; অবসরপ্রাপ্ত backend/ নয়।
+BACKEND_ROOT = REPO_ROOT / "core"
 
 
 def audit_memory_service_implementation() -> list[str]:
