@@ -187,10 +187,15 @@ class TestMemoryStore:
 
 
 class TestChatGatewayIntegration:
-    def test_pipeline_compiler_and_sanitizer_end_to_end(self, monkeypatch):
+    def test_pipeline_compiler_and_sanitizer_end_to_end(self, monkeypatch, tmp_path):
         from starlette.testclient import TestClient
 
-        from gateway.service import app as app_module
+        from gateway.service import app as app_module, memory_store, storage
+
+        monkeypatch.setattr(memory_store, "_DEFAULT_STORE", CanonicalMemoryStore(str(tmp_path / "canonical.db")))
+        monkeypatch.setattr(storage, "_DB_PATH", str(tmp_path / "legacy.db"))
+        monkeypatch.setattr(storage, "_USE_MEM_FALLBACK", False)
+        storage.init_db()
 
         # Mock forward_stealth_webhook
         forward_captured_body = {}
@@ -207,12 +212,15 @@ class TestChatGatewayIntegration:
         monkeypatch.setattr(app_module, "STEALTH_WEBHOOK_URL", "https://mock-relay.internal/webhook")
         monkeypatch.setattr(app_module, "STEALTH_WEBHOOK_SECRET", "mock-secret")
 
+        from gateway.service.keygen import generate_key
+        monkeypatch.setenv("SUPREMEAI_MASTER_KEY", "fixture-signing-secret-for-chat-tests")
         client = TestClient(app_module.app)
         conv_id = "conv-integration-test-01"
+        token = generate_key("integration-user")
 
         res = client.post(
             "/v1/chat/completions",
-            headers={"X-Guest-Mode": "true", "X-Conversation-Id": conv_id},
+            headers={"Authorization": f"Bearer {token}", "X-Conversation-Id": conv_id},
             json={
                 "model": "auto",
                 "messages": [{"role": "user", "content": "How does the federation architecture work?"}],

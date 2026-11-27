@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import sqlite3
+import threading
 import time
 import uuid
 from contextlib import contextmanager
@@ -42,6 +43,7 @@ _MEM_FALLBACK: Dict[str, Any] = {
     "app_settings": {},
 }
 _USE_MEM_FALLBACK = False
+_CONVERSATION_LOCK = threading.RLock()
 
 
 @contextmanager
@@ -229,6 +231,16 @@ def init_db() -> None:
 
 # ── Conversation & Message Persistence ───────────────────────────────────────
 
+@contextmanager
+def _conversation_db():
+    # Process-local fallback cannot establish cross-worker ownership or durable
+    # history. Private conversation operations must report storage failure.
+    with get_db() as conn:
+        if conn is None:
+            raise RuntimeError("Conversation storage unavailable")
+        yield conn
+
+
 def save_conversation(
     conv_id: str,
     user_id: str = "usr-admin-primary",
@@ -236,43 +248,35 @@ def save_conversation(
     metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Creates or updates a conversation record."""
+    if not user_id:
+        raise PermissionError("Conversation owner is required")
     now = time.time()
     clean_title = (title or "New Conversation").strip()[:120]
     meta_str = json.dumps(metadata or {})
 
-    with get_db() as conn:
-        if conn is not None:
-            conn.execute(
-                """
-                INSERT INTO conversations (id, user_id, title, created_at, updated_at, metadata_json)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    title = COALESCE(excluded.title, conversations.title),
-                    updated_at = excluded.updated_at,
-                    metadata_json = COALESCE(excluded.metadata_json, conversations.metadata_json)
-                WHERE conversations.user_id = excluded.user_id;
-                """,
-                (conv_id, user_id, clean_title, now, now, meta_str),
-            )
-        else:
-            if conv_id not in _MEM_FALLBACK["conversations"]:
-                _MEM_FALLBACK["conversations"][conv_id] = {
-                    "id": conv_id,
-                    "user_id": user_id,
-                    "title": clean_title,
-                    "created_at": now,
-                    "updated_at": now,
-                    "metadata": metadata or {},
-                }
-            else:
-                _MEM_FALLBACK["conversations"][conv_id]["updated_at"] = now
-                if title:
-                    _MEM_FALLBACK["conversations"][conv_id]["title"] = clean_title
+    with _CONVERSATION_LOCK, _conversation_db() as conn:
+        result = conn.execute(
+            """
+            INSERT INTO conversations (id, user_id, title, created_at, updated_at, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                title = COALESCE(?, conversations.title),
+                updated_at = excluded.updated_at,
+                metadata_json = COALESCE(?, conversations.metadata_json)
+            WHERE conversations.user_id = excluded.user_id;
+            """,
+            (conv_id, user_id, clean_title, now, now, meta_str,
+             clean_title if title is not None else None,
+             json.dumps(metadata) if metadata is not None else None),
+        )
+        if result.rowcount != 1:
+            raise PermissionError("Conversation access denied")
+        stored_title = conn.execute("SELECT title FROM conversations WHERE id = ?", (conv_id,)).fetchone()["title"]
 
     return {
         "id": conv_id,
         "user_id": user_id,
-        "title": clean_title,
+        "title": stored_title,
         "updated_at": now,
     }
 
@@ -290,43 +294,29 @@ def add_message(
     now = time.time()
     extra_str = json.dumps(extra or {})
 
-    # Verify conversation ownership if already exists to prevent cross-user IDOR injection
-    with get_db() as conn:
-        if conn is not None:
-            existing = conn.execute("SELECT user_id FROM conversations WHERE id = ?;", (conversation_id,)).fetchone()
-            if existing is not None and user_id and existing["user_id"] != user_id:
-                raise PermissionError(f"User {user_id} is not authorized to write to conversation {conversation_id}")
-        else:
-            existing_mem = _MEM_FALLBACK["conversations"].get(conversation_id)
-            if existing_mem is not None and user_id and existing_mem.get("user_id") != user_id:
-                raise PermissionError(f"User {user_id} is not authorized to write to conversation {conversation_id}")
-
-    # Auto-create conversation if missing
-    save_conversation(conversation_id, user_id=user_id, title=(content[:40] if role == "user" else None))
-
-    with get_db() as conn:
-        if conn is not None:
-            conn.execute(
-                """
-                INSERT INTO messages (id, conversation_id, role, content, created_at, extra_json)
-                VALUES (?, ?, ?, ?, ?, ?);
-                """,
-                (mid, conversation_id, role, content, now, extra_str),
-            )
-            conn.execute(
-                "UPDATE conversations SET updated_at = ? WHERE id = ?;",
-                (now, conversation_id),
-            )
-        else:
-            if conversation_id not in _MEM_FALLBACK["messages"]:
-                _MEM_FALLBACK["messages"][conversation_id] = []
-            _MEM_FALLBACK["messages"][conversation_id].append({
-                "id": mid,
-                "role": role,
-                "content": content,
-                "created_at": now,
-                "extra": extra or {},
-            })
+    if not user_id:
+        raise PermissionError("Conversation owner is required")
+    # The owner check, optional creation and message insertion are one write
+    # transaction, so another process cannot replace the owner between them.
+    with _CONVERSATION_LOCK, _conversation_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        title = content[:40] if role == "user" else "New Conversation"
+        result = conn.execute(
+            """INSERT INTO conversations (id, user_id, title, created_at, updated_at, metadata_json)
+               VALUES (?, ?, ?, ?, ?, '{}')
+               ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
+               WHERE conversations.user_id = excluded.user_id""",
+            (conversation_id, user_id, title, now, now),
+        )
+        if result.rowcount != 1:
+            raise PermissionError("Conversation access denied")
+        conn.execute(
+            """
+            INSERT INTO messages (id, conversation_id, role, content, created_at, extra_json)
+            VALUES (?, ?, ?, ?, ?, ?);
+            """,
+            (mid, conversation_id, role, content, now, extra_str),
+        )
 
     return {
         "id": mid,
@@ -340,123 +330,82 @@ def add_message(
 
 def get_conversation(conversation_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Returns conversation metadata along with ordered message history."""
-    with get_db() as conn:
-        if conn is not None:
-            query = "SELECT * FROM conversations WHERE id = ?"
-            params: List[Any] = [conversation_id]
-            if user_id:
-                query += " AND user_id = ?"
-                params.append(user_id)
-            conv_row = conn.execute(query, params).fetchone()
-            if not conv_row:
-                return None
+    with _CONVERSATION_LOCK, _conversation_db() as conn:
+        query = "SELECT * FROM conversations WHERE id = ?"
+        params: List[Any] = [conversation_id]
+        if user_id:
+            query += " AND user_id = ?"
+            params.append(user_id)
+        conv_row = conn.execute(query, params).fetchone()
+        if not conv_row:
+            return None
 
-            msg_rows = conn.execute(
-                "SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC;",
-                (conversation_id,),
-            ).fetchall()
+        msg_rows = conn.execute(
+            "SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC;",
+            (conversation_id,),
+        ).fetchall()
 
-            messages = [
-                {
-                    "id": m["id"],
-                    "role": m["role"],
-                    "content": m["content"],
-                    "created_at": m["created_at"],
-                    "extra": json.loads(m["extra_json"] or "{}"),
-                }
-                for m in msg_rows
-            ]
-
-            return {
-                "id": conv_row["id"],
-                "user_id": conv_row["user_id"],
-                "title": conv_row["title"],
-                "created_at": conv_row["created_at"],
-                "updated_at": conv_row["updated_at"],
-                "metadata": json.loads(conv_row["metadata_json"] or "{}"),
-                "messages": messages,
-                "message_count": len(messages),
+        messages = [
+            {
+                "id": m["id"],
+                "role": m["role"],
+                "content": m["content"],
+                "created_at": m["created_at"],
+                "extra": json.loads(m["extra_json"] or "{}"),
             }
-        else:
-            conv = _MEM_FALLBACK["conversations"].get(conversation_id)
-            if not conv:
-                return None
-            if user_id and conv.get("user_id") != user_id:
-                return None
-            msgs = _MEM_FALLBACK["messages"].get(conversation_id, [])
-            return {
-                **conv,
-                "messages": msgs,
-                "message_count": len(msgs),
-            }
+            for m in msg_rows
+        ]
+
+        return {
+            "id": conv_row["id"],
+            "user_id": conv_row["user_id"],
+            "title": conv_row["title"],
+            "created_at": conv_row["created_at"],
+            "updated_at": conv_row["updated_at"],
+            "metadata": json.loads(conv_row["metadata_json"] or "{}"),
+            "messages": messages,
+            "message_count": len(messages),
+        }
 
 
 def list_conversations(user_id: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
     """Returns summary list of recent conversations ordered by updated_at descending."""
-    with get_db() as conn:
-        if conn is not None:
-            query = "SELECT c.*, (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) as msg_count FROM conversations c"
-            params: List[Any] = []
-            if user_id:
-                query += " WHERE c.user_id = ?"
-                params.append(user_id)
-            query += " ORDER BY c.updated_at DESC LIMIT ?;"
-            params.append(limit)
+    with _CONVERSATION_LOCK, _conversation_db() as conn:
+        query = "SELECT c.*, (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) as msg_count FROM conversations c"
+        params: List[Any] = []
+        if user_id:
+            query += " WHERE c.user_id = ?"
+            params.append(user_id)
+        query += " ORDER BY c.updated_at DESC LIMIT ?;"
+        params.append(limit)
 
-            rows = conn.execute(query, params).fetchall()
-            return [
-                {
-                    "id": r["id"],
-                    "user_id": r["user_id"],
-                    "title": r["title"],
-                    "created_at": r["created_at"],
-                    "updated_at": r["updated_at"],
-                    "message_count": r["msg_count"],
-                }
-                for r in rows
-            ]
-        else:
-            all_convs = list(_MEM_FALLBACK["conversations"].values())
-            if user_id:
-                all_convs = [c for c in all_convs if c.get("user_id") == user_id]
-            all_convs.sort(key=lambda x: x.get("updated_at", 0), reverse=True)
-            res = []
-            for c in all_convs[:limit]:
-                msgs = _MEM_FALLBACK["messages"].get(c["id"], [])
-                res.append({
-                    "id": c["id"],
-                    "user_id": c.get("user_id"),
-                    "title": c.get("title"),
-                    "created_at": c.get("created_at"),
-                    "updated_at": c.get("updated_at"),
-                    "message_count": len(msgs),
-                })
-            return res
+        rows = conn.execute(query, params).fetchall()
+        return [
+            {
+                "id": r["id"],
+                "user_id": r["user_id"],
+                "title": r["title"],
+                "created_at": r["created_at"],
+                "updated_at": r["updated_at"],
+                "message_count": r["msg_count"],
+            }
+            for r in rows
+        ]
 
 
 def delete_conversation(conversation_id: str, user_id: Optional[str] = None) -> bool:
     """Deletes conversation and associated messages."""
-    with get_db() as conn:
-        if conn is not None:
-            query = "DELETE FROM conversations WHERE id = ?"
-            params: List[Any] = [conversation_id]
-            if user_id:
-                query += " AND user_id = ?"
-                params.append(user_id)
-            cur = conn.execute(query, params)
-            if cur.rowcount > 0:
-                conn.execute("DELETE FROM messages WHERE conversation_id = ?;", (conversation_id,))
-                return True
-            return False
-        else:
-            conv = _MEM_FALLBACK["conversations"].get(conversation_id)
-            if not conv:
-                return False
-            if user_id and conv.get("user_id") != user_id:
-                return False
-            del _MEM_FALLBACK["conversations"][conversation_id]
-            _MEM_FALLBACK["messages"].pop(conversation_id, None)
+    with _CONVERSATION_LOCK, _conversation_db() as conn:
+        query = "DELETE FROM conversations WHERE id = ?"
+        params: List[Any] = [conversation_id]
+        if user_id:
+            query += " AND user_id = ?"
+            params.append(user_id)
+        cur = conn.execute(query, params)
+        if cur.rowcount > 0:
+            conn.execute("DELETE FROM messages WHERE conversation_id = ?;", (conversation_id,))
             return True
+        return False
 
 
 # ── Trusted Browser (7-day admin remember) Persistence ─────────────────────

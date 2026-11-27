@@ -53,6 +53,11 @@ try:
 except ImportError:
     from gateway.service.registry_lookup import _registry_origin  # type: ignore[no-redef]
 
+try:
+    from .auth_identity import verified_guest_claims
+except ImportError:
+    from gateway.service.auth_identity import verified_guest_claims
+
 logger = logging.getLogger("supremeai.gateway")
 
 # ── Guest Rate Limit (cost guard for the keyless bypass) ─────────────────────
@@ -135,10 +140,12 @@ def _is_guest_cost_guard_signal(request: Request, token: Optional[str]) -> bool:
     """
     origin = _client_origin(request)
     referer = _client_referer(request)
+    guest_token = token or request.cookies.get(_GUEST_COOKIE, "")
     return (
         request.headers.get("x-guest-mode", "").lower() == "true"
         or any(host in origin or host in referer for host in _studio_hosts())
         or token in _GUEST_TOKENS
+        or bool(verified_guest_claims(guest_token))
     )
 
 
@@ -158,22 +165,10 @@ def _is_verified_guest(request: Request, token: Optional[str]) -> bool:
         "SUPREMEAI_TEST_GUEST_BYPASS", ""
     ) in ("1", "true", "yes"):
         return True
-    if token and token.startswith("sk-supreme-guest-"):
-        try:
-            meta = verify_key(token)
-            if meta and meta.get("class") == "guest":
-                return True
-        except Exception:  # noqa: BLE001 - fail closed on verification errors
-            return False
-    cookie = request.cookies.get(_GUEST_COOKIE)
-    if cookie and cookie.startswith("sk-supreme-guest-"):
-        try:
-            meta = verify_key(cookie)
-            if meta and meta.get("class") == "guest":
-                return True
-        except Exception:  # noqa: BLE001 - fail closed on verification errors
-            return False
-    return False
+    # Explicit credentials take precedence: a bad bearer cannot fall back to a
+    # different cookie principal. keygen uses dot-separated payload segments.
+    candidate = token or request.cookies.get(_GUEST_COOKIE, "")
+    return bool(verified_guest_claims(candidate))
 
 
 def _issue_signed_token(client_name: str, quota: str) -> str:
@@ -293,6 +288,9 @@ def _verify_client_auth(request: Request, x_supremeai_key: Optional[str] = None)
     if token.startswith("sk-supreme-"):
         meta = verify_key(token)
         if meta:
+            # Guest credentials must also carry the signed guest quota and expiry.
+            if meta.get("client") == "guest":
+                return bool(verified_guest_claims(token))
             return True
 
     # 2. Check static master/pool env keys

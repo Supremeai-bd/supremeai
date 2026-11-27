@@ -186,8 +186,10 @@ def test_cross_ai_knowledge_exchange_and_context_compiler_injection(
         user_memories=[{"memory_key": "preferred_language", "memory_value": "bn"}],
     )
     sys_msg = compiled[0]["content"]
-    assert "Durable user memory:" in sys_msg
-    assert "preferred_language: bn" in sys_msg
+    assert "preferred_language" not in sys_msg
+    assert '"key": "preferred_language"' in compiled[1]["content"]
+    assert '"value": "bn"' in compiled[1]["content"]
+    assert compiled[1]["role"] == "user"
     # Active rows can originate from unreviewed issue comments; neither an
     # asserted source nor a status flag authorizes promotion into a prompt.
     assert "Collective AI shared engineering knowledge:" not in str(compiled)

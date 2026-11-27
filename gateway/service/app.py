@@ -29,7 +29,7 @@ from typing import Any, AsyncIterator, Optional
 from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictBool
 
 from .pool import squad
 from .providers.web_engines import RELAY_BASE_URL_ENVS, transport_report
@@ -106,7 +106,7 @@ except ImportError:
         webhook_scout = None  # type: ignore[assignment]
 
 try:
-    from service.storage import (
+    from .storage import (
         add_message,
         create_user,
         delete_conversation,
@@ -152,15 +152,18 @@ except ImportError:
 
 # ── Provider-Agnostic Context Compiler, Response Guard & Canonical Memory ──
 try:
-    from service.context_compiler import compile_chat_context, resolve_sampling_knobs
-    from service.memory_store import (
+    from .context_compiler import compile_chat_context, resolve_sampling_knobs
+    from .memory_store import (
         append_canonical_message,
         get_recent_history,
         get_user_durable_memories,
-        ingest_turn_user_memories,
+        ingest_consented_personal_memory,
+        get_personal_memory_state,
+        set_personal_memory_consent,
+        clear_personal_memory,
         log_provider_attempt,
     )
-    from service.response_guard import (
+    from .response_guard import (
         is_stub_content,
         purge_identity_bleed,
         repair_markdown,
@@ -176,7 +179,10 @@ except ImportError:
             append_canonical_message,
             get_recent_history,
             get_user_durable_memories,
-            ingest_turn_user_memories,
+            ingest_consented_personal_memory,
+            get_personal_memory_state,
+            set_personal_memory_consent,
+            clear_personal_memory,
             log_provider_attempt,
         )
         from gateway.service.response_guard import (
@@ -195,7 +201,10 @@ except ImportError:
         append_canonical_message = None  # type: ignore[assignment]
         get_recent_history = None  # type: ignore[assignment]
         get_user_durable_memories = None  # type: ignore[assignment]
-        ingest_turn_user_memories = None  # type: ignore[assignment]
+        ingest_consented_personal_memory = None  # type: ignore[assignment]
+        get_personal_memory_state = None  # type: ignore[assignment]
+        set_personal_memory_consent = None  # type: ignore[assignment]
+        clear_personal_memory = None  # type: ignore[assignment]
         log_provider_attempt = None  # type: ignore[assignment]
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -1118,8 +1127,8 @@ def _extract_user_id(request: Request) -> str:
     FIX(auth 2026-10-24): caller-supplied user-id headers are no longer trusted
     (they allowed arbitrary identity spoofing) and the old default no longer
     attributes anonymous calls to the admin user. Identity comes from the
-    HMAC-verified bearer key; unauthenticated callers get an explicit
-    anonymous id. Delegates to unified resolve_user_id helper.
+    HMAC-verified bearer key or guest cookie; unverified callers cannot
+    access private state. Delegates to unified resolve_user_id helper.
     """
     try:
         from service.auth_identity import resolve_user_id
@@ -1131,6 +1140,79 @@ def _extract_user_id(request: Request) -> str:
         except ImportError:
             from .auth_identity import resolve_user_id  # type: ignore[no-redef]
     return resolve_user_id(request, require_registered=False)
+
+
+def _extract_registered_user_id(request: Request) -> str:
+    # Personal memory is available only to explicit bearer authentication, not
+    # ambient cookies, service credentials or the shared studio-admin identity.
+    auth = request.headers.get("authorization", "").strip()
+    if not auth.lower().startswith("bearer ") or not auth[7:].strip():
+        raise HTTPException(status_code=401, detail="Registered bearer authentication required")
+    from .auth_identity import resolve_user_id
+    user_id = resolve_user_id(request, require_registered=True)
+    if user_id == "usr-admin-primary":
+        raise HTTPException(status_code=401, detail="An individual registered account is required")
+    return user_id
+
+
+PERSONAL_MEMORY_POLICY = {
+    "version": "personal-memory-v1",
+    "purpose": "Save selected preferences from new chat messages for personalization; not for shared knowledge or model training.",
+    "scope": "Name, role, preferred language, response style and tech stack; automatic extraction may be inaccurate or capture unintended text.",
+    "processing": "Enabled memories may be included in prompts sent to the selected model provider. Old conversations and connected AI memories are not imported by this feature.",
+    "retention": "Stored locally until deleted or the local database is lost; disabling stops use and new saves but retains existing entries. Backups and legacy/cloud data are not deleted by this feature.",
+    "controls": "Inspect and delete individual or all entries here. Do not put secrets or sensitive information in chat.",
+}
+
+
+class PersonalMemoryConsentRequest(BaseModel):
+    enabled: StrictBool
+    policy_version: Optional[str] = None
+
+
+@app.get("/api/v1/personal-memory")
+async def personal_memory_get(request: Request):
+    user_id = _extract_registered_user_id(request)
+    if not get_personal_memory_state:
+        raise HTTPException(status_code=503, detail="Personal memory storage unavailable")
+    try:
+        state = await asyncio.to_thread(get_personal_memory_state, user_id, include_disabled=True)
+    except Exception as exc:
+        logger.warning("Personal memory read failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Personal memory storage unavailable")
+    state["policy"] = PERSONAL_MEMORY_POLICY
+    return JSONResponse(content=state, headers={"Cache-Control": "no-store"})
+
+
+@app.put("/api/v1/personal-memory/consent")
+async def personal_memory_consent(request: Request, payload: PersonalMemoryConsentRequest):
+    user_id = _extract_registered_user_id(request)
+    if payload.enabled and payload.policy_version != PERSONAL_MEMORY_POLICY["version"]:
+        raise HTTPException(status_code=400, detail="Review and acknowledge the current personal memory policy")
+    if not set_personal_memory_consent:
+        raise HTTPException(status_code=503, detail="Personal memory storage unavailable")
+    try:
+        state = await asyncio.to_thread(set_personal_memory_consent, user_id, payload.enabled)
+    except Exception as exc:
+        logger.warning("Personal memory consent failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Personal memory storage unavailable")
+    # Disabling stops use and new writes; it does not delete retained memories.
+    return JSONResponse(content=state, headers={"Cache-Control": "no-store"})
+
+
+@app.delete("/api/v1/personal-memory")
+async def personal_memory_delete(request: Request, key: Optional[str] = None):
+    user_id = _extract_registered_user_id(request)
+    if not clear_personal_memory:
+        raise HTTPException(status_code=503, detail="Personal memory storage unavailable")
+    try:
+        deleted = await asyncio.to_thread(clear_personal_memory, user_id, key)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Unknown personal memory key")
+    except Exception as exc:
+        logger.warning("Personal memory delete failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Personal memory storage unavailable")
+    return JSONResponse(content={"deleted": deleted}, headers={"Cache-Control": "no-store"})
 
 
 # ── Liveness & Readiness Probes ──────────────────────────────────────────────
@@ -2285,7 +2367,14 @@ async def _execute_chat_completion(
         or request.headers.get("x-conversation-id")
         or request.headers.get("x-session-id")
     )
-    user_id = _extract_user_id(request)
+    try:
+        user_id = _extract_user_id(request)
+    except HTTPException as exc:
+        if exc.status_code != 401 or conv_id:
+            raise
+        # An API credential may authorize stateless chat without identifying
+        # an end user. Never read or write shared anonymous memory.
+        user_id = None
     incoming_msgs = body.get("messages", [])
     last_user_msg = next((m.get("content") for m in reversed(incoming_msgs) if isinstance(m, dict) and m.get("role") == "user"), None)
 
@@ -2310,14 +2399,27 @@ async def _execute_chat_completion(
             except PermissionError:
                 raise HTTPException(status_code=403, detail="Conversation access denied")
             except Exception as exc:
-                logger.warning(f"Legacy storage error (user msg): {exc}")
+                logger.warning("Legacy conversation storage error (%s)", type(exc).__name__)
+                raise HTTPException(status_code=503, detail="Conversation storage unavailable")
 
-    # বাংলা মন্তব্য: ইউজারের চ্যাট বার্তা থেকে স্বয়ংক্রিয়ভাবে মূল পরিচয় ও পছন্দ (ADD/UPDATE/FORGET) মেমোরিতে সংরক্ষণ
-    if user_id and incoming_msgs and ingest_turn_user_memories:
+    # Persistent preferences are an explicit opt-in for verified registered users.
+    # Guest and generic service keys cannot create a cross-session user profile.
+    try:
+        registered_user_id = _extract_registered_user_id(request)
+    except HTTPException as exc:
+        if exc.status_code != 401:
+            raise
+        registered_user_id = None
+    if (registered_user_id and isinstance(incoming_msgs, list) and incoming_msgs
+            and isinstance(incoming_msgs[-1], dict) and incoming_msgs[-1].get("role") == "user"
+            and isinstance(incoming_msgs[-1].get("content"), str)):
+        if not ingest_consented_personal_memory:
+            raise HTTPException(status_code=503, detail="Personal memory storage unavailable")
         try:
-            await asyncio.to_thread(ingest_turn_user_memories, user_id, incoming_msgs, conv_id)
-        except Exception as mem_exc:
-            logger.warning(f"Auto user memory extraction warning: {mem_exc}")
+            await asyncio.to_thread(ingest_consented_personal_memory, registered_user_id, incoming_msgs)
+        except Exception as exc:
+            logger.warning("Personal memory operation failed (%s)", type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Personal memory storage unavailable")
 
     trace.mark("persist")
 
@@ -3501,7 +3603,12 @@ async def create_or_update_conversation(
     metadata = body.get("metadata")
     user_id = _extract_user_id(request)
 
-    res = save_conversation(conv_id, user_id=user_id, title=title, metadata=metadata) if save_conversation else {"id": conv_id}
+    if not save_conversation:
+        raise HTTPException(status_code=503, detail="Conversation storage unavailable")
+    try:
+        res = save_conversation(conv_id, user_id=user_id, title=title, metadata=metadata)
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Conversation access denied")
     return {"status": "ok", "conversation": res}
 
 

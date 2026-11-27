@@ -28,7 +28,9 @@ def make_request(headers: dict[str, str] | None = None) -> Request:
 class TestAuthIdentity:
     def test_anonymous_user(self):
         req = make_request()
-        assert resolve_user_id(req, require_registered=False) == "usr-anonymous"
+        with pytest.raises(Exception) as anonymous:
+            resolve_user_id(req, require_registered=False)
+        assert anonymous.value.status_code == 401
 
         with pytest.raises(Exception) as exc:
             resolve_user_id(req, require_registered=True)
@@ -48,9 +50,9 @@ class TestAuthIdentity:
         assert resolve_user_id(req, require_registered=True) == user_uuid
 
     def test_guest_token_rejected_for_registered_scope(self):
-        guest_key = generate_key("guest")
+        guest_key = generate_key("guest", quota="guest", ttl_seconds=300)
         req = make_request({"Authorization": f"Bearer {guest_key}"})
-        assert resolve_user_id(req, require_registered=False) == "usr-guest"
+        assert resolve_user_id(req, require_registered=False).startswith("usr-guest-")
         with pytest.raises(Exception) as exc:
             resolve_user_id(req, require_registered=True)
         assert exc.value.status_code == 401
