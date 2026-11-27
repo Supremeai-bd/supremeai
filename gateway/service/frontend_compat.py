@@ -195,6 +195,8 @@ async def fe_hitl_register(payload: HitlRegisterPayload):
         "created_at": payload.created_at or _now(),
         "status": "pending",
     }
+    if payload.id in _pending_hitl:
+        raise HTTPException(status_code=409, detail="HITL record already exists")
     _pending_hitl[payload.id] = record
     _broadcast_hitl("hitl", record)
     return {"status": "ok", "record": record}
@@ -209,12 +211,14 @@ async def fe_hitl_pending():
 def _fetch_pending_environment_ids(run_id: str | int) -> list[int]:
     status, payload = _gh("GET", f"/repos/{_GH_REPO}/actions/runs/{run_id}/pending_deployments")
     if status != 200 or not isinstance(payload, list):
-        return []
+        raise HTTPException(status_code=502, detail="Could not verify pending deployment environments")
     ids: list[int] = []
     for item in payload:
         target = item.get("environment") if isinstance(item, dict) else None
-        if isinstance(target, dict) and target.get("id"):
-            ids.append(target["id"])
+        env_id = target.get("id") if isinstance(target, dict) else None
+        if isinstance(env_id, bool) or not isinstance(env_id, int) or env_id <= 0:
+            raise HTTPException(status_code=502, detail="Invalid pending deployment environments response")
+        ids.append(env_id)
     return ids
 
 
@@ -239,68 +243,93 @@ def _submit_github_pr_review(pr_number: int | str, event: str, body: str) -> dic
     return {"status": status, "response": res}
 
 
+def _resolve_hitl(rid: str, decision: str, reason: str = "Rejected by administrator") -> dict[str, Any]:
+    """Resolve only a known pending record; never report an unverified side effect as success.
+
+    The store is process-local, so ambiguous upstream outcomes must be reconciled
+    manually rather than retried automatically. Multi-target actions are rejected
+    before any side effect because they cannot be committed atomically.
+    """
+    if decision not in ("approved", "rejected"):
+        raise HTTPException(status_code=400, detail="Invalid HITL decision")
+    record = _pending_hitl.get(rid)
+    if record is None:
+        raise HTTPException(status_code=404, detail="HITL record not found")
+    if record.get("status") != "pending":
+        raise HTTPException(status_code=409, detail="HITL record is not pending")
+    ctx = record.get("context")
+    if ctx is None:
+        ctx = {}
+    if not isinstance(ctx, dict):
+        raise HTTPException(status_code=422, detail="Invalid HITL context")
+    if ctx.get("run_id") and ctx.get("pr_number"):
+        raise HTTPException(status_code=422, detail="Multiple GitHub targets require separate HITL records")
+    for target in ("run_id", "pr_number"):
+        value = ctx.get(target)
+        if value is not None and (isinstance(value, bool) or not str(value).isascii() or not str(value).isdigit() or int(value) <= 0):
+            raise HTTPException(status_code=422, detail="Invalid GitHub target identifier")
+
+    gh_results: dict[str, Any] = {}
+    result = None
+    key = ""
+    try:
+        if ctx.get("run_id"):
+            key = "deployment_approval" if decision == "approved" else "deployment_rejection"
+            # GET failures/no pending environments have no mutation to reconcile.
+            result = _decide_github_deployment(ctx["run_id"], decision, f"{decision.capitalize()} by administrator")
+            if result is None:
+                raise HTTPException(status_code=409, detail="No pending deployment environments found")
+        elif ctx.get("pr_number"):
+            key = "pr_review"
+            event = "APPROVE" if decision == "approved" else "REQUEST_CHANGES"
+            comment = "Approved by administrator" if decision == "approved" else f"Rejected by administrator: {reason}"
+            result = _submit_github_pr_review(ctx["pr_number"], event, comment)
+    except HTTPException:
+        raise
+    except Exception:
+        record["status"] = "indeterminate"
+        raise HTTPException(status_code=502, detail="GitHub action outcome unverified; reconcile manually") from None
+
+    if result is not None:
+        status_code = result.get("status") if isinstance(result, dict) else None
+        if not isinstance(status_code, int) or not 200 <= status_code < 300:
+            # A network failure or error response cannot establish whether the
+            # mutation happened. Block retries until an operator reconciles it.
+            record["status"] = "indeterminate"
+            raise HTTPException(status_code=502, detail="GitHub action outcome unverified; reconcile manually")
+        gh_results[key] = result
+
+    record["status"] = decision
+    record["resolved_at"] = _now()
+    if decision == "rejected":
+        record["reject_reason"] = reason
+    _broadcast_hitl("hitl_resolved", {"id": rid, "status": decision})
+    message = f"HITL record {decision}"
+    if not gh_results:
+        message += "; no external action was performed"
+    return {"id": rid, "status": decision, "message": message, "github": gh_results}
+
+
 @router.post("/api/v1/hitl/approve/{rid}", dependencies=[Depends(require_github_admin)])
 async def fe_hitl_approve(rid: str, request: Request = None):
-    record = _pending_hitl.get(rid)
-    ctx = record.get("context", {}) if record else {}
-    gh_results: dict[str, Any] = {}
-
-    if ctx.get("run_id"):
-        dep = _decide_github_deployment(ctx["run_id"], "approved", "Approved by Admin via SupremeAI Admin Dashboard (1-click approval)")
-        if dep:
-            gh_results["deployment_approval"] = dep
-
-    if ctx.get("pr_number"):
-        gh_results["pr_review"] = _submit_github_pr_review(ctx["pr_number"], "APPROVE", "✅ Approved by Admin via SupremeAI Admin Dashboard (1-click approval).")
-
-    if record:
-        record["status"] = "approved"
-        record["resolved_at"] = _now()
-    _broadcast_hitl("hitl_resolved", {"id": rid, "status": "approved"})
-
-    return {
-        "id": rid,
-        "status": "approved",
-        "message": f"Action {rid} approved successfully",
-        "github": gh_results,
-    }
+    return _resolve_hitl(rid, "approved")
 
 
 @router.post("/api/v1/hitl/reject/{rid}", dependencies=[Depends(require_github_admin)])
 async def fe_hitl_reject(rid: str, request: Request = None):
     reason = "Rejected by administrator"
     if request:
-        try:
-            body = await request.json()
+        raw = await request.body()
+        if raw:
+            try:
+                body = json.loads(raw)
+            except (ValueError, UnicodeDecodeError):
+                raise HTTPException(status_code=400, detail="Invalid JSON body")
+            if not isinstance(body, dict):
+                raise HTTPException(status_code=400, detail="JSON body must be an object")
             if body.get("reason"):
                 reason = str(body["reason"])
-        except Exception:
-            pass
-
-    record = _pending_hitl.get(rid)
-    ctx = record.get("context", {}) if record else {}
-    gh_results: dict[str, Any] = {}
-
-    if ctx.get("run_id"):
-        dep = _decide_github_deployment(ctx["run_id"], "rejected", f"Rejected by Admin via Dashboard: {reason}")
-        if dep:
-            gh_results["deployment_rejection"] = dep
-
-    if ctx.get("pr_number"):
-        gh_results["pr_review"] = _submit_github_pr_review(ctx["pr_number"], "REQUEST_CHANGES", f"❌ Auto-Merge rejected by Admin via Dashboard: {reason}")
-
-    if record:
-        record["status"] = "rejected"
-        record["reject_reason"] = reason
-        record["resolved_at"] = _now()
-    _broadcast_hitl("hitl_resolved", {"id": rid, "status": "rejected", "reason": reason})
-
-    return {
-        "id": rid,
-        "status": "rejected",
-        "message": f"Action {rid} rejected",
-        "github": gh_results,
-    }
+    return _resolve_hitl(rid, "rejected", reason)
 
 
 @router.post("/api/v1/hitl/sse-ticket", dependencies=[Depends(require_github_admin)])
@@ -1584,13 +1613,13 @@ async def cp_hitl():
 
 @router.post("/api/admin/control-plane/hitl/{hid}/resolve", dependencies=[Depends(require_github_admin)])
 async def cp_hitl_resolve(hid: str, request: Request):
-    decision = "approved"
     try:
         body = await request.json()
-        decision = body.get("decision", "approved")
-    except Exception:
-        pass
-    if decision == "approved":
+    except (ValueError, UnicodeDecodeError):
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    if not isinstance(body, dict) or body.get("decision") not in ("approved", "rejected"):
+        raise HTTPException(status_code=400, detail="Explicit approved or rejected decision required")
+    if body["decision"] == "approved":
         return await fe_hitl_approve(hid, request)
     return await fe_hitl_reject(hid, request)
 
