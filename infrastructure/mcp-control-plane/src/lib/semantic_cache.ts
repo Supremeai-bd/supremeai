@@ -141,7 +141,7 @@ async function embed(text: string): Promise<{ vector: number[]; embedder: "gemin
   if (process.env.GEMINI_API_KEY) {
     try {
       return { vector: await geminiEmbed(text), embedder: "gemini" };
-    } catch (err) { console.debug(err); }
+    } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
   }
   return { vector: trigramVector(text), embedder: "trigram-lexical-fallback" };
 }

@@ -112,7 +112,7 @@ export async function refreshDiscoveredOrgRepos(): Promise<string[]> {
         if (r.name) registerDiscoveredOrgRepo(r.name);
       }
     }
-  } catch (err) { console.debug(err); }
+  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
   return getTrackedOrgRepos();
 }
 

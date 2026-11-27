@@ -351,7 +351,7 @@ export function loadAuthoritativeServices(): Record<string, AuthoritativeService
     }
 
     flush();
-  } catch (err) { console.debug(err); }
+  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
 
   return result;
 }

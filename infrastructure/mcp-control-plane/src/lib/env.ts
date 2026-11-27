@@ -168,7 +168,7 @@ export const env = {
           try {
             return new URL(value).hostname === retiredHost;
           } catch (err) {
-            console.debug(err);
+            console.error(err instanceof Error ? err.name : "error");
             return false;
           }
         };

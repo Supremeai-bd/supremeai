@@ -110,7 +110,7 @@ async function executeWithToken(endpoint: string, token: string, toolName: strin
     if (line.startsWith("data:")) {
       try {
         return JSON.parse(line.slice(5).trim());
-      } catch (err) { console.debug(err); }
+      } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
     }
   }
 
@@ -159,7 +159,7 @@ async function callGraphifyMcp(toolName: string, args: Record<string, any>) {
             if (Array.isArray(parsedInner?.repositories)) {
               repos = parsedInner.repositories;
             }
-          } catch (err) { console.debug(err); }
+          } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
         }
 
         for (const r of repos) {

@@ -51,7 +51,7 @@ export async function registerPlanningTools(server: McpServer): Promise<void> {
             try {
               const { diagnoseRelease } = await import("./diagnostic.tools.js");
               evidence = (await diagnoseRelease(service, "root_cause")) as unknown as Record<string, unknown>;
-            } catch (err) { console.debug(err); }
+            } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
           }
           const plan = generateRemediationPlan(service, failureLayer || "RELEASE_COMMIT_MISMATCH", evidence);
           savePlan(plan);
@@ -131,7 +131,7 @@ export async function registerPlanningTools(server: McpServer): Promise<void> {
               evidence: { target, service, expectedOutcome, verdict: (report as any).verdict, confidence: (report as any).confidence },
               verifiedBy: "system.verify",
             });
-          } catch (err) { console.debug(err); }
+          } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
         }
         return { content: [{ type: "text", text: JSON.stringify(redactSensitiveData(report), null, 2) }] };
       } catch (error) {

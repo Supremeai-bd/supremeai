@@ -120,7 +120,7 @@ export class RedisGovernor {
         this.opts.metrics({ event: "redis_hit", namespace: this.opts.namespace });
         return { value: JSON.parse(raw) as T, cacheHit: true, commands };
       }
-    } catch (err) { console.debug(err); }
+    } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
 
     if (!inflight.has(redisKey)) {
       const p = (async () => {
@@ -139,7 +139,7 @@ export class RedisGovernor {
                 ttl,
                 namespace: this.opts.namespace,
               });
-            } catch (err) { console.debug(err); }
+            } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
           } else {
             this.opts.metrics({
               event: "redis_skipped_large_value",

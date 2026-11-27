@@ -67,7 +67,7 @@ async function resolveWorkspaceId(projectOrSlug: string, token: string): Promise
         return resolved;
       }
     }
-  } catch (err) { console.debug(err); }
+  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
   return projectOrSlug;
 }
 

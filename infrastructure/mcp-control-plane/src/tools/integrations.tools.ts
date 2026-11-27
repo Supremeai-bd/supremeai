@@ -71,7 +71,7 @@ async function httpJson(url: string, init: RequestInit = {}): Promise<unknown> {
   let data: unknown = text;
   try {
     data = JSON.parse(text);
-  } catch (err) { console.debug(err); }
+  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}: ${typeof data === "string" ? data : JSON.stringify(data)}`);
   }

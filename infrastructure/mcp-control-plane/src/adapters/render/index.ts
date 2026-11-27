@@ -305,7 +305,7 @@ export async function getServiceHealth(accountId: string, serviceId: string): Pr
       if (!after) break;
     }
     monthlyBuildMinutes = Math.round((totalSeconds / 60) * 10) / 10;
-  } catch (err) { console.debug(err); }
+  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
 
   const freeLimitRemaining = Math.max(0, FREE_BUILD_MINUTES_LIMIT - monthlyBuildMinutes);
   const freeLimitExhausted = monthlyBuildMinutes >= FREE_BUILD_MINUTES_LIMIT;

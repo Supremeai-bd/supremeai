@@ -608,7 +608,7 @@ async function listHeartbeatsFresh(nowMs: number): Promise<{
     for (const client of reachableClients) {
       try {
         await client.hdel(HEARTBEAT_HASH_KEY, reapTargets);
-      } catch (err) { console.debug(err); }
+      } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
     }
   }
 
