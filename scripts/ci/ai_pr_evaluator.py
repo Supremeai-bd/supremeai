@@ -150,8 +150,7 @@ def load_policy(rules_path: Path = RULES_PATH) -> dict[str, Any]:
             if key in pol:
                 pol[key] = val
     except Exception as exc:
-        import logging
-        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
+        print(f"ai_pr_evaluation_policy load skipped ({type(exc).__name__})", file=sys.stderr)
     return pol
 
 
