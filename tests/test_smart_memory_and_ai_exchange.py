@@ -188,8 +188,10 @@ def test_cross_ai_knowledge_exchange_and_context_compiler_injection(
     sys_msg = compiled[0]["content"]
     assert "Durable user memory:" in sys_msg
     assert "preferred_language: bn" in sys_msg
-    assert "Collective AI shared engineering knowledge:" in sys_msg
-    assert "claude-code-architect" in sys_msg
+    # Active rows can originate from unreviewed issue comments; neither an
+    # asserted source nor a status flag authorizes promotion into a prompt.
+    assert "Collective AI shared engineering knowledge:" not in str(compiled)
+    assert "claude-code-architect" not in str(compiled)
 
     # Briefing export CLI test (hermetic offline stub for _http_json)
     monkeypatch.setattr(

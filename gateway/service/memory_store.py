@@ -82,16 +82,16 @@ _FAILED_PATHS: set[str] = set()
 def _connect(db_path=None):
     target_path = db_path or _DB_PATH
     if target_path in _FAILED_PATHS:
-        return None
+        raise RuntimeError("Canonical database initialization failed")
     try:
         conn = sqlite3.connect(target_path, timeout=10.0)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode = WAL;")
         return conn
     except Exception as exc:
-        logger.warning("SQLite unavailable (%s); using in-memory canonical store.", exc)
-        _FAILED_PATHS.add(target_path)
-        return None
+        # বাংলা মন্তব্য: বিচ্ছিন্ন memory fallback মালিকানার প্রমাণ দিতে পারে না।
+        logger.warning("Canonical SQLite unavailable (%s)", type(exc).__name__)
+        raise RuntimeError("Canonical database unavailable") from exc
 
 
 @contextmanager
@@ -173,7 +173,7 @@ def init_db(db_path=None):
                 """
             )
     except Exception as exc:
-        logger.warning("Canonical DB init failed (%s); using in-memory fallback.", exc)
+        logger.warning("Canonical DB init failed (%s); storage will fail closed.", type(exc).__name__)
         _FAILED_PATHS.add(db_path or _DB_PATH)
 
 
@@ -192,21 +192,25 @@ class CanonicalMemoryStore:
             yield conn
 
     def save_conversation(self, conversation_id, user_id="usr-admin-primary", title=None, summary=None, language_pref=None, response_style=None, metadata=None):
+        if not user_id:
+            raise PermissionError("Conversation owner is required")
         now = time.time()
         with _LOCK:
             with self._conn() as conn:
                 if conn is not None:
-                    conn.execute(
+                    # বাংলা মন্তব্য: SQLite-তে মালিকানা যাচাই ও upsert একই statement-এ রাখি।
+                    result = conn.execute(
                         """
                         INSERT INTO conversations (id, user_id, title, summary, language_pref, response_style, created_at, updated_at, metadata_json)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(id) DO UPDATE SET
-                            title = COALESCE(excluded.title, conversations.title),
-                            summary = COALESCE(excluded.summary, conversations.summary),
-                            language_pref = COALESCE(excluded.language_pref, conversations.language_pref),
-                            response_style = COALESCE(excluded.response_style, conversations.response_style),
+                            title = COALESCE(?, conversations.title),
+                            summary = COALESCE(?, conversations.summary),
+                            language_pref = COALESCE(?, conversations.language_pref),
+                            response_style = COALESCE(?, conversations.response_style),
                             updated_at = excluded.updated_at,
-                            metadata_json = COALESCE(excluded.metadata_json, conversations.metadata_json);
+                            metadata_json = COALESCE(?, conversations.metadata_json)
+                        WHERE conversations.user_id = excluded.user_id;
                         """,
                         (
                             conversation_id,
@@ -218,9 +222,19 @@ class CanonicalMemoryStore:
                             now,
                             now,
                             json.dumps(metadata or {}),
+                            title[:120] if title is not None else None,
+                            summary,
+                            language_pref,
+                            response_style,
+                            json.dumps(metadata) if metadata is not None else None,
                         ),
                     )
+                    if result.rowcount != 1:
+                        raise PermissionError("Conversation is not owned by this user")
                 else:
+                    existing = _MEM["conversations"].get(conversation_id)
+                    if existing is not None and existing.get("user_id") != user_id:
+                        raise PermissionError("Conversation is not owned by this user")
                     mem = _MEM["conversations"].setdefault(
                         conversation_id,
                         {
@@ -255,9 +269,10 @@ class CanonicalMemoryStore:
                     row = conn.execute(q, params).fetchone()
                     if not row:
                         return None
+                    # বাংলা মন্তব্য: পুরোনো ভুল লেখায় অন্য ইউজারের সারি থাকলেও তা পাঠানো যাবে না।
                     msgs = conn.execute(
-                        "SELECT * FROM messages WHERE conversation_id = ? ORDER BY sequence_no ASC, created_at ASC;",
-                        (conversation_id,),
+                        "SELECT * FROM messages WHERE conversation_id = ? AND user_id = ? ORDER BY sequence_no ASC, created_at ASC;",
+                        (conversation_id, row["user_id"]),
                     ).fetchall()
                     messages = [
                         {
@@ -294,7 +309,8 @@ class CanonicalMemoryStore:
                         return None
                     return {
                         **conv,
-                        "messages": list(conv.get("messages", [])),
+                        "messages": [dict(m) for m in _MEM["messages"].get(conversation_id, [])
+                                     if m.get("user_id") == conv.get("user_id")],
                     }
 
     def get_recent_history(self, conversation_id, limit=10, user_id=None):
@@ -327,6 +343,12 @@ class CanonicalMemoryStore:
         with _LOCK:
             with self._conn() as conn:
                 if conn is not None:
+                    # Acquire the SQLite write lock before checking ownership and choosing
+                    # a sequence, including across separate worker processes.
+                    conn.execute("BEGIN IMMEDIATE")
+                    owner = conn.execute("SELECT user_id FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+                    if not owner or owner["user_id"] != user_id:
+                        raise PermissionError("Conversation is not owned by this user")
                     if sequence_no is None:
                         sequence_no = self._next_sequence(conn, conversation_id)
                     conn.execute(
@@ -337,6 +359,9 @@ class CanonicalMemoryStore:
                         (mid, conversation_id, user_id, role, content, provider, model, sequence_no, now, json.dumps(metadata or {})),
                     )
                 else:
+                    owner = _MEM["conversations"].get(conversation_id)
+                    if not owner or owner.get("user_id") != user_id:
+                        raise PermissionError("Conversation is not owned by this user")
                     if conversation_id not in _MEM["messages"]:
                         _MEM["messages"][conversation_id] = []
                     if sequence_no is None:
