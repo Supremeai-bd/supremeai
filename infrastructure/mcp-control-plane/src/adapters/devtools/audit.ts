@@ -258,9 +258,7 @@ export async function collectPerformanceTrace(
             };
           }
         }
-      } catch {
-        // Navigation Timing unavailable (e.g. about:blank edge) — metrics-only snapshot.
-      }
+      } catch (err) { console.debug(err); }
       const snap: PerfSnapshot = mapPerformanceSnapshot(metrics ?? [], navEntry, paintEntry);
       return snap;
     });

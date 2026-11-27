@@ -232,9 +232,7 @@ export async function probeCooldownRecovery(
         clearAccountCooldown(account.label);
         recovered.push(account.label);
       }
-    } catch {
-      // Still unreachable or in error; keep in cooldown
-    }
+    } catch (err) { console.debug(err); }
   }
   return recovered;
 }

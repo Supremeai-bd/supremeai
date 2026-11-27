@@ -248,7 +248,8 @@ function collectLeaves(node: unknown, depth: number, leaves: EditableString[], r
               continue; // inner granularity registered; outer string not editable directly
             }
           }
-        } catch {
+        } catch (err) {
+          console.debug(err);
           /* not nested JSON — treat as an ordinary string leaf */
         }
       }

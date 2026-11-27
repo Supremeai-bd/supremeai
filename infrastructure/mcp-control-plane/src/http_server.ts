@@ -301,9 +301,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           // Fresh completion landed — re-arm so the NEXT gap re-alarms.
           healthWatchdogAlarmActive = false;
         }
-      } catch {
-        // The watchdog must never throw into the event loop.
-      }
+      } catch (err) { console.debug(err); }
     })();
   }, 60_000);
   if (typeof healthWatchdogTimer.unref === "function") healthWatchdogTimer.unref();
