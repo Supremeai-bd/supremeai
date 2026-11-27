@@ -12,7 +12,6 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from core.cache.redis_manager import redis_manager
 from core.config import settings
 from core.monitoring.logging_config import logger
 from core.resilience.circuit_breaker import CircuitBreaker
@@ -52,6 +51,10 @@ def _extract_client_ip(request: Request) -> str:
     return parts[-trusted_proxy_count - 1]
 
 
+class APIKeyStoreUnavailable(RuntimeError):
+    """The authoritative API-key store could not establish a verdict."""
+
+
 class APIKeyAuthMiddleware(BaseHTTPMiddleware):
     """Validates API keys from the x-api-key header.
 
@@ -71,35 +74,18 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
         )
 
     async def _get_cached_api_key(self, key_hash: str) -> dict | None:
-        """Fetch API key row from Redis cache or PostgreSQL with caching."""
-        cache_key = f"apikey:{key_hash}"
-        try:
-            cached = await redis_manager.get_cache(cache_key)
-            if cached:
-                import json as _json
+        """Read the authoritative store on every request (legacy method name).
 
-                return _json.loads(cached)
-        except Exception as exc:
-            logger.warning(f"Redis cache read failed for API key: {exc}")
-
-        # Use circuit breaker for database operations
+        A Redis hit can outlive revocation, rotation or failed invalidation, and
+        even a successful delete can race with an in-flight stale cache write.
+        Never use a cached authorization verdict or a stale fallback here.
+        """
         try:
-            # Execute database call through circuit breaker
             row = await self.db_circuit_breaker.acall(self._fetch_api_key_from_db, key_hash)
-            if row:
-                try:
-                    import json as _json
-
-                    await redis_manager.set_cache(cache_key, _json.dumps(dict(row)), ex_seconds=300)
-                except Exception as exc:
-                    logger.warning(f"Redis cache write failed for API key: {exc}")
-                return dict(row)
+            return dict(row) if row is not None else None
         except Exception as exc:
-            logger.error(f"Database operation failed for API key {mask_api_key(key_hash)}: {exc}")
-            # Return None to indicate failure, but we'll handle it gracefully
-            pass
-
-        return None
+            logger.error(f"API key authority unavailable ({type(exc).__name__})")
+            raise APIKeyStoreUnavailable("API key authority unavailable") from exc
 
     async def _fetch_api_key_from_db(self, key_hash: str):
         """Internal method to fetch API key from database."""
@@ -177,11 +163,12 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         key_hash = hash_api_key(api_key_header)
-        row = await self._get_cached_api_key(key_hash)
+        try:
+            row = await self._get_cached_api_key(key_hash)
+        except APIKeyStoreUnavailable:
+            return JSONResponse(status_code=503, content={"detail": "API key authentication unavailable"})
         if row is None:
-            logger.warning(
-                f"Invalid API key attempt or DB unavailable: {mask_api_key(api_key_header)}"
-            )
+            logger.warning(f"Invalid API key attempt: {mask_api_key(api_key_header)}")
             return JSONResponse(status_code=401, content={"detail": "Invalid API key"})
         if row["revoked"]:
             logger.warning(f"Revoked API key used: {row['id']}")

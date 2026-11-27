@@ -1,6 +1,6 @@
 """APIKeyAuthMiddleware এর ইউনিট টেস্ট।
 
-বাংলা: রেডিস/ডেটাবেজ/রেট-লিমিটার সব মক করে শুধু ডিসপ্যাচ লজিকের
+বাংলা: ডেটাবেজ/রেট-লিমিটার মক করে শুধু ডিসপ্যাচ লজিকের
 স্কিপ/টেস্ট-বাইপাস ব্রাঞ্চগুলো কভার করা হয়েছে। পাবলিক পাথ ও টেস্ট এনভায়রনমেন্টেই
 আইসোলেটেড টেস্ট সম্ভব, তাই সেগুলোই টার্গেট করা হলো।
 """
@@ -43,7 +43,6 @@ def fake_settings():
 @pytest.fixture
 def middleware(fake_settings):
     with (
-        patch("core.security.api_key_middleware.redis_manager") as _rm,
         patch("core.security.api_key_middleware.get_db_pool", new=AsyncMock()),
         patch("core.security.api_key_middleware.AsyncRateLimiter") as _lim,
         patch("core.security.api_key_middleware.is_test_environment", return_value=False),
