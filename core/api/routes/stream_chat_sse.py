@@ -45,7 +45,6 @@ from pydantic import BaseModel, Field, model_validator
 from core.finops import guard as finops_guard
 from core.llm.llm_gateway import llm_gateway
 from core.llm.llm_gateway.context import InferenceContext
-from core.memory.auto_rag_injector import auto_rag_injector
 from core.monitoring.logging_config import logger
 from core.security import verify_token_async
 
@@ -97,10 +96,7 @@ legacy_router = APIRouter(tags=["SSE Chat Stream (Legacy)"])
 HEARTBEAT_SECONDS = 15
 MAX_CHUNK_SIZE = 8192  # 8KB max per SSE data frame
 
-# Phase-1 (core): bound the Auto-RAG enrichment and time-to-first-token so a slow
-# embedding/DB call or a slow model cannot stall the whole response. Enrichment is
-# an enhancement (never a dependency) → on timeout we fall back to the raw prompt.
-ENRICHMENT_TIMEOUT_S = float(os.getenv("ENRICHMENT_TIMEOUT_S", "2.5"))
+# Bound time to the first provider token.
 SSE_FIRST_TOKEN_TIMEOUT_S = float(os.getenv("SSE_FIRST_TOKEN_TIMEOUT_S", "20"))
 
 
@@ -134,16 +130,12 @@ class SafeSSEGenerator:
         tenant_id: str | None = None,
     ):
         self.prompt = prompt
-        # বাংলা: Auto-RAG injection-এর জন্য মূল প্রম্পট আলাদা রাখা হয় —
-        # self.prompt পরে enriched হতে পারে।
-        self._original_prompt = prompt
         self.user_id = user_id
         self.task_type = task_type
         self.session_id = session_id
         self.tenant_id = tenant_id
         self.state = StreamState.CONNECTED
         self._buffer: list[str] = []
-        self._assistant_text: list[str] = []  # Auto-RAG: response capture for memory store
         self._emitted_tokens = False
         self._last_heartbeat = asyncio.get_event_loop().time()
 
@@ -175,10 +167,6 @@ class SafeSSEGenerator:
         # Ensure string type
         text = str(chunk)
 
-        # Auto-RAG memory capture (bounded — বাংলা: ৪০০০ অক্ষরের বেশি জমা হয় না)
-        if len(self._assistant_text) < 4000:
-            self._assistant_text.append(text)
-
         # Escape SSE special characters (newlines, double-newlines break events)
         # According to SSE spec: each field must end with \n, and end with \n\n
         text = text.replace("\n", "\\n").replace("\r", "\\r")
@@ -206,45 +194,8 @@ class SafeSSEGenerator:
         # Emit connected event first
         yield self._make_event("connected", {"user_id": self.user_id})
 
-        # ── Auto-RAG Memory Injection (audit G-3, production-readiness) ──
-        # বাংলা: স্ট্রিমিং শুরুর আগে ব্যবহারকারীর অতীত প্রাসঙ্গিক স্মৃতি
-        # pgvector থেকে recall করে prompt-এর শুরুতে যুক্ত করা হয়।
-        # কোনো ব্যর্থতায় মূল প্রম্পট অপরিবর্তিত থাকে (graceful degradation)।
-        _enrich_start = time.monotonic()
-        _clean_query = (self._original_prompt or "").strip().lower()
-        _is_trivial = len(_clean_query) < 12 or _clean_query in {
-            "hi", "hello", "hey", "hola", "yo", "হাই", "হ্যালো", "হেই", "কেমন আছো",
-            "সালাম", "salam", "assalamu alaikum", "assalamualaikum", "good morning",
-            "good evening", "good night", "ok", "okay", "bye"
-        }
-        if _is_trivial:
-            logger.info(f"[SSE] Auto-RAG skipped: trivial/greeting query (user={self.user_id})")
-        else:
-            try:
-                enriched = await asyncio.wait_for(
-                    auto_rag_injector.enrich_system_prompt(
-                        system_prompt=self.prompt,
-                        user_query=self._original_prompt,
-                        user_id=self.user_id,
-                        tenant_id=self.tenant_id,
-                        session_id=self.session_id,
-                    ),
-                    timeout=ENRICHMENT_TIMEOUT_S,
-                )
-                if enriched != self.prompt:
-                    self.prompt = enriched
-            except TimeoutError:
-                logger.info(
-                    f"[SSE] Auto-RAG enrichment exceeded {ENRICHMENT_TIMEOUT_S:.1f}s; using raw prompt "
-                    f"(user={self.user_id})"
-                )
-            except Exception as rag_exc:  # pragma: no cover - defensive
-                logger.debug(f"[SSE] Auto-RAG injection skipped: {rag_exc}")
-            finally:
-                logger.info(
-                    f"[SSE] enrichment_ms={int((time.monotonic() - _enrich_start) * 1000)} "
-                    f"user={self.user_id}"
-                )
+        # Legacy Auto-RAG recall/write is disabled on this route: it has no
+        # verified per-user consent, revocation, or deletion integration.
 
         try:
             # Try streaming path first. The streaming path is an async generator,
@@ -252,34 +203,30 @@ class SafeSSEGenerator:
             async for event in self._try_streaming_path():
                 yield event
 
+            if self.state == StreamState.ERROR and self._emitted_tokens:
+                # A replacement answer would be appended to the partial answer.
+                # Tell the client that this turn is incomplete rather than retrying.
+                yield self._make_event(
+                    "error", {"error": "Stream interrupted; response is incomplete.",
+                              "user_id": self.user_id, "partial": True}
+                )
+                return
+
             if self.state == StreamState.ERROR or not self._emitted_tokens:
-                # Some providers return a valid async iterator that emits no tokens.
-                # Treat that as a failed stream and use the working completion path.
+                # Retry only before any user-visible answer has been emitted.
                 async for event in self._fallback_path():
                     yield event
+                if self.state == StreamState.ERROR:
+                    return
+                if not self._emitted_tokens:
+                    self.state = StreamState.ERROR
+                    yield self._make_event(
+                        "error", {"error": "No response was available.", "user_id": self.user_id}
+                    )
+                    return
 
             # Success - emit done and legacy [DONE]
             self.state = StreamState.DONE
-
-            # ── Auto-RAG memory persistence (fire-then-finish, never raises) ──
-            # বাংলা: সফল এক্সচেঞ্জ pgvector-এ সেভ হয় যেন পরের সেশনে স্বয়ংক্রিয়ভাবে
-            # মনে থাকে (importance 0.65 — MIN_IMPORTANCE_TO_STORE=0.5 এর উপরে)।
-            try:
-                assistant_reply = "".join(self._assistant_text)[:2000].strip()
-                if self._original_prompt.strip():
-                    exchange = (
-                        f"Q: {self._original_prompt[:1200]}\nA: {assistant_reply}"
-                        if assistant_reply
-                        else f"Q: {self._original_prompt[:1200]}"
-                    )
-                    await auto_rag_injector.store_session_memory(
-                        content=exchange,
-                        user_id=self.user_id,
-                        session_id=self.session_id,
-                        importance=0.65,
-                    )
-            except Exception as store_exc:  # pragma: no cover - non-fatal
-                logger.debug(f"[SSE] Memory store skipped: {store_exc}")
 
             yield self._make_event("done", {"user_id": self.user_id})
             yield "data: [DONE]\n\n"
@@ -292,10 +239,10 @@ class SafeSSEGenerator:
             raise
 
         except Exception as e:
-            logger.error(f"[SSE] stream_chat_sse error: {e}", exc_info=True)
+            logger.error("[SSE] stream_chat_sse error (%s)", type(e).__name__)
             self.state = StreamState.ERROR
             yield self._make_event(
-                "error", {"error": str(e), "error_type": type(e).__name__, "user_id": self.user_id}
+                "error", {"error": "Unable to generate a response.", "user_id": self.user_id}
             )
         finally:
             logger.info(
@@ -381,9 +328,7 @@ class SafeSSEGenerator:
             return
 
         except Exception as e:
-            logger.warning(
-                f"[SSE] Streaming path failed ({type(e).__name__}: {e}); falling back to non-stream"
-            )
+            logger.warning("[SSE] Streaming path failed (%s); partial=%s", type(e).__name__, self._emitted_tokens)
             self.state = StreamState.ERROR
             return
 
@@ -412,6 +357,8 @@ class SafeSSEGenerator:
                     or response.get("content", "")
                     or response.get("response", "")
                 )
+            elif response is None:
+                text = ""
             elif hasattr(response, "text"):
                 text = response.text
             else:
@@ -432,10 +379,10 @@ class SafeSSEGenerator:
                 )
 
         except Exception as e:
-            logger.error(f"[SSE] Fallback path also failed: {e}")
+            logger.error("[SSE] Fallback path failed (%s)", type(e).__name__)
+            self.state = StreamState.ERROR
             yield self._make_event(
-                "error",
-                {"error": f"Both streaming and fallback failed: {e}", "user_id": self.user_id},
+                "error", {"error": "Unable to generate a response.", "user_id": self.user_id}
             )
 
 

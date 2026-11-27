@@ -207,13 +207,25 @@ async def stream_chat(req: ChatStreamRequest):
     max_cost = req.max_cost if req.max_cost is not None else 0.01
 
     async def event_generator():
-        async for chunk in model_router.async_route_and_stream(
-            prompt=prompt,
-            task_type=task_type,
-            max_cost=max_cost,
-        ):
-            token = chunk.decode("utf-8") if isinstance(chunk, bytes) else str(chunk)
-            yield f"data: {json.dumps({'token': token, 'delta': token})}\n\n"
+        emitted = False
+        try:
+            async for chunk in model_router.async_route_and_stream(
+                prompt=prompt,
+                task_type=task_type,
+                max_cost=max_cost,
+            ):
+                token = chunk.decode("utf-8", errors="replace") if isinstance(chunk, bytes) else str(chunk or "")
+                if not token:
+                    continue
+                emitted = True
+                yield f"data: {json.dumps({'token': token, 'delta': token})}\n\n"
+        except Exception as exc:
+            logger.warning("[stream_chat] Stream failed (%s); partial=%s", type(exc).__name__, emitted)
+            yield f"event: error\ndata: {json.dumps({'error': 'Stream interrupted; response is incomplete.', 'partial': emitted})}\n\n"
+            return
+        if not emitted:
+            yield f"event: error\ndata: {json.dumps({'error': 'No response was available.', 'partial': False})}\n\n"
+            return
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(
