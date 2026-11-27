@@ -177,10 +177,12 @@ export const CANONICAL_TOPOLOGY_DEFAULTS: Record<string, AuthoritativeServiceTar
     renderServiceId: "",
     // Verified 2026-11-21: the live SPA is served by Cloudflare Pages.
     // The audit's frontend repository is the public client repo, not backend.
+    // বাংলা মন্তব্য: Cloudflare Pages-এ `/release` হিট করলে SPA fallback হিসেবে HTML (`index.html`) আসে;
+    // প্রকৃত Edge JSON হেলথ ও রিলিজ ম্যানিফেস্ট সার্ভ হয় `/api/health` এবং `/api/releases/latest` পাথে।
     runtimeUrl: "https://supremeai-studio.pages.dev",
-    healthPath: "/release",
-    readinessPath: "/release",
-    releasePath: "/release",
+    healthPath: "/api/health",
+    readinessPath: "/api/health",
+    releasePath: "/api/releases/latest",
     repo: "Supremeai-bd/supremeai-public",
     branch: "main",
     watchPaths: ["src/**", "server.ts", "package.json", "version.json"],

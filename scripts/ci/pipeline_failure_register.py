@@ -58,11 +58,13 @@ import re
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
-REPO = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
+# বাংলা মন্তব্য: লিগ্যাসি রিপো নাম সরিয়ে বর্তমান ক্যানোনিকাল অর্গানাইজেশন রিপো ডিফল্ট হিসেবে নির্ধারণ করা হলো।
+REPO = os.environ.get("GH_REPO", "Supremeai-bd/supremeai")
 RULES_PATH = Path(__file__).resolve().parents[2] / ".github" / "constitution" / "rules.yml"
 
 # ── Policy SSOT (rules.yml pipeline_failure_policy) + DEFAULT fallback ────────
@@ -177,32 +179,131 @@ def now_utc() -> str:
 
 # ── ইনজেক্টেবল GitHub-স্তর (tests: FakeApi/FakeGh) ────────────────────────────
 
+_AUTH_RETRY_MARKERS = (
+    "bad credentials",
+    "not accessible",
+    "http 401",
+    "http 403",
+    "authentication",
+)
+
+
+def _candidate_auth_values() -> list[str]:
+    """বাংলা মন্তব্য: মেয়াদোত্তীর্ণ বা সীমিত স্কোপের `SELF_HEAL_PAT` ব্যর্থ হলে `GH_FALLBACK_TOKEN`/`GITHUB_TOKEN` দিয়ে স্বয়ংক্রিয় retry।"""
+    seen: list[str] = []
+    for env_key in ("GH_TOKEN", "GH_FALLBACK_TOKEN", "GITHUB_TOKEN"):
+        val = (os.environ.get(env_key) or "").strip()
+        if val and val not in seen:
+            seen.append(val)
+    return seen or [""]
+
+
 def real_api(endpoint: str, method: str = "GET", payload: dict | None = None) -> Any:
-    """REST কল — token সর্বদা GH_TOKEN প্রথম (workflow-চুক্তি), GITHUB_TOKEN fallback।"""
-    token = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
-    req = urllib.request.Request(
-        f"https://api.github.com/{endpoint.lstrip('/')}",
-        data=json.dumps(payload).encode() if payload is not None else None,
-        method=method,
-        headers={
-            "Authorization": f"token {token}",
+    """REST কল — GH_TOKEN প্রথম; 401/403 ত্রুটিতে fallback টোকেন দিয়ে স্বয়ংক্রিয় retry।"""
+    api_url = "https://api.github.com/" + endpoint.lstrip("/")
+    encoded_body = json.dumps(payload).encode("utf-8") if payload is not None else None
+    candidates = _candidate_auth_values()
+    total_candidates = len(candidates)
+    for attempt_idx, auth_val in enumerate(candidates):
+        base_headers = {
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        raw = resp.read().decode()
-    return json.loads(raw) if raw.strip() else None
+        }
+        if auth_val:
+            base_headers["Authorization"] = f"token {auth_val}"
+        gh_request = urllib.request.Request(
+            url=api_url, data=encoded_body, headers=base_headers, method=method
+        )
+        try:
+            with urllib.request.urlopen(gh_request, timeout=30) as response_stream:
+                decoded_body = response_stream.read().decode("utf-8")
+            return json.loads(decoded_body) if decoded_body.strip() else None
+        except urllib.error.HTTPError as http_err:
+            if http_err.code in (401, 403) and (attempt_idx + 1) < total_candidates:
+                continue
+            raise
+    return None
+
+
+def _rest_run_list_fallback(args: tuple[str, ...]) -> str:
+    """বাংলা মন্তব্য: পুরনো `gh` CLI-তে `--status` ফ্ল্যাগ না থাকলে সরাসরি REST API দিয়ে workflow runs তালিকা আনা হয়।"""
+    repo = REPO
+    branch = workflow = status = None
+    limit = 30
+    idx = 2
+    while idx < len(args):
+        flag = args[idx]
+        nxt = args[idx + 1] if idx + 1 < len(args) else ""
+        if flag in ("--repo", "-R"):
+            repo = nxt
+            idx += 2
+        elif flag in ("--branch", "-b"):
+            branch = nxt
+            idx += 2
+        elif flag in ("--workflow", "-w"):
+            workflow = nxt
+            idx += 2
+        elif flag in ("--limit", "-L") and nxt.isdigit():
+            limit = int(nxt)
+            idx += 2
+        elif flag == "--status":
+            status = nxt
+            idx += 2
+        else:
+            idx += 1
+    params = [f"per_page={min(max(limit * 3, 30), 100)}"]
+    if branch:
+        params.append(f"branch={urllib.parse.quote(branch, safe='')}")
+    if status:
+        params.append(f"status={urllib.parse.quote(status, safe='')}")
+    data = real_api(f"repos/{repo}/actions/runs?{'&'.join(params)}") or {}
+    rows: list[dict[str, Any]] = []
+    for run in data.get("workflow_runs") or []:
+        if workflow and run.get("name") != workflow:
+            continue
+        rows.append(
+            {
+                "databaseId": run.get("id"),
+                "name": run.get("name"),
+                "headBranch": run.get("head_branch"),
+                "headSha": run.get("head_sha"),
+                "event": run.get("event"),
+                "createdAt": run.get("created_at"),
+                "url": run.get("html_url"),
+                "conclusion": run.get("conclusion"),
+            }
+        )
+        if len(rows) >= limit:
+            break
+    return json.dumps(rows)
 
 
 def real_gh(*args: str) -> str:
-    """gh CLI র‍্যাপার — stdout স্ট্রিং ফেরত (run-list/pr-view/log-failed)।"""
-    res = subprocess.run(
-        ["gh", *args], capture_output=True, text=True, timeout=60, check=False
-    )
-    if res.returncode != 0:
-        raise RuntimeError(f"gh {' '.join(args[:3])}… failed: {res.stderr[:200]}")
-    return res.stdout
+    """gh CLI র‍্যাপার — 401/403 হলে fallback টোকেন retry এবং পুরনো gh-এ REST run-list ফ্যালব্যাক।"""
+    candidates = _candidate_auth_values()
+    last_stderr = ""
+    for idx, auth_val in enumerate(candidates):
+        child_env = dict(os.environ)
+        if auth_val:
+            child_env["GH_TOKEN"] = auth_val
+        res = subprocess.run(
+            ["gh", *args],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+            env=child_env,
+        )
+        if res.returncode == 0:
+            return res.stdout
+        last_stderr = res.stderr or ""
+        lower_err = last_stderr.lower()
+        if args[:2] == ("run", "list") and "unknown flag: --status" in lower_err:
+            return _rest_run_list_fallback(args)
+        if any(m in lower_err for m in _AUTH_RETRY_MARKERS) and idx + 1 < len(candidates):
+            continue
+        break
+    raise RuntimeError(f"gh {' '.join(args[:3])}… failed: {last_stderr[:200]}")
 
 
 Api = Callable[..., Any]
