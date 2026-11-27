@@ -36,10 +36,10 @@ def validate_origin(value: str) -> str:
         raise ValueError("Invalid production port") from None
     host = parsed.hostname.lower().rstrip(".")
     try:
-        ipaddress.ip_address(host)
+        is_ip = bool(ipaddress.ip_address(host))
     except ValueError:
-        pass
-    else:
+        is_ip = False
+    if is_ip:
         raise ValueError("PRODUCTION_URL must use a public hostname, not an IP address")
     if host in ("localhost", "local") or host.endswith((".localhost", ".local", ".internal")):
         raise ValueError("PRODUCTION_URL must use a public hostname")
