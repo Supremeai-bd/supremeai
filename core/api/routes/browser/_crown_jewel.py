@@ -26,6 +26,13 @@ from fastapi import HTTPException, Response
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from core.api.routes.browser import router
+from core.api.routes.browser._render_proxy import _host_is_blocked
+
+# বাংলা মন্তব্য: #2511 SSRF ফিক্স — crown-jewel fetch/render surface গুলো এখন canonical
+# guard (`_render_proxy._host_is_blocked`) reuse করে: DNS resolve fail-closed, loopback /
+# private / reserved / link-local / 169.254.169.254 (metadata) সব ব্লকড। scheme-check
+# একাই যথেষ্ট ছিল না — http://127.0.0.1 বা public→metadata redirect এর মতো আক্রমণ
+# আটকাতে private-IP gating বাধ্যতামূলক।
 
 # Page-context limits: keep prompts bounded (no unbounded context bloat).
 _MAX_CONTEXT_CHARS = 6000
@@ -336,6 +343,11 @@ def security_scan(body: SecurityScanRequest):
         raise HTTPException(status_code=422, detail="A 'url' is required for a security scan.")
     if not url.startswith(("http://", "https://")):
         raise HTTPException(status_code=422, detail=f"Invalid URL: {url!r}")
+    # বাংলা মন্তব্য: #2511 — scheme-check এর পরে canonical SSRF guard; internal/metadata
+    # হোস্টে server-side fetch নিষিদ্ধ (fail-closed: DNS resolve না হলেও ব্লক)।
+    _parsed_scan = urlparse(url)
+    if not _parsed_scan.hostname or _host_is_blocked(_parsed_scan.hostname):
+        raise HTTPException(status_code=400, detail="Blocked or unresolvable host.")
 
     try:
         resp = httpx.get(
@@ -364,6 +376,11 @@ def capture_screenshot(body: ScreenshotRequest):
     url = body.url.strip()
     if not url or not url.startswith(("http://", "https://")):
         raise HTTPException(status_code=422, detail=f"Invalid or missing 'url': {url!r}")
+    # বাংলা মন্তব্য: #2511 — headless Chromium-এ page.goto করার আগেও একই SSRF guard;
+    # ব্রাউজার render path-ও internal নেটওয়ার্ক স্পর্শ করতে পারে না।
+    _parsed_shot = urlparse(url)
+    if not _parsed_shot.hostname or _host_is_blocked(_parsed_shot.hostname):
+        raise HTTPException(status_code=400, detail="Blocked or unresolvable host.")
 
     if importlib.util.find_spec("playwright") is None:
         raise HTTPException(
