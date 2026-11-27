@@ -410,11 +410,11 @@
   },
   "graph": {
     "modules": 2187,
-    "edges": 5057,
+    "edges": 5058,
     "edge_kinds": {
       "dispatch": 212,
       "dynamic": 4,
-      "import": 4148,
+      "import": 4149,
       "string": 693
     }
   },
