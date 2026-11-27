@@ -65,6 +65,7 @@ ALLOWLIST: dict[str, str] = {
     "scripts/ci/self_healing_reporter.py": "covered by test_self_healing_pipeline",
     "scripts/ci/stale_claim_releaser.py": "covered by test_ci_guards",
     "scripts/ci/run_all_guards.py": "guard dispatcher, meta",
+    "scripts/ci/ai_knowledge_exchange.py": "covered by tests/test_smart_memory_and_ai_exchange.py",
     "scripts/ci/vendored_tree_guard.py": "covered by test_ci_guards",
     "scripts/ci/federation_ci_watchdog.py": "covered by test_ci_guards",
     "scripts/ci/contract_parity_guard.py": "covered by --self-test and contract guards",
@@ -97,7 +98,7 @@ def discover_scripts(root: Path) -> list[Path]:
         if not d.is_dir():
             continue
         for p in sorted(d.glob("*.py")):
-            if p.name.startswith("_"):
+            if p.name.startswith(("_", "test_")):
                 continue
             out.append(p)
     return out

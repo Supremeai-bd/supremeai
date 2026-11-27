@@ -12,6 +12,23 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
+try:
+    from .user_memory_engine import (
+        extract_durable_user_memories,
+        fetch_cloud_user_memories,
+        is_safe_memory_text,
+        sync_cloud_user_memory_forget,
+        sync_cloud_user_memory_upsert,
+    )
+except ImportError:
+    from user_memory_engine import (  # type: ignore[no-redef]
+        extract_durable_user_memories,
+        fetch_cloud_user_memories,
+        is_safe_memory_text,
+        sync_cloud_user_memory_forget,
+        sync_cloud_user_memory_upsert,
+    )
+
 logger = logging.getLogger("supremeai.memory_store")
 
 
@@ -65,16 +82,16 @@ _FAILED_PATHS: set[str] = set()
 def _connect(db_path=None):
     target_path = db_path or _DB_PATH
     if target_path in _FAILED_PATHS:
-        return None
+        raise RuntimeError("Canonical database initialization failed")
     try:
         conn = sqlite3.connect(target_path, timeout=10.0)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode = WAL;")
         return conn
     except Exception as exc:
-        logger.warning("SQLite unavailable (%s); using in-memory canonical store.", exc)
-        _FAILED_PATHS.add(target_path)
-        return None
+        # বাংলা মন্তব্য: বিচ্ছিন্ন memory fallback মালিকানার প্রমাণ দিতে পারে না।
+        logger.warning("Canonical SQLite unavailable (%s)", type(exc).__name__)
+        raise RuntimeError("Canonical database unavailable") from exc
 
 
 @contextmanager
@@ -156,7 +173,7 @@ def init_db(db_path=None):
                 """
             )
     except Exception as exc:
-        logger.warning("Canonical DB init failed (%s); using in-memory fallback.", exc)
+        logger.warning("Canonical DB init failed (%s); storage will fail closed.", type(exc).__name__)
         _FAILED_PATHS.add(db_path or _DB_PATH)
 
 
@@ -175,21 +192,25 @@ class CanonicalMemoryStore:
             yield conn
 
     def save_conversation(self, conversation_id, user_id="usr-admin-primary", title=None, summary=None, language_pref=None, response_style=None, metadata=None):
+        if not user_id:
+            raise PermissionError("Conversation owner is required")
         now = time.time()
         with _LOCK:
             with self._conn() as conn:
                 if conn is not None:
-                    conn.execute(
+                    # বাংলা মন্তব্য: SQLite-তে মালিকানা যাচাই ও upsert একই statement-এ রাখি।
+                    result = conn.execute(
                         """
                         INSERT INTO conversations (id, user_id, title, summary, language_pref, response_style, created_at, updated_at, metadata_json)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(id) DO UPDATE SET
-                            title = COALESCE(excluded.title, conversations.title),
-                            summary = COALESCE(excluded.summary, conversations.summary),
-                            language_pref = COALESCE(excluded.language_pref, conversations.language_pref),
-                            response_style = COALESCE(excluded.response_style, conversations.response_style),
+                            title = COALESCE(?, conversations.title),
+                            summary = COALESCE(?, conversations.summary),
+                            language_pref = COALESCE(?, conversations.language_pref),
+                            response_style = COALESCE(?, conversations.response_style),
                             updated_at = excluded.updated_at,
-                            metadata_json = COALESCE(excluded.metadata_json, conversations.metadata_json);
+                            metadata_json = COALESCE(?, conversations.metadata_json)
+                        WHERE conversations.user_id = excluded.user_id;
                         """,
                         (
                             conversation_id,
@@ -201,9 +222,19 @@ class CanonicalMemoryStore:
                             now,
                             now,
                             json.dumps(metadata or {}),
+                            title[:120] if title is not None else None,
+                            summary,
+                            language_pref,
+                            response_style,
+                            json.dumps(metadata) if metadata is not None else None,
                         ),
                     )
+                    if result.rowcount != 1:
+                        raise PermissionError("Conversation is not owned by this user")
                 else:
+                    existing = _MEM["conversations"].get(conversation_id)
+                    if existing is not None and existing.get("user_id") != user_id:
+                        raise PermissionError("Conversation is not owned by this user")
                     mem = _MEM["conversations"].setdefault(
                         conversation_id,
                         {
@@ -238,9 +269,10 @@ class CanonicalMemoryStore:
                     row = conn.execute(q, params).fetchone()
                     if not row:
                         return None
+                    # বাংলা মন্তব্য: পুরোনো ভুল লেখায় অন্য ইউজারের সারি থাকলেও তা পাঠানো যাবে না।
                     msgs = conn.execute(
-                        "SELECT * FROM messages WHERE conversation_id = ? ORDER BY sequence_no ASC, created_at ASC;",
-                        (conversation_id,),
+                        "SELECT * FROM messages WHERE conversation_id = ? AND user_id = ? ORDER BY sequence_no ASC, created_at ASC;",
+                        (conversation_id, row["user_id"]),
                     ).fetchall()
                     messages = [
                         {
@@ -277,7 +309,8 @@ class CanonicalMemoryStore:
                         return None
                     return {
                         **conv,
-                        "messages": list(conv.get("messages", [])),
+                        "messages": [dict(m) for m in _MEM["messages"].get(conversation_id, [])
+                                     if m.get("user_id") == conv.get("user_id")],
                     }
 
     def get_recent_history(self, conversation_id, limit=10, user_id=None):
@@ -310,6 +343,12 @@ class CanonicalMemoryStore:
         with _LOCK:
             with self._conn() as conn:
                 if conn is not None:
+                    # Acquire the SQLite write lock before checking ownership and choosing
+                    # a sequence, including across separate worker processes.
+                    conn.execute("BEGIN IMMEDIATE")
+                    owner = conn.execute("SELECT user_id FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+                    if not owner or owner["user_id"] != user_id:
+                        raise PermissionError("Conversation is not owned by this user")
                     if sequence_no is None:
                         sequence_no = self._next_sequence(conn, conversation_id)
                     conn.execute(
@@ -320,6 +359,9 @@ class CanonicalMemoryStore:
                         (mid, conversation_id, user_id, role, content, provider, model, sequence_no, now, json.dumps(metadata or {})),
                     )
                 else:
+                    owner = _MEM["conversations"].get(conversation_id)
+                    if not owner or owner.get("user_id") != user_id:
+                        raise PermissionError("Conversation is not owned by this user")
                     if conversation_id not in _MEM["messages"]:
                         _MEM["messages"][conversation_id] = []
                     if sequence_no is None:
@@ -352,6 +394,9 @@ class CanonicalMemoryStore:
         }
 
     def get_user_durable_memories(self, user_id):
+        if not user_id:
+            return []
+        local_items = []
         with _LOCK:
             with self._conn() as conn:
                 if conn is not None:
@@ -359,7 +404,7 @@ class CanonicalMemoryStore:
                         "SELECT * FROM user_memories WHERE user_id = ? ORDER BY updated_at DESC;",
                         (user_id,),
                     ).fetchall()
-                    return [
+                    local_items = [
                         {
                             "id": r["id"],
                             "user_id": r["user_id"],
@@ -372,9 +417,37 @@ class CanonicalMemoryStore:
                         for r in rows
                     ]
                 else:
-                    return [dict(m) for m in _MEM["user_memories"].get(user_id, [])]
+                    local_items = [dict(m) for m in _MEM["user_memories"].get(user_id, [])]
 
-    def upsert_user_memory(self, user_id, memory_key, memory_value, confidence=0.95, source_conv_id=None):
+        # বাংলা মন্তব্য: লোকাল SQLite ও ক্লাউড Supabase মেমোরি মার্জ করা হয় যাতে কন্টেইনার রিস্টার্টেও স্মৃতি হারিয়ে না যায়।
+        cloud_items = fetch_cloud_user_memories(str(user_id))
+        if not cloud_items:
+            return local_items
+        merged_by_key = {m["memory_key"]: m for m in cloud_items if m.get("memory_key")}
+        for item in local_items:
+            mkey = item.get("memory_key")
+            if not mkey:
+                continue
+            prev = merged_by_key.get(mkey)
+            if prev is None or float(item.get("updated_at") or 0.0) >= float(prev.get("updated_at") or 0.0):
+                merged_by_key[mkey] = item
+        merged = list(merged_by_key.values())
+        merged.sort(key=lambda r: float(r.get("updated_at") or 0.0), reverse=True)
+        return merged
+
+    def upsert_user_memory(
+        self,
+        user_id,
+        memory_key,
+        memory_value,
+        confidence=0.95,
+        source_conv_id=None,
+        kind="preference",
+        source_quote="",
+    ):
+        if not is_safe_memory_text(str(memory_value or "")):
+            logger.warning("Blocked unsafe user memory candidate for key=%s", memory_key)
+            return None
         now = time.time()
         mid = "mem-" + uuid.uuid4().hex[:12]
         with _LOCK:
@@ -406,6 +479,15 @@ class CanonicalMemoryStore:
                             "updated_at": now,
                         }
                     )
+        sync_cloud_user_memory_upsert(
+            user_id=str(user_id),
+            memory_key=str(memory_key),
+            memory_value=str(memory_value),
+            confidence=float(confidence),
+            source_conv_id=source_conv_id,
+            kind=str(kind or "preference"),
+            source_quote=str(source_quote or ""),
+        )
         return {
             "id": mid,
             "user_id": user_id,
@@ -413,6 +495,49 @@ class CanonicalMemoryStore:
             "memory_value": memory_value,
             "updated_at": now,
         }
+
+    def delete_user_memory(self, user_id, memory_key):
+        """বাংলা মন্তব্য: ইউজার ভুলে যেতে বললে লোকাল ও ক্লাউড উভয় স্টোর থেকে নির্দিষ্ট কী মুছে ফেলে।"""
+        removed = False
+        with _LOCK:
+            with self._conn() as conn:
+                if conn is not None:
+                    cur = conn.execute(
+                        "DELETE FROM user_memories WHERE user_id = ? AND memory_key = ?;",
+                        (user_id, memory_key),
+                    )
+                    removed = (cur.rowcount or 0) > 0
+                else:
+                    items = _MEM["user_memories"].get(user_id, [])
+                    before = len(items)
+                    items[:] = [m for m in items if m.get("memory_key") != memory_key]
+                    removed = len(items) < before
+        cloud_removed = sync_cloud_user_memory_forget(str(user_id), str(memory_key))
+        return removed or cloud_removed
+
+    def ingest_turn_user_memories(self, user_id, messages, source_conv_id=None):
+        """বাংলা মন্তব্য: চ্যাট টার্ন থেকে স্বয়ংক্রিয়ভাবে মূল ইউজার তথ্য শিখে নেয় বা আপডেট/ডিলিট করে।"""
+        if not user_id or not isinstance(messages, list):
+            return []
+        ops = extract_durable_user_memories(messages)
+        applied = []
+        for op in ops:
+            if op.op == "forget":
+                if self.delete_user_memory(user_id, op.key):
+                    applied.append({"op": "forget", "key": op.key})
+            elif op.op == "upsert":
+                saved = self.upsert_user_memory(
+                    user_id=user_id,
+                    memory_key=op.key,
+                    memory_value=op.value,
+                    confidence=op.confidence,
+                    source_conv_id=source_conv_id,
+                    kind=op.kind,
+                    source_quote=op.source_quote,
+                )
+                if saved:
+                    applied.append({"op": "upsert", "key": op.key, "value": op.value})
+        return applied
 
     def log_provider_attempt(self, request_id, conversation_id, provider, status_code, latency_ms, model=None, error_message=None):
         now = time.time()
@@ -482,6 +607,14 @@ def upsert_user_memory(*args, **kwargs):
     return _DEFAULT_STORE.upsert_user_memory(*args, **kwargs)
 
 
+def delete_user_memory(*args, **kwargs):
+    return _DEFAULT_STORE.delete_user_memory(*args, **kwargs)
+
+
+def ingest_turn_user_memories(*args, **kwargs):
+    return _DEFAULT_STORE.ingest_turn_user_memories(*args, **kwargs)
+
+
 def update_conversation_summary(*args, **kwargs):
     return _DEFAULT_STORE.update_conversation_summary(*args, **kwargs)
 
@@ -493,8 +626,10 @@ __all__ = [
     "CanonicalMemoryStore",
     "MemoryStore",
     "append_canonical_message",
+    "delete_user_memory",
     "get_recent_history",
     "get_user_durable_memories",
+    "ingest_turn_user_memories",
     "log_provider_attempt",
     "memory_store",
     "update_conversation_summary",

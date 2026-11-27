@@ -128,7 +128,6 @@ def test_route_answers_a_greeting_without_touching_upstream(fastpath_client, mon
         "/v1/chat/completions",
         json={
             "model": "supreme-spark",
-            "conversation_id": "conv-trivial-1",
             "messages": [{"role": "user", "content": "hi"}],
         },
         headers=_HEADERS,

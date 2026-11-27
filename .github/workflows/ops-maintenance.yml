@@ -52,13 +52,11 @@ on:
     # (Mon 17 3 * * 1 cron retired by #67 — its arms moved to Sunday Tier 2 / daily Tier 1)
     # Daily health report shares the 03:00 UTC nightly bundle (09:00 Bangladesh).
     # Redis Quota & Burn-rate Monitor (every 30 min at :13/:43 UTC)
-    - cron: "13,43 * * * *"
     # Weekly LLM Red-Team Garak sweep (Mon 03:00 UTC)
-    - cron: "0 3 * * 1"
   workflow_dispatch:
     inputs:
-      run_redis_quota_monitor:
-        description: 'Run Redis quota & burn-rate monitor arm'
+      run_all:
+        description: "Run ALL jobs at once (manual full sweep)"
         required: false
         default: false
         type: boolean
@@ -238,8 +236,8 @@ jobs:
     # Local-first (Zero Cloud Waste): run weekly deep-audit on self-hosted PC when online.
     if: >-
         needs.resolve-execution-tier.outputs.is_local_online == 'true' &&
-        ((github.event_name == 'workflow_dispatch' && inputs.run_deep_audit == true) ||
-         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1'))
+        ((github.event_name == 'workflow_dispatch' && (inputs.run_deep_audit == true || inputs.run_all == true)) ||
+         ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true)))
     concurrency:
       group: nightly-ops-deep-audit
       cancel-in-progress: false
@@ -355,8 +353,8 @@ jobs:
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         needs.resolve-execution-tier.outputs.is_local_online != 'true' &&
-        ((github.event_name == 'workflow_dispatch' && inputs.run_deep_audit == true) ||
-         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1'))
+        ((github.event_name == 'workflow_dispatch' && (inputs.run_deep_audit == true || inputs.run_all == true)) ||
+         ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true)))
     concurrency:
       group: nightly-ops-deep-audit
       cancel-in-progress: false
@@ -367,6 +365,10 @@ jobs:
       contents: read
       issues: write
     steps:
+      # বাংলা মন্তব্য: লোকাল composite action লোডের আগেই checkout প্রয়োজন।
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/deep-audit
         with:
           tier: ${{ needs.resolve-execution-tier.outputs.execution_tier }}
@@ -375,7 +377,7 @@ jobs:
   ai-safety:
     needs: [resolve-execution-tier]
     # #67 Tier 3: dispatch-only (AI safety evaluations on demand)
-    if: github.event_name == 'workflow_dispatch' && inputs.run_ai_safety == true
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.run_ai_safety == true || inputs.run_all == true))
     concurrency:
       group: nightly-ops-ai-safety
       cancel-in-progress: false
@@ -420,7 +422,7 @@ jobs:
   mission-passk:
     needs: [resolve-execution-tier]
     # #67 Tier 3: dispatch-only (PassK benchmarks on demand)
-    if: github.event_name == 'workflow_dispatch' && inputs.run_passk == true
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.run_passk == true || inputs.run_all == true))
     concurrency:
       group: nightly-ops-mission-passk
       cancel-in-progress: false
@@ -453,11 +455,12 @@ jobs:
 
       - name: Mission suite pass^k nightly gate
         id: mission_gate
-        working-directory: ./backend
+        working-directory: ./core
         env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/core
           DATABASE_URL: "sqlite+aiosqlite:///./test.db"
         run: |
-          poetry run python ../scripts/ci/mission_passk.py --k 3 --min-pass-hat-k 0.8
+          python ../scripts/ci/mission_passk.py --k 3 --min-pass-hat-k 0.8
 
       - name: Publish gate result to step summary
         if: always()
@@ -473,7 +476,7 @@ jobs:
           verdict = "PASS" if data["gate"]["passed"] else "FAIL"
           line = (
               f"Mission pass^{data['k']} = {data['pass_hat_k']} "
-              f"(n={data['n']}, successes_min={data['successes_min']}, "
+              f"(n={data['n']}, successes_all_runs={data['successes_all_runs']}, "
               f"gate≥{data['gate']['threshold']}) → **{verdict}**"
           )
           print(line)
@@ -562,7 +565,7 @@ jobs:
     needs: [resolve-execution-tier]
     name: 🧹 Platform Sweep (nightly, dispatch-only)
     # #67 Tier 3: dispatch-only (deep platform sweeps on demand)
-    if: github.event_name == 'workflow_dispatch' && inputs.run_platform_sweep == true
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.run_platform_sweep == true || inputs.run_all == true))
     concurrency:
       group: platform-agent-sweep
       cancel-in-progress: false
@@ -610,7 +613,7 @@ jobs:
     # hard cap, so this arm has NO dispatch toggle — Tier-1 daily schedule only
     # (lightweight API probe, 5-min timeout).
     name: 🧪 Infisical RAW Vault Synthetic Check (#72)
-    if: github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1') # #67 Tier 1 daily
+    if: github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *') # #67 Tier 1 daily
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -642,8 +645,8 @@ jobs:
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
         github.ref == 'refs/heads/main' &&
-        ((github.event_name == 'workflow_dispatch' && inputs.run_platform_deep_audit == true) ||
-         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1'))
+        ((github.event_name == 'workflow_dispatch' && (inputs.run_platform_deep_audit == true || inputs.run_all == true)) ||
+         ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true)))
     concurrency:
       group: platform-deep-audit
       cancel-in-progress: false
@@ -700,7 +703,7 @@ jobs:
     # No dispatch toggle — see the 25-input hard-cap note near run_docs_garbage_sweep.
     if: >-
         github.ref == 'refs/heads/main' &&
-        github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1'
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true)
     concurrency:
       group: graph-health-sweep
       cancel-in-progress: false
@@ -781,8 +784,8 @@ jobs:
     needs: [resolve-execution-tier]
     name: 📊 Rate Limit Trend Snapshot (daily)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_rate_limit_trend == true) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
+        (github.event_name == 'workflow_dispatch' && (inputs.run_rate_limit_trend == true || inputs.run_all == true)) ||
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     concurrency:
       group: rate-limit-monitor
       cancel-in-progress: false
@@ -924,8 +927,8 @@ jobs:
     name: 🧹 Docs Garbage Tree Sweep (daily, #4176)
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_docs_garbage_sweep == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_docs_garbage_sweep == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     concurrency:
       group: docs-garbage-sweep
       cancel-in-progress: false
@@ -968,8 +971,8 @@ jobs:
   stale-mutex:
     needs: [resolve-execution-tier]
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_stale_mutex == true) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
+        (github.event_name == 'workflow_dispatch' && (inputs.run_stale_mutex == true || inputs.run_all == true)) ||
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     concurrency:
       group: stale-mutex-cleanup
       cancel-in-progress: false
@@ -1111,8 +1114,8 @@ jobs:
   live-smoke:
     needs: [resolve-execution-tier]
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_live_smoke == true) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
+        (github.event_name == 'workflow_dispatch' && (inputs.run_live_smoke == true || inputs.run_all == true)) ||
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     concurrency:
       group: qa-live-smoke
       cancel-in-progress: false
@@ -1120,6 +1123,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
+      # বাংলা মন্তব্য: লোকাল composite action লোডের আগেই checkout প্রয়োজন।
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/live-smoke
         with:
           tier: ${{ needs.resolve-execution-tier.outputs.execution_tier }}
@@ -1129,12 +1136,46 @@ jobs:
           firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
           frontend_production_url: ${{ secrets.FRONTEND_PRODUCTION_URL }}
           production_url: ${{ secrets.PRODUCTION_URL }}
+  # বাংলা মন্তব্য: আলাদা scheduled workflow নয়; প্রতিদিনের একক Nightly bundle।
+  daily-key-health-sweep:
+    needs: [resolve-execution-tier]
+    name: Daily Key Health Sweep
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') ||
+       (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.12'
+      - name: Install pinned verifier dependencies
+        run: |
+          set -euo pipefail
+          # বাংলা মন্তব্য: config ও credential store-এর সরাসরি import-ও প্রয়োজন।
+          grep -E '^(httpx|supabase|cryptography|pydantic-settings|fastapi)==' core/requirements.lock > /tmp/key-health-requirements.txt
+          test "$(wc -l < /tmp/key-health-requirements.txt)" -eq 5
+          python -m pip install -r /tmp/key-health-requirements.txt
+      - name: Run daily key verifier
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPREMEAI_CREDENTIAL_ENC_KEY: ${{ secrets.SUPREMEAI_CREDENTIAL_ENC_KEY }}
+          ENCRYPTION_KEYS: ${{ secrets.ENCRYPTION_KEYS }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        run: python scripts/ops/daily_key_verifier.py
   db-retention:
     needs: [resolve-execution-tier]
     name: 🗑️ DB Retention Prune (logs + learning store)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_db_retention == true) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
+        (github.event_name == 'workflow_dispatch' && (inputs.run_db_retention == true || inputs.run_all == true)) ||
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     concurrency:
       group: db-retention
       cancel-in-progress: false
@@ -1232,7 +1273,8 @@ jobs:
 
   e2e-customer:
     needs: [resolve-execution-tier]
-    if: github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1' # #67 Tier 2: weekly Sun off-peak (was daily)
+    # বাংলা মন্তব্য: free tier-এর লিমিট নষ্ট না করার জন্য এবং retired QA surface-এর কারণে staging/E2E টেস্ট নিষ্ক্রিয় করা হয়েছে
+    if: false
     concurrency:
       group: nightly-ops-e2e-customer
       cancel-in-progress: true
@@ -1248,6 +1290,16 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5 # v7.0.1
+
+      # বাংলা: retired QA surface লুকিয়ে PNPM সেটআপের অস্পষ্ট error নয়।
+      - name: Require customer E2E test surface
+        run: |
+          for path in package.json pnpm-lock.yaml qa/playwright.config.qa.ts qa/scripts/validate-checklist.ts qa/scripts/route-audit.ts; do
+            if [ ! -f "$path" ]; then
+              echo "::error::Customer E2E test surface missing: $path; no customer test ran."
+              exit 1
+            fi
+          done
 
       - name: Setup Node & PNPM
         uses: ./.github/actions/setup-frontend
@@ -1283,20 +1335,18 @@ jobs:
             pnpm exec wait-on http://127.0.0.1:3000 -t 120000
             echo "base_url=http://127.0.0.1:3000" >> "$GITHUB_OUTPUT"
           else
-            echo "mode=retired-skip" >> "$GITHUB_OUTPUT"
-            echo "base_url=" >> "$GITHUB_OUTPUT"
-            echo "studio retired to external repository — local-preview skipped"
+            echo "::error::Customer E2E requires an authorized STAGING_URL or a local Studio preview."
+            exit 1
           fi
 
       - name: Check Credentials if Project Requires Auth
         id: auth_check
         run: |
-          if [ -z "$QA_CUSTOMER_EMAIL" ]; then
-            echo "::warning::QA_CUSTOMER_EMAIL is unconfigured — credential-dependent steps skipped in scheduled runs."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$QA_CUSTOMER_EMAIL" ] || [ -z "$QA_CUSTOMER_PASSWORD" ]; then
+            echo "::error::Customer E2E credentials are missing; no authenticated customer test ran."
+            exit 1
           fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Execute Playwright Suite
         if: steps.auth_check.outputs.skip != 'true'
@@ -1326,10 +1376,8 @@ jobs:
   # ────────────────────────────────────────────────────────────────────────────
   load-locust:
     needs: [resolve-execution-tier]
-    # #67 Tier 2: weekly Sun off-peak (was daily)
-    if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_load_locust == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
+    # বাংলা মন্তব্য: free tier-এর লিমিট নষ্ট না করার জন্য staging load test নিষ্ক্রিয় করা হয়েছে
+    if: false
     concurrency:
       group: nightly-ops-load-locust
       cancel-in-progress: false
@@ -1351,11 +1399,10 @@ jobs:
         id: target
         run: |
           if [ -z "$STAGING_TARGET" ]; then
-            echo "::warning::STAGING_URL is not configured — load test honestly SKIPPED (no fabricated numbers, cf. cloud_db_load_test doctrine)."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "::error::STAGING_URL is required; the load test did not run."
+            exit 1
           fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Setup Backend Environment
         if: steps.target.outputs.skip != 'true'
@@ -1370,15 +1417,15 @@ jobs:
       # backend/pyproject.toml-এর locust-কমেন্টে)।
       - name: Install Locust (isolated to this runner)
         if: steps.target.outputs.skip != 'true'
-        working-directory: ./backend
-        run: poetry run pip install --disable-pip-version-check "locust>=2.29,<3.0"
+        working-directory: ./core
+        run: python -m pip install --disable-pip-version-check "locust>=2.29,<3.0"
 
       - name: Run Locust (100 users, 15 minutes)
         if: steps.target.outputs.skip != 'true'
-        working-directory: ./backend
+        working-directory: ./core
         run: |
           set -euo pipefail
-          poetry run locust -f tests/load/locustfile.py \
+          locust -f tests/load/locustfile.py \
             --headless --host "$STAGING_TARGET" \
             -u 100 -r 10 -t 15m \
             --csv /tmp/locust_stats --html /tmp/locust-report.html \
@@ -1386,10 +1433,10 @@ jobs:
 
       - name: SLO verdict from Locust CSV (p95 + failure ratio)
         if: steps.target.outputs.skip != 'true'
-        working-directory: ./backend
+        working-directory: ./core
         run: |
           set -euo pipefail
-          poetry run python - <<'PY'
+          python - <<'PY'
           import csv, os, sys
 
           path = "/tmp/locust_stats_stats.csv"
@@ -1440,8 +1487,8 @@ jobs:
     needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_chaos_suite == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_chaos_suite == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     concurrency:
       group: nightly-ops-chaos-suite
       cancel-in-progress: false
@@ -1467,10 +1514,12 @@ jobs:
       # job-ই একমাত্র জায়গা যেখানে কেওস-চিহ্নিত ড্রিল (429-storm breaker,
       # memory-pressure hold) চলে। সব লোকাল/mocked — নেটওয়ার্ক নেই।
       - name: Run chaos-marked tests
-        working-directory: ./backend
+        working-directory: ./core
+        env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/core
         run: |
           set -euo pipefail
-          poetry run pytest backend/tests/chaos -m chaos --no-cov -q --timeout=60 -p no:cacheprovider 2>&1 | tee /tmp/chaos_output.txt
+          python -m pytest tests/chaos -m chaos --no-cov -q --timeout=60 -p no:cacheprovider 2>&1 | tee /tmp/chaos_output.txt
           echo "### 💉 Chaos Resilience Suite (Tier-2)" >> "$GITHUB_STEP_SUMMARY"
           tail -n 5 /tmp/chaos_output.txt >> "$GITHUB_STEP_SUMMARY"
 
@@ -1478,8 +1527,8 @@ jobs:
     needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was daily)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_browser_e2e == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_browser_e2e == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     concurrency:
       group: nightly-ops-browser-e2e
       cancel-in-progress: false
@@ -1494,6 +1543,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Require real-browser test suite
+        run: |
+          if [ ! -d core/tests/browser ]; then
+            echo '::error::Real-browser E2E suite is missing; no E2E test was run.'
+            exit 1
+          fi
+
       # বাংলা মন্তব্য (Tier-3): install-browser-deps=true → poetry-র optional
       # browser group (Python Playwright) + সিস্টেম লাইব্রেরি ইনস্টল হয়।
       - name: Setup Backend Environment (with browser group)
@@ -1504,24 +1560,23 @@ jobs:
           mode: prepare
 
       - name: Install Chromium binary
-        working-directory: ./backend
-        run: poetry run playwright install chromium --with-deps
+        working-directory: ./core
+        run: playwright install chromium --with-deps
 
       # বাংলা মন্তব্য (Tier-3): e2e-চিহ্নিত আসল-ব্রাউজার টেস্ট — সেশন-সমান্তরালতা,
       # RSS/orphan-প্রসেস গার্ড, vision-grounding ক্যাসকেড। PR-CI deselect করে।
       - name: Run real-browser e2e suite
-        working-directory: ./backend
+        working-directory: ./core
         run: |
           set -euo pipefail
-          poetry run pytest backend/tests/browser -m e2e --no-cov -q --timeout=120 -p no:cacheprovider 2>&1 | tee /tmp/browser_e2e_output.txt
+          python -m pytest tests/browser -m e2e --no-cov -q --timeout=120 -p no:cacheprovider 2>&1 | tee /tmp/browser_e2e_output.txt
           echo "### 🥁 Real-Browser E2E (Tier-3)" >> "$GITHUB_STEP_SUMMARY"
           tail -n 5 /tmp/browser_e2e_output.txt >> "$GITHUB_STEP_SUMMARY"
 
   db-pool-health:
     needs: [resolve-execution-tier]
-    if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_db_pool_health == true) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
+    # বাংলা মন্তব্য: free tier-এর লিমিট নষ্ট না করার জন্য staging DB pool health প্রোব নিষ্ক্রিয় করা হয়েছে
+    if: false
     concurrency:
       group: nightly-ops-db-pool-health
       cancel-in-progress: false
@@ -1609,8 +1664,8 @@ jobs:
     name: 🌿 Branch Retention Cleanup
     # #67 Tier 1: daily storage tidy (was Mon weekly)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_branch_retention == true) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
+        (github.event_name == 'workflow_dispatch' && (inputs.run_branch_retention == true || inputs.run_all == true)) ||
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     concurrency:
       group: branch-retention-cleanup
       cancel-in-progress: false
@@ -1684,7 +1739,7 @@ jobs:
     # made GitHub reject the ENTIRE file ("you may only define up to 25 inputs"),
     # which surfaced as a run with ZERO jobs on both push and schedule. Keep this
     # job reachable without an input so the count can never be exceeded again.
-    if: github.event_name == 'schedule' && github.event.schedule == '0 3 * * *'
+    if: (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true)
     name: "🛡️ Guard Roster (full, nightly)"
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -1736,14 +1791,14 @@ jobs:
       # agent-role Bearer token so hollow_read_guard reads real data planes
       # (without it the guard now reports honest AUTH_GATED + warning, not red).
       env:
-        MCP_TOWER_TOKEN: ${{ secrets.MCP_TOWER_TOKEN }}
+        MCP_TOWER_TOKEN: ${{ secrets.MCP_TOWER_TOKEN || secrets.MCP_TOWER_AUTH_TOKEN }}
       run: |
         set -o pipefail
         set +e
         python scripts/ci/run_all_guards.py --full 2>&1 | tee guard-roster.log
         roster_rc=$?
         set -e
-        status=$(grep -oE '[0-9]+/[0-9]+ guards passed' guard-roster.log | tail -1)
+        status=$(grep -oE '[0-9]+/[0-9]+ guards exited 0' guard-roster.log | tail -1)
         {
           echo "### 🛡️ Guard Roster (full, nightly)"
           echo ""
@@ -1757,12 +1812,12 @@ jobs:
             echo '```'
           fi
         } >> "$GITHUB_STEP_SUMMARY"
-        if ! grep -qE '([0-9]+)/\1 guards passed' guard-roster.log; then
-          echo "::error::guard roster did not report a full pass/summary line — treating as failure (never green on a dark surface)"
+        if [ "$roster_rc" -ne 0 ] || grep -q '^FAILED:' guard-roster.log; then
+          echo "::error::guard roster failed (exit $roster_rc) — see named failures in the step summary"
           exit 1
         fi
-        if grep -q '^FAILED:' guard-roster.log; then
-          echo "::error::guard roster reported failures — see the step summary"
+        if ! grep -qE '([0-9]+)/\1 guards exited 0' guard-roster.log; then
+          echo "::error::guard roster did not report a full exit-0 summary — treating as failure"
           exit 1
         fi
     - name: Upload roster log
@@ -1779,8 +1834,8 @@ jobs:
     needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_silent_error == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_silent_error == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     name: 🤫 Silent Error Scan
     runs-on: ubuntu-24.04
     steps:
@@ -1809,8 +1864,8 @@ jobs:
     needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_dast == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_dast == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     concurrency:
       group: dast-zap-${{ github.ref }}
       cancel-in-progress: true
@@ -1827,26 +1882,40 @@ jobs:
       - name: Require scan target
         if: env.ZAP_TARGET == ''
         run: |
-          echo "::error::STAGING_BASE_URL repo variable (or base_url input) is required."
+          echo "::error::STAGING_BASE_URL repo variable is required."
           echo "::error::Refusing to scan without an explicit environment."
           exit 1
 
       - uses: actions/checkout@v5 # v7.0.1
 
+      - name: Validate authorized staging target syntax
+        run: |
+          python - <<'PY'
+          import os, re, sys
+          from urllib.parse import urlsplit
+          value = os.environ['ZAP_TARGET']
+          parsed = urlsplit(value)
+          if (not re.fullmatch(r'https?://[A-Za-z0-9.\-]+(?::[0-9]+)?(?:/[A-Za-z0-9._~/-]*)?', value)
+                  or not parsed.hostname or parsed.username or parsed.password):
+              print('::error::STAGING_BASE_URL must be an explicit HTTP(S) staging URL without credentials, query or fragment.')
+              sys.exit(1)
+          PY
+
       - name: ZAP Full scan (baseline)
         uses: zaproxy/action-full-scan@4f7523a09110bc63d6b349713de6aa697ec7fbe9
         with:
           target: '${{ env.ZAP_TARGET }}'
-          allow_404_warnings: true
           fail_action: true # ⚠️ blocking gate
-          cmd_options: '-I'
+          artifact_name: zap-full-scan
 
       - name: ZAP API scan (OpenAPI spec 🎯 auth endpoints)
         uses: zaproxy/action-api-scan@472970930c47c2e1a7394c6b62c83b5f8e6b479a
         with:
-          target: '${{ env.ZAP_TARGET }}'
-          spec: core/API-swagger.yaml # wiring audit 2026-11-11: backend/ → core/ (backend/ does not exist)
+          target: core/API-swagger.yaml
+          format: openapi
+          cmd_options: '-O ${{ env.ZAP_TARGET }}'
           fail_action: true # ⚠️ blocking gate
+          artifact_name: zap-api-scan
 
       - name: Upload ZAP reports (always)
         if: always()
@@ -1868,8 +1937,8 @@ jobs:
     needs: [resolve-execution-tier]
     # #67 Tier 2: weekly Sun off-peak (was Mon)
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_constitution == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_constitution == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     concurrency:
       group: nightly-ops-constitution
       cancel-in-progress: true
@@ -1898,8 +1967,8 @@ jobs:
   self-audit:
     needs: [resolve-execution-tier]
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_self_audit == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')
+        (github.event_name == 'workflow_dispatch' && (inputs.run_self_audit == true || inputs.run_all == true)) ||
+        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     name: 🔍 Weekly Self-Audit Scan
     runs-on: ubuntu-24.04
     steps:
@@ -1915,8 +1984,8 @@ jobs:
   workflow-runs-retention:
     needs: [resolve-execution-tier]
     if: >-
-        (github.event_name == 'workflow_dispatch' && inputs.run_workflow_runs_retention == true) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
+        (github.event_name == 'workflow_dispatch' && (inputs.run_workflow_runs_retention == true || inputs.run_all == true)) ||
+        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     name: 🧹 Workflow Runs Retention & Purge
     concurrency:
       group: nightly-ops-workflow-runs-retention
@@ -1968,7 +2037,7 @@ jobs:
     # delays scheduled events under load — observed: the 03:00 UTC bundle ran
     # 9h late and the 30-min redis cron went silent for 12+ hours). The
     # watchdog now rides the daily bundle and self-heals the schedule.
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+    if: github.event_name == 'workflow_dispatch' || ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -2007,15 +2076,20 @@ jobs:
     permissions:
       issues: write
       actions: read
+      pull-requests: read
       contents: read
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+      - name: Install PyYAML
+        run: python -m pip install --disable-pip-version-check pyyaml
       - name: Scan failures and maintain the register ledger (issue #9)
         env:
+          # বাংলা মন্তব্য: SELF_HEAL_PAT মেয়াদোত্তীর্ণ বা স্কোপ-সীমিত হলে GH_FALLBACK_TOKEN (github.token) দিয়ে স্বয়ংক্রিয় ফ্যালব্যাক হয়।
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          GH_FALLBACK_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: python scripts/ci/pipeline_failure_register.py --scan
 
@@ -2066,7 +2140,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         if: steps.check_studio.outputs.present == 'true'
         with:
-          version: 9.15.4
+          package_json_file: studio/package.json
       - uses: actions/setup-node@v7
         if: steps.check_studio.outputs.present == 'true'
         with:
@@ -2090,7 +2164,7 @@ jobs:
     needs: [resolve-execution-tier]
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * 1'))
+      (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     name: "🧠 Kaggle Empirical Learning"
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -2162,8 +2236,8 @@ jobs:
     # Read-only: no privileged runner probe is needed for candidate rehearsals.
     name: "🩺 Full fleet health & release gate report"
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.run_daily_health_report == true) ||
-      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+      (github.event_name == 'workflow_dispatch' && (inputs.run_daily_health_report == true || inputs.run_all == true)) ||
+      ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -2217,7 +2291,7 @@ jobs:
     needs: [resolve-execution-tier]
     name: "Verify Local Self-Hosted Runner on Windows PC"
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.run_test_local_runner == true) &&
+      (github.event_name == 'workflow_dispatch' && (inputs.run_test_local_runner == true || inputs.run_all == true)) &&
       needs.resolve-execution-tier.outputs.is_local_online == 'true'
     runs-on: [self-hosted, local-pc]
     timeout-minutes: 5
@@ -2247,7 +2321,7 @@ jobs:
     needs: [resolve-execution-tier]
     name: "Evaluate 24h+ Opportunistic Audit Window"
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.run_opportunistic_audit == true)
+      (github.event_name == 'workflow_dispatch' && (inputs.run_opportunistic_audit == true || inputs.run_all == true))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -2306,8 +2380,8 @@ jobs:
   redis-quota-monitor:
     name: "Redis Quota & Burn-Rate Monitor"
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.run_redis_quota_monitor == true) ||
-      (github.event_name == 'schedule' && (github.event.schedule == '13,43 * * * *' || github.event.schedule == '0 3 * * *'))
+      (github.event_name == 'workflow_dispatch' && inputs.run_all == true) ||
+      (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -2335,21 +2409,21 @@ jobs:
           # 2026-11 RBAC: redis_rotation_status is role-gated — send the
           # agent-role Bearer token when configured (otherwise the monitor
           # skips honestly with exit 0 + owner-action message).
-          MCP_TOWER_TOKEN: ${{ secrets.MCP_TOWER_TOKEN }}
+          MCP_TOWER_TOKEN: ${{ secrets.MCP_TOWER_TOKEN || secrets.MCP_TOWER_AUTH_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           code=0
           base="${RENDER_MCP_URL%/}"
           if [ -z "$base" ]; then
-            echo '::warning::Redis quota not checked: RENDER_MCP_URL is not configured.'
-            exit 0
+            echo '::error::Redis quota not checked: RENDER_MCP_URL is not configured.'
+            exit 3
           fi
           python scripts/ops/redis_quota_monitor.py --tower-url "${base%/mcp}/mcp" || code=$?
           echo "rqm_exit=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" -ge 3 ]; then
-            echo "::warning::Redis quota monitor returned code $code (tower offline or strict check failed); skipping nightly failure"
-            exit 0
+            echo "::error::Redis quota monitor failed or could not complete (exit $code)."
+            exit "$code"
           fi
           echo "monitor exit $code (0=no alert, 1=warn sent, 2=crit sent) — delivery channel is Telegram"
           exit 0
@@ -2358,8 +2432,8 @@ jobs:
     name: "Weekly LLM red-team lane (garak toolchain + probe inventory)"
     # hierarchy-exception: weekly garak red-team schedule lane (isolated toolchain validation)
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.run_garak_redteam == true) ||
-      (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * 1' || github.event.schedule == '0 3 * * 1'))
+      (github.event_name == 'workflow_dispatch' && (inputs.run_garak_redteam == true || inputs.run_all == true)) ||
+      (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -2373,15 +2447,10 @@ jobs:
           uvx garak==0.17.1 --version
           echo "--- probe inventory (slice-2 scope: promptinject, dan, encoding, explsearch) ---"
           uvx garak==0.17.1 --list_probes | head -40
-      - name: Full probe sweep (requires SUPREME_EVAL_ENDPOINT secret)
-        env:
-          SUPREME_EVAL_ENDPOINT: ${{ secrets.SUPREME_EVAL_ENDPOINT }}
+      - name: Report live scan coverage
         run: |
-          if [ -z "$SUPREME_EVAL_ENDPOINT" ]; then
-            echo "SUPREME_EVAL_ENDPOINT is not configured — skipping live probe sweep (fail-open skip, per EVAL_GARAK quarantine contract)."
-            exit 0
-          fi
-          echo "Endpoint configured; run the quarantined sweep per docs/EVAL_GARAK_PROBE_2026-10-30.md."
+          echo '::warning::Garak inventory only: no live red-team probe was run.'
+          echo 'Garak toolchain and inventory checked; live red-team scan NOT RUN.' >> "$GITHUB_STEP_SUMMARY"
 
 
   tracker-freshness:
@@ -2394,9 +2463,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Run tracker freshness check
-        run: python3 scripts/ci/tracker_freshness.py || true
+        run: python3 scripts/ci/tracker_freshness.py
   run-guards-registry-check:
-    name: Run Guards Registry Check
+    name: Guard Inventory Wiring Check
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
@@ -2404,8 +2473,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Verify run_guards.py registry
-        run: python3 scripts/ci/run_guards.py --help
+      - name: Load fast guard registry
+        run: python3 scripts/ci/run_guards.py --tier fast --list
+      - name: Verify guard inventory wiring
+        run: python3 scripts/ci/guard_inventory.py --check
   rate-limit-inventory:
     name: Rate Limit Inventory (B4)
     runs-on: ubuntu-latest
@@ -2416,7 +2487,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Run rate limit inventory
-        run: python3 scripts/ops/rate_limit_inventory.py > /dev/null || true
+        run: python3 scripts/ops/rate_limit_inventory.py
   memory-backend-census:
     name: Memory Backend Census (B5)
     runs-on: ubuntu-latest
@@ -2427,4 +2498,4 @@ jobs:
         with:
           python-version: '3.11'
       - name: Run memory backend census
-        run: python3 scripts/ops/memory_backend_census.py > /dev/null || true
+        run: python3 scripts/ops/memory_backend_census.py

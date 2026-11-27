@@ -45,28 +45,29 @@ runs:
     with:
       python-version: ${{ env.PYTHON_VERSION }}
       cache: pip
-      cache-dependency-path: 'backend/poetry.lock
-
-        requirements*.txt
-
-        '
+      cache-dependency-path: core/requirements.lock
   - name: Install base dependencies
+    shell: bash
     run: 'python -m pip install --upgrade pip
 
       pip install astroid loguru requests httpx pyyaml
 
       '
   - name: Duplicate Logic Detector
+    shell: bash
     id: duplicate_detector
     run: python scripts/advanced_analysis/duplicate_detector.py --fail-on-critical --max-findings 50 --engine file_level import
   - name: Feature Parity Sentinel (backend ⇄ frontend drift)
+    shell: bash
     id: parity_sentinel
     run: "python scripts/ops/feature_parity_sentinel.py \\\n  --baseline scripts/ops/feature_parity_baseline.json \\\n  --json ci-reports/feature-parity-report.json \\\n  --markdown ci-reports/feature-parity-report.md\n"
   - name: Install Vulnerability Scanner Deps
+    shell: bash
     id: scanner_setup
     if: ${{ !cancelled() }}
     run: pip install pip-audit "bandit[sarif]" httpx loguru pydantic
   - name: Auto Vulnerability Scanner (deps + code + SBOM)
+    shell: bash
     id: vuln_scanner
     if: ${{ !cancelled() && steps.scanner_setup.outcome == 'success' }}
     run: python scripts/ops/security/auto_vulnerability_scanner.py --scan-deps --scan-code --generate-sbom
@@ -79,14 +80,17 @@ runs:
       if-no-files-found: warn
       retention-days: 7
   - name: Mutation Testing
+    shell: bash
     id: mutation_testing
     continue-on-error: true
     run: python scripts/testing/mutation_testing.py --target core/health_check.py --threshold 0
   - name: Performance Benchmark
+    shell: bash
     id: perf_benchmark
     continue-on-error: true
     run: python scripts/testing/performance_benchmark.py --target api
   - name: Performance Benchmark → Step Summary
+    shell: bash
     if: always() && steps.perf_benchmark.outcome != 'skipped'
     run: 'echo "### ⚡ Nightly Performance Benchmark (advisory)" >> "$GITHUB_STEP_SUMMARY"
 
@@ -100,6 +104,7 @@ runs:
 
       '
   - name: Blocking security detectors (P0/P1)
+    shell: bash
     id: blocking_security_detectors
     run: 'set -euo pipefail
 
@@ -119,6 +124,7 @@ runs:
 
       '
   - name: Backend dead-code scan (vulture)
+    shell: bash
     continue-on-error: true
     run: 'pip install vulture
 
@@ -134,6 +140,7 @@ runs:
       cache: pnpm
       cache-dependency-path: pnpm-lock.yaml
   - name: Install Audit Prerequisites
+    shell: bash
     run: 'sudo apt-get update
 
       sudo apt-get install -y yamllint curl
@@ -200,9 +207,11 @@ runs:
       path: ci-reports/
       if-no-files-found: ignore
   - name: Generate Smart Audit Summary
+    shell: bash
     if: always()
     run: python scripts/ci/generate_audit_summary.py
   - name: Trigger Federation CI Watchdog on Failure
+    shell: bash
     if: failure()
     env:
       DISPATCH_TOKEN: ${{ inputs.dispatch_token }}

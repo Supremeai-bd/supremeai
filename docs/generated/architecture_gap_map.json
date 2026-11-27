@@ -374,6 +374,7 @@
       "scripts.advanced_analysis._ig_dir.",
       "scripts.agents._HERE.",
       "scripts.ci._AGENTS_DIR.",
+      "scripts.ci._REPO_ROOT.",
       "scripts.ci.backend.",
       "scripts.ci.repo_root.",
       "scripts.db.BACKEND_DIR.",
@@ -408,12 +409,12 @@
     ]
   },
   "graph": {
-    "modules": 2185,
-    "edges": 5047,
+    "modules": 2187,
+    "edges": 5058,
     "edge_kinds": {
-      "dispatch": 207,
+      "dispatch": 212,
       "dynamic": 4,
-      "import": 4143,
+      "import": 4149,
       "string": 693
     }
   },
@@ -430,7 +431,6 @@
       "@.github/actions/setup-frontend/action.yml",
       "@.github/actions/setup-playwright/action.yml",
       "@.github/workflows/codeql.yml",
-      "@.github/workflows/daily-key-health.yml",
       "@.github/workflows/deploy-rollback.yml",
       "@.github/workflows/ops-maintenance.yml",
       "@.github/workflows/unified-pipeline.yml",
@@ -445,9 +445,9 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1679,
-    "unreachable": 506,
-    "reachable_pct": 76.8
+    "reachable": 1682,
+    "unreachable": 505,
+    "reachable_pct": 76.9
   },
   "gaps": {
     "dangling_references": [],
@@ -1250,7 +1250,6 @@
     "scripts.ci.graph_health_audit",
     "scripts.ci.group_closeout_janitor",
     "scripts.ci.health_incident_plane_guard",
-    "scripts.ci.ingest_pr_knowledge",
     "scripts.ci.issue_queue_manager",
     "scripts.ci.issue_router",
     "scripts.ci.knip_ratchet_gate",

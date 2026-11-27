@@ -148,6 +148,7 @@ def main() -> int:
     now = dt.datetime.now(dt.timezone.utc)
     report: list[str] = []
     re_armed = compensated = 0
+    evidence_missing = False
 
     for item in tree:
         path = item["path"]
@@ -179,7 +180,12 @@ def main() -> int:
 
         # শেষ schedule-run
         code, runs = api("GET", f"/repos/{repo}/actions/workflows/{wf['id']}/runs?event=schedule&per_page=1", token)
-        last_sched = (runs.get("workflow_runs") or [{}])[0].get("created_at") if code == 200 else None
+        # বাংলা: API failure মানে "কখনও schedule চলেনি" নয়; প্রমাণ ছাড়া mutation বন্ধ।
+        if code != 200 or not isinstance(runs, dict) or not isinstance(runs.get("workflow_runs"), list):
+            report.append(f"WARN(schedule evidence unavailable {code}) | {path}")
+            evidence_missing = True
+            continue
+        last_sched = (runs["workflow_runs"] or [{}])[0].get("created_at")
         if last_sched:
             last_dt = dt.datetime.fromisoformat(last_sched.replace("Z", "+00:00"))
         else:
@@ -187,7 +193,11 @@ def main() -> int:
 
         # শেষ যেকোনো-ইভেন্ট রান
         code2, runs2 = api("GET", f"/repos/{repo}/actions/workflows/{wf['id']}/runs?per_page=1", token)
-        last_any = (runs2.get("workflow_runs") or [{}])[0].get("created_at") if code2 == 200 else None
+        if code2 != 200 or not isinstance(runs2, dict) or not isinstance(runs2.get("workflow_runs"), list):
+            report.append(f"WARN(activity evidence unavailable {code2}) | {path}")
+            evidence_missing = True
+            continue
+        last_any = (runs2["workflow_runs"] or [{}])[0].get("created_at")
         last_any_dt = (
             dt.datetime.fromisoformat(last_any.replace("Z", "+00:00")) if last_any else None
         )
@@ -216,28 +226,43 @@ def main() -> int:
         if dead and args.dry_run:
             line += " | (dry-run: re-arm+compensate হত)"
         elif dead:
-            # ১) re-arm: disable → enable (cron re-registration)
-            # বাংলা (#58 follow-up): এই এন্ডপয়েন্ট PUT নেয় — PATCH দিলে GitHub
-            # 404-মাস্ক করে (2026-10-09 লাইভ-প্রমাণিত: PATCH=404, PUT=204)।
-            c1, _ = api("PUT", f"/repos/{repo}/actions/workflows/{wf['id']}/disable", token)
-            c2, _ = api("PUT", f"/repos/{repo}/actions/workflows/{wf['id']}/enable", token)
-            armed = c1 == 204 and c2 == 204
-            if armed:
-                re_armed += 1
-            line += f" | re-arm={armed}({c1}/{c2})"
-            # ২) compensation: শেষ যেকোনো রানও বাসি হলে dispatch (dispatch-সক্ষম হলে)
+            # ১) প্রমাণ নিশ্চিত না করে re-arm বা dispatch করা যাবে না।
             can_dispatch = isinstance(trig or {}, dict) and "workflow_dispatch" in (trig or {})
             # আমরা এখানে `if dead`-এর ভেতরে — তাই compensation-এর শর্ত: শেষ যেকোনো-ইভেন্ট
             # রানও grace-এর চেয়ে বাসি (recent dispatch/PR রান থাকলে দ্বৈত চালানো বৃথা)।
             stale_any = last_any_dt is not None and now > last_any_dt + dt.timedelta(minutes=GRACE_MIN)
             # E11: check-before-dispatch — already queued বা running run থাকলে নতুন dispatch দিয়ে queue storm বানাবে না
             code_q, runs_q = api("GET", f"/repos/{repo}/actions/workflows/{wf['id']}/runs?status=queued&per_page=1", token)
-            has_queued = code_q == 200 and bool(runs_q.get("workflow_runs"))
             code_r, runs_r = api("GET", f"/repos/{repo}/actions/workflows/{wf['id']}/runs?status=in_progress&per_page=1", token)
-            has_running = code_r == 200 and bool(runs_r.get("workflow_runs"))
-            busy = has_queued or has_running
+            # বাংলা: queue/running অবস্থা অজানা বা সক্রিয় থাকলে কোনো mutation নয়।
+            queue_known = (code_q == 200 and isinstance(runs_q, dict)
+                           and isinstance(runs_q.get("workflow_runs"), list))
+            running_known = (code_r == 200 and isinstance(runs_r, dict)
+                             and isinstance(runs_r.get("workflow_runs"), list))
+            busy = (bool(runs_q["workflow_runs"]) if queue_known else False) or (
+                bool(runs_r["workflow_runs"]) if running_known else False
+            )
+            state_unknown = not (queue_known and running_known)
+            if state_unknown:
+                evidence_missing = True
+                report.append(line + " | comp=skipped(queue-state-unavailable)")
+                continue
+            if busy:
+                report.append(line + " | comp=skipped(already-queued-or-running)")
+                continue
 
-            if can_dispatch and stale_any and armed and not busy:
+            # ২) re-arm: disable → enable (cron re-registration)।
+            c1, _ = api("PUT", f"/repos/{repo}/actions/workflows/{wf['id']}/disable", token)
+            c2, _ = api("PUT", f"/repos/{repo}/actions/workflows/{wf['id']}/enable", token)
+            armed = c1 == 204 and c2 == 204
+            if armed:
+                re_armed += 1
+            else:
+                # বাংলা: enable ব্যর্থ হলেও success ঘোষণা নয়; operator-কে সতর্ক করো।
+                evidence_missing = True
+            line += f" | re-arm={armed}({c1}/{c2})"
+
+            if can_dispatch and stale_any and armed:
                 c3, _ = api(
                     "POST",
                     f"/repos/{repo}/actions/workflows/{wf['id']}/dispatches",
@@ -248,9 +273,8 @@ def main() -> int:
                     compensated += 1
                     line += f" | compensated(dispatch {c3})"
                 else:
+                    evidence_missing = True
                     line += f" | dispatch-failed({c3})"
-            elif busy:
-                line += " | comp=skipped(already-queued-or-running)"
             elif not can_dispatch:
                 line += " | comp=skipped(no-dispatch)"
             else:
@@ -261,6 +285,9 @@ def main() -> int:
     for ln in report:
         print("  " + ln)
     print(f"WATCHDOG summary: re_armed={re_armed} compensated={compensated} dry_run={args.dry_run}")
+    if evidence_missing:
+        print("WATCHDOG: evidence unavailable or self-heal failed; inspect the report", file=sys.stderr)
+        return 1
     return 0
 
 

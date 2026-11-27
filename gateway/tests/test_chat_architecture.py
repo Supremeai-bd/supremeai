@@ -114,10 +114,13 @@ class TestResponseGuard:
         }
         sanitized = validate_and_sanitize(payload)
         cleaned_content = sanitized["choices"][0]["message"]["content"]
-        assert "Google" not in cleaned_content
-        assert "Gemini" not in cleaned_content
-        assert "SupremeAI" in cleaned_content
-        assert cleaned_content.count("```") % 2 == 0
+        assert cleaned_content == "I am Gemini created by Google.\n```python\nx = 1"
+
+    def test_valid_response_comparison_and_code_are_not_rewritten(self):
+        content = "Compare Google Gemini and OpenAI.\n```python\nprint('Google')\n\n\nprint('OpenAI')\n```"
+        assert validate_and_sanitize(content) == content
+        payload = {"choices": [{"message": {"role": "assistant", "content": content}}]}
+        assert validate_and_sanitize(payload)["choices"][0]["message"]["content"] == content
 
     def test_validate_and_sanitize_rejects_stub(self):
         payload = {
@@ -229,12 +232,7 @@ class TestChatGatewayIntegration:
         # not the pre-landing "Platform Grounding Sheet"/"12 Product Satellites" vocabulary.
         assert "Federation Architecture: Active Product Satellites" in forwarded_messages[0]["content"]
 
-        # 2. Verification of Response Guard:
-        # The response returned to the client must have identity bleed purged and markdown repaired
+        # 2. The response guard must not silently rewrite generated text.
         content = data["choices"][0]["message"]["content"]
-        assert "Google" not in content
-        assert "Gemini" not in content
-        assert "SupremeAI" in content
-        assert content.count("```") % 2 == 0
-        assert content.endswith("```")
+        assert content == "I am Gemini, developed by Google.\nHere is your solution:\n```python\nprint('hello from architect')"
 

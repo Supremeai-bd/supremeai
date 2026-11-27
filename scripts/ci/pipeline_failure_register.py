@@ -58,11 +58,13 @@ import re
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
-REPO = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
+# বাংলা মন্তব্য: লিগ্যাসি রিপো নাম সরিয়ে বর্তমান ক্যানোনিকাল অর্গানাইজেশন রিপো ডিফল্ট হিসেবে নির্ধারণ করা হলো।
+REPO = os.environ.get("GH_REPO", "Supremeai-bd/supremeai")
 RULES_PATH = Path(__file__).resolve().parents[2] / ".github" / "constitution" / "rules.yml"
 
 # ── Policy SSOT (rules.yml pipeline_failure_policy) + DEFAULT fallback ────────
@@ -177,32 +179,131 @@ def now_utc() -> str:
 
 # ── ইনজেক্টেবল GitHub-স্তর (tests: FakeApi/FakeGh) ────────────────────────────
 
+_AUTH_RETRY_MARKERS = (
+    "bad credentials",
+    "not accessible",
+    "http 401",
+    "http 403",
+    "authentication",
+)
+
+
+def _candidate_auth_values() -> list[str]:
+    """বাংলা মন্তব্য: মেয়াদোত্তীর্ণ বা সীমিত স্কোপের `SELF_HEAL_PAT` ব্যর্থ হলে `GH_FALLBACK_TOKEN`/`GITHUB_TOKEN` দিয়ে স্বয়ংক্রিয় retry।"""
+    seen: list[str] = []
+    for env_key in ("GH_TOKEN", "GH_FALLBACK_TOKEN", "GITHUB_TOKEN"):
+        val = (os.environ.get(env_key) or "").strip()
+        if val and val not in seen:
+            seen.append(val)
+    return seen or [""]
+
+
 def real_api(endpoint: str, method: str = "GET", payload: dict | None = None) -> Any:
-    """REST কল — token সর্বদা GH_TOKEN প্রথম (workflow-চুক্তি), GITHUB_TOKEN fallback।"""
-    token = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
-    req = urllib.request.Request(
-        f"https://api.github.com/{endpoint.lstrip('/')}",
-        data=json.dumps(payload).encode() if payload is not None else None,
-        method=method,
-        headers={
-            "Authorization": f"token {token}",
+    """REST কল — GH_TOKEN প্রথম; 401/403 ত্রুটিতে fallback টোকেন দিয়ে স্বয়ংক্রিয় retry।"""
+    api_url = "https://api.github.com/" + endpoint.lstrip("/")
+    encoded_body = json.dumps(payload).encode("utf-8") if payload is not None else None
+    candidates = _candidate_auth_values()
+    total_candidates = len(candidates)
+    for attempt_idx, auth_val in enumerate(candidates):
+        base_headers = {
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        raw = resp.read().decode()
-    return json.loads(raw) if raw.strip() else None
+        }
+        if auth_val:
+            base_headers["Authorization"] = f"token {auth_val}"
+        gh_request = urllib.request.Request(
+            url=api_url, data=encoded_body, headers=base_headers, method=method
+        )
+        try:
+            with urllib.request.urlopen(gh_request, timeout=30) as response_stream:
+                decoded_body = response_stream.read().decode("utf-8")
+            return json.loads(decoded_body) if decoded_body.strip() else None
+        except urllib.error.HTTPError as http_err:
+            if http_err.code in (401, 403) and (attempt_idx + 1) < total_candidates:
+                continue
+            raise
+    return None
+
+
+def _rest_run_list_fallback(args: tuple[str, ...]) -> str:
+    """বাংলা মন্তব্য: পুরনো `gh` CLI-তে `--status` ফ্ল্যাগ না থাকলে সরাসরি REST API দিয়ে workflow runs তালিকা আনা হয়।"""
+    repo = REPO
+    branch = workflow = status = None
+    limit = 30
+    idx = 2
+    while idx < len(args):
+        flag = args[idx]
+        nxt = args[idx + 1] if idx + 1 < len(args) else ""
+        if flag in ("--repo", "-R"):
+            repo = nxt
+            idx += 2
+        elif flag in ("--branch", "-b"):
+            branch = nxt
+            idx += 2
+        elif flag in ("--workflow", "-w"):
+            workflow = nxt
+            idx += 2
+        elif flag in ("--limit", "-L") and nxt.isdigit():
+            limit = int(nxt)
+            idx += 2
+        elif flag == "--status":
+            status = nxt
+            idx += 2
+        else:
+            idx += 1
+    params = [f"per_page={min(max(limit * 3, 30), 100)}"]
+    if branch:
+        params.append(f"branch={urllib.parse.quote(branch, safe='')}")
+    if status:
+        params.append(f"status={urllib.parse.quote(status, safe='')}")
+    data = real_api(f"repos/{repo}/actions/runs?{'&'.join(params)}") or {}
+    rows: list[dict[str, Any]] = []
+    for run in data.get("workflow_runs") or []:
+        if workflow and run.get("name") != workflow:
+            continue
+        rows.append(
+            {
+                "databaseId": run.get("id"),
+                "name": run.get("name"),
+                "headBranch": run.get("head_branch"),
+                "headSha": run.get("head_sha"),
+                "event": run.get("event"),
+                "createdAt": run.get("created_at"),
+                "url": run.get("html_url"),
+                "conclusion": run.get("conclusion"),
+            }
+        )
+        if len(rows) >= limit:
+            break
+    return json.dumps(rows)
 
 
 def real_gh(*args: str) -> str:
-    """gh CLI র‍্যাপার — stdout স্ট্রিং ফেরত (run-list/pr-view/log-failed)।"""
-    res = subprocess.run(
-        ["gh", *args], capture_output=True, text=True, timeout=60, check=False
-    )
-    if res.returncode != 0:
-        raise RuntimeError(f"gh {' '.join(args[:3])}… failed: {res.stderr[:200]}")
-    return res.stdout
+    """gh CLI র‍্যাপার — 401/403 হলে fallback টোকেন retry এবং পুরনো gh-এ REST run-list ফ্যালব্যাক।"""
+    candidates = _candidate_auth_values()
+    last_stderr = ""
+    for idx, auth_val in enumerate(candidates):
+        child_env = dict(os.environ)
+        if auth_val:
+            child_env["GH_TOKEN"] = auth_val
+        res = subprocess.run(
+            ["gh", *args],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+            env=child_env,
+        )
+        if res.returncode == 0:
+            return res.stdout
+        last_stderr = res.stderr or ""
+        lower_err = last_stderr.lower()
+        if args[:2] == ("run", "list") and "unknown flag: --status" in lower_err:
+            return _rest_run_list_fallback(args)
+        if any(m in lower_err for m in _AUTH_RETRY_MARKERS) and idx + 1 < len(candidates):
+            continue
+        break
+    raise RuntimeError(f"gh {' '.join(args[:3])}… failed: {last_stderr[:200]}")
 
 
 Api = Callable[..., Any]
@@ -853,15 +954,15 @@ def close_healed_issue(api: Api, issue_number: int, row: dict, pol: dict) -> Non
 # ── পুনর্মিলন (#2935): সমান্তরাল-স্ক্যান race + orphan GC ────────────────────
 
 def _pr_still_open(api: Api, pr_number: int) -> bool:
-    """PR #N এখনো open কি না — pr:N-মার্কার ইস্যুর GC-রক্ষার শর্ত।"""
+    """বাংলা মন্তব্য: অজানা অবস্থা open ধরে রাখি; API ত্রুটিতে ইস্যু বন্ধ নয়।"""
     try:
         pr = api(f"repos/{REPO}/pulls/{pr_number}")
-        return bool(pr) and pr.get("state") == "open"
+        return not (isinstance(pr, dict) and pr.get("state") == "closed")
     except Exception:
-        return False
+        return True
 
 
-def _close_reconciled(api: Api, issue: dict, why: str, key: str) -> None:
+def _close_reconciled(api: Api, issue: dict, why: str, key: str) -> bool:
     body = (
         f"## 🧹 Reconciled (Pipeline Failure Register v2)\n\n"
         f"এই ইস্যুটি বন্ধ হচ্ছে — **{why}** (marker: `{key}`)।\n\n"
@@ -872,8 +973,10 @@ def _close_reconciled(api: Api, issue: dict, why: str, key: str) -> None:
         api(f"repos/{REPO}/issues/{issue['number']}/comments", method="POST", payload={"body": body})
         api(f"repos/{REPO}/issues/{issue['number']}", method="PATCH",
             payload={"state": "closed", "state_reason": "completed"})
-    except Exception:
-        pass
+        return True
+    except Exception as exc:
+        print(f"::warning::Could not reconcile issue #{issue.get('number')}: {exc}", file=sys.stderr)
+        return False
 
 
 def _claimed_recently(api: Api, issue: dict, pol: dict, now=None) -> bool:
@@ -946,12 +1049,20 @@ def reconcile_fix_issues(api: Api, pol: dict, active: list[dict]) -> dict[str, l
         if len(group) > 1:
             group = sorted(group, key=lambda i: i.get("created_at") or "")
             for dup in group[1:]:
-                _close_reconciled(api, dup, "একই marker-এ প্রাচীনতম ইস্যু ক্যানোনিকাল — এটি নকল (সমান্তরাল-স্ক্যান race)", key)
-                closed_dupes.append(int(dup["number"]))
+                if _close_reconciled(api, dup, "একই marker-এ প্রাচীনতম ইস্যু ক্যানোনিকাল — এটি নকল (সমান্তরাল-স্ক্যান race)", key):
+                    closed_dupes.append(int(dup["number"]))
             group = [group[0]]
         # ২) orphan-GC — grace-উইন্ডো পার হয়েছে এমন অনাথ
         keep = group[0]
         num = int(keep["number"])
+        # বাংলা মন্তব্য: স্পষ্ট closed PR-এর hold, পুরনো active সারি থাকলেও
+        # অনাথ; তবে অজানা PR অবস্থা বা চলমান দাবির ক্ষেত্রে বন্ধ নয়।
+        pr_id = key.split(":", 1)[1] if key.startswith("pr:") else ""
+        if pr_id.isdigit() and not _pr_still_open(api, int(pr_id)):
+            if not _claimed_recently(api, keep, pol, now=now):
+                if _close_reconciled(api, keep, f"PR #{pr_id} বন্ধ বা মার্জ হয়েছে", key):
+                    closed_orphans.append(num)
+            continue
         if num in active_fix_nums:
             continue
         try:
@@ -969,8 +1080,8 @@ def reconcile_fix_issues(api: Api, pol: dict, active: list[dict]) -> dict[str, l
         # তার work-branch-ই guard মুছে দেবে ("issue is closed") — GC নয়।
         if _claimed_recently(api, keep, pol, now=now):
             continue
-        _close_reconciled(api, keep, "কোনো সক্রিয় ব্যর্থতা-সারি আর এই ইস্যুকে রেফার করছে না (healed/excluded)", key)
-        closed_orphans.append(num)
+        if _close_reconciled(api, keep, "কোনো সক্রিয় ব্যর্থতা-সারি আর এই ইস্যুকে রেফার করছে না (healed/excluded)", key):
+            closed_orphans.append(num)
 
     return {"closed_dupes": closed_dupes, "closed_orphans": closed_orphans}
 
@@ -1065,7 +1176,8 @@ def scan(
         row["last"] = newest.get("createdAt", "")[:16]
         row["last_run_id"] = newest.get("databaseId")
         # আগের fix ধরে রাখো — ensure-ধাপে নতুন জন্ম এড়াতে (per-PR/per-branch শেয়ার্ড)
-        if not row.get("fix") and old.get("fix"):
+        # বাংলা মন্তব্য: পুরনো PR-hold অন্য রুটের branch-watch ইস্যু নয়।
+        if not row.get("fix") and old.get("fix") and old.get("route") == row.get("route"):
             row["fix"] = old["fix"]
         active.append(row)
 
@@ -1139,21 +1251,27 @@ def scan(
 
     # হীলিং: আগে ট্র্যাক করা, এখন উইন্ডো-বাইরে — সর্বশেষ রান সবুজ হলে resolved
     active_fps = {r["fp"] for r in active}
-    active_fix_nums = {r.get("fix") for r in active if r.get("fix")}
     # v2.1 (#2960): উইন্ডো-ভেতরে হীল-হওয়া fp এখানে আবার হীল হবে না (ডাবল-এন্ট্রি)
     healed_fps = {h["fp"] for h in healed}
     for fp, old in prev.items():
         if fp in active_fps or fp in healed_fps:
             continue
+        # বাংলা মন্তব্য: পুরনো PR বন্ধের নিশ্চিত প্রমাণ থাকলে stale hold সরাই;
+        # workflow সবুজ বলি না, এবং API ত্রুটিতে পূর্বের সারি অক্ষত রাখি।
+        pr_num = str(old.get("pr") or "")
+        if old.get("route") == "pr-rebuild" and pr_num.isdigit() and not _pr_still_open(api, int(pr_num)):
+            continue
         verdict = latest_conclusion(gh, old.get("workflow", ""), old.get("branch", ""))
         if verdict == "success":
             healed.append({**old, "fp": fp, "healed_at": now_utc()})
-        elif verdict == "failure":
-            # উইন্ডো-বাইরে কিন্তু এখনো লাল — সক্রিয় সারিই থাকবে
+        else:
+            # বাংলা মন্তব্য: লাল, চলমান বা অজানা রানে সফলতার প্রমাণ নেই;
+            # API ব্যর্থতা বা cancelled run দিয়ে পূর্বের সারি মুছে ফেলা যাবে না।
             active.append({**old, "fp": fp, "count": old.get("count", 1), "last": old.get("last", "")})
 
     order = {"merge-first": 0, "new-fix": 1, "already-tracked": 2, "pr-rebuild": 3, "watching": 4, "stale-tip": 5, "enforced": 6}
     active.sort(key=lambda r: order.get(r["route"], 9))
+    active_fix_nums = {r.get("fix") for r in active if r.get("fix")}
 
     reconciled: dict[str, list[int]] = {}
     if not dry_run:

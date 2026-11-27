@@ -297,3 +297,24 @@ class TestD1MessageComposition(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_strict_auth_gate_fails_instead_of_reporting_success(monkeypatch):
+    monkeypatch.setenv('REDIS_QUOTA_STRICT', '1')
+    def denied(_url):
+        raise rqm.TowerAuthGated()
+    monkeypatch.setattr(rqm, 'fetch_chain_status', denied)
+    assert rqm.main(['--tower-url', 'https://example.invalid/mcp']) == 3
+    monkeypatch.delenv('REDIS_QUOTA_STRICT')
+    assert rqm.main(['--tower-url', 'https://example.invalid/mcp']) == 0
+
+
+def test_strict_missing_alert_channel_is_failure(monkeypatch, tmp_path):
+    monkeypatch.setenv('REDIS_QUOTA_STRICT', '1')
+    monkeypatch.delenv('TELEGRAM_BOT_TOKEN', raising=False)
+    monkeypatch.delenv('TELEGRAM_CHAT_ID', raising=False)
+    monkeypatch.setattr(rqm, 'fetch_chain_status', lambda _url: {
+        'chain': [{'label': 'primary', 'usage': {'estimatedCommands': 90, 'limit': 100}}],
+        'activePrimary': 'primary', 'nextGlobalResetAt': 'window',
+    })
+    assert rqm.main(['--tower-url', 'https://example.invalid/mcp', '--state-file', str(tmp_path / 'state.json')]) == 3

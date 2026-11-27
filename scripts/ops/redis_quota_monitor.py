@@ -40,8 +40,8 @@ Stdlib-only, zero dependencies, cron-friendly exit codes:
 MCP tools — a zero-credential caller receives the plain-text refusal
 "Forbidden: tool ... requires agent role or higher". That refusal is a
 CONFIGURATION state (missing token), not tower unreachability, so it is
-classified as an honest skip (exit 0, even under REDIS_QUOTA_STRICT) with a
-loud owner-action message. When the repo secret MCP_TOWER_TOKEN (MCP Bearer
+classified as a configuration failure in strict mode (exit 3), or an honest
+skip otherwise, with a loud owner-action message. When the repo secret MCP_TOWER_TOKEN (MCP Bearer
 token with agent role) is configured it is sent automatically and the real
 quota check works end-to-end.
 """
@@ -632,10 +632,9 @@ def main(argv=None):
     try:
         report = fetch_chain_status(args.tower_url)
     except TowerAuthGated:
-        # 2026-11 RBAC rollout: a missing token is a CONFIGURATION state, not
-        # tower unreachability — honest skip (exit 0) even in strict mode.
+        # বাংলা: strict ক্রনে অনুমতি না থাকলে পরীক্ষা হয়নি, তাই ব্যর্থ।
         print(TowerAuthGated.owner_action)
-        return 0
+        return 3 if os.environ.get("REDIS_QUOTA_STRICT") else 0
     except Exception as exc:  # honest skip — never fabricate usage (U2)
         if os.environ.get("REDIS_QUOTA_STRICT"):
             print("ERROR: tower unreachable and REDIS_QUOTA_STRICT=1: %s" % exc)
@@ -724,7 +723,7 @@ def main(argv=None):
         print("SKIPPED: TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID not configured — nothing sent (U2 honest skip).")
         print(message)
         print("REDIS_QUOTA_MONITOR=unconfigured")
-        return 0
+        return 3 if os.environ.get("REDIS_QUOTA_STRICT") else 0
     else:
         message_id = send_telegram(message, token, chat_id)
         for a in pending:

@@ -31,6 +31,16 @@ on:
         required: false
         default: "all"
         type: string
+      ai_knowledge_json:
+        description: "Optional JSON packet for external AI agents to share knowledge into SupremeAI KB"
+        required: false
+        default: ""
+        type: string
+      ai_knowledge_issue:
+        description: "Optional Issue or PR number to scan for <!-- ai-knowledge-share v1 --> blocks"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -742,6 +752,12 @@ jobs:
             echo "PR #$PR_NUMBER already merged; skipping."
             exit 0
           fi
+          MERGE_STATE=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json mergeStateStatus --jq .mergeStateStatus || true)
+          if [ "$MERGE_STATE" = "BEHIND" ]; then
+            echo "PR #$PR_NUMBER is BEHIND base branch; updating branch so CI re-runs cleanly."
+            gh pr update-branch "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
+            exit 0
+          fi
           set -o pipefail
           # বাংলা মন্তব্য: recheck+merge দুটোই log ফাইলে tee করা হয় যাতে failure()-এ doctor পড়তে পারে।
           {
@@ -1244,6 +1260,9 @@ jobs:
               - '.github/workflows/unified-pipeline.yml'
             browser-lock:
               - 'browser/cloudflare-worker/package*.json'
+              - 'browser/cloudflare-worker/src/**'
+              - 'browser/cloudflare-worker/test/**'
+              - 'browser/cloudflare-worker/wrangler.toml'
               - '.github/workflows/unified-pipeline.yml'
 
       - name: Verify Python runtime lock coverage (without upgrades)
@@ -1301,7 +1320,9 @@ jobs:
       - name: Verify the Browser worker npm lock
         if: steps.runtime-locks.outputs.browser-lock == 'true'
         working-directory: browser/cloudflare-worker
-        run: npm ci --ignore-scripts --no-audit --no-fund
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          node --test test/worker.test.js
 
       - name: Build and verify Tower tool contracts (offline)
         if: steps.tower.outputs.contracts == 'true'
@@ -1467,3 +1488,44 @@ jobs:
           for pr in $(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number --jq '.[].number'); do
             gh pr update-branch "$pr" --repo "$GITHUB_REPOSITORY" || true
           done
+
+  sync-collective-ai-knowledge:
+    name: "🧠 Collective AI Knowledge Exchange (PR & Cross-AI Sync)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.ai_knowledge_json != '' || inputs.ai_knowledge_issue != ''))
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Ingest PR & Cross-AI Shared Knowledge into Supabase KB
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          GH_FALLBACK_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DISPATCH_SHARE_JSON: ${{ inputs.ai_knowledge_json }}
+          DISPATCH_SCAN_ISSUE: ${{ inputs.ai_knowledge_issue }}
+        run: |
+          # বাংলা মন্তব্য: ১) পুশ কমিট থেকে মার্জড PR শনাক্ত করে স্বয়ংক্রিয়ভাবে AI নলেজ ইনজেস্ট করা হয়।
+          HEAD_SUBJECT=$(git log -1 --pretty=%s || true)
+          PR_NUM=$(printf '%s' "$HEAD_SUBJECT" | sed -nE 's/.*\(#([0-9]+)\).*/\1/p' | head -n1)
+          if [ -n "$PR_NUM" ]; then
+            python3 scripts/ci/ingest_pr_knowledge.py --pr-num "$PR_NUM"
+          fi
+          # বাংলা মন্তব্য: ২) অন্য কোনো AI এজেন্ট workflow_dispatch বা ইস্যু কমেন্টে নলেজ শেয়ার করলে তা ইনজেস্ট করা হয়।
+          if [ -n "$DISPATCH_SHARE_JSON" ]; then
+            python3 scripts/ci/ai_knowledge_exchange.py --share-json "$DISPATCH_SHARE_JSON"
+          fi
+          if [ -n "$DISPATCH_SCAN_ISSUE" ]; then
+            python3 scripts/ci/ai_knowledge_exchange.py --scan-issue "$DISPATCH_SCAN_ISSUE" --repo "$GH_REPO"
+          fi
+          python3 scripts/ci/ai_knowledge_exchange.py --summary-md --limit 10 >> "$GITHUB_STEP_SUMMARY" || true

@@ -127,3 +127,66 @@ BEGIN
         CREATE POLICY users_owner_self ON public.users FOR ALL TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
     END IF;
 END $$;
+
+-- ------------------------------------------------------------------------------
+-- 5. PostgREST OpenAPI Schema Lockdown & .onion OAST Identifier Guards
+-- বাংলা মন্তব্য: ১) `/rest/v1/` রুট থেকে পুরো ডাটাবেস স্কিমা ডাম্প বন্ধ করা এবং
+-- ২) সকল TEXT/VARCHAR প্রাইমারি কী ও আইডেন্টিফায়ার কলামে `.onion` OAST পেলোড ব্লক করা।
+-- ------------------------------------------------------------------------------
+ALTER ROLE authenticator SET pgrst.openapi_mode = 'disabled';
+NOTIFY pgrst, 'reload config';
+
+DO $$
+DECLARE
+    rec RECORD;
+    cname TEXT;
+BEGIN
+    FOR rec IN
+        SELECT DISTINCT c.table_name, c.column_name
+        FROM information_schema.columns c
+        JOIN information_schema.tables t
+          ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+        WHERE c.table_schema = 'public'
+          AND t.table_type = 'BASE TABLE'
+          AND c.table_name NOT IN ('alembic_version', 'audit_logs_default')
+          AND c.data_type IN ('text', 'character varying')
+          AND (
+              EXISTS (
+                  SELECT 1
+                  FROM information_schema.table_constraints tc
+                  JOIN information_schema.key_column_usage kcu
+                    ON tc.constraint_name = kcu.constraint_name
+                   AND tc.table_schema = kcu.table_schema
+                  WHERE tc.table_schema = 'public'
+                    AND tc.table_name = c.table_name
+                    AND tc.constraint_type = 'PRIMARY KEY'
+                    AND kcu.column_name = c.column_name
+              )
+              OR c.column_name IN (
+                  'user_id', 'owner_id', 'tenant_id', 'session_id', 'provider',
+                  'tool_id', 'feature_name', 'capability_id', 'source_id', 'skill_id',
+                  'domain', 'key_name', 'wallet_id'
+              )
+          )
+    LOOP
+        cname := left('chk_no_onion_' || rec.table_name || '_' || rec.column_name, 63);
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint con
+            JOIN pg_class rel ON rel.oid = con.conrelid
+            JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+            WHERE nsp.nspname = 'public'
+              AND rel.relname = rec.table_name
+              AND con.conname = cname
+        ) THEN
+            EXECUTE format(
+                'ALTER TABLE public.%I ADD CONSTRAINT %I CHECK (%I IS NULL OR %I !~* %L)',
+                rec.table_name,
+                cname,
+                rec.column_name,
+                rec.column_name,
+                '\.onion(/|:|$)'
+            );
+        END IF;
+    END LOOP;
+END $$;

@@ -12,14 +12,19 @@ from api.routes.admin_dashboard import router
 from core.monitoring.logging_config import logger
 from core.utils.time_utils import utc_now
 
+# বাংলা মন্তব্য (Step 0, fail-honest): আগে কিছু না করেই "success" বলত। আসল
+# deploy pipeline wired না হওয়া পর্যন্ত সৎভাবে 501 ফেরত দেয়।
+NOT_WIRED_DETAIL = "not wired: {what} is not implemented on this backend yet"
+
 
 @router.post("/emergency-deploy")
 def emergency_deploy():
-    logger.warning("Emergency deployment triggered via Admin Dashboard")
-    return {
-        "status": "success",
-        "message": "Emergency deployment pipeline triggered. All services will restart shortly.",
-    }
+    logger.warning("Emergency deployment requested via Admin Dashboard (not wired)")
+    raise HTTPException(status_code=501, detail=NOT_WIRED_DETAIL.format(what="emergency deploy"))
+
+
+# Only non-secret data files. Secrets live in Infisical / the host env, never on disk backups.
+BACKUP_SOURCE_FILES: tuple[str, ...] = ("data/constitutional_rules.db", "data/users.json")
 
 
 @router.post("/backup")
@@ -27,7 +32,8 @@ def trigger_backup():
     timestamp = utc_now().strftime("%Y%m%d_%H%M%S")
     backup_dir = f"backups/backup_{timestamp}"
     os.makedirs(backup_dir, exist_ok=True)
-    for fname in [".env", "data/constitutional_rules.db", "data/users.json"]:
+    # বাংলা মন্তব্য (security): `.env` (সিক্রেট) আর কখনো ব্যাকআপ ফোল্ডারে কপি হয় না।
+    for fname in BACKUP_SOURCE_FILES:
         if os.path.exists(fname):
             try:
                 shutil.copy2(fname, os.path.join(backup_dir, os.path.basename(fname)))
@@ -81,27 +87,25 @@ def get_backups():
 # backup. Added POST alias.
 @router.post("/backups")
 def create_backup():
-    """Create a manual backup (calls the same logic as the deploy trigger)."""
-    import datetime
-
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_dir = f"backups/backup_{timestamp}"
+    """Create a manual backup — same real copy as POST /backup (no secrets)."""
     try:
-        os.makedirs(backup_dir, exist_ok=True)
-        # Write a manifest
-        with open(os.path.join(backup_dir, "manifest.json"), "w") as f:
-            json.dump({"timestamp": timestamp, "type": "manual"}, f)
-        return {"status": "success", "backup_name": f"backup_{timestamp}"}
+        result = trigger_backup()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    backup_dir = result["backup_path"]
+    with open(os.path.join(backup_dir, "manifest.json"), "w") as f:
+        json.dump({"timestamp": os.path.basename(backup_dir), "type": "manual"}, f)
+    return {"status": "success", "backup_name": os.path.basename(backup_dir)}
 
 
 # CI FIX: frontend hooks.ts:453 calls POST /admin-api/backups/{id}/restore
 # to trigger a restore. Added POST alias.
 @router.post("/backups/{backup_id}/restore")
 def restore_backup(backup_id: str):
-    """Trigger a restore from a backup."""
+    """Restore is not implemented — fail honest instead of a fake "queued"."""
+    if "/" in backup_id or "\\" in backup_id or backup_id.startswith("."):
+        raise HTTPException(status_code=400, detail="Invalid backup id")
     backup_dir = f"backups/{backup_id}"
     if not os.path.exists(backup_dir):
         raise HTTPException(status_code=404, detail=f"Backup '{backup_id}' not found")
-    return {"status": "success", "message": f"Restore from '{backup_id}' queued"}
+    raise HTTPException(status_code=501, detail=NOT_WIRED_DETAIL.format(what="backup restore"))

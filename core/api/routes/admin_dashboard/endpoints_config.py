@@ -86,8 +86,26 @@ def get_config():
     for key in ["ENV", "DEBUG", "LOG_LEVEL", "REDIS_URL", "DATABASE_URL"]:
         val = os.environ.get(key, "")
         if val:
-            config[key] = val
+            # বাংলা মন্তব্য (security, Step 0): URL-এর ভেতরের পাসওয়ার্ড আর ব্রাউজারে যায় না।
+            config[key] = redact_url_credentials(val) if key.endswith("_URL") else val
     return config
+
+
+def redact_url_credentials(value: str) -> str:
+    """Mask the password part of `scheme://user:password@host` connection strings."""
+    from urllib.parse import urlsplit, urlunsplit
+
+    try:
+        parts = urlsplit(value)
+    except ValueError:
+        return "***"
+    if parts.password is None:
+        return value
+    user = parts.username or ""
+    host = parts.hostname or ""
+    if parts.port:
+        host = f"{host}:{parts.port}"
+    return urlunsplit(parts._replace(netloc=f"{user}:***@{host}"))
 
 
 @router.post("/config")

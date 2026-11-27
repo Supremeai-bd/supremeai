@@ -458,6 +458,28 @@ def probe_cloudflare(kv: dict) -> list[dict]:
             if vals.get("development_mode") == "on":
                 out.append(mk("cloudflare", f"zone[{z.get('name')}].dev_mode", None,
                               "development_mode ON — cache অফ চলছে", category="SETTINGS_RISK"))
+    # বাংলা মন্তব্য: Vercel-এর বদলে Cloudflare Pages (supremeai-studio) production deploy freshness যাচাই
+    acct_id = kv.get("CLOUDFLARE_ACCOUNT_ID", "")
+    cf_email, cf_gk = kv.get("CLOUDFLARE_EMAIL", ""), kv.get("CLOUDFLARE_GLOBAL_API_KEY", "")
+    pages_headers = {"Authorization": f"Bearer {tok}"} if tok else (
+        {"X-Auth-Email": cf_email, "X-Auth-Key": cf_gk} if cf_email and cf_gk else None
+    )
+    if acct_id and pages_headers:
+        st, pdeps = retry(lambda: jget(
+            f"https://api.cloudflare.com/client/v4/accounts/{acct_id}/pages/projects/supremeai-studio/deployments?per_page=5",
+            pages_headers,
+        ))
+        if st == 200 and isinstance(pdeps, dict) and pdeps.get("success"):
+            prod_deps = [d for d in pdeps.get("result", []) if d.get("environment") == "production"]
+            if prod_deps:
+                age = age_hours(prod_deps[0].get("created_on", ""))
+                if age is not None:
+                    if age > 168:  # ৭ দিন
+                        out.append(mk("cloudflare", "pages-deploy-freshness", False,
+                                      f"শেষ Cloudflare Pages production deploy {age/24:.1f} দিন আগে — main থেকে পিছিয়ে",
+                                      category="DATA_STALE"))
+                    else:
+                        out.append(mk("cloudflare", "pages-deploy-freshness", True, f"{age:.1f}h আগে"))
     return out
 
 
@@ -664,7 +686,7 @@ def probe_github_mirror(kv: dict) -> list[dict]:
     return out
 
 
-PROBES = [probe_upstash, probe_render, probe_supabase, probe_vercel, probe_cloudflare,
+PROBES = [probe_upstash, probe_render, probe_supabase, probe_cloudflare,
           probe_kaggle, probe_ai_hosts, probe_firecrawl, probe_github_mirror, probe_known_keys]
 
 

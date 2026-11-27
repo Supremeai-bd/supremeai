@@ -26,6 +26,7 @@ import hashlib
 import json
 import re
 import sys
+import tokenize
 from collections import defaultdict
 from pathlib import Path
 
@@ -66,14 +67,18 @@ def scan_python(root: Path) -> dict:
     todo_fixmes = []
 
     for path in iter_files(root, CODE_EXTS):
-        try:
-            src = path.read_text(encoding="utf-8", errors="replace")
-        except Exception as e:
-            # বাংলা: ফাইল পড়া না গেলে পুরো audit থেকে চুপচাপ বাদ না দিয়ে stderr-এ জানিয়ে দিন
-            print(f"  ⚠️  Skipped from audit (unreadable): {path.relative_to(root)}: {e}", file=sys.stderr)
-            continue
-
         rel = str(path.relative_to(root))
+        try:
+            # বাংলা মন্তব্য: Python-এর নিজস্ব source encoding ও UTF-8 BOM সমর্থন।
+            with tokenize.open(path) as source:
+                src = source.read()
+        except (SyntaxError, UnicodeError) as e:
+            syntax_errors.append(f"{rel}: {e}")
+            continue
+        except OSError as e:
+            # বাংলা: ফাইল পড়া না গেলে পুরো audit থেকে চুপচাপ বাদ না দিয়ে stderr-এ জানিয়ে দিন
+            print(f"  ⚠️  Skipped from audit (unreadable): {rel}: {e}", file=sys.stderr)
+            continue
 
         for i, line in enumerate(src.splitlines(), 1):
             if "datetime.now()" in line and "utcnow" not in line:
