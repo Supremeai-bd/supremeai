@@ -70,8 +70,9 @@ def _verify_mesh_task_auth(request: Request) -> None:
             sec = getattr(settings, "supremeai_api_key", None)
             if sec is not None and hasattr(sec, "get_secret_value"):
                 expected_tokens.append(sec.get_secret_value())
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Failed to load supremeai_api_key from settings (%s)", type(exc).__name__)
 
     if not expected_tokens:
         raise HTTPException(

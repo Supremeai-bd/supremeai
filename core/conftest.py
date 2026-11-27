@@ -23,8 +23,9 @@ def _alias_core_package(pkg_name: str) -> None:
 
         core_pkg = importlib.import_module(f"core.{pkg_name}")
         sys.modules.setdefault(pkg_name, core_pkg)
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Optional core package alias skipped for %s (%s)", pkg_name, type(exc).__name__)
 
 
 _alias_core_package("models")

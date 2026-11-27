@@ -95,8 +95,9 @@ async def _default_session_factory(provider: str, session_id: str) -> dict[str, 
         if callable(with_suppress):
             try:
                 await with_suppress()
-            except Exception:  # pragma: no cover - best effort cleanup
-                pass
+            except Exception as stop_exc:  # pragma: no cover - best effort cleanup
+                import logging
+                logging.getLogger(__name__).debug("Playwright runtime stop failed (%s)", type(stop_exc).__name__)
         raise
     return {"context": context, "page": page, "playwright_runtime": runtime}
 
