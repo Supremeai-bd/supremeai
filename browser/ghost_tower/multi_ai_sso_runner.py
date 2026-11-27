@@ -185,7 +185,7 @@ async def login_grok(context: BrowserContext, email: str, password: str) -> bool
                 await signin_btn.click()
                 await asyncio.sleep(2)
         except Exception as exc:
-            logger.debug("Optional sign-in button skipped at %s (%s)", page.url, type(exc).__name__)
+            logger.debug("Grok sign-in button skipped (%s)", type(exc).__name__)
 
         await click_google_sso_button(page, email, password)
         await asyncio.sleep(8)
