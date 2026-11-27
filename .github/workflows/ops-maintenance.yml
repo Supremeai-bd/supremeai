@@ -1876,7 +1876,7 @@ jobs:
       # workflow invalid → সব nightly arm 0-jobs failure)। ZAP টার্গেট এখন সরাসরি
       # SSOT repo var STAGING_BASE_URL থেকে (আগেও default fallback এটাই ছিল;
       # custom override দরকার হলে vars.STAGING_BASE_URL এডিট করা হবে)।
-      ZAP_TARGET: ${{ vars.STAGING_BASE_URL || vars.PRODUCTION_URL }}
+      ZAP_TARGET: ${{ vars.STAGING_BASE_URL }}
     timeout-minutes: 45
     steps:
       - name: Require scan target
@@ -1932,6 +1932,43 @@ jobs:
           echo "- Target: ${{ env.ZAP_TARGET }}"
           echo "- Reports uploaded as artifact: zap-reports"
           echo "- Post-scan IDOR/business-logic rules: tracked in SECURITY_AUDIT_MATRIX.md P8"
+
+  production-passive-baseline:
+    # Manual, branch-only rehearsal: not scheduled and never enabled by run_all.
+    # Legacy full/API ZAP job above stays disabled and staging-only.
+    if: github.event_name == 'workflow_dispatch' && inputs.run_dast == true && inputs.run_all != true && github.ref != 'refs/heads/main'
+    name: "Production ZAP passive root inspection (no spider)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Validate authorized origin
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL || secrets.PRODUCTION_URL }}
+        run: |
+          python3 -c 'import os; from scripts.ops.zap_passive_production import validate_origin; validate_origin(os.environ.get("PRODUCTION_URL", ""))'
+      - name: Start ZAP passive proxy
+        run: |
+          docker run -d --rm --name zap-passive -p 127.0.0.1:8090:8090 ghcr.io/zaproxy/zaproxy:stable zap.sh -daemon -host 0.0.0.0 -port 8090 -config api.disablekey=true -config 'api.addrs.addr.name=.*' -config api.addrs.addr.regex=true
+      - name: Inspect only root GET responses
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL || secrets.PRODUCTION_URL }}
+        run: python3 scripts/ops/zap_passive_production.py
+      - name: Upload restricted passive report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: zap-passive-root
+          path: zap-passive-report.json
+          retention-days: 3
+          if-no-files-found: warn
+      - name: Stop ZAP
+        if: always()
+        run: docker rm -f zap-passive || true
 
   constitution:
     needs: [resolve-execution-tier]

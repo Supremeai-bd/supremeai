@@ -1,0 +1,7 @@
+# Production ZAP: সীমিত passive পরীক্ষা
+
+ব্যবহারকারীর অনুমোদনে `run_dast` manual dispatch-এর একটি **branch-only** পরীক্ষামূলক job `PRODUCTION_URL`-এর একক HTTPS origin-এর `/`-এ দুটি unauthenticated GET করে (একটি সাধারণ, একটি অচেনা `Origin` header সহ)। ZAP কেবল ওই proxy response-গুলোর passive analysis করে; spider, redirect-following, authenticated request, POST, API/active scan বা load test নেই। এটি official ZAP baseline script-এর পূর্ণ crawl নয়, এবং route-level বা সার্বিক নিরাপত্তা পরীক্ষা বলে দাবি করা যাবে না। GET নিরাপদ কি না সার্ভারের আচরণের ওপর নির্ভর করে; আপাতদৃষ্টিতে read-only GET-ও কোনো অ্যাপের ভুল ডিজাইনে side effect ঘটাতে পারে। ZAP-এর proxy সার্টিফিকেটের কারণে curl TLS verification বন্ধ রাখে, ফলে সার্ভারের আসল certificate পরীক্ষা হয় না।
+
+Report access-controlled Actions artifact-এ তিন দিন রাখা হয়; এতে response URL ও অন্যান্য upstream বিবরণ থাকতে পারে। Annotations শুধু sanitized alert name/risk দেখায়। HTTP success বা zero alerts নিরাপত্তার প্রমাণ নয়। Job ব্যর্থ বা report না থাকলে scan-ও অসম্পূর্ণ। Docker `stable` image mutable; release pinning ও নির্ভরযোগ্যতা যাচাই বাকি।
+
+পুরোনো staging full/API job এখনও `if: false` এবং target শুধুই `STAGING_BASE_URL`। Production URL-কে staging fallback হিসেবে ব্যবহার নিষিদ্ধ; কোনো staging full/API scanner চালু করার আগে অনুমোদিত staging ও target পরিচয় পৃথকভাবে যাচাই করতে হবে। Manual branch run-এ অন্য কিছু read-only inventory job চলতে পারে; core runner-dependent maintenance jobs branch-এ skipped। এই সীমিত পরীক্ষাকে PR status gate বা production security certification হিসেবে ব্যবহার করা যাবে না।
