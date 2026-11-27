@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Autonomous PR Knowledge Ingestion Engine.
 
-Extracts structured, role-specific intelligence from merged Pull Requests
-and stores it permanently into Supabase (knowledge_base & learned_facts)
-and Qdrant (supremeai_memory) vector store.
+Parses structured role-specific PR evidence for validation. Unreviewed
+legacy persistence and vector indexing are disabled pending independent review.
 
 Supports 7 Specialized Agent Roles:
   - coder: fix_mechanism, why_this_way, alternatives_rejected, pitfalls_to_avoid
@@ -14,7 +13,7 @@ Supports 7 Specialized Agent Roles:
   - third-party: zero_credential_preservation, cold_start_resilience
   - ecosystem-scout: board_parity_finding, drift_detected_and_remedied
 
-Stdlib-only for core execution, fail-soft on network errors (never breaks merge pipeline).
+Failures are explicit; dry-run validation does not claim persistence or approval.
 """
 
 from __future__ import annotations
@@ -36,11 +35,11 @@ _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from core.utils.api_key_resolver import resolve_numbered_key
 from scripts.ci.ai_knowledge_exchange import (
+    SHARE_MARKER_OPEN,
+    SHARE_MARKER_CLOSE,
     extract_ai_share_packets_from_text,
     is_clean_knowledge_payload,
-    persist_shared_packet,
 )
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -559,142 +558,39 @@ def run_ingest(
     touched_files: Optional[List[str]] = None,
     diff_text: Optional[str] = None,
 ) -> bool:
-    """Main extraction and ingestion routine."""
-    # বাংলা মন্তব্য: PR বডিতে অন্য কোনো AI এজেন্ট `<!-- ai-knowledge-share v1 -->` ব্লক দিলে সেটিও একসাথে ইনজেস্ট করা হয়।
-    shared_packets = extract_ai_share_packets_from_text(body, default_source=f"PR #{pr_num} ({author})")
-    for pkt in shared_packets:
-        persist_shared_packet(pkt, dry_run=dry_run)
-
-    data, version = extract_envelope_json(body)
-    if not data:
-        if shared_packets:
-            print(f"[OK] Ingested {len(shared_packets)} cross-AI shared knowledge packet(s) from PR #{pr_num}.")
+    """Validate legacy envelopes only; never publish unreviewed user content."""
+    if not isinstance(body, str) or len(body.encode("utf-8")) > 256_000:
+        print("::error::Invalid or oversized PR evidence.", file=sys.stderr)
+        return False
+    try:
+        for opening, closing in ((MARKER_OPEN_V1, MARKER_CLOSE_V1), (MARKER_OPEN_V2, MARKER_CLOSE_V2)):
+            if body.count(opening) != body.count(closing) or body.count(opening) > 1:
+                raise ValueError("Ambiguous knowledge envelope markers")
+        if MARKER_OPEN_V1 in body and MARKER_OPEN_V2 in body:
+            raise ValueError("Mixed knowledge envelope versions")
+        shared_packets = extract_ai_share_packets_from_text(body, default_source="unverified")
+        if (body.count(SHARE_MARKER_OPEN) != body.count(SHARE_MARKER_CLOSE)
+                or body.count(SHARE_MARKER_OPEN) != len(shared_packets)):
+            raise ValueError("Invalid shared evidence marker or packet")
+        data, version = extract_envelope_json(body)
+        has_envelope_marker = any(m in body for m in (MARKER_OPEN_V1, MARKER_CLOSE_V1, MARKER_OPEN_V2, MARKER_CLOSE_V2))
+        if data is not None:
+            if not isinstance(data, dict) or not validate_knowledge(data, version)[0]:
+                raise ValueError("Invalid knowledge envelope")
+        elif has_envelope_marker:
+            raise ValueError("Malformed knowledge envelope")
+        elif not shared_packets:
+            print("::notice::No knowledge envelope; nothing stored.")
             return True
-        print(f"::notice::PR #{pr_num} carried no knowledge envelope ({version}). Skipping ingestion.")
-        return True
-
-    is_valid, role, reason, knowledge = validate_knowledge(data, version)
-    if not is_valid:
-        print(f"::warning::PR #{pr_num} envelope invalid ({reason}). Ingestion skipped.")
+    except (TypeError, ValueError, RecursionError):
+        print("::error::PR knowledge evidence failed validation.", file=sys.stderr)
         return False
 
-    print(f"[OK] PR #{pr_num} validated as Role '{role}' ({version})")
-
-    # Fetch PR diff and touched files if not provided
-    if pr_num > 0 and diff_text is None:
-        diff_text, files_from_diff = fetch_pr_diff(pr_num)
-        if not touched_files:
-            touched_files = files_from_diff
-
-    if not touched_files and diff_text:
-        touched_files = parse_touched_files_from_diff(diff_text)
-
-    # বাংলা মন্তব্য: কাঁচা diff-এ অজানা ধরনের সিক্রেট থাকতে পারে; regex redaction
-    # সম্পূর্ণ নিরাপদ নয়। শুধু ফাইলের নাম ও আকার রাখি, কোড ডাটাবেসে পাঠাই না।
-    diff_size_bytes = len(diff_text.encode("utf-8")) if diff_text else 0
-
-    # 1. Prepare Supabase knowledge_base record (deterministic UUID5 for idempotency)
-    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    det_kb_id = (
-        str(uuid.uuid5(uuid.NAMESPACE_URL, f"supremeai:pr-kb:{pr_num}:{role}"))
-        if pr_num > 0
-        else str(uuid.uuid4())
-    )
-    kb_record = {
-        "id": det_kb_id,
-        "knowledge_key": f"pr-{pr_num}-{role}",
-        "title": f"PR #{pr_num} [{role.upper()}]: {title or 'Agent Solution'}",
-        "domain": role,
-        "namespace": "pr-intelligence",
-        "content": json.dumps(knowledge, indent=2),
-        "source": f"PR #{pr_num}",
-        "confidence": 1.0,
-        "risk_level": "low",
-        "status": "active",
-        "metadata": {
-            "pr_number": pr_num,
-            "author": author,
-            "role": role,
-            "version": version,
-            "ingested_at": now,
-            "touched_files": touched_files or [],
-            "files_count": len(touched_files or []),
-            "diff_size_bytes": diff_size_bytes,
-        },
-        "updated_at": now,
-    }
-
-    # 2. Prepare Supabase learned_facts (deterministic IDs + structured JSONB content)
-    facts = format_learned_facts(pr_num, role, knowledge, title)
-    for idx, fact in enumerate(facts):
-        if pr_num > 0:
-            fact["id"] = str(uuid.uuid5(uuid.NAMESPACE_URL, f"supremeai:pr-fact:{pr_num}:{role}:{idx}"))
-        if isinstance(fact.get("content"), str):
-            fact["content"] = {"text": fact["content"], "pr_number": pr_num, "role": role, "author": author}
-
-    # 3. Prepare Qdrant Vector Point
-    files_str = f"\nTouched files: {', '.join(touched_files[:10])}" if touched_files else ""
-    semantic_summary = (
-        f"PR #{pr_num} Role: {role}\nTitle: {title}{files_str}\n"
-        + "\n".join([f"{k}: {v}" for k, v in knowledge.items() if isinstance(v, (str, list))])
-    )
-
-    if dry_run:
-        print("\n--- DRY RUN: knowledge_base record ---")
-        print(json.dumps(kb_record, indent=2))
-        print(f"\n--- DRY RUN: {len(facts)} learned_facts ---")
-        for f in facts:
-            print(f"- {f['content']}")
-        print(f"\n--- DRY RUN: Semantic Summary ({len(semantic_summary)} chars) ---")
-        print(semantic_summary[:300] + "...")
-        return True
-
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
-    qdrant_url = os.getenv("QDRANT_URL")
-    qdrant_key = os.getenv("QDRANT_API_KEY")
-    gemini_key = resolve_numbered_key("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-
-    success = True
-    if supabase_url and supabase_key:
-        kb_ok = post_to_supabase(supabase_url, supabase_key, "knowledge_base", kb_record)
-        success = kb_ok and success
-        print(f"Supabase knowledge_base: {'✓ Saved' if kb_ok else '✗ Failed'}")
-        for fact in facts:
-            f_ok = post_to_supabase(supabase_url, supabase_key, "learned_facts", fact)
-            success = f_ok and success
-            print(f"Supabase learned_facts ({fact['tags'][0]}): {'✓ Saved' if f_ok else '✗ Failed'}")
-    else:
-        print("::notice::Supabase credentials not set; skipping Supabase ingestion.")
-
-    # বাংলা মন্তব্য: এমবেডিং সেবায় পাঠানোর আগেও একই সিক্রেট গার্ড প্রযোজ্য।
-    if qdrant_url and gemini_key and not is_clean_knowledge_payload(semantic_summary):
-        print("::warning::Blocked unsafe semantic summary before embedding.", file=sys.stderr)
-        success = False
-    elif qdrant_url and gemini_key:
-        embedding = generate_embedding_gemini(semantic_summary, gemini_key, dim=768)
-        if embedding:
-            point = {
-                "id": str(uuid.uuid4()),
-                "vector": embedding,
-                "payload": {
-                    "pr_number": pr_num,
-                    "role": role,
-                    "title": title,
-                    "summary": semantic_summary[:1200],
-                    "touched_files": (touched_files or [])[:20],
-                    "timestamp": now,
-                    "source": "pr_knowledge_envelope",
-                },
-            }
-            q_ok = upsert_to_qdrant(qdrant_url, qdrant_key, "supremeai_memory", point)
-            print(f"Qdrant supremeai_memory: {'✓ Upserted' if q_ok else '✗ Failed'}")
-        else:
-            print("::warning::Could not generate vector embedding; skipping Qdrant upsert.")
-    else:
-        print("::notice::Qdrant or Gemini credentials not set; skipping Qdrant upsert.")
-
-    return success
+    if not dry_run:
+        print("::error::Legacy knowledge writes disabled pending independent review and provenance.", file=sys.stderr)
+        return False
+    print("[validation only] Legacy evidence not stored, indexed, reviewed, or approved.")
+    return True
 
 
 def run_self_test() -> int:
@@ -791,8 +687,8 @@ def main() -> int:
                 touched_files=touched_files,
             ) else 1
         except Exception as err:
-            print(f"::warning::Failed to fetch PR #{args.pr_num} via gh: {err}", file=sys.stderr)
-            return 0  # Fail-soft: do not fail merge pipeline
+            print(f"::error::Failed to fetch PR evidence ({type(err).__name__}); nothing stored.", file=sys.stderr)
+            return 1
 
     parser.print_help()
     return 1
