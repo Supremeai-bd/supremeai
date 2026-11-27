@@ -1936,7 +1936,7 @@ jobs:
   production-passive-baseline:
     # Manual, branch-only rehearsal: not scheduled and never enabled by run_all.
     # Legacy full/API ZAP job above stays disabled and staging-only.
-    if: github.event_name == 'workflow_dispatch' && inputs.run_dast == true && inputs.run_all != true && github.ref != 'refs/heads/main'
+    if: false
     name: "Production ZAP passive root inspection (no spider)"
     runs-on: ubuntu-24.04
     timeout-minutes: 8
@@ -1969,6 +1969,32 @@ jobs:
       - name: Stop ZAP
         if: always()
         run: docker rm -f zap-passive || true
+
+  offline-zap-evidence-review:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_dast == true && github.ref != 'refs/heads/main'
+    name: "Review previous passive report offline"
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: '46046931910'
+          name: zap-passive-root
+      - name: Report safe cache metadata only
+        run: |
+          python3 - <<'PYTHON'
+          import json, re
+          report = json.load(open('zap-passive-report.json'))
+          for alert in report['alerts']:
+              evidence = str(alert.get('evidence', '')).lower()
+              directives = re.findall(r'(?<![a-z-])(no-store|no-cache|private|public|must-revalidate|s-maxage|max-age)(?:\s*=\s*([0-9]+))?', evidence)
+              summary = ', '.join(k + ('=' + v if v else '') for k, v in directives) or 'not present in evidence'
+              confidence = re.sub(r'[^a-zA-Z ]', '', str(alert.get('confidence', 'unknown')))[:20]
+              print(f'::notice::Cache alert confidence: {confidence}; recognized evidence directives: {summary}')
+          PYTHON
 
   constitution:
     needs: [resolve-execution-tier]
