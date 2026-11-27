@@ -542,6 +542,20 @@ jobs:
   # These needs are job results for this run's github.sha, not a PR-head rollup.
   # Drafts run CI, but no landing decision is requested until ready_for_review.
   # =========================================================================
+  cancel-on-tier1-fail:
+    name: "Fail-Fast: Cancel Run on Tier 1 Failure"
+    if: failure() && github.event_name == 'pull_request'
+    needs: [fast-gate, runtime-readiness, syntax-and-governance-gate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      actions: write
+    steps:
+      - name: Cancel remaining jobs in this workflow run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run cancel "${{ github.run_id }}" --repo "${{ github.repository }}" || true
+
   verify-pr:
     name: "PR Verification"
     if: ${{ always() && github.event_name == 'pull_request' }}
