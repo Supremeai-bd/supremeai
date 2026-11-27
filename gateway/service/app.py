@@ -157,6 +157,7 @@ try:
         append_canonical_message,
         get_recent_history,
         get_user_durable_memories,
+        ingest_turn_user_memories,
         log_provider_attempt,
     )
     from service.response_guard import (
@@ -175,6 +176,7 @@ except ImportError:
             append_canonical_message,
             get_recent_history,
             get_user_durable_memories,
+            ingest_turn_user_memories,
             log_provider_attempt,
         )
         from gateway.service.response_guard import (
@@ -193,6 +195,7 @@ except ImportError:
         append_canonical_message = None  # type: ignore[assignment]
         get_recent_history = None  # type: ignore[assignment]
         get_user_durable_memories = None  # type: ignore[assignment]
+        ingest_turn_user_memories = None  # type: ignore[assignment]
         log_provider_attempt = None  # type: ignore[assignment]
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -2280,6 +2283,13 @@ async def _execute_chat_completion(
     user_id = _extract_user_id(request)
     incoming_msgs = body.get("messages", [])
     last_user_msg = next((m.get("content") for m in reversed(incoming_msgs) if isinstance(m, dict) and m.get("role") == "user"), None)
+
+    # বাংলা মন্তব্য: ইউজারের চ্যাট বার্তা থেকে স্বয়ংক্রিয়ভাবে মূল পরিচয় ও পছন্দ (ADD/UPDATE/FORGET) মেমোরিতে সংরক্ষণ
+    if user_id and incoming_msgs and ingest_turn_user_memories:
+        try:
+            await asyncio.to_thread(ingest_turn_user_memories, user_id, incoming_msgs, conv_id)
+        except Exception as mem_exc:
+            logger.warning(f"Auto user memory extraction warning: {mem_exc}")
 
     # 1. Message persistence (Canonical 3-tier memory store & legacy storage)
     if conv_id and last_user_msg:

@@ -176,6 +176,24 @@ def compile_chat_context(*args, **kwargs) -> List[Dict[str, Any]]:
                 mem_lines.append(f"- {m}")
         if mem_lines:
             system_parts.append("Durable user memory:\n" + "\n".join(mem_lines))
+
+    # বাংলা মন্তব্য: গিটহাব পাইপলাইনে অন্য AI এজেন্টদের শেয়ার করা ভেরিফায়েড নলেজ প্রাসঙ্গিক টেকনিক্যাল প্রশ্নে সংযুক্ত করা হয়।
+    latest_user_query = next(
+        (str(m.get("content", "")) for m in reversed(messages) if isinstance(m, dict) and m.get("role") == "user"),
+        "",
+    )
+    if latest_user_query and any(kw in latest_user_query.lower() for kw in _LOGIC_KEYWORDS):
+        try:
+            from .user_memory_engine import get_collective_ai_briefing
+        except ImportError:
+            from user_memory_engine import get_collective_ai_briefing  # type: ignore[no-redef]
+        shared_ai_lines = get_collective_ai_briefing(latest_user_query, limit=3)
+        if shared_ai_lines:
+            system_parts.append(
+                "Collective AI shared engineering knowledge:\n"
+                + "\n".join(f"- {item}" for item in shared_ai_lines)
+            )
+
     if recent_history:
         recent_lines = []
         for m in recent_history[-10:]:
