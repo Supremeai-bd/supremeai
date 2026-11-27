@@ -106,14 +106,14 @@ def _db(db_path=None):
     except Exception:
         try:
             conn.rollback()
-        except Exception:
-            pass
+        except Exception as rb_exc:
+            logger.debug("Memory store rollback failed (%s)", type(rb_exc).__name__)
         raise
     finally:
         try:
             conn.close()
-        except Exception:
-            pass
+        except Exception as cl_exc:
+            logger.debug("Memory store close failed (%s)", type(cl_exc).__name__)
 
 
 def init_db(db_path=None):
