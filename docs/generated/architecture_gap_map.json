@@ -429,7 +429,6 @@
       "@.github/actions/setup-backend/action.yml",
       "@.github/actions/setup-frontend/action.yml",
       "@.github/actions/setup-playwright/action.yml",
-      "@.github/workflows/codeql.yml",
       "@.github/workflows/db-backup.yml",
       "@.github/workflows/deploy-rollback.yml",
       "@.github/workflows/ops-maintenance.yml",
