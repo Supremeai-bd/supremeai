@@ -195,27 +195,12 @@ def test_cross_ai_knowledge_exchange_and_context_compiler_injection(
     assert "Collective AI shared engineering knowledge:" not in str(compiled)
     assert "claude-code-architect" not in str(compiled)
 
-    # Briefing export CLI test (hermetic offline stub for _http_json)
-    monkeypatch.setattr(
-        ai_knowledge_exchange,
-        "_http_json",
-        lambda url, method="GET", headers=None, payload=None, timeout=12.0: [
-            {
-                "id": "1a49c3ae-32be-585e-b29e-05a02647639c",
-                "knowledge_key": pkt["knowledge_key"],
-                "title": f"[{pkt['agent_name']}] {pkt['topic']}",
-                "domain": pkt["domain"],
-                "namespace": "cross-ai-exchange",
-                "content": json.dumps({"insight": pkt["insight"]}),
-                "source": "PR #886",
-                "confidence": 0.98,
-                "updated_at": "2026-11-27T02:00:00Z",
-            }
-        ],
-    )
+    # Unreviewed legacy rows must not be read or exported as verified knowledge.
+    from unittest.mock import Mock
+    http = Mock(side_effect=AssertionError("unreviewed data must not be read"))
+    monkeypatch.setattr(ai_knowledge_exchange, "_http_json", http)
     out_file = tmp_path / "briefing.json"
     rc = ai_knowledge_exchange.main(["--export-briefing", "--output", str(out_file)])
-    assert rc == 0
-    exported = json.loads(out_file.read_text(encoding="utf-8"))
-    assert exported["schema"] == "supremeai-collective-ai-briefing/1"
-    assert exported["count"] == 1
+    assert rc != 0
+    assert not out_file.exists()
+    http.assert_not_called()

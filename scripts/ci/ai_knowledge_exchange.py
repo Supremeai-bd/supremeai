@@ -4,8 +4,8 @@
 বাংলা মন্তব্য:
 বিভিন্ন AI এজেন্ট (Arena, Claude, Copilot, Gemini, Kilo, Cursor, Codex ইত্যাদি) যেন
 গিটহাব পাইপলাইনের মাধ্যমে নিজেদের অর্জিত আর্কিটেকচারাল নলেজ, রুট-কজ ও সতর্কতা (pitfalls)
-SupremeAI-এর কেন্দ্রীয় ব্রেইনে (`Supabase knowledge_base` ও `learned_facts`) নিরাপদে শেয়ার
-ও পুনঃব্যবহার করতে পারে, তার সম্পূর্ণ stdlib-only ও সিক্রেট-স্যানিটাইজড ইঞ্জিন।
+পূর্বে Supabase-এ সরাসরি পাঠানো হতো। স্বতন্ত্র review ও provenance যাচাই
+প্রতিষ্ঠিত না হওয়া পর্যন্ত live writes এবং unreviewed briefing নিষ্ক্রিয়।
 """
 
 from __future__ import annotations
@@ -16,11 +16,9 @@ import json
 import os
 import re
 import sys
-import time
 import urllib.error
 import urllib.parse
 import urllib.request
-import uuid
 from typing import Any
 
 SHARE_MARKER_OPEN = "<!-- ai-knowledge-share v1 -->"
@@ -60,7 +58,7 @@ def _slug(raw: str, fallback: str = "general") -> str:
 
 
 def normalize_share_packet(raw: dict[str, Any], default_source: str = "github-pipeline") -> dict[str, Any] | None:
-    """বাংলা মন্তব্য: যেকোনো AI এজেন্টের পাঠানো JSON প্যাকেটকে ক্যানোনিকাল ভেরিফায়েড স্কিমায় রূপান্তর করে।"""
+    """Normalize untrusted AI packets; this is not provenance or review verification."""
     if not isinstance(raw, dict):
         return None
     serialized = json.dumps(raw, ensure_ascii=False)
@@ -197,170 +195,62 @@ def _gh_api_get(endpoint: str) -> Any:
 
 
 def persist_shared_packet(packet: dict[str, Any], dry_run: bool = False) -> bool:
-    """বাংলা মন্তব্য: ভেরিফায়েড AI নলেজ প্যাকেট idempotent উপায়ে Supabase `knowledge_base` ও `learned_facts`-এ সংরক্ষণ করে।"""
-    now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    kb_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, f"supremeai:kb:{packet['knowledge_key']}"))
-    fact_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, f"supremeai:fact:{packet['knowledge_key']}"))
+    """Legacy free-text records have no verified provenance or review.
 
-    kb_content_obj = {
-        "agent_name": packet["agent_name"],
-        "topic": packet["topic"],
-        "insight": packet["insight"],
-        "pitfalls_to_avoid": packet["pitfalls"],
-        "reusable_pattern": packet["reusable_pattern"],
-        "touched_files": packet["touched_files"],
-    }
-    kb_record = {
-        "id": kb_uuid,
-        "knowledge_key": packet["knowledge_key"],
-        "title": f"[{packet['agent_name']}] {packet['topic']}"[:200],
-        "domain": packet["domain"],
-        "namespace": "cross-ai-exchange",
-        "content": json.dumps(kb_content_obj, ensure_ascii=False, indent=2),
-        "content_hash": packet["content_hash"],
-        "source": packet["source"],
-        "confidence": packet["confidence"],
-        "risk_level": "low",
-        "status": "active",
-        "metadata": {
-            "agent_name": packet["agent_name"],
-            "touched_files": packet["touched_files"],
-            "pitfalls_count": len(packet["pitfalls"]),
-            "ingested_at": now_iso,
-            "schema": "ai-knowledge-share/1",
-        },
-        "updated_at": now_iso,
-    }
-
-    fact_record = {
-        "id": fact_uuid,
-        "content": {
-            "text": f"[{packet['agent_name']} · {packet['domain']}] {packet['topic']}: {packet['insight']}",
-            "agent_name": packet["agent_name"],
-            "domain": packet["domain"],
-            "pitfalls": packet["pitfalls"],
-            "reusable_pattern": packet["reusable_pattern"],
-            "source": packet["source"],
-        },
-        "tags": [
-            "cross_ai_share",
-            packet["domain"],
-            _slug(packet["agent_name"], "ai"),
-        ],
-        "created_at": now_iso,
-    }
-
-    if dry_run:
-        print(json.dumps({"kb_record": kb_record, "fact_record": fact_record}, ensure_ascii=False, indent=2))
-        return True
-
-    sb_url = (os.environ.get("SUPABASE_URL") or "").strip().rstrip("/")
-    sb_key = (os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_ANON_KEY") or "").strip()
-    if not sb_url or not sb_key:
-        print("::notice::SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not configured; validated packet in dry-mode.")
-        return True
-
-    sb_headers = {
-        "apikey": sb_key,
-        "Authorization": f"Bearer {sb_key}",
-        "Prefer": "resolution=merge-duplicates,return=representation",
-    }
-    ok = True
-    for tbl, row_payload in (("knowledge_base", kb_record), ("learned_facts", fact_record)):
-        try:
-            _http_json(
-                f"{sb_url}/rest/v1/{tbl}?on_conflict=id",
-                method="POST",
-                headers=sb_headers,
-                payload=row_payload,
-                timeout=12.0,
-            )
-        except Exception as err:
-            print(f"::warning::Supabase upsert to {tbl} failed: {err}", file=sys.stderr)
-            ok = False
-    return ok
+    Do not write or print their contents. A dry run validates only and must not
+    be mistaken for storage, independent review, or a quarantine inbox.
+    """
+    if not dry_run:
+        print("::error::Legacy knowledge writes are disabled pending independent review and provenance.", file=sys.stderr)
+        return False
+    try:
+        valid = isinstance(packet, dict) and normalize_share_packet(packet) is not None
+    except (TypeError, ValueError, RecursionError):
+        valid = False
+    if not valid:
+        print("::error::Invalid legacy knowledge packet; nothing stored.", file=sys.stderr)
+        return False
+    print("[ai-knowledge-exchange] Validation only; nothing was stored or approved.")
+    return True
 
 
 def scan_issue_or_pr_shared_notes(repo: str, issue_number: int, dry_run: bool = False) -> int:
-    """বাংলা মন্তব্য: কোনো গিটহাব ইস্যু বা PR থ্রেডের কমেন্টগুলো স্ক্যান করে সব AI এজেন্টের শেয়ার করা নলেজ ইনজেস্ট করে।"""
-    if issue_number <= 0:
-        return 0
-    ingested = 0
+    """Legacy scan is validation-only; incomplete reads must not appear successful."""
+    if not dry_run:
+        raise RuntimeError("Legacy knowledge writes are disabled; use a read-only candidate collector")
+    if (issue_number <= 0 or not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo)
+            or any(part in (".", "..") for part in repo.split("/"))):
+        raise ValueError("Invalid repository or issue number")
     try:
-        issue_obj = _gh_api_get(f"repos/{repo}/issues/{issue_number}") or {}
-        comments = _gh_api_get(f"repos/{repo}/issues/{issue_number}/comments?per_page=100") or []
-    except Exception as err:
-        print(f"::warning::Could not read issue/PR #{issue_number} comments: {err}", file=sys.stderr)
-        return 0
-
-    candidates: list[tuple[str, str]] = []
-    if isinstance(issue_obj, dict) and issue_obj.get("body"):
-        author = ((issue_obj.get("user") or {}).get("login")) or "github-agent"
-        candidates.append((str(issue_obj["body"]), f"{repo}#{issue_number} ({author})"))
-    if isinstance(comments, list):
-        for idx, c in enumerate(comments):
-            if isinstance(c, dict) and c.get("body"):
-                c_author = ((c.get("user") or {}).get("login")) or "github-agent"
-                candidates.append((str(c["body"]), f"{repo}#{issue_number}:comment-{idx + 1} ({c_author})"))
-
-    for text_body, src_label in candidates:
-        for pkt in extract_ai_share_packets_from_text(text_body, default_source=src_label):
-            if persist_shared_packet(pkt, dry_run=dry_run):
-                ingested += 1
-    print(f"[ai-knowledge-exchange] Processed {repo}#{issue_number}: ingested={ingested}")
-    return ingested
+        issue_obj = _gh_api_get(f"repos/{repo}/issues/{issue_number}")
+        comments = _gh_api_get(f"repos/{repo}/issues/{issue_number}/comments?per_page=100")
+    except Exception as exc:
+        raise RuntimeError("GitHub source unavailable; scan not completed") from exc
+    if (not isinstance(issue_obj, dict) or issue_obj.get("number") != issue_number
+            or not isinstance(comments, list) or len(comments) >= 100):
+        raise RuntimeError("Invalid or incomplete source response; scan not completed")
+    if any(not isinstance(c, dict) for c in comments):
+        raise RuntimeError("Invalid source comment; scan not completed")
+    documents = [issue_obj, *comments]
+    count = 0
+    for obj in documents:
+        text = obj.get("body") or ""
+        if not isinstance(text, str) or len(text.encode("utf-8")) > 256_000:
+            raise RuntimeError("Invalid source document; scan not completed")
+        packets = extract_ai_share_packets_from_text(text)
+        if text.count(SHARE_MARKER_OPEN) != text.count(SHARE_MARKER_CLOSE) or text.count(SHARE_MARKER_OPEN) != len(packets):
+            raise RuntimeError("Invalid share packet; scan not completed")
+        for pkt in packets:
+            if not persist_shared_packet(pkt, dry_run=True):
+                raise RuntimeError("Validation failed")
+            count += 1
+    print(f"[ai-knowledge-exchange] Validation only; {count} packets, none stored or approved.")
+    return count
 
 
 def export_collective_briefing(limit: int = 15, output_path: str | None = None) -> dict[str, Any]:
-    """বাংলা মন্তব্য: Supabase থেকে সকল AI এজেন্টের শেয়ার করা সর্বশেষ ভেরিফায়েড নলেজ ব্রিফিং আকারে এক্সপোর্ট করে।"""
-    sb_url = (os.environ.get("SUPABASE_URL") or "").strip().rstrip("/")
-    sb_key = (os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_ANON_KEY") or "").strip()
-    entries: list[dict[str, Any]] = []
-    if sb_url and sb_key:
-        try:
-            rows = _http_json(
-                f"{sb_url}/rest/v1/knowledge_base"
-                f"?status=eq.active&select=id,knowledge_key,title,domain,namespace,content,source,confidence,updated_at"
-                f"&order=updated_at.desc&limit={max(1, min(limit, 50))}",
-                method="GET",
-                headers={"apikey": sb_key, "Authorization": f"Bearer {sb_key}"},
-                timeout=12.0,
-            )
-            if isinstance(rows, list):
-                for row in rows:
-                    if not isinstance(row, dict):
-                        continue
-                    parsed_content: Any = row.get("content")
-                    if isinstance(parsed_content, str):
-                        try:
-                            parsed_content = json.loads(parsed_content)
-                        except json.JSONDecodeError:
-                            parsed_content = {"summary": parsed_content}
-                    entries.append(
-                        {
-                            "knowledge_key": row.get("knowledge_key"),
-                            "title": row.get("title"),
-                            "domain": row.get("domain"),
-                            "namespace": row.get("namespace"),
-                            "source": row.get("source"),
-                            "confidence": row.get("confidence"),
-                            "updated_at": row.get("updated_at"),
-                            "knowledge": parsed_content,
-                        }
-                    )
-        except Exception as err:
-            print(f"::warning::Collective briefing read warning: {err}", file=sys.stderr)
-
-    briefing = {
-        "schema": "supremeai-collective-ai-briefing/1",
-        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "count": len(entries),
-        "entries": entries,
-    }
-    if output_path:
-        with open(output_path, "w", encoding="utf-8") as fh:
-            json.dump(briefing, fh, ensure_ascii=False, indent=2)
-    return briefing
+    """Legacy active rows have no enforced independent review or privacy boundary."""
+    raise RuntimeError("Unreviewed legacy briefing disabled; review provenance before use")
 
 
 def format_briefing_markdown(briefing: dict[str, Any]) -> str:
@@ -413,15 +303,23 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         if not persist_shared_packet(pkt, dry_run=args.dry_run):
             return 1
-        print(f"[ai-knowledge-exchange] Shared packet '{pkt['knowledge_key']}' accepted.")
+        print("[ai-knowledge-exchange] Validation complete; no knowledge was stored or approved.")
 
     if args.scan_issue > 0:
         acted = True
-        scan_issue_or_pr_shared_notes(args.repo, args.scan_issue, dry_run=args.dry_run)
+        try:
+            scan_issue_or_pr_shared_notes(args.repo, args.scan_issue, dry_run=args.dry_run)
+        except (ValueError, RuntimeError) as err:
+            print(f"::error::{err}", file=sys.stderr)
+            return 1
 
     if args.export_briefing or args.summary_md:
         acted = True
-        briefing = export_collective_briefing(limit=args.limit, output_path=args.output or None)
+        try:
+            briefing = export_collective_briefing(limit=args.limit, output_path=args.output or None)
+        except RuntimeError as err:
+            print(f"::error::{err}", file=sys.stderr)
+            return 1
         if args.summary_md:
             print(format_briefing_markdown(briefing))
         elif not args.output:

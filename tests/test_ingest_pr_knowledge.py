@@ -131,21 +131,18 @@ index abc123..def456 100644
         }
         body = f"<!-- pr-knowledge-envelope v2 -->\n{ingest_mod.json.dumps(envelope)}\n<!-- /pr-knowledge-envelope -->"
         diff = "diff --git a/foo.py b/foo.py\n+" + "sk-" + "a" * 30 + " example.onion"
-        records = []
+        from contextlib import redirect_stdout
+        from io import StringIO
 
-        def save(_url, _key, table, record):
-            records.append((table, record))
-            return table != "knowledge_base"
-
-        with patch.dict(ingest_mod.os.environ, {"SUPABASE_URL": "https://example.test", "SUPABASE_SERVICE_ROLE_KEY": "test", "QDRANT_URL": "", "GEMINI_API_KEY": "", "GOOGLE_API_KEY": ""}), patch.object(ingest_mod, "post_to_supabase", side_effect=save):
+        output = StringIO()
+        with patch.dict(ingest_mod.os.environ, {"SUPABASE_URL": "https://example.test", "SUPABASE_SERVICE_ROLE_KEY": "test", "QDRANT_URL": "https://example.test", "GEMINI_API_KEY": "test"}), patch.object(ingest_mod, "post_to_supabase") as save, patch.object(ingest_mod, "generate_embedding_gemini") as embed, redirect_stdout(output):
             self.assertFalse(ingest_mod.run_ingest(999, body, title="Safe test", diff_text=diff))
-        kb = records[0][1]
-        self.assertEqual(kb["metadata"]["touched_files"], ["foo.py"])
-        self.assertEqual(kb["metadata"]["diff_size_bytes"], len(diff.encode("utf-8")))
-        self.assertNotIn("diff_snippet", kb["metadata"])
-        self.assertNotIn("example.onion", ingest_mod.json.dumps(records))
-        self.assertTrue(ingest_mod.is_clean_knowledge_payload(ingest_mod.json.dumps(kb)))
-        self.assertGreater(len(records), 1)
+            self.assertTrue(ingest_mod.run_ingest(999, body, title="Safe test", diff_text=diff, dry_run=True))
+            save.assert_not_called()
+            embed.assert_not_called()
+        self.assertNotIn("example.onion", output.getvalue())
+        self.assertNotIn("sk-" + "a" * 30, output.getvalue())
+        self.assertIn("not stored", output.getvalue())
 
     def test_unsafe_summary_never_reaches_embedding_service(self):
         from unittest.mock import patch
