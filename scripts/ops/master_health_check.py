@@ -258,8 +258,9 @@ def probe_http_endpoint(
             payload = None
             try:
                 payload = json.loads(raw.decode("utf-8"))
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
             return (resp.status == 200, resp.status, elapsed, payload, None)
     except urllib.error.HTTPError as exc:
         elapsed = int((time.time() - t0) * 1000)
@@ -494,8 +495,9 @@ def _get_gh_token() -> str:
         )
         if res.returncode == 0 and res.stdout.strip():
             return res.stdout.strip()
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return ""
 
 
@@ -559,8 +561,9 @@ def inspect_failed_run_logs(repo: str, run_id: int, token: str = "") -> dict[str
                         info["failed_step"] = s.get("name", "")
                         break
                 break
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     # 2. Extract error lines from run logs archive if available
     logs_url = f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/logs"
@@ -584,8 +587,9 @@ def inspect_failed_run_logs(repo: str, run_id: int, token: str = "") -> dict[str
                             cleaned.append(parts[1] if len(parts) == 2 else l)
                         info["error_excerpt"] = " | ".join(cleaned)
                         break
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     return info
 

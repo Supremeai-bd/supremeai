@@ -40,8 +40,9 @@ from pathlib import Path
 if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "agents"))
 from mcp_tower_client import (

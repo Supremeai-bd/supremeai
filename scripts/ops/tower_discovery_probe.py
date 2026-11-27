@@ -86,8 +86,9 @@ def parse_sse(body: str) -> dict | None:
             if data and data != "[DONE]":
                 try:
                     return json.loads(data)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    import logging
+                    logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return None
 
 

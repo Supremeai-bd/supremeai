@@ -368,9 +368,7 @@ async function listPresenceFresh(nowMs: number): Promise<PresenceListResult> {
           freshest.set(key, record);
         }
       }
-    } catch {
-      // বাংলা: একটি account unreachable হলে বাকি chain থেকেই পড়া চলবে
-    }
+    } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
   }
   const clients: PresenceStatusEntry[] = [...freshest.entries()]
     .map(([key, record]) => ({

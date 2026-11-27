@@ -261,8 +261,9 @@ def evaluate(
             pr_check = api(f"repos/{repo}/pulls/{pr_number}")
             if pr_check.get("merged") is True or pr_check.get("merged_at"):
                 return {"decision": "ALREADY_MERGED", "reason": "pr_already_merged"}
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
         pr = _current_pr(pr_number, **candidate)
         merge = api(f"repos/{repo}/git/commits/{merge_sha}")

@@ -66,8 +66,9 @@ def fetch_pr_diff(pr_num: int) -> str:
         )
         if proc.returncode == 0:
             return proc.stdout.decode("utf-8", errors="replace")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return ""
 
 

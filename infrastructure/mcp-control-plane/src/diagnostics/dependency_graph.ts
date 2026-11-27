@@ -335,9 +335,7 @@ export async function probeSchemaParity(serviceName: string): Promise<EvidenceCh
   try {
     const { env } = await import("../lib/env.js");
     if (env.supabase.url) projectRef = new URL(env.supabase.url).hostname.split(".")[0];
-  } catch {
-    // ignore
-  }
+  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
 
   try {
     const schema = (await getDatabaseSchema("supabase-primary")) as { tables?: string[] };

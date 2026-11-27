@@ -293,7 +293,7 @@ export default {
               parsed.model = "auto";
               text = JSON.stringify(parsed);
             }
-          } catch (_) {}
+          } catch (err) { console.debug(err); }
           reqBody = text;
         }
 
@@ -405,7 +405,7 @@ export default {
       let html = await response.text();
       const umamiId = env?.UMAMI_WEBSITE_ID || DEFAULT_UMAMI_WEBSITE_ID;
       const umamiTag = umamiId ? `<script defer src="https://cloud.umami.is/script.js" data-website-id="${umamiId}"></script>` : "";
-      const script = `<script>(function(){var o=window.fetch;window.fetch=function(u,init){try{if(typeof u==="string"&&u.indexOf("supremeai-api-ulw0.onrender.com")!==-1){u=u.replace("https://supremeai-api-ulw0.onrender.com",window.location.origin);}else if(u instanceof Request&&u.url.indexOf("supremeai-api-ulw0.onrender.com")!==-1){u=new Request(u.url.replace("https://supremeai-api-ulw0.onrender.com",window.location.origin),u);} }catch(e){}return o(u,init);};})();</script>`;
+      const script = `<script>(function(){var o=window.fetch;window.fetch=function(u,init){try{if(typeof u==="string"&&u.indexOf("supremeai-api-ulw0.onrender.com")!==-1){u=u.replace("https://supremeai-api-ulw0.onrender.com",window.location.origin);}else if(u instanceof Request&&u.url.indexOf("supremeai-api-ulw0.onrender.com")!==-1){u=new Request(u.url.replace("https://supremeai-api-ulw0.onrender.com",window.location.origin),u);} } catch (err) { console.debug(err); }return o(u,init);};})();</script>`;
       html = html.replace("</head>", `${umamiTag}${script}</head>`);
       const headers = new Headers(response.headers);
       headers.set("Content-Length", String(new TextEncoder().encode(html).length));

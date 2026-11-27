@@ -608,9 +608,7 @@ async function listHeartbeatsFresh(nowMs: number): Promise<{
     for (const client of reachableClients) {
       try {
         await client.hdel(HEARTBEAT_HASH_KEY, reapTargets);
-      } catch {
-        // বাংলা: reaping best-effort — এই পাঠে ব্যর্থ হলে পরের পাঠে আবার চেষ্টা
-      }
+      } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
     }
   }
 

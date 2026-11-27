@@ -228,6 +228,12 @@ async def test_failed_preinsert_checks_do_not_insert(pool_env, monkeypatch, fail
     assert not store["user_contributed_api_keys"]
 
 
+async def _post_contribute_with_fault(app, monkeypatch, faulty):
+    monkeypatch.setattr(FakeTable, "execute", faulty)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        return await client.post("/pool/contribute", json={"provider": "gemini", "api_key": "AIzaSy" + "Z" * 33})
+
+
 @pytest.mark.asyncio
 async def test_failed_quota_update_reports_partial_commit(pool_env, monkeypatch):
     app, store = pool_env
@@ -238,9 +244,7 @@ async def test_failed_quota_update_reports_partial_commit(pool_env, monkeypatch)
             raise RuntimeError("private backend detail")
         return original(self)
 
-    monkeypatch.setattr(FakeTable, "execute", faulty)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/pool/contribute", json={"provider": "gemini", "api_key": "AIzaSy" + "Z" * 33})
+    response = await _post_contribute_with_fault(app, monkeypatch, faulty)
     assert response.status_code == 503
     assert "stored" in response.text and "reconcile" in response.text
     assert "private backend detail" not in response.text

@@ -45,7 +45,7 @@ export function buildAccountChain(): RedisAccountConfig[] {
       const parsed = new URL(restUrl);
       const token = decodeURIComponent(parsed.password || parsed.username || "");
       if (token) restToken = token;
-    } catch {}
+    } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
   }
 
   if (restUrl && restToken) {
@@ -232,9 +232,7 @@ export async function probeCooldownRecovery(
         clearAccountCooldown(account.label);
         recovered.push(account.label);
       }
-    } catch {
-      // Still unreachable or in error; keep in cooldown
-    }
+    } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
   }
   return recovered;
 }

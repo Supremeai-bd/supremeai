@@ -17,7 +17,6 @@ flowchart TD
         @__github/actions/setup-backend/action__yml["@.github/actions/setup-backend/action.yml"]
         @__github/actions/setup-frontend/action__yml["@.github/actions/setup-frontend/action.yml"]
         @__github/actions/setup-playwright/action__yml["@.github/actions/setup-playwright/action.yml"]
-        @__github/workflows/codeql__yml["@.github/workflows/codeql.yml"]
         @__github/workflows/db-backup__yml["@.github/workflows/db-backup.yml"]
         @__github/workflows/deploy-rollback__yml["@.github/workflows/deploy-rollback.yml"]
         @__github/workflows/ops-maintenance__yml["@.github/workflows/ops-maintenance.yml"]
@@ -339,7 +338,6 @@ flowchart TD
     @__github/actions/setup-backend/action__yml --> @__github/actions/setup-backend/action
     @__github/actions/setup-frontend/action__yml --> @__github/actions/setup-frontend/action
     @__github/actions/setup-playwright/action__yml --> @__github/actions/setup-playwright/action
-    @__github/workflows/codeql__yml --> @__github/workflows/codeql
     @__github/workflows/db-backup__yml --> @__github/workflows/db-backup
     @__github/workflows/deploy-rollback__yml --> @__github/workflows/deploy-rollback
     @__github/workflows/ops-maintenance__yml --> @__github/workflows/ops-maintenance
@@ -406,7 +404,6 @@ flowchart TD
     class @__github/actions/setup-backend/action__yml live;
     class @__github/actions/setup-frontend/action__yml live;
     class @__github/actions/setup-playwright/action__yml live;
-    class @__github/workflows/codeql__yml live;
     class @__github/workflows/db-backup__yml live;
     class @__github/workflows/deploy-rollback__yml live;
     class @__github/workflows/ops-maintenance__yml live;

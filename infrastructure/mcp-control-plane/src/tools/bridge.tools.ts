@@ -1563,9 +1563,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
                 }
               );
             }
-          } catch {
-            // Sub-issue linking is best-effort and must not fail the bridge submission
-          }
+          } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
         }
         }
 
@@ -1623,9 +1621,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
                   `https://api.github.com/repos/${repo}/issues/${prNumber}/labels`,
                   { method: "POST", headers, body: { labels: [BRIDGE_VERIFIED_SUBMITTER_LABEL] }, timeoutMs: 10_000 }
                 );
-              } catch {
-                // best-effort: missing label degrades to OWNER_REVIEW, never to auto-merge
-              }
+              } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
             }
           } else if (!prRes.ok) {
             prError = prFailureFromHttp(prRes.status, prRes.data);

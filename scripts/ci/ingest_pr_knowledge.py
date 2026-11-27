@@ -46,8 +46,9 @@ if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
 MARKER_OPEN_V2 = "<!-- pr-knowledge-envelope v2 -->"
 MARKER_CLOSE_V2 = "<!-- /pr-knowledge-envelope -->"
@@ -409,8 +410,9 @@ def fetch_pr_diff(pr_num: int) -> Tuple[str, List[str]]:
                 if diff_text:
                     touched_files = parse_touched_files_from_diff(diff_text)
                     return diff_text, touched_files
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     # 2. Try gh pr diff
     try:
@@ -446,8 +448,9 @@ def fetch_pr_diff(pr_num: int) -> Tuple[str, List[str]]:
                 if git_diff_res.returncode == 0 and git_diff_res.stdout:
                     diff_text = git_diff_res.stdout.decode("utf-8", errors="replace")
                     touched_files = parse_touched_files_from_diff(diff_text)
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     # 4. Save to local archive if folder exists
     if diff_text:
@@ -458,8 +461,9 @@ def fetch_pr_diff(pr_num: int) -> Tuple[str, List[str]]:
                     try:
                         with open(target_file, "w", encoding="utf-8", errors="replace") as out_f:
                             out_f.write(diff_text)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        import logging
+                        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     return diff_text, touched_files
 

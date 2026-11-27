@@ -409,11 +409,11 @@
   },
   "graph": {
     "modules": 2182,
-    "edges": 5014,
+    "edges": 5072,
     "edge_kinds": {
       "dispatch": 219,
       "dynamic": 4,
-      "import": 4098,
+      "import": 4156,
       "string": 693
     }
   },
@@ -429,7 +429,6 @@
       "@.github/actions/setup-backend/action.yml",
       "@.github/actions/setup-frontend/action.yml",
       "@.github/actions/setup-playwright/action.yml",
-      "@.github/workflows/codeql.yml",
       "@.github/workflows/db-backup.yml",
       "@.github/workflows/deploy-rollback.yml",
       "@.github/workflows/ops-maintenance.yml",

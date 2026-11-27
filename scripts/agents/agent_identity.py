@@ -128,8 +128,9 @@ def _machine_id() -> str:
         mid_file = Path("/etc/machine-id")
         if mid_file.exists():
             raw += "|" + mid_file.read_text(encoding="utf-8").strip()
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     # namespace uuid (deterministic) — same input → same uuid
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, raw))
 
@@ -190,8 +191,9 @@ def _authenticated_login() -> Optional[str]:
         )
         if res.returncode == 0 and res.stdout.strip():
             return res.stdout.strip()
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     token = os.environ.get("GITHUB_TOKEN", "").strip()
     if not token:
         return None
@@ -290,8 +292,9 @@ def resolve_agent_identity(preferred: Optional[str] = None,
             identity.model = resolved_model
             _save_identity(identity)
             return identity
-        except (json.JSONDecodeError, TypeError, KeyError):
-            pass  # corrupt — নতুন assign করো
+        except (json.JSONDecodeError, TypeError, KeyError) as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     # Step 1.5 (#3277): App-token bot-login → leased lane-slot derive।
     # Machine-ephemeral, App-persistent principal: slot-derive identity
@@ -354,8 +357,9 @@ def _claim_new_agent_name(role_prefix: str, model: str = "unknown",
             ["git", "fetch", "origin", "--prune"],
             cwd=str(ROOT_DIR), check=False, capture_output=True, timeout=30,
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     # বাংলা মন্তব্য: বিদ্যমান agent/ branches থেকে next-gap বের করো
     existing = _list_existing_agent_branches(role_prefix, model)
@@ -548,8 +552,9 @@ def _clear_role_lock_metadata(role: str) -> None:
     try:
         if path.exists():
             path.unlink()
-    except OSError:
-        pass
+    except OSError as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
 
 # ─────────────────── Cooldown registry ───────────────────
@@ -777,8 +782,9 @@ def refresh_token_if_stale() -> bool:
                             input=new_token, capture_output=True, text=True,
                             timeout=15, check=False,
                         )
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        import logging
+                        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
                     return True
         print("⚠️ No auth script found — token refresh skipped (manual refresh needed)")
         return False

@@ -77,8 +77,9 @@ async def get_shadow_and_hf_status():
             r = await client.get(f"{hf_url}/top-ai")
             if r.status_code == 200:
                 hf_top_ai = r.json()
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("HF top-ai fetch failed (%s)", type(exc).__name__)
 
     return {"kaggle_shadow": kaggle_data, "huggingface_tiny_brain": {"health": hf_health, "top_ai": hf_top_ai}}
 

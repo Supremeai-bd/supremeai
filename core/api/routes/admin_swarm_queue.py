@@ -192,8 +192,9 @@ async def toggle_swarm_worker(worker_id: str) -> dict[str, Any]:
             if broadcaster:
                 try:
                     await broadcaster.broadcast("swarm_worker_updated", worker)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    import logging
+                    logging.getLogger(__name__).debug("Swarm/queue broadcast failed (%s)", type(exc).__name__)
             return {"success": True, "worker": worker}
 
     raise HTTPException(
@@ -243,8 +244,9 @@ async def retry_queue_job(job_id: str) -> dict[str, Any]:
             if broadcaster:
                 try:
                     await broadcaster.broadcast("queue_job_updated", job)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    import logging
+                    logging.getLogger(__name__).debug("Swarm/queue broadcast failed (%s)", type(exc).__name__)
             return {"success": True, "job": job}
 
     raise HTTPException(

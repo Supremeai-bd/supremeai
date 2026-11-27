@@ -96,8 +96,9 @@ def main() -> int:
                 visitor = TimeoutVisitor(str(py_path.relative_to(REPO_ROOT)))
                 visitor.visit(tree)
                 all_violations.extend(visitor.violations)
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     if all_violations:
         print(f"[FAIL] timeout_policy_guard found {len(all_violations)} call(s) without timeout:")

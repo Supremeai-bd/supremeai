@@ -280,10 +280,12 @@ class GeminiCookieEngine:
             except Exception:
                 try:
                     text = decoded.decode("utf-8")
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except Exception as dec_exc:
+                    import logging
+                    logging.getLogger(__name__).debug("UTF-8 decode failed (%s)", type(dec_exc).__name__)
+        except Exception as b64_exc:
+            import logging
+            logging.getLogger(__name__).debug("Base64/gzip decode skipped (%s)", type(b64_exc).__name__)
 
         # Try JSON
         try:
@@ -911,8 +913,9 @@ class DuckAiEngine:
                 if task is not None and not task.done():
                     try:
                         await task
-                    except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                        pass
+                    except (asyncio.CancelledError, Exception) as task_exc:  # noqa: BLE001
+                        import logging
+                        logging.getLogger(__name__).debug("Cancelled probe task cleanup (%s)", type(task_exc).__name__)
 
     async def _first_delta_probe(
         self, client: httpx.AsyncClient, prompt: str, model: Optional[str]
@@ -1349,8 +1352,9 @@ class EngineStream:
             self._task.cancel()
         try:
             await self._task
-        except (asyncio.CancelledError, Exception):  # noqa: B014 - CancelledError is BaseException
-            pass
+        except (asyncio.CancelledError, Exception) as close_exc:  # noqa: B014 - CancelledError is BaseException
+            import logging
+            logging.getLogger(__name__).debug("Stream task close (%s)", type(close_exc).__name__)
 
 
 async def engine_deltas(engine_name: str, prompt: str, req_model: str) -> AsyncIterator[str]:

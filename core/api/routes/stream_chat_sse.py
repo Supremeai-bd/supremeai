@@ -296,8 +296,9 @@ class SafeSSEGenerator:
                         self.state = StreamState.ERROR
                         try:
                             await response_stream.aclose()  # type: ignore[attr-defined]
-                        except Exception:  # noqa: BLE001
-                            pass
+                        except Exception as exc:  # noqa: BLE001
+                            import logging
+                            logging.getLogger(__name__).debug("SSE response_stream.aclose() failed (%s)", type(exc).__name__)
                         return
                 else:
                     try:

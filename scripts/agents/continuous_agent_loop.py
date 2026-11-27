@@ -897,8 +897,9 @@ def _parse_tower_landing_payload(body: Any, call_id: str) -> list[Any]:
         for m in re.finditer(r"^data: (.*)$", body, re.MULTILINE):
             try:
                 envelopes.append(json.loads(m.group(1)))
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
         if not envelopes:
             try:
                 envelopes.append(json.loads(body))
@@ -1046,8 +1047,9 @@ def _fetch_merged_landing_prs(per_page: int) -> list[dict[str, Any]]:
         _LANDING_ROWS = list(_rest_merged_landing_prs(per_page))
         _LANDING_FETCH_FAILED = False
         return _LANDING_ROWS
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     _LANDING_PLANE = "tower"
     try:
         _LANDING_ROWS = list(_tower_merged_landing_prs(per_page))
@@ -1920,8 +1922,9 @@ def pick_next_issue(
         if code == 0 and out.strip():
             try:
                 issues = json.loads(out)
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     if not issues:
         return None
     log_fn = log_fn or log
@@ -2296,8 +2299,9 @@ def load_role_skill_instructions(role_name: str) -> str:
                     if len(parts) >= 3:
                         content = parts[2].strip()
                 return content
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return ""
 
 COMMON_RULES = """=== UNIVERSAL INVARIANTS (ALL ROLES MUST FOLLOW) ===
@@ -2590,13 +2594,15 @@ def _tower_board_rows(timeout_s: float = 20.0) -> tuple[list[dict[str, Any]], st
                 for m in re.finditer(r"^data: (.*)$", raw, re.MULTILINE):
                     try:
                         found.append(json.loads(m.group(1)))
-                    except json.JSONDecodeError:
-                        pass
+                    except json.JSONDecodeError as exc:
+                        import logging
+                        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
                 if not found:
                     try:
                         found.append(json.loads(raw))
-                    except json.JSONDecodeError:
-                        pass
+                    except json.JSONDecodeError as exc:
+                        import logging
+                        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
                 return found
 
             # বাংলা: নাম-ঢেউ সহনশীল (TOWER_QUEUE_TOOL_NAME_CANDIDATES) — not-found
@@ -2907,13 +2913,15 @@ def _tower_tool_roster_gate(tool_name: str, timeout_s: float = 20.0) -> str | No
         for m in re.finditer(r"^data: (.*)$", body, re.MULTILINE):
             try:
                 envelopes.append(json.loads(m.group(1)))
-            except json.JSONDecodeError:
-                pass
+            except json.JSONDecodeError as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
         if not envelopes:
             try:
                 envelopes.append(json.loads(body))
-            except json.JSONDecodeError:
-                pass
+            except json.JSONDecodeError as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
         names: set[str] = set()
         for env in envelopes:
             if not isinstance(env, dict) or env.get("id") != "cal-roster-gate-2":
@@ -3041,13 +3049,15 @@ def _tower_open_prs(limit: int = 30, timeout_s: float = 25.0) -> tuple[list[dict
             for m in re.finditer(r"^data: (.*)$", body, re.MULTILINE):
                 try:
                     envelopes.append(json.loads(m.group(1)))
-                except json.JSONDecodeError:
-                    pass
+                except json.JSONDecodeError as exc:
+                    import logging
+                    logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
             if not envelopes:
                 try:
                     envelopes.append(json.loads(body))
-                except json.JSONDecodeError:
-                    pass
+                except json.JSONDecodeError as exc:
+                    import logging
+                    logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
             result: Any = None
             rpc_error_msg = ""
             for env in envelopes:
@@ -3230,8 +3240,9 @@ def _extract_mcp_tool_response(
             env = json.loads(raw_body)
             if isinstance(env, dict):
                 envelopes.append(env)
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     result: Any = None
     rpc_error_msg = ""
     for env in envelopes:
@@ -3379,8 +3390,9 @@ def _tower_workflow_run_census(
                         if isinstance(cand, dict) and isinstance(cand.get("workflow_runs"), list):
                             payload = cand
                             break
-                    except json.JSONDecodeError:
-                        pass
+                    except json.JSONDecodeError as exc:
+                        import logging
+                        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
             if payload is None:
                 outcome["error"] = (
                     _classify_tower_pr_failure(last_text, tool_label="github.workflow_runs")
@@ -3484,13 +3496,15 @@ def _tower_issue_hydrate(number: int | str, timeout_s: float = 75.0) -> dict[str
                 for m in re.finditer(r"^data: (.*)$", body, re.MULTILINE):
                     try:
                         envelopes.append(json.loads(m.group(1)))
-                    except json.JSONDecodeError:
-                        pass
+                    except json.JSONDecodeError as exc:
+                        import logging
+                        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
                 if not envelopes:
                     try:
                         envelopes.append(json.loads(body))
-                    except json.JSONDecodeError:
-                        pass
+                    except json.JSONDecodeError as exc:
+                        import logging
+                        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
                 result: Any = None
                 for env in envelopes:
                     if isinstance(env, dict) and env.get("id") == call_id and "error" not in env:
@@ -3669,8 +3683,9 @@ def _print_rule_version_and_checklist() -> None:
         print(f"RULE SURFACE: {CONTRACT_VERSION} — fail-closed invariant checklist:", file=sys.stderr)
         for entry in mandatory_invariant_checklist():
             print(f"  - {entry['id']}: {entry['rule']}", file=sys.stderr)
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
 def step_2_rules(offline: bool = False, auto_sync: bool = True) -> bool:
     """Step 2: Constitution freshness gate + governing-rules loading (#567)."""

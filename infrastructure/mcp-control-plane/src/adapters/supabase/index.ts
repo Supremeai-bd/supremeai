@@ -43,9 +43,7 @@ export async function getHealth(accountId: string): Promise<unknown> {
       body: "{}",
     });
     if (rpcRes.ok) diagnostics = rpcRes.data;
-  } catch {
-    // RPC এখনো ডেপ্লয় না হলে মূল হেলথ চেক চালু থাকবে
-  }
+  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
   return {
     status: res.ok ? "healthy" : "degraded",
     latencyMs: res.latencyMs,

@@ -79,8 +79,9 @@ def real_api(endpoint: str, method: str = "GET", payload: dict | None = None) ->
             proc = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, check=False)
             if proc.returncode == 0:
                 token = proc.stdout.strip()
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     headers = {
         "Accept": "application/vnd.github+json",

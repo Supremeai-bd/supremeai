@@ -1178,8 +1178,9 @@ async def fe_admin_test_run(request: Request):
     body = {}
     try:
         body = await request.json()
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Admin test run body parse failed (%s)", type(exc).__name__)
 
     target_type = str(body.get("type", "all")).lower()
     prompt = str(body.get("prompt", "Hello SupremeAI, report status in 1 sentence."))

@@ -351,9 +351,7 @@ export function loadAuthoritativeServices(): Record<string, AuthoritativeService
     }
 
     flush();
-  } catch (err) {
-    // If parsing fails for any reason, typed defaults in result remain authoritative
-  }
+  } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
 
   return result;
 }

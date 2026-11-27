@@ -212,9 +212,7 @@ export class HealthEngine {
           const cfg = getAccountConfig("github-primary");
           token = cfg.apiKey;
           baseUrl = cfg.baseUrl;
-        } catch {
-          // Fall back to public unauthenticated probe if no token is present yet
-        }
+        } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
         const headers: Record<string, string> = token
           ? githubHeaders(token)
           : {
@@ -264,9 +262,7 @@ export class HealthEngine {
       for (const p of aiProviders) {
         checks[`ai-${p.provider}`] = () => testProvider(p.provider);
       }
-    } catch(e) {
-      // Ignore if AI providers fail to list
-    }
+    } catch (e) { console.error(e instanceof Error ? e.name : "error"); }
 
     // Execute all checks in parallel
     const promises = Object.entries(checks).map(async ([provider, fn]) => {

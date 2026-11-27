@@ -740,8 +740,9 @@ def _add_import_aliases(dist_names: Set[str]) -> Set[str]:
         for import_name, dists in packages_distributions().items():
             if any(d.lower() in dist_names for d in dists):
                 out.add(import_name.lower())
-    except Exception:  # noqa: BLE001 - metadata is an optimisation, never fatal
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     for dist, import_name in _DIST_IMPORT_ALIASES.items():
         if dist in dist_names:
             out.add(import_name.lower())
@@ -792,8 +793,9 @@ def compute_third_party_heads(root: Optional[Path] = None) -> Set[str]:
 
         for info in pkgutil.iter_modules():
             names.add(info.name)
-    except Exception:  # noqa: BLE001 - enumeration must never fail the guard
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     # ``pkgutil`` enumerates the CURRENT WORKING DIRECTORY's top-level packages
     # too, so running this tool from the repo root made ``core`` look third-party
     # and every ``core.*`` import was silently excluded from gap checking
@@ -804,8 +806,9 @@ def compute_third_party_heads(root: Optional[Path] = None) -> Set[str]:
         for child in sorted(base.iterdir()):
             if child.is_dir() and (child.name in names):
                 names.discard(child.name)
-    except OSError:
-        pass
+    except OSError as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return names
 
 

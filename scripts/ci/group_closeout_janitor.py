@@ -234,8 +234,9 @@ def harvest_closeout_counters(group: str) -> dict[str, object]:
     if res_out:
         try:
             counters["conflict_flagged_prs"] = len(json.loads(res_out))
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     res_out = _safe_gh([
         "gh", "issue", "list", "--state", "closed", "--label", group_label,
@@ -244,8 +245,9 @@ def harvest_closeout_counters(group: str) -> dict[str, object]:
     if res_out:
         try:
             counters["closed_issues"] = len(json.loads(res_out))
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return counters
 
 

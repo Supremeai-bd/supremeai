@@ -47,8 +47,9 @@ from web_intent_engine import IntentEngine, extract_reply
 if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
 DEFAULT_PROFILE = os.environ.get("WEB_AGENT_PROFILE", str(REPO_ROOT / ".browser_profile"))
 DEFAULT_TASKS = os.environ.get("WEB_AGENT_TASKS", str(REPO_ROOT / ".browser_tasks"))
@@ -118,8 +119,9 @@ class SessionSniffer:
         try:
             if "json" in (resp.headers.get("content-type") or "") and resp.ok:
                 self._walk(await resp.json())
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
 
 def learn_template(urls: list[str], ids: list[str]) -> str | None:
@@ -153,8 +155,9 @@ async def open_session_by_title(page: Page, start_url: str, title: str) -> str |
             await asyncio.sleep(0.5)
             if page.url != before:
                 return page.url
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return None
 
 
@@ -319,8 +322,9 @@ class Guard:
         if hook:
             try:
                 subprocess.Popen(shlex.split(hook), shell=False, env={**os.environ, "WEB_AGENT_EVENT": reason, "WEB_AGENT_SESSION": s.title})
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     def clear(self, s: Session) -> None:
         if self.blocked_by == s.title:

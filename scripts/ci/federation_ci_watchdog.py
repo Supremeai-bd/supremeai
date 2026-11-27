@@ -300,8 +300,9 @@ def get_default_token() -> str:
         )
         if res.returncode == 0 and res.stdout.strip():
             return res.stdout.strip()
-    except (OSError, subprocess.SubprocessError):
-        pass
+    except (OSError, subprocess.SubprocessError) as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return ""
 
 
@@ -474,8 +475,9 @@ def active_anchor_for_repo(repo: str) -> int:
     try:
         if repo in (ACTIVE_ANCHOR_HUBS or {}):
             return int(ACTIVE_ANCHOR_HUBS[repo])
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return CI_FAILURE_ANCHOR
 
 

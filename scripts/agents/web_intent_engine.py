@@ -123,8 +123,9 @@ class IntentEngine:
         """Quadratic-Bezier pointer path with jitter, then click at a random point inside the target."""
         try:
             await loc.scroll_into_view_if_needed(timeout=2000)
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
         box = await loc.bounding_box()
         if not box:
             await loc.click(timeout=4000)
@@ -154,8 +155,9 @@ class IntentEngine:
             self._mouse[id(page)] = (nx, ny)
             if random.random() < 0.3:
                 await page.mouse.wheel(0, random.choice([-1, 1]) * random.randint(80, 400))
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     # ---------------- blockers ----------------
     async def detect_blocker(self, page: Page) -> str | None:
@@ -194,8 +196,9 @@ class IntentEngine:
         try:
             self.memory_path.parent.mkdir(parents=True, exist_ok=True)
             self.memory_path.write_text(json.dumps(self.memory, indent=2, ensure_ascii=False), encoding="utf-8")
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     def _forget(self, page: Page, intent: str) -> None:
         self.memory.get(urlparse(page.url).netloc, {}).pop(intent, None)
@@ -209,8 +212,9 @@ class IntentEngine:
                 loc = page.get_by_role(mem["role"], name=mem["name"], exact=True).first
                 if await loc.is_visible(timeout=600):
                     return loc
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
             self._forget(page, intent)  # stale → heal by re-scoring
 
         anchor = self._tokens.get((id(page), near)) if near else None

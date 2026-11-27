@@ -167,7 +167,8 @@ export const env = {
         const isRetiredTower = (value: string): boolean => {
           try {
             return new URL(value).hostname === retiredHost;
-          } catch {
+          } catch (err) {
+            console.error(err instanceof Error ? err.name : "error");
             return false;
           }
         };

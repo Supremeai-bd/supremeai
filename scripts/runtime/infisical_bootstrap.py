@@ -71,8 +71,9 @@ def load_secrets() -> dict[str, str]:
             if ws.get("id") == workspace_id or ws.get("slug") == workspace_id:
                 workspace_id = ws.get("id")
                 break
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     query = urllib.parse.urlencode(
         {"workspaceId": workspace_id, "environment": environment, "secretPath": path}

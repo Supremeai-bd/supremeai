@@ -39,8 +39,9 @@ class CorrelationBridge:
             cid = current_correlation_id()
             if cid:
                 span.set_attribute("supremeai.correlation_id", cid)
-        except Exception:  # never break tracing for a missing id
-            pass
+        except Exception as exc:  # never break tracing for a missing id
+            import logging
+            logging.getLogger(__name__).debug("Correlation ID span attribute skipped (%s)", type(exc).__name__)
 
     def on_end(self, span: Any) -> None:  # noqa: D102
         return None

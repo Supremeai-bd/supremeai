@@ -331,8 +331,9 @@ def create_sync_pr(
             cwd=target_dir,
             capture_output=True,
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     pr_cmd = [
         "gh", "pr", "create",
@@ -352,8 +353,9 @@ def create_sync_pr(
                 cwd=target_dir,
                 capture_output=True,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
         return True
     except subprocess.CalledProcessError as exc:
         print(f"  [error] Failed to create PR in {target_repo}: {exc}")
