@@ -410,9 +410,9 @@
   },
   "graph": {
     "modules": 2187,
-    "edges": 5055,
+    "edges": 5056,
     "edge_kinds": {
-      "dispatch": 211,
+      "dispatch": 212,
       "dynamic": 4,
       "import": 4147,
       "string": 693
@@ -431,7 +431,6 @@
       "@.github/actions/setup-frontend/action.yml",
       "@.github/actions/setup-playwright/action.yml",
       "@.github/workflows/codeql.yml",
-      "@.github/workflows/daily-key-health.yml",
       "@.github/workflows/deploy-rollback.yml",
       "@.github/workflows/ops-maintenance.yml",
       "@.github/workflows/unified-pipeline.yml",
