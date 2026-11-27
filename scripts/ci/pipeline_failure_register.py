@@ -200,35 +200,29 @@ def _candidate_auth_values() -> list[str]:
 
 def real_api(endpoint: str, method: str = "GET", payload: dict | None = None) -> Any:
     """REST কল — GH_TOKEN প্রথম; 401/403 ত্রুটিতে fallback টোকেন দিয়ে স্বয়ংক্রিয় retry।"""
+    api_url = "https://api.github.com/" + endpoint.lstrip("/")
+    encoded_body = json.dumps(payload).encode("utf-8") if payload is not None else None
     candidates = _candidate_auth_values()
-    last_err: urllib.error.HTTPError | None = None
-    raw = ""
-    for idx, auth_val in enumerate(candidates):
-        headers = {
+    total_candidates = len(candidates)
+    for attempt_idx, auth_val in enumerate(candidates):
+        base_headers = {
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
         }
         if auth_val:
-            headers["Authorization"] = f"token {auth_val}"
-        req = urllib.request.Request(
-            f"https://api.github.com/{endpoint.lstrip('/')}",
-            data=json.dumps(payload).encode() if payload is not None else None,
-            method=method,
-            headers=headers,
+            base_headers["Authorization"] = f"token {auth_val}"
+        gh_request = urllib.request.Request(
+            url=api_url, data=encoded_body, headers=base_headers, method=method
         )
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                raw = resp.read().decode()
-            last_err = None
-            break
-        except urllib.error.HTTPError as exc:
-            last_err = exc
-            if exc.code in (401, 403) and idx + 1 < len(candidates):
+            with urllib.request.urlopen(gh_request, timeout=30) as response_stream:
+                decoded_body = response_stream.read().decode("utf-8")
+            return json.loads(decoded_body) if decoded_body.strip() else None
+        except urllib.error.HTTPError as http_err:
+            if http_err.code in (401, 403) and (attempt_idx + 1) < total_candidates:
                 continue
             raise
-    if last_err is not None:
-        raise last_err
-    return json.loads(raw) if raw.strip() else None
+    return None
 
 
 def _rest_run_list_fallback(args: tuple[str, ...]) -> str:

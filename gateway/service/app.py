@@ -571,9 +571,8 @@ except ImportError:
 # the one origin missing from the allowlist, while retired ones were allowed.
 # `_registry_origin` comes from .registry_lookup (split out of this module).
 _default_cors = [
-    # The live Studio origin (Cloudflare Pages) arrives from the registry above or explicit fallback
+    # বাংলা মন্তব্য: ক্যানোনিকাল Studio অরিজিন সরাসরি config/service_registry.yaml (_registry_origin) থেকে আসে; ডুপ্লিকেট লিটারাল রাখা যাবে না।
     *filter(None, [_registry_origin("frontend")]),
-    "https://supremeai-studio.pages.dev",
     "https://supremeai-studio.paykaribazaronline.workers.dev",
     "https://supremeai.live",
     "https://studio.supremeai.lat",
