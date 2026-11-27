@@ -686,8 +686,86 @@ def probe_github_mirror(kv: dict) -> list[dict]:
     return out
 
 
+
+KEEPWARM_WORKER = "supremeai-render-keepwarm"
+KEEPWARM_URL = os.environ.get(
+    "KEEPWARM_URL", "https://supremeai-render-keepwarm.paykaribazaronline.workers.dev")
+
+
+def probe_keepwarm(kv: dict) -> list[dict]:
+    """বাংলা মন্তব্য: Cloudflare keep-warm worker সত্যিই চলছে কিনা লাইভ যাচাই —
+    (১) worker /health ডিপ্লয়-কমিট, (২) /trigger দিয়ে ৬ Render টার্গেটে আসল ping,
+    (৩) Cloudflare API-তে cron schedule সংযুক্ত আছে কিনা।"""
+    out = []
+    st, body = retry(lambda: http("GET", f"{KEEPWARM_URL}/health"))
+    data = _jbody(st, body)
+    if st == 200 and isinstance(data, dict):
+        out.append(mk("keepwarm", "worker[health]", True,
+                      f"deployed_commit={str(data.get('commit', 'unknown'))[:12]}"))
+    else:
+        cat, note = classify("keepwarm", "worker[health]", st, body)
+        out.append(mk("keepwarm", "worker[health]", False, f"HTTP {st}", category=cat, note=note))
+        return out
+    st, body = http("GET", f"{KEEPWARM_URL}/trigger", timeout=40)
+    data = _jbody(st, body)
+    services = data.get("services") if isinstance(data, dict) else None
+    if isinstance(services, list):
+        for node in services:
+            if not isinstance(node, dict):
+                continue
+            name = str(node.get("name", "?"))
+            detail = (f"HTTP {node.get('status')} · {node.get('latency_ms')}ms" if "status" in node
+                      else f"error: {str(node.get('error', ''))[:80]} · {node.get('latency_ms')}ms")
+            out.append(mk("keepwarm", f"target[{name}]", bool(node.get("ok")), detail,
+                          category=None if node.get("ok") else "SERVICE_UNHEALTHY"))
+        out.append(mk("keepwarm", "trigger[overall]", st == 200,
+                      f"status={data.get('status')} · {data.get('total_duration_ms')}ms",
+                      category=None if st == 200 else "SERVICE_UNHEALTHY"))
+    else:
+        cat, note = classify("keepwarm", "trigger[overall]", st, body)
+        out.append(mk("keepwarm", "trigger[overall]", False, f"HTTP {st}", category=cat, note=note))
+    acct = kv.get("CLOUDFLARE_ACCOUNT_ID", "")
+    tok = kv.get("CLOUDFLARE_API_TOKEN", "")
+    email, gk = kv.get("CLOUDFLARE_EMAIL", ""), kv.get("CLOUDFLARE_GLOBAL_API_KEY", "")
+    headers = {"Authorization": f"Bearer {tok}"} if tok else (
+        {"X-Auth-Email": email, "X-Auth-Key": gk} if email and gk else None)
+    if not acct or not headers:
+        out.append(mk("keepwarm", "cron[schedule]", None,
+                      "CLOUDFLARE_ACCOUNT_ID/API credentials নেই — cron যাচাই বাদ", category="CONFIG_MISSING"))
+        return out
+    st, sch = retry(lambda: jget(
+        f"https://api.cloudflare.com/client/v4/accounts/{acct}/workers/scripts/{KEEPWARM_WORKER}/schedules",
+        headers))
+    result = sch.get("result") if isinstance(sch, dict) else None
+    crons = [s.get("cron") for s in (result or {}).get("schedules", []) if isinstance(s, dict)] \
+        if isinstance(result, dict) else []
+    if st == 200 and crons:
+        out.append(mk("keepwarm", "cron[schedule]", True, "crons=" + ",".join(map(str, crons))))
+    elif st == 200:
+        out.append(mk("keepwarm", "cron[schedule]", False, "worker-এ কোনো cron trigger সংযুক্ত নেই",
+                      category="SETTINGS_RISK"))
+    else:
+        cat, note = classify("keepwarm", "cron[schedule]", st, json.dumps(sch))
+        out.append(mk("keepwarm", "cron[schedule]", False, f"HTTP {st}", category=cat, note=note))
+    return out
+
+
+def emit_annotations(findings: list[dict], platforms: tuple[str, ...] = ("keepwarm", "render")) -> list[str]:
+    """বাংলা মন্তব্য: GitHub Actions-এ নির্বাচিত finding-কে ::notice/::error annotation হিসেবে
+    ছাপে — API (check-runs/annotations) দিয়ে লগ ডাউনলোড ছাড়াই ফলাফল পড়া যায়।"""
+    lines = []
+    for f in findings:
+        if f.get("platform") not in platforms:
+            continue
+        level = "notice" if f.get("ok") is True else ("error" if f.get("ok") is False else "warning")
+        msg = f"{f['platform']}:{f['check']} {f['detail']}".replace("\n", " ").replace("%", "%25")
+        lines.append(f"::{level} title=deep-audit {f['platform']}::{msg[:300]}")
+    return lines
+
+
 PROBES = [probe_upstash, probe_render, probe_supabase, probe_cloudflare,
-          probe_kaggle, probe_ai_hosts, probe_firecrawl, probe_github_mirror, probe_known_keys]
+          probe_kaggle, probe_ai_hosts, probe_firecrawl, probe_github_mirror, probe_known_keys,
+          probe_keepwarm]
 
 
 def discover_unmonitored(kv: dict) -> list[dict]:
@@ -886,6 +964,9 @@ def main() -> int:
 
     kv = vault_secrets()
     findings = run_audit(kv, args.max_workers)
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        for line in emit_annotations(findings):
+            print(line)
     report = render_report(findings)
     print(report)
     step = os.environ.get("GITHUB_STEP_SUMMARY")
