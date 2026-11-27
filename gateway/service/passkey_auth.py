@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import secrets
 import struct
 import time
@@ -54,7 +55,23 @@ except ImportError:
         update_passkey_usage,
     )
 
+try:
+    from gateway.service.auth_identity import extract_token
+    from gateway.service.keygen import verify_key
+except ImportError:
+    from service.auth_identity import extract_token  # type: ignore[no-redef]
+    from service.keygen import verify_key  # type: ignore[no-redef]
+
 logger = logging.getLogger("supremeai.passkey_auth")
+
+# Registered-account principals minted by the gateway login routes:
+#   studio-admin                 -> usr-admin-primary
+#   usr-usr-<12 hex>             -> usr-<12 hex>          (gateway users table)
+#   usr-<uuid prefix>            -> usr-<uuid prefix>     (Supabase GoTrue fallback;
+#                                   keygen caps client names at 20 chars, so the
+#                                   signed principal is the first 16 uuid chars)
+_GATEWAY_USER_RE = re.compile(r"usr-(usr-[a-f0-9]{12})")
+_SUPABASE_USER_RE = re.compile(r"(usr-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{2})")
 
 router = APIRouter(prefix="/api/auth/passkey", tags=["passkey-auth"])
 
@@ -80,6 +97,60 @@ def _b64url_decode(s: str) -> bytes:
     if padding and padding < 4:
         s += "=" * padding
     return base64.urlsafe_b64decode(s.encode("utf-8"))
+
+
+def _owner_from_keygen_token(token: str) -> Optional[str]:
+    """Map a keygen-signed session token to its stable registered user id."""
+    try:
+        claims = verify_key(token) or {}
+    except Exception:  # noqa: BLE001 - malformed credential == no principal
+        return None
+    client = str(claims.get("client") or "").strip()
+    if client == "studio-admin":
+        return "usr-admin-primary"
+    for pattern in (_GATEWAY_USER_RE, _SUPABASE_USER_RE):
+        match = pattern.fullmatch(client)
+        if match:
+            return match[1]
+    return None
+
+
+def _owner_from_legacy_jwt(token: str) -> Optional[str]:
+    """Legacy HS256 JWT sessions (passkey login tokens). Audience is not pinned."""
+    try:
+        import jwt
+
+        decoded = jwt.decode(
+            token, _get_jwt_secret(), algorithms=["HS256"], options={"verify_aud": False}
+        )
+    except Exception:  # noqa: BLE001 - any decode failure == no principal
+        return None
+    sub = str(decoded.get("sub") or "").strip()
+    return sub if sub and sub != "guest" else None
+
+
+def _resolve_passkey_owner(request: Request) -> Optional[str]:
+    """Stable, server-verified owner of passkeys for this request (None = no credential).
+
+    Bug fix (2026-11-27): Studio sessions are keygen ``sk-supreme-…`` tokens, not
+    JWTs, so the old JWT-only decode always failed and every passkey was saved under
+    a throwaway ``usr-<random>`` id — the Settings list (queried by a client-supplied
+    ``user_id``) therefore stayed empty forever.
+    """
+    token = extract_token(request)
+    if not token:
+        return None
+    owner = _owner_from_keygen_token(token) or _owner_from_legacy_jwt(token)
+    if not owner:
+        raise HTTPException(status_code=401, detail="Sign in with a registered account to manage passkeys.")
+    return owner
+
+
+def _require_passkey_owner(request: Request) -> str:
+    owner = _resolve_passkey_owner(request)
+    if not owner:
+        raise HTTPException(status_code=401, detail="Sign in with a registered account to manage passkeys.")
+    return owner
 
 
 # ── Pydantic Request Models ──────────────────────────────────────────────────
@@ -218,26 +289,12 @@ async def get_register_options(req: RegisterOptionsRequest, request: Request):
     if getattr(req, "role", None) and req.role != "user":
         logger.warning("Ignoring client-supplied role in passkey registration (untrusted)")
 
-    verified_user_id: Optional[str] = None
-    verified_email: Optional[str] = None
-    auth_header = request.headers.get("authorization") or ""
-    if auth_header.lower().startswith("bearer "):
-        raw_jwt = auth_header.split(" ", 1)[1].strip()
-        if raw_jwt:
-            try:
-                import jwt
-
-                decoded = jwt.decode(raw_jwt, _get_jwt_secret(), algorithms=["HS256"])
-                sub = str(decoded.get("sub") or "").strip()
-                if sub and sub != "guest":
-                    verified_user_id = sub
-                    verified_email = str(decoded.get("email") or "").strip() or None
-            except Exception:
-                verified_user_id = None
+    # A presented-but-invalid credential is a 401 (never a silent orphan account).
+    verified_user_id = _resolve_passkey_owner(request)
 
     user_id = verified_user_id or ("usr-" + secrets.token_hex(6))
     clean_display_email = (req.email or "").strip()
-    email = verified_email or (
+    email = (
         clean_display_email if "@" in clean_display_email and len(clean_display_email) <= 160 else f"{user_id}@supremeai.local"
     )
     role = "user"
@@ -436,16 +493,22 @@ async def verify_login(req: LoginVerifyRequest, request: Request, response: Resp
 # ── Device Management Endpoints ──────────────────────────────────────────────
 
 @router.get("/devices")
-async def list_devices(user_id: str):
-    """Lists all registered passkeys for the given user."""
-    devices = list_user_passkeys(user_id)
+async def list_devices(request: Request, user_id: Optional[str] = None):
+    """Lists the caller's registered passkeys.
+
+    The owner comes from the verified session; the legacy ``user_id`` query
+    parameter is ignored (it allowed listing anyone's devices).
+    """
+    owner = _require_passkey_owner(request)
+    devices = list_user_passkeys(owner)
     return {"devices": devices}
 
 
 @router.delete("/devices/{credential_id}")
-async def revoke_device(credential_id: str, user_id: str):
-    """Revokes a registered passkey."""
-    success = revoke_user_passkey(credential_id, user_id)
+async def revoke_device(credential_id: str, request: Request, user_id: Optional[str] = None):
+    """Revokes one of the caller's registered passkeys."""
+    owner = _require_passkey_owner(request)
+    success = revoke_user_passkey(credential_id, owner)
     if not success:
         raise HTTPException(status_code=404, detail="Device not found or unauthorized")
     return {"status": "success", "message": "Passkey revoked successfully"}
