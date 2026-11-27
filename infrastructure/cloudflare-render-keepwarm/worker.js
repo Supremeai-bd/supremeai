@@ -121,7 +121,7 @@ export default {
         schedule: "*/10 * * * *"
       }, null, 2),
       {
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
       }
     );
   }
