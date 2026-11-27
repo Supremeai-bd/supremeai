@@ -32,7 +32,16 @@ import urllib.request
 import uuid
 from typing import Dict, List, Optional, Tuple
 
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 from core.utils.api_key_resolver import resolve_numbered_key
+from scripts.ci.ai_knowledge_exchange import (
+    extract_ai_share_packets_from_text,
+    is_clean_knowledge_payload,
+    persist_shared_packet,
+)
 
 if hasattr(sys.stdout, "reconfigure"):
     try:
@@ -308,8 +317,12 @@ def generate_embedding_gemini(text: str, gemini_key: str, dim: int = 768) -> Opt
 
 
 def post_to_supabase(url: str, key: str, table: str, record: dict) -> bool:
-    """Insert a record into Supabase PostgREST table."""
-    endpoint = f"{url.rstrip('/')}/rest/v1/{urllib.parse.quote(table)}"
+    """Insert or idempotently upsert a record into Supabase PostgREST table."""
+    # বাংলা মন্তব্য: সিক্রেট, `.onion` বা প্রম্পট-ইনজেকশন পেলোড থাকলে ডাটাবেসে ইনসার্ট ব্লক করা হয়।
+    if not is_clean_knowledge_payload(json.dumps(record, ensure_ascii=False)):
+        print(f"::warning::Blocked unsafe payload for Supabase table {table}", file=sys.stderr)
+        return False
+    endpoint = f"{url.rstrip('/')}/rest/v1/{urllib.parse.quote(table)}?on_conflict=id"
     req = urllib.request.Request(
         endpoint,
         data=json.dumps(record).encode("utf-8"),
@@ -317,7 +330,7 @@ def post_to_supabase(url: str, key: str, table: str, record: dict) -> bool:
             "apikey": key,
             "Authorization": f"Bearer {key}",
             "Content-Type": "application/json",
-            "Prefer": "return=representation",
+            "Prefer": "resolution=merge-duplicates,return=representation",
         },
         method="POST",
     )
@@ -547,8 +560,16 @@ def run_ingest(
     diff_text: Optional[str] = None,
 ) -> bool:
     """Main extraction and ingestion routine."""
+    # বাংলা মন্তব্য: PR বডিতে অন্য কোনো AI এজেন্ট `<!-- ai-knowledge-share v1 -->` ব্লক দিলে সেটিও একসাথে ইনজেস্ট করা হয়।
+    shared_packets = extract_ai_share_packets_from_text(body, default_source=f"PR #{pr_num} ({author})")
+    for pkt in shared_packets:
+        persist_shared_packet(pkt, dry_run=dry_run)
+
     data, version = extract_envelope_json(body)
     if not data:
+        if shared_packets:
+            print(f"[OK] Ingested {len(shared_packets)} cross-AI shared knowledge packet(s) from PR #{pr_num}.")
+            return True
         print(f"::notice::PR #{pr_num} carried no knowledge envelope ({version}). Skipping ingestion.")
         return True
 
@@ -571,10 +592,15 @@ def run_ingest(
     diff_snippet = diff_text[:5000] if diff_text else ""
     diff_size_bytes = len(diff_text.encode("utf-8")) if diff_text else 0
 
-    # 1. Prepare Supabase knowledge_base record
+    # 1. Prepare Supabase knowledge_base record (deterministic UUID5 for idempotency)
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    det_kb_id = (
+        str(uuid.uuid5(uuid.NAMESPACE_URL, f"supremeai:pr-kb:{pr_num}:{role}"))
+        if pr_num > 0
+        else str(uuid.uuid4())
+    )
     kb_record = {
-        "id": str(uuid.uuid4()),
+        "id": det_kb_id,
         "knowledge_key": f"pr-{pr_num}-{role}",
         "title": f"PR #{pr_num} [{role.upper()}]: {title or 'Agent Solution'}",
         "domain": role,
@@ -598,8 +624,13 @@ def run_ingest(
         "updated_at": now,
     }
 
-    # 2. Prepare Supabase learned_facts
+    # 2. Prepare Supabase learned_facts (deterministic IDs + structured JSONB content)
     facts = format_learned_facts(pr_num, role, knowledge, title)
+    for idx, fact in enumerate(facts):
+        if pr_num > 0:
+            fact["id"] = str(uuid.uuid5(uuid.NAMESPACE_URL, f"supremeai:pr-fact:{pr_num}:{role}:{idx}"))
+        if isinstance(fact.get("content"), str):
+            fact["content"] = {"text": fact["content"], "pr_number": pr_num, "role": role, "author": author}
 
     # 3. Prepare Qdrant Vector Point
     files_str = f"\nTouched files: {', '.join(touched_files[:10])}" if touched_files else ""

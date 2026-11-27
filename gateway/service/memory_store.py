@@ -12,6 +12,23 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
+try:
+    from .user_memory_engine import (
+        extract_durable_user_memories,
+        fetch_cloud_user_memories,
+        is_safe_memory_text,
+        sync_cloud_user_memory_forget,
+        sync_cloud_user_memory_upsert,
+    )
+except ImportError:
+    from user_memory_engine import (  # type: ignore[no-redef]
+        extract_durable_user_memories,
+        fetch_cloud_user_memories,
+        is_safe_memory_text,
+        sync_cloud_user_memory_forget,
+        sync_cloud_user_memory_upsert,
+    )
+
 logger = logging.getLogger("supremeai.memory_store")
 
 
@@ -352,6 +369,9 @@ class CanonicalMemoryStore:
         }
 
     def get_user_durable_memories(self, user_id):
+        if not user_id:
+            return []
+        local_items = []
         with _LOCK:
             with self._conn() as conn:
                 if conn is not None:
@@ -359,7 +379,7 @@ class CanonicalMemoryStore:
                         "SELECT * FROM user_memories WHERE user_id = ? ORDER BY updated_at DESC;",
                         (user_id,),
                     ).fetchall()
-                    return [
+                    local_items = [
                         {
                             "id": r["id"],
                             "user_id": r["user_id"],
@@ -372,9 +392,37 @@ class CanonicalMemoryStore:
                         for r in rows
                     ]
                 else:
-                    return [dict(m) for m in _MEM["user_memories"].get(user_id, [])]
+                    local_items = [dict(m) for m in _MEM["user_memories"].get(user_id, [])]
 
-    def upsert_user_memory(self, user_id, memory_key, memory_value, confidence=0.95, source_conv_id=None):
+        # বাংলা মন্তব্য: লোকাল SQLite ও ক্লাউড Supabase মেমোরি মার্জ করা হয় যাতে কন্টেইনার রিস্টার্টেও স্মৃতি হারিয়ে না যায়।
+        cloud_items = fetch_cloud_user_memories(str(user_id))
+        if not cloud_items:
+            return local_items
+        merged_by_key = {m["memory_key"]: m for m in cloud_items if m.get("memory_key")}
+        for item in local_items:
+            mkey = item.get("memory_key")
+            if not mkey:
+                continue
+            prev = merged_by_key.get(mkey)
+            if prev is None or float(item.get("updated_at") or 0.0) >= float(prev.get("updated_at") or 0.0):
+                merged_by_key[mkey] = item
+        merged = list(merged_by_key.values())
+        merged.sort(key=lambda r: float(r.get("updated_at") or 0.0), reverse=True)
+        return merged
+
+    def upsert_user_memory(
+        self,
+        user_id,
+        memory_key,
+        memory_value,
+        confidence=0.95,
+        source_conv_id=None,
+        kind="preference",
+        source_quote="",
+    ):
+        if not is_safe_memory_text(str(memory_value or "")):
+            logger.warning("Blocked unsafe user memory candidate for key=%s", memory_key)
+            return None
         now = time.time()
         mid = "mem-" + uuid.uuid4().hex[:12]
         with _LOCK:
@@ -406,6 +454,15 @@ class CanonicalMemoryStore:
                             "updated_at": now,
                         }
                     )
+        sync_cloud_user_memory_upsert(
+            user_id=str(user_id),
+            memory_key=str(memory_key),
+            memory_value=str(memory_value),
+            confidence=float(confidence),
+            source_conv_id=source_conv_id,
+            kind=str(kind or "preference"),
+            source_quote=str(source_quote or ""),
+        )
         return {
             "id": mid,
             "user_id": user_id,
@@ -413,6 +470,49 @@ class CanonicalMemoryStore:
             "memory_value": memory_value,
             "updated_at": now,
         }
+
+    def delete_user_memory(self, user_id, memory_key):
+        """বাংলা মন্তব্য: ইউজার ভুলে যেতে বললে লোকাল ও ক্লাউড উভয় স্টোর থেকে নির্দিষ্ট কী মুছে ফেলে।"""
+        removed = False
+        with _LOCK:
+            with self._conn() as conn:
+                if conn is not None:
+                    cur = conn.execute(
+                        "DELETE FROM user_memories WHERE user_id = ? AND memory_key = ?;",
+                        (user_id, memory_key),
+                    )
+                    removed = (cur.rowcount or 0) > 0
+                else:
+                    items = _MEM["user_memories"].get(user_id, [])
+                    before = len(items)
+                    items[:] = [m for m in items if m.get("memory_key") != memory_key]
+                    removed = len(items) < before
+        cloud_removed = sync_cloud_user_memory_forget(str(user_id), str(memory_key))
+        return removed or cloud_removed
+
+    def ingest_turn_user_memories(self, user_id, messages, source_conv_id=None):
+        """বাংলা মন্তব্য: চ্যাট টার্ন থেকে স্বয়ংক্রিয়ভাবে মূল ইউজার তথ্য শিখে নেয় বা আপডেট/ডিলিট করে।"""
+        if not user_id or not isinstance(messages, list):
+            return []
+        ops = extract_durable_user_memories(messages)
+        applied = []
+        for op in ops:
+            if op.op == "forget":
+                if self.delete_user_memory(user_id, op.key):
+                    applied.append({"op": "forget", "key": op.key})
+            elif op.op == "upsert":
+                saved = self.upsert_user_memory(
+                    user_id=user_id,
+                    memory_key=op.key,
+                    memory_value=op.value,
+                    confidence=op.confidence,
+                    source_conv_id=source_conv_id,
+                    kind=op.kind,
+                    source_quote=op.source_quote,
+                )
+                if saved:
+                    applied.append({"op": "upsert", "key": op.key, "value": op.value})
+        return applied
 
     def log_provider_attempt(self, request_id, conversation_id, provider, status_code, latency_ms, model=None, error_message=None):
         now = time.time()
@@ -482,6 +582,14 @@ def upsert_user_memory(*args, **kwargs):
     return _DEFAULT_STORE.upsert_user_memory(*args, **kwargs)
 
 
+def delete_user_memory(*args, **kwargs):
+    return _DEFAULT_STORE.delete_user_memory(*args, **kwargs)
+
+
+def ingest_turn_user_memories(*args, **kwargs):
+    return _DEFAULT_STORE.ingest_turn_user_memories(*args, **kwargs)
+
+
 def update_conversation_summary(*args, **kwargs):
     return _DEFAULT_STORE.update_conversation_summary(*args, **kwargs)
 
@@ -493,8 +601,10 @@ __all__ = [
     "CanonicalMemoryStore",
     "MemoryStore",
     "append_canonical_message",
+    "delete_user_memory",
     "get_recent_history",
     "get_user_durable_memories",
+    "ingest_turn_user_memories",
     "log_provider_attempt",
     "memory_store",
     "update_conversation_summary",
