@@ -434,3 +434,132 @@ def test_consented_personal_memory_reaches_only_owners_provider_context(gateway,
     assert client.post("/v1/chat/completions", json={"model": "supremeai-api", "messages": [{"role": "user", "content": "Hello"}]}, headers=a).status_code == 200
     disabled = json.loads(upstream.call_args.args[0].content)
     assert "Alice" not in str(disabled["messages"])
+
+
+def test_sanitizer_failure_rejects_response_and_assistant_persistence(gateway, monkeypatch):
+    client, upstream = gateway
+    upstream.return_value = httpx.Response(200, json={"choices": [{"message": {"content": "unsafe fixture"}}]})
+    monkeypatch.setattr(edge, "validate_and_sanitize", Mock(side_effect=ValueError("sensitive detail")))
+    response = client.post("/v1/chat/completions", json={**_CHAT, "session_id": "fixture"}, headers=_HEADERS)
+    assert response.status_code == 500
+    assert "unsafe fixture" not in response.text and "sensitive detail" not in response.text
+    assert not any(call.args[1] == "assistant" for call in edge.append_canonical_message.call_args_list)
+
+
+def test_ring_log_handler_discards_failed_subscriber_without_recursion(monkeypatch):
+    import logging
+    failing = Mock()
+    failing.put_nowait.side_effect = RuntimeError("broken")
+    handler = edge.RingBufferLogHandler()
+    handler.subscribers.add(failing)
+    monkeypatch.setattr(edge.logger, "handlers", [handler])
+    monkeypatch.setattr(edge.logger, "propagate", False)
+    monkeypatch.setattr(edge.logger, "level", logging.DEBUG)
+    edge.logger.warning("one fixture event")
+    assert failing.put_nowait.call_count == 1
+    assert failing not in handler.subscribers
+    assert len(handler.buffer) == 1
+
+
+def test_missing_sanitizer_rejects_non_streaming_response(gateway, monkeypatch):
+    client, upstream = gateway
+    upstream.return_value = httpx.Response(200, json={"choices": [{"message": {"content": "unsafe fixture"}}]})
+    monkeypatch.setattr(edge, "validate_and_sanitize", None)
+    response = client.post("/v1/chat/completions", json={**_CHAT, "session_id": "fixture"}, headers=_HEADERS)
+    assert response.status_code == 503
+    assert "unsafe fixture" not in response.text
+    assert not any(call.args[1] == "assistant" for call in edge.append_canonical_message.call_args_list)
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_webhook_missing_guard_cannot_serve_buffered_reply(gateway, monkeypatch, stream):
+    client, upstream = gateway
+    monkeypatch.setattr(edge, "STEALTH_WEBHOOK_URL", "https://relay.example.invalid")
+    relay = AsyncMock(return_value=(200, {"choices": [{"message": {"content": "unsafe fixture"}}]}))
+    monkeypatch.setattr(edge, "forward_stealth_webhook", relay)
+    monkeypatch.setattr(edge, "validate_and_sanitize", None)
+    response = client.post("/v1/chat/completions", json={**_CHAT, "model": "supremeai-web", "stream": stream}, headers=_HEADERS)
+    assert response.status_code == 503
+    assert "unsafe fixture" not in response.text
+    relay.assert_awaited_once()
+    upstream.assert_not_called()
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_assistant_persistence_failure_is_not_reported_as_success(gateway, monkeypatch, stream):
+    client, upstream = gateway
+
+    def persist(_conv, role, *_args, **_kwargs):
+        if role == "assistant":
+            raise RuntimeError("sensitive database detail")
+        return {"id": "user-message"}
+
+    monkeypatch.setattr(edge, "append_canonical_message", Mock(side_effect=persist))
+    if stream:
+        upstream.return_value = httpx.Response(200, stream=_ProviderStream(
+            _sse({"choices": [{"delta": {"content": "Partial visible reply"}}]}), b"data: [DONE]\n\n"))
+    else:
+        upstream.return_value = httpx.Response(200, json={"choices": [{"message": {"content": "Fixture reply"}}]})
+    response = client.post("/v1/chat/completions", json={**_CHAT, "stream": stream, "session_id": "fixture"}, headers=_HEADERS)
+    assert "sensitive database detail" not in response.text
+    if stream:
+        frames = _stream_frames(response)
+        assert frames[-1]["error"] == "Conversation storage unavailable"
+        assert not any(frame.get("choices", [{}])[0].get("finish_reason") == "stop" for frame in frames)
+    else:
+        assert response.status_code == 503
+        assert "Fixture reply" not in response.text
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_relay_assistant_persistence_failure_never_sends_reply(gateway, monkeypatch, stream):
+    client, upstream = gateway
+
+    def persist(_conv, role, *_args, **_kwargs):
+        if role == "assistant":
+            raise RuntimeError("private detail")
+        return {"id": "user-message"}
+
+    monkeypatch.setattr(edge, "append_canonical_message", Mock(side_effect=persist))
+    monkeypatch.setattr(edge, "STEALTH_WEBHOOK_URL", "https://relay.example.invalid")
+    monkeypatch.setattr(edge, "forward_stealth_webhook", AsyncMock(return_value=(200, {"choices": [{"message": {"content": "Fixture reply"}}]})))
+    response = client.post("/v1/chat/completions", json={**_CHAT, "model": "supremeai-web", "session_id": "fixture", "stream": stream}, headers=_HEADERS)
+    assert response.status_code == 503
+    assert "private detail" not in response.text and "Fixture reply" not in response.text
+    upstream.assert_not_called()
+
+
+def test_upstream_errors_do_not_leak_into_chat_response(gateway):
+    client, upstream = gateway
+    upstream.return_value = httpx.Response(503, json={"error": "private-upstream-token"})
+    response = client.post("/v1/chat/completions", json=_CHAT, headers=_HEADERS)
+    assert response.status_code == 502
+    assert "private-upstream-token" not in response.text
+
+
+def test_upstream_stream_errors_do_not_leak_into_sse(gateway, monkeypatch):
+    client, _ = gateway
+
+    async def failing_stream(*_args, **_kwargs):
+        yield "error", {"status": 503, "error": "private-upstream-token"}
+
+    monkeypatch.setattr(edge, "stream_chat_completion_events", failing_stream)
+    response = client.post("/v1/chat/completions", json={**_CHAT, "stream": True}, headers=_HEADERS)
+    assert "private-upstream-token" not in response.text
+    assert _stream_frames(response)[-1]["error"] == "Upstream stream failed"
+
+
+def test_relay_legacy_assistant_storage_failure_is_reported(gateway, monkeypatch):
+    client, upstream = gateway
+    monkeypatch.setattr(edge, "STEALTH_WEBHOOK_URL", "https://relay.example.invalid")
+    monkeypatch.setattr(edge, "forward_stealth_webhook", AsyncMock(return_value=(200, {"choices": [{"message": {"content": "Fixture reply"}}]})))
+
+    def legacy(_conv, role, *_args, **_kwargs):
+        if role == "assistant":
+            raise RuntimeError("private detail")
+
+    monkeypatch.setattr(edge, "add_message", Mock(side_effect=legacy))
+    response = client.post("/v1/chat/completions", json={**_CHAT, "model": "supremeai-web", "session_id": "fixture"}, headers=_HEADERS)
+    assert response.status_code == 503
+    assert "private detail" not in response.text and "Fixture reply" not in response.text
+    upstream.assert_not_called()

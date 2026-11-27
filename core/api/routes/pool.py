@@ -70,7 +70,9 @@ async def _validate(provider: str, api_key: str) -> bool:
     }
     url = urls.get(p)
     if not url:
-        return True
+        # A recognized format is not proof that a credential is valid.
+        logger.warning("No credential validation probe configured for provider %s", p)
+        raise HTTPException(status_code=503, detail="Credential validation unavailable")
     headers = {"Authorization": f"Bearer {api_key}"}
     if p == "gemini":
         headers = {}
@@ -80,8 +82,8 @@ async def _validate(provider: str, api_key: str) -> bool:
             # শুধু 200 OK স্ট্যাটাস কোডই বৈধ
             return resp.status_code == 200
     except Exception as exc:
-        logger.warning(f"Validation probe network error for {p}: {exc}")
-        return False
+        logger.warning("Validation probe unavailable for %s (%s)", p, type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Credential validation unavailable") from exc
 
 
 @router.get("/providers")
@@ -110,32 +112,42 @@ async def contribute(req: ContributeRequest, user: dict = Depends(verify_token_d
         raise HTTPException(status_code=400, detail="Key validation failed")
 
     fp = _fingerprint(raw)
-    db = get_db()
+    try:
+        db = get_db()
+    except Exception as exc:
+        logger.warning("Key pool database unavailable (%s)", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Key pool unavailable") from exc
     # dedup check
     try:
         existing = (await asyncio.to_thread(
             lambda: db.client.table("user_contributed_api_keys").select("id").eq("key_fingerprint", fp).execute()
         )).data
+        if not isinstance(existing, list):
+            raise ValueError("Invalid dedup response")
         if existing:
             raise HTTPException(status_code=409, detail="Key already in pool")
     except HTTPException:
         raise
     except Exception as exc:
-        logger.warning(f"dedup check failed: {exc}")
+        logger.warning("dedup check failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Key pool checks unavailable") from exc
 
     # বাংলা মন্তব্য: দৈনিক সাবমিশন ক্যাপ কঠোরভাবে ৫টিতে সীমাবদ্ধ করা (Anti-Abuse Cap)
     today_iso = datetime.now(UTC).date().isoformat()
     try:
         user_rows = (await asyncio.to_thread(
             lambda: db.client.table("user_contributed_api_keys").select("id,created_at").eq("user_id", str(user_id)).execute()
-        )).data or []
+        )).data
+        if not isinstance(user_rows, list):
+            raise ValueError("Invalid submission count response")
         today_count = sum(1 for r in user_rows if (r.get("created_at") or "").startswith(today_iso))
         if today_count >= 5:
             raise HTTPException(status_code=429, detail="Daily key submission limit reached (5 keys/day)")
     except HTTPException:
         raise
     except Exception as exc:
-        logger.warning(f"daily submission cap check warning: {exc}")
+        logger.warning("daily submission cap check failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Key pool checks unavailable") from exc
 
     encrypted = _encrypt(raw)
     rec_id = str(uuid.uuid4())
@@ -164,7 +176,9 @@ async def contribute(req: ContributeRequest, user: dict = Depends(verify_token_d
     try:
         rows = (await asyncio.to_thread(
             lambda: db.client.table("user_contributed_api_keys").select("provider,status").eq("user_id", str(user_id)).execute()
-        )).data or []
+        )).data
+        if not isinstance(rows, list):
+            raise ValueError("Invalid quota source response")
         valid_count = 0
         total_bonus = 0
         for r in rows:
@@ -183,7 +197,11 @@ async def contribute(req: ContributeRequest, user: dict = Depends(verify_token_d
             }, on_conflict="user_id").execute()
         )
     except Exception as exc:
-        logger.warning(f"quota recompute failed: {exc}")
+        logger.warning("quota recompute failed after key insert (%s)", type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="Key stored but quota update failed; reconcile before retrying",
+        ) from exc
 
     return {"status": "accepted", "provider": provider, "bonus_earned": bonus, "message": "Key added to pool"}
 
@@ -193,13 +211,16 @@ async def get_quota(user: dict = Depends(verify_token_dependency)):
     user_id = user.get("sub") or user.get("user_id") or user.get("id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
-    db = get_db()
     try:
+        db = get_db()
         rows = (await asyncio.to_thread(
             lambda: db.client.table("user_bonus_quotas").select("*").eq("user_id", str(user_id)).execute()
         )).data
+        if not isinstance(rows, list):
+            raise ValueError("Invalid quota response")
         if rows:
             return rows[0]
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("quota lookup failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Quota unavailable") from exc
     return {"user_id": str(user_id), "valid_keys_count": 0, "daily_bonus_tokens": 0}
