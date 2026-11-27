@@ -199,6 +199,38 @@ async def clear_llm_router_override(admin_user: dict = Depends(get_current_admin
     return {"status": "success", "cleared": was_active}
 
 
+@router.get("/finops")
+async def get_finops(admin_user: dict = Depends(get_current_admin)):
+    """FinOps: live limits (Supabase finops_settings) + today's estimated usage (Redis)."""
+    from core.finops import guard
+
+    settings = await guard.load_settings(force=True)
+    try:
+        usage = await guard.usage_snapshot()
+    except Exception as exc:  # noqa: BLE001 — usage is informative; limits still shown
+        logger.warning(f"finops usage snapshot failed: {type(exc).__name__}")
+        usage = {"available": False, "globalTokens": 0, "topUsers": []}
+    return {"settings": settings, "source": guard._cache.get("source", "default"), "usage": usage}
+
+
+@router.put("/finops")
+async def update_finops(payload: dict, admin_user: dict = Depends(get_current_admin)):
+    """Update FinOps limits. Enforced by core within ~60s (settings cache)."""
+    from core.finops import guard
+
+    try:
+        changes = guard.validate_settings(payload or {})
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    who = str(payload.get("updated_by") or admin_user.get("email") or admin_user.get("sub") or "admin")
+    try:
+        settings = await guard.save_settings(changes, who)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    logger.warning(f"💸 FinOps limits updated by {who}: {changes}")
+    return {"status": "success", "settings": settings}
+
+
 @router.get("/rules")
 async def get_llm_rules(admin_user: dict = Depends(get_current_admin)):
     """Constitutional rules as a plain key/value object for the editor."""

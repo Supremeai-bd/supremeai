@@ -1,0 +1,81 @@
+# Nightly encrypted database backup (admin Step 5 — "Backups")
+# ==============================================================================
+# বাংলা মন্তব্য: আগের admin "backup" শুধু Render-এর ক্ষণস্থায়ী ডিস্কে দুটি ফাইল কপি
+# করত (রিস্টার্টে মুছে যায়) — ডাটাবেসের কোনো ব্যাকআপ কোথাও ছিল না। এই workflow
+# প্রতিরাতে Supabase prod-এর pg_dump নেয়, AES-256 দিয়ে এনক্রিপ্ট করে ৩০ দিনের
+# artifact হিসেবে রাখে। Admin → Deploy & CI → Backups ট্যাব এই artifact তালিকা দেখায়।
+#
+# Separate file (not an ops-maintenance arm) because ops-maintenance.yml is at the
+# GitHub 25-input workflow_dispatch cap, and a backup must stay individually
+# dispatchable for verification and before risky migrations.
+# Restore is deliberately human-run — see scripts/backup/pg_nightly_backup.py.
+name: "💾 Nightly DB Backup (encrypted)"
+
+on:
+  schedule:
+    - cron: "30 20 * * *" # 02:30 Asia/Dhaka — lowest traffic window
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: "pg_dump → AES-256 → artifact"
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.11"
+
+      # Supabase prod is PostgreSQL 17; pg_dump must be >= the server major.
+      - name: Install postgresql-client-17 (PGDG)
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Dump + encrypt (secrets from Infisical)
+        env:
+          INFISICAL_HOST: https://app.infisical.com
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+        run: python scripts/runtime/infisical_bootstrap.py python scripts/backup/pg_nightly_backup.py --out db-backup
+
+      - name: Upload encrypted backup (30 days)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: supremeai-db-backup
+          path: db-backup/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Alert admins on failure
+        if: failure()
+        env:
+          INFISICAL_HOST: https://app.infisical.com
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: >-
+          python scripts/runtime/infisical_bootstrap.py python scripts/ops/send_alert.py
+          --severity critical --source db-backup --title "Nightly DB backup failed"
+          --body "$RUN_URL" --dedupe db-backup-failed
