@@ -74,3 +74,6 @@ doctor: ## Deployment preflight doctor (reads the live fleet, no writes)
 clean: ## Remove local caches (does not touch the git tree)
 	rm -rf .pytest_cache .ruff_cache .mypy_cache __pycache__
 	find . -name '__pycache__' -type d -prune -not -path './.git/*' -exec rm -rf {} + 2>/dev/null || true
+
+promote-decision:
+	python scripts/ci/promote_decision_record.py --help
