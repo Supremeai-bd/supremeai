@@ -29,6 +29,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ChatCompletionResponse"
+        "400": { description: Invalid JSON or request payload }
         "401": { description: Invalid or missing SupremeAI key }
         "403": { description: Key lacks required scope }
         "429": { description: Quota/rate limit exceeded (config-driven) }
@@ -42,6 +43,8 @@ paths:
   /v1/models:
     get:
       summary: Enabled models (from routing_policy config, not provider internals)
+      # বাংলা মন্তব্য: বর্তমানে আবিষ্কার রুটটি authentication ছাড়াই উন্মুক্ত।
+      security: []
       responses:
         "200":
           description: Model list

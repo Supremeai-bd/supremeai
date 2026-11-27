@@ -152,3 +152,12 @@ if __name__ == "__main__":
     total = 8
     print(f"{total - failures}/{total} passed" if failures else f"{total}/{total} passed (stdlib mode)")
     sys.exit(1 if failures else 0)
+
+
+def test_gateway_spec_documents_actual_public_models_and_bad_json() -> None:
+    """বাংলা মন্তব্য: কন্ট্রাক্টে বর্তমান public discovery ও JSON 400 উল্লেখ আছে।"""
+    import yaml
+    spec = yaml.safe_load((REPO_ROOT / "api-schemas/gateway.openapi.yaml").read_text(encoding="utf-8"))
+    assert spec["paths"]["/v1/models"]["get"]["security"] == []
+    assert "400" in spec["paths"]["/v1/chat/completions"]["post"]["responses"]
+    assert spec["paths"]["/v1/chat/completions"]["post"].get("security", spec["security"]) == spec["security"]

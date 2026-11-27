@@ -138,3 +138,95 @@ def test_real_gh_retries_on_403_and_falls_back_for_legacy_gh_status_flag(
     assert len(parsed) == 1
     assert parsed[0]["databaseId"] == 45909963796
     assert parsed[0]["conclusion"] == "failure"
+
+
+@pytest.mark.parametrize("state,claimed,expected_closed", [
+    ("closed", False, True),
+    ("open", False, False),
+    (None, False, False),
+    ("closed", True, False),
+])
+def test_reconcile_pr_hold_requires_closed_pr_and_respects_claim(
+    monkeypatch: pytest.MonkeyPatch, state: str | None, claimed: bool, expected_closed: bool
+) -> None:
+    """বাংলা মন্তব্য: পুরনো active সারি থাকলেও শুধু নিশ্চিত বন্ধ PR-এর hold সরবে।"""
+    issue = {"number": 888, "body": "<!-- pfr-fix:pr:887-->", "created_at": "2020-01-01T00:00:00Z", "labels": []}
+    writes = []
+
+    def api(endpoint, method="GET", payload=None):
+        if method != "GET":
+            writes.append((method, endpoint))
+            return {}
+        if "/pulls/887" in endpoint:
+            if state is None:
+                raise RuntimeError("API unavailable")
+            return {"state": state}
+        return [issue]
+
+    monkeypatch.setattr(pfr, "_claimed_recently", lambda *a, **k: claimed)
+    result = pfr.reconcile_fix_issues(api, pfr.DEFAULT_POLICY, [{"fix": 888}])
+    assert result["closed_orphans"] == ([888] if expected_closed else [])
+    assert any(method == "PATCH" for method, _ in writes) == expected_closed
+
+
+def test_unknown_pr_state_does_not_close_orphan():
+    """বাংলা মন্তব্য: API ব্যর্থ হলে অনাথ hold বন্ধ করা যাবে না।"""
+    issue = {"number": 888, "body": "<!-- pfr-fix:pr:887-->", "created_at": "2020-01-01T00:00:00Z"}
+    writes = []
+
+    def api(endpoint, method="GET", payload=None):
+        if method != "GET":
+            writes.append(method)
+            return {}
+        if "/pulls/887" in endpoint:
+            raise RuntimeError("API unavailable")
+        return [issue]
+
+    assert pfr.reconcile_fix_issues(api, pfr.DEFAULT_POLICY, [])['closed_orphans'] == []
+    assert not writes
+
+
+def test_reconcile_does_not_claim_success_on_write_failure():
+    issue = {"number": 888, "body": "<!-- pfr-fix:pr:887-->", "created_at": "2020-01-01T00:00:00Z"}
+
+    def api(endpoint, method="GET", payload=None):
+        if method == "PATCH":
+            raise RuntimeError("permission denied")
+        if method == "POST":
+            return {}
+        if "/pulls/887" in endpoint:
+            return {"state": "closed"}
+        return [issue]
+
+    assert pfr.reconcile_fix_issues(api, pfr.DEFAULT_POLICY, [])['closed_orphans'] == []
+
+
+@pytest.mark.parametrize("pr_state,expected_active", [("closed", 0), ("open", 1), (None, 1)])
+def test_scan_drops_only_verified_closed_pr_hold_outside_window(
+    monkeypatch: pytest.MonkeyPatch, pr_state: str | None, expected_active: int
+) -> None:
+    row = {"fp": "abcd", "workflow": "CI", "branch": "feature", "route": "pr-rebuild", "pr": 887, "fix": 888}
+    monkeypatch.setattr(pfr, "list_failed_runs", lambda *a: [])
+    monkeypatch.setattr(pfr, "find_register", lambda *a: {"number": 9, "state": "open", "body": pfr.render_state([row])})
+    monkeypatch.setattr(pfr, "latest_conclusion", lambda *a: "failure")
+
+    def api(endpoint, method="GET", payload=None):
+        if pr_state is None:
+            raise RuntimeError("API unavailable")
+        return {"state": pr_state}
+
+    assert pfr.scan(api=api, gh=lambda *a: "", pol=pfr.DEFAULT_POLICY, dry_run=True)["active"] == expected_active
+
+
+@pytest.mark.parametrize("verdict", [None, "cancelled", "timed_out", "startup_failure"])
+def test_scan_keeps_prior_failure_if_success_is_unproven(
+    monkeypatch: pytest.MonkeyPatch, verdict: str | None
+) -> None:
+    """বাংলা মন্তব্য: API ত্রুটি বা অসমাপ্ত রানে ledger থেকে ব্যর্থতা হারায় না।"""
+    row = {"fp": "abcd", "workflow": "CI", "branch": "feature", "route": "watching", "fix": 888}
+    monkeypatch.setattr(pfr, "list_failed_runs", lambda *a: [])
+    monkeypatch.setattr(pfr, "find_register", lambda *a: {"number": 9, "state": "open", "body": pfr.render_state([row])})
+    monkeypatch.setattr(pfr, "latest_conclusion", lambda *a: verdict)
+    result = pfr.scan(api=lambda *a, **kw: {}, gh=lambda *a: "", pol=pfr.DEFAULT_POLICY, dry_run=True)
+    assert result["active"] == 1
+    assert result["healed"] == 0

@@ -589,7 +589,8 @@ def run_ingest(
     if not touched_files and diff_text:
         touched_files = parse_touched_files_from_diff(diff_text)
 
-    diff_snippet = diff_text[:5000] if diff_text else ""
+    # বাংলা মন্তব্য: কাঁচা diff-এ অজানা ধরনের সিক্রেট থাকতে পারে; regex redaction
+    # সম্পূর্ণ নিরাপদ নয়। শুধু ফাইলের নাম ও আকার রাখি, কোড ডাটাবেসে পাঠাই না।
     diff_size_bytes = len(diff_text.encode("utf-8")) if diff_text else 0
 
     # 1. Prepare Supabase knowledge_base record (deterministic UUID5 for idempotency)
@@ -618,7 +619,6 @@ def run_ingest(
             "ingested_at": now,
             "touched_files": touched_files or [],
             "files_count": len(touched_files or []),
-            "diff_snippet": diff_snippet,
             "diff_size_bytes": diff_size_bytes,
         },
         "updated_at": now,
@@ -658,14 +658,20 @@ def run_ingest(
     success = True
     if supabase_url and supabase_key:
         kb_ok = post_to_supabase(supabase_url, supabase_key, "knowledge_base", kb_record)
+        success = kb_ok and success
         print(f"Supabase knowledge_base: {'✓ Saved' if kb_ok else '✗ Failed'}")
         for fact in facts:
             f_ok = post_to_supabase(supabase_url, supabase_key, "learned_facts", fact)
+            success = f_ok and success
             print(f"Supabase learned_facts ({fact['tags'][0]}): {'✓ Saved' if f_ok else '✗ Failed'}")
     else:
         print("::notice::Supabase credentials not set; skipping Supabase ingestion.")
 
-    if qdrant_url and gemini_key:
+    # বাংলা মন্তব্য: এমবেডিং সেবায় পাঠানোর আগেও একই সিক্রেট গার্ড প্রযোজ্য।
+    if qdrant_url and gemini_key and not is_clean_knowledge_payload(semantic_summary):
+        print("::warning::Blocked unsafe semantic summary before embedding.", file=sys.stderr)
+        success = False
+    elif qdrant_url and gemini_key:
         embedding = generate_embedding_gemini(semantic_summary, gemini_key, dim=768)
         if embedding:
             point = {
