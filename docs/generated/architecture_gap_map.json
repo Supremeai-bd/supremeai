@@ -17,11 +17,9 @@
       "skills.",
       "browser.gateway.",
       "browser.ghost_tower.",
-      "browser.routes.",
       "browser.runtime.",
       "browser.scripts.webbotauth.",
       "browser.tests.",
-      "browser.tools.",
       "core.accessibility.",
       "core.adaptive_engine.",
       "core.admin.",
@@ -410,12 +408,12 @@
     ]
   },
   "graph": {
-    "modules": 2193,
-    "edges": 5070,
+    "modules": 2181,
+    "edges": 5012,
     "edge_kinds": {
       "dispatch": 218,
       "dynamic": 4,
-      "import": 4155,
+      "import": 4097,
       "string": 693
     }
   },
@@ -448,8 +446,8 @@
   },
   "reachability": {
     "reachable": 1688,
-    "unreachable": 505,
-    "reachable_pct": 77.0
+    "unreachable": 493,
+    "reachable_pct": 77.4
   },
   "gaps": {
     "dangling_references": [],
@@ -1042,13 +1040,6 @@
     "browser.ghost_tower.multi_ai_sso_runner",
     "browser.ghost_tower.sync_cookies_to_infisical",
     "browser.playwright_manager",
-    "browser.routes",
-    "browser.routes._cognitive",
-    "browser.routes._crown_jewel",
-    "browser.routes._health",
-    "browser.routes._render_proxy",
-    "browser.routes._scraping",
-    "browser.routes._session_store",
     "browser.runtime",
     "browser.runtime.config",
     "browser.runtime.content_pruner",
@@ -1059,11 +1050,6 @@
     "browser.runtime.session_manager",
     "browser.runtime.stealth_profile",
     "browser.scripts.webbotauth.probe",
-    "browser.tools",
-    "browser.tools.browser_stealth",
-    "browser.tools.playwright_browser_agent",
-    "browser.tools.stealth_http_client",
-    "browser.tools.web_fallback_agent",
     "gateway.agents",
     "gateway.agents.external_agents",
     "gateway.agents.external_agents.channels",

@@ -369,13 +369,6 @@ flowchart TD
         browser__ghost_tower__multi_ai_sso_runner["browser.ghost_tower.multi_ai_sso_runner"]
         browser__ghost_tower__sync_cookies_to_infisical["browser.ghost_tower.sync_cookies_to_infisical"]
         browser__playwright_manager["browser.playwright_manager"]
-        browser__routes["browser.routes"]
-        browser__routes___cognitive["browser.routes._cognitive"]
-        browser__routes___crown_jewel["browser.routes._crown_jewel"]
-        browser__routes___health["browser.routes._health"]
-        browser__routes___render_proxy["browser.routes._render_proxy"]
-        browser__routes___scraping["browser.routes._scraping"]
-        browser__routes___session_store["browser.routes._session_store"]
         browser__runtime["browser.runtime"]
         browser__runtime__config["browser.runtime.config"]
         browser__runtime__content_pruner["browser.runtime.content_pruner"]
@@ -386,14 +379,21 @@ flowchart TD
         browser__runtime__session_manager["browser.runtime.session_manager"]
         browser__runtime__stealth_profile["browser.runtime.stealth_profile"]
         browser__scripts__webbotauth__probe["browser.scripts.webbotauth.probe"]
-        browser__tools["browser.tools"]
-        browser__tools__browser_stealth["browser.tools.browser_stealth"]
-        browser__tools__playwright_browser_agent["browser.tools.playwright_browser_agent"]
-        browser__tools__stealth_http_client["browser.tools.stealth_http_client"]
-        browser__tools__web_fallback_agent["browser.tools.web_fallback_agent"]
         gateway__agents["gateway.agents"]
         gateway__agents__external_agents["gateway.agents.external_agents"]
-        _more["… 465 more (see JSON)"]
+        gateway__agents__external_agents__channels["gateway.agents.external_agents.channels"]
+        gateway__agents__external_agents__contracts["gateway.agents.external_agents.contracts"]
+        gateway__agents__external_agents__control["gateway.agents.external_agents.control"]
+        gateway__agents__external_agents__control__job_api["gateway.agents.external_agents.control.job_api"]
+        gateway__agents__external_agents__control__router["gateway.agents.external_agents.control.router"]
+        gateway__agents__external_agents__control__state_manager["gateway.agents.external_agents.control.state_manager"]
+        gateway__agents__external_agents__providers["gateway.agents.external_agents.providers"]
+        gateway__agents__external_agents__verification["gateway.agents.external_agents.verification"]
+        gateway__agents__external_agents__verification__pr_manager["gateway.agents.external_agents.verification.pr_manager"]
+        gateway__agents__runner__agent_runner["gateway.agents.runner.agent_runner"]
+        gateway__agents__runner_service["gateway.agents.runner_service"]
+        gateway__agents__workers["gateway.agents.workers"]
+        _more["… 453 more (see JSON)"]
     end
 
     class @__github/actions/build-sign-image/action__yml live;
@@ -729,13 +729,6 @@ flowchart TD
     class browser__ghost_tower__multi_ai_sso_runner dead;
     class browser__ghost_tower__sync_cookies_to_infisical dead;
     class browser__playwright_manager dead;
-    class browser__routes dead;
-    class browser__routes___cognitive dead;
-    class browser__routes___crown_jewel dead;
-    class browser__routes___health dead;
-    class browser__routes___render_proxy dead;
-    class browser__routes___scraping dead;
-    class browser__routes___session_store dead;
     class browser__runtime dead;
     class browser__runtime__config dead;
     class browser__runtime__content_pruner dead;
@@ -746,11 +739,18 @@ flowchart TD
     class browser__runtime__session_manager dead;
     class browser__runtime__stealth_profile dead;
     class browser__scripts__webbotauth__probe dead;
-    class browser__tools dead;
-    class browser__tools__browser_stealth dead;
-    class browser__tools__playwright_browser_agent dead;
-    class browser__tools__stealth_http_client dead;
-    class browser__tools__web_fallback_agent dead;
     class gateway__agents dead;
     class gateway__agents__external_agents dead;
+    class gateway__agents__external_agents__channels dead;
+    class gateway__agents__external_agents__contracts dead;
+    class gateway__agents__external_agents__control dead;
+    class gateway__agents__external_agents__control__job_api dead;
+    class gateway__agents__external_agents__control__router dead;
+    class gateway__agents__external_agents__control__state_manager dead;
+    class gateway__agents__external_agents__providers dead;
+    class gateway__agents__external_agents__verification dead;
+    class gateway__agents__external_agents__verification__pr_manager dead;
+    class gateway__agents__runner__agent_runner dead;
+    class gateway__agents__runner_service dead;
+    class gateway__agents__workers dead;
     class _more dead;
