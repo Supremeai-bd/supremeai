@@ -76,7 +76,8 @@ def gateway(monkeypatch):
     monkeypatch.setattr(edge, "_adaptive_routes", {name: edge.RouteState(name) for name in edge._adaptive_routes})
     monkeypatch.setenv("SUPREMEAI_API_KEY", "fixture-client-key")
     monkeypatch.setattr(edge, "STEALTH_WEBHOOK_URL", "")
-    monkeypatch.setattr(edge, "compile_chat_context", None)
+    # This suite isolates provider routing; the real compiler has separate tests.
+    monkeypatch.setattr(edge, "compile_chat_context", lambda **kwargs: kwargs["messages"])
     monkeypatch.setattr(edge, "add_message", None)
     monkeypatch.setattr(edge, "append_canonical_message", Mock())
 

@@ -2211,7 +2211,12 @@ async def _execute_chat_completion(
             "SUPREMEAI_TRIVIAL_FASTPATH",
             "1" if os.getenv("ENVIRONMENT", "").strip().lower() == "production" else "0",
         ).strip().lower() in ("1", "true", "yes", "on")
-        _trivial = trivial_reply(body) if _trivial_on else None
+        # Stateful and streaming requests must use the normal ownership,
+        # persistence and response-protocol path.
+        _stateful = (body.get("conversation_id") or body.get("session_id")
+                     or request.headers.get("x-conversation-id")
+                     or request.headers.get("x-session-id"))
+        _trivial = trivial_reply(body) if _trivial_on and not _stateful and not body.get("stream") else None
     except Exception:  # noqa: BLE001 - the fast-path must never break a request
         _trivial = None
     if _trivial is not None:
@@ -2284,6 +2289,29 @@ async def _execute_chat_completion(
     incoming_msgs = body.get("messages", [])
     last_user_msg = next((m.get("content") for m in reversed(incoming_msgs) if isinstance(m, dict) and m.get("role") == "user"), None)
 
+    # 1. Message persistence (Canonical 3-tier memory store & legacy storage)
+    persisted_message_id = None
+    if conv_id and last_user_msg:
+        # বাংলা মন্তব্য: মালিকানা যাচাই ব্যর্থ হলে কোনো inference বা মেমোরি mutation নয়।
+        if not append_canonical_message:
+            raise HTTPException(status_code=503, detail="Conversation storage unavailable")
+        try:
+            persisted_message = await asyncio.to_thread(append_canonical_message, conv_id, "user", str(last_user_msg), user_id=user_id)
+            if isinstance(persisted_message, dict):
+                persisted_message_id = persisted_message.get("id")
+        except PermissionError:
+            raise HTTPException(status_code=403, detail="Conversation access denied")
+        except Exception as exc:
+            logger.warning("Canonical memory store error (user msg): %s", exc)
+            raise HTTPException(status_code=503, detail="Conversation storage unavailable")
+        if add_message:
+            try:
+                await asyncio.to_thread(add_message, conv_id, "user", str(last_user_msg), user_id=user_id)
+            except PermissionError:
+                raise HTTPException(status_code=403, detail="Conversation access denied")
+            except Exception as exc:
+                logger.warning(f"Legacy storage error (user msg): {exc}")
+
     # বাংলা মন্তব্য: ইউজারের চ্যাট বার্তা থেকে স্বয়ংক্রিয়ভাবে মূল পরিচয় ও পছন্দ (ADD/UPDATE/FORGET) মেমোরিতে সংরক্ষণ
     if user_id and incoming_msgs and ingest_turn_user_memories:
         try:
@@ -2291,23 +2319,12 @@ async def _execute_chat_completion(
         except Exception as mem_exc:
             logger.warning(f"Auto user memory extraction warning: {mem_exc}")
 
-    # 1. Message persistence (Canonical 3-tier memory store & legacy storage)
-    if conv_id and last_user_msg:
-        if append_canonical_message:
-            try:
-                await asyncio.to_thread(append_canonical_message, conv_id, "user", str(last_user_msg), user_id=user_id)
-            except Exception as exc:
-                logger.warning(f"Canonical memory store error (user msg): {exc}")
-        if add_message:
-            try:
-                await asyncio.to_thread(add_message, conv_id, "user", str(last_user_msg), user_id=user_id)
-            except Exception as exc:
-                logger.warning(f"Legacy storage error (user msg): {exc}")
-
     trace.mark("persist")
 
     # 2. Server-Side Context Compiler (Phase 1):
     # Injects Core Identity Anchor + Platform Grounding Sheet + 3-Tier Memory + Deterministic Sampling Lock
+    if not compile_chat_context:
+        raise HTTPException(status_code=503, detail="Chat context unavailable")
     if compile_chat_context:
         try:
             if resolve_sampling_knobs:
@@ -2327,9 +2344,11 @@ async def _execute_chat_completion(
                 user_id=user_id,
                 language_pref=body.get("language_pref") or body.get("language") or "bn",
                 response_style=body.get("response_style", "technical-architect"),
+                persisted_message_id=persisted_message_id,
             )
         except Exception as exc:
-            logger.warning(f"Context compiler error, continuing with incoming messages: {exc}")
+            logger.warning("Context compiler error: %s", exc)
+            raise HTTPException(status_code=503, detail="Chat context unavailable")
 
     def _format_sse_chunk(chunk_id: str, m_name: str, delta_text: str, is_final: bool, branding: Any) -> dict[str, Any]:
         p = {
