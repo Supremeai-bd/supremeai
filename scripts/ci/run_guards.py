@@ -219,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"OK: {' '.join(cmd[1:])}")
 
-    print(f"\n{len(selected) - len(failed)}/{len(selected)} guards passed ({label})")
+    print(f"\n{len(selected) - len(failed)}/{len(selected)} guards exited 0 ({label}; inspect output for skipped checks)")
     if failed:
         print("FAILED:")
         for n in failed:

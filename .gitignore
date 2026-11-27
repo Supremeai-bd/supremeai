@@ -278,6 +278,7 @@ actionlint
 !docs/audits/evidence/**
 !docs/audits/evidence/**/*.txt
 !scripts/ci/public_surface_manifest.txt
+!docs/generated/docs_garbage_baseline.txt
 !studio/src/lib/encryption/vendor/THIRD_PARTY_LICENSES.txt
 
 # Generated Firebase deployment artifacts (real URLs must never be committed)

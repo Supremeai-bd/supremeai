@@ -7,10 +7,9 @@
 inconsistent হলে pass^k-তে ধসে পড়ে।
 
 কাজ করার নিয়ম:
-  * backend/tests/missions স্যুটকে k বার (ডিফল্ট 3) চালায়;
+  * core/tests/missions স্যুটকে k বার (ডিফল্ট 3) চালায়;
   * প্রতি রানের JUnit XML থেকে total/passed গোনা হয়;
-  * pass^k = C(successes, k) / C(n, k) (unbiased estimator, core/self_benchmark.py
-    এর সাথে একই গণিত);
+  * একই test ID সব k রানেই পাস করেছে কি না দেখে empirical pass^k গণনা করে;
   * reports/mission_passk.json-এ ফলাফল লেখে (CI artifact) এবং কনসোলে ছাপে।
 
 Gate mode (L1 Reliability Moat — Constitution #5):
@@ -27,7 +26,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
 import signal
 import subprocess
@@ -37,7 +35,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-BACKEND_DIR = REPO_ROOT / "backend"
+CORE_DIR = REPO_ROOT / "core"
 REPORT_DIR = REPO_ROOT / "reports"
 MISSION_DIR = "tests/missions"
 
@@ -53,9 +51,11 @@ PER_RUN_TIMEOUT_SECONDS = 150
 POST_KILL_DRAIN_SECONDS = 30
 
 
-def run_mission_suite(run_index: int) -> tuple[int, int]:
-    """Runs the mission suite once; returns (passed, total)."""
-    junit = BACKEND_DIR / f"mission_junit_{run_index}.xml"
+def run_mission_suite(run_index: int) -> tuple[int, int, frozenset[tuple[str, str]], frozenset[tuple[str, str]]]:
+    """Return counts, all test IDs and passing IDs from one JUnit run."""
+    junit = CORE_DIR / f"mission_junit_{run_index}.xml"
+    # বাংলা: আগের অসমাপ্ত রান থেকে পাওয়া XML যেন নতুন ফল না হয়।
+    junit.unlink(missing_ok=True)
     proc = subprocess.Popen(
         [
             sys.executable,
@@ -68,7 +68,7 @@ def run_mission_suite(run_index: int) -> tuple[int, int]:
             "-p",
             "no:cacheprovider",
         ],
-        cwd=BACKEND_DIR,
+        cwd=CORE_DIR,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -98,6 +98,8 @@ def run_mission_suite(run_index: int) -> tuple[int, int]:
         junit.unlink(missing_ok=True)
         raise SystemExit(2)
     total = passed = 0
+    test_ids: set[tuple[str, str]] = set()
+    passed_ids: set[tuple[str, str]] = set()
     if junit.exists():
         try:
             root = ET.parse(junit).getroot()
@@ -108,13 +110,22 @@ def run_mission_suite(run_index: int) -> tuple[int, int]:
                 skipped = int(suite.attrib.get("skipped", "0"))
                 total += suite_total
                 passed += suite_total - failures - errors - skipped
-        except ET.ParseError as exc:
-            print(
-                f"[pass^k] run {run_index}: junit XML unparseable, ignoring: {junit} ({exc})",
-                file=sys.stderr,
-            )
+                for case in suite.findall("testcase"):
+                    test_id = (case.get("classname", ""), case.get("name", ""))
+                    if not all(test_id) or test_id in test_ids:
+                        raise ValueError("missing or duplicate test identity")
+                    test_ids.add(test_id)
+                    if not any(case.find(tag) is not None for tag in ("failure", "error", "skipped")):
+                        passed_ids.add(test_id)
+        except (ET.ParseError, ValueError) as exc:
+            print(f"[pass^k] run {run_index}: invalid JUnit report: {exc}", file=sys.stderr)
+            raise SystemExit(2)
         finally:
             junit.unlink(missing_ok=True)
+    if proc.returncode not in (0, 1):
+        print(f"[pass^k] run {run_index}: pytest infrastructure/collection error (exit={proc.returncode})", file=sys.stderr)
+        print((stdout or "")[-2000:] or (stderr or "")[-2000:], file=sys.stderr)
+        raise SystemExit(2)
     if total == 0:
         # বাংলা: Popen-এ stdout/stderr ফাইল-অবজেক্ট — communicate() থেকে পাওয়া
         # স্ট্রিং ভেরিয়েবলই ব্যবহার করতে হবে (ফাইল-অবজেক্ট slice করা যায় না)।
@@ -123,14 +134,14 @@ def run_mission_suite(run_index: int) -> tuple[int, int]:
         )
         print((stdout or "")[-2000:] or (stderr or "")[-2000:])
         raise SystemExit(2)
-    return passed, total
-
-
-def pass_hat_k(successes: int, n: int, k: int) -> float:
-    """Unbiased pass^k estimator — identical math to core/self_benchmark.py."""
-    if n < k or successes < k:
-        return 0.0
-    return math.comb(successes, k) / math.comb(n, k)
+    if len(test_ids) != total or len(passed_ids) != passed:
+        print(f"[pass^k] run {run_index}: JUnit counts do not match test cases", file=sys.stderr)
+        raise SystemExit(2)
+    if proc.returncode == 1:
+        # বাংলা: ব্যর্থ টেস্টের কারণ গোপন না করে CI লগে রাখি।
+        print(stdout or "", end="")
+        print(stderr or "", end="", file=sys.stderr)
+    return passed, total, frozenset(test_ids), frozenset(passed_ids)
 
 
 def main() -> int:
@@ -148,36 +159,30 @@ def main() -> int:
 
     k = max(1, args.k)
     gate_threshold = max(0.0, min(1.0, args.min_pass_hat_k))
+    # বাংলা: অসম্পূর্ণ নতুন রান পুরোনো রিপোর্টকে বৈধ দেখাতে পারবে না।
+    (REPORT_DIR / "mission_passk.json").unlink(missing_ok=True)
     runs: list[dict[str, object]] = []
+    all_ids = None
+    common_passes = None
     for i in range(1, k + 1):
-        passed, total = run_mission_suite(i)
+        passed, total, ids, passed_ids = run_mission_suite(i)
+        if all_ids is not None and ids != all_ids:
+            print("[pass^k] test identities changed between runs; refusing a verdict", file=sys.stderr)
+            raise SystemExit(2)
+        all_ids = ids
+        common_passes = passed_ids if common_passes is None else common_passes & passed_ids
         runs.append({"run": i, "passed": passed, "total": total})
         print(f"[pass^k] run {i}/{k}: {passed}/{total} missions green")
 
-    totals = {r["total"] for r in runs}
-    if len(totals) != 1:
-        # বাংলা: রান-মাঝে স্যুট সাইজ বদলালে estimator অর্থহীন — সৎভাবে 0.0।
-        print(
-            "[pass^k] WARNING: total test count changed between runs; treating as unstable"
-        )
-        score = 0.0
-        successes = 0
-        n = 0
-    else:
-        n = runs[0]["total"]
-        per_mission_success = [0] * n
-        for r in runs:
-            for idx in range(int(r["passed"])):
-                per_mission_success[idx] += 1
-        # স্যুট-লেভেল অ্যাগ্রিগেট: min-run successes দিয়ে conservative estimate
-        successes = min(int(r["passed"]) for r in runs)
-        score = pass_hat_k(successes, n, k)
+    n = len(all_ids or ())
+    successes = len(common_passes or ())
+    score = successes / n
 
     result = {
         "suite": MISSION_DIR,
         "k": k,
         "n": n,
-        "successes_min": successes,
+        "successes_all_runs": successes,
         "pass_hat_k": round(score, 4),
         "gate": {
             "threshold": gate_threshold,
@@ -189,7 +194,7 @@ def main() -> int:
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     out = REPORT_DIR / "mission_passk.json"
     out.write_text(json.dumps(result, indent=2), encoding="utf-8")
-    print(f"[pass^k] pass^{k} = {score:.4f}  (n={n}, successes_min={successes})")
+    print(f"[pass^k] pass^{k} = {score:.4f}  (n={n}, successes_all_runs={successes})")
     print(f"[pass^k] report written to {out}")
     if gate_threshold > 0.0:
         if score < gate_threshold:
