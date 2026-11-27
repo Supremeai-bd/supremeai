@@ -686,8 +686,94 @@ def probe_github_mirror(kv: dict) -> list[dict]:
     return out
 
 
+
+KEEPWARM_WORKER = "supremeai-render-keepwarm"
+KEEPWARM_URL = os.environ.get(
+    "KEEPWARM_URL", "https://supremeai-render-keepwarm.paykaribazaronline.workers.dev")
+
+
+def _annotate(level: str, msg: str) -> None:
+    """বাংলা মন্তব্য: GitHub Actions annotation — check-runs API দিয়ে লগ ছাড়াই পড়া যায়।
+    শুধু worker-এর পাবলিক রেসপন্স থেকে তৈরি টেক্সট এখানে আসে (vault মান কখনো নয়)।"""
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        clean = msg.replace("\n", " ").replace("%", "%25")[:300]
+        print(f"::{level} title=deep-audit keepwarm::{clean}")
+
+
+def probe_keepwarm_live() -> list[dict]:
+    """বাংলা মন্তব্য: Cloudflare keep-warm worker সত্যিই চলছে কিনা লাইভ যাচাই (কোনো secret লাগে না) —
+    (১) worker /health ডিপ্লয়-কমিট, (২) /trigger দিয়ে ৬ Render টার্গেটে আসল ping।"""
+    out = []
+    st, body = retry(lambda: http("GET", f"{KEEPWARM_URL}/health"))
+    data = _jbody(st, body)
+    if st == 200 and isinstance(data, dict):
+        commit = str(data.get("commit", "unknown"))[:12]
+        out.append(mk("keepwarm", "worker[health]", True, f"deployed_commit={commit}"))
+        _annotate("notice", f"worker[health] HTTP 200 deployed_commit={commit}")
+    else:
+        cat, note = classify("keepwarm", "worker[health]", st, body)
+        out.append(mk("keepwarm", "worker[health]", False, f"HTTP {st}", category=cat, note=note))
+        _annotate("error", f"worker[health] HTTP {st}")
+        return out
+    st, body = http("GET", f"{KEEPWARM_URL}/trigger", timeout=40)
+    data = _jbody(st, body)
+    services = data.get("services") if isinstance(data, dict) else None
+    if isinstance(services, list):
+        for node in services:
+            if not isinstance(node, dict):
+                continue
+            name = str(node.get("name", "?"))
+            detail = (f"HTTP {node.get('status')} · {node.get('latency_ms')}ms" if "status" in node
+                      else f"error: {str(node.get('error', ''))[:80]} · {node.get('latency_ms')}ms")
+            out.append(mk("keepwarm", f"target[{name}]", bool(node.get("ok")), detail,
+                          category=None if node.get("ok") else "SERVICE_UNHEALTHY"))
+            _annotate("notice" if node.get("ok") else "error", f"target[{name}] {detail}")
+        overall = f"status={data.get('status')} · {data.get('total_duration_ms')}ms"
+        out.append(mk("keepwarm", "trigger[overall]", st == 200, overall,
+                      category=None if st == 200 else "SERVICE_UNHEALTHY"))
+        _annotate("notice" if st == 200 else "error", f"trigger[overall] HTTP {st} {overall}")
+    else:
+        cat, note = classify("keepwarm", "trigger[overall]", st, body)
+        out.append(mk("keepwarm", "trigger[overall]", False, f"HTTP {st}", category=cat, note=note))
+        _annotate("error", f"trigger[overall] HTTP {st}")
+    return out
+
+
+def probe_keepwarm(kv: dict) -> list[dict]:
+    """বাংলা মন্তব্য: লাইভ worker যাচাই + Cloudflare API-তে cron schedule সংযুক্ত আছে কিনা।"""
+    out = probe_keepwarm_live()
+    acct = kv.get("CLOUDFLARE_ACCOUNT_ID", "")
+    tok = kv.get("CLOUDFLARE_API_TOKEN", "")
+    email, gk = kv.get("CLOUDFLARE_EMAIL", ""), kv.get("CLOUDFLARE_GLOBAL_API_KEY", "")
+    headers = {"Authorization": f"Bearer {tok}"} if tok else (
+        {"X-Auth-Email": email, "X-Auth-Key": gk} if email and gk else None)
+    if not acct or not headers:
+        out.append(mk("keepwarm", "cron[schedule]", None,
+                      "CLOUDFLARE_ACCOUNT_ID/API credentials নেই — cron যাচাই বাদ", category="CONFIG_MISSING"))
+        return out
+    st, sch = retry(lambda: jget(
+        f"https://api.cloudflare.com/client/v4/accounts/{acct}/workers/scripts/{KEEPWARM_WORKER}/schedules",
+        headers))
+    result = sch.get("result") if isinstance(sch, dict) else None
+    crons = [s.get("cron") for s in (result or {}).get("schedules", []) if isinstance(s, dict)] \
+        if isinstance(result, dict) else []
+    if st == 200 and crons:
+        out.append(mk("keepwarm", "cron[schedule]", True, "crons=" + ",".join(map(str, crons))))
+        _annotate("notice", f"cron[schedule] HTTP 200 attached_triggers={len(crons)}")
+    elif st == 200:
+        out.append(mk("keepwarm", "cron[schedule]", False, "worker-এ কোনো cron trigger সংযুক্ত নেই",
+                      category="SETTINGS_RISK"))
+        _annotate("error", "cron[schedule] HTTP 200 attached_triggers=0")
+    else:
+        _annotate("warning", f"cron[schedule] HTTP {int(st)}")
+        cat, note = classify("keepwarm", "cron[schedule]", st, json.dumps(sch))
+        out.append(mk("keepwarm", "cron[schedule]", False, f"HTTP {st}", category=cat, note=note))
+    return out
+
+
 PROBES = [probe_upstash, probe_render, probe_supabase, probe_cloudflare,
-          probe_kaggle, probe_ai_hosts, probe_firecrawl, probe_github_mirror, probe_known_keys]
+          probe_kaggle, probe_ai_hosts, probe_firecrawl, probe_github_mirror, probe_known_keys,
+          probe_keepwarm]
 
 
 def discover_unmonitored(kv: dict) -> list[dict]:
