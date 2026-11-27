@@ -46,3 +46,11 @@ class TestParityGuard(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_inline_test_modules_are_not_mistaken_for_production_scripts(tmp_path):
+    ci = tmp_path / 'scripts' / 'ci'
+    ci.mkdir(parents=True)
+    (ci / 'test_example.py').write_text('def test_example(): pass\n')
+    (ci / 'real_script.py').write_text('pass\n')
+    assert tpg.discover_scripts(tmp_path) == [ci / 'real_script.py']

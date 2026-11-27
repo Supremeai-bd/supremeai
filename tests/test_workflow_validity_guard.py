@@ -141,3 +141,20 @@ class TestRealRepository:
                 f"{path.name} defines {len(inputs)} workflow_dispatch inputs; "
                 f"GitHub rejects the entire file above {MAX_DISPATCH_INPUTS}"
             )
+
+
+def test_composite_run_steps_require_shell():
+    from workflow_validity_guard import validate_composite
+    broken = 'runs:\n  using: composite\n  steps:\n    - name: probe\n      run: echo hi\n'
+    assert any('missing required `shell`' in p for p in validate_composite('<broken>', broken))
+    fixed = broken.replace('      run:', '      shell: bash\n      run:')
+    assert validate_composite('<fixed>', fixed) == []
+    assert validate_composite('<node>', 'runs:\n  using: node24\n  main: index.js\n') == []
+
+
+def test_all_repository_composite_actions_are_valid():
+    from workflow_validity_guard import validate_composite
+    root = Path(__file__).resolve().parents[1]
+    actions = list((root / '.github/actions').glob('*/action.y*ml'))
+    assert actions
+    assert not [problem for path in actions for problem in validate_composite(str(path), path.read_text())]

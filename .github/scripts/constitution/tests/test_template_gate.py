@@ -481,7 +481,9 @@ class WorkflowWiringTests(unittest.TestCase):
                       "issue-ops.yml must have template-validate job (#3517 consolidation)")
 
     def test_issue_workflow_permissions(self):
-        perms = self.wf.get("permissions") or {}
+        # বাংলা: job-level permissions থাকলে GitHub workflow-level সেটি override করে।
+        job = self.wf["jobs"]["template-validate"]
+        perms = job.get("permissions", self.wf.get("permissions")) or {}
         self.assertEqual(perms.get("issues"), "write")
         self.assertEqual(perms.get("contents"), "read")
 

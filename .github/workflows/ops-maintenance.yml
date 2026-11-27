@@ -1290,6 +1290,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5 # v7.0.1
 
+      # বাংলা: retired QA surface লুকিয়ে PNPM সেটআপের অস্পষ্ট error নয়।
+      - name: Require customer E2E test surface
+        run: |
+          for path in package.json pnpm-lock.yaml qa/playwright.config.qa.ts qa/scripts/validate-checklist.ts qa/scripts/route-audit.ts; do
+            if [ ! -f "$path" ]; then
+              echo "::error::Customer E2E test surface missing: $path; no customer test ran."
+              exit 1
+            fi
+          done
+
       - name: Setup Node & PNPM
         uses: ./.github/actions/setup-frontend
         with:
@@ -1324,20 +1334,18 @@ jobs:
             pnpm exec wait-on http://127.0.0.1:3000 -t 120000
             echo "base_url=http://127.0.0.1:3000" >> "$GITHUB_OUTPUT"
           else
-            echo "mode=retired-skip" >> "$GITHUB_OUTPUT"
-            echo "base_url=" >> "$GITHUB_OUTPUT"
-            echo "studio retired to external repository — local-preview skipped"
+            echo "::error::Customer E2E requires an authorized STAGING_URL or a local Studio preview."
+            exit 1
           fi
 
       - name: Check Credentials if Project Requires Auth
         id: auth_check
         run: |
-          if [ -z "$QA_CUSTOMER_EMAIL" ]; then
-            echo "::warning::QA_CUSTOMER_EMAIL is unconfigured — credential-dependent steps skipped in scheduled runs."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$QA_CUSTOMER_EMAIL" ] || [ -z "$QA_CUSTOMER_PASSWORD" ]; then
+            echo "::error::Customer E2E credentials are missing; no authenticated customer test ran."
+            exit 1
           fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Execute Playwright Suite
         if: steps.auth_check.outputs.skip != 'true'
@@ -1806,12 +1814,12 @@ jobs:
             echo '```'
           fi
         } >> "$GITHUB_STEP_SUMMARY"
-        if ! grep -qE '([0-9]+)/\1 guards exited 0' guard-roster.log; then
-          echo "::error::guard roster did not report a full pass/summary line — treating as failure (never green on a dark surface)"
+        if [ "$roster_rc" -ne 0 ] || grep -q '^FAILED:' guard-roster.log; then
+          echo "::error::guard roster failed (exit $roster_rc) — see named failures in the step summary"
           exit 1
         fi
-        if grep -q '^FAILED:' guard-roster.log; then
-          echo "::error::guard roster reported failures — see the step summary"
+        if ! grep -qE '([0-9]+)/\1 guards exited 0' guard-roster.log; then
+          echo "::error::guard roster did not report a full exit-0 summary — treating as failure"
           exit 1
         fi
     - name: Upload roster log
