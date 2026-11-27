@@ -7,6 +7,7 @@ and GenAI semantic conventions (tokens/cost) without vendor lock-in.
 from __future__ import annotations
 
 import contextlib
+import functools
 import logging
 import os
 from typing import Any
@@ -23,6 +24,12 @@ except ImportError:
 _logger = logging.getLogger(__name__)
 
 _tracer: Any | None = None
+
+
+@functools.lru_cache(maxsize=32)
+def _warn_telemetry_failure(operation: str, exception_type: str) -> None:
+    # বাংলা: ঘনঘন span failure-এ লগ প্লাবিত নয়, সংবেদনশীল error message-ও নয়।
+    _logger.warning("Telemetry %s failed (%s); tracing may be incomplete", operation, exception_type)
 
 
 def resolve_otlp_traces_endpoint(
@@ -101,19 +108,36 @@ def get_tracer(service_name: str = "supremeai-agent-engine"):
 @contextlib.contextmanager
 def trace_agent_step(step_name: str, attributes: dict[str, Any] | None = None):
     """Context manager for tracing agent execution steps with GenAI conventions."""
-    tracer = get_tracer()
+    try:
+        tracer = get_tracer()
+        if tracer is not None:
+            span_context = tracer.start_as_current_span(step_name, attributes=attributes or {})
+            span = span_context.__enter__()
+    except Exception as error:
+        _warn_telemetry_failure("agent span entry", type(error).__name__)
+        tracer = None
     if tracer is None:
         yield None
         return
 
-    attrs = attributes or {}
-    with tracer.start_as_current_span(step_name, attributes=attrs) as span:
+    try:
+        yield span
+    except BaseException as exc:
+        # বাংলা: tracing failure মূল application error ঢাকতে বা suppress করতে পারবে না।
+        if isinstance(exc, Exception):
+            safe_span = _RealSpan(span)
+            safe_span.record_exception(exc)
+            safe_span.set_status(trace.StatusCode.ERROR, str(exc))
         try:
-            yield span
-        except Exception as exc:
-            span.record_exception(exc)
-            span.set_status(trace.StatusCode.ERROR, str(exc))
-            raise
+            span_context.__exit__(type(exc), exc, exc.__traceback__)
+        except Exception as error:
+            _warn_telemetry_failure("agent span exit", type(error).__name__)
+        raise
+    else:
+        try:
+            span_context.__exit__(None, None, None)
+        except Exception as error:
+            _warn_telemetry_failure("agent span exit", type(error).__name__)
 
 
 
@@ -147,20 +171,20 @@ class _RealSpan:
     def record_exception(self, exc):
         try:
             self._span.record_exception(exc)
-        except Exception:
-            pass
+        except Exception as error:
+            _warn_telemetry_failure("record_exception", type(error).__name__)
 
     def set_status(self, *args, **kwargs):
         try:
             self._span.set_status(*args, **kwargs)
-        except Exception:
-            pass
+        except Exception as error:
+            _warn_telemetry_failure("set_status", type(error).__name__)
 
     def set_attribute(self, *args, **kwargs):
         try:
             self._span.set_attribute(*args, **kwargs)
-        except Exception:
-            pass
+        except Exception as error:
+            _warn_telemetry_failure("set_attribute", type(error).__name__)
 
     def __enter__(self):
         return self
@@ -173,11 +197,9 @@ def setup_tracing(*args, **kwargs):
     """Initialize OpenTelemetry tracing; alias for init_telemetry."""
     try:
         return init_telemetry()
-    except Exception:
+    except Exception as error:
+        _warn_telemetry_failure("setup", type(error).__name__)
         return None
-
-
-import functools
 
 
 def trace_span(name, attributes=None, kind=None, **kwargs):
@@ -186,17 +208,22 @@ def trace_span(name, attributes=None, kind=None, **kwargs):
     class _SpanCM:
         def __init__(self):
             self._span = None
+            self._otel_span = None
 
         def __enter__(self):
-            tracer = get_tracer()
-            if tracer is None or not OTEL_AVAILABLE:
-                self._span = _NoOpSpan()
-                return self._span
+            self._otel_span = None
             try:
-                self._otel_span = tracer.start_as_current_span(name, attributes=attributes or {})
-                self._span = self._otel_span.__enter__()
+                tracer = get_tracer()
+                if tracer is None or not OTEL_AVAILABLE:
+                    self._span = _NoOpSpan()
+                    return self._span
+                span_context = tracer.start_as_current_span(name, attributes=attributes or {})
+                self._span = span_context.__enter__()
+                # বাংলা: সফল enter ছাড়া context-এ exit চালানো যাবে না।
+                self._otel_span = span_context
                 return _RealSpan(self._span)
-            except Exception:
+            except Exception as error:
+                _warn_telemetry_failure("span entry", type(error).__name__)
                 self._span = _NoOpSpan()
                 return self._span
 
@@ -204,13 +231,14 @@ def trace_span(name, attributes=None, kind=None, **kwargs):
             if exc is not None and hasattr(self._span, "record_exception"):
                 try:
                     self._span.record_exception(exc)
-                except Exception:
-                    pass
-            if hasattr(self, "_otel_span"):
+                except Exception as error:
+                    _warn_telemetry_failure("record_exception", type(error).__name__)
+            if self._otel_span is not None:
+                context, self._otel_span = self._otel_span, None
                 try:
-                    self._otel_span.__exit__(exc_type, exc, tb)
-                except Exception:
-                    pass
+                    context.__exit__(exc_type, exc, tb)
+                except Exception as error:
+                    _warn_telemetry_failure("span exit", type(error).__name__)
             return False
 
         def __call__(self, func):
