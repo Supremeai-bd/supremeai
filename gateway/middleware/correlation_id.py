@@ -87,7 +87,8 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
         if isinstance(response, JSONResponse) or hasattr(response, "headers"):
             try:
                 response.headers[CORRELATION_HEADER] = cid
-            except Exception:  # streaming responses may be immutable
-                pass
+            except Exception as exc:  # streaming responses may be immutable
+                import logging
+                logging.getLogger(__name__).debug("Correlation header set skipped (%s)", type(exc).__name__)
         _correlation_id.reset(token)
         return response

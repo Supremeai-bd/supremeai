@@ -733,8 +733,9 @@ def create_app(
         response = await call_next(request)
         try:
             record_request(request.method, request.url.path, response.status_code, time.time() - start)
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            import logging
+            logging.getLogger(__name__).debug("Gateway metric recording failed (%s)", type(exc).__name__)
         return response
 
     @app.get("/metrics")
