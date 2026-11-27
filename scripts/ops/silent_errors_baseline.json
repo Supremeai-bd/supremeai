@@ -1946,36 +1946,6 @@
       "severity": "medium"
     },
     {
-      "file": "browser/routes/_health.py",
-      "line": 41,
-      "type": "except-return-default",
-      "severity": "medium"
-    },
-    {
-      "file": "browser/routes/_health.py",
-      "line": 54,
-      "type": "except-return-default",
-      "severity": "medium"
-    },
-    {
-      "file": "browser/routes/_health.py",
-      "line": 65,
-      "type": "except-return-default",
-      "severity": "medium"
-    },
-    {
-      "file": "browser/routes/_health.py",
-      "line": 76,
-      "type": "except-return-default",
-      "severity": "medium"
-    },
-    {
-      "file": "browser/routes/_render_proxy.py",
-      "line": 51,
-      "type": "except-return-true",
-      "severity": "medium"
-    },
-    {
       "file": "browser/runtime/session_manager.py",
       "line": 35,
       "type": "except-return-default",
@@ -7682,12 +7652,6 @@
       "severity": "low"
     },
     {
-      "file": "browser/routes/_crown_jewel.py",
-      "line": 85,
-      "type": "except-no-log",
-      "severity": "low"
-    },
-    {
       "file": "browser/runtime/content_screen.py",
       "line": 152,
       "type": "except-no-log",
@@ -7744,24 +7708,6 @@
     {
       "file": "browser/session_manager.py",
       "line": 281,
-      "type": "except-no-log",
-      "severity": "low"
-    },
-    {
-      "file": "browser/tools/ai_web_extractor.py",
-      "line": 36,
-      "type": "except-no-log",
-      "severity": "low"
-    },
-    {
-      "file": "browser/tools/playwright_browser_agent.py",
-      "line": 251,
-      "type": "except-no-log",
-      "severity": "low"
-    },
-    {
-      "file": "browser/tools/playwright_browser_agent.py",
-      "line": 471,
       "type": "except-no-log",
       "severity": "low"
     },

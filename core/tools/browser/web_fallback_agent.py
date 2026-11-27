@@ -36,80 +36,88 @@ class WebFallbackAgent:
                 }
             )
 
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                context = await browser.new_context(viewport={"width": 1280, "height": 800})
-                page = await context.new_page()
+            # #2428 refactor: use the global async Playwright singleton instead
+            # of launching a fresh `async_playwright()` context per call.
+            # We acquire a fresh BrowserContext + Page from the singleton
+            # browser (cheap — context is isolated, Chromium process is shared).
+            from core.playwright_manager import get_global_browser
 
-                await page.goto(url, wait_until="domcontentloaded", timeout=15000)
-                steps_executed[-1]["status"] = "completed"
+            browser = await get_global_browser()
+            context = await browser.new_context(viewport={"width": 1280, "height": 800})
+            page = await context.new_page()
 
-                # Perform basic login sequence if credentials present in task
-                if "login_selector" in task and "username" in task:
-                    steps_executed.append(
-                        {
-                            "step": 2,
-                            "action": "Perform auto-login sequence",
-                            "status": "running",
-                        }
-                    )
-                    await page.fill(task["login_selector"], task["username"])
-                    if "password_selector" in task and "password" in task:
-                        await page.fill(task["password_selector"], task["password"])
-                    if "submit_selector" in task:
-                        await page.click(task["submit_selector"])
-                        await page.wait_for_load_state("networkidle", timeout=10000)
-                    steps_executed[-1]["status"] = "completed"
+            await page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            steps_executed[-1]["status"] = "completed"
 
-                # Perform custom action (e.g. click, fill or scrape)
-                action = task.get("action")
+            # Perform basic login sequence if credentials present in task
+            if "login_selector" in task and "username" in task:
                 steps_executed.append(
                     {
-                        "step": 3,
-                        "action": f"Execute action: {action}",
+                        "step": 2,
+                        "action": "Perform auto-login sequence",
                         "status": "running",
                     }
                 )
-
-                result_content = ""
-                if action == "click" and "selector" in task:
-                    await page.click(task["selector"])
-                    await page.wait_for_load_state("domcontentloaded", timeout=5000)
-                    result_content = "Element clicked."
-                elif action == "fill" and "selector" in task:
-                    await page.fill(task["selector"], task.get("value", ""))
-                    result_content = "Input field populated."
-                elif action == "scrape":
-                    # Extract text or body content
-                    result_content = await page.inner_text(task.get("selector", "body"))
-                else:
-                    # Default: get page title and url
-                    title = await page.title()
-                    result_content = f"Page loaded. Title: {title}"
-
+                await page.fill(task["login_selector"], task["username"])
+                if "password_selector" in task and "password" in task:
+                    await page.fill(task["password_selector"], task["password"])
+                if "submit_selector" in task:
+                    await page.click(task["submit_selector"])
+                    await page.wait_for_load_state("networkidle", timeout=10000)
                 steps_executed[-1]["status"] = "completed"
 
-                # Capture final result screenshot (saved in temporary dir)
-                steps_executed.append(
-                    {
-                        "step": 4,
-                        "action": "Extract results and screenshot",
-                        "status": "completed",
-                    }
-                )
-                screenshot_data = await page.screenshot(type="png", full_page=False)
-
-                await browser.close()
-
-                return {
-                    "success": True,
-                    "tool": tool_name,
-                    "url": url,
-                    "steps_executed": steps_executed,
-                    "result_summary": f"Task '{action}' automated via browser successfully.",
-                    "scraped_data": result_content,
-                    "has_screenshot": screenshot_data is not None,
+            # Perform custom action (e.g. click, fill or scrape)
+            action = task.get("action")
+            steps_executed.append(
+                {
+                    "step": 3,
+                    "action": f"Execute action: {action}",
+                    "status": "running",
                 }
+            )
+
+            result_content = ""
+            if action == "click" and "selector" in task:
+                await page.click(task["selector"])
+                await page.wait_for_load_state("domcontentloaded", timeout=5000)
+                result_content = "Element clicked."
+            elif action == "fill" and "selector" in task:
+                await page.fill(task["selector"], task.get("value", ""))
+                result_content = "Input field populated."
+            elif action == "scrape":
+                # Extract text or body content
+                result_content = await page.inner_text(task.get("selector", "body"))
+            else:
+                # Default: get page title and url
+                title = await page.title()
+                result_content = f"Page loaded. Title: {title}"
+
+            steps_executed[-1]["status"] = "completed"
+
+            # Capture final result screenshot (saved in temporary dir)
+            steps_executed.append(
+                {
+                    "step": 4,
+                    "action": "Extract results and screenshot",
+                    "status": "completed",
+                }
+            )
+            screenshot_data = await page.screenshot(type="png", full_page=False)
+
+            # #2428: close the context (releases page + context resources) but
+            # NOT the browser — the singleton browser is process-shared and
+            # closed only at shutdown_global_browser().
+            await context.close()
+
+            return {
+                "success": True,
+                "tool": tool_name,
+                "url": url,
+                "steps_executed": steps_executed,
+                "result_summary": f"Task '{action}' automated via browser successfully.",
+                "scraped_data": result_content,
+                "has_screenshot": screenshot_data is not None,
+            }
 
         except ImportError:
             # বাংলা মন্তব্য: Playwright না থাকলে আর ভুয়া "simulated" সফলতা রিটার্ন হয় না

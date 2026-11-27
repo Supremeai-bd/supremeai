@@ -148,9 +148,22 @@ def render_proxy(url: str, ticket: str = ""):
         req = urllib.request.Request(url, headers={"User-Agent": "SupremeAI-Browser/1.0"})
         with urllib.request.urlopen(req, timeout=20) as resp:
             ctype = resp.headers.get("Content-Type", "") or ""
-            data = resp.read()
-        if len(data) > 5 * 1024 * 1024:
-            raise HTTPException(status_code=502, detail="Response too large to proxy.")
+            # বাংলা মন্তব্য (#2718): আগে unbounded resp.read() — পুরো body RAM-এ
+            # পড়ার পরে সাইজ-চেক হতো; বড়/দুষ্ট upstream 512MB কন্টেইনারে OOM করাতে
+            # পারত (রুটটি attacker-influenceable in-app browser iframe proxy)।
+            # এখন chunk-ভিত্তিক পড়া — 5MB ছাড়ালেই সাথে সাথে abort (502)।
+            _PROXY_BODY_LIMIT = 5 * 1024 * 1024
+            chunks: list[bytes] = []
+            total = 0
+            while True:
+                chunk = resp.read(64 * 1024)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                total += len(chunk)
+                if total > _PROXY_BODY_LIMIT:
+                    raise HTTPException(status_code=502, detail="Response too large to proxy.")
+            data = b"".join(chunks)
         proxy_headers = {
             "Cache-Control": "no-store",
             # SEC-HARDEN P6: never ALLOWALL / frame-ancestors * — only the app's
