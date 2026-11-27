@@ -13,6 +13,7 @@ that contract REAL by exposing actual routing state and control:
                                cost/quality preference knob if configured.
 - ``POST /router/override``  — activates a real routing override consumed by
                                the gateway's actual request path.
+- ``DELETE /router/override`` — turns the override off again.
 - ``GET  /rules``            — constitutional rules (God layer) as an object.
 - ``POST /rules``            — bulk-persist rule key/values.
 """
@@ -20,7 +21,7 @@ that contract REAL by exposing actual routing state and control:
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.dependencies import get_current_admin
 from api.routes.admin import god_layer  # shared God-layer instance (single SQLite handle)
@@ -31,9 +32,31 @@ router = APIRouter(prefix="/api/admin/llm", tags=["Admin LLM Gateway"])
 
 
 class RouterOverridePayload(BaseModel):
-    provider: str
-    model: str | None = None
-    remaining_requests: int | None = None
+    provider: str = Field(min_length=1, max_length=64)
+    model: str | None = Field(default=None, max_length=200)
+    # None/0 = until turned off; otherwise the next N requests.
+    remaining_requests: int | None = Field(default=None, ge=0, le=100_000)
+
+
+def _known_providers() -> set[str]:
+    """Providers the live router knows about (empty set = unknown, skip the check)."""
+    try:
+        from core.llm.provider_router import router_instance
+
+        return {str(name) for name in router_instance.stats}
+    except Exception:  # pragma: no cover — router import must never break the endpoint
+        return set()
+
+
+def _override_view(override: dict) -> dict | None:
+    if not override.get("provider"):
+        return None
+    return {
+        "provider": override["provider"],
+        "model": override.get("model") or "",
+        "set_by": override.get("set_by"),
+        "set_at": override.get("set_at"),
+    }
 
 
 class BulkRulesPayload(BaseModel):
@@ -95,7 +118,8 @@ async def get_llm_router(admin_user: dict = Depends(get_current_admin)):
 
     try:
         gateway = get_llm_gateway()
-        chain = gateway._build_call_chain(None, None, "chat")
+        # consume=False: viewing the status must not eat the override's request budget.
+        chain = gateway._build_call_chain(None, None, "chat", consume=False)
         provider_order: list[str] = []
         for entry in chain:
             provider = entry.split("/", 1)[0]
@@ -103,11 +127,7 @@ async def get_llm_router(admin_user: dict = Depends(get_current_admin)):
                 provider_order.append(provider)
 
         override = get_runtime_override()
-        current_override = (
-            {"provider": override["provider"], "model": override["model"] or ""}
-            if override["provider"]
-            else None
-        )
+        current_override = _override_view(override)
 
         return {
             "current_override": current_override,
@@ -132,11 +152,22 @@ async def set_llm_router_override(
     """Activate a real routing override (consumed by the gateway request path)."""
     from core.llm.llm_gateway.routing import set_runtime_override
 
+    provider = payload.provider.strip()
+    model = (payload.model or "").strip() or None
+    known = _known_providers()
+    if known and provider not in known:
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
+    if model and not model.startswith(f"{provider}/"):
+        raise HTTPException(
+            status_code=400, detail=f"Model must belong to the provider ({provider}/...)"
+        )
+
     try:
         set_runtime_override(
-            provider=payload.provider,
-            model=payload.model,
+            provider=provider,
+            model=model,
             remaining_requests=payload.remaining_requests,
+            set_by=str(admin_user.get("email") or admin_user.get("sub") or "admin"),
         )
         logger.critical(
             f"🔒 LLM routing override set to {payload.provider}/{payload.model or '(chain default)'}"
@@ -144,8 +175,8 @@ async def set_llm_router_override(
         )
         return {
             "status": "success",
-            "provider": payload.provider,
-            "model": payload.model,
+            "provider": provider,
+            "model": model,
             "remaining_requests": payload.remaining_requests,
         }
     except Exception as exc:
@@ -155,6 +186,17 @@ async def set_llm_router_override(
             status_code=500,
             detail=f"Internal server error (correlation_id: {correlation_id})",
         ) from exc
+
+
+@router.delete("/router/override")
+async def clear_llm_router_override(admin_user: dict = Depends(get_current_admin)):
+    """Turn the runtime routing override off (normal automatic routing resumes)."""
+    from core.llm.llm_gateway.routing import clear_runtime_override, get_runtime_override
+
+    was_active = bool(get_runtime_override().get("provider"))
+    clear_runtime_override()
+    logger.critical(f"🔓 LLM routing override cleared by {admin_user.get('sub')}")
+    return {"status": "success", "cleared": was_active}
 
 
 @router.get("/rules")

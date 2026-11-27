@@ -14,6 +14,7 @@ def get_model_router():
 
     try:
         from core.llm.llm_gateway.routing import get_runtime_override
+
         override = get_runtime_override()
         if override and override.get("provider"):
             current_override = {
@@ -26,8 +27,9 @@ def get_model_router():
 
     try:
         from core.llm.llm_gateway import get_llm_gateway
+
         gateway = get_llm_gateway()
-        chain = gateway._build_call_chain(None, None, "chat")
+        chain = gateway._build_call_chain(None, None, "chat", consume=False)
         order: list[str] = []
         for entry in chain:
             prov = entry.split("/", 1)[0]
@@ -55,6 +57,7 @@ def set_router_override(payload: RouterOverrideRequest):
     )
     try:
         from core.llm.llm_gateway.routing import set_runtime_override
+
         set_runtime_override(
             provider=payload.provider,
             model=payload.model,

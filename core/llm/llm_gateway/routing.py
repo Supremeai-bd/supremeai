@@ -50,17 +50,31 @@ TASK_MODEL_MAP: dict[str, str] = settings.task_models
 # until the remaining-request budget is exhausted (remaining_requests=0/None
 # means unlimited). This is real routing behavior — _build_call_chain feeds the
 # gateway's actual request path — not a UI-only flag.
-_RUNTIME_OVERRIDE: dict[str, str | None] = {"provider": None, "model": None}
+# বাংলা মন্তব্য: set_by/set_at — কে কখন ওভাররাইড দিয়েছে (অ্যাডমিন UI-তে দেখায়)। প্রসেস-মেমরিতে থাকে;
+# প্রোডাকশনে ঠিক ১টা worker (main.py), তাই সব রিকোয়েস্ট একই অবস্থা দেখে — রিস্টার্টে মুছে যায়।
+_RUNTIME_OVERRIDE: dict[str, str | None] = {
+    "provider": None,
+    "model": None,
+    "set_by": None,
+    "set_at": None,
+}
 _OVERRIDE_REMAINING: int = 0
 
 
 def set_runtime_override(
-    provider: str, model: str | None = None, remaining_requests: int | None = None
+    provider: str,
+    model: str | None = None,
+    remaining_requests: int | None = None,
+    set_by: str | None = None,
 ) -> None:
     """Activate a runtime routing override (admin action)."""
+    from datetime import UTC, datetime
+
     global _OVERRIDE_REMAINING
     _RUNTIME_OVERRIDE["provider"] = provider
     _RUNTIME_OVERRIDE["model"] = model
+    _RUNTIME_OVERRIDE["set_by"] = set_by
+    _RUNTIME_OVERRIDE["set_at"] = datetime.now(UTC).isoformat()
     _OVERRIDE_REMAINING = max(0, int(remaining_requests)) if remaining_requests else 0
 
 
@@ -70,14 +84,16 @@ def get_runtime_override() -> dict[str, str | int | None]:
         "provider": _RUNTIME_OVERRIDE["provider"],
         "model": _RUNTIME_OVERRIDE["model"],
         "remaining_requests": _OVERRIDE_REMAINING,
+        "set_by": _RUNTIME_OVERRIDE["set_by"],
+        "set_at": _RUNTIME_OVERRIDE["set_at"],
     }
 
 
 def clear_runtime_override() -> None:
     """Deactivate the runtime override."""
     global _OVERRIDE_REMAINING
-    _RUNTIME_OVERRIDE["provider"] = None
-    _RUNTIME_OVERRIDE["model"] = None
+    for key in _RUNTIME_OVERRIDE:
+        _RUNTIME_OVERRIDE[key] = None
     _OVERRIDE_REMAINING = 0
 
 
@@ -154,8 +170,13 @@ class RoutingMixin:
         model: str | None,
         provider: str | None,
         task_type: str,
+        consume: bool = True,
     ) -> list[str]:
-        """বাংলা মন্তব্ব: Task type অনুযায়ী fallback chain তৈরি।"""
+        """বাংলা মন্তব্ব: Task type অনুযায়ী fallback chain তৈরি।
+
+        ``consume=False`` = শুধু প্রিভিউ (অ্যাডমিন স্ট্যাটাস পেজ) — ওভাররাইডের বাকি-রিকোয়েস্ট
+        বাজেট কমায় না। আগে স্ট্যাটাস দেখলেই বাজেট ১ করে কমে যেত।
+        """
 
         difficulty = "easy"
         if any(kw in task_type.lower() for kw in ("reasoning", "math", "code", "coding")):
@@ -170,7 +191,7 @@ class RoutingMixin:
         if _RUNTIME_OVERRIDE["provider"]:
             override_provider = _RUNTIME_OVERRIDE["provider"]
             override_model = _RUNTIME_OVERRIDE["model"]
-            if _OVERRIDE_REMAINING > 0:
+            if consume and _OVERRIDE_REMAINING > 0:
                 _OVERRIDE_REMAINING -= 1
                 if _OVERRIDE_REMAINING == 0:
                     clear_runtime_override()
