@@ -283,8 +283,9 @@ class DualPoolPriorityRouter:
                                 squad.report_success(prov_name, s, latency_ms)
                             else:
                                 p_pool.report_injury(s, status_code, latency_ms)
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Dynamic squad telemetry sync failed (%s)", type(exc).__name__)
 
     def run_background_recheck(self, probe_fn: ProbeFn) -> None:
         """Periodically probes models; recovered models automatically climb back to the top."""

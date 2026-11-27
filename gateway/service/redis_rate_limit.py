@@ -164,6 +164,7 @@ class RedisSlidingWindowLimiter:
         if self._redis is not None:
             try:
                 await self._redis.aclose()
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Redis rate limit close failed (%s)", type(exc).__name__)
             self._redis = None
