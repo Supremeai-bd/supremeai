@@ -662,6 +662,10 @@ jobs:
                           print(f"::warning::Advisor held the auto-merge: {fields.get('reason')}")
                   except Exception as exc:  # fail-open by design
                       print(f"::notice::Advisor unavailable, authority decision stands ({exc})")
+              if rc != 0 and _read_outputs().get("reason") == "pr_base_changed":
+                  print("::notice::PR base changed mid-CI; updating PR branch so CI re-runs cleanly.")
+                  subprocess.run(["gh", "pr", "update-branch", os.environ["PR_NUMBER"], "--repo", os.environ["GITHUB_REPOSITORY"]], check=False)
+                  sys.exit(0)
               sys.exit(rc)
 
           # First rollout only: the known old CLI cannot issue a landing decision.
