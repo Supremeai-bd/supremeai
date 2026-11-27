@@ -408,10 +408,10 @@
     ]
   },
   "graph": {
-    "modules": 2182,
-    "edges": 5072,
+    "modules": 2183,
+    "edges": 5075,
     "edge_kinds": {
-      "dispatch": 219,
+      "dispatch": 222,
       "dynamic": 4,
       "import": 4156,
       "string": 693
@@ -429,10 +429,12 @@
       "@.github/actions/setup-backend/action.yml",
       "@.github/actions/setup-frontend/action.yml",
       "@.github/actions/setup-playwright/action.yml",
+      "@.github/workflows/codeql-weekly.yml",
       "@.github/workflows/db-backup.yml",
       "@.github/workflows/deploy-rollback.yml",
       "@.github/workflows/ops-maintenance.yml",
       "@.github/workflows/unified-pipeline.yml",
+      "@.github/workflows/warning-summary.yml",
       "@Makefile",
       "browser.main",
       "core.main",
@@ -444,7 +446,7 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1689,
+    "reachable": 1690,
     "unreachable": 493,
     "reachable_pct": 77.4
   },

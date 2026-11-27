@@ -17,10 +17,12 @@ flowchart TD
         @__github/actions/setup-backend/action__yml["@.github/actions/setup-backend/action.yml"]
         @__github/actions/setup-frontend/action__yml["@.github/actions/setup-frontend/action.yml"]
         @__github/actions/setup-playwright/action__yml["@.github/actions/setup-playwright/action.yml"]
+        @__github/workflows/codeql-weekly__yml["@.github/workflows/codeql-weekly.yml"]
         @__github/workflows/db-backup__yml["@.github/workflows/db-backup.yml"]
         @__github/workflows/deploy-rollback__yml["@.github/workflows/deploy-rollback.yml"]
         @__github/workflows/ops-maintenance__yml["@.github/workflows/ops-maintenance.yml"]
         @__github/workflows/unified-pipeline__yml["@.github/workflows/unified-pipeline.yml"]
+        @__github/workflows/warning-summary__yml["@.github/workflows/warning-summary.yml"]
         @Makefile["@Makefile"]
         browser__main["browser.main"]
         core__main["core.main"]
@@ -307,7 +309,7 @@ flowchart TD
         scripts__advanced_analysis["scripts.advanced_analysis · 8 modules"]
         scripts__agents["scripts.agents · 13 modules"]
         scripts__backup["scripts.backup · 1 modules"]
-        scripts__ci["scripts.ci · 153 modules"]
+        scripts__ci["scripts.ci · 154 modules"]
         scripts__db["scripts.db · 1 modules"]
         scripts__devops["scripts.devops · 1 modules"]
         scripts__lib["scripts.lib · 2 modules"]
@@ -338,10 +340,12 @@ flowchart TD
     @__github/actions/setup-backend/action__yml --> @__github/actions/setup-backend/action
     @__github/actions/setup-frontend/action__yml --> @__github/actions/setup-frontend/action
     @__github/actions/setup-playwright/action__yml --> @__github/actions/setup-playwright/action
+    @__github/workflows/codeql-weekly__yml --> @__github/workflows/codeql-weekly
     @__github/workflows/db-backup__yml --> @__github/workflows/db-backup
     @__github/workflows/deploy-rollback__yml --> @__github/workflows/deploy-rollback
     @__github/workflows/ops-maintenance__yml --> @__github/workflows/ops-maintenance
     @__github/workflows/unified-pipeline__yml --> @__github/workflows/unified-pipeline
+    @__github/workflows/warning-summary__yml --> @__github/workflows/warning-summary
     @Makefile --> @Makefile
     browser__main --> browser__main
     core__main --> core__main
@@ -404,10 +408,12 @@ flowchart TD
     class @__github/actions/setup-backend/action__yml live;
     class @__github/actions/setup-frontend/action__yml live;
     class @__github/actions/setup-playwright/action__yml live;
+    class @__github/workflows/codeql-weekly__yml live;
     class @__github/workflows/db-backup__yml live;
     class @__github/workflows/deploy-rollback__yml live;
     class @__github/workflows/ops-maintenance__yml live;
     class @__github/workflows/unified-pipeline__yml live;
+    class @__github/workflows/warning-summary__yml live;
     class @Makefile live;
     class browser__main live;
     class core__main live;
