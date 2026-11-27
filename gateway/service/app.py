@@ -247,8 +247,8 @@ class RingBufferLogHandler(logging.Handler):
                 for q in list(self.subscribers):
                     try:
                         q.put_nowait(entry)
-                    except Exception as exc:
-                        logger.debug("SSE log subscriber queue error (%s)", type(exc).__name__)
+                    except Exception:
+                        self.subscribers.discard(q)
         except Exception:
             self.handleError(record)
 
@@ -2949,6 +2949,7 @@ async def _execute_chat_completion(
                             chat_content = str(response_data["choices"][0]["message"].get("content", "")).strip()
                     except Exception as exc:
                         logger.warning("Response sanitization failed (%s)", type(exc).__name__)
+                        raise HTTPException(status_code=500, detail="Response sanitization failed")
 
                 headers = {
                     "X-SupremeAI-Provider": "supremeai-dynamic-squad",
