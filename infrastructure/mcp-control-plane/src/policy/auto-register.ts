@@ -83,7 +83,8 @@ export function namedClientFromUrl(rawUrl: string | undefined | null): { name: s
   try {
     // Base is irrelevant — only search params matter; tolerate scheme-less paths.
     parsed = new URL(rawUrl, "https://tower.invalid");
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return null;
   }
   const name = parsed.searchParams.get("client")?.trim() ?? "";

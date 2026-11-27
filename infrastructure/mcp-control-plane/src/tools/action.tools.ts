@@ -29,6 +29,7 @@ export async function registerActionTools(server: McpServer): Promise<void> {
         const result = await globalActionExecutor.execute(plan, overrideRequestId);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err: any) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: err.message }] };
       }
     }
@@ -56,6 +57,7 @@ export async function registerActionTools(server: McpServer): Promise<void> {
         const result = await globalActionExecutor.execute(plan, overrideRequestId);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err: any) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: err.message }] };
       }
     }
@@ -82,6 +84,7 @@ export async function registerActionTools(server: McpServer): Promise<void> {
         const result = await globalActionExecutor.execute(plan, overrideRequestId);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err: any) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: err.message }] };
       }
     }

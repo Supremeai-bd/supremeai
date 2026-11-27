@@ -152,7 +152,8 @@ async function readRuntimeRelease(target: ServiceTarget): Promise<Record<string,
     if (!response.ok) return null;
     const body = await response.json() as unknown;
     return body && typeof body === "object" ? body as Record<string, unknown> : null;
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return null;
   }
 }
@@ -562,6 +563,7 @@ export async function registerDiagnosticTools(server: McpServer): Promise<void> 
         const result = await diagnoseRelease(service, intent);
         return { content: [{ type: "text", text: JSON.stringify(redactSensitiveData(result), null, 2) }] };
       } catch (error) {
+  console.error(error instanceof Error ? error.name : "error");
         return { isError: true, content: [{ type: "text", text: JSON.stringify({ status: "unknown", error: error instanceof Error ? error.message : "diagnostic failed" }) }] };
       }
     },
@@ -583,6 +585,7 @@ export async function registerDiagnosticTools(server: McpServer): Promise<void> 
         const rc = await verifyReleaseCandidate(service);
         return { content: [{ type: "text", text: JSON.stringify(redactSensitiveData(rc), null, 2) }] };
       } catch (error) {
+  console.error(error instanceof Error ? error.name : "error");
         return { isError: true, content: [{ type: "text", text: JSON.stringify({ status: "blocked", error: error instanceof Error ? error.message : "release verification failed" }) }] };
       }
     },

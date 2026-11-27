@@ -71,8 +71,8 @@ async def click_google_sso_button(
         )
         try:
             await popup.wait_for_event("close", timeout=10000)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Optional sign-in button skipped at %s (%s)", page.url, type(exc).__name__)
         return success
     except Exception:
         # Redirect happened in the same window
@@ -118,8 +118,8 @@ async def login_chatgpt(context: BrowserContext, email: str, password: str) -> b
                 logger.info("Clicking ChatGPT 'Log in' button...")
                 await login_btn.click()
                 await asyncio.sleep(3)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Optional sign-in button skipped at %s (%s)", page.url, type(exc).__name__)
 
         # Click Continue with Google
         await click_google_sso_button(page, email, password)
@@ -139,8 +139,9 @@ async def login_chatgpt(context: BrowserContext, email: str, password: str) -> b
                             "✅ ChatGPT Google SSO login verified successfully!"
                         )
                         return True
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed in multi_ai_sso_runner.py (%s)", type(exc).__name__)
 
         logger.info(f"ChatGPT current URL: {page.url}")
         return True
@@ -183,8 +184,8 @@ async def login_grok(context: BrowserContext, email: str, password: str) -> bool
             if signin_btn and await signin_btn.is_visible():
                 await signin_btn.click()
                 await asyncio.sleep(2)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Grok sign-in button skipped (%s)", type(exc).__name__)
 
         await click_google_sso_button(page, email, password)
         await asyncio.sleep(8)
@@ -239,8 +240,9 @@ async def login_mistral(context: BrowserContext, email: str, password: str) -> b
                     if chat_box:
                         logger.info("✅ Mistral Le Chat authentication confirmed!")
                         return True
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed in multi_ai_sso_runner.py (%s)", type(exc).__name__)
 
         logger.info(f"Mistral Le Chat URL: {page.url}")
         return True
@@ -283,8 +285,8 @@ async def login_perplexity(context: BrowserContext, email: str, password: str) -
             if signin_btn and await signin_btn.is_visible():
                 await signin_btn.click()
                 await asyncio.sleep(2)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Optional sign-in button skipped at %s (%s)", page.url, type(exc).__name__)
 
         await click_google_sso_button(page, email, password)
         await asyncio.sleep(8)

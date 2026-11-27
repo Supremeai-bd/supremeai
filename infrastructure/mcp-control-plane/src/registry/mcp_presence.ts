@@ -360,7 +360,8 @@ async function listPresenceFresh(nowMs: number): Promise<PresenceListResult> {
         let record: PresenceRecord;
         try {
           record = JSON.parse(raw) as PresenceRecord;
-        } catch {
+        } catch (err) {
+          console.error(err instanceof Error ? err.name : "error");
           continue; // corrupt payload — skip, listing ভাঙবে না
         }
         const existing = freshest.get(key);

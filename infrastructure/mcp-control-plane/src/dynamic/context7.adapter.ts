@@ -57,6 +57,7 @@ export async function registerContext7Adapter(server: McpServer): Promise<void> 
           }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -171,6 +172,7 @@ async function fetchDocPage(url: string, topic?: string): Promise<string> {
     const text = await response.text();
     return text.substring(0, 5000) + (text.length > 5000 ? "\n\n... (truncated)" : "");
   } catch (error) {
+  console.error(error instanceof Error ? error.name : "error");
     return "Error fetching documentation: " + String(error);
   }
 }

@@ -182,7 +182,8 @@ export async function collectRepoHighlights(ref: RepoRef, maxFiles = 10): Promis
       if (!budget.canAdd(tokens)) break;
       budget.add(tokens);
       collected.push({ path: file.path, size: file.size, tokens, content: (fileData.content || "").slice(0, 4000) });
-    } catch {
+    } catch (err) {
+      console.error(err instanceof Error ? err.name : "error");
       continue;
     }
   }

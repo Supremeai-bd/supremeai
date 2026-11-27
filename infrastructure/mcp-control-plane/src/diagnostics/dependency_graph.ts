@@ -172,6 +172,7 @@ export async function probeDependency(dep: ServiceDependency): Promise<Dependenc
         error: res.status >= 400 ? `HTTP ${res.status}` : undefined,
       };
     } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
       return {
         id: dep.id,
         name: dep.name,
