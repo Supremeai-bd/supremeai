@@ -1273,7 +1273,8 @@ jobs:
 
   e2e-customer:
     needs: [resolve-execution-tier]
-    if: (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true) # #67 Tier 2: weekly Sun off-peak (was daily)
+    # বাংলা মন্তব্য: free tier-এর লিমিট নষ্ট না করার জন্য এবং retired QA surface-এর কারণে staging/E2E টেস্ট নিষ্ক্রিয় করা হয়েছে
+    if: false
     concurrency:
       group: nightly-ops-e2e-customer
       cancel-in-progress: true
@@ -1375,10 +1376,8 @@ jobs:
   # ────────────────────────────────────────────────────────────────────────────
   load-locust:
     needs: [resolve-execution-tier]
-    # #67 Tier 2: weekly Sun off-peak (was daily)
-    if: >-
-        (github.event_name == 'workflow_dispatch' && (inputs.run_load_locust == true || inputs.run_all == true)) ||
-        ((github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true))
+    # বাংলা মন্তব্য: free tier-এর লিমিট নষ্ট না করার জন্য staging load test নিষ্ক্রিয় করা হয়েছে
+    if: false
     concurrency:
       group: nightly-ops-load-locust
       cancel-in-progress: false
@@ -1576,9 +1575,8 @@ jobs:
 
   db-pool-health:
     needs: [resolve-execution-tier]
-    if: >-
-        (github.event_name == 'workflow_dispatch' && (inputs.run_db_pool_health == true || inputs.run_all == true)) ||
-        (github.event_name == 'schedule' && (github.event.schedule == '0 3 * * *' || github.event.schedule == '0 3 * * *'))
+    # বাংলা মন্তব্য: free tier-এর লিমিট নষ্ট না করার জন্য staging DB pool health প্রোব নিষ্ক্রিয় করা হয়েছে
+    if: false
     concurrency:
       group: nightly-ops-db-pool-health
       cancel-in-progress: false
