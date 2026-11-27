@@ -70,12 +70,47 @@ async function pingServices() {
   };
 }
 
+const DEFAULT_ALERT_INGEST_URL = "https://supremeai-studio.pages.dev/api/internal/alerts";
+
+// বাংলা: জরুরি সার্ভিস বন্ধ হলে Studio অ্যালার্ট হাবে জানায় (admin → Services & Health → Alerts)।
+// একই সার্ভিসের জন্য হাব ৬ ঘণ্টায় একবারই চ্যানেলে পাঠায় (dedupeKey)। টোকেন না থাকলে চুপচাপ বাদ।
+async function reportRequiredDown(outcome, env, fetchImpl = fetch) {
+  const token = env?.ALERT_INGEST_TOKEN;
+  if (!token || !outcome.requiredDown) return 0;
+  const url = env?.ALERT_INGEST_URL || DEFAULT_ALERT_INGEST_URL;
+  const down = outcome.nodes.filter((node, i) => TARGET_SERVICES[i].required && !node.ok);
+  let sent = 0;
+  for (const node of down) {
+    try {
+      const res = await fetchImpl(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          severity: "critical",
+          source: "keep-warm",
+          title: `${node.name} is down`,
+          body: `${node.url} → ${node.status ? `HTTP ${node.status}` : node.error || "no response"} after ${node.latency_ms} ms`,
+          dedupeKey: `keepwarm-down:${node.name}`
+        }),
+        signal: AbortSignal.timeout(8000)
+      });
+      if (res.ok) sent += 1;
+    } catch (err) {
+      console.log(JSON.stringify({ alert_error: err.message || String(err) }));
+    }
+  }
+  return sent;
+}
+
 export default {
   // বাংলা: সময়সূচির একমাত্র উৎস wrangler.toml।
   async scheduled(event, env, ctx) {
     const outcome = await pingServices();
     console.log(JSON.stringify({ cron: event.cron, scheduledTime: event.scheduledTime, ...outcome }));
-    if (outcome.requiredDown) throw new Error("Required Render keepwarm target unavailable");
+    if (outcome.requiredDown) {
+      await reportRequiredDown(outcome, env);
+      throw new Error("Required Render keepwarm target unavailable");
+    }
   },
 
   // HTTP Gateway for health check or status probing
