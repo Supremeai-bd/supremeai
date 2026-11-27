@@ -32,12 +32,12 @@ on:
         default: "all"
         type: string
       ai_knowledge_json:
-        description: "Optional JSON packet for external AI agents to share knowledge into SupremeAI KB"
+        description: "Optional external AI JSON packet for validation only (not stored or approved)"
         required: false
         default: ""
         type: string
       ai_knowledge_issue:
-        description: "Optional Issue or PR number to scan for <!-- ai-knowledge-share v1 --> blocks"
+        description: "Optional Issue or PR number to validate share blocks (not stored or approved)"
         required: false
         default: ""
         type: string
@@ -1526,27 +1526,23 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: Ingest PR & Cross-AI Shared Knowledge into Supabase KB
+      - name: Validate legacy shared knowledge (no storage)
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
           GH_FALLBACK_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           DISPATCH_SHARE_JSON: ${{ inputs.ai_knowledge_json }}
           DISPATCH_SCAN_ISSUE: ${{ inputs.ai_knowledge_issue }}
         run: |
-          # বাংলা মন্তব্য: ১) পুশ কমিট থেকে মার্জড PR শনাক্ত করে স্বয়ংক্রিয়ভাবে AI নলেজ ইনজেস্ট করা হয়।
-          HEAD_SUBJECT=$(git log -1 --pretty=%s || true)
+          echo "Legacy knowledge validation only: nothing is stored, reviewed, or approved." >> "$GITHUB_STEP_SUMMARY"
+          HEAD_SUBJECT=$(git log -1 --pretty=%s)
           PR_NUM=$(printf '%s' "$HEAD_SUBJECT" | sed -nE 's/.*\(#([0-9]+)\).*/\1/p' | head -n1)
           if [ -n "$PR_NUM" ]; then
-            python3 scripts/ci/ingest_pr_knowledge.py --pr-num "$PR_NUM"
+            python3 scripts/ci/ingest_pr_knowledge.py --pr-num "$PR_NUM" --dry-run
           fi
-          # বাংলা মন্তব্য: ২) অন্য কোনো AI এজেন্ট workflow_dispatch বা ইস্যু কমেন্টে নলেজ শেয়ার করলে তা ইনজেস্ট করা হয়।
           if [ -n "$DISPATCH_SHARE_JSON" ]; then
-            python3 scripts/ci/ai_knowledge_exchange.py --share-json "$DISPATCH_SHARE_JSON"
+            python3 scripts/ci/ai_knowledge_exchange.py --share-json "$DISPATCH_SHARE_JSON" --dry-run
           fi
           if [ -n "$DISPATCH_SCAN_ISSUE" ]; then
-            python3 scripts/ci/ai_knowledge_exchange.py --scan-issue "$DISPATCH_SCAN_ISSUE" --repo "$GH_REPO"
+            python3 scripts/ci/ai_knowledge_exchange.py --scan-issue "$DISPATCH_SCAN_ISSUE" --repo "$GH_REPO" --dry-run
           fi
-          python3 scripts/ci/ai_knowledge_exchange.py --summary-md --limit 10 >> "$GITHUB_STEP_SUMMARY" || true
