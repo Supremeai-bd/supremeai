@@ -752,6 +752,12 @@ jobs:
             echo "PR #$PR_NUMBER already merged; skipping."
             exit 0
           fi
+          MERGE_STATE=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json mergeStateStatus --jq .mergeStateStatus || true)
+          if [ "$MERGE_STATE" = "BEHIND" ]; then
+            echo "PR #$PR_NUMBER is BEHIND base branch; updating branch so CI re-runs cleanly."
+            gh pr update-branch "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
+            exit 0
+          fi
           set -o pipefail
           # বাংলা মন্তব্য: recheck+merge দুটোই log ফাইলে tee করা হয় যাতে failure()-এ doctor পড়তে পারে।
           {
