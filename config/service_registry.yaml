@@ -296,7 +296,11 @@ services:
     # CORS floor and the edge proxy read, so a dead host here made the
     # self-declared "canonical" origin the one origin that could not answer.
     # Declare the origin that actually serves the SPA.
+    # বাংলা মন্তব্য: Cloudflare Pages Edge Hono রুট `/api/health` ও `/api/releases/latest`-এ JSON দেয় (`/release` SPA HTML fallback দেয়)।
     production_url: "https://supremeai-studio.pages.dev"
+    health_path: /api/health
+    readiness_path: /api/health
+    release_path: /api/releases/latest
     watch_paths:
       - "studio/**"
       - "frontend/**"

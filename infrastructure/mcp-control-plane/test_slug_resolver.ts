@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+
+// বাংলা মন্তব্য: অফলাইন ইউনিট টেস্টে টেন্যান্ট রেজিস্ট্রি সক্রিয় করতে ইন-মেমরি টেস্ট কী সেট করা হচ্ছে (ডিস্কে কিছু লেখে না)।
+process.env.MCP_ADMIN_KEY ||= "test-slug-resolver-admin-key";
+
 import { RequestContextStore } from "./src/policy/auth.context.js";
 import { createTenant } from "./src/tenancy/tenant.registry.js";
 import {
@@ -19,7 +23,6 @@ const { tenant } = RequestContextStore.run(
   { role: "admin", tenantId: "*", isGlobalAdmin: true, authenticated: true },
   () =>
     createTenant({
-      id: "tenant_acme_exec",
       name: "acme-exec",
       ownerEmail: "owner@acme.test",
       type: "customer",

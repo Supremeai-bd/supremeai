@@ -2007,15 +2007,20 @@ jobs:
     permissions:
       issues: write
       actions: read
+      pull-requests: read
       contents: read
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+      - name: Install PyYAML
+        run: python -m pip install --disable-pip-version-check pyyaml
       - name: Scan failures and maintain the register ledger (issue #9)
         env:
+          # বাংলা মন্তব্য: SELF_HEAL_PAT মেয়াদোত্তীর্ণ বা স্কোপ-সীমিত হলে GH_FALLBACK_TOKEN (github.token) দিয়ে স্বয়ংক্রিয় ফ্যালব্যাক হয়।
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          GH_FALLBACK_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: python scripts/ci/pipeline_failure_register.py --scan
 
