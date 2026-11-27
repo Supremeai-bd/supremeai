@@ -408,12 +408,12 @@
     ]
   },
   "graph": {
-    "modules": 2184,
-    "edges": 5085,
+    "modules": 2186,
+    "edges": 5087,
     "edge_kinds": {
       "dispatch": 223,
       "dynamic": 4,
-      "import": 4165,
+      "import": 4167,
       "string": 693
     }
   },
@@ -446,7 +446,7 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1691,
+    "reachable": 1693,
     "unreachable": 493,
     "reachable_pct": 77.4
   },
@@ -550,7 +550,6 @@
       "core.web_ai_session_bridge -> rookiepy",
       "gateway.metrics_exporter -> prometheus_client",
       "gateway.service.frontend_compat -> edge_tts",
-      "gateway.service.passkey_auth -> jwt",
       "scripts.ai.bias_detector -> numpy",
       "scripts.ai.model_drift_detector -> numpy",
       "scripts.ci.contract_fuzz_guard -> schemathesis",
@@ -573,7 +572,7 @@
       "scripts.testing.api_contract_validator -> jsonschema",
       "scripts.testing.log_anomaly_detector -> numpy"
     ],
-    "unverified_count": 118,
+    "unverified_count": 117,
     "unverified_is_environment_dependent": true,
     "string_hints": [
       "core.circles.centers.browser_center -> browser.session.close",
@@ -817,7 +816,6 @@
     "core.memory.context_tiers",
     "core.messaging",
     "core.messaging.events",
-    "core.messaging.service",
     "core.middleware.anti_hacking",
     "core.middleware.idempotency",
     "core.middleware.tenant_rate_limiter",
