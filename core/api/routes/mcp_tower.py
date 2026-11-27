@@ -71,15 +71,16 @@ async def _call_tower_tool(name: str, arguments: dict[str, Any] | None = None) -
         session_id = init_resp.headers.get("mcp-session-id")
         if session_id:
             headers["mcp-session-id"] = session_id
-        # 2. initialized notification
+        # 2. An unsuccessful handshake must not be treated as an active session.
         try:
-            await client.post(
+            notification = await client.post(
                 base,
                 json={"jsonrpc": "2.0", "method": "notifications/initialized"},
                 headers=headers,
             )
-        except Exception:
-            pass
+            notification.raise_for_status()
+        except httpx.HTTPError:
+            raise HTTPException(status_code=502, detail="Tower initialization failed") from None
         # 3. tools/call
         call_resp = await client.post(
             base,
@@ -109,9 +110,11 @@ async def _call_tower_tool(name: str, arguments: dict[str, Any] | None = None) -
             payload = call_resp.json()
         except Exception:
             raise HTTPException(status_code=502, detail="Invalid Tower response")
-    if "error" in payload:
-        raise HTTPException(status_code=502, detail=str(payload["error"]))
-    result = payload.get("result", {})
+    if not isinstance(payload, dict) or "error" in payload:
+        raise HTTPException(status_code=502, detail="Tower tool call failed")
+    result = payload.get("result")
+    if not isinstance(result, dict) or result.get("isError") is True:
+        raise HTTPException(status_code=502, detail="Tower tool call failed")
     # content[0].text is JSON string
     content = result.get("content", [])
     if content and isinstance(content[0], dict) and "text" in content[0]:
@@ -181,8 +184,10 @@ async def get_services(_: str = Depends(get_current_user_token)) -> dict:
     try:
         services = await _fetch_services()
         return {"services": services}
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Tower unreachable: {exc}")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=502, detail="Tower unavailable") from None
 
 
 @router.post("/probe")
@@ -228,6 +233,8 @@ async def reboot(
     if not service_id:
         raise HTTPException(status_code=400, detail="serviceId required")
     # Tower has no reboot tool; use Render API directly for known render-* services.
+    if not isinstance(service_id, str) or service_id not in _RENDER_SVC_MAP:
+        raise HTTPException(status_code=404, detail="service restart not supported")
     if service_id in _RENDER_SVC_MAP:
         svc_envs, key_env = _RENDER_SVC_MAP[service_id]
         if isinstance(svc_envs, str):
@@ -243,31 +250,36 @@ async def reboot(
                 raise HTTPException(status_code=503, detail="Paykari MCP controls not configured")
         else:
             api_key = os.getenv(key_env, "") or RENDER_API_KEY
-        if rid and api_key:
-            try:
-                async with httpx.AsyncClient(timeout=30.0) as client:
-                    r = await client.post(
-                        f"https://api.render.com/v1/services/{rid}/restart",
-                        headers={
-                            "Authorization": f"Bearer {api_key}",
-                            "Accept": "application/json",
-                        },
-                    )
-                    r.raise_for_status()
-            except Exception as exc:
-                raise HTTPException(status_code=502, detail=f"Render restart failed: {exc}")
-    # Return refreshed services
-    services = await _fetch_services()
-    match = next((s for s in services if s["id"] == service_id), None)
+        if not rid or not api_key:
+            raise HTTPException(status_code=503, detail="Render restart controls not configured")
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                r = await client.post(
+                    f"https://api.render.com/v1/services/{rid}/restart",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Accept": "application/json",
+                    },
+                )
+                r.raise_for_status()
+        except httpx.HTTPError:
+            # A timeout may occur after Render accepted the mutation: do not retry here.
+            raise HTTPException(status_code=502, detail="Render restart outcome unverified; reconcile before retry") from None
+    # The restart was accepted; a telemetry failure must not imply it is safe
+    # to submit the non-idempotent request again.
+    try:
+        services = await _fetch_services()
+        match = next((s for s in services if s["id"] == service_id), None)
+    except Exception:
+        raise HTTPException(status_code=502, detail="Restart accepted; status unavailable, reconcile before retry") from None
     if match is None:
-        raise HTTPException(status_code=404, detail="service not found")
-    return {"service": match}
+        raise HTTPException(status_code=502, detail="Restart accepted; status unavailable, reconcile before retry")
+    return {"service": match, "restart_status": "accepted"}
 
 
 @router.post("/reboot-all")
 async def reboot_all(_: dict = Depends(get_current_admin)) -> dict:
-    services = await _fetch_services()
-    return {"services": services}
+    raise HTTPException(status_code=501, detail="Bulk restart is not implemented")
 
 
 import asyncio as _asyncio
@@ -280,8 +292,8 @@ async def stream(_: str = Depends(get_current_user_token)):
             try:
                 services = await _fetch_services()
                 yield f"data: {json.dumps({'services': services})}\n\n"
-            except Exception as exc:
-                yield f"event: error\ndata: {json.dumps({'error': str(exc)})}\n\n"
+            except Exception:
+                yield f"event: error\ndata: {json.dumps({'error': 'Tower unavailable'})}\n\n"
             await _asyncio.sleep(15)
 
     return StreamingResponse(gen(), media_type="text/event-stream")

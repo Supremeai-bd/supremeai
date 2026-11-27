@@ -136,3 +136,13 @@ def test_mission_gate_rejects_changed_test_identity(monkeypatch, tmp_path):
         mission_passk.main()
     assert exc.value.code == 2
     assert not (tmp_path / 'mission_passk.json').exists()
+
+
+def test_zap_is_disabled_until_authorized_staging_exists():
+    workflow = yaml.safe_load((ROOT / '.github/workflows/ops-maintenance.yml').read_text(encoding='utf-8'))
+    dast = workflow['jobs']['dast']
+    # Applies to both scheduled runs and manual dispatch, including run_all.
+    assert dast['if'] is False
+    assert dast['env']['ZAP_TARGET'] == '${{ vars.STAGING_BASE_URL }}'
+    assert any(s.get('name') == 'Require scan target' and 'exit 1' in s['run'] for s in dast['steps'])
+    assert any(s.get('name') == 'Validate authorized staging target syntax' for s in dast['steps'])
