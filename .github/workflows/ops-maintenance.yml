@@ -1273,13 +1273,12 @@ jobs:
 
   e2e-customer:
     needs: [resolve-execution-tier]
-    if: (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_all == true) # #67 Tier 2: weekly Sun off-peak (was daily)
+    # বাংলা মন্তব্য: free tier-এর লিমিট নষ্ট না করার জন্য এবং retired QA surface-এর কারণে staging/E2E টেস্ট নিষ্ক্রিয় করা হয়েছে
+    if: false
     concurrency:
       group: nightly-ops-e2e-customer
       cancel-in-progress: true
     name: 🎭 Customer E2E (Playwright)
-    # বাংলা মন্তব্য: free tier-এর লিমিট নষ্ট না করার জন্য এবং retired QA surface-এর কারণে staging/E2E টেস্ট নিষ্ক্রিয় করা হয়েছে
-    if: false
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
