@@ -112,14 +112,21 @@ class HoneypotMiddleware:
                             break
                         more_body = message.get("more_body", False)
                 except Exception as exc:
-                    logger.debug(f"Honeypot middleware failed to read request body: {exc}")
+                    # An unreadable body cannot be inspected safely. Do not let
+                    # the downstream app process a partial or uninspected request.
+                    logger.warning("Honeypot request body read failed (%s)", type(exc).__name__)
+                    response = JSONResponse(status_code=400, content={"detail": "Unable to read request body"})
+                    await response(scope, receive, send)
+                    return
 
         # Reconstruct receive channel for downstream handlers
         @with_error_bus("new_receive")
         async def new_receive():
             if messages:
                 return messages.pop(0)
-            return {"type": "http.disconnect"}
+            # A consumed request body is not a client disconnect. Streaming
+            # responses must observe the real channel for actual disconnects.
+            return await receive()
 
         if body_oversized:
             # FIX (P1, review 2026-09-12, round 2): oversized bodies must reach the

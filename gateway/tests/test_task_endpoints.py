@@ -1,5 +1,7 @@
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 
@@ -44,14 +46,21 @@ def mock_dependencies():
 
 
 @pytest.fixture
-def valid_auth_headers():
-    """Authorization headers accepted by the test-environment auth chain.
+def valid_auth_headers(monkeypatch):
+    """Exercise JWT verification without real revocation-service I/O."""
+    import core.security
+    from core.config import settings
+    from core.security import JWT_AUDIENCE, JWT_ISSUER
 
-    conftest sets ALLOW_TEST_AUTH_BYPASS=true, so AuthMiddleware skips JWT
-    verification in the test environment; the bearer-shaped header is still
-    sent to exercise the middleware path exactly as production clients do.
-    """
-    return {"Authorization": "Bearer test-env-bypass-token"}
+    monkeypatch.setenv("SUPREMEAI_JWT_SECRET", "local-task-contract-test-secret-" * 3)
+    monkeypatch.setattr(core.security, "is_token_revoked", AsyncMock(return_value=False))
+    token = jwt.encode(
+        {"sub": "task-test-user", "role": "viewer", "tenant_id": "task-test-tenant",
+         "jti": "task-contract-jti", "iss": JWT_ISSUER, "aud": JWT_AUDIENCE,
+         "exp": datetime.now(timezone.utc) + timedelta(minutes=5)},
+        settings.jwt_secret, algorithm="HS256",
+    )
+    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture

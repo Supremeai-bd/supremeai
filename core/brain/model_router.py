@@ -413,6 +413,7 @@ class ModelRouter:
         self, prompt: str, task_type: str = "general", max_cost: float = 0.01, *args, **kwargs
     ):
         """Asynchronous streaming generator via LLMGateway."""
+        emitted = False
         try:
             gateway = get_llm_gateway()
             response_stream = gateway.acompletion(
@@ -426,12 +427,17 @@ class ModelRouter:
             if hasattr(response_stream, "__aiter__"):
                 async for chunk in response_stream:
                     if chunk:
+                        emitted = True
                         yield chunk
-                return
+                if emitted:
+                    return
         except Exception as e:
-            logger.warning(f"[ModelRouter] async_route_and_stream error: {e}")
+            logger.warning("[ModelRouter] async stream failed (%s); partial=%s", type(e).__name__, emitted)
+            if emitted:
+                # Never append an unrelated fallback answer to a partial stream.
+                raise
 
-        # Fallback to sync streaming if gateway stream unavailable
+        # Fallback to sync streaming only before any token is visible.
         for chunk in self.route_and_stream(prompt, task_type, *args, **kwargs):
             yield chunk
 

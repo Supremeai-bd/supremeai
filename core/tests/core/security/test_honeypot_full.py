@@ -134,6 +134,22 @@ class TestBodyHandling:
         replayed2 = await forwarded()
         assert replayed2["body"] == b"rld data"
 
+    @pytest.mark.parametrize("method", ["GET", "POST"])
+    async def test_receive_replays_request_then_waits_for_real_disconnect(self, mutator, prod_env, app, method):
+        mw = make_middleware(app, mutator)
+        body = b"hello" if method == "POST" else b""
+        messages = body_messages(body) if method == "POST" else [
+            {"type": "http.request", "body": b"", "more_body": False}
+        ]
+        genuine_disconnect = {"type": "http.disconnect", "reason": "actual peer closure"}
+        receive = AsyncMock(side_effect=[*messages, genuine_disconnect])
+        await mw(make_scope(method=method), receive, AsyncMock())
+        forwarded = app.calls[0][1]
+        for message in messages:
+            assert await forwarded() == message
+        assert await forwarded() is genuine_disconnect
+        assert receive.await_count == len(messages) + 1
+
     async def test_oversized_content_length_skips_inspection(self, mutator, prod_env, app):
         mw = make_middleware(app, mutator)
         body = b"x" * 50
@@ -156,13 +172,17 @@ class TestBodyHandling:
         third = await forwarded()  # falls back to real receive (next queued message)
         assert third == {"type": "http.disconnect"}
 
-    async def test_body_read_error_is_contained(self, mutator, prod_env, app):
+    @pytest.mark.parametrize("partial", [False, True])
+    async def test_body_read_error_fails_closed(self, mutator, prod_env, app, partial):
         mw = make_middleware(app, mutator)
         scope = make_scope(method="POST")
-        receive = AsyncMock(side_effect=RuntimeError("stream broke"))
+        chunks = [{"type": "http.request", "body": b"incomplete", "more_body": True}] if partial else []
+        receive = AsyncMock(side_effect=[*chunks, RuntimeError("sensitive stream error")])
         send = AsyncMock()
-        await mw(scope, receive, send)  # must not raise
-        assert len(app.calls) == 1
+        await mw(scope, receive, send)
+        assert not app.calls
+        assert send.await_args_list[0].args[0]["status"] == 400
+        assert b"sensitive stream error" not in send.await_args_list[1].args[0]["body"]
 
 
 class TestSignatureScanning:
