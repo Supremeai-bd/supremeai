@@ -212,7 +212,8 @@ class TestStorageAndEndpoints(unittest.TestCase):
             self.assertIsInstance(data["logs"], list)
 
     def test_06_preferences_and_tool_card_endpoints(self):
-        headers = {"X-Guest-Mode": "true", "X-User-Id": "usr-endpoint-pref"}
+        token = app_module._issue_signed_token("endpoint-pref", "standard")
+        headers = {"Authorization": f"Bearer {token}"}
 
         # Get preferences
         r_get = self.client.get("/api/v1/user/preferences", headers=headers)
@@ -312,7 +313,8 @@ class TestStorageAndEndpoints(unittest.TestCase):
         self.assertEqual(r_invalid.status_code, 401)
 
     def test_09_workspace_and_conversation_aliases(self):
-        headers = {"X-Guest-Mode": "true"}
+        token = app_module._issue_signed_token("workspace-test", "standard")
+        headers = {"Authorization": f"Bearer {token}"}
         # Workspace contract
         r_ws = self.client.get("/api/v1/connections/my-workspace", headers=headers)
         self.assertEqual(r_ws.status_code, 200)

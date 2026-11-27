@@ -75,6 +75,9 @@ def gateway(monkeypatch):
     monkeypatch.setattr(route_arbiter, "squad", None)
     monkeypatch.setattr(edge, "_adaptive_routes", {name: edge.RouteState(name) for name in edge._adaptive_routes})
     monkeypatch.setenv("SUPREMEAI_API_KEY", "fixture-client-key")
+    monkeypatch.setenv("SUPREMEAI_MASTER_KEY", "fixture-signing-secret-for-routing-tests")
+    from gateway.service.keygen import generate_key
+    monkeypatch.setitem(_HEADERS, "Authorization", "Bearer " + generate_key("routing-test"))
     monkeypatch.setattr(edge, "STEALTH_WEBHOOK_URL", "")
     # This suite isolates provider routing; the real compiler has separate tests.
     monkeypatch.setattr(edge, "compile_chat_context", lambda **kwargs: kwargs["messages"])
@@ -404,3 +407,30 @@ def test_api_attempt_is_cancelled_at_the_route_deadline(gateway, monkeypatch):
     cancelled.assert_called_once()
     adapter.assert_awaited_once()
     upstream.assert_not_called()
+
+
+def test_consented_personal_memory_reaches_only_owners_provider_context(gateway, monkeypatch, tmp_path):
+    from gateway.service import context_compiler, memory_store
+    from gateway.service.keygen import generate_key
+
+    client, upstream = gateway
+    store = memory_store.CanonicalMemoryStore(str(tmp_path / "private.db"))
+    monkeypatch.setattr(memory_store, "_DEFAULT_STORE", store)
+    monkeypatch.setattr(edge, "ingest_consented_personal_memory", store.ingest_consented_personal_memory)
+    monkeypatch.setattr(edge, "compile_chat_context", context_compiler.compile_chat_context)
+    a = {"Authorization": "Bearer " + generate_key("usr-usr-aaaaaaaaaaaa")}
+    b = {"Authorization": "Bearer " + generate_key("usr-usr-bbbbbbbbbbbb")}
+    store.set_personal_memory_consent("usr-aaaaaaaaaaaa", True)
+    upstream.return_value = httpx.Response(200, json={"choices": [{"message": {"content": "Fixture reply"}}]})
+    payload = {"model": "supremeai-api", "messages": [{"role": "user", "content": "My name is Alice."}]}
+    assert client.post("/v1/chat/completions", json=payload, headers=a).status_code == 200
+    own = json.loads(upstream.call_args.args[0].content)
+    assert "Alice" in str(own["messages"])
+    assert any("Alice" in str(m) and "durable_user_memory" in str(m) and m["role"] == "user" for m in own["messages"])
+    assert client.post("/v1/chat/completions", json={"model": "supremeai-api", "messages": [{"role": "user", "content": "Hello"}]}, headers=b).status_code == 200
+    other = json.loads(upstream.call_args.args[0].content)
+    assert "Alice" not in str(other["messages"])
+    store.set_personal_memory_consent("usr-aaaaaaaaaaaa", False)
+    assert client.post("/v1/chat/completions", json={"model": "supremeai-api", "messages": [{"role": "user", "content": "Hello"}]}, headers=a).status_code == 200
+    disabled = json.loads(upstream.call_args.args[0].content)
+    assert "Alice" not in str(disabled["messages"])

@@ -157,6 +157,18 @@ def init_db(db_path=None):
                     updated_at REAL NOT NULL,
                     CONSTRAINT uq_user_memory_key UNIQUE (user_id, memory_key)
                 );
+                CREATE TABLE IF NOT EXISTS personal_memory_consent (
+                    user_id TEXT PRIMARY KEY,
+                    enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+                    updated_at REAL NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS personal_memory_v1 (
+                    user_id TEXT NOT NULL,
+                    memory_key TEXT NOT NULL,
+                    memory_value TEXT NOT NULL,
+                    updated_at REAL NOT NULL,
+                    PRIMARY KEY (user_id, memory_key)
+                );
                 CREATE TABLE IF NOT EXISTS provider_attempts (
                     id TEXT PRIMARY KEY,
                     request_id TEXT NOT NULL,
@@ -393,6 +405,89 @@ class CanonicalMemoryStore:
             "metadata": metadata or {},
         }
 
+    def set_personal_memory_consent(self, user_id, enabled):
+        if not user_id or type(enabled) is not bool:
+            raise ValueError("Verified user and boolean consent are required")
+        now = time.time()
+        with _LOCK, self._conn() as conn:
+            if conn is None:
+                raise RuntimeError("Personal memory storage unavailable")
+            conn.execute(
+                """INSERT INTO personal_memory_consent (user_id, enabled, updated_at)
+                   VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET
+                   enabled = excluded.enabled, updated_at = excluded.updated_at""",
+                (user_id, int(enabled), now),
+            )
+        return {"enabled": enabled, "updated_at": now}
+
+    def get_personal_memory_state(self, user_id, include_disabled=False):
+        if not user_id:
+            raise ValueError("Verified user is required")
+        with _LOCK, self._conn() as conn:
+            if conn is None:
+                raise RuntimeError("Personal memory storage unavailable")
+            conn.execute("BEGIN")
+            consent = conn.execute(
+                "SELECT enabled, updated_at FROM personal_memory_consent WHERE user_id = ?", (user_id,)
+            ).fetchone()
+            enabled = bool(consent and consent["enabled"] == 1)
+            rows = []
+            if enabled or include_disabled:
+                rows = conn.execute(
+                    "SELECT memory_key, memory_value, updated_at FROM personal_memory_v1 "
+                    "WHERE user_id = ? ORDER BY memory_key", (user_id,)
+                ).fetchall()
+            return {"enabled": enabled, "updated_at": consent["updated_at"] if consent else None,
+                    "memories": [dict(row) for row in rows]}
+
+    def ingest_consented_personal_memory(self, user_id, messages):
+        """Only the latest user turn, local store only; consent checked in the write transaction."""
+        if not user_id or not isinstance(messages, list):
+            return []
+        latest = messages[-1] if messages else None
+        if not isinstance(latest, dict) or latest.get("role") != "user" or not isinstance(latest.get("content"), str):
+            return []
+        operations = extract_durable_user_memories([latest])
+        allowed = {"preferred_language", "response_style_pref", "tech_stack", "user_name", "user_role"}
+        applied = []
+        with _LOCK, self._conn() as conn:
+            if conn is None:
+                raise RuntimeError("Personal memory storage unavailable")
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute("SELECT enabled FROM personal_memory_consent WHERE user_id = ?", (user_id,)).fetchone()
+            enabled = bool(row and row["enabled"] == 1)
+            for op in operations:
+                if op.key not in allowed:
+                    continue
+                if op.op == "forget":
+                    # A deletion request remains possible after opt-out.
+                    conn.execute("DELETE FROM personal_memory_v1 WHERE user_id = ? AND memory_key = ?", (user_id, op.key))
+                    applied.append({"op": "forget", "key": op.key})
+                elif enabled and op.op == "upsert" and is_safe_memory_text(op.value):
+                    conn.execute(
+                        """INSERT INTO personal_memory_v1 (user_id, memory_key, memory_value, updated_at)
+                           VALUES (?, ?, ?, ?) ON CONFLICT(user_id, memory_key) DO UPDATE SET
+                           memory_value = excluded.memory_value, updated_at = excluded.updated_at""",
+                        (user_id, op.key, op.value, time.time()),
+                    )
+                    applied.append({"op": "upsert", "key": op.key})
+        return applied
+
+    def clear_personal_memory(self, user_id, memory_key=None):
+        if not user_id:
+            raise ValueError("Verified user is required")
+        allowed = {"preferred_language", "response_style_pref", "tech_stack", "user_name", "user_role"}
+        if memory_key is not None and memory_key not in allowed:
+            raise ValueError("Unknown personal memory key")
+        with _LOCK, self._conn() as conn:
+            if conn is None:
+                raise RuntimeError("Personal memory storage unavailable")
+            if memory_key is None:
+                result = conn.execute("DELETE FROM personal_memory_v1 WHERE user_id = ?", (user_id,))
+            else:
+                result = conn.execute("DELETE FROM personal_memory_v1 WHERE user_id = ? AND memory_key = ?", (user_id, memory_key))
+            return result.rowcount
+
     def get_user_durable_memories(self, user_id):
         if not user_id:
             return []
@@ -593,6 +688,22 @@ def get_recent_history(conversation_id, limit=10, user_id=None):
 
 def get_user_durable_memories(user_id):
     return _DEFAULT_STORE.get_user_durable_memories(user_id)
+
+
+def get_personal_memory_state(*args, **kwargs):
+    return _DEFAULT_STORE.get_personal_memory_state(*args, **kwargs)
+
+
+def set_personal_memory_consent(*args, **kwargs):
+    return _DEFAULT_STORE.set_personal_memory_consent(*args, **kwargs)
+
+
+def ingest_consented_personal_memory(*args, **kwargs):
+    return _DEFAULT_STORE.ingest_consented_personal_memory(*args, **kwargs)
+
+
+def clear_personal_memory(*args, **kwargs):
+    return _DEFAULT_STORE.clear_personal_memory(*args, **kwargs)
 
 
 def append_canonical_message(*args, **kwargs):

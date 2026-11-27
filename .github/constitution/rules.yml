@@ -261,8 +261,13 @@ living_protocols:
       মধ্যে একটি বৈধ JSON object দেবে: `schema` (`ai-decision-record/1`), `agent`,
       `task_type`, `task_ref`, `decision`, `reason`, `alternatives_rejected`,
       `evidence`, `verification` (চালানো পরীক্ষা ও ফল), `limitations`, ও `status`
-      (`proposed`, `tested`, `blocked` বা `superseded`)। নতুন সিদ্ধান্তে নতুন রেকর্ড;
-      `reason` হবে সংক্ষিপ্ত প্রকাশযোগ্য কারণ, ব্যক্তিগত chain-of-thought নয়।
+      (`proposed`, `tested`, `blocked` বা `superseded`)। পুনর্ব্যবহারযোগ্য ক্ষেত্রে
+      `reasoning_pattern`-এ `task_family`, ordered `steps`, `checks` ও
+      `stop_conditions` দাও; অনুমোদিত vocabulary দেখো
+      `python scripts/ci/decision_records.py --catalog`। এতে task-specific উত্তর,
+      ব্যক্তিগত requirement বা free-text নির্দেশ নয়, সাধারণ decision process থাকবে।
+      পুরোনো রেকর্ড সংরক্ষণ করে নতুন সিদ্ধান্তে নতুন রেকর্ড দাও; `reason` হবে সংক্ষিপ্ত
+      প্রকাশযোগ্য কারণ, ব্যক্তিগত chain-of-thought নয়।
       অনুমানকে প্রমাণ বা না-চালানো পরীক্ষাকে পাস বলা যাবে না। কোনো credentials,
       private user data বা sensitive vulnerability details প্রকাশ করা যাবে না;
       প্রয়োজন হলে শুধু নিরাপদ private reference ব্যবহার করো। রেকর্ড হলো reviewable
