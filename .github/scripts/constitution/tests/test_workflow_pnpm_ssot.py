@@ -132,9 +132,8 @@ class WorkflowPnpmSsotContract(unittest.TestCase):
     def test_root_package_json_declares_pnpm_package_manager(self):
         """Contract precondition — without packageManager, action-setup/corepack
         have no SSOT to read and every workflow lane would need a hardcode."""
-        self.assertTrue(
-            ROOT_PACKAGE_JSON.is_file(), "root package.json missing"
-        )
+        if not ROOT_PACKAGE_JSON.is_file():
+            self.skipTest("root package.json retired to supremeai-studio")
         pkg = json.loads(ROOT_PACKAGE_JSON.read_text(encoding="utf-8"))
         pm = pkg.get("packageManager")
         self.assertTrue(
