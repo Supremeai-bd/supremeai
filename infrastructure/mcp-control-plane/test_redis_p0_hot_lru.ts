@@ -190,8 +190,6 @@ try {
   delete process.env.REDIS_HOT_LRU_CAPACITY;
   try {
     rmSync(tmpDir, { recursive: true, force: true });
-  } catch {
-    // best-effort cleanup
-  }
+  } catch (err) { console.debug(err); }
   void deleteCooldownLedgerFile;
 }

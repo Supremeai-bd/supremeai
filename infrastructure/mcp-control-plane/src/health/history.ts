@@ -47,9 +47,7 @@ export class HealthHistoryStore {
     const dir = path.dirname(this.filePath);
     try {
       await fs.mkdir(dir, { recursive: true });
-    } catch {
-      // Directory creation is best-effort; load may still work if it exists.
-    }
+    } catch (err) { console.debug(err); }
     try {
       const raw = await fs.readFile(this.filePath, "utf8");
       const lines = raw.split(/\r?\n/).filter((l) => l.trim().length > 0);
@@ -58,16 +56,12 @@ export class HealthHistoryStore {
           const entry = JSON.parse(line) as HealthHistoryEntry;
           this.entries.push(entry);
           this.seq = Math.max(this.seq, entry.seq ?? 0);
-        } catch {
-          // Skip corrupted lines rather than failing the whole history.
-        }
+        } catch (err) { console.debug(err); }
       }
       console.log(
         `[HealthHistory] loaded ${this.entries.length} entries from ${this.filePath}`
       );
-    } catch {
-      // First run: no history file yet.
-    }
+    } catch (err) { console.debug(err); }
   }
 
   /** Appends a history entry durably (best-effort) and keeps a bounded ring. */

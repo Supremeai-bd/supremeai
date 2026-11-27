@@ -274,7 +274,8 @@ export class TowerToolCatalog {
           );
         }
         args = parsed.data as Record<string, unknown>;
-      } catch {
+      } catch (err) {
+        console.debug(err);
         // A shape we cannot reflect (non-zod registration surface) must not
         // block the call: the SDK will still validate on the direct path.
       }

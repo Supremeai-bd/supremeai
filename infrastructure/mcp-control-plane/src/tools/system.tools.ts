@@ -90,7 +90,8 @@ export function upstashRestUrl(rawUrl: string): { url: string; token?: string } 
     // and would make every REST probe fail with "fetch failed".
     const host = parsed.host.replace(/:(6379|6380)$/, "");
     return { url: `https://${host}/ping`, token: token || undefined };
-  } catch {
+  } catch (err) {
+    console.debug(err);
     return null;
   }
 }
@@ -465,9 +466,7 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
         renderFreeLimitRemaining = renderHealth.freeLimitRemaining;
         renderFreeLimitExhausted = renderHealth.freeLimitExhausted;
       }
-    } catch {
-      // Fallback to container probe if Render API key is unconfigured or throttled
-    }
+    } catch (err) { console.debug(err); }
   }
 
   const renderQuotaProps = {

@@ -158,7 +158,5 @@ export function deleteCooldownLedgerFile(): void {
   if (!path) return;
   try {
     if (existsSync(path)) unlinkSync(path);
-  } catch {
-    // best-effort cleanup only
-  }
+  } catch (err) { console.debug(err); }
 }

@@ -92,9 +92,7 @@ export async function registerNotifyTools(server: McpServer): Promise<void> {
       if (replyToChat && senderChatId) {
         try {
           await sendTelegram(reply, senderChatId, "Markdown");
-        } catch {
-          // Fall back gracefully if chat sending fails
-        }
+        } catch (err) { console.debug(err); }
       }
 
       return {

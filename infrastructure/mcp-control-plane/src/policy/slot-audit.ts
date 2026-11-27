@@ -64,9 +64,7 @@ export function recordSlotAudit(event: Omit<SlotAuditEvent, "ts"> & { ts?: strin
   try {
     mkdirSync(dirname(file), { recursive: true });
     appendFileSync(file, `${JSON.stringify(entry)}\n`, { mode: 0o600 });
-  } catch {
-    // Forensic sink unavailable — the ring buffer keeps the session truth.
-  }
+  } catch (err) { console.debug(err); }
 }
 
 /** Read recent audit events (newest last), optionally filtered by slot. */
