@@ -41,6 +41,7 @@ export class HarnessAdapter {
       });
       return { ok: res.data?.status === "SUCCESS", message: "Harness API connected successfully" };
     } catch (err: any) {
+  console.error(err: any instanceof Error ? err: any.name : "error");
       return { ok: false, message: `Harness ping failed: ${err?.message || err}` };
     }
   }
@@ -72,6 +73,7 @@ export class HarnessAdapter {
       });
       return res?.data?.pipelineExecutionSummary || null;
     } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
       return null;
     }
   }

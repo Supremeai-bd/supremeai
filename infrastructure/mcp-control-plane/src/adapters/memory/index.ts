@@ -34,7 +34,8 @@ export function sidecarEntryExists(backendDir: string): boolean {
   try {
     fs.accessSync(path.join(backendDir, "memory", "mcp_server.py"), fs.constants.R_OK);
     return true;
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return false;
   }
 }
@@ -175,7 +176,7 @@ export class MemorySubAdapter {
           c.close(),
           new Promise((resolve) => setTimeout(resolve, 3000)),
         ]);
-      } catch { /* ignore */ }
+      } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
     }
   }
 

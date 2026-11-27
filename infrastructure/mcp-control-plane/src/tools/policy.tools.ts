@@ -34,6 +34,7 @@ export async function registerPolicyTools(server: McpServer): Promise<void> {
           content: [{ type: "text", text: message }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
@@ -71,6 +72,7 @@ export async function registerPolicyTools(server: McpServer): Promise<void> {
           content: [{ type: "text", text: "Failed to resolve request." }]
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],

@@ -82,6 +82,7 @@ export async function registerAgentReviewWorkflowTools(server: McpServer): Promi
           throw error;
         }
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     },
@@ -99,6 +100,7 @@ export async function registerAgentReviewWorkflowTools(server: McpServer): Promi
         const result = await backendRequest("/api/v1/agent_review_workflow/status");
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     },

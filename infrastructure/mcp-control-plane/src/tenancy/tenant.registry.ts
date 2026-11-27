@@ -68,7 +68,8 @@ function loadFile(): TenantRecord[] {
       return [];
     }
     return (parsed as TenantStoreFile).tenants;
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return [];
   }
 }

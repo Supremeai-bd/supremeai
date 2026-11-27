@@ -63,6 +63,7 @@ export async function registerSlotTools(server: McpServer): Promise<void> {
           }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }

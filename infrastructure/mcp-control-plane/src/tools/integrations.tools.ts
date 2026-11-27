@@ -173,6 +173,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -233,6 +234,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -277,6 +279,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -307,6 +310,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -340,6 +344,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -375,6 +380,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -399,6 +405,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         const keys = (data?.secrets ?? []).map((s) => s.secretKey).filter(Boolean);
         return ok({ environment: env, secretPath: path, count: keys.length, keys });
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -420,6 +427,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -452,6 +460,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -479,6 +488,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data ?? { sent: true });
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -504,6 +514,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         );
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -527,6 +538,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -559,6 +571,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -595,6 +608,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
           cookies: results,
         });
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -622,6 +636,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -649,6 +664,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -674,6 +690,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -703,6 +720,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -726,6 +744,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -747,6 +766,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -779,6 +799,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         );
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -805,6 +826,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }
@@ -832,6 +854,7 @@ export async function registerIntegrationTools(server: McpServer): Promise<void>
         });
         return ok(data);
       } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
         return err(e);
       }
     }

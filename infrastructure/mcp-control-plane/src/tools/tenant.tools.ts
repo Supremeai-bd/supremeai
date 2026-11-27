@@ -56,6 +56,7 @@ export async function registerTenantTools(server: McpServer): Promise<void> {
           }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -75,6 +76,7 @@ export async function registerTenantTools(server: McpServer): Promise<void> {
         const tenants = listTenants();
         return { content: [{ type: "text", text: JSON.stringify({ count: tenants.length, tenants }, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -107,6 +109,7 @@ export async function registerTenantTools(server: McpServer): Promise<void> {
         });
         return { content: [{ type: "text", text: JSON.stringify(tenant, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -123,6 +126,7 @@ export async function registerTenantTools(server: McpServer): Promise<void> {
         if (!tenant) return { isError: true, content: [{ type: "text", text: `Tenant not found: ${tenantId}` }] };
         return { content: [{ type: "text", text: JSON.stringify({ message: "Tenant suspended", tenant }, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -139,6 +143,7 @@ export async function registerTenantTools(server: McpServer): Promise<void> {
         if (!tenant) return { isError: true, content: [{ type: "text", text: `Tenant not found: ${tenantId}` }] };
         return { content: [{ type: "text", text: JSON.stringify({ message: "Tenant activated", tenant }, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -164,6 +169,7 @@ export async function registerTenantTools(server: McpServer): Promise<void> {
           }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
