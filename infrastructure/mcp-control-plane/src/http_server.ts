@@ -408,7 +408,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         const gid = guardUrl.searchParams.get("id") ?? "";
         const gDecision = guardUrl.searchParams.get("decision") || "APPROVED";
         isSignedApprovalLink = Boolean(gid) && verifyApprovalLink(gid, gDecision, guardUrl.searchParams.get("exp") ?? "", guardUrl.searchParams.get("sig") ?? "");
-      } catch {}
+      } catch (err) { console.debug(err); }
     }
 
     if (env.nodeEnv === "production" && adminOnlyRoute && !env.mcpApiKey && !env.mcpAdminKey) {
@@ -1108,7 +1108,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         console.error("[MCP] SSE per-session server init failed:", err);
         sseSessions.delete(sseTransport.sessionId);
         sseClientMap.delete(sseTransport.sessionId);
-        try { writeJson(res, 503, { error: "SSE session unavailable: server init failed" }); } catch {}
+        try { writeJson(res, 503, { error: "SSE session unavailable: server init failed" }); } catch (err) { console.debug(err); }
         return;
       }
       let dropped = false;
@@ -1118,7 +1118,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         sseSessions.delete(sseTransport.sessionId);
         sseClientMap.delete(sseTransport.sessionId);
         sseSlotMap.delete(sseTransport.sessionId);
-        try { sseTransport.close(); } catch {}
+        try { sseTransport.close(); } catch (err) { console.debug(err); }
         // Release the per-session server + transport.
         void Promise.resolve().then(() => sseServer.close()).catch(() => undefined);
       };
@@ -1137,7 +1137,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         // NEVER re-throw from the request handler: an uncaught rejection here
         // terminates the Node process (that was the P0). The client sees a
         // dropped/failed SSE stream and can retry.
-        try { writeJson(res, 503, { error: "SSE session could not be established" }); } catch {}
+        try { writeJson(res, 503, { error: "SSE session could not be established" }); } catch (err) { console.debug(err); }
         return;
       }
       return;
@@ -1163,7 +1163,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         const verdict = await assertSlotAuthorization(slotBinding.slotId, slotBinding.credentialId, { operation: "message" });
         if (!verdict.allowed) {
           const transport = sseSessions.get(sid);
-          if (transport) { try { transport.close(); } catch {} }
+          if (transport) { try { transport.close(); } catch (err) { console.debug(err); } }
           sseSessions.delete(sid);
           sseClientMap.delete(sid);
           sseSlotMap.delete(sid);
@@ -1246,7 +1246,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         let parsedBody: any;
         try {
           if (body) parsedBody = JSON.parse(body);
-        } catch {}
+        } catch (err) { console.debug(err); }
 
         // ── Anonymous-mutation plane bound (#2363 Option A) ──
         // Per-(caller IP, tool) hourly window on the 4 mutation tools.
@@ -1296,7 +1296,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
                 },
                 id: null,
               };
-              try { entry.transport.close(); } catch {}
+              try { entry.transport.close(); } catch (err) { console.debug(err); }
               httpSessions.delete(sessionIdHeader);
               writeJson(res, 403, sessionError);
               return;
@@ -1405,8 +1405,8 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           sessionServer = await serverFactory();
         } catch (err) {
           console.error("[MCP] /mcp per-session server init failed:", err);
-          try { httpTransport.close(); } catch {}
-          try { writeJson(res, 503, { jsonrpc: "2.0", error: { code: -32000, message: "MCP session unavailable: server init failed" }, id: null }); } catch {}
+          try { httpTransport.close(); } catch (err) { console.debug(err); }
+          try { writeJson(res, 503, { jsonrpc: "2.0", error: { code: -32000, message: "MCP session unavailable: server init failed" }, id: null }); } catch (err) { console.debug(err); }
           return;
         }
         let dropped = false;
@@ -1424,7 +1424,7 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         } catch (err) {
           console.error("[MCP] /mcp session connect failed:", err);
           dropSession();
-          try { writeJson(res, 503, { jsonrpc: "2.0", error: { code: -32000, message: "MCP session could not be established" }, id: null }); } catch {}
+          try { writeJson(res, 503, { jsonrpc: "2.0", error: { code: -32000, message: "MCP session could not be established" }, id: null }); } catch (err) { console.debug(err); }
           return;
         }
         const effectiveGlobalAdmin = isGlobalAdmin || (initAuthenticated && initRole === "admin");

@@ -131,8 +131,9 @@ class DynamicCredentialBroker:
             )
             if r.returncode == 0 and r.stdout.strip():
                 return json.loads(r.stdout)
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
         return None
 
     def _fetch_vault_keys(self, key_names: set[str]) -> dict[str, str]:
@@ -164,8 +165,9 @@ class DynamicCredentialBroker:
                             k, _, v = line.partition("=")
                             if k in key_names and k not in FORBIDDEN_KEYS:
                                 result[k] = v.strip()
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
         return result
 

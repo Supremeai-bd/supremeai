@@ -105,8 +105,9 @@ class SmartDispatcher:
                 runs = [run for run in runs if run.get("headSha") == main_sha]
                 if runs:
                     return runs[0]
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
         return None
 
     def _check_security_alerts(self) -> dict | None:
@@ -122,8 +123,9 @@ class SmartDispatcher:
                 issues = json.loads(r.stdout)
                 if issues:
                     return issues[0]
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
         return None
 
     def _should_switch_role(self, current_role: str) -> tuple[str, str]:
@@ -180,8 +182,9 @@ class SmartDispatcher:
                         num = item.get("number")
                         title = item.get("title", "?")[:60]
                         knowledge.append(f"#{num}: {title}")
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
         return knowledge[:3]
 
     # === Layer 4: Predictive Priority Boosting ===
@@ -198,8 +201,9 @@ class SmartDispatcher:
             if r.returncode == 0 and r.stdout.strip():
                 results = json.loads(r.stdout)
                 return len(results)
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
         return 0
 
     def _should_boost_priority(self, issue: dict) -> tuple[bool, str]:
@@ -226,8 +230,9 @@ class SmartDispatcher:
             if r.returncode == 0:
                 fail_count = len(re.findall(r"claim failed|rc=[^0]|work command exited rc=non", r.stdout))
                 return fail_count
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
         return 0
 
     def _should_escalate(self, issue: dict) -> tuple[bool, str]:
@@ -245,8 +250,9 @@ class SmartDispatcher:
                 age_hours = (datetime.now(timezone.utc) - created_dt).total_seconds() / 3600
                 if age_hours > 24 and "P1-high" not in labels and "P0-critical" not in labels:
                     return True, f"stale {age_hours:.0f}h - auto-escalate for human review"
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
         return False, ""
 
     # === Main Decision Engine ===

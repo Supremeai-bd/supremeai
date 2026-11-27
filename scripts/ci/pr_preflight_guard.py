@@ -152,8 +152,9 @@ def check_semgrep(files: list[str]) -> list[str]:
             path = res.get("path", "?")
             line = (res.get("start") or {}).get("line", "?")
             errs.append(f"semgrep: {path}:{line} {msg}")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return errs
 
 def check_runner_hierarchy(files: list[str]) -> list[str]:

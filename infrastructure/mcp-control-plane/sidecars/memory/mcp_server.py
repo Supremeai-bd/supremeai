@@ -972,8 +972,9 @@ def handle_tool(name: str, args: dict[str, Any]) -> Any:
                     try:
                         if float(r["score"]) < floor:
                             continue
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        import logging
+                        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
                 out.append(r)
         return {"memories": out, "count": len(out), "source": "rpc:match_memories", "owner_id": owner_id}
 

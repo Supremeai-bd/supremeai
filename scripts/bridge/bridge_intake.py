@@ -1102,8 +1102,9 @@ def _handle_intake_failure(token: str, issue: dict, detail: str, results: list[s
                 token,
             ),
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     results.append(f"#{num} → {detail[:100]}")
 
 

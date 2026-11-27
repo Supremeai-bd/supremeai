@@ -169,8 +169,9 @@ def get_default_token() -> str:
         )
         if res.returncode == 0 and res.stdout.strip():
             return res.stdout.strip()
-    except (OSError, subprocess.SubprocessError):
-        pass
+    except (OSError, subprocess.SubprocessError) as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return ""
 
 
@@ -275,8 +276,9 @@ def link_sub_issue(
         res = subprocess.run(cmd, env=env, capture_output=True, text=True, check=False)
         if res.returncode == 0:
             return True
-    except (OSError, subprocess.SubprocessError):
-        pass
+    except (OSError, subprocess.SubprocessError) as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     # 2. REST fallback: POST /repos/{owner}/{repo}/issues/{parent}/sub_issues
     # (snake_case segment; the hyphenated form 404s — see SUB_ISSUES_PATH).
@@ -332,8 +334,9 @@ def link_sub_issue(
                         try:
                             with urllib.request.urlopen(del_req, timeout=8):
                                 pruned += 1
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            import logging
+                            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
                     if pruned > 0:
                         print(f"[anchors] Auto-pruned {pruned} closed sub-issues from #{parent_issue_number}. Retrying link...")
                         # Retry link
@@ -395,8 +398,9 @@ def create_sub_issue(
             if m:
                 num = int(m.group(1))
                 return num, url
-    except (OSError, subprocess.SubprocessError):
-        pass
+    except (OSError, subprocess.SubprocessError) as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     # Fallback: create without --parent, then link via REST
     if parent_num:
@@ -426,8 +430,9 @@ def create_sub_issue(
                     num = int(m.group(1))
                     link_sub_issue(parent_num, num, repo=open_repo, token=tok)
                     return num, url
-        except (OSError, subprocess.SubprocessError):
-            pass
+        except (OSError, subprocess.SubprocessError) as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     return None, ""
 

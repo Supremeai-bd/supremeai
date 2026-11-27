@@ -153,8 +153,9 @@ def load_policy(rules_path: Path = RULES_PATH) -> dict[str, Any]:
         for key, val in override.items():
             if key in pol:
                 pol[key] = val
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return pol
 
 
@@ -947,8 +948,9 @@ def close_healed_issue(api: Api, issue_number: int, row: dict, pol: dict) -> Non
         api(f"repos/{REPO}/issues/{issue_number}/comments", method="POST", payload={"body": body})
         api(f"repos/{REPO}/issues/{issue_number}", method="PATCH",
             payload={"state": "closed", "state_reason": "completed"})
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
 
 # ── পুনর্মিলন (#2935): সমান্তরাল-স্ক্যান race + orphan GC ────────────────────

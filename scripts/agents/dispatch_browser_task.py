@@ -33,8 +33,9 @@ if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TASKS_DIR = Path(os.environ.get("WEB_AGENT_TASKS", str(REPO_ROOT / ".browser_tasks")))
@@ -56,8 +57,9 @@ def fetch_issue_context(issue_number: int, repo: str = REPO) -> Dict[str, str]:
                 "body": data.get("body", ""),
                 "labels": ", ".join(labels),
             }
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return {"title": f"Issue #{issue_number}", "body": "", "labels": ""}
 
 
@@ -112,15 +114,17 @@ def wait_for_completion(tasks_dir: Path, task_id: str, timeout_sec: int = 600) -
                 if msg != last_status:
                     print(msg, flush=True)
                     last_status = msg
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
         if completed_file.exists():
             try:
                 data = json.loads(completed_file.read_text(encoding="utf-8"))
                 return data
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
         time.sleep(2)
 
@@ -167,8 +171,9 @@ def show_queue_status(tasks_dir: Path):
                 c = json.loads(d.read_text(encoding="utf-8"))
                 out_snip = (c.get("output") or "").strip().replace("\n", " ")[:70]
                 print(f"  - {c.get('task_id')} [{c.get('role')}]: {out_snip}...")
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     print("=" * 60)
 
 

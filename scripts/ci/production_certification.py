@@ -251,8 +251,9 @@ def get_open_p0_p1_issues() -> list[dict]:
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             p0 = json.loads(r.read())
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     url2 = f"https://api.github.com/repos/{REPO}/issues?state=open&per_page=100&labels=P1-high"
     req2 = urllib.request.Request(url2, headers={
         "Authorization": f"token {token}",
@@ -262,8 +263,9 @@ def get_open_p0_p1_issues() -> list[dict]:
     try:
         with urllib.request.urlopen(req2, timeout=30) as r:
             p1 = json.loads(r.read())
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return [
         {"number": i.get("number"), "title": i.get("title", "")[:60], "priority": "P0"}
         for i in p0 if "pull_request" not in i

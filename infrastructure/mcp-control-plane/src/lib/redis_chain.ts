@@ -45,7 +45,7 @@ export function buildAccountChain(): RedisAccountConfig[] {
       const parsed = new URL(restUrl);
       const token = decodeURIComponent(parsed.password || parsed.username || "");
       if (token) restToken = token;
-    } catch {}
+    } catch (err) { console.debug(err); }
   }
 
   if (restUrl && restToken) {

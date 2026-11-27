@@ -27,12 +27,12 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-if hasattr(sys.stdout, "reconfigure"):
-    try:
+try:
+    if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+except Exception as exc:
+    sys.stderr.write(f"UTF-8 stdio reconfigure skipped: {type(exc).__name__}\n")
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
@@ -62,8 +62,9 @@ def get_open_issues():
     if res.returncode == 0 and res.stdout.strip():
         try:
             return json.loads(res.stdout)
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return []
 
 

@@ -76,8 +76,9 @@ def main() -> int:
     if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
         try:
             sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     print("[INFO] Auditing GitHub Actions workflows for self-heal token safety...")
     violations = audit_workflows()

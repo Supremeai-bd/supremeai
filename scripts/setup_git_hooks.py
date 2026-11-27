@@ -20,8 +20,9 @@ dst = dst_dir / "pre-push"
 shutil.copy2(src, dst)
 try:
     dst.chmod(0o755)
-except Exception:
-    pass
+except Exception as exc:
+    import logging
+    logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 subprocess.run(["git", "config", "core.hooksPath", str(dst_dir)], check=True, cwd=root)
 print("Git hooks installed:", dst)
 print("Hooks active: pre-push (behind-main check + zero-regression gate)")

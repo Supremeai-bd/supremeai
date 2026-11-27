@@ -93,8 +93,9 @@ def load_env() -> dict[str, str]:
                     v = v.strip().strip('"').strip("'")
                     if k not in env_vars or not env_vars[k]:
                         env_vars[k] = v
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return env_vars
 
 

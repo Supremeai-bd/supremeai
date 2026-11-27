@@ -128,8 +128,9 @@ class TowerClient:
         )
         try:
             self._rpc("notifications/initialized", {})
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
         return init
 
     def tool(self, name: str, args: dict | None = None):

@@ -29,8 +29,9 @@ if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stderr.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
 REPO = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
 
@@ -89,8 +90,9 @@ def parse_metadata(issue):
         elif l.startswith("seq:"):
             try:
                 seq = int(l.split(":", 1)[1])
-            except ValueError:
-                pass
+            except ValueError as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
         elif l in ("P0-critical", "P1-high", "P2-medium", "P3-low"):
             priority = l
             

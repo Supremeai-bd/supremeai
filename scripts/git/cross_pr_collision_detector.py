@@ -93,8 +93,9 @@ def get_changed_files_for_branch(branch: str, base: str = "origin/main") -> list
         )
         if res.returncode == 0:
             return [line.strip() for line in res.stdout.splitlines() if line.strip()]
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return []
 
 
@@ -123,8 +124,9 @@ def fetch_open_prs() -> list[dict]:
             data = json.loads(res.stdout)
             # Exclude drafts and non-dict entries
             return [pr for pr in data if isinstance(pr, dict) and not pr.get("isDraft", False)]
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return []
 
 
@@ -145,8 +147,9 @@ def fetch_remote_agent_branches() -> list[str]:
                 if b and not b.startswith("HEAD"):
                     branches.append(b)
             return branches
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return []
 
 

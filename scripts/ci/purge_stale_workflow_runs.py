@@ -31,8 +31,9 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
 def get_github_token() -> str:
     """পরিবেশ বা gh CLI থেকে অ্যাক্সেস টোকেন উদ্ধার করে।"""

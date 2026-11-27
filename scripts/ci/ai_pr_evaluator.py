@@ -149,8 +149,8 @@ def load_policy(rules_path: Path = RULES_PATH) -> dict[str, Any]:
         for key, val in override.items():
             if key in pol:
                 pol[key] = val
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"ai_pr_evaluation_policy load skipped ({type(exc).__name__})", file=sys.stderr)
     return pol
 
 
@@ -1332,8 +1332,9 @@ def classify_pr_risk(files=None, diff=None, metadata=None) -> str:
     try:
         if changed_count is not None and int(changed_count) > 100:
             return "HIGH"
-    except (TypeError, ValueError):
-        pass
+    except (TypeError, ValueError) as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     if len(paths) > 100:
         return "HIGH"
     # diff size floor (500+ added lines)
@@ -1344,8 +1345,9 @@ def classify_pr_risk(files=None, diff=None, metadata=None) -> str:
     try:
         if additions is not None and int(additions) > 3000:
             return "HIGH"
-    except (TypeError, ValueError):
-        pass
+    except (TypeError, ValueError) as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     risk_hint = str(metadata.get("risk_level") or metadata.get("risk") or "").upper()
     if risk_hint == "HIGH":
         return "HIGH"

@@ -44,8 +44,9 @@ from typing import Any
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
 FORBIDDEN_TRACKED_SUFFIXES = (".pyc", ".pyo", ".apk", ".vsix", ".exe", ".msi", ".dmg", ".AppImage")
 CACHE_DIRS_TO_CLEAN = (
@@ -103,8 +104,9 @@ def _dir_size_bytes(path: Path) -> int:
             fp = Path(root) / f
             try:
                 total += fp.stat().st_size
-            except OSError:
-                pass
+            except OSError as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
     return total
 
 
@@ -167,8 +169,9 @@ def clean_workspace_caches(repo_root: Path) -> dict[str, Any]:
                 shutil.rmtree(target, ignore_errors=True)
                 reclaimed_bytes += sz
                 cleaned_targets.append(f"{rel} ({round(sz / 1024, 1)} KB)")
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     # Clean dupreport* and oversized >1MB scratch files inside .tmp
     tmp_dir = repo_root / ".tmp"
@@ -185,8 +188,9 @@ def clean_workspace_caches(repo_root: Path) -> dict[str, Any]:
                     item.unlink(missing_ok=True)
                     reclaimed_bytes += sz
                     cleaned_targets.append(f".tmp/{item.name} ({round(sz / 1024, 1)} KB)")
-            except OSError:
-                pass
+            except OSError as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     # Sweep stray __pycache__ outside .venv and node_modules
     pycache_count = 0
@@ -280,8 +284,9 @@ def purge_github_actions_caches(
                     if del_resp.status in (200, 204):
                         deleted_count += 1
                         reclaimed_bytes += size_in_bytes
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     return {
         "status": "ok",
@@ -321,8 +326,9 @@ def audit_large_blobs_and_deps(repo_root: Path, max_blob_mb: float = 5.0) -> dic
                         "path": rel,
                         "size_mb": round(sz / (1024 * 1024), 2),
                     })
-        except OSError:
-            pass
+        except OSError as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed exception (%s)", type(exc).__name__)
 
     # Check requirements.txt for duplicate package lines
     duplicate_deps: list[str] = []
