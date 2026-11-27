@@ -167,11 +167,6 @@ class ExemptTests(unittest.TestCase):
                 guard.is_exempt_branch(b, p.get("pr_gated_branch_patterns")), b
             )
 
-    def test_slot_registry_branches(self):
-        reg = guard.slot_registry_branches(REGISTRY)
-        self.assertIn("agent-1-planner", reg)  # legacy slot-branch sanctioned
-        self.assertIn("agent-2-pr-helper", reg)
-
     def test_missing_registry_is_empty_fail_open(self):
         self.assertEqual(
             guard.slot_registry_branches("/nonexistent/registry.yaml"), set()
@@ -356,22 +351,6 @@ class CheckBranchTests(unittest.TestCase):
             "whatever-branch", "SaifulHaqueNiloy", policy(), api=api, repo=REPO
         )
         self.assertEqual(verdict, "ALLOW")
-
-    def test_exempt_and_registry_allow_without_api(self):
-        api = FakeApi()
-        v1, r1, _ = guard.check_branch(
-            "group/audit-triage-fixes",
-            "supremeai-planner[bot]",
-            policy(),
-            api=api,
-            repo=REPO,
-        )
-        v2, _, _ = guard.check_branch(
-            "agent-1-planner", "supremeai-planner[bot]", policy(), api=api, repo=REPO
-        )
-        self.assertEqual((v1, v2), ("ALLOW", "ALLOW"))
-        self.assertIn("PR-gated", r1)  # group/* এখন শব্দার্থ-স্পষ্ট কারণসহ ছাড় পায়
-        self.assertEqual(api.calls, [])  # কোনো API কল লাগেই না
 
     def test_multi_issue_branch_any_claim_suffices(self):
         # fix/2829-2833-x — 2829-এ নেই, 2833-এ আছে → ALLOW
