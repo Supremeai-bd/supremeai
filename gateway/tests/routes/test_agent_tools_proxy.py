@@ -186,20 +186,22 @@ def test_non_json_core_response_is_502(client):
 
 def test_workspace_reports_tool_calling_only_when_reachable(monkeypatch):
     monkeypatch.setenv("ENV", "test")
-    monkeypatch.setenv("SUPREMEAI_TEST_GUEST_BYPASS", "1")
+    monkeypatch.setenv("SUPREMEAI_MASTER_KEY", "test-master-key-32-bytes-supersecret-token")
+    from gateway.service import app as app_module
+    headers = {"Authorization": f"Bearer {app_module._issue_signed_token('workspace-tools-test', 'standard')}"}
 
     monkeypatch.delenv("SUPREMEAI_AGENT_TOOLS", raising=False)
     monkeypatch.delenv("CORE_API_URL", raising=False)
-    off = TestClient(app).get("/api/v1/connections/my-workspace", headers=GUEST).json()
+    off = TestClient(app).get("/api/v1/connections/my-workspace", headers=headers).json()
     assert off["chatToolCalling"] is False
     assert off["chatToolCallingDetail"]["coreApiConfigured"] is False
 
     monkeypatch.setenv("SUPREMEAI_AGENT_TOOLS", "true")
-    flag_only = TestClient(app).get("/api/v1/connections/my-workspace", headers=GUEST).json()
+    flag_only = TestClient(app).get("/api/v1/connections/my-workspace", headers=headers).json()
     assert flag_only["chatToolCalling"] is False, "flag without a core URL is not reachable"
 
     monkeypatch.setenv("CORE_API_URL", "https://core.test")
-    on = TestClient(app).get("/api/v1/connections/my-workspace", headers=GUEST).json()
+    on = TestClient(app).get("/api/v1/connections/my-workspace", headers=headers).json()
     assert on["chatToolCalling"] is True
     assert on["chatToolCallingDetail"] == {
         "transport": "core-http-proxy",

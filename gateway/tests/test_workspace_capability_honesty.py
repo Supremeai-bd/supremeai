@@ -39,11 +39,13 @@ class TestWorkspaceCapabilityHonesty(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         os.environ["ENV"] = "test"
-        os.environ["SUPREMEAI_TEST_GUEST_BYPASS"] = "1"
         os.environ["SUPREMEAI_MASTER_KEY"] = "test-master-key-32-bytes-supersecret-token"
+        from gateway.service import app as app_module
+        token = app_module._issue_signed_token("workspace-honesty-test", "standard")
         cls.client = TestClient(app)
         cls.payload = cls.client.get(
-            "/api/v1/connections/my-workspace", headers={"X-Guest-Mode": "true"}
+            "/api/v1/connections/my-workspace",
+            headers={"Authorization": f"Bearer {token}"},
         ).json()
 
     def test_workspace_declares_no_chat_tool_calling(self):
