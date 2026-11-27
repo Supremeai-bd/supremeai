@@ -17,6 +17,7 @@ Rules
 7.  Job-level `permissions:` values are valid scopes and levels.
 8.  No duplicate job ids (PyYAML silently keeps the last; GitHub errors).
 9.  `workflow_dispatch.inputs` must not exceed 25.
+10. Local composite action run steps must specify a shell.
 
 Why rule 9 exists
 -----------------
@@ -179,6 +180,31 @@ def validate(path: str, text: str) -> list[str]:
     return problems
 
 
+def validate_composite(path: str, text: str) -> list[str]:
+    """বাংলা: composite run-step-এ shell না থাকলে GitHub action-ই লোড করে না।"""
+    try:
+        doc = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        return [f"{path}: YAML does not parse: {exc}"]
+    if not isinstance(doc, dict) or not isinstance(doc.get("runs"), dict):
+        return [f"{path}: action has no runs mapping"]
+    runs = doc["runs"]
+    if runs.get("using") != "composite":
+        return []
+    steps = runs.get("steps")
+    if not isinstance(steps, list) or not steps:
+        return [f"{path}: composite action has no steps"]
+    problems = []
+    for idx, step in enumerate(steps):
+        if not isinstance(step, dict):
+            problems.append(f"{path}: step {idx} is not a mapping")
+        elif ("run" in step) == ("uses" in step):
+            problems.append(f"{path}: step {idx} must have exactly one of `run` and `uses`")
+        elif "run" in step and not step.get("shell"):
+            problems.append(f"{path}: step {idx} is missing required `shell`")
+    return problems
+
+
 def _dispatch_inputs(count: int) -> str:
     inputs = "".join(f"      i{n}:\n        type: boolean\n" for n in range(count))
     return (
@@ -225,6 +251,7 @@ def main(argv: list[str]) -> int:
     if "--check" in argv or len(argv) == 1:
         root = Path(__file__).resolve().parents[2]
         targets = sorted((root / ".github" / "workflows").glob("*.y*ml"))
+        targets += sorted((root / ".github" / "actions").glob("*/action.y*ml"))
     else:
         targets = [Path(a) for a in argv[1:]]
 
@@ -235,7 +262,8 @@ def main(argv: list[str]) -> int:
     problems: list[str] = []
     for path in targets:
         try:
-            problems.extend(validate(str(path), path.read_text(encoding="utf-8")))
+            validator = validate_composite if path.name in ("action.yml", "action.yaml") else validate
+            problems.extend(validator(str(path), path.read_text(encoding="utf-8")))
         except OSError as exc:
             problems.append(f"{path}: cannot read: {exc}")
 
@@ -245,7 +273,7 @@ def main(argv: list[str]) -> int:
             print(f"  - {problem}")
         return 1
 
-    print(f"OK: {len(targets)} workflow file(s) structured correctly")
+    print(f"OK: {len(targets)} workflow/action file(s) structured correctly")
     return 0
 
 
