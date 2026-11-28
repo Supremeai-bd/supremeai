@@ -20,6 +20,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from scripts.ci.supabase_rest import rest_json
 
 from api.dependencies import get_current_admin
 
@@ -56,21 +57,8 @@ def _supabase_conf() -> tuple[str, str]:
 
 
 def _rest_request(url: str, key: str, method: str, path: str, payload: dict | None = None) -> list[dict]:
-    req = urllib.request.Request(
-        f"{url}/rest/v1/{path}",
-        data=json.dumps(payload).encode("utf-8") if payload is not None else None,
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json",
-            "Prefer": "return=representation",
-        },
-        method=method,
-    )
     try:
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            body = resp.read().decode("utf-8", errors="replace")
-            return json.loads(body) if body.strip() else []
+        return rest_json(url, key, method, path, payload, timeout=8)
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:200]
         raise HTTPException(status_code=502, detail=f"Supabase error ({exc.code}): {detail}") from exc

@@ -51,3 +51,31 @@ def rest_upsert(
     except Exception as err:
         print(f"::warning::Supabase connection error: {err}", file=sys.stderr)
         return False
+
+def rest_json(
+    url: str,
+    key: str,
+    method: str,
+    path: str,
+    payload: dict | None = None,
+    timeout: int = 10,
+) -> list | dict:
+    """Generic PostgREST JSON call (GET/POST/PATCH) returning parsed JSON.
+
+    Raises urllib.error.HTTPError / OSError on failure - callers map errors
+    to their own context (HTTPException for routes, warnings for CI jobs).
+    """
+    req = urllib.request.Request(
+        f"{url.rstrip('/')}/rest/v1/{path}",
+        data=json.dumps(payload).encode() if payload is not None else None,
+        headers={
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation",
+        },
+        method=method,
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        body = resp.read().decode("utf-8", errors="replace")
+        return json.loads(body) if body.strip() else []

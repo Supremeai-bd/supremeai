@@ -15,13 +15,13 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import os
 import subprocess
 import sys
-import urllib.request
 from pathlib import Path
 from typing import Any
+
+from scripts.ci.supabase_rest import rest_json
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RULES_PATH = REPO_ROOT / ".github" / "constitution" / "rules.yml"
@@ -38,20 +38,7 @@ def _conf() -> tuple[str, str] | None:
 
 
 def _rest(url: str, key: str, method: str, path: str, payload: dict | None = None) -> list[dict]:
-    req = urllib.request.Request(
-        f"{url}/rest/v1/{path}",
-        data=json.dumps(payload).encode("utf-8") if payload is not None else None,
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json",
-            "Prefer": "return=representation",
-        },
-        method=method,
-    )
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        body = resp.read().decode("utf-8", errors="replace")
-        return json.loads(body) if body.strip() else []
+    return rest_json(url, key, method, path, payload, timeout=10)
 
 
 def _propose_rules_edit(rules_text: str, rule_key: str, rule_text: str) -> str:
