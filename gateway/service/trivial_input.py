@@ -108,6 +108,9 @@ def trivial_reply(body: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     unexpected shape returns ``None`` rather than raising on the chat path.
     """
     try:
+        # বাংলা: স্পষ্ট source-search কখনো greeting shortcut-এ হারাবে না।
+        if "source_search" in body:
+            return None
         # 1. tool-using clients always get a real model
         for key in ("tools", "tool_choice", "functions", "function_call"):
             if body.get(key):

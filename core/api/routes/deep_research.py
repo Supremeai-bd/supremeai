@@ -18,7 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from api.deps import get_current_user_token
 from core.monitoring.logging_config import logger
@@ -67,6 +67,15 @@ class DeepResearchRequest(BaseModel):
     query: str = Field(..., min_length=3, description="The research question.")
     max_steps: int = Field(default=10, ge=3, le=20, description="Maximum pipeline steps.")
     conversation_id: str | None = Field(None, description="Optional conversation to attach to.")
+
+
+class SourceDiscoveryRequest(BaseModel):
+    """স্বল্প পরিসরে উৎস নির্বাচন; external query-তে প্রতিবার স্পষ্ট সম্মতি।"""
+
+    model_config = ConfigDict(extra="forbid")
+    query: str = Field(min_length=1, max_length=200)
+    kind: str = Field(default="auto", pattern=r"^(auto|news|research|reference|technical)$")
+    consent: bool = Field(default=False, strict=True)
 
 
 class ResearchStepEvent(BaseModel):
@@ -562,6 +571,22 @@ async def _run_research_pipeline(
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+
+@router.post("/source-search", summary="Select and retrieve bounded public source metadata")
+async def discover_sources(
+    payload: SourceDiscoveryRequest,
+    user: dict = Depends(get_current_user_token),
+) -> dict[str, Any]:
+    from core.services.source_discovery import DiscoveryError, discover
+
+    # বাংলা: tenant কেবল যাচাইকৃত token থেকে, request body থেকে নয়।
+    tenant_value = user.get("tenant_id") or user.get("org_id")
+    tenant = tenant_value.strip() if isinstance(tenant_value, str) else ""
+    try:
+        return await discover(tenant, payload.query, payload.kind, payload.consent)
+    except DiscoveryError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.code) from exc
 
 
 @router.post(

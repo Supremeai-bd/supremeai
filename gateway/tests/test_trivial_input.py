@@ -186,3 +186,7 @@ def test_salam_is_respectfully_mirrored(text):
 
 def test_wellbeing_with_substantive_followup_does_not_take_fastpath():
     assert trivial_reply({"messages": [{"role": "user", "content": "কেমন আছেন? আজকের খবর কী?"}]}) is None
+
+
+def test_explicit_source_search_never_uses_trivial_shortcut():
+    assert trivial_reply({"messages": [{"role": "user", "content": "hi"}], "source_search": {"query": "hello", "consent": False}}) is None
