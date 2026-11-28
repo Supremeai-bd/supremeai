@@ -277,13 +277,15 @@ def test_provider_pool_reports_total_when_no_key_is_valid(monkeypatch, capsys):
     from scripts.ci import ai_semantic_pr_verifier as verifier
     monkeypatch.setenv("SEMANTIC_VERIFIER_ALLOW_EXTERNAL_DIFF", "true")
     with patch.object(verifier, "_get_api_providers", return_value=[
-            {"name": "groq", "key": "k1"}, {"name": "openai", "key": "k2"},
+            {"name": "groq", "key": "k1", "slot": "GROQ_API_KEY", "model": "m"},
+            {"name": "openai", "key": "k2", "slot": "OPENAI_API_KEY", "model": "m"},
     ]), \
          patch.object(verifier, "call_llm_provider", return_value=None):
         verdict = run_semantic_verification(["core/security/auth.py"], "+change")
     assert verdict["approved"] is False and verdict["confidence"] == "unverified"
     out = capsys.readouterr().out
-    assert "2 provider key(s) checked" in out
+    assert "2 provider key(s) checked" in out and "pool: groq:GROQ_API_KEY[m], openai:OPENAI_API_KEY[m]" in out
+    assert "k1" not in out and "k2" not in out  # key values never reach logs
 
 
 def test_evaluator_providers_cover_numbered_and_alias_keys(monkeypatch):
@@ -325,3 +327,29 @@ def test_unverified_verdict_is_not_misreported_as_a_confirmed_violation(monkeypa
     assert "semantic review incomplete" in out
     assert "high-risk PR remains unverified" in out
     assert "High-risk violations must be resolved" not in out
+
+def test_gateway_alias_env_names_are_discovered(monkeypatch):
+    from scripts.ci.ai_semantic_pr_verifier import _get_api_providers
+    _clean_pool_env(monkeypatch)
+    for name in ("GOOGLE_AI_API_KEY", "GEMINI_TOKEN", "JULES_API_KEY", "SUPREMEAI_PROVIDER_KEY_GROQ"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("GOOGLE_AI_API_KEY", "alias-gem")
+    monkeypatch.setenv("SUPREMEAI_PROVIDER_KEY_GROQ", "provider-groq,second-groq")
+    providers = _get_api_providers()
+    slots = [p["slot"] for p in providers]
+    assert "GOOGLE_AI_API_KEY" in slots and "SUPREMEAI_PROVIDER_KEY_GROQ" in slots
+    keys = [p["key"] for p in providers if p["slot"] == "SUPREMEAI_PROVIDER_KEY_GROQ"]
+    assert "second-groq" in keys  # comma pool split
+
+
+def test_unavailable_warning_lists_pool_slots_without_values(monkeypatch, capsys):
+    from scripts.ci import ai_semantic_pr_verifier as verifier
+    monkeypatch.setenv("SEMANTIC_VERIFIER_ALLOW_EXTERNAL_DIFF", "true")
+    with patch.object(verifier, "_get_api_providers", return_value=[
+        {"name": "groq", "key": "sekret", "slot": "GROQ_API_KEY", "model": "m1"},
+        {"name": "openai", "key": "hush", "slot": "OPENAI_API_KEY", "model": "m2"},
+    ]), patch.object(verifier, "call_llm_provider", return_value=None):
+        run_semantic_verification(["core/security/auth.py"], "+change")
+    out = capsys.readouterr().out
+    assert "pool: groq:GROQ_API_KEY[m1], openai:OPENAI_API_KEY[m2]" in out
+    assert "sekret" not in out and "hush" not in out

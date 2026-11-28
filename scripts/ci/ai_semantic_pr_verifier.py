@@ -363,14 +363,18 @@ def _get_api_providers() -> list[dict[str, str]]:
 
     # 2. Every Infisical-exported env key - walk the whole vault pool per
     #    family, emitting one entry per (key, model) so an exhausted model on
-    #    a healthy key is retried on the family's fallback model.
+    #    a healthy key is retried on the family's fallback model. Sources
+    #    include the gateway's documented aliases (provider_chain.py) and
+    #    .env.example names, because the vault may store a family's key under
+    #    any of them.
+    provider_key_env = lambda family: f"SUPREMEAI_PROVIDER_KEY_{family.upper()}"
     env_key_sources = {
-        "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEYS"),
-        "groq": ("GROQ_API_KEY", "GROQ_API_KEYS"),
-        "openai": ("OPENAI_API_KEY", "OPENAI_API_KEYS"),
-        "openrouter": ("OPENROUTER_API_KEY", "OPENROUTER_API_KEYS"),
-        "deepseek": ("DEEPSEEK_API_KEY", "DEEPSEEK_API_KEYS"),
-        "mistral": ("MISTRAL_API_KEY", "MISTRAL_API_KEYS"),
+        "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_AI_API_KEY", "GEMINI_TOKEN", "JULES_API_KEY", provider_key_env("gemini"), "GEMINI_API_KEYS"),
+        "groq": ("GROQ_API_KEY", provider_key_env("groq"), "GROQ_API_KEYS"),
+        "openai": ("OPENAI_API_KEY", provider_key_env("openai"), "OPENAI_API_KEYS"),
+        "openrouter": ("OPENROUTER_API_KEY", provider_key_env("openrouter"), "OPENROUTER_API_KEYS"),
+        "deepseek": ("DEEPSEEK_API_KEY", provider_key_env("deepseek"), "DEEPSEEK_API_KEYS"),
+        "mistral": ("MISTRAL_API_KEY", provider_key_env("mistral"), "MISTRAL_API_KEYS"),
     }
     for family, sources in env_key_sources.items():
         for model in _model_chain(family):
@@ -520,7 +524,12 @@ def run_semantic_verification(files: list[str], diff: str, title: str = "") -> d
         print(f"[API-POOL] Key {slot} produced no valid verdict; trying next pool key.")
 
     # A clean secret regex is not a semantic security or anti-bloat review.
-    print(f"::warning::Semantic review unavailable ({total} provider key(s) checked, none valid); high-risk PR not verified.")
+    # Slot names (never values) go into the annotation so the pool inventory
+    # is diagnosable even when Actions log storage is unavailable.
+    _slots = ", ".join(
+        f"{p.get('name', '?')}:{p.get('slot', 'unknown')}[{p.get('model', '?')}]" for p in providers[:12]
+    )
+    print(f"::warning::Semantic review unavailable ({total} provider key(s) checked, none valid; pool: {_slots}); high-risk PR not verified.")
     return {
         "approved": False,
         "security_verdict": "UNKNOWN",
