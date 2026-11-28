@@ -268,6 +268,25 @@ def _get_api_providers() -> list[dict[str, str]]:
     except ValueError:
         max_keys = None
 
+    # 0. Unified API pool JSON (LLM_PROVIDER_KEYS) from Infisical
+    raw_pool = os.environ.get("LLM_PROVIDER_KEYS", "").strip()
+    if raw_pool:
+        try:
+            pool_data = json.loads(raw_pool)
+            if isinstance(pool_data, dict):
+                for pname, entries in pool_data.items():
+                    items = entries if isinstance(entries, list) else [entries]
+                    for item in items:
+                        if isinstance(item, dict) and item.get("key") and item.get("url"):
+                            providers.append({
+                                "name": str(pname),
+                                "key": str(item["key"]),
+                                "url": str(item["url"]),
+                                "model": str(item.get("model", "")),
+                            })
+        except Exception:
+            pass
+
     # 1. Gemini
     gemini_keys = _iter_numbered_keys("GEMINI_API_KEY")
     if not gemini_keys:
