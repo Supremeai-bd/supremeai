@@ -93,3 +93,25 @@ class TestFactualVerifier:
         text = "The result is 2 + 2 = 4"
         result = verifier.verify(text)
         assert isinstance(result, dict)
+
+
+class TestSelfContradictionGuard:
+    """বাংলা মন্তব্য: আত্ম-বিবাদমান ক্লেইম সার্চ-হিট পেলেও প্রমাণিত হবে না।"""
+
+    @pytest.fixture
+    def verifier(self):
+        return FactualVerifier()
+
+    def test_self_contradictory_flag(self, verifier):
+        assert verifier._self_contradictory("Paris is the capital but is not the capital of France") is True
+        assert verifier._self_contradictory("Paris is the capital of France") is False
+
+    @pytest.mark.asyncio
+    async def test_contradictory_claim_is_not_verified_even_with_search_hit(self, verifier):
+        # পুরনো "simulated" ফেক প্রমাণ এখন অসম্ভব — ক্লেইমই বিবাদমান, তাই unverified।
+        with patch.object(verifier, "_ddgs", new_callable=MagicMock):
+            result = await verifier.verify_with_web_search(
+                "Paris is the capital of France but Paris is not the capital of France"
+            )
+        assert result["is_verified"] is False
+        assert result["method"] == "self_contradictory"

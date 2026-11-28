@@ -126,16 +126,35 @@ class FactualVerifier:
                 "method": "rag_error",
             }
 
+    # বাংলা মন্তব্য: contradiction-signature lexicon — ক্লেইমের ভেতরে একসাথে
+    # বিপরীত জোড়া থাকলে সার্চ-হিটও প্রমাণ নয় (নিজেই বিবাদমান ক্লেইম)।
+    _CONTRADICTION_PAIRS: tuple[tuple[str, str], ...] = (
+        ("is", "is not"),
+        ("true", "false"),
+        ("always", "never"),
+        ("increases", "decreases"),
+        ("capital of", "not the capital of"),
+    )
+
+    def _self_contradictory(self, claim: str) -> bool:
+        """True when the claim simultaneously asserts opposite facts."""
+        low = claim.lower()
+        for a, b in self._CONTRADICTION_PAIRS:
+            if a in low and b in low:
+                return True
+        return False
+
     async def verify_with_web_search(self, claim: str) -> dict:
-        if "france" in claim.lower() and "paris" in claim.lower() and self._ddgs is None:
+        # বাংলা মন্তব্য: আত্ম-বিবাদমান ক্লেইম আগেই ধরি — সার্চ খরচ না করেই সৎ
+        # unverified রেজাল্ট (পুরনো "simulated" fake-verification বাদ)।
+        if self._self_contradictory(claim):
             return {
                 "claim": claim,
-                "is_verified": True,
-                "confidence": 1.0,
-                "sources": ["https://en.wikipedia.org/wiki/Paris"],
-                "supporting_sources": ["https://en.wikipedia.org/wiki/Paris"],
-                "contradicting_sources": [],
-                "method": "simulated",
+                "is_verified": False,
+                "confidence": 0.0,
+                "sources": [],
+                "supporting_sources": [],
+                "method": "self_contradictory",
             }
 
         # If _ddgs mock or instance is provided by test or runtime

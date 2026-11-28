@@ -62,6 +62,15 @@ ACTION_PATTERNS: dict[str, dict[str, Any]] = {
     "code_generate": {
         "keywords": [
             "write",
+            # বাংলা মন্তব্য: Banglish কীওয়ার্ড — LLM gatekeeper down হলে বাংলা
+            # ব্যবহারকারীর অনুরোধও regex fallback-এ সঠিক রাউট হবে (chat নয়)।
+            "likho",
+            "banao",
+            "build koro",
+            "code koro",
+            "function banao",
+            "kodu",
+            "laga",
             "create",
             "generate",
             "build",
@@ -93,6 +102,10 @@ ACTION_PATTERNS: dict[str, dict[str, Any]] = {
     "ide_open": {
         "keywords": [
             "open ide",
+            # বাংলা মন্তব্য: Banglish সমর্থন (IDE খোলা/এডিটর দেখানো)।
+            "ide khoro",
+            "editor khulo",
+            "editor dekhao",
             "switch to code",
             "show editor",
             "full editor",
@@ -112,6 +125,10 @@ ACTION_PATTERNS: dict[str, dict[str, Any]] = {
         "keywords": [
             "video",
             "edit",
+            # বাংলা মন্তব্য: Banglish সমর্থন (ভিডিও সম্পাদনা)।
+            "video edit koro",
+            "video kato",
+            "video joro",
             "trim",
             "cut",
             "merge",
@@ -141,6 +158,14 @@ ACTION_PATTERNS: dict[str, dict[str, Any]] = {
             "summarize",
             "analyze data",
             "report",
+            # বাংলা মন্তব্য: বাংলা প্রশ্ন-কীওয়ার্ড — বর্তমান পরিস্থিতি/খোঁজ জানতে চাইলে
+            # লাইভ সার্চে যাবে (আগে সব chat হয়ে যেত)।
+            "kibe",
+            "kothay",
+            "what is the",
+            "current situation",
+            "khojo",
+            "search koro",
         ],
         "target": "research",
         "icon": "🔍",
@@ -156,6 +181,10 @@ ACTION_PATTERNS: dict[str, dict[str, Any]] = {
             "release",
             "host",
             "ship it",
+            # বাংলা মন্তব্য: Banglish সমর্থন (ডিপ্লয়/প্রকাশ)।
+            "deploy kore",
+            "live dao",
+            "publish koro",
         ],
         "target": "deploy",
         "icon": "🚀",
@@ -172,6 +201,10 @@ ACTION_PATTERNS: dict[str, dict[str, Any]] = {
             "provider",
             "temperature",
             "max tokens",
+            # বাংলা মন্তব্য: Banglish সমর্থন (সেটিংস পরিবর্তন)।
+            "settings change koro",
+            "config koro",
+            "theme bodlao",
         ],
         "target": "settings",
         "icon": "⚙️",
