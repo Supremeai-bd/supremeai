@@ -2981,6 +2981,17 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         ),
     ),
     ConfigSpec(
+        "SUPREMEAI_AI_MEMORY_RECALL",
+        frozenset({ConfigClass.PUBLIC}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"gateway"}),
+        description=(
+            "Phase 0.2 recall kill-switch: set to 0 to stop the gateway from fetching "
+            "ai_verified_memories (Supabase) for the untrusted context block. Fetch is "
+            "best-effort and fails open; this switch is for ops, not correctness."
+        ),
+    ),
+    ConfigSpec(
         "SUPREMEAI_ADMIN_BOOTSTRAP_SECRET",
         frozenset({ConfigClass.SECRET}),
         frozenset({ConfigSource.ENV}),
