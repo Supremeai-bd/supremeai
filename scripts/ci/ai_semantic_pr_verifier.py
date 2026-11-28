@@ -65,7 +65,8 @@ SECRET_PATTERNS = [
     (r"sk-[a-zA-Z0-9]{20,}", "Raw OpenAI/API Key"),
 ]
 
-DIFF_CHAR_LIMIT = 8000
+# বাংলা মন্তব্য: বড় PR-ও যেন LLM সেমান্টিক সিকিউরিটি ও রিগ্রেশন যাচাইয়ের আওতায় আসে
+DIFF_CHAR_LIMIT = 100000
 LLM_TIMEOUT_SECONDS = 30
 
 
