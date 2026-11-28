@@ -32,7 +32,7 @@ def test_metadata_kwargs_populate_feedback_fields():
             pass
         return record
 
-    record = asyncio.get_event_loop().run_until_complete(run())
+    record = asyncio.run(run())
     assert record.cost_estimate == 0.0001
     assert record.user_correction == "route should prefer groq here"
     assert record.success is True
@@ -68,7 +68,7 @@ def test_durable_sink_maps_estimated_cost_to_column():
             pass
 
     with patch("core.learning.record_llm_event", fake_record_llm_event):
-        asyncio.get_event_loop().run_until_complete(run())
+        asyncio.run(run())
 
     assert captured.get("estimated_cost") == 0.5
     # correction stays in the persisted metadata for Phase 1 reorder logic
