@@ -1,9 +1,6 @@
 """Service health map endpoint (GET /admin-api/health-map) — Resolves #778 / OB-02."""
 
-import os
 import time
-
-import httpx
 
 from api.routes.admin_dashboard import router
 from core.config import settings
@@ -57,43 +54,7 @@ async def get_health_map():
     }
 
 
-@router.get("/shadow-hf/status")
-async def get_shadow_and_hf_status():
-    """Fetch live status from Hugging Face Tiny Brain Space (Kaggle Shadow disabled)."""
-    hf_url = os.getenv("TINY_BRAIN_URL", "https://njelitltd-tiny-brain.hf.space").rstrip("/")
-    kaggle_data = {"ok": False, "disabled": True, "reason": "Kaggle Shadow disabled (phone verification unavailable)"}
-
-    async with httpx.AsyncClient(timeout=6.0) as client:
-        hf_health = {"status": "unreachable"}
-        hf_top_ai = {"top_providers": []}
-
-        try:
-            r = await client.get(f"{hf_url}/health")
-            hf_health = r.json() if r.status_code == 200 else {"status": f"HTTP {r.status_code}"}
-        except Exception as exc:
-            hf_health = {"status": "error", "error": str(exc)}
-
-        try:
-            r = await client.get(f"{hf_url}/top-ai")
-            if r.status_code == 200:
-                hf_top_ai = r.json()
-        except Exception as exc:
-            import logging
-            logging.getLogger(__name__).debug("HF top-ai fetch failed (%s)", type(exc).__name__)
-
-    return {"kaggle_shadow": kaggle_data, "huggingface_tiny_brain": {"health": hf_health, "top_ai": hf_top_ai}}
-
-
 @router.post("/shadow-hf/kaggle-rotate")
 async def trigger_kaggle_rotate():
     """Kaggle Shadow is disabled (phone verification unavailable)."""
     return {"ok": False, "disabled": True, "reason": "Kaggle Shadow disabled (phone verification unavailable)"}
-
-
-@router.post("/shadow-hf/top-ai-refresh")
-async def trigger_hf_top_ai_refresh():
-    """Force-refresh the Top AI provider ranking on the Hugging Face Tiny Brain Space."""
-    hf_url = os.getenv("TINY_BRAIN_URL", "https://njelitltd-tiny-brain.hf.space").rstrip("/")
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        r = await client.get(f"{hf_url}/top-ai?force=true")
-        return r.json() if r.status_code == 200 else {"ok": False, "status": r.status_code}

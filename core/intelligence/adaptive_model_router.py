@@ -51,7 +51,10 @@ class AdaptiveModelRouter:
         self.w_cost = weight_cost
         self.epsilon = exploration_rate
         self.decay = decay_factor
-        self.fallback_chain = fallback_chain or ["qwen2.5_coder", "gemini_flash", "local_tiny_brain"]
+        # Default chain lists only real, registrable model ids. The retired
+        # "local_tiny_brain" entry was removed: a fallback id that can never be
+        # registered would dead-end the chain (unified training plan 0.4).
+        self.fallback_chain = fallback_chain or ["qwen2.5_coder", "gemini_flash"]
         self.models: dict[str, ModelProfile] = {}
 
     def register_model(self, profile: ModelProfile) -> None:
