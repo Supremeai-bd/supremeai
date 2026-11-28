@@ -822,6 +822,29 @@ jobs:
         with:
           category: "/language:${{ matrix.language }}"
 
+  warning-summary:
+    name: "Summarize Workflow Warnings"
+    if: always()
+    needs: [verify-pr, codeql]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Summarize source run annotations
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.run_attempt }}
+          SOURCE_HEAD_SHA: ${{ github.sha }}
+        run: python3 scripts/ci/workflow_annotation_summary.py
+
   # =========================================================================
   # STAGE 3: POST-MERGE PRODUCTION DEPLOY & CANARY (Push to Main or Manual Dispatch)
   # Constitutional Invariant: Deployments are 100% Cloud-Native API triggers
