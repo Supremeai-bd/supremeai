@@ -409,12 +409,12 @@
   },
   "graph": {
     "modules": 2189,
-    "edges": 5126,
+    "edges": 5133,
     "edge_kinds": {
       "dispatch": 227,
       "dynamic": 4,
-      "import": 4180,
-      "string": 715
+      "import": 4183,
+      "string": 719
     }
   },
   "entrypoints": {
@@ -593,7 +593,6 @@
   },
   "reachable_but_unattributed": [
     "browser.main",
-    "core.adaptive_engine.governed_executor",
     "core.adaptive_engine.platform_learner",
     "core.adaptive_engine.self_improving_agent",
     "core.admin_god",
