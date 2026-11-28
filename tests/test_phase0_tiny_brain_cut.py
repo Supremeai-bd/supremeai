@@ -23,6 +23,6 @@ def test_dead_hf_probe_is_gone():
 
 def test_disabled_kaggle_stub_and_health_map_survive():
     src = ENDPOINTS_HEALTH.read_text(encoding="utf-8")
-    assert "/shadow-hf/kaggle-rotate" in src  # disabled stub, no network
+    assert "/shadow-hf/kaggle-rotate" not in src  # dead stub cut (Rule 12)
     assert "/health-map" in src
     assert "import httpx" not in src  # no network client left behind unused
