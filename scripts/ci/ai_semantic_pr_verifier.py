@@ -287,41 +287,6 @@ def _get_api_providers() -> list[dict[str, str]]:
         except Exception:
             pass
 
-    # 1. Gemini
-    gemini_keys = _iter_numbered_keys("GEMINI_API_KEY")
-    if not gemini_keys:
-        google = os.environ.get("GOOGLE_API_KEY", "").strip()
-        if google:
-            gemini_keys = [google]
-    gemini_model = os.environ.get("EVALUATOR_GEMINI_MODEL", "gemini-2.5-flash")
-    for key in gemini_keys[:max_keys]:
-        providers.append({
-            "name": "gemini",
-            "key": key,
-            "url": f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent",
-            "model": gemini_model,
-        })
-
-    # 2. Groq
-    groq_model = os.environ.get("EVALUATOR_GROQ_MODEL", "llama-3.3-70b-versatile")
-    for key in _iter_numbered_keys("GROQ_API_KEY")[:max_keys]:
-        providers.append({
-            "name": "groq",
-            "key": key,
-            "url": "https://api.groq.com/openai/v1/chat/completions",
-            "model": groq_model,
-        })
-
-    # 3. OpenAI
-    openai_model = os.environ.get("EVALUATOR_OPENAI_MODEL", "gpt-4o-mini")
-    for key in _iter_numbered_keys("OPENAI_API_KEY")[:max_keys]:
-        providers.append({
-            "name": "openai",
-            "key": key,
-            "url": "https://api.openai.com/v1/chat/completions",
-            "model": openai_model,
-        })
-
     return providers
 
 
