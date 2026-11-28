@@ -52,9 +52,3 @@ async def get_health_map():
             "live_uptime_seconds": uptime_seconds,
         },
     }
-
-
-@router.post("/shadow-hf/kaggle-rotate")
-async def trigger_kaggle_rotate():
-    """Kaggle Shadow is disabled (phone verification unavailable)."""
-    return {"ok": False, "disabled": True, "reason": "Kaggle Shadow disabled (phone verification unavailable)"}

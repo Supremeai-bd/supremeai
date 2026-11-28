@@ -166,9 +166,7 @@ def _format_ai_memory_row(row: dict[str, Any]) -> str:
 
 def build_ai_memory_block(rows: list[dict[str, Any]], max_tokens: int = AI_MEMORY_RECALL_MAX_TOKENS) -> str:
     """Serialize promoted memories under the hard token cap (est. 4 chars/token)."""
-    max_chars = max_tokens * _CHARS_PER_TOKEN_ESTIMATE
     lines: list[str] = []
-    used = 0
     seen: set[str] = set()
     for row in rows:
         if not isinstance(row, dict):
@@ -178,11 +176,11 @@ def build_ai_memory_block(rows: list[dict[str, Any]], max_tokens: int = AI_MEMOR
             continue
         seen.add(sha)
         line = _format_ai_memory_row(row)
-        if used + len(line) + 1 > max_chars:
+        candidate = "\n".join([*lines, line])
+        if _estimate_tokens(candidate) > max_tokens:
             lines.append("…(recall truncated at the 400-token cap)")
             break
         lines.append(line)
-        used += len(line) + 1
     return "\n".join(lines)
 
 
