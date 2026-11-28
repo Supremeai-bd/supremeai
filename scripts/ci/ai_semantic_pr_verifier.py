@@ -263,9 +263,9 @@ def _get_api_providers() -> list[dict[str, str]]:
     """
     providers: list[dict[str, str]] = []
     try:
-        max_keys = max(1, int(os.environ.get("EVALUATOR_MAX_KEYS_PER_PROVIDER", "3")))
+        max_keys = max(1, int(os.environ.get("EVALUATOR_MAX_KEYS_PER_PROVIDER", "15")))
     except ValueError:
-        max_keys = 3
+        max_keys = 15
 
     # 1. Gemini
     gemini_keys = _iter_numbered_keys("GEMINI_API_KEY")
@@ -301,6 +301,22 @@ def _get_api_providers() -> list[dict[str, str]]:
             "url": "https://api.openai.com/v1/chat/completions",
             "model": openai_model,
         })
+
+    # 4. OpenAI-compatible free/high-quota providers from Infisical
+    extra_providers = [
+        ("openrouter", "OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", "meta-llama/llama-3.3-70b-instruct:free"),
+        ("cerebras", "CEREBRAS_API_KEY", "https://api.cerebras.ai/v1/chat/completions", "llama-3.3-70b"),
+        ("sambanova", "SAMBANOVA_API_KEY", "https://api.sambanova.ai/v1/chat/completions", "Meta-Llama-3.3-70B-Instruct"),
+        ("mistral", "MISTRAL_API_KEY", "https://api.mistral.ai/v1/chat/completions", "mistral-small-latest"),
+    ]
+    for pname, env_prefix, purl, pmodel in extra_providers:
+        for key in _iter_numbered_keys(env_prefix)[:max_keys]:
+            providers.append({
+                "name": pname,
+                "key": key,
+                "url": purl,
+                "model": pmodel,
+            })
 
     return providers
 
