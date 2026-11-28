@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
+import urllib.request
 from datetime import UTC, datetime
 from typing import Any, Dict, List, Optional
 
@@ -105,6 +107,99 @@ def resolve_sampling_knobs(*args, **kwargs) -> Dict[str, Any]:
     }
 
 
+# ── Phase 0.2 recall wiring (unified training plan) ──────────────────────────
+# Owner policy (2026-11-28): rows promoted into ai_verified_memories passed
+# deterministic hygiene checks + the API-pool AI verdict ("database"). They are
+# recalled ONLY as untrusted user-role context data with a hard token cap -
+# never as system instructions. Any fetch failure degrades to "no memories"
+# (recall must never break a chat), and SUPREMEAI_AI_MEMORY_RECALL=0 disables
+# the fetch entirely (ops kill-switch).
+
+AI_MEMORY_RECALL_MAX_TOKENS = 400
+_CHARS_PER_TOKEN_ESTIMATE = 4
+
+AI_MEMORY_QUERY_FIELDS = "record_sha256,task_family,decision,reasoning_pattern,promoted_by"
+
+
+def _estimate_tokens(text: str) -> int:
+    return max(1, len(text) // _CHARS_PER_TOKEN_ESTIMATE)
+
+
+def fetch_ai_verified_memories(limit: int = 12) -> list[dict[str, Any]]:
+    """Best-effort read of promoted AI memories from Supabase PostgREST.
+
+    Returns [] on any failure (missing config, network, bad payload). Never
+    raises and never touches the request error path.
+    """
+    url = (os.getenv("SUPABASE_URL") or "").strip().rstrip("/")
+    key = (os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_SERVICE_KEY") or "").strip()
+    if not url.startswith("https://") or not key:
+        return []
+    endpoint = f"{url}/rest/v1/ai_verified_memories?select={AI_MEMORY_QUERY_FIELDS}&limit={int(limit)}"
+    req = urllib.request.Request(
+        endpoint,
+        headers={"apikey": key, "Authorization": f"Bearer {key}", "Accept": "application/json"},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            rows = json.loads(resp.read().decode("utf-8", errors="replace"))
+        return rows if isinstance(rows, list) else []
+    except Exception as exc:
+        logger.debug("ai_verified_memories recall skipped: %s", type(exc).__name__)
+        return []
+
+
+def _format_ai_memory_row(row: dict[str, Any]) -> str:
+    family = str(row.get("task_family") or "other")
+    decision = str(row.get("decision") or "").strip()
+    sha8 = str(row.get("record_sha256") or "")[:8]
+    pattern = row.get("reasoning_pattern")
+    hint = ""
+    if isinstance(pattern, dict):
+        hint = str(pattern.get("approach") or pattern.get("summary") or "")[:160]
+    parts = [f"[{family}]", decision or "(no decision)"]
+    if hint:
+        parts.append(f"- {hint}")
+    return " ".join(parts) + f" (sha:{sha8})"
+
+
+def build_ai_memory_block(rows: list[dict[str, Any]], max_tokens: int = AI_MEMORY_RECALL_MAX_TOKENS) -> str:
+    """Serialize promoted memories under the hard token cap (est. 4 chars/token)."""
+    max_chars = max_tokens * _CHARS_PER_TOKEN_ESTIMATE
+    lines: list[str] = []
+    used = 0
+    seen: set[str] = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        sha = str(row.get("record_sha256") or "")
+        if sha and sha in seen:
+            continue
+        seen.add(sha)
+        line = _format_ai_memory_row(row)
+        if used + len(line) + 1 > max_chars:
+            lines.append("…(recall truncated at the 400-token cap)")
+            break
+        lines.append(line)
+        used += len(line) + 1
+    return "\n".join(lines)
+
+
+def _recall_ai_memories(provided: Any) -> str:
+    if isinstance(provided, str):
+        return provided
+    if provided is None:
+        if os.getenv("SUPREMEAI_AI_MEMORY_RECALL", "1").strip().lower() in {"0", "false", "off"}:
+            return ""
+        provided = fetch_ai_verified_memories()
+    if isinstance(provided, dict):
+        provided = [provided]
+    if not isinstance(provided, (list, tuple)):
+        return ""
+    return build_ai_memory_block([r for r in provided if isinstance(r, dict)])
+
+
 def _extract_user_memories(user_id: Optional[str], provided: Any) -> List[Dict[str, Any]]:
     if provided is not None:
         if isinstance(provided, (list, tuple)):
@@ -186,9 +281,13 @@ def compile_chat_context(*args, **kwargs) -> List[Dict[str, Any]]:
             for m in user_memories if isinstance(m, dict)
         ]
 
-    # AI-exchange records currently lack independently enforced provenance and
-    # approval. Do not promote them to prompt authority merely because a row is
-    # marked active; re-enable only after a reviewed trust boundary exists.
+    # Phase 0.2 (owner policy 2026-11-28): AI-verified memories ARE recalled,
+    # but only into the untrusted user-role data block below with a hard
+    # 400-token cap. That user-role untrusted form IS the reviewed trust
+    # boundary; promoted rows never enter the system anchor.
+    ai_memory_block = _recall_ai_memories(kwargs.get("ai_verified_memories"))
+    if ai_memory_block:
+        context_data["ai_verified_memories"] = ai_memory_block
 
     # বাংলা মন্তব্য: ক্লায়েন্টের নির্দেশ ও নথি হারাবে না, কিন্তু system authority-ও পাবে না।
     system_parts.append(
