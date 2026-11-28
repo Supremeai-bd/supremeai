@@ -408,12 +408,12 @@
     ]
   },
   "graph": {
-    "modules": 2190,
-    "edges": 5127,
+    "modules": 2189,
+    "edges": 5126,
     "edge_kinds": {
       "dispatch": 227,
       "dynamic": 4,
-      "import": 4181,
+      "import": 4180,
       "string": 715
     }
   },
@@ -445,7 +445,7 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1697,
+    "reachable": 1696,
     "unreachable": 493,
     "reachable_pct": 77.5
   },
@@ -885,7 +885,6 @@
     "core.scripts.store_ci_roadmap_to_memory",
     "core.scripts.superai_free_tier_monitor",
     "core.scripts.sync_knowledge",
-    "core.scripts.tiny_brain_dataset_generator",
     "core.scripts.validate_openapi",
     "core.security.audit.compliance_bot",
     "core.security.audit.security_auditor",
