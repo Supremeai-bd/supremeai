@@ -68,7 +68,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
-from core.utils.api_key_resolver import resolve_numbered_key
+from core.utils.api_key_resolver import iter_key_with_aliases
 
 REPO = os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GH_REPO") or "Supremeai-bd/supremeai"
 RULES_PATH = Path(__file__).resolve().parents[2] / ".github" / "constitution" / "rules.yml"
@@ -684,31 +684,30 @@ DIFF_SNIPPET_LIMIT = 6000
 def _llm_providers() -> list[dict[str, str]]:
     """কী-পুল (env) — Groq→Gemini→OpenRouter রাউন্ড-রবিন; কী না থাকলে খালি।
 
-    বাংলা: কী শুধুই approved credential broker/env থেকে — কখনো hardcode নয়
+    বাংলা: Infisical-এর numbered/alias প্রতিটি কী আলাদা entry — রাউন্ড-রবিন একটা
+    valid কী পাওয়া পর্যন্ত সব চেক করে; এক কী fail হলে পুরো প্রোভাইডার হারায় না।
+    কী শুধুই approved credential broker/env থেকে — কখনো hardcode নয়
     (AGENTS.md house doctrine)। CI-তে কী না থাকলে deterministic-evidence-ই সত্য।
     """
     providers: list[dict[str, str]] = []
-    if resolve_numbered_key("GROQ_API_KEY"):
-        providers.append({
-            "name": "groq", "key": os.environ["GROQ_API_KEY"],
-            "url": "https://api.groq.com/openai/v1/chat/completions",
-            "model": os.getenv("EVALUATOR_GROQ_MODEL") or "llama-3.3-70b-versatile",
-        })
-    gemini_key = resolve_numbered_key("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
-    if gemini_key:
-        gem_model = os.getenv("EVALUATOR_GEMINI_MODEL") or "gemini-2.5-flash"
-        providers.append({
-            "name": "gemini", "key": gemini_key,
-            "url": "https://generativelanguage.googleapis.com/v1beta/models/"
-                   f"{gem_model}:generateContent",
-            "model": gem_model,
-        })
-    if resolve_numbered_key("OPENROUTER_API_KEY"):
-        providers.append({
-            "name": "openrouter", "key": os.environ["OPENROUTER_API_KEY"],
-            "url": "https://openrouter.ai/api/v1/chat/completions",
-            "model": os.getenv("EVALUATOR_OPENROUTER_MODEL") or "openai/gpt-4o-mini",
-        })
+    groq_model = os.getenv("EVALUATOR_GROQ_MODEL") or "llama-3.3-70b-versatile"
+    gem_model = os.getenv("EVALUATOR_GEMINI_MODEL") or "gemini-2.5-flash"
+    or_model = os.getenv("EVALUATOR_OPENROUTER_MODEL") or "openai/gpt-4o-mini"
+    families = (
+        ("groq", iter_key_with_aliases("GROQ_API_KEY", ["GROQ_API_KEYS"]),
+         "https://api.groq.com/openai/v1/chat/completions", groq_model),
+        ("gemini", iter_key_with_aliases("GEMINI_API_KEY", ["GOOGLE_API_KEY"]),
+         ("https://generativelanguage.googleapis.com/v1beta/models/"
+          f"{gem_model}:generateContent"), gem_model),
+        ("openrouter", iter_key_with_aliases("OPENROUTER_API_KEY", []),
+         "https://openrouter.ai/api/v1/chat/completions", or_model),
+    )
+    for name, pairs, url, model in families:
+        for _env_name, key in pairs:
+            tokens = [t.strip() for t in key.split(",")] if "," in key else [key]
+            for token in tokens:
+                if token:
+                    providers.append({"name": name, "key": token, "url": url, "model": model})
     return providers
 
 
