@@ -112,6 +112,7 @@ def test_oversized_diff_is_unverified():
 
 def test_pr_diff_failure_never_uses_unrelated_local_diff():
     from subprocess import CompletedProcess
+
     from scripts.ci import ai_semantic_pr_verifier as verifier
     with patch.object(verifier, "run_cmd", return_value=CompletedProcess([], 1, "", "unavailable")) as cmd:
         assert verifier.get_diff_text(["core/security/auth.py"], pr_number="123") == ""
@@ -120,6 +121,7 @@ def test_pr_diff_failure_never_uses_unrelated_local_diff():
 
 def test_failed_pr_file_lookup_does_not_fall_back_to_base_checkout(monkeypatch):
     from subprocess import CompletedProcess
+
     from scripts.ci import ai_semantic_pr_verifier as verifier
     monkeypatch.setattr(verifier.shutil, "which", lambda _: "/bin/gh")
     monkeypatch.setattr(verifier, "run_cmd", lambda _: CompletedProcess([], 1, "", "error"))
@@ -130,6 +132,7 @@ def test_failed_pr_file_lookup_does_not_fall_back_to_base_checkout(monkeypatch):
 
 def test_pr_file_count_and_renamed_sensitive_path(monkeypatch):
     from subprocess import CompletedProcess
+
     from scripts.ci import ai_semantic_pr_verifier as verifier
     monkeypatch.setenv("GITHUB_REPOSITORY", "org/repo")
     commands = iter([
@@ -192,14 +195,25 @@ def test_api_pool_discovers_every_infisical_env_key(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY_3", "groq-third")
     monkeypatch.setenv("GROQ_API_KEYS", "groq-a,groq-b")
     providers = _get_api_providers()
+    # Each key is emitted once per model in the family's fallback chain, so an
+    # exhausted model on a healthy key is retried on the next model.
     assert [(p["name"], p["key"], p["slot"]) for p in providers] == [
+        ("gemini", "gem-base", "GEMINI_API_KEY"),
+        ("gemini", "gem-second", "GEMINI_API_KEY_2"),
+        ("gemini", "google-alias", "GOOGLE_API_KEY"),
         ("gemini", "gem-base", "GEMINI_API_KEY"),
         ("gemini", "gem-second", "GEMINI_API_KEY_2"),
         ("gemini", "google-alias", "GOOGLE_API_KEY"),
         ("groq", "groq-third", "GROQ_API_KEY_3"),
         ("groq", "groq-a", "GROQ_API_KEYS"),
         ("groq", "groq-b", "GROQ_API_KEYS"),
+        ("groq", "groq-third", "GROQ_API_KEY_3"),
+        ("groq", "groq-a", "GROQ_API_KEYS"),
+        ("groq", "groq-b", "GROQ_API_KEYS"),
     ]
+    gemini_models = [p["model"] for p in providers if p["name"] == "gemini"]
+    assert gemini_models[:3] == ["gemini-flash-lite-latest"] * 3
+    assert gemini_models[3:] == ["gemini-2.5-flash"] * 3
     assert all(p["url"] and p["model"] for p in providers)
 
 
@@ -212,9 +226,14 @@ def test_api_pool_json_entries_come_first_and_dedup_env_keys(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "pool-key-1")  # same value as the pool JSON
     monkeypatch.setenv("GEMINI_API_KEY", "env-gem")
     providers = _get_api_providers()
+    # JSON entries carry their own explicit model (no fallback chain); env
+    # keys are retried on every model in the family chain.
     assert [(p["name"], p["key"]) for p in providers] == [
         ("groq", "pool-key-1"),
         ("gemini", "env-gem"),
+        ("gemini", "env-gem"),
+        # the shared value surfaces again as the groq env key's fallback-model retry
+        ("groq", "pool-key-1"),
     ]
     assert providers[0]["slot"] == "LLM_PROVIDER_KEYS[groq]"
 
@@ -228,7 +247,9 @@ def test_evaluator_max_keys_per_provider_caps_each_family(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "q1")
     monkeypatch.setenv("EVALUATOR_MAX_KEYS_PER_PROVIDER", "2")
     providers = _get_api_providers()
-    assert [p["key"] for p in providers] == ["g1", "g2", "q1"]
+    # The cap limits keys tried per provider per model pass, so both gemini
+    # keys still appear once for each model in the family chain.
+    assert [p["key"] for p in providers] == ["g1", "g2", "g1", "g2", "q1", "q1"]
 
 
 def test_provider_pool_checks_keys_until_one_is_valid(monkeypatch, capsys):
