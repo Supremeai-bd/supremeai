@@ -46,6 +46,7 @@ class FakeDatabase:
             ],
         }
         self.down = False
+        self.fail_updates = False
         self.client = self
         self.reads = {}
 
@@ -63,7 +64,11 @@ class Query:
         return self
 
     def eq(self, key, value):
-        self.filters.append((key, value))
+        self.filters.append(('eq', key, value))
+        return self
+
+    def in_(self, key, values):
+        self.filters.append(('in', key, set(values)))
         return self
 
     def order(self, *_args, **_kwargs):
@@ -81,10 +86,19 @@ class Query:
         if self.db.down:
             raise RuntimeError("DB unavailable")
         rows = self.db.rows[self.name]
-        matches = [r for r in rows if all(r.get(k) == v for k, v in self.filters)]
+        matches = [
+            r
+            for r in rows
+            if all(
+                (r.get(k) == v if op == "eq" else r.get(k) in v)
+                for op, k, v in self.filters
+            )
+        ]
         if self.action == "delete":
             self.db.rows[self.name] = [r for r in rows if r not in matches]
         elif self.action == "update":
+            if self.db.fail_updates:
+                raise RuntimeError("Transient write failure")
             for row in matches:
                 row.update(self.payload)
         else:
@@ -223,3 +237,58 @@ def test_cache_cannot_cross_conversation_identity(harness):
     response = client.get("/api/share/AbCdEf123456")
     assert response.status_code == 404
     assert "private shared content" not in response.text
+
+
+def test_list_shared_conversations_not_shadowed_and_batches_titles(harness):
+    # বাংলা মন্তব্য: /api/share/list যেন /{share_id} দ্বারা শ্যাডো না হয় এবং N+1 কোয়েরির বদলে ১টি ব্যাচ কোয়েরি চালায়
+    db, worker = harness
+    db.rows["conversations"].extend(
+        [
+            {"id": "conv_2", "user_id": "owner", "title": "দ্বিতীয় আলাপ"},
+            {"id": "conv_3", "user_id": "owner", "title": "তৃতীয় আলাপ"},
+        ]
+    )
+    exp = db.rows["shared_conversations"][0]["expires_at"]
+    db.rows["shared_conversations"].extend(
+        [
+            {
+                "share_id": "ShareTwo0002",
+                "user_id": "owner",
+                "conversation_id": "conv_2",
+                "is_public": True,
+                "view_count": 3,
+                "created_at": "2026-01-02T00:00:00Z",
+                "expires_at": exp,
+            },
+            {
+                "share_id": "ShareThr0003",
+                "user_id": "owner",
+                "conversation_id": "conv_3",
+                "is_public": True,
+                "view_count": 5,
+                "created_at": "2026-01-03T00:00:00Z",
+                "expires_at": exp,
+            },
+        ]
+    )
+
+    _, anon_client = worker("share_list_anon")
+    assert anon_client.get("/api/share/list").status_code == 401
+
+    _, owner_client = worker("share_list_owner", user="owner")
+    res = owner_client.get("/api/share/list")
+    assert res.status_code == 200
+    items = res.json()
+    assert len(items) == 3
+    assert {item["title"] for item in items} == {"বাংলা আলাপ", "দ্বিতীয় আলাপ", "তৃতীয় আলাপ"}
+    assert db.reads["conversations"] == 1
+
+
+def test_transient_view_count_write_failure_does_not_500_public_read(harness):
+    # বাংলা মন্তব্য: গৌণ view_count আপডেট ব্যর্থ হলেও পাবলিক রিড ২০০ স্ট্যাটাসে উত্তর দেবে
+    db, worker = harness
+    _, client = worker("share_resilient_view_count")
+    db.fail_updates = True
+    res = client.get("/api/share/AbCdEf123456")
+    assert res.status_code == 200
+    assert res.json()["view_count"] == 0

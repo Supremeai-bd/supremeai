@@ -20,8 +20,10 @@ import ast
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-BACKEND_ROOT = REPO_ROOT / "backend"
+# বাংলা মন্তব্য: backend/ বিলুপ্ত হওয়ায় repo_paths দিয়ে ক্যানোনিকাল core/ পাথ সমাধান করা হচ্ছে
+from repo_paths import REPO_ROOT, resolve
+
+CORE_SECURITY_PATH = resolve("backend/core/middleware/security.py") or (REPO_ROOT / "core" / "middleware" / "security.py")
 
 REQUIRED_HEADERS = {
     "X-Content-Type-Options",
@@ -34,7 +36,7 @@ REQUIRED_HEADERS = {
 
 def check_middleware_definitions() -> list[str]:
     issues = []
-    middleware_file = BACKEND_ROOT / "core" / "middleware" / "security.py"
+    middleware_file = CORE_SECURITY_PATH
     if not middleware_file.exists():
         issues.append(f"Missing core security middleware file: {middleware_file}")
         return issues
