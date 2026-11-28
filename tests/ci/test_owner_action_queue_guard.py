@@ -49,3 +49,8 @@ def test_missing_required_fields_are_flagged():
 
 def test_self_test_contract_holds():
     assert self_test() == 0
+
+
+def test_entry_outside_marker_block_is_flagged():
+    problems = lint_queue(SELF_TEST_BODIES["entry_outside_marker"])
+    assert any("OUTSIDE the marker block" in p for p in problems)

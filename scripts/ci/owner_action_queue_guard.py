@@ -58,6 +58,15 @@ def lint_queue(body: str) -> list[str]:
     except ValueError as exc:
         return [str(exc)]
 
+    # Queue entries outside the marker block are invisible to this lint and to
+    # the protocol - flag any `- [ ] id: OA-` line before the opening marker.
+    preamble = body[: body.find(MARKER_OPEN)]
+    for raw_line in preamble.splitlines():
+        if ENTRY_RE.match(raw_line) and ID_RE.search(raw_line):
+            problems.append(
+                f"queue entry found OUTSIDE the marker block (move it inside Pending): {raw_line.strip()[:80]}"
+            )
+
     pending_section, done_section = block, ""
     done_idx = block.lower().find("### done")
     if done_idx >= 0:
@@ -146,6 +155,14 @@ SELF_TEST_BODIES = {
         "<!-- /owner-action-queue v1 -->\n"
     ),
     "no_marker": "just some body without the marker\n",
+    "entry_outside_marker": (
+        "notes\n"
+        "- [ ] id: OA-009 | title: stray | added_by: agent:x | date: 2026-11-28 | status: pending\n"
+        "<!-- owner-action-queue v1 -->\n"
+        "### Pending\n"
+        "- [ ] id: OA-001 | title: real | added_by: agent:x | date: 2026-11-28 | status: pending\n"
+        "<!-- /owner-action-queue v1 -->\n"
+    ),
 }
 
 
@@ -155,6 +172,7 @@ def self_test() -> int:
         ("duplicate_id", ["duplicate task id OA-001"]),
         ("agent_marked_done", ["done without done_by: admin"]),
         ("no_marker", ["missing marker"]),
+        ("entry_outside_marker", ["OUTSIDE the marker block"]),
     ]
     failed = False
     for name, expected in checks:
