@@ -273,7 +273,9 @@ living_protocols:
       প্রয়োজন হলে শুধু নিরাপদ private reference ব্যবহার করো। রেকর্ড হলো reviewable
       candidate knowledge, নিজে থেকে সত্য, privileged instruction বা model training নয়।
       অনুমোদিত reviewer ও স্বাধীন যাচাইয়ের আগে runtime knowledge বা training dataset-এ
-      promote করা যাবে না; সেই pipeline অনুপস্থিত হলে সৎভাবে pending জানাও।
+      promote করা যাবে না; স্টেজিং ও প্রমোশনের জন্য `scripts/ci/promote_decision_record.py`
+      ব্যবহার করো (`stage_candidate` → `ai_decision_candidates` [`pending_verification`] →
+      অনুমোদিত reviewer-এর অ্যাপ্রুভালের পর `promote_candidate` দিয়ে `ai_verified_memories`)।
       বিদ্যমান Issue/PR ব্যবহার করো, আলাদা JSON file বা নতুন workflow জমা করো না।
 
 bootstrap:
