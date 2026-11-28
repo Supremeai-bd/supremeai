@@ -269,6 +269,14 @@ def _get_api_providers() -> list[dict[str, str]]:
         max_keys = None
 
     # 0. Unified API pool JSON (LLM_PROVIDER_KEYS) from Infisical
+    pool_defaults = {
+        "gemini": ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash"),
+        "groq": ("https://api.groq.com/openai/v1/chat/completions", "llama-3.3-70b-versatile"),
+        "openai": ("https://api.openai.com/v1/chat/completions", "gpt-4o-mini"),
+        "openrouter": ("https://openrouter.ai/api/v1/chat/completions", "meta-llama/llama-3.3-70b-instruct:free"),
+        "deepseek": ("https://api.deepseek.com/v1/chat/completions", "deepseek-chat"),
+        "mistral": ("https://api.mistral.ai/v1/chat/completions", "mistral-small-latest"),
+    }
     raw_pool = os.environ.get("LLM_PROVIDER_KEYS", "").strip()
     if raw_pool:
         try:
@@ -276,13 +284,21 @@ def _get_api_providers() -> list[dict[str, str]]:
             if isinstance(pool_data, dict):
                 for pname, entries in pool_data.items():
                     items = entries if isinstance(entries, list) else [entries]
+                    default_url, default_model = pool_defaults.get(str(pname).lower(), ("", ""))
                     for item in items:
-                        if isinstance(item, dict) and item.get("key") and item.get("url"):
+                        if isinstance(item, dict) and item.get("key"):
                             providers.append({
                                 "name": str(pname),
                                 "key": str(item["key"]),
-                                "url": str(item["url"]),
-                                "model": str(item.get("model", "")),
+                                "url": str(item.get("url") or default_url),
+                                "model": str(item.get("model") or default_model),
+                            })
+                        elif isinstance(item, str) and item.strip() and default_url:
+                            providers.append({
+                                "name": str(pname),
+                                "key": item.strip(),
+                                "url": default_url,
+                                "model": default_model,
                             })
         except Exception:
             pass
