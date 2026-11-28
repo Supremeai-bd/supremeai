@@ -20,8 +20,8 @@ import ast
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-BACKEND_ROOT = REPO_ROOT / "backend"
+# বাংলা মন্তব্য: পরিত্যক্ত backend/ পাথের বদলে ক্যানোনিকাল core/ প্যাকেজ স্ক্যান নিশ্চিত করা হচ্ছে
+from repo_paths import REPO_ROOT, resolve
 
 SENSITIVE_PATH_KEYWORDS = {
     "login",
@@ -35,7 +35,7 @@ SENSITIVE_PATH_KEYWORDS = {
 
 
 def get_middleware_protected_paths() -> set[str]:
-    middleware_file = BACKEND_ROOT / "core" / "middleware" / "security.py"
+    middleware_file = resolve("backend/core/middleware/security.py") or (REPO_ROOT / "core" / "middleware" / "security.py")
     if not middleware_file.exists():
         return set()
 
@@ -58,7 +58,7 @@ def get_middleware_protected_paths() -> set[str]:
 
 def get_router_prefixes() -> dict[str, str]:
     """Parse api/routers.py to map route modules to their mounted prefix."""
-    routers_file = BACKEND_ROOT / "api" / "routers.py"
+    routers_file = resolve("backend/api/routers.py") or (REPO_ROOT / "core" / "api" / "routers.py")
     prefixes = {}
     if not routers_file.exists():
         return prefixes
@@ -84,13 +84,14 @@ def get_router_prefixes() -> dict[str, str]:
 
 def scan_sensitive_routes(protected_paths: set[str]) -> list[str]:
     issues = []
-    routes_dir = BACKEND_ROOT / "api" / "routes"
-    if not routes_dir.exists():
-        return issues
+    routes_dir = resolve("backend/api/routes") or (REPO_ROOT / "core" / "api" / "routes")
+    route_files = list(routes_dir.rglob("*.py")) if routes_dir.exists() else []
+    if not route_files:
+        raise RuntimeError(f"Zero route files found under {routes_dir} — refusing false-green pass.")
 
     mounted_prefixes = get_router_prefixes()
 
-    for py_file in routes_dir.rglob("*.py"):
+    for py_file in route_files:
         try:
             content = py_file.read_text(encoding="utf-8", errors="ignore")
             # Fast check
