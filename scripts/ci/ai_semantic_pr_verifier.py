@@ -314,6 +314,7 @@ def _get_api_providers() -> list[dict[str, str]]:
         ("llm7", "LLM7_API_KEY", "https://api.llm7.io/v1/chat/completions", "default"),
         ("huggingface", "HF_API_KEY", "https://router.huggingface.co/v1/chat/completions", "meta-llama/Llama-3.3-70B-Instruct"),
         ("huggingface", "HUGGINGFACE_API_KEY", "https://router.huggingface.co/v1/chat/completions", "meta-llama/Llama-3.3-70B-Instruct"),
+        ("kilo", "KILO_API_KEY", "https://api.kilocode.ai/v1/chat/completions", "anthropic/claude-3.5-sonnet"),
     ]
     for pname, env_prefix, purl, pmodel in extra_providers:
         for key in _iter_numbered_keys(env_prefix)[:max_keys]:
