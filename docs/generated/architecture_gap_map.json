@@ -408,13 +408,13 @@
     ]
   },
   "graph": {
-    "modules": 2189,
-    "edges": 5126,
+    "modules": 2183,
+    "edges": 5117,
     "edge_kinds": {
       "dispatch": 227,
       "dynamic": 4,
-      "import": 4180,
-      "string": 715
+      "import": 4169,
+      "string": 717
     }
   },
   "entrypoints": {
@@ -445,9 +445,9 @@
     "missing": []
   },
   "reachability": {
-    "reachable": 1696,
+    "reachable": 1690,
     "unreachable": 493,
-    "reachable_pct": 77.5
+    "reachable_pct": 77.4
   },
   "gaps": {
     "dangling_references": [],
@@ -593,7 +593,6 @@
   },
   "reachable_but_unattributed": [
     "browser.main",
-    "core.adaptive_engine.governed_executor",
     "core.adaptive_engine.platform_learner",
     "core.adaptive_engine.self_improving_agent",
     "core.admin_god",
@@ -760,7 +759,6 @@
     "core.evaluation.scorers.tool_use",
     "core.evaluation.swe_benchmark",
     "core.evaluation.swe_benchmark.ci_gate",
-    "core.evolution.learning_pipeline",
     "core.exceptions",
     "core.execution_adapters",
     "core.external_agents.providers.zai",
@@ -794,8 +792,7 @@
     "core.kernel",
     "core.language_router",
     "core.learning.dedup",
-    "core.learning.evolution_bridge",
-    "core.learning.hypothesis_engine",
+    "core.learning.experience",
     "core.llm",
     "core.llm.distributed_budget",
     "core.llm.llm_gateway.gateway",

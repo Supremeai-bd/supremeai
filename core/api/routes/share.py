@@ -192,6 +192,71 @@ async def generate_share_link(
         raise HTTPException(status_code=500, detail="Failed to generate share link") from e
 
 
+# বাংলা মন্তব্য: /{share_id} ডায়নামিক রাউটের আগেই /list রেজিস্টার করতে হবে, নইলে /api/share/list শ্যাডো হয়ে 404 দেয়।
+@router.get("/list", response_model=list[SharedConversationResponse])
+async def list_shared_conversations(
+    user: dict = Depends(get_current_user_token),
+):
+    """List all conversations shared by the authenticated user.
+
+    Returns share metadata including view counts and expiration dates.
+    """
+    user_id = user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    db = get_db()
+
+    try:
+        # বাংলা মন্তব্য: ইভেন্ট লুপ ব্লক এড়াতে asyncio.to_thread এবং N+1 কোয়েরি রোধে একক ব্যাচ .in_() ব্যবহৃত হচ্ছে
+        response = await asyncio.to_thread(
+            lambda: (
+                db.client.table("shared_conversations")
+                .select(
+                    "share_id, conversation_id, user_id, is_public, view_count, created_at, expires_at"
+                )
+                .eq("user_id", user_id)
+                .order("created_at", desc=True)
+                .execute()
+            )
+        )
+
+        rows = response.data or []
+        unique_cids = list(dict.fromkeys(row["conversation_id"] for row in rows if row.get("conversation_id")))
+        titles_by_id: dict[str, str | None] = {}
+        if unique_cids:
+            conv_resp = await asyncio.to_thread(
+                lambda: (
+                    db.client.table("conversations")
+                    .select("id, title")
+                    .in_("id", unique_cids)
+                    .execute()
+                )
+            )
+            for conv_row in conv_resp.data or []:
+                cid = conv_row.get("id")
+                if cid:
+                    titles_by_id[cid] = conv_row.get("title")
+
+        return [
+            SharedConversationResponse(
+                share_id=row["share_id"],
+                conversation_id=row["conversation_id"],
+                title=titles_by_id.get(row["conversation_id"]),
+                is_public=row["is_public"],
+                view_count=row["view_count"],
+                created_at=row["created_at"],
+                expires_at=row["expires_at"],
+            )
+            for row in rows
+        ]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to list shared conversations: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list shared conversations") from e
+
+
 @router.get("/{share_id}", response_model=PublicShareDetailResponse)
 async def get_shared_conversation(share_id: str, response: Response):
     """বাংলা মন্তব্য: message cache access-authority নয়; প্রতি read-এ live share যাচাই।"""
@@ -261,15 +326,22 @@ async def get_shared_conversation(share_id: str, response: Response):
                 share_id, {"conversation_id": conversation_id, "title": title, "messages": messages}
             )
 
-        new_view_count = share.get("view_count", 0) + 1
-        await asyncio.to_thread(
-            lambda: (
-                db.client.table("shared_conversations")
-                .update({"view_count": new_view_count})
-                .eq("share_id", share_id)
-                .execute()
+        current_views = int(share.get("view_count", 0) or 0)
+        new_view_count = current_views + 1
+        # বাংলা মন্তব্য: গৌণ view_count আপডেট ব্যর্থ হলেও বৈধ পাবলিক শেয়ার রিড যেন 500 না দেয়
+        try:
+            await asyncio.to_thread(
+                lambda: (
+                    db.client.table("shared_conversations")
+                    .update({"view_count": new_view_count})
+                    .eq("share_id", share_id)
+                    .execute()
+                )
             )
-        )
+        except Exception as view_err:
+            logger.warning(f"Non-critical view_count update failed for {share_id}: {view_err}")
+            new_view_count = current_views
+
         return PublicShareDetailResponse(
             conversation_id=conversation_id,
             title=title,
@@ -289,60 +361,6 @@ async def get_shared_conversation(share_id: str, response: Response):
         ) from e
 
 
-@router.get("/list", response_model=list[SharedConversationResponse])
-async def list_shared_conversations(
-    user: dict = Depends(get_current_user_token),
-):
-    """List all conversations shared by the authenticated user.
-
-    Returns share metadata including view counts and expiration dates.
-    """
-    user_id = user.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    db = get_db()
-
-    try:
-        response = (
-            db.client.table("shared_conversations")
-            .select(
-                "share_id, conversation_id, user_id, is_public, view_count, created_at, expires_at"
-            )
-            .eq("user_id", user_id)
-            .order("created_at", desc=True)
-            .execute()
-        )
-
-        # Enrich with conversation titles
-        results: list[SharedConversationResponse] = []
-        for row in response.data:
-            conv_resp = (
-                db.client.table("conversations")
-                .select("title")
-                .eq("id", row["conversation_id"])
-                .execute()
-            )
-            title = conv_resp.data[0]["title"] if conv_resp.data else None
-
-            results.append(
-                SharedConversationResponse(
-                    share_id=row["share_id"],
-                    conversation_id=row["conversation_id"],
-                    title=title,
-                    is_public=row["is_public"],
-                    view_count=row["view_count"],
-                    created_at=row["created_at"],
-                    expires_at=row["expires_at"],
-                )
-            )
-
-        return results
-    except Exception as e:
-        logger.error(f"Failed to list shared conversations: {e}")
-        raise HTTPException(status_code=500, detail="Failed to list shared conversations") from e
-
-
 @router.delete("/{share_id}", response_model=ShareRevokeResponse)
 async def revoke_share(
     share_id: str,
@@ -359,12 +377,14 @@ async def revoke_share(
     db = get_db()
 
     try:
-        # Verify ownership
-        share_response = (
-            db.client.table("shared_conversations")
-            .select("share_id, user_id")
-            .eq("share_id", share_id)
-            .execute()
+        # বাংলা মন্তব্য: মালিকানা যাচাই কোয়েরিও asyncio.to_thread-এ চালানো হচ্ছে যেন ইভেন্ট লুপ ব্লক না হয়
+        share_response = await asyncio.to_thread(
+            lambda: (
+                db.client.table("shared_conversations")
+                .select("share_id, user_id")
+                .eq("share_id", share_id)
+                .execute()
+            )
         )
 
         if not share_response.data:
