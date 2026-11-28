@@ -47,7 +47,8 @@ def build() -> dict:
         "__pycache__", ".next", "target", ".venv", ".venv_ci", "venv", "ci-reports",
         "site-packages", ".pytest_cache", ".ruff_cache", ".mypy_cache", "archive"
     }
-    target_dirs = ["backend", "frontend", "infrastructure", "scripts"]
+    # বাংলা মন্তব্য: backend/ -> core/ মাইগ্রেশনের পর বর্তমান সমস্ত সক্রিয় টপ-লেভেল প্যাকেজ অন্তর্ভুক্ত করা হয়েছে
+    target_dirs = ["core", "gateway", "studio", "browser", "backend", "frontend", "infrastructure", "scripts"]
 
     # Try git ls-files first for absolute consistency across CI and local environments
     candidate_paths: list[Path] = []

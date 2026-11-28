@@ -17,8 +17,10 @@ import ast
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-BACKEND_ROOT = REPO_ROOT / "backend"
+# বাংলা মন্তব্য: শূন্য ফাইল স্ক্যানে মিথ্যা সবুজ সংকেত রোধে core/ ও gateway/ ডিরেক্টরি যাচাই করা হচ্ছে
+from repo_paths import REPO_ROOT, resolve
+
+SCAN_ROOTS = [p for p in (resolve("backend"), REPO_ROOT / "gateway") if p is not None and p.exists()]
 
 SIGNATURE_INDICATORS = {
     "verify",
@@ -86,7 +88,10 @@ def analyze_route_function(fn_node: ast.FunctionDef | ast.AsyncFunctionDef, file
 
 def scan_backend_webhooks() -> list[str]:
     all_issues = []
-    for py_file in BACKEND_ROOT.rglob("*.py"):
+    py_files = [f for root in SCAN_ROOTS for f in root.rglob("*.py")]
+    if not py_files:
+        raise RuntimeError("Zero backend Python files discovered for webhook signature scan.")
+    for py_file in py_files:
         if any(part.startswith(".") or part in ("tests", "venv", ".venv") for part in py_file.parts):
             continue
 

@@ -121,9 +121,16 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
     RATE_WINDOW = 60  # Seconds
 
     # Path-specific rate limits (critical paths)
+    # বাংলা মন্তব্য: সব লগইন, সাইন-আপ, অ্যাডমিন ফায়ারবেস এবং SSO রুট কঠোর রেট-লিমিটের আওতায় আনা হয়েছে
     SIMPLE_RATE_LIMITS = {
         "/api/v1/auth/login": {"requests": 5, "window": 600},  # 5 per 10 min
+        "/api/auth/login": {"requests": 5, "window": 600},
+        "/api/admin/firebase-login": {"requests": 5, "window": 600},
+        "/api/auths/signin": {"requests": 5, "window": 600},
+        "/auth/sso/": {"requests": 10, "window": 600},
         "/api/v1/auth/register": {"requests": 3, "window": 3600},  # 3 per hour
+        "/api/auth/register": {"requests": 3, "window": 3600},
+        "/api/auths/signup": {"requests": 3, "window": 3600},
         "/api/v1/scraper/scrape": {"requests": 20, "window": 3600},  # 20 per hour
         "/api/v1/kaggle/submit": {"requests": 10, "window": 3600},  # 10 per hour
     }
