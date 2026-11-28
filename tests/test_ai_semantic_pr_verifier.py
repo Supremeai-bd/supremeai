@@ -157,8 +157,124 @@ def test_secret_pattern_does_not_echo_secret():
 
 def test_invalid_pool_fails_closed_without_disclosing_configuration(monkeypatch, capsys):
     from scripts.ci import ai_semantic_pr_verifier as verifier
-    monkeypatch.setenv("LLM_PROVIDER_KEYS", "private-fixture-not-json")
-    assert verifier._get_api_providers() == []
-    warning = capsys.readouterr().err
-    assert "Invalid LLM provider pool" in warning
-    assert "private-fixture" not in warning
+    monkeypatch.setenv("GROQ_API_KEY", "fallback-secret-fixture")
+    for value in ("private-fixture-not-json", '["wrong-shape"]'):
+        monkeypatch.setenv("LLM_PROVIDER_KEYS", value)
+        assert verifier._get_api_providers() == []
+        warning = capsys.readouterr().err
+        assert "Invalid LLM provider pool" in warning
+        assert "private-fixture" not in warning
+        assert "wrong-shape" not in warning and "fallback-secret-fixture" not in warning
+# ---------------------------------------------------------------------------
+# API pool discovery — the pipeline AI provider must check every
+# Infisical-exported key (base + numbered + alias + comma pool) until one
+# returns a valid verdict.
+# ---------------------------------------------------------------------------
+
+_POOL_ENV_NAMES = ["LLM_PROVIDER_KEYS", "EVALUATOR_MAX_KEYS_PER_PROVIDER"]
+for _fam in ("GEMINI", "GOOGLE", "GROQ", "OPENAI", "OPENROUTER", "DEEPSEEK", "MISTRAL"):
+    _POOL_ENV_NAMES.append(f"{_fam}_API_KEY")
+    _POOL_ENV_NAMES.extend(f"{_fam}_API_KEY_{i}" for i in range(2, 13))
+    _POOL_ENV_NAMES.append(f"{_fam}_API_KEYS")
+
+
+def _clean_pool_env(monkeypatch):
+    for name in _POOL_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
+
+
+def test_api_pool_discovers_every_infisical_env_key(monkeypatch):
+    from scripts.ci.ai_semantic_pr_verifier import _get_api_providers
+    _clean_pool_env(monkeypatch)
+    monkeypatch.setenv("GEMINI_API_KEY", "gem-base")
+    monkeypatch.setenv("GEMINI_API_KEY_2", "gem-second")
+    monkeypatch.setenv("GOOGLE_API_KEY", "google-alias")
+    monkeypatch.setenv("GROQ_API_KEY_3", "groq-third")
+    monkeypatch.setenv("GROQ_API_KEYS", "groq-a,groq-b")
+    providers = _get_api_providers()
+    assert [(p["name"], p["key"], p["slot"]) for p in providers] == [
+        ("gemini", "gem-base", "GEMINI_API_KEY"),
+        ("gemini", "gem-second", "GEMINI_API_KEY_2"),
+        ("gemini", "google-alias", "GOOGLE_API_KEY"),
+        ("groq", "groq-third", "GROQ_API_KEY_3"),
+        ("groq", "groq-a", "GROQ_API_KEYS"),
+        ("groq", "groq-b", "GROQ_API_KEYS"),
+    ]
+    assert all(p["url"] and p["model"] for p in providers)
+
+
+def test_api_pool_json_entries_come_first_and_dedup_env_keys(monkeypatch):
+    import json
+
+    from scripts.ci.ai_semantic_pr_verifier import _get_api_providers
+    _clean_pool_env(monkeypatch)
+    monkeypatch.setenv("LLM_PROVIDER_KEYS", json.dumps({"groq": ["pool-key-1"]}))
+    monkeypatch.setenv("GROQ_API_KEY", "pool-key-1")  # same value as the pool JSON
+    monkeypatch.setenv("GEMINI_API_KEY", "env-gem")
+    providers = _get_api_providers()
+    assert [(p["name"], p["key"]) for p in providers] == [
+        ("groq", "pool-key-1"),
+        ("gemini", "env-gem"),
+    ]
+    assert providers[0]["slot"] == "LLM_PROVIDER_KEYS[groq]"
+
+
+def test_evaluator_max_keys_per_provider_caps_each_family(monkeypatch):
+    from scripts.ci.ai_semantic_pr_verifier import _get_api_providers
+    _clean_pool_env(monkeypatch)
+    monkeypatch.setenv("GEMINI_API_KEY", "g1")
+    monkeypatch.setenv("GEMINI_API_KEY_2", "g2")
+    monkeypatch.setenv("GEMINI_API_KEY_3", "g3")
+    monkeypatch.setenv("GROQ_API_KEY", "q1")
+    monkeypatch.setenv("EVALUATOR_MAX_KEYS_PER_PROVIDER", "2")
+    providers = _get_api_providers()
+    assert [p["key"] for p in providers] == ["g1", "g2", "q1"]
+
+
+def test_provider_pool_checks_keys_until_one_is_valid(monkeypatch, capsys):
+    from scripts.ci import ai_semantic_pr_verifier as verifier
+    monkeypatch.setenv("SEMANTIC_VERIFIER_ALLOW_EXTERNAL_DIFF", "true")
+    valid = '{"approved": true, "security_verdict": "PASS", "anti_bloat_verdict": "PASS"}'
+    responses = iter([None, valid])
+    with patch.object(verifier, "_get_api_providers", return_value=[
+            {"name": "groq", "key": "bad-key", "slot": "GROQ_API_KEY"},
+            {"name": "gemini", "key": "good-key", "slot": "GEMINI_API_KEY"},
+    ]), \
+         patch.object(verifier, "call_llm_provider",
+                      side_effect=lambda prov, prompt: next(responses)):
+        verdict = run_semantic_verification(["core/security/auth.py"], "+change")
+    assert verdict["approved"] is True
+    assert verdict["confidence"] == "llm-verified (gemini)"
+    out = capsys.readouterr().out
+    assert "Checking key 1/2" in out and "Checking key 2/2" in out
+    assert "Valid API key found on attempt 2/2" in out
+    # Key material must never reach the logs.
+    assert "bad-key" not in out and "good-key" not in out
+
+
+def test_provider_pool_reports_total_when_no_key_is_valid(monkeypatch, capsys):
+    from scripts.ci import ai_semantic_pr_verifier as verifier
+    monkeypatch.setenv("SEMANTIC_VERIFIER_ALLOW_EXTERNAL_DIFF", "true")
+    with patch.object(verifier, "_get_api_providers", return_value=[
+            {"name": "groq", "key": "k1"}, {"name": "openai", "key": "k2"},
+    ]), \
+         patch.object(verifier, "call_llm_provider", return_value=None):
+        verdict = run_semantic_verification(["core/security/auth.py"], "+change")
+    assert verdict["approved"] is False and verdict["confidence"] == "unverified"
+    out = capsys.readouterr().out
+    assert "2 provider key(s) checked" in out
+
+
+def test_evaluator_providers_cover_numbered_and_alias_keys(monkeypatch):
+    from scripts.ci.ai_pr_evaluator import _llm_providers
+    _clean_pool_env(monkeypatch)
+    monkeypatch.setenv("GROQ_API_KEY_2", "groq-second")  # base unset — old code crashed here
+    monkeypatch.setenv("GROQ_API_KEYS", "q-pool-1, q-pool-2")
+    monkeypatch.setenv("GOOGLE_API_KEY", "google-alias")
+    providers = _llm_providers()
+    assert [(p["name"], p["key"]) for p in providers] == [
+        ("groq", "groq-second"),
+        ("groq", "q-pool-1"),
+        ("groq", "q-pool-2"),
+        ("gemini", "google-alias"),
+    ]

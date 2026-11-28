@@ -6,7 +6,9 @@ Purpose:
   2. For LOW risk PRs (e.g. docs, UI tweaks, non-critical tests), approves immediately
      in <0.5s with zero LLM API consumption.
   3. For HIGH risk PRs (e.g. core/security, database migrations, authentication, auth tokens),
-     enforces an automated semantic audit via SupremeAI's API Key Pool (Gemini, Groq, OpenAI).
+     enforces an automated semantic audit via SupremeAI's API pool: every Infisical-exported
+     key (LLM_PROVIDER_KEYS JSON + numbered/alias env keys) is checked in rotation until one
+     returns a valid verdict.
   4. Evaluates three constitutional pillars:
      - Security Boundaries (zero credential leaks, no auth bypass, no IDOR)
      - Anti-Bloat / Occam's Razor (minimal surgical patch, no dead abstractions)
@@ -42,6 +44,8 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+
+from core.utils.api_key_resolver import iter_numbered_keys
 
 HIGH_RISK_PATTERNS = [
     r"^core/security/.*",
@@ -244,31 +248,43 @@ def scan_regex_secrets(diff: str) -> list[str]:
     return hits
 
 
-def _iter_numbered_keys(base: str, max_n: int = 10) -> list[str]:
-    """Return all non-empty values among base and base_2..base_max_n (deduped, ordered)."""
-    keys: list[str] = []
-    for name in [base] + [f"{base}_{i}" for i in range(2, max_n + 1)]:
-        val = os.environ.get(name, "").strip()
-        if val and val not in keys:
-            keys.append(val)
-    return keys
-
-
 def _get_api_providers() -> list[dict[str, str]]:
     """Return available LLM providers in rotation order.
 
-    Each provider key is emitted as its own entry so a rate-limited/blocked key
-    (429/403) fails over to the next numbered key instead of aborting the whole
-    provider. ``EVALUATOR_MAX_KEYS_PER_PROVIDER`` caps keys tried per provider.
+    The gate uses SupremeAI's API pool directly. Sources, in order:
+      1. ``LLM_PROVIDER_KEYS`` JSON (the unified pool synced from Infisical).
+      2. Every Infisical-exported env key per provider family: the base key
+         (``GEMINI_API_KEY``), numbered variants (``GEMINI_API_KEY_2``..``_12``),
+         documented aliases (``GOOGLE_API_KEY``) and comma pools
+         (``GROQ_API_KEYS``).
+
+    Each key is emitted as its own entry, so the caller keeps checking keys
+    until one returns a valid verdict - a 429/403/401 on one key never aborts
+    the whole provider. ``EVALUATOR_MAX_KEYS_PER_PROVIDER`` caps keys tried per
+    provider.
     """
     providers: list[dict[str, str]] = []
+    seen_keys: set[str] = set()
+
+    def _add(provider_name: str, key: str, url: str, model: str, slot: str) -> None:
+        if not key or key in seen_keys:
+            return
+        seen_keys.add(key)
+        providers.append({
+            "name": provider_name,
+            "key": key,
+            "url": url,
+            "model": model,
+            "slot": slot,
+        })
+
     raw_max = os.environ.get("EVALUATOR_MAX_KEYS_PER_PROVIDER", "").strip()
     try:
         max_keys = max(1, int(raw_max)) if raw_max else None
     except ValueError:
         max_keys = None
 
-    # 0. Unified API pool JSON (LLM_PROVIDER_KEYS) from Infisical
+    # 1. Unified API pool JSON (LLM_PROVIDER_KEYS) from Infisical
     pool_defaults = {
         "gemini": ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash"),
         "groq": ("https://api.groq.com/openai/v1/chat/completions", "llama-3.3-70b-versatile"),
@@ -281,30 +297,52 @@ def _get_api_providers() -> list[dict[str, str]]:
     if raw_pool:
         try:
             pool_data = json.loads(raw_pool)
+            if not isinstance(pool_data, dict):
+                raise ValueError("Invalid provider pool shape")
             if isinstance(pool_data, dict):
                 for pname, entries in pool_data.items():
                     items = entries if isinstance(entries, list) else [entries]
                     default_url, default_model = pool_defaults.get(str(pname).lower(), ("", ""))
                     for item in items:
                         if isinstance(item, dict) and item.get("key"):
-                            providers.append({
-                                "name": str(pname),
-                                "key": str(item["key"]),
-                                "url": str(item.get("url") or default_url),
-                                "model": str(item.get("model") or default_model),
-                            })
+                            _add(str(pname), str(item["key"]),
+                                 str(item.get("url") or default_url),
+                                 str(item.get("model") or default_model),
+                                 f"LLM_PROVIDER_KEYS[{pname}]")
                         elif isinstance(item, str) and item.strip() and default_url:
-                            providers.append({
-                                "name": str(pname),
-                                "key": item.strip(),
-                                "url": default_url,
-                                "model": default_model,
-                            })
+                            _add(str(pname), item.strip(), default_url, default_model,
+                                 f"LLM_PROVIDER_KEYS[{pname}]")
         except (ValueError, TypeError) as exc:
             # বাংলা: গোপন pool payload log না করে অকার্যকর configuration জানাই।
             print(f"::warning::Invalid LLM provider pool ({type(exc).__name__}); semantic review unavailable.", file=sys.stderr)
             return []
 
+    # 2. Every Infisical-exported env key - walk the whole vault pool per family
+    env_key_sources = {
+        "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEYS"),
+        "groq": ("GROQ_API_KEY", "GROQ_API_KEYS"),
+        "openai": ("OPENAI_API_KEY", "OPENAI_API_KEYS"),
+        "openrouter": ("OPENROUTER_API_KEY", "OPENROUTER_API_KEYS"),
+        "deepseek": ("DEEPSEEK_API_KEY", "DEEPSEEK_API_KEYS"),
+        "mistral": ("MISTRAL_API_KEY", "MISTRAL_API_KEYS"),
+    }
+    for family, (default_url, default_model) in pool_defaults.items():
+        for source in env_key_sources.get(family, ()):
+            for env_name, raw_val in iter_numbered_keys(source):
+                tokens = [t.strip() for t in raw_val.split(",")] if "," in raw_val else [raw_val]
+                for token in tokens:
+                    _add(family, token, default_url, default_model, env_name)
+
+    if max_keys is not None:
+        capped: list[dict[str, str]] = []
+        per_provider: dict[str, int] = {}
+        for entry in providers:
+            used = per_provider.get(entry["name"], 0)
+            if used >= max_keys:
+                continue
+            per_provider[entry["name"]] = used + 1
+            capped.append(entry)
+        providers = capped
     return providers
 
 
@@ -411,7 +449,10 @@ def run_semantic_verification(files: list[str], diff: str, title: str = "") -> d
         f"Diff:\n{diff}\n"
     )
 
-    for prov in providers:
+    total = len(providers)
+    for attempt, prov in enumerate(providers, start=1):
+        slot = prov.get("slot") or prov["name"]
+        print(f"[API-POOL] Checking key {attempt}/{total} ({prov['name']} via {slot})")
         raw_res = call_llm_provider(prov, prompt)
         parsed = parse_llm_verdict(raw_res)
         if (isinstance(parsed, dict) and type(parsed.get("approved")) is bool
@@ -423,10 +464,12 @@ def run_semantic_verification(files: list[str], diff: str, title: str = "") -> d
             parsed.pop("summary", None)
             parsed["reasons"] = ["External semantic verdict received; inspect review evidence separately"]
             parsed["confidence"] = f"llm-verified ({prov['name']})"
+            print(f"[API-POOL] Valid API key found on attempt {attempt}/{total} ({slot}); failover stopped.")
             return parsed
+        print(f"[API-POOL] Key {slot} produced no valid verdict; trying next pool key.")
 
     # A clean secret regex is not a semantic security or anti-bloat review.
-    print(f"::warning::Semantic review unavailable ({len(providers)} provider key(s) tried); high-risk PR not verified.")
+    print(f"::warning::Semantic review unavailable ({total} provider key(s) checked, none valid); high-risk PR not verified.")
     return {
         "approved": False,
         "security_verdict": "UNKNOWN",
