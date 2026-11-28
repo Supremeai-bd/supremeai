@@ -268,56 +268,24 @@ def _get_api_providers() -> list[dict[str, str]]:
     except ValueError:
         max_keys = None
 
-    # 1. Gemini
-    gemini_keys = _iter_numbered_keys("GEMINI_API_KEY")
-    if not gemini_keys:
-        google = os.environ.get("GOOGLE_API_KEY", "").strip()
-        if google:
-            gemini_keys = [google]
-    gemini_model = os.environ.get("EVALUATOR_GEMINI_MODEL", "gemini-2.5-flash")
-    for key in gemini_keys[:max_keys]:
-        providers.append({
-            "name": "gemini",
-            "key": key,
-            "url": f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent",
-            "model": gemini_model,
-        })
-
-    # 2. Groq
-    groq_model = os.environ.get("EVALUATOR_GROQ_MODEL", "llama-3.3-70b-versatile")
-    for key in _iter_numbered_keys("GROQ_API_KEY")[:max_keys]:
-        providers.append({
-            "name": "groq",
-            "key": key,
-            "url": "https://api.groq.com/openai/v1/chat/completions",
-            "model": groq_model,
-        })
-
-    # 3. OpenAI
-    openai_model = os.environ.get("EVALUATOR_OPENAI_MODEL", "gpt-4o-mini")
-    for key in _iter_numbered_keys("OPENAI_API_KEY")[:max_keys]:
-        providers.append({
-            "name": "openai",
-            "key": key,
-            "url": "https://api.openai.com/v1/chat/completions",
-            "model": openai_model,
-        })
-
-    # 4. OpenAI-compatible free/high-quota providers from Infisical
-    extra_providers = [
-        ("openrouter", "OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", "meta-llama/llama-3.3-70b-instruct:free"),
-        ("cerebras", "CEREBRAS_API_KEY", "https://api.cerebras.ai/v1/chat/completions", "llama-3.3-70b"),
-        ("sambanova", "SAMBANOVA_API_KEY", "https://api.sambanova.ai/v1/chat/completions", "Meta-Llama-3.3-70B-Instruct"),
-        ("mistral", "MISTRAL_API_KEY", "https://api.mistral.ai/v1/chat/completions", "mistral-small-latest"),
-    ]
-    for pname, env_prefix, purl, pmodel in extra_providers:
-        for key in _iter_numbered_keys(env_prefix)[:max_keys]:
-            providers.append({
-                "name": pname,
-                "key": key,
-                "url": purl,
-                "model": pmodel,
-            })
+    # 0. Unified API pool JSON (LLM_PROVIDER_KEYS) from Infisical
+    raw_pool = os.environ.get("LLM_PROVIDER_KEYS", "").strip()
+    if raw_pool:
+        try:
+            pool_data = json.loads(raw_pool)
+            if isinstance(pool_data, dict):
+                for pname, entries in pool_data.items():
+                    items = entries if isinstance(entries, list) else [entries]
+                    for item in items:
+                        if isinstance(item, dict) and item.get("key") and item.get("url"):
+                            providers.append({
+                                "name": str(pname),
+                                "key": str(item["key"]),
+                                "url": str(item["url"]),
+                                "model": str(item.get("model", "")),
+                            })
+        except Exception:
+            pass
 
     return providers
 
