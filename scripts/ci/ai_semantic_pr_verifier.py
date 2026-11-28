@@ -309,6 +309,11 @@ def _get_api_providers() -> list[dict[str, str]]:
         ("cerebras", "CEREBRAS_API_KEY", "https://api.cerebras.ai/v1/chat/completions", "llama-3.3-70b"),
         ("sambanova", "SAMBANOVA_API_KEY", "https://api.sambanova.ai/v1/chat/completions", "Meta-Llama-3.3-70B-Instruct"),
         ("mistral", "MISTRAL_API_KEY", "https://api.mistral.ai/v1/chat/completions", "mistral-small-latest"),
+        ("github_models", "GITHUB_MODELS_API_KEY", "https://models.inference.ai.azure.com/chat/completions", "gpt-4o-mini"),
+        ("cohere", "COHERE_API_KEY", "https://api.cohere.ai/compatibility/v1/chat/completions", "command-a-03-2025"),
+        ("llm7", "LLM7_API_KEY", "https://api.llm7.io/v1/chat/completions", "default"),
+        ("huggingface", "HF_API_KEY", "https://router.huggingface.co/v1/chat/completions", "meta-llama/Llama-3.3-70B-Instruct"),
+        ("huggingface", "HUGGINGFACE_API_KEY", "https://router.huggingface.co/v1/chat/completions", "meta-llama/Llama-3.3-70B-Instruct"),
     ]
     for pname, env_prefix, purl, pmodel in extra_providers:
         for key in _iter_numbered_keys(env_prefix)[:max_keys]:
