@@ -36,11 +36,11 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from scripts.ci.ai_knowledge_exchange import (
-    SHARE_MARKER_OPEN,
     SHARE_MARKER_CLOSE,
+    SHARE_MARKER_OPEN,
     extract_ai_share_packets_from_text,
-    is_clean_knowledge_payload,
 )
+from scripts.ci.supabase_rest import rest_upsert
 
 if hasattr(sys.stdout, "reconfigure"):
     try:
@@ -318,32 +318,7 @@ def generate_embedding_gemini(text: str, gemini_key: str, dim: int = 768) -> Opt
 
 def post_to_supabase(url: str, key: str, table: str, record: dict) -> bool:
     """Insert or idempotently upsert a record into Supabase PostgREST table."""
-    # বাংলা মন্তব্য: সিক্রেট, `.onion` বা প্রম্পট-ইনজেকশন পেলোড থাকলে ডাটাবেসে ইনসার্ট ব্লক করা হয়।
-    if not is_clean_knowledge_payload(json.dumps(record, ensure_ascii=False)):
-        print(f"::warning::Blocked unsafe payload for Supabase table {table}", file=sys.stderr)
-        return False
-    endpoint = f"{url.rstrip('/')}/rest/v1/{urllib.parse.quote(table)}?on_conflict=id"
-    req = urllib.request.Request(
-        endpoint,
-        data=json.dumps(record).encode("utf-8"),
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json",
-            "Prefer": "resolution=merge-duplicates,return=representation",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=12) as resp:
-            return resp.status in (200, 201)
-    except urllib.error.HTTPError as err:
-        body = err.read().decode("utf-8", errors="replace")
-        print(f"::warning::Supabase insert into {table} failed ({err.code}): {body[:300]}", file=sys.stderr)
-        return False
-    except Exception as err:
-        print(f"::warning::Supabase connection error: {err}", file=sys.stderr)
-        return False
+    return rest_upsert(url, key, table, record, on_conflict="id", action="insert")
 
 
 def upsert_to_qdrant(url: str, key: str, collection: str, point: dict) -> bool:

@@ -23,9 +23,6 @@ import os
 import re
 import subprocess
 import sys
-import urllib.error
-import urllib.parse
-import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +33,7 @@ if str(REPO_ROOT) not in sys.path:
 from scripts.ci.ai_knowledge_exchange import is_clean_knowledge_payload
 from scripts.ci.ai_semantic_pr_verifier import _get_api_providers, call_llm_provider
 from scripts.ci.decision_records import CandidateError, _record_blocks
+from scripts.ci.supabase_rest import rest_upsert
 
 VERDICTS = ("database", "trash", "admin")
 STATUS_BY_VERDICT = {"database": "promoted", "trash": "rejected", "admin": "pending_verification"}
@@ -150,32 +148,8 @@ def decide(record: dict[str, Any]) -> tuple[str, list[str]]:
 
 
 def _rest_upsert(url: str, key: str, table: str, row: dict[str, Any], on_conflict: str) -> bool:
-    """Insert-or-merge one row; same hygiene guard as post_to_supabase."""
-    if not is_clean_knowledge_payload(json.dumps(row, ensure_ascii=False)):
-        print(f"::warning::Blocked unsafe payload for Supabase table {table}", file=sys.stderr)
-        return False
-    endpoint = f"{url.rstrip('/')}/rest/v1/{urllib.parse.quote(table)}?on_conflict={on_conflict}"
-    req = urllib.request.Request(
-        endpoint,
-        data=json.dumps(row).encode("utf-8"),
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json",
-            "Prefer": "resolution=merge-duplicates,return=representation",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=12) as resp:
-            return resp.status in (200, 201)
-    except urllib.error.HTTPError as err:
-        body = err.read().decode("utf-8", errors="replace")
-        print(f"::warning::Supabase upsert into {table} failed ({err.code}): {body[:300]}", file=sys.stderr)
-        return False
-    except Exception as err:
-        print(f"::warning::Supabase connection error: {err}", file=sys.stderr)
-        return False
+    """Insert-or-merge one row; delegates to the shared guarded implementation."""
+    return rest_upsert(url, key, table, row, on_conflict, action="upsert")
 
 
 def _store(
