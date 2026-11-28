@@ -22,7 +22,6 @@ flowchart TD
         @__github/workflows/deploy-rollback__yml["@.github/workflows/deploy-rollback.yml"]
         @__github/workflows/ops-maintenance__yml["@.github/workflows/ops-maintenance.yml"]
         @__github/workflows/unified-pipeline__yml["@.github/workflows/unified-pipeline.yml"]
-        @__github/workflows/warning-summary__yml["@.github/workflows/warning-summary.yml"]
         @Makefile["@Makefile"]
         browser__main["browser.main"]
         core__main["core.main"]
@@ -345,7 +344,6 @@ flowchart TD
     @__github/workflows/deploy-rollback__yml --> @__github/workflows/deploy-rollback
     @__github/workflows/ops-maintenance__yml --> @__github/workflows/ops-maintenance
     @__github/workflows/unified-pipeline__yml --> @__github/workflows/unified-pipeline
-    @__github/workflows/warning-summary__yml --> @__github/workflows/warning-summary
     @Makefile --> @Makefile
     browser__main --> browser__main
     core__main --> core__main
@@ -413,7 +411,6 @@ flowchart TD
     class @__github/workflows/deploy-rollback__yml live;
     class @__github/workflows/ops-maintenance__yml live;
     class @__github/workflows/unified-pipeline__yml live;
-    class @__github/workflows/warning-summary__yml live;
     class @Makefile live;
     class browser__main live;
     class core__main live;

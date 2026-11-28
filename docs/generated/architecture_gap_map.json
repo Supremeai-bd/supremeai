@@ -434,7 +434,6 @@
       "@.github/workflows/deploy-rollback.yml",
       "@.github/workflows/ops-maintenance.yml",
       "@.github/workflows/unified-pipeline.yml",
-      "@.github/workflows/warning-summary.yml",
       "@Makefile",
       "browser.main",
       "core.main",
