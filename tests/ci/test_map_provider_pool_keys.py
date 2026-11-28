@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from scripts.ci.map_provider_pool_env import build_pool
+from scripts.ci.map_provider_pool_keys import build_pool
 
 
 def test_alias_values_map_into_pool_with_verified_model(monkeypatch):
