@@ -517,6 +517,7 @@ ALL_ROUTERS = [
     {"path": "api.routes.admin_decisions", "prefix": "", "is_admin": True, "is_critical": False},
     {"path": "api.routes.admin_evaluation", "prefix": "", "is_admin": True, "is_critical": False},
     {"path": "api.routes.admin_learning", "prefix": "", "is_admin": True, "is_critical": False},
+    {"path": "api.routes.admin_agent_rules", "prefix": "", "is_admin": True, "is_critical": False},
     {"path": "api.routes.admin_policies", "prefix": "", "is_admin": True, "is_critical": False},
     {"path": "api.routes.admin_routing", "prefix": "", "is_admin": True, "is_critical": False},
     {"path": "api.routes.web_ai_proxy", "prefix": "", "is_admin": False, "is_critical": False},
