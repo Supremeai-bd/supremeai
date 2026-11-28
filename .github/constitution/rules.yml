@@ -277,6 +277,13 @@ living_protocols:
       ব্যবহার করো (`stage_candidate` → `ai_decision_candidates` [`pending_verification`] →
       অনুমোদিত reviewer-এর অ্যাপ্রুভালের পর `promote_candidate` দিয়ে `ai_verified_memories`)।
       বিদ্যমান Issue/PR ব্যবহার করো, আলাদা JSON file বা নতুন workflow জমা করো না।
+      **সরলীকৃত ভেরিফিকেশন প্রবাহ (owner policy 2026-11-28):** Tier-1 pipeline-এর
+      `scripts/ci/verify_decision_records.py` প্রতিটি রেকর্ড অটো-বিচার করে —
+      deterministic চেক (hygiene filter + দাবিকৃত test-file রিপোতে আছে কি না) ও
+      SupremeAI API-pool AI verdict দিয়ে: `database` হলে সরাসরি
+      `ai_verified_memories`-এ promote, `trash` হলে `rejected` (audit tombstone),
+      `admin` হলে `pending_verification` — মানুষের রিভিউ শুধু admin-ভারডিক্টে।
+      কী না থাকা/নেটওয়ার্ক ব্যর্থতা সৎভাবে `admin`-এ পড়ে; অনুমান কখনো `database` হয় না।
 
 bootstrap:
   - step: "git fetch origin --prune && cat AGENTS.md"
