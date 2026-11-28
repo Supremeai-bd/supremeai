@@ -218,7 +218,78 @@ jobs:
           export-type: env
       - name: Map Infisical key aliases into the gate pool format
         if: github.event_name == 'pull_request'
-        run: python3 scripts/ci/map_provider_pool_keys.py --append-env "$GITHUB_ENV"
+        # Runs before any head checkout, so the logic is inline (self-contained):
+        # it reads the Infisical-exported env and rewrites documented vault key
+        # aliases into the unified LLM_PROVIDER_KEYS JSON the trusted-base gate
+        # verifier consumes, with a deployment-verified model per family. Values
+        # are never printed. After merge, the verifier's own alias scan makes
+        # this step redundant but harmless.
+        run: |
+          python3 - <<'PY'
+          import json, os
+
+          MAX_N = 12
+          MIN_LEN = 16
+          PLACEHOLDERS = {"", "changeme", "your-key-here", "xxx", "none", "null", "test"}
+          FAMILIES = {
+              "gemini": (("GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_AI_API_KEY", "GEMINI_TOKEN", "JULES_API_KEY", "SUPREMEAI_PROVIDER_KEY_GEMINI", "GEMINI_API_KEYS"), "gemini-flash-lite-latest"),
+              "groq": (("GROQ_API_KEY", "SUPREMEAI_PROVIDER_KEY_GROQ", "GROQ_API_KEYS"), "llama-3.3-70b-versatile"),
+              "openai": (("OPENAI_API_KEY", "SUPREMEAI_PROVIDER_KEY_OPENAI", "OPENAI_API_KEYS"), "gpt-4o-mini"),
+              "openrouter": (("OPENROUTER_API_KEY", "SUPREMEAI_PROVIDER_KEY_OPENROUTER", "OPENROUTER_API_KEYS"), "meta-llama/llama-3.3-70b-instruct:free"),
+              "deepseek": (("DEEPSEEK_API_KEY", "SUPREMEAI_PROVIDER_KEY_DEEPSEEK", "DEEPSEEK_API_KEYS"), "deepseek-chat"),
+              "mistral": (("MISTRAL_API_KEY", "SUPREMEAI_PROVIDER_KEY_MISTRAL", "MISTRAL_API_KEYS"), "mistral-small-latest"),
+          }
+          URLS = {
+              "groq": "https://api.groq.com/openai/v1/chat/completions",
+              "openai": "https://api.openai.com/v1/chat/completions",
+              "openrouter": "https://openrouter.ai/api/v1/chat/completions",
+              "deepseek": "https://api.deepseek.com/v1/chat/completions",
+              "mistral": "https://api.mistral.ai/v1/chat/completions",
+          }
+
+          def model_for(family):
+              for name in {"gemini": ("EVALUATOR_GEMINI_MODEL", "GEMINI_MODEL"), "groq": ("EVALUATOR_GROQ_MODEL", "GROQ_MODEL")}.get(family, ()):
+                  val = os.environ.get(name, "").strip()
+                  if val:
+                      return val
+              return FAMILIES[family][1]
+
+          def url_for(family, model):
+              if family == "gemini":
+                  return f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+              return URLS[family]
+
+          def usable(v):
+              return len(v) >= MIN_LEN and v.lower() not in PLACEHOLDERS
+
+          pool = {}
+          for family, (aliases, default_model) in FAMILIES.items():
+              model = model_for(family)
+              url = url_for(family, model)
+              values, seen = [], set()
+              for alias in aliases:
+                  for i in range(1, MAX_N + 1):
+                      name = alias if i == 1 else f"{alias}_{i}"
+                      raw = os.environ.get(name, "").strip().strip("'\"")
+                      if not raw:
+                          continue
+                      for token in raw.split(","):
+                          token = token.strip().strip("'\"")
+                          if usable(token) and token not in seen:
+                              values.append(token)
+                              seen.add(token)
+                      break
+              if values:
+                  pool[family] = [{"key": v, "url": url, "model": model} for v in values]
+
+          total = sum(len(v) for v in pool.values())
+          families = ", ".join(f"{k}:{len(v)}" for k, v in pool.items()) or "none"
+          print(f"[POOL-MAP] mapped {total} key(s) across families: {families} (values never logged)")
+          if total and os.environ.get("GITHUB_ENV"):
+              with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
+                  fh.write(f"LLM_PROVIDER_KEYS={json.dumps(pool, separators=(',', ':'))}\n")
+          PY
+
 
       - name: AI Semantic PR Verification Gate (High-Risk Enforcement)
         if: github.event_name == 'pull_request'
