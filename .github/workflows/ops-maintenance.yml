@@ -2536,3 +2536,26 @@ jobs:
           python-version: '3.11'
       - name: Run memory backend census
         run: python3 scripts/ops/memory_backend_census.py
+
+  apply-agent-rule-proposals:
+    name: Apply admin rule proposals from Supabase (Auto-PR)
+    # বাংলা মন্তব্য: admin dashboard -> agent_rule_updates (proposed) -> rules.yml edit + auto-PR।
+    # প্রতি proposal একটি PR; advisory - কোনো proposal না থাকলে clean exit।
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.ORGANIZATION_SYNC_TOKEN }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install PyYAML
+        run: python3 -c 'import yaml' || python3 -m pip install 'PyYAML==6.0.3'
+      - name: Apply pending rule proposals
+        if: env.GH_TOKEN != ''
+        run: python3 scripts/ci/apply_agent_rule_proposals.py --create-pr

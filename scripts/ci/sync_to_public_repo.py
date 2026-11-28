@@ -131,6 +131,31 @@ def sync_security_md(public_dir: Path, apply: bool = False) -> bool:
     return True
 
 
+def sync_agents_md(public_dir: Path, apply: bool = False) -> bool:
+    # বাংলা মন্তব্য: AGENTS.md হলো agent constitution-এর generated artifact; SSOT হলো মনোরিপোর
+    # .github/constitution/rules.yml (rules_version 3.3+)। পাবলিক রেপোতে SSOT/generator নেই, তাই
+    # এই generated কপিটাই সেখানে authority - monorepo push/schedule-এ auto-PR-এ sync হয়।
+    source = ROOT / "AGENTS.md"
+    target = public_dir / "AGENTS.md"
+    if not source.exists():
+        print(f"  [skip] Source {source} does not exist")
+        return False
+
+    content = source.read_text(encoding="utf-8")
+
+    if target.exists():
+        target_content = target.read_text(encoding="utf-8")
+        if target_content == content:
+            print(f"  [clean] AGENTS.md is already in sync")
+            return False
+
+    if apply:
+        target.write_text(content, encoding="utf-8")
+        print(f"  [updated] Updated AGENTS.md for Supremeai-bd/{public_dir.name}")
+    else:
+        print(f"  [dry-run] Would update AGENTS.md for Supremeai-bd/{public_dir.name}")
+    return True
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Synchronize canonical endpoints into SupremeAI Public Repo.")
     parser.add_argument("--target-dir", type=str, default="F:/supremeai-public", help="Path to local checkout of supremeai-public")
@@ -150,6 +175,7 @@ def main() -> int:
     changed |= sync_platform_endpoints_ts(public_dir, manifest, apply=args.apply)
     changed |= sync_models_json(public_dir, manifest, apply=args.apply)
     changed |= sync_security_md(public_dir, apply=args.apply)
+    changed |= sync_agents_md(public_dir, apply=args.apply)
 
     if changed and args.create_pr:
         print("\nCreating GitHub PR in supremeai-public...")
@@ -160,8 +186,8 @@ def main() -> int:
             subprocess.run(["git", "config", "user.name", "github-actions[bot]"], cwd=public_dir, check=True)
             subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"], cwd=public_dir, check=True)
             subprocess.run(["git", "checkout", "-B", branch_name], cwd=public_dir, check=True)
-            subprocess.run(["git", "add", "src/config/platformEndpoints.ts", "packages/contracts/models.json", "SECURITY.md"], cwd=public_dir, check=True)
-            subprocess.run(["git", "commit", "-m", "chore(sync): synchronize canonical endpoints and security governance from monorepo"], cwd=public_dir, check=True)
+            subprocess.run(["git", "add", "src/config/platformEndpoints.ts", "packages/contracts/models.json", "SECURITY.md", "AGENTS.md"], cwd=public_dir, check=True)
+            subprocess.run(["git", "commit", "-m", "chore(sync): synchronize agent constitution (AGENTS.md), canonical endpoints and security governance from monorepo"], cwd=public_dir, check=True)
             subprocess.run(["git", "push", "-u", "origin", branch_name, "--force"], cwd=public_dir, check=True)
             existing_pr = subprocess.check_output(
                 ["gh", "pr", "list", "--repo", "Supremeai-bd/supremeai-public", "--head", branch_name, "--state", "open", "--json", "number", "--jq", ".[0].number"],
@@ -174,7 +200,7 @@ def main() -> int:
                 pr_cmd = [
                     "gh", "pr", "create",
                     "--repo", "Supremeai-bd/supremeai-public",
-                    "--title", "chore(sync): synchronize canonical endpoints and security governance from monorepo",
+                    "--title", "chore(sync): synchronize agent constitution (AGENTS.md), canonical endpoints and security governance from monorepo",
                     "--body", "Automated synchronization of `platformEndpoints.ts`, `models.json`, and `SECURITY.md` from `Supremeai-bd/supremeai`.\n\n- Custom Domain API: `https://api.supremeai.live`\n- Custom Domain MCP: `https://mcp.supremeai.live`\n\nVerified by CI.",
                     "--head", branch_name,
                     "--base", "main"

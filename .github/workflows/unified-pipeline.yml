@@ -1436,6 +1436,11 @@ jobs:
           python scripts/ci/workflow_job_name_guard.py --check
           python scripts/ops/generate_script_index.py --check-committed
 
+      - name: Owner Action Queue lint (issue 966 - unique ids, admin-only done)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/ci/owner_action_queue_guard.py --self-test && python scripts/ci/owner_action_queue_guard.py --check
       - name: Detect runtime dependency changes
         if: github.event_name == 'pull_request' || github.event_name == 'push'
         id: runtime-locks
