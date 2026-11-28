@@ -262,10 +262,11 @@ def _get_api_providers() -> list[dict[str, str]]:
     provider. ``EVALUATOR_MAX_KEYS_PER_PROVIDER`` caps keys tried per provider.
     """
     providers: list[dict[str, str]] = []
+    raw_max = os.environ.get("EVALUATOR_MAX_KEYS_PER_PROVIDER", "").strip()
     try:
-        max_keys = max(1, int(os.environ.get("EVALUATOR_MAX_KEYS_PER_PROVIDER", "15")))
+        max_keys = max(1, int(raw_max)) if raw_max else None
     except ValueError:
-        max_keys = 15
+        max_keys = None
 
     # 1. Gemini
     gemini_keys = _iter_numbered_keys("GEMINI_API_KEY")
