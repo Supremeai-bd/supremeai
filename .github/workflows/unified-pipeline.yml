@@ -216,6 +216,10 @@ jobs:
           env-slug: prod
           secret-path: /
           export-type: env
+      - name: Map Infisical key aliases into the gate pool format
+        if: github.event_name == 'pull_request'
+        run: python3 scripts/ci/map_provider_pool_keys.py --append-env "$GITHUB_ENV"
+
       - name: AI Semantic PR Verification Gate (High-Risk Enforcement)
         if: github.event_name == 'pull_request'
         env:
