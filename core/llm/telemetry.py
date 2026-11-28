@@ -111,6 +111,12 @@ class LLMCallRecord:
     estimated_tokens: int | None = None
     error_class: str | None = None
     error_hash: str | None = None
+    # ── Phase 0.3 feedback-capture fields (unified training plan) ──
+    # Caller-supplied pre-call cost estimate (USD) for provider scoring.
+    cost_estimate: float | None = None
+    # Human/owner correction of an AI outcome attached to this call
+    # (free-form, privacy-safe: never prompt/response content).
+    user_correction: str | None = None
 
     def to_log_line(self) -> str:
         # বাংলা মন্তব্য: default=str — provider থেকে আসা কোনো field (যেমন usage.prompt_tokens)
@@ -145,7 +151,8 @@ class LLMCallRecord:
                 "retry_count": self.retry_count,
                 "rate_limited": self.rate_limited,
                 "estimated_tokens": self.estimated_tokens,
-                "estimated_cost": None,  # filled by calibration-aware callers
+                "estimated_cost": self.cost_estimate,
+                "user_correction": self.user_correction,
             },
         }
 
@@ -161,6 +168,7 @@ def _record_durable(record: LLMCallRecord) -> None:
 
         fields = record.to_learning_event_fields()
         metadata = fields.pop("metadata", {})
+        estimated_cost = metadata.pop("estimated_cost", None)
         _record_llm_event(
             provider=fields.get("provider") or None,
             model=fields.get("model") or None,
@@ -175,6 +183,7 @@ def _record_durable(record: LLMCallRecord) -> None:
             cache_hit=bool(fields.get("cache_hit", False)),
             request_id=fields.get("request_id"),
             session_id=fields.get("session_id"),
+            estimated_cost=estimated_cost if isinstance(estimated_cost, (int, float)) else None,
             metadata=metadata,
         )
         # Token calibration (Sprint 5, bounded EMA): actual-vs-estimated signal
@@ -227,7 +236,14 @@ async def track_llm_call(
     )
     # Merge caller-supplied loop context (fallback_count, retry_count, …)
     if metadata:
-        for key in ("fallback_count", "retry_count", "estimated_tokens", "request_id"):
+        for key in (
+            "fallback_count",
+            "retry_count",
+            "estimated_tokens",
+            "request_id",
+            "cost_estimate",
+            "user_correction",
+        ):
             value = metadata.get(key)
             if value is not None and hasattr(record, key):
                 try:

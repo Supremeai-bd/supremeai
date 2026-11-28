@@ -285,8 +285,17 @@ for (const [label, context, list] of [
     await RequestContextStore.run(agentChatgptCtx, async () => {
       const list = await client.listTools();
       assert.ok(list.tools.every((tool) => !hints.has(tool.name)), "profile still curates discovery");
+      // Disabled-by-default: without TINY_BRAIN_URL the tool returns the disabled
+      // payload and never fetches (the default HF space is retired).
+      const disabled = await client.callTool({ name: "tiny_brain_top_ai", arguments: { force: true } });
+      assert.notEqual(disabled.isError, true, "disabled mode is a clean result, not an error");
+      assert.ok(JSON.stringify(disabled.content).includes("disabled"), "disabled payload returned");
+      assert.equal(refreshCalls, 0);
+      // With TINY_BRAIN_URL set, the original call policy still applies.
+      process.env.TINY_BRAIN_URL = "https://tinybrain.test";
       const call = await client.callTool({ name: "tiny_brain_top_ai", arguments: { force: true } });
       assert.notEqual(call.isError, true, "the hidden tool still uses the original call policy");
+      delete process.env.TINY_BRAIN_URL;
     });
     assert.equal(refreshCalls, 1);
   } finally {
