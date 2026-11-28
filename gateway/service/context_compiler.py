@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from datetime import UTC, datetime
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("supremeai.context_compiler")
@@ -31,9 +32,11 @@ CORE_SYSTEM_ANCHOR = """[CORE IDENTITY & MANDATE]
 - Never perform a consequential or destructive action on an ambiguous request; clarify before acting. Do not claim a memory was saved, forgotten, or imported unless the operation was confirmed.
 
 [RESPONSE POLICY]
-- Language: Follow the user's language naturally. If the user writes in English, reply in polished technical English; if the user writes in Bengali, reply in natural, polished Bengali. Retain technical English terms (e.g., API, Gateway, PR, Route, Cache, Middleware) naturally in English.
-- Tone: Highly competent senior software architect; concise, practical, direct, and zero fluff.
-- Structure: Start directly with the verdict or solution. Avoid filler greetings.
+- Language: The user's current explicit language preference takes precedence. Recognize Bengali written in Latin letters (Banglish) as Bengali, not necessarily English. When the preference is unclear, follow the conversation's language; do not infer nationality or identity. Use English when the user asks for English.
+- Conversation: Interpret short follow-ups in the context of the immediately relevant earlier turns. Do not invent missing context; ask a concise clarification when the intended topic is ambiguous. A casual greeting or personal question deserves a natural, friendly answer, not an unrelated technical lecture or repetitive offer of help.
+- Time-sensitive facts: A calendar date is not evidence of current events. Never claim to have searched, read a source, or accessed the internet unless a real result for this turn is provided. If current information is unavailable, say so and offer a useful next step without fabricating news, citations, or capabilities.
+- Tone: Adapt to the task: warm and natural for conversation; precise and practical for technical work. Be concise without forcing an architect persona onto casual requests.
+- Structure: Answer the actual question directly and include useful detail when requested.
 """
 
 PLATFORM_GROUNDING_SHEET = """[SUPREMEAI VERIFIED ECOSYSTEM KNOWLEDGE]
@@ -157,15 +160,17 @@ def compile_chat_context(*args, **kwargs) -> List[Dict[str, Any]]:
     user_memories = _extract_user_memories(user_id, kwargs.get("user_memories") or kwargs.get("durable_memories") or kwargs.get("user_memory"))
     recent_history = _extract_recent_history(conv_id, user_id, kwargs.get("recent_history") or kwargs.get("recent_messages") or kwargs.get("recent"), messages)
 
-    language_pref = kwargs.get("language_pref", "bn")
-    response_style = kwargs.get("response_style", "technical-architect")
+    language_pref = kwargs.get("language_pref") or "auto"
+    response_style = kwargs.get("response_style", "balanced")
     # Only bounded, syntactically constrained values enter the anchor. Free text
     # and previously stored material are data, never higher-priority instructions.
-    safe_language = language_pref if isinstance(language_pref, str) and re.fullmatch(r"[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8}){0,2}", language_pref) else "bn"
+    safe_language = language_pref if isinstance(language_pref, str) and (language_pref == "auto" or re.fullmatch(r"[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8}){0,2}", language_pref)) else "auto"
     styles = {"technical-architect", "concise", "detailed", "balanced"}
-    safe_style = response_style if isinstance(response_style, str) and response_style in styles else "technical-architect"
+    safe_style = response_style if isinstance(response_style, str) and response_style in styles else "balanced"
     system_parts = [build_system_anchor()]
     system_parts.append(f"Language preference: {safe_language}; Response style: {safe_style}.")
+    # বাংলা: সার্ভারের UTC দিন শুধু সময়-প্রসঙ্গ; এটি লাইভ তথ্য বা স্থানীয় দিন নয়।
+    system_parts.append(f"Current server date (UTC): {datetime.now(UTC).date().isoformat()}. This is not evidence of current events or the user's local date.")
     context_data: dict[str, Any] = {}
     if language_pref != safe_language:
         context_data["requested_language"] = str(language_pref)

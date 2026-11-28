@@ -153,3 +153,12 @@ def test_no_external_diff_or_paid_calls_by_default(monkeypatch):
 def test_secret_pattern_does_not_echo_secret():
     secret = "sk-" + "x" * 30
     assert secret not in str(scan_regex_secrets('+token = "' + secret + '"'))
+
+
+def test_invalid_pool_fails_closed_without_disclosing_configuration(monkeypatch, capsys):
+    from scripts.ci import ai_semantic_pr_verifier as verifier
+    monkeypatch.setenv("LLM_PROVIDER_KEYS", "private-fixture-not-json")
+    assert verifier._get_api_providers() == []
+    warning = capsys.readouterr().err
+    assert "Invalid LLM provider pool" in warning
+    assert "private-fixture" not in warning

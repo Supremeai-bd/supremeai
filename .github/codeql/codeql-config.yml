@@ -30,10 +30,4 @@ paths-ignore:
 # বাংলা: query-suite ইচ্ছাকৃতভাবে override করা হয়নি — default suite-ই থাকছে,
 # কারণ লক্ষ্য ছিল শুধু scan scope (path) ছোট করে সময় কমানো, query বাড়িয়ে
 # আরও ধীর করা না।
-# বাংলা মন্তব্য: false-positive / অভ্যন্তরীণ স্ক্রিপ্টের অপ্রয়োজনীয় নয়েজ বন্ধ করতে
-# নিচের ২টি noisy CodeQL query বাদ দেওয়া হলো।
-query-filters:
-  - exclude:
-      id: js/clear-text-logging
-  - exclude:
-      id: py/incomplete-url-substring-sanitization
+# বাংলা: নিরাপত্তা query নিষ্ক্রিয় নয়; সন্দেহজনক ফল পৃথকভাবে যাচাই করা হবে।

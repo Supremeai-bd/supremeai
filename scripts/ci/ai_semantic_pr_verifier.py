@@ -300,8 +300,10 @@ def _get_api_providers() -> list[dict[str, str]]:
                                 "url": default_url,
                                 "model": default_model,
                             })
-        except Exception:
-            pass
+        except (ValueError, TypeError) as exc:
+            # বাংলা: গোপন pool payload log না করে অকার্যকর configuration জানাই।
+            print(f"::warning::Invalid LLM provider pool ({type(exc).__name__}); semantic review unavailable.", file=sys.stderr)
+            return []
 
     return providers
 

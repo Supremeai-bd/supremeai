@@ -55,12 +55,13 @@ _SPACES = re.compile(r"\s+", re.UNICODE)
 # the product's primary locale is Bengali and "hi" arrives in both.
 _GREETINGS = frozenset(
     {
-        "hi", "hii", "hey", "hello", "helo", "yo", "hola", "salam", "assalamu alaikum",
-        "assalamualaikum", "good morning", "good afternoon", "good evening",
-        "হাই", "হ্যালো", "হেলো", "সালাম", "আসসালামু আলাইকুম", "শুভ সকাল",
-        "শুভ সন্ধ্যা", "কেমন আছেন", "কেমন আছো",
+        "hi", "hii", "hey", "hello", "helo", "yo", "hola", "good morning", "good afternoon", "good evening",
+        "হাই", "হ্যালো", "হেলো", "শুভ সকাল", "শুভ সন্ধ্যা",
     }
 )
+# বাংলা: খোঁজখবরের প্রশ্নকে সাধারণ greeting বলে এড়িয়ে যাওয়া ঠিক নয়।
+_WELLBEING = frozenset({"কেমন আছেন", "কেমন আছো", "how are you"})
+_SALAM = frozenset({"সালাম", "আসসালামু আলাইকুম", "salam", "assalamu alaikum", "assalamualaikum"})
 _THANKS = frozenset(
     {
         "thanks", "thank you", "thx", "ty", "ok", "okay", "got it", "cool", "nice",
@@ -70,6 +71,8 @@ _THANKS = frozenset(
 
 _REPLIES = {
     "greeting": {"en": "Hi! What can I help you with?", "bn": "হ্যালো! কীভাবে সাহায্য করতে পারি?"},
+    "wellbeing": {"en": "I'm doing well, thanks! How are you?", "bn": "ভালো আছি, ধন্যবাদ! আপনি কেমন আছেন?"},
+    "salam": {"en": "Wa alaikum assalam! How can I help you?", "bn": "ওয়ালাইকুমুস সালাম! কীভাবে সাহায্য করতে পারি?"},
     "thanks": {"en": "You're welcome!", "bn": "আপনাকে স্বাগতম!"},
 }
 
@@ -86,6 +89,10 @@ def _classify(prompt: str) -> Optional[str]:
     norm = _normalise(prompt)
     if not norm or len(norm.split()) > MAX_TOKENS:
         return None
+    if norm in _WELLBEING:
+        return "wellbeing"
+    if norm in _SALAM:
+        return "salam"
     if norm in _THANKS:
         return "thanks"
     if norm in _GREETINGS:

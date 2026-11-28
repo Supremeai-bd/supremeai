@@ -170,3 +170,19 @@ def test_fastpath_is_off_outside_production_by_default(client) -> None:
         headers=_HEADERS,
     )
     assert resp.headers.get("X-SupremeAI-Provider") != "trivial-template"
+
+
+@pytest.mark.parametrize("text", ["কেমন আছেন?", "কেমন আছো?"])
+def test_wellbeing_question_gets_an_answer_not_a_generic_greeting(text):
+    out = trivial_reply({"messages": [{"role": "user", "content": text}]})
+    assert "ভালো আছি" in out["choices"][0]["message"]["content"]
+
+
+@pytest.mark.parametrize("text", ["সালাম", "আসসালামু আলাইকুম"])
+def test_salam_is_respectfully_mirrored(text):
+    out = trivial_reply({"messages": [{"role": "user", "content": text}]})
+    assert "ওয়ালাইকুমুস সালাম" in out["choices"][0]["message"]["content"]
+
+
+def test_wellbeing_with_substantive_followup_does_not_take_fastpath():
+    assert trivial_reply({"messages": [{"role": "user", "content": "কেমন আছেন? আজকের খবর কী?"}]}) is None
