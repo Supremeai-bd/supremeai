@@ -205,6 +205,16 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           path: _verifier-base
           persist-credentials: false
+      - name: Load active LLM keys from Infisical
+        continue-on-error: true
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG || vars.INFISICAL_PROJECT_SLUG }}
+          env-slug: prod
+          secret-path: /
+          export-type: env
       - name: AI Semantic PR Verification Gate (High-Risk Enforcement)
         if: github.event_name == 'pull_request'
         env:
@@ -213,9 +223,9 @@ jobs:
           # High-risk PRs without an approved semantic review remain unverified;
           # maintainers must review and resolve the required gate, not bypass it.
           SEMANTIC_VERIFIER_ALLOW_EXTERNAL_DIFF: ${{ vars.SEMANTIC_VERIFIER_ALLOW_EXTERNAL_DIFF }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ env.GEMINI_API_KEY || secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ env.GROQ_API_KEY || secrets.GROQ_API_KEY }}
+          OPENAI_API_KEY: ${{ env.OPENAI_API_KEY || secrets.OPENAI_API_KEY }}
         working-directory: _verifier-base
         run: python3 scripts/ci/ai_semantic_pr_verifier.py --pr "${{ github.event.pull_request.number }}"
 
@@ -532,6 +542,20 @@ jobs:
   # These needs are job results for this run's github.sha, not a PR-head rollup.
   # Drafts run CI, but no landing decision is requested until ready_for_review.
   # =========================================================================
+  cancel-on-tier1-fail:
+    name: "Fail-Fast: Cancel Run on Tier 1 Failure"
+    if: failure() && github.event_name == 'pull_request'
+    needs: [fast-gate, runtime-readiness, syntax-and-governance-gate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      actions: write
+    steps:
+      - name: Cancel remaining jobs in this workflow run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run cancel "${{ github.run_id }}" --repo "${{ github.repository }}" || true
+
   verify-pr:
     name: "PR Verification"
     if: ${{ always() && github.event_name == 'pull_request' }}
@@ -662,6 +686,10 @@ jobs:
                           print(f"::warning::Advisor held the auto-merge: {fields.get('reason')}")
                   except Exception as exc:  # fail-open by design
                       print(f"::notice::Advisor unavailable, authority decision stands ({exc})")
+              if rc != 0 and _read_outputs().get("reason") == "pr_base_changed":
+                  print("::notice::PR base changed mid-CI; updating PR branch so CI re-runs cleanly.")
+                  subprocess.run(["gh", "pr", "update-branch", os.environ["PR_NUMBER"], "--repo", os.environ["GITHUB_REPOSITORY"]], check=False)
+                  sys.exit(0)
               sys.exit(rc)
 
           # First rollout only: the known old CLI cannot issue a landing decision.
@@ -764,7 +792,7 @@ jobs:
             python3 scripts/ci/tiny_brain_pr_guard.py --recheck-candidate --pr "$PR_NUMBER" \
               --head-sha "$EXPECTED_HEAD_SHA" --base-sha "$EXPECTED_BASE_SHA" --merge-sha "$TESTED_MERGE_SHA"
           } 2>&1 | tee "${{ runner.temp }}/recheck-output.log"
-          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --delete-branch --match-head-commit "$EXPECTED_HEAD_SHA" 2>&1 | tee -a "${{ runner.temp }}/recheck-output.log"
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash --delete-branch --match-head-commit "$EXPECTED_HEAD_SHA" 2>&1 | tee -a "${{ runner.temp }}/recheck-output.log"
 
   codeql:
     name: "Analyze (${{ matrix.language }})"
@@ -793,6 +821,29 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"
+
+  warning-summary:
+    name: "Summarize Workflow Warnings"
+    if: always()
+    needs: [verify-pr, codeql]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Summarize source run annotations
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.run_attempt }}
+          SOURCE_HEAD_SHA: ${{ github.sha }}
+        run: python3 scripts/ci/workflow_annotation_summary.py
 
   # =========================================================================
   # STAGE 3: POST-MERGE PRODUCTION DEPLOY & CANARY (Push to Main or Manual Dispatch)

@@ -153,7 +153,8 @@ export function toolPayloadError(toolName: string, toolArgs: unknown): string | 
   let serialized: string;
   try {
     serialized = JSON.stringify(toolArgs) ?? "";
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return `Invalid arguments for tool '${toolName}': arguments are not JSON-serializable.`;
   }
   const maxBytes = env.runtime.toolPayloadMaxBytes;
@@ -312,7 +313,8 @@ export function truncateToolResult(toolName: string, result: unknown): unknown {
   let serialized: string | undefined;
   try {
     serialized = JSON.stringify(result);
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return result;
   }
   if (serialized === undefined) return result;

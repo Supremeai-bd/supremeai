@@ -108,6 +108,7 @@ export async function registerClientTools(server: McpServer): Promise<void> {
           }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -146,6 +147,7 @@ export async function registerClientTools(server: McpServer): Promise<void> {
         if (!client) return { isError: true, content: [{ type: "text", text: `Client not found or not pending: ${clientId}` }] };
         return { content: [{ type: "text", text: JSON.stringify({ message: "Client approved and activated", client }, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -178,6 +180,7 @@ export async function registerClientTools(server: McpServer): Promise<void> {
           }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -211,6 +214,7 @@ export async function registerClientTools(server: McpServer): Promise<void> {
           }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -234,6 +238,7 @@ export async function registerClientTools(server: McpServer): Promise<void> {
         if (!client) return { isError: true, content: [{ type: "text", text: `Client not found: ${clientId}` }] };
         return { content: [{ type: "text", text: JSON.stringify({ message: "Provider updated", client }, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -255,6 +260,7 @@ export async function registerClientTools(server: McpServer): Promise<void> {
         const ok = revokeClient(clientId, scope);
         return { content: [{ type: "text", text: ok ? `Client ${clientId} revoked.` : `Client not found: ${clientId}` }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
@@ -277,6 +283,7 @@ export async function registerClientTools(server: McpServer): Promise<void> {
         if (!result) return { isError: true, content: [{ type: "text", text: `Client not found or not active: ${clientId}` }] };
         return { content: [{ type: "text", text: JSON.stringify({ message: "Token rotated", client: result.client, newToken: result.token }, null, 2) }] };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }

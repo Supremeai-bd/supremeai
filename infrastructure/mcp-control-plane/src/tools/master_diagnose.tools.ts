@@ -133,7 +133,8 @@ function inspectCodeGraphStatus(): {
       edgesCount,
       sourceWiringConfidence: isValid ? "high" : "low",
     };
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return {
       status: "error",
       indexed: false,
@@ -638,6 +639,7 @@ export async function registerMasterDiagnoseTools(server: McpServer): Promise<vo
           content: [{ type: "text", text: JSON.stringify(redactSensitiveData(result), null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [

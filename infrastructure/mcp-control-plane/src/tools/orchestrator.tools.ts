@@ -78,6 +78,7 @@ export async function registerOrchestratorTools(server: McpServer): Promise<void
           ],
         };
       } catch (error) {
+  console.error(error instanceof Error ? error.name : "error");
         return {
           isError: true,
           content: [

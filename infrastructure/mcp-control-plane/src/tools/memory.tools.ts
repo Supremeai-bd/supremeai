@@ -129,6 +129,7 @@ export async function registerMemoryTools(
           content: [{ type: "text" as const, text: "Error: " + (res.error ?? "unknown") }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           content: [{ type: "text" as const, text: "Error: " + (err as Error).message }],
         };

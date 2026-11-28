@@ -367,6 +367,7 @@ export async function refreshRegistryFromStore(): Promise<{ ok: boolean; source:
     lastStoreVerificationAtMs = Date.now();
     return { ok: true, source: "store", clients: records.length };
   } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return { ok: false, source: "store", error: err instanceof Error ? err.message : String(err), clients: clients.size };
   }
 }

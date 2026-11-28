@@ -61,7 +61,8 @@ function clientForAccount(account: RedisAccountConfig): ChainClient | null {
           // @ts-ignore
           const res = await redis.info();
           return typeof res === "string" ? res : JSON.stringify(res);
-        } catch {
+        } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
           return "INFO command not fully supported on Upstash REST cache.";
         }
       },

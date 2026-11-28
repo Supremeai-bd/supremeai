@@ -230,6 +230,7 @@ export async function registerGraphifyTools(server: McpServer): Promise<void> {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       } catch (err: any) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Error: ${err.message}` }],

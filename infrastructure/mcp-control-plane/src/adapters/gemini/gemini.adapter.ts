@@ -149,8 +149,8 @@ async function withInMemoryPair<T>(
     return await fn(client);
   } finally {
     // বাংলা মন্তব্য: fail-safe teardown — যেকোনো error-এও pair-টি মুক্ত হবে।
-    try { await client.close(); } catch { /* ইতিমধ্যে closed */ }
-    try { await server.close(); } catch { /* ইতিমধ্যে closed */ }
+    try { await client.close(); } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
+    try { await server.close(); } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
   }
 }
 

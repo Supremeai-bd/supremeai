@@ -262,45 +262,46 @@ def _get_api_providers() -> list[dict[str, str]]:
     provider. ``EVALUATOR_MAX_KEYS_PER_PROVIDER`` caps keys tried per provider.
     """
     providers: list[dict[str, str]] = []
+    raw_max = os.environ.get("EVALUATOR_MAX_KEYS_PER_PROVIDER", "").strip()
     try:
-        max_keys = max(1, int(os.environ.get("EVALUATOR_MAX_KEYS_PER_PROVIDER", "3")))
+        max_keys = max(1, int(raw_max)) if raw_max else None
     except ValueError:
-        max_keys = 3
+        max_keys = None
 
-    # 1. Gemini
-    gemini_keys = _iter_numbered_keys("GEMINI_API_KEY")
-    if not gemini_keys:
-        google = os.environ.get("GOOGLE_API_KEY", "").strip()
-        if google:
-            gemini_keys = [google]
-    gemini_model = os.environ.get("EVALUATOR_GEMINI_MODEL", "gemini-2.5-flash")
-    for key in gemini_keys[:max_keys]:
-        providers.append({
-            "name": "gemini",
-            "key": key,
-            "url": f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent",
-            "model": gemini_model,
-        })
-
-    # 2. Groq
-    groq_model = os.environ.get("EVALUATOR_GROQ_MODEL", "llama-3.3-70b-versatile")
-    for key in _iter_numbered_keys("GROQ_API_KEY")[:max_keys]:
-        providers.append({
-            "name": "groq",
-            "key": key,
-            "url": "https://api.groq.com/openai/v1/chat/completions",
-            "model": groq_model,
-        })
-
-    # 3. OpenAI
-    openai_model = os.environ.get("EVALUATOR_OPENAI_MODEL", "gpt-4o-mini")
-    for key in _iter_numbered_keys("OPENAI_API_KEY")[:max_keys]:
-        providers.append({
-            "name": "openai",
-            "key": key,
-            "url": "https://api.openai.com/v1/chat/completions",
-            "model": openai_model,
-        })
+    # 0. Unified API pool JSON (LLM_PROVIDER_KEYS) from Infisical
+    pool_defaults = {
+        "gemini": ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash"),
+        "groq": ("https://api.groq.com/openai/v1/chat/completions", "llama-3.3-70b-versatile"),
+        "openai": ("https://api.openai.com/v1/chat/completions", "gpt-4o-mini"),
+        "openrouter": ("https://openrouter.ai/api/v1/chat/completions", "meta-llama/llama-3.3-70b-instruct:free"),
+        "deepseek": ("https://api.deepseek.com/v1/chat/completions", "deepseek-chat"),
+        "mistral": ("https://api.mistral.ai/v1/chat/completions", "mistral-small-latest"),
+    }
+    raw_pool = os.environ.get("LLM_PROVIDER_KEYS", "").strip()
+    if raw_pool:
+        try:
+            pool_data = json.loads(raw_pool)
+            if isinstance(pool_data, dict):
+                for pname, entries in pool_data.items():
+                    items = entries if isinstance(entries, list) else [entries]
+                    default_url, default_model = pool_defaults.get(str(pname).lower(), ("", ""))
+                    for item in items:
+                        if isinstance(item, dict) and item.get("key"):
+                            providers.append({
+                                "name": str(pname),
+                                "key": str(item["key"]),
+                                "url": str(item.get("url") or default_url),
+                                "model": str(item.get("model") or default_model),
+                            })
+                        elif isinstance(item, str) and item.strip() and default_url:
+                            providers.append({
+                                "name": str(pname),
+                                "key": item.strip(),
+                                "url": default_url,
+                                "model": default_model,
+                            })
+        except Exception:
+            pass
 
     return providers
 
@@ -335,11 +336,11 @@ def call_llm_provider(provider: dict[str, str], prompt: str) -> str | None:
         if provider["name"] == "gemini":
             return data["candidates"][0]["content"]["parts"][0]["text"]
         return data["choices"][0]["message"]["content"]
+    except urllib.error.HTTPError as exc:
+        print(f"Warning: LLM provider {provider['name']} failed (HTTP {exc.code})")
+        return None
     except Exception as exc:
-        # Per-key failures are expected on free-tier keys (429/403); emit at debug
-        # level so the default log stays clean. A single summary is printed by the
-        # caller only when every key across every provider is exhausted.
-        print(f"::debug::LLM provider {provider['name']} call failed ({type(exc).__name__})")
+        print(f"Warning: LLM provider {provider['name']} failed ({type(exc).__name__})")
         return None
 
 

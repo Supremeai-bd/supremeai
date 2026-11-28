@@ -87,9 +87,7 @@ export function jsonSchemaToZodShape(
     if (def !== undefined) {
       try {
         field = (field as any).default(def);
-      } catch {
-        /* ignore — default() not supported on this type */
-      }
+      } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
     }
     shape[key] = field;
   }

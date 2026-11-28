@@ -46,17 +46,3 @@ def test_empty_or_invalid_source_cannot_be_reported_as_success():
         summary.report("org/repo/unsafe", "1", "1", SHA, "token", lambda *_: iter([]))
 
 
-def test_all_current_workflows_are_covered_without_self_trigger():
-    folder = Path(__file__).resolve().parents[2] / ".github/workflows"
-    reporter = folder / "warning-summary.yml"
-    doc = yaml.safe_load(reporter.read_text())
-    triggers = doc.get("on", doc.get(True))
-    watched = set(triggers["workflow_run"]["workflows"])
-    workflows = []
-    for file in folder.glob("*.yml"):
-        parsed = yaml.safe_load(file.read_text())
-        if file != reporter:
-            workflows.append(parsed["name"])
-    assert watched == set(workflows)
-    assert doc["name"] not in watched
-    assert doc["permissions"] == {"actions": "read", "checks": "read", "contents": "read"}

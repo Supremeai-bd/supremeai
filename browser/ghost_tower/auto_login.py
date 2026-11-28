@@ -17,8 +17,9 @@ if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Suppressed in auto_login.py (%s)", type(exc).__name__)
 
 try:
     import pyotp
@@ -128,8 +129,9 @@ async def handle_google_flow(
         page_text = ""
         try:
             page_text = await page.inner_text("body")
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("Suppressed in auto_login.py (%s)", type(exc).__name__)
 
         if any(
             phrase in page_text

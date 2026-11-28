@@ -278,7 +278,7 @@ export class BridgeIntakeService {
       if (!existsSync(path)) return;
       const lines = readFileSync(path, "utf8").split("\n").filter((l) => l.trim().length > 0);
       for (const line of lines) {
-        try { this.outbox.push(JSON.parse(line) as OutboxEntry); } catch { /* skip torn tail line */ }
+        try { this.outbox.push(JSON.parse(line) as OutboxEntry); } catch (err) { console.error(err instanceof Error ? err.name : "error"); }
       }
     } catch (err: any) {
       this.log(`[BRIDGE_INTAKE] outbox load failed (starting clean): ${err?.message}`);

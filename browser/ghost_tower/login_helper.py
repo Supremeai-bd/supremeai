@@ -69,8 +69,9 @@ async def main():
                     )
                     await asyncio.sleep(3)
                     break
-            except Exception:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Suppressed in login_helper.py (%s)", type(exc).__name__)
 
         await context.close()
 

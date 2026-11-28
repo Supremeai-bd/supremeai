@@ -78,7 +78,8 @@ export function isRepoUrl(upstreamUrl: string): boolean {
   let url: URL;
   try {
     url = new URL(upstreamUrl);
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return false;
   }
   if (url.protocol !== "https:") return false;

@@ -945,6 +945,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
           content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Bridge work queue fetch failed: ${(err as Error).message}. The public queue needs no credentials — verify network access to api.github.com and retry.` }],
@@ -1009,6 +1010,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
           content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Work order #${number} fetch failed: ${(err as Error).message}` }],
@@ -1062,6 +1064,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
             }],
           };
         } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
           return { isError: true, content: [{ type: "text", text: `Work order #${taskId} fetch failed: ${(err as Error).message}` }] };
         }
       }
@@ -1093,6 +1096,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
           }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Bridge work queue fetch failed: ${(err as Error).message}` }] };
       }
     }
@@ -1160,6 +1164,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
           try {
             parseUnifiedDiff(file.diff);
           } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
             return { isError: true, content: [{ type: "text", text: `File '${file.path}' diff failed to parse: ${(err as Error).message}` }] };
           }
         } else if (file.content === undefined) {
@@ -1405,6 +1410,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
               finalContent = applied.result;
               fileResults.push({ path: file.path, mode: ingressMode, hunksApplied: applied.hunksApplied, offsets: applied.offsets });
             } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
               return { isError: true, content: [{ type: "text", text: `Diff for '${file.path}' failed to apply on ${branchName}: ${(err as Error).message}` }] };
             }
           } else {
@@ -1664,6 +1670,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
           }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `Bridge patch submission error: ${(err as Error).message}` }],
@@ -1877,6 +1884,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
           }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return {
           isError: true,
           content: [{ type: "text", text: `work.claim execution error: ${(err as Error).message}` }],
@@ -1944,6 +1952,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
           }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `Feedback read for #${number} failed: ${(err as Error).message}` }] };
       }
     }
@@ -1990,6 +1999,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
           const feedback = parseIntakeFeedback(item.number, item.state, item.labels, comments);
           return { content: [{ type: "text", text: JSON.stringify({ ...feedback, url: item.url }, null, 2) }] };
         } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
           return { isError: true, content: [{ type: "text", text: `Feedback read error: ${(err as Error).message}` }] };
         }
       }
@@ -2051,6 +2061,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
           }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `bridge.work.renew error: ${(err as Error).message}` }] };
       }
     }
@@ -2113,6 +2124,7 @@ export async function registerBridgeTools(server: McpServer): Promise<void> {
           }],
         };
       } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
         return { isError: true, content: [{ type: "text", text: `bridge.work.release error: ${(err as Error).message}` }] };
       }
     }

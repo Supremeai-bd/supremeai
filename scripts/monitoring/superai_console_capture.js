@@ -85,13 +85,15 @@
                         // Handle circular references
                         try {
                             return JSON.parse(JSON.stringify(arg));
-                        } catch {
+                        } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
                             return String(arg);
                         }
                     } else {
                         return arg;
                     }
                 } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
                     return '[Unserializable]';
                 }
             }),
@@ -126,9 +128,7 @@
                 existing.splice(0, existing.length - 5000);
             }
             localStorage.setItem('__superai_log_backup', JSON.stringify(existing));
-        } catch (e) {
-            // localStorage full or unavailable - ignore
-        }
+        } catch (e) { console.error(e instanceof Error ? e.name : "error"); }
     }
     
     function formatSize(bytes) {

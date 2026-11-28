@@ -123,6 +123,7 @@ export async function auditSecrets({ includeSecretList = false }: { includeSecre
   try {
     token = await getAccessToken();
   } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
     return {
       status: "down",
       path: "universal-auth",
@@ -196,6 +197,7 @@ export async function getSyncStatus(): Promise<unknown> {
 
     return res.data;
   } catch (e) {
+  console.error(e instanceof Error ? e.name : "error");
     return {
       status: "error",
       message: `Infisical API Error: ${(e as Error).message}`

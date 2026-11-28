@@ -305,7 +305,8 @@ export function connectPlugin(input: ConnectPluginInput): ConnectPluginResult {
   }
   try {
     new URL(endpoint);
-  } catch {
+  } catch (err) {
+  console.error(err instanceof Error ? err.name : "error");
     return { ok: false, error: `endpoint is not a valid URL: ${endpoint}` };
   }
 
