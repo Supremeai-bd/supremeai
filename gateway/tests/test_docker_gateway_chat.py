@@ -579,3 +579,94 @@ def test_malformed_nonstream_tool_calls_are_rejected(gateway, calls):
     client, upstream = gateway
     upstream.return_value = httpx.Response(200, json={"choices": [{"message": {"content": None, "tool_calls": calls}}]})
     assert client.post("/v1/chat/completions", json=_CHAT, headers=_HEADERS).status_code == 500
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_provider_receives_owner_scoped_context_for_banglish_news_followup(gateway, monkeypatch, tmp_path, stream):
+    """Gateway→owner store→compiler→mock provider: প্রসঙ্গ হারানো বা cross-user নয়।"""
+    from gateway.service import context_compiler, memory_store
+
+    client, upstream = gateway
+    store = memory_store.CanonicalMemoryStore(str(tmp_path / "chat.db"))
+    store.append_canonical_message("alice-chat", "user", "ajker bangladesher kono khobor jana ache?", user_id="alice")
+    store.append_canonical_message("alice-chat", "assistant", "লাইভ খবর এখন জানা নেই।", user_id="alice")
+    store.append_canonical_message("bob-chat", "user", "private other user fixture", user_id="bob")
+    monkeypatch.setattr(memory_store, "_DEFAULT_STORE", store)
+    monkeypatch.setattr(edge, "_extract_user_id", lambda *_: "alice")
+    monkeypatch.setattr(edge, "_extract_registered_user_id", lambda *_: None)
+    monkeypatch.setattr(edge, "append_canonical_message", store.append_canonical_message)
+    monkeypatch.setattr(edge, "compile_chat_context", context_compiler.compile_chat_context)
+    answer = "এই মুহূর্তে লাইভ খোঁজ করতে পারছি না।"
+    if stream:
+        upstream.return_value = httpx.Response(200, stream=_ProviderStream(_sse({"choices": [{"delta": {"content": answer}}]}), b"data: [DONE]\n\n"))
+    else:
+        upstream.return_value = httpx.Response(200, json={"choices": [{"message": {"content": answer}}]})
+    response = client.post("/v1/chat/completions", json={**_CHAT, "stream": stream, "session_id": "alice-chat", "messages": [{"role": "user", "content": "google theke khuje dao"}]}, headers=_HEADERS)
+    assert response.status_code == 200
+    sent = json.loads(upstream.call_args.args[0].content)
+    assert [(m["role"], m["content"]) for m in sent["messages"][-3:]] == [
+        ("user", "ajker bangladesher kono khobor jana ache?"),
+        ("assistant", "লাইভ খবর এখন জানা নেই।"),
+        ("user", "google theke khuje dao"),
+    ]
+    assert "private other user fixture" not in json.dumps(sent)
+    assert "Never claim to have searched" in sent["messages"][0]["content"]
+    history = store.get_recent_history("alice-chat", user_id="alice")
+    assert history[-1]["content"] == answer
+    if stream:
+        assert _stream_frames(response)[0]["choices"][0]["delta"]["content"] == answer
+    else:
+        assert response.json()["choices"][0]["message"]["content"] == answer
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_explicit_source_discovery_chat_returns_real_metadata_without_calling_model(gateway, monkeypatch, stream):
+    client, upstream = gateway
+    result = {"status": "ok", "executed": True, "source": "Crossref", "results": [{
+        "title": "Study fixture", "url": "https://doi.org/10.1234/example", "published": "2025", "publisher": "Fixture"}]}
+    forward = AsyncMock(return_value=result)
+    monkeypatch.setattr(edge, "_forward_agent_request", forward)
+    spec = {"query": "dengue research", "kind": "research", "consent": True}
+    resp = client.post("/v1/chat/completions", json={**_CHAT, "stream": stream, "source_search": spec,
+        "messages": [{"role": "user", "content": "ডেঙ্গু নিয়ে গবেষণা খুঁজে দাও"}]}, headers=_HEADERS)
+    assert resp.status_code == 200
+    if stream:
+        frames = _stream_frames(resp)
+        answer = frames[0]["choices"][0]["delta"]["content"]
+        assert frames[-1]["choices"][0]["finish_reason"] == "stop"
+    else:
+        answer = resp.json()["choices"][0]["message"]["content"]
+        assert resp.json()["source_search"] == {"status": "ok", "executed": True}
+    assert "Study fixture" in answer and "https://doi.org/10.1234/example" in answer
+    assert "স্বাধীনভাবে যাচাই করিনি" in answer
+    assert forward.await_args.args[3] == spec
+    upstream.assert_not_called()
+
+
+def test_source_discovery_chat_consent_and_clarification_are_honest(gateway, monkeypatch):
+    client, upstream = gateway
+    forward = AsyncMock(side_effect=[
+        {"status": "consent_required", "executed": False, "source": "Bing News", "results": []},
+        {"status": "needs_clarification", "executed": False, "options": ["news", "research"], "results": []},
+    ])
+    monkeypatch.setattr(edge, "_forward_agent_request", forward)
+    body = {**_CHAT, "source_search": {"query": "news", "consent": False}, "messages": [{"role": "user", "content": "আজকের খবর"}]}
+    first = client.post("/v1/chat/completions", json=body, headers=_HEADERS)
+    second = client.post("/v1/chat/completions", json=body, headers=_HEADERS)
+    assert "অনুমতি" in first.json()["choices"][0]["message"]["content"]
+    assert first.json()["source_search"]["executed"] is False
+    assert "কোন ধরনের তথ্য" in second.json()["choices"][0]["message"]["content"]
+    upstream.assert_not_called()
+
+
+def test_invalid_source_search_and_missing_guard_cannot_report_success(gateway, monkeypatch):
+    client, upstream = gateway
+    forward = AsyncMock(return_value={"status": "ok", "executed": True, "source": "Fixture", "results": [{"title": "x", "url": "https://example.org"}]})
+    monkeypatch.setattr(edge, "_forward_agent_request", forward)
+    resp = client.post("/v1/chat/completions", json={**_CHAT, "source_search": "bad"}, headers=_HEADERS)
+    assert resp.status_code == 400
+    forward.assert_not_awaited()
+    monkeypatch.setattr(edge, "validate_and_sanitize", None)
+    resp = client.post("/v1/chat/completions", json={**_CHAT, "source_search": {"query": "fixture", "consent": True}}, headers=_HEADERS)
+    assert resp.status_code == 503
+    upstream.assert_not_called()

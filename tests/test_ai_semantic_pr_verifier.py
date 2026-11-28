@@ -155,6 +155,16 @@ def test_secret_pattern_does_not_echo_secret():
     assert secret not in str(scan_regex_secrets('+token = "' + secret + '"'))
 
 
+def test_invalid_pool_fails_closed_without_disclosing_configuration(monkeypatch, capsys):
+    from scripts.ci import ai_semantic_pr_verifier as verifier
+    monkeypatch.setenv("GROQ_API_KEY", "fallback-secret-fixture")
+    for value in ("private-fixture-not-json", '["wrong-shape"]'):
+        monkeypatch.setenv("LLM_PROVIDER_KEYS", value)
+        assert verifier._get_api_providers() == []
+        warning = capsys.readouterr().err
+        assert "Invalid LLM provider pool" in warning
+        assert "private-fixture" not in warning
+        assert "wrong-shape" not in warning and "fallback-secret-fixture" not in warning
 # ---------------------------------------------------------------------------
 # API pool discovery — the pipeline AI provider must check every
 # Infisical-exported key (base + numbered + alias + comma pool) until one
@@ -268,3 +278,29 @@ def test_evaluator_providers_cover_numbered_and_alias_keys(monkeypatch):
         ("groq", "q-pool-2"),
         ("gemini", "google-alias"),
     ]
+
+
+def test_large_diff_still_checks_secrets_without_disclosing_them(monkeypatch):
+    from scripts.ci import ai_semantic_pr_verifier as verifier
+    secret = "sk-" + "x" * 30
+    diff = "+" + "padding" * verifier.DIFF_CHAR_LIMIT + "\n+" + secret
+    monkeypatch.setenv("SEMANTIC_VERIFIER_ALLOW_EXTERNAL_DIFF", "true")
+    with patch.object(verifier, "call_llm_provider") as external:
+        verdict = verifier.run_semantic_verification(["core/security/auth.py"], diff)
+    assert not verdict["approved"] and verdict["security_verdict"] == "FAIL"
+    assert verdict["confidence"] == "deterministic-regex"
+    assert secret not in str(verdict)
+    external.assert_not_called()
+
+
+def test_unverified_verdict_is_not_misreported_as_a_confirmed_violation(monkeypatch, capsys):
+    from scripts.ci import ai_semantic_pr_verifier as verifier
+    monkeypatch.setattr(verifier.shutil, "which", lambda _: "/bin/gh")
+    monkeypatch.setattr(verifier, "get_pr_files", lambda _: ["core/security/auth.py"])
+    monkeypatch.setattr(verifier, "get_diff_text", lambda *_a, **_k: "+" + "x" * verifier.DIFF_CHAR_LIMIT)
+    monkeypatch.setattr("sys.argv", ["verifier", "--pr", "123"])
+    assert verifier.main() == 1
+    out = capsys.readouterr().out
+    assert "semantic review incomplete" in out
+    assert "high-risk PR remains unverified" in out
+    assert "High-risk violations must be resolved" not in out

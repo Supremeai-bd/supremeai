@@ -169,7 +169,7 @@ jobs:
       - name: Install minimal dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -c core/requirements.lock -c gateway/requirements.lock ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy redis pyjwt requests aiosqlite
+          pip install -c core/requirements.lock -c gateway/requirements.lock ruff pytest pytest-asyncio pydantic pydantic-settings python-dotenv fastapi httpx pyyaml sqlalchemy redis pyjwt requests aiosqlite defusedxml
 
       - name: Fast fatal error & syntax lint
         run: ruff check core/ gateway/ scripts/ci/ --select E9,F63,F7,F82 --exclude core/tests/
@@ -179,7 +179,7 @@ jobs:
 
       - name: Critical Security & Architecture Guards Suite
         run: |
-          pytest -q tests/test_ai_semantic_pr_verifier.py tests/ci/test_workflow_annotation_summary.py tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py tests/ci/test_deploy_environment_split.py tests/test_web_engine_providers.py tests/test_web_engine_health.py tests/test_free_route_policy_tool.py browser/tests/test_relay_session_state.py browser/tests/test_relay_streaming.py browser/tests/test_relay_kill_switch.py gateway/tests/test_web_engine_stream.py gateway/tests/test_injury_hysteresis.py tests/test_web_surfaces_controls.py core/tests/agents/test_agents_unified.py tests/test_observability_telemetry_endpoint.py tests/test_apply_cross_repo_patch.py
+          pytest -q core/tests/unit_light/test_source_discovery.py gateway/tests/test_source_discovery_proxy.py tests/test_bridge_landing_watchdog.py tests/test_ai_semantic_pr_verifier.py tests/ci/test_workflow_annotation_summary.py tests/unit/test_telemetry_event_bus_guard.py tests/security/test_code_review_remediation_guards.py tests/test_satellite_workflow_triggers.py tests/test_tiny_brain_guard.py tests/test_tiny_brain_service.py tests/ci/test_render_deploy_attestation.py tests/ci/test_deploy_environment_split.py tests/test_web_engine_providers.py tests/test_web_engine_health.py tests/test_free_route_policy_tool.py browser/tests/test_relay_session_state.py browser/tests/test_relay_streaming.py browser/tests/test_relay_kill_switch.py gateway/tests/test_web_engine_stream.py gateway/tests/test_injury_hysteresis.py tests/test_web_surfaces_controls.py core/tests/agents/test_agents_unified.py tests/test_observability_telemetry_endpoint.py tests/test_apply_cross_repo_patch.py
           python scripts/ops/wiring_atlas.py --check
 
       # Core and Gateway changes can break satellite contracts without touching
@@ -836,6 +836,7 @@ jobs:
       - name: Checkout trusted default branch
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
       - name: Summarize source run annotations
         env:
@@ -1400,7 +1401,12 @@ jobs:
           MCP_PRODUCTION_URL: ${{ vars.MCP_PRODUCTION_URL }}
           WORKER_PRODUCTION_URL: ${{ vars.WORKER_PRODUCTION_URL }}
           EDGE_WORKER_PRODUCTION_URL: ${{ vars.EDGE_WORKER_PRODUCTION_URL }}
-        run: python scripts/ci/run_all_guards.py --fast
+        run: |
+          python scripts/ci/run_all_guards.py --fast
+          printf '%s\n' '### Watchdog self-test diagnostics (simulated)' \
+            '- Self-heal fixture: 1 of 400 subjects expanded to 400.' \
+            '- Failure fixture: deepening unavailable; census may under-report.' \
+            'These are fixtures; real watchdog warnings remain Actions annotations.' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Detect Tower contract changes
         if: github.event_name == 'pull_request' || github.event_name == 'push'

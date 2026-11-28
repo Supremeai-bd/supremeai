@@ -34,6 +34,13 @@ class ActiveWorkflowContract(unittest.TestCase):
                 for name in workflow_run.get("workflows", []):
                     self.assertIn(name, names, f"{path.name}: unknown workflow_run target {name!r}")
 
+    def test_codeql_security_queries_are_not_excluded(self):
+        # বাংলা: নিরাপত্তা query বন্ধ নয়; ফল পৃথক যাচাই করতে হবে।
+        config = yaml.safe_load((ROOT / ".github/codeql/codeql-config.yml").read_text(encoding="utf-8"))
+        excluded = [entry.get("exclude", {}).get("id") for entry in config.get("query-filters", [])]
+        self.assertNotIn("js/clear-text-logging", excluded)
+        self.assertNotIn("py/incomplete-url-substring-sanitization", excluded)
+
     def test_slot_registry_extracts_only_explicit_branches(self):
         path = ROOT / ".github" / "scripts" / "constitution" / "branch_creation_guard.py"
         spec = importlib.util.spec_from_file_location("branch_guard_contract", path)

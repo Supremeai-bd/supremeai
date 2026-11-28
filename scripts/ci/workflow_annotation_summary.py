@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Summarize completed-run GitHub annotations without copying untrusted messages.
 
-Run only from the trusted default branch on workflow_run, with read-only token.
-This reports Actions job annotations plus the same-commit CodeQL check, not
+Run only trusted default-branch code, with a read-only token.
+This reports a snapshot of Actions job annotations plus the same-commit CodeQL check, not
 arbitrary log warnings, Dependabot, or alerts that GitHub does not expose here.
 """
 from __future__ import annotations
@@ -54,6 +54,7 @@ def report(repo: str, run: str, attempt: str, sha: str, token: str, fetch=pages)
 
     checks = []
     job_statuses = Counter(str(job.get("conclusion") or job.get("status") or "unknown") for job in jobs)
+    pending_jobs = sum(1 for job in jobs if job.get("status") != "completed")
     pending_codeql = 0
     codeql_count = 0
     for job in jobs:
@@ -95,11 +96,14 @@ def report(repo: str, run: str, attempt: str, sha: str, token: str, fetch=pages)
             check_url = (f"https://github.com/{repo}/actions/runs/{run}/job/{cid}"
                          if kind == "Actions job" else f"https://github.com/{repo}/runs/{cid}")
             lines.append(f"| {kind} `{cid}` | {counts['warning']} | {counts['failure']} | [Open original check]({check_url}) |")
+    if pending_jobs or pending_codeql:
+        lines += ["", f"**INCOMPLETE SNAPSHOT:** {pending_jobs} job(s) and {pending_codeql} CodeQL check(s) were not completed. "
+                  "This includes the reporter itself when it runs inside the source workflow; later warnings may be missing."]
     lines += ["", f"**Total:** {totals['warning']} warning, {totals['failure']} failure annotations in the sources above.",
               f"Source jobs: {len(jobs)}; skipped: {job_statuses['skipped']}, cancelled: {job_statuses['cancelled']}. "
               f"Same-SHA CodeQL checks found: {codeql_count}; not completed: {pending_codeql}.",
               "Counts are a snapshot; checks still running may add annotations later.", "",
-              "Coverage: completed source-run job annotations and same-SHA CodeQL checks only. "
+              "Coverage: source-run job annotations visible at snapshot time and same-SHA CodeQL checks only. "
               "Plain log warnings, Dependabot, other commits and inaccessible checks are not included. "
               "Open the original checks for individual messages; this summary does not copy potentially sensitive text."]
     return "\n".join(lines) + "\n"

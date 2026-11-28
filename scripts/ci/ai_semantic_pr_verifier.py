@@ -65,7 +65,8 @@ SECRET_PATTERNS = [
     (r"sk-[a-zA-Z0-9]{20,}", "Raw OpenAI/API Key"),
 ]
 
-DIFF_CHAR_LIMIT = 8000
+# বাংলা মন্তব্য: বড় PR-ও যেন LLM সেমান্টিক সিকিউরিটি ও রিগ্রেশন যাচাইয়ের আওতায় আসে
+DIFF_CHAR_LIMIT = 100000
 LLM_TIMEOUT_SECONDS = 30
 
 
@@ -297,6 +298,8 @@ def _get_api_providers() -> list[dict[str, str]]:
     if raw_pool:
         try:
             pool_data = json.loads(raw_pool)
+            if not isinstance(pool_data, dict):
+                raise ValueError("Invalid provider pool shape")
             if isinstance(pool_data, dict):
                 for pname, entries in pool_data.items():
                     items = entries if isinstance(entries, list) else [entries]
@@ -310,8 +313,10 @@ def _get_api_providers() -> list[dict[str, str]]:
                         elif isinstance(item, str) and item.strip() and default_url:
                             _add(str(pname), item.strip(), default_url, default_model,
                                  f"LLM_PROVIDER_KEYS[{pname}]")
-        except Exception:
-            pass
+        except (ValueError, TypeError) as exc:
+            # বাংলা: গোপন pool payload log না করে অকার্যকর configuration জানাই।
+            print(f"::warning::Invalid LLM provider pool ({type(exc).__name__}); semantic review unavailable.", file=sys.stderr)
+            return []
 
     # 2. Every Infisical-exported env key - walk the whole vault pool per family
     env_key_sources = {
@@ -402,11 +407,8 @@ def run_semantic_verification(files: list[str], diff: str, title: str = "") -> d
         return {"approved": False, "security_verdict": "UNKNOWN", "anti_bloat_verdict": "UNKNOWN",
                 "reasons": ["High-risk diff unavailable; semantic verification not performed"],
                 "confidence": "unverified"}
-    if len(diff) > DIFF_CHAR_LIMIT:
-        return {"approved": False, "security_verdict": "UNKNOWN", "anti_bloat_verdict": "UNKNOWN",
-                "reasons": ["Diff exceeds semantic review limit; manual review required"],
-                "confidence": "unverified"}
-    # 1. Deterministic Regex Pre-check
+    # বাংলা: বড় diff-ও গোপন credential-এর deterministic scan থেকে বাদ নয়।
+    # এটি semantic review নয়; পুরো diff-এর scan clean হলেও বড় diff আটকে থাকবে।
     secret_hits = scan_regex_secrets(diff)
     if secret_hits:
         return {
@@ -416,6 +418,10 @@ def run_semantic_verification(files: list[str], diff: str, title: str = "") -> d
             "reasons": [f"Concrete secret pattern detected: {hit}" for hit in secret_hits],
             "confidence": "deterministic-regex",
         }
+    if len(diff) > DIFF_CHAR_LIMIT:
+        return {"approved": False, "security_verdict": "UNKNOWN", "anti_bloat_verdict": "UNKNOWN",
+                "reasons": ["Diff exceeds semantic review limit; manual review required"],
+                "confidence": "unverified"}
 
     # 2. Check for test files in changes
     has_test = any(re.search(r"tests?|test_.*\.py$", f, re.IGNORECASE) for f in files)
@@ -543,7 +549,10 @@ def main() -> int:
         if args.dry_run:
             print("⚠️ [AI-VERIFIER] Rejected in dry-run mode (exit 0).")
             return 0
-        print("::error::AI Semantic PR Verification Failed. High-risk violations must be resolved.")
+        if verdict.get("confidence") == "unverified":
+            print("::error::AI semantic review incomplete; high-risk PR remains unverified. Review the evidence and limits; no approval was granted.")
+        else:
+            print("::error::AI semantic verification rejected the high-risk PR; review the reported finding.")
         return 1
 
     print("✅ [AI-VERIFIER] High-risk semantic verification successfully PASSED.")

@@ -15,7 +15,9 @@ test_boundary_contract_sentinel.py.
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import json
 import subprocess
 import sys
@@ -246,9 +248,25 @@ def test_self_test_hermetic():
                        cwd=REPO_ROOT, capture_output=True, text=True, timeout=120)
     assert r.returncode == 0, f"self-test failed:\n{r.stdout}\n{r.stderr}"
     assert "self-test cases PASS" in r.stdout
+    # Fixture diagnostics remain readable but cannot impersonate real Actions warnings.
+    assert "[SIMULATED WARNING] landing-watchdog census self-healed" in r.stdout
+    assert "[SIMULATED WARNING] landing-watchdog census ran on a shallow checkout" in r.stdout
+    assert "MERGED_ON_MAIN detection may under-report" in r.stdout
+    assert not any(line.startswith("::warning::landing-watchdog") for line in r.stdout.splitlines())
     # miss=0 / fp=0 is the guard's own invariant — the fixture matrix must end
     # all-green, not partially green.
     assert "[FAIL]" not in r.stdout, r.stdout
+
+
+def test_real_shallow_failure_remains_a_github_warning():
+    mod = _load_watchdog_module()
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        subjects = mod._main_subjects(400, log_reader=lambda *_: ["subject"],
+                                      shallow_probe=lambda: True, deepener=lambda *_: False)
+    assert subjects == ["subject"]
+    assert output.getvalue().startswith("::warning::landing-watchdog census ran on a shallow checkout")
+    assert "MERGED_ON_MAIN detection may under-report" in output.getvalue()
 
 
 def test_enrich_tower_verdicts_injectable():

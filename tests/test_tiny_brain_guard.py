@@ -44,7 +44,7 @@ def snapshot():
         "number": 1,
         "state": "open",
         "draft": False,
-        "head": {"sha": HEAD, "repo": {"full_name": REPO}},
+        "head": {"sha": HEAD, "ref": "feature/regular-change", "repo": {"full_name": REPO}},
         "base": {"sha": BASE, "ref": "main", "repo": {"full_name": REPO}},
         "mergeable": True,
         "merge_commit_sha": MERGE,
@@ -72,7 +72,7 @@ def decide(snapshot, files, *, needs=None, base_tip=BASE, merge_parents=(BASE, H
 
 
 @pytest.mark.parametrize("tier", list(guard.HEAVY_JOBS))
-@pytest.mark.parametrize("path", ["docs/INDEX.md", "tests/test_something.py", "gateway/service/app.py"])
+@pytest.mark.parametrize("path", ["docs/INDEX.md", "tests/test_something.py", "gateway/service/custom_helper.py"])
 def test_routine_changes_land_with_only_the_selected_lane(snapshot, tier, path):
     result = decide(snapshot, [{"filename": path}], needs=job_results(tier))
     assert result["decision"] == "AUTO_MERGE"
@@ -134,7 +134,9 @@ def test_render_requires_exact_sha_or_an_eligible_successful_fallback(
 @pytest.mark.parametrize("path", [
     PROTECTED, "scripts/ci/tiny_brain_pr_guard.py", "core/alembic_migrations/example.py",
     "gateway/service/keygen.py", "scripts/runtime/infisical_bootstrap.py", "render.yaml",
-    "core/api/dependencies.py",
+    "core/api/dependencies.py", "gateway/service/app.py", "gateway/service/context_compiler.py",
+    "gateway/service/memory_store.py", "gateway/service/storage.py", "core/scout/policy.py",
+    "core/services/source_discovery.py", "core/api/routes/agent_tools.py", "core/agent_tool_policy.py",
     # Provider core: one bad edit degrades every chat request.
     "gateway/provider_chain.py", "gateway/circuit_breaker.py",
     "gateway/routing_policy.json", "gateway/config.py",
@@ -146,6 +148,34 @@ def test_verified_protected_changes_need_owner_review(snapshot, path):
 
 
 # বাংলা মন্তব্য: bridge PR — anonymous submitter-এর কোড মানুষের অনুমোদন ছাড়া land করবে না।
+@pytest.mark.parametrize("path", ["config/ci/unknown.json", "docs/example.sh", "scripts/ci/new_security_gate.py", "new-area/implementation.py"])
+def test_unclassified_paths_require_owner_not_automatic_merge(snapshot, path):
+    assert decide(snapshot, [{"filename": path}]) == {
+        "decision": "OWNER_REVIEW", "reason": "unclassified_paths_changed", "paths": [path]}
+
+
+@pytest.mark.parametrize("path", ["", "../docs/a.md", "/docs/a.md", "docs//a.md", "docs/./a.md", "docs\\a.md", "docs/a\nmalicious.md"])
+def test_invalid_paths_fail_closed_not_owner_or_automatic(snapshot, path):
+    assert decide(snapshot, [{"filename": path}]) == {"decision": "BLOCKED", "reason": "changed_paths_incomplete"}
+
+
+@pytest.mark.parametrize("ref", [None, "", "  ", "branch\nother"])
+def test_unknown_or_invalid_branch_identity_blocks(snapshot, ref):
+    snapshot["head"]["ref"] = ref
+    assert decide(snapshot, [{"filename": "docs/INDEX.md"}]) == {"decision": "BLOCKED", "reason": "pr_head_ref_missing_or_invalid"}
+
+
+def test_final_branch_metadata_is_used_after_path_pagination(snapshot):
+    snapshot["head"]["ref"] = "bridge/bridge-20261126-example"
+    snapshot["labels"] = [{"name": "bridge:verified-submitter"}]
+    class MovingLabels(list):
+        def __getitem__(self, position):
+            snapshot["labels"] = []
+            return super().__getitem__(position)
+    assert decide(snapshot, MovingLabels([{"filename": "core/services/example.py"}])) == {
+        "decision": "OWNER_REVIEW", "reason": "bridge_submitter_unverified"}
+
+
 @pytest.mark.parametrize("labels", [None, [], [{"name": "bridge:queued"}], "bridge:verified-submitter"])
 def test_unverified_bridge_pr_needs_owner_review(snapshot, labels):
     snapshot["head"]["ref"] = "bridge/bridge-20261126-example"

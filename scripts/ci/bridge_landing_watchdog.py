@@ -115,11 +115,18 @@ enriches only the local object store — no ref update, no Tower/repo write.
 from __future__ import annotations
 
 # Host resolved from config/service_registry.yaml (env wins) — never a literal.
-from repo_paths import svc as _svc  # noqa: E402  (sibling module; scripts/ci is sys.path[0] on direct run)
+try:
+    from repo_paths import svc as _svc  # direct script execution
+except ModuleNotFoundError as exc:
+    if exc.name != "repo_paths":
+        raise
+    from scripts.ci.repo_paths import svc as _svc  # package/importlib execution
 
 
 import argparse
+import contextlib
 import importlib.util
+import io
 import json
 import re
 import shutil
@@ -1224,18 +1231,31 @@ def self_test() -> list[tuple[str, bool, str]]:
             self._deepened = self.deepen_works
             return self.deepen_works
 
+    # Fixture warnings remain visible and are asserted, but must not be emitted
+    # as real GitHub Actions annotations. Live _main_subjects is unchanged.
     repo = _FakeShallowRepo(deepen_works=True, heals_wider=True)
-    got = _main_subjects(400, log_reader=repo.log, shallow_probe=repo.probe,
-                         deepener=repo.deepen)
+    simulated_heal = io.StringIO()
+    with contextlib.redirect_stdout(simulated_heal):
+        got = _main_subjects(400, log_reader=repo.log, shallow_probe=repo.probe,
+                             deepener=repo.deepen)
+    heal_warning = simulated_heal.getvalue().strip()
+    print("[SIMULATED WARNING] " + heal_warning.removeprefix("::warning::"))
     cases.append(("shallow census self-heals to the full join window",
-                  len(got) == 400 and any(c.startswith("deepen") for c in repo.calls),
+                  len(got) == 400 and any(c.startswith("deepen") for c in repo.calls)
+                  and heal_warning.startswith("::warning::landing-watchdog census self-healed"),
                   f"visible={len(got)} calls={repo.calls}"))
 
     repo2 = _FakeShallowRepo(deepen_works=False, heals_wider=False)
-    got2 = _main_subjects(400, log_reader=repo2.log, shallow_probe=repo2.probe,
-                          deepener=repo2.deepen)
+    simulated_failure = io.StringIO()
+    with contextlib.redirect_stdout(simulated_failure):
+        got2 = _main_subjects(400, log_reader=repo2.log, shallow_probe=repo2.probe,
+                              deepener=repo2.deepen)
+    failure_warning = simulated_failure.getvalue().strip()
+    print("[SIMULATED WARNING] " + failure_warning.removeprefix("::warning::"))
     cases.append(("shallow census degrades to truncated view, never crashes",
-                  got2 == ["subj-0"] and repo2.calls == ["log:400", "probe", "deepen:400"],
+                  got2 == ["subj-0"] and repo2.calls == ["log:400", "probe", "deepen:400"]
+                  and failure_warning.startswith("::warning::landing-watchdog census ran on a shallow checkout")
+                  and "MERGED_ON_MAIN detection may under-report" in failure_warning,
                   f"got={got2} calls={repo2.calls}"))
 
     class _FakeDeepRepo:

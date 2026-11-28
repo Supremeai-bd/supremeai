@@ -286,3 +286,43 @@ def test_stored_summary_memory_and_client_options_never_become_system_instructio
     assert out[1]["role"] == "user"
     assert out[1]["content"].count(injected) == 4
     assert out[-1]["content"] == "Help me"
+
+
+def test_casual_banglish_followup_keeps_owner_history_and_truth_contract(tmp_path, monkeypatch):
+    """বাংলিশ অনুসন্ধানের follow-up প্রাসঙ্গিক history পাবে, কিন্তু fake search নয়।"""
+    store = memory_store.CanonicalMemoryStore(str(tmp_path / "memory.db"))
+    monkeypatch.setattr(memory_store, "_DEFAULT_STORE", store)
+    store.append_canonical_message("chat", "user", "ajker bangladesher kono khobor jana ache?", user_id="alice")
+    store.append_canonical_message("chat", "assistant", "আমার কাছে এখন রিয়েল-টাইম খবর নেই।", user_id="alice")
+    latest = store.append_canonical_message("chat", "user", "google theke khuje dao", user_id="alice")
+    out = context_compiler.compile_chat_context(
+        messages=[{"role": "user", "content": "google theke khuje dao"}],
+        conversation_id="chat", user_id="alice", persisted_message_id=latest["id"],
+        user_memories=[{"key": "test", "value": "fixture"}],
+    )
+    assert [(m["role"], m["content"]) for m in out[-3:]] == [
+        ("user", "ajker bangladesher kono khobor jana ache?"),
+        ("assistant", "আমার কাছে এখন রিয়েল-টাইম খবর নেই।"),
+        ("user", "google theke khuje dao"),
+    ]
+    anchor = out[0]["content"]
+    assert "Banglish" in anchor and "immediately relevant earlier turns" in anchor
+    assert "Never claim to have searched" in anchor and "not evidence of current events" in anchor
+    assert "Response style: balanced" in anchor
+
+
+def test_explicit_technical_style_still_supported():
+    out = context_compiler.compile_chat_context(
+        messages=[{"role": "user", "content": "debug this"}], response_style="technical-architect",
+        user_memories=[{"key": "test", "value": "fixture"}],
+    )
+    assert "Response style: technical-architect" in out[0]["content"]
+
+
+def test_language_default_is_auto_but_explicit_choice_is_preserved():
+    msgs = [{"role": "user", "content": "how are you?"}]
+    auto = context_compiler.compile_chat_context(messages=msgs)
+    english = context_compiler.compile_chat_context(messages=msgs, language_pref="en")
+    assert "Language preference: auto" in auto[0]["content"]
+    assert "Language preference: en" in english[0]["content"]
+    assert auto[-1] == english[-1] == msgs[0]

@@ -23,9 +23,18 @@ runner time. The reporter also uses runner time after each watched run. Neither
 workflow creates a production service, but free CI minutes or zero total cost
 are **not** guaranteed; monitor account usage and quotas.
 
-High-risk PR semantic verification is fail-closed when evidence, a valid model
-verdict, or a reviewer are unavailable. External diff transmission is disabled
-by default; opting in requires a reviewed privacy and cost policy and does not
-make an LLM verdict proof of safety. Regex matches are not semantic review.
-Large diffs and API evidence failures require human attention. Existing branch
-protection and required checks remain in effect.
+High-risk PR semantic verification fails closed when evidence or a valid model
+verdict is unavailable. External diff transmission is disabled by default; opting
+in requires a reviewed privacy and cost policy and does not make an LLM verdict
+proof of safety. The deterministic secret scan runs over the entire supplied diff,
+including oversized diffs; a clean scan is **not** a semantic review. Diffs over
+the review limit remain unverified and fail the gate; an incomplete review is not
+a confirmed violation. Missing/failed PR evidence also fails closed.
+
+The verifier is executed from the PR's trusted base, not candidate code. A policy
+change in the same PR therefore cannot validate itself. The current verifier has
+no human-review acceptance interface: human review alone does not turn the
+required check green. Resolving a large-diff deadlock requires a separately
+reviewed and accepted trusted-base policy/process or an authorized decomposition;
+it must not be solved with truncation, automatic approval or bypassing branch
+protection. Existing branch protection and required checks remain in effect.

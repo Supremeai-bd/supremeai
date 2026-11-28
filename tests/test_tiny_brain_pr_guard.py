@@ -72,10 +72,12 @@ def test_classify_tier_red_yellow_green():
     assert tier == "yellow"
     assert "core/api/routes/items.py" in paths
 
-    # Green tier: routine docs, tests, and non-security CI scripts (instant merge)
-    tier, paths = guard.classify_tier({"docs/README.md", "tests/unit/test_app.py", "scripts/ci/sarif_permission_guard.py"})
+    # Green scope still requires all CI; unclassified CI scripts require review.
+    tier, paths = guard.classify_tier({"docs/README.md", "tests/unit/test_app.py"})
     assert tier == "green"
     assert paths == []
+    tier, paths = guard.classify_tier({"scripts/ci/sarif_permission_guard.py"})
+    assert tier == "review" and paths == ["scripts/ci/sarif_permission_guard.py"]
 
 
 def test_tower_session_auth_is_protected():

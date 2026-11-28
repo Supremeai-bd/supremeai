@@ -2444,8 +2444,8 @@ async def _execute_chat_completion(
                 messages=body.get("messages", []),
                 conversation_id=conv_id,
                 user_id=user_id,
-                language_pref=body.get("language_pref") or body.get("language") or "bn",
-                response_style=body.get("response_style", "technical-architect"),
+                language_pref=body.get("language_pref") or body.get("language") or "auto",
+                response_style=body.get("response_style", "balanced"),
                 persisted_message_id=persisted_message_id,
             )
         except Exception as exc:
@@ -2471,6 +2471,60 @@ async def _execute_chat_completion(
             p["conversation_id"] = conv_id
             p["session_id"] = conv_id
         return p
+
+    # বাংলা: কেবল client-এর explicit source_search অনুরোধে governed core-এ যাই।
+    # Consent ও query মডেল নয়, caller পাঠায়; অন্য কোনো chat স্বয়ংক্রিয়ভাবে যায় না।
+    if "source_search" in body:
+        from .source_discovery_chat import is_bengali_request, render_discovery
+        spec = body.get("source_search")
+        if not isinstance(spec, dict):
+            raise HTTPException(status_code=400, detail="Invalid source search request")
+        if not validate_and_sanitize:
+            raise HTTPException(status_code=503, detail="Response sanitizer unavailable")
+        source_result = await _forward_agent_request("POST", "/api/research/source-search", request, spec, timeout=12.0)
+        try:
+            content = render_discovery(source_result, bengali=is_bengali_request(last_user_msg, body.get("language_pref") or body.get("language")))
+        except ValueError as exc:
+            logger.warning("Invalid source discovery result (%s)", type(exc).__name__)
+            raise HTTPException(status_code=502, detail="Invalid source discovery response") from exc
+        try:
+            sanitized = validate_and_sanitize({"choices": [{"message": {"role": "assistant", "content": content}}]})
+            content = sanitized["choices"][0]["message"]["content"]
+            if not isinstance(content, str) or not content.strip():
+                raise ValueError("Invalid sanitized response")
+        except Exception as exc:
+            logger.warning("Source discovery response rejected (%s)", type(exc).__name__)
+            raise HTTPException(status_code=500, detail="Response rejected") from exc
+        if conv_id:
+            try:
+                if not append_canonical_message:
+                    raise RuntimeError("Conversation storage unavailable")
+                await asyncio.to_thread(append_canonical_message, conv_id, "assistant", content, user_id=user_id,
+                                        provider="source-discovery", model=requested_model,
+                                        metadata={"source_search": True})
+                if add_message:
+                    await asyncio.to_thread(add_message, conv_id, "assistant", content, user_id=user_id)
+            except Exception as exc:
+                logger.warning("Source discovery conversation storage failed (%s)", type(exc).__name__)
+                raise HTTPException(status_code=503, detail="Conversation storage unavailable") from exc
+        brand = {"channel": "a", "engine": "source", "tier": "unknown", "label": "SupremeAI · source discovery"}
+        chunk_id = f"chatcmpl-search-{int(time.time() * 1000)}"
+        trace.mark("upstream")
+        trace.lane, trace.provider = "source-discovery", "governed-sources"
+        trace.log()
+        headers = {"Server-Timing": trace.server_timing(), "Cache-Control": "no-store"}
+        if body.get("stream"):
+            async def stream_source_result():
+                yield f"data: {json.dumps(_format_sse_chunk(chunk_id, requested_model, content, False, brand))}\n\n"
+                yield f"data: {json.dumps(_format_sse_chunk(chunk_id, requested_model, '', True, brand))}\n\n"
+                yield "data: [DONE]\n\n"
+            return StreamingResponse(stream_source_result(), media_type="text/event-stream", headers=headers)
+        response = {"id": chunk_id, "object": "chat.completion", "created": int(time.time()),
+                    "model": requested_model, "choices": [{"index": 0, "message": {"role": "assistant", "content": content}, "finish_reason": "stop"}],
+                    "supremeai": brand, "source_search": {"status": source_result.get("status"), "executed": source_result.get("executed")}}
+        if conv_id:
+            response.update({"conversation_id": conv_id, "session_id": conv_id})
+        return JSONResponse(status_code=200, content=response, headers=headers)
 
     # Do not share private completions or bypass current lane/approval checks
     # through the legacy prompt-only cache namespace.
@@ -3324,6 +3378,21 @@ async def _forward_agent_request(
     if not isinstance(payload, dict):
         raise HTTPException(status_code=502, detail="core API returned an unexpected agent payload")
     return payload
+
+
+@app.post("/api/v1/research/source-search")
+@app.post("/v1/research/source-search")
+async def proxy_source_discovery(request: Request, x_supremeai_key: Optional[str] = Header(None, alias="X-SupremeAI-Key")):
+    """বাংলা: caller-এর auth ও explicit request-ই core-এ যায়; gateway কোনো উৎস বানায় না।"""
+    if not _verify_client_auth(request, x_supremeai_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        body = await request.json()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON") from exc
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Invalid request body")
+    return await _forward_agent_request("POST", "/api/research/source-search", request, body, timeout=12.0)
 
 
 @app.get("/api/v1/agent/tools")

@@ -46,3 +46,26 @@ def test_empty_or_invalid_source_cannot_be_reported_as_success():
         summary.report("org/repo/unsafe", "1", "1", SHA, "token", lambda *_: iter([]))
 
 
+
+
+def test_unfinished_jobs_mark_snapshot_incomplete():
+    def fetch(path, _token):
+        if "/attempts/" in path:
+            yield {"jobs": [{"id": 10, "status": "in_progress"}, {"id": 11, "status": "completed", "conclusion": "skipped"}]}
+        elif "/commits/" in path:
+            yield {"check_runs": []}
+        else:
+            yield []
+    result = summary.report("org/repo", "5", "2", SHA, "token", fetch)
+    assert "INCOMPLETE SNAPSHOT" in result and "1 job(s)" in result
+    assert "skipped: 1" in result
+
+
+def test_reporter_uses_trusted_default_branch_for_fork_prs():
+    path = Path(__file__).resolve().parents[2] / ".github/workflows/unified-pipeline.yml"
+    jobs = yaml.safe_load(path.read_text())["jobs"]
+    reporter = jobs["warning-summary"]
+    checkout = next(step for step in reporter["steps"] if step.get("name") == "Checkout trusted default branch")
+    assert checkout["with"]["ref"] == "${{ github.event.repository.default_branch }}"
+    assert checkout["with"]["persist-credentials"] is False
+    assert all(value == "read" for value in reporter["permissions"].values())
