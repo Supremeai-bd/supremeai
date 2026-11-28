@@ -249,6 +249,52 @@ def scan_regex_secrets(diff: str) -> list[str]:
     return hits
 
 
+def _model_chain(family: str) -> list[str]:
+    """Ordered model fallback chain for a provider family (env override first).
+
+    Free-tier quotas differ per model; when the primary model of a key is
+    exhausted (HTTP 429), the same key is retried on the next model in the
+    chain instead of being written off.
+    """
+    env_names = {
+        "gemini": ("EVALUATOR_GEMINI_MODEL", "GEMINI_MODEL"),
+        "groq": ("EVALUATOR_GROQ_MODEL", "GROQ_MODEL"),
+        "openai": ("EVALUATOR_OPENAI_MODEL",),
+        "openrouter": ("EVALUATOR_OPENROUTER_MODEL",),
+        "deepseek": ("EVALUATOR_DEEPSEEK_MODEL",),
+        "mistral": ("EVALUATOR_MISTRAL_MODEL",),
+    }
+    defaults = {
+        "gemini": ("gemini-flash-lite-latest", "gemini-2.5-flash"),
+        "groq": ("llama-3.3-70b-versatile", "llama-3.1-8b-instant"),
+        "openai": ("gpt-4o-mini",),
+        "openrouter": ("meta-llama/llama-3.3-70b-instruct:free",),
+        "deepseek": ("deepseek-chat",),
+        "mistral": ("mistral-small-latest",),
+    }
+    chain: list[str] = []
+    for name in env_names.get(family, ()):
+        val = os.environ.get(name, "").strip()
+        if val and val not in chain:
+            chain.append(val)
+    for model in defaults.get(family, ()):
+        if model not in chain:
+            chain.append(model)
+    return chain
+
+
+def _family_url(family: str, model: str) -> str:
+    """Provider endpoint for a family; the Gemini URL embeds the model name."""
+    if family == "gemini":
+        return f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    return {
+        "groq": "https://api.groq.com/openai/v1/chat/completions",
+        "openai": "https://api.openai.com/v1/chat/completions",
+        "openrouter": "https://openrouter.ai/api/v1/chat/completions",
+        "deepseek": "https://api.deepseek.com/v1/chat/completions",
+        "mistral": "https://api.mistral.ai/v1/chat/completions",
+    }[family]
+
 def _get_api_providers() -> list[dict[str, str]]:
     """Return available LLM providers in rotation order.
 
@@ -268,9 +314,10 @@ def _get_api_providers() -> list[dict[str, str]]:
     seen_keys: set[str] = set()
 
     def _add(provider_name: str, key: str, url: str, model: str, slot: str) -> None:
-        if not key or key in seen_keys:
+        identity = (provider_name, key, model)
+        if not key or identity in seen_keys:
             return
-        seen_keys.add(key)
+        seen_keys.add(identity)
         providers.append({
             "name": provider_name,
             "key": key,
@@ -285,63 +332,69 @@ def _get_api_providers() -> list[dict[str, str]]:
     except ValueError:
         max_keys = None
 
-    # 1. Unified API pool JSON (LLM_PROVIDER_KEYS) from Infisical
-    pool_defaults = {
-        "gemini": ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash"),
-        "groq": ("https://api.groq.com/openai/v1/chat/completions", "llama-3.3-70b-versatile"),
-        "openai": ("https://api.openai.com/v1/chat/completions", "gpt-4o-mini"),
-        "openrouter": ("https://openrouter.ai/api/v1/chat/completions", "meta-llama/llama-3.3-70b-instruct:free"),
-        "deepseek": ("https://api.deepseek.com/v1/chat/completions", "deepseek-chat"),
-        "mistral": ("https://api.mistral.ai/v1/chat/completions", "mistral-small-latest"),
-    }
+    # 1. Unified API pool JSON (LLM_PROVIDER_KEYS) from Infisical.
+    # Model selection matches the gateway: this deployment's gemini-2.5-flash
+    # free-tier quota is exhausted, so the primary default is flash-lite and
+    # every family gets an ordered fallback-model chain tried per key.
     raw_pool = os.environ.get("LLM_PROVIDER_KEYS", "").strip()
     if raw_pool:
         try:
             pool_data = json.loads(raw_pool)
             if not isinstance(pool_data, dict):
                 raise ValueError("Invalid provider pool shape")
-            if isinstance(pool_data, dict):
-                for pname, entries in pool_data.items():
-                    items = entries if isinstance(entries, list) else [entries]
-                    default_url, default_model = pool_defaults.get(str(pname).lower(), ("", ""))
-                    for item in items:
-                        if isinstance(item, dict) and item.get("key"):
-                            _add(str(pname), str(item["key"]),
-                                 str(item.get("url") or default_url),
-                                 str(item.get("model") or default_model),
-                                 f"LLM_PROVIDER_KEYS[{pname}]")
-                        elif isinstance(item, str) and item.strip() and default_url:
-                            _add(str(pname), item.strip(), default_url, default_model,
-                                 f"LLM_PROVIDER_KEYS[{pname}]")
+            for pname, entries in pool_data.items():
+                items = entries if isinstance(entries, list) else [entries]
+                family = str(pname).lower()
+                chain = _model_chain(family)
+                for item in items:
+                    if isinstance(item, dict) and item.get("key"):
+                        model = str(item.get("model") or (chain[0] if chain else ""))
+                        url = str(item.get("url") or (_family_url(family, model) if model else ""))
+                        _add(str(pname), str(item["key"]), url, model,
+                             f"LLM_PROVIDER_KEYS[{pname}]")
+                    elif isinstance(item, str) and item.strip() and chain:
+                        _add(str(pname), item.strip(),
+                             _family_url(family, chain[0]), chain[0],
+                             f"LLM_PROVIDER_KEYS[{pname}]")
         except (ValueError, TypeError) as exc:
             # বাংলা: গোপন pool payload log না করে অকার্যকর configuration জানাই।
             print(f"::warning::Invalid LLM provider pool ({type(exc).__name__}); semantic review unavailable.", file=sys.stderr)
             return []
 
-    # 2. Every Infisical-exported env key - walk the whole vault pool per family
+    # 2. Every Infisical-exported env key - walk the whole vault pool per
+    #    family, emitting one entry per (key, model) so an exhausted model on
+    #    a healthy key is retried on the family's fallback model. Sources
+    #    include the gateway's documented aliases (provider_chain.py) and
+    #    .env.example names, because the vault may store a family's key under
+    #    any of them.
+    provider_key_env = lambda family: f"SUPREMEAI_PROVIDER_KEY_{family.upper()}"
     env_key_sources = {
-        "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEYS"),
-        "groq": ("GROQ_API_KEY", "GROQ_API_KEYS"),
-        "openai": ("OPENAI_API_KEY", "OPENAI_API_KEYS"),
-        "openrouter": ("OPENROUTER_API_KEY", "OPENROUTER_API_KEYS"),
-        "deepseek": ("DEEPSEEK_API_KEY", "DEEPSEEK_API_KEYS"),
-        "mistral": ("MISTRAL_API_KEY", "MISTRAL_API_KEYS"),
+        "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_AI_API_KEY", "GEMINI_TOKEN", "JULES_API_KEY", provider_key_env("gemini"), "GEMINI_API_KEYS"),
+        "groq": ("GROQ_API_KEY", provider_key_env("groq"), "GROQ_API_KEYS"),
+        "openai": ("OPENAI_API_KEY", provider_key_env("openai"), "OPENAI_API_KEYS"),
+        "openrouter": ("OPENROUTER_API_KEY", provider_key_env("openrouter"), "OPENROUTER_API_KEYS"),
+        "deepseek": ("DEEPSEEK_API_KEY", provider_key_env("deepseek"), "DEEPSEEK_API_KEYS"),
+        "mistral": ("MISTRAL_API_KEY", provider_key_env("mistral"), "MISTRAL_API_KEYS"),
     }
-    for family, (default_url, default_model) in pool_defaults.items():
-        for source in env_key_sources.get(family, ()):
-            for env_name, raw_val in iter_numbered_keys(source):
-                tokens = [t.strip() for t in raw_val.split(",")] if "," in raw_val else [raw_val]
-                for token in tokens:
-                    _add(family, token, default_url, default_model, env_name)
+    for family, sources in env_key_sources.items():
+        for model in _model_chain(family):
+            for source in sources:
+                for env_name, raw_val in iter_numbered_keys(source):
+                    tokens = [t.strip() for t in raw_val.split(",")] if "," in raw_val else [raw_val]
+                    for token in tokens:
+                        _add(family, token, _family_url(family, model), model, env_name)
 
     if max_keys is not None:
         capped: list[dict[str, str]] = []
-        per_provider: dict[str, int] = {}
+        # The cap is per (provider, model): every model in the family chain
+        # gets its own budget, so fallback models are never crowded out.
+        per_provider: dict[tuple[str, str], int] = {}
         for entry in providers:
-            used = per_provider.get(entry["name"], 0)
+            bucket = (entry["name"], entry["model"])
+            used = per_provider.get(bucket, 0)
             if used >= max_keys:
                 continue
-            per_provider[entry["name"]] = used + 1
+            per_provider[bucket] = used + 1
             capped.append(entry)
         providers = capped
     return providers
@@ -471,7 +524,12 @@ def run_semantic_verification(files: list[str], diff: str, title: str = "") -> d
         print(f"[API-POOL] Key {slot} produced no valid verdict; trying next pool key.")
 
     # A clean secret regex is not a semantic security or anti-bloat review.
-    print(f"::warning::Semantic review unavailable ({total} provider key(s) checked, none valid); high-risk PR not verified.")
+    # Slot names (never values) go into the annotation so the pool inventory
+    # is diagnosable even when Actions log storage is unavailable.
+    _slots = ", ".join(
+        f"{p.get('name', '?')}:{p.get('slot', 'unknown')}[{p.get('model', '?')}]" for p in providers[:12]
+    )
+    print(f"::warning::Semantic review unavailable ({total} provider key(s) checked, none valid; pool: {_slots}); high-risk PR not verified.")
     return {
         "approved": False,
         "security_verdict": "UNKNOWN",
